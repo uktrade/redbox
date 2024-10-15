@@ -17,6 +17,10 @@ redbox = {path="../redbox-core", develop=true}
 worker = {path="../worker", develop=true}
 core_api = {path="../core-api", develop=true}
 redbox_app = {path="../django_app", develop=true}
+jupyterlab = "4.2.5"
+notebook = "7.2.2"
+nltk = "3.9"
+cryptography = "43.0.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
