@@ -38,6 +38,7 @@ websockets = "^12.0"
 django-import-export = "^4.0"
 dataclasses-json = ">=0.6.7"
 django-staff-sso-client = "^4.3.0"
+twisted = "24.7.0rc1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.1.1"
