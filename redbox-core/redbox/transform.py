@@ -113,12 +113,14 @@ def structure_documents_by_group_and_indices(docs: list[Document]) -> DocumentSt
 
 
 def flatten_document_state(documents: DocumentState | None) -> list[Document]:
+    """Flattens a DocumentState into a list of Documents."""
     if not documents:
         return []
     return [document for group in documents.values() for document in group.values()]
 
 
 def get_document_token_count(state: RedboxState) -> int:
+    """Calculates the total token count of all documents in a state."""
     return sum(d.metadata["token_count"] for d in flatten_document_state(state.get("documents", [])))
 
 
@@ -139,7 +141,7 @@ def to_request_metadata(prompt_response_model: dict):
     output_tokens = len(tokeniser.encode(prompt_response_model["response"]))
 
     metadata_event = RequestMetadata(
-        llm_calls=[LLMCallMetadata(model_name=model, input_tokens=input_tokens, output_tokens=output_tokens)]
+        llm_calls=[LLMCallMetadata(llm_model_name=model, input_tokens=input_tokens, output_tokens=output_tokens)]
     )
 
     dispatch_custom_event(RedboxEventType.on_metadata_generation.value, metadata_event)

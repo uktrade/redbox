@@ -13,7 +13,10 @@ from uuid import UUID, uuid4
 
 from langchain_core.documents import Document
 from langchain_core.messages import ToolCall
+from langgraph.managed.base import ManagedValue
 from pydantic import BaseModel, Field
+
+from redbox.models import prompts
 
 
 class ChainChatMessage(TypedDict):
@@ -21,87 +24,46 @@ class ChainChatMessage(TypedDict):
     text: str
 
 
-CHAT_SYSTEM_PROMPT = (
-    "You are an AI assistant called Redbox tasked with answering questions and providing information objectively."
-)
-
-CHAT_WITH_DOCS_SYSTEM_PROMPT = "You are an AI assistant called Redbox tasked with answering questions on user provided documents and providing information objectively."
-
-CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
-    "You are an AI assistant tasked with answering questions on user provided documents. "
-    "Your goal is to answer the user question based on list of summaries in a coherent manner."
-    "Please follow these guidelines while answering the question: \n"
-    "1) Identify and highlight key points,\n"
-    "2) Avoid repetition,\n"
-    "3) Ensure the answer is easy to understand,\n"
-    "4) Maintain the original context and meaning.\n"
-)
-
-RETRIEVAL_SYSTEM_PROMPT = (
-    "Given the following conversation and extracted parts of a long document and a question, create a final answer. \n"
-    "If you don't know the answer, just say that you don't know. Don't try to make up an answer. "
-    "If a user asks for a particular format to be returned, such as bullet points, then please use that format. "
-    "If a user asks for bullet points you MUST give bullet points. "
-    "If the user asks for a specific number or range of bullet points you MUST give that number of bullet points. \n"
-    "Use **bold** to highlight the most question relevant parts in your response. "
-    "If dealing dealing with lots of data return it in markdown table format. "
-)
-
-SELF_ROUTE_SYSTEM_PROMPT = (
-    "You are a helpful assistant to UK Civil Servants. "
-    "Given the list of extracted parts of long documents and a question, answer the question if possible.\n"
-    "If the question cannot be answered respond with only the word 'unanswerable' \n"
-    "If the question can be answered accurately from the documents given then give that response \n"
-)
-
-CHAT_MAP_SYSTEM_PROMPT = (
-    "You are an AI assistant tasked with summarizing documents. "
-    "Your goal is to extract the most important information and present it in "
-    "a concise and coherent manner. Please follow these guidelines while summarizing: \n"
-    "1) Identify and highlight key points,\n"
-    "2) Avoid repetition,\n"
-    "3) Ensure the summary is easy to understand,\n"
-    "4) Maintain the original context and meaning.\n"
-)
-
-REDUCE_SYSTEM_PROMPT = (
-    "You are an AI assistant tasked with summarizing documents. "
-    "Your goal is to write a concise summary of list of summaries from a list of summaries in "
-    "a concise and coherent manner. Please follow these guidelines while summarizing: \n"
-    "1) Identify and highlight key points,\n"
-    "2) Avoid repetition,\n"
-    "3) Ensure the summary is easy to understand,\n"
-    "4) Maintain the original context and meaning.\n"
-)
-
-CONDENSE_SYSTEM_PROMPT = (
-    "Given the following conversation and a follow up question, generate a follow "
-    "up question to be a standalone question. "
-    "You are only allowed to generate one question in response. "
-    "Include sources from the chat history in the standalone question created, "
-    "when they are available. "
-    "If you don't know the answer, just say that you don't know, "
-    "don't try to make up an answer. \n"
-)
-
-CHAT_QUESTION_PROMPT = "{question}\n=========\n Response: "
-
-CHAT_WITH_DOCS_QUESTION_PROMPT = "Question: {question}. \n\n Documents: \n\n {formatted_documents} \n\n Answer: "
-
-RETRIEVAL_QUESTION_PROMPT = "{question} \n=========\n{formatted_documents}\n=========\nFINAL ANSWER: "
-
-CHAT_MAP_QUESTION_PROMPT = "Question: {question}. \n Documents: \n {formatted_documents} \n\n Answer: "
-
-CONDENSE_QUESTION_PROMPT = "{question}\n=========\n Standalone question: "
+class ChatLLMBackend(BaseModel):
+    name: str = "gpt-4o"
+    provider: str = "azure_openai"
+    description: str | None = None
+    model_config = {"frozen": True}
 
 
 class AISettings(BaseModel):
-    """prompts and other AI settings"""
+    """Prompts and other AI settings"""
 
-    max_document_tokens: int = 256_000
+    # LLM settings
     context_window_size: int = 128_000
     llm_max_tokens: int = 1024
 
+    # Prompts and LangGraph settings
+    max_document_tokens: int = 1_000_000
+    self_route_enabled: bool = False
+    map_max_concurrency: int = 128
+    stuff_chunk_context_ratio: float = 0.75
+    recursion_limit: int = 50
+
+    chat_system_prompt: str = prompts.CHAT_SYSTEM_PROMPT
+    chat_question_prompt: str = prompts.CHAT_QUESTION_PROMPT
+    chat_with_docs_system_prompt: str = prompts.CHAT_WITH_DOCS_SYSTEM_PROMPT
+    chat_with_docs_question_prompt: str = prompts.CHAT_WITH_DOCS_QUESTION_PROMPT
+    chat_with_docs_reduce_system_prompt: str = prompts.CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT
+    self_route_system_prompt: str = prompts.SELF_ROUTE_SYSTEM_PROMPT
+    retrieval_system_prompt: str = prompts.RETRIEVAL_SYSTEM_PROMPT
+    retrieval_question_prompt: str = prompts.RETRIEVAL_QUESTION_PROMPT
+    agentic_retrieval_system_prompt: str = prompts.AGENTIC_RETRIEVAL_SYSTEM_PROMPT
+    agentic_retrieval_question_prompt: str = prompts.AGENTIC_RETRIEVAL_QUESTION_PROMPT
+    agentic_give_up_system_prompt: str = prompts.AGENTIC_GIVE_UP_SYSTEM_PROMPT
+    agentic_give_up_question_prompt: str = prompts.AGENTIC_GIVE_UP_QUESTION_PROMPT
+    condense_system_prompt: str = prompts.CONDENSE_SYSTEM_PROMPT
+    condense_question_prompt: str = prompts.CONDENSE_QUESTION_PROMPT
+    chat_map_system_prompt: str = prompts.CHAT_MAP_SYSTEM_PROMPT
+    chat_map_question_prompt: str = prompts.CHAT_MAP_QUESTION_PROMPT
+    reduce_system_prompt: str = prompts.REDUCE_SYSTEM_PROMPT
+
+    # Elasticsearch RAG and boost values
     rag_k: int = 30
     rag_num_candidates: int = 10
     rag_gauss_scale_size: int = 3
@@ -109,35 +71,15 @@ class AISettings(BaseModel):
     rag_gauss_scale_min: float = 1.1
     rag_gauss_scale_max: float = 2.0
     elbow_filter_enabled: bool = False
-    self_route_enabled: bool = False
-    chat_system_prompt: str = CHAT_SYSTEM_PROMPT
-    chat_question_prompt: str = CHAT_QUESTION_PROMPT
-    stuff_chunk_context_ratio: float = 0.75
-    chat_with_docs_system_prompt: str = CHAT_WITH_DOCS_SYSTEM_PROMPT
-    chat_with_docs_question_prompt: str = CHAT_WITH_DOCS_QUESTION_PROMPT
-    chat_with_docs_reduce_system_prompt: str = CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT
-    retrieval_system_prompt: str = RETRIEVAL_SYSTEM_PROMPT
-    self_route_system_prompt: str = SELF_ROUTE_SYSTEM_PROMPT
-    retrieval_question_prompt: str = RETRIEVAL_QUESTION_PROMPT
-    condense_system_prompt: str = CONDENSE_SYSTEM_PROMPT
-    condense_question_prompt: str = CONDENSE_QUESTION_PROMPT
-    map_max_concurrency: int = 128
-    chat_map_system_prompt: str = CHAT_MAP_SYSTEM_PROMPT
-    chat_map_question_prompt: str = CHAT_MAP_QUESTION_PROMPT
-    reduce_system_prompt: str = REDUCE_SYSTEM_PROMPT
-
-    match_boost: int = 1
-    knn_boost: int = 1
-    similarity_threshold: int = 0
+    match_boost: float = 1.0
+    match_name_boost: float = 2.0
+    match_description_boost: float = 0.5
+    match_keywords_boost: float = 0.5
+    knn_boost: float = 2.0
+    similarity_threshold: float = 0.7
 
     # this is also the azure_openai_model
-    chat_backend: Literal[
-        "gpt-35-turbo-16k",
-        "gpt-4-turbo-2024-04-09",
-        "gpt-4o",
-        "anthropic.claude-3-sonnet-20240229-v1:0",
-        "anthropic.claude-3-haiku-20240307-v1:0",
-    ] = "gpt-4o"
+    chat_backend: ChatLLMBackend = ChatLLMBackend()
 
 
 class DocumentState(TypedDict):
@@ -205,7 +147,7 @@ class RedboxQuery(BaseModel):
 
 class LLMCallMetadata(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
-    model_name: str
+    llm_model_name: str
     input_tokens: int
     output_tokens: int
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
@@ -222,8 +164,8 @@ class RequestMetadata(BaseModel):
     def input_tokens(self):
         tokens_by_model = dict()
         for call_metadata in self.llm_calls:
-            tokens_by_model[call_metadata.model_name] = (
-                tokens_by_model.get(call_metadata.model_name, 0) + call_metadata.input_tokens
+            tokens_by_model[call_metadata.llm_model_name] = (
+                tokens_by_model.get(call_metadata.llm_model_name, 0) + call_metadata.input_tokens
             )
         return tokens_by_model
 
@@ -231,8 +173,8 @@ class RequestMetadata(BaseModel):
     def output_tokens(self):
         tokens_by_model = dict()
         for call_metadata in self.llm_calls:
-            tokens_by_model[call_metadata.model_name] = (
-                tokens_by_model.get(call_metadata.model_name, 0) + call_metadata.output_tokens
+            tokens_by_model[call_metadata.llm_model_name] = (
+                tokens_by_model.get(call_metadata.llm_model_name, 0) + call_metadata.output_tokens
             )
         return tokens_by_model
 
@@ -293,6 +235,14 @@ def tool_calls_reducer(current: ToolState, update: ToolState | None) -> ToolStat
     return reduced
 
 
+class StepsLeft(ManagedValue[bool]):
+    """A managed value that counts down from the recursion limit."""
+
+    def __call__(self, step: int) -> int:
+        limit = self.config.get("recursion_limit", 0)
+        return limit - step
+
+
 class RedboxState(TypedDict):
     request: Required[RedboxQuery]
     documents: Annotated[NotRequired[DocumentState], document_reducer]
@@ -300,6 +250,7 @@ class RedboxState(TypedDict):
     route_name: NotRequired[str | None]
     tool_calls: Annotated[NotRequired[ToolState], tool_calls_reducer]
     metadata: Annotated[NotRequired[RequestMetadata], metadata_reducer]
+    steps_left: Annotated[int, StepsLeft]
 
 
 class PromptSet(StrEnum):
@@ -307,6 +258,8 @@ class PromptSet(StrEnum):
     ChatwithDocs = "chat_with_docs"
     ChatwithDocsMapReduce = "chat_with_docs_map_reduce"
     Search = "search"
+    SearchAgentic = "search_agentic"
+    GiveUpAgentic = "give_up_agentic"
     SelfRoute = "self_route"
     CondenseQuestion = "condense_question"
 
@@ -324,6 +277,12 @@ def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str]:
     elif prompt_set == PromptSet.Search:
         system_prompt = state["request"].ai_settings.retrieval_system_prompt
         question_prompt = state["request"].ai_settings.retrieval_question_prompt
+    elif prompt_set == PromptSet.SearchAgentic:
+        system_prompt = state["request"].ai_settings.agentic_retrieval_system_prompt
+        question_prompt = state["request"].ai_settings.agentic_retrieval_question_prompt
+    elif prompt_set == PromptSet.GiveUpAgentic:
+        system_prompt = state["request"].ai_settings.agentic_give_up_system_prompt
+        question_prompt = state["request"].ai_settings.agentic_give_up_question_prompt
     elif prompt_set == PromptSet.SelfRoute:
         system_prompt = state["request"].ai_settings.self_route_system_prompt
         question_prompt = state["request"].ai_settings.retrieval_question_prompt

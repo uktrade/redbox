@@ -1,4 +1,5 @@
 # mypy: ignore-errors
+import logging
 import os
 import socket
 from pathlib import Path
@@ -6,6 +7,7 @@ from urllib.parse import urlparse
 
 import environ
 import sentry_sdk
+from django.urls import reverse_lazy
 from dotenv import load_dotenv
 from import_export.formats.base_formats import CSV
 from redbox_app.setting_enums import Classification, Environment
@@ -13,13 +15,19 @@ from sentry_sdk.integrations.django import DjangoIntegration
 from storages.backends import s3boto3
 from yarl import URL
 
+logger = logging.getLogger(__name__)
+
+
 load_dotenv()
 
 env = environ.Env()
 
+ALLOW_SIGN_UPS = env.bool("ALLOW_SIGN_UPS")
+
 SECRET_KEY = env.str("DJANGO_SECRET_KEY")
 ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
 WEBSOCKET_SCHEME = "ws" if ENVIRONMENT.is_test else "wss"
+LOGIN_METHOD = env.str("LOGIN_METHOD", None)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG")
@@ -59,7 +67,11 @@ INSTALLED_APPS = [
     "rest_framework",
     "django_plotly_dash.apps.DjangoPlotlyDashConfig",
     "adminplus",
+    "waffle",
 ]
+
+if LOGIN_METHOD == "sso":
+    INSTALLED_APPS.append("authbroker_client")
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -76,6 +88,7 @@ MIDDLEWARE = [
     "redbox_app.redbox_core.middleware.nocache_middleware",
     "redbox_app.redbox_core.middleware.security_header_middleware",
     "django_plotly_dash.middleware.BaseMiddleware",
+    "waffle.middleware.WaffleMiddleware",
 ]
 
 ROOT_URLCONF = "redbox_app.urls"
@@ -115,6 +128,9 @@ AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
 ]
 
+if LOGIN_METHOD == "sso":
+    AUTHENTICATION_BACKENDS.append("authbroker_client.backends.AuthbrokerBackend")
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -142,8 +158,20 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 SITE_ID = 1
 AUTH_USER_MODEL = "redbox_core.User"
 ACCOUNT_EMAIL_VERIFICATION = "none"
-LOGIN_REDIRECT_URL = "homepage"
-LOGIN_URL = "sign-in"
+
+if LOGIN_METHOD == "sso":
+    AUTHBROKER_URL = env.str("AUTHBROKER_URL")
+    AUTHBROKER_CLIENT_ID = env.str("AUTHBROKER_CLIENT_ID")
+    AUTHBROKER_CLIENT_SECRET = env.str("AUTHBROKER_CLIENT_SECRET")
+    LOGIN_URL = reverse_lazy("authbroker_client:login")
+    LOGIN_REDIRECT_URL = reverse_lazy("homepage")
+elif LOGIN_METHOD == "magic_link":
+    SESSION_COOKIE_SAMESITE = "Strict"
+    LOGIN_REDIRECT_URL = "homepage"
+    LOGIN_URL = "sign-in"
+else:
+    LOGIN_REDIRECT_URL = "homepage"
+    LOGIN_URL = "sign-in"
 
 # CSP settings https://content-security-policy.com/
 # https://django-csp.readthedocs.io/
@@ -169,13 +197,20 @@ CSP_FONT_SRC = (
 )
 CSP_STYLE_SRC = ("'self'",)
 CSP_FRAME_ANCESTORS = ("'none'",)
+
+
 CSP_CONNECT_SRC = [
     "'self'",
-    f"wss://{ENVIRONMENT.hosts[0]}/ws/chat/",
+    f"{WEBSOCKET_SCHEME}://{ENVIRONMENT.hosts[0]}/ws/chat/",
     "plausible.io",
     "eu.i.posthog.com",
     "eu-assets.i.posthog.com",
 ]
+
+
+for csp in CSP_CONNECT_SRC:
+    logger.info("CSP=%s", csp)
+
 
 # https://pypi.org/project/django-permissions-policy/
 PERMISSIONS_POLICY: dict[str, list] = {
@@ -358,3 +393,6 @@ Q_CLUSTER = {
 }
 
 UNSTRUCTURED_HOST = env.str("UNSTRUCTURED_HOST")
+
+GOOGLE_ANALYTICS_TAG = env.str("GOOGLE_ANALYTICS_TAG", " ")
+GOOGLE_ANALYTICS_LINK = env.str("GOOGLE_ANALYTICS_LINK", " ")
