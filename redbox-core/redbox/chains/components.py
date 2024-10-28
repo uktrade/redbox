@@ -13,7 +13,7 @@ from langchain_elasticsearch import ElasticsearchRetriever
 from langchain_openai.embeddings import AzureOpenAIEmbeddings, OpenAIEmbeddings
 
 from redbox.models.settings import Settings
-from redbox.retriever import AllElasticsearchRetriever, ParameterisedElasticsearchRetriever, MetadataRetriever
+from redbox.retriever import AllElasticsearchRetriever, ParameterisedElasticsearchRetriever, MetadataRetriever, OpenSearchRetriever
 from langchain_community.embeddings import BedrockEmbeddings
 from langchain.chat_models import init_chat_model
 from redbox.models.chain import ChatLLMBackend
@@ -79,7 +79,7 @@ def get_embeddings(env: Settings) -> Embeddings:
     raise Exception("No configured embedding model")
 
 
-def get_all_chunks_retriever(env: Settings) -> ElasticsearchRetriever:
+def get_all_chunks_retriever(env: Settings) -> OpenSearchRetriever:
     return AllElasticsearchRetriever(
         es_client=env.elasticsearch_client(),
         index_name=env.elastic_chunk_alias,

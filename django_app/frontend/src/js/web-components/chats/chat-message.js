@@ -129,6 +129,7 @@ export class ChatMessage extends HTMLElement {
     );
     let responseComplete = this.querySelector(".rb-loading-complete");
     let webSocket = new WebSocket(endPoint);
+
     let streamedContent = "";
 
     // Stop streaming on escape-key or stop-button press

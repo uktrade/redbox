@@ -1,10 +1,11 @@
 import logging
 import os
 from functools import lru_cache
-from typing import Literal
+from typing import Literal, Union
 
 import boto3
 from elasticsearch import Elasticsearch
+from openai import max_retries
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from opensearchpy import OpenSearch, RequestsHttpConnection
@@ -20,7 +21,8 @@ class OpenSearchSettings(BaseModel):
 
     model_config = SettingsConfigDict(frozen=True)
 
-    collection_enpdoint: str
+    collection_endpoint: str = os.environ.get("ELASTIC__COLLECTION_ENDPOINT", "https://localhost:9200")
+    logger.info(f"OpenSearch collection endpoint: {collection_endpoint}")
 
 
 class ElasticLocalSettings(BaseModel):
@@ -53,7 +55,7 @@ class Settings(BaseSettings):
     embedding_openai_api_key: str = "NotAKey"
     embedding_azure_openai_endpoint: str = "not an endpoint"
     azure_api_version_embeddings: str = "2024-02-01"
-    metadata_extraction_llm: ChatLLMBackend = ChatLLMBackend(name="gpt-4o", provider="azure_openai")
+    metadata_extraction_llm: ChatLLMBackend = ChatLLMBackend(name="gpt-4o-mini", provider="openai")
 
     embedding_backend: Literal[
         "text-embedding-ada-002",
@@ -75,7 +77,7 @@ class Settings(BaseSettings):
     partition_strategy: Literal["auto", "fast", "ocr_only", "hi_res"] = "fast"
     clustering_strategy: Literal["full"] | None = None
 
-    elastic: ElasticCloudSettings | ElasticLocalSettings | OpenSearchSettings = ElasticLocalSettings()
+    elastic: OpenSearchSettings = OpenSearchSettings()
     elastic_root_index: str = "redbox-data"
     elastic_chunk_alias: str = "redbox-data-chunk-current"
 
@@ -128,37 +130,37 @@ class Settings(BaseSettings):
     )
 
     @lru_cache(1)
-    def elasticsearch_client(self) -> Elasticsearch:
-        if isinstance(self.elastic, ElasticLocalSettings):
-            client = Elasticsearch(
-                hosts=[
-                    {
-                        "host": self.elastic.host,
-                        "port": self.elastic.port,
-                        "scheme": self.elastic.scheme,
-                    }
-                ],
-                basic_auth=(self.elastic.user, self.elastic.password),
-            )
+    def elasticsearch_client(self) -> Union[Elasticsearch, OpenSearch]:
+        logger.info('Testing OpenSearch is definitely being used')
 
-        elif isinstance(self.elastic, OpenSearchSettings):
-            client = OpenSearch(
-                hosts=[{"host": self.collection_enpdoint, "port": 443}],
-                use_ssl=True,
-                verify_certs=True,
-                connection_class=RequestsHttpConnection,
-                pool_maxsize=100,
-            )
-
-        else:
-            client = Elasticsearch(cloud_id=self.elastic.cloud_id, api_key=self.elastic.api_key)
+        client = OpenSearch(
+            hosts=[{"host": "localhost", "port": 9200}],
+            http_auth=("admin", "YourPassword1"),
+            use_ssl=True,
+            # verify_certs=True,
+            connection_class=RequestsHttpConnection,
+            # pool_maxsize=100,
+            # timeout=30,
+            # max_retries=3,
+            retry_on_timeout=True
+        )
 
         if not client.indices.exists_alias(name=f"{self.elastic_root_index}-chunk-current"):
             chunk_index = f"{self.elastic_root_index}-chunk"
-            client.options(ignore_status=[400]).indices.create(index=chunk_index)
-            client.indices.put_alias(index=chunk_index, name=f"{self.elastic_root_index}-chunk-current")
+            
+            # Ensure index creation does not raise an error if it already exists.
+            try:
+                client.indices.create(index=chunk_index, ignore=400)  # 400 is ignored to avoid index-already-exists errors
+            except Exception as e:
+                logger.error(f"Failed to create index {chunk_index}: {e}")
 
-        return client.options(request_timeout=30, retry_on_timeout=True, max_retries=3)
+            try:
+                client.indices.put_alias(index=chunk_index, name=f"{self.elastic_root_index}-chunk-current")
+            except Exception as e:
+                logger.error(f"Failed to set alias {self.elastic_root_index}-chunk-current: {e}")
+
+        return client
+
 
     def s3_client(self):
         if self.object_store == "minio":

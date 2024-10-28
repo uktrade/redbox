@@ -1,6 +1,7 @@
-from typing import Annotated, Any, get_args, get_origin, get_type_hints
+from typing import Annotated, Any, get_args, get_origin, get_type_hints, Union
 
 from elasticsearch import Elasticsearch
+from opensearchpy import OpenSearch
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.tools import StructuredTool, Tool, tool
 from langgraph.prebuilt import InjectedState
@@ -58,7 +59,7 @@ def has_injected_state(tool: StructuredTool) -> bool:
 
 
 def build_search_documents_tool(
-    es_client: Elasticsearch,
+    es_client: Union[Elasticsearch, OpenSearch],
     index_name: str,
     embedding_model: Embeddings,
     embedding_field_name: str,

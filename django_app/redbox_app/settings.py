@@ -27,7 +27,7 @@ ALLOW_SIGN_UPS = env.bool("ALLOW_SIGN_UPS")
 
 SECRET_KEY = env.str("DJANGO_SECRET_KEY")
 ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
-WEBSOCKET_SCHEME = "ws" if ENVIRONMENT.is_test else "wss"
+WEBSOCKET_SCHEME = "wss"
 LOGIN_METHOD = env.str("LOGIN_METHOD", None)
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "django_plotly_dash.apps.DjangoPlotlyDashConfig",
     "adminplus",
     "waffle",
+    "channels",
 ]
 
 if LOGIN_METHOD == "sso":
@@ -202,7 +203,7 @@ CSP_FRAME_ANCESTORS = ("'none'",)
 
 CSP_CONNECT_SRC = [
     "'self'",
-    f"{WEBSOCKET_SCHEME}://{ENVIRONMENT.hosts[0]}/ws/chat/",
+    f"{WEBSOCKET_SCHEME}://dev.redbox.uktrade.digital/ws/chat/",
     "plausible.io",
     "eu.i.posthog.com",
     "eu-assets.i.posthog.com",
@@ -275,8 +276,8 @@ else:
 if ENVIRONMENT.is_test:
     ALLOWED_HOSTS = ENVIRONMENT.hosts
 else:
-    LOCALHOST = socket.gethostbyname(socket.gethostname())
-    ALLOWED_HOSTS = [LOCALHOST, *ENVIRONMENT.hosts]
+    ALLOWED_HOSTS = ['*']
+
 
 if not ENVIRONMENT.is_local:
 
