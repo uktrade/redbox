@@ -19,7 +19,7 @@ RUN poetry install
 RUN poetry run python ../download_embedder.py --embedding_model "all-mpnet-base-v2"
 
 # Downlaod Sentence Tokenizer
-RUN poetry run python -m nltk.downloader punkt
+RUN poetry run python -m nltk.downloader punkt_tab
 
 # Download POS tagger
 RUN poetry run python -m nltk.downloader averaged_perceptron_tagger
