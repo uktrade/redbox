@@ -22,7 +22,7 @@ RUN poetry run python ../download_embedder.py --embedding_model "all-mpnet-base-
 RUN poetry run python -m nltk.downloader punkt_tab
 
 # Download POS tagger
-RUN poetry run python -m nltk.downloader averaged_perceptron_tagger
+RUN poetry run python -m nltk.downloader averaged_perceptron_tagger_eng
 
 # Download the OCR models
 RUN poetry run python -m download_ocr_models
