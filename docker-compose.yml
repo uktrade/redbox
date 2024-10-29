@@ -25,10 +25,10 @@ services:
     volumes:
       - /app/django_app/frontend/node_modules
       - ./django_app:/app/django_app/
-      - ~/.aws:/root/.aws 
-    environment:
-      - AWS_CONFIG_FILE=/root/.aws/config
-      - AWS_SSO_SESSION=redbox-sandbox
+    #   - ~/.aws:/root/.aws
+    # environment:
+    #   - AWS_CONFIG_FILE=/root/.aws/config
+    #   - AWS_SSO_SESSION=redbox-sandbox
     ports:
       - "8090:8090"
     healthcheck:
