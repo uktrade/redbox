@@ -34,14 +34,23 @@ from langchain_core.vectorstores import VectorStoreRetriever
 from scipy import stats
 from tiktoken import Encoding
 
-# Temp hack - there is an issue with the importing of redbox-core
-sys.path.append(str(Path(__file__).parents[2]))
+import importlib.util
+import sys
+from pathlib import Path
 
-from core_api.src import dependencies
-from core_api.src.dependencies import get_tokeniser
-from core_api.src.format import format_documents
-from core_api.src.retriever import ParameterisedElasticsearchRetriever
-from core_api.src.runnables import make_chat_prompt_from_messages_runnable
+module_name = "core-api.core_api"
+module_path = str(Path(__file__).resolve().parent.parent.parent / "core-api" / "core_api" / "dependencies.py")
+
+spec = importlib.util.spec_from_file_location(module_name, module_path)
+dependencies = importlib.util.module_from_spec(spec)
+sys.modules[module_name] = dependencies
+spec.loader.exec_module(dependencies)
+
+get_tokeniser = dependencies.get_tokeniser
+
+from redbox.api.format import format_documents
+from redbox.retriever import ParameterisedElasticsearchRetriever
+from redbox.api.runnables import make_chat_prompt_from_messages_runnable
 from redbox.models import ChatRoute, Settings
 from redbox.models.chain import ChainInput
 from redbox.models.file import UUID
@@ -147,7 +156,7 @@ class GetExperimentResults:
         return None
 
     def get_parameterised_retriever(
-        self, es: Annotated[Elasticsearch, Depends(dependencies.get_elasticsearch_client)]
+        self, es: Annotated[Elasticsearch, Depends(dependencies.get_env().elasticsearch_client)]
     ) -> BaseRetriever:
         """
         Creates an Elasticsearch retriever runnable.

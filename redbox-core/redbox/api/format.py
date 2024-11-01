@@ -13,7 +13,7 @@ def format_documents(documents: list[Document]) -> str:
         doc_xml = (
             f"<Document>\n"
             f"\t<UUID>{parent_file_uuid}</UUID>\n"
-            f"\t<Filename>{d.metadata.get("file_name", "")}</Filename>\n"
+            f"\t<Filename>{d.metadata.get('file_name', '')}</Filename>\n"
             "\t<Content>\n"
             f"{d.page_content}\n"
             "\t</Content>\n"
