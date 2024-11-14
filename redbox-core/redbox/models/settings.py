@@ -134,7 +134,7 @@ class Settings(BaseSettings):
         logger.info('Testing OpenSearch is definitely being used')
 
         client = OpenSearch(
-            hosts=[{"host": "localhost", "port": 9200}],
+            hosts=[{"host": "opensearch", "port": 9200}],
             http_auth=("admin", "YourStrongPassword1"),
             use_ssl=True,
             # verify_certs=True,

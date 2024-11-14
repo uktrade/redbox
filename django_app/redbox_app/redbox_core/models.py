@@ -1,13 +1,12 @@
 import logging
 import os
+import textwrap
 import uuid
 from collections.abc import Collection, Sequence
 from datetime import UTC, date, datetime, timedelta
 from typing import override
 
-import boto3
 import jwt
-from botocore.config import Config
 from django.conf import settings
 from django.contrib.auth.base_user import BaseUserManager as BaseSSOUserManager
 from django.contrib.postgres.fields import ArrayField
@@ -19,13 +18,13 @@ from django.utils.translation import gettext_lazy as _
 from django_use_email_as_username.models import BaseUser, BaseUserManager
 from yarl import URL
 
-from redbox.models import Settings, prompts
+from redbox.models.settings import get_settings
 from redbox_app.redbox_core.utils import get_date_group
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
 
-env = Settings()
+env = get_settings()
 
 es_client = env.elasticsearch_client()
 
@@ -110,66 +109,70 @@ class AISettings(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
     label = models.CharField(max_length=50, unique=True)
 
     # LLM settings
-    context_window_size = models.PositiveIntegerField(default=128_000)
-    llm_max_tokens = models.PositiveIntegerField(default=1024)
+    context_window_size = models.PositiveIntegerField(null=True, blank=True)
+    llm_max_tokens = models.PositiveIntegerField(null=True, blank=True)
 
     # Prompts and LangGraph settings
-    max_document_tokens = models.PositiveIntegerField(default=1_000_000, null=True, blank=True)
-    self_route_enabled = models.BooleanField(default=False)
-    map_max_concurrency = models.PositiveIntegerField(default=128)
-    stuff_chunk_context_ratio = models.FloatField(default=0.75)
-    recursion_limit = models.PositiveIntegerField(default=50)
+    max_document_tokens = models.PositiveIntegerField(null=True, blank=True)
+    self_route_enabled = models.BooleanField(null=True, blank=True)
+    map_max_concurrency = models.PositiveIntegerField(null=True, blank=True)
+    stuff_chunk_context_ratio = models.FloatField(null=True, blank=True)
+    recursion_limit = models.PositiveIntegerField(null=True, blank=True)
 
-    chat_system_prompt = models.TextField(default=prompts.CHAT_SYSTEM_PROMPT)
-    chat_question_prompt = models.TextField(default=prompts.CHAT_QUESTION_PROMPT)
-    chat_with_docs_system_prompt = models.TextField(default=prompts.CHAT_WITH_DOCS_SYSTEM_PROMPT)
-    chat_with_docs_question_prompt = models.TextField(default=prompts.CHAT_WITH_DOCS_QUESTION_PROMPT)
-    chat_with_docs_reduce_system_prompt = models.TextField(default=prompts.CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT)
-    retrieval_system_prompt = models.TextField(default=prompts.RETRIEVAL_SYSTEM_PROMPT)
-    retrieval_question_prompt = models.TextField(default=prompts.RETRIEVAL_QUESTION_PROMPT)
-    agentic_retrieval_system_prompt = models.TextField(default=prompts.AGENTIC_RETRIEVAL_SYSTEM_PROMPT)
-    agentic_retrieval_question_prompt = models.TextField(default=prompts.AGENTIC_RETRIEVAL_QUESTION_PROMPT)
-    agentic_give_up_system_prompt = models.TextField(default=prompts.AGENTIC_GIVE_UP_SYSTEM_PROMPT)
-    agentic_give_up_question_prompt = models.TextField(default=prompts.AGENTIC_GIVE_UP_QUESTION_PROMPT)
-    condense_system_prompt = models.TextField(default=prompts.CONDENSE_SYSTEM_PROMPT)
-    condense_question_prompt = models.TextField(default=prompts.CONDENSE_QUESTION_PROMPT)
-    chat_map_system_prompt = models.TextField(default=prompts.CHAT_MAP_SYSTEM_PROMPT)
-    chat_map_question_prompt = models.TextField(default=prompts.CHAT_MAP_QUESTION_PROMPT)
-    reduce_system_prompt = models.TextField(default=prompts.REDUCE_SYSTEM_PROMPT)
+    chat_system_prompt = models.TextField(null=True, blank=True)
+    chat_question_prompt = models.TextField(null=True, blank=True)
+    chat_with_docs_system_prompt = models.TextField(null=True, blank=True)
+    chat_with_docs_question_prompt = models.TextField(null=True, blank=True)
+    chat_with_docs_reduce_system_prompt = models.TextField(null=True, blank=True)
+    retrieval_system_prompt = models.TextField(null=True, blank=True)
+    retrieval_question_prompt = models.TextField(null=True, blank=True)
+    agentic_retrieval_system_prompt = models.TextField(null=True, blank=True)
+    agentic_retrieval_question_prompt = models.TextField(null=True, blank=True)
+    agentic_give_up_system_prompt = models.TextField(null=True, blank=True)
+    agentic_give_up_question_prompt = models.TextField(null=True, blank=True)
+    condense_system_prompt = models.TextField(null=True, blank=True)
+    condense_question_prompt = models.TextField(null=True, blank=True)
+    chat_map_system_prompt = models.TextField(null=True, blank=True)
+    chat_map_question_prompt = models.TextField(null=True, blank=True)
+    reduce_system_prompt = models.TextField(null=True, blank=True)
 
     # Elsticsearch RAG and boost values
-    rag_k = models.PositiveIntegerField(default=30)
-    rag_num_candidates = models.PositiveIntegerField(default=10)
-    rag_gauss_scale_size = models.PositiveIntegerField(default=3)
+    rag_k = models.PositiveIntegerField(null=True, blank=True)
+    rag_num_candidates = models.PositiveIntegerField(null=True, blank=True)
+    rag_gauss_scale_size = models.PositiveIntegerField(null=True, blank=True)
     rag_gauss_scale_decay = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=0.5,
+        null=True,
+        blank=True,
         validators=[validators.MinValueValidator(0.0)],
     )
     rag_gauss_scale_min = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=1.1,
+        null=True,
+        blank=True,
         validators=[validators.MinValueValidator(1.0)],
     )
     rag_gauss_scale_max = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=2.0,
+        null=True,
+        blank=True,
         validators=[validators.MinValueValidator(1.0)],
     )
-    rag_desired_chunk_size = models.PositiveIntegerField(default=300)
-    elbow_filter_enabled = models.BooleanField(default=False)
-    match_boost = models.DecimalField(max_digits=5, decimal_places=2, default=1.0)
-    match_name_boost = models.DecimalField(max_digits=5, decimal_places=2, default=2.0)
-    match_description_boost = models.DecimalField(max_digits=5, decimal_places=2, default=0.5)
-    match_keywords_boost = models.DecimalField(max_digits=5, decimal_places=2, default=0.5)
-    knn_boost = models.DecimalField(max_digits=5, decimal_places=2, default=2.0)
+    rag_desired_chunk_size = models.PositiveIntegerField(null=True, blank=True)
+    elbow_filter_enabled = models.BooleanField(null=True, blank=True)
+    match_boost = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    match_name_boost = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    match_description_boost = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    match_keywords_boost = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    knn_boost = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     similarity_threshold = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=0.7,
+        null=True,
+        blank=True,
         validators=[
             validators.MinValueValidator(0.0),
             validators.MaxValueValidator(1.0),
@@ -433,10 +436,6 @@ class User(BaseUser, UUIDPrimaryKeyBase):
         MORE_THAN_1_WEEK = "More than a week", _("More than a week")
 
     username = None
-    verified = models.BooleanField(default=False, blank=True, null=True)
-    invited_at = models.DateTimeField(default=None, blank=True, null=True)
-    invite_accepted_at = models.DateTimeField(default=None, blank=True, null=True)
-    last_token_sent_at = models.DateTimeField(editable=False, blank=True, null=True)
     password = models.CharField("password", max_length=128, blank=True, null=True)
     business_unit = models.CharField(null=True, blank=True, max_length=64, choices=BusinessUnit)
     grade = models.CharField(null=True, blank=True, max_length=3, choices=UserGrade)
@@ -538,16 +537,6 @@ class User(BaseUser, UUIDPrimaryKeyBase):
             return ""
 
 
-class StatusEnum(models.TextChoices):
-    complete = "complete"
-    deleted = "deleted"
-    errored = "errored"
-    processing = "processing"
-
-
-INACTIVE_STATUSES = [StatusEnum.deleted, StatusEnum.errored]
-
-
 class InactiveFileError(ValueError):
     def __init__(self, file):
         super().__init__(f"{file.pk} is inactive, status is {file.status}")
@@ -563,7 +552,15 @@ def build_s3_key(instance, filename: str) -> str:
 
 
 class File(UUIDPrimaryKeyBase, TimeStampedModel):
-    status = models.CharField(choices=StatusEnum.choices, null=False, blank=False)
+    class Status(models.TextChoices):
+        complete = "complete"
+        deleted = "deleted"
+        errored = "errored"
+        processing = "processing"
+
+    INACTIVE_STATUSES = [Status.deleted, Status.errored]
+
+    status = models.CharField(choices=Status.choices, null=False, blank=False)
     original_file = models.FileField(
         storage=settings.STORAGES["default"]["BACKEND"],
         upload_to=build_s3_key,
@@ -614,32 +611,8 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         return name.split(".")[-1]
 
     @property
-    def url(self) -> URL | None:
-        #  In dev environment, get pre-signed url from minio
-        if settings.ENVIRONMENT.uses_minio:
-            s3 = boto3.client(
-                "s3",
-                endpoint_url="http://localhost:9000",
-                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=settings.AWS_S3_SECRET_ACCESS_KEY,
-                config=Config(signature_version="s3v4"),
-                region_name=settings.AWS_S3_REGION_NAME,
-            )
-
-            url = s3.generate_presigned_url(
-                ClientMethod="get_object",
-                Params={
-                    "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
-                    "Key": self.file_name,
-                },
-            )
-            return URL(url)
-
-        if not self.original_file:
-            logger.error("attempt to access non-existent file %s", self.pk, stack_info=True)
-            return None
-
-        return URL(self.original_file.url)
+    def url(self) -> str:
+        return self.original_file.url
 
     @property
     def file_name(self) -> str:
@@ -647,24 +620,35 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
             return self.original_file_name
 
         # could have a stronger (regex?) way of stripping the users email address?
-        if "/" not in self.original_file.name:
-            msg = "expected filename to start with the user's email address"
-            raise ValueError(msg)
-        return self.original_file.name.split("/")[1]
+        if "/" in self.original_file.name:
+            return self.original_file.name.split("/")[1]
+
+        logger.error("expected filename=%s to start with the user's email address", self.original_file.name)
+        return self.original_file.name
 
     @property
     def unique_name(self) -> str:
         """primary key for accessing file in s3"""
-        if self.status in INACTIVE_STATUSES:
+        if self.status in File.INACTIVE_STATUSES:
             logger.exception("Attempt to access s3-key for inactive file %s with status %s", self.pk, self.status)
             raise InactiveFileError(self)
         return self.original_file.name
 
     def get_status_text(self) -> str:
-        return next(
-            (status[1] for status in StatusEnum.choices if self.status == status[0]),
-            "Unknown",
-        )
+        permanent_error = "Error"
+        temporary_error = "Error, please try again"
+        if self.ingest_error:
+            temporary_error_substrings = [
+                "ConnectionError",
+                "RateLimitError",
+                "ConnectTimeout",
+                "openai.InternalServerError",
+            ]
+            for substring in temporary_error_substrings:
+                if substring in self.ingest_error:
+                    return temporary_error
+            return permanent_error
+        return dict(File.Status.choices).get(self.status, permanent_error)
 
     @property
     def expires_at(self) -> datetime:
@@ -681,8 +665,8 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
     def get_completed_and_processing_files(cls, user: User) -> tuple[Sequence["File"], Sequence["File"]]:
         """Returns all files that are completed and processing for a given user."""
 
-        completed_files = cls.objects.filter(user=user, status=StatusEnum.complete).order_by("-created_at")
-        processing_files = cls.objects.filter(user=user, status=StatusEnum.processing).order_by("-created_at")
+        completed_files = cls.objects.filter(user=user, status=File.Status.complete).order_by("-created_at")
+        processing_files = cls.objects.filter(user=user, status=File.Status.processing).order_by("-created_at")
         return completed_files, processing_files
 
     @classmethod
@@ -755,12 +739,6 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
         return get_date_group(self.newest_message_date)
 
 
-class ChatRoleEnum(models.TextChoices):
-    ai = "ai"
-    user = "user"
-    system = "system"
-
-
 class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
     class Origin(models.TextChoices):
         WIKIPEDIA = "Wikipedia", _("wikipedia")
@@ -789,12 +767,17 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         help_text="source of citation",
         default=Origin.USER_UPLOADED_DOCUMENT,
     )
-    text_in_answer = models.TextField(null=True, blank=True)
+    text_in_answer = models.TextField(
+        null=True,
+        blank=True,
+        help_text="the part of the answer the citation refers too - useful for adding in footnotes",
+    )
 
     def __str__(self):
-        return self.uri
+        text = self.text or "..."
+        return textwrap.shorten(text, width=128, placeholder="...")
 
-    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+    def save(self, *args, force_insert=False, force_update=False, using=None, update_fields=None):
         if self.source == self.Origin.USER_UPLOADED_DOCUMENT:
             if self.file is None:
                 msg = "file must be specified for a user-uploaded-document"
@@ -815,18 +798,23 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
 
         self.text = sanitise_string(self.text)
 
-        super().save(force_insert, force_update, using, update_fields)
+        super().save(*args, force_insert, force_update, using, update_fields)
 
     @property
-    def uri(self) -> str:
-        """returns either the url of an external citation or the file uri of a user-uploaded document"""
-        return self.url or f"file://{self.file.file_name}"
+    def uri(self) -> URL:
+        """returns the url of either the external citation or the user-uploaded document"""
+        return URL(self.url or self.file.url)
 
 
 class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
+    class Role(models.TextChoices):
+        ai = "ai"
+        user = "user"
+        system = "system"
+
     chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
     text = models.TextField(max_length=32768, null=False, blank=False)
-    role = models.CharField(choices=ChatRoleEnum.choices, null=False, blank=False)
+    role = models.CharField(choices=Role.choices, null=False, blank=False)
     route = models.CharField(max_length=25, null=True, blank=True)
     selected_files = models.ManyToManyField(File, related_name="+", symmetrical=False, blank=True)
     source_files = models.ManyToManyField(File, through=Citation)
@@ -840,13 +828,13 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
     rating_chips = ArrayField(models.CharField(max_length=32), null=True, blank=True)
 
     def __str__(self) -> str:  # pragma: no cover
-        return self.text[:20] + "..."
+        return textwrap.shorten(self.text, width=20, placeholder="...")
 
-    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+    def save(self, *args, force_insert=False, force_update=False, using=None, update_fields=None):
         self.text = sanitise_string(self.text)
         self.rating_text = sanitise_string(self.rating_text)
 
-        super().save(force_insert, force_update, using, update_fields)
+        super().save(*args, force_insert, force_update, using, update_fields)
 
     @classmethod
     def get_messages_ordered_by_citation_priority(cls, chat_id: uuid.UUID) -> Sequence["ChatMessage"]:
@@ -864,18 +852,51 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
             )
         )
 
+    def log(self):
+        token_sum = sum(token_use.token_count for token_use in self.chatmessagetokenuse_set.all())
+        elastic_log_msg = {
+            "@timestamp": self.created_at.isoformat(),
+            "id": str(self.id),
+            "chat_id": str(self.chat.id),
+            "user_id": str(self.chat.user.id),
+            "text": str(self.text),
+            "route": str(self.route),
+            "role": str(self.role),
+            "token_count": token_sum,
+            "rating": int(self.rating) if self.rating else None,
+            "rating_text": str(self.rating_text),
+            "rating_chips": list(map(str, self.rating_chips)) if self.rating_chips else None,
+        }
+        es_client.create(
+            index=env.elastic_chat_mesage_index,
+            id=uuid.uuid4(),
+            document=elastic_log_msg,
+        )
+
+    def unique_citation_uris(self) -> list[tuple[str, str]]:
+        """a unique set of names and hrefs for all citations"""
+
+        def get_display(citation):
+            if not citation.file:
+                return str(citation.uri)
+            return citation.file.file_name
+
+        return sorted(
+            {(get_display(citation), citation.uri, citation.text_in_answer) for citation in self.citation_set.all()}
+        )
+
 
 class ChatMessageTokenUse(UUIDPrimaryKeyBase, TimeStampedModel):
-    class UseTypeEnum(models.TextChoices):
+    class UseType(models.TextChoices):
         INPUT = "input", _("input")
         OUTPUT = "output", _("output")
 
     chat_message = models.ForeignKey(ChatMessage, on_delete=models.CASCADE)
     use_type = models.CharField(
         max_length=10,
-        choices=UseTypeEnum,
+        choices=UseType,
         help_text="input or output tokens",
-        default=UseTypeEnum.INPUT,
+        default=UseType.INPUT,
     )
     model_name = models.CharField(max_length=50, null=True, blank=True)
     token_count = models.PositiveIntegerField(null=True, blank=True)
@@ -886,7 +907,7 @@ class ChatMessageTokenUse(UUIDPrimaryKeyBase, TimeStampedModel):
 
 class ActivityEvent(UUIDPrimaryKeyBase, TimeStampedModel):
     chat_message = models.ForeignKey(ChatMessage, on_delete=models.CASCADE)
-    message = models.CharField(max_length=128)
+    message = models.TextField()
 
     def __str__(self) -> str:
         return self.message

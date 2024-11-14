@@ -48,7 +48,7 @@ def get_elasticsearch_store_without_embeddings(es, es_index_name: str):
     # )
     return OpenSearchVectorSearch(
         index_name=es_index_name,
-        opensearch_url="https://localhost:9200",
+        opensearch_url="https:/localhost:9200",
         embedding_function=get_embeddings(env),
     )
 
