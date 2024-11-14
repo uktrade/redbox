@@ -15,7 +15,7 @@
         <tbody class="iai-doc-list__tbody">
             {% for doc in docs %}
                 <tr class="iai-doc-list__item">
-                    <td class="iai-doc-list__cell--file-name">{{ doc.name }}</td>
+                    <td class="iai-doc-list__cell--file-name">{{ doc.file_name }}</td>
                     <td class="iai-doc-list__cell--expiry">{{ doc.expires | humanise_expiry }}</td>
                     <td class="iai-doc-list__cell--status">
                         {% if type == "complete" %}
@@ -27,7 +27,7 @@
                     <td class="iai-doc-list__cell--actions">
                         <a class="iai-doc-list__delete" role="button" href="{{ url('remove-doc', doc.id) }}">
                             Delete
-                            <span class="govuk-visually-hidden">{{ doc.name }}</span>
+                            <span class="govuk-visually-hidden">{{ doc.file_name }}</span>
                         </a>
                     </td>
                 </tr>

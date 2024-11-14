@@ -135,7 +135,7 @@ class Settings(BaseSettings):
 
         client = OpenSearch(
             hosts=[{"host": "localhost", "port": 9200}],
-            http_auth=("admin", "YourPassword1"),
+            http_auth=("admin", "YourStrongPassword1"),
             use_ssl=True,
             # verify_certs=True,
             connection_class=RequestsHttpConnection,
