@@ -11,13 +11,14 @@ on = st.toggle("Anonymise Users")
 if on:
     cha.anonymise_users()
 
-user_usage_tab, word_freq_tab, route_tab, topic_tab, prompt_complex = st.tabs(
+user_usage_tab, word_freq_tab, route_tab, topic_tab, prompt_complex, ratings_tab = st.tabs(
     [
         "Redbox User Usage",
         "Word frequency",
         "Route Analysis",
         "Topic modelling",
         "Prompt Complexity",
+        "Ratings",
     ]
 )
 
@@ -25,6 +26,7 @@ with user_usage_tab:
     st.pyplot(cha.plot_user_frequency())
     st.pyplot(cha.plot_redbox_traffic())
     st.pyplot(cha.plot_redbox_traffic_by_user())
+    st.pyplot(cha.plot_redbox_traffic_by_user_weekly())
 
 with word_freq_tab:
     st.subheader("User")
@@ -36,8 +38,14 @@ with word_freq_tab:
     st.pyplot(cha.plot_ai_response_pattern())
 
 with route_tab:
+    st.pyplot(cha.plot_routes_over_time())
+    st.pyplot(cha.plot_routes_over_time_weekly())
     st.pyplot(cha.plot_user_routes())
     st.pyplot(cha.plot_route_transitions())
+
+with ratings_tab:
+    st.text(cha.rating_stats())
+    st.pyplot(cha.plot_ratings())
 
 with topic_tab:
     with st.spinner("Fitting topic model..."):
