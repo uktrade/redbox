@@ -1,4 +1,4 @@
-mlflow==2.14.3
+mlflow==2.16.0
 pydantic==1.10.15
 starlette==0.40.0
 limits==3.13.0
