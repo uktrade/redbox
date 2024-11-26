@@ -5,15 +5,16 @@
 			"path": "../django_app"
 		},
 		{
-<<<<<<< Updated upstream
-=======
 			"name": "streamlit_app",
 			"path": "../streamlit_app"
 		},
 		{
->>>>>>> Stashed changes
 			"name": "Redbox Core",
 			"path": "../redbox-core"
+		},
+		{
+			"name": "AI Tests",
+			"path": "../ai-tests"
 		},
 		{
 			"name": "Integration Tests",
@@ -32,4 +33,12 @@
 			"path": ".."
 		}
 	],
+	"settings": {
+		"workbench.colorCustomizations": {
+			"activityBar.background": "#911212",
+			"activityBar.foreground": "#fbfbec",
+			"titleBar.activeBackground": "#911212",
+			"titleBar.activeForeground": "#fbfbec",
+		}
+	},
 }

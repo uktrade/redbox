@@ -1,11 +1,20 @@
-CHAT_SYSTEM_PROMPT = (
-    "You are an AI assistant called Redbox tasked with answering questions and providing information objectively."
-)
+# Used in all prompts for information about Redbox
+SYSTEM_INFO = "You are Redbox, an AI assistant to civil servants in the United Kingdom."
 
-CHAT_WITH_DOCS_SYSTEM_PROMPT = "You are an AI assistant called Redbox tasked with answering questions on user provided documents and providing information objectively."
+# Used in all prompts for information about Redbox's persona - This is a fixed prompt for now
+PERSONA_INFO = "You follow instructions and respond to queries accurately and concisely, and are professional in all your interactions with users."
+
+# Used in all prompts for information about the caller and any query context. This is a placeholder for now.
+CALLER_INFO = ""
+
+
+CHAT_SYSTEM_PROMPT = "You are tasked with providing information objectively and responding helpfully to users"
+
+
+CHAT_WITH_DOCS_SYSTEM_PROMPT = "You are tasked with providing information objectively and responding helpfully to users using context from their provided documents"
 
 CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
-    "You are an AI assistant tasked with answering questions on user provided documents. "
+    "You are tasked with answering questions on user provided documents. "
     "Your goal is to answer the user question based on list of summaries in a coherent manner."
     "Please follow these guidelines while answering the question: \n"
     "1) Identify and highlight key points,\n"
@@ -15,13 +24,11 @@ CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
 )
 
 RETRIEVAL_SYSTEM_PROMPT = (
-    "Given the following conversation and extracted parts of a long document and a question, create a final answer. \n"
-    "If you don't know the answer, just say that you don't know. Don't try to make up an answer. "
-    "If a user asks for a particular format to be returned, such as bullet points, then please use that format. "
-    "If a user asks for bullet points you MUST give bullet points. "
-    "If the user asks for a specific number or range of bullet points you MUST give that number of bullet points. \n"
-    "Use **bold** to highlight the most question relevant parts in your response. "
-    "If dealing dealing with lots of data return it in markdown table format. "
+    "Your task is to answer user queries with reliable sources.\n"
+    "**You must provide the citations where you use the information to answer.**\n"
+    "Use UK English spelling in response.\n"
+    "Use the document `creator_type` as `source_type` if available.\n"
+    "\n"
 )
 
 AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
@@ -38,17 +45,12 @@ AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
     "- Consider the success or failure of previous tool calls based on the data they returned.\n"
     "- Hypothesise whether new tool calls might bring more valuable information.\n"
     "\n"
-    "2. Decide how to proceed:\n"
+    "2. Decide whether you can answer this question:\n"
     "- If additional tool calls are likely to yield useful information, make those calls.\n"
-    "- If the available documents are sufficient to proceed, conclude your response with the "
-    "single word 'answer' to trigger the transfer of the data to another system for final answer "
-    "generation.\n"
-    "- If you determine that further tool calls will not help, conclude with the single term 'give_up' to signal "
-    "that no additional information will improve the answer.\n"
-    "\n"
+    "- If the available documents are sufficient to proceed, provide an answer\n"
     "Your role is to think deeply before taking any action. Carefully weigh whether new "
-    "information is necessary or helpful. Only take action (call tools, 'give_up', or trigger an "
-    "'answer') after thorough evaluation of the current documents and tool calls."
+    "information is necessary or helpful. Only take action (call tools or providing and answer) after "
+    "thorough evaluation of the current documents and tool calls."
 )
 
 
@@ -86,14 +88,12 @@ AGENTIC_GIVE_UP_SYSTEM_PROMPT = (
 
 
 SELF_ROUTE_SYSTEM_PROMPT = (
-    "You are a helpful assistant to UK Civil Servants. "
     "Given the list of extracted parts of long documents and a question, answer the question if possible.\n"
     "If the question cannot be answered respond with only the word 'unanswerable' \n"
     "If the question can be answered accurately from the documents given then give that response \n"
 )
 
 CHAT_MAP_SYSTEM_PROMPT = (
-    "You are an AI assistant tasked with summarizing documents. "
     "Your goal is to extract the most important information and present it in "
     "a concise and coherent manner. Please follow these guidelines while summarizing: \n"
     "1) Identify and highlight key points,\n"
@@ -103,7 +103,6 @@ CHAT_MAP_SYSTEM_PROMPT = (
 )
 
 REDUCE_SYSTEM_PROMPT = (
-    "You are an AI assistant tasked with summarizing documents. "
     "Your goal is to write a concise summary of list of summaries from a list of summaries in "
     "a concise and coherent manner. Please follow these guidelines while summarizing: \n"
     "1) Identify and highlight key points,\n"
@@ -128,20 +127,9 @@ CHAT_WITH_DOCS_QUESTION_PROMPT = "Question: {question}. \n\n Documents: \n\n {fo
 
 RETRIEVAL_QUESTION_PROMPT = "{question} \n=========\n{formatted_documents}\n=========\nFINAL ANSWER: "
 
-AGENTIC_RETRIEVAL_QUESTION_PROMPT = (
-    "The following context and previous actions are provided to assist you. \n\n"
-    "Previous tool calls: \n\n <ToolCalls> \n\n  {tool_calls} </ToolCalls> \n\n "
-    "Document snippets: \n\n <Documents> \n\n {formatted_documents} </Documents> \n\n "
-    "User question: \n\n {question}"
-)
+AGENTIC_RETRIEVAL_QUESTION_PROMPT = "{question}"
 
-AGENTIC_GIVE_UP_QUESTION_PROMPT = (
-    "The following context and previous actions are provided to assist you. \n\n"
-    "Previous tool calls: \n\n <ToolCalls> \n\n  {tool_calls} </ToolCalls> \n\n "
-    "Document snippets: \n\n <Documents> \n\n {formatted_documents} </Documents> \n\n "
-    "Previous agent's response: \n\n <AIResponse> \n\n {text} \n\n </AIResponse> \n\n "
-    "User question: \n\n {question}"
-)
+AGENTIC_GIVE_UP_QUESTION_PROMPT = "{question}"
 
 CHAT_MAP_QUESTION_PROMPT = "Question: {question}. \n Documents: \n {formatted_documents} \n\n Answer: "
 

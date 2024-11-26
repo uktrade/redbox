@@ -7,7 +7,7 @@ from langchain_elasticsearch.vectorstores import BM25Strategy, ElasticsearchStor
 from redbox.chains.components import get_embeddings
 from redbox.chains.ingest import ingest_from_loader
 from redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader
-from redbox.models import Settings
+from redbox.models.settings import get_settings
 from redbox.models.file import ChunkResolution
 
 if TYPE_CHECKING:
@@ -18,7 +18,7 @@ else:
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger()
 
-env = Settings()
+env = get_settings()
 alias = env.elastic_chunk_alias
 
 
@@ -50,7 +50,7 @@ def create_alias(alias: str):
     es.indices.put_alias(index=chunk_index_name, name=alias)
 
 
-def ingest_file(file_name: str, es_index_name: str = alias) -> str | None:
+def _ingest_file(file_name: str, es_index_name: str = alias):
     logging.info("Ingesting file: %s", file_name)
 
     es = env.elasticsearch_client()
@@ -65,8 +65,8 @@ def ingest_file(file_name: str, es_index_name: str = alias) -> str | None:
         es.options(ignore_status=[400]).indices.create(index=es_index_name)
 
     # Extract metadata
-    metadata = MetadataLoader(env=env, s3_client=env.s3_client(), file_name=file_name)
-    metadata.extract_metadata()
+    metadata_loader = MetadataLoader(env=env, s3_client=env.s3_client(), file_name=file_name)
+    metadata = metadata_loader.extract_metadata()
 
     chunk_ingest_chain = ingest_from_loader(
         loader=UnstructuredChunkLoader(
@@ -75,7 +75,7 @@ def ingest_file(file_name: str, es_index_name: str = alias) -> str | None:
             min_chunk_size=env.worker_ingest_min_chunk_size,
             max_chunk_size=env.worker_ingest_max_chunk_size,
             overlap_chars=0,
-            metadata=metadata.metadata,
+            metadata=metadata,
         ),
         s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store(es, es_index_name),
@@ -89,22 +89,24 @@ def ingest_file(file_name: str, es_index_name: str = alias) -> str | None:
             min_chunk_size=env.worker_ingest_largest_chunk_size,
             max_chunk_size=env.worker_ingest_largest_chunk_size,
             overlap_chars=env.worker_ingest_largest_chunk_overlap,
-            metadata=metadata.metadata,
+            metadata=metadata,
         ),
         s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
         env=env,
     )
 
+    new_ids = RunnableParallel({"normal": chunk_ingest_chain, "largest": large_chunk_ingest_chain}).invoke(file_name)
+    logging.info(
+        "File: %s %s chunks ingested",
+        file_name,
+        {k: len(v) for k, v in new_ids.items()},
+    )
+
+
+def ingest_file(file_name: str, es_index_name: str = alias) -> str | None:
     try:
-        new_ids = RunnableParallel({"normal": chunk_ingest_chain, "largest": large_chunk_ingest_chain}).invoke(
-            file_name
-        )
-        logging.info(
-            "File: %s %s chunks ingested",
-            file_name,
-            {k: len(v) for k, v in new_ids.items()},
-        )
+        _ingest_file(file_name, es_index_name)
     except Exception as e:
         logging.exception("Error while processing file [%s]", file_name)
         return f"{type(e)}: {e.args[0]}"

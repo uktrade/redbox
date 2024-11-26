@@ -5,8 +5,10 @@ from uuid import NAMESPACE_DNS, UUID, uuid5
 
 import pytest
 from langchain_core.documents.base import Document
+from langchain_core.messages import AIMessage
+from langchain_core.runnables import RunnableLambda
 
-from redbox.models.chain import LLMCallMetadata, RequestMetadata
+from redbox.models.chain import DocumentState, LLMCallMetadata, RequestMetadata
 from redbox.retriever.retrievers import filter_by_elbow
 from redbox.test.data import generate_docs
 from redbox.transform import (
@@ -162,24 +164,32 @@ def test_elbow_filter(scores: list[float], target_len: int):
         (
             {
                 "prompt": "Lorem ipsum dolor sit amet.",
-                "response": (
-                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit, "
-                    "sed do eiusmod tempor incididunt ut labore et dolore magna "
-                    "aliqua. "
-                ),
                 "model": "gpt-4o",
+                "text_and_tools": {
+                    "raw_response": AIMessage(
+                        content=(
+                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, "
+                            "sed do eiusmod tempor incididunt ut labore et dolore magna "
+                            "aliqua. "
+                        )
+                    )
+                },
             },
             RequestMetadata(llm_calls={LLMCallMetadata(llm_model_name="gpt-4o", input_tokens=6, output_tokens=23)}),
         ),
         (
             {
                 "prompt": "Lorem ipsum dolor sit amet.",
-                "response": (
-                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit, "
-                    "sed do eiusmod tempor incididunt ut labore et dolore magna "
-                    "aliqua. "
-                ),
                 "model": "unknown-model",
+                "text_and_tools": {
+                    "raw_response": AIMessage(
+                        content=(
+                            "Lorem ipsum dolor sit amet, consectetur adipiscing elit, "
+                            "sed do eiusmod tempor incididunt ut labore et dolore magna "
+                            "aliqua. "
+                        )
+                    )
+                },
             },
             RequestMetadata(
                 llm_calls={LLMCallMetadata(llm_model_name="unknown-model", input_tokens=6, output_tokens=23)}
@@ -188,7 +198,7 @@ def test_elbow_filter(scores: list[float], target_len: int):
     ],
 )
 def test_to_request_metadata(output: dict, expected: RequestMetadata):
-    result = to_request_metadata.invoke(output)
+    result = RunnableLambda(to_request_metadata).invoke(output)
     # We assert on token counts here as the id generation causes the LLMCallMetadata objects not to match
     assert (
         result.input_tokens == expected.input_tokens
@@ -200,7 +210,7 @@ def test_to_request_metadata(output: dict, expected: RequestMetadata):
 
 def test_structure_documents_by_file_name():
     docs = list(generate_docs(s3_key="s3_key", total_tokens=1000, number_of_docs=3, chunk_resolution="normal"))
-    expected = {uuid5(NAMESPACE_DNS, "s3_key"): {doc.metadata["uuid"]: doc for doc in docs}}
+    expected = DocumentState(groups={uuid5(NAMESPACE_DNS, "s3_key"): {doc.metadata["uuid"]: doc for doc in docs}})
     result = structure_documents_by_file_name(docs=docs)
 
     assert result == expected
@@ -251,10 +261,10 @@ def test_structure_documents_by_group_and_indices(n_parent_files: int, n_groups:
     docs = generate_test_groups(n_parent_files=n_parent_files, n_groups=n_groups, n_per_group=n_per_group)
     structured_docs = structure_documents_by_group_and_indices(docs)
 
-    assert isinstance(structured_docs, dict)
-    assert len(structured_docs) == n_parent_files * n_groups
+    assert isinstance(structured_docs, DocumentState)
+    assert len(structured_docs.groups) == n_parent_files * n_groups
 
-    for group_uuid, group_docs in structured_docs.items():
+    for group_uuid, group_docs in structured_docs.groups.items():
         assert isinstance(group_uuid, UUID)
         assert isinstance(group_docs, dict)
         assert len(group_docs) == n_per_group
@@ -333,5 +343,5 @@ def test_sort_documents():
 
     for doc, (expected_score, expected_file_name, expected_index) in zip(sorted_docs, expected_order):
         assert doc.metadata["score"] == expected_score
-        assert doc.metadata["file_name"] == expected_file_name
+        assert doc.metadata["uri"] == expected_file_name
         assert doc.metadata["index"] == expected_index

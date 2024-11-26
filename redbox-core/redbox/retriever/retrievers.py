@@ -25,7 +25,9 @@ def hit_to_doc(hit: dict[str, Any]) -> Document:
     source = hit["_source"]
     c_meta = {
         "index": source.get("index"),
-        "file_name": source.get("file_name"),
+        "uri": source["metadata"].get(
+            "uri", source["metadata"].get("file_name")
+        ),  # Handle mapping previously ingested documents
         "score": hit["_score"],
         "uuid": hit["_id"],
     }
@@ -87,11 +89,11 @@ class ParameterisedElasticsearchRetriever(BaseRetriever):
     def _get_relevant_documents(
         self, query: RedboxState, *, run_manager: CallbackManagerForRetrieverRun
     ) -> list[Document]:
-        query_text = query["text"]
+        query_text = query.last_message.content
         query_vector = self.embedding_model.embed_query(query_text)
-        selected_files = query["request"].s3_keys
-        permitted_files = query["request"].permitted_s3_keys
-        ai_settings = query["request"].ai_settings
+        selected_files = query.request.s3_keys
+        permitted_files = query.request.permitted_s3_keys
+        ai_settings = query.request.ai_settings
 
         # Initial pass
         initial_query = build_document_query(

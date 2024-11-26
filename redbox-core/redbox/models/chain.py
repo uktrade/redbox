@@ -1,34 +1,31 @@
-"""
-There is some repeated definition and non-pydantic style code in here.
-These classes are pydantic v1 which is compatible with langchain tools classes, we need
-to provide a pydantic v1 definition to work with these. As these models are mostly
-used in conjunction with langchain this is the tidiest boxing of pydantic v1 we can do
-"""
-
 from datetime import UTC, datetime
 from enum import StrEnum
 from functools import reduce
-from typing import Annotated, Literal, NotRequired, Required, TypedDict, get_args, get_origin
+from types import UnionType
+from typing import (
+    Annotated,
+    Literal,
+    NotRequired,
+    Required,
+    TypedDict,
+    get_args,
+    get_origin,
+)
 from uuid import UUID, uuid4
 
 from langchain_core.documents import Document
-from langchain_core.messages import ToolCall
-from langgraph.managed.base import ManagedValue
+from langchain_core.messages import AnyMessage
+from langgraph.graph.message import add_messages
+from langgraph.managed.is_last_step import RemainingStepsManager
 from pydantic import BaseModel, Field
 
 from redbox.models import prompts
+from redbox.models.settings import ChatLLMBackend
 
 
 class ChainChatMessage(TypedDict):
     role: Literal["user", "ai", "system"]
     text: str
-
-
-class ChatLLMBackend(BaseModel):
-    name: str = "gpt-4o"
-    provider: str = "azure_openai"
-    description: str | None = None
-    model_config = {"frozen": True}
 
 
 class AISettings(BaseModel):
@@ -44,6 +41,14 @@ class AISettings(BaseModel):
     map_max_concurrency: int = 128
     stuff_chunk_context_ratio: float = 0.75
     recursion_limit: int = 50
+
+    # Common Prompt Fragments
+
+    system_info_prompt: str = prompts.SYSTEM_INFO
+    persona_info_prompt: str = prompts.PERSONA_INFO
+    caller_info_prompt: str = prompts.CALLER_INFO
+
+    # Task Prompt Fragments
 
     chat_system_prompt: str = prompts.CHAT_SYSTEM_PROMPT
     chat_question_prompt: str = prompts.CHAT_QUESTION_PROMPT
@@ -81,9 +86,40 @@ class AISettings(BaseModel):
     # this is also the azure_openai_model
     chat_backend: ChatLLMBackend = ChatLLMBackend()
 
+    # settings for tool call
+    tool_govuk_retrieved_results: int = 100
+    tool_govuk_returned_results: int = 5
 
-class DocumentState(TypedDict):
-    group: dict[UUID, Document]
+
+class Source(BaseModel):
+    source: str = Field(description="URL or reference to the source", default="")
+    source_type: str = Field(description="creator_type of tool", default="Unknown")
+    document_name: str = ""
+    highlighted_text_in_source: str = ""
+    page_numbers: list[int] = Field(description="Page Number in document the highlighted text is on", default=[1])
+
+
+class Citation(BaseModel):
+    text_in_answer: str = Field(
+        description="Part of text from `answer` that references sources and matches exactly with the `answer`, without rephrasing or altering the meaning. Partial matches are acceptable as long as they are exact excerpts from the `answer`",
+        default="",
+    )
+    sources: list[Source] = Field(default_factory=list)
+
+
+class StructuredResponseWithCitations(BaseModel):
+    answer: str = Field(description="Markdown structured answer to the query", default="")
+    citations: list[Citation] = Field(default_factory=list)
+
+
+DocumentMapping = dict[UUID, Document | None]
+DocumentGroup = dict[UUID, DocumentMapping | None]
+
+
+class DocumentState(BaseModel):
+    """A document state containing groups of documents."""
+
+    groups: DocumentGroup = Field(default_factory=DocumentGroup)
 
 
 def document_reducer(current: DocumentState | None, update: DocumentState | list[DocumentState]) -> DocumentState:
@@ -107,11 +143,10 @@ def document_reducer(current: DocumentState | None, update: DocumentState | list
     if current is None:
         return update
 
-    # Copy current
-    reduced = {k: v.copy() for k, v in current.items()}
+    reduced = {k: v.copy() for k, v in current.groups.items()}
 
     # Update with update
-    for group_key, group in update.items():
+    for group_key, group in update.groups.items():
         # If group is None, remove from output if a group key is matched
         if group is None:
             reduced.pop(group_key, None)
@@ -119,7 +154,7 @@ def document_reducer(current: DocumentState | None, update: DocumentState | list
 
         # If group key isn't matched, add it
         if group_key not in reduced:
-            reduced[group_key] = group
+            reduced[group_key] = group.copy()
 
         for document_key, document in group.items():
             if document is None:
@@ -133,7 +168,7 @@ def document_reducer(current: DocumentState | None, update: DocumentState | list
         if not reduced[group_key]:
             del reduced[group_key]
 
-    return reduced
+    return DocumentState(groups=reduced)
 
 
 class RedboxQuery(BaseModel):
@@ -156,12 +191,15 @@ class LLMCallMetadata(BaseModel):
 
 
 class RequestMetadata(BaseModel):
-    llm_calls: set[LLMCallMetadata] = Field(default_factory=set)
+    llm_calls: list[LLMCallMetadata] = Field(default_factory=list)
     selected_files_total_tokens: int = 0
     number_of_selected_files: int = 0
 
     @property
-    def input_tokens(self):
+    def input_tokens(self) -> dict[str, int]:
+        """
+        Creates a dictionary of model names to number of input tokens used
+        """
         tokens_by_model = dict()
         for call_metadata in self.llm_calls:
             tokens_by_model[call_metadata.llm_model_name] = (
@@ -171,6 +209,9 @@ class RequestMetadata(BaseModel):
 
     @property
     def output_tokens(self):
+        """
+        Creates a dictionary of model names to number of output tokens used
+        """
         tokens_by_model = dict()
         for call_metadata in self.llm_calls:
             tokens_by_model[call_metadata.llm_model_name] = (
@@ -179,7 +220,10 @@ class RequestMetadata(BaseModel):
         return tokens_by_model
 
 
-def metadata_reducer(current: RequestMetadata | None, update: RequestMetadata | list[RequestMetadata] | None):
+def metadata_reducer(
+    current: RequestMetadata | None,
+    update: RequestMetadata | list[RequestMetadata] | None,
+):
     """Merges two metadata states."""
     # If update is actually a list of state updates, run them one by one
     if isinstance(update, list):
@@ -192,65 +236,26 @@ def metadata_reducer(current: RequestMetadata | None, update: RequestMetadata | 
         return current
 
     return RequestMetadata(
-        llm_calls=current.llm_calls | update.llm_calls,
+        llm_calls=sorted(set(current.llm_calls) | set(update.llm_calls), key=lambda c: c.timestamp),
         selected_files_total_tokens=update.selected_files_total_tokens or current.selected_files_total_tokens,
         number_of_selected_files=update.number_of_selected_files or current.number_of_selected_files,
     )
 
 
-class ToolStateEntry(TypedDict):
-    """Represents a single tool call in the ToolState."""
+class RedboxState(BaseModel):
+    request: RedboxQuery
+    documents: Annotated[DocumentState, document_reducer] = DocumentState()
+    route_name: str | None = None
+    metadata: Annotated[RequestMetadata | None, metadata_reducer] = None
+    citations: list[Citation] | None = None
+    steps_left: Annotated[int | None, RemainingStepsManager] = None
+    messages: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
 
-    tool: ToolCall
-    called: bool
-
-
-class ToolState(dict[str, ToolStateEntry]):
-    """Represents the state of multiple tools."""
-
-
-def tool_calls_reducer(current: ToolState, update: ToolState | None) -> ToolState:
-    """Handles updates to the tool state.
-
-    * If a new key is added, adds it to the state.
-    * If an existing key is None'd, removes it
-    * If update is None, clears all tool calls
-    """
-    if not update:
-        return {}
-
-    # If update is actually a list of state updates, run them one by one
-    if isinstance(update, list):
-        reduced = reduce(lambda current, update: tool_calls_reducer(current, update), update, current)
-        return reduced
-
-    reduced = current.copy()
-
-    for key, value in update.items():
-        if value is None:
-            reduced.pop(key, None)
-        else:
-            reduced[key] = value
-
-    return reduced
-
-
-class StepsLeft(ManagedValue[bool]):
-    """A managed value that counts down from the recursion limit."""
-
-    def __call__(self, step: int) -> int:
-        limit = self.config.get("recursion_limit", 0)
-        return limit - step
-
-
-class RedboxState(TypedDict):
-    request: Required[RedboxQuery]
-    documents: Annotated[NotRequired[DocumentState], document_reducer]
-    text: NotRequired[str | None]
-    route_name: NotRequired[str | None]
-    tool_calls: Annotated[NotRequired[ToolState], tool_calls_reducer]
-    metadata: Annotated[NotRequired[RequestMetadata], metadata_reducer]
-    steps_left: Annotated[int, StepsLeft]
+    @property
+    def last_message(self) -> AnyMessage:
+        if not self.messages:
+            raise ValueError("No messages in the state")
+        return self.messages[-1]
 
 
 class PromptSet(StrEnum):
@@ -266,29 +271,29 @@ class PromptSet(StrEnum):
 
 def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str]:
     if prompt_set == PromptSet.Chat:
-        system_prompt = state["request"].ai_settings.chat_system_prompt
-        question_prompt = state["request"].ai_settings.chat_question_prompt
+        system_prompt = state.request.ai_settings.chat_system_prompt
+        question_prompt = state.request.ai_settings.chat_question_prompt
     elif prompt_set == PromptSet.ChatwithDocs:
-        system_prompt = state["request"].ai_settings.chat_with_docs_system_prompt
-        question_prompt = state["request"].ai_settings.chat_with_docs_question_prompt
+        system_prompt = state.request.ai_settings.chat_with_docs_system_prompt
+        question_prompt = state.request.ai_settings.chat_with_docs_question_prompt
     elif prompt_set == PromptSet.ChatwithDocsMapReduce:
-        system_prompt = state["request"].ai_settings.chat_map_system_prompt
-        question_prompt = state["request"].ai_settings.chat_map_question_prompt
+        system_prompt = state.request.ai_settings.chat_map_system_prompt
+        question_prompt = state.request.ai_settings.chat_map_question_prompt
     elif prompt_set == PromptSet.Search:
-        system_prompt = state["request"].ai_settings.retrieval_system_prompt
-        question_prompt = state["request"].ai_settings.retrieval_question_prompt
+        system_prompt = state.request.ai_settings.retrieval_system_prompt
+        question_prompt = state.request.ai_settings.retrieval_question_prompt
     elif prompt_set == PromptSet.SearchAgentic:
-        system_prompt = state["request"].ai_settings.agentic_retrieval_system_prompt
-        question_prompt = state["request"].ai_settings.agentic_retrieval_question_prompt
+        system_prompt = state.request.ai_settings.agentic_retrieval_system_prompt
+        question_prompt = state.request.ai_settings.agentic_retrieval_question_prompt
     elif prompt_set == PromptSet.GiveUpAgentic:
-        system_prompt = state["request"].ai_settings.agentic_give_up_system_prompt
-        question_prompt = state["request"].ai_settings.agentic_give_up_question_prompt
+        system_prompt = state.request.ai_settings.agentic_give_up_system_prompt
+        question_prompt = state.request.ai_settings.agentic_give_up_question_prompt
     elif prompt_set == PromptSet.SelfRoute:
-        system_prompt = state["request"].ai_settings.self_route_system_prompt
-        question_prompt = state["request"].ai_settings.retrieval_question_prompt
+        system_prompt = state.request.ai_settings.self_route_system_prompt
+        question_prompt = state.request.ai_settings.retrieval_question_prompt
     elif prompt_set == PromptSet.CondenseQuestion:
-        system_prompt = state["request"].ai_settings.condense_system_prompt
-        question_prompt = state["request"].ai_settings.condense_question_prompt
+        system_prompt = state.request.ai_settings.condense_system_prompt
+        question_prompt = state.request.ai_settings.condense_question_prompt
     return (system_prompt, question_prompt)
 
 
@@ -299,10 +304,14 @@ def is_dict_type[T](annotated_type: T) -> bool:
     else:
         base_type = annotated_type
 
-    if get_origin(base_type) in {Required, NotRequired}:
+    origin = get_origin(base_type)
+    if origin in {Required, NotRequired}:
         base_type = get_args(base_type)[0]
 
-    return issubclass(base_type, dict)
+    if origin is UnionType:
+        return any(map(is_dict_type, get_args(base_type)))
+
+    return origin is dict or issubclass(base_type, dict)
 
 
 def dict_reducer(current: dict, update: dict) -> dict:
@@ -348,6 +357,10 @@ def merge_redbox_state_updates(current: RedboxState, update: RedboxState) -> Red
             if is_dict_type(annotation):
                 # If it's annotated and a subclass of dict, apply a custom reducer function
                 merged_state[update_key] = dict_reducer(current=current_value or {}, update=update_value or {})
+            elif current_value is None:
+                merged_state[update_key] = update_value
+            elif update_value is None:
+                merged_state[update_key] = current_value
             else:
                 # If it's annotated and not a dict, apply its reducer function
                 _, reducer_func = get_args(annotation)
@@ -360,3 +373,11 @@ def merge_redbox_state_updates(current: RedboxState, update: RedboxState) -> Red
                 merged_state[update_key] = current_value
 
     return merged_state
+
+
+class GeneratedMetadata(BaseModel):
+    """Document Metadata generated by the LLM"""
+
+    name: str = Field(description="document name", default="")
+    description: str | None = Field(description="document description", default=None)
+    keywords: list[str] = Field(description="document keywords", max_length=5, default_factory=list)

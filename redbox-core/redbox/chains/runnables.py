@@ -1,67 +1,74 @@
 import logging
 import re
-from operator import itemgetter
 from typing import Any, Callable, Iterable, Iterator
 
-from langchain_core.callbacks.manager import CallbackManagerForLLMRun, dispatch_custom_event
+from langchain_core.callbacks.manager import (
+    CallbackManagerForLLMRun,
+    dispatch_custom_event,
+)
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import Runnable, RunnableGenerator, RunnableLambda, chain
+from langchain_core.runnables import (
+    Runnable,
+    RunnableGenerator,
+    RunnableLambda,
+    RunnablePassthrough,
+    chain,
+)
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tiktoken import Encoding
 
-from redbox.api.format import format_documents, format_toolstate
+from redbox.api.format import format_documents
+from redbox.chains.activity import log_activity
 from redbox.chains.components import get_tokeniser
 from redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_prompts
 from redbox.models.errors import QuestionLengthError
 from redbox.models.graph import RedboxEventType
 from redbox.transform import (
     flatten_document_state,
-    to_request_metadata,
-    tool_calls_to_toolstate,
+    get_all_metadata,
 )
 
 log = logging.getLogger()
 re_string_pattern = re.compile(r"(\S+)")
 
 
-def combine_getters(*getters: Callable[[Any], Any]) -> Callable[[Any], Any]:
-    """Permits chaining of *getter functions in LangChain."""
-
-    def _combined(obj):
-        for getter in getters:
-            obj = getter(obj)
-        return obj
-
-    return _combined
-
-
-def build_chat_prompt_from_messages_runnable(prompt_set: PromptSet, tokeniser: Encoding = None) -> Runnable:
+def build_chat_prompt_from_messages_runnable(
+    prompt_set: PromptSet,
+    tokeniser: Encoding = None,
+    format_instructions: str = "",
+    additional_variables: dict | None = None,
+) -> Runnable:
     @chain
     def _chat_prompt_from_messages(state: RedboxState) -> Runnable:
         """
         Create a ChatPromptTemplate as part of a chain using 'chat_history'.
         Returns the PromptValue using values in the input_dict
         """
+        ai_settings = state.request.ai_settings
         _tokeniser = tokeniser or get_tokeniser()
-        system_prompt, question_prompt = get_prompts(state, prompt_set)
+        _additional_variables = additional_variables or dict()
+        task_system_prompt, task_question_prompt = get_prompts(state, prompt_set)
 
         log.debug("Setting chat prompt")
-        system_prompt_message = [("system", system_prompt)]
-        prompts_budget = len(_tokeniser.encode(system_prompt)) + len(_tokeniser.encode(question_prompt))
-        chat_history_budget = (
-            state["request"].ai_settings.context_window_size
-            - state["request"].ai_settings.llm_max_tokens
-            - prompts_budget
-        )
+        # Set the system prompt to be our composed structure
+        # We preserve the format instructions
+        system_prompt_message = f"""
+            {ai_settings.system_info_prompt}
+            {task_system_prompt}
+            {ai_settings.persona_info_prompt}
+            {ai_settings.caller_info_prompt}
+            """
+        prompts_budget = len(_tokeniser.encode(task_system_prompt)) + len(_tokeniser.encode(task_question_prompt))
+        chat_history_budget = ai_settings.context_window_size - ai_settings.llm_max_tokens - prompts_budget
 
         if chat_history_budget <= 0:
             raise QuestionLengthError
 
         truncated_history: list[ChainChatMessage] = []
-        for msg in state["request"].chat_history[::-1]:
+        for msg in state.request.chat_history[::-1]:
             chat_history_budget -= len(_tokeniser.encode(msg["text"]))
             if chat_history_budget <= 0:
                 break
@@ -69,18 +76,22 @@ def build_chat_prompt_from_messages_runnable(prompt_set: PromptSet, tokeniser: E
                 truncated_history.insert(0, msg)
 
         prompt_template_context = (
-            state["request"].model_dump()
-            | {"text": state.get("text")}
+            state.request.model_dump()
             | {
-                "formatted_documents": format_documents(flatten_document_state(state.get("documents"))),
+                "messages": state.messages,
+                "formatted_documents": format_documents(flatten_document_state(state.documents)),
             }
-            | {"tool_calls": format_toolstate(state.get("tool_calls"))}
+            | _additional_variables
         )
 
-        return ChatPromptTemplate.from_messages(
-            system_prompt_message
-            + [(msg["role"], msg["text"]) for msg in truncated_history]
-            + [("user", question_prompt)]
+        return ChatPromptTemplate(
+            messages=(
+                [("system", system_prompt_message)]
+                + [(msg["role"], msg["text"]) for msg in truncated_history]
+                + [MessagesPlaceholder("messages")]
+                + [task_question_prompt + "\n\n{format_instructions}"]
+            ),
+            partial_variables={"format_instructions": format_instructions},
         ).invoke(prompt_template_context)
 
     return _chat_prompt_from_messages
@@ -90,6 +101,7 @@ def build_llm_chain(
     prompt_set: PromptSet,
     llm: BaseChatModel,
     output_parser: Runnable | Callable = None,
+    format_instructions: str | None = None,
     final_response_chain: bool = False,
 ) -> Runnable:
     """Builds a chain that correctly forms a text and metadata state update.
@@ -100,35 +112,33 @@ def build_llm_chain(
     _llm = llm.with_config(tags=["response_flag"]) if final_response_chain else llm
     _output_parser = output_parser if output_parser else StrOutputParser()
 
+    _llm_text_and_tools = _llm | {
+        "raw_response": RunnablePassthrough(),
+        "parsed_response": _output_parser,
+    }
+
+    text_and_tools = {
+        "text_and_tools": _llm_text_and_tools,
+        "prompt": RunnableLambda(lambda prompt: prompt.to_string()),
+        "model": lambda _: model_name,
+    }
+
     return (
-        build_chat_prompt_from_messages_runnable(prompt_set)
-        | {
-            "text_and_tools": (
-                _llm
-                | {
-                    "text": _output_parser,
-                    "tool_calls": (RunnableLambda(lambda r: r.tool_calls) | tool_calls_to_toolstate),
-                }
-            ),
-            "prompt": RunnableLambda(lambda prompt: prompt.to_string()),
-        }
-        | {
-            "text": combine_getters(itemgetter("text_and_tools"), itemgetter("text")),
-            "tool_calls": combine_getters(itemgetter("text_and_tools"), itemgetter("tool_calls")),
-            "metadata": (
-                {
-                    "prompt": itemgetter("prompt"),
-                    "response": combine_getters(itemgetter("text_and_tools"), itemgetter("text")),
-                    "model": lambda _: model_name,
-                }
-                | to_request_metadata
-            ),
-        }
+        build_chat_prompt_from_messages_runnable(prompt_set, format_instructions=format_instructions)
+        | text_and_tools
+        | get_all_metadata
+        | RunnablePassthrough.assign(
+            _log=RunnableLambda(
+                lambda _: (log_activity(f"Generating response with {model_name}...") if final_response_chain else None)
+            )
+        )
     )
 
 
 def build_self_route_output_parser(
-    match_condition: Callable[[str], bool], max_tokens_to_check: int, final_response_chain: bool = False
+    match_condition: Callable[[str], bool],
+    max_tokens_to_check: int,
+    final_response_chain: bool = False,
 ) -> Runnable[Iterable[AIMessageChunk], Iterable[str]]:
     """
     This Runnable reads the streamed responses from an LLM until the match
@@ -162,13 +172,18 @@ def build_self_route_output_parser(
     return RunnableGenerator(_self_route_output_parser)
 
 
+@RunnableLambda
+def send_token_events(tokens: str):
+    dispatch_custom_event(RedboxEventType.response_tokens, data=tokens)
+
+
 class CannedChatLLM(BaseChatModel):
     """A custom chat model that returns its text as if an LLM returned it.
 
     Based on https://python.langchain.com/v0.2/docs/how_to/custom_chat_model/
     """
 
-    text: str
+    messages: list[AIMessage]
 
     def _generate(
         self,
@@ -189,7 +204,7 @@ class CannedChatLLM(BaseChatModel):
                   downstream and understand why generation stopped.
             run_manager: A run manager with callbacks for the LLM.
         """
-        message = AIMessage(content=self.text)
+        message = AIMessage(content=self.messages[-1].content)
 
         generation = ChatGeneration(message=message)
         return ChatResult(generations=[generation])
@@ -213,7 +228,7 @@ class CannedChatLLM(BaseChatModel):
                   downstream and understand why generation stopped.
             run_manager: A run manager with callbacks for the LLM.
         """
-        for token in re_string_pattern.split(self.text):
+        for token in re_string_pattern.split(self.messages[-1].content):
             chunk = ChatGenerationChunk(message=AIMessageChunk(content=token))
 
             if run_manager:

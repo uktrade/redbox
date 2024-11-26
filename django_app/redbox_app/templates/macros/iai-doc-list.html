@@ -15,13 +15,13 @@
         <tbody class="iai-doc-list__tbody">
             {% for doc in docs %}
                 <tr class="iai-doc-list__item">
-                    <td class="iai-doc-list__cell--file-name">{{ doc.name }}</td>
+                    <td class="iai-doc-list__cell--file-name">{{ doc.file_name }}</td>
                     <td class="iai-doc-list__cell--expiry">{{ doc.expires | humanise_expiry }}</td>
                     <td class="iai-doc-list__cell--status">
                         {% if type == "complete" %}
                             {{ doc.get_status_text() }}
                         {% else %}
-                            <file-status data-id="{{ doc.id }}">{{ doc.get_status_text() }}</file-status>
+                            <file-status data-id="{{ doc.id }}" data-status="{{ doc.get_status_text() }}">{{ doc.get_status_text() }}</file-status>
                         {% endif %}
                     </td>
                     <td class="iai-doc-list__cell--actions">
