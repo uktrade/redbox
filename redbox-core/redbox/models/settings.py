@@ -48,7 +48,7 @@ class ElasticCloudSettings(BaseModel):
 
 class ChatLLMBackend(BaseModel):
     name: str = "gpt-4o"
-    provider: str = "azure_openai"
+    provider: str = "openai"
     description: str | None = None
     model_config = {"frozen": True}
 
@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     embedding_openai_api_key: str = "NotAKey"
     embedding_azure_openai_endpoint: str = "not an endpoint"
     azure_api_version_embeddings: str = "2024-02-01"
-    metadata_extraction_llm: ChatLLMBackend = ChatLLMBackend(name="gpt-4o", provider="azure_openai")
+    metadata_extraction_llm: ChatLLMBackend = ChatLLMBackend(name="gpt-4o", provider="openai")
 
     embedding_backend: Literal[
         "text-embedding-ada-002",
