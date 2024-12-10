@@ -53,7 +53,7 @@ def get_elasticsearch_store_without_embeddings(es, es_index_name: str):
         index_name=es_index_name,
         opensearch_url=env.elastic.collection_endpoint,
         #embedding_function=get_embeddings(env),
-        embedding_function=FakeEmbeddings(size=3072)
+        embedding_function=FakeEmbeddings(size=1024) #set embedding size to 1024 to match bedrock model amazon.titan-embed-text-v2:0 default embedding size
     )
 
 
