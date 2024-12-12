@@ -115,8 +115,7 @@ def build_document_query(
         chunk_resolution=chunk_resolution,
     )
 
-    return {
-        "size": ai_settings.rag_k,
+    return {"size": ai_settings.rag_k,
         "query": {
             "bool": {
                 "should": [
@@ -154,12 +153,10 @@ def build_document_query(
                     },
                     {
                         "knn": {
-                            "field": embedding_field_name,
-                            "query_vector": query_vector,
-                            "num_candidates": ai_settings.rag_num_candidates,
-                            "filter": query_filter,
-                            "boost": ai_settings.knn_boost,
-                            "similarity": ai_settings.similarity_threshold,
+                            "vector_field": {
+                            "vector": query_vector,
+                            "k": ai_settings.rag_num_candidates,
+                            "boost": ai_settings.knn_boost}
                         }
                     },
                 ],
