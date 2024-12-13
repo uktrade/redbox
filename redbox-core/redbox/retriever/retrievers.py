@@ -22,7 +22,6 @@ from redbox.models.file import ChunkResolution
 from redbox.retriever.queries import add_document_filter_scores_to_query, build_document_query, get_all, get_metadata
 from redbox.transform import merge_documents, sort_documents
 
-
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger()
 
