@@ -52,8 +52,10 @@ def get_elasticsearch_store_without_embeddings(es, es_index_name: str):
     return OpenSearchVectorSearch(
         index_name=es_index_name,
         opensearch_url=env.elastic.collection_endpoint,
-        #embedding_function=get_embeddings(env),
-        embedding_function=FakeEmbeddings(size=1024) #set embedding size to 1024 to match bedrock model amazon.titan-embed-text-v2:0 default embedding size
+        # embedding_function=get_embeddings(env),
+        embedding_function=FakeEmbeddings(
+            size=1024
+        ),  # set embedding size to 1024 to match bedrock model amazon.titan-embed-text-v2:0 default embedding size
     )
 
 
@@ -115,7 +117,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias):
     )
 
     new_ids = RunnableParallel({"normal": chunk_ingest_chain, "largest": large_chunk_ingest_chain}).invoke(file_name)
-    #new_ids = RunnableParallel({"normal": chunk_ingest_chain}).invoke(file_name) #test one task to identify root cause
+    # new_ids = RunnableParallel({"normal": chunk_ingest_chain}).invoke(file_name) #test one task to identify root cause
     logging.info(
         "File: %s %s chunks ingested",
         file_name,
