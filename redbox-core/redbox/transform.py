@@ -1,4 +1,6 @@
 import itertools
+import json
+import re
 from typing import Iterable
 from uuid import NAMESPACE_DNS, UUID, uuid5
 
@@ -8,7 +10,7 @@ from langchain_core.documents import Document
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 
-from redbox.models.chain import DocumentState, LLMCallMetadata, RedboxState, RequestMetadata, DocumentMapping
+from redbox.models.chain import DocumentMapping, DocumentState, LLMCallMetadata, RedboxState, RequestMetadata
 from redbox.models.graph import RedboxEventType
 
 
@@ -173,7 +175,10 @@ def to_request_metadata(obj: dict) -> RequestMetadata:
         tokeniser = tiktoken.get_encoding("cl100k_base")
 
     input_tokens = len(tokeniser.encode(prompt))
-    output_tokens = len(tokeniser.encode(response))
+    try:
+        output_tokens = len(tokeniser.encode(response))
+    except Exception:
+        output_tokens = len(response[0].get("text"))
 
     metadata_event = RequestMetadata(
         llm_calls=[
@@ -199,6 +204,9 @@ def get_all_metadata(obj: dict):
         citations = getattr(parsed_response, "citations", [])
     else:
         text = text_and_tools["raw_response"].content
+
+        # if isinstance(text, list):
+        #     text = extract_and_parse_json(text[0].get('text'))
         citations = []
 
     out = {
