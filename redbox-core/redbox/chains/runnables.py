@@ -1,7 +1,6 @@
-import json
 import logging
 import re
-from typing import Any, Callable, Iterable, Iterator, List
+from typing import Any, Callable, Iterable, Iterator
 
 from langchain_core.callbacks.manager import CallbackManagerForLLMRun, dispatch_custom_event
 from langchain_core.language_models import BaseChatModel
@@ -86,25 +85,6 @@ def build_chat_prompt_from_messages_runnable(
     return _chat_prompt_from_messages
 
 
-# Custom parser
-@RunnableLambda
-def extract_json(message: AIMessage) -> AIMessage:
-    text = message.content[0].get("text")
-    try:
-        # Find content between first { and last }
-        match = re.search(r"(\{.*\})", text, re.DOTALL)
-        if not match:
-            return message
-
-        json_str = match.group(1)
-
-        return AIMessage(content=json_str)
-
-    except Exception as e:
-        print(f"Error processing JSON: {e}")
-        return message
-
-
 def build_llm_chain(
     prompt_set: PromptSet,
     llm: BaseChatModel,
@@ -118,11 +98,7 @@ def build_llm_chain(
     """
     model_name = getattr(llm, "model_name", "unknown-model")
     _llm = llm.with_config(tags=["response_flag"]) if final_response_chain else llm
-
-    if model_name == "unknown-model":
-        _output_parser = extract_json | output_parser if output_parser else StrOutputParser()
-    else:
-        _output_parser = output_parser if output_parser else StrOutputParser()
+    _output_parser = output_parser if output_parser else StrOutputParser()
 
     _llm_text_and_tools = _llm | {
         "raw_response": RunnablePassthrough(),
