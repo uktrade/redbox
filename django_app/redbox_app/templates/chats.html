@@ -91,7 +91,7 @@
 
         <div class="iai-panel govuk-!-margin-top-5 govuk-!-padding-top-3">
           <label class="govuk-body-s govuk-!-font-weight-bold" for="llm-selector">Model</label>
-          <select id="llm-selector" name="llm" class="govuk-select govuk-!-margin-top-1">
+          <select id="llm-selector" name="llm" class="govuk-select govuk-!-margin-top-1" {% if environment | lower == 'prod' %} disabled {% endif %}>
             {% for option in llm_options %}
               <option value="{{ option.id }}" {% if option.selected %}selected{% endif %}>{{ option.name }}{% if option.default %} (default){% endif %}</option>
             {% endfor %}
@@ -164,6 +164,9 @@
             </button>
           </send-message>
         </div>
+        <p class="govuk-body">
+          Need help? Read through our <a href="{{ url('faq') }}" class="govuk-link" target="_blank">Advanced Prompt FAQ</a> section.
+        </p>
         <p class="iai-chat-input__info-text">Redbox can make mistakes. You must check for accuracy before using the output.</p>
         <p class="iai-chat-input__info-text">You can use up to, and including, official sensitive documents.</p>
       </div>

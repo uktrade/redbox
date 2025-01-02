@@ -1,6 +1,7 @@
 import json
 import logging
 from asyncio import CancelledError
+from asgiref.sync import sync_to_async
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
@@ -62,6 +63,10 @@ def parse_page_number(obj: int | list[int] | None) -> list[int]:
 def escape_curly_brackets(text: str):
     return text.replace("{", "{{").replace("}", "}}")
 
+
+@sync_to_async
+def get_latest_complete_file(ref: str) -> File:
+    return File.objects.filter(original_file=ref, status=File.Status.complete).order_by('-created_at').first()
 
 class ChatConsumer(AsyncWebsocketConsumer):
     full_reply: ClassVar = []
@@ -301,13 +306,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         for ref, sources in sources_by_resource_ref.items():
             try:
-                file = await File.objects.aget(original_file=ref)
-                payload = {"url": str(file.url), "file_name": file.file_name}
+                # Use the async database query function
+                file = await get_latest_complete_file(ref)
+                if file:
+                    payload = {"url": str(file.url), "file_name": file.file_name}
+                else:
+                    # If no file with Status.complete is found, handle it as None
+                    payload = {"url": ref, "file_name": None}
+
                 response_sources = [
                     Source(
-                        source=str(file.url),
+                        source=str(file.url if file else ref),
                         source_type=Citation.Origin.USER_UPLOADED_DOCUMENT,
-                        document_name=file.file_name,
+                        document_name=file.file_name if file else ref.split("/")[-1],
                         highlighted_text_in_source=cited_chunk.page_content,
                         page_numbers=parse_page_number(cited_chunk.metadata.get("page_number")),
                     )
@@ -338,11 +349,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
         for c in citations:
             for s in c.sources:
                 try:
-                    file = await File.objects.aget(original_file=s.source)
-                    payload = {"url": str(file.url), "file_name": file.file_name, "text_in_answer": c.text_in_answer}
+                    # Use the async database query function
+                    file = await get_latest_complete_file(s.source)
+                    if file:
+                        payload = {"url": str(file.url), "file_name": file.file_name, "text_in_answer": c.text_in_answer}
+                    else:
+                        # If no file with Status.complete is found, handle it as None
+                        payload = {"url": s.source, "file_name": s.source, "text_in_answer": c.text_in_answer}
                 except File.DoesNotExist:
                     file = None
                     payload = {"url": s.source, "file_name": s.source, "text_in_answer": c.text_in_answer}
+
                 await self.send_to_client("source", payload)
                 self.citations.append((file, AICitation(text_in_answer=c.text_in_answer, sources=[s])))
 

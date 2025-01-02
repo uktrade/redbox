@@ -1,0 +1,155 @@
+{% set pageTitle = "FAQs" %}
+{% extends "base.html" %}
+{% from "macros/govuk-button.html" import govukButton %}
+
+{% block content %}
+
+<div class="govuk-width-container">
+    <h1 class="govuk-heading-l govuk-!-magin-top-5">Advanced Prompt FAQs</h1>
+    <div class="govuk-accordion" data-module="govuk-accordion" id="advanced_faq">
+        <div class="govuk-accordion__section">
+            <div class="govuk-accordion__section-header">
+                <h2 class="govuk-accordion__section-heading">
+                    <span class="govuk-accordion__section-button" id="advanced-faq-question-1">
+                        How can I improve the quality of Redbox's responses?
+                    </span>
+                </h2>
+            </div>
+            <div class="govuk-accordion__section-content" id="advanced-faq-content-1">
+                <p class="govuk-body">
+                    Be clear and specific in your instructions. Treat Redbox as a capable but uninformed colleague. Provide context about your task and function/profession-specific terminology. Use examples when helpful, but avoid overly constraining the model. 
+                </p>
+            </div>
+        </div>
+        <div class="govuk-accordion__section">
+            <div class="govuk-accordion__section-header">
+                <h2 class="govuk-accordion__section-heading">
+                    <span class="govuk-accordion__section-button" id="advanced-faq-question-2">
+                        Should I use formal language when prompting Redbox?
+                    </span>
+                </h2>
+            </div>
+            <div class="govuk-accordion__section-content" id="advanced-faq-content-2">
+                <p class="govuk-body">
+                    While proper grammar isn't strictly necessary, clear communication is key. Focus on conveying your instructions and context accurately rather than worrying about perfect formatting. 
+                </p>
+            </div>
+        </div>
+        <div class="govuk-accordion__section">
+            <div class="govuk-accordion__section-header">
+                <h2 class="govuk-accordion__section-heading">
+                    <span class="govuk-accordion__section-button" id="advanced-faq-question-3">
+                        How can I get Redbox to provide more detailed analysis of uploaded documents?
+                    </span>
+                </h2>
+            </div>
+            <div class="govuk-accordion__section-content" id="advanced-faq-content-3">
+                <p class="govuk-body">
+                    Ask Redbox to "think step-by-step" or break down its analysis process. You can also request it to consider multiple perspectives or potential implications of the document's content. 
+                </p>
+            </div>
+        </div>
+        <div class="govuk-accordion__section">
+            <div class="govuk-accordion__section-header">
+                <h2 class="govuk-accordion__section-heading">
+                    <span class="govuk-accordion__section-button" id="advanced-faq-question-4">
+                        What should I do if Redbox's initial response isn't quite what I need?
+                    </span>
+                </h2>
+            </div>
+            <div class="govuk-accordion__section-content" id="advanced-faq-content-4">
+                <p class="govuk-body">
+                    Iterate on your prompt. Ask Redbox to explain its understanding of your request, then clarify or refine your instructions based on its response. Don't hesitate to have a back-and-forth dialogue to hone in on the desired output. 
+                </p>
+            </div>
+        </div>
+        <div class="govuk-accordion__section">
+            <div class="govuk-accordion__section-header">
+                <h2 class="govuk-accordion__section-heading">
+                    <span class="govuk-accordion__section-button" id="advanced-faq-question-5">
+                        How can I use Redbox for more complex tasks like policy analysis? 
+                    </span>
+                </h2>
+            </div>
+            <div class="govuk-accordion__section-content" id="advanced-faq-content-5">
+                <p class="govuk-body">
+                    Break down complex tasks into smaller steps. Ask Redbox to outline a process, then guide it through each step. Provide relevant background information and specify the type of analysis you need (e.g., pros/cons, historical context, potential outcomes). 
+                </p>
+            </div>
+        </div>
+        <div class="govuk-accordion__section">
+            <div class="govuk-accordion__section-header">
+                <h2 class="govuk-accordion__section-heading">
+                    <span class="govuk-accordion__section-button" id="advanced-faq-question-6">
+                        Can I use Redbox to help draft prompts for more specialised tasks? 
+                    </span>
+                </h2>
+            </div>
+            <div class="govuk-accordion__section-content" id="advanced-faq-content-6">
+                <p class="govuk-body">
+                    Yes! Ask Redbox to help you formulate prompts for specific tasks. Describe your goal and any relevant constraints, then ask it to generate a detailed prompt you can refine. 
+                </p>
+            </div>
+        </div>
+        <div class="govuk-accordion__section">
+            <div class="govuk-accordion__section-header">
+                <h2 class="govuk-accordion__section-heading">
+                    <span class="govuk-accordion__section-button" id="advanced-faq-question-7">
+                        How can I ensure Redbox's summaries capture the most relevant information? 
+                    </span>
+                </h2>
+            </div>
+            <div class="govuk-accordion__section-content" id="advanced-faq-content-7">
+                <p class="govuk-body">
+                    Specify your summarisation criteria clearly. For example, "@Summarise this report, focusing on budget implications and policy recommendations. Highlight any areas of uncertainty or debate." 
+                </p>
+            </div>
+        </div>
+        <div class="govuk-accordion__section">
+            <div class="govuk-accordion__section-header">
+                <h2 class="govuk-accordion__section-heading">
+                    <span class="govuk-accordion__section-button" id="advanced-faq-question-8">
+                        Are there techniques to improve Redbox's accuracy on factual queries?
+                    </span>
+                </h2>
+            </div>
+            <div class="govuk-accordion__section-content" id="advanced-faq-content-8">
+                <p class="govuk-body">
+                    For fact-based questions, ask Redbox to cite specific sections of the uploaded documents by using the @search feature. You can also request it to express its confidence level and explain its reasoning. 
+                </p>
+            </div>
+        </div>
+        <div class="govuk-accordion__section">
+            <div class="govuk-accordion__section-header">
+                <h2 class="govuk-accordion__section-heading">
+                    <span class="govuk-accordion__section-button" id="advanced-faq-question-9">
+                        How can I use Redbox more effectively for comparative analysis of multiple documents?
+                    </span>
+                </h2>
+            </div>
+            <div class="govuk-accordion__section-content" id="advanced-faq-content-9">
+                <p class="govuk-body">
+                    Clearly outline the criteria for comparison. Ask Redbox to create a structured format (e.g., a table or bullet-point list) to present the comparative analysis, making it easier to spot key differences and similarities. 
+                </p>
+            </div>
+        </div>
+        <div class="govuk-accordion__section">
+            <div class="govuk-accordion__section-header">
+                <h2 class="govuk-accordion__section-heading">
+                    <span class="govuk-accordion__section-button" id="advanced-faq-question-10">
+                        What should I do if I suspect Redbox has made a mistake? 
+                    </span>
+                </h2>
+            </div>
+            <div class="govuk-accordion__section-content" id="advanced-faq-content-10">
+                <p class="govuk-body">
+                    Ask Redbox to double-check its work and explain its reasoning. You can also rephrase your question or provide additional context to see if it leads to a different result. Always verify important information against original sources. 
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+{% endblock %}

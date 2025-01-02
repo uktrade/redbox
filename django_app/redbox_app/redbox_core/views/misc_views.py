@@ -42,3 +42,10 @@ def sitemap_view(request):
         template_name="sitemap.html",
         context={"request": request, "chat_history": chat_history},
     )
+
+def faq_view(request):
+    return render(
+        request,
+        template_name="faq.html",
+        context={"request": request},
+    )
