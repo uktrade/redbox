@@ -137,14 +137,14 @@ class Redbox:
     def get_available_keywords(self) -> dict[ChatRoute, str]:
         return ROUTABLE_KEYWORDS
 
-    def draw(self, output_path=None, graph_to_draw: Literal["root", "search/agentic", "chat_with_documents"] = "root"):
+    def draw(self, output_path=None, graph_to_draw: Literal["root", "agent", "chat_with_documents"] = "root"):
         from langchain_core.runnables.graph import MermaidDrawMethod
 
         if graph_to_draw == "root":
             graph = self.graph.get_graph()
-        elif graph_to_draw == "search/agentic":
+        elif graph_to_draw == "agent":
             graph = get_agentic_search_graph(self.tools).get_graph()
-        elif graph_to_draw == "chat/documents":
+        elif graph_to_draw == "summarise":
             graph = get_chat_with_documents_graph(self.all_chunks_retriever, self.parameterised_retriever).get_graph()
         else:
             raise Exception("Invalid graph_to_draw")

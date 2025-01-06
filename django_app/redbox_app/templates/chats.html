@@ -89,7 +89,7 @@
           </fieldset>
         </document-selector>
 
-        <div class="iai-panel govuk-!-margin-top-5 govuk-!-padding-top-3">
+        <div class="iai-panel govuk-!-margin-top-5 govuk-!-padding-top-3 {% if environment | lower == 'prod' and not request.user.is_superuser %} govuk-visually-hidden {% endif %}">
           <label class="govuk-body-s govuk-!-font-weight-bold" for="llm-selector">Model</label>
           <select id="llm-selector" name="llm" class="govuk-select govuk-!-margin-top-1" {% if environment | lower == 'prod' %} disabled {% endif %}>
             {% for option in llm_options %}

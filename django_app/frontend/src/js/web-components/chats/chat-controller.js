@@ -83,9 +83,9 @@ class ChatController extends HTMLElement {
         if (userText.includes("@chat")) {
           plausible("User-specified-route", { props: { route: "@chat" } });
         }
-        if (userText.includes("@chat/documents")) {
+        if (userText.includes("@summarise")) {
           plausible("User-specified-route", {
-            props: { route: "@chat/documents" },
+            props: { route: "@summarise" },
           });
         }
         if (userText.includes("@search")) {
