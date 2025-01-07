@@ -1,8 +1,8 @@
 import logging
 import os
 from functools import cache, lru_cache
+from typing import Dict, Literal, Optional, Union
 from urllib.parse import urlparse
-from typing import Literal, Optional, Union, Dict
 
 import boto3
 import environ
@@ -24,6 +24,7 @@ env = environ.Env()
 
 ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
 
+
 class OpenSearchSettings(BaseModel):
     """settings required for a aws/opensearch"""
 
@@ -32,13 +33,13 @@ class OpenSearchSettings(BaseModel):
     collection_endpoint: str = env.str("COLLECTION_ENDPOINT")
     parsed_url: AnyUrl = urlparse(collection_endpoint)
 
-    logger.info(f'the parsed url is {parsed_url}')
+    logger.info(f"the parsed url is {parsed_url}")
 
     collection_endpoint__username: Optional[str] = parsed_url.username
     collection_endpoint__password: Optional[str] = parsed_url.password
     collection_endpoint__host: Optional[str] = parsed_url.hostname
     collection_endpoint__port: Optional[str] = "443"
-    collection_endpoint__port_local: Optional[str] = "9200" #locally, the port number is 9200
+    collection_endpoint__port_local: Optional[str] = "9200"  # locally, the port number is 9200
 
 
 class ElasticLocalSettings(BaseModel):
@@ -78,7 +79,9 @@ class Settings(BaseSettings):
     embedding_openai_api_key: str = "NotAKey"
     embedding_azure_openai_endpoint: str = "not an endpoint"
     azure_api_version_embeddings: str = "2024-02-01"
-    metadata_extraction_llm: ChatLLMBackend = ChatLLMBackend(name="gpt-4o-mini", provider="openai")
+    metadata_extraction_llm: ChatLLMBackend = ChatLLMBackend(
+        name="anthropic.claude-3-sonnet-20240229-v1:0", provider="bedrock"
+    )
 
     embedding_backend: str = "amazon.titan-embed-text-v2:0"
     embedding_backend_vector_size: int = 1024
@@ -120,7 +123,7 @@ class Settings(BaseSettings):
     worker_ingest_min_chunk_size: int = 1_000
     worker_ingest_max_chunk_size: int = 10_000
     ### Largest
-    worker_ingest_largest_chunk_size: int = 300_000 
+    worker_ingest_largest_chunk_size: int = 300_000
     worker_ingest_largest_chunk_overlap: int = 0
 
     response_no_doc_available: str = "No available data for selected files. They may need to be removed and added again"
@@ -145,33 +148,44 @@ class Settings(BaseSettings):
         "Description must be less than 100 words. and no more than 5 keywords .",
     )
 
-    #Define index mapping for Opensearch - this is important so that KNN search works
-    index_mapping : Dict = {
-    "settings": {
-    "index.knn": True
-    },
-    "mappings": {
-        "properties": {
-            "metadata": {
-                "properties": {
-                    "chunk_resolution": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}},
-                    "created_datetime": {"type": "date"},
-                    "creator_type": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}},
-                    "description": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}},
-                    "index": {"type": "long"},
-                    "keywords": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}},
-                    "name": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}},
-                    "page_number": {"type": "long"},
-                    "token_count": {"type": "long"},
-                    "uri": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}},
-                    "uuid": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}}
-                }
-            },
-            "text": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}},
-            "vector_field": {"type": "knn_vector", "dimension": embedding_backend_vector_size, "method": {"name": "hnsw", "space_type": "cosinesimil", "engine": "lucene"}}     
-        }
-        }
-        }
+    # Define index mapping for Opensearch - this is important so that KNN search works
+    index_mapping: Dict = {
+        "settings": {"index.knn": True},
+        "mappings": {
+            "properties": {
+                "metadata": {
+                    "properties": {
+                        "chunk_resolution": {
+                            "type": "text",
+                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                        },
+                        "created_datetime": {"type": "date"},
+                        "creator_type": {
+                            "type": "text",
+                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                        },
+                        "description": {
+                            "type": "text",
+                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                        },
+                        "index": {"type": "long"},
+                        "keywords": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}},
+                        "name": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}},
+                        "page_number": {"type": "long"},
+                        "token_count": {"type": "long"},
+                        "uri": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}},
+                        "uuid": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}},
+                    }
+                },
+                "text": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}},
+                "vector_field": {
+                    "type": "knn_vector",
+                    "dimension": embedding_backend_vector_size,
+                    "method": {"name": "hnsw", "space_type": "cosinesimil", "engine": "lucene"},
+                },
+            }
+        },
+    }
 
     @property
     def elastic_chat_mesage_index(self):
@@ -181,13 +195,18 @@ class Settings(BaseSettings):
     def elastic_alias(self):
         return self.elastic_root_index + "-chunk-current"
 
-    #@lru_cache(1) #removing cache because pydantic object (index mapping) is not hashable
+    # @lru_cache(1) #removing cache because pydantic object (index mapping) is not hashable
     def elasticsearch_client(self) -> Union[Elasticsearch, OpenSearch]:
         logger.info("Testing OpenSearch is definitely being used")
-        
+
         if ENVIRONMENT.is_local:
             client = OpenSearch(
-                hosts=[{"host": self.elastic.collection_endpoint__host, "port": self.elastic.collection_endpoint__port_local}],
+                hosts=[
+                    {
+                        "host": self.elastic.collection_endpoint__host,
+                        "port": self.elastic.collection_endpoint__port_local,
+                    }
+                ],
                 http_auth=(self.elastic.collection_endpoint__username, self.elastic.collection_endpoint__password),
                 use_ssl=False,
                 connection_class=RequestsHttpConnection,
@@ -195,7 +214,9 @@ class Settings(BaseSettings):
 
         else:
             client = OpenSearch(
-                hosts=[{"host": self.elastic.collection_endpoint__host, "port": self.elastic.collection_endpoint__port}],
+                hosts=[
+                    {"host": self.elastic.collection_endpoint__host, "port": self.elastic.collection_endpoint__port}
+                ],
                 http_auth=(self.elastic.collection_endpoint__username, self.elastic.collection_endpoint__password),
                 use_ssl=True,
                 verify_certs=True,
@@ -210,7 +231,9 @@ class Settings(BaseSettings):
             # client.options(ignore_status=[400]).indices.create(index=chunk_index)
             # client.indices.put_alias(index=chunk_index, name=self.elastic_alias)
             try:
-                client.indices.create(index=chunk_index, body=self.index_mapping, ignore=400)  # 400 is ignored to avoid index-already-exists errors
+                client.indices.create(
+                    index=chunk_index, body=self.index_mapping, ignore=400
+                )  # 400 is ignored to avoid index-already-exists errors
             except Exception as e:
                 logger.error(f"Failed to create index {chunk_index}: {e}")
 
