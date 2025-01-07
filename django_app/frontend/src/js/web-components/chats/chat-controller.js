@@ -73,25 +73,7 @@ class ChatController extends HTMLElement {
         feedbackButtons.dataset.status = "";
       }
       messageInput.reset();
-
-      // if a route has been intentionally specified by a user, send an event to Plausible
-      (() => {
-        let plausible = /** @type {any} */ (window).plausible;
-        if (typeof plausible === "undefined") {
-          return;
-        }
-        if (userText.includes("@chat")) {
-          plausible("User-specified-route", { props: { route: "@chat" } });
-        }
-        if (userText.includes("@summarise")) {
-          plausible("User-specified-route", {
-            props: { route: "@summarise" },
-          });
-        }
-        if (userText.includes("@search")) {
-          plausible("User-specified-route", { props: { route: "@search" } });
-        }
-      })();
+      
     });
 
     document.body.addEventListener("selected-docs-change", (evt) => {

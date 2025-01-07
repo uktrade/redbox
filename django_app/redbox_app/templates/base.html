@@ -18,14 +18,6 @@
   <script type="module" src="{{static('js/libs/dompurify.js')}}"></script>
   <script type="module" src="{{static('js/main.js')}}"></script>
 
-  {% if environment | lower in ["dev", "preprod"] %}
-    <script defer
-    data-domain="dev.redbox.uktrade.digital" src="https://plausible.io/js/script.pageview-props.tagged-events.outbound-links.file-downloads.local.js"></script>
-  {% elif environment | lower == "prod" %}
-    <script defer
-    data-domain="redbox.prod.uktrade.digital" src="https://plausible.io/js/script.pageview-props.tagged-events.outbound-links.file-downloads.js"></script>
-  {% endif %}
-
   {% if environment | lower == "prod" and waffle_flag(request, 'uktrade') %}
     <!-- Google tag (gtag.js) -->
   <script async src="{{ google_analytics_link }}"></script>
