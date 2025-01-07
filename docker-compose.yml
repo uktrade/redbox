@@ -1,13 +1,12 @@
 services:
   unstructured:
     image: quay.io/unstructured-io/unstructured-api:latest
-    # image: unstructured:latest - TODO - separate this commented into a buildx ccommand somewhere
-    # build:
-    #   context: .
-    #   dockerfile: unstructured/Dockerfile
+    #image: unstructured:latest  #- TODO - separate this commented into a buildx ccommand somewhere
+    #build:
+      #context: .
+      #dockerfile: unstructured/Dockerfile
     ports:
       - 8000:8000
-      # - "8080:8080"
     networks:
       - redbox-app-network
   django-app:
@@ -29,14 +28,16 @@ services:
         required: false
       - path: .env
         required: false
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-production}
     volumes:
       - /app/django_app/frontend/node_modules
       - ./django_app:/app/django_app/
       - .aws:/root/.aws
     ports:
-      - "8080:8080"
+      - "${PORT:-8080}:${PORT:-8080}"
     healthcheck:
-      test: curl --fail http://localhost:8080/health/ || exit 1
+      test: curl --fail http://localhost:${PORT:-8080}/health/ || exit 1
       interval: 5s
       timeout: 30s
       retries: 24
@@ -132,11 +133,12 @@ services:
       start_period: 30s
 
   opensearch:
-    image: opensearchproject/opensearch:2.9.0
+    image: opensearchproject/opensearch:2.17.0
     environment:
       - discovery.type=single-node
       - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
       - plugins.security.disabled=true  # Disable security plugin for simplicity
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_INITIAL_ADMIN_PASSWORD} # Sets the demo admin user password when using demo configuration (for OpenSearch 2.12 and later)
     volumes:
       - opensearch-data:/usr/share/opensearch/data
     ports:
@@ -151,7 +153,7 @@ services:
       start_period: 60s
     restart: unless-stopped
   opensearch-dashboards:
-    image: opensearchproject/opensearch-dashboards:2.9.0
+    image: opensearchproject/opensearch-dashboards:2.17.0
     environment:
       - OPENSEARCH_HOSTS=https://opensearch:9200
     ports:
@@ -166,9 +168,9 @@ services:
   embeddings:
     image: localai/localai:v2.18.1-aio-cpu #localai/localai:v2.18.1 should allow use of sentencetransformers backend
     expose:
-      - "8090"
+      - "8091"
     ports:
-      - "8090:8090"
+      - "8091:8091"
     environment:
       - MODELS=/aio/cpu/embeddings.yaml #Use defaults embedding model for aio image. Only aio images available in ARM architecture
       - MINIO_SECRET_KEY=minioadmin
@@ -180,7 +182,7 @@ services:
       - ./data/embeddings/config:/config
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8080/readyz" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8090/readyz" ]
       interval: 1m
       timeout: 20m
       retries: 5

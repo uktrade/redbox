@@ -112,8 +112,7 @@ def build_document_query(
         chunk_resolution=chunk_resolution,
     )
 
-    return {
-        "size": ai_settings.rag_k,
+    return {"size": ai_settings.rag_k,
         "query": {
             "bool": {
                 "should": [

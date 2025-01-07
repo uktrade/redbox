@@ -3,6 +3,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 from io import BytesIO
 from typing import TYPE_CHECKING
+import environ
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import PromptTemplate
 import requests
@@ -14,6 +15,11 @@ from redbox.chains.components import get_chat_llm
 from redbox.models.file import ChunkResolution, UploadedFileMetadata
 from redbox.models.settings import Settings
 from redbox.models.chain import GeneratedMetadata
+from redbox_app.setting_enums import Environment
+
+env = environ.Env()
+
+ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
@@ -41,7 +47,10 @@ class MetadataLoader:
         Chunking data using local unstructured
         """
         file_bytes = self._get_file_bytes(s3_client=self.s3_client, file_name=self.file_name)
-        url = f"http://{self.env.unstructured_host}:80/general/v0/general"
+        if ENVIRONMENT.is_local:
+            url = f"http://{self.env.unstructured_host}:8000/general/v0/general"
+        else:
+            url = f"http://{self.env.unstructured_host}:80/general/v0/general"
         files = {
             "files": (self.file_name, file_bytes),
         }
@@ -141,7 +150,10 @@ class UnstructuredChunkLoader:
         When you're implementing lazy load methods, you should use a generator
         to yield documents one by one.
         """
-        url = f"http://{self.env.unstructured_host}:80/general/v0/general"
+        if ENVIRONMENT.is_local:
+            url = f"http://{self.env.unstructured_host}:8000/general/v0/general"
+        else:
+            url = f"http://{self.env.unstructured_host}:80/general/v0/general"
         files = {
             "files": (file_name, file_bytes),
         }

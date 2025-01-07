@@ -38,6 +38,7 @@ class OpenSearchSettings(BaseModel):
     collection_endpoint__password: Optional[str] = parsed_url.password
     collection_endpoint__host: Optional[str] = parsed_url.hostname
     collection_endpoint__port: Optional[str] = "443"
+    collection_endpoint__port_local: Optional[str] = "9200" #locally, the port number is 9200
 
 
 class ElasticLocalSettings(BaseModel):
@@ -119,7 +120,7 @@ class Settings(BaseSettings):
     worker_ingest_min_chunk_size: int = 1_000
     worker_ingest_max_chunk_size: int = 10_000
     ### Largest
-    worker_ingest_largest_chunk_size: int = 300_000
+    worker_ingest_largest_chunk_size: int = 300_000 
     worker_ingest_largest_chunk_overlap: int = 0
 
     response_no_doc_available: str = "No available data for selected files. They may need to be removed and added again"
@@ -180,13 +181,13 @@ class Settings(BaseSettings):
     def elastic_alias(self):
         return self.elastic_root_index + "-chunk-current"
 
-    # @lru_cache(1)
+    #@lru_cache(1) #removing cache because pydantic object (index mapping) is not hashable
     def elasticsearch_client(self) -> Union[Elasticsearch, OpenSearch]:
         logger.info("Testing OpenSearch is definitely being used")
         
         if ENVIRONMENT.is_local:
             client = OpenSearch(
-                hosts=[{"host": self.elastic.collection_endpoint__host, "port": self.elastic.collection_endpoint__port}],
+                hosts=[{"host": self.elastic.collection_endpoint__host, "port": self.elastic.collection_endpoint__port_local}],
                 http_auth=(self.elastic.collection_endpoint__username, self.elastic.collection_endpoint__password),
                 use_ssl=False,
                 connection_class=RequestsHttpConnection,
@@ -209,7 +210,7 @@ class Settings(BaseSettings):
             # client.options(ignore_status=[400]).indices.create(index=chunk_index)
             # client.indices.put_alias(index=chunk_index, name=self.elastic_alias)
             try:
-                client.indices.create(index=chunk_index, body=self.index_mapping, ignore=400)
+                client.indices.create(index=chunk_index, body=self.index_mapping, ignore=400)  # 400 is ignored to avoid index-already-exists errors
             except Exception as e:
                 logger.error(f"Failed to create index {chunk_index}: {e}")
 
