@@ -2,35 +2,10 @@
 
 import "../loading-message.js";
 
-/**
- * Send Plausible data on tool-tip hover
- * @param {Event} evt
- */
-const sendTooltipViewEvent = (evt) => {
-  let plausible = /** @type {any} */ (window).plausible;
-  if (typeof plausible !== "undefined") {
-    plausible("Route-tooltip-view");
-  }
-  // cancel event listener so events only get sent once
-  let targetElement = /** @type{HTMLElement | null | undefined} */ (evt.target);
-  if (targetElement?.nodeName !== "TOOL-TIP") {
-    targetElement = targetElement?.closest("tool-tip");
-  }
-  targetElement?.removeEventListener("mouseover", sendTooltipViewEvent);
-};
-// Do this for any SSR tool-tips on the page
-(() => {
-  const tooltips = document.querySelectorAll("tool-tip");
-  tooltips.forEach((tooltip) => {
-    tooltip.addEventListener("mouseover", sendTooltipViewEvent);
-  });
-})();
-
 export class ChatMessage extends HTMLElement {
   constructor() {
     super();
     this.programmaticScroll = false;
-    this.plausibleRouteDataSent = false;
   }
 
   connectedCallback() {
@@ -243,13 +218,6 @@ export class ChatMessage extends HTMLElement {
         if (route && routeText) {
           routeText.textContent = response.data;
           route.removeAttribute("hidden");
-        }
-
-        // send route to Plausible
-        let plausible = /** @type {any} */ (window).plausible;
-        if (typeof plausible !== "undefined" && !this.plausibleRouteDataSent) {
-          plausible("Chat-message-route", { props: { route: response.data } });
-          this.plausibleRouteDataSent = true;
         }
       } else if (response.type === "activity") {
         this.addActivity(response.data, "ai");

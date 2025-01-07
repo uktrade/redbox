@@ -183,12 +183,10 @@ else:
 CSP_DEFAULT_SRC = (
     "'self'",
     "s3.amazonaws.com",
-    "plausible.io",
 )
 CSP_SCRIPT_SRC = (
     "'self'",
     "'sha256-GUQ5ad8JK5KmEWmROf3LZd9ge94daqNvd8xy9YS1iDw='",
-    "plausible.io",
     "eu.i.posthog.com",
     "eu-assets.i.posthog.com",
     "'sha256-qmCu1kQifDfCnUd+L49nusp7+PeRl23639pzN5QF2WA='",
@@ -208,7 +206,6 @@ CSP_FRAME_ANCESTORS = ("'none'",)
 CSP_CONNECT_SRC = [
     "'self'",
     f"{WEBSOCKET_SCHEME}://{ENVIRONMENT.hosts[0]}/ws/chat/",
-    "plausible.io",
     "eu.i.posthog.com",
     "eu-assets.i.posthog.com",
 ]
