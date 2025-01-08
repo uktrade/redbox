@@ -30,6 +30,41 @@ export class FeedbackButtons extends HTMLElement {
         <button class="thumb_feedback-btn thumb_feedback-btn--down" type="button">
           <img src="/static/icons/thumbs-down.svg" alt="Thumbs down" />
         </button>
+          </div>
+          <div class="feedback__container feedback__container--2" hidden tabindex="-1">
+
+        <fieldset class="feedback__chips-container feedback__negative">
+          <legend class="feedback__chips-legend">Select all that apply about the response</h3>
+          <div class="feedback__chips-inner-container">
+          
+            <!-- Factuality Group -->
+            <div class="feedback__chip-group">
+              <input class="feedback__chip" type="checkbox" id="chip1-factual-${messageId}" name="factuality" value="factual" />
+              <label class="feedback__chip-label" for="chip1-factual-${messageId}">Factual</label>
+          
+              <input class="feedback__chip" type="checkbox" id="chip2-inaccurate-${messageId}" name="factuality" value="inaccurate" />
+              <label class="feedback__chip-label" for="chip2-inaccurate-${messageId}">Inaccurate</label>
+            </div>
+          
+            <!-- Completeness Group -->
+            <div class="feedback__chip-group">
+              <input class="feedback__chip" type="checkbox" id="chip3-complete-${messageId}" name="completeness" value="complete" />
+              <label class="feedback__chip-label" for="chip3-complete-${messageId}">Complete</label>
+          
+              <input class="feedback__chip" type="checkbox" id="chip4-incomplete-${messageId}" name="completeness" value="incomplete" />
+              <label class="feedback__chip-label" for="chip4-incomplete-${messageId}">Incomplete</label>
+            </div>
+          
+            <!-- Structure Group -->
+            <div class="feedback__chip-group">
+              <input class="feedback__chip" type="checkbox" id="chip5-structured-${messageId}" name="structure" value="structured" />
+              <label class="feedback__chip-label" for="chip5-structured-${messageId}">Structured</label>
+          
+              <input class="feedback__chip" type="radio" id="chip6-unstructured-${messageId}" name="structure" value="unstructured" />
+              <label class="feedback__chip-label" for="chip6-unstructured-${messageId}">Unstructured</label>
+            </div>
+          </div>
+      </fieldset>
       </div>
     `;
 
@@ -50,7 +85,9 @@ export class FeedbackButtons extends HTMLElement {
       }
 
       this.#sendFeedback();
+      this.#showPanel(1);
     });
+
 
     thumbsDownButton?.addEventListener("click", () => {
       if (!this.collectedData) return;
@@ -64,7 +101,27 @@ export class FeedbackButtons extends HTMLElement {
         this.#highlightButton(thumbsDownButton, thumbsUpButton);
       }
 
+
+
+      // this.preventDefault();
+      if (!this.collectedData) {
+        return;
+      }
+      /** @type {NodeListOf<HTMLInputElement>} */
+      let chips = this.querySelectorAll(".feedback__chip");
+      chips.forEach((chip) => {
+        if (chip.checked) {
+          const text = this.querySelector(`[for="${chip.id}"]`)?.textContent;
+          if (text && this.collectedData) {
+            this.collectedData.chips.push(text);
+          }
+        }
+      });
+      // this.collectedData.text = textInput?.value || "";
       this.#sendFeedback();
+      console.log("#sendFeedback")
+      this.#showPanel(1);
+      console.log("#sendFeedback")
     });
   }
 
@@ -77,6 +134,8 @@ export class FeedbackButtons extends HTMLElement {
     button1.style.opacity = 1;
     button2.style.opacity = 0.2;
   }
+
+  
   /**
    * Posts data back to the server
    */
@@ -104,5 +163,18 @@ export class FeedbackButtons extends HTMLElement {
       }
     }
   }
+  #showPanel(panelIndex) {
+    if (!this.collectedData) {
+      return;
+    }
+    /** @type {NodeListOf<HTMLElement>} */
+    let panels = this.querySelectorAll(".feedback__container");
+    // panels.forEach((panel) => {
+    //   panel.setAttribute("hidden", "");
+    // });
+    panels[panelIndex].removeAttribute("hidden");
+    panels[panelIndex].focus();
+    console.log(panels[panelIndex])
+ }
 }
 customElements.define("feedback-buttons", FeedbackButtons);
