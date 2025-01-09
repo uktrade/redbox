@@ -395,7 +395,7 @@ feedback-buttons:last-of-type {
 /* Response feedback - general styles */
 .feedback__container {
   font-size: 0.75rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.5rem;
   margin-top: -0.25rem;
   padding: 0 1rem;
   text-align: left;
@@ -423,7 +423,6 @@ feedback-buttons:last-of-type {
   gap: 0.5rem;
 }
 
-
 .feedback__chips-container {
   border: 0;
   margin: 0;
@@ -434,16 +433,16 @@ feedback-buttons:last-of-type {
 }
 .feedback__chips-inner-container {
   display: flex;
-  flex-wrap: nowrap; /* Ensures all chips stay in a single row */
-  align-items: center; /* Ensures vertical alignment */
+  flex-wrap: nowrap; 
+  align-items: center; 
   justify-content: flex-start; /* Aligns the groups to the left */
-  gap: 1rem; /* Adds spacing between chip groups */
+  gap: 2rem; /* Adds spacing between chip groups */
 }
 
 .feedback__chip-group {
-  display: inline-flex; /* Ensures chips within each group are inline */
+  display: inline-flex;
   align-items: center;
-  column-gap: 0.2rem; /* Adjust spacing between chips within a group */
+  column-gap: 0.1rem; /* Adjust spacing between chips within a group */
 }
 
 .feedback__chip {
@@ -473,8 +472,6 @@ feedback-buttons:last-of-type {
   color: black;
 }
 
-
-/* Thumbs feedback buttons */
 .thumb_feedback-btn {
   border: none; 
   background: none; 

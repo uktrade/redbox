@@ -20,51 +20,46 @@ export class FeedbackButtons extends HTMLElement {
     this.dataset.id = messageId;
 
     this.innerHTML = `
-      <div class="feedback__container feedback__container--1" tabindex="-1">
-        <h3 class="feedback__heading">Is this response useful?</h3>
-        
-        <button class="thumb_feedback-btn thumb_feedback-btn--up" type="button">
-          <img src="/static/icons/thumbs-up.svg" alt="Thumbs Up" />
-        </button>
-        <button class="thumb_feedback-btn thumb_feedback-btn--down" type="button">
-          <img src="/static/icons/thumbs-down.svg" alt="Thumbs down" />
-        </button>
+    <div class="feedback__container feedback__container--1" tabindex="-1">
+      <h3 class="feedback__heading">Is this response useful?</h3>
+      <button class="thumb_feedback-btn thumb_feedback-btn--up" type="button">
+        <img src="/static/icons/thumbs-up.svg" alt="Thumbs Up" />
+      </button>
+      <button class="thumb_feedback-btn thumb_feedback-btn--down" type="button">
+        <img src="/static/icons/thumbs-down.svg" alt="Thumbs down" />
+      </button>
+    </div>
+<div class="feedback__container feedback__container--2" hidden tabindex="-1">
+  <fieldset class="feedback__chips-container feedback__negative">
+    <legend class="feedback__chips-legend">Select all that apply about the response</legend>
+    <div class="feedback__chips-inner-container">
+      <!-- Factuality Group -->
+      <div class="feedback__chip-group">
+        <input class="feedback__chip" type="checkbox" id="chip1-factual-${messageId}" data-testid="Factual" />
+        <label class="feedback__chip-label" for="chip1-factual-${messageId}">Factual</label>
+        <input class="feedback__chip" type="checkbox" id="chip2-inaccurate-${messageId}" data-testid="Inaccurate" />
+        <label class="feedback__chip-label" for="chip2-inaccurate-${messageId}">Inaccurate</label>
       </div>
-      <div class="feedback__container feedback__container--2" hidden tabindex="-1">
-    <fieldset class="feedback__chips-container feedback__negative">
-      <legend class="feedback__chips-legend">Select all that apply about the response</legend>
-      <div class="feedback__chips-inner-container">
-        <!-- Factuality Group -->
-        <div class="feedback__chip-group">
-          <input class="feedback__chip" type="checkbox" id="chip1-factual-${messageId}" data-testid="Factual" />
-          <label class="feedback__chip-label" for="chip1-factual-${messageId}">Factual</label>
-        </div>
-        <div class="feedback__chip-group">
-          <input class="feedback__chip" type="checkbox" id="chip2-inaccurate-${messageId}" data-testid="Inaccurate" />
-          <label class="feedback__chip-label" for="chip2-inaccurate-${messageId}">Inaccurate</label>
-        </div>
-        <!-- Completeness Group -->
-        <div class="feedback__chip-group">
-          <input class="feedback__chip" type="checkbox" id="chip3-complete-${messageId}" data-testid="Complete" />
-          <label class="feedback__chip-label" for="chip3-complete-${messageId}">Complete</label>
-        </div>
-        <div class="feedback__chip-group">
-          <input class="feedback__chip" type="checkbox" id="chip4-incomplete-${messageId}" data-testid="Incomplete" />
-          <label class="feedback__chip-label" for="chip4-incomplete-${messageId}">Incomplete</label>
-        </div>
-        <!-- Structure Group -->
-        <div class="feedback__chip-group">
-          <input class="feedback__chip" type="checkbox" id="chip5-structured-${messageId}" data-testid="Structured" />
-          <label class="feedback__chip-label" for="chip5-structured-${messageId}">Structured</label>
-        </div>
-        <div class="feedback__chip-group">
-          <input class="feedback__chip" type="checkbox" id="chip6-unstructured-${messageId}" data-testid="Unstructured" />
-          <label class="feedback__chip-label" for="chip6-unstructured-${messageId}">Unstructured</label>
-        </div>
+      <!-- Completeness Group -->
+      <div class="feedback__chip-group">
+        <input class="feedback__chip" type="checkbox" id="chip3-complete-${messageId}" data-testid="Complete" />
+        <label class="feedback__chip-label" for="chip3-complete-${messageId}">Complete</label>
+        <input class="feedback__chip" type="checkbox" id="chip4-incomplete-${messageId}" data-testid="Incomplete" />
+        <label class="feedback__chip-label" for="chip4-incomplete-${messageId}">Incomplete</label>
       </div>
-    </fieldset>
-  </div>
-    `;
+      <!-- Structure Group -->
+      <div class="feedback__chip-group">
+        <input class="feedback__chip" type="checkbox" id="chip5-structured-${messageId}" data-testid="Structured" />
+        <label class="feedback__chip-label" for="chip5-structured-${messageId}">Structured</label>
+        <input class="feedback__chip" type="checkbox" id="chip6-unstructured-${messageId}" data-testid="Unstructured" />
+        <label class="feedback__chip-label" for="chip6-unstructured-${messageId}">Unstructured</label>
+      </div>
+    </div>
+  </fieldset>
+</div>
+
+  `;
+  
     
     // Panel 1 Add event listeners for thumbs-up and thumbs-down buttons
     let thumbsUpButton = this.querySelector(".thumb_feedback-btn--up");
