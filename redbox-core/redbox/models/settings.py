@@ -97,8 +97,8 @@ class Settings(BaseSettings):
     clustering_strategy: Literal["full"] | None = None
 
     elastic: OpenSearchSettings = OpenSearchSettings()
-    elastic_root_index: str = "redbox-data"
-    elastic_chunk_alias: str = "redbox-data-chunk-current"
+    elastic_root_index: str = "redbox-data-integration"
+    elastic_chunk_alias: str = "redbox-data-integration-chunk-current"
 
     kibana_system_password: str = "redboxpass"
     metricbeat_internal_password: str = "redboxpass"
