@@ -1,3 +1,7 @@
+@import "@ukic/fonts/dist/fonts.css";
+@import "@ukic/react/dist/core/core.css";
+@import "@ukic/react/dist/core/normalize.css";
+
 :root {
   --main-bg-color: #b62777;
 }
