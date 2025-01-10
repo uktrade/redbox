@@ -1,3 +1,5 @@
+import "./copy-text.js";
+
 export class FeedbackButtons extends HTMLElement {
   connectedCallback() {
     this.collectedData = {
@@ -28,7 +30,13 @@ export class FeedbackButtons extends HTMLElement {
       <button class="thumb_feedback-btn thumb_feedback-btn--down" type="button">
         <img src="/static/icons/thumbs-down.svg" alt="Thumbs down" />
       </button>
-    </div>
+      
+      <!-- User Utilities Group -->
+        <div>
+          <copy-text></copy-text>
+        </div>
+      </div>
+
 <div class="feedback__container feedback__container--2" hidden tabindex="-1">
   <fieldset class="feedback__chips-container feedback__negative">
     <legend class="feedback__chips-legend">Select all that apply about the response</legend>

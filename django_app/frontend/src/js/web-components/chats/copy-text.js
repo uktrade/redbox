@@ -1,6 +1,6 @@
 // @ts-check
 
-class CopyText extends HTMLElement {
+export class CopyText extends HTMLElement {
   connectedCallback() {
     this.innerHTML = `
         <button class="iai-chat-bubble__button" type="button">
