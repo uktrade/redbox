@@ -44,10 +44,6 @@ export class ChatMessage extends HTMLElement {
 
     // Add feedback buttons
     if (this.dataset.role === "ai") {
-      this.copytextButtons = /** @type {import("./copy-text.js").CopyText} */(document.createElement("copy-text"));
-      console.log('1st test message');
-      this.parentElement?.appendChild(this.copytextButtons);
-      console.log('2nd test message');
       this.feedbackButtons = /** @type {import("./feedback-buttons").FeedbackButtons} */(document.createElement("feedback-buttons"));
       this.parentElement?.appendChild(this.feedbackButtons);
     }
