@@ -60,3 +60,25 @@ repos:
           - ./infrastructure
           - --ignore-unfixed
           - . # last arg indicates the path/file to scan
+  - repo: https://github.com/uktrade/pii-secret-check-hooks
+    rev: 0.0.0.35
+    hooks:
+          - id: pii_secret_filename
+            files: ''
+            language: python
+            args: [exclude]
+            pass_filenames: true
+            require_serial: true
+          - id: pii_secret_file_content
+            files: ''
+            language: python
+            args: [--exclude=pii-secret-exclude.txt]
+            pass_filenames: true
+            require_serial: true
+            additional_dependencies: [click==8.0.4]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.4
+    hooks:
+        - id: ruff
+          args: [ --fix ]
