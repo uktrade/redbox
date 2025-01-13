@@ -8,7 +8,7 @@ license = "MIT"
 [tool.poetry.dependencies]
 python = ">=3.12,<3.13"
 redbox = {path="../redbox-core", develop=true}
-django = "^5.1"
+django = "5.1.4"
 django-libsass = "^0.9"
 django-magic-link = "^1.0.0"
 whitenoise = "^6.6.0"
@@ -49,6 +49,7 @@ django-staff-sso-client = "^4.3.0"
 dj-database-url = "^2.3.0"
 dbt-copilot-python = "^0.2.2"
 django-log-formatter-asim = "^0.0.6"
+
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.2"

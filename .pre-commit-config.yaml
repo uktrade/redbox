@@ -11,7 +11,21 @@ repos:
         name: Check for a blank line at the end of scripts (auto-fixes)
         exclude: '\.Rd'
       - id: trailing-whitespace
+        args : ["--markdown-linebreak-ext=md,markdown"]
         name: Check for trailing whitespaces (auto-fixes)
+      - id: check-yaml
+        name: Check yaml files
+      - id: check-ast
+        name: Check whether files parse as valid python
+      - id: check-merge-conflict
+        name: Check for files that contain merge conflicts
+      - id: debug-statements
+        name: Check for debugger imports and breakpoint calls in python source
+      - id: detect-private-key
+        name: Check for existence of private keys
+      - id: detect-aws-credentials
+        args: ["--allow-missing-credentials"]
+        name: Check for existence of AWS secrets
 
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.4.0
