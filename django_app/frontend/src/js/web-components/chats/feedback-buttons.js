@@ -62,6 +62,9 @@ export class FeedbackButtons extends HTMLElement {
         <button class="feedback__submit-btn" type="button">Submit</button>
     </div>    
     </div>
+    <div class="feedback__container feedback__container--thank-you" hidden tabindex="-1">
+      <p class="feedback__thank-you-message">Thank you for your feedback!</p>
+    </div>
      `;
   
     // Panel 1 Add event listeners for thumbs-up and thumbs-down buttons
@@ -122,16 +125,23 @@ export class FeedbackButtons extends HTMLElement {
 
     // Panel 3 - text and chips
     /** @type {HTMLTextAreaElement | null} */
-    const textInput = this.querySelector(`#text-${messageId}`);
-    this.querySelector(".feedback__submit-btn")?.addEventListener("click", (evt) => {
-      evt.preventDefault();
-      if (!this.collectedData) return;
+  // Updated Submit button logic
+  const textInput = this.querySelector(`#text-${messageId}`);
+  this.querySelector(".feedback__submit-btn")?.addEventListener("click", (evt) => {
+    evt.preventDefault();
+    if (!this.collectedData) return;
 
-      this.collectedData.text = textInput?.value || "";
-      this.#sendFeedback();
-      this.#showPanel(3);
-    });
-  }
+    this.collectedData.text = textInput?.value || "";
+    this.#sendFeedback();
+
+    // Hide text area and submit button, show thank-you message
+    const textArea = this.querySelector(".feedback__text-area");
+    textArea.hidden = true;
+    const thankYouPanel = this.querySelector(".feedback__container--thank-you");
+    thankYouPanel.removeAttribute("hidden");
+    thankYouPanel.focus();
+  });
+}
 
   #highlightButton(selectedButton, otherButton) {
     selectedButton.style.opacity = 1;
