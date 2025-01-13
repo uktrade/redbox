@@ -186,10 +186,10 @@ CSP_DEFAULT_SRC = (
 )
 CSP_SCRIPT_SRC = (
     "'self'",
-    "'sha256-GUQ5ad8JK5KmEWmROf3LZd9ge94daqNvd8xy9YS1iDw='",
+    "'sha256-GUQ5ad8JK5KmEWmROf3LZd9ge94daqNvd8xy9YS1iDw='", # pragma: allowlist-secret
     "eu.i.posthog.com",
     "eu-assets.i.posthog.com",
-    "'sha256-qmCu1kQifDfCnUd+L49nusp7+PeRl23639pzN5QF2WA='",
+    "'sha256-qmCu1kQifDfCnUd+L49nusp7+PeRl23639pzN5QF2WA='", # pragma: allowlist-secret
 )
 CSP_OBJECT_SRC = ("'none'",)
 CSP_REQUIRE_TRUSTED_TYPES_FOR = ("'script'",)
@@ -400,6 +400,7 @@ Q_CLUSTER = {
     "catch_up": False,
     "orm": "default",
     "workers": 1,
+    "error_reporter": {"sentry": {"dsn": SENTRY_DSN}},
 }
 
 UNSTRUCTURED_HOST = env.str("UNSTRUCTURED_HOST")
