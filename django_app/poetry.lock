@@ -1576,13 +1576,13 @@ typing_extensions = ">=3.10.0.0"
 
 [[package]]
 name = "django"
-version = "5.1.3"
+version = "5.1.5"
 description = "A high-level Python web framework that encourages rapid development and clean, pragmatic design."
 optional = false
 python-versions = ">=3.10"
 files = [
-    {file = "Django-5.1.3-py3-none-any.whl", hash = "sha256:8b38a9a12da3ae00cb0ba72da985ec4b14de6345046b1e174b1fd7254398f818"},
-    {file = "Django-5.1.3.tar.gz", hash = "sha256:c0fa0e619c39325a169208caef234f90baa925227032ad3f44842ba14d75234a"},
+    {file = "Django-5.1.5-py3-none-any.whl", hash = "sha256:c46eb936111fffe6ec4bc9930035524a8be98ec2f74d8a0ff351226a3e52f459"},
+    {file = "Django-5.1.5.tar.gz", hash = "sha256:19bbca786df50b9eca23cee79d495facf55c8f5c54c529d9bf1fe7b5ea086af3"},
 ]
 
 [package.dependencies]
