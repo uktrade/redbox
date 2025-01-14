@@ -1,7 +1,7 @@
 export class FeedbackButtons extends HTMLElement {
   connectedCallback() {
     this.collectedData = {
-      // 2 for thumbs-up, 1 for thumbs-down
+      // 1 for thumbs-up, 2 for thumbs-down
       rating: 0,
       text: "",
       chips: /** @type {string[]}*/ ([]),
@@ -66,7 +66,8 @@ export class FeedbackButtons extends HTMLElement {
       <p class="feedback__thank-you-message">Thank you for your feedback!</p>
     </div>
      `;
-  
+    
+    // 1 Thumbs up, 2 Thumbs down
     // Panel 1 Add event listeners for thumbs-up and thumbs-down buttons
     let thumbsUpButton = this.querySelector(".thumb_feedback-btn--up");
     let thumbsDownButton = this.querySelector(".thumb_feedback-btn--down");
