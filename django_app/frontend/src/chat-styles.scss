@@ -371,18 +371,9 @@ chat-message {
   padding-left: 1rem;
 }
 
-/* Response feedback - differing content for negative and positive responses */
-.feedback__container--negative .feedback__negative,
-.feedback__container--positive .feedback__positive {
-  display: block;
-}
-.feedback__container--negative .feedback__positive,
-.feedback__container--positive .feedback__negative {
-  display: none;
-}
-.feedback__container--2.feedback__container--negative img {
-  transform: scaleY(-1);
-}
+
+
+
 
 /* Only show feedback buttons on last message, for now */
 feedback-buttons {
@@ -416,12 +407,14 @@ feedback-buttons:last-of-type {
   margin-right: 1rem;
 }
 
-
-.feedback__response-container {
-  align-items: center;
-  display: flex;
-  gap: 0.5rem;
+.feedback__container--negative .feedback__chips {
+  display: block;
 }
+// .feedback__container--negative .feedback__positive,
+// .feedback__container--positive .feedback__negative {
+//   display: none;
+// }
+
 
 .feedback__chips-container {
   border: 0;
@@ -491,6 +484,7 @@ feedback-buttons:last-of-type {
   resize: none;
   width: 100%;
 }
+
 .feedback__submit-btn {
   background-color: $redbox-red;
   border: none;
@@ -501,12 +495,6 @@ feedback-buttons:last-of-type {
   font-weight: 500;
   margin-top: 1rem;
   padding: 0.5rem 1rem;
-}
-
-.feedback__thank-you {
-  margin-top: 10px;
-  font-size: 1.2em;
-  color: $redbox-red;
 }
 
 /* New Chat Options */

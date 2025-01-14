@@ -50,9 +50,9 @@ export class FeedbackButtons extends HTMLElement {
           <!-- Structure Group -->
           <div class="feedback__chip-group">
             <input class="feedback__chip" type="checkbox" id="chip5-structured-${messageId}" data-testid="Structured" />
-            <label class="feedback__chip-label" for="chip5-structured-${messageId}">Structured</label>
+            <label class="feedback__chip-label" for="chip5-structured-${messageId}">Followed instructions</label>
             <input class="feedback__chip" type="checkbox" id="chip6-unstructured-${messageId}" data-testid="Unstructured" />
-            <label class="feedback__chip-label" for="chip6-unstructured-${messageId}">Unstructured</label>
+            <label class="feedback__chip-label" for="chip6-unstructured-${messageId}">Not as instructed</label>
           </div>
         </div>
       </fieldset>
@@ -103,7 +103,7 @@ export class FeedbackButtons extends HTMLElement {
       this.#showPanel(1);
     });
 
-    // Add event listeners for chips
+    // Panel 3 - text and chips
     let chipGroups = this.querySelectorAll(".feedback__chip-group");
     chipGroups.forEach((group) => {
       let chips = group.querySelectorAll(".feedback__chip");
@@ -123,7 +123,6 @@ export class FeedbackButtons extends HTMLElement {
       });
     });
 
-    // Panel 3 - text and chips
     /** @type {HTMLTextAreaElement | null} */
   // Updated Submit button logic
   const textInput = this.querySelector(`#text-${messageId}`);
