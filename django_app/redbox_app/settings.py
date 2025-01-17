@@ -183,10 +183,8 @@ else:
 CSP_DEFAULT_SRC = (
     "'self'",
     "s3.amazonaws.com",
-    "https://www.google-analytics.com/",
-    "https://region1.google-analytics.com/",
-    "https://www.googletagmanager.com/",
 )
+
 CSP_SCRIPT_SRC = (
     "'self'",
     "'sha256-GUQ5ad8JK5KmEWmROf3LZd9ge94daqNvd8xy9YS1iDw='",
@@ -195,7 +193,6 @@ CSP_SCRIPT_SRC = (
     "'sha256-qmCu1kQifDfCnUd+L49nusp7+PeRl23639pzN5QF2WA='",
     "https://tagmanager.google.com/",
     "https://www.googletagmanager.com/",
-    "ajax.googleapis.com/",
 )
 CSP_OBJECT_SRC = ("'none'",)
 CSP_REQUIRE_TRUSTED_TYPES_FOR = ("'script'",)
