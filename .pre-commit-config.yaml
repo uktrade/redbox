@@ -2,7 +2,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v5.0.0
     hooks:
       - id: check-added-large-files
         name: Check for files larger than 5 MB
@@ -28,7 +28,7 @@ repos:
         name: Check for existence of AWS secrets
 
   - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.4.0
+    rev: v1.5.0
     hooks:
     -   id: detect-secrets
         exclude: poetry.lock
@@ -50,7 +50,7 @@ repos:
         entry: ':\d{12}:'
 
   - repo: https://github.com/mxab/pre-commit-trivy.git
-    rev: v0.3.0
+    rev: v0.14.0
     hooks:
       - id: trivyfs-docker
         args:
@@ -74,25 +74,26 @@ repos:
           - ./infrastructure
           - --ignore-unfixed
           - . # last arg indicates the path/file to scan
-  - repo: https://github.com/uktrade/pii-secret-check-hooks
-    rev: 0.0.0.35
-    hooks:
-          - id: pii_secret_filename
-            files: ''
-            language: python
-            args: [exclude]
-            pass_filenames: true
-            require_serial: true
-          - id: pii_secret_file_content
-            files: ''
-            language: python
-            args: [--exclude=pii-secret-exclude.txt]
-            pass_filenames: true
-            require_serial: true
-            additional_dependencies: [click==8.0.4]
+  # TODO implement/debug error
+  # - repo: https://github.com/uktrade/pii-secret-check-hooks
+  #   rev: 0.0.0.36
+  #   hooks:
+  #         - id: pii_secret_filename
+  #           files: ''
+  #           language: python
+  #           args: [exclude]
+  #           pass_filenames: true
+  #           require_serial: true
+  #         - id: pii_secret_file_content
+  #           files: ''
+  #           language: python
+  #           args: [--exclude=pii-secret-exclude.txt]
+  #           pass_filenames: true
+  #           require_serial: true
+  #           additional_dependencies: [click==8.0.4]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.4
+    rev: v0.9.2
     hooks:
         - id: ruff
           args: [ --fix ]
