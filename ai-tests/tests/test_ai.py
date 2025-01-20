@@ -1,3 +1,4 @@
+import logging
 import sys
 from pathlib import Path
 from uuid import uuid4
@@ -81,10 +82,19 @@ def test_usecases(test_case: AITestCase, loaded_docs: set[str], output_dir: Path
     save_path = output_dir / test_case.id
     # call agent
     original_stdout = sys.stdout
+    root_logger = logging.getLogger()
+    original_handlers = root_logger.handlers.copy()
     try:
         redbox_state = get_state(user_uuid=uuid4(), prompts=test_case.prompts, documents=test_case.documents)
         with open(save_path, "w") as file:
             sys.stdout = file
+            # Create and add a file handler for logging
+            file_handler = logging.StreamHandler(file)
+            # root_logger.addHandler(file_handler)
+
+            # Remove other handlers temporarily if you want logging to go only to file
+            for handler in original_handlers:
+                root_logger.removeHandler(handler)
             run_app(app, redbox_state)
     except Exception as e:
         print(f"Error in {e}")
