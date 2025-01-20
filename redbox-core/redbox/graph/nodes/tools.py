@@ -1,16 +1,17 @@
-from typing import Annotated, Any, Iterable, get_args, get_origin, get_type_hints, Union
+from typing import (Annotated, Any, Iterable, Union, get_args, get_origin,
+                    get_type_hints)
 
 import numpy as np
 import requests
 import tiktoken
 from elasticsearch import Elasticsearch
-from opensearchpy import OpenSearch
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.messages import ToolCall
 from langchain_core.tools import Tool, tool
 from langgraph.prebuilt import InjectedState
+from opensearchpy import OpenSearch
 from sklearn.metrics.pairwise import cosine_similarity
 
 from redbox.api.format import format_documents
@@ -18,15 +19,10 @@ from redbox.chains.components import get_embeddings
 from redbox.models.chain import RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
 from redbox.models.settings import get_settings
-from redbox.retriever.queries import (
-    add_document_filter_scores_to_query,
-    build_document_query,
-)
+from redbox.retriever.queries import (add_document_filter_scores_to_query,
+                                      build_document_query)
 from redbox.retriever.retrievers import query_to_documents
-from redbox.transform import (
-    merge_documents,
-    sort_documents,
-)
+from redbox.transform import merge_documents, sort_documents
 
 
 def build_search_documents_tool(
@@ -112,7 +108,7 @@ def build_govuk_search_tool(filter=True) -> Tool:
         return response
 
     @tool(response_format="content_and_artifact")
-    def _search_govuk(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
+    def _search_govuk(query: str) -> tuple[str, list[Document]]:
         """
         Search for documents on gov.uk based on a query string.
         This endpoint is used to search for documents on gov.uk. There are many types of documents on gov.uk.
@@ -127,7 +123,8 @@ def build_govuk_search_tool(filter=True) -> Tool:
         - consultations
         - appeals
         """
-
+        tool_govuk_retrieved_results = 10
+        tool_govuk_returned_results = 1
         url_base = "https://www.gov.uk"
         required_fields = [
             "format",
@@ -136,13 +133,14 @@ def build_govuk_search_tool(filter=True) -> Tool:
             "indexable_content",
             "link",
         ]
-        ai_settings = state.request.ai_settings
+        # ai_settings = state.request.ai_settings
         response = requests.get(
             f"{url_base}/api/search.json",
             params={
                 "q": query,
                 "count": (
-                    ai_settings.tool_govuk_retrieved_results if filter else ai_settings.tool_govuk_returned_results
+                    tool_govuk_retrieved_results if filter else tool_govuk_returned_results
+                    # ai_settings.tool_govuk_retrieved_results if filter else ai_settings.tool_govuk_returned_results
                 ),
                 "fields": required_fields,
             },
@@ -152,7 +150,8 @@ def build_govuk_search_tool(filter=True) -> Tool:
         response = response.json()
 
         if filter:
-            response = recalculate_similarity(response, query, ai_settings.tool_govuk_returned_results)
+            # response = recalculate_similarity(response, query, ai_settings.tool_govuk_returned_results)
+            response = recalculate_similarity(response, query, tool_govuk_returned_results)
 
         mapped_documents = []
         for i, doc in enumerate(response["results"]):
