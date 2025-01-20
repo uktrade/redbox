@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 
 import environ
 import sentry_sdk
+from datetime import timedelta
 from dbt_copilot_python.database import database_from_env
 from django.urls import reverse_lazy
 from django_log_formatter_asim import ASIMFormatter
@@ -415,3 +416,16 @@ UNSTRUCTURED_HOST = env.str("UNSTRUCTURED_HOST")
 GOOGLE_ANALYTICS_TAG = env.str("GOOGLE_ANALYTICS_TAG", " ")
 GOOGLE_ANALYTICS_LINK = env.str("GOOGLE_ANALYTICS_LINK", " ")
 # TEST_SSO_PROVIDER_SET_RETURNED_ACCESS_TOKEN = 'someCode'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+}

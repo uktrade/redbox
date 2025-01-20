@@ -4,6 +4,7 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 from magic_link import urls as magic_link_urls
+from rest_framework_simplejwt.views import TokenRefreshView
 
 from .redbox_core import views
 
@@ -80,6 +81,8 @@ other_urlpatterns = [
 
 api_url_patterns = [
     path("api/v0/", views.user_view_pre_alpha, name="user-view"),
+    path('api/token/sso/', views.issue_token_after_sso, name='token_after_sso'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 ]
 
 urlpatterns = (

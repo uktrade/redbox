@@ -9,7 +9,7 @@ User = get_user_model()
 class FileSerializer(serializers.ModelSerializer):
     class Meta:
         model = File
-        fields = ("file_name",)
+        fields = ("file_name", "created_at")
 
 
 class ChatMessageTokenUseSerializer(serializers.ModelSerializer):
@@ -53,4 +53,4 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("is_staff", "business_unit", "grade", "email", "ai_experience", "profession", "chats", "is_developer")
+        fields = ("id", "is_staff", "business_unit", "grade", "email", "ai_experience", "profession", "chats", "is_developer")
