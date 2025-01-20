@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "import_export",
     "django_q",
     "rest_framework",
+    "rest_framework.authtoken",
     "django_plotly_dash.apps.DjangoPlotlyDashConfig",
     "adminplus",
     "waffle",
@@ -415,3 +416,15 @@ UNSTRUCTURED_HOST = env.str("UNSTRUCTURED_HOST")
 GOOGLE_ANALYTICS_TAG = env.str("GOOGLE_ANALYTICS_TAG", " ")
 GOOGLE_ANALYTICS_LINK = env.str("GOOGLE_ANALYTICS_LINK", " ")
 # TEST_SSO_PROVIDER_SET_RETURNED_ACCESS_TOKEN = 'someCode'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'redbox_app.redbox_core.middleware.APIKeyAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
+
+REDBOX_API_KEY = env.str("REDBOX_API_KEY")
