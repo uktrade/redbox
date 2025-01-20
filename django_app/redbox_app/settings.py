@@ -191,6 +191,7 @@ CSP_SCRIPT_SRC = (
     "eu.i.posthog.com",
     "eu-assets.i.posthog.com",
     "'sha256-qmCu1kQifDfCnUd+L49nusp7+PeRl23639pzN5QF2WA='",
+    "'sha256-RfLASrooywwZYqv6kr3TCnrZzfl6ZTfbpLBJOVR/Gt4='"
     "https://tagmanager.google.com/",
     "https://www.googletagmanager.com/",
 )
