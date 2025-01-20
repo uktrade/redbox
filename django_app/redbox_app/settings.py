@@ -184,12 +184,14 @@ CSP_DEFAULT_SRC = (
     "'self'",
     "s3.amazonaws.com",
 )
+
 CSP_SCRIPT_SRC = (
     "'self'",
-    "'sha256-GUQ5ad8JK5KmEWmROf3LZd9ge94daqNvd8xy9YS1iDw='",
     "eu.i.posthog.com",
     "eu-assets.i.posthog.com",
-    "'sha256-qmCu1kQifDfCnUd+L49nusp7+PeRl23639pzN5QF2WA='",
+    "'sha256-RfLASrooywwZYqv6kr3TCnrZzfl6ZTfbpLBJOVR/Gt4='",
+    "https://tagmanager.google.com/",
+    "https://www.googletagmanager.com/",
 )
 CSP_OBJECT_SRC = ("'none'",)
 CSP_REQUIRE_TRUSTED_TYPES_FOR = ("'script'",)
@@ -199,7 +201,10 @@ CSP_FONT_SRC = (
     "'self'",
     "s3.amazonaws.com",
 )
-CSP_STYLE_SRC = ("'self'",)
+CSP_STYLE_SRC = (
+    "'self'",
+    "https://tagmanager.google.com/",
+)
 CSP_FRAME_ANCESTORS = ("'none'",)
 
 
@@ -208,6 +213,9 @@ CSP_CONNECT_SRC = [
     f"{WEBSOCKET_SCHEME}://{ENVIRONMENT.hosts[0]}/ws/chat/",
     "eu.i.posthog.com",
     "eu-assets.i.posthog.com",
+    "https://www.google-analytics.com/",
+    "https://region1.google-analytics.com/",
+    "https://www.googletagmanager.com/",
 ]
 
 
