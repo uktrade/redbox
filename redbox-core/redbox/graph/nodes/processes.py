@@ -134,7 +134,7 @@ def build_merge_pattern(
 def build_stuff_pattern(
     prompt_set: PromptSet,
     output_parser: Runnable = None,
-    format_instructions: str | None = None,
+    format_instructions: str = "",
     tools: list[StructuredTool] | None = None,
     final_response_chain: bool = False,
 ) -> Runnable[RedboxState, dict[str, Any]]:
