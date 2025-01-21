@@ -10,7 +10,7 @@
             <div class="govuk-grid-column-two-thirds">
                 {% if waffle_flag(request, 'uktrade') %}
                     <h1 class="govuk-heading-xl govuk-!-margin-bottom-7">Use Artificial Intelligence (AI) to interact with {{ security }} level documents from your own document set</h1>
-                    <p class="govuk-body-l govuk-!-margin-bottom-7">You may summarise documents, ask questions related to one or more documents, and chat directly with the AI to assist you in your work. You can use up to, and including, Official documents.</p>
+                    <p class="govuk-body-l govuk-!-margin-bottom-7">You may summarise documents, ask questions related to one or more documents, and chat directly with the AI to assist you in your work. You can use up to, and including, {{ security }} documents.</p>
                     <div class="rb-banner__links">
                         {% if not request.user.is_authenticated %}
                             {{ govukButton(
