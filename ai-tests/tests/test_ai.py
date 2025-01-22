@@ -1,14 +1,15 @@
-from pathlib import Path
+import logging
 import sys
+from pathlib import Path
 from uuid import uuid4
 
-from langfuse.callback import CallbackHandler
 import pytest
+from langfuse.callback import CallbackHandler
 
-from redbox.models.settings import Settings, get_settings
-from redbox.models.chain import RedboxQuery, RedboxState, AISettings
 from redbox.app import Redbox
 from redbox.loader.ingester import ingest_file
+from redbox.models.chain import AISettings, RedboxQuery, RedboxState
+from redbox.models.settings import Settings, get_settings
 
 from .cases import AITestCase
 from .conftest import DOCUMENT_UPLOAD_USER
@@ -57,9 +58,8 @@ def settings():
 @pytest.fixture
 def all_loaded_doc_uris(settings: Settings):
     es = settings.elasticsearch_client()
-    response = es.search(
-        index=f"{settings.elastic_root_index}-chunk-current", query={"term": {"metadata.chunk_resolution": "largest"}}
-    )
+    match_all = {"query": {"match_all": {}}}
+    response = es.search(index=settings.elastic_chunk_alias, body=match_all)
     hits = response.get("hits", {}).get("hits", [])
     return set(d["_source"]["metadata"]["uri"] for d in hits)
 
@@ -81,11 +81,23 @@ def test_usecases(test_case: AITestCase, loaded_docs: set[str], output_dir: Path
 
     save_path = output_dir / test_case.id
     # call agent
+    original_stdout = sys.stdout
+    root_logger = logging.getLogger()
+    original_handlers = root_logger.handlers.copy()
     try:
         redbox_state = get_state(user_uuid=uuid4(), prompts=test_case.prompts, documents=test_case.documents)
         with open(save_path, "w") as file:
             sys.stdout = file
-            run_app(app, redbox_state)
+            # Create and add a file handler for logging
+            file_handler = logging.StreamHandler(file)
+            # root_logger.addHandler(file_handler)
 
+            # Remove other handlers temporarily if you want logging to go only to file
+            for handler in original_handlers:
+                root_logger.removeHandler(handler)
+            run_app(app, redbox_state)
     except Exception as e:
         print(f"Error in {e}")
+    finally:
+        # Restore stdout to its original value
+        sys.stdout = original_stdout
