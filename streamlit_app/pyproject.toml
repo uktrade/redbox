@@ -15,7 +15,6 @@ redbox = {path="../redbox-core", develop=true}
 python = ">=3.12,<3.13"
 streamlit = "^1.39.0"
 
-
 [tool.poetry.group.dev.dependencies]
 
 
@@ -33,4 +32,3 @@ env_files = [
 markers = [
     "ai: marks tests as using a live LLM (deselect with '-m \"not ai\"')"
 ]
-

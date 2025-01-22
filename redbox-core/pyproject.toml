@@ -31,6 +31,7 @@ scikit-learn = "^1.5.2"
 langfuse = "^2.53.9"
 
 
+
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.2"
 moto = "^5.0.12"

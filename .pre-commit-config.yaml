@@ -2,7 +2,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v5.0.0
     hooks:
       - id: check-added-large-files
         name: Check for files larger than 5 MB
@@ -11,17 +11,36 @@ repos:
         name: Check for a blank line at the end of scripts (auto-fixes)
         exclude: '\.Rd'
       - id: trailing-whitespace
+        args : ["--markdown-linebreak-ext=md,markdown"]
         name: Check for trailing whitespaces (auto-fixes)
+      - id: check-yaml
+        name: Check yaml files
+      - id: check-ast
+        name: Check whether files parse as valid python
+      - id: check-merge-conflict
+        name: Check for files that contain merge conflicts
+      - id: debug-statements
+        name: Check for debugger imports and breakpoint calls in python source
+      - id: detect-private-key
+        name: Check for existence of private keys
+      - id: detect-aws-credentials
+        args: ["--allow-missing-credentials"]
+        name: Check for existence of AWS secrets
+
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.8.1
+    hooks:
+      - id: nbstripout
 
   - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.4.0
+    rev: v1.5.0
     hooks:
-    -   id: detect-secrets
+      - id: detect-secrets
         exclude: poetry.lock
 
   - repo: local
     hooks:
-    -   id: detect-ip
+      - id: detect-ip
         name: Detect IP addresses
         entry: '^(?!0\.0\.0\.0$)(?!127\.0\.0\.1$)\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
         language: pygrep
@@ -30,13 +49,13 @@ repos:
 
   - repo: local
     hooks:
-    -   id: detect-aws-account
+      - id: detect-aws-account
         name: Detect AWS account numbers
         language: pygrep
         entry: ':\d{12}:'
 
   - repo: https://github.com/mxab/pre-commit-trivy.git
-    rev: v0.3.0
+    rev: v0.14.0
     hooks:
       - id: trivyfs-docker
         args:
@@ -60,3 +79,27 @@ repos:
           - ./infrastructure
           - --ignore-unfixed
           - . # last arg indicates the path/file to scan
+  # TODO implement/debug error
+  # - repo: https://github.com/uktrade/pii-secret-check-hooks
+  #   rev: 0.0.0.36
+  #   hooks:
+  #         - id: pii_secret_filename
+  #           files: ''
+  #           language: python
+  #           args: [exclude]
+  #           pass_filenames: true
+  #           require_serial: true
+  #         - id: pii_secret_file_content
+  #           files: ''
+  #           language: python
+  #           args: [--exclude=pii-secret-exclude.txt]
+  #           pass_filenames: true
+  #           require_serial: true
+  #           additional_dependencies: [click==8.0.4]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.2
+    hooks:
+      - id: ruff
+        args: [ --fix ]
+
