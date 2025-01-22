@@ -1,21 +1,25 @@
-import json
 import logging
 import re
-from typing import Any, Callable, Iterable, Iterator, List
+from typing import Any, Callable, Iterable, Iterator
 
-from langchain_core.callbacks.manager import CallbackManagerForLLMRun, dispatch_custom_event
+from langchain_core.callbacks.manager import (CallbackManagerForLLMRun,
+                                              dispatch_custom_event)
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
+from langchain_core.outputs import (ChatGeneration, ChatGenerationChunk,
+                                    ChatResult)
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import Runnable, RunnableGenerator, RunnableLambda, RunnablePassthrough, chain
+from langchain_core.runnables import (Runnable, RunnableGenerator,
+                                      RunnableLambda, RunnablePassthrough,
+                                      chain)
 from tiktoken import Encoding
 
 from redbox.api.format import format_documents
 from redbox.chains.activity import log_activity
 from redbox.chains.components import get_tokeniser
-from redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_prompts
+from redbox.models.chain import (ChainChatMessage, PromptSet, RedboxState,
+                                 get_prompts)
 from redbox.models.errors import QuestionLengthError
 from redbox.models.graph import RedboxEventType
 from redbox.transform import flatten_document_state, get_all_metadata
@@ -90,14 +94,14 @@ def build_llm_chain(
     prompt_set: PromptSet,
     llm: BaseChatModel,
     output_parser: Runnable | Callable = None,
-    format_instructions: str | None = None,
+    format_instructions: str = "",
     final_response_chain: bool = False,
 ) -> Runnable:
     """Builds a chain that correctly forms a text and metadata state update.
 
     Permits both invoke and astream_events.
     """
-    model_name = getattr(llm, "model_name", "unknown-model")
+    model_name = getattr(llm, "model", "anthropic.claude-3-sonnet-20240229-v1:0")
     _llm = llm.with_config(tags=["response_flag"]) if final_response_chain else llm
     _output_parser = output_parser if output_parser else StrOutputParser()
 

@@ -19,15 +19,13 @@
   <script type="module" src="{{static('js/main.js')}}"></script>
 
   {% if environment | lower == "prod" and waffle_flag(request, 'uktrade') %}
-    <!-- Google tag (gtag.js) -->
-  <script async src="{{ google_analytics_link }}"></script>
-  <script> 
-  window.dataLayer = window.dataLayer || []; 
-  function gtag(){dataLayer.push(arguments);} 
-  gtag('js', new Date()); 
-
-  gtag('config', '{{ google_analytics_tag }}'); 
-  </script>
+  <!-- Google Tag Manager -->
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  '{{ google_analytics_link }}'+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','{{ google_analytics_tag }}');</script>
+  <!-- End Google Tag Manager -->
   {% endif %}
 
   {# Temporarily removed due to this adding inline styles, which our CSP doesn't allow
@@ -39,13 +37,22 @@
 </head>
 
 <body class="govuk-template__body">
+
+  {% if environment | lower == "prod" and waffle_flag(request, 'uktrade') %}
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src={{ google_analytics_iframe_src }}
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+  {% endif %}
+
   <script hash="sha256-GUQ5ad8JK5KmEWmROf3LZd9ge94daqNvd8xy9YS1iDw=">document.body.className += ' js-enabled' + ('noModule' in HTMLScriptElement.prototype ? ' govuk-frontend-supported' : '');</script>
-  <script type="module" src="{{static('js/libs/govuk-frontend.min.js')}}" nonce="{{ request.csp_nonce }}"></script> 
+  <script type="module" src="{{static('js/libs/govuk-frontend.min.js')}}" nonce="{{ request.csp_nonce }}"></script>
   <script hash="sha256-qmCu1kQifDfCnUd+L49nusp7+PeRl23639pzN5QF2WA=" type="module" nonce="{{ request.csp_nonce }}">
     import { initAll } from '../static/js/libs/govuk-frontend.min.js'
     initAll()
   </script>
   <a href="#main-content" class="govuk-skip-link" data-module="govuk-skip-link">Skip to main content</a>
+
 
   {% if environment | lower != "prod" %}
     <div class="rb-classification-banner govuk-warning-text rb-environment-warning iai-environment-warning">
@@ -124,7 +131,7 @@
           <path d="M9 17L27 12V24L9 20V17Z" stroke="white" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M17.5997 22.8C17.4947 23.1808 17.3156 23.5373 17.0728 23.8489C16.83 24.1605 16.5282 24.4213 16.1847 24.6163C15.8411 24.8113 15.4625 24.9367 15.0704 24.9854C14.6784 25.0341 14.2806 25.0051 13.8997 24.9C13.5189 24.795 13.1625 24.6159 12.8508 24.3731C12.5392 24.1303 12.2784 23.8285 12.0834 23.4849C11.8884 23.1414 11.763 22.7627 11.7143 22.3707C11.6657 21.9786 11.6947 21.5808 11.7997 21.2" stroke="white" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <span class="iai-footer__feedback-text">This is a new service. Your <a class="iai-footer__link" href="https://www.smartsurvey.co.uk/s/EOWJ04/">feedback</a> will help us to <span class="iai-prevent-orphans">improve it</span></span>
+        <span class="iai-footer__feedback-text">This is a new service. Your <a class="iai-footer__link" href="https://teams.microsoft.com/l/channel/19%3A9ae6b3b539724595a3139c2b16dc56ef%40thread.tacv2/Redbox%20trial%20participants%20Chat%20Channel?groupId=7a71ce78-fe77-4185-825c-ae40cb07d614&tenantId=8fa217ec-33aa-46fb-ad96-dfe68006bb86">feedback</a> will help us to <span class="iai-prevent-orphans">improve it</span></span>
       </div>
     </div>
   </footer>

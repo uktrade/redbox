@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "import_export",
     "django_q",
     "rest_framework",
+    "rest_framework.authtoken",
     "django_plotly_dash.apps.DjangoPlotlyDashConfig",
     "adminplus",
     "waffle",
@@ -190,8 +191,9 @@ CSP_SCRIPT_SRC = (
     "eu.i.posthog.com",
     "eu-assets.i.posthog.com",
     "'sha256-RfLASrooywwZYqv6kr3TCnrZzfl6ZTfbpLBJOVR/Gt4='",
-    "https://tagmanager.google.com/",
-    "https://www.googletagmanager.com/",
+    "'sha256-GUQ5ad8JK5KmEWmROf3LZd9ge94daqNvd8xy9YS1iDw='",
+    "'sha256-qmCu1kQifDfCnUd+L49nusp7+PeRl23639pzN5QF2WA='",
+    "https://*.googletagmanager.com",
 )
 CSP_OBJECT_SRC = ("'none'",)
 CSP_REQUIRE_TRUSTED_TYPES_FOR = ("'script'",)
@@ -203,7 +205,7 @@ CSP_FONT_SRC = (
 )
 CSP_STYLE_SRC = (
     "'self'",
-    "https://tagmanager.google.com/",
+    # "https://tagmanager.google.com/",
 )
 CSP_FRAME_ANCESTORS = ("'none'",)
 
@@ -213,9 +215,9 @@ CSP_CONNECT_SRC = [
     f"{WEBSOCKET_SCHEME}://{ENVIRONMENT.hosts[0]}/ws/chat/",
     "eu.i.posthog.com",
     "eu-assets.i.posthog.com",
-    "https://www.google-analytics.com/",
-    "https://region1.google-analytics.com/",
-    "https://www.googletagmanager.com/",
+    "https://*.google-analytics.com",
+    "https://*.analytics.google.com",
+    "https://*.googletagmanager.com",
 ]
 
 
@@ -415,3 +417,15 @@ UNSTRUCTURED_HOST = env.str("UNSTRUCTURED_HOST")
 GOOGLE_ANALYTICS_TAG = env.str("GOOGLE_ANALYTICS_TAG", " ")
 GOOGLE_ANALYTICS_LINK = env.str("GOOGLE_ANALYTICS_LINK", " ")
 # TEST_SSO_PROVIDER_SET_RETURNED_ACCESS_TOKEN = 'someCode'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'redbox_app.redbox_core.middleware.APIKeyAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
+
+REDBOX_API_KEY = env.str("REDBOX_API_KEY")
