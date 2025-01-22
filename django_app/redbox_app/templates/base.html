@@ -19,15 +19,13 @@
   <script type="module" src="{{static('js/main.js')}}"></script>
 
   {% if environment | lower == "prod" and waffle_flag(request, 'uktrade') %}
-    <!-- Google tag (gtag.js) -->
-  <script async src="{{ google_analytics_link }}"></script>
-  <script> 
-  window.dataLayer = window.dataLayer || []; 
-  function gtag(){dataLayer.push(arguments);} 
-  gtag('js', new Date()); 
-
-  gtag('config', '{{ google_analytics_tag }}'); 
-  </script>
+  <!-- Google Tag Manager -->
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  '{{ google_analytics_link }}'+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','{{ google_analytics_tag }}');</script>
+  <!-- End Google Tag Manager -->
   {% endif %}
 
   {# Temporarily removed due to this adding inline styles, which our CSP doesn't allow
@@ -39,13 +37,22 @@
 </head>
 
 <body class="govuk-template__body">
+
+  {% if environment | lower == "prod" and waffle_flag(request, 'uktrade') %}
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src={{ google_analytics_iframe_src }}
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+  {% endif %}
+
   <script hash="sha256-GUQ5ad8JK5KmEWmROf3LZd9ge94daqNvd8xy9YS1iDw=">document.body.className += ' js-enabled' + ('noModule' in HTMLScriptElement.prototype ? ' govuk-frontend-supported' : '');</script>
-  <script type="module" src="{{static('js/libs/govuk-frontend.min.js')}}" nonce="{{ request.csp_nonce }}"></script> 
+  <script type="module" src="{{static('js/libs/govuk-frontend.min.js')}}" nonce="{{ request.csp_nonce }}"></script>
   <script hash="sha256-qmCu1kQifDfCnUd+L49nusp7+PeRl23639pzN5QF2WA=" type="module" nonce="{{ request.csp_nonce }}">
     import { initAll } from '../static/js/libs/govuk-frontend.min.js'
     initAll()
   </script>
   <a href="#main-content" class="govuk-skip-link" data-module="govuk-skip-link">Skip to main content</a>
+
 
   {% if environment | lower != "prod" %}
     <div class="rb-classification-banner govuk-warning-text rb-environment-warning iai-environment-warning">
