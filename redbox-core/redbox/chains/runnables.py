@@ -94,7 +94,7 @@ def build_llm_chain(
     prompt_set: PromptSet,
     llm: BaseChatModel,
     output_parser: Runnable | Callable = None,
-    format_instructions: str | None = None,
+    format_instructions: str = "",
     final_response_chain: bool = False,
 ) -> Runnable:
     """Builds a chain that correctly forms a text and metadata state update.
