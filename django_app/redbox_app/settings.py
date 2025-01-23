@@ -1,7 +1,6 @@
 # mypy: ignore-errors
 import logging
 import os
-import json
 import socket
 from pathlib import Path
 from urllib.parse import urlparse
@@ -193,6 +192,7 @@ CSP_SCRIPT_SRC = (
     "'sha256-RfLASrooywwZYqv6kr3TCnrZzfl6ZTfbpLBJOVR/Gt4='",
     "'sha256-GUQ5ad8JK5KmEWmROf3LZd9ge94daqNvd8xy9YS1iDw='",
     "'sha256-qmCu1kQifDfCnUd+L49nusp7+PeRl23639pzN5QF2WA='",
+    "'sha256-1NTuHcjvzzB6D69Pb9lbxI5pMJNybP/SwBliv3OvOOE='",
     "https://*.googletagmanager.com",
 )
 CSP_OBJECT_SRC = ("'none'",)
@@ -419,11 +419,11 @@ GOOGLE_ANALYTICS_LINK = env.str("GOOGLE_ANALYTICS_LINK", " ")
 # TEST_SSO_PROVIDER_SET_RETURNED_ACCESS_TOKEN = 'someCode'
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'redbox_app.redbox_core.middleware.APIKeyAuthentication',
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "redbox_app.redbox_core.middleware.APIKeyAuthentication",
     ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
     ],
 }
 
