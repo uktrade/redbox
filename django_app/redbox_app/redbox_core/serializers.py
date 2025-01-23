@@ -30,6 +30,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "created_at",
+            "modified_at",
             "text",
             "role",
             "route",
@@ -49,7 +50,7 @@ class ChatSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Chat
-        fields = ("name", "messages", "id")
+        fields = ("id", "created_at", "modified_at", "messages")
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -62,42 +63,6 @@ class UserSerializer(serializers.ModelSerializer):
             "business_unit",
             "grade",
             "profession",
-            "is_staff",
-            "is_developer",
             "role",
-            "accessibility_options",
-            "accessibility_categories",
-            "accessibility_description",
-            "digital_confidence",
-            "usage_at_work",
-            "usage_outside_work",
-            "how_useful",
-            "task_1_description",
-            "task_1_regularity",
-            "task_1_duration",
-            "task_1_consider_using_ai",
-            "task_2_description",
-            "task_2_regularity",
-            "task_2_duration",
-            "task_2_consider_using_ai",
-            "task_3_description",
-            "task_3_regularity",
-            "task_3_duration",
-            "task_3_consider_using_ai",
-            "role_regularity_summarise_large_docs",
-            "role_regularity_condense_multiple_docs",
-            "role_regularity_search_across_docs",
-            "role_regularity_compare_multiple_docs",
-            "role_regularity_specific_template",
-            "role_regularity_shorten_docs",
-            "role_regularity_write_docs",
-            "role_duration_summarise_large_docs",
-            "role_duration_condense_multiple_docs",
-            "role_duration_search_across_docs",
-            "role_duration_compare_multiple_docs",
-            "role_duration_specific_template",
-            "role_duration_shorten_docs",
-            "role_duration_write_docs",
-            "consent_research",
             "chats",
         )
