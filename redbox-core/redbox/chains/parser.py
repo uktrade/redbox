@@ -52,7 +52,7 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
             text = self.extract_json(text)
             return parse_json_markdown(text)
         except json.JSONDecodeError:
-            return None
+            return ""
 
     def _to_generation_chunk(self, chunk: Union[str, BaseMessage]):
         chunk_gen: Union[GenerationChunk, ChatGenerationChunk]
