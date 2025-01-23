@@ -410,7 +410,7 @@ Q_CLUSTER = {
     "catch_up": False,
     "orm": "default",
     "workers": 1,
-    "error_reporter": {"sentry": {"dsn": SENTRY_DSN}},
+    "error_reporter": {"sentry": {"dsn": env.str("SENTRY_DSN", " ")}},
 }
 
 UNSTRUCTURED_HOST = env.str("UNSTRUCTURED_HOST")
