@@ -42,20 +42,7 @@ services:
       timeout: 30s
       retries: 24
       start_period: 60s
-  sveltekit-app:
-    image: sveltekit-app:latest
-    build:
-      context: .
-      dockerfile: ./sveltekit_app/Dockerfile
-    user: "node"
-    networks:
-      - redbox-app-network
-    ports:
-      - "3001:3001"
-    restart: unless-stopped
-    env_file:
-      - path: .env
-        required: false
+
   db:
     image: postgres:13
     env_file:
@@ -165,27 +152,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  embeddings:
-    image: localai/localai:v2.18.1-aio-cpu #localai/localai:v2.18.1 should allow use of sentencetransformers backend
-    expose:
-      - "8091"
-    ports:
-      - "8091:8091"
-    environment:
-      - MODELS=/aio/cpu/embeddings.yaml #Use defaults embedding model for aio image. Only aio images available in ARM architecture
-      - MINIO_SECRET_KEY=minioadmin
-      - DEBUG=true
-    networks:
-      - redbox-app-network
-    volumes:
-      - ./data/embeddings/models:/models:cached
-      - ./data/embeddings/config:/config
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8090/readyz" ]
-      interval: 1m
-      timeout: 20m
-      retries: 5
   langfuse:
     image: langfuse/langfuse:2
     depends_on:
@@ -207,7 +173,7 @@ services:
       - LANGFUSE_INIT_ORG_NAME=${LANGFUSE_INIT_ORG_NAME:-Redbox}
       - LANGFUSE_INIT_PROJECT_ID=${LANGFUSE_INIT_PROJECT_ID:-Redbox}
       - LANGFUSE_INIT_PROJECT_NAME=${LANGFUSE_INIT_PROJECT_NAME:-Redbox}
-      - LANGFUSE_INIT_PROJECT_PUBLIC_KEY=${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-pk-lf-6f517f1f-3fd0-4b00-9c2d-e9756132cc11} 
+      - LANGFUSE_INIT_PROJECT_PUBLIC_KEY=${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-pk-lf-6f517f1f-3fd0-4b00-9c2d-e9756132cc11}
       - LANGFUSE_INIT_PROJECT_SECRET_KEY=${LANGFUSE_INIT_PROJECT_SECRET_KEY:-sk-lf-878345f5-fa2c-46f0-8193-d6be00910ab0} #For local only
       - LANGFUSE_INIT_USER_EMAIL=${LANGFUSE_INIT_USER_EMAIL:-me@redbox.localhost}
       - LANGFUSE_INIT_USER_NAME=${LANGFUSE_INIT_USER_NAME:-me}
