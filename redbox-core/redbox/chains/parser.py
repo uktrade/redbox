@@ -21,17 +21,6 @@ from pydantic import BaseModel
 
 from redbox.models.graph import RedboxEventType
 
-# if PYDANTIC_MAJOR_VERSION < 2:
-#     PydanticBaseModel = pydantic.BaseModel
-
-# else:
-#     from pydantic.v1 import BaseModel  # pydantic: ignore
-
-#     # Union type needs to be last assignment to PydanticBaseModel to make mypy happy.
-#     PydanticBaseModel = Union[BaseModel, pydantic.BaseModel]  # type: ignore
-
-# TBaseModel = TypeVar("TBaseModel", bound=PydanticBaseModel)
-
 
 class ClaudeParser(BaseCumulativeTransformOutputParser[Any]):
     """Parse the output of an Claude LLM call to a pydantic object.
