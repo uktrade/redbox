@@ -40,7 +40,7 @@
 
   {% if environment | lower == "prod" and waffle_flag(request, 'uktrade') %}
   <!-- Google Tag Manager (noscript) -->
-  <noscript><iframe src={{ google_analytics_iframe_src }}
+  <noscript><iframe src="{{ google_analytics_iframe_src }}"
   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
   {% endif %}
