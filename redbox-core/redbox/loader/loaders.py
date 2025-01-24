@@ -12,6 +12,7 @@ from langchain_core.prompts import PromptTemplate
 from redbox_app.setting_enums import Environment
 
 from redbox.chains.components import get_chat_llm
+from redbox.chains.parser import ClaudeParser
 from redbox.models.chain import GeneratedMetadata
 from redbox.models.file import ChunkResolution, UploadedFileMetadata
 from redbox.models.settings import Settings
@@ -103,14 +104,18 @@ class MetadataLoader:
 
         original_metadata = trim(original_metadata)
 
+        parser = ClaudeParser(pydantic_object=GeneratedMetadata)
+
         metadata_prompt = PromptTemplate(
-            template="".join(self.env.metadata_prompt) + "\n\n{page_content}\n\n{original_metadata}",
+            template="".join(self.env.metadata_prompt)
+            + "\n\n{format_instructions}\n\n{page_content}\n\n{original_metadata}",
             input_variables=["page_content"],
             partial_variables={
+                "format_instructions": parser.get_format_instructions(),
                 "original_metadata": original_metadata,
             },
         )
-        metadata_chain = metadata_prompt | self.llm.with_structured_output(GeneratedMetadata)
+        metadata_chain = metadata_prompt | self.llm | parser
 
         return metadata_chain.invoke({"page_content": page_content})
 
