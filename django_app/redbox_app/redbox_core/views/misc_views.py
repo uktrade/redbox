@@ -14,11 +14,14 @@ logger = logging.getLogger(__name__)
 
 @require_http_methods(["GET"])
 def homepage_view(request):
-    return render(
-        request,
-        template_name="homepage.html",
-        context={"request": request, "allow_sign_ups": settings.ALLOW_SIGN_UPS},
-    )
+    if not request.user.is_authenticated:
+        return redirect("authbroker_client:login")
+    else:
+        return render(
+            request,
+            template_name="homepage.html",
+            context={"request": request, "allow_sign_ups": settings.ALLOW_SIGN_UPS},
+        )
 
 
 @require_http_methods(["GET"])
