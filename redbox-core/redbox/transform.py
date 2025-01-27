@@ -178,7 +178,7 @@ def to_request_metadata(obj: dict) -> RequestMetadata:
     try:
         output_tokens = len(tokeniser.encode(response))
     except Exception:
-        output_tokens = len(response[0].get("text"))
+        output_tokens = len(response[0].get("text", []))
 
     metadata_event = RequestMetadata(
         llm_calls=[

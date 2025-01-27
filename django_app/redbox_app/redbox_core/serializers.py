@@ -21,13 +21,16 @@ class ChatMessageTokenUseSerializer(serializers.ModelSerializer):
 class ChatMessageSerializer(serializers.ModelSerializer):
     selected_files = FileSerializer(many=True, read_only=True)
     source_files = FileSerializer(many=True, read_only=True)
-    token_use = ChatMessageTokenUseSerializer(source="chatmessagetokenuse_set", many=True, read_only=True)
+    token_use = ChatMessageTokenUseSerializer(
+        source="chatmessagetokenuse_set", many=True, read_only=True
+    )
 
     class Meta:
         model = ChatMessage
         fields = (
             "id",
             "created_at",
+            "modified_at",
             "text",
             "role",
             "route",
@@ -41,11 +44,13 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 
 
 class ChatSerializer(serializers.ModelSerializer):
-    messages = ChatMessageSerializer(source="chatmessage_set", many=True, read_only=True)
+    messages = ChatMessageSerializer(
+        source="chatmessage_set", many=True, read_only=True
+    )
 
     class Meta:
         model = Chat
-        fields = ("name", "messages", "id")
+        fields = ("id", "created_at", "modified_at", "messages")
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -53,4 +58,11 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("id", "is_staff", "business_unit", "grade", "email", "ai_experience", "profession", "chats", "is_developer")
+        fields = (
+            "ai_experience",
+            "business_unit",
+            "grade",
+            "profession",
+            "role",
+            "chats",
+        )
