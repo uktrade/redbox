@@ -11,16 +11,12 @@ from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_elasticsearch import ElasticsearchStore
 
-
-from redbox.models.chain import GeneratedMetadata
 from redbox.chains.ingest import document_loader, ingest_from_loader
 from redbox.loader import ingester
-from redbox.loader.loaders import (
-    MetadataLoader,
-    UnstructuredChunkLoader,
-)
-from redbox.models.file import ChunkResolution
 from redbox.loader.ingester import ingest_file
+from redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader
+from redbox.models.chain import GeneratedMetadata
+from redbox.models.file import ChunkResolution
 from redbox.models.settings import Settings
 from redbox.retriever.queries import build_query_filter
 
@@ -107,7 +103,7 @@ def test_extract_metadata_extra_key(
 
     requests_mock.post(
         f"http://{env.unstructured_host}:8000/general/v0/general",
-        json=[{"text": "hello", "metadata": {}}],
+        json=[{"text": "hello", "metadata": {"filename": "something"}}],
     )
 
     """
