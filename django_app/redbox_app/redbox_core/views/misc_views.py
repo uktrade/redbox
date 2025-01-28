@@ -1,4 +1,5 @@
 import logging
+import waffle
 from http import HTTPStatus
 
 from django.conf import settings
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 @require_http_methods(["GET"])
 def homepage_view(request):
-    if not request.user.is_authenticated:
+    if not request.user.is_authenticated and settings.LOGIN_METHOD == "sso":
         return redirect("authbroker_client:login")
     else:
         return render(
