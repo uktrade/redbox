@@ -1627,6 +1627,22 @@ files = [
 django = "*"
 
 [[package]]
+name = "django-chunk-upload-handlers"
+version = "0.0.15"
+description = "Chunking Django file handlers for S3 and ClamAV service uploads"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "django_chunk_upload_handlers-0.0.15-py3-none-any.whl", hash = "sha256:ab19bba5b1c6efa484bea4fe8c4b1807d7e513abd89bcf8b4822c10495337bc5"},
+    {file = "django_chunk_upload_handlers-0.0.15.tar.gz", hash = "sha256:dcc11267f6fca75e31d5726bea48172426b10a65e4a97e6bc72782e9c368bef5"},
+]
+
+[package.dependencies]
+boto3 = ">=1.17.89"
+django = ">=4.2,<6.0"
+django-storages = ">=1.11.1"
+
+[[package]]
 name = "django-compressor"
 version = "4.5.1"
 description = "('Compresses linked and inline JavaScript or CSS into single cached files.',)"
@@ -6346,4 +6362,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.12,<3.13"
-content-hash = "bef47171fd8ea748030255081ba0e9be002d7e1acb8bb267954a07f6cdfeb6c1"
+content-hash = "676e1bed418dc7885538dec41f5084076d4e3dac7b97d2f970130dad55ec1230"
