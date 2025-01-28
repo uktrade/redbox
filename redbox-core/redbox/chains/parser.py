@@ -4,18 +4,17 @@ import json
 import re
 from collections.abc import AsyncIterator
 from json import JSONDecodeError
-from typing import Any, Iterator, List, Optional, Type, TypeVar, Union
+from typing import Any, Iterator, List, Optional, Type, Union
 
 import jsonpatch  # type: ignore[import]
 import pydantic  # pydantic: ignore
 from langchain_core.callbacks.manager import dispatch_custom_event
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import BaseMessage, BaseMessageChunk
-from langchain_core.output_parsers import BaseCumulativeTransformOutputParser
 from langchain_core.output_parsers.format_instructions import JSON_FORMAT_INSTRUCTIONS
 from langchain_core.output_parsers.transform import BaseCumulativeTransformOutputParser
 from langchain_core.outputs import ChatGenerationChunk, Generation, GenerationChunk
-from langchain_core.utils.json import parse_and_check_json_markdown, parse_json_markdown, parse_partial_json
+from langchain_core.utils.json import parse_json_markdown
 from langchain_core.utils.pydantic import PYDANTIC_MAJOR_VERSION
 from pydantic import BaseModel
 
@@ -32,8 +31,8 @@ class ClaudeParser(BaseCumulativeTransformOutputParser[Any]):
     describing the difference between the previous and the current object.
     """
 
-    pydantic_object: Optional[Type[TBaseModel]] = None  # type: ignore
-    """The Pydantic object to use for validation. 
+    pydantic_object: Optional[Type] = None  # type: ignore
+    """The Pydantic object to use for validation.
     If None, no validation is performed."""
 
     def _diff(self, prev: Optional[Any], next: Any) -> Any:
