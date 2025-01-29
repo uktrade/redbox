@@ -81,11 +81,12 @@ class MetadataLoader:
         original_metadata = chunks[0]["metadata"] if chunks else {}
         first_thousand_words = "".join(chunk["text"] for chunk in chunks)[:10_000]
 
-        try:
-            metadata = self.create_file_metadata(first_thousand_words, original_metadata=original_metadata)
-        except TypeError:
-            metadata = GeneratedMetadata(name=original_metadata.get("filename"))
-        return metadata
+        return GeneratedMetadata(name=original_metadata.get("filename"))
+        # try:
+        #     metadata = self.create_file_metadata(first_thousand_words, original_metadata=original_metadata)
+        # except TypeError:
+        #     metadata = GeneratedMetadata(name=original_metadata.get("filename"))
+        # return metadata
 
     def create_file_metadata(self, page_content: str, original_metadata: dict | None = None) -> GeneratedMetadata:
         """Uses a sample of the document and any extracted metadata to generate further metadata."""
