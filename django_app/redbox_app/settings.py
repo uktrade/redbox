@@ -183,6 +183,9 @@ else:
 CSP_DEFAULT_SRC = (
     "'self'",
     "s3.amazonaws.com",
+    "https://www.google-analytics.com/",
+    "https://region1.google-analytics.com/",
+    "https://www.googletagmanager.com/",
 )
 
 CSP_SCRIPT_SRC = (
@@ -195,19 +198,22 @@ CSP_SCRIPT_SRC = (
     "'sha256-1NTuHcjvzzB6D69Pb9lbxI5pMJNybP/SwBliv3OvOOE='",
     "'sha256-DrkvIvFj5cNADO03twE83GwgAKgP224E5UyyxXFfvTc='",
     "https://*.googletagmanager.com",
+    "https://tagmanager.google.com/",
+    "https://www.googletagmanager.com/",
+    "ajax.googleapis.com/",
     "sha256-T/1K73p+yppfXXw/AfMZXDh5VRDNaoEh3enEGFmZp8M="
 )
 CSP_OBJECT_SRC = ("'none'",)
-CSP_REQUIRE_TRUSTED_TYPES_FOR = ("'script'",)
-CSP_TRUSTED_TYPES = ("dompurify", "default")
+CSP_TRUSTED_TYPES = ("dompurify", "default", "goog#html")
 CSP_REPORT_TO = "csp-endpoint"
 CSP_FONT_SRC = (
     "'self'",
     "s3.amazonaws.com",
 )
+CSP_INCLUDE_NONCE_IN = ("script-src",)
 CSP_STYLE_SRC = (
     "'self'",
-    # "https://tagmanager.google.com/",
+    "https://tagmanager.google.com/",
 )
 CSP_FRAME_ANCESTORS = ("'none'",)
 
@@ -217,9 +223,9 @@ CSP_CONNECT_SRC = [
     f"{WEBSOCKET_SCHEME}://{ENVIRONMENT.hosts[0]}/ws/chat/",
     "eu.i.posthog.com",
     "eu-assets.i.posthog.com",
-    "https://*.google-analytics.com",
-    "https://*.analytics.google.com",
-    "https://*.googletagmanager.com",
+    "https://www.google-analytics.com/",
+    "https://region1.google-analytics.com/",
+    "https://www.googletagmanager.com/",
 ]
 
 
