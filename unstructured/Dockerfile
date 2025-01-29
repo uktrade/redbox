@@ -3,12 +3,21 @@ FROM python:3.9-slim
 # Set working directory
 WORKDIR /app
 
-# Install LibreOffice to handle doc to docx conversion etc.
-RUN apt-get update && apt-get install -y libreoffice && rm -rf /var/lib/apt/lists/*
+# Install dependencies for LibreOffice and required packages
+RUN apt-get update && apt-get install -y \
+    libreoffice libreoffice-common libreoffice-writer \
+    openjdk-17-jdk-headless \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
 
+# Set JAVA_HOME environment variable
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+ENV PATH=$JAVA_HOME/bin:$PATH
+
+# Copy application files
 COPY . .
 
-# Install unstructured via pip and uvicorn
+# Install Python dependencies
 RUN pip install unstructured[local-inference] uvicorn
 
 # Expose port
