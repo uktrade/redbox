@@ -1,5 +1,4 @@
 import logging
-import waffle
 from http import HTTPStatus
 
 from django.conf import settings
