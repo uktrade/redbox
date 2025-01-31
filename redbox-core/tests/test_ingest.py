@@ -11,16 +11,12 @@ from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_elasticsearch import ElasticsearchStore
 
-
-from redbox.models.chain import GeneratedMetadata
 from redbox.chains.ingest import document_loader, ingest_from_loader
 from redbox.loader import ingester
-from redbox.loader.loaders import (
-    MetadataLoader,
-    UnstructuredChunkLoader,
-)
-from redbox.models.file import ChunkResolution
 from redbox.loader.ingester import ingest_file
+from redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader
+from redbox.models.chain import GeneratedMetadata
+from redbox.models.file import ChunkResolution
 from redbox.models.settings import Settings
 from redbox.retriever.queries import build_query_filter
 
@@ -89,7 +85,7 @@ def test_extract_metadata_missing_key(
     metadata_loader = MetadataLoader(env=env, s3_client=s3_client, file_name=file_name)
     metadata = metadata_loader.extract_metadata()
 
-    assert metadata == GeneratedMetadata()
+    assert metadata == GeneratedMetadata(name=file_name)
 
 
 @patch("redbox.loader.loaders.get_chat_llm")
@@ -107,7 +103,7 @@ def test_extract_metadata_extra_key(
 
     requests_mock.post(
         f"http://{env.unstructured_host}:8000/general/v0/general",
-        json=[{"text": "hello", "metadata": {}}],
+        json=[{"text": "hello", "metadata": {"filename": "something"}}],
     )
 
     """
@@ -121,9 +117,9 @@ def test_extract_metadata_extra_key(
     metadata = metadata_loader.extract_metadata()
 
     assert metadata is not None
-    assert metadata.name == "foo"
-    assert metadata.description == "test"
-    assert metadata.keywords == ["abc"]
+    assert metadata.name == "something"
+    assert metadata.description == ""
+    assert metadata.keywords == []
 
 
 @patch("redbox.loader.loaders.get_chat_llm")

@@ -1,9 +1,10 @@
 import logging
+import waffle
 from http import HTTPStatus
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.views.decorators.http import require_http_methods
 from django.views.generic.base import RedirectView
 
@@ -14,11 +15,14 @@ logger = logging.getLogger(__name__)
 
 @require_http_methods(["GET"])
 def homepage_view(request):
-    return render(
-        request,
-        template_name="homepage.html",
-        context={"request": request, "allow_sign_ups": settings.ALLOW_SIGN_UPS},
-    )
+    if not request.user.is_authenticated and settings.LOGIN_METHOD == "sso":
+        return redirect("authbroker_client:login")
+    else:
+        return render(
+            request,
+            template_name="homepage.html",
+            context={"request": request, "allow_sign_ups": settings.ALLOW_SIGN_UPS},
+        )
 
 
 @require_http_methods(["GET"])

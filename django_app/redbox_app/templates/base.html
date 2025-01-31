@@ -1,4 +1,5 @@
 {% from "macros/iai-top-nav.html" import iaiTopNav %}
+{% set cspNonce=request.csp_nonce %}
 
 <!DOCTYPE html>
 <html lang="en" class="govuk-template">
@@ -20,22 +21,12 @@
 
   {% if environment | lower == "prod" and waffle_flag(request, 'uktrade') %}
   <!-- Google Tag Manager -->
-  <script>
-    (function(w, d, s, l, i) {
-      w[l] = w[l] || [];
-      w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
-      var f = d.getElementsByTagName(s)[0],
-          j = d.createElement(s),
-          dl = l != 'dataLayer' ? '&l=' + l : '';
-      j.async = true;
-
-      const policy = trustedTypes.createPolicy('default', {
-        createScriptURL: (url) => url
-      });
-      
-      j.src = policy.createScriptURL('{{ google_analytics_link }}' + i + dl);
-      f.parentNode.insertBefore(j, f);
-    })(window, document, 'script', 'dataLayer', '{{ google_analytics_tag }}');
+  <script hash="sha256-T/1K73p+yppfXXw/AfMZXDh5VRDNaoEh3enEGFmZp8M=" nonce="{{ request.csp_nonce }}">
+    (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  '{{ google_analytics_link }}'+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','{{ google_analytics_tag }}');
   </script>
   <!-- End Google Tag Manager -->
   {% endif %}
