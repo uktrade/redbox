@@ -67,7 +67,7 @@ def create_alias(alias: str):
     es.indices.put_alias(index=chunk_index_name, name=alias)
 
 
-def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_extraction=True):
+def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_extraction=env.enable_metadata_extraction):
     logging.info("Ingesting file: %s", file_name)
 
     es = env.elasticsearch_client()
