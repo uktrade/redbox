@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.embeddings import FakeEmbeddings
 from langchain_core.runnables import RunnableParallel
-from langchain_elasticsearch.vectorstores import BM25Strategy, ElasticsearchStore
 
 from redbox.chains.components import get_embeddings
 from redbox.chains.ingest import ingest_from_loader
@@ -68,7 +67,7 @@ def create_alias(alias: str):
     es.indices.put_alias(index=chunk_index_name, name=alias)
 
 
-def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_extraction=False):
+def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_extraction=True):
     logging.info("Ingesting file: %s", file_name)
 
     es = env.elasticsearch_client()

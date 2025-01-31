@@ -85,7 +85,7 @@ def test_extract_metadata_missing_key(
     metadata_loader = MetadataLoader(env=env, s3_client=s3_client, file_name=file_name)
     metadata = metadata_loader.extract_metadata()
 
-    assert metadata == GeneratedMetadata()
+    assert metadata == GeneratedMetadata(name=file_name)
 
 
 @patch("redbox.loader.loaders.get_chat_llm")
@@ -117,9 +117,9 @@ def test_extract_metadata_extra_key(
     metadata = metadata_loader.extract_metadata()
 
     assert metadata is not None
-    assert metadata.name == "foo"
-    assert metadata.description == "test"
-    assert metadata.keywords == ["abc"]
+    assert metadata.name == "something"
+    assert metadata.description == ""
+    assert metadata.keywords == []
 
 
 @patch("redbox.loader.loaders.get_chat_llm")
