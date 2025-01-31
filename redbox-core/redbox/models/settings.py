@@ -145,9 +145,9 @@ class Settings(BaseSettings):
         "system",
         "Given the first 1,000 tokens of a document and any available hard-coded file metadata, create"
         "SEO-optimized metadata for the document in the following JSON format:\n\n"
-        '{ "name": '
+        '{{ "name": '
         ', "description": '
-        ', "keywords": ["", "", "", "", ""] }\n'
+        ', "keywords": ["", "", "", "", ""] }}\n'
         "The description should summarize the document's content in a concise and SEO-friendly manner, "
         "and the keywords should represent the most relevant topics or phrases related to the document.",
         # "You are an SEO specialist that must optimise the metadata of a document "
