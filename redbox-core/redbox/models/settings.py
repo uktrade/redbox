@@ -138,14 +138,23 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_nested_delimiter="__", extra="allow", frozen=True)
 
+    enable_metadata_extraction = env.str("ENABLE_METADATA_EXTRACTION")
+
     ## Prompts
     metadata_prompt: tuple = (
         "system",
-        "You are an SEO specialist that must optimise the metadata of a document "
-        "to make it as discoverable as possible. You are about to be given the first "
-        "1_000 tokens of a document and any hard-coded file metadata that can be "
-        "recovered from it. Create SEO-optimised metadata for this document."
-        "Description must be less than 100 words. and no more than 5 keywords .",
+        "Given the first 1,000 tokens of a document and any available hard-coded file metadata, create"
+        "SEO-optimized metadata for the document in the following JSON format:\n\n"
+        '{ "name": '
+        ', "description": '
+        ', "keywords": ["", "", "", "", ""] }\n'
+        "The description should summarize the document's content in a concise and SEO-friendly manner, "
+        "and the keywords should represent the most relevant topics or phrases related to the document.",
+        # "You are an SEO specialist that must optimise the metadata of a document "
+        # "to make it as discoverable as possible. You are about to be given the first "
+        # "1_000 tokens of a document and any hard-coded file metadata that can be "
+        # "recovered from it. Create SEO-optimised metadata for this document."
+        # "Description must be less than 100 words. and maximum 5 keywords .",
     )
 
     # Define index mapping for Opensearch - this is important so that KNN search works
