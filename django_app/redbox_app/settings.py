@@ -72,7 +72,13 @@ INSTALLED_APPS = [
     "django_plotly_dash.apps.DjangoPlotlyDashConfig",
     "adminplus",
     "waffle",
+    "django_chunk_upload_handlers",
 ]
+
+FILE_UPLOAD_HANDLERS = (
+    "django_chunk_upload_handlers.clam_av.ClamAVFileUploadHandler",
+    "django_chunk_upload_handlers.s3.S3FileUploadHandler",
+)
 
 if LOGIN_METHOD == "sso":
     INSTALLED_APPS.append("authbroker_client")
@@ -439,3 +445,10 @@ REST_FRAMEWORK = {
 
 
 REDBOX_API_KEY = env.str("REDBOX_API_KEY")
+CHUNK_UPLOADER_AWS_STORAGE_BUCKET_NAME=env.str("CHUNK_UPLOADER_AWS_STORAGE_BUCKET_NAME")
+CLAM_AV_USERNAME=env.str("CLAM_AV_USERNAME")
+CLAM_AV_PASSWORD=env.str("CLAM_AV_PASSWORD")
+CLAM_AV_DOMAIN=env.str("CLAM_AV_DOMAIN")
+CHUNK_UPLOADER_S3_ROOT_DIRECTORY=env.str("CHUNK_UPLOADER_S3_ROOT_DIRECTORY")
+CHUNK_UPLOADER_AWS_ACCESS_KEY_ID=env.str("AWS_ACCESS_KEY")
+CHUNK_UPLOADER_AWS_SECRET_ACCESS_KEY=env.str("AWS_SECRET_KEY")
