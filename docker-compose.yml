@@ -1,10 +1,9 @@
 services:
   unstructured:
-    image: quay.io/unstructured-io/unstructured-api:latest
-    #image: unstructured:latest  #- TODO - separate this commented into a buildx ccommand somewhere
-    #build:
-      #context: .
-      #dockerfile: unstructured/Dockerfile
+    image: unstructured:latest
+    build:
+      context: .
+      dockerfile: ./unstructured/Dockerfile
     ports:
       - 8000:8000
     networks:
