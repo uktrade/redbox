@@ -138,7 +138,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_nested_delimiter="__", extra="allow", frozen=True)
 
-    enable_metadata_extraction = env.str("ENABLE_METADATA_EXTRACTION")
+    enable_metadata_extraction: bool = env.bool("ENABLE_METADATA_EXTRACTION", default=True)
 
     ## Prompts
     metadata_prompt: tuple = (
