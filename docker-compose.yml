@@ -1,6 +1,6 @@
 services:
   unstructured:
-    image: quay.io/unstructured-io/unstructured-api:latest
+    image: quay.io/unstructured-io/unstructured-api
     #image: unstructured:latest  #- TODO - separate this commented into a buildx ccommand somewhere
     #build:
       #context: .
@@ -20,6 +20,8 @@ services:
       minio:
         condition: service_healthy
       opensearch:
+        condition: service_healthy
+      clamav:
         condition: service_healthy
     networks:
       - redbox-app-network
@@ -42,6 +44,13 @@ services:
       timeout: 30s
       retries: 24
       start_period: 60s
+
+  clamav:
+    image: clamav/clamav
+    networks:
+      - redbox-app-network
+    ports:
+      - "3310:3310" 
 
   db:
     image: postgres:13
@@ -86,6 +95,8 @@ services:
         condition: service_started
       opensearch:
         condition: service_healthy
+      clamav:
+        condition: service_healthy
       minio:
         condition: service_healthy
       django-app:
@@ -120,7 +131,7 @@ services:
       start_period: 30s
 
   opensearch:
-    image: opensearchproject/opensearch:2.17.0
+    image: opensearchproject/opensearch
     environment:
       - discovery.type=single-node
       - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
