@@ -46,11 +46,16 @@ class MetadataLoader:
         """
         Chunking data using local unstructured
         """
+        import os
+        os.environ["TMPDIR"] = "/tmp"
+        import tempfile
+        logger.info(tempfile.gettempdir())
         file_bytes = self._get_file_bytes(s3_client=self.s3_client, file_name=self.file_name)
+        print("Files in tmp:", os.listdir("/tmp"))
         if ENVIRONMENT.is_local:
             url = f"http://{self.env.unstructured_host}:8000/general/v0/general"
         else:
-            url = f"http://{self.env.unstructured_host}:80/general/v0/general"
+            url = f"http://{self.env.unstructured_host}:8080/general/v0/general"
         files = {
             "files": (self.file_name, file_bytes),
         }
