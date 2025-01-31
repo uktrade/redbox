@@ -9,7 +9,7 @@ import requests
 import tiktoken
 from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
-from pydantic import BaseModel, ValidationError, conint
+from pydantic import ValidationError
 from redbox_app.setting_enums import Environment
 
 from redbox.chains.components import get_chat_llm
@@ -71,14 +71,19 @@ class MetadataLoader:
         if response.status_code != 200:
             raise ValueError(response.text)
 
-        return response.json() or []
+        elements = response.json()
+
+        if not elements:
+            raise ValueError("Unstructured failed to extract text for this file")
+
+        return elements
 
     def extract_metadata(self) -> GeneratedMetadata:
         """
         Extract metadata from first 1_000 chunks
         """
-
         chunks = self._chunking()
+
         original_metadata = chunks[0]["metadata"] if chunks else {}
         first_thousand_words = "".join(chunk["text"] for chunk in chunks)[:10_000]
         try:
