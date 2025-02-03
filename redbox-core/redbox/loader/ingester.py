@@ -1,16 +1,16 @@
 import logging
 from typing import TYPE_CHECKING
 
-from langchain_core.runnables import RunnableParallel
-from langchain_elasticsearch.vectorstores import BM25Strategy, ElasticsearchStore
 from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.embeddings import FakeEmbeddings
+from langchain_core.runnables import RunnableParallel
 
 from redbox.chains.components import get_embeddings
 from redbox.chains.ingest import ingest_from_loader
 from redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader
-from redbox.models.settings import get_settings
+from redbox.models.chain import GeneratedMetadata
 from redbox.models.file import ChunkResolution
+from redbox.models.settings import get_settings
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -52,7 +52,7 @@ def get_elasticsearch_store_without_embeddings(es, es_index_name: str):
     return OpenSearchVectorSearch(
         index_name=es_index_name,
         opensearch_url=env.elastic.collection_endpoint,
-        embedding_function=FakeEmbeddings(size=env.embedding_backend_vector_size)
+        embedding_function=FakeEmbeddings(size=env.embedding_backend_vector_size),
     )
 
 
@@ -67,7 +67,7 @@ def create_alias(alias: str):
     es.indices.put_alias(index=chunk_index_name, name=alias)
 
 
-def _ingest_file(file_name: str, es_index_name: str = alias):
+def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_extraction=env.enable_metadata_extraction):
     logging.info("Ingesting file: %s", file_name)
 
     es = env.elasticsearch_client()
@@ -84,8 +84,12 @@ def _ingest_file(file_name: str, es_index_name: str = alias):
         es.indices.create(index=es_index_name, body=env.index_mapping, ignore=400)
 
     # Extract metadata
-    metadata_loader = MetadataLoader(env=env, s3_client=env.s3_client(), file_name=file_name)
-    metadata = metadata_loader.extract_metadata()
+    if enable_metadata_extraction:
+        metadata_loader = MetadataLoader(env=env, s3_client=env.s3_client(), file_name=file_name)
+        metadata = metadata_loader.extract_metadata()
+    else:
+        # return empty metadata
+        metadata = GeneratedMetadata(name=file_name, description="", keywords=[])
 
     chunk_ingest_chain = ingest_from_loader(
         loader=UnstructuredChunkLoader(
