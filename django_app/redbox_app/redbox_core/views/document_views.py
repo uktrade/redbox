@@ -81,6 +81,8 @@ class UploadView(View):
 
         if not uploaded_files:
             errors.append("No document selected")
+            errors.append(
+                f"Your file name is {len(uploaded_file.name)} characters long. The file name will need to be shortened by {len(uploaded_file).name - MAX_FILE_SIZE} characters")
 
         for uploaded_file in uploaded_files:
             errors += self.validate_uploaded_file(uploaded_file)
