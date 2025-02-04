@@ -9,15 +9,15 @@ from typing import override
 import jwt
 from django.conf import settings
 from django.contrib.auth.base_user import BaseUserManager as BaseSSOUserManager
+
+# from django_use_email_as_username.models import BaseUser, BaseUserManager
+from django.contrib.auth.models import AbstractBaseUser, Group, PermissionsMixin
 from django.contrib.postgres.fields import ArrayField
 from django.core import validators
 from django.db import models
 from django.db.models import Max, Min, Prefetch, UniqueConstraint
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-
-# from django_use_email_as_username.models import BaseUser, BaseUserManager
-from django.contrib.auth.models import AbstractBaseUser, Group, PermissionsMixin
 from yarl import URL
 
 from redbox.models.settings import get_settings
@@ -137,6 +137,7 @@ class AISettings(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
     chat_map_system_prompt = models.TextField(null=True, blank=True)
     chat_map_question_prompt = models.TextField(null=True, blank=True)
     reduce_system_prompt = models.TextField(null=True, blank=True)
+    new_route_retrieval_system_prompt = models.TextField(null=True, blank=True)
 
     # Elsticsearch RAG and boost values
     rag_k = models.PositiveIntegerField(null=True, blank=True)
@@ -257,12 +258,24 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
         OT = "OT", _("Other")
 
     class BusinessUnit(models.TextChoices):
-        COMPETITION_MARKETS_AND_REGULATORY_REFORM = "Competition, Markets and Regulatory Reform (CMRR)", _("Competition, Markets and Regulatory Reform (CMRR)")
+        COMPETITION_MARKETS_AND_REGULATORY_REFORM = (
+            "Competition, Markets and Regulatory Reform (CMRR)",
+            _("Competition, Markets and Regulatory Reform (CMRR)"),
+        )
         CORPORATE_SERVICES_GROUP = "Corporate Services Group (CSG)", _("Corporate Services Group (CSG)")
-        TRADE_POLICY_IMPLEMENTATION_AND_NEGOTIATIONS = "Trade Policy Implementation and Negotiations (TPIN)", _("Trade Policy Implementation and Negotiations (TPIN)")
-        ECONOMIC_SECURITY_AND_TRADE_RELATIONS = "Economic Security and Trade Relations (ESTR)", _("Economic Security and Trade Relations (ESTR)")
+        TRADE_POLICY_IMPLEMENTATION_AND_NEGOTIATIONS = (
+            "Trade Policy Implementation and Negotiations (TPIN)",
+            _("Trade Policy Implementation and Negotiations (TPIN)"),
+        )
+        ECONOMIC_SECURITY_AND_TRADE_RELATIONS = (
+            "Economic Security and Trade Relations (ESTR)",
+            _("Economic Security and Trade Relations (ESTR)"),
+        )
         STRATEGY_AND_INVESTMENT = "Strategy and Investment", _("Strategy and Investment")
-        DOMESTIC_AND_INTERNATIONAL_MARKETS_AND_EXPORTS_GROUP = "Domestic and International Markets and Exports Group (DIME) UK Teams", _("Domestic and International Markets and Exports Group (DIME) UK Teams")
+        DOMESTIC_AND_INTERNATIONAL_MARKETS_AND_EXPORTS_GROUP = (
+            "Domestic and International Markets and Exports Group (DIME) UK Teams",
+            _("Domestic and International Markets and Exports Group (DIME) UK Teams"),
+        )
         BUSINESS_GROUP = "Business Group", _("Business Group")
         OVERSEAS_REGIONS = "Overseas Regions", _("Overseas Regions")
         INDUSTRIAL_STRATEGY_UNIT = "Industrial Strategy Unit", _("Industrial Strategy Unit")

@@ -70,23 +70,23 @@ class Redbox:
         #     "_search_govuk": search_govuk,
         #     "_search_wikipedia": search_wikipedia,
         # }
-
-        # self.graph = get_root_graph(
-        #     all_chunks_retriever=self.all_chunks_retriever,
-        #     parameterised_retriever=self.parameterised_retriever,
-        #     metadata_retriever=self.metadata_retriever,
-        #     tools=self.tools,
-        #     debug=debug,
-        # )
-
-        self.tools = [search_documents, search_govuk, search_wikipedia]
-        self.graph = build_new_graph(
+        # self.tools = [search_documents, search_govuk, search_wikipedia]
+        self.tools = [search_documents]
+        self.graph = get_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,
             parameterised_retriever=self.parameterised_retriever,
             metadata_retriever=self.metadata_retriever,
             tools=self.tools,
             debug=debug,
         )
+
+        # self.graph = build_new_graph(
+        #     all_chunks_retriever=self.all_chunks_retriever,
+        #     parameterised_retriever=self.parameterised_retriever,
+        #     metadata_retriever=self.metadata_retriever,
+        #     tools=self.tools,
+        #     debug=debug,
+        # )
 
     def run_sync(self, input: RedboxState):
         """

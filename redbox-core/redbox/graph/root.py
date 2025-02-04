@@ -1,5 +1,6 @@
 from email import message
 from sys import exception
+from typing import List
 
 from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
@@ -155,14 +156,14 @@ def get_search_graph(
     return builder.compile(debug=debug)
 
 
-def get_agentic_search_graph(tools: dict[str, StructuredTool], debug: bool = False) -> CompiledGraph:
+def get_agentic_search_graph(tools: List[StructuredTool], debug: bool = False) -> CompiledGraph:
     """Creates a subgraph for agentic RAG."""
 
     citations_output_parser, format_instructions = get_structured_response_with_citations_parser()
     builder = StateGraph(RedboxState)
     # Tools
-    agent_tool_names = ["_search_documents", "_search_wikipedia", "_search_govuk"]
-    agent_tools: list[StructuredTool] = [tools[tool_name] for tool_name in agent_tool_names]
+    # agent_tool_names = ["_search_documents", "_search_wikipedia", "_search_govuk"]
+    # agent_tools: list[StructuredTool] = [tools[tool_name] for tool_name in agent_tool_names]
 
     # Processes
     builder.add_node("p_set_agentic_search_route", build_set_route_pattern(route=ChatRoute.gadget))
@@ -170,7 +171,7 @@ def get_agentic_search_graph(tools: dict[str, StructuredTool], debug: bool = Fal
         "p_search_agent",
         build_stuff_pattern(
             prompt_set=PromptSet.SearchAgentic,
-            tools=agent_tools,
+            tools=tools,
             output_parser=citations_output_parser,
             format_instructions=format_instructions,
             final_response_chain=False,  # Output parser handles streaming
@@ -178,7 +179,7 @@ def get_agentic_search_graph(tools: dict[str, StructuredTool], debug: bool = Fal
     )
     builder.add_node(
         "p_retrieval_tools",
-        ToolNode(tools=agent_tools),
+        ToolNode(tools=tools),
     )
     builder.add_node(
         "p_give_up_agent",
@@ -404,7 +405,7 @@ def get_root_graph(
     all_chunks_retriever: VectorStoreRetriever,
     parameterised_retriever: VectorStoreRetriever,
     metadata_retriever: VectorStoreRetriever,
-    tools: dict[str, StructuredTool],
+    tools: List[StructuredTool],
     debug: bool = False,
 ) -> CompiledGraph:
     """Creates the core Redbox graph."""
@@ -421,12 +422,14 @@ def get_root_graph(
     )
     metadata_subgraph = get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
 
+    new_route = build_new_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, debug)
     # Processes
     builder.add_node("p_search", rag_subgraph)
     builder.add_node("p_search_agentic", agent_subgraph)
     builder.add_node("p_chat", chat_subgraph)
     builder.add_node("p_chat_with_documents", cwd_subgraph)
     builder.add_node("p_retrieve_metadata", metadata_subgraph)
+    builder.add_node("p_new_route", new_route)
 
     # Log
     builder.add_node(
@@ -456,6 +459,7 @@ def get_root_graph(
         {
             ChatRoute.search: "p_search",
             ChatRoute.gadget: "p_search_agentic",
+            ChatRoute.newroute: "p_new_route",
             "DEFAULT": "d_docs_selected",
         },
     )
@@ -511,7 +515,7 @@ def build_new_graph(
     builder.add_node(
         "p_search_agent",
         build_stuff_pattern(
-            prompt_set=PromptSet.SearchAgentic,
+            prompt_set=PromptSet.NewRoute,
             tools=tools,
             output_parser=citations_output_parser,
             format_instructions=format_instructions,
