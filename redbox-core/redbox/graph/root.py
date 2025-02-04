@@ -1,9 +1,14 @@
+from email import message
+from sys import exception
+
 from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
+from langgraph.constants import Send
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.graph import CompiledGraph
 from langgraph.prebuilt import ToolNode
 
+from redbox.chains.activity import log_activity
 from redbox.chains.components import get_structured_response_with_citations_parser
 from redbox.chains.runnables import build_self_route_output_parser
 from redbox.graph.edges import (
@@ -468,3 +473,90 @@ def get_root_graph(
     builder.add_edge("p_chat_with_documents", END)
 
     return builder.compile(debug=debug)
+
+
+def build_new_graph(
+    all_chunks_retriever: VectorStoreRetriever,
+    parameterised_retriever: VectorStoreRetriever,
+    metadata_retriever: VectorStoreRetriever,
+    tools: list[StructuredTool],
+    debug: bool = False,
+) -> CompiledGraph:
+    # initialise
+    citations_output_parser, format_instructions = get_structured_response_with_citations_parser()
+    # Tools
+    # agent_tool_names = ["_search_documents", "_search_wikipedia", "_search_govuk"]
+    # agent_tools: list[StructuredTool] = [tools[tool_name] for tool_name in agent_tool_names]
+
+    builder = StateGraph(RedboxState)
+
+    # Subgraphs/may need to convert into tools
+    metadata_subgraph = get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
+
+    # Nodes
+    builder.add_node("p_retrieve_metadata", metadata_subgraph)
+    # Show activity logs from user request
+    builder.add_node(
+        "p_activity_log_user_request",
+        build_activity_log_node(
+            lambda s: [
+                RedboxActivityEvent(
+                    message=f"You selected {len(s.request.s3_keys)} file{"s" if len(s.request.s3_keys)>1 else ""} - {",".join(s.request.s3_keys)}"
+                )
+                if len(s.request.s3_keys) > 0
+                else "You selected no files",
+            ]
+        ),
+    )
+    builder.add_node(
+        "p_search_agent",
+        build_stuff_pattern(
+            prompt_set=PromptSet.SearchAgentic,
+            tools=tools,
+            output_parser=citations_output_parser,
+            format_instructions=format_instructions,
+            final_response_chain=True,  # Output parser handles streaming
+        ),
+    )
+
+    builder.add_node(
+        "p_retrieval_tools",
+        ToolNode(tools=tools),
+    )
+    builder.add_node(
+        "p_give_up_agent",
+        build_stuff_pattern(prompt_set=PromptSet.GiveUpAgentic, final_response_chain=True),
+    )
+    builder.add_node("p_report_sources", report_sources_process)
+
+    builder.add_node(
+        "p_activity_log_retrieval_tool_calls",
+        build_activity_log_node(
+            lambda s: [
+                RedboxActivityEvent(message=get_log_formatter_for_retrieval_tool(tool_state_entry).log_call())
+                for tool_state_entry in s.last_message.tool_calls
+            ]
+        ),
+    )
+    builder.add_node("s_tool", empty_process)
+    builder.add_node("d_x_steps_left_or_less", empty_process)
+
+    # Edges
+    builder.add_edge(START, "p_activity_log_user_request")
+    builder.add_edge(START, "p_retrieve_metadata")
+    builder.add_edge("p_retrieve_metadata", "d_x_steps_left_or_less")
+    builder.add_conditional_edges(
+        "d_x_steps_left_or_less",
+        lambda state: state.steps_left <= 8,
+        {
+            True: "p_give_up_agent",
+            False: "p_search_agent",
+        },
+    )
+    builder.add_edge("p_search_agent", "s_tool")
+    builder.add_edge("s_tool", "p_report_sources")
+    builder.add_edge("p_search_agent", "p_activity_log_retrieval_tool_calls")
+    builder.add_conditional_edges("s_tool", build_tool_send("p_retrieval_tools"), path_map=["p_retrieval_tools"])
+    builder.add_edge("p_retrieval_tools", "d_x_steps_left_or_less")
+    builder.add_edge("p_report_sources", END)
+    return builder.compile()

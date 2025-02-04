@@ -23,66 +23,136 @@ log = logging.getLogger()
 re_string_pattern = re.compile(r"(\S+)")
 
 
-def build_chat_prompt_from_messages_runnable(
-    prompt_set: PromptSet,
-    tokeniser: Encoding = None,
-    format_instructions: str = "",
-    additional_variables: dict | None = None,
-) -> Runnable:
-    @chain
-    def _chat_prompt_from_messages(state: RedboxState) -> Runnable:
-        """
-        Create a ChatPromptTemplate as part of a chain using 'chat_history'.
-        Returns the PromptValue using values in the input_dict
-        """
-        ai_settings = state.request.ai_settings
-        _tokeniser = tokeniser or get_tokeniser()
-        _additional_variables = additional_variables or dict()
-        task_system_prompt, task_question_prompt = get_prompts(state, prompt_set)
+# def build_chat_prompt_from_messages_runnable(
+#     prompt_set: PromptSet,
+#     tokeniser: Encoding = None,
+#     format_instructions: str = "",
+#     additional_variables: dict | None = None,
+# ) -> Runnable:
+#     @chain
+#     def _chat_prompt_from_messages(state: RedboxState) -> Runnable:
+#         """
+#         Create a ChatPromptTemplate as part of a chain using 'chat_history'.
+#         Returns the PromptValue using values in the input_dict
+#         """
+#         ai_settings = state.request.ai_settings
+#         _tokeniser = tokeniser or get_tokeniser()
+#         _additional_variables = additional_variables or dict()
+#         task_system_prompt, task_question_prompt = get_prompts(state, prompt_set)
 
-        log.debug("Setting chat prompt")
-        # Set the system prompt to be our composed structure
-        # We preserve the format instructions
-        system_prompt_message = f"""
-            {ai_settings.system_info_prompt}
-            {task_system_prompt}
-            {ai_settings.persona_info_prompt}
-            {ai_settings.caller_info_prompt}
-            """
-        prompts_budget = len(_tokeniser.encode(task_system_prompt)) + len(_tokeniser.encode(task_question_prompt))
-        chat_history_budget = ai_settings.context_window_size - ai_settings.llm_max_tokens - prompts_budget
+#         log.debug("Setting chat prompt")
+#         # Set the system prompt to be our composed structure
+#         # We preserve the format instructions
+#         system_prompt_message = f"""
+#             {ai_settings.system_info_prompt}
+#             {task_system_prompt}
+#             {ai_settings.persona_info_prompt}
+#             {ai_settings.caller_info_prompt}
+#             """
+#         prompts_budget = len(_tokeniser.encode(task_system_prompt)) + len(_tokeniser.encode(task_question_prompt))
+#         chat_history_budget = ai_settings.context_window_size - ai_settings.llm_max_tokens - prompts_budget
 
-        if chat_history_budget <= 0:
-            raise QuestionLengthError
+#         if chat_history_budget <= 0:
+#             raise QuestionLengthError
 
-        truncated_history: list[ChainChatMessage] = []
-        for msg in state.request.chat_history[::-1]:
-            chat_history_budget -= len(_tokeniser.encode(msg["text"]))
-            if chat_history_budget <= 0:
-                break
-            else:
-                truncated_history.insert(0, msg)
+#         truncated_history: list[ChainChatMessage] = []
+#         for msg in state.request.chat_history[::-1]:
+#             chat_history_budget -= len(_tokeniser.encode(msg["text"]))
+#             if chat_history_budget <= 0:
+#                 break
+#             else:
+#                 truncated_history.insert(0, msg)
 
-        prompt_template_context = (
-            state.request.model_dump()
-            | {
-                "messages": state.messages,
-                "formatted_documents": format_documents(flatten_document_state(state.documents)),
-            }
-            | _additional_variables
+#         prompt_template_context = (
+#             state.request.model_dump()
+#             | {
+#                 "messages": state.messages,
+#                 "formatted_documents": format_documents(flatten_document_state(state.documents)),
+#             }
+#             | _additional_variables
+#         )
+
+#         return ChatPromptTemplate(
+#             messages=(
+#                 [("system", system_prompt_message)]
+#                 + [(msg["role"], msg["text"]) for msg in truncated_history]
+#                 + [MessagesPlaceholder("messages")]
+#                 + [task_question_prompt + "\n\n{format_instructions}"]
+#             ),
+#             partial_variables={"format_instructions": format_instructions},
+#         ).invoke(prompt_template_context)
+
+#     return _chat_prompt_from_messages
+
+
+# def build_llm_chain(
+#     prompt_set: PromptSet,
+#     llm: BaseChatModel,
+#     output_parser: Runnable | Callable = None,
+#     format_instructions: str = "",
+#     final_response_chain: bool = False,
+# ) -> Runnable:
+#     """Builds a chain that correctly forms a text and metadata state update.
+
+#     Permits both invoke and astream_events.
+#     """
+#     model_name = llm._default_config.get("model", "unknown")
+#     _llm = llm.with_config(tags=["response_flag"]) if final_response_chain else llm
+#     _output_parser = output_parser if output_parser else StrOutputParser()
+
+#     _llm_text_and_tools = _llm | {
+#         "raw_response": RunnablePassthrough(),
+#         "parsed_response": _output_parser,
+#     }
+
+#     text_and_tools = {
+#         "text_and_tools": _llm_text_and_tools,
+#         "prompt": RunnableLambda(lambda prompt: prompt.to_string()),
+#         "model": lambda _: model_name,
+#     }
+
+#     return (
+#         build_chat_prompt_from_messages_runnable(prompt_set, format_instructions=format_instructions)
+#         | text_and_tools
+#         | get_all_metadata
+#         | RunnablePassthrough.assign(
+#             _log=RunnableLambda(
+#                 lambda _: (log_activity(f"Generating response with {model_name}...") if final_response_chain else None)
+#             )
+#         )
+#     )
+
+
+@chain
+def final_response_if_needed(input_: dict) -> Runnable:
+    # if input_.get('messages')[-1].tool_calls:
+    #     return None
+    # else:
+    #     return RunnablePassthrough.assign(
+    #         _log=RunnableLambda(
+    #             lambda _: log_activity(f"Generating response with {input_.get('metadata').llm_calls[0].llm_model_name}...")
+    #         )
+    #     )
+    model_name = input_.get("metadata").llm_calls[0].llm_model_name
+    return RunnablePassthrough.assign(
+        _log=RunnableLambda(
+            lambda _: (
+                log_activity(f"Generating response with {model_name}...")
+                if not input_.get("messages")[-1].tool_calls
+                else None
+            )
         )
+    )
 
-        return ChatPromptTemplate(
-            messages=(
-                [("system", system_prompt_message)]
-                + [(msg["role"], msg["text"]) for msg in truncated_history]
-                + [MessagesPlaceholder("messages")]
-                + [task_question_prompt + "\n\n{format_instructions}"]
-            ),
-            partial_variables={"format_instructions": format_instructions},
-        ).invoke(prompt_template_context)
 
-    return _chat_prompt_from_messages
+# @chain
+# def final_response_if_needed(input_: dict) -> Runnable:
+#     if input_.last_message.tool_calls:
+#         # LLM return answer
+#         return True
+#     else:
+#         # tools are called
+#         return False
 
 
 def build_llm_chain(
@@ -115,11 +185,7 @@ def build_llm_chain(
         build_chat_prompt_from_messages_runnable(prompt_set, format_instructions=format_instructions)
         | text_and_tools
         | get_all_metadata
-        | RunnablePassthrough.assign(
-            _log=RunnableLambda(
-                lambda _: (log_activity(f"Generating response with {model_name}...") if final_response_chain else None)
-            )
-        )
+        | final_response_if_needed
     )
 
 
