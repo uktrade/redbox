@@ -47,6 +47,7 @@ STATICFILES_FINDERS = [
     "django.contrib.staticfiles.finders.FileSystemFinder",
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 ]
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -202,6 +203,7 @@ CSP_SCRIPT_SRC = (
     "https://www.googletagmanager.com/",
     "ajax.googleapis.com/",
     "sha256-T/1K73p+yppfXXw/AfMZXDh5VRDNaoEh3enEGFmZp8M=",
+    "'unsafe-inline'"
 )
 CSP_OBJECT_SRC = ("'none'",)
 CSP_TRUSTED_TYPES = ("dompurify", "default", "goog#html")
@@ -222,6 +224,7 @@ CSP_IMG_SRC = (
     "https://www.gstatic.com",
     "https://*.google-analytics.com",
     "https://*.googletagmanager.com",
+    "'unsafe-inline'"
 )
 CSP_FRAME_ANCESTORS = ("'none'",)
 
@@ -350,32 +353,32 @@ else:
     }
 
 LOG_LEVEL = env.str("DJANGO_LOG_LEVEL", "WARNING")
-LOG_FORMAT = env.str("DJANGO_LOG_FORMAT", "verbose")
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "verbose": {"format": "%(asctime)s %(levelname)s %(module)s: %(message)s"},
-        "asim_formatter": {
-            "()": ASIMFormatter,
-        },
-    },
-    "handlers": {
-        "console": {
-            "level": LOG_LEVEL,
-            "class": "logging.StreamHandler",
-            "formatter": LOG_FORMAT,
-        }
-    },
-    "root": {"handlers": ["console"], "level": LOG_LEVEL},
-    "loggers": {
-        "application": {
-            "handlers": [LOG_HANDLER],
-            "level": LOG_LEVEL,
-            "propagate": True,
-        }
-    },
-}
+# LOG_FORMAT = env.str("DJANGO_LOG_FORMAT", "verbose")
+# LOGGING = {
+#     "version": 1,
+#     "disable_existing_loggers": False,
+#     "formatters": {
+#         "verbose": {"format": "%(asctime)s %(levelname)s %(module)s: %(message)s"},
+#         "asim_formatter": {
+#             "()": ASIMFormatter,
+#         },
+#     },
+#     "handlers": {
+#         "console": {
+#             "level": LOG_LEVEL,
+#             "class": "logging.StreamHandler",
+#             "formatter": LOG_FORMAT,
+#         }
+#     },
+#     "root": {"handlers": ["console"], "level": LOG_LEVEL},
+#     "loggers": {
+#         "application": {
+#             "handlers": [LOG_HANDLER],
+#             "level": LOG_LEVEL,
+#             "propagate": True,
+#         }
+#     },
+# }
 
 
 # Email
