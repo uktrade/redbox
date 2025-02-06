@@ -17,6 +17,7 @@ END_OF_PLAN = "<END_OF_PLAN>"
 
 
 ### Helper functions
+### This code is from https://langchain-ai.github.io/langgraph/tutorials/llm-compiler/LLMCompiler/#output-parser
 
 
 def _ast_parse(arg: str) -> Any:
@@ -40,16 +41,12 @@ def _parse_llm_compiler_action_args(args: str, tool: Union[str, BaseTool]) -> li
         if f"{key}=" in args:
             idx = args.index(f"{key}=")
             if prev_idx is not None:
-                extracted_args[tool_key] = _ast_parse(
-                    args[prev_idx:idx].strip().rstrip(",")
-                )
+                extracted_args[tool_key] = _ast_parse(args[prev_idx:idx].strip().rstrip(","))
             args = args.split(f"{key}=", 1)[1]
             tool_key = key
             prev_idx = 0
     if prev_idx is not None:
-        extracted_args[tool_key] = _ast_parse(
-            args[prev_idx:].strip().rstrip(",").rstrip(")")
-        )
+        extracted_args[tool_key] = _ast_parse(args[prev_idx:].strip().rstrip(",").rstrip(")"))
     return extracted_args
 
 
@@ -59,9 +56,7 @@ def default_dependency_rule(idx, args: str):
     return idx in numbers
 
 
-def _get_dependencies_from_graph(
-    idx: int, tool_name: str, args: Dict[str, Any]
-) -> dict[str, list[str]]:
+def _get_dependencies_from_graph(idx: int, tool_name: str, args: Dict[str, Any]) -> dict[str, list[str]]:
     """Get dependencies from a graph."""
     if tool_name == "join":
         return list(range(1, idx))
