@@ -171,7 +171,7 @@ make tf_init env=<ENVIRONMENT>
 make tf_apply env=<ENVIRONMENT>
 ```
 
-where ENVIRONMENT is one of `dev`, `preprod` or `prod`
+where ENVIRONMENT is one of `dev`, `uat` or `prod`
 
 ## How to set up scheduled tasks
 
