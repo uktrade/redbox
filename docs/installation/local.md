@@ -24,7 +24,7 @@ As the project deploys, you should eventually see the following message:
 ```
 [+] Running 8/8
  ✔ Network redbox_redbox-app-network  Created                                                                       0.0s 
- ✔ Container redbox-elasticsearch-1   Healthy                                                                      22.7s 
+ ✔ Container redbox-opensearch-1   Healthy                                                                      22.7s 
  ✔ Container redbox-redis-1           Healthy                                                                      22.7s 
  ✔ Container redbox-minio-1           Healthy                                                                      22.7s 
  ✔ Container redbox-db-1              Healthy                                                                      22.7s 
@@ -35,11 +35,11 @@ As the project deploys, you should eventually see the following message:
 
 Redbox utilises health checks to ensure that the services are running correctly.
 
-!!! info "Elastic and Minio failure"
-    If you see that the Elasticsearch or MinIO containers are unhealthy, this may be due to a permission issue with the directory they're mounted to. You can fix this by running the following command:
+!!! info "Opensearch and Minio failure"
+    If you see that the Opensearch or MinIO containers are unhealthy, this may be due to a permission issue with the directory they're mounted to. You can fix this by running the following command:
 
     ```bash
-    chmod -R 777 ./data/elastic/
+    chmod -R 777 ./data/opensearch/
     chmod -R 777 ./data/objectstore/
     ```
 

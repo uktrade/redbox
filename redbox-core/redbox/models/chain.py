@@ -60,7 +60,7 @@ class AISettings(BaseModel):
     chat_map_question_prompt: str = prompts.CHAT_MAP_QUESTION_PROMPT
     reduce_system_prompt: str = prompts.REDUCE_SYSTEM_PROMPT
 
-    # Elasticsearch RAG and boost values
+    # Opensearch RAG and boost values
     rag_k: int = 30
     rag_num_candidates: int = 10
     rag_gauss_scale_size: int = 3

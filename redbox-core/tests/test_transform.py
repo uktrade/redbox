@@ -124,7 +124,7 @@ document_created = datetime.now(UTC)
 )
 def test_combine_documents(a: Document, b: Document, combined: Document):
     """
-    Test that documents as pulled by the Elasticsearch retriever get properly mapped to source documents
+    Test that documents as pulled by the Opensearch retriever get properly mapped to source documents
     """
     test_combined = combine_documents(a, b)
 

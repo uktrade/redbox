@@ -4,14 +4,6 @@ Redbox used the `pydantic_settings` library to manage settings. This library all
 
 ::: redbox.models.settings.Settings
 
-# Elasticsearch Settings
+# OpenSearch Settings
 
-Depending on the deployment scenarios we have two different ways to configure Elasticsearch: `ElasticLocalSettings` and `ElasticCloudSettings`.
-
-## `ElasticLocalSettings`
-
-::: redbox.models.settings.ElasticLocalSettings
-
-## `ElasticCloudSettings`
-
-::: redbox.models.settings.ElasticCloudSettings
+We configure Opensearch via `OpenSearchSettings` in redbox-core/redbox/models/settings.py

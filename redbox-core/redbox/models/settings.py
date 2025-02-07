@@ -7,9 +7,7 @@ from urllib.parse import urlparse
 import boto3
 import environ
 from dotenv import load_dotenv
-from elasticsearch import Elasticsearch
 from langchain.globals import set_debug
-from openai import max_retries
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from pydantic import AnyUrl, BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -40,30 +38,6 @@ class OpenSearchSettings(BaseModel):
     collection_endpoint__host: Optional[str] = parsed_url.hostname
     collection_endpoint__port: Optional[str] = "443"
     collection_endpoint__port_local: Optional[str] = "9200"  # locally, the port number is 9200
-
-
-class ElasticLocalSettings(BaseModel):
-    """settings required for a local/ec2 instance of elastic"""
-
-    model_config = SettingsConfigDict(frozen=True)
-
-    host: str = "elasticsearch"
-    port: int = 9200
-    scheme: str = "http"
-    user: str = "elastic"
-    version: str = "8.11.0"
-    password: str = "redboxpass"
-    subscription_level: str = "basic"
-
-
-class ElasticCloudSettings(BaseModel):
-    """settings required for elastic-cloud"""
-
-    model_config = SettingsConfigDict(frozen=True)
-
-    api_key: str
-    cloud_id: str
-    subscription_level: str = "basic"
 
 
 class ChatLLMBackend(BaseModel):
@@ -197,12 +171,12 @@ class Settings(BaseSettings):
     }
 
     @property
-    def elastic_chat_mesage_index(self):
-        return self.elastic_root_index + "-chat-mesage-log"
+    def opensearch_chat_mesage_index(self):
+        return self.opensearch_root_index + "-chat-mesage-log"
 
     @property
-    def elastic_alias(self):
-        return self.elastic_root_index + "-chunk-current"
+    def opensearch_alias(self):
+        return self.opensearch_root_index + "-chunk-current"
 
     # @lru_cache(1) #removing cache because pydantic object (index mapping) is not hashable
     def opensearch_client(self) -> OpenSearch:
@@ -210,11 +184,11 @@ class Settings(BaseSettings):
             client = OpenSearch(
                 hosts=[
                     {
-                        "host": self.elastic.collection_endpoint__host,
-                        "port": self.elastic.collection_endpoint__port_local,
+                        "host": self.opensearch.collection_endpoint__host,
+                        "port": self.opensearch.collection_endpoint__port_local,
                     }
                 ],
-                http_auth=(self.elastic.collection_endpoint__username, self.elastic.collection_endpoint__password),
+                http_auth=(self.opensearch.collection_endpoint__username, self.opensearch.collection_endpoint__password),
                 use_ssl=False,
                 connection_class=RequestsHttpConnection,
             )
@@ -222,9 +196,9 @@ class Settings(BaseSettings):
         else:
             client = OpenSearch(
                 hosts=[
-                    {"host": self.elastic.collection_endpoint__host, "port": self.elastic.collection_endpoint__port}
+                    {"host": self.opensearch.collection_endpoint__host, "port": self.opensearch.collection_endpoint__port}
                 ],
-                http_auth=(self.elastic.collection_endpoint__username, self.elastic.collection_endpoint__password),
+                http_auth=(self.opensearch.collection_endpoint__username, self.opensearch.collection_endpoint__password),
                 use_ssl=True,
                 verify_certs=True,
                 connection_class=RequestsHttpConnection,
@@ -233,10 +207,10 @@ class Settings(BaseSettings):
                 timeout=120,
             )
 
-        if not client.indices.exists_alias(name=self.elastic_alias):
-            chunk_index = f"{self.elastic_root_index}-chunk"
+        if not client.indices.exists_alias(name=self.opensearch_alias):
+            chunk_index = f"{self.opensearch_root_index}-chunk"
             # client.options(ignore_status=[400]).indices.create(index=chunk_index)
-            # client.indices.put_alias(index=chunk_index, name=self.elastic_alias)
+            # client.indices.put_alias(index=chunk_index, name=self.opensearch_alias)
             try:
                 client.indices.create(
                     index=chunk_index, body=self.index_mapping, ignore=400
@@ -245,18 +219,18 @@ class Settings(BaseSettings):
                 logger.error(f"Failed to create index {chunk_index}: {e}")
 
             try:
-                client.indices.put_alias(index=chunk_index, name=f"{self.elastic_root_index}-chunk-current")
+                client.indices.put_alias(index=chunk_index, name=f"{self.opensearch_root_index}-chunk-current")
             except Exception as e:
-                logger.error(f"Failed to set alias {self.elastic_root_index}-chunk-current: {e}")
+                logger.error(f"Failed to set alias {self.opensearch_root_index}-chunk-current: {e}")
 
-        if not client.indices.exists(index=self.elastic_chat_mesage_index):
+        if not client.indices.exists(index=self.opensearch_chat_mesage_index):
             try:
                 client.indices.create(
-                    index=self.elastic_chat_mesage_index, ignore=400
+                    index=self.opensearch_chat_mesage_index, ignore=400
                 )  # 400 is ignored to avoid index-already-exists errors
             except Exception as e:
-                logger.error(f"Failed to create index {self.elastic_chat_mesage_index}: {e}")
-            # client.indices.create(index=self.elastic_chat_mesage_index)
+                logger.error(f"Failed to create index {self.opensearch_chat_mesage_index}: {e}")
+            # client.indices.create(index=self.opensearch_chat_mesage_index)
 
         return client
 

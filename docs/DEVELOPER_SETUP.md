@@ -198,16 +198,16 @@ elasticdump \
   --type=data
 ```
 
-### Loading data to Elasticsearch
+### Loading data to Opensearch
 
 If you've been provided with a dump from the vector store, add it to [data/elastic-dumps/](../data/elastic-dumps/). The below assumes the existance of `redbox-data-chunk.json` in that directory.
 
 Consider dumping your existing indices if you don't want to have to reembed data you're working on.
 
-Start the Elasticsearch service.
+Start the Opensearch service.
 
 ```console
-docker compose up -d elasticsearch
+docker compose up -d opensearch
 ```
 
 Load data from your JSONs, or your own file.

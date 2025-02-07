@@ -10,12 +10,12 @@ log = logging.getLogger()
 
 
 def build_file_filter(file_names: list[str]) -> dict[str, Any]:
-    """Creates an Elasticsearch filter for file names."""
+    """Creates an Opensearch filter for file names."""
     return {"terms": {"metadata.uri.keyword": file_names}}
 
 
 def build_resolution_filter(chunk_resolution: ChunkResolution) -> dict[str, Any]:
-    """Creates an Elasticsearch filter for chunk resolutions."""
+    """Creates an Opensearch filter for chunk resolutions."""
     return {"term": {"metadata.chunk_resolution.keyword": str(chunk_resolution.normal)}} #add normal to fix error
 
 
@@ -56,7 +56,7 @@ def get_all(
     state: RedboxState,
 ) -> dict[str, Any]:
     """
-    Returns a parameterised elastic query that will return everything it matches.
+    Returns a parameterised opensearch query that will return everything it matches.
 
     As it's used in summarisation, it excludes embeddings.
     """
@@ -97,7 +97,7 @@ def build_document_query(
     selected_files: list[str] | None = None,
     chunk_resolution: ChunkResolution | None = None,
 ) -> dict[str, Any]:
-    """Builds a an Elasticsearch query that will return documents when called.
+    """Builds a an Opensearch query that will return documents when called.
 
     Searches the document:
         * Text, as a keyword and similarity
@@ -165,7 +165,7 @@ def build_document_query(
 
 
 def scale_score(score: float, old_min: float, old_max: float, new_min=1.1, new_max: float = 2.0):
-    """Rescales an Elasticsearch score.
+    """Rescales an Opensearch score.
 
     Intended to turn the score into a multiplier to weight a Gauss function.
 

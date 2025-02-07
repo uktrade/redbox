@@ -34,7 +34,7 @@ The Retrieval Augmented Generation (RAG) architecture grounds our Large Language
 | Core API | ECS | App Service | Docker | FastAPI AI Interaction and DB Intermediary |
 | Worker | ECS | App Service | Docker | Queue fed file ingester and embedder               |
 | Database | RDS/Postgres | Postgres | Postgres | Chat history & user data          |
-| Vector Database | ElasticCloud | ElasticCloud | Elasticsearch | RAG Database                               |
+| Vector Database | ElasticCloud | ElasticCloud | Opensearch | RAG Database                               |
 | Container Registry | ECR | ACR | Harbor | Storage for app containers                 |
 | Embedding API | Azure OpenAI Service | Azure OpenAI Service | Huggingface Containers | Embedding for docs into VectorDB           |
 | LLM API | Azure OpenAI Service | Azure OpenAI Service | Huggingface Containers | Chat model                                 |

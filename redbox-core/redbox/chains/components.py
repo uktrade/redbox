@@ -11,7 +11,6 @@ from langchain_core.tools import StructuredTool
 from langchain_core.runnables import Runnable
 from langchain_core.utils import convert_to_secret_str
 
-# from langchain_elasticsearch import ElasticsearchRetriever
 from langchain_openai.embeddings import AzureOpenAIEmbeddings, OpenAIEmbeddings
 
 
@@ -98,7 +97,7 @@ def get_all_chunks_retriever(env: Settings) -> OpenSearchRetriever:
 
 
 def get_parameterised_retriever(env: Settings, embeddings: Embeddings | None = None):
-    """Creates an Elasticsearch retriever runnable.
+    """Creates an Opensearch retriever runnable.
 
     Runnable takes input of a dict keyed to question, file_uuids and user_uuid.
 

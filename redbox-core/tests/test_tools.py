@@ -2,7 +2,7 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 import pytest
-from elasticsearch import Elasticsearch
+from opensearchpy import OpenSearch
 from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.messages import AIMessage
 from langgraph.prebuilt import ToolNode
@@ -24,7 +24,7 @@ from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
 def test_search_documents_tool(
     chain_params: dict,
     stored_file_parameterised: RedboxChatTestCase,
-    es_client: Elasticsearch,
+    es_client: OpenSearch,
     es_index: str,
     embedding_model: FakeEmbeddings,
     env: Settings,

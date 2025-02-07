@@ -5,9 +5,9 @@ import pytest
 import tiktoken
 from _pytest.fixtures import FixtureRequest
 from botocore.exceptions import ClientError
-from elasticsearch import Elasticsearch
 from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_elasticsearch import ElasticsearchStore
+from opensearchpy import OpenSearch
 from tiktoken.core import Encoding
 
 from redbox.models.settings import Settings
@@ -63,17 +63,17 @@ def embedding_model(embedding_model_dim: int) -> FakeEmbeddings:
 
 @pytest.fixture(scope="session")
 def es_index(env: Settings) -> str:
-    return f"{env.elastic_root_index}-chunk"
+    return f"{env.opensearch_root_index}-chunk"
 
 
 @pytest.fixture(scope="session")
-def es_client(env: Settings) -> Elasticsearch:
+def es_client(env: Settings) -> OpenSearch:
     return env.opensearch_client()
 
 
 @pytest.fixture(scope="session")
 def es_vector_store(
-    es_client: Elasticsearch, es_index: str, embedding_model: FakeEmbeddings, env: Settings
+    es_client: OpenSearch, es_index: str, embedding_model: FakeEmbeddings, env: Settings
 ) -> ElasticsearchStore:
     return ElasticsearchStore(
         index_name=es_index,
@@ -94,7 +94,7 @@ def create_index(env: Settings, es_index: str) -> Generator[None, None, None]:
 
 
 @pytest.fixture(scope="session")
-def all_chunks_retriever(es_client: Elasticsearch, es_index: str) -> AllElasticsearchRetriever:
+def all_chunks_retriever(es_client: OpenSearch, es_index: str) -> AllElasticsearchRetriever:
     return AllElasticsearchRetriever(
         es_client=es_client,
         index_name=es_index,
@@ -103,7 +103,7 @@ def all_chunks_retriever(es_client: Elasticsearch, es_index: str) -> AllElastics
 
 @pytest.fixture(scope="session")
 def parameterised_retriever(
-    env: Settings, es_client: Elasticsearch, es_index: str, embedding_model: FakeEmbeddings
+    env: Settings, es_client: OpenSearch, es_index: str, embedding_model: FakeEmbeddings
 ) -> ParameterisedElasticsearchRetriever:
     return ParameterisedElasticsearchRetriever(
         es_client=es_client,
@@ -114,7 +114,7 @@ def parameterised_retriever(
 
 
 @pytest.fixture(scope="session")
-def metadata_retriever(es_client: Elasticsearch, es_index: str) -> MetadataRetriever:
+def metadata_retriever(es_client: OpenSearch, es_index: str) -> MetadataRetriever:
     return MetadataRetriever(es_client=es_client, index_name=es_index)
 
 

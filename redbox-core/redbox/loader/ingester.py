@@ -25,16 +25,9 @@ alias = env.opensearch_chunk_alias
 
 
 def get_elasticsearch_store(es, es_index_name: str):
-    # return ElasticsearchStore(
-    #     index_name=es_index_name,
-    #     embedding=get_embeddings(env),
-    #     es_connection=es,
-    #     query_field="text",
-    #     vector_query_field=env.embedding_document_field_name,
-    # )
     return OpenSearchVectorSearch(
         index_name=es_index_name,
-        opensearch_url=env.elastic.collection_endpoint,
+        opensearch_url=env.opensearch.collection_endpoint,
         embedding_function=get_embeddings(env),
         query_field="text",
         vector_query_field=env.embedding_document_field_name,
@@ -42,16 +35,10 @@ def get_elasticsearch_store(es, es_index_name: str):
 
 
 def get_elasticsearch_store_without_embeddings(es, es_index_name: str):
-    # return ElasticsearchStore(
-    #     index_name=es_index_name,
-    #     es_connection=es,
-    #     query_field="text",
-    #     strategy=BM25Strategy(),
-    # )
 
     return OpenSearchVectorSearch(
         index_name=es_index_name,
-        opensearch_url=env.elastic.collection_endpoint,
+        opensearch_url=env.opensearch.collection_endpoint,
         embedding_function=FakeEmbeddings(size=env.embedding_backend_vector_size),
     )
 
