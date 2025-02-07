@@ -14,7 +14,7 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_post_new_rating_only(alice: User, chat_message: ChatMessage, client: Client):
     # Given
     client.force_login(alice)
@@ -32,7 +32,7 @@ def test_post_new_rating_only(alice: User, chat_message: ChatMessage, client: Cl
     assert chat_message.rating_chips == []
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_post_new_rating(alice: User, chat_message: ChatMessage, client: Client):
     # Given
     client.force_login(alice)
@@ -54,7 +54,7 @@ def test_post_new_rating(alice: User, chat_message: ChatMessage, client: Client)
     assert set(chat_message.rating_chips) == {"speed", "accuracy", "swearing"}
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_post_new_rating_with_naughty_string(alice: User, chat_message: ChatMessage, client: Client):
     # Given
     client.force_login(alice)
@@ -76,7 +76,7 @@ def test_post_new_rating_with_naughty_string(alice: User, chat_message: ChatMess
     assert set(chat_message.rating_chips) == {"speed", "accuracy", "swearing"}
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_post_updated_rating(alice: User, chat_message_with_rating: ChatMessage, client: Client):
     # Given
     client.force_login(alice)
@@ -98,7 +98,7 @@ def test_post_updated_rating(alice: User, chat_message_with_rating: ChatMessage,
     assert set(chat_message_with_rating.rating_chips) == {"speed", "accuracy", "swearing"}
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_post_updated_rating_with_naughty_string(alice: User, chat_message_with_rating: ChatMessage, client: Client):
     # Given
     client.force_login(alice)

@@ -4,7 +4,7 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_0012_alter_file_status(migrator):
     old_state = migrator.apply_initial_migration(("redbox_core", "0012_alter_file_status"))
 
@@ -39,7 +39,7 @@ def test_0012_alter_file_status(migrator):
     migrator.reset()
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_0020_remove_chatmessage_source_files_textchunk_and_more(migrator):
     old_state = migrator.apply_initial_migration(("redbox_core", "0019_alter_chatmessage_route"))
 
@@ -81,7 +81,7 @@ def test_0020_remove_chatmessage_source_files_textchunk_and_more(migrator):
     migrator.reset()
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_0027_alter_file_status(migrator):
     # Not using test parametrisation to avoid repeatedly rerunning migration
     status_options = [
@@ -130,7 +130,7 @@ def test_0027_alter_file_status(migrator):
     migrator.reset()
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_0028_aisettings(migrator):
     old_state = migrator.apply_initial_migration(("redbox_core", "0027_alter_file_status"))
 
@@ -146,7 +146,7 @@ def test_0028_aisettings(migrator):
         assert user.ai_settings.label == "default"
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_0029_rename_chathistory_chat_alter_chat_options(migrator):
     old_state = migrator.apply_initial_migration(("redbox_core", "0028_aisettings"))
 
@@ -168,7 +168,7 @@ def test_0029_rename_chathistory_chat_alter_chat_options(migrator):
     assert chat.chatmessage_set.count() == 1
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_0030_chatmessagerating_chips(migrator):
     old_state = migrator.apply_initial_migration(("redbox_core", "0029_rename_chathistory_chat_alter_chat_options"))
 
@@ -196,7 +196,7 @@ def test_0030_chatmessagerating_chips(migrator):
     assert new_chat_message_rating.chips == ["apple", "pear"]
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_0031_chatmessage_rating_chatmessage_rating_chips_and_more(migrator):
     old_state = migrator.apply_initial_migration(("redbox_core", "0030_chatmessagerating_chips"))
 
@@ -222,7 +222,7 @@ def test_0031_chatmessage_rating_chatmessage_rating_chips_and_more(migrator):
     assert new_chat_message.rating_text == "very average"
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_0032_user_new_business_unit(migrator):
     old_state = migrator.apply_initial_migration(
         ("redbox_core", "0031_chatmessage_rating_chatmessage_rating_chips_and_more")
@@ -242,7 +242,7 @@ def test_0032_user_new_business_unit(migrator):
     assert user.business_unit == "Prime Minister's Office"
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_0042_chat_chat_backend_chat_chat_map_question_prompt_and_more(migrator):
     old_state = migrator.apply_initial_migration(("redbox_core", "0041_alter_aisettings_chat_backend"))
 
@@ -265,7 +265,7 @@ def test_0042_chat_chat_backend_chat_chat_map_question_prompt_and_more(migrator)
     assert new_chat.chat_backend is not None
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_0048_chatllmbackend_aisettings_new_chat_backend_and_more(migrator):
     old_state = migrator.apply_initial_migration(
         ("redbox_core", "0047_aisettings_agentic_give_up_question_prompt_and_more")

@@ -3,7 +3,6 @@ import logging
 from functools import partial
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union, cast
 
-import opensearchpy
 
 # from elasticsearch.helpers import scan
 from opensearchpy.helpers import scan

@@ -19,7 +19,7 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_chat_export(superuser: User, chat_message_with_rating: ChatMessage, client: Client):
     # Given
     client.force_login(superuser)
@@ -43,7 +43,7 @@ def test_chat_export(superuser: User, chat_message_with_rating: ChatMessage, cli
     assert row["message_rating_chips"] == "['speed', 'accuracy', 'blasphemy']"
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_chat_export_without_ratings(superuser: User, chat_message: ChatMessage, client: Client):
     # Given
     client.force_login(superuser)
@@ -65,7 +65,7 @@ def test_chat_export_without_ratings(superuser: User, chat_message: ChatMessage,
     assert row["message_rating_chips"] == ""
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_user_upload(superuser: User, client: Client):
     # Given
     client.force_login(superuser)
@@ -90,7 +90,7 @@ def test_user_upload(superuser: User, client: Client):
     assert len(users) == 4
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_message_serializer(chat_message_with_citation_and_tokens: ChatMessage):
     expected = {
         "rating": 3,
@@ -120,7 +120,7 @@ def test_message_serializer(chat_message_with_citation_and_tokens: ChatMessage):
         assert actual["token_use"][1][k] == v, k
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_chat_serializer(chat_message_with_citation: ChatMessage):
     expected = {"name": "A chat"}
     actual = ChatSerializer().to_representation(chat_message_with_citation.chat)
@@ -129,7 +129,7 @@ def test_chat_serializer(chat_message_with_citation: ChatMessage):
     assert actual["messages"][0]["text"]
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_user_serializer(chat_message_with_citation: ChatMessage):
     expected = {
         "ai_experience": "Experienced Navigator",

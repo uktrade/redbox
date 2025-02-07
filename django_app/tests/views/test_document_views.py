@@ -17,7 +17,7 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_view(alice, client, file_pdf_path: Path, s3_client):
     """
     Given that the object store does not have a file with our test file in it
@@ -41,7 +41,7 @@ def test_upload_view(alice, client, file_pdf_path: Path, s3_client):
         assert response.url == "/documents/"
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_document_upload_status(client, alice, file_pdf_path: Path, s3_client):
     file_name = f"{alice}/{file_pdf_path.name}"
 
@@ -62,7 +62,7 @@ def test_document_upload_status(client, alice, file_pdf_path: Path, s3_client):
         assert uploaded_file.status == File.Status.processing
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_view_duplicate_files(alice, bob, client, file_pdf_path: Path, s3_client):
     # delete all alice's files
     for key in s3_client.list_objects(Bucket=settings.BUCKET_NAME, Prefix=alice.email).get("Contents", []):
@@ -102,7 +102,7 @@ def test_upload_view_duplicate_files(alice, bob, client, file_pdf_path: Path, s3
     assert bobs_new_file.unique_name == bobs_file.unique_name
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_view_bad_data(alice, client, file_py_path: Path, s3_client):
     previous_count = count_s3_objects(s3_client)
     client.force_login(alice)
@@ -115,7 +115,7 @@ def test_upload_view_bad_data(alice, client, file_py_path: Path, s3_client):
         assert count_s3_objects(s3_client) == previous_count
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_view_no_file(alice, client):
     client.force_login(alice)
 
@@ -125,7 +125,7 @@ def test_upload_view_no_file(alice, client):
     assert "No document selected" in str(response.content)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_remove_doc_view(client: Client, alice: User, file_pdf_path: Path, s3_client: Client):
     file_name = f"{alice.email}/{file_pdf_path.name}"
 
@@ -149,7 +149,7 @@ def test_remove_doc_view(client: Client, alice: User, file_pdf_path: Path, s3_cl
         assert File.objects.get(id=new_file.id).status == File.Status.deleted
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_remove_nonexistent_doc(alice: User, client: Client):
     # Given
     client.force_login(alice)
@@ -163,7 +163,7 @@ def test_remove_nonexistent_doc(alice: User, client: Client):
     assert response.status_code == HTTPStatus.NOT_FOUND
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_file_status_api_view_nonexistent_file(alice: User, client: Client):
     # Given
     client.force_login(alice)

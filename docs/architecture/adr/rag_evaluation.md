@@ -106,13 +106,3 @@ Document any part of the requirements not satisfied by the proposed design. -->
 Format:
 
 - \[ADR Title\]\(URL\) - Relevance -->
-
-
-## References
-
-<!-- List additional references.
-
-Format:
-
-- \[Title\]\(URL\) --> 
-[Link to Redbox RAG evaluation notebook for this spike](../../../notebooks/evaluation/redbox_rag_evaluation.ipynb)

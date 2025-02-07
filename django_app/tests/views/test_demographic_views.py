@@ -10,7 +10,7 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_check_demographics_redirect_if_unpopulated(client: Client, alice: User):
     # Given
     client.force_login(alice)
@@ -22,7 +22,7 @@ def test_check_demographics_redirect_if_unpopulated(client: Client, alice: User)
     assertRedirects(response, "/demographics/")
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_check_demographics_redirect_if_populated(client: Client, user_with_demographic_data: User):
     # Given
     client.force_login(user_with_demographic_data)
@@ -34,7 +34,7 @@ def test_check_demographics_redirect_if_populated(client: Client, user_with_demo
     assertRedirects(response, "/chats/")
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_view_demographic_details_form(client: Client, user_with_demographic_data: User):
     # Given
     client.force_login(user_with_demographic_data)
@@ -50,7 +50,7 @@ def test_view_demographic_details_form(client: Client, user_with_demographic_dat
     # assert soup.find(id="id_business_unit").find_all("option", selected=True)[0].text == "Prime Minister's Office"
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_post_to_demographic_details_form(client: Client, alice: User):
     # Given
     client.force_login(alice)

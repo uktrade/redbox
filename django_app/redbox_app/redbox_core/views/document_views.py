@@ -5,7 +5,7 @@ from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import FieldError, ValidationError, SuspiciousFileOperation
+from django.core.exceptions import FieldError, SuspiciousFileOperation, ValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -136,16 +136,18 @@ class UploadView(View):
         except (ValueError, FieldError, ValidationError) as e:
             logger.exception("Error creating File model object for %s.", uploaded_file, exc_info=e)
             return e.args
-        except SuspiciousFileOperation as e:
+        except SuspiciousFileOperation:
             return [
-                f"Your file name is {len(uploaded_file.name)} characters long. The file name will need to be shortened by {len(uploaded_file.name) - 75} characters"
+                f"Your file name is {len(uploaded_file.name)} characters long. "
+                f"The file name will need to be shortened by {len(uploaded_file.name) - 75} characters"
             ]
         else:
             async_task(ingest, file.id, task_name=file.unique_name, group="ingest")
 
 
+
 @login_required
-def remove_doc_view(request, doc_id: uuid):
+def remove_doc_view(request, doc_id: uuid.UUID):
     file = get_object_or_404(File, id=doc_id)
     errors: list[str] = []
 
@@ -166,8 +168,8 @@ def remove_doc_view(request, doc_id: uuid):
 
     return render(
         request,
-        template_name="remove-doc.html",
-        context={"request": request, "doc_id": doc_id, "doc_name": file.file_name, "errors": errors},
+        "remove-doc.html",
+        {"request": request, "doc_id": doc_id, "doc_name": file.file_name, "errors": errors},
     )
 
 

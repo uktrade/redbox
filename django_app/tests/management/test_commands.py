@@ -5,7 +5,6 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from opensearchpy import OpenSearch
 import pytest
 from botocore.exceptions import UnknownClientMethodError
 from django.conf import settings
@@ -16,6 +15,7 @@ from django.utils import timezone
 from freezegun import freeze_time
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from magic_link.models import MagicLink
+from opensearchpy import OpenSearch
 from pytest_mock import MockerFixture
 from requests_mock import Mocker
 
@@ -30,7 +30,7 @@ User = get_user_model()
 # === show_magiclink_url command tests ===
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_command_output_no_such_user():
     # Given
 
@@ -42,7 +42,7 @@ def test_command_output_no_such_user():
     assert str(exception.value) == "No User found with email alice@example.com"
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_command_output_no_links_ever(alice: User):
     # Given
 
@@ -54,7 +54,7 @@ def test_command_output_no_links_ever(alice: User):
     assert str(exception.value) == f"No MagicLink found for user {alice.email}"
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_command_output_no_valid_links(alice: User):
     # Given
     MagicLink.objects.create(user=alice, expires_at=datetime.now(UTC) - timedelta(seconds=10))
@@ -67,7 +67,7 @@ def test_command_output_no_valid_links(alice: User):
     assert str(exception.value) == f"No active link for user {alice.email}"
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_command_output_with_valid_links(alice: User):
     # Given
     link: MagicLink = MagicLink.objects.create(user=alice, expires_at=datetime.now(UTC) + timedelta(seconds=10))
@@ -91,7 +91,7 @@ EXPIRED_FILE_DATE = timezone.now() - timedelta(seconds=(settings.FILE_EXPIRY_IN_
         (timezone.now(), False),
     ],
 )
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_delete_expired_files(uploaded_file: File, last_referenced: datetime, should_delete: bool):
     # Given
     mock_file = uploaded_file
@@ -107,7 +107,7 @@ def test_delete_expired_files(uploaded_file: File, last_referenced: datetime, sh
 
 
 @patch("redbox_app.redbox_core.models.File.delete_from_opensearch")
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_delete_expired_files_with_opensearch_error(deletion_mock: MagicMock, uploaded_file: File):
     deletion_mock.side_effect = OpenSearch.BadRequestError(message="i am am error", meta=None, body=None)
 
@@ -124,7 +124,7 @@ def test_delete_expired_files_with_opensearch_error(deletion_mock: MagicMock, up
 
 
 @patch("redbox_app.redbox_core.models.File.delete_from_s3")
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_delete_expired_files_with_s3_error(deletion_mock: MagicMock, uploaded_file: File):
     deletion_mock.side_effect = UnknownClientMethodError(method_name="")
 
@@ -148,7 +148,7 @@ def test_delete_expired_files_with_s3_error(deletion_mock: MagicMock, uploaded_f
         (timezone.now(), timezone.now(), False),
     ],
 )
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_delete_expired_chats(chat: Chat, msg_1_date: datetime, msg_2_date: datetime, should_delete: bool):
     # Given
     test_chat = chat

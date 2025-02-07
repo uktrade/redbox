@@ -1,12 +1,12 @@
 import json
 import logging
 from asyncio import CancelledError
-from asgiref.sync import sync_to_async
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 from uuid import UUID
 
+from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.conf import settings

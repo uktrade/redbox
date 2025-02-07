@@ -1,7 +1,7 @@
 import logging
 import os
-from functools import cache, lru_cache
-from typing import Dict, Literal, Optional, Union
+from functools import cache
+from typing import Dict, Literal, Optional
 from urllib.parse import urlparse
 
 import boto3

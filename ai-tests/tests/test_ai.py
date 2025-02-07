@@ -89,7 +89,7 @@ def test_usecases(test_case: AITestCase, loaded_docs: set[str], output_dir: Path
         with open(save_path, "w") as file:
             sys.stdout = file
             # Create and add a file handler for logging
-            file_handler = logging.StreamHandler(file)
+            logging.StreamHandler(file)
             # root_logger.addHandler(file_handler)
 
             # Remove other handlers temporarily if you want logging to go only to file

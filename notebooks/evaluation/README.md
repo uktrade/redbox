@@ -54,20 +54,13 @@ We use [RAGAS](https://ragas.io) to create synthetic data, but are more than hap
 
 Benchmarking is a one-off run of a versioned dataset against the production retrieval engine. Sharing the benchmark with the versioned data gives evaluators metrics they can aim to improve.
 
-## 🔎 Studying a versioned dataset
-
-> [!NOTE]  
-> **Study** a versioned dataset with [`rag_experiment_evaluation.ipynb`](/notebooks/evaluation/rag_experiment_evaluation.ipynb)
-
-The goal of this notebook is that everything you need to study a versioned dataset should be contained in a single place that evaluators can run end to end.
-
 We use [DeepEval](https://docs.confident-ai.com) to evaluate datasets.
 
 The versioned dataset should ideally have been **baselined**, providing you with metrics you can aim to improve. Modify the RAG system via the notebook, and express findings in relation to these baseline metrics.
 
 Right now the notebook only contains the final retrieval engine: the interplay of prompts and retriever. Chunking and embedding strategies will need to be loaded outside this notebook, though you can certainly assess them using it.
 
-[Contect the Redbox team](mailto://i-dot-ai-enquiries@cabinetoffice.gov.uk) if you're interested in working on our existing versioned evaluation datasets.
+[Contect the Redbox team](https://teams.microsoft.com/l/channel/19%3A9ae6b3b539724595a3139c2b16dc56ef%40thread.tacv2/Redbox%20trial%20participants%20Chat%20Channel?groupId=7a71ce78-fe77-4185-825c-ae40cb07d614&tenantId=8fa217ec-33aa-46fb-ad96-dfe68006bb86) if you're interested in working on our existing versioned evaluation datasets.
 
 ## ✅ Success! What now?
 
