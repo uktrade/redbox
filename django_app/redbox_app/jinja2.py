@@ -86,7 +86,6 @@ def environment(**options):
             "to_user_timezone": to_user_timezone,
             "environment": settings.ENVIRONMENT.value,
             "security": settings.MAX_SECURITY_CLASSIFICATION.value,
-            "waffle_flag": waffle.flag_is_active,
         }
     )
     env.globals.update(
@@ -98,7 +97,6 @@ def environment(**options):
             "to_user_timezone": to_user_timezone,
             "environment": settings.ENVIRONMENT.value,
             "security": settings.MAX_SECURITY_CLASSIFICATION.value,
-            "waffle_flag": waffle.flag_is_active,
             "google_analytics_tag": settings.GOOGLE_ANALYTICS_TAG,
             "google_analytics_link": settings.GOOGLE_ANALYTICS_LINK,
             "google_analytics_iframe_src": settings.GOOGLE_ANALYTICS_IFRAME_SRC,
