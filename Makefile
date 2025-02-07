@@ -87,6 +87,12 @@ reset-db:  ## Reset Django database
 	docker compose down db --volumes
 	docker compose up -d db
 
+.PHONY: reset-opensearch
+reset-opensearch:  ## Reset Django database
+	docker compose down opensearch
+	rm -rf data/opensearch/*
+	docker compose up -d opensearch --wait
+
 .PHONY: docs-serve
 docs-serve:  ## Build and serve documentation
 	poetry run mkdocs serve
