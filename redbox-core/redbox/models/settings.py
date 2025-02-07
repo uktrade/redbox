@@ -188,7 +188,10 @@ class Settings(BaseSettings):
                         "port": self.opensearch.collection_endpoint__port_local,
                     }
                 ],
-                http_auth=(self.opensearch.collection_endpoint__username, self.opensearch.collection_endpoint__password),
+                http_auth=(
+                    self.opensearch.collection_endpoint__username,
+                    self.opensearch.collection_endpoint__password,
+                ),
                 use_ssl=False,
                 connection_class=RequestsHttpConnection,
             )
@@ -196,9 +199,15 @@ class Settings(BaseSettings):
         else:
             client = OpenSearch(
                 hosts=[
-                    {"host": self.opensearch.collection_endpoint__host, "port": self.opensearch.collection_endpoint__port}
+                    {
+                        "host": self.opensearch.collection_endpoint__host,
+                        "port": self.opensearch.collection_endpoint__port,
+                    }
                 ],
-                http_auth=(self.opensearch.collection_endpoint__username, self.opensearch.collection_endpoint__password),
+                http_auth=(
+                    self.opensearch.collection_endpoint__username,
+                    self.opensearch.collection_endpoint__password,
+                ),
                 use_ssl=True,
                 verify_certs=True,
                 connection_class=RequestsHttpConnection,

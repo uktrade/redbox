@@ -8,10 +8,12 @@ from redbox_app.redbox_core.serializers import UserSerializer
 
 User = get_user_model()
 
+
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 50
-    page_size_query_param = 'page_size'
+    page_size_query_param = "page_size"
     max_page_size = 100
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsAdminUser])

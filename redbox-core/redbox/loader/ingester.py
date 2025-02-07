@@ -35,7 +35,6 @@ def get_elasticsearch_store(es, es_index_name: str):
 
 
 def get_elasticsearch_store_without_embeddings(es, es_index_name: str):
-
     return OpenSearchVectorSearch(
         index_name=es_index_name,
         opensearch_url=env.opensearch.collection_endpoint,

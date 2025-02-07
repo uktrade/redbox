@@ -120,9 +120,7 @@ def hit_to_doc(hit: dict[str, Any]) -> Document:
     )
 
 
-def query_to_documents(
-    es_client: OpenSearch, index_name: str, query: dict[str, Any]
-) -> list[Document]:
+def query_to_documents(es_client: OpenSearch, index_name: str, query: dict[str, Any]) -> list[Document]:
     """Runs an Elasticsearch query and returns Documents."""
     logger.info("query to opensearch: from query_to_documents")
     logger.info(str(query))

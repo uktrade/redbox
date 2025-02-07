@@ -66,7 +66,8 @@ def escape_curly_brackets(text: str):
 
 @sync_to_async
 def get_latest_complete_file(ref: str) -> File:
-    return File.objects.filter(original_file=ref, status=File.Status.complete).order_by('-created_at').first()
+    return File.objects.filter(original_file=ref, status=File.Status.complete).order_by("-created_at").first()
+
 
 class ChatConsumer(AsyncWebsocketConsumer):
     full_reply: ClassVar = []
@@ -352,7 +353,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     # Use the async database query function
                     file = await get_latest_complete_file(s.source)
                     if file:
-                        payload = {"url": str(file.url), "file_name": file.file_name, "text_in_answer": c.text_in_answer}
+                        payload = {
+                            "url": str(file.url),
+                            "file_name": file.file_name,
+                            "text_in_answer": c.text_in_answer,
+                        }
                     else:
                         # If no file with Status.complete is found, handle it as None
                         payload = {"url": s.source, "file_name": s.source, "text_in_answer": c.text_in_answer}

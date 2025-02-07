@@ -16,7 +16,7 @@ def build_file_filter(file_names: list[str]) -> dict[str, Any]:
 
 def build_resolution_filter(chunk_resolution: ChunkResolution) -> dict[str, Any]:
     """Creates an Opensearch filter for chunk resolutions."""
-    return {"term": {"metadata.chunk_resolution.keyword": str(chunk_resolution.normal)}} #add normal to fix error
+    return {"term": {"metadata.chunk_resolution.keyword": str(chunk_resolution.normal)}}  # add normal to fix error
 
 
 def build_query_filter(
@@ -44,9 +44,11 @@ def build_query_filter(
     if chunk_resolution:
         list_filters.append(build_resolution_filter(chunk_resolution=chunk_resolution))
 
-    query_filter = {"bool": 
-                    { "must" : list_filters}  #filter returns the results that matches all the listed filter. This is a logical AND operator. The results must match all queries in this clause.
-                    }
+    query_filter = {
+        "bool": {
+            "must": list_filters
+        }  # filter returns the results that matches all the listed filter. This is a logical AND operator. The results must match all queries in this clause.
+    }
 
     return query_filter
 
@@ -112,7 +114,8 @@ def build_document_query(
         chunk_resolution=chunk_resolution,
     )
 
-    return {"size": ai_settings.rag_k,
+    return {
+        "size": ai_settings.rag_k,
         "query": {
             "bool": {
                 "should": [
@@ -151,10 +154,11 @@ def build_document_query(
                     {
                         "knn": {
                             "vector_field": {
-                            "vector": query_vector,
-                            "k": ai_settings.rag_num_candidates,
-                            "boost": ai_settings.knn_boost,
-                            "filter": query_filter}
+                                "vector": query_vector,
+                                "k": ai_settings.rag_num_candidates,
+                                "boost": ai_settings.knn_boost,
+                                "filter": query_filter,
+                            }
                         }
                     },
                 ],

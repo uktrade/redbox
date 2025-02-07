@@ -47,6 +47,7 @@ def sitemap_view(request):
         context={"request": request, "chat_history": chat_history},
     )
 
+
 def faq_view(request):
     return render(
         request,

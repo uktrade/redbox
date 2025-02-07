@@ -257,12 +257,24 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
         OT = "OT", _("Other")
 
     class BusinessUnit(models.TextChoices):
-        COMPETITION_MARKETS_AND_REGULATORY_REFORM = "Competition, Markets and Regulatory Reform (CMRR)", _("Competition, Markets and Regulatory Reform (CMRR)")
+        COMPETITION_MARKETS_AND_REGULATORY_REFORM = (
+            "Competition, Markets and Regulatory Reform (CMRR)",
+            _("Competition, Markets and Regulatory Reform (CMRR)"),
+        )
         CORPORATE_SERVICES_GROUP = "Corporate Services Group (CSG)", _("Corporate Services Group (CSG)")
-        TRADE_POLICY_IMPLEMENTATION_AND_NEGOTIATIONS = "Trade Policy Implementation and Negotiations (TPIN)", _("Trade Policy Implementation and Negotiations (TPIN)")
-        ECONOMIC_SECURITY_AND_TRADE_RELATIONS = "Economic Security and Trade Relations (ESTR)", _("Economic Security and Trade Relations (ESTR)")
+        TRADE_POLICY_IMPLEMENTATION_AND_NEGOTIATIONS = (
+            "Trade Policy Implementation and Negotiations (TPIN)",
+            _("Trade Policy Implementation and Negotiations (TPIN)"),
+        )
+        ECONOMIC_SECURITY_AND_TRADE_RELATIONS = (
+            "Economic Security and Trade Relations (ESTR)",
+            _("Economic Security and Trade Relations (ESTR)"),
+        )
         STRATEGY_AND_INVESTMENT = "Strategy and Investment", _("Strategy and Investment")
-        DOMESTIC_AND_INTERNATIONAL_MARKETS_AND_EXPORTS_GROUP = "Domestic and International Markets and Exports Group (DIME) UK Teams", _("Domestic and International Markets and Exports Group (DIME) UK Teams")
+        DOMESTIC_AND_INTERNATIONAL_MARKETS_AND_EXPORTS_GROUP = (
+            "Domestic and International Markets and Exports Group (DIME) UK Teams",
+            _("Domestic and International Markets and Exports Group (DIME) UK Teams"),
+        )
         BUSINESS_GROUP = "Business Group", _("Business Group")
         OVERSEAS_REGIONS = "Overseas Regions", _("Overseas Regions")
         INDUSTRIAL_STRATEGY_UNIT = "Industrial Strategy Unit", _("Industrial Strategy Unit")

@@ -78,7 +78,7 @@ class UploadView(View):
         errors: MutableSequence[str] = []
 
         uploaded_files: MutableSequence[UploadedFile] = request.FILES.getlist("uploadDocs")
-        
+
         if not uploaded_files:
             errors.append("No document selected")
 
@@ -137,7 +137,9 @@ class UploadView(View):
             logger.exception("Error creating File model object for %s.", uploaded_file, exc_info=e)
             return e.args
         except SuspiciousFileOperation as e:
-            return [f"Your file name is {len(uploaded_file.name)} characters long. The file name will need to be shortened by {len(uploaded_file.name) - 75} characters"]
+            return [
+                f"Your file name is {len(uploaded_file.name)} characters long. The file name will need to be shortened by {len(uploaded_file.name) - 75} characters"
+            ]
         else:
             async_task(ingest, file.id, task_name=file.unique_name, group="ingest")
 
