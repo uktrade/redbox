@@ -57,9 +57,9 @@ def settings():
 
 @pytest.fixture
 def all_loaded_doc_uris(settings: Settings):
-    es = settings.elasticsearch_client()
+    es = settings.opensearch_client()
     match_all = {"query": {"match_all": {}}}
-    response = es.search(index=settings.elastic_chunk_alias, body=match_all)
+    response = es.search(index=settings.opensearch_chunk_alias, body=match_all)
     hits = response.get("hits", {}).get("hits", [])
     return set(d["_source"]["metadata"]["uri"] for d in hits)
 

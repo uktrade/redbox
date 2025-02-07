@@ -10,7 +10,6 @@ redbox-core/models/
 ai-tests/data/
 
 # data files
-elk/elasticsearch/data
 data/
 db/
 !*/user_preferences/classes_format.json

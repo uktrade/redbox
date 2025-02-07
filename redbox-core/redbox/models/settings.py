@@ -99,9 +99,9 @@ class Settings(BaseSettings):
     partition_strategy: Literal["auto", "fast", "ocr_only", "hi_res"] = "fast"
     clustering_strategy: Literal["full"] | None = None
 
-    elastic: OpenSearchSettings = OpenSearchSettings()
-    elastic_root_index: str = "redbox-data"
-    elastic_chunk_alias: str = "redbox-data-chunk-current"
+    opensearch: OpenSearchSettings = OpenSearchSettings()
+    opensearch_root_index: str = "redbox-data"
+    opensearch_chunk_alias: str = "redbox-data-chunk-current"
 
     kibana_system_password: str = "redboxpass"
     metricbeat_internal_password: str = "redboxpass"
@@ -205,9 +205,7 @@ class Settings(BaseSettings):
         return self.elastic_root_index + "-chunk-current"
 
     # @lru_cache(1) #removing cache because pydantic object (index mapping) is not hashable
-    def elasticsearch_client(self) -> Union[Elasticsearch, OpenSearch]:
-        logger.info("Testing OpenSearch is definitely being used")
-
+    def opensearch_client(self) -> OpenSearch:
         if ENVIRONMENT.is_local:
             client = OpenSearch(
                 hosts=[

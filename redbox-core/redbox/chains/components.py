@@ -92,8 +92,8 @@ def get_embeddings(env: Settings) -> Embeddings:
 
 def get_all_chunks_retriever(env: Settings) -> OpenSearchRetriever:
     return AllElasticsearchRetriever(
-        es_client=env.elasticsearch_client(),
-        index_name=env.elastic_chunk_alias,
+        es_client=env.opensearch_client(),
+        index_name=env.opensearch_chunk_alias,
     )
 
 
@@ -105,8 +105,8 @@ def get_parameterised_retriever(env: Settings, embeddings: Embeddings | None = N
     Runnable returns a list of Chunks.
     """
     return ParameterisedElasticsearchRetriever(
-        es_client=env.elasticsearch_client(),
-        index_name=env.elastic_chunk_alias,
+        es_client=env.opensearch_client(),
+        index_name=env.opensearch_chunk_alias,
         embedding_model=embeddings or get_embeddings(env),
         embedding_field_name=env.embedding_document_field_name,
     )
@@ -114,8 +114,8 @@ def get_parameterised_retriever(env: Settings, embeddings: Embeddings | None = N
 
 def get_metadata_retriever(env: Settings):
     return MetadataRetriever(
-        es_client=env.elasticsearch_client(),
-        index_name=env.elastic_chunk_alias,
+        es_client=env.opensearch_client(),
+        index_name=env.opensearch_chunk_alias,
     )
 
 

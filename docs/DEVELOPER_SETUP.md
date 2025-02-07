@@ -50,7 +50,7 @@ To view all the build commands, check the `Makefile` that can be found [here](ht
 
 The project currently consists of multiple docker images needed to run the project in its entirety. If you only need a subsection of the project running, for example if you're only editing the django app, you can run a subset of the images. The images currently in the project are:
 
-- `elasticsearch`
+- `opensearch`
 - `minio`
 - `db`
 - `django-app`

@@ -68,7 +68,7 @@ def es_index(env: Settings) -> str:
 
 @pytest.fixture(scope="session")
 def es_client(env: Settings) -> Elasticsearch:
-    return env.elasticsearch_client()
+    return env.opensearch_client()
 
 
 @pytest.fixture(scope="session")
@@ -86,7 +86,7 @@ def es_vector_store(
 
 @pytest.fixture(autouse=True, scope="session")
 def create_index(env: Settings, es_index: str) -> Generator[None, None, None]:
-    es = env.elasticsearch_client()
+    es = env.opensearch_client()
     if not es.indices.exists(index=es_index):
         es.indices.create(index=es_index)
     yield

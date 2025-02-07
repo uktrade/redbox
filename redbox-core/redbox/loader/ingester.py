@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger()
 
 env = get_settings()
-alias = env.elastic_chunk_alias
+alias = env.opensearch_chunk_alias
 
 
 def get_elasticsearch_store(es, es_index_name: str):
@@ -57,7 +57,7 @@ def get_elasticsearch_store_without_embeddings(es, es_index_name: str):
 
 
 def create_alias(alias: str):
-    es = env.elasticsearch_client()
+    es = env.opensearch_client()
 
     chunk_index_name = alias[:-8]  # removes -current
 
@@ -70,7 +70,7 @@ def create_alias(alias: str):
 def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_extraction=env.enable_metadata_extraction):
     logging.info("Ingesting file: %s", file_name)
 
-    es = env.elasticsearch_client()
+    es = env.opensearch_client()
 
     if es_index_name == alias:
         if not es.indices.exists_alias(name=alias):

@@ -40,10 +40,10 @@ jobs:
 
     - name: Build Containers
       run: |
-        mkdir -p data/elastic/
-        chmod 777 data/elastic/
+        mkdir -p data/opensearch/
+        chmod 777 data/opensearch/
         cp tests/.env.test .env
-        docker compose up -d --wait elasticsearch
+        docker compose up -d --wait opensearch
 
     - name: Test redbox with pytest
       run: |
@@ -69,11 +69,11 @@ jobs:
 
     - name: Build Containers
       run: |
-        mkdir -p data/elastic/
+        mkdir -p data/opensearch/
         chmod -R 777 data/
         cp tests/.env.test .env
         sed -i -e "s/^OBJECT_STORE=.*/OBJECT_STORE=minio/" .env
-        docker compose up -d --wait elasticsearch minio db
+        docker compose up -d --wait opensearch minio db
         docker ps
 
     - name: Test django with pytest

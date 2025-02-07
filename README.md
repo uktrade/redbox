@@ -95,20 +95,7 @@ If you discover a security vulnerability within this project, please follow our 
 
 ## Troubleshooting
 
-#### Error: Elasticsearch 137
-
-```commandline
-ERROR: Elasticsearch exited unexpectedly, with exit code 137
-```
-
-This is caused by Elasticsearch not having enough memory.
-
-Increase total memory available to 8gb.
-
-```commandline
-colima down
-colima start --memory 8
-```
+#### TODO - Review Opensearch troubleshooting
 
 #### Error: Docker... no space left on device
 
@@ -186,7 +173,4 @@ Follow the instructions here https://django-q2.readthedocs.io/en/master/schedule
 
 ## Vector databases
 
-We are currently using ElasticSearch as our vector database.
-
-We have also successfully deployed Redbox to OpenSearch Serverless but this support should be considered experimental
-at this stage.
+We are currently using Opensearch as our vector database.

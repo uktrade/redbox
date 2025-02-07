@@ -65,7 +65,6 @@ nav:
       - Settings: code_reference/models/settings.md
     - Storage:
       - Overview: code_reference/storage/index.md
-      - ElasticsearchStorageHandler: code_reference/storage/elasticsearch_storage_handler.md
   - Contributing: contributing.md
 
 plugins:
