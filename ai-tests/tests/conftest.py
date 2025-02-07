@@ -27,7 +27,7 @@ def test_cases() -> Generator[None, None, AITestCase]:
         d.name for d in DOCUMENTS_DIR.iterdir()
     )
     if len(missing_documents) > 0:
-        logger.warning(f"Missing {len(missing_documents)} documents - {",".join(missing_documents)}")
+        logger.warning(f"Missing {len(missing_documents)} documents - {','.join(missing_documents)}")
     return all_cases
 
 

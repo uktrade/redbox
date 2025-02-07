@@ -145,7 +145,6 @@ class UploadView(View):
             async_task(ingest, file.id, task_name=file.unique_name, group="ingest")
 
 
-
 @login_required
 def remove_doc_view(request, doc_id: uuid.UUID):
     file = get_object_or_404(File, id=doc_id)

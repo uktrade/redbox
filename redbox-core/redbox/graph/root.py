@@ -429,7 +429,7 @@ def get_root_graph(
         build_activity_log_node(
             lambda s: [
                 RedboxActivityEvent(
-                    message=f"You selected {len(s.request.s3_keys)} file{"s" if len(s.request.s3_keys)>1 else ""} - {",".join(s.request.s3_keys)}"
+                    message=f"You selected {len(s.request.s3_keys)} file{'s' if len(s.request.s3_keys) > 1 else ''} - {','.join(s.request.s3_keys)}"
                 )
                 if len(s.request.s3_keys) > 0
                 else "You selected no files",
