@@ -12,7 +12,7 @@ def ingest(file_id: UUID, es_index: str | None = None) -> None:
     from redbox_app.redbox_core.models import File
 
     if not es_index:
-        es_index = env.elastic_chunk_alias
+        es_index = env.opensearch_chunk_alias
 
     file = File.objects.get(id=file_id)
 

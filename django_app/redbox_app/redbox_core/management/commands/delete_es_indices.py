@@ -8,12 +8,12 @@ logger = logging.getLogger(__name__)
 
 env = get_settings()
 
-es_client = env.elasticsearch_client()
+es_client = env.opensearch_client()
 
 
 class Command(BaseCommand):
     help = """
-    This is a command to remove old ElasticSearch indexes after reingestion and realiasing.
+    This is a command to remove old OpenSearch indexes after reingestion and realiasing.
     Eventually, this may be combined into reingest_files,
     but this allows for a manual check of data before deletion.
 

@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 env = get_settings()
 
-es_client = env.elasticsearch_client()
+es_client = env.opensearch_client()
 
 
 def switch_aliases(alias, new_index):
@@ -40,7 +40,7 @@ class Command(BaseCommand):
     def handle(self, *_args, **kwargs):
         self.stdout.write(self.style.NOTICE("Reingesting active files from Django"))
 
-        new_index = f"{env.elastic_root_index}-chunk-{int(time.time())}"
+        new_index = f"{env.opensearch_root_index}-chunk-{int(time.time())}"
 
         for file in File.objects.exclude(status__in=File.INACTIVE_STATUSES):
             logger.debug("Reingesting file object %s", file)
@@ -52,4 +52,4 @@ class Command(BaseCommand):
                 group="re-ingest",
                 sync=kwargs["sync"],
             )
-        async_task(switch_aliases, env.elastic_chunk_alias, new_index, task_name="switch_aliases")
+        async_task(switch_aliases, env.opensearch_chunk_alias, new_index, task_name="switch_aliases")

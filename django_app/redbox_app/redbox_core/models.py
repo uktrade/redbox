@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 env = get_settings()
 
-es_client = env.elasticsearch_client()
+es_client = env.opensearch_client()
 
 
 class UUIDPrimaryKeyBase(models.Model):
@@ -547,8 +547,8 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         """Manually deletes the file from S3 storage."""
         self.original_file.delete(save=False)
 
-    def delete_from_elastic(self):
-        index = env.elastic_chunk_alias
+    def delete_from_opensearch(self):
+        index = env.opensearch_chunk_alias
         if es_client.indices.exists(index=index):
             es_client.delete_by_query(
                 index=index,
@@ -814,7 +814,7 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
 
     def log(self):
         token_sum = sum(token_use.token_count for token_use in self.chatmessagetokenuse_set.all())
-        elastic_log_msg = {
+        opensearch_log_msg = {
             "@timestamp": self.created_at.isoformat(),
             "id": str(self.id),
             "chat_id": str(self.chat.id),
@@ -828,9 +828,9 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
             "rating_chips": list(map(str, self.rating_chips)) if self.rating_chips else None,
         }
         es_client.create(
-            index=env.elastic_chat_mesage_index,
+            index=env.opensearch_chat_mesage_index,
             id=uuid.uuid4(),
-            body=elastic_log_msg,
+            body=opensearch_log_msg,
         )
 
     def unique_citation_uris(self) -> list[tuple[str, str]]:

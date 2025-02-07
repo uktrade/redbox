@@ -56,7 +56,7 @@ class Command(BaseCommand):
                 )
 
                 try:
-                    file.delete_from_elastic()
+                    file.delete_from_opensearch()
                     file.delete_from_s3()
 
                 except BotoCoreError as e:

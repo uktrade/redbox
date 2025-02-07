@@ -8,12 +8,12 @@ logger = logging.getLogger(__name__)
 
 env = get_settings()
 
-es_client = env.elasticsearch_client()
+es_client = env.opensearch_client()
 
 
 class Command(BaseCommand):
     help = """
-    This is a command to change the aliased elasticsearch index after a reingestion.
+    This is a command to change the aliased opensearch index after a reingestion.
     Eventually, this may be able to be combined into reingest_files,
     but this allows for a manual check of reingestion before moving the alias.
 
@@ -21,7 +21,7 @@ class Command(BaseCommand):
     """
 
     def add_arguments(self, parser):
-        default_alias = env.elastic_chunk_alias
+        default_alias = env.opensearch_chunk_alias
 
         parser.add_argument("new_index", nargs="?", type=str)
         parser.add_argument("alias", nargs="?", type=str, default=default_alias)
