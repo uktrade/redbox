@@ -29,6 +29,7 @@ opensearch-py = "^2.7.1"
 scikit-learn = "^1.5.2"
 langfuse = "^2.53.9"
 python-dotenv = "^1.0.1"
+django-environ = "^0.12.0"
 
 
 

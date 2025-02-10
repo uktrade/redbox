@@ -3,6 +3,8 @@ import logging
 from functools import partial
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union, cast
 
+import opensearchpy
+from elasticsearch import Elasticsearch
 
 # from elasticsearch.helpers import scan
 from opensearchpy.helpers import scan
@@ -12,6 +14,7 @@ from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.retrievers import BaseRetriever
+from langchain_elasticsearch.retrievers import ElasticsearchRetriever
 import os
 
 from redbox.models.chain import RedboxState
@@ -119,7 +122,9 @@ def hit_to_doc(hit: dict[str, Any]) -> Document:
     )
 
 
-def query_to_documents(es_client: OpenSearch, index_name: str, query: dict[str, Any]) -> list[Document]:
+def query_to_documents(
+    es_client: Union[Elasticsearch, OpenSearch], index_name: str, query: dict[str, Any]
+) -> list[Document]:
     """Runs an Elasticsearch query and returns Documents."""
     logger.info("query to opensearch: from query_to_documents")
     logger.info(str(query))
@@ -166,7 +171,7 @@ def filter_by_elbow(
 class ParameterisedElasticsearchRetriever(BaseRetriever):
     """A modified ElasticsearchRetriever that allows configuration from RedboxState."""
 
-    es_client: OpenSearch
+    es_client: Union[Elasticsearch, OpenSearch]
     index_name: str | Sequence[str]
     embedding_model: Embeddings
     embedding_field_name: str = "embedding"
@@ -219,7 +224,7 @@ class AllElasticsearchRetriever(OpenSearchRetriever):
 
     chunk_resolution: ChunkResolution = ChunkResolution.largest
 
-    def __init__(self, es_client: OpenSearch, **kwargs: Any) -> None:
+    def __init__(self, es_client: Union[Elasticsearch, OpenSearch], **kwargs: Any) -> None:
         # Hack to pass validation before overwrite
         # Partly necessary due to how .with_config() interacts with a retriever
         kwargs["es_client"] = es_client
@@ -250,7 +255,7 @@ class MetadataRetriever(OpenSearchRetriever):
 
     chunk_resolution: ChunkResolution = ChunkResolution.largest
 
-    def __init__(self, es_client: OpenSearch, **kwargs: Any) -> None:
+    def __init__(self, es_client: Union[Elasticsearch, OpenSearch], **kwargs: Any) -> None:
         # Hack to pass validation before overwrite
         # Partly necessary due to how .with_config() interacts with a retriever
         kwargs["body_func"] = get_metadata
