@@ -1,6 +1,6 @@
 import logging
 import os
-from functools import cache, lru_cache
+from functools import cache
 from typing import Dict, Literal, Optional, Union
 from urllib.parse import urlparse
 
@@ -9,7 +9,6 @@ import environ
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
 from langchain.globals import set_debug
-from openai import max_retries
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from pydantic import AnyUrl, BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict

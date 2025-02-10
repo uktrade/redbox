@@ -5,7 +5,7 @@ from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import FieldError, ValidationError, SuspiciousFileOperation
+from django.core.exceptions import FieldError, SuspiciousFileOperation, ValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -78,7 +78,7 @@ class UploadView(View):
         errors: MutableSequence[str] = []
 
         uploaded_files: MutableSequence[UploadedFile] = request.FILES.getlist("uploadDocs")
-        
+
         if not uploaded_files:
             errors.append("No document selected")
 
@@ -136,8 +136,11 @@ class UploadView(View):
         except (ValueError, FieldError, ValidationError) as e:
             logger.exception("Error creating File model object for %s.", uploaded_file, exc_info=e)
             return e.args
-        except SuspiciousFileOperation as e:
-            return [f"Your file name is {len(uploaded_file.name)} characters long. The file name will need to be shortened by {len(uploaded_file.name) - 75} characters"]
+        except SuspiciousFileOperation:
+            return [
+                f"Your file name is {len(uploaded_file.name)} characters long. "
+                f"The file name will need to be shortened by {len(uploaded_file.name) - 75} characters"
+            ]
         else:
             async_task(ingest, file.id, task_name=file.unique_name, group="ingest")
 

@@ -38,7 +38,8 @@ test-ai: ## Test code with live LLM
 
 .PHONY: test-redbox
 test-redbox: ## Test redbox
-	cd redbox-core && poetry install && poetry run pytest -m "not ai" --cov=redbox -v --cov-report=term-missing --cov-fail-under=60
+	cd redbox-core && PYTHONPATH=$(PWD)/django_app:$(PWD)/redbox-core DJANGO_SETTINGS_MODULE=django_app.settings poetry install && \
+	PYTHONPATH=$(PWD)/django_app:$(PWD)/redbox-core poetry run pytest -m "not ai" --cov=redbox -v --cov-report=term-missing --cov-fail-under=60
 
 .PHONY: test-django
 test-django: ## Test django-app
@@ -89,9 +90,9 @@ reset-db:  ## Reset Django database
 
 .PHONY: reset-elastic
 reset-elastic:  ## Reset Django database
-	docker compose down elasticsearch
+	docker compose down opensearch
 	rm -rf data/elastic/*
-	docker compose up -d elasticsearch --wait
+	docker compose up -d opensearch --wait
 
 .PHONY: docs-serve
 docs-serve:  ## Build and serve documentation

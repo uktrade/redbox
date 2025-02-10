@@ -487,6 +487,7 @@ async def test_streaming(test: RedboxChatTestCase, env: Settings, mocker: Mocker
 
     # Mock the LLM and relevant tools
     llm = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
+    llm._default_config = {"model": "bedrock"}
 
     @tool
     def _search_documents(query: str) -> dict[str, Any]:

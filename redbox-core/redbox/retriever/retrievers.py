@@ -3,7 +3,6 @@ import logging
 from functools import partial
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union, cast
 
-import opensearchpy
 from elasticsearch import Elasticsearch
 
 # from elasticsearch.helpers import scan
@@ -14,7 +13,6 @@ from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.retrievers import BaseRetriever
-from langchain_elasticsearch.retrievers import ElasticsearchRetriever
 import os
 
 from redbox.models.chain import RedboxState

@@ -74,9 +74,10 @@ def create_user():
     def _create_user(
         email,
         date_joined_iso,
+        username,
         is_staff=False,
         grade=User.UserGrade.DIRECTOR,
-        business_unit=User.BusinessUnit.GOVERNMENT_BUSINESS_SERVICES,
+        business_unit=User.BusinessUnit.DIGITAL_DATA_AND_TECHNOLOGY,
         profession=User.Profession.IA,
         ai_experience=User.AIExperienceLevel.EXPERIENCED_NAVIGATOR,
     ):
@@ -89,6 +90,7 @@ def create_user():
             business_unit=business_unit,
             profession=profession,
             ai_experience=ai_experience,
+            username=username,
         )
 
     return _create_user
@@ -97,8 +99,7 @@ def create_user():
 @pytest.fixture()
 def alice(create_user):
     return create_user(
-        "alice@cabinetoffice.gov.uk",
-        "2000-01-01",
+        email="alice@cabinetoffice.gov.uk", date_joined_iso="2000-01-01", username="alice@cabinetoffice.gov.uk"
     )
 
 
@@ -109,12 +110,14 @@ def chat_with_alice(alice):
 
 @pytest.fixture()
 def bob(create_user):
-    return create_user("bob@example.com", "2000-01-01")
+    return create_user(email="bob@example.com", date_joined_iso="2000-01-01", username="bob@example.com")
 
 
 @pytest.fixture()
 def peter_rabbit():
-    return User.objects.create_user(email="peter.rabbit@example.com", password="P455W0rd")
+    return User.objects.create_user(
+        email="peter.rabbit@example.com", password="P455W0rd", username="peter.rabbit@example.com"
+    )
 
 
 @pytest.fixture()
@@ -126,17 +129,22 @@ def user_with_demographic_data() -> User:
         grade="DG",
         business_unit="Prime Minister's Office",
         profession="AN",
+        username="mrs.tiggywinkle@example.com",
     )
 
 
 @pytest.fixture()
 def staff_user(create_user):
-    return create_user("staff@example.com", "2000-01-01", True)
+    return create_user(
+        email="staff@example.com", date_joined_iso="2000-01-01", is_staff=True, username="staff@example.com"
+    )
 
 
 @pytest.fixture()
 def superuser() -> User:
-    return User.objects.create_superuser("super@example.com", "2000-01-01")
+    return User.objects.create_superuser(
+        email="super@example.com", date_joined_iso="2000-01-01", username="super@example.com"
+    )
 
 
 @pytest.fixture()

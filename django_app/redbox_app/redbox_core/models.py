@@ -9,15 +9,15 @@ from typing import override
 import jwt
 from django.conf import settings
 from django.contrib.auth.base_user import BaseUserManager as BaseSSOUserManager
+
+# from django_use_email_as_username.models import BaseUser, BaseUserManager
+from django.contrib.auth.models import AbstractBaseUser, Group, PermissionsMixin
 from django.contrib.postgres.fields import ArrayField
 from django.core import validators
 from django.db import models
 from django.db.models import Max, Min, Prefetch, UniqueConstraint
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-
-# from django_use_email_as_username.models import BaseUser, BaseUserManager
-from django.contrib.auth.models import AbstractBaseUser, Group, PermissionsMixin
 from yarl import URL
 
 from redbox.models.settings import get_settings
@@ -191,12 +191,13 @@ class SSOUserManager(BaseSSOUserManager):
     def _create_user(self, username, password, **extra_fields):
         """Create and save a User with the given email and password."""
         if not username:
-            raise ValueError("The given email must be set")
+            msg = "The given email must be set"
+            raise ValueError(msg)
         # email = self.normalize_email(email)
-        User = self.model(email=username, **extra_fields)
-        User.set_password(password)
-        User.save(using=self._db)
-        return User
+        user = self.model(email=username, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
 
     def create_user(self, username, password=None, **extra_fields):
         """Create and save a regular User with the given email and password."""
@@ -210,9 +211,11 @@ class SSOUserManager(BaseSSOUserManager):
         extra_fields.setdefault("is_superuser", True)
 
         if extra_fields.get("is_staff") is not True:
-            raise ValueError("Superuser must have is_staff=True.")
+            msg = "Superuser must have is_staff=True."
+            raise ValueError(msg)
         if extra_fields.get("is_superuser") is not True:
-            raise ValueError("Superuser must have is_superuser=True.")
+            msg = "Superuser must have is_superuser=True."
+            raise ValueError(msg)
 
         return self._create_user(username, password, **extra_fields)
 
@@ -257,12 +260,24 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
         OT = "OT", _("Other")
 
     class BusinessUnit(models.TextChoices):
-        COMPETITION_MARKETS_AND_REGULATORY_REFORM = "Competition, Markets and Regulatory Reform (CMRR)", _("Competition, Markets and Regulatory Reform (CMRR)")
+        COMPETITION_MARKETS_AND_REGULATORY_REFORM = (
+            "Competition, Markets and Regulatory Reform (CMRR)",
+            _("Competition, Markets and Regulatory Reform (CMRR)"),
+        )
         CORPORATE_SERVICES_GROUP = "Corporate Services Group (CSG)", _("Corporate Services Group (CSG)")
-        TRADE_POLICY_IMPLEMENTATION_AND_NEGOTIATIONS = "Trade Policy Implementation and Negotiations (TPIN)", _("Trade Policy Implementation and Negotiations (TPIN)")
-        ECONOMIC_SECURITY_AND_TRADE_RELATIONS = "Economic Security and Trade Relations (ESTR)", _("Economic Security and Trade Relations (ESTR)")
+        TRADE_POLICY_IMPLEMENTATION_AND_NEGOTIATIONS = (
+            "Trade Policy Implementation and Negotiations (TPIN)",
+            _("Trade Policy Implementation and Negotiations (TPIN)"),
+        )
+        ECONOMIC_SECURITY_AND_TRADE_RELATIONS = (
+            "Economic Security and Trade Relations (ESTR)",
+            _("Economic Security and Trade Relations (ESTR)"),
+        )
         STRATEGY_AND_INVESTMENT = "Strategy and Investment", _("Strategy and Investment")
-        DOMESTIC_AND_INTERNATIONAL_MARKETS_AND_EXPORTS_GROUP = "Domestic and International Markets and Exports Group (DIME) UK Teams", _("Domestic and International Markets and Exports Group (DIME) UK Teams")
+        DOMESTIC_AND_INTERNATIONAL_MARKETS_AND_EXPORTS_GROUP = (
+            "Domestic and International Markets and Exports Group (DIME) UK Teams",
+            _("Domestic and International Markets and Exports Group (DIME) UK Teams"),
+        )
         BUSINESS_GROUP = "Business Group", _("Business Group")
         OVERSEAS_REGIONS = "Overseas Regions", _("Overseas Regions")
         INDUSTRIAL_STRATEGY_UNIT = "Industrial Strategy Unit", _("Industrial Strategy Unit")
