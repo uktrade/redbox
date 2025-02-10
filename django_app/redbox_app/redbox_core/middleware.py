@@ -88,7 +88,8 @@ class APIKeyAuthentication(BaseAuthentication):
         api_key = request.headers.get("X-API-KEY")
 
         if not api_key:
-            raise AuthenticationFailed("No API key provided")
+            msg = "No API key provided"
+            raise AuthenticationFailed(msg)
 
         if api_key == settings.REDBOX_API_KEY:
             user, _ = User.objects.get_or_create(
@@ -96,4 +97,5 @@ class APIKeyAuthentication(BaseAuthentication):
             )
             return (user, None)
 
-        raise AuthenticationFailed("Invalid API key")
+        msg = "Invalid API key"
+        raise AuthenticationFailed(msg)

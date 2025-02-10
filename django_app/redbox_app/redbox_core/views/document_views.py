@@ -138,7 +138,8 @@ class UploadView(View):
             return e.args
         except SuspiciousFileOperation:
             return [
-                f"Your file name is {len(uploaded_file.name)} characters long. The file name will need to be shortened by {len(uploaded_file.name) - 75} characters"
+                f"Your file name is {len(uploaded_file.name)} characters long. "
+                f"The file name will need to be shortened by {len(uploaded_file.name) - 75} characters"
             ]
         else:
             async_task(ingest, file.id, task_name=file.unique_name, group="ingest")
