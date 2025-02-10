@@ -2,7 +2,6 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 import pytest
-from elasticsearch import Elasticsearch
 from opensearchpy import OpenSearch
 from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.messages import AIMessage
@@ -105,7 +104,7 @@ def test_search_documents_tool(
         assert result_state["messages"][0].artifact == []
     else:
         print(result_state["messages"][0])
-        print('goodbye')
+        print("goodbye")
         result_flat = result_state["messages"][0].artifact
         print(f"DEBUG: result_flat = {result_flat}")  # Debugging
 

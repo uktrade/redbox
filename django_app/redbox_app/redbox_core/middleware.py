@@ -2,13 +2,14 @@ import json
 
 from asgiref.sync import iscoroutinefunction
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.http import HttpRequest, HttpResponse
 from django.utils.decorators import sync_and_async_middleware
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
-from django.contrib.auth import get_user_model
 
 User = get_user_model()
+
 
 @sync_and_async_middleware
 def nocache_middleware(get_response):
@@ -81,18 +82,18 @@ def plotly_no_csp_no_xframe_middleware(get_response):
 
     return middleware
 
+
 class APIKeyAuthentication(BaseAuthentication):
     def authenticate(self, request):
-        api_key = request.headers.get('X-API-KEY')
+        api_key = request.headers.get("X-API-KEY")
 
         if not api_key:
-            raise AuthenticationFailed('No API key provided')
+            raise AuthenticationFailed("No API key provided")
 
         if api_key == settings.REDBOX_API_KEY:
             user, _ = User.objects.get_or_create(
-                username='api_key_user',
-                defaults={'is_staff': True, 'is_superuser': False}
+                username="api_key_user", defaults={"is_staff": True, "is_superuser": False}
             )
             return (user, None)
 
-        raise AuthenticationFailed('Invalid API key')
+        raise AuthenticationFailed("Invalid API key")

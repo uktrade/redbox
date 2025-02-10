@@ -163,7 +163,16 @@ class SignUpForm(forms.ModelForm):
 class DemographicsForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ("name", "ai_experience", "business_unit", "role", "grade", "profession", "info_about_user", "redbox_response_preferences")
+        fields = (
+            "name",
+            "ai_experience",
+            "business_unit",
+            "role",
+            "grade",
+            "profession",
+            "info_about_user",
+            "redbox_response_preferences",
+        )
         labels: ClassVar[Mapping[str, str]] = {
             "name": "Full Name",
             "ai_experience": "How would you describe your level of experience with Generative AI tools?",
