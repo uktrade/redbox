@@ -95,6 +95,7 @@ BUILD_LLM_TEST_CASES = generate_test_cases(
 def test_build_llm_chain(test_case: RedboxChatTestCase):
     """Tests a given state can update the data and metadata correctly."""
     llm = GenericFakeChatModel(messages=iter(test_case.test_data.llm_responses))
+    llm._default_config = {"model": "bedrock"}
     llm_chain = build_llm_chain(PromptSet.Chat, llm)
     state = RedboxState(request=test_case.query)
 
@@ -129,6 +130,7 @@ CHAT_TEST_CASES = generate_test_cases(
 def test_build_chat_pattern(test_case: RedboxChatTestCase, mocker: MockerFixture):
     """Tests a given state["request"] correctly changes state["text"]."""
     llm = GenericFakeChatModel(messages=iter(test_case.test_data.llm_responses))
+    llm._default_config = {"model": "bedrock"}
     state = RedboxState(request=test_case.query)
 
     chat = build_chat_pattern(prompt_set=PromptSet.Chat, final_response_chain=True)
@@ -258,6 +260,7 @@ MERGE_TEST_CASES = generate_test_cases(
 def test_build_merge_pattern(test_case: RedboxChatTestCase, mocker: MockerFixture):
     """Tests a given state["request"] and state["documents"] correctly changes state["documents"]."""
     llm = GenericFakeChatModel(messages=iter(test_case.test_data.llm_responses))
+    llm._default_config = {"model": "bedrock"}
     state = RedboxState(request=test_case.query, documents=structure_documents_by_file_name(test_case.docs))
 
     merge = build_merge_pattern(prompt_set=PromptSet.ChatwithDocsMapReduce, final_response_chain=True)
@@ -308,6 +311,7 @@ STUFF_TEST_CASES = generate_test_cases(
 def test_build_stuff_pattern(test_case: RedboxChatTestCase, mocker: MockerFixture):
     """Tests a given state["request"] and state["documents"] correctly changes state["text"]."""
     llm = GenericFakeChatModel(messages=iter(test_case.test_data.llm_responses))
+    llm._default_config = {"model": "bedrock"}
     state = RedboxState(request=test_case.query, documents=structure_documents_by_file_name(test_case.docs))
 
     stuff = build_stuff_pattern(prompt_set=PromptSet.ChatwithDocs, final_response_chain=True)
