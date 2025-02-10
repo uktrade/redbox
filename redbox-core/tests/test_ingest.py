@@ -5,11 +5,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
-from elasticsearch import Elasticsearch
-from elasticsearch.helpers import scan
+from opensearchpy import OpenSearch
+from opensearchpy.helpers import scan
 from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_elasticsearch import ElasticsearchStore
+from langchain_community.vectorstores import OpenSearchVectorSearch
 
 from redbox.chains.ingest import document_loader, ingest_from_loader
 from redbox.loader import ingester
@@ -199,8 +200,8 @@ def test_ingest_from_loader(
     resolution: ChunkResolution,
     has_embeddings: bool,
     monkeypatch: MonkeyPatch,
-    es_client: Elasticsearch,
-    es_vector_store: ElasticsearchStore,
+    es_client: OpenSearch,
+    es_vector_store: OpenSearchVectorSearch,
     es_index: str,
     s3_client: S3Client,
     env: Settings,
@@ -308,7 +309,7 @@ def test_ingest_from_loader(
 def test_ingest_file(
     mock_post: MagicMock,
     mock_llm: MagicMock,
-    es_client: Elasticsearch,
+    es_client: OpenSearch,
     s3_client: S3Client,
     monkeypatch: MonkeyPatch,
     env: Settings,
@@ -322,7 +323,7 @@ def test_ingest_file(
     When I call ingest_file
     I Expect to see this file to be:
     1. chunked
-    2. written to Elasticsearch
+    2. written to OpenSearch
     """
     # Mock call to Unstructured
     mock_response = mock_post.return_value
