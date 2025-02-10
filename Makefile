@@ -90,9 +90,9 @@ reset-db:  ## Reset Django database
 
 .PHONY: reset-elastic
 reset-elastic:  ## Reset Django database
-	docker compose down elasticsearch
+	docker compose down opensearch
 	rm -rf data/elastic/*
-	docker compose up -d elasticsearch --wait
+	docker compose up -d opensearch --wait
 
 .PHONY: docs-serve
 docs-serve:  ## Build and serve documentation
