@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import pytest
 from elasticsearch import Elasticsearch
+from opensearchpy import OpenSearch
 from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.messages import AIMessage
 from langgraph.prebuilt import ToolNode
@@ -24,7 +25,7 @@ from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
 def test_search_documents_tool(
     chain_params: dict,
     stored_file_parameterised: RedboxChatTestCase,
-    es_client: Elasticsearch,
+    es_client: OpenSearch,
     es_index: str,
     embedding_model: FakeEmbeddings,
     env: Settings,
@@ -100,18 +101,19 @@ def test_search_documents_tool(
     )
 
     if not permission:
-        # No new messages update emitted
         assert result_state["messages"][0].content == ""
         assert result_state["messages"][0].artifact == []
     else:
+        print(result_state["messages"][0])
+        print('goodbye')
         result_flat = result_state["messages"][0].artifact
+        print(f"DEBUG: result_flat = {result_flat}")  # Debugging
 
-        # Check state update is formed as expected
+        assert result_flat is not None, "Error: result_flat is None"
         assert isinstance(result_state, dict)
         assert len(result_state) == 1
-
-        # Check flattened documents match expected, similar to retriever
         assert len(result_flat) == chain_params["rag_k"]
+
         assert {c.page_content for c in result_flat} <= {c.page_content for c in permitted_docs}
         assert {c.metadata["uri"] for c in result_flat} <= set(stored_file_parameterised.query.permitted_s3_keys)
 
