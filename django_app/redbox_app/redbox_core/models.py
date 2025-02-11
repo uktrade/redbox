@@ -194,6 +194,7 @@ class SSOUserManager(BaseSSOUserManager):
             msg = "The given email must be set"
             raise ValueError(msg)
         # email = self.normalize_email(email)
+        extra_fields.pop("email", None)
         user = self.model(email=username, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)

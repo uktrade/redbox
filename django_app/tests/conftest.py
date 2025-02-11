@@ -73,7 +73,6 @@ def default_ai_settings(db):  # noqa: ARG001
 def create_user():
     def _create_user(
         email,
-        date_joined_iso,
         username,
         is_staff=False,
         grade=User.UserGrade.DIRECTOR,
@@ -81,10 +80,8 @@ def create_user():
         profession=User.Profession.IA,
         ai_experience=User.AIExperienceLevel.EXPERIENCED_NAVIGATOR,
     ):
-        date_joined = datetime.fromisoformat(date_joined_iso).astimezone(UTC)
         return User.objects.create_user(
             email=email,
-            date_joined=date_joined,
             is_staff=is_staff,
             grade=grade,
             business_unit=business_unit,
@@ -98,9 +95,7 @@ def create_user():
 
 @pytest.fixture()
 def alice(create_user):
-    return create_user(
-        email="alice@cabinetoffice.gov.uk", date_joined_iso="2000-01-01", username="alice@cabinetoffice.gov.uk"
-    )
+    return create_user(email="alice@cabinetoffice.gov.uk", username="alice@cabinetoffice.gov.uk")
 
 
 @pytest.fixture()
@@ -110,7 +105,7 @@ def chat_with_alice(alice):
 
 @pytest.fixture()
 def bob(create_user):
-    return create_user(email="bob@example.com", date_joined_iso="2000-01-01", username="bob@example.com")
+    return create_user(email="bob@example.com", username="bob@example.com")
 
 
 @pytest.fixture()
@@ -135,16 +130,12 @@ def user_with_demographic_data() -> User:
 
 @pytest.fixture()
 def staff_user(create_user):
-    return create_user(
-        email="staff@example.com", date_joined_iso="2000-01-01", is_staff=True, username="staff@example.com"
-    )
+    return create_user(email="staff@example.com", is_staff=True, username="staff@example.com")
 
 
 @pytest.fixture()
 def superuser() -> User:
-    return User.objects.create_superuser(
-        email="super@example.com", date_joined_iso="2000-01-01", username="super@example.com"
-    )
+    return User.objects.create_superuser(email="super@example.com", username="super@example.com")
 
 
 @pytest.fixture()

@@ -30,9 +30,9 @@ def test_api_view_fail(client: Client):
     # Given that the user is not logged in
 
     # When
-    url = reverse("user-view")
+    url = reverse(path_name)
     response = client.get(url)
 
     # Then
     assert response.status_code == HTTPStatus.FORBIDDEN
-    assert response.json() == {"detail": "Authentication credentials were not provided."}
+    assert response.json() == {"detail": "No API key provided"}
