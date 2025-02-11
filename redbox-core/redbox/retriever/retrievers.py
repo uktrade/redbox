@@ -233,17 +233,22 @@ class AllElasticsearchRetriever(OpenSearchRetriever):
 
     def _get_relevant_documents(
         self, query: RedboxState, *, run_manager: CallbackManagerForRetrieverRun
-    ) -> list[Document]:  # noqa:ARG002
-        # if not self.es_client or not self.document_mapper:
-        #     msg = "faulty configuration"
-        #     raise ValueError(msg)  # should not happen
+    ) -> list[Document]:
+        body = self.body_func(query)  # Generate the query
+        print(f"Executing OpenSearch query: {body}")
 
-        body = self.body_func(query)  # type: ignore
+        # Run a normal search instead of scan()
+        response = self.es_client.search(index=self.index_name, body=body)
 
-        results = [
-            self.document_mapper(hit)
-            for hit in scan(client=self.es_client, index=self.index_name, query=body, _source=True)
-        ]
+        print(f"Raw OpenSearch response: {response}")
+
+        hits = response.get("hits", {}).get("hits", [])  # Extract documents
+        for hit in hits:
+            print(f"Hit: {hit}")
+
+        print(f"Retrieved {len(hits)} documents from OpenSearch")
+
+        results = [self.document_mapper(hit) for hit in hits]
 
         return sorted(results, key=lambda result: result.metadata["index"])
 

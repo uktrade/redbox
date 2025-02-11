@@ -57,6 +57,11 @@ def s3_client():
     return client
 
 
+@pytest.fixture()
+def api_key():
+    return settings.REDBOX_API_KEY
+
+
 @pytest.fixture(autouse=True, scope="session")
 def _collect_static():
     call_command("collectstatic", "--no-input")
@@ -67,11 +72,6 @@ def default_ai_settings(db):  # noqa: ARG001
     gpt_4o, _ = ChatLLMBackend.objects.get_or_create(name="gpt-4o", provider="azure_openai", is_default=True)
     ai_settings, _ = AISettings.objects.get_or_create(label="default", chat_backend=gpt_4o)
     return ai_settings
-
-
-@pytest.fixture()
-def api_key():
-    return settings.REDBOX_API_KEY
 
 
 @pytest.fixture()
