@@ -488,10 +488,6 @@ def build_new_graph(
 ) -> CompiledGraph:
     # initialise
     citations_output_parser, format_instructions = get_structured_response_with_citations_parser()
-    # Tools
-    # agent_tool_names = ["_search_documents", "_search_wikipedia", "_search_govuk"]
-    # agent_tools: list[StructuredTool] = [tools[tool_name] for tool_name in agent_tool_names]
-
     builder = StateGraph(RedboxState)
 
     # Subgraphs/may need to convert into tools
@@ -499,19 +495,29 @@ def build_new_graph(
 
     # Nodes
     builder.add_node("p_retrieve_metadata", metadata_subgraph)
+    # add back when move to this graph
     # Show activity logs from user request
+    # builder.add_node(
+    #     "p_activity_log_user_request",
+    #     build_activity_log_node(
+    #         lambda s: [
+    #             RedboxActivityEvent(
+    #                 message=f"You selected {len(s.request.s3_keys)} file{"s" if len(s.request.s3_keys)>1 else ""} - {",".join(s.request.s3_keys)}"
+    #             )
+    #             if len(s.request.s3_keys) > 0
+    #             else "You selected no files",
+    #         ]
+    #     ),
+    # )
     builder.add_node(
-        "p_activity_log_user_request",
-        build_activity_log_node(
-            lambda s: [
-                RedboxActivityEvent(
-                    message=f"You selected {len(s.request.s3_keys)} file{"s" if len(s.request.s3_keys)>1 else ""} - {",".join(s.request.s3_keys)}"
-                )
-                if len(s.request.s3_keys) > 0
-                else "You selected no files",
-            ]
+        "p_retrieve_docs",
+        build_retrieve_pattern(
+            retriever=all_chunks_retriever,
+            structure_func=structure_documents_by_file_name,
+            final_source_chain=False,
         ),
     )
+    builder.add_node("d_docs_selected", empty_process)
     builder.add_node(
         "p_search_agent",
         build_stuff_pattern(
@@ -546,9 +552,18 @@ def build_new_graph(
     builder.add_node("d_x_steps_left_or_less", empty_process)
 
     # Edges
-    builder.add_edge(START, "p_activity_log_user_request")
+    # builder.add_edge(START, "p_activity_log_user_request") # add back when move to this graph
     builder.add_edge(START, "p_retrieve_metadata")
-    builder.add_edge("p_retrieve_metadata", "d_x_steps_left_or_less")
+    builder.add_edge("p_retrieve_metadata", "d_docs_selected")
+    builder.add_conditional_edges(
+        "d_docs_selected",
+        documents_selected_conditional,
+        {
+            True: "p_retrieve_docs",
+            False: "d_x_steps_left_or_less",
+        },
+    )
+    builder.add_edge("p_retrieve_docs", "d_x_steps_left_or_less")
     builder.add_conditional_edges(
         "d_x_steps_left_or_less",
         lambda state: state.steps_left <= 8,

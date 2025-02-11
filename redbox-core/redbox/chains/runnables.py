@@ -85,54 +85,8 @@ def build_chat_prompt_from_messages_runnable(
     return _chat_prompt_from_messages
 
 
-# def build_llm_chain(
-#     prompt_set: PromptSet,
-#     llm: BaseChatModel,
-#     output_parser: Runnable | Callable = None,
-#     format_instructions: str = "",
-#     final_response_chain: bool = False,
-# ) -> Runnable:
-#     """Builds a chain that correctly forms a text and metadata state update.
-
-#     Permits both invoke and astream_events.
-#     """
-#     model_name = llm._default_config.get("model", "unknown")
-#     _llm = llm.with_config(tags=["response_flag"]) if final_response_chain else llm
-#     _output_parser = output_parser if output_parser else StrOutputParser()
-
-#     _llm_text_and_tools = _llm | {
-#         "raw_response": RunnablePassthrough(),
-#         "parsed_response": _output_parser,
-#     }
-
-#     text_and_tools = {
-#         "text_and_tools": _llm_text_and_tools,
-#         "prompt": RunnableLambda(lambda prompt: prompt.to_string()),
-#         "model": lambda _: model_name,
-#     }
-
-#     return (
-#         build_chat_prompt_from_messages_runnable(prompt_set, format_instructions=format_instructions)
-#         | text_and_tools
-#         | get_all_metadata
-#         | RunnablePassthrough.assign(
-#             _log=RunnableLambda(
-#                 lambda _: (log_activity(f"Generating response with {model_name}...") if final_response_chain else None)
-#             )
-#         )
-#     )
-
-
 @chain
 def final_response_if_needed(input_: dict) -> Runnable:
-    # if input_.get('messages')[-1].tool_calls:
-    #     return None
-    # else:
-    #     return RunnablePassthrough.assign(
-    #         _log=RunnableLambda(
-    #             lambda _: log_activity(f"Generating response with {input_.get('metadata').llm_calls[0].llm_model_name}...")
-    #         )
-    #     )
     model_name = input_.get("metadata").llm_calls[0].llm_model_name
     return RunnablePassthrough.assign(
         _log=RunnableLambda(
@@ -143,16 +97,6 @@ def final_response_if_needed(input_: dict) -> Runnable:
             )
         )
     )
-
-
-# @chain
-# def final_response_if_needed(input_: dict) -> Runnable:
-#     if input_.last_message.tool_calls:
-#         # LLM return answer
-#         return True
-#     else:
-#         # tools are called
-#         return False
 
 
 def build_llm_chain(
