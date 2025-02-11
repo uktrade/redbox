@@ -26,14 +26,33 @@ def test_api_view(user_with_chats_with_messages_over_time: User, client: Client,
     assert user_with_chats["ai_experience"] == user_with_chats_with_messages_over_time.ai_experience
 
 
+@pytest.mark.parametrize("path_name", ["user-view", "message-view"])
 @pytest.mark.django_db()
-def test_api_view_fail(client: Client):
+def test_api_view_fail(path_name, client: Client):
     # Given that the user does not pass an API key
 
     # When
-    url = reverse("user-view")
+    url = reverse(path_name)
     response = client.get(url)
 
     # Then
     assert response.status_code == HTTPStatus.FORBIDDEN
     assert response.json() == {"detail": "No API key provided"}
+
+
+@pytest.mark.django_db()
+def test_superuser_client_querying_v0_messages_returns_200(
+    user_with_chats_with_messages_over_time: User, client: Client, api_key
+):
+    # Given
+    headers = {"HTTP_X_API_KEY": api_key}
+
+    # When
+    url = reverse("message-view")
+    response = client.get(url, **headers)
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert len(response.json()["results"]) == sum(
+        len(chat.chatmessage_set.all()) for chat in user_with_chats_with_messages_over_time.chat_set.all()
+    )
