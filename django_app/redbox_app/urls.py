@@ -80,6 +80,7 @@ other_urlpatterns = [
 
 api_url_patterns = [
     path("api/v0/", views.user_view_pre_alpha, name="user-view"),
+    path("api/v0/messages/", views.message_view_pre_alpha, name="message-view"),
 ]
 
 urlpatterns = (
