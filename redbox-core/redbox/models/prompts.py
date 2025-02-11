@@ -134,6 +134,7 @@ CHAT_MAP_SYSTEM_PROMPT = (
     "2) Avoid repetition,\n"
     "3) Ensure the summary is easy to understand,\n"
     "4) Maintain the original context and meaning.\n"
+    "5) Do not start your answer by saying: here is a summary...Go straight to the point."
 )
 
 REDUCE_SYSTEM_PROMPT = (
