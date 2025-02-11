@@ -9,6 +9,7 @@ import requests
 import tiktoken
 from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
+from pydantic import ValidationError
 from redbox_app.setting_enums import Environment
 
 from redbox.chains.components import get_chat_llm
@@ -70,23 +71,30 @@ class MetadataLoader:
         if response.status_code != 200:
             raise ValueError(response.text)
 
-        return response.json() or []
+        elements = response.json()
+
+        if not elements:
+            raise ValueError("Unstructured failed to extract text for this file")
+
+        return elements
 
     def extract_metadata(self) -> GeneratedMetadata:
         """
         Extract metadata from first 1_000 chunks
         """
-
         chunks = self._chunking()
+
         original_metadata = chunks[0]["metadata"] if chunks else {}
         first_thousand_words = "".join(chunk["text"] for chunk in chunks)[:10_000]
-
-        return GeneratedMetadata(name=original_metadata.get("filename"))
-        # try:
-        #     metadata = self.create_file_metadata(first_thousand_words, original_metadata=original_metadata)
-        # except TypeError:
-        #     metadata = GeneratedMetadata(name=original_metadata.get("filename"))
-        # return metadata
+        try:
+            metadata = self.create_file_metadata(first_thousand_words, original_metadata=original_metadata)
+        except Exception as e:
+            logger.info(e)
+            if original_metadata.get("filename"):
+                metadata = GeneratedMetadata(name=original_metadata.get("filename"))
+            else:
+                metadata = GeneratedMetadata(name=self.file_name)
+        return metadata
 
     def create_file_metadata(self, page_content: str, original_metadata: dict | None = None) -> GeneratedMetadata:
         """Uses a sample of the document and any extracted metadata to generate further metadata."""
@@ -118,7 +126,12 @@ class MetadataLoader:
         )
         metadata_chain = metadata_prompt | self.llm | parser
 
-        return metadata_chain.invoke({"page_content": page_content})
+        try:
+            return metadata_chain.invoke({"page_content": page_content})
+        except ValidationError as e:
+            # error due to LLM return incorrect response
+            logger.info(e.errors())
+            return GeneratedMetadata(name=original_metadata.get("filename"))
 
 
 class UnstructuredChunkLoader:

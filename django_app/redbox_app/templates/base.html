@@ -19,7 +19,7 @@
   <script type="module" src="{{static('js/libs/dompurify.js')}}"></script>
   <script type="module" src="{{static('js/main.js')}}"></script>
 
-  {% if environment | lower == "prod" and waffle_flag(request, 'uktrade') %}
+  {% if environment | lower == "prod" %}
   <!-- Google Tag Manager -->
   <script hash="sha256-T/1K73p+yppfXXw/AfMZXDh5VRDNaoEh3enEGFmZp8M=" nonce="{{ request.csp_nonce }}">
     (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -31,17 +31,11 @@
   <!-- End Google Tag Manager -->
   {% endif %}
 
-  {# Temporarily removed due to this adding inline styles, which our CSP doesn't allow
-  {% if environment | lower == "preprod" %}
-    <script type="module" src="{{ static('js/posthog.js') }}"></script>
-  {% endif %}
-  #}
-
 </head>
 
 <body class="govuk-template__body">
 
-  {% if environment | lower == "prod" and waffle_flag(request, 'uktrade') %}
+  {% if environment | lower == "prod" %}
   <!-- Google Tag Manager (noscript) -->
   <noscript><iframe src="{{ google_analytics_iframe_src }}"
   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>

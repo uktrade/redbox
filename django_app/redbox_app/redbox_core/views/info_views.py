@@ -13,10 +13,7 @@ from django.views.decorators.http import require_http_methods
 def privacy_notice_view(request):
     return render(
         request,
-        "privacy-notice.html",
-        {
-            "waffle_flag": waffle.flag_is_active,
-        },
+        "privacy-notice.html"
     )
 
 
@@ -34,6 +31,5 @@ def accessibility_statement_view(request):
         "accessibility-statement.html",
         {
             "contact_email": settings.CONTACT_EMAIL,
-            "waffle_flag": waffle.flag_is_active,
         },
     )
