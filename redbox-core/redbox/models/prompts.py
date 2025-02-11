@@ -74,7 +74,7 @@ Consider tool specificity: Does query directly relate to tool's purpose?
 
 TOOL SELECTION STRATEGY
 
-
+If state.documents contains documents, use document-specific tools first.
 Match query keywords/intent to tool descriptions
 Prioritize document-specific tools for document queries
 Consider tools' limitations and capabilities

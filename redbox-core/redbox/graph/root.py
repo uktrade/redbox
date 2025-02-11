@@ -479,6 +479,11 @@ def get_root_graph(
     return builder.compile(debug=debug)
 
 
+def strip_route(state: RedboxState):
+    state.request.question = state.request.question.replace("@newroute ", "")
+    return state
+
+
 def build_new_graph(
     all_chunks_retriever: VectorStoreRetriever,
     parameterised_retriever: VectorStoreRetriever,
@@ -492,7 +497,7 @@ def build_new_graph(
 
     # Subgraphs/may need to convert into tools
     metadata_subgraph = get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
-
+    builder.add_node("p_strip_route", strip_route)
     # Nodes
     builder.add_node("p_retrieve_metadata", metadata_subgraph)
     # add back when move to this graph
@@ -553,7 +558,8 @@ def build_new_graph(
 
     # Edges
     # builder.add_edge(START, "p_activity_log_user_request") # add back when move to this graph
-    builder.add_edge(START, "p_retrieve_metadata")
+    builder.add_edge(START, "p_strip_route")
+    builder.add_edge("p_strip_route", "p_retrieve_metadata")
     builder.add_edge("p_retrieve_metadata", "d_docs_selected")
     builder.add_conditional_edges(
         "d_docs_selected",
