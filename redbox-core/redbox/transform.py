@@ -1,6 +1,4 @@
 import itertools
-import json
-import re
 from typing import Iterable
 from uuid import NAMESPACE_DNS, UUID, uuid5
 

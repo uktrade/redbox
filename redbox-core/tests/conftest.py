@@ -5,9 +5,9 @@ import pytest
 import tiktoken
 from _pytest.fixtures import FixtureRequest
 from botocore.exceptions import ClientError
-from elasticsearch import Elasticsearch
+from opensearchpy import OpenSearch
 from langchain_core.embeddings.fake import FakeEmbeddings
-from langchain_elasticsearch import ElasticsearchStore
+from langchain_community.vectorstores import OpenSearchVectorSearch
 from tiktoken.core import Encoding
 
 from redbox.models.settings import Settings
@@ -53,7 +53,7 @@ def tokeniser() -> Encoding:
 
 @pytest.fixture(scope="session")
 def embedding_model_dim() -> int:
-    return 3072  # 3-large default size
+    return 1024
 
 
 @pytest.fixture(scope="session")
@@ -67,20 +67,27 @@ def es_index(env: Settings) -> str:
 
 
 @pytest.fixture(scope="session")
-def es_client(env: Settings) -> Elasticsearch:
+def es_client(env: Settings) -> OpenSearch:
     return env.elasticsearch_client()
 
 
 @pytest.fixture(scope="session")
 def es_vector_store(
-    es_client: Elasticsearch, es_index: str, embedding_model: FakeEmbeddings, env: Settings
-) -> ElasticsearchStore:
-    return ElasticsearchStore(
+    es_client: OpenSearch, es_index: str, embedding_model: FakeEmbeddings, env: Settings
+) -> OpenSearchVectorSearch:
+    # return ElasticsearchStore(
+    #     index_name=es_index,
+    #     es_connection=es_client,
+    #     query_field="text",
+    #     vector_query_field=env.embedding_document_field_name,
+    #     embedding=embedding_model,
+    # )
+    return OpenSearchVectorSearch(
         index_name=es_index,
-        es_connection=es_client,
+        opensearch_url=env.elastic.collection_endpoint,
+        embedding_function=embedding_model,
         query_field="text",
         vector_query_field=env.embedding_document_field_name,
-        embedding=embedding_model,
     )
 
 
@@ -94,7 +101,7 @@ def create_index(env: Settings, es_index: str) -> Generator[None, None, None]:
 
 
 @pytest.fixture(scope="session")
-def all_chunks_retriever(es_client: Elasticsearch, es_index: str) -> AllElasticsearchRetriever:
+def all_chunks_retriever(es_client: OpenSearch, es_index: str) -> AllElasticsearchRetriever:
     return AllElasticsearchRetriever(
         es_client=es_client,
         index_name=es_index,
@@ -103,7 +110,7 @@ def all_chunks_retriever(es_client: Elasticsearch, es_index: str) -> AllElastics
 
 @pytest.fixture(scope="session")
 def parameterised_retriever(
-    env: Settings, es_client: Elasticsearch, es_index: str, embedding_model: FakeEmbeddings
+    env: Settings, es_client: OpenSearch, es_index: str, embedding_model: FakeEmbeddings
 ) -> ParameterisedElasticsearchRetriever:
     return ParameterisedElasticsearchRetriever(
         es_client=es_client,
@@ -114,7 +121,7 @@ def parameterised_retriever(
 
 
 @pytest.fixture(scope="session")
-def metadata_retriever(es_client: Elasticsearch, es_index: str) -> MetadataRetriever:
+def metadata_retriever(es_client: OpenSearch, es_index: str) -> MetadataRetriever:
     return MetadataRetriever(es_client=es_client, index_name=es_index)
 
 
@@ -125,7 +132,7 @@ def metadata_retriever(es_client: Elasticsearch, es_index: str) -> MetadataRetri
 
 @pytest.fixture(params=ALL_CHUNKS_RETRIEVER_CASES)
 def stored_file_all_chunks(
-    request: FixtureRequest, es_vector_store: ElasticsearchStore
+    request: FixtureRequest, es_vector_store: OpenSearchVectorSearch
 ) -> Generator[RedboxChatTestCase, None, None]:
     test_case: RedboxChatTestCase = request.param
     doc_ids = es_vector_store.add_documents(test_case.docs)
@@ -135,7 +142,7 @@ def stored_file_all_chunks(
 
 @pytest.fixture(params=PARAMETERISED_RETRIEVER_CASES)
 def stored_file_parameterised(
-    request: FixtureRequest, es_vector_store: ElasticsearchStore
+    request: FixtureRequest, es_vector_store: OpenSearchVectorSearch
 ) -> Generator[RedboxChatTestCase, None, None]:
     test_case: RedboxChatTestCase = request.param
     doc_ids = es_vector_store.add_documents(test_case.docs)
@@ -145,7 +152,7 @@ def stored_file_parameterised(
 
 @pytest.fixture(params=METADATA_RETRIEVER_CASES)
 def stored_file_metadata(
-    request: FixtureRequest, es_vector_store: ElasticsearchStore
+    request: FixtureRequest, es_vector_store: OpenSearchVectorSearch
 ) -> Generator[RedboxChatTestCase, None, None]:
     test_case: RedboxChatTestCase = request.param
     doc_ids = es_vector_store.add_documents(test_case.docs)
