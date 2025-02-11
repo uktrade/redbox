@@ -1,16 +1,16 @@
-from typing import Annotated, Any, Iterable, get_args, get_origin, get_type_hints, Union
+from typing import Annotated, Any, Iterable, Union, get_args, get_origin, get_type_hints
 
 import numpy as np
 import requests
 import tiktoken
 from elasticsearch import Elasticsearch
-from opensearchpy import OpenSearch
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.messages import ToolCall
 from langchain_core.tools import Tool, tool
 from langgraph.prebuilt import InjectedState
+from opensearchpy import OpenSearch
 from sklearn.metrics.pairwise import cosine_similarity
 
 from redbox.api.format import format_documents
@@ -18,15 +18,9 @@ from redbox.chains.components import get_embeddings
 from redbox.models.chain import RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
 from redbox.models.settings import get_settings
-from redbox.retriever.queries import (
-    add_document_filter_scores_to_query,
-    build_document_query,
-)
+from redbox.retriever.queries import add_document_filter_scores_to_query, build_document_query
 from redbox.retriever.retrievers import query_to_documents
-from redbox.transform import (
-    merge_documents,
-    sort_documents,
-)
+from redbox.transform import merge_documents, sort_documents
 
 
 def build_search_documents_tool(
