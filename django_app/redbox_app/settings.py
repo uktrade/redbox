@@ -201,19 +201,27 @@ CSP_SCRIPT_SRC = (
     "https://tagmanager.google.com/",
     "https://www.googletagmanager.com/",
     "ajax.googleapis.com/",
-    "sha256-T/1K73p+yppfXXw/AfMZXDh5VRDNaoEh3enEGFmZp8M="
+    "sha256-T/1K73p+yppfXXw/AfMZXDh5VRDNaoEh3enEGFmZp8M=",
 )
 CSP_OBJECT_SRC = ("'none'",)
 CSP_TRUSTED_TYPES = ("dompurify", "default", "goog#html")
 CSP_REPORT_TO = "csp-endpoint"
-CSP_FONT_SRC = (
-    "'self'",
-    "s3.amazonaws.com",
-)
+CSP_FONT_SRC = ("'self'", "s3.amazonaws.com", "https://fonts.gstatic.com", "data:")
 CSP_INCLUDE_NONCE_IN = ("script-src",)
 CSP_STYLE_SRC = (
     "'self'",
+    "https://googletagmanager.com",
     "https://tagmanager.google.com/",
+    "https://fonts.googleapis.com",
+)
+
+CSP_IMG_SRC = (
+    "'self'",
+    "https://googletagmanager.com",
+    "https://ssl.gstatic.com",
+    "https://www.gstatic.com",
+    "https://*.google-analytics.com",
+    "https://*.googletagmanager.com",
 )
 CSP_FRAME_ANCESTORS = ("'none'",)
 
@@ -223,6 +231,9 @@ CSP_CONNECT_SRC = [
     f"{WEBSOCKET_SCHEME}://{ENVIRONMENT.hosts[0]}/ws/chat/",
     "eu.i.posthog.com",
     "eu-assets.i.posthog.com",
+    "https://*.google-analytics.com",
+    "https://*.analytics.google.com",
+    "https://*.googletagmanager.com",
     "https://www.google-analytics.com/",
     "https://region1.google-analytics.com/",
     "https://www.googletagmanager.com/",
@@ -254,7 +265,6 @@ CSRF_COOKIE_HTTPONLY = True
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_AGE = 60 * 60 * 24
-SESSION_COOKIE_SAMESITE = "Strict"
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 
 LOG_ROOT = "."
