@@ -201,19 +201,27 @@ CSP_SCRIPT_SRC = (
     "https://tagmanager.google.com/",
     "https://www.googletagmanager.com/",
     "ajax.googleapis.com/",
-    "sha256-T/1K73p+yppfXXw/AfMZXDh5VRDNaoEh3enEGFmZp8M="
+    "sha256-T/1K73p+yppfXXw/AfMZXDh5VRDNaoEh3enEGFmZp8M=",
 )
 CSP_OBJECT_SRC = ("'none'",)
 CSP_TRUSTED_TYPES = ("dompurify", "default", "goog#html")
 CSP_REPORT_TO = "csp-endpoint"
-CSP_FONT_SRC = (
-    "'self'",
-    "s3.amazonaws.com",
-)
+CSP_FONT_SRC = ("'self'", "s3.amazonaws.com", "https://fonts.gstatic.com", "data:")
 CSP_INCLUDE_NONCE_IN = ("script-src",)
 CSP_STYLE_SRC = (
     "'self'",
+    "https://googletagmanager.com",
     "https://tagmanager.google.com/",
+    "https://fonts.googleapis.com",
+)
+
+CSP_IMG_SRC = (
+    "'self'",
+    "https://googletagmanager.com",
+    "https://ssl.gstatic.com",
+    "https://www.gstatic.com",
+    "https://*.google-analytics.com",
+    "https://*.googletagmanager.com",
 )
 CSP_FRAME_ANCESTORS = ("'none'",)
 
