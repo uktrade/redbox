@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from datetime import UTC, datetime, timedelta
 from io import StringIO
 from pathlib import Path
@@ -182,6 +183,26 @@ def test_reingest_files(uploaded_file: File, requests_mock: Mocker, mocker: Mock
     # Given
     assert uploaded_file.status == File.Status.processing
 
+    # Mock the Elasticsearch or OpenSearch HEAD request
+    requests_mock.head(
+        "http://localhost:9200/_alias/redbox-data-test-chunk-current",
+        status_code=200,  # Adjust the status code as needed
+        json={},  # Adjust the response text as needed
+    )
+
+    requests_mock.head(
+        "http://localhost:9200/redbox-data-test-chat-mesage-log",
+        status_code=200,  # Adjust the status code as needed
+        json={},  # Adjust the response text as needed
+    )
+
+    requests_mock.put(
+        re.compile(r"http://localhost:9200/redbox-data-test-chunk-\d+"),
+        status_code=200,
+        json={"acknowledged": True},
+    )
+
+    # Mock the external service response
     requests_mock.post(
         f"http://{settings.UNSTRUCTURED_HOST}:8000/general/v0/general",
         json=[{"text": "hello", "metadata": {"filename": "my-file.txt"}}],
@@ -217,6 +238,25 @@ def test_reingest_files(uploaded_file: File, requests_mock: Mocker, mocker: Mock
 def test_reingest_files_unstructured_fail(uploaded_file: File, requests_mock: Mocker, mocker):
     # Given
     assert uploaded_file.status == File.Status.processing
+
+    # Mock the Elasticsearch or OpenSearch HEAD request
+    requests_mock.head(
+        "http://localhost:9200/_alias/redbox-data-test-chunk-current",
+        status_code=200,  # Adjust the status code as needed
+        json={},  # Adjust the response text as needed
+    )
+
+    requests_mock.head(
+        "http://localhost:9200/redbox-data-test-chat-mesage-log",
+        status_code=200,  # Adjust the status code as needed
+        json={},  # Adjust the response text as needed
+    )
+
+    requests_mock.put(
+        re.compile(r"http://localhost:9200/redbox-data-test-chunk-\d+"),
+        status_code=200,
+        json={"acknowledged": True},
+    )
 
     requests_mock.post(
         f"http://{settings.UNSTRUCTURED_HOST}:8000/general/v0/general",

@@ -247,8 +247,12 @@ def test_ingest_from_loader(
         metadata=metadata,
     )
 
+    mapping = {"properties": {"embedding": {"type": "dense_vector", "dims": 1024}}}
+
+    es_client.indices.create(index="my_index", body={"mappings": mapping})
+
     # Mock embeddings
-    monkeypatch.setattr(ingester, "get_embeddings", lambda _: FakeEmbeddings(size=3072))
+    monkeypatch.setattr(ingester, "get_embeddings", lambda _: FakeEmbeddings(size=1024))
 
     ingest_chain = ingest_from_loader(loader=loader, s3_client=s3_client, vectorstore=es_vector_store, env=env)
 
