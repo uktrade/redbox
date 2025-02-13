@@ -3,7 +3,6 @@ import datetime
 import humanize
 import jinja2
 import pytz
-import waffle
 from django.conf import settings
 from django.templatetags.static import static
 from django.urls import reverse

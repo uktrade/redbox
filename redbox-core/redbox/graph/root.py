@@ -41,7 +41,7 @@ from redbox.models.chain import RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
-
+from langgraph.pregel import RetryPolicy
 
 def get_self_route_graph(retriever: VectorStoreRetriever, prompt_set: PromptSet, debug: bool = False):
     builder = StateGraph(RedboxState)
@@ -243,10 +243,12 @@ def get_chat_with_documents_graph(
     builder.add_node(
         "p_summarise_each_document",
         build_merge_pattern(prompt_set=PromptSet.ChatwithDocsMapReduce),
+        retry=RetryPolicy(max_attempts=3)
     )
     builder.add_node(
         "p_summarise_document_by_document",
         build_merge_pattern(prompt_set=PromptSet.ChatwithDocsMapReduce),
+        retry=RetryPolicy(max_attempts=3)
     )
     builder.add_node(
         "p_summarise",
@@ -254,6 +256,7 @@ def get_chat_with_documents_graph(
             prompt_set=PromptSet.ChatwithDocs,
             final_response_chain=True,
         ),
+        retry=RetryPolicy(max_attempts=3)
     )
     builder.add_node("p_clear_documents", clear_documents_process)
     builder.add_node(

@@ -1,10 +1,9 @@
 import logging
-import waffle
 from http import HTTPStatus
 
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 from django.views.generic.base import RedirectView
 
@@ -46,6 +45,7 @@ def sitemap_view(request):
         template_name="sitemap.html",
         context={"request": request, "chat_history": chat_history},
     )
+
 
 def faq_view(request):
     return render(

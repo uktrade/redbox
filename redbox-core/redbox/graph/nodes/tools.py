@@ -1,4 +1,5 @@
-from typing import Annotated, Any, Iterable, Union, get_args, get_origin, get_type_hints
+from typing import (Annotated, Any, Iterable, Union, get_args, get_origin,
+                    get_type_hints)
 
 import numpy as np
 import requests
@@ -18,7 +19,8 @@ from redbox.chains.components import get_embeddings
 from redbox.models.chain import RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
 from redbox.models.settings import get_settings
-from redbox.retriever.queries import add_document_filter_scores_to_query, build_document_query
+from redbox.retriever.queries import (add_document_filter_scores_to_query,
+                                      build_document_query)
 from redbox.retriever.retrievers import query_to_documents
 from redbox.transform import merge_documents, sort_documents
 
