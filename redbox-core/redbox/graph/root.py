@@ -1,15 +1,11 @@
-from email import message
-from sys import exception
 from typing import List
 
 from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
-from langgraph.constants import Send
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.graph import CompiledGraph
 from langgraph.prebuilt import ToolNode
 
-from redbox.chains.activity import log_activity
 from redbox.chains.components import get_structured_response_with_citations_parser
 from redbox.chains.runnables import build_self_route_output_parser
 from redbox.graph.edges import (
@@ -42,6 +38,7 @@ from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 from langgraph.pregel import RetryPolicy
+
 
 def get_self_route_graph(retriever: VectorStoreRetriever, prompt_set: PromptSet, debug: bool = False):
     builder = StateGraph(RedboxState)
@@ -243,12 +240,12 @@ def get_chat_with_documents_graph(
     builder.add_node(
         "p_summarise_each_document",
         build_merge_pattern(prompt_set=PromptSet.ChatwithDocsMapReduce),
-        retry=RetryPolicy(max_attempts=3)
+        retry=RetryPolicy(max_attempts=3),
     )
     builder.add_node(
         "p_summarise_document_by_document",
         build_merge_pattern(prompt_set=PromptSet.ChatwithDocsMapReduce),
-        retry=RetryPolicy(max_attempts=3)
+        retry=RetryPolicy(max_attempts=3),
     )
     builder.add_node(
         "p_summarise",
@@ -256,7 +253,7 @@ def get_chat_with_documents_graph(
             prompt_set=PromptSet.ChatwithDocs,
             final_response_chain=True,
         ),
-        retry=RetryPolicy(max_attempts=3)
+        retry=RetryPolicy(max_attempts=3),
     )
     builder.add_node("p_clear_documents", clear_documents_process)
     builder.add_node(

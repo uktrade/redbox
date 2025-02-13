@@ -2,7 +2,6 @@ from logging import getLogger
 from typing import Literal
 
 from langchain_core.embeddings import Embeddings
-from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
 
 from redbox.chains.components import (
@@ -12,7 +11,7 @@ from redbox.chains.components import (
     get_parameterised_retriever,
 )
 from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_documents_tool, build_search_wikipedia_tool
-from redbox.graph.root import build_new_graph, get_agentic_search_graph, get_chat_with_documents_graph, get_root_graph
+from redbox.graph.root import get_agentic_search_graph, get_chat_with_documents_graph, get_root_graph
 from redbox.models.chain import RedboxState
 from redbox.models.chat import ChatRoute
 from redbox.models.file import ChunkResolution
