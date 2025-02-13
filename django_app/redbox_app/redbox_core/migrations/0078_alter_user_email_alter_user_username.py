@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("redbox_core", "0077_alter_user_username"),
+        ("redbox_core", "0077_aisettings_new_route_retrieval_system_prompt"),
     ]
 
     operations = [
