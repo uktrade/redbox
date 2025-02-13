@@ -208,6 +208,7 @@ def get_all_metadata(obj: dict):
         "messages": [AIMessage(content=text, tool_calls=text_and_tools["raw_response"].tool_calls)],
         "metadata": to_request_metadata(obj),
         "citations": citations,
+        "final_chain": obj["final_chain"],
     }
     return out
 
