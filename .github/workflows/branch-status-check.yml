@@ -1,0 +1,46 @@
+name: Branch Naming Check
+
+on:
+  push:
+    branches:
+      - '**' # Trigger on any push to any branch
+  pull_request:
+    branches:
+      - '**' # Trigger on PR creation
+
+jobs:
+  check-naming-convention:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Check branch name
+        run: |
+          if [ "${{ github.event_name }}" == "push" ]; then
+            BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          elif [ "${{ github.event_name }}" == "pull_request" ]; then
+            BRANCH_NAME="${GITHUB_HEAD_REF}"
+          else
+            echo "Unsupported event: ${{ github.event_name }}"
+            exit 1
+          fi
+
+          echo "Checking branch name: $BRANCH_NAME"
+
+          # Define allowed naming patterns (Regex for feature, bugfix, etc.)
+          if [[ ! "$BRANCH_NAME" =~ ^(main|feature/.*|chore/.*|bugfix/.*|hotfix/.*|dependabot/.*|security/.*|dev)$ ]]; then
+            echo "Error: Invalid branch name '$BRANCH_NAME'. It must follow one of the following patterns:"
+            echo "- main"
+            echo "- feature/*"
+            echo "- chore/*"
+            echo "- bugfix/*"
+            echo "- hotfix/*"
+            echo "- dependabot/*"
+            echo "- security/*"
+            echo "- dev"
+            exit 1
+          fi
+
+          echo "Branch name is valid."
