@@ -247,14 +247,7 @@ def test_ingest_from_loader(
         metadata=metadata,
     )
 
-    mapping = {
-        "properties": {
-            "embedding": {
-                "type": "dense_vector",
-                "dims": 1024
-            }
-        }
-    }
+    mapping = {"properties": {"embedding": {"type": "dense_vector", "dims": 1024}}}
 
     es_client.indices.create(index="my_index", body={"mappings": mapping})
 
