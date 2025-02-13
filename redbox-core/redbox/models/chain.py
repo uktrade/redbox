@@ -59,6 +59,7 @@ class AISettings(BaseModel):
     chat_map_system_prompt: str = prompts.CHAT_MAP_SYSTEM_PROMPT
     chat_map_question_prompt: str = prompts.CHAT_MAP_QUESTION_PROMPT
     reduce_system_prompt: str = prompts.REDUCE_SYSTEM_PROMPT
+    new_route_retrieval_system_prompt: str = prompts.NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT
 
     # Elasticsearch RAG and boost values
     rag_k: int = 30
@@ -259,6 +260,7 @@ class PromptSet(StrEnum):
     GiveUpAgentic = "give_up_agentic"
     SelfRoute = "self_route"
     CondenseQuestion = "condense_question"
+    NewRoute = "new_route"
 
 
 def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str]:
@@ -286,6 +288,9 @@ def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str]:
     elif prompt_set == PromptSet.CondenseQuestion:
         system_prompt = state.request.ai_settings.condense_system_prompt
         question_prompt = state.request.ai_settings.condense_question_prompt
+    elif prompt_set == PromptSet.NewRoute:
+        system_prompt = state.request.ai_settings.new_route_retrieval_system_prompt
+        question_prompt = state.request.ai_settings.agentic_retrieval_question_prompt
     return (system_prompt, question_prompt)
 
 

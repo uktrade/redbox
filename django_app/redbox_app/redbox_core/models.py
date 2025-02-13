@@ -137,6 +137,7 @@ class AISettings(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
     chat_map_system_prompt = models.TextField(null=True, blank=True)
     chat_map_question_prompt = models.TextField(null=True, blank=True)
     reduce_system_prompt = models.TextField(null=True, blank=True)
+    new_route_retrieval_system_prompt = models.TextField(null=True, blank=True)
 
     # Elsticsearch RAG and boost values
     rag_k = models.PositiveIntegerField(null=True, blank=True)
