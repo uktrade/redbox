@@ -5,6 +5,7 @@ from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.graph import CompiledGraph
 from langgraph.prebuilt import ToolNode
+from langgraph.pregel import RetryPolicy
 
 from redbox.chains.components import get_structured_response_with_citations_parser
 from redbox.chains.runnables import build_self_route_output_parser
@@ -37,7 +38,6 @@ from redbox.models.chain import RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
-from langgraph.pregel import RetryPolicy
 
 
 def get_self_route_graph(retriever: VectorStoreRetriever, prompt_set: PromptSet, debug: bool = False):
@@ -281,6 +281,9 @@ def get_chat_with_documents_graph(
         build_activity_log_node(lambda state: RedboxActivityEvent(message=f"Using _{state.route_name}_")),
     )
 
+    rag_subgraph = get_search_graph(retriever=parameterised_retriever, debug=debug)
+    builder.add_node("p_search", rag_subgraph)
+
     # Decisions
     builder.add_node("d_request_handler_from_total_tokens", empty_process)
     builder.add_node("d_single_doc_summaries_bigger_than_context", empty_process)
@@ -302,7 +305,7 @@ def get_chat_with_documents_graph(
         {
             "max_exceeded": "p_too_large_error",
             "context_exceeded": "d_self_route_is_enabled",
-            "pass": "p_set_chat_docs_route",
+            "pass": "d_self_route_is_enabled",
         },
     )
     builder.add_conditional_edges(
@@ -315,7 +318,7 @@ def get_chat_with_documents_graph(
         "p_answer_or_decide_route",
         lambda state: state.route_name,
         {
-            ChatRoute.search: END,
+            ChatRoute.search: "p_search",
             ChatRoute.chat_with_docs_map_reduce: "p_retrieve_all_chunks",
         },
     )
