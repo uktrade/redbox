@@ -281,9 +281,6 @@ def get_chat_with_documents_graph(
         build_activity_log_node(lambda state: RedboxActivityEvent(message=f"Using _{state.route_name}_")),
     )
 
-    rag_subgraph = get_search_graph(retriever=parameterised_retriever, debug=debug)
-    builder.add_node("p_search", rag_subgraph)
-
     # Decisions
     builder.add_node("d_request_handler_from_total_tokens", empty_process)
     builder.add_node("d_single_doc_summaries_bigger_than_context", empty_process)
@@ -318,7 +315,7 @@ def get_chat_with_documents_graph(
         "p_answer_or_decide_route",
         lambda state: state.route_name,
         {
-            ChatRoute.search: "p_search",
+            ChatRoute.search: END,
             ChatRoute.chat_with_docs_map_reduce: "p_retrieve_all_chunks",
         },
     )
