@@ -3,8 +3,10 @@
     id="topNav" 
     data-product_name="{{ product_name }}" 
     data-menu_items="{{ menu_items | tojson if menu_items is not none else '[]' }}" 
-    data-user_items="{{ user_items | tojson if user_items is not none else '{}' }}" 
-    data-phase="{{ phase }}" 
+    {% if user_items %}
+      data-user_items="{{ user_items | tojson if user_items is not none else '{}' }}" 
+    {% endif %}
+      data-phase="{{ phase }}" 
     data-home_path="{{ home_path }}"
   ></div>
   <script type="module" src="{{ static('js/react/TopNav.js') }}"></script>

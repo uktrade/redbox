@@ -9,7 +9,6 @@ import environ
 import sentry_sdk
 from dbt_copilot_python.database import database_from_env
 from django.urls import reverse_lazy
-from django_log_formatter_asim import ASIMFormatter
 from dotenv import load_dotenv
 from import_export.formats.base_formats import CSV
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -203,7 +202,7 @@ CSP_SCRIPT_SRC = (
     "https://www.googletagmanager.com/",
     "ajax.googleapis.com/",
     "sha256-T/1K73p+yppfXXw/AfMZXDh5VRDNaoEh3enEGFmZp8M=",
-    "'unsafe-inline'"
+    "'unsafe-inline'",
 )
 CSP_OBJECT_SRC = ("'none'",)
 CSP_TRUSTED_TYPES = ("dompurify", "default", "goog#html")
@@ -215,6 +214,7 @@ CSP_STYLE_SRC = (
     "https://googletagmanager.com",
     "https://tagmanager.google.com/",
     "https://fonts.googleapis.com",
+    "'unsafe-inline'"
 )
 
 CSP_IMG_SRC = (
@@ -224,7 +224,7 @@ CSP_IMG_SRC = (
     "https://www.gstatic.com",
     "https://*.google-analytics.com",
     "https://*.googletagmanager.com",
-    "'unsafe-inline'"
+    "'unsafe-inline'",
 )
 CSP_FRAME_ANCESTORS = ("'none'",)
 

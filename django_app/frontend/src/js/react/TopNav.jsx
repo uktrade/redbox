@@ -56,15 +56,14 @@ const TopNav = ({ product_name, menu_items, user_items, phase, home_path = "/" }
                     >
                       <a 
                         className="iai-top-nav__link" 
-                        href={menu_item.href} 
-                        aria-current={menu_item.active ? "page" : undefined}
+                        href={menu_item.href}
                       >
                         {menu_item.text}
                       </a>
                     </li>
                   ))}
                 </ul>
-                {user_items && (
+                {user_items ? (
                   <div className="iai-top-nav__user">
                     <button className="iai-top-nav__link iai-top-nav__link--user" aria-expanded="false">
                       {user_items.initials}
@@ -84,7 +83,7 @@ const TopNav = ({ product_name, menu_items, user_items, phase, home_path = "/" }
                       ))}
                     </ul>
                   </div>
-                )}
+                ) : null}
                 <li className="iai-top-nav__link-item">
                   <a className="iai-top-nav__link" href="https://teams.microsoft.com/l/channel/19%3A9ae6b3b539724595a3139c2b16dc56ef%40thread.tacv2/Redbox%20trial%20participants%20Chat%20Channel?groupId=7a71ce78-fe77-4185-825c-ae40cb07d614&tenantId=8fa217ec-33aa-46fb-ad96-dfe68006bb86">
                     Teams Chat
@@ -103,7 +102,7 @@ const topNavElement = document.getElementById("topNav");
 if (topNavElement) {
   const productName = topNavElement.getAttribute("data-product_name");
   const menuItems = JSON.parse(topNavElement.getAttribute("data-menu_items"));
-  const userItems = JSON.parse(topNavElement.getAttribute("data-user_items"));
+  const userItems = topNavElement.getAttribute("data-user_items") ? JSON.parse(topNavElement.getAttribute("data-user_items")) : null;
   const phase = topNavElement.getAttribute("data-phase");
   const homePath = topNavElement.getAttribute("data-home_path");
 

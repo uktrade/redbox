@@ -1,7 +1,7 @@
 {% set pageTitle = "" %}
 {% extends "base.html" %}
 {% from "macros/govuk-button.html" import govukButton %}
-{% set cspNonce = request.csp_nonce %}
+{% set cspNonce = request.csp_nonce|default('') %}
 
 {% block content %}
 

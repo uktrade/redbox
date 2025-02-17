@@ -17,12 +17,18 @@ def homepage_view(request):
     if not request.user.is_authenticated and settings.LOGIN_METHOD == "sso":
         return redirect("authbroker_client:login")
     else:
+        csp_nonce = getattr(request, 'csp_nonce', None)  # Ensure csp_nonce is set
+        context = {
+            "request": request,
+            "allow_sign_ups": settings.ALLOW_SIGN_UPS,
+            "csp_nonce": csp_nonce,
+        }
+        print(context)  # Debugging statement
         return render(
             request,
             template_name="homepage.html",
-            context={"request": request, "allow_sign_ups": settings.ALLOW_SIGN_UPS},
+            context=context,
         )
-
 
 @require_http_methods(["GET"])
 def health(_request: HttpRequest) -> HttpResponse:

@@ -1,5 +1,5 @@
 {% from "macros/iai-top-nav.html" import iaiTopNav %}
-{% set cspNonce=request.csp_nonce %}
+{% set cspNonce = request.csp_nonce|default('') %}
 
 <!DOCTYPE html>
 <html lang="en" class="govuk-template">
@@ -60,30 +60,31 @@
 
 
   {% if request.user.is_authenticated %}
-    {{ iaiTopNav(
-      product_name = "Redbox",
-      menu_items = [
-        {"text": "Documents", "href": url('documents')},
-        {"text": "Chats", "href": url('chats')}
-      ],
-      user_items = {
+  <div id="topNav" 
+       data-product_name="Redbox" 
+       data-menu_items='{{ [
+          {"text": "Documents", "href": url("documents")},
+          {"text": "Chats", "href": url("chats")}
+      ] | tojson | safe }}' 
+       data-user_items='{{ {
           "initials": request.user.get_initials(),
           "menu_items": [
-              {"text": "My details", "href": url('demographics')},
-              {"text": "Sign out", "href": url('signed-out')}
+              {"text": "My details", "href": url("demographics")},
+              {"text": "Sign out", "href": url("signed-out")}
           ]
-      },
-      phase = "Beta"
-    ) }}
-  {% else %}
-    {{ iaiTopNav(
-      product_name = "Redbox",
-      menu_items = [
-        {"text": "Sign in", "href": url('sign-in')}
-      ],
-      phase = "Beta"
-    ) }}
-  {% endif %}
+      } | tojson | safe }}' 
+       data-phase="Beta" 
+       data-home_path="/">
+  </div>
+{% else %}
+  <div id="topNav" 
+       data-product_name="Redbox" 
+       data-menu_items='{{ [{"text": "Sign in", "href": url("sign-in")}] | tojson | safe }}' 
+       data-phase="Beta" 
+       data-home_path="/">
+  </div>
+{% endif %}
+
 
 
   <main class="govuk-main-wrapper" id="main-content" role="main">
