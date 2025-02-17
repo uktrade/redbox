@@ -232,7 +232,7 @@ def get_chat_with_documents_graph(
 
     # Processes
     builder.add_node("p_pass_question_to_text", build_passthrough_pattern())
-    builder.add_node("p_set_chat_docs_route", build_set_route_pattern(route=ChatRoute.chat_with_docs))
+    # builder.add_node("p_set_chat_docs_route", build_set_route_pattern(route=ChatRoute.chat_with_docs))
     builder.add_node(
         "p_set_chat_docs_map_reduce_route",
         build_set_route_pattern(route=ChatRoute.chat_with_docs_map_reduce),
@@ -322,7 +322,7 @@ def get_chat_with_documents_graph(
             ChatRoute.chat_with_docs_map_reduce: "p_retrieve_all_chunks",
         },
     )
-    builder.add_edge("p_set_chat_docs_route", "p_retrieve_all_chunks")
+    # builder.add_edge("p_set_chat_docs_route", "p_retrieve_all_chunks")
     builder.add_edge("p_set_chat_docs_map_reduce_route", "p_retrieve_all_chunks")
     builder.add_conditional_edges(
         "p_retrieve_all_chunks",
