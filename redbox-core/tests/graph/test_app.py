@@ -605,6 +605,6 @@ def test_get_available_keywords(tokeniser: Encoding, env: Settings):
         env=env,
         debug=LANGGRAPH_DEBUG,
     )
-    keywords = {ChatRoute.search, ChatRoute.gadget}
+    keywords = {ChatRoute.search, ChatRoute.gadget, ChatRoute.newroute}
 
     assert keywords == set(app.get_available_keywords().keys())
