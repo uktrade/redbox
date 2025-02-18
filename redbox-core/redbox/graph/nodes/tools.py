@@ -3,7 +3,6 @@ from typing import Annotated, Iterable, Union
 import numpy as np
 import requests
 import anthropic
-import tiktoken
 from elasticsearch import Elasticsearch
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_core.documents import Document
@@ -27,15 +26,13 @@ from redbox.transform import merge_documents, sort_documents
 def get_tokeniser_for_claude():
     client = anthropic.Anthropic()
     model_name = "claude-3-sonnet-20240229-v1:0"
-    
+
     def count_tokens(text):
-        response = client.messages.count_tokens(
-            model=model_name,
-            messages=[{"role": "user", "content": text}]
-        )
+        response = client.messages.count_tokens(model=model_name, messages=[{"role": "user", "content": text}])
         return response.json()["input_tokens"]
-    
+
     return count_tokens
+
 
 def build_search_documents_tool(
     es_client: Union[Elasticsearch, OpenSearch],
@@ -180,6 +177,7 @@ def build_govuk_search_tool(filter=True) -> Tool:
         return format_documents(mapped_documents), mapped_documents
 
     return _search_govuk
+
 
 def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_page=12000) -> Tool:
     """Constructs a tool that searches Wikipedia"""

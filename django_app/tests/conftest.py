@@ -69,7 +69,9 @@ def _collect_static():
 
 @pytest.fixture(autouse=True)
 def default_ai_settings(db):  # noqa: ARG001
-    claude_sonnet, _ = ChatLLMBackend.objects.get_or_create(name="anthropic.claude-3-sonnet-20240229-v1:0", provider="azure_openai", is_default=True)
+    claude_sonnet, _ = ChatLLMBackend.objects.get_or_create(
+        name="anthropic.claude-3-sonnet-20240229-v1:0", provider="azure_openai", is_default=True
+    )
     ai_settings, _ = AISettings.objects.get_or_create(label="default", chat_backend=claude_sonnet)
     return ai_settings
 
@@ -188,10 +190,16 @@ def chat_message_with_citation(chat: Chat, uploaded_file: File) -> ChatMessage:
 def chat_message_with_citation_and_tokens(chat_message_with_citation: ChatMessage) -> ChatMessage:
     chat_message = chat_message_with_citation
     ChatMessageTokenUse.objects.create(
-        chat_message=chat_message, use_type=ChatMessageTokenUse.UseType.INPUT, model_name="anthropic.claude-3-sonnet-20240229-v1:0", token_count=20
+        chat_message=chat_message,
+        use_type=ChatMessageTokenUse.UseType.INPUT,
+        model_name="anthropic.claude-3-sonnet-20240229-v1:0",
+        token_count=20,
     )
     ChatMessageTokenUse.objects.create(
-        chat_message=chat_message, use_type=ChatMessageTokenUse.UseType.OUTPUT, model_name="anthropic.claude-3-sonnet-20240229-v1:0", token_count=200
+        chat_message=chat_message,
+        use_type=ChatMessageTokenUse.UseType.OUTPUT,
+        model_name="anthropic.claude-3-sonnet-20240229-v1:0",
+        token_count=200,
     )
     return chat_message
 

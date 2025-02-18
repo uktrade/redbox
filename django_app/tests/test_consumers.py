@@ -614,7 +614,11 @@ def mocked_connect(uploaded_file: File) -> Connect:
             "event": "on_custom_event",
             "name": "on_metadata_generation",
             "data": RequestMetadata(
-                llm_calls=[LLMCallMetadata(llm_model_name="anthropic.claude-3-sonnet-20240229-v1:0", input_tokens=123, output_tokens=1000)],
+                llm_calls=[
+                    LLMCallMetadata(
+                        llm_model_name="anthropic.claude-3-sonnet-20240229-v1:0", input_tokens=123, output_tokens=1000
+                    )
+                ],
                 selected_files_total_tokens=1000,
                 number_of_selected_files=1,
             ),
@@ -747,7 +751,11 @@ def mocked_connect_agentic_search(uploaded_file: File) -> Connect:
             "event": "on_custom_event",
             "name": "on_metadata_generation",
             "data": RequestMetadata(
-                llm_calls=[LLMCallMetadata(llm_model_name="anthropic.claude-3-sonnet-20240229-v1:0", input_tokens=123, output_tokens=1000)],
+                llm_calls=[
+                    LLMCallMetadata(
+                        llm_model_name="anthropic.claude-3-sonnet-20240229-v1:0", input_tokens=123, output_tokens=1000
+                    )
+                ],
                 selected_files_total_tokens=1000,
                 number_of_selected_files=1,
             ),
