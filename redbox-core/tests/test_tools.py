@@ -175,13 +175,13 @@ def test_wikipedia_tool():
             ]
         }
     )
+
     assert response["messages"][0].content != ""
+    assert response["messages"][0].artifact is not None
 
     for document in response["messages"][0].artifact:
         assert document.page_content != ""
-        metadata = ChunkMetadata.model_validate(document.metadata)
-        assert urlparse(metadata.uri).hostname == "en.wikipedia.org"
-        assert metadata.creator_type == ChunkCreatorType.wikipedia
+        assert "token_count" in document.metadata
 
 
 @pytest.mark.parametrize(

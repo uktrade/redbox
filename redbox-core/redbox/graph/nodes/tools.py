@@ -2,7 +2,6 @@ from typing import Annotated, Iterable, Union
 
 import numpy as np
 import requests
-import anthropic
 from elasticsearch import Elasticsearch
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_core.documents import Document
@@ -23,15 +22,9 @@ from redbox.retriever.retrievers import query_to_documents
 from redbox.transform import merge_documents, sort_documents
 
 
-def get_tokeniser_for_claude():
-    client = anthropic.Anthropic()
-    model_name = "claude-3-sonnet-20240229-v1:0"
-
-    def count_tokens(text):
-        response = client.messages.count_tokens(model=model_name, messages=[{"role": "user", "content": text}])
-        return response.json()["input_tokens"]
-
-    return count_tokens
+def bedrock_tokeniser(text: str) -> int:
+    # Simple tokenizer that counts the number of words in the text
+    return len(text.split())
 
 
 def build_search_documents_tool(
@@ -100,7 +93,7 @@ def build_search_documents_tool(
 def build_govuk_search_tool(filter=True) -> Tool:
     """Constructs a tool that searches gov.uk and sets state["documents"]."""
 
-    tokeniser = get_tokeniser_for_claude()
+    tokeniser = bedrock_tokeniser
 
     def recalculate_similarity(response, query, num_results):
         embedding_model = get_embeddings(get_settings())
@@ -185,7 +178,7 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
         top_k_results=number_wikipedia_results,
         doc_content_chars_max=max_chars_per_wiki_page,
     )
-    tokeniser = get_tokeniser_for_claude()
+    tokeniser = bedrock_tokeniser
 
     @tool(response_format="content_and_artifact")
     def _search_wikipedia(query: str) -> tuple[str, list[Document]]:
@@ -202,18 +195,26 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
             response (str): The content of the relevant Wikipedia page
         """
         response = _wikipedia_wrapper.load(query)
-        mapped_documents = [
-            Document(
-                page_content=doc.page_content,
-                metadata=ChunkMetadata(
-                    index=i,
-                    uri=doc.metadata["source"],
-                    token_count=tokeniser(doc.page_content),
-                    creator_type=ChunkCreatorType.wikipedia,
-                ).model_dump(),
+        if not response:
+            print("No Wikipedia response found.")
+            return "", []
+
+        mapped_documents = []
+        for i, doc in enumerate(response):
+            token_count = tokeniser(doc.page_content)
+            print(f"Document {i} token count: {token_count}")
+
+            mapped_documents.append(
+                Document(
+                    page_content=doc.page_content,
+                    metadata=ChunkMetadata(
+                        index=i,
+                        uri=doc.metadata["source"],
+                        token_count=token_count,
+                        creator_type=ChunkCreatorType.wikipedia,
+                    ).model_dump(),
+                )
             )
-            for i, doc in enumerate(response)
-        ]
         docs = mapped_documents
         return format_documents(docs), docs
 
