@@ -79,7 +79,7 @@ redbox/
 System-wide, static, settings are defined [Settings.py](redbox-core/redbox/models/settings.py), these are set via environment file .env
 
 Dynamic, per-request, settings are defined in [AISettings.py](redbox-core/redbox/models/chain.py), these are set within the django-app,
-and can be changed by an administrator. This includes the LLM to use which by default will be GPT-4o.
+and can be changed by an administrator. This includes the LLM to use which by default will be Claude Sonnet 3.5.
 
 # Contributing
 

@@ -66,8 +66,8 @@ class ElasticCloudSettings(BaseModel):
 
 
 class ChatLLMBackend(BaseModel):
-    name: str = "gpt-4o"
-    provider: str = "azure_openai"
+    name: str = "anthropic.claude-3-sonnet-20240229-v1:0"
+    provider: str = "bedrock"
     description: str | None = None
     model_config = {"frozen": True}
 

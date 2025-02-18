@@ -2,6 +2,7 @@ from typing import Annotated, Iterable, Union
 
 import numpy as np
 import requests
+import anthropic
 import tiktoken
 from elasticsearch import Elasticsearch
 from langchain_community.utilities import WikipediaAPIWrapper
@@ -22,6 +23,19 @@ from redbox.retriever.queries import add_document_filter_scores_to_query, build_
 from redbox.retriever.retrievers import query_to_documents
 from redbox.transform import merge_documents, sort_documents
 
+
+def get_tokeniser_for_claude():
+    client = anthropic.Anthropic()
+    model_name = "claude-3-sonnet-20240229-v1:0"
+    
+    def count_tokens(text):
+        response = client.messages.count_tokens(
+            model=model_name,
+            messages=[{"role": "user", "content": text}]
+        )
+        return response.json()["input_tokens"]
+    
+    return count_tokens
 
 def build_search_documents_tool(
     es_client: Union[Elasticsearch, OpenSearch],
@@ -89,7 +103,7 @@ def build_search_documents_tool(
 def build_govuk_search_tool(filter=True) -> Tool:
     """Constructs a tool that searches gov.uk and sets state["documents"]."""
 
-    tokeniser = tiktoken.encoding_for_model("gpt-4o")
+    tokeniser = get_tokeniser_for_claude()
 
     def recalculate_similarity(response, query, num_results):
         embedding_model = get_embeddings(get_settings())
@@ -157,7 +171,7 @@ def build_govuk_search_tool(filter=True) -> Tool:
                     metadata=ChunkMetadata(
                         index=i,
                         uri=f"{url_base}{doc['link']}",
-                        token_count=len(tokeniser.encode(doc["indexable_content"])),
+                        token_count=len(tokeniser(doc["indexable_content"])),
                         creator_type=ChunkCreatorType.gov_uk,
                     ).model_dump(),
                 )
@@ -167,14 +181,13 @@ def build_govuk_search_tool(filter=True) -> Tool:
 
     return _search_govuk
 
-
 def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_page=12000) -> Tool:
     """Constructs a tool that searches Wikipedia"""
     _wikipedia_wrapper = WikipediaAPIWrapper(
         top_k_results=number_wikipedia_results,
         doc_content_chars_max=max_chars_per_wiki_page,
     )
-    tokeniser = tiktoken.encoding_for_model("gpt-4o")
+    tokeniser = get_tokeniser_for_claude()
 
     @tool(response_format="content_and_artifact")
     def _search_wikipedia(query: str) -> tuple[str, list[Document]]:
@@ -197,7 +210,7 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
                 metadata=ChunkMetadata(
                     index=i,
                     uri=doc.metadata["source"],
-                    token_count=len(tokeniser.encode(doc.page_content)),
+                    token_count=tokeniser(doc.page_content),
                     creator_type=ChunkCreatorType.wikipedia,
                 ).model_dump(),
             )
