@@ -2,7 +2,6 @@ from typing import Annotated, Iterable, Union
 
 import numpy as np
 import requests
-import tiktoken
 from elasticsearch import Elasticsearch
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_core.documents import Document
@@ -20,11 +19,8 @@ from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
 from redbox.models.settings import get_settings
 from redbox.retriever.queries import add_document_filter_scores_to_query, build_document_query
 from redbox.retriever.retrievers import query_to_documents
-from redbox.transform import merge_documents, sort_documents
+from redbox.transform import merge_documents, sort_documents, bedrock_tokeniser
 
-def bedrock_tokeniser(text: str) -> int:
-    # Simple tokeniser that counts the number of words in the text
-    return len(text.split())
 
 def build_search_documents_tool(
     es_client: Union[Elasticsearch, OpenSearch],
@@ -194,18 +190,26 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
             response (str): The content of the relevant Wikipedia page
         """
         response = _wikipedia_wrapper.load(query)
-        mapped_documents = [
-            Document(
-                page_content=doc.page_content,
-                metadata=ChunkMetadata(
-                    index=i,
-                    uri=doc.metadata["source"],
-                    token_count=len(tokeniser(doc.page_content)),
-                    creator_type=ChunkCreatorType.wikipedia,
-                ).model_dump(),
+        if not response:
+            print("No Wikipedia response found.")
+            return "", []
+
+        mapped_documents = []
+        for i, doc in enumerate(response):
+            token_count = tokeniser(doc.page_content)
+            print(f"Document {i} token count: {token_count}")
+
+            mapped_documents.append(
+                Document(
+                    page_content=doc.page_content,
+                    metadata=ChunkMetadata(
+                        index=i,
+                        uri=doc.metadata["source"],
+                        token_count=token_count,
+                        creator_type=ChunkCreatorType.wikipedia,
+                    ).model_dump(),
+                )
             )
-            for i, doc in enumerate(response)
-        ]
         docs = mapped_documents
         return format_documents(docs), docs
 

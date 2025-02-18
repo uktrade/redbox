@@ -2,7 +2,6 @@ import itertools
 from typing import Iterable
 from uuid import NAMESPACE_DNS, UUID, uuid5
 
-import tiktoken
 from langchain_core.callbacks.manager import dispatch_custom_event
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage
@@ -10,6 +9,11 @@ from langchain_core.runnables import RunnableLambda
 
 from redbox.models.chain import DocumentMapping, DocumentState, LLMCallMetadata, RedboxState, RequestMetadata
 from redbox.models.graph import RedboxEventType
+
+
+def bedrock_tokeniser(text: str) -> int:
+    # Simple tokeniser that counts the number of words in the text
+    return len(text.split())
 
 
 # This should be unnecessary and indicates we're not chunking correctly
@@ -167,14 +171,11 @@ def to_request_metadata(obj: dict) -> RequestMetadata:
     response = obj["text_and_tools"]["raw_response"].content
     model = obj["model"]
 
-    try:
-        tokeniser = tiktoken.encoding_for_model(model)
-    except KeyError:
-        tokeniser = tiktoken.get_encoding("cl100k_base")
+    tokeniser = bedrock_tokeniser(model)
 
-    input_tokens = len(tokeniser.encode(prompt))
+    input_tokens = tokeniser(prompt)
     try:
-        output_tokens = len(tokeniser.encode(response))
+        output_tokens = tokeniser(response)
     except Exception:
         output_tokens = len(response[0].get("text", []))
 
