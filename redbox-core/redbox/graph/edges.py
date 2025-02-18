@@ -16,8 +16,8 @@ log = logging.getLogger()
 def calculate_token_budget(state: RedboxState, system_prompt: str, question_prompt: str) -> int:
     tokeniser = get_tokeniser()
 
-    len_question_prompt = len(tokeniser.encode(question_prompt))
-    len_system_prompt = len(tokeniser.encode(system_prompt))
+    len_question_prompt = tokeniser(question_prompt)
+    len_system_prompt = tokeniser(system_prompt)
 
     ai_settings = state.request.ai_settings
 
