@@ -207,6 +207,7 @@ def test_to_request_metadata(output: dict, expected: RequestMetadata):
         result.output_tokens == expected.output_tokens
     ), f"Expected: {expected.output_tokens} Result: {result.output_tokens}"
 
+
 def test_structure_documents_by_file_name():
     docs = list(generate_docs(s3_key="s3_key", total_tokens=1000, number_of_docs=3, chunk_resolution="normal"))
     expected = DocumentState(groups={uuid5(NAMESPACE_DNS, "s3_key"): {doc.metadata["uuid"]: doc for doc in docs}})

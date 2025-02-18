@@ -11,17 +11,16 @@ from langchain_core.runnables import RunnableLambda
 from redbox.models.chain import DocumentMapping, DocumentState, LLMCallMetadata, RedboxState, RequestMetadata
 from redbox.models.graph import RedboxEventType
 
+
 def bedrock_tokeniser(text: str) -> int:
     # Simple tokeniser that counts the number of words in the text
-    tokens = re.findall(r'\w+|[^\w\s]', text)
-    
+    tokens = re.findall(r"\w+|[^\w\s]", text)
+
     # Check if there's a trailing space and add 1 token if needed
     if text.endswith(" "):
         tokens.append("<space>")  # Just a placeholder, not an actual token
 
     return len(tokens)
-
-
 
 
 # This should be unnecessary and indicates we're not chunking correctly
