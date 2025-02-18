@@ -7,7 +7,6 @@ from langchain_core.documents import Document
 from langchain_core.messages import AIMessage
 from langchain_core.tools import tool
 from pytest_mock import MockerFixture
-from tiktoken.core import Encoding
 
 from redbox import Redbox
 from redbox.models.chain import (
@@ -597,7 +596,7 @@ async def test_streaming(test: RedboxChatTestCase, env: Settings, mocker: Mocker
             assert document in test_case.docs, f"Document not in test case docs: {document}"
 
 
-def test_get_available_keywords(tokeniser: Encoding, env: Settings):
+def test_get_available_keywords(env: Settings):
     app = Redbox(
         all_chunks_retriever=mock_all_chunks_retriever([]),
         parameterised_retriever=mock_parameterised_retriever([]),
