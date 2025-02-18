@@ -60,12 +60,14 @@ def has_exceed_max_limit(state: RedboxState) -> Literal["max_exceeded", "pass"]:
         return "pass"
 
 
-def set_route_basedon_token_limit(prompt_set: PromptSet) -> Runnable[RedboxState, dict[str, Any]]:
-    """Uses a set of prompts to calculate the total tokens used in this request and returns a label
+def set_route_based_on_llm_answer_token_limit(prompt_set: PromptSet) -> Runnable[RedboxState, dict[str, Any]]:
+    """
+    Set route
+    Uses a set of prompts to calculate the total tokens used in this request and returns a label
     for the request handler to be used
     """
 
-    def _set_route_basedon_token_limit(
+    def _set_route_based_on_token_limit(
         state: RedboxState,
     ) -> dict[str, Any]:
         system_prompt, question_prompt = get_prompts(state, prompt_set)
@@ -78,7 +80,7 @@ def set_route_basedon_token_limit(prompt_set: PromptSet) -> Runnable[RedboxState
         else:
             return {"route_name": ChatRoute.chat_with_docs}
 
-    return RunnableLambda(_set_route_basedon_token_limit).with_config(tags=[ROUTE_NAME_TAG])
+    return RunnableLambda(_set_route_based_on_token_limit).with_config(tags=[ROUTE_NAME_TAG])
 
 
 def build_documents_bigger_than_context_conditional(prompt_set: PromptSet) -> Runnable:

@@ -1,11 +1,13 @@
 from typing import List
 
+from altair import Then, condition
 from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.graph import CompiledGraph
 from langgraph.prebuilt import ToolNode
 from langgraph.pregel import RetryPolicy
+from mock import DEFAULT
 
 from redbox.chains.components import get_structured_response_with_citations_parser
 from redbox.chains.runnables import build_self_route_output_parser
@@ -15,7 +17,7 @@ from redbox.graph.edges import (
     documents_selected_conditional,
     has_exceed_max_limit,
     multiple_docs_in_group_conditional,
-    set_route_basedon_token_limit,
+    set_route_based_on_token_limit,
 )
 from redbox.graph.nodes.processes import (
     PromptSet,
@@ -27,10 +29,10 @@ from redbox.graph.nodes.processes import (
     build_retrieve_pattern,
     build_set_metadata_pattern,
     build_set_route_pattern,
-    build_set_self_route_from_llm_answer,
     build_stuff_pattern,
     clear_documents_process,
     empty_process,
+    llm_cannot_answer_question,
     report_sources_process,
 )
 from redbox.graph.nodes.sends import build_document_chunk_send, build_document_group_send, build_tool_send
@@ -69,29 +71,21 @@ def get_self_route_graph(retriever: VectorStoreRetriever, prompt_set: PromptSet,
             final_response_chain=False,
         ),
     )
-    builder.add_node(
-        "p_set_route_name_from_answer",
-        build_set_self_route_from_llm_answer(
-            self_route_question_is_unanswerable,
-            true_condition_state_update={"route_name": ChatRoute.chat_with_docs_map_reduce},
-            false_condition_state_update={"route_name": ChatRoute.search},
-        ),
-    )
+
+    builder.add_node("p_set_search_route", build_set_route_pattern(ChatRoute.search))
     builder.add_node("p_clear_documents", clear_documents_process)
+    builder.add_node("set_route_based_on_token_limit", set_route_based_on_token_limit(PromptSet.ChatwithDocsMapReduce))
 
     # Edges
     builder.add_edge(START, "p_condense_question")
     builder.add_edge("p_condense_question", "p_retrieve_docs")
     builder.add_edge("p_retrieve_docs", "p_answer_question_or_decide_unanswerable")
-    builder.add_edge("p_answer_question_or_decide_unanswerable", "p_set_route_name_from_answer")
     builder.add_conditional_edges(
-        "p_set_route_name_from_answer",
-        lambda state: state.route_name,
-        {
-            ChatRoute.chat_with_docs_map_reduce: "p_clear_documents",
-            ChatRoute.search: END,
-        },
+        "p_answer_question_or_decide_unanswerable",
+        llm_cannot_answer_question,
+        {True: "p_clear_documents", False: "p_set_search_route"},
     )
+    builder.add_edge("p_set_search_route", END)
     builder.add_edge("p_clear_documents", END)
 
     return builder.compile(debug=debug)
@@ -257,7 +251,7 @@ def get_chat_with_documents_graph(
         ),
     )
     builder.add_node(
-        "p_answer_or_decide_route",
+        "can_RAG_answer_question",
         get_self_route_graph(parameterised_retriever, PromptSet.SelfRoute),
     )
     builder.add_node(
@@ -280,7 +274,6 @@ def get_chat_with_documents_graph(
     builder.add_node("d_groups_have_multiple_docs", empty_process)
     builder.add_node("d_exceed_max_limit", empty_process)
     builder.add_node("d_self_route_is_enabled", empty_process)
-    builder.add_node("set_route_basedon_token_limit", set_route_basedon_token_limit(PromptSet.ChatwithDocsMapReduce))
 
     # Sends
     builder.add_node("s_chunk", empty_process)
@@ -293,26 +286,22 @@ def get_chat_with_documents_graph(
     builder.add_conditional_edges(
         "d_exceed_max_limit",
         has_exceed_max_limit,
-        {"max_exceeded": "p_too_large_error", "pass": "set_route_basedon_token_limit"},
+        {"max_exceeded": "p_too_large_error", "pass": "d_self_route_is_enabled"},
     )
-
-    builder.add_edge("set_route_basedon_token_limit", "d_self_route_is_enabled")
 
     builder.add_conditional_edges(
         "d_self_route_is_enabled",
         lambda s: s.request.ai_settings.self_route_enabled,
-        {True: "p_answer_or_decide_route", False: "p_retrieve_all_chunks"},
+        {True: "can_RAG_answer_question", False: "p_retrieve_all_chunks"},
         then="p_activity_log_tool_decision",
     )
     builder.add_conditional_edges(
-        "p_answer_or_decide_route",
-        lambda state: state.route_name,
-        {
-            ChatRoute.search: END,
-            ChatRoute.chat_with_docs: "p_retrieve_all_chunks",
-            ChatRoute.chat_with_docs_map_reduce: "p_retrieve_all_chunks",
-        },
+        "can_RAG_answer_question",
+        lambda state: state.route_name == ChatRoute.search,
+        {True: END, False: "set_route_based_on_token_limit"},
     )
+    builder.add_node("set_route_based_on_token_limit", set_route_based_on_token_limit(PromptSet.ChatwithDocsMapReduce))
+    builder.add_edge("set_route_based_on_token_limit", "p_retrieve_all_chunks")
 
     builder.add_conditional_edges(
         "p_retrieve_all_chunks",

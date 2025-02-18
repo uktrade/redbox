@@ -3,14 +3,13 @@ import logging
 import re
 import textwrap
 import time
-from random import uniform
 from collections.abc import Callable
 from functools import reduce
+from random import uniform
 from typing import Any, Iterable
 from uuid import uuid4
 
 from botocore.exceptions import EventStreamError
-
 from langchain.schema import StrOutputParser
 from langchain_core.callbacks.manager import dispatch_custom_event
 from langchain_core.documents import Document
@@ -193,7 +192,33 @@ def build_set_route_pattern(route: ChatRoute) -> Runnable[RedboxState, dict[str,
     return RunnableLambda(_set_route).with_config(tags=[ROUTE_NAME_TAG])
 
 
+def llm_cannot_answer_question(state: RedboxState):
+    return "unanswerable" in state.last_message.content.lower()
+
+
 def build_set_self_route_from_llm_answer(
+    conditional: Callable[[str], bool],
+    true_condition_state_update: dict,
+    false_condition_state_update: dict,
+    final_route_response: bool = True,
+) -> Runnable[RedboxState, dict[str, Any]]:
+    """A Runnable which sets the route based on a conditional on state['text']"""
+
+    @RunnableLambda
+    def _set_self_route_from_llm_answer(state: RedboxState):
+        llm_response = state.last_message.content
+        if conditional(llm_response):
+            return true_condition_state_update
+        else:
+            return false_condition_state_update
+
+    runnable = _set_self_route_from_llm_answer
+    if true_condition_state_update:
+        runnable = _set_self_route_from_llm_answer.with_config(tags=[ROUTE_NAME_TAG])
+    return runnable
+
+
+def build_set_route_from_condition(
     conditional: Callable[[str], bool],
     true_condition_state_update: dict,
     false_condition_state_update: dict,
