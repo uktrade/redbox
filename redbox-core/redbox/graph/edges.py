@@ -1,13 +1,14 @@
 import logging
 import re
-from typing import Literal
+from typing import Any, Literal
 
-from langchain_core.runnables import Runnable
+from langchain_core.runnables import Runnable, RunnableLambda
 
 from redbox.chains.components import get_tokeniser
 from redbox.graph.nodes.processes import PromptSet
 from redbox.models import ChatRoute
 from redbox.models.chain import RedboxState, get_prompts
+from redbox.models.graph import ROUTE_NAME_TAG
 from redbox.transform import get_document_token_count
 
 log = logging.getLogger()
@@ -46,6 +47,38 @@ def build_total_tokens_request_handler_conditional(prompt_set: PromptSet) -> Run
             return "pass"
 
     return _total_tokens_request_handler_conditional
+
+
+def has_exceed_max_limit(state: RedboxState) -> Literal["max_exceeded", "pass"]:
+    max_tokens_allowed = state.request.ai_settings.max_document_tokens
+
+    total_tokens = state.metadata.selected_files_total_tokens
+
+    if total_tokens > max_tokens_allowed:
+        return "max_exceeded"
+    else:
+        return "pass"
+
+
+def set_route_basedon_token_limit(prompt_set: PromptSet) -> Runnable[RedboxState, dict[str, Any]]:
+    """Uses a set of prompts to calculate the total tokens used in this request and returns a label
+    for the request handler to be used
+    """
+
+    def _set_route_basedon_token_limit(
+        state: RedboxState,
+    ) -> dict[str, Any]:
+        system_prompt, question_prompt = get_prompts(state, prompt_set)
+        token_budget_remaining_in_context = calculate_token_budget(state, system_prompt, question_prompt)
+
+        total_tokens = state.metadata.selected_files_total_tokens
+
+        if total_tokens > token_budget_remaining_in_context:
+            return {"route_name": ChatRoute.chat_with_docs_map_reduce}
+        else:
+            return {"route_name": ChatRoute.chat_with_docs}
+
+    return RunnableLambda(_set_route_basedon_token_limit).with_config(tags=[ROUTE_NAME_TAG])
 
 
 def build_documents_bigger_than_context_conditional(prompt_set: PromptSet) -> Runnable:
