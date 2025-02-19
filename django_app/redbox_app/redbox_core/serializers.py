@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from redbox_app.redbox_core.models import Chat, ChatMessage, ChatMessageTokenUse, File
+from redbox_app.redbox_core.models import ChatMessage, ChatMessageTokenUse, File
 
 User = get_user_model()
 
@@ -22,6 +22,8 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     selected_files = FileSerializer(many=True, read_only=True)
     source_files = FileSerializer(many=True, read_only=True)
     token_use = ChatMessageTokenUseSerializer(source="chatmessagetokenuse_set", many=True, read_only=True)
+    chat_id = serializers.PrimaryKeyRelatedField(source="chat", read_only=True)
+    user_id = serializers.PrimaryKeyRelatedField(source="chat.user", read_only=True)
 
     class Meta:
         model = ChatMessage
@@ -38,27 +40,22 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             "rating_text",
             "rating_chips",
             "token_use",
+            "chat_id",
+            "user_id",
         )
 
 
-class ChatSerializer(serializers.ModelSerializer):
-    messages = ChatMessageSerializer(source="chatmessage_set", many=True, read_only=True)
-
-    class Meta:
-        model = Chat
-        fields = ("id", "created_at", "modified_at", "messages")
-
-
 class UserSerializer(serializers.ModelSerializer):
-    chats = ChatSerializer(source="chat_set", many=True, read_only=True)
-
     class Meta:
         model = User
         fields = (
+            "id",
             "ai_experience",
             "business_unit",
             "grade",
             "profession",
             "role",
-            "chats",
+            "is_staff",
+            "is_active",
+            "is_superuser",
         )

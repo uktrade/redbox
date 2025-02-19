@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.django_db()
-def test_api_view(user_with_chats_with_messages_over_time: User, client: Client, api_key: str):
+def test_api_view(client: Client, api_key: str):
     # Given
     headers = {"HTTP_X_API_KEY": api_key}
 
@@ -22,8 +22,6 @@ def test_api_view(user_with_chats_with_messages_over_time: User, client: Client,
 
     # Then
     assert response.status_code == HTTPStatus.OK
-    user_with_chats = next(user for user in response.json()["results"] if user["chats"])
-    assert user_with_chats["ai_experience"] == user_with_chats_with_messages_over_time.ai_experience
 
 
 @pytest.mark.parametrize("path_name", ["user-view", "message-view"])
