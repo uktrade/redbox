@@ -105,8 +105,8 @@ def build_document_query(
         * Text, as a keyword and similarity
     """
     # If nothing is selected, consider all permitted files selected
-    if not selected_files:
-        selected_files = permitted_files
+    # if not selected_files:
+    #     selected_files = permitted_files
 
     query_filter = build_query_filter(
         selected_files=selected_files,

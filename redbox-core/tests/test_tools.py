@@ -2,16 +2,13 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 import pytest
-from opensearchpy import OpenSearch
 from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.messages import AIMessage
 from langgraph.prebuilt import ToolNode
+from opensearchpy import OpenSearch
+from torch import select_copy
 
-from redbox.graph.nodes.tools import (
-    build_govuk_search_tool,
-    build_search_documents_tool,
-    build_search_wikipedia_tool,
-)
+from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_documents_tool, build_search_wikipedia_tool
 from redbox.models.chain import AISettings, RedboxQuery, RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
 from redbox.models.settings import Settings
@@ -50,10 +47,7 @@ def test_search_documents_tool(
     * If documents are selected and there's no permission to get them
         * The length of the result is zero
     * If documents aren't selected and there's permission to get them
-        * The length of the result is equal to the rag_k parameter
-        * The result page content is a subset of all possible correct
-        page content
-        * The result contains only file_names from permitted S3 keys
+        * The length of the result is zero
     * If documents aren't selected and there's no permission to get them
         * The length of the result is zero
 
@@ -100,6 +94,9 @@ def test_search_documents_tool(
     )
 
     if not permission:
+        assert result_state["messages"][0].content == ""
+        assert result_state["messages"][0].artifact == []
+    elif not selected:
         assert result_state["messages"][0].content == ""
         assert result_state["messages"][0].artifact == []
     else:
