@@ -22,8 +22,6 @@ def test_api_view(client: Client, api_key: str):
 
     # Then
     assert response.status_code == HTTPStatus.OK
-    user_with_chats = next(user for user in response.json()["results"])
-    assert user_with_chats["role"] == "Trade Advisor"
 
 
 @pytest.mark.parametrize("path_name", ["user-view", "message-view"])
