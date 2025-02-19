@@ -60,7 +60,7 @@ def has_exceed_max_limit(state: RedboxState) -> Literal["max_exceeded", "pass"]:
         return "pass"
 
 
-def set_route_based_on_llm_answer_token_limit(prompt_set: PromptSet) -> Runnable[RedboxState, dict[str, Any]]:
+def set_route_based_on_token_limit(prompt_set: PromptSet) -> Runnable[RedboxState, dict[str, Any]]:
     """
     Set route
     Uses a set of prompts to calculate the total tokens used in this request and returns a label

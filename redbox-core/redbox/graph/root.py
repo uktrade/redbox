@@ -1,13 +1,11 @@
 from typing import List
 
-from altair import Then, condition
 from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.graph import CompiledGraph
 from langgraph.prebuilt import ToolNode
 from langgraph.pregel import RetryPolicy
-from mock import DEFAULT
 
 from redbox.chains.components import get_structured_response_with_citations_parser
 from redbox.chains.runnables import build_self_route_output_parser
@@ -74,7 +72,6 @@ def get_self_route_graph(retriever: VectorStoreRetriever, prompt_set: PromptSet,
 
     builder.add_node("p_set_search_route", build_set_route_pattern(ChatRoute.search))
     builder.add_node("p_clear_documents", clear_documents_process)
-    builder.add_node("set_route_based_on_token_limit", set_route_based_on_token_limit(PromptSet.ChatwithDocsMapReduce))
 
     # Edges
     builder.add_edge(START, "p_condense_question")
@@ -267,7 +264,7 @@ def get_chat_with_documents_graph(
         "p_activity_log_tool_decision",
         build_activity_log_node(lambda state: RedboxActivityEvent(message=f"Using _{state.route_name}_")),
     )
-
+    builder.add_node("set_route_based_on_token_limit", set_route_based_on_token_limit(PromptSet.ChatwithDocsMapReduce))
     # Decisions
     builder.add_node("d_single_doc_summaries_bigger_than_context", empty_process)
     builder.add_node("d_doc_summaries_bigger_than_context", empty_process)
@@ -300,7 +297,7 @@ def get_chat_with_documents_graph(
         lambda state: state.route_name == ChatRoute.search,
         {True: END, False: "set_route_based_on_token_limit"},
     )
-    builder.add_node("set_route_based_on_token_limit", set_route_based_on_token_limit(PromptSet.ChatwithDocsMapReduce))
+
     builder.add_edge("set_route_based_on_token_limit", "p_retrieve_all_chunks")
 
     builder.add_conditional_edges(
