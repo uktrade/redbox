@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from redbox_app.redbox_core.models import Chat, ChatMessage, ChatMessageTokenUse, File
+from redbox_app.redbox_core.models import ChatMessage, ChatMessageTokenUse, File
 
 User = get_user_model()
 
@@ -41,17 +41,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
         )
 
 
-class ChatSerializer(serializers.ModelSerializer):
-    messages = ChatMessageSerializer(source="chatmessage_set", many=True, read_only=True)
-
-    class Meta:
-        model = Chat
-        fields = ("id", "created_at", "modified_at", "messages")
-
-
 class UserSerializer(serializers.ModelSerializer):
-    chats = ChatSerializer(source="chat_set", many=True, read_only=True)
-
     class Meta:
         model = User
         fields = (
@@ -60,5 +50,7 @@ class UserSerializer(serializers.ModelSerializer):
             "grade",
             "profession",
             "role",
-            "chats",
+            "is_staff",
+            "is_active",
+            "is_superuser",
         )
