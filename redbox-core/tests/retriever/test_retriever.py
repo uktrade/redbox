@@ -51,10 +51,7 @@ def test_parameterised_retriever(
     * If documents are selected and there's no permission to get them
         * The length of the result is zero
     * If documents aren't selected and there's permission to get them
-        * The length of the result is equal to the rag_k parameter
-        * The result page content is a subset of all possible correct
-        page content
-        * The result contains only file_names from permitted S3 keys
+        * The length of the result is zero
     * If documents aren't selected and there's no permission to get them
         * The length of the result is zero
 
@@ -77,6 +74,8 @@ def test_parameterised_retriever(
     permission = bool(stored_file_parameterised.query.permitted_s3_keys)
 
     if not permission:
+        assert len(result) == 0
+    elif not selected:
         assert len(result) == 0
     else:
         assert len(result) == chain_params["rag_k"]
