@@ -10,10 +10,7 @@ from django.views.decorators.http import require_http_methods
 
 @require_http_methods(["GET"])
 def privacy_notice_view(request):
-    return render(
-        request,
-        "privacy-notice.html"
-    )
+    return render(request, "privacy-notice.html")
 
 
 @require_http_methods(["GET"])
