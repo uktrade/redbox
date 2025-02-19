@@ -35,19 +35,17 @@ def build_search_documents_tool(
     @tool(response_format="content_and_artifact")
     def _search_documents(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
         """
-        Search for documents uploaded by the user based on a query string.
+        "Searches through state.documents to find and extract relevant information. This tool should be used whenever a query involves finding, searching, or retrieving information from documents that have already been uploaded or provided to the system.
 
-        This function performs a search over the user's uploaded documents
-        and returns snippets from the documents ordered by relevance and
-        grouped by document.
+        The tool performs semantic search across all available documents. Results are automatically grouped by source document and ranked by relevance score. Each result includes document metadata (title, page/section) for context.
 
         Args:
-            query (str): The search query string used to match documents.
-                This could be a keyword, phrase, question, or text from
-                the documents.
-
+            query (str): The search query to match against document content.
+            - Can be natural language, keywords, or phrases
+            - More specific queries yield more precise results
+            - Query length should be 1-500 characters
         Returns:
-            dict[str, Any]: A collection of document objects that match the query.
+            dict[str, Any]: Collection of matching document snippets with metadata:
         """
         query_vector = embedding_model.embed_query(query)
         selected_files = state.request.s3_keys

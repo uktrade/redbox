@@ -85,6 +85,23 @@ def build_chat_prompt_from_messages_runnable(
     return _chat_prompt_from_messages
 
 
+@chain
+def final_response_if_needed(input_: dict) -> Runnable:
+    model_name = input_.get("metadata").llm_calls[0].llm_model_name
+    need_log = None
+    if not input_["final_chain"]:
+        need_log = False
+    else:
+        if input_.get("messages")[-1].tool_calls:
+            need_log = False
+        else:
+            need_log = True
+
+    return RunnablePassthrough.assign(
+        _log=RunnableLambda(lambda _: (log_activity(f"Generating response with {model_name}...") if need_log else None))
+    )
+
+
 def build_llm_chain(
     prompt_set: PromptSet,
     llm: BaseChatModel,
@@ -109,17 +126,14 @@ def build_llm_chain(
         "text_and_tools": _llm_text_and_tools,
         "prompt": RunnableLambda(lambda prompt: prompt.to_string()),
         "model": lambda _: model_name,
+        "final_chain": lambda _: final_response_chain,
     }
 
     return (
         build_chat_prompt_from_messages_runnable(prompt_set, format_instructions=format_instructions)
         | text_and_tools
         | get_all_metadata
-        | RunnablePassthrough.assign(
-            _log=RunnableLambda(
-                lambda _: (log_activity(f"Generating response with {model_name}...") if final_response_chain else None)
-            )
-        )
+        | final_response_if_needed
     )
 
 

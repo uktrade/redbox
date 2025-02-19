@@ -1,3 +1,5 @@
+from typing import List
+
 from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.graph import END, START, StateGraph
@@ -35,6 +37,7 @@ from redbox.models.chain import RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
+from langgraph.pregel import RetryPolicy
 
 
 def get_self_route_graph(retriever: VectorStoreRetriever, prompt_set: PromptSet, debug: bool = False):
@@ -150,14 +153,14 @@ def get_search_graph(
     return builder.compile(debug=debug)
 
 
-def get_agentic_search_graph(tools: dict[str, StructuredTool], debug: bool = False) -> CompiledGraph:
+def get_agentic_search_graph(tools: List[StructuredTool], debug: bool = False) -> CompiledGraph:
     """Creates a subgraph for agentic RAG."""
 
     citations_output_parser, format_instructions = get_structured_response_with_citations_parser()
     builder = StateGraph(RedboxState)
     # Tools
-    agent_tool_names = ["_search_documents", "_search_wikipedia", "_search_govuk"]
-    agent_tools: list[StructuredTool] = [tools[tool_name] for tool_name in agent_tool_names]
+    # agent_tool_names = ["_search_documents", "_search_wikipedia", "_search_govuk"]
+    # agent_tools: list[StructuredTool] = [tools[tool_name] for tool_name in agent_tool_names]
 
     # Processes
     builder.add_node("p_set_agentic_search_route", build_set_route_pattern(route=ChatRoute.gadget))
@@ -165,7 +168,7 @@ def get_agentic_search_graph(tools: dict[str, StructuredTool], debug: bool = Fal
         "p_search_agent",
         build_stuff_pattern(
             prompt_set=PromptSet.SearchAgentic,
-            tools=agent_tools,
+            tools=tools,
             output_parser=citations_output_parser,
             format_instructions=format_instructions,
             final_response_chain=False,  # Output parser handles streaming
@@ -173,7 +176,7 @@ def get_agentic_search_graph(tools: dict[str, StructuredTool], debug: bool = Fal
     )
     builder.add_node(
         "p_retrieval_tools",
-        ToolNode(tools=agent_tools),
+        ToolNode(tools=tools),
     )
     builder.add_node(
         "p_give_up_agent",
@@ -237,10 +240,12 @@ def get_chat_with_documents_graph(
     builder.add_node(
         "p_summarise_each_document",
         build_merge_pattern(prompt_set=PromptSet.ChatwithDocsMapReduce),
+        retry=RetryPolicy(max_attempts=3),
     )
     builder.add_node(
         "p_summarise_document_by_document",
         build_merge_pattern(prompt_set=PromptSet.ChatwithDocsMapReduce),
+        retry=RetryPolicy(max_attempts=3),
     )
     builder.add_node(
         "p_summarise",
@@ -248,6 +253,7 @@ def get_chat_with_documents_graph(
             prompt_set=PromptSet.ChatwithDocs,
             final_response_chain=True,
         ),
+        retry=RetryPolicy(max_attempts=3),
     )
     builder.add_node("p_clear_documents", clear_documents_process)
     builder.add_node(
@@ -399,7 +405,7 @@ def get_root_graph(
     all_chunks_retriever: VectorStoreRetriever,
     parameterised_retriever: VectorStoreRetriever,
     metadata_retriever: VectorStoreRetriever,
-    tools: dict[str, StructuredTool],
+    tools: List[StructuredTool],
     debug: bool = False,
 ) -> CompiledGraph:
     """Creates the core Redbox graph."""
@@ -416,12 +422,14 @@ def get_root_graph(
     )
     metadata_subgraph = get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
 
+    new_route = build_new_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, debug)
     # Processes
     builder.add_node("p_search", rag_subgraph)
     builder.add_node("p_search_agentic", agent_subgraph)
     builder.add_node("p_chat", chat_subgraph)
     builder.add_node("p_chat_with_documents", cwd_subgraph)
     builder.add_node("p_retrieve_metadata", metadata_subgraph)
+    builder.add_node("p_new_route", new_route)
 
     # Log
     builder.add_node(
@@ -451,6 +459,7 @@ def get_root_graph(
         {
             ChatRoute.search: "p_search",
             ChatRoute.gadget: "p_search_agentic",
+            ChatRoute.newroute: "p_new_route",
             "DEFAULT": "d_docs_selected",
         },
     )
@@ -468,3 +477,111 @@ def get_root_graph(
     builder.add_edge("p_chat_with_documents", END)
 
     return builder.compile(debug=debug)
+
+
+def strip_route(state: RedboxState):
+    state.request.question = state.request.question.replace("@newroute ", "")
+    return state
+
+
+def build_new_graph(
+    all_chunks_retriever: VectorStoreRetriever,
+    parameterised_retriever: VectorStoreRetriever,
+    metadata_retriever: VectorStoreRetriever,
+    tools: list[StructuredTool],
+    debug: bool = False,
+) -> CompiledGraph:
+    # initialise
+    citations_output_parser, format_instructions = get_structured_response_with_citations_parser()
+    builder = StateGraph(RedboxState)
+
+    # Subgraphs/may need to convert into tools
+    metadata_subgraph = get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
+    builder.add_node("p_strip_route", strip_route)
+    # Nodes
+    builder.add_node("p_retrieve_metadata", metadata_subgraph)
+    # add back when move to this graph
+    # Show activity logs from user request
+    # builder.add_node(
+    #     "p_activity_log_user_request",
+    #     build_activity_log_node(
+    #         lambda s: [
+    #             RedboxActivityEvent(
+    #                 message=f"You selected {len(s.request.s3_keys)} file{"s" if len(s.request.s3_keys)>1 else ""} - {",".join(s.request.s3_keys)}"
+    #             )
+    #             if len(s.request.s3_keys) > 0
+    #             else "You selected no files",
+    #         ]
+    #     ),
+    # )
+    builder.add_node(
+        "p_retrieve_docs",
+        build_retrieve_pattern(
+            retriever=all_chunks_retriever,
+            structure_func=structure_documents_by_file_name,
+            final_source_chain=False,
+        ),
+    )
+    builder.add_node("d_docs_selected", empty_process)
+    builder.add_node(
+        "p_search_agent",
+        build_stuff_pattern(
+            prompt_set=PromptSet.NewRoute,
+            tools=tools,
+            output_parser=citations_output_parser,
+            format_instructions=format_instructions,
+            final_response_chain=True,  # Output parser handles streaming
+        ),
+    )
+
+    builder.add_node(
+        "p_retrieval_tools",
+        ToolNode(tools=tools),
+    )
+    builder.add_node(
+        "p_give_up_agent",
+        build_stuff_pattern(prompt_set=PromptSet.GiveUpAgentic, final_response_chain=True),
+    )
+    builder.add_node("p_report_sources", report_sources_process)
+
+    builder.add_node(
+        "p_activity_log_retrieval_tool_calls",
+        build_activity_log_node(
+            lambda s: [
+                RedboxActivityEvent(message=get_log_formatter_for_retrieval_tool(tool_state_entry).log_call())
+                for tool_state_entry in s.last_message.tool_calls
+            ]
+        ),
+    )
+    builder.add_node("s_tool", empty_process)
+    builder.add_node("d_x_steps_left_or_less", empty_process)
+
+    # Edges
+    # builder.add_edge(START, "p_activity_log_user_request") # add back when move to this graph
+    builder.add_edge(START, "p_strip_route")
+    builder.add_edge("p_strip_route", "p_retrieve_metadata")
+    builder.add_edge("p_retrieve_metadata", "d_docs_selected")
+    builder.add_conditional_edges(
+        "d_docs_selected",
+        documents_selected_conditional,
+        {
+            True: "p_retrieve_docs",
+            False: "d_x_steps_left_or_less",
+        },
+    )
+    builder.add_edge("p_retrieve_docs", "d_x_steps_left_or_less")
+    builder.add_conditional_edges(
+        "d_x_steps_left_or_less",
+        lambda state: state.steps_left <= 8,
+        {
+            True: "p_give_up_agent",
+            False: "p_search_agent",
+        },
+    )
+    builder.add_edge("p_search_agent", "s_tool")
+    builder.add_edge("s_tool", "p_report_sources")
+    builder.add_edge("p_search_agent", "p_activity_log_retrieval_tool_calls")
+    builder.add_conditional_edges("s_tool", build_tool_send("p_retrieval_tools"), path_map=["p_retrieval_tools"])
+    builder.add_edge("p_retrieval_tools", "d_x_steps_left_or_less")
+    builder.add_edge("p_report_sources", END)
+    return builder.compile()

@@ -7,6 +7,7 @@ class ChatRoute(StrEnum):
     chat = "chat"
     chat_with_docs = "summarise"
     chat_with_docs_map_reduce = "chat/documents/large"
+    newroute = "newroute"
 
 
 class ErrorRoute(StrEnum):

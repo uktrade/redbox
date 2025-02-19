@@ -137,6 +137,7 @@ class AISettings(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
     chat_map_system_prompt = models.TextField(null=True, blank=True)
     chat_map_question_prompt = models.TextField(null=True, blank=True)
     reduce_system_prompt = models.TextField(null=True, blank=True)
+    new_route_retrieval_system_prompt = models.TextField(null=True, blank=True)
 
     # Elsticsearch RAG and boost values
     rag_k = models.PositiveIntegerField(null=True, blank=True)
@@ -189,12 +190,12 @@ class SSOUserManager(BaseSSOUserManager):
     use_in_migrations = True
 
     def _create_user(self, username, password, **extra_fields):
-        """Create and save a User with the given email and password."""
+        """Create and save a User with the given username and password."""
         if not username:
-            msg = "The given email must be set"
+            msg = "The given username must be set"
             raise ValueError(msg)
-        # email = self.normalize_email(email)
-        user = self.model(email=username, **extra_fields)
+        email = self.normalize_email(username)  # Normalize the email
+        user = self.model(username=username, email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
@@ -382,8 +383,8 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
         MORE_THAN_2_DAYS = "More than 2 days", _("More than 2 days")
         MORE_THAN_1_WEEK = "More than a week", _("More than a week")
 
-    username = models.EmailField(unique=True, default="default@default.com")
-    email = models.EmailField(unique=True)
+    username = models.EmailField(unique=True, blank=False, null=False)
+    email = models.EmailField()
     password = models.CharField("password", max_length=128, blank=True, null=True)
     first_name = models.CharField(max_length=48)
     last_name = models.CharField(max_length=48)

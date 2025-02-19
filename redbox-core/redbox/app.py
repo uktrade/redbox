@@ -2,7 +2,6 @@ from logging import getLogger
 from typing import Literal
 
 from langchain_core.embeddings import Embeddings
-from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
 
 from redbox.chains.components import (
@@ -65,12 +64,7 @@ class Redbox:
         search_wikipedia = build_search_wikipedia_tool()
         search_govuk = build_govuk_search_tool()
 
-        self.tools: dict[str, StructuredTool] = {
-            "_search_documents": search_documents,
-            "_search_govuk": search_govuk,
-            "_search_wikipedia": search_wikipedia,
-        }
-
+        self.tools = [search_documents, search_wikipedia, search_govuk]
         self.graph = get_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,
             parameterised_retriever=self.parameterised_retriever,

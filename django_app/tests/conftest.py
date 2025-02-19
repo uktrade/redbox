@@ -57,6 +57,11 @@ def s3_client():
     return client
 
 
+@pytest.fixture()
+def api_key():
+    return settings.REDBOX_API_KEY
+
+
 @pytest.fixture(autouse=True, scope="session")
 def _collect_static():
     call_command("collectstatic", "--no-input")
@@ -70,11 +75,6 @@ def default_ai_settings(db):  # noqa: ARG001
 
 
 @pytest.fixture()
-def api_key():
-    return settings.REDBOX_API_KEY
-
-
-@pytest.fixture()
 def create_user():
     def _create_user(
         username,
@@ -83,6 +83,9 @@ def create_user():
         business_unit=User.BusinessUnit.DIGITAL_DATA_AND_TECHNOLOGY,
         profession=User.Profession.IA,
         ai_experience=User.AIExperienceLevel.EXPERIENCED_NAVIGATOR,
+        role="Trade Advisor",
+        is_active=True,
+        is_superuser=True,
     ):
         return User.objects.create_user(
             is_staff=is_staff,
@@ -91,6 +94,9 @@ def create_user():
             profession=profession,
             ai_experience=ai_experience,
             username=username,
+            role=role,
+            is_active=is_active,
+            is_superuser=is_superuser,
         )
 
     return _create_user

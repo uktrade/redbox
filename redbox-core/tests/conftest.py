@@ -11,7 +11,12 @@ from langchain_community.vectorstores import OpenSearchVectorSearch
 from tiktoken.core import Encoding
 
 from redbox.models.settings import Settings
-from redbox.retriever import AllElasticsearchRetriever, MetadataRetriever, ParameterisedElasticsearchRetriever
+from redbox.retriever import (
+    AllElasticsearchRetriever,
+    MetadataRetriever,
+    ParameterisedElasticsearchRetriever,
+    OpenSearchRetriever,
+)
 from redbox.test.data import RedboxChatTestCase
 from tests.retriever.data import ALL_CHUNKS_RETRIEVER_CASES, METADATA_RETRIEVER_CASES, PARAMETERISED_RETRIEVER_CASES
 
@@ -72,9 +77,7 @@ def es_client(env: Settings) -> OpenSearch:
 
 
 @pytest.fixture(scope="session")
-def es_vector_store(
-    es_client: OpenSearch, es_index: str, embedding_model: FakeEmbeddings, env: Settings
-) -> OpenSearchVectorSearch:
+def es_vector_store(es_index: str, embedding_model: FakeEmbeddings, env: Settings) -> OpenSearchVectorSearch:
     # return ElasticsearchStore(
     #     index_name=es_index,
     #     es_connection=es_client,
@@ -101,17 +104,17 @@ def create_index(env: Settings, es_index: str) -> Generator[None, None, None]:
 
 
 @pytest.fixture(scope="session")
-def all_chunks_retriever(es_client: OpenSearch, es_index: str) -> AllElasticsearchRetriever:
+def all_chunks_retriever(env: Settings) -> OpenSearchRetriever:
     return AllElasticsearchRetriever(
-        es_client=es_client,
-        index_name=es_index,
+        es_client=env.elasticsearch_client(),
+        index_name=env.elastic_chunk_alias,
     )
 
 
 @pytest.fixture(scope="session")
 def parameterised_retriever(
     env: Settings, es_client: OpenSearch, es_index: str, embedding_model: FakeEmbeddings
-) -> ParameterisedElasticsearchRetriever:
+) -> OpenSearchRetriever:
     return ParameterisedElasticsearchRetriever(
         es_client=es_client,
         index_name=es_index,
@@ -121,8 +124,8 @@ def parameterised_retriever(
 
 
 @pytest.fixture(scope="session")
-def metadata_retriever(es_client: OpenSearch, es_index: str) -> MetadataRetriever:
-    return MetadataRetriever(es_client=es_client, index_name=es_index)
+def metadata_retriever(env: Settings) -> OpenSearchRetriever:
+    return MetadataRetriever(es_client=env.elasticsearch_client(), index_name=env.elastic_chunk_alias)
 
 
 # -----#
