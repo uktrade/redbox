@@ -67,6 +67,7 @@ def get_self_route_graph(retriever: VectorStoreRetriever, prompt_set: PromptSet,
             ),
             final_response_chain=False,
         ),
+        retry=RetryPolicy(max_attempts=3),
     )
     builder.add_node(
         "p_set_route_name_from_answer",
@@ -141,6 +142,7 @@ def get_search_graph(
     builder.add_node(
         "p_stuff_docs",
         build_stuff_pattern(prompt_set=prompt_set, final_response_chain=final_response),
+        retry=RetryPolicy(max_attempts=3),
     )
 
     # Edges
@@ -173,6 +175,7 @@ def get_agentic_search_graph(tools: List[StructuredTool], debug: bool = False) -
             format_instructions=format_instructions,
             final_response_chain=False,  # Output parser handles streaming
         ),
+        retry=RetryPolicy(max_attempts=3),
     )
     builder.add_node(
         "p_retrieval_tools",
@@ -181,6 +184,7 @@ def get_agentic_search_graph(tools: List[StructuredTool], debug: bool = False) -
     builder.add_node(
         "p_give_up_agent",
         build_stuff_pattern(prompt_set=PromptSet.GiveUpAgentic, final_response_chain=True),
+        retry=RetryPolicy(max_attempts=3),
     )
     builder.add_node("p_report_sources", report_sources_process)
 
