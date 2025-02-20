@@ -47,7 +47,7 @@ jobs:
       run: |
         cd integration
         mkdir -p data/elastic/
-        chmod -R 777 data/
+        chmod -R 777 data/elastic/
         cp tests/.env.integration .env
         echo AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} >> .env
         echo AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} >> .env
