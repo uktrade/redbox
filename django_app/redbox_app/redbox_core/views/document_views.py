@@ -97,7 +97,7 @@ class UploadView(View):
     def build_response(request: HttpRequest, errors: Sequence[str] | None = None) -> HttpResponse:
         return render(
             request,
-            template_name="upload.html",
+        template_name="upload.html",
             context={
                 "request": request,
                 "errors": {"upload_doc": errors or []},
