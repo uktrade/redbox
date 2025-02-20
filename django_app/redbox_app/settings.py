@@ -328,7 +328,7 @@ if not ENVIRONMENT.is_local:
             send_default_pii=False,
             traces_sample_rate=1.0,
             before_send_transaction=filter_transactions,
-            debug=False
+            debug=False,
         )
 SENTRY_REPORT_TO_ENDPOINT = URL(env.str("SENTRY_REPORT_TO_ENDPOINT", "")) or None
 
