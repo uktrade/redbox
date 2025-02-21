@@ -64,6 +64,8 @@ repos:
           - --skip-dirs
           - ./.idea
           - --skip-dirs
+          - ./.aws
+          - --skip-dirs
           - ./django_app/.venv
           - --skip-files
           - ./.env
