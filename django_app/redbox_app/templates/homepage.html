@@ -17,10 +17,15 @@
                                 href=url('sign-in'),
                                 classes="govuk-button--secondary govuk-!-margin-bottom-0 rb-banner__button"
                             ) }}
+                        {% else %}
+                            {{ govukButton(
+                                text = "Start a chat",
+                                href=url('chats'),
+                                classes="govuk-button--secondary govuk-!-margin-bottom-0 rb-banner__button"
+                            ) }}
                         {% endif %}
                     </div>
-                
-                
+
             </div>
         </div>
     </div>
@@ -103,7 +108,7 @@
                     Not at all, the interface for Redbox comprises a document upload feature and a chat feature.  No technical skills are required,
                     but an understanding of what large language models are and what they can do makes an enormous different to users when interacting
                     with them.  The principal skill to use Redbox well comes down to a skill called 'prompt engineering', which is just natural language
-                    you type in and get the tool to respond.  There are some great Gov.uk short courses on generative AI you may consider taking: 
+                    you type in and get the tool to respond.  There are some great Gov.uk short courses on generative AI you may consider taking:
                     <a href="https://cddo.blog.gov.uk/2024/01/19/artificial-intelligence-introducing-our-series-of-online-courses-on-generative-ai/" class="govuk-link">See the courses here</a>.
                 </p>
             </div>
@@ -152,13 +157,13 @@
             <div class="govuk-accordion__section-header">
                 <h2 class="govuk-accordion__section-heading">
                     <span class="govuk-accordion__section-button" id="faq-question-6">
-                        What are the main things Redbox can do? 
+                        What are the main things Redbox can do?
                     </span>
                 </h2>
             </div>
             <div class="govuk-accordion__section-content" id="faq-content-6">
                 <p class="govuk-body">
-                    Redbox allows you to chat to a LLM, summarise and interact with documents (up to around 140 pages), and even search within documents.  Here are some 
+                    Redbox allows you to chat to a LLM, summarise and interact with documents (up to around 140 pages), and even search within documents.  Here are some
                     helpful insights into those:
                 </p>
                 <h4 class="govuk-heading-m govuk-!-margin-top-1">Chat</h4>
@@ -203,7 +208,7 @@
             <div class="govuk-accordion__section-header">
                 <h2 class="govuk-accordion__section-heading">
                     <span class="govuk-accordion__section-button" id="faq-question-7">
-                        What can’t Redbox do? 
+                        What can’t Redbox do?
                     </span>
                 </h2>
             </div>
@@ -227,13 +232,13 @@
             <div class="govuk-accordion__section-header">
                 <h2 class="govuk-accordion__section-heading">
                     <span class="govuk-accordion__section-button" id="faq-question-8">
-                        Why can Redbox get things wrong? 
+                        Why can Redbox get things wrong?
                     </span>
                 </h2>
             </div>
             <div class="govuk-accordion__section-content" id="faq-content-8">
                 <p class="govuk-body">
-                    Redbox can get things wrong for several reasons, primarily due to its reliance on patterns found in the training data of the LLM rather than true understanding or 
+                    Redbox can get things wrong for several reasons, primarily due to its reliance on patterns found in the training data of the LLM rather than true understanding or
                     reasoning.  Redbox may generate inaccurate information because they lack context awareness, leading to misinterpretations, especially in complex or nuanced scenarios.
                     Additionally, biases inherent in the LLM training data can result in the propagation of errors, stereotypes, or nonsensical outputs, further compromising the accuracy of Redbox' responses.
                     For more information, read the FAQ section on 'hallucinations' above.
