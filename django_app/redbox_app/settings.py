@@ -309,7 +309,7 @@ else:
 
 if not ENVIRONMENT.is_local:
 
-    def filter_transactions(event):
+    def filter_transactions(event, _hint):
         url_string = event["request"]["url"]
         parsed_url = urlparse(url_string)
         if parsed_url.path.startswith("/admin"):
@@ -327,8 +327,8 @@ if not ENVIRONMENT.is_local:
             environment=SENTRY_ENVIRONMENT,
             send_default_pii=False,
             traces_sample_rate=1.0,
-            profiles_sample_rate=0.0,
             before_send_transaction=filter_transactions,
+            debug=False,
         )
 SENTRY_REPORT_TO_ENDPOINT = URL(env.str("SENTRY_REPORT_TO_ENDPOINT", "")) or None
 
