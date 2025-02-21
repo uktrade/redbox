@@ -1,7 +1,7 @@
 site_name: Redbox
 site_description: Bringing Generative AI to the way the Civil Service works
 site_author: Incubator for AI
-repo_url: https://github.com/i-dot-ai/redbox
+repo_url: https://github.com/uktrade/redbox
 
 theme:
   
@@ -129,7 +129,7 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/i-dot-ai/redbox
     - icon: fontawesome/solid/envelope
-      link: mailto:i-dot-ai-enquiries@cabinetoffice.gov.uk
+      link: mailto:redbox@businessandtrade.gov.uk
     - icon: fontawesome/solid/globe
       link: https://ai.gov.uk
   generator: false
