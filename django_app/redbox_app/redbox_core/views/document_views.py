@@ -153,17 +153,17 @@ def remove_doc_view(request, doc_id: uuid):
     if request.method == "POST":
         try:
             file.delete_from_elastic()
+            file.delete_from_s3()
+            file.status = File.Status.deleted
+            file.save()
+            logger.info("Removing document: %s", request.POST["doc_id"])
         except Exception as e:
             logger.exception("Error deleting file object %s.", file, exc_info=e)
             errors.append("There was an error deleting this file")
             file.status = File.Status.errored
             file.save()
-        else:
-            logger.info("Removing document: %s", request.POST["doc_id"])
-            file.delete_from_s3()
-            file.status = File.Status.deleted
-            file.save()
-            return redirect("documents")
+
+        return redirect("documents")
 
     return render(
         request,
