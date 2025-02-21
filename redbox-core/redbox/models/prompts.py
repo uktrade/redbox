@@ -195,14 +195,12 @@ REDUCE_SYSTEM_PROMPT = (
 )
 
 CONDENSE_SYSTEM_PROMPT = (
-    "Given the following conversation and a follow up question, generate a follow "
-    "up question to be a standalone question. "
-    "You are only allowed to generate one question in response. "
-    "Include sources from the chat history in the standalone question created, "
-    "when they are available. "
-    "If you don't know the answer, just say that you don't know, "
-    "don't try to make up an answer. \n"
+    "Rephrase the given question into multiple concise, standalone questions suitable for searching in a vector database. "
+    "Ensure the rephrased question is a clear and complete question, accurately capturing the core intent without including any additional context or sources from the conversation history. "
+    "If you cannot rephrase the question effectively, simply respond with 'I don't know'. "
+    "Do not start your answer by saying: here is a standalone follow-up question. Go straight to the point."
 )
+
 
 CHAT_QUESTION_PROMPT = "{question}\n=========\n Response: "
 
