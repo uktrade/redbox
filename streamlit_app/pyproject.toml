@@ -6,7 +6,7 @@ target-version = 'py312'
 name = "redbox-streamlit"
 version = "0.1.0"
 description = "Use Redbox easily as an AI Engineer"
-authors = ["i.AI <i-dot-ai-enquiries@cabinetoffice.gov.uk>"]
+authors = ["DBT Redbox <redbox@businessandtrade.gov.uk>", "i.AI <i-dot-ai-enquiries@cabinetoffice.gov.uk>"]
 license = "MIT"
 readme = "../README.md"
 
