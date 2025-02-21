@@ -2,7 +2,7 @@
 name = "redbox_app"
 version = "0.5.0"
 description = ""
-authors = ["i.AI <i-dot-ai-enquiries@cabinetoffice.gov.uk>"]
+authors = ["DBT Redbox <redbox@businessandtrade.gov.uk>", "i.AI <i-dot-ai-enquiries@cabinetoffice.gov.uk>"]
 license = "MIT"
 
 [tool.poetry.dependencies]

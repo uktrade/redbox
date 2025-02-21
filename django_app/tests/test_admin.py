@@ -9,7 +9,7 @@ from django.test import Client
 from django.urls import reverse
 
 from redbox_app.redbox_core.models import ChatMessage
-from redbox_app.redbox_core.serializers import ChatMessageSerializer, ChatSerializer, UserSerializer
+from redbox_app.redbox_core.serializers import ChatMessageSerializer, UserSerializer
 
 User = get_user_model()
 
@@ -93,39 +93,18 @@ def test_message_serializer(chat_message_with_citation_and_tokens: ChatMessage):
 
 
 @pytest.mark.django_db()
-def test_chat_serializer(chat_message_with_citation: ChatMessage):
-    actual = ChatSerializer().to_representation(chat_message_with_citation.chat)
-    assert "id" in actual
-    assert "created_at" in actual
-    assert "modified_at" in actual
-    assert "messages" in actual
-    assert isinstance(actual["messages"], list)
-    assert len(actual["messages"]) == 1
-    message = actual["messages"][0]
-    assert "id" in message
-    assert "created_at" in message
-    assert "modified_at" in message
-    assert "text" in message
-    assert message["text"] == "An answer."
-    assert "role" in message
-    assert "selected_files" in message
-    assert "source_files" in message
-    assert "rating" in message
-    assert "rating_text" in message
-    assert "rating_chips" in message
-    assert "token_use" in message
-
-
-@pytest.mark.django_db()
 def test_user_serializer(chat_message_with_citation: ChatMessage):
     expected = {
         "ai_experience": "Experienced Navigator",
         "business_unit": "Digital, Data and Technology (DDaT)",
         "grade": "D",
         "profession": "IA",
+        "role": "Trade Advisor",
+        "is_staff": False,
+        "is_active": True,
+        "is_superuser": True,
     }
     actual = UserSerializer().to_representation(chat_message_with_citation.chat.user)
+
     for k, v in expected.items():
         assert actual[k] == v, k
-
-    assert actual["chats"][0]["messages"][0]["text"] == "An answer."

@@ -29,9 +29,9 @@ All types of contributions are encouraged and valued. See the [Table of Contents
 ## Code of Conduct
 
 This project and everyone participating in it is governed by the
-[Redbox Code of Conduct](https://github.com/i-dot-ai/redbox/blob/main/CODE_OF_CONDUCT.md).
+[Redbox Code of Conduct](https://github.com/uktrade/redbox/blob/main/CODE_OF_CONDUCT.md).
 By participating, you are expected to uphold this code. Please report unacceptable behavior
-to i-dot-ai-enquiries@cabinetoffice.gov.uk
+to redbox@businessandtrade.gov.uk
 
 
 ## I Have a Question
