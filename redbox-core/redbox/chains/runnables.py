@@ -9,7 +9,6 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import Runnable, RunnableGenerator, RunnableLambda, RunnablePassthrough, chain
-from tiktoken import Encoding
 
 from redbox.api.format import format_documents
 from redbox.chains.activity import log_activity
@@ -17,7 +16,7 @@ from redbox.chains.components import get_tokeniser
 from redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_prompts
 from redbox.models.errors import QuestionLengthError
 from redbox.models.graph import RedboxEventType
-from redbox.transform import flatten_document_state, get_all_metadata
+from redbox.transform import bedrock_tokeniser, flatten_document_state, get_all_metadata
 
 log = logging.getLogger()
 re_string_pattern = re.compile(r"(\S+)")
@@ -25,7 +24,7 @@ re_string_pattern = re.compile(r"(\S+)")
 
 def build_chat_prompt_from_messages_runnable(
     prompt_set: PromptSet,
-    tokeniser: Encoding = None,
+    tokeniser: callable = bedrock_tokeniser,
     format_instructions: str = "",
     additional_variables: dict | None = None,
 ) -> Runnable:
@@ -49,7 +48,7 @@ def build_chat_prompt_from_messages_runnable(
             {ai_settings.persona_info_prompt}
             {ai_settings.caller_info_prompt}
             """
-        prompts_budget = len(_tokeniser.encode(task_system_prompt)) + len(_tokeniser.encode(task_question_prompt))
+        prompts_budget = bedrock_tokeniser(task_system_prompt) + bedrock_tokeniser(task_question_prompt)
         chat_history_budget = ai_settings.context_window_size - ai_settings.llm_max_tokens - prompts_budget
 
         if chat_history_budget <= 0:
@@ -57,7 +56,7 @@ def build_chat_prompt_from_messages_runnable(
 
         truncated_history: list[ChainChatMessage] = []
         for msg in state.request.chat_history[::-1]:
-            chat_history_budget -= len(_tokeniser.encode(msg["text"]))
+            chat_history_budget -= _tokeniser(msg["text"])
             if chat_history_budget <= 0:
                 break
             else:
