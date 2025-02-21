@@ -6,7 +6,6 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolCall
 from langchain_core.retrievers import BaseRetriever
 from langgraph.graph import END, START, StateGraph
 from pytest_mock import MockerFixture
-from tiktoken.core import Encoding
 
 from redbox.chains.runnables import CannedChatLLM, build_chat_prompt_from_messages_runnable, build_llm_chain
 from redbox.graph.nodes.processes import (
@@ -55,7 +54,7 @@ CHAT_PROMPT_TEST_CASES = generate_test_cases(
 
 
 @pytest.mark.parametrize(("test_case"), CHAT_PROMPT_TEST_CASES, ids=[t.test_id for t in CHAT_PROMPT_TEST_CASES])
-def test_build_chat_prompt_from_messages_runnable(test_case: RedboxChatTestCase, tokeniser: Encoding):
+def test_build_chat_prompt_from_messages_runnable(test_case: RedboxChatTestCase, tokeniser: callable):
     """Tests a given state can be turned into a chat prompt."""
     chat_prompt = build_chat_prompt_from_messages_runnable(prompt_set=PromptSet.Chat, tokeniser=tokeniser)
     state = RedboxState(request=test_case.query)

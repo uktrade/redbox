@@ -2,13 +2,11 @@ from collections.abc import Generator
 from typing import TYPE_CHECKING
 
 import pytest
-import tiktoken
 from _pytest.fixtures import FixtureRequest
 from botocore.exceptions import ClientError
 from opensearchpy import OpenSearch
 from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_community.vectorstores import OpenSearchVectorSearch
-from tiktoken.core import Encoding
 
 from redbox.models.settings import Settings
 from redbox.retriever import (
@@ -19,6 +17,7 @@ from redbox.retriever import (
 )
 from redbox.test.data import RedboxChatTestCase
 from tests.retriever.data import ALL_CHUNKS_RETRIEVER_CASES, METADATA_RETRIEVER_CASES, PARAMETERISED_RETRIEVER_CASES
+from redbox.transform import bedrock_tokeniser
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -52,8 +51,8 @@ def s3_client(env: Settings) -> S3Client:
 
 
 @pytest.fixture(scope="session")
-def tokeniser() -> Encoding:
-    return tiktoken.get_encoding("cl100k_base")
+def tokeniser() -> callable:
+    return bedrock_tokeniser
 
 
 @pytest.fixture(scope="session")

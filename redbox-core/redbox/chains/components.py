@@ -3,8 +3,6 @@ import logging
 import os
 from functools import cache
 
-import tiktoken
-
 from dotenv import load_dotenv
 from langchain_core.embeddings import Embeddings, FakeEmbeddings
 from langchain_core.tools import StructuredTool
@@ -26,6 +24,7 @@ from redbox.retriever import (
 from langchain_community.embeddings import BedrockEmbeddings
 from langchain.chat_models import init_chat_model
 from redbox.models.chain import StructuredResponseWithCitations
+from redbox.transform import bedrock_tokeniser
 
 
 logger = logging.getLogger(__name__)
@@ -45,8 +44,8 @@ def get_chat_llm(model: ChatLLMBackend, tools: list[StructuredTool] | None = Non
 
 
 @cache
-def get_tokeniser() -> tiktoken.Encoding:
-    return tiktoken.get_encoding("cl100k_base")
+def get_tokeniser() -> callable:
+    return bedrock_tokeniser
 
 
 def get_azure_embeddings(env: Settings):
