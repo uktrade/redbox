@@ -37,7 +37,7 @@ class OpenSearchSettings(BaseModel):
     collection_endpoint__username: Optional[str] = parsed_url.username
     collection_endpoint__password: Optional[str] = parsed_url.password
     collection_endpoint__host: Optional[str] = parsed_url.hostname
-    collection_endpoint__port: Optional[str] = "443"
+    collection_endpoint__port: Optional[str] = "9200"
     collection_endpoint__port_local: Optional[str] = "9200"  # locally, the port number is 9200
 
 
