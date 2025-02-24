@@ -63,6 +63,10 @@ repos:
           - ./tests
           - --skip-dirs
           - ./.idea
+          - --skip-dirs
+          - ./.aws
+          - --skip-dirs
+          - ./django_app/.venv
           - --skip-files
           - ./.env
           - --skip-files
@@ -102,4 +106,3 @@ repos:
     hooks:
       - id: ruff
         args: [ --fix ]
-

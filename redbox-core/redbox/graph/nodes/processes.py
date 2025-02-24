@@ -2,10 +2,14 @@ import json
 import logging
 import re
 import textwrap
+import time
+from random import uniform
 from collections.abc import Callable
 from functools import reduce
 from typing import Any, Iterable
 from uuid import uuid4
+
+from botocore.exceptions import EventStreamError
 
 from langchain.schema import StrOutputParser
 from langchain_core.callbacks.manager import dispatch_custom_event
@@ -88,6 +92,8 @@ def build_merge_pattern(
     If tools are supplied, can also set state["tool_calls"].
     """
     tokeniser = get_tokeniser()
+    MAX_RETRIES = 5
+    BACKOFF_FACTOR = 1.5
 
     @RunnableLambda
     def _merge(state: RedboxState) -> dict[str, Any]:
@@ -106,13 +112,26 @@ def build_merge_pattern(
             ),
         )
 
-        merge_response = build_llm_chain(
-            prompt_set=prompt_set, llm=llm, final_response_chain=final_response_chain
-        ).invoke(merge_state)
+        retries = 0
+        while retries < MAX_RETRIES:
+            try:
+                merge_response = build_llm_chain(
+                    prompt_set=prompt_set, llm=llm, final_response_chain=final_response_chain
+                ).invoke(merge_state)
+
+                # if reaches a successful citation, exit the loop
+                break
+
+            except EventStreamError as e:
+                retries += 1
+                if retries >= MAX_RETRIES:
+                    raise e
+                wait_time = BACKOFF_FACTOR**retries + uniform(0, 1)
+                time.sleep(wait_time)
 
         merged_document.page_content = merge_response["messages"][-1].content
         request_metadata = merge_response["metadata"]
-        merged_document.metadata["token_count"] = len(tokeniser.encode(merged_document.page_content))
+        merged_document.metadata["token_count"] = tokeniser(merged_document.page_content)
 
         group_uuid = next(iter(state.documents.groups or {}), uuid4())
         document_uuid = merged_document.metadata.get("uuid", uuid4())
