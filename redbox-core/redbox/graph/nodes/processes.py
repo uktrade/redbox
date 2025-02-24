@@ -131,7 +131,7 @@ def build_merge_pattern(
 
         merged_document.page_content = merge_response["messages"][-1].content
         request_metadata = merge_response["metadata"]
-        merged_document.metadata["token_count"] = len(tokeniser.encode(merged_document.page_content))
+        merged_document.metadata["token_count"] = tokeniser(merged_document.page_content)
 
         group_uuid = next(iter(state.documents.groups or {}), uuid4())
         document_uuid = merged_document.metadata.get("uuid", uuid4())

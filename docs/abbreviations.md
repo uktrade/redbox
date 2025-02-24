@@ -15,6 +15,7 @@
 *[CDDO]: Central Digital and Data Office
 *[DSIT]: Department for Science, Innovation and Technology
 *[CO]: Cabinet Office
+*[DBT]: Department for Business and Trade
 *[PenTest]: Penetration Testing
 *[DevOps]: Development and Operations
 *[REST]: Representational State Transfer

@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 
 import environ
 import requests
-import tiktoken
 from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
 from pydantic import ValidationError
@@ -17,6 +16,7 @@ from redbox.chains.parser import ClaudeParser
 from redbox.models.chain import GeneratedMetadata
 from redbox.models.file import ChunkResolution, UploadedFileMetadata
 from redbox.models.settings import Settings
+from redbox.transform import bedrock_tokeniser
 
 env = environ.Env()
 
@@ -25,7 +25,7 @@ ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
-encoding = tiktoken.get_encoding("cl100k_base")
+tokeniser = bedrock_tokeniser
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -200,7 +200,7 @@ class UnstructuredChunkLoader:
                     uri=file_name,
                     page_number=raw_chunk["metadata"].get("page_number"),
                     created_datetime=datetime.now(UTC),
-                    token_count=len(encoding.encode(raw_chunk["text"])),
+                    token_count=tokeniser(raw_chunk["text"]),
                     chunk_resolution=self.chunk_resolution,
                     name=self.metadata.name,
                     description=self.metadata.description,
