@@ -1,31 +1,29 @@
 import logging
-
 import os
 from functools import cache
 
 from dotenv import load_dotenv
+from langchain.chat_models import init_chat_model
+from langchain_community.embeddings import BedrockEmbeddings
 from langchain_core.embeddings import Embeddings, FakeEmbeddings
-from langchain_core.tools import StructuredTool
 from langchain_core.runnables import Runnable
+from langchain_core.tools import StructuredTool
 from langchain_core.utils import convert_to_secret_str
 
 # from langchain_elasticsearch import ElasticsearchRetriever
 from langchain_openai.embeddings import AzureOpenAIEmbeddings, OpenAIEmbeddings
 
-
 from redbox.chains.parser import StreamingJsonOutputParser
+from redbox.models.chain import StructuredResponseWithCitations
 from redbox.models.settings import ChatLLMBackend, Settings
 from redbox.retriever import (
     AllElasticsearchRetriever,
-    ParameterisedElasticsearchRetriever,
+    BasicMetadataRetriever,
     MetadataRetriever,
     OpenSearchRetriever,
+    ParameterisedElasticsearchRetriever,
 )
-from langchain_community.embeddings import BedrockEmbeddings
-from langchain.chat_models import init_chat_model
-from redbox.models.chain import StructuredResponseWithCitations
 from redbox.transform import bedrock_tokeniser
-
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -113,6 +111,13 @@ def get_parameterised_retriever(env: Settings, embeddings: Embeddings | None = N
 
 def get_metadata_retriever(env: Settings):
     return MetadataRetriever(
+        es_client=env.elasticsearch_client(),
+        index_name=env.elastic_chunk_alias,
+    )
+
+
+def get_basic_metadata_retriever(env: Settings):
+    return BasicMetadataRetriever(
         es_client=env.elasticsearch_client(),
         index_name=env.elastic_chunk_alias,
     )
