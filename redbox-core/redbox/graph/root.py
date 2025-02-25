@@ -560,6 +560,7 @@ def get_root_graph(
     builder.add_node("p_chat_with_documents", cwd_subgraph)
     builder.add_node("p_retrieve_metadata", metadata_subgraph)
     builder.add_node("p_new_route", new_route)
+    builder.add_node("p_summarise", get_summarise_graph(all_chunks_retriever))
 
     # Log
     builder.add_node(
@@ -590,6 +591,7 @@ def get_root_graph(
             ChatRoute.search: "p_search",
             ChatRoute.gadget: "p_search_agentic",
             ChatRoute.newroute: "p_new_route",
+            ChatRoute.summarise: "p_summarise",
             "DEFAULT": "d_docs_selected",
         },
     )
