@@ -5,6 +5,7 @@ from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.graph import CompiledGraph
 from langgraph.prebuilt import ToolNode
+from langgraph.pregel import RetryPolicy
 
 from redbox.chains.components import get_structured_response_with_citations_parser
 from redbox.chains.runnables import build_self_route_output_parser
@@ -37,7 +38,47 @@ from redbox.models.chain import RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
-from langgraph.pregel import RetryPolicy
+
+
+def get_search_graph_new(
+    retriever: VectorStoreRetriever,
+    prompt_set: PromptSet = PromptSet.Search,
+    debug: bool = False,
+    final_sources: bool = True,
+    final_response: bool = True,
+) -> CompiledGraph:
+    """Creates a subgraph for retrieval augmented generation (RAG)."""
+    builder = StateGraph(RedboxState)
+
+    # Processes
+    builder.add_node("set_search_route", build_set_route_pattern(route=ChatRoute.search))
+    builder.add_node("llm_generate_query", build_chat_pattern(prompt_set=PromptSet.CondenseQuestion))
+    builder.add_node(
+        "retrieve_documents",
+        build_retrieve_pattern(
+            retriever=retriever,
+            structure_func=structure_documents_by_group_and_indices,
+            final_source_chain=final_sources,
+        ),
+    )
+    # citations_output_parser, format_instructions = get_structured_response_with_citations_parser()
+    builder.add_node(
+        "llm_answer_question",
+        build_stuff_pattern(prompt_set=prompt_set, final_response_chain=final_response),
+        retry=RetryPolicy(max_attempts=3),
+    )
+
+    # Edges
+    builder.add_edge(START, "set_search_route")
+    builder.add_edge("set_search_route", "llm_generate_query")
+    builder.add_edge("llm_generate_query", "retrieve_documents")
+    builder.add_edge("retrieve_documents", "llm_answer_question")
+    # builder.add_conditional_edges(
+    #     "llm_answer_question", lambda s: s.request.ai_settings.self_route_enabled, {False: END}
+    # )
+    builder.add_edge("llm_answer_question", END)
+
+    return builder.compile(debug=debug)
 
 
 def get_self_route_graph(retriever: VectorStoreRetriever, prompt_set: PromptSet, debug: bool = False):
@@ -417,7 +458,8 @@ def get_root_graph(
 
     # Subgraphs
     chat_subgraph = get_chat_graph(debug=debug)
-    rag_subgraph = get_search_graph(retriever=parameterised_retriever, debug=debug)
+    # rag_subgraph = get_search_graph(retriever=parameterised_retriever, debug=debug)
+    rag_subgraph = get_search_graph_new(retriever=parameterised_retriever, debug=debug)
     agent_subgraph = get_agentic_search_graph(tools=tools, debug=debug)
     cwd_subgraph = get_chat_with_documents_graph(
         all_chunks_retriever=all_chunks_retriever,
