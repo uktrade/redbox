@@ -69,7 +69,7 @@ def get_all(
     )
 
     return {
-        "_source": {"excludes": ["*embedding"]},
+        "_source": {"excludes": ["vector_field"]},
         "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
     }
 
@@ -85,7 +85,7 @@ def get_metadata(
     )
 
     return {
-        "_source": {"excludes": ["*embedding", "text"]},
+        "_source": {"excludes": ["vector_field", "text"]},
         "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
     }
 
