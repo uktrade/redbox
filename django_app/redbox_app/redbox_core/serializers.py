@@ -50,6 +50,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = (
             "id",
+            "email",
             "ai_experience",
             "business_unit",
             "grade",
@@ -58,4 +59,5 @@ class UserSerializer(serializers.ModelSerializer):
             "is_staff",
             "is_active",
             "is_superuser",
+            "last_login",
         )
