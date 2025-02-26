@@ -40,19 +40,27 @@ from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
 
+def get_summarise_graph():
+    builder = StateGraph(RedboxState)
+    builder.add_node("temp", empty_process)
+    builder.add_edge(START, "temp")
+    builder.add_edge("temp", END)
+
+    return builder.compile()
+
+
 def get_search_graph_new(
     retriever: VectorStoreRetriever,
     prompt_set: PromptSet = PromptSet.Search,
     debug: bool = False,
     final_sources: bool = True,
-    final_response: bool = True,
 ) -> CompiledGraph:
     """Creates a subgraph for retrieval augmented generation (RAG)."""
     builder = StateGraph(RedboxState)
 
     # Processes
     builder.add_node("set_search_route", build_set_route_pattern(route=ChatRoute.search))
-    builder.add_node("llm_generate_query", build_chat_pattern(prompt_set=PromptSet.CondenseQuestion))
+    builder.add_node("llm_generate_query", build_chat_pattern(prompt_set=PromptSet.SelfRoute))
     builder.add_node(
         "retrieve_documents",
         build_retrieve_pattern(
@@ -61,21 +69,47 @@ def get_search_graph_new(
             final_source_chain=final_sources,
         ),
     )
-    # citations_output_parser, format_instructions = get_structured_response_with_citations_parser()
     builder.add_node(
         "llm_answer_question",
-        build_stuff_pattern(prompt_set=prompt_set, final_response_chain=final_response),
+        build_stuff_pattern(prompt_set=prompt_set, final_response_chain=True),
         retry=RetryPolicy(max_attempts=3),
     )
+
+    def rag_cannot_answer(llm_response: str):
+        return "unanswerable" in llm_response
+
+    builder.add_node(
+        "check_if_RAG_can_answer",
+        build_stuff_pattern(
+            prompt_set=prompt_set,
+            output_parser=build_self_route_output_parser(
+                match_condition=rag_cannot_answer,
+                max_tokens_to_check=4,
+                final_response_chain=True,
+            ),
+            final_response_chain=False,
+        ),
+        retry=RetryPolicy(max_attempts=3),
+    )
+    builder.add_node("summarise_graph", get_summarise_graph())
+    builder.add_node("is_self_route_on", empty_process)
 
     # Edges
     builder.add_edge(START, "set_search_route")
     builder.add_edge("set_search_route", "llm_generate_query")
     builder.add_edge("llm_generate_query", "retrieve_documents")
-    builder.add_edge("retrieve_documents", "llm_answer_question")
-    # builder.add_conditional_edges(
-    #     "llm_answer_question", lambda s: s.request.ai_settings.self_route_enabled, {False: END}
-    # )
+    builder.add_edge("retrieve_documents", "is_self_route_on")
+    builder.add_conditional_edges(
+        "is_self_route_on",
+        lambda s: s.request.ai_settings.self_route_enabled,
+        {True: "check_if_RAG_can_answer", False: "llm_answer_question"},
+    )
+    builder.add_edge("llm_answer_question", END)
+
+    builder.add_conditional_edges(
+        "check_if_RAG_can_answer", lambda s: rag_cannot_answer(s.last_message), {True: "summarise_graph", False: END}
+    )
+
     builder.add_edge("llm_answer_question", END)
 
     return builder.compile(debug=debug)
