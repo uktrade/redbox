@@ -115,39 +115,7 @@ def build_document_query(
         "size": ai_settings.rag_k,
         "query": {
             "bool": {
-                "should": [
-                    {
-                        "match": {
-                            "text": {
-                                "query": query,
-                                "boost": ai_settings.match_boost,
-                            }
-                        },
-                    },
-                    {
-                        "match": {
-                            "metadata.name": {
-                                "query": query,
-                                "boost": ai_settings.match_name_boost,
-                            }
-                        }
-                    },
-                    {
-                        "match": {
-                            "metadata.description": {
-                                "query": query,
-                                "boost": ai_settings.match_description_boost,
-                            }
-                        }
-                    },
-                    {
-                        "match": {
-                            "metadata.keywords": {
-                                "query": query,
-                                "boost": ai_settings.match_keywords_boost,
-                            }
-                        }
-                    },
+                "must": [
                     {
                         "knn": {
                             "vector_field": {
