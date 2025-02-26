@@ -163,6 +163,7 @@ def create_user(email_address: str):
         "createsuperuser",
         "--username",
         email_address,
+        "--noinput"
     ]
     result = subprocess.run(command, capture_output=True, text=True, check=True)  # noqa: S603
     logger.debug("create_user result: %s", result)

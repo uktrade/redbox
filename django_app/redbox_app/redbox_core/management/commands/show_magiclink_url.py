@@ -22,7 +22,9 @@ class Command(BaseCommand):
         logger.debug("user email: %s", user_email)
 
         try:
-            user: User = User.objects.get(email=user_email)
+            print('hello')
+            print([user.username for user in User.objects.all()])
+            user: User = User.objects.get(username=user_email)
         except User.DoesNotExist as e:
             message = f"No User found with email {user_email}"
             raise CommandError(message) from e
@@ -32,12 +34,12 @@ class Command(BaseCommand):
             logger.debug("latest: %s", latest)
             link: MagicLink = MagicLink.objects.get(user=user, created_at=latest)
         except MagicLink.DoesNotExist as e:
-            message = f"No MagicLink found for user {user.email}"
+            message = f"No MagicLink found for user {user.username}"
             raise CommandError(message) from e
 
         logger.debug("link: %s", link)
         if link.is_valid:
             self.stdout.write(self.style.SUCCESS(link.get_absolute_url()))
         else:
-            message = f"No active link for user {user.email}"
+            message = f"No active link for user {user.username}"
             raise CommandError(message)
