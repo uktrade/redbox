@@ -1,4 +1,4 @@
-from enum import StrEnum
+from enum import Enum, StrEnum
 
 
 class ChatRoute(StrEnum):
@@ -12,3 +12,8 @@ class ChatRoute(StrEnum):
 
 class ErrorRoute(StrEnum):
     files_too_large = "error/files_too_large"
+
+
+class ToolEnum(Enum):
+    search = "search"
+    summarise = "summarise"

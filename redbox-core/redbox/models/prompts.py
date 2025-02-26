@@ -201,6 +201,42 @@ CONDENSE_SYSTEM_PROMPT = (
     "Do not start your answer by saying: here is a standalone follow-up question. Go straight to the point."
 )
 
+LLM_DECIDE_ROUTE = """Given analysis request and document demtadata, determine whether to use search or summarise tools.
+
+Context:
+- Search tool: Used to find and analyze specific relevant sections in a document
+- Summarise tool: Used to create an overview of the entire document's content
+
+Please analyze the following request:
+{question}
+
+Follow these steps to determine the appropriate tool:
+
+1. Identify the key requirements in the request:
+   - Is it asking for specific information or general overview?
+   - Are there specific topics/keywords mentioned?
+   - Is the scope focused or broad?
+
+2. Evaluate request characteristics:
+   - Does it need comprehensive coverage or targeted information?
+   - Are there specific questions to answer?
+   - Is context from the entire document needed?
+
+3. Recommend either search or summarise based on:
+   - If focused/specific information is needed → Recommend search
+   - If general overview/main points needed → Recommend summarise
+   - Priortise search tool if both tools can be used to produce good answer
+
+- Recommended Tool: [Search/Summarise]
+
+Provide your recommendation in this format:
+\n{format_instructions}\n
+
+Analysis request:
+{question}
+
+Document metadata: {metadata}
+"""
 
 CHAT_QUESTION_PROMPT = "{question}\n=========\n Response: "
 

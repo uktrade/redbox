@@ -12,6 +12,7 @@ from langgraph.managed.is_last_step import RemainingStepsManager
 from pydantic import BaseModel, Field
 
 from redbox.models import prompts
+from redbox.models.chat import ToolEnum
 from redbox.models.settings import ChatLLMBackend
 
 
@@ -60,6 +61,7 @@ class AISettings(BaseModel):
     chat_map_question_prompt: str = prompts.CHAT_MAP_QUESTION_PROMPT
     reduce_system_prompt: str = prompts.REDUCE_SYSTEM_PROMPT
     new_route_retrieval_system_prompt: str = prompts.NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT
+    llm_decide_route_prompt: str = prompts.LLM_DECIDE_ROUTE
 
     # Elasticsearch RAG and boost values
     rag_k: int = 30
@@ -378,3 +380,7 @@ class GeneratedMetadata(BaseModel):
     name: str = Field(description="document name", default="")
     description: str | None = Field(description="document description", default="")
     keywords: list[str] = Field(description="document keywords", default_factory=list)
+
+
+class AgentDecision(BaseModel):
+    next: ToolEnum = ToolEnum.search
