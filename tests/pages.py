@@ -143,7 +143,7 @@ class SignInPage(BasePage):
 class SignInLinkSentPage(BasePage):
     @property
     def expected_page_title(self) -> str:
-        return "Sign up - Redbox"
+        return "Sign in - link sent - Redbox"
 
 
 class SignInConfirmationPage(BasePage):

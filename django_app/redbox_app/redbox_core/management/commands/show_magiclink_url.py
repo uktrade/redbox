@@ -22,8 +22,6 @@ class Command(BaseCommand):
         logger.debug("user email: %s", user_email)
 
         try:
-            print('hello')
-            print([user.username for user in User.objects.all()])
             user: User = User.objects.get(username=user_email)
         except User.DoesNotExist as e:
             message = f"No User found with email {user_email}"
