@@ -93,10 +93,10 @@ def get_search_graph_new(
     )
     builder.add_node("summarise_graph", get_summarise_graph())
     builder.add_node("is_self_route_on", empty_process)
-
+    builder.add_node("clear_documents", clear_documents_process)
+    builder.add_node("RAG_cannot_answer", empty_process)
     # Edges
-    builder.add_edge(START, "set_search_route")
-    builder.add_edge("set_search_route", "llm_generate_query")
+    builder.add_edge(START, "llm_generate_query")
     builder.add_edge("llm_generate_query", "retrieve_documents")
     builder.add_edge("retrieve_documents", "is_self_route_on")
     builder.add_conditional_edges(
@@ -104,13 +104,16 @@ def get_search_graph_new(
         lambda s: s.request.ai_settings.self_route_enabled,
         {True: "check_if_RAG_can_answer", False: "llm_answer_question"},
     )
-    builder.add_edge("llm_answer_question", END)
+    builder.add_edge("llm_answer_question", "set_search_route")
+    builder.add_edge("check_if_RAG_can_answer", "RAG_cannot_answer")
 
     builder.add_conditional_edges(
-        "check_if_RAG_can_answer", lambda s: rag_cannot_answer(s.last_message), {True: "summarise_graph", False: END}
+        "RAG_cannot_answer",
+        lambda s: rag_cannot_answer(s.last_message),
+        {True: "clear_documents", False: "set_search_route"},
     )
-
-    builder.add_edge("llm_answer_question", END)
+    builder.add_edge("clear_documents", "summarise_graph")
+    builder.add_edge("set_search_route", END)
 
     return builder.compile(debug=debug)
 
