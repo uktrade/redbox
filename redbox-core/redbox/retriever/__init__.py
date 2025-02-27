@@ -1,8 +1,9 @@
 from .retrievers import (
     AllElasticsearchRetriever,
-    ParameterisedElasticsearchRetriever,
+    BasicMetadataRetriever,
     MetadataRetriever,
     OpenSearchRetriever,
+    ParameterisedElasticsearchRetriever,
 )
 
 __all__ = [
@@ -10,4 +11,5 @@ __all__ = [
     "AllElasticsearchRetriever",
     "MetadataRetriever",
     "OpenSearchRetriever",
+    "BasicMetadataRetriever",
 ]
