@@ -90,6 +90,23 @@ def get_metadata(
     }
 
 
+def get_minimum_metadata(
+    chunk_resolution: ChunkResolution | None,
+    state: RedboxState,
+) -> dict[str, Any]:
+    """Retrive document metadata without page_content"""
+    query_filter = build_query_filter(
+        selected_files=state.request.s3_keys,
+        permitted_files=state.request.permitted_s3_keys,
+        chunk_resolution=chunk_resolution,
+    )
+
+    return {
+        "_source": {"includes": ["metadata.name", "metadata.description", "metadata.keywords"]},
+        "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
+    }
+
+
 def build_document_query(
     query: str,
     query_vector: list[float],
