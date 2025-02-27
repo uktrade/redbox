@@ -31,7 +31,7 @@ SECRET_KEY = env.str("DJANGO_SECRET_KEY")
 ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
 WEBSOCKET_SCHEME = "ws" if ENVIRONMENT.is_test else "wss"
 LOGIN_METHOD = env.str("LOGIN_METHOD", None)
-USE_CLAM_AV = env.bool("USE_CLAM_AV",)
+USE_CLAM_AV = env.bool("USE_CLAM_AV")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG")
