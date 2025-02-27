@@ -591,6 +591,14 @@ main:has(.iai-chat-bubble) .chat-options {
   }
 }
 
+.iai-chat-input__input {
+  background-color: white;
+  border: #767676 1px solid;
+  min-height: 1.5em;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
 .exit-feedback {
   background-color: #f3edc9;
   display: none;
