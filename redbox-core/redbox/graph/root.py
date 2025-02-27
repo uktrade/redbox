@@ -54,6 +54,9 @@ def get_summarise_graph():
 def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, debug):
     agent_parser = ClaudeParser(pydantic_object=AgentDecision)
 
+    def lm_choose_route_wrapper(state: RedboxState):
+        return lm_choose_route(state, parser=agent_parser)
+
     builder = StateGraph(RedboxState)
     builder.add_node("has_keyword", empty_process)
     builder.add_node(
@@ -65,8 +68,10 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
         "new_route_graph",
         build_new_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, debug),
     )
+    builder.add_node("chat_graph", get_chat_graph(debug=debug))
     builder.add_node("is_self_route_enabled", empty_process)
-    builder.add_node("llm_choose_route", lm_choose_route(parser=agent_parser))
+    builder.add_node("any_documents_selected", empty_process)
+    builder.add_node("llm_choose_route", empty_process)
     builder.add_node("summarise_graph", get_summarise_graph())
     builder.add_node(
         "log_user_request",
@@ -80,7 +85,6 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
             ]
         ),
     )
-    builder.add_node("summarise_graph", get_summarise_graph())
     # edges
     builder.add_edge(START, "log_user_request")
     builder.add_edge(START, "retrieve_metadata")
@@ -92,7 +96,7 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
             ChatRoute.search: "search_graph",
             ChatRoute.gadget: "gadget_graph",
             ChatRoute.newroute: "new_route_graph",
-            ChatRoute.summarise: "summarise_graph",
+            ChatRoute.chat_with_docs: "summarise_graph",
             "DEFAULT": "any_documents_selected",
         },
     )
@@ -111,13 +115,14 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
     )
     builder.add_conditional_edges(
         "llm_choose_route",
-        lambda s: s.last_message.next.value,
+        lm_choose_route_wrapper,
         {"search": "search_graph", "summarise": "summarise_graph"},
     )
     builder.add_edge("search_graph", END)
     builder.add_edge("gadget_graph", END)
     builder.add_edge("new_route_graph", END)
     builder.add_edge("summarise_graph", END)
+    return builder.compile()
 
 
 def get_self_route_graph(retriever: VectorStoreRetriever, prompt_set: PromptSet, debug: bool = False):

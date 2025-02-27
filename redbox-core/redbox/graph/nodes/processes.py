@@ -14,17 +14,22 @@ from langchain.schema import StrOutputParser
 from langchain_core.callbacks.manager import dispatch_custom_event
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, HumanMessage
-from langchain_core.runnables import Runnable, RunnableLambda, RunnableParallel, chain
+from langchain_core.runnables import (Runnable, RunnableLambda,
+                                      RunnableParallel)
 from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
 
 from redbox.chains.activity import log_activity
-from redbox.chains.components import get_basic_metadata_retriever, get_chat_llm, get_tokeniser
+from redbox.chains.components import (get_basic_metadata_retriever,
+                                      get_chat_llm, get_tokeniser)
 from redbox.chains.parser import ClaudeParser
-from redbox.chains.runnables import CannedChatLLM, basic_chat_chain, build_llm_chain
+from redbox.chains.runnables import (CannedChatLLM, basic_chat_chain,
+                                     build_llm_chain)
 from redbox.models import ChatRoute
-from redbox.models.chain import DocumentState, PromptSet, RedboxState, RequestMetadata
-from redbox.models.graph import ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActivityEvent, RedboxEventType
+from redbox.models.chain import (DocumentState, PromptSet, RedboxState,
+                                 RequestMetadata)
+from redbox.models.graph import (ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG,
+                                 RedboxActivityEvent, RedboxEventType)
 from redbox.models.settings import get_settings
 from redbox.transform import combine_documents, flatten_document_state
 
@@ -339,13 +344,13 @@ def build_activity_log_node(
     return _activity_log_node
 
 
-def lm_choose_route(parser: ClaudeParser):
+def lm_choose_route(state: RedboxState, parser: ClaudeParser):
     """
     LLM choose the route (search/summarise) based on user question and file metadata
     """
     metadata = None
 
-    @chain
+    @RunnableLambda
     def get_metadata(state: RedboxState):
         nonlocal metadata
         env = get_settings()
@@ -353,7 +358,7 @@ def lm_choose_route(parser: ClaudeParser):
         metadata = retriever.invoke(state)
         return state
 
-    @chain
+    @RunnableLambda
     def use_result(state: RedboxState):
         chain = basic_chat_chain(
             system_prompt=state.request.ai_settings.llm_decide_route_prompt,
@@ -362,4 +367,6 @@ def lm_choose_route(parser: ClaudeParser):
         )
         return chain.invoke(state)
 
-    return get_metadata | use_result
+    chain = get_metadata | use_result
+    res = chain.invoke(state)
+    return res.next.value
