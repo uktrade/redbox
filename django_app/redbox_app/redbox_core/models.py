@@ -16,9 +16,9 @@ from django.contrib.postgres.fields import ArrayField
 from django.core import validators
 from django.db import models
 from django.db.models import Max, Min, Prefetch, UniqueConstraint
-from django_chunk_upload_handlers.clam_av import validate_virus_check_result
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django_chunk_upload_handlers.clam_av import validate_virus_check_result
 from yarl import URL
 
 from redbox.models.settings import get_settings
@@ -531,7 +531,7 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
     original_file = models.FileField(
         storage=settings.STORAGES["default"]["BACKEND"],
         upload_to=build_s3_key,
-        validators=[validate_virus_check_result] if settings.USE_CLAM_AV else []
+        validators=[validate_virus_check_result] if settings.USE_CLAM_AV else [],
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     original_file_name = models.TextField(max_length=2048, blank=True, null=True)  # delete me

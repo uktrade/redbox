@@ -6,6 +6,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import environ
+from regex import F
 import sentry_sdk
 from dbt_copilot_python.database import database_from_env
 from django.urls import reverse_lazy
@@ -31,7 +32,7 @@ SECRET_KEY = env.str("DJANGO_SECRET_KEY")
 ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
 WEBSOCKET_SCHEME = "ws" if ENVIRONMENT.is_test else "wss"
 LOGIN_METHOD = env.str("LOGIN_METHOD", None)
-USE_CLAM_AV = env.bool("USE_CLAM_AV")
+USE_CLAM_AV = env.bool("USE_CLAM_AV", default=False)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG")
@@ -460,7 +461,7 @@ REDBOX_API_KEY = env.str("REDBOX_API_KEY")
 
 ENABLE_METADATA_EXTRACTION = env.str("ENABLE_METADATA_EXTRACTION")
 
-CLAM_AV_USERNAME=env.str("CLAM_AV_USERNAME", " ")
-CLAM_AV_PASSWORD=env.str("CLAM_AV_PASSWORD", " ")
-CLAM_AV_DOMAIN=env.str("CLAM_AV_DOMAIN", " ")
-USE_CLAM_AV=env.str("USE_CLAM_AV")
+CLAM_AV_USERNAME = env.str("CLAM_AV_USERNAME", " ")
+CLAM_AV_PASSWORD = env.str("CLAM_AV_PASSWORD", " ")
+CLAM_AV_DOMAIN = env.str("CLAM_AV_DOMAIN", " ")
+USE_CLAM_AV = env.str("USE_CLAM_AV")
