@@ -6,7 +6,6 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import environ
-from regex import F
 import sentry_sdk
 from dbt_copilot_python.database import database_from_env
 from django.urls import reverse_lazy
