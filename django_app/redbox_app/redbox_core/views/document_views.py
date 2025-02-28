@@ -92,7 +92,7 @@ class UploadView(View):
             if self.is_doc_file(uploaded_file):
                 uploaded_files[index] = self.convert_doc_to_docx(uploaded_file)
             # handling utf8 compatibility
-            elif not self.is_utf8_compatible(uploaded_file):
+            if not self.is_utf8_compatible(uploaded_file):
                 uploaded_files[index] = self.convert_to_utf8(uploaded_file)
 
         if not errors:
