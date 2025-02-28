@@ -90,6 +90,23 @@ def get_metadata(
     }
 
 
+def get_minimum_metadata(
+    chunk_resolution: ChunkResolution | None,
+    state: RedboxState,
+) -> dict[str, Any]:
+    """Retrive document metadata without page_content"""
+    query_filter = build_query_filter(
+        selected_files=state.request.s3_keys,
+        permitted_files=state.request.permitted_s3_keys,
+        chunk_resolution=chunk_resolution,
+    )
+
+    return {
+        "_source": {"includes": ["metadata.name", "metadata.description", "metadata.keywords"]},
+        "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
+    }
+
+
 def build_document_query(
     query: str,
     query_vector: list[float],
@@ -113,47 +130,16 @@ def build_document_query(
 
     return {
         "size": ai_settings.rag_k,
+        "min_score": 0.65,
         "query": {
             "bool": {
-                "should": [
-                    {
-                        "match": {
-                            "text": {
-                                "query": query,
-                                "boost": ai_settings.match_boost,
-                            }
-                        },
-                    },
-                    {
-                        "match": {
-                            "metadata.name": {
-                                "query": query,
-                                "boost": ai_settings.match_name_boost,
-                            }
-                        }
-                    },
-                    {
-                        "match": {
-                            "metadata.description": {
-                                "query": query,
-                                "boost": ai_settings.match_description_boost,
-                            }
-                        }
-                    },
-                    {
-                        "match": {
-                            "metadata.keywords": {
-                                "query": query,
-                                "boost": ai_settings.match_keywords_boost,
-                            }
-                        }
-                    },
+                "must": [
                     {
                         "knn": {
                             "vector_field": {
                                 "vector": query_vector,
                                 "k": ai_settings.rag_num_candidates,
-                                "boost": ai_settings.knn_boost,
+                                # "boost": ai_settings.knn_boost,
                                 "filter": query_filter,
                             }
                         }
