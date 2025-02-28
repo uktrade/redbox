@@ -42,15 +42,6 @@ from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
 
-def get_summarise_graph():
-    builder = StateGraph(RedboxState)
-    builder.add_node("temp", empty_process)
-    builder.add_edge(START, "temp")
-    builder.add_edge("temp", END)
-
-    return builder.compile()
-
-
 def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, debug):
     agent_parser = ClaudeParser(pydantic_object=AgentDecision)
 
@@ -72,7 +63,7 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
     builder.add_node("is_self_route_enabled", empty_process)
     builder.add_node("any_documents_selected", empty_process)
     builder.add_node("llm_choose_route", empty_process)
-    builder.add_node("summarise_graph", get_summarise_graph())
+    builder.add_node("summarise_graph", get_summarise_graph(all_chunks_retriever=all_chunks_retriever))
     builder.add_node(
         "log_user_request",
         build_activity_log_node(
@@ -122,6 +113,132 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
     builder.add_edge("gadget_graph", END)
     builder.add_edge("new_route_graph", END)
     builder.add_edge("summarise_graph", END)
+    return builder.compile()
+
+
+def get_summarise_graph(all_chunks_retriever):
+    builder = StateGraph(RedboxState)
+    builder.add_node("choose_route_based_on_request_token", empty_process)
+    builder.add_node("set_route_to_summarise_large_doc", build_set_route_pattern(ChatRoute.chat_with_docs_map_reduce))
+    builder.add_node("set_route_to_summarise_doc", build_set_route_pattern(ChatRoute.chat_with_docs))
+    builder.add_node("pass_user_prompt_to_LLM_message", build_passthrough_pattern())
+    builder.add_node("clear_documents", clear_documents_process)
+
+    builder.add_node("document_has_multiple_chunks", empty_process)
+    builder.add_node("any_summarised_docs_bigger_than_context_window", empty_process)
+    builder.add_node("any_document_bigger_than_context_window", empty_process)
+
+    builder.add_node("sending_chunks_to_summarise", empty_process)
+    builder.add_node("sending_summarised_chunks_checking_exceed_context", empty_process)
+    builder.add_node("sending_summarised_chunks", empty_process)
+
+    builder.add_node(
+        "summarise_summarised_chunks",
+        build_merge_pattern(prompt_set=PromptSet.ChatwithDocsMapReduce),
+        retry=RetryPolicy(max_attempts=3),
+    )
+
+    builder.add_node(
+        "files_too_large_error",
+        build_error_pattern(
+            text="These documents are too large to work with.",
+            route_name=ErrorRoute.files_too_large,
+        ),
+    )
+
+    builder.add_node(
+        "retrieve_all_chunks",
+        build_retrieve_pattern(
+            retriever=all_chunks_retriever,
+            structure_func=structure_documents_by_file_name,
+            final_source_chain=True,
+        ),
+    )
+    builder.add_node(
+        "summarise_each_chunk_in_document",
+        build_merge_pattern(prompt_set=PromptSet.ChatwithDocsMapReduce),
+        retry=RetryPolicy(max_attempts=3),
+    )
+
+    # edges
+    builder.add_edge(START, "choose_route_based_on_request_token")
+    builder.add_conditional_edges(
+        "choose_route_based_on_request_token",
+        build_total_tokens_request_handler_conditional(PromptSet.ChatwithDocsMapReduce),
+        {
+            "max_exceeded": "files_too_large_error",
+            "context_exceeded": "set_route_to_summarise_large_doc",
+            "pass": "set_route_to_summarise_doc",
+        },
+    )
+    builder.add_edge("set_route_to_summarise_large_doc", "pass_user_prompt_to_LLM_message")
+    builder.add_edge("set_route_to_summarise_doc", "pass_user_prompt_to_LLM_message")
+    builder.add_edge("pass_user_prompt_to_LLM_message", "retrieve_all_chunks")
+    builder.add_conditional_edges(
+        "retrieve_all_chunks",
+        lambda s: s.route_name,
+        {
+            ChatRoute.chat_with_docs: "summarise_document",
+            ChatRoute.chat_with_docs_map_reduce: "sending_chunks_to_summarise",
+        },
+    )
+
+    # summarise process
+    builder.add_node(
+        "summarise_document",
+        build_stuff_pattern(
+            prompt_set=PromptSet.ChatwithDocs,
+            final_response_chain=True,
+        ),
+        retry=RetryPolicy(max_attempts=3),
+    )
+    builder.add_edge("summarise_document", "clear_documents")
+
+    # summarise large documents process
+    builder.add_conditional_edges(
+        "sending_chunks_to_summarise",
+        build_document_chunk_send("summarise_each_chunk_in_document"),
+        path_map=["summarise_each_chunk_in_document"],
+    )
+    builder.add_edge("summarise_each_chunk_in_document", "document_has_multiple_chunks")
+    builder.add_conditional_edges(
+        "document_has_multiple_chunks",
+        multiple_docs_in_group_conditional,
+        {
+            True: "sending_summarised_chunks_checking_exceed_context",
+            False: "any_summarised_docs_bigger_than_context_window",
+        },
+    )
+    builder.add_conditional_edges(
+        "sending_summarised_chunks_checking_exceed_context",
+        build_document_group_send("any_document_bigger_than_context_window"),
+        path_map=["any_document_bigger_than_context_window"],
+    )
+    builder.add_conditional_edges(
+        "any_document_bigger_than_context_window",
+        build_documents_bigger_than_context_conditional(PromptSet.ChatwithDocsMapReduce),
+        {
+            True: "files_too_large_error",
+            False: "sending_summarised_chunks",
+        },
+    )
+    builder.add_conditional_edges(
+        "sending_summarised_chunks",
+        build_document_group_send("summarise_summarised_chunks"),
+        path_map=["summarise_summarised_chunks"],
+    )
+    builder.add_edge("summarise_summarised_chunks", "any_summarised_docs_bigger_than_context_window")
+    builder.add_conditional_edges(
+        "any_summarised_docs_bigger_than_context_window",
+        build_documents_bigger_than_context_conditional(PromptSet.ChatwithDocs),
+        {
+            True: "files_too_large_error",
+            False: "summarise_document",
+        },
+    )
+    builder.add_edge("summarise_document", "clear_documents")
+    builder.add_edge("clear_documents", END)
+    builder.add_edge("files_too_large_error", END)
     return builder.compile()
 
 
@@ -519,6 +636,7 @@ def get_root_graph(
     builder.add_node("p_chat_with_documents", cwd_subgraph)
     builder.add_node("p_retrieve_metadata", metadata_subgraph)
     builder.add_node("p_new_route", new_route)
+    builder.add_node("p_summarise", get_summarise_graph(all_chunks_retriever))
 
     # Log
     builder.add_node(
@@ -549,6 +667,7 @@ def get_root_graph(
             ChatRoute.search: "p_search",
             ChatRoute.gadget: "p_search_agentic",
             ChatRoute.newroute: "p_new_route",
+            ChatRoute.summarise: "p_summarise",
             "DEFAULT": "d_docs_selected",
         },
     )
