@@ -8,38 +8,111 @@ from langgraph.graph.graph import CompiledGraph
 from langgraph.prebuilt import ToolNode
 from langgraph.pregel import RetryPolicy
 
-from redbox.chains.components import get_structured_response_with_citations_parser
+from redbox.chains.components import \
+    get_structured_response_with_citations_parser
+from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import build_self_route_output_parser
 from redbox.graph.edges import (
     build_documents_bigger_than_context_conditional,
     build_keyword_detection_conditional,
     build_total_tokens_request_handler_conditional,
-    documents_selected_conditional,
-    multiple_docs_in_group_conditional,
-)
-from redbox.graph.nodes.processes import (
-    PromptSet,
-    build_activity_log_node,
-    build_chat_pattern,
-    build_error_pattern,
-    build_merge_pattern,
-    build_passthrough_pattern,
-    build_retrieve_pattern,
-    build_set_metadata_pattern,
-    build_set_route_pattern,
-    build_set_self_route_from_llm_answer,
-    build_stuff_pattern,
-    clear_documents_process,
-    empty_process,
-    report_sources_process,
-)
-from redbox.graph.nodes.sends import build_document_chunk_send, build_document_group_send, build_tool_send
+    documents_selected_conditional, multiple_docs_in_group_conditional)
+from redbox.graph.nodes.processes import (PromptSet, build_activity_log_node,
+                                          build_chat_pattern,
+                                          build_error_pattern,
+                                          build_merge_pattern,
+                                          build_passthrough_pattern,
+                                          build_retrieve_pattern,
+                                          build_set_metadata_pattern,
+                                          build_set_route_pattern,
+                                          build_set_self_route_from_llm_answer,
+                                          build_stuff_pattern,
+                                          clear_documents_process,
+                                          empty_process, lm_choose_route,
+                                          report_sources_process)
+from redbox.graph.nodes.sends import (build_document_chunk_send,
+                                      build_document_group_send,
+                                      build_tool_send)
 from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
-from redbox.models.chain import RedboxState
+from redbox.models.chain import AgentDecision, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
-from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
+from redbox.transform import (structure_documents_by_file_name,
+                              structure_documents_by_group_and_indices)
 
+
+def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, debug):
+    agent_parser = ClaudeParser(pydantic_object=AgentDecision)
+
+    def lm_choose_route_wrapper(state: RedboxState):
+        return lm_choose_route(state, parser=agent_parser)
+
+    builder = StateGraph(RedboxState)
+    builder.add_node("has_keyword", empty_process)
+    builder.add_node(
+        "retrieve_metadata", get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
+    )
+    builder.add_node("search_graph", get_search_graph(retriever=parameterised_retriever, debug=debug))
+    builder.add_node("gadget_graph", get_agentic_search_graph(tools=tools, debug=debug))
+    builder.add_node(
+        "new_route_graph",
+        build_new_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, debug),
+    )
+    builder.add_node("chat_graph", get_chat_graph(debug=debug))
+    builder.add_node("is_self_route_enabled", empty_process)
+    builder.add_node("any_documents_selected", empty_process)
+    builder.add_node("llm_choose_route", empty_process)
+    builder.add_node("summarise_graph", get_summarise_graph(all_chunks_retriever=all_chunks_retriever))
+    builder.add_node(
+        "log_user_request",
+        build_activity_log_node(
+            lambda s: [
+                RedboxActivityEvent(
+                    message=f"You selected {len(s.request.s3_keys)} file{"s" if len(s.request.s3_keys)>1 else ""} - {",".join(s.request.s3_keys)}"
+                )
+                if len(s.request.s3_keys) > 0
+                else "You selected no files",
+            ]
+        ),
+    )
+    # edges
+    builder.add_edge(START, "log_user_request")
+    builder.add_edge(START, "retrieve_metadata")
+    builder.add_edge("retrieve_metadata", "has_keyword")
+    builder.add_conditional_edges(
+        "has_keyword",
+        build_keyword_detection_conditional(*ROUTABLE_KEYWORDS.keys()),
+        {
+            ChatRoute.search: "search_graph",
+            ChatRoute.gadget: "gadget_graph",
+            ChatRoute.newroute: "new_route_graph",
+            ChatRoute.chat_with_docs: "summarise_graph",
+            "DEFAULT": "any_documents_selected",
+        },
+    )
+    builder.add_conditional_edges(
+        "any_documents_selected",
+        documents_selected_conditional,
+        {
+            True: "is_self_route_enabled",
+            False: "chat_graph",
+        },
+    )
+    builder.add_conditional_edges(
+        "is_self_route_enabled",
+        lambda s: s.request.ai_settings.self_route_enabled,
+        {True: "llm_choose_route", False: "summarise_graph"},
+    )
+    builder.add_conditional_edges(
+        "llm_choose_route",
+        lm_choose_route_wrapper,
+        {"search": "search_graph", "summarise": "summarise_graph"},
+    )
+    builder.add_edge("search_graph", END)
+    builder.add_edge("gadget_graph", END)
+    builder.add_edge("new_route_graph", END)
+    builder.add_edge("summarise_graph", END)
+    return builder.compile()
 
 def get_search_graph(
     retriever: VectorStoreRetriever,
