@@ -497,7 +497,7 @@ def test_llm_choose_route(test_case: RedboxChatTestCase, basic_metadata: BaseRet
     llm = GenericFakeChatModel(messages=iter(test_case.test_data.llm_responses))
     llm._default_config = {"model": "bedrock"}
 
-    mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=llm)
+    mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
     agent_parser = ClaudeParser(pydantic_object=AgentDecision)
     state = RedboxState(request=test_case.query, documents=structure_documents_by_file_name(test_case.docs))
 
