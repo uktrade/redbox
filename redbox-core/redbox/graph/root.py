@@ -51,8 +51,16 @@ def get_search_graph(
     builder = StateGraph(RedboxState)
 
     # Processes
-    builder.add_node("set_route_to_search", build_set_route_pattern(route=ChatRoute.search))
-    builder.add_node("llm_generate_query", build_chat_pattern(prompt_set=PromptSet.CondenseQuestion))
+    builder.add_node(
+        "set_route_to_search",
+        build_set_route_pattern(route=ChatRoute.search),
+        retry=RetryPolicy(max_attempts=3),
+    )
+    builder.add_node(
+        "llm_generate_query",
+        build_chat_pattern(prompt_set=PromptSet.CondenseQuestion),
+        retry=RetryPolicy(max_attempts=3),
+    )
     builder.add_node(
         "retrieve_documents",
         build_retrieve_pattern(
@@ -60,13 +68,18 @@ def get_search_graph(
             structure_func=structure_documents_by_group_and_indices,
             final_source_chain=final_sources,
         ),
+        retry=RetryPolicy(max_attempts=3),
     )
     builder.add_node(
         "llm_answer_question",
         build_stuff_pattern(prompt_set=prompt_set, final_response_chain=True),
         retry=RetryPolicy(max_attempts=3),
     )
-    builder.add_node("set_route_to_summarise", build_set_route_pattern(route=ChatRoute.summarise))
+    builder.add_node(
+        "set_route_to_summarise",
+        build_set_route_pattern(route=ChatRoute.summarise),
+        retry=RetryPolicy(max_attempts=3),
+    )
 
     def rag_cannot_answer(llm_response: str):
         if isinstance(llm_response, AIMessage):
@@ -86,9 +99,21 @@ def get_search_graph(
         ),
         retry=RetryPolicy(max_attempts=3),
     )
-    builder.add_node("is_self_route_on", empty_process)
-    builder.add_node("clear_documents", clear_documents_process)
-    builder.add_node("RAG_cannot_answer", empty_process)
+    builder.add_node(
+        "is_self_route_on",
+        empty_process,
+        retry=RetryPolicy(max_attempts=3),
+    )
+    builder.add_node(
+        "clear_documents",
+        clear_documents_process,
+        retry=RetryPolicy(max_attempts=3),
+    )
+    builder.add_node(
+        "RAG_cannot_answer",
+        empty_process,
+        retry=RetryPolicy(max_attempts=3),
+    )
     # Edges
     builder.add_edge(START, "llm_generate_query")
     builder.add_edge("llm_generate_query", "retrieve_documents")
@@ -328,52 +353,6 @@ def get_chat_graph(
     builder.add_edge(START, "p_set_chat_route")
     builder.add_edge("p_set_chat_route", "p_chat")
     builder.add_edge("p_chat", END)
-
-    return builder.compile(debug=debug)
-
-
-def get_search_graph(
-    retriever: VectorStoreRetriever,
-    prompt_set: PromptSet = PromptSet.Search,
-    debug: bool = False,
-    final_sources: bool = True,
-    final_response: bool = True,
-) -> CompiledGraph:
-    """Creates a subgraph for retrieval augmented generation (RAG)."""
-    builder = StateGraph(RedboxState)
-
-    # Processes
-    builder.add_node(
-        "p_set_search_route",
-        build_set_route_pattern(route=ChatRoute.search),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_condense_question",
-        build_chat_pattern(prompt_set=PromptSet.CondenseQuestion),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_retrieve_docs",
-        build_retrieve_pattern(
-            retriever=retriever,
-            structure_func=structure_documents_by_group_and_indices,
-            final_source_chain=final_sources,
-        ),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_stuff_docs",
-        build_stuff_pattern(prompt_set=prompt_set, final_response_chain=final_response),
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    # Edges
-    builder.add_edge(START, "p_set_search_route")
-    builder.add_edge("p_set_search_route", "p_condense_question")
-    builder.add_edge("p_condense_question", "p_retrieve_docs")
-    builder.add_edge("p_retrieve_docs", "p_stuff_docs")
-    builder.add_edge("p_stuff_docs", END)
 
     return builder.compile(debug=debug)
 
@@ -757,7 +736,10 @@ def get_root_graph(
         new_route,
         retry=RetryPolicy(max_attempts=3),
     )
-    builder.add_node("p_summarise", get_summarise_graph(all_chunks_retriever=all_chunks_retriever, debug=debug), )
+    builder.add_node(
+        "p_summarise",
+        get_summarise_graph(all_chunks_retriever=all_chunks_retriever, debug=debug),
+    )
 
     # Log
     builder.add_node(
@@ -809,7 +791,11 @@ def get_root_graph(
             False: "p_chat",
         },
     )
-    builder.add_node("is_summarise_route", empty_process, retry=RetryPolicy(max_attempts=3),)
+    builder.add_node(
+        "is_summarise_route",
+        empty_process,
+        retry=RetryPolicy(max_attempts=3),
+    )
     builder.add_edge("p_search", "is_summarise_route")
     builder.add_conditional_edges(
         "is_summarise_route", lambda s: s.route_name == ChatRoute.summarise, {True: "p_summarise", False: END}
