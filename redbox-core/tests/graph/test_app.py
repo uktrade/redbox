@@ -469,9 +469,6 @@ TEST_CASES = [
 async def test_streaming(test: RedboxChatTestCase, env: Settings, mocker: MockerFixture):
     # Current setup modifies test data as it's not a fixture. This is a hack
     test_case = copy.deepcopy(test)
-    # mocker.patch(
-    #     "redbox.graph.nodes.processes.get_basic_metadata_retriever", return_value=mock_basic_metadata_retriever(test_case.docs)
-    # )
     mocker.patch("redbox.graph.root.lm_choose_route", return_value="search")
     # Mock the LLM and relevant tools
     llm = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
