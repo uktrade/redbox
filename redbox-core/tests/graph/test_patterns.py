@@ -29,6 +29,7 @@ from redbox.test.data import (
     generate_docs,
     generate_test_cases,
     mock_all_chunks_retriever,
+    mock_basic_metadata_retriever,
     mock_parameterised_retriever,
 )
 from redbox.transform import flatten_document_state, structure_documents_by_file_name
@@ -472,7 +473,7 @@ LLM_ROUTE_TEST_CASE = generate_test_cases(
         RedboxTestData(
             number_of_docs=2,
             tokens_in_all_docs=40_000,
-            llm_responses=['{"next":"search"}'],
+            llm_responses=['{\n  "next": "search"\n}'],
             expected_route=ChatRoute.search,
         ),
     ],
@@ -483,12 +484,14 @@ LLM_ROUTE_TEST_CASE = generate_test_cases(
 @pytest.mark.parametrize(
     "test_case, basic_metadata",
     [
-        (LLM_ROUTE_TEST_CASE[0], {"name": "test"}),
+        (LLM_ROUTE_TEST_CASE[0], mock_basic_metadata_retriever),
     ],
     ids=[t.test_id for t in LLM_ROUTE_TEST_CASE],
 )
-def test_llm_choose_route(test_case: RedboxChatTestCase, basic_metadata: dict, mocker: MockerFixture):
-    mocker.patch("redbox.chains.components.get_basic_metadata_retriever", return_value=basic_metadata)
+def test_llm_choose_route(test_case: RedboxChatTestCase, basic_metadata: BaseRetriever, mocker: MockerFixture):
+    mocker.patch(
+        "redbox.graph.nodes.processes.get_basic_metadata_retriever", return_value=basic_metadata(test_case.docs)
+    )
     llm = GenericFakeChatModel(messages=iter(test_case.test_data.llm_responses))
     llm._default_config = {"model": "bedrock"}
 

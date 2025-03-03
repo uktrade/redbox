@@ -297,9 +297,7 @@ class BasicMetadataRetriever(OpenSearchRetriever):
         super().__init__(**kwargs)
         self.body_func = partial(get_minimum_metadata, self.chunk_resolution)
 
-    def _get_relevant_documents(
-        self, query: RedboxState, *, run_manager: CallbackManagerForRetrieverRun
-    ) -> list[Document]:  # noqa:ARG002
+    def _get_relevant_documents(self, query: RedboxState, *, run_manager: CallbackManagerForRetrieverRun) -> list:  # noqa:ARG002
         # if not self.es_client or not self.document_mapper:
         #     msg = "faulty configuration"
         #     raise ValueError(msg)  # should not happen
