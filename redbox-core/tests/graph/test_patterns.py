@@ -23,7 +23,6 @@ from redbox.graph.nodes.processes import (
 )
 from redbox.models.chain import AgentDecision, AISettings, DocumentState, PromptSet, RedboxQuery, RedboxState
 from redbox.models.chat import ChatRoute
-from redbox.models.settings import ChatLLMBackend
 from redbox.test.data import (
     RedboxChatTestCase,
     RedboxTestData,
@@ -470,7 +469,6 @@ LLM_ROUTE_TEST_CASE = generate_test_cases(
         permitted_s3_keys=["s3_key_1"],
         ai_settings=AISettings(
             self_route_enabled=True,
-            chat_backend=ChatLLMBackend(name="anthropic.claude-3-sonnet-20240229-v1:0", provider="bedrock"),
         ),
     ),
     test_data=[
