@@ -12,7 +12,8 @@ from langchain_core.runnables import Runnable, RunnableGenerator, RunnableLambda
 
 from redbox.api.format import format_documents
 from redbox.chains.activity import log_activity
-from redbox.chains.components import get_tokeniser
+from redbox.chains.components import get_chat_llm, get_tokeniser
+from redbox.chains.parser import ClaudeParser
 from redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_prompts
 from redbox.models.errors import QuestionLengthError
 from redbox.models.graph import RedboxEventType
@@ -263,3 +264,26 @@ class CannedChatLLM(BaseChatModel):
     def _llm_type(self) -> str:
         """Get the type of language model used by this chat model. Used for logging purposes only."""
         return "canned"
+
+
+def basic_chat_chain(system_prompt, _additional_variables: dict = {}, parser=None):
+    @chain
+    def _basic_chat_chain(state: RedboxState):
+        nonlocal parser
+        llm = get_chat_llm(state.request.ai_settings.chat_backend)
+        context = {
+            "question": state.request.question,
+        } | _additional_variables
+
+        if parser:
+            format_instructions = parser.get_format_instructions()
+            prompt = ChatPromptTemplate(
+                [(system_prompt)], partial_variables={"format_instructions": format_instructions}
+            )
+        else:
+            prompt = ChatPromptTemplate([(system_prompt)])
+            parser = ClaudeParser()
+        chain = prompt | llm | parser
+        return chain.invoke(context)
+
+    return _basic_chat_chain

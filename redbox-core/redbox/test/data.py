@@ -154,6 +154,18 @@ def mock_metadata_retriever(docs: list[Document]) -> FakeRetriever:
     return FakeRetriever(docs=metadata_only_docs)
 
 
+class FakeBasicMetadataRetriever(BaseRetriever):
+    docs: list
+
+    def _get_relevant_documents(self, query: str) -> list:
+        return self.docs
+
+
+def mock_basic_metadata_retriever(docs: list[Document]) -> FakeRetriever:
+    metadata = [{**doc.metadata} for doc in docs]
+    return FakeBasicMetadataRetriever(docs=metadata)
+
+
 class GenericFakeChatModelWithTools(GenericFakeChatModel):
     """A thin wrapper to GenericFakeChatModel that allows tool binding."""
 
