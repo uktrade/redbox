@@ -7,6 +7,7 @@ from langchain_core.retrievers import BaseRetriever
 from langgraph.graph import END, START, StateGraph
 from pytest_mock import MockerFixture
 
+from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, build_chat_prompt_from_messages_runnable, build_llm_chain
 from redbox.graph.nodes.processes import (
     build_chat_pattern,
@@ -18,8 +19,9 @@ from redbox.graph.nodes.processes import (
     build_stuff_pattern,
     clear_documents_process,
     empty_process,
+    lm_choose_route,
 )
-from redbox.models.chain import DocumentState, PromptSet, RedboxQuery, RedboxState
+from redbox.models.chain import AgentDecision, AISettings, DocumentState, PromptSet, RedboxQuery, RedboxState
 from redbox.models.chat import ChatRoute
 from redbox.test.data import (
     RedboxChatTestCase,
@@ -455,3 +457,45 @@ async def test_canned_llm_async():
     response = "".join([d["data"]["chunk"].content for d in events if d.get("event") == "on_chat_model_stream"])
 
     assert text == response
+
+
+LLM_ROUTE_TEST_CASE = generate_test_cases(
+    query=RedboxQuery(
+        question="What is AI?",
+        s3_keys=["s3_key_1"],
+        user_uuid=uuid4(),
+        chat_history=[],
+        permitted_s3_keys=["s3_key_1"],
+        ai_settings=AISettings(self_route_enabled=True),
+    ),
+    test_data=[
+        RedboxTestData(
+            number_of_docs=2,
+            tokens_in_all_docs=40_000,
+            llm_responses=['{"next":"search"}'],
+            expected_route=ChatRoute.search,
+        ),
+    ],
+    test_id="LLM choose route",
+)
+
+
+@pytest.mark.parametrize(
+    "test_case, basic_metadata",
+    [
+        (LLM_ROUTE_TEST_CASE[0], {"name": "test"}),
+    ],
+    ids=[t.test_id for t in LLM_ROUTE_TEST_CASE],
+)
+def test_llm_choose_route(test_case: RedboxChatTestCase, basic_metadata: dict, mocker: MockerFixture):
+    mocker.patch("redbox.chains.components.get_basic_metadata_retriever", return_value=basic_metadata)
+    llm = GenericFakeChatModel(messages=iter(test_case.test_data.llm_responses))
+    llm._default_config = {"model": "bedrock"}
+
+    mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=llm)
+    agent_parser = ClaudeParser(pydantic_object=AgentDecision)
+    state = RedboxState(request=test_case.query, documents=structure_documents_by_file_name(test_case.docs))
+
+    llm_choose_search = lm_choose_route(state, parser=agent_parser)
+
+    assert llm_choose_search == "search"
