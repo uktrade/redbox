@@ -246,6 +246,7 @@ TEST_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
+                ai_settings=AISettings(self_route_enabled=True),
             ),
             test_data=[
                 RedboxTestData(
@@ -261,7 +262,7 @@ TEST_CASES = [
                     expected_route=ChatRoute.search,
                 ),
             ],
-            test_id="Search",
+            test_id="Search keyword - self route ON",
         ),
         generate_test_cases(
             query=RedboxQuery(

@@ -16,6 +16,7 @@ from redbox.graph.edges import (
     build_keyword_detection_conditional,
     build_total_tokens_request_handler_conditional,
     documents_selected_conditional,
+    is_using_search_keyword,
     multiple_docs_in_group_conditional,
 )
 from redbox.graph.nodes.processes import (
@@ -201,10 +202,16 @@ def get_search_graph(
         empty_process,
         retry=RetryPolicy(max_attempts=3),
     )
+    builder.add_node("is_using_search_keyword", empty_process)
+
     # Edges
     builder.add_edge(START, "llm_generate_query")
     builder.add_edge("llm_generate_query", "retrieve_documents")
-    builder.add_edge("retrieve_documents", "is_self_route_on")
+    builder.add_edge("retrieve_documents", "is_using_search_keyword")
+    builder.add_conditional_edges(
+        "is_using_search_keyword", is_using_search_keyword, {True: "llm_answer_question", False: "is_self_route_on"}
+    )
+
     builder.add_conditional_edges(
         "is_self_route_on",
         lambda s: s.request.ai_settings.self_route_enabled,
