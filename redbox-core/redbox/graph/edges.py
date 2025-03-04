@@ -110,3 +110,11 @@ def build_strings_end_text_conditional(*strings: str) -> Runnable:
         return "DEFAULT"
 
     return _strings_end_text_conditional
+
+
+def is_using_search_keyword(state: RedboxState) -> bool:
+    found = re.findall(r"^@" + ChatRoute.search + "\s", state.request.question)
+    if found:
+        return True
+    else:
+        return False
