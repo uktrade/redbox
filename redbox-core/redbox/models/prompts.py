@@ -217,13 +217,13 @@ CONDENSE_SYSTEM_PROMPT = (
     "Do not start your answer by saying: here is a standalone follow-up question. Go straight to the point."
 )
 
-LLM_DECIDE_ROUTE = """Given analysis request and document demtadata, determine whether to use search or summarise tools.
+LLM_DECIDE_ROUTE = """Given analysis request and document metadata, determine whether to use search or summarise tools.
 
 Context:
 - Search tool: Used to find and analyze specific relevant sections in a document
 - Summarise tool: Used to create an overview of the entire document's content
 
-Please analyze the following request:
+Please analyse the following request:
 {question}
 
 Follow these steps to determine the appropriate tool:
