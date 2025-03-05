@@ -59,10 +59,10 @@ def test_user_journey(page: Page, email_address: str):
 
     # Documents page
     documents_page = chats_page.navigate_to_documents()
-    original_doc_count = documents_page.document_count()
+    # original_doc_count = documents_page.document_count()
 
     # Upload files
-    document_upload_page = documents_page.navigate_to_upload()
+    # document_upload_page = documents_page.navigate_to_upload()
     upload_files: Sequence[Path] = [f for f in TEST_ROOT.parent.glob("*.md") if f.stat().st_size < 10000]
     # documents_page = document_upload_page.upload_documents(upload_files)
     # document_rows = documents_page.all_documents
@@ -163,7 +163,7 @@ def create_user(email_address: str):
         "createsuperuser",
         "--username",
         email_address,
-        "--noinput"
+        "--noinput",
     ]
     result = subprocess.run(command, capture_output=True, text=True, check=True)  # noqa: S603
     logger.debug("create_user result: %s", result)
