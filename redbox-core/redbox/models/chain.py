@@ -5,6 +5,8 @@ from types import UnionType
 from typing import Annotated, Literal, NotRequired, Required, TypedDict, get_args, get_origin
 from uuid import UUID, uuid4
 
+import environ
+from dotenv import load_dotenv
 from langchain_core.documents import Document
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
@@ -12,7 +14,11 @@ from langgraph.managed.is_last_step import RemainingStepsManager
 from pydantic import BaseModel, Field
 
 from redbox.models import prompts
+from redbox.models.chat import ToolEnum
 from redbox.models.settings import ChatLLMBackend
+
+load_dotenv()
+env = environ.Env()
 
 
 class ChainChatMessage(TypedDict):
@@ -29,7 +35,7 @@ class AISettings(BaseModel):
 
     # Prompts and LangGraph settings
     max_document_tokens: int = 1_000_000
-    self_route_enabled: bool = False
+    self_route_enabled: bool = env.bool("SELF_ROUTE_ENABLED", default=False)
     map_max_concurrency: int = 128
     stuff_chunk_context_ratio: float = 0.75
     recursion_limit: int = 50
@@ -60,6 +66,7 @@ class AISettings(BaseModel):
     chat_map_question_prompt: str = prompts.CHAT_MAP_QUESTION_PROMPT
     reduce_system_prompt: str = prompts.REDUCE_SYSTEM_PROMPT
     new_route_retrieval_system_prompt: str = prompts.NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT
+    llm_decide_route_prompt: str = prompts.LLM_DECIDE_ROUTE
 
     # Elasticsearch RAG and boost values
     rag_k: int = 30
@@ -378,3 +385,7 @@ class GeneratedMetadata(BaseModel):
     name: str = Field(description="document name", default="")
     description: str | None = Field(description="document description", default="")
     keywords: list[str] = Field(description="document keywords", default_factory=list)
+
+
+class AgentDecision(BaseModel):
+    next: ToolEnum = ToolEnum.search

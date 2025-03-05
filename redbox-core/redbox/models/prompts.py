@@ -168,12 +168,28 @@ AGENTIC_GIVE_UP_SYSTEM_PROMPT = (
     "guiding the user in providing the information needed for a complete solution."
 )
 
+SELF_ROUTE_SYSTEM_PROMPT = """Answer the user's question using only information from documents. Do not use your own knowledge or information from any other source. Analyze document carefully to find relevant information.
 
-SELF_ROUTE_SYSTEM_PROMPT = (
-    "Given the list of extracted parts of long documents and a question, answer the question if possible.\n"
-    "If the question cannot be answered respond with only the word 'unanswerable' \n"
-    "If the question can be answered accurately from the documents given then give that response \n"
-)
+If document contains information that answers the question:
+- Provide a direct, concise answer based solely on that information
+- Reference specific parts of document when appropriate
+- Be clear about what the document states vs. what might be inferred
+
+If document does not contain information that addresses the question:
+- Respond with "unanswerable"
+- Do not attempt to guess or provide partial answers based on your own knowledge
+- Do not apologize or explain why you can't answer
+
+Important: Your response must either:
+1. Contain ONLY information from documents
+OR
+2. Be EXACTLY and ONLY the two words "I can't"
+
+There should never be any additional text, explanations, or your own knowledge in the response.
+
+Remember: Only use information from documents. If the information isn't there, simply respond with "unanswerable".
+"""
+
 
 CHAT_MAP_SYSTEM_PROMPT = (
     "Your goal is to extract the most important information and present it in "
@@ -201,6 +217,42 @@ CONDENSE_SYSTEM_PROMPT = (
     "Do not start your answer by saying: here is a standalone follow-up question. Go straight to the point."
 )
 
+LLM_DECIDE_ROUTE = """Given analysis request and document metadata, determine whether to use search or summarise tools.
+
+Context:
+- Search tool: Used to find and analyze specific relevant sections in a document
+- Summarise tool: Used to create an overview of the entire document's content
+
+Please analyse the following request:
+{question}
+
+Follow these steps to determine the appropriate tool:
+
+1. Identify the key requirements in the request:
+   - Is it asking for specific information or general overview?
+   - Are there specific topics/keywords mentioned?
+   - Is the scope focused or broad?
+
+2. Evaluate request characteristics:
+   - Does it need comprehensive coverage or targeted information?
+   - Are there specific questions to answer?
+   - Is context from the entire document needed?
+
+3. Recommend either search or summarise based on:
+   - If focused/specific information is needed → Recommend search
+   - If general overview/main points needed → Recommend summarise
+   - Priortise search tool if both tools can be used to produce good answer
+
+- Recommended Tool: [Search/Summarise]
+
+Provide your recommendation in this format:
+\n{format_instructions}\n
+
+Analysis request:
+{question}
+
+Document metadata: {metadata}
+"""
 
 CHAT_QUESTION_PROMPT = "{question}\n=========\n Response: "
 

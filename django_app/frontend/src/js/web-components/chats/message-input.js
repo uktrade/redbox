@@ -3,7 +3,7 @@
 export class MessageInput extends HTMLElement {
   constructor() {
     super();
-    this.textarea = this.querySelector("textarea");
+    this.textarea = this.querySelector(".iai-chat-input__input");
   }
 
   connectedCallback() {
@@ -15,7 +15,7 @@ export class MessageInput extends HTMLElement {
     this.textarea.addEventListener("keypress", (evt) => {
       if (evt.key === "Enter" && !evt.shiftKey && this.textarea) {
         evt.preventDefault();
-        if (this.textarea.value.trim()) {
+        if (this.textarea?.textContent?.trim()) {
           this.closest("form")?.requestSubmit();
         }
       }
@@ -32,7 +32,7 @@ export class MessageInput extends HTMLElement {
       return;
     }
     this.textarea.style.height = "auto";
-    this.textarea.style.height = `${this.textarea.scrollHeight}px`;
+    this.textarea.style.height = `${this.textarea.scrollHeight || this.textarea.offsetHeight}px`;
   };
 
   /**
@@ -40,7 +40,7 @@ export class MessageInput extends HTMLElement {
    * @returns string
    */
   getValue = () => {
-    return this.querySelector("textarea")?.value.trim() || "";
+    return this.textarea?.textContent?.trim() || "";
   };
 
   /**
@@ -50,7 +50,7 @@ export class MessageInput extends HTMLElement {
     if (!this.textarea) {
       return;
     }
-    this.textarea.value = "";
+    this.textarea.textContent = "";
     this.#adjustHeight();
   };
 }

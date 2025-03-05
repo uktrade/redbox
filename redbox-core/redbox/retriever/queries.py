@@ -130,47 +130,16 @@ def build_document_query(
 
     return {
         "size": ai_settings.rag_k,
+        "min_score": 0.65,
         "query": {
             "bool": {
-                "should": [
-                    {
-                        "match": {
-                            "text": {
-                                "query": query,
-                                "boost": ai_settings.match_boost,
-                            }
-                        },
-                    },
-                    {
-                        "match": {
-                            "metadata.name": {
-                                "query": query,
-                                "boost": ai_settings.match_name_boost,
-                            }
-                        }
-                    },
-                    {
-                        "match": {
-                            "metadata.description": {
-                                "query": query,
-                                "boost": ai_settings.match_description_boost,
-                            }
-                        }
-                    },
-                    {
-                        "match": {
-                            "metadata.keywords": {
-                                "query": query,
-                                "boost": ai_settings.match_keywords_boost,
-                            }
-                        }
-                    },
+                "must": [
                     {
                         "knn": {
                             "vector_field": {
                                 "vector": query_vector,
                                 "k": ai_settings.rag_num_candidates,
-                                "boost": ai_settings.knn_boost,
+                                # "boost": ai_settings.knn_boost,
                                 "filter": query_filter,
                             }
                         }

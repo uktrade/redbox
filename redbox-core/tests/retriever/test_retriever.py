@@ -7,7 +7,7 @@ from redbox.test.data import RedboxChatTestCase
 
 TEST_CHAIN_PARAMETERS = (
     {
-        "rag_k": 1,
+        "rag_k": 0,
         "rag_num_candidates": 100,
         "match_boost": 1,
         "knn_boost": 2,
@@ -19,7 +19,7 @@ TEST_CHAIN_PARAMETERS = (
         "rag_gauss_scale_max": 2.0,
     },
     {
-        "rag_k": 2,
+        "rag_k": 0,
         "rag_num_candidates": 100,
         "match_boost": 1,
         "knn_boost": 2,
