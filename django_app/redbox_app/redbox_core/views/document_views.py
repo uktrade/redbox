@@ -159,7 +159,7 @@ class UploadView(View):
             # Creating a new InMemoryUploadedFile object with the converted content
             new_uploaded_file = InMemoryUploadedFile(
                 file=BytesIO(new_bytes),
-                field_name=uploaded_file.field_name,
+                field_name=uploaded_file.name,
                 name=uploaded_file.name,
                 content_type="application/octet-stream",
                 size=len(new_bytes),
