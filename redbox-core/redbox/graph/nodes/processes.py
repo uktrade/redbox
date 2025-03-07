@@ -364,4 +364,4 @@ def lm_choose_route(state: RedboxState, parser: ClaudeParser):
 
     chain = get_metadata | use_result
     res = chain.invoke(state)
-    return res.next.value
+    return {"route_name": res.next.value}

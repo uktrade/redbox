@@ -503,4 +503,4 @@ def test_llm_choose_route(test_case: RedboxChatTestCase, basic_metadata: BaseRet
 
     llm_choose_search = lm_choose_route(state, parser=agent_parser)
 
-    assert llm_choose_search == "search"
+    assert llm_choose_search == {"route_name": "search"}
