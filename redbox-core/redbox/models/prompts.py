@@ -168,7 +168,7 @@ AGENTIC_GIVE_UP_SYSTEM_PROMPT = (
     "guiding the user in providing the information needed for a complete solution."
 )
 
-SELF_ROUTE_SYSTEM_PROMPT = """Answer the user's question using only information from documents. Do not use your own knowledge or information from any other source. Analyze document carefully to find relevant information.
+SELF_ROUTE_SYSTEM_PROMPT = """Answer the user's question using only information from documents. Do not use your own knowledge or information from any other source. Analyse document carefully to find relevant information.
 
 If document contains information that answers the question:
 - Provide a direct, concise answer based solely on that information
@@ -183,7 +183,7 @@ If document does not contain information that addresses the question:
 Important: Your response must either:
 1. Contain ONLY information from documents
 OR
-2. Be EXACTLY and ONLY the two words "I can't"
+2. Be EXACTLY and ONLY the word "unanswerable"
 
 There should never be any additional text, explanations, or your own knowledge in the response.
 
@@ -220,7 +220,7 @@ CONDENSE_SYSTEM_PROMPT = (
 LLM_DECIDE_ROUTE = """Given analysis request and document metadata, determine whether to use search or summarise tools.
 
 Context:
-- Search tool: Used to find and analyze specific relevant sections in a document
+- Search tool: Used to find and analyse specific relevant sections in a document
 - Summarise tool: Used to create an overview of the entire document's content
 
 Please analyse the following request:
