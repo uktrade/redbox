@@ -48,7 +48,9 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
     agent_parser = ClaudeParser(pydantic_object=AgentDecision)
 
     def lm_choose_route_wrapper(state: RedboxState):
-        return lm_choose_route(state, parser=agent_parser)
+        route = lm_choose_route(state, parser=agent_parser)
+        state.route_name = route
+        return {"route_name": route}
 
     builder = StateGraph(RedboxState)
 
@@ -69,7 +71,7 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
     builder.add_node("has_keyword", empty_process)
     builder.add_node("is_self_route_enabled", empty_process)
     builder.add_node("any_documents_selected", empty_process)
-    builder.add_node("llm_choose_route", empty_process)
+    builder.add_node("llm_choose_route", lm_choose_route_wrapper)
 
     builder.add_node(
         "log_user_request",
@@ -114,7 +116,7 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
     )
     builder.add_conditional_edges(
         "llm_choose_route",
-        lm_choose_route_wrapper,
+        lambda state: state.route_name,
         {"search": "search_graph", "summarise": "summarise_graph"},
     )
 
