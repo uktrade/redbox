@@ -132,6 +132,9 @@ class UploadView(View):
 
     @staticmethod
     def is_utf8_compatible(uploaded_file: UploadedFile) -> bool:
+        if not Path(uploaded_file.name).suffix.lower().endswith((".doc", ".docx", ".txt")):
+            logger.info("File does not require utf8 compatibility check")
+            return True
         try:
             uploaded_file.open()
             uploaded_file.read().decode("utf-8")
@@ -155,7 +158,7 @@ class UploadView(View):
             # Creating a new InMemoryUploadedFile object with the converted content
             new_uploaded_file = InMemoryUploadedFile(
                 file=BytesIO(new_bytes),
-                field_name=uploaded_file.field_name,
+                field_name=uploaded_file.name,
                 name=uploaded_file.name,
                 content_type="application/octet-stream",
                 size=len(new_bytes),
@@ -219,7 +222,7 @@ class UploadView(View):
                     output_filename = Path(uploaded_file.name).with_suffix(".docx").name
                     new_file = InMemoryUploadedFile(
                         file=BytesIO(converted_content),
-                        field_name=uploaded_file.field_name,
+                        field_name=uploaded_file.name,
                         name=output_filename,
                         content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                         size=len(converted_content),

@@ -92,7 +92,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         activities: Sequence[str] = data.get("activities", [])
         user: User = self.scope.get("user")
 
-        user_ai_settings = await AISettingsModel.objects.aget(label=user.ai_settings_id)
+        user_ai_settings = await AISettingsModel.objects.aget(label=user.ai_settings_id if user else "default")
 
         chat_backend = await ChatLLMBackend.objects.aget(id=data.get("llm", user_ai_settings.chat_backend_id))
         temperature = data.get("temperature", user_ai_settings.temperature)
