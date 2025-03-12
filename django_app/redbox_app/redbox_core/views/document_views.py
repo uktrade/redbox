@@ -135,7 +135,6 @@ class UploadView(View):
         if not Path(uploaded_file.name).suffix.lower().endswith((".doc", ".docx", ".txt")):
             logger.info("File does not require utf8 compatibility check")
             return True
-
         try:
             uploaded_file.open()
             uploaded_file.read().decode("utf-8")
