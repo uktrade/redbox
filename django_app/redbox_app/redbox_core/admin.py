@@ -213,6 +213,7 @@ class ChatMessageAdmin(ExportMixin, admin.ModelAdmin):
     inlines = [CitationInline, ChatMessageTokenUseInline, ChatMessageActivityEventInline]
     readonly_fields = ["selected_files", "source_files"]
     search_fields = ["chat__user__email"]
+    ordering = ["-created_at"]
 
     @admin.display(ordering="chat__user", description="User")
     def get_user(self, obj):
