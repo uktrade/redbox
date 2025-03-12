@@ -128,6 +128,7 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
     builder.add_edge("summarise_graph", END)
     return builder.compile()
 
+
 def get_search_graph(
     retriever: VectorStoreRetriever,
     prompt_set: PromptSet = PromptSet.Search,

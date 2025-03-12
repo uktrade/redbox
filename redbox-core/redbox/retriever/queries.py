@@ -130,7 +130,7 @@ def build_document_query(
 
     return {
         "size": ai_settings.rag_k,
-        # "min_score": 0.65,
+        "min_score": 0.65,
         "query": {
             "bool": {
                 "must": [
@@ -139,7 +139,7 @@ def build_document_query(
                             "vector_field": {
                                 "vector": query_vector,
                                 "k": ai_settings.rag_num_candidates,
-                                "boost": ai_settings.knn_boost,
+                                # "boost": ai_settings.knn_boost,
                                 "filter": query_filter,
                             }
                         }
