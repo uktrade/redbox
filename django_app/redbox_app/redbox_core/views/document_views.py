@@ -223,7 +223,7 @@ class UploadView(View):
                     output_filename = Path(uploaded_file.name).with_suffix(".docx").name
                     new_file = InMemoryUploadedFile(
                         file=BytesIO(converted_content),
-                        field_name=uploaded_file.field_name,
+                        field_name=uploaded_file.name,
                         name=output_filename,
                         content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                         size=len(converted_content),
