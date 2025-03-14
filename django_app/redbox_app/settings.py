@@ -9,7 +9,6 @@ import environ
 import sentry_sdk
 from dbt_copilot_python.database import database_from_env
 from django.urls import reverse_lazy
-from django_log_formatter_asim import ASIMFormatter
 from dotenv import load_dotenv
 from import_export.formats.base_formats import CSV
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -51,6 +50,8 @@ STATICFILES_FINDERS = [
 
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
 
 # Application definition
 INSTALLED_APPS = [
@@ -263,7 +264,7 @@ PERMISSIONS_POLICY: dict[str, list] = {
     "gamepad": [],
     "geolocation": [],
     "gyroscope": [],
-    "microphone": [],
+    "microphone": ["self"],
     "midi": [],
     "payment": [],
 }
@@ -362,26 +363,19 @@ LOG_FORMAT = env.str("DJANGO_LOG_FORMAT", "verbose")
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "formatters": {
-        "verbose": {"format": "%(asctime)s %(levelname)s %(module)s: %(message)s"},
-        "asim_formatter": {
-            "()": ASIMFormatter,
+    "handlers": {
+        "file": {
+            "level": "ERROR",
+            "class": "logging.FileHandler",
+            "filename": "django_error.log",
         },
     },
-    "handlers": {
-        "console": {
-            "level": LOG_LEVEL,
-            "class": "logging.StreamHandler",
-            "formatter": LOG_FORMAT,
-        }
-    },
-    "root": {"handlers": ["console"], "level": LOG_LEVEL},
     "loggers": {
-        "application": {
-            "handlers": [LOG_HANDLER],
-            "level": LOG_LEVEL,
+        "django": {
+            "handlers": ["file"],
+            "level": "ERROR",
             "propagate": True,
-        }
+        },
     },
 }
 
