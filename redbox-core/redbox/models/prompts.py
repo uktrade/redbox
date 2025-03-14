@@ -116,6 +116,7 @@ AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
     "2. Tool Usage:\n"
     "- Before responding, evaluate if you need any tools to complete the task\n"
     "- If tools are needed, call them using the appropriate function calls\n"
+    "- document_selected is {has_selected_files}. If document_selected is True, then prioritise using search_document tool.\n"
     "- After getting tool results, format your final response in the required JSON schema\n\n"
     "3. Decision Making:\n"
     "3.1. Examine the available documents and tool calls:\n"

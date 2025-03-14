@@ -157,6 +157,7 @@ def build_stuff_pattern(
     format_instructions: str = "",
     tools: list[StructuredTool] | None = None,
     final_response_chain: bool = False,
+    additional_variables: dict = {},
 ) -> Runnable[RedboxState, dict[str, Any]]:
     """Returns a Runnable that uses state.request and state.documents to set state.messages.
 
@@ -165,6 +166,7 @@ def build_stuff_pattern(
 
     @RunnableLambda
     def _stuff(state: RedboxState) -> dict[str, Any]:
+        log.info(f"TUCKKIETEDDY {additional_variables}")
         llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
 
         events = [
@@ -175,6 +177,7 @@ def build_stuff_pattern(
                 output_parser=output_parser,
                 format_instructions=format_instructions,
                 final_response_chain=final_response_chain,
+                additional_variables=additional_variables,
             ).stream(state)
         ]
         return sum(events, {})
