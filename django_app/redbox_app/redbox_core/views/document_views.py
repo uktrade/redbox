@@ -132,7 +132,7 @@ class UploadView(View):
 
     @staticmethod
     def is_utf8_compatible(uploaded_file: UploadedFile) -> bool:
-        if not Path(uploaded_file.name).suffix.lower().endswith((".doc",".txt")):
+        if not Path(uploaded_file.name).suffix.lower().endswith((".doc", ".txt")):
             logger.info("File does not require utf8 compatibility check")
             return True
 
