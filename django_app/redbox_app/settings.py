@@ -9,6 +9,7 @@ import environ
 import sentry_sdk
 from dbt_copilot_python.database import database_from_env
 from django.urls import reverse_lazy
+from django_log_formatter_asim import ASIMFormatter
 from dotenv import load_dotenv
 from import_export.formats.base_formats import CSV
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -363,19 +364,26 @@ LOG_FORMAT = env.str("DJANGO_LOG_FORMAT", "verbose")
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {
-        "file": {
-            "level": "ERROR",
-            "class": "logging.FileHandler",
-            "filename": "django_error.log",
+    "formatters": {
+        "verbose": {"format": "%(asctime)s %(levelname)s %(module)s: %(message)s"},
+        "asim_formatter": {
+            "()": ASIMFormatter,
         },
     },
+    "handlers": {
+        "console": {
+            "level": LOG_LEVEL,
+            "class": "logging.StreamHandler",
+            "formatter": LOG_FORMAT,
+        }
+    },
+    "root": {"handlers": ["console"], "level": LOG_LEVEL},
     "loggers": {
-        "django": {
-            "handlers": ["file"],
-            "level": "ERROR",
+        "application": {
+            "handlers": [LOG_HANDLER],
+            "level": LOG_LEVEL,
             "propagate": True,
-        },
+        }
     },
 }
 
