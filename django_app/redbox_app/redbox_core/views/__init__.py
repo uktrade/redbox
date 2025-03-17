@@ -1,7 +1,13 @@
 from redbox_app.redbox_core.dash_apps import report_app
 from redbox_app.redbox_core.views.api_views import message_view_pre_alpha, user_view_pre_alpha
 from redbox_app.redbox_core.views.auth_views import sign_in_link_sent_view, sign_in_view, signed_out_view
-from redbox_app.redbox_core.views.chat_views import ChatsTitleView, ChatsView, DeleteChat, UpdateChatFeedback
+from redbox_app.redbox_core.views.chat_views import (
+    ChatsTitleView,
+    ChatsView,
+    DeleteChat,
+    TranscribeAudioView,
+    UpdateChatFeedback,
+)
 from redbox_app.redbox_core.views.citation_views import CitationsView
 from redbox_app.redbox_core.views.demographics_views import (
     CheckDemographicsView,
@@ -53,4 +59,5 @@ __all__ = [
     "user_view_pre_alpha",
     "message_view_pre_alpha",
     "faq_view",
+    "TranscribeAudioView",
 ]
