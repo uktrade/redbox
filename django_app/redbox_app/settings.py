@@ -364,24 +364,17 @@ LOG_FORMAT = env.str("DJANGO_LOG_FORMAT", "verbose")
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "formatters": {
-        "verbose": {"format": "%(asctime)s %(levelname)s %(module)s: %(message)s"},
-        "asim_formatter": {
-            "()": ASIMFormatter,
+    "handlers": {
+        "file": {
+            "level": "ERROR",
+            "class": "logging.FileHandler",
+            "filename": "django_error.log",
         },
     },
-    "handlers": {
-        "console": {
-            "level": LOG_LEVEL,
-            "class": "logging.StreamHandler",
-            "formatter": LOG_FORMAT,
-        }
-    },
-    "root": {"handlers": ["console"], "level": LOG_LEVEL},
     "loggers": {
-        "application": {
-            "handlers": [LOG_HANDLER],
-            "level": LOG_LEVEL,
+        "django": {
+            "handlers": ["file"],
+            "level": "ERROR",
             "propagate": True,
         }
     },

@@ -29,10 +29,10 @@ services:
       - path: .env
         required: false
     environment:
-      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - ENVIRONMENT=LOCAL
     volumes:
       - /app/django_app/frontend/node_modules
-      - ./django_app:/app/django_app/
+      - ./django_app:/usr/src/app/django_app
       - .aws:/root/.aws
     ports:
       - "${PORT:-8080}:${PORT:-8080}"
