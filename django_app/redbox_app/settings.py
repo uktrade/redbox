@@ -51,6 +51,8 @@ STATICFILES_FINDERS = [
 
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
 
 # Application definition
 INSTALLED_APPS = [
@@ -263,7 +265,7 @@ PERMISSIONS_POLICY: dict[str, list] = {
     "gamepad": [],
     "geolocation": [],
     "gyroscope": [],
-    "microphone": [],
+    "microphone": ["self"],
     "midi": [],
     "payment": [],
 }

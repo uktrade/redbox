@@ -81,6 +81,7 @@ other_urlpatterns = [
 api_url_patterns = [
     path("api/v0/users/", views.user_view_pre_alpha, name="user-view"),
     path("api/v0/messages/", views.message_view_pre_alpha, name="message-view"),
+    path("api/transcribe/", views.TranscribeAudioView.as_view(), name="transcribe-audio"),
 ]
 
 urlpatterns = (

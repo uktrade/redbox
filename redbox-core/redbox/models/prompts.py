@@ -171,6 +171,7 @@ AGENTIC_GIVE_UP_SYSTEM_PROMPT = (
 
 SELF_ROUTE_SYSTEM_PROMPT = """Answer the user's question using only information from documents. Do not use your own knowledge or information from any other source. Analyse document carefully to find relevant information.
 
+
 If document contains information that answers the question:
 - Provide a direct, concise answer based solely on that information
 - Reference specific parts of document when appropriate

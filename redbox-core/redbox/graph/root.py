@@ -211,7 +211,6 @@ def get_search_graph(
     builder.add_conditional_edges(
         "is_using_search_keyword", is_using_search_keyword, {True: "llm_answer_question", False: "is_self_route_on"}
     )
-
     builder.add_conditional_edges(
         "is_self_route_on",
         lambda s: s.request.ai_settings.self_route_enabled,
@@ -892,6 +891,7 @@ def get_root_graph(
         empty_process,
         retry=RetryPolicy(max_attempts=3),
     )
+
     builder.add_edge("p_search", "is_summarise_route")
     builder.add_conditional_edges(
         "is_summarise_route", lambda s: s.route_name == ChatRoute.summarise, {True: "p_summarise", False: END}
