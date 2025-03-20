@@ -54,55 +54,11 @@ repos:
         language: pygrep
         entry: ':\d{12}:'
 
-  - repo: https://github.com/mxab/pre-commit-trivy.git
-    rev: v0.14.0
-    hooks:
-      - id: trivyfs-docker
-        args:
-          - --skip-dirs
-          - ./tests
-          - --skip-dirs
-          - ./.idea
-          - --skip-dirs
-          - ./.aws
-          - --skip-dirs
-          - ./django_app/.venv
-          - --skip-files
-          - ./.env
-          - --skip-files
-          - ./.env.backup
-          - --skip-dirs
-          - ./models
-          - --skip-dirs
-          - ./.vscode
-          - --skip-dirs
-          - ./data
-          - --skip-dirs
-          - ./.pre-commit-trivy-cache
-          - --skip-dirs
-          - ./infrastructure
-          - --ignore-unfixed
-          - . # last arg indicates the path/file to scan
-  # TODO implement/debug error
-  # - repo: https://github.com/uktrade/pii-secret-check-hooks
-  #   rev: 0.0.0.36
-  #   hooks:
-  #         - id: pii_secret_filename
-  #           files: ''
-  #           language: python
-  #           args: [exclude]
-  #           pass_filenames: true
-  #           require_serial: true
-  #         - id: pii_secret_file_content
-  #           files: ''
-  #           language: python
-  #           args: [--exclude=pii-secret-exclude.txt]
-  #           pass_filenames: true
-  #           require_serial: true
-  #           additional_dependencies: [click==8.0.4]
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.2
+  - repo: local
     hooks:
-      - id: ruff
-        args: [ --fix ]
+      - id: make-format
+        name: Run make format
+        entry: make format
+        language: pygrep
+        pass_filenames: false
