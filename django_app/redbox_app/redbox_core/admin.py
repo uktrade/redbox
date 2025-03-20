@@ -21,7 +21,7 @@ User = get_user_model()
 
 class ChatLLMBackendAdmin(admin.ModelAdmin):
     list_display = [
-        "name",
+        # "name",
         "provider",
         "is_default",
     ]
@@ -298,4 +298,4 @@ admin.site.register(models.ChatMessage, ChatMessageAdmin)
 admin.site.register(models.AISettings)
 admin.site.register(models.ChatMessageTokenUse, ChatMessageTokenUseAdmin)
 admin.site.register(models.ChatLLMBackend, ChatLLMBackendAdmin)
-admin.site.register_view("report/", view=reporting_dashboard, name="Site report")
+# admin.site.register("report/", view=reporting_dashboard, name="Site report")

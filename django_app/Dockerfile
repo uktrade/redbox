@@ -17,8 +17,7 @@ FROM python:3.12-slim AS poetry-packages
 
 RUN apt-get update && apt-get install --yes build-essential > /dev/null
 
-# TODO: Unpin poetry-plugin-bundle when https://github.com/python-poetry/poetry-plugin-bundle/issues/112 is fixed.
-RUN pip install poetry poetry-plugin-bundle==1.3.0
+RUN pip install poetry poetry-plugin-bundle
 
 WORKDIR /src
 COPY README.md ../.
@@ -28,7 +27,9 @@ COPY django_app/poetry.lock .
 
 # do this so that poetry bundle can run without the project - can't pass --no-root to bundle
 #RUN touch README.md
-RUN poetry install
+RUN poetry add watchfiles
+RUN pip install watchfiles
+RUN poetry install --no-root
 RUN poetry bundle venv ./venv
 
 
@@ -56,10 +57,9 @@ COPY --from=npm-packages /src/dist/ frontend/dist/
 COPY --from=poetry-packages /src/venv ./venv
 
 ENV DJANGO_SETTINGS_MODULE='redbox_app.settings'
-ENV PYTHONPATH "${PYTHONPATH}:/."
+ENV PYTHONPATH="/usr/src/app/django_app:/."
 
 EXPOSE 8080
-EXPOSE 8090
 
 RUN chmod +x start.sh
 RUN chmod +x health.sh

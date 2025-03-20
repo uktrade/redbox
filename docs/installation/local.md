@@ -65,7 +65,7 @@ For debugging, you can now access [`http://localhost:9001/buckets/redbox-storage
 
 ## Step 7: **Accessing the application**
 
-Once the project is running, you can access the application by navigating to [`http://localhost:8090`](http://localhost:8090) in your browser. You should see the following screen:
+Once the project is running, you can access the application by navigating to [`http://localhost:8080`](http://localhost:8080) in your browser. You should see the following screen:
 
 ![Redbox Home](../../assets/redbox_home_page.png)
 
@@ -77,20 +77,20 @@ To create an admin user, you can run the following command:
 docker compose run django-app venv/bin/django-admin createsuperuser
 ```
 
-You will be prompted to enter an email and a password. These can be anything you like as the development mode doesn't send emails or use passwords for authentication. Instead we use magic links. Once the superuser is created, you can log in to the Django admin interface by navigating to [`http://localhost:8090/sign-in`](http://localhost:8090/sign-in) and entering the email you just created.
+You will be prompted to enter an email and a password. These can be anything you like as the development mode doesn't send emails or use passwords for authentication. Instead we use magic links. Once the superuser is created, you can log in to the Django admin interface by navigating to [`http://localhost:8080/sign-in`](http://localhost:8080/sign-in) and entering the email you just created.
 
 ![Redbox Sign In](../../assets/redbox_signin.png)
 
 After entering the email, you will be prompted to press "Continue". Once you do this, you can navigate to your terminal and run the following command:
 
 ```
-docker compose logs django-app | grep 8090/magic_link
+docker compose logs django-app | grep 8080/magic_link
 ```
 
 This command will output a URL that you can click on to log in to the Django admin interface.
 
 ```
-django-app-1  | http://localhost:8090/magic_link/5f6a67a2-dcf4-4bbb-8b00-817294d1f251/
+django-app-1  | http://localhost:8080/magic_link/5f6a67a2-dcf4-4bbb-8b00-817294d1f251/
 ```
 
 ## Step 9: **Uploading a File**
@@ -99,7 +99,7 @@ Once you're logged in, you will see a screen for collecting details about the us
 
 ![Redbox Main Page](../../assets/redbox_main_page.png)
 
-From here you can [upload documents](http://localhost:8090/upload/) to be added to the system and view the documents that are already in the system.
+From here you can [upload documents](http://localhost:8080/upload/) to be added to the system and view the documents that are already in the system.
 
 ![Redbox Documents](../../assets/redbox_documents.png)
 
@@ -107,7 +107,7 @@ In a few moments, you should see the document you uploaded turn green as complet
 
 ## Step 10: **Chat with the document**
 
-Once the document is processed, you can click on the [Chats](http://localhost:8090/chats/) tab to see the document and chat with it.
+Once the document is processed, you can click on the [Chats](http://localhost:8080/chats/) tab to see the document and chat with it.
 
 ![Redbox Chat](../../assets/redbox_chat_example.png)
 
@@ -115,7 +115,7 @@ You can ask questions about the document and the system will try to answer them 
 
 ## Step 11: **Acessing the Admin Interface**
 
-You can access the admin interface by navigating to [`http://localhost:8090/admin`](http://localhost:8090/admin) and logging in with the superuser you created earlier. Here you can manage users, documents, chat histories and other parts of the system.
+You can access the admin interface by navigating to [`http://localhost:8080/admin`](http://localhost:8080/admin) and logging in with the superuser you created earlier. Here you can manage users, documents, chat histories and other parts of the system.
 
 ## Step 12: **Shutting down the project**
 
