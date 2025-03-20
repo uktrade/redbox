@@ -58,5 +58,5 @@ repos:
       - id: make-format
         name: Run make format
         entry: make format
-        language: system
+        language: pygrep
         pass_filenames: false
