@@ -166,7 +166,6 @@ def build_stuff_pattern(
 
     @RunnableLambda
     def _stuff(state: RedboxState) -> dict[str, Any]:
-        log.info(f"TUCKKIETEDDY {additional_variables}")
         llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
 
         events = [

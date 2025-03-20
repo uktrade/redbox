@@ -18,6 +18,7 @@ from redbox.graph.edges import (
     documents_selected_conditional,
     is_using_search_keyword,
     multiple_docs_in_group_conditional,
+    remove_gadget_keyword,
 )
 from redbox.graph.nodes.processes import (
     PromptSet,
@@ -457,6 +458,8 @@ def get_agentic_search_graph(tools: List[StructuredTool], debug: bool = False) -
     builder = StateGraph(RedboxState)
 
     # Processes
+    builder.add_node("remove_keyword", remove_gadget_keyword)
+
     builder.add_node(
         "set_route_to_gadget",
         build_set_route_pattern(route=ChatRoute.gadget),
@@ -521,7 +524,8 @@ def get_agentic_search_graph(tools: List[StructuredTool], debug: bool = False) -
     )
 
     # Edges
-    builder.add_edge(START, "set_route_to_gadget")
+    builder.add_edge(START, "remove_keyword")
+    builder.add_edge("remove_keyword", "set_route_to_gadget")
     builder.add_edge("set_route_to_gadget", "should_continue")
     builder.add_conditional_edges(
         "should_continue",
