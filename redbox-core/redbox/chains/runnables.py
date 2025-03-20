@@ -108,6 +108,7 @@ def build_llm_chain(
     output_parser: Runnable | Callable = None,
     format_instructions: str = "",
     final_response_chain: bool = False,
+    additional_variables: dict = {},
 ) -> Runnable:
     """Builds a chain that correctly forms a text and metadata state update.
 
@@ -130,7 +131,9 @@ def build_llm_chain(
     }
 
     return (
-        build_chat_prompt_from_messages_runnable(prompt_set, format_instructions=format_instructions)
+        build_chat_prompt_from_messages_runnable(
+            prompt_set, format_instructions=format_instructions, additional_variables=additional_variables
+        )
         | text_and_tools
         | get_all_metadata
         | final_response_if_needed

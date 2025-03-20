@@ -18,6 +18,7 @@ from redbox.graph.edges import (
     documents_selected_conditional,
     is_using_search_keyword,
     multiple_docs_in_group_conditional,
+    remove_gadget_keyword,
 )
 from redbox.graph.nodes.processes import (
     PromptSet,
@@ -455,46 +456,50 @@ def get_agentic_search_graph(tools: List[StructuredTool], debug: bool = False) -
 
     citations_output_parser, format_instructions = get_structured_response_with_citations_parser()
     builder = StateGraph(RedboxState)
-    # Tools
-    # agent_tool_names = ["_search_documents", "_search_wikipedia", "_search_govuk"]
-    # agent_tools: list[StructuredTool] = [tools[tool_name] for tool_name in agent_tool_names]
 
     # Processes
+    builder.add_node("remove_keyword", remove_gadget_keyword)
+
     builder.add_node(
-        "p_set_agentic_search_route",
+        "set_route_to_gadget",
         build_set_route_pattern(route=ChatRoute.gadget),
         retry=RetryPolicy(max_attempts=3),
     )
-    builder.add_node(
-        "p_search_agent",
-        build_stuff_pattern(
+
+    def build_smart_agent(state: RedboxState):
+        return build_stuff_pattern(
             prompt_set=PromptSet.SearchAgentic,
             tools=tools,
             output_parser=citations_output_parser,
             format_instructions=format_instructions,
             final_response_chain=False,  # Output parser handles streaming
-        ),
+            additional_variables={"has_selected_files": True if state.request.s3_keys else False},
+        )
+
+    builder.add_node(
+        "smart_agent",
+        build_smart_agent,
         retry=RetryPolicy(max_attempts=3),
     )
     builder.add_node(
-        "p_retrieval_tools",
+        "invoke_tool_calls",
         ToolNode(tools=tools),
         retry=RetryPolicy(max_attempts=3),
     )
     builder.add_node(
-        "p_give_up_agent",
+        "give_up_agent",
         build_stuff_pattern(prompt_set=PromptSet.GiveUpAgentic, final_response_chain=True),
         retry=RetryPolicy(max_attempts=3),
     )
     builder.add_node(
-        "p_report_sources",
+        "report_citations",
         report_sources_process,
         retry=RetryPolicy(max_attempts=3),
     )
 
     # Log
     builder.add_node(
-        "p_activity_log_retrieval_tool_calls",
+        "log_tool_call_activities",
         build_activity_log_node(
             lambda s: [
                 RedboxActivityEvent(message=get_log_formatter_for_retrieval_tool(tool_state_entry).log_call())
@@ -506,35 +511,36 @@ def get_agentic_search_graph(tools: List[StructuredTool], debug: bool = False) -
 
     # Decisions
     builder.add_node(
-        "d_x_steps_left_or_less",
+        "should_continue",
         empty_process,
         retry=RetryPolicy(max_attempts=3),
     )
 
     # Sends
     builder.add_node(
-        "s_tool",
+        "send_tool",
         empty_process,
         retry=RetryPolicy(max_attempts=3),
     )
 
     # Edges
-    builder.add_edge(START, "p_set_agentic_search_route")
-    builder.add_edge("p_set_agentic_search_route", "d_x_steps_left_or_less")
+    builder.add_edge(START, "remove_keyword")
+    builder.add_edge("remove_keyword", "set_route_to_gadget")
+    builder.add_edge("set_route_to_gadget", "should_continue")
     builder.add_conditional_edges(
-        "d_x_steps_left_or_less",
-        lambda state: state.steps_left <= 8,
+        "should_continue",
+        lambda state: state.steps_left > 8,
         {
-            True: "p_give_up_agent",
-            False: "p_search_agent",
+            True: "smart_agent",
+            False: "give_up_agent",
         },
     )
-    builder.add_edge("p_search_agent", "s_tool")
-    builder.add_edge("s_tool", "p_report_sources")
-    builder.add_edge("p_search_agent", "p_activity_log_retrieval_tool_calls")
-    builder.add_conditional_edges("s_tool", build_tool_send("p_retrieval_tools"), path_map=["p_retrieval_tools"])
-    builder.add_edge("p_retrieval_tools", "d_x_steps_left_or_less")
-    builder.add_edge("p_report_sources", END)
+    builder.add_edge("smart_agent", "send_tool")
+    builder.add_edge("send_tool", "report_citations")
+    builder.add_edge("smart_agent", "log_tool_call_activities")
+    builder.add_conditional_edges("send_tool", build_tool_send("invoke_tool_calls"), path_map=["invoke_tool_calls"])
+    builder.add_edge("invoke_tool_calls", "should_continue")
+    builder.add_edge("report_citations", END)
 
     return builder.compile(debug=debug)
 
