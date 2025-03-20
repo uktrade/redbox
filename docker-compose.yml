@@ -42,6 +42,7 @@ services:
       timeout: 30s
       retries: 24
       start_period: 60s
+    command: ["venv/bin/uvicorn", "--reload", "--host", "0.0.0.0", "--port", "8080", "redbox_app.asgi:application"]
 
   db:
     image: postgres:13

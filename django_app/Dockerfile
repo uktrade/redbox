@@ -27,7 +27,8 @@ COPY django_app/poetry.lock .
 
 # do this so that poetry bundle can run without the project - can't pass --no-root to bundle
 #RUN touch README.md
-RUN poetry add watchdog
+RUN poetry add watchfiles
+RUN pip install watchfiles
 RUN poetry install --no-root
 RUN poetry bundle venv ./venv
 
@@ -65,7 +66,4 @@ RUN chmod +x health.sh
 
 RUN libreoffice --version
 
-CMD ["venv/bin/django-admin", "migrate"]
-CMD ["venv/bin/django-admin", "collectstatic", "--noinput"]
-CMD ["venv/bin/django-admin", "create_admin_user"]
-CMD ["venv/bin/uvicorn", "redbox_app.asgi:application", "--host", "0.0.0.0", "--port", "8080", "--reload", "--log-level", "debug"]
+CMD ["./start.sh"]

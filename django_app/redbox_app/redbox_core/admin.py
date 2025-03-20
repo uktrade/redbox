@@ -9,6 +9,7 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django_q.tasks import async_task
 from import_export.admin import ExportMixin, ImportExportMixin
+
 from redbox_app.worker import ingest
 
 from . import models
@@ -20,8 +21,8 @@ User = get_user_model()
 
 class ChatLLMBackendAdmin(admin.ModelAdmin):
     list_display = [
-        "name",
-        # "provider",
+        # "name",
+        "provider",
         "is_default",
     ]
 
