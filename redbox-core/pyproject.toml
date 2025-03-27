@@ -22,13 +22,15 @@ pydantic-settings = "^2.3.4"
 langchain-elasticsearch = ">0.2.2"
 pytest-dotenv = "^0.5.2"
 kneed = "^0.8.5"
-langgraph = "^0.2.39"
+langgraph = "^0.3.5"
 langchain-aws = "^0.2.3"
 wikipedia = "^1.4.0"
 opensearch-py = "^2.7.1"
 scikit-learn = "^1.5.2"
 langfuse = "^2.53.9"
 django-environ = "^0.12.0"
+langgraph-supervisor = "^0.0.10"
+langgraph-prebuilt = "^0.1.2"
 
 
 
