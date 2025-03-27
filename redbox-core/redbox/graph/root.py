@@ -36,6 +36,9 @@ from redbox.graph.nodes.processes import (
     empty_process,
     lm_choose_route,
     report_sources_process,
+    strip_route,
+    supervisor_agent,
+    pass_message_to_supervisor
 )
 from redbox.graph.nodes.sends import build_document_chunk_send, build_document_group_send, build_tool_send
 from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
@@ -912,87 +915,6 @@ def get_root_graph(
 
     return builder.compile(debug=debug)
 
-from langgraph.types import Command
-from typing import Literal
-from typing_extensions import TypedDict
-
-
-class Router(TypedDict):
-    """Worker to route to next. If no workers needed, route to FINISH."""
-
-    next: Literal["search_graph", "summarise_graph","FINISH"]
-
-class State(RedboxState):
-    next: str
-
-from langchain_core.runnables import Runnable, RunnableLambda
-def supervisor_agent() -> Runnable[RedboxState, Command[Literal["search_graph", "summarise_graph", "__end__"]]]:
-    @RunnableLambda
-    def _supervise(state: State) -> Command[Literal["search_graph", "summarise_graph", "__end__"]]:
-# Create supervisor workflow
-        llm = init_chat_model(
-                model="anthropic.claude-3-sonnet-20240229-v1:0",
-                model_provider="bedrock",
-            )
-        
-        system_prompt = """You are a supervisor agent responsible for coordinating between a search agent and summariser agent. 
-    Given the following user request, respond with the agent to act next. Each agent will perform a task and respond with their results and status. When finished, respond with FINISH.
-
-    You should follow these steps:
-
-    1. Analyze user queries as well as conversation history and determine if agent(s) should handle the request
-    2. Write out your reasoning and analysis of how to route this request and determine which agent(s) should handle the request
-    3. Route requests to the appropriate agent(s)
-    4. Evaluate whether previous message fully answers the user query, without explicitely providing instructions to find the results.
-    5. If the user query was fully answered without explicitely providing instructions to find the results:
-        return: FINISH
-    6. If user query was not fully answered, repeat previous steps. 
-
-    Guidelines for request handling:
-
-    1. if the request requires searching through documents:
-    - return: search_graph
-
-    2. if the request requires summarising documents:
-    - return: summarise_graph
-
-    3. if the request has a complete answer in the conversation history without explicitely providing instructions to find the results:
-    - return: FINISH
-
-    """
-       
-        messages = [
-            {"role": "system", "content": system_prompt},
-        ] + state.messages
-        print('DEBUG supervisor messages')
-        print(messages)
-        response = llm.with_structured_output(Router).invoke(messages) #llm_openai give better response
-        goto = response["next"]
-        if goto == "FINISH":
-            goto = END
-
-        return Command(goto=goto, update={"next": goto})
-    return _supervise
-
-
-def strip_route(state: RedboxState):
-    state.request.question = state.request.question.replace("@newroute ", "")
-    return state
-
-def pass_message_to_supervisor(from_agent_name)-> Runnable[RedboxState, Command[Literal["supervisor"]]]:
-    
-    @RunnableLambda
-    def _pass_message(state: RedboxState) -> Command[Literal["supervisor"]]:
-        return Command(
-            update={
-                "messages": [
-                    HumanMessage(content=state.messages[-1].content, name=from_agent_name)
-                ]
-            },
-            goto="supervisor",
-        )
-    return _pass_message
-
 def build_new_graph(
     all_chunks_retriever: VectorStoreRetriever,
     parameterised_retriever: VectorStoreRetriever,
@@ -1010,22 +932,6 @@ def build_new_graph(
         strip_route,
         retry=RetryPolicy(max_attempts=3),
     )
-    # Nodes
-
-    # add back when move to this graph
-    # Show activity logs from user request
-    # builder.add_node(
-    #     "p_activity_log_user_request",
-    #     build_activity_log_node(
-    #         lambda s: [
-    #             RedboxActivityEvent(
-    #                 message=f"You selected {len(s.request.s3_keys)} file{"s" if len(s.request.s3_keys)>1 else ""} - {",".join(s.request.s3_keys)}"
-    #             )
-    #             if len(s.request.s3_keys) > 0
-    #             else "You selected no files",
-    #         ]
-    #     ),
-    # )
 
     builder.add_node(
         "d_docs_selected",
@@ -1043,7 +949,7 @@ def build_new_graph(
     builder.add_node("pass_message_search_to_supervisor", pass_message_to_supervisor("search_graph"))
     builder.add_node("pass_message_summarise_to_supervisor", pass_message_to_supervisor("summarise_graph"))
     builder.add_node("summarise_graph", summarise_graph)
-    builder.add_node("supervisor_agent", supervisor_agent())
+    builder.add_node("supervisor_agent", supervisor_agent(prompt_set=PromptSet.NewRoute))
     # Edges
     # builder.add_edge(START, "p_activity_log_user_request") # add back when move to this graph
     builder.add_edge(START, "p_strip_route")
@@ -1065,196 +971,3 @@ def build_new_graph(
     builder.add_edge("supervisor_agent", END)
     
     return builder.compile(debug=debug)
-
-def build_new_graph_notworking(
-    all_chunks_retriever: VectorStoreRetriever,
-    parameterised_retriever: VectorStoreRetriever,
-    metadata_retriever: VectorStoreRetriever,
-    tools: list[StructuredTool],
-    debug: bool = False,
-) -> CompiledGraph:
-    # initialise
-
-    builder = StateGraph(RedboxState)
-
-    # Subgraphs/may need to convert into tools
-    builder.add_node(
-        "p_strip_route",
-        strip_route,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    # Nodes
-
-    # add back when move to this graph
-    # Show activity logs from user request
-    # builder.add_node(
-    #     "p_activity_log_user_request",
-    #     build_activity_log_node(
-    #         lambda s: [
-    #             RedboxActivityEvent(
-    #                 message=f"You selected {len(s.request.s3_keys)} file{"s" if len(s.request.s3_keys)>1 else ""} - {",".join(s.request.s3_keys)}"
-    #             )
-    #             if len(s.request.s3_keys) > 0
-    #             else "You selected no files",
-    #         ]
-    #     ),
-    # )
-
-    builder.add_node(
-        "d_docs_selected",
-        empty_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    builder.add_node("chat_graph", get_chat_graph(debug=debug))
-
-    gadget_graph = get_agentic_search_graph(tools=tools, debug=debug)
-    summarise_graph = get_summarise_graph(all_chunks_retriever=all_chunks_retriever, debug=debug)
-    builder.add_node("supervisor_agent", supervisor_agent(gadget_graph, summarise_graph, debug=debug))
-    # Edges
-    # builder.add_edge(START, "p_activity_log_user_request") # add back when move to this graph
-    builder.add_edge(START, "p_strip_route")
-    builder.add_edge("p_strip_route", "d_docs_selected")
-    builder.add_conditional_edges(
-        "d_docs_selected",
-        documents_selected_conditional,
-        {
-            True: "supervisor_agent",
-            False: "chat_graph",
-        },
-    )
-
-    builder.add_edge("supervisor_agent", END)
-    return builder.compile(debug=debug)
-
-
-def build_new_graph_old(
-    all_chunks_retriever: VectorStoreRetriever,
-    parameterised_retriever: VectorStoreRetriever,
-    metadata_retriever: VectorStoreRetriever,
-    tools: list[StructuredTool],
-    debug: bool = False,
-) -> CompiledGraph:
-    # initialise
-    citations_output_parser, format_instructions = get_structured_response_with_citations_parser()
-    builder = StateGraph(RedboxState)
-
-    # Subgraphs/may need to convert into tools
-    metadata_subgraph = get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
-    builder.add_node(
-        "p_strip_route",
-        strip_route,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    # Nodes
-    builder.add_node(
-        "p_retrieve_metadata",
-        metadata_subgraph,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    # add back when move to this graph
-    # Show activity logs from user request
-    # builder.add_node(
-    #     "p_activity_log_user_request",
-    #     build_activity_log_node(
-    #         lambda s: [
-    #             RedboxActivityEvent(
-    #                 message=f"You selected {len(s.request.s3_keys)} file{"s" if len(s.request.s3_keys)>1 else ""} - {",".join(s.request.s3_keys)}"
-    #             )
-    #             if len(s.request.s3_keys) > 0
-    #             else "You selected no files",
-    #         ]
-    #     ),
-    # )
-    builder.add_node(
-        "p_retrieve_docs",
-        build_retrieve_pattern(
-            retriever=all_chunks_retriever,
-            structure_func=structure_documents_by_file_name,
-            final_source_chain=False,
-        ),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "d_docs_selected",
-        empty_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_search_agent",
-        build_stuff_pattern(
-            prompt_set=PromptSet.NewRoute,
-            tools=tools,
-            output_parser=citations_output_parser,
-            format_instructions=format_instructions,
-            final_response_chain=True,  # Output parser handles streaming
-        ),
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    builder.add_node(
-        "p_retrieval_tools",
-        ToolNode(tools=tools),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_give_up_agent",
-        build_stuff_pattern(prompt_set=PromptSet.GiveUpAgentic, final_response_chain=True),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_report_sources",
-        report_sources_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    builder.add_node(
-        "p_activity_log_retrieval_tool_calls",
-        build_activity_log_node(
-            lambda s: [
-                RedboxActivityEvent(message=get_log_formatter_for_retrieval_tool(tool_state_entry).log_call())
-                for tool_state_entry in s.last_message.tool_calls
-            ]
-        ),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "s_tool",
-        empty_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "d_x_steps_left_or_less",
-        empty_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    # Edges
-    # builder.add_edge(START, "p_activity_log_user_request") # add back when move to this graph
-    builder.add_edge(START, "p_strip_route")
-    builder.add_edge("p_strip_route", "p_retrieve_metadata")
-    builder.add_edge("p_retrieve_metadata", "d_docs_selected")
-    builder.add_conditional_edges(
-        "d_docs_selected",
-        documents_selected_conditional,
-        {
-            True: "p_retrieve_docs",
-            False: "d_x_steps_left_or_less",
-        },
-    )
-    builder.add_edge("p_retrieve_docs", "d_x_steps_left_or_less")
-    builder.add_conditional_edges(
-        "d_x_steps_left_or_less",
-        lambda state: state.steps_left <= 8,
-        {
-            True: "p_give_up_agent",
-            False: "p_search_agent",
-        },
-    )
-    builder.add_edge("p_search_agent", "s_tool")
-    builder.add_edge("s_tool", "p_report_sources")
-    builder.add_edge("p_search_agent", "p_activity_log_retrieval_tool_calls")
-    builder.add_conditional_edges("s_tool", build_tool_send("p_retrieval_tools"), path_map=["p_retrieval_tools"])
-    builder.add_edge("p_retrieval_tools", "d_x_steps_left_or_less")
-    builder.add_edge("p_report_sources", END)
-    return builder.compile()

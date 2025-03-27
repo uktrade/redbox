@@ -23,10 +23,14 @@ from redbox.chains.components import get_basic_metadata_retriever, get_chat_llm,
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, basic_chat_chain, build_llm_chain
 from redbox.models import ChatRoute
-from redbox.models.chain import DocumentState, PromptSet, RedboxState, RequestMetadata
+from redbox.models.chain import DocumentState, PromptSet, RedboxState, RequestMetadata, get_prompts
 from redbox.models.graph import ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.settings import get_settings
 from redbox.transform import combine_documents, flatten_document_state
+from langgraph.types import Command
+from typing import Literal
+from langgraph.graph import END
+from typing_extensions import TypedDict
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
@@ -365,3 +369,52 @@ def lm_choose_route(state: RedboxState, parser: ClaudeParser):
     chain = get_metadata | use_result
     res = chain.invoke(state)
     return res.next.value
+
+
+def strip_route(state: RedboxState):
+    state.request.question = state.request.question.replace("@newroute ", "")
+    return state
+
+class Router(TypedDict):
+    """Worker to route to next. If no workers needed, route to FINISH."""
+
+    next: Literal["search_graph", "summarise_graph","FINISH"]
+
+class State(RedboxState):
+    next: str
+
+def supervisor_agent(prompt_set: PromptSet) -> Runnable[RedboxState, Command[Literal["search_graph", "summarise_graph", "__end__"]]]:
+    
+    @RunnableLambda
+    def _supervise(state: State) -> Command[Literal["search_graph", "summarise_graph", "__end__"]]:
+
+        llm = get_chat_llm(state.request.ai_settings.chat_backend)
+        task_system_prompt, _ = get_prompts(state, prompt_set)
+       
+        messages = [
+            {"role": "system", "content": task_system_prompt},
+        ] + state.messages
+        print('DEBUG supervisor messages')
+        print(messages)
+        response = llm.with_structured_output(Router).invoke(messages) #llm_openai give better response
+        goto = response["next"]
+        if goto == "FINISH":
+            goto = END
+
+        return Command(goto=goto, update={"next": goto})
+    return _supervise
+
+def pass_message_to_supervisor(from_agent_name)-> Runnable[RedboxState, Command[Literal["supervisor"]]]:
+    
+    @RunnableLambda
+    def _pass_message(state: RedboxState) -> Command[Literal["supervisor"]]:
+        return Command(
+            update={
+                "messages": [
+                    HumanMessage(content=state.messages[-1].content, name=from_agent_name)
+                ]
+            },
+            goto="supervisor",
+        )
+    return _pass_message
+
