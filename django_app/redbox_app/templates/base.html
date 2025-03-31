@@ -18,10 +18,11 @@
 
   <script type="module" src="{{static('js/libs/dompurify.js')}}"></script>
   <script type="module" src="{{static('js/main.js')}}"></script>
+  <script type="module" src="{{static('js/menu.js')}}"></script>
 
   {% if environment | lower == "prod" %}
   <!-- Google Tag Manager -->
-  <script hash="sha256-T/1K73p+yppfXXw/AfMZXDh5VRDNaoEh3enEGFmZp8M=" nonce="{{ request.csp_nonce }}">
+  <script hash="sha256-T/1K73p+yppfXXw/AfMZXDh5VRDNaoEh3enEGFmZp8M=" nonce="{{ request.csp_nonce }}"> // pragma: allowlist secret
     (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
   new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
   j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
@@ -42,9 +43,9 @@
 <!-- End Google Tag Manager (noscript) -->
   {% endif %}
 
-  <script hash="sha256-GUQ5ad8JK5KmEWmROf3LZd9ge94daqNvd8xy9YS1iDw=">document.body.className += ' js-enabled' + ('noModule' in HTMLScriptElement.prototype ? ' govuk-frontend-supported' : '');</script>
+  <script hash="sha256-GUQ5ad8JK5KmEWmROf3LZd9ge94daqNvd8xy9YS1iDw=">document.body.className += ' js-enabled' + ('noModule' in HTMLScriptElement.prototype ? ' govuk-frontend-supported' : '');</script> <!-- pragma: allowlist secret -->
   <script type="module" src="{{static('js/libs/govuk-frontend.min.js')}}" nonce="{{ request.csp_nonce }}"></script>
-  <script hash="sha256-qmCu1kQifDfCnUd+L49nusp7+PeRl23639pzN5QF2WA=" type="module" nonce="{{ request.csp_nonce }}">
+  <script hash="sha256-qmCu1kQifDfCnUd+L49nusp7+PeRl23639pzN5QF2WA=" type="module" nonce="{{ request.csp_nonce }}"> <!-- pragma: allowlist secret -->
     import { initAll } from '../static/js/libs/govuk-frontend.min.js'
     initAll()
   </script>
@@ -62,16 +63,12 @@
     {{ iaiTopNav(
       product_name = "Redbox",
       menu_items = [
-        {"text": "Documents", "href": url('documents')},
-        {"text": "Chats", "href": url('chats')}
+      {"text": "Documents", "href": url('documents')},
+      {"text": "Chats", "href": url('chats')},
+      {"text": "My details", "href": url('demographics')},
+      {"text": "Sign out", "href": url('signed-out')},
+
       ],
-      user_items = {
-          "initials": request.user.get_initials(),
-          "menu_items": [
-              {"text": "My details", "href": url('demographics')},
-              {"text": "Sign out", "href": url('signed-out')}
-          ]
-      },
       phase = "Beta"
     ) }}
   {% else %}
@@ -85,7 +82,7 @@
   {% endif %}
 
 
-  <main class="govuk-main-wrapper" id="main-content" role="main">
+  <main id="main-content" role="main">
     {% block content %}
     {% endblock %}
   </main>

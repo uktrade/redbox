@@ -3,6 +3,8 @@
 {% from "macros/chat-history-macros.html" import chat_history_heading, chat_history_item %}
 {% from "macros/chat-macros.html" import message_box, route_display %}
 {% from "macros/profile-overlay.html" import profile_overlay %}
+{% from "macros/govuk-button.html" import govukButton %}
+
 
 {% block content %}
 
@@ -20,22 +22,19 @@
     </div>
   </div>
 
-  <form class="govuk-grid-row js-message-input" action="/post-message/" method="post">
+  <form class="govuk-grid-row js-message-input" action="/submit" method="post">
 
     <div class="govuk-grid-column-one-third">
-      <div class="rb-left-column-container govuk-!-margin-bottom-5">
-
-        <a class="iai-large-button" role="button" href="{{ url('chats') }}" id="new-chat-button">
-          <svg width="22" height="22" fill="none" aria-hidden="true" focusable="false"><path d="M21 11c0-5.523-4.477-10-10-10S1 5.477 1 11s4.477 10 10 10 10-4.477 10-10z" stroke="currentColor" stroke-linejoin="round"/><g filter="url(#A)"><path d="M15.656 11.656h-4v4h-1.312v-4h-4v-1.312h4v-4h1.312v4h4v1.312z" fill="currentColor"/></g><defs><filter x="6" y="6" width="10" height="10" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="A"/><feColorMatrix in="SourceAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"/><feOffset dx="1" dy="1"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"/><feBlend in2="A"/><feBlend in="SourceGraphic"/></filter></defs></svg>
+      <div class="rb-left-column-container">
+        <a class="govuk-button govuk-button--secondary-new govuk-!-margin-left-2 govuk-!-margin-top-4 govuk-!-margin-bottom-2" role="button" href="{{ url('chats') }}" id="new-chat-button">
           New chat
         </a>
+        
 
-      <div class="iai-panel govuk-!-margin-top-5 govuk-!-padding-top-3">
-        <h2 class="govuk-body-s govuk-!-font-weight-bold govuk-!-margin-bottom-0 rb-chat-history__title">Recent chats</h2>
-        <div class="iai-panel__scrollable iai-panel__scrollable--chat-history govuk-!-padding-right-3">
+        <h2 class="govuk-heading-s iai-panel-heading">Recent chats</h2>
+        <!-- <div class="iai-panel__scrollable iai-panel__scrollable--chat-history govuk-!-padding-right-3"> -->
 
           <chat-history>
-
             <template id="template-chat_history_heading">
               <div>
                 {% call chat_history_heading("-") %}
@@ -59,17 +58,14 @@
 
           </chat-history>
 
-        </div>
-      </div>
-
-        <document-selector class="iai-panel govuk-!-margin-top-5 govuk-!-padding-top-3">
+        <document-selector class="govuk-!-margin-top-5 govuk-!-padding-top-3">
           <fieldset class="govuk-fieldset">
-            <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">
-              <h3 class="rb-doc-selector__heading govuk-fieldset__heading">Documents to use</h3>
+            <legend class="full-width-panel-title">
+              <h3 class="govuk-heading-s iai-panel-heading">Documents to use</h3>
             </legend>
-            <div class="govuk-checkboxes govuk-checkboxes--small iai-panel__scrollable" data-module="govuk-checkboxes">
+            <div class="govuk-checkboxes govuk-checkboxes--small iai-panel__scrollable govuk-!-margin-left-2" data-module="govuk-checkboxes">
               {% for file in completed_files %}
-                <div class="govuk-checkboxes__item">
+                <div class="govuk-checkboxes__item rb-chat-history__title">
                   <input class="govuk-checkboxes__input" id="file-{{ file.id }}" name="file-{{ file.id }}" type="checkbox" value="{{ file.id }}" {% if file.selected %}checked{% endif %}>
                   <label class="rb-doc-selector__label govuk-checkboxes__label" for="file-{{ file.id }}">{{ file.file_name }}</label>
                 </div>
@@ -87,9 +83,8 @@
             </div>
           </fieldset>
         </document-selector>
-
-        <div class="iai-panel govuk-!-margin-top-5 govuk-!-padding-top-3 {% if environment | lower == 'prod' and not request.user.is_superuser %} govuk-visually-hidden {% endif %}">
-          <label class="govuk-body-s govuk-!-font-weight-bold" for="llm-selector">Model</label>
+        <div class="iai-doc-list">
+          <label for="llm-selector">Model</label>
           <select id="llm-selector" name="llm" class="govuk-select govuk-!-margin-top-1" {% if environment | lower == 'prod' %} disabled {% endif %}>
             {% for option in llm_options %}
               <option value="{{ option.id }}" {% if option.selected %}selected{% endif %}>{{ option.name }}{% if option.default %} (default){% endif %}</option>
@@ -143,46 +138,44 @@
       </div>
 
       {% if not messages %}
-        <canned-prompts class="chat-options"></canned-prompts>
+        <canned-prompts class="chat-options" security-classification="{{ security }}"></canned-prompts>
       {% endif %}
-
-      <div class="iai-chat-input">
-        <div class="iai-chat-input__container">
-          <div class="iai-chat-input__input-container">
-            <label class="iai-chat-input__label govuk-label" for="message">
-              Message Redbox
-            </label>
-            <message-input>
-              <div class="iai-chat-input__input js-user-text" id="message" name="message" contenteditable="true" role="textbox" aria-multiline="true"></div>
-            </message-input>
-          </div>
-          {% if enable_dictation_flag_is_active %}
-          <send-message-with-dictation data-api-key="{{ redbox_api_key }}">
-            <button class="iai-chat-input__button iai-icon-button rb-send-button" type="submit">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" focusable="false" aria-hidden="true">
-                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" fill="currentColor"/>
-                <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" fill="currentColor"/>
-              </svg>
-              Dictate
-            </button>
-          </send-message-with-dictation>
-          {% else %}
-          <send-message>
-            <button class="iai-chat-input__button iai-icon-button rb-send-button" type="submit">
-              <svg width="28" height="28" viewBox="32 16 29 29" fill="none" focusable="false" aria-hidden="true"><g filter="url(#A)"><use xlink:href="#C" fill="#edeef2"/></g><g filter="url(#B)"><use xlink:href="#C" fill="#fff"/></g><path d="M47.331 36.205v-8.438l3.89 3.89.972-1.007-5.556-5.556-5.556 5.556.972.972 3.889-3.854v8.438h1.389z" fill="currentColor"/><defs><filter x="17" y="1" width="65" height="65" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="A"/><feColorMatrix in="SourceAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"/><feOffset dx="3" dy="3"/><feGaussianBlur stdDeviation="10"/><feColorMatrix values="0 0 0 0 0.141176 0 0 0 0 0.254902 0 0 0 0 0.364706 0 0 0 0.302 0"/><feBlend in2="A"/><feBlend in="SourceGraphic"/></filter><filter id="B" x="0" y="-16" width="85" height="85" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="A"/><feColorMatrix in="SourceAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"/><feOffset dx="-4" dy="-4"/><feGaussianBlur stdDeviation="15"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"/><feBlend in2="A"/><feBlend in="SourceGraphic"/></filter><path id="C" d="M59 30.5C59 23.596 53.404 18 46.5 18S34 23.596 34 30.5 39.596 43 46.5 43 59 37.404 59 30.5z"/></defs></svg>
-                  Send
-            </button>
-          </send-message>
-          {% endif %}
-        </div>
-        <p class="govuk-body">
-          Need help? Read through our <a href="{{ url('faq') }}" class="govuk-link" target="_blank">Advanced Prompt FAQ</a> section.
-        </p>
-        <p class="iai-chat-input__info-text">Redbox can make mistakes. You must check for accuracy before using the output.</p>
-        <p class="iai-chat-input__info-text">You can use up to, and including, official sensitive documents.</p>
+      <div class="iai-chat-input__input-container">
+      <label class="govuk-label" for="message">
+      </label>
+      <div id="message-hint" class="govuk-hint">
+        Need help? View <a href="{{ url('faq') }}" class="govuk-link" target="_blank">Advanced Prompt FAQ.</a>
       </div>
+      <message-input>
+        <div class="govuk-textareax iai-chat-input__input js-user-text" id="message" name="message" contenteditable="true" role="textbox" aria-multiline="true" data-text="Type here..."></div>
+      </message-input>
+  </div>
+      <send-message>
+        {{ govukButton(
+          text="Dictate",
+          classes="govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-3"
+        ) }}
+        {{ govukButton(
+          text="Stop",
+          classes="govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-3",
+          dont_submit=True
+        ) }}
+        {{ govukButton(
+          text="Add document",
+          href=url('upload'),
+          classes="govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-3"
+        ) }}
+        {{ govukButton(
+          text="Send",
+          classes="govuk-!-margin-top-5 rb-send-button"
+        ) }}
+        {{ govukButton(
+          text="Stop",
+          classes="govuk-!-margin-top-5"
+        ) }}
+      </send-message>
 
-    </div>
+      </div>
 
   </form>
 
