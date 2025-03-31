@@ -1,25 +1,16 @@
-import operator
-import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum
-from typing import Annotated, Callable, List
-from uuid import uuid4
+from typing import List
 
-import markdown
-import pandas as pd
 from langchain.schema import StrOutputParser
-from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import chain as as_runnable
-from langchain_core.tools import Tool, tool
 from langgraph.constants import Send
 from langgraph.graph import END, START, StateGraph
 from langgraph.pregel import RetryPolicy
 from pydantic import BaseModel, Field
-from sklearn.metrics.pairwise import cosine_similarity
 
-from redbox.api.format import format_documents
 from redbox.chains.components import (
     get_basic_metadata_retriever, get_chat_llm, get_embeddings,
     get_structured_response_with_citations_parser)
@@ -31,10 +22,12 @@ from redbox.graph.nodes.sends import _copy_state
 from redbox.graph.nodes.tools import (build_govuk_search_tool,
                                       build_search_documents_tool,
                                       build_search_wikipedia_tool)
-from redbox.models.chain import AISettings, PromptSet, RedboxQuery, RedboxState
-from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
+from redbox.models.chain import PromptSet, RedboxState
+from redbox.models.file import ChunkResolution
 from redbox.models.graph import RedboxActivityEvent
-from redbox.models.settings import ChatLLMBackend, Settings, get_settings
+from redbox.models.prompts import (DOCUMENT_AGENT_PROMPT, EXTERNAL_DATA_AGENT,
+                                   PLANNER_PROMPT)
+from redbox.models.settings import Settings, get_settings
 
 
 def test_graph():
@@ -114,24 +107,6 @@ def test_graph():
 
     class MultiAgentPlan(BaseModel):
         tasks: List[AgentTask] = Field(description = "A list of tasks to be carried out by agents", default = [])
-
-    file_path = os.path.dirname(os.path.abspath(__file__))
-
-    # PLANNER PROMPT
-    f = open(os.path.join(file_path,'orchestration-agent-prompt.md'))
-    PLANNER_PROMPT=markdown.markdown( f.read() ) + """\nUser question: <Question>{question}</Question> \n User documents metadata:<Document_Metadata>{metadata}</Document_Metadata>"""
-
-    # DOC AGENT
-    f = open(os.path.join(file_path,'document_agent_prompt.md'))
-    DOC_AGENT_PROMPT = markdown.markdown( f.read() )
-
-
-    # EXTERNAL DATA AGENT
-    f = open(os.path.join(file_path,'external_data_agent_prompt.md'))
-    EXTERNAL_DATA_AGENT = markdown.markdown( f.read() )
-
-
-
 
     # tools
     env = Settings()
@@ -215,7 +190,7 @@ def test_graph():
         activity_node = build_activity_log_node(RedboxActivityEvent(message=f"Document Agent is completing task: {task.task}"))
         activity_node.invoke(state)
 
-        doc_agent = create_agent(system_prompt=DOC_AGENT_PROMPT, use_metadata=True, parser=None, tools = tools, _additional_variables={'task': task.task, 'expected_output': task.expected_output})
+        doc_agent = create_agent(system_prompt=DOCUMENT_AGENT_PROMPT, use_metadata=True, parser=None, tools = tools, _additional_variables={'task': task.task, 'expected_output': task.expected_output})
         ai_msg = doc_agent.invoke(state)
         result = run_tools_parallel(ai_msg, tools, state)
         return {'messages': result}

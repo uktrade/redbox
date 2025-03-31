@@ -17,9 +17,10 @@ from redbox.chains.components import get_embeddings
 from redbox.models.chain import RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
 from redbox.models.settings import get_settings
-from redbox.retriever.queries import add_document_filter_scores_to_query, build_document_query
+from redbox.retriever.queries import (add_document_filter_scores_to_query,
+                                      build_document_query)
 from redbox.retriever.retrievers import query_to_documents
-from redbox.transform import merge_documents, sort_documents, bedrock_tokeniser
+from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
 
 
 def build_search_documents_tool(
@@ -32,7 +33,7 @@ def build_search_documents_tool(
     """Constructs a tool that searches the index and sets state.documents."""
 
     @tool(response_format="content_and_artifact")
-    def _search_documents(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
+    def _search_documents(query: str, state: Annotated[RedboxState, InjectedState], selected_files: list[str] = []) -> tuple[str, list[Document]]:
         """
         "Searches through state.documents to find and extract relevant information. This tool should be used whenever a query involves finding, searching, or retrieving information from documents that have already been uploaded or provided to the system.
 
@@ -43,11 +44,13 @@ def build_search_documents_tool(
             - Can be natural language, keywords, or phrases
             - More specific queries yield more precise results
             - Query length should be 1-500 characters
+            selected_files list[str]: A list of file names that will be used to query against.
         Returns:
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
         query_vector = embedding_model.embed_query(query)
-        selected_files = state.request.s3_keys
+        if not selected_files:
+            selected_files = state.request.s3_keys
         permitted_files = state.request.permitted_s3_keys
         ai_settings = state.request.ai_settings
 
