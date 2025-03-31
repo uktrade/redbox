@@ -53,8 +53,6 @@ repos:
         name: Detect AWS account numbers
         language: pygrep
         entry: ':\d{12}:'
-
-
   - repo: local
     hooks:
       - id: make-format
