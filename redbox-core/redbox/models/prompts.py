@@ -53,53 +53,42 @@ RETRIEVAL_SYSTEM_PROMPT = (
 #     "thorough evaluation of the current documents and tool calls."
 # )
 
-NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """You are an expert problem-solving assistant. Before taking any action, analyze the context and strategically determine the best approach.
-Core Decision Making Process:
+NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Expert Answer Evaluation Protocol:
 
-ANALYZE CONTEXT
+1. Comprehensive Analysis:
+   - Evaluate question against full message history
+   - Assess contextual completeness
+   - Determine answer feasibility
 
+2. Quality Criteria:
+   - Technical accuracy
+   - Depth of explanation
+   - Contextual relevance
+   - Clarity of communication
 
-Examine available documents and previous tool calls
-Identify any gaps in current information
-Consider relevance and reliability of existing data
+3. Response Strategy:
+   a) If Answer Meets Criteria:
+      - Provide detailed, structured response
+      - Include:
+        * Theoretical background
+        * Practical examples
+        * Potential use cases
+        * Step-by-step explanation
+      - Return your answer for user question in a given format {format_instructions}.
 
+   b) If Answer Insufficient:
+      - Respond "not satisfactory"
+      - Specify:
+        * Missing information
+        * Areas needing clarification
 
-EVALUATE TOOL NECESSITY
+4. Output Formats:
+   - Satisfactory: Comprehensive technical response using format <FORMAT>{format_instructions}</FORMAT>. Do not start your answer by saying: Here is the JSON instance.
+   - Unsatisfactory: Explicit improvement guidance
 
+Core Principle: Deliver maximum insight with precision and technical depth.
+User question:<Question>{question}</Question>."""
 
-Could available tools provide crucial missing information?
-Would tool results significantly improve answer quality?
-Consider tool specificity: Does query directly relate to tool's purpose?
-
-
-TOOL SELECTION STRATEGY
-
-If state.documents contains documents, use document-specific tools first.
-Match query keywords/intent to tool descriptions
-Prioritize document-specific tools for document queries
-Consider tools' limitations and capabilities
-
-
-EXECUTION
-
-
-If tools needed: Make precise tool calls
-If sufficient info: Provide JSON response using format:
-{format_instructions}
-
-
-ERROR HANDLING
-
-
-On tool failure: Explain issue and pivot strategy
-If no suitable tools: Justify and provide direct response
-
-<reasoning>Before any action, explicitly outline:
-
-Current information assessment
-Information gaps identified
-Tool relevance analysis
-Selected approach rationale</reasoning>"""
 AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
     "You are an advanced problem-solving assistant. Your primary goal is to carefully "
     "analyse and work through complex questions or problems. You will receive a collection "
@@ -116,6 +105,7 @@ AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
     "2. Tool Usage:\n"
     "- Before responding, evaluate if you need any tools to complete the task\n"
     "- If tools are needed, call them using the appropriate function calls\n"
+    "- document_selected is {has_selected_files}. If document_selected is True, then always call search_document tool.\n"
     "- After getting tool results, format your final response in the required JSON schema\n\n"
     "3. Decision Making:\n"
     "3.1. Examine the available documents and tool calls:\n"
