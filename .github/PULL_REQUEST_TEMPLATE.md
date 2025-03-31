@@ -2,10 +2,6 @@
 
 <!-- Why are you making this change? What might surprise someone about it? -->
 
-## Why have you proposed this change?
-
-<!-- If there are UI changes, please include Before and After screenshots. -->
-
 ## What is this code aiming to achieve?
 
 <!-- What is being accomplished by this change in the code? -->

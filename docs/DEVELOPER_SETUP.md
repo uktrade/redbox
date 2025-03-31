@@ -5,7 +5,7 @@
 
 ## Installing packages
 
-Currently, we use [poetry](https://python-poetry.org/) to manage our python packages. There are 3 `pyproject.toml`s 
+Currently, we use [poetry](https://python-poetry.org/) to manage our python packages. There are 3 `pyproject.toml`s
 - [redbox-core](https://github.com/i-dot-ai/redbox/blob/main/redbox-core/pyproject.toml) - core AI package
 - [django-app](https://github.com/i-dot-ai/redbox/blob/main/django_app/pyproject.toml) - django webserver and background worker
 - [root](https://github.com/i-dot-ai/redbox/blob/main/pyproject.toml) - Integration tests, QA, and docs
@@ -62,7 +62,7 @@ To build the images needed to run the project, use this command:
 make build
 ```
 
-or 
+or
 
 ``` bash
 docker compose build
@@ -74,7 +74,7 @@ Once those images have built, you can run them using:
 make run
 ```
 
-or 
+or
 
 ``` bash
 docker compose up
@@ -117,9 +117,9 @@ We'll need to create a superuser to log in to the Django app, to do this run the
 1. Come up with an email to log in with. It doesn't need to be real.
 2. `docker compose run django-app venv/bin/django-admin createsuperuser`
 3. Use the email you came up with in step 1, and a password (the password isn't used as we use magic links).
-4. Now go to http://localhost:8090/sign-in/ enter the email you just created a super user for.
+4. Now go to http://localhost:8080/sign-in/ enter the email you just created a super user for.
 5. Press "Continue"
-6. Now go to your terminal and run `docker compose logs django-app | grep 8090/magic_link`
+6. Now go to your terminal and run `docker compose logs django-app | grep 8080/magic_link`
 7. Click that link and you should be logged in.
 
 
@@ -154,7 +154,7 @@ We use [elasticsearch-dump](https://github.com/elasticsearch-dump/elasticsearch-
 
 ### Installing Node and `elasticsearch-dump`
 
-Install [Node and `npm`](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) (Node package manager) if you don't already have them. We recommend using [`nvm`](https://github.com/nvm-sh/nvm?tab=readme-ov-file#installing-and-updating) (Node version manager) to do this. 
+Install [Node and `npm`](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) (Node package manager) if you don't already have them. We recommend using [`nvm`](https://github.com/nvm-sh/nvm?tab=readme-ov-file#installing-and-updating) (Node version manager) to do this.
 
 If you're familiar with Node or use it regularly we recommend following your own processes or the tools' documentation. We endeavour to provide a quickstart here which will install `nvm`, Node, `npm` and `elasticsearch-dump` globally. This is generally not good practise.
 
