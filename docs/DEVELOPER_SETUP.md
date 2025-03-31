@@ -5,7 +5,7 @@
 
 ## Installing packages
 
-Currently, we use [poetry](https://python-poetry.org/) to manage our python packages. There are 3 `pyproject.toml`s 
+Currently, we use [poetry](https://python-poetry.org/) to manage our python packages. There are 3 `pyproject.toml`s
 - [redbox-core](https://github.com/i-dot-ai/redbox/blob/main/redbox-core/pyproject.toml) - core AI package
 - [django-app](https://github.com/i-dot-ai/redbox/blob/main/django_app/pyproject.toml) - django webserver and background worker
 - [root](https://github.com/i-dot-ai/redbox/blob/main/pyproject.toml) - Integration tests, QA, and docs
@@ -62,7 +62,7 @@ To build the images needed to run the project, use this command:
 make build
 ```
 
-or 
+or
 
 ``` bash
 docker compose build
@@ -74,7 +74,7 @@ Once those images have built, you can run them using:
 make run
 ```
 
-or 
+or
 
 ``` bash
 docker compose up
@@ -128,16 +128,6 @@ We'll need to create a superuser to log in to the Django app, to do this run the
 There are a number of notebooks available, in various states of working! The Redbox core app is able to be created in a notebook and run to allow easy experiementation without the django side.
 agent_experiments.ipynb shows this best currently.
 
-#### Langfuse
-
-When running in a notebook (and again shows in agent_experiments.ipynb) we use a local Langfuse server to record traces. To do this the env vars for Langfuse should be copied out of .env.example into .env:
-``` bash
-LANGFUSE_SECRET_KEY=...
-LANGFUSE_PUBLIC_KEY=...
-LANGFUSE_HOST=...
-```
-The server can be started using docker-compose
-
 ## Pre-commit hooks
 
 - Download and install [pre-commit](https://pre-commit.com) to benefit from pre-commit hooks
@@ -154,7 +144,7 @@ We use [elasticsearch-dump](https://github.com/elasticsearch-dump/elasticsearch-
 
 ### Installing Node and `elasticsearch-dump`
 
-Install [Node and `npm`](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) (Node package manager) if you don't already have them. We recommend using [`nvm`](https://github.com/nvm-sh/nvm?tab=readme-ov-file#installing-and-updating) (Node version manager) to do this. 
+Install [Node and `npm`](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) (Node package manager) if you don't already have them. We recommend using [`nvm`](https://github.com/nvm-sh/nvm?tab=readme-ov-file#installing-and-updating) (Node version manager) to do this.
 
 If you're familiar with Node or use it regularly we recommend following your own processes or the tools' documentation. We endeavour to provide a quickstart here which will install `nvm`, Node, `npm` and `elasticsearch-dump` globally. This is generally not good practise.
 
