@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
 
-BASE_URL = URL("http://localhost:8090/")
+BASE_URL = URL("http://localhost:8080/")
 TEST_ROOT = Path(__file__).parent
 
 
