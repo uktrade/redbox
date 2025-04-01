@@ -52,7 +52,6 @@ django-log-formatter-asim = "^0.0.6"
 django-chunk-upload-handlers = "^0.0.15"
 speechrecognition = "^3.14.1"
 pydub = "^0.25.1"
-markdown = "^3.7"
 
 
 [tool.poetry.group.dev.dependencies]
