@@ -12,45 +12,49 @@ from langgraph.pregel import RetryPolicy
 from pydantic import BaseModel, Field
 
 from redbox.chains.components import (
-    get_basic_metadata_retriever, get_chat_llm, get_embeddings,
-    get_structured_response_with_citations_parser)
+    get_basic_metadata_retriever,
+    get_chat_llm,
+    get_embeddings,
+    get_structured_response_with_citations_parser,
+)
 from redbox.chains.parser import ClaudeParser
-from redbox.graph.nodes.processes import (build_activity_log_node,
-                                          build_stuff_pattern, empty_process,
-                                          report_sources_process)
+from redbox.graph.nodes.processes import (
+    build_activity_log_node,
+    build_stuff_pattern,
+    empty_process,
+    report_sources_process,
+)
 from redbox.graph.nodes.sends import _copy_state
-from redbox.graph.nodes.tools import (build_govuk_search_tool,
-                                      build_search_documents_tool,
-                                      build_search_wikipedia_tool)
+from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_documents_tool, build_search_wikipedia_tool
 from redbox.models.chain import PromptSet, RedboxState
 from redbox.models.file import ChunkResolution
 from redbox.models.graph import RedboxActivityEvent
-from redbox.models.prompts import (DOCUMENT_AGENT_PROMPT, EXTERNAL_DATA_AGENT,
-                                   PLANNER_PROMPT)
+from redbox.models.prompts import DOCUMENT_AGENT_PROMPT, EXTERNAL_DATA_AGENT, PLANNER_PROMPT
 from redbox.models.settings import Settings, get_settings
 
 
 def test_graph():
-    def basic_chat_chain(system_prompt, tools=None,  _additional_variables: dict = {}, parser=None, using_only_structure=False):
+    def basic_chat_chain(
+        system_prompt, tools=None, _additional_variables: dict = {}, parser=None, using_only_structure=False
+    ):
         @as_runnable
         def _basic_chat_chain(state: RedboxState):
             nonlocal parser
             if tools:
-                llm = get_chat_llm(state.request.ai_settings.chat_backend, tools = tools)
+                llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
             else:
                 llm = get_chat_llm(state.request.ai_settings.chat_backend)
-            context = ({
-                        "question": state.request.question,
-                        }
-                    | _additional_variables
-                )
+            context = {
+                "question": state.request.question,
+            } | _additional_variables
             if parser:
                 if isinstance(parser, StrOutputParser):
                     prompt = ChatPromptTemplate([(system_prompt)])
                 else:
-
                     format_instructions = parser.get_format_instructions()
-                    prompt = ChatPromptTemplate([(system_prompt)], partial_variables={"format_instructions": format_instructions})
+                    prompt = ChatPromptTemplate(
+                        [(system_prompt)], partial_variables={"format_instructions": format_instructions}
+                    )
                 if using_only_structure:
                     chain = prompt | llm
                 else:
@@ -59,9 +63,12 @@ def test_graph():
                 prompt = ChatPromptTemplate([(system_prompt)])
                 chain = prompt | llm
             return chain.invoke(context)
+
         return _basic_chat_chain
 
-    def chain_use_metadata(system_prompt: str, parser=None, tools = None, _additional_variables: dict = {}, using_only_structure=False):
+    def chain_use_metadata(
+        system_prompt: str, parser=None, tools=None, _additional_variables: dict = {}, using_only_structure=False
+    ):
         metadata = None
 
         @as_runnable
@@ -74,39 +81,63 @@ def test_graph():
 
         @as_runnable
         def use_result(state: RedboxState):
-            additional_variables = {'metadata': metadata}
+            additional_variables = {"metadata": metadata}
             if _additional_variables:
                 additional_variables = dict(additional_variables, **_additional_variables)
                 print(additional_variables)
-            chain = basic_chat_chain(system_prompt=system_prompt, tools = tools, parser=parser, _additional_variables=additional_variables, using_only_structure=using_only_structure)
+            chain = basic_chat_chain(
+                system_prompt=system_prompt,
+                tools=tools,
+                parser=parser,
+                _additional_variables=additional_variables,
+                using_only_structure=using_only_structure,
+            )
             return chain.invoke(state)
 
         return get_metadata | use_result
 
-    def create_agent(system_prompt, use_metadata=False, tools = None, parser=None, _additional_variables: dict = {}, using_only_structure=False):
+    def create_agent(
+        system_prompt,
+        use_metadata=False,
+        tools=None,
+        parser=None,
+        _additional_variables: dict = {},
+        using_only_structure=False,
+    ):
         if use_metadata:
-            return chain_use_metadata(system_prompt=system_prompt, tools=tools, parser = parser, _additional_variables=_additional_variables, using_only_structure=using_only_structure)
+            return chain_use_metadata(
+                system_prompt=system_prompt,
+                tools=tools,
+                parser=parser,
+                _additional_variables=_additional_variables,
+                using_only_structure=using_only_structure,
+            )
         else:
-            return basic_chat_chain(system_prompt=system_prompt, tools=tools, parser=parser, _additional_variables=_additional_variables, using_only_structure=using_only_structure)
-
+            return basic_chat_chain(
+                system_prompt=system_prompt,
+                tools=tools,
+                parser=parser,
+                _additional_variables=_additional_variables,
+                using_only_structure=using_only_structure,
+            )
 
     agents = ["Document_Agent", "External_Data_Agent"]
 
-    #create options map for the supervisor output parser.
-    agent_options = {agent:agent for agent in agents}
+    # create options map for the supervisor output parser.
+    agent_options = {agent: agent for agent in agents}
 
-    #create Enum object
-    AgentEnum = Enum('AgentEnum', agent_options)
+    # create Enum object
+    AgentEnum = Enum("AgentEnum", agent_options)
 
     class AgentTask(BaseModel):
-        task: str = Field(description = "Task to be completed by the agent", default = "")
-        agent: AgentEnum = Field(description = "Name of the agent to complete the task", default = AgentEnum.Document_Agent)
+        task: str = Field(description="Task to be completed by the agent", default="")
+        agent: AgentEnum = Field(description="Name of the agent to complete the task", default=AgentEnum.Document_Agent)
         # input: str = Field(description = "What information will be provided to this agent", default = "")
-        expected_output: str = Field(description = "What this agent should produce", default = "")
+        expected_output: str = Field(description="What this agent should produce", default="")
         # Purpose: str = Field(description = "How this output contributes to the overall goal", default = "")
 
     class MultiAgentPlan(BaseModel):
-        tasks: List[AgentTask] = Field(description = "A list of tasks to be carried out by agents", default = [])
+        tasks: List[AgentTask] = Field(description="A list of tasks to be carried out by agents", default=[])
 
     # tools
     env = Settings()
@@ -130,7 +161,7 @@ def test_graph():
             # Submit tool invocations to the executor
             for tool_call in ai_msg.tool_calls:
                 # Find the matching tool by name
-                selected_tool = next((tool for tool in tools if tool.name == tool_call.get('name')), None)
+                selected_tool = next((tool for tool in tools if tool.name == tool_call.get("name")), None)
 
                 if selected_tool is None:
                     print(f"Warning: No tool found for {tool_call.get('name')}")
@@ -138,7 +169,7 @@ def test_graph():
 
                 # Get arguments and submit the tool invocation
                 args = tool_call.get("args", {})
-                args['state'] = state
+                args["state"] = state
                 future = executor.submit(selected_tool.invoke, args)
                 futures.append(future)
 
@@ -154,17 +185,22 @@ def test_graph():
             return responses
 
     def sending_task(state: RedboxState):
-        parser=ClaudeParser(pydantic_object=MultiAgentPlan)
+        parser = ClaudeParser(pydantic_object=MultiAgentPlan)
         plan = parser.parse(state.last_message.content)
-        task_send_states: list[RedboxState] = [(task.agent.value,
-            _copy_state(
-                state,
-                messages=[AIMessage(content=task.model_dump_json())]))
-            for task in plan.tasks]
+        task_send_states: list[RedboxState] = [
+            (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
+            for task in plan.tasks
+        ]
         return [Send(node=target, arg=state) for target, state in task_send_states]
 
     def create_planner(state: RedboxState):
-        orchestration_agent = create_agent(system_prompt=PLANNER_PROMPT, use_metadata=True, tools = None, parser=ClaudeParser(pydantic_object=MultiAgentPlan),using_only_structure=True)
+        orchestration_agent = create_agent(
+            system_prompt=PLANNER_PROMPT,
+            use_metadata=True,
+            tools=None,
+            parser=ClaudeParser(pydantic_object=MultiAgentPlan),
+            using_only_structure=True,
+        )
         res = orchestration_agent.invoke(state)
         state.messages.append(AIMessage(res.content))
         return state
@@ -172,45 +208,58 @@ def test_graph():
     def create_evaluator(state: RedboxState):
         citation_parser, format_instructions = get_structured_response_with_citations_parser()
         evaluator_agent = build_stuff_pattern(
-                prompt_set=PromptSet.NewRoute,
-                tools=None,
-                output_parser=citation_parser,
-                format_instructions=format_instructions,
-                final_response_chain=False,
-            )
+            prompt_set=PromptSet.NewRoute,
+            tools=None,
+            output_parser=citation_parser,
+            format_instructions=format_instructions,
+            final_response_chain=False,
+        )
         return evaluator_agent
 
     def build_document_agent(state: RedboxState):
         tools = [search_documents]
-        parser=ClaudeParser(pydantic_object=AgentTask)
+        parser = ClaudeParser(pydantic_object=AgentTask)
         try:
             task = parser.parse(state.last_message.content)
         except Exception as e:
-            print(f'Cannot parse in document agent: {e}')
-        activity_node = build_activity_log_node(RedboxActivityEvent(message=f"Document Agent is completing task: {task.task}"))
+            print(f"Cannot parse in document agent: {e}")
+        activity_node = build_activity_log_node(
+            RedboxActivityEvent(message=f"Document Agent is completing task: {task.task}")
+        )
         activity_node.invoke(state)
 
-        doc_agent = create_agent(system_prompt=DOCUMENT_AGENT_PROMPT, use_metadata=True, parser=None, tools = tools, _additional_variables={'task': task.task, 'expected_output': task.expected_output})
+        doc_agent = create_agent(
+            system_prompt=DOCUMENT_AGENT_PROMPT,
+            use_metadata=True,
+            parser=None,
+            tools=tools,
+            _additional_variables={"task": task.task, "expected_output": task.expected_output},
+        )
         ai_msg = doc_agent.invoke(state)
         result = run_tools_parallel(ai_msg, tools, state)
-        return {'messages': result}
-
+        return {"messages": result}
 
     def build_external_data_agent(state: RedboxState):
         tools = [search_govuk, search_wikipedia]
-        parser=ClaudeParser(pydantic_object=AgentTask)
+        parser = ClaudeParser(pydantic_object=AgentTask)
         try:
             task = parser.parse(state.last_message.content)
         except Exception as e:
-            print(f'Cannot parse in document agent: {e}')
-        activity_node = build_activity_log_node(RedboxActivityEvent(message=f"External Data Agent is completing task: {task.task}"))
+            print(f"Cannot parse in document agent: {e}")
+        activity_node = build_activity_log_node(
+            RedboxActivityEvent(message=f"External Data Agent is completing task: {task.task}")
+        )
         activity_node.invoke(state)
-        ext_agent = create_agent(system_prompt=EXTERNAL_DATA_AGENT, use_metadata=False, parser=None, tools = tools, _additional_variables={'task': task.task, 'expected_output': task.expected_output})
+        ext_agent = create_agent(
+            system_prompt=EXTERNAL_DATA_AGENT,
+            use_metadata=False,
+            parser=None,
+            tools=tools,
+            _additional_variables={"task": task.task, "expected_output": task.expected_output},
+        )
         ai_msg = ext_agent.invoke(state)
         result = run_tools_parallel(ai_msg, tools, state)
-        return {'messages': result}
-
-
+        return {"messages": result}
 
     builder = StateGraph(RedboxState)
     builder.add_node("planner", create_planner)
