@@ -17,8 +17,7 @@ from redbox.chains.components import get_embeddings
 from redbox.models.chain import RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
 from redbox.models.settings import get_settings
-from redbox.retriever.queries import (add_document_filter_scores_to_query,
-                                      build_document_query)
+from redbox.retriever.queries import add_document_filter_scores_to_query, build_document_query
 from redbox.retriever.retrievers import query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
 
@@ -33,7 +32,9 @@ def build_search_documents_tool(
     """Constructs a tool that searches the index and sets state.documents."""
 
     @tool(response_format="content_and_artifact")
-    def _search_documents(query: str, state: Annotated[RedboxState, InjectedState], selected_files: list[str] = []) -> tuple[str, list[Document]]:
+    def _search_documents(
+        query: str, state: Annotated[RedboxState, InjectedState], selected_files: list[str] = []
+    ) -> tuple[str, list[Document]]:
         """
         "Searches through state.documents to find and extract relevant information. This tool should be used whenever a query involves finding, searching, or retrieving information from documents that have already been uploaded or provided to the system.
 

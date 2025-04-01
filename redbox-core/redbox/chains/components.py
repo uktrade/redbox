@@ -9,16 +9,20 @@ from langchain_core.embeddings import Embeddings, FakeEmbeddings
 from langchain_core.runnables import Runnable
 from langchain_core.tools import StructuredTool
 from langchain_core.utils import convert_to_secret_str
+
 # from langchain_elasticsearch import ElasticsearchRetriever
 from langchain_openai.embeddings import AzureOpenAIEmbeddings, OpenAIEmbeddings
 
 from redbox.chains.parser import StreamingJsonOutputParser
 from redbox.models.chain import StructuredResponseWithCitations
 from redbox.models.settings import ChatLLMBackend, Settings
-from redbox.retriever import (AllElasticsearchRetriever,
-                              BasicMetadataRetriever, MetadataRetriever,
-                              OpenSearchRetriever,
-                              ParameterisedElasticsearchRetriever)
+from redbox.retriever import (
+    AllElasticsearchRetriever,
+    BasicMetadataRetriever,
+    MetadataRetriever,
+    OpenSearchRetriever,
+    ParameterisedElasticsearchRetriever,
+)
 from redbox.transform import bedrock_tokeniser
 
 logger = logging.getLogger(__name__)
