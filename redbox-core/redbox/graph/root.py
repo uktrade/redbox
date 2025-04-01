@@ -45,7 +45,7 @@ from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
 
-def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, debug):
+def get_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, debug):
     agent_parser = ClaudeParser(pydantic_object=AgentDecision)
 
     def lm_choose_route_wrapper(state: RedboxState):
@@ -777,133 +777,6 @@ def get_retrieve_metadata_graph(metadata_retriever: VectorStoreRetriever, debug:
     builder.add_edge("p_retrieve_metadata", "p_set_metadata")
     builder.add_edge("p_set_metadata", "p_clear_metadata_documents")
     builder.add_edge("p_clear_metadata_documents", END)
-
-    return builder.compile(debug=debug)
-
-
-# Root graph
-def get_root_graph(
-    all_chunks_retriever: VectorStoreRetriever,
-    parameterised_retriever: VectorStoreRetriever,
-    metadata_retriever: VectorStoreRetriever,
-    tools: List[StructuredTool],
-    debug: bool = False,
-) -> CompiledGraph:
-    """Creates the core Redbox graph."""
-    builder = StateGraph(RedboxState)
-
-    # Subgraphs
-    chat_subgraph = get_chat_graph(debug=debug)
-    rag_subgraph = get_search_graph(retriever=parameterised_retriever, debug=debug)
-    agent_subgraph = get_agentic_search_graph(tools=tools, debug=debug)
-    cwd_subgraph = get_chat_with_documents_graph(
-        all_chunks_retriever=all_chunks_retriever,
-        parameterised_retriever=parameterised_retriever,
-        debug=debug,
-    )
-    metadata_subgraph = get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
-
-    new_route = build_new_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, debug)
-    # Processes
-    builder.add_node(
-        "p_search",
-        rag_subgraph,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_search_agentic",
-        agent_subgraph,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_chat",
-        chat_subgraph,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_chat_with_documents",
-        cwd_subgraph,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_retrieve_metadata",
-        metadata_subgraph,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_new_route",
-        new_route,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_summarise",
-        get_summarise_graph(all_chunks_retriever=all_chunks_retriever, debug=debug),
-    )
-
-    # Log
-    builder.add_node(
-        "p_activity_log_user_request",
-        build_activity_log_node(
-            lambda s: [
-                RedboxActivityEvent(
-                    message=f"You selected {len(s.request.s3_keys)} file{"s" if len(s.request.s3_keys)>1 else ""} - {",".join(s.request.s3_keys)}"
-                )
-                if len(s.request.s3_keys) > 0
-                else "You selected no files",
-            ]
-        ),
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    # Decisions
-    builder.add_node(
-        "d_keyword_exists",
-        empty_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "d_docs_selected",
-        empty_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    # Edges
-    builder.add_edge(START, "p_activity_log_user_request")
-    builder.add_edge(START, "p_retrieve_metadata")
-    builder.add_edge("p_retrieve_metadata", "d_keyword_exists")
-    builder.add_conditional_edges(
-        "d_keyword_exists",
-        build_keyword_detection_conditional(*ROUTABLE_KEYWORDS.keys()),
-        {
-            ChatRoute.search: "p_search",
-            ChatRoute.gadget: "p_search_agentic",
-            ChatRoute.newroute: "p_new_route",
-            ChatRoute.summarise: "p_summarise",
-            "DEFAULT": "d_docs_selected",
-        },
-    )
-    builder.add_conditional_edges(
-        "d_docs_selected",
-        documents_selected_conditional,
-        {
-            True: "p_chat_with_documents",
-            False: "p_chat",
-        },
-    )
-    builder.add_node(
-        "is_summarise_route",
-        empty_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    builder.add_edge("p_search", "is_summarise_route")
-    builder.add_conditional_edges(
-        "is_summarise_route", lambda s: s.route_name == ChatRoute.summarise, {True: "p_summarise", False: END}
-    )
-
-    builder.add_edge("p_search_agentic", END)
-    builder.add_edge("p_chat", END)
-    builder.add_edge("p_chat_with_documents", END)
 
     return builder.compile(debug=debug)
 
