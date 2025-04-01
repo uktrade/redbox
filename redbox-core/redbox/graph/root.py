@@ -8,39 +8,42 @@ from langgraph.graph.graph import CompiledGraph
 from langgraph.prebuilt import ToolNode
 from langgraph.pregel import RetryPolicy
 
-from redbox.chains.components import \
-    get_structured_response_with_citations_parser
+from redbox.chains.components import get_structured_response_with_citations_parser
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import build_self_route_output_parser
 from redbox.graph.edges import (
     build_documents_bigger_than_context_conditional,
     build_keyword_detection_conditional,
     build_total_tokens_request_handler_conditional,
-    documents_selected_conditional, is_using_search_keyword,
-    multiple_docs_in_group_conditional, remove_gadget_keyword)
+    documents_selected_conditional,
+    is_using_search_keyword,
+    multiple_docs_in_group_conditional,
+    remove_gadget_keyword,
+)
 from redbox.graph.nodes.agents import test_graph
-from redbox.graph.nodes.processes import (PromptSet, build_activity_log_node,
-                                          build_chat_pattern,
-                                          build_error_pattern,
-                                          build_merge_pattern,
-                                          build_passthrough_pattern,
-                                          build_retrieve_pattern,
-                                          build_set_metadata_pattern,
-                                          build_set_route_pattern,
-                                          build_set_self_route_from_llm_answer,
-                                          build_stuff_pattern,
-                                          clear_documents_process,
-                                          empty_process, lm_choose_route,
-                                          report_sources_process)
-from redbox.graph.nodes.sends import (build_document_chunk_send,
-                                      build_document_group_send,
-                                      build_tool_send)
+from redbox.graph.nodes.processes import (
+    PromptSet,
+    build_activity_log_node,
+    build_chat_pattern,
+    build_error_pattern,
+    build_merge_pattern,
+    build_passthrough_pattern,
+    build_retrieve_pattern,
+    build_set_metadata_pattern,
+    build_set_route_pattern,
+    build_set_self_route_from_llm_answer,
+    build_stuff_pattern,
+    clear_documents_process,
+    empty_process,
+    lm_choose_route,
+    report_sources_process,
+)
+from redbox.graph.nodes.sends import build_document_chunk_send, build_document_group_send, build_tool_send
 from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
 from redbox.models.chain import AgentDecision, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
-from redbox.transform import (structure_documents_by_file_name,
-                              structure_documents_by_group_and_indices)
+from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
 
 def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, debug):
@@ -918,5 +921,4 @@ def build_new_graph(
     tools: list[StructuredTool],
     debug: bool = False,
 ) -> CompiledGraph:
-
     return test_graph()
