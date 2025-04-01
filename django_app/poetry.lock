@@ -1683,19 +1683,19 @@ tests = ["jinja2 (>=2.9.6)", "pytest", "pytest-cov", "pytest-django", "pytest-ru
 
 [[package]]
 name = "django-environ"
-version = "0.11.2"
+version = "0.12.0"
 description = "A package that allows you to utilize 12factor inspired environment variables to configure your Django application."
 optional = false
-python-versions = ">=3.6,<4"
+python-versions = "<4,>=3.9"
 files = [
-    {file = "django-environ-0.11.2.tar.gz", hash = "sha256:f32a87aa0899894c27d4e1776fa6b477e8164ed7f6b3e410a62a6d72caaf64be"},
-    {file = "django_environ-0.11.2-py2.py3-none-any.whl", hash = "sha256:0ff95ab4344bfeff693836aa978e6840abef2e2f1145adff7735892711590c05"},
+    {file = "django_environ-0.12.0-py2.py3-none-any.whl", hash = "sha256:92fb346a158abda07ffe6eb23135ce92843af06ecf8753f43adf9d2366dcc0ca"},
+    {file = "django_environ-0.12.0.tar.gz", hash = "sha256:227dc891453dd5bde769c3449cf4a74b6f2ee8f7ab2361c93a07068f4179041a"},
 ]
 
 [package.extras]
-develop = ["coverage[toml] (>=5.0a4)", "furo (>=2021.8.17b43,<2021.9.dev0)", "pytest (>=4.6.11)", "sphinx (>=3.5.0)", "sphinx-notfound-page"]
-docs = ["furo (>=2021.8.17b43,<2021.9.dev0)", "sphinx (>=3.5.0)", "sphinx-notfound-page"]
-testing = ["coverage[toml] (>=5.0a4)", "pytest (>=4.6.11)"]
+develop = ["coverage[toml] (>=5.0a4)", "furo (>=2024.8.6)", "pytest (>=4.6.11)", "setuptools (>=71.0.0)", "sphinx (>=5.0)", "sphinx-notfound-page"]
+docs = ["furo (>=2024.8.6)", "sphinx (>=5.0)", "sphinx-notfound-page"]
+testing = ["coverage[toml] (>=5.0a4)", "pytest (>=4.6.11)", "setuptools (>=71.0.0)"]
 
 [[package]]
 name = "django-gov-notify"
@@ -2982,31 +2982,6 @@ files = [
 langchain-core = ">=0.3.15,<0.4.0"
 
 [[package]]
-name = "langfuse"
-version = "2.53.9"
-description = "A client library for accessing langfuse"
-optional = false
-python-versions = "<4.0,>=3.8.1"
-files = [
-    {file = "langfuse-2.53.9-py3-none-any.whl", hash = "sha256:04363bc323f7513621c88a997003f7b906ae8f5d096bd54221cfcb6bf7a6f16a"},
-    {file = "langfuse-2.53.9.tar.gz", hash = "sha256:6bfecf86e28c684034ae52a0b19535c94cc86923085267b548d63e5c1ce2b82c"},
-]
-
-[package.dependencies]
-anyio = ">=4.4.0,<5.0.0"
-backoff = ">=1.10.0"
-httpx = ">=0.15.4,<1.0"
-idna = ">=3.7,<4.0"
-packaging = ">=23.2,<25.0"
-pydantic = ">=1.10.7,<3.0"
-wrapt = ">=1.14,<2.0"
-
-[package.extras]
-langchain = ["langchain (>=0.0.309)"]
-llama-index = ["llama-index (>=0.10.12,<2.0.0)"]
-openai = ["openai (>=0.27.8)"]
-
-[[package]]
 name = "langgraph"
 version = "0.2.52"
 description = "Building stateful, multi-actor applications with LLMs"
@@ -3088,21 +3063,6 @@ files = [
     {file = "libsass-0.23.0-cp38-abi3-win_amd64.whl", hash = "sha256:a2ec85d819f353cbe807432d7275d653710d12b08ec7ef61c124a580a8352f3c"},
     {file = "libsass-0.23.0.tar.gz", hash = "sha256:6f209955ede26684e76912caf329f4ccb57e4a043fd77fe0e7348dd9574f1880"},
 ]
-
-[[package]]
-name = "markdown"
-version = "3.7"
-description = "Python implementation of John Gruber's Markdown."
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "Markdown-3.7-py3-none-any.whl", hash = "sha256:7eb6df5690b81a1d7942992c97fad2938e956e79df20cbc6186e9c3a77b1c803"},
-    {file = "markdown-3.7.tar.gz", hash = "sha256:2ae2471477cfd02dbbf038d5d9bc226d40def84b4fe2986e49b59b6b472bbed2"},
-]
-
-[package.extras]
-docs = ["mdx-gh-links (>=0.2)", "mkdocs (>=1.5)", "mkdocs-gen-files", "mkdocs-literate-nav", "mkdocs-nature (>=0.6)", "mkdocs-section-index", "mkdocstrings[python]"]
-testing = ["coverage", "pyyaml"]
 
 [[package]]
 name = "markdown-it-py"
@@ -4803,6 +4763,7 @@ develop = true
 
 [package.dependencies]
 boto3 = "^1.34.160"
+django-environ = "^0.12.0"
 elasticsearch = "^8.15.0"
 kneed = "^0.8.5"
 langchain = "^0.3.4"
@@ -4810,14 +4771,12 @@ langchain-aws = "^0.2.3"
 langchain-community = ">0.2.12"
 langchain-elasticsearch = ">0.2.2"
 langchain_openai = ">0.1.21"
-langfuse = "^2.53.9"
 langgraph = "^0.2.39"
 opensearch-py = "^2.7.1"
 pydantic = "^2.7.1"
 pydantic-settings = "^2.3.4"
 pytest-dotenv = "^0.5.2"
 scikit-learn = "^1.5.2"
-tiktoken = "^0.7.0"
 wikipedia = "^1.4.0"
 
 [package.source]
@@ -6418,4 +6377,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.12,<3.13"
-content-hash = "9905dfbeaa26909d2f85299424625e87d9c7c7135d1c8c4fc5c5b621f166ace1"
+content-hash = "5e649942caf177cf7bcdb076f4a2b7cf2a3b2e8906f4b9ccd0fd4b4c42a62bbd"

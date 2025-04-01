@@ -21,6 +21,7 @@ from redbox.chains.parser import ClaudeParser
 from redbox.graph.nodes.processes import (
     PromptSet,
     build_activity_log_node,
+    build_set_route_pattern,
     build_stuff_pattern,
     empty_process,
     report_sources_process,
@@ -28,6 +29,7 @@ from redbox.graph.nodes.processes import (
 from redbox.graph.nodes.sends import _copy_state
 from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_documents_tool, build_search_wikipedia_tool
 from redbox.models.chain import PromptSet, RedboxState
+from redbox.models.chat import ChatRoute
 from redbox.models.file import ChunkResolution
 from redbox.models.graph import RedboxActivityEvent
 from redbox.models.prompts import DOCUMENT_AGENT_PROMPT, EXTERNAL_DATA_AGENT, PLANNER_PROMPT
@@ -273,8 +275,14 @@ def test_graph():
         report_sources_process,
         retry=RetryPolicy(max_attempts=3),
     )
+    builder.add_node(
+        "set_route_to_new_route",
+        build_set_route_pattern(route=ChatRoute.newroute),
+        retry=RetryPolicy(max_attempts=3),
+    )
 
-    builder.add_edge(START, "planner")
+    builder.add_edge(START, "set_route_to_new_route")
+    builder.add_edge("set_route_to_new_route", "planner")
     builder.add_conditional_edges("planner", sending_task)
     builder.add_edge("Document_Agent", "Evaluator_Agent")
     builder.add_edge("External_Data_Agent", "Evaluator_Agent")

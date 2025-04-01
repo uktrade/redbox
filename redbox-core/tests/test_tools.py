@@ -117,7 +117,7 @@ def test_search_documents_tool(
             assert {c.metadata["uri"] for c in result_flat} <= set(stored_file_parameterised.query.s3_keys)
 
 
-# @pytest.mark.xfail(reason="calls openai")
+@pytest.mark.xfail(reason="calls openai")
 def test_govuk_search_tool():
     tool = build_govuk_search_tool()
 
