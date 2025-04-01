@@ -19,7 +19,7 @@ from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
 from redbox.models.settings import get_settings
 from redbox.retriever.queries import add_document_filter_scores_to_query, build_document_query
 from redbox.retriever.retrievers import query_to_documents
-from redbox.transform import merge_documents, sort_documents, bedrock_tokeniser
+from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
 
 
 def build_search_documents_tool(
@@ -156,7 +156,7 @@ def build_govuk_search_tool(filter=True) -> Tool:
                     metadata=ChunkMetadata(
                         index=i,
                         uri=f"{url_base}{doc['link']}",
-                        token_count=len(tokeniser(doc["indexable_content"])),
+                        token_count=tokeniser(doc["indexable_content"]),
                         creator_type=ChunkCreatorType.gov_uk,
                     ).model_dump(),
                 )
