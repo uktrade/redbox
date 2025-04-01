@@ -44,7 +44,8 @@
   "scripts": {
     "build": "npx parcel build --no-cache",
     "watch": "npx parcel watch",
-    "test": "cd tests-web-components && npx playwright test"
+    "test": "cd tests-web-components && npx playwright test",
+    "dev": "npx parcel watch --no-cache"
   },
   "author": "",
   "dependencies": {
