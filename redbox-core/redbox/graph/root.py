@@ -8,41 +8,39 @@ from langgraph.graph.graph import CompiledGraph
 from langgraph.prebuilt import ToolNode
 from langgraph.pregel import RetryPolicy
 
-from redbox.chains.components import get_structured_response_with_citations_parser
+from redbox.chains.components import \
+    get_structured_response_with_citations_parser
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import build_self_route_output_parser
 from redbox.graph.edges import (
     build_documents_bigger_than_context_conditional,
     build_keyword_detection_conditional,
     build_total_tokens_request_handler_conditional,
-    documents_selected_conditional,
-    is_using_search_keyword,
-    multiple_docs_in_group_conditional,
-    remove_gadget_keyword,
-)
-from redbox.graph.nodes.processes import (
-    PromptSet,
-    build_activity_log_node,
-    build_chat_pattern,
-    build_error_pattern,
-    build_merge_pattern,
-    build_passthrough_pattern,
-    build_retrieve_pattern,
-    build_set_metadata_pattern,
-    build_set_route_pattern,
-    build_set_self_route_from_llm_answer,
-    build_stuff_pattern,
-    clear_documents_process,
-    empty_process,
-    lm_choose_route,
-    report_sources_process,
-)
-from redbox.graph.nodes.sends import build_document_chunk_send, build_document_group_send, build_tool_send
+    documents_selected_conditional, is_using_search_keyword,
+    multiple_docs_in_group_conditional, remove_gadget_keyword)
+from redbox.graph.nodes.agents import test_graph
+from redbox.graph.nodes.processes import (PromptSet, build_activity_log_node,
+                                          build_chat_pattern,
+                                          build_error_pattern,
+                                          build_merge_pattern,
+                                          build_passthrough_pattern,
+                                          build_retrieve_pattern,
+                                          build_set_metadata_pattern,
+                                          build_set_route_pattern,
+                                          build_set_self_route_from_llm_answer,
+                                          build_stuff_pattern,
+                                          clear_documents_process,
+                                          empty_process, lm_choose_route,
+                                          report_sources_process)
+from redbox.graph.nodes.sends import (build_document_chunk_send,
+                                      build_document_group_send,
+                                      build_tool_send)
 from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
 from redbox.models.chain import AgentDecision, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
-from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
+from redbox.transform import (structure_documents_by_file_name,
+                              structure_documents_by_group_and_indices)
 
 
 def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, debug):
@@ -920,126 +918,5 @@ def build_new_graph(
     tools: list[StructuredTool],
     debug: bool = False,
 ) -> CompiledGraph:
-    # initialise
-    citations_output_parser, format_instructions = get_structured_response_with_citations_parser()
-    builder = StateGraph(RedboxState)
 
-    # Subgraphs/may need to convert into tools
-    metadata_subgraph = get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
-    builder.add_node(
-        "p_strip_route",
-        strip_route,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    # Nodes
-    builder.add_node(
-        "p_retrieve_metadata",
-        metadata_subgraph,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    # add back when move to this graph
-    # Show activity logs from user request
-    # builder.add_node(
-    #     "p_activity_log_user_request",
-    #     build_activity_log_node(
-    #         lambda s: [
-    #             RedboxActivityEvent(
-    #                 message=f"You selected {len(s.request.s3_keys)} file{"s" if len(s.request.s3_keys)>1 else ""} - {",".join(s.request.s3_keys)}"
-    #             )
-    #             if len(s.request.s3_keys) > 0
-    #             else "You selected no files",
-    #         ]
-    #     ),
-    # )
-    builder.add_node(
-        "p_retrieve_docs",
-        build_retrieve_pattern(
-            retriever=all_chunks_retriever,
-            structure_func=structure_documents_by_file_name,
-            final_source_chain=False,
-        ),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "d_docs_selected",
-        empty_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_search_agent",
-        build_stuff_pattern(
-            prompt_set=PromptSet.NewRoute,
-            tools=tools,
-            output_parser=citations_output_parser,
-            format_instructions=format_instructions,
-            final_response_chain=True,  # Output parser handles streaming
-        ),
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    builder.add_node(
-        "p_retrieval_tools",
-        ToolNode(tools=tools),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_give_up_agent",
-        build_stuff_pattern(prompt_set=PromptSet.GiveUpAgentic, final_response_chain=True),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_report_sources",
-        report_sources_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    builder.add_node(
-        "p_activity_log_retrieval_tool_calls",
-        build_activity_log_node(
-            lambda s: [
-                RedboxActivityEvent(message=get_log_formatter_for_retrieval_tool(tool_state_entry).log_call())
-                for tool_state_entry in s.last_message.tool_calls
-            ]
-        ),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "s_tool",
-        empty_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "d_x_steps_left_or_less",
-        empty_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    # Edges
-    # builder.add_edge(START, "p_activity_log_user_request") # add back when move to this graph
-    builder.add_edge(START, "p_strip_route")
-    builder.add_edge("p_strip_route", "p_retrieve_metadata")
-    builder.add_edge("p_retrieve_metadata", "d_docs_selected")
-    builder.add_conditional_edges(
-        "d_docs_selected",
-        documents_selected_conditional,
-        {
-            True: "p_retrieve_docs",
-            False: "d_x_steps_left_or_less",
-        },
-    )
-    builder.add_edge("p_retrieve_docs", "d_x_steps_left_or_less")
-    builder.add_conditional_edges(
-        "d_x_steps_left_or_less",
-        lambda state: state.steps_left <= 8,
-        {
-            True: "p_give_up_agent",
-            False: "p_search_agent",
-        },
-    )
-    builder.add_edge("p_search_agent", "s_tool")
-    builder.add_edge("s_tool", "p_report_sources")
-    builder.add_edge("p_search_agent", "p_activity_log_retrieval_tool_calls")
-    builder.add_conditional_edges("s_tool", build_tool_send("p_retrieval_tools"), path_map=["p_retrieval_tools"])
-    builder.add_edge("p_retrieval_tools", "d_x_steps_left_or_less")
-    builder.add_edge("p_report_sources", END)
-    return builder.compile()
+    return test_graph()
