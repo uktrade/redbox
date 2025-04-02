@@ -398,10 +398,12 @@ class AgentDecision(BaseModel):
 agent_options = {agent: agent for agent in AISettings().agents}
 AgentEnum = Enum("AgentEnum", agent_options)
 
+
 class AgentTask(BaseModel):
     task: str = Field(description="Task to be completed by the agent", default="")
     agent: AgentEnum = Field(description="Name of the agent to complete the task", default=AgentEnum.Document_Agent)
     expected_output: str = Field(description="What this agent should produce", default="")
+
 
 class MultiAgentPlan(BaseModel):
     tasks: List[AgentTask] = Field(description="A list of tasks to be carried out by agents", default=[])

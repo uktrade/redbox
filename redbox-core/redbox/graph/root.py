@@ -38,9 +38,14 @@ from redbox.graph.nodes.processes import (
     report_sources_process,
     create_planner,
     build_agent,
-    create_evaluator
+    create_evaluator,
 )
-from redbox.graph.nodes.sends import build_document_chunk_send, build_document_group_send, build_tool_send, sending_task_to_agent
+from redbox.graph.nodes.sends import (
+    build_document_chunk_send,
+    build_document_group_send,
+    build_tool_send,
+    sending_task_to_agent,
+)
 from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
 from redbox.models.chain import AgentDecision, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
@@ -48,7 +53,7 @@ from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
 
-def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, multi_agent_tools,  debug):
+def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, multi_agent_tools, debug):
     agent_parser = ClaudeParser(pydantic_object=AgentDecision)
 
     def lm_choose_route_wrapper(state: RedboxState):
@@ -783,17 +788,16 @@ def get_retrieve_metadata_graph(metadata_retriever: VectorStoreRetriever, debug:
 
     return builder.compile(debug=debug)
 
+
 def strip_route(state: RedboxState):
     state.request.question = state.request.question.replace("@newroute ", "")
     return state
 
 
 def build_new_graph(
-
-    multi_agent_tools: dict, 
+    multi_agent_tools: dict,
     debug: bool = False,
 ) -> CompiledGraph:
-    
     builder = StateGraph(RedboxState)
     builder.add_node("planner", create_planner())
     builder.add_node("Document_Agent", build_agent(tools=multi_agent_tools["document_agent"]))

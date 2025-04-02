@@ -134,4 +134,3 @@ def get_structured_response_with_citations_parser() -> tuple[Runnable, str]:
         name_of_streamed_field="answer", pydantic_schema_object=StructuredResponseWithCitations
     )
     return (parser, parser.get_format_instructions())
-

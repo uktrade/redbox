@@ -270,41 +270,41 @@ class CannedChatLLM(BaseChatModel):
 
 
 def basic_chat_chain(
-        system_prompt, tools=None, _additional_variables: dict = {}, parser=None, using_only_structure=False
-    ):
-        @chain
-        def _basic_chat_chain(state: RedboxState):
-            nonlocal parser
-            if tools:
-                llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
-            else:
-                llm = get_chat_llm(state.request.ai_settings.chat_backend)
-            context = {
-                "question": state.request.question,
-            } | _additional_variables
-            if parser:
-                if isinstance(parser, StrOutputParser):
-                    prompt = ChatPromptTemplate([(system_prompt)])
-                else:
-                    format_instructions = parser.get_format_instructions()
-                    prompt = ChatPromptTemplate(
-                        [(system_prompt)], partial_variables={"format_instructions": format_instructions}
-                    )
-                if using_only_structure:
-                    chain = prompt | llm
-                else:
-                    chain = prompt | llm | parser
-            else:
+    system_prompt, tools=None, _additional_variables: dict = {}, parser=None, using_only_structure=False
+):
+    @chain
+    def _basic_chat_chain(state: RedboxState):
+        nonlocal parser
+        if tools:
+            llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
+        else:
+            llm = get_chat_llm(state.request.ai_settings.chat_backend)
+        context = {
+            "question": state.request.question,
+        } | _additional_variables
+        if parser:
+            if isinstance(parser, StrOutputParser):
                 prompt = ChatPromptTemplate([(system_prompt)])
+            else:
+                format_instructions = parser.get_format_instructions()
+                prompt = ChatPromptTemplate(
+                    [(system_prompt)], partial_variables={"format_instructions": format_instructions}
+                )
+            if using_only_structure:
                 chain = prompt | llm
-            return chain.invoke(context)
+            else:
+                chain = prompt | llm | parser
+        else:
+            prompt = ChatPromptTemplate([(system_prompt)])
+            chain = prompt | llm
+        return chain.invoke(context)
 
-        return _basic_chat_chain
+    return _basic_chat_chain
+
 
 def chain_use_metadata(
-        system_prompt: str, parser=None, tools=None, _additional_variables: dict = {}, using_only_structure=False
-    ):
-
+    system_prompt: str, parser=None, tools=None, _additional_variables: dict = {}, using_only_structure=False
+):
     metadata = None
 
     @chain
@@ -321,37 +321,38 @@ def chain_use_metadata(
         if _additional_variables:
             additional_variables = dict(additional_variables, **_additional_variables)
         chain = basic_chat_chain(
-                system_prompt=system_prompt,
-                tools=tools,
-                parser=parser,
-                _additional_variables=additional_variables,
-                using_only_structure=using_only_structure,
-            )
+            system_prompt=system_prompt,
+            tools=tools,
+            parser=parser,
+            _additional_variables=additional_variables,
+            using_only_structure=using_only_structure,
+        )
         return chain.invoke(state)
 
     return get_metadata | use_result
 
+
 def create_chain_agent(
-        system_prompt,
-        use_metadata=False,
-        tools=None,
-        parser=None,
-        _additional_variables: dict = {},
-        using_only_structure=False,
-    ):
+    system_prompt,
+    use_metadata=False,
+    tools=None,
+    parser=None,
+    _additional_variables: dict = {},
+    using_only_structure=False,
+):
     if use_metadata:
         return chain_use_metadata(
-                system_prompt=system_prompt,
-                tools=tools,
-                parser=parser,
-                _additional_variables=_additional_variables,
-                using_only_structure=using_only_structure,
-            )
+            system_prompt=system_prompt,
+            tools=tools,
+            parser=parser,
+            _additional_variables=_additional_variables,
+            using_only_structure=using_only_structure,
+        )
     else:
         return basic_chat_chain(
-                system_prompt=system_prompt,
-                tools=tools,
-                parser=parser,
-                _additional_variables=_additional_variables,
-                using_only_structure=using_only_structure,
-            )
+            system_prompt=system_prompt,
+            tools=tools,
+            parser=parser,
+            _additional_variables=_additional_variables,
+            using_only_structure=using_only_structure,
+        )
