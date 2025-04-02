@@ -345,28 +345,7 @@ def build_activity_log_node(
 def lm_choose_route(state: RedboxState, parser: ClaudeParser):
     """
     LLM choose the route (search/summarise) based on user question and file metadata
-
-    #DELETE CODE BELOW
-    metadata = None
-
-    @RunnableLambda
-    def get_metadata(state: RedboxState):
-        nonlocal metadata
-        env = get_settings()
-        retriever = get_basic_metadata_retriever(env)
-        metadata = retriever.invoke(state)
-        return state
-
-    @RunnableLambda
-    def use_result(state: RedboxState):
-        chain = basic_chat_chain(
-            system_prompt=state.request.ai_settings.llm_decide_route_prompt,
-            parser=parser,
-            _additional_variables={"metadata": metadata},
-        )
-        return chain.invoke(state)
-
-    chain = get_metadata | use_result"""
+    """
     chain = chain_use_metadata(system_prompt=state.request.ai_settings.llm_decide_route_prompt, parser=parser)
     res = chain.invoke(state)
     return res.next.value
