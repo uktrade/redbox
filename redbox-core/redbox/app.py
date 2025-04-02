@@ -11,7 +11,7 @@ from redbox.chains.components import (
     get_parameterised_retriever,
 )
 from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_documents_tool, build_search_wikipedia_tool
-from redbox.graph.root import get_agentic_search_graph, get_chat_with_documents_graph, get_root_graph
+from redbox.graph.root import get_agentic_search_graph, get_chat_with_documents_graph, new_root_graph
 from redbox.models.chain import RedboxState
 from redbox.models.chat import ChatRoute
 from redbox.models.file import ChunkResolution
