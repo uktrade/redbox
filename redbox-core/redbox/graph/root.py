@@ -37,8 +37,11 @@ from redbox.graph.nodes.processes import (
     empty_process,
     lm_choose_route,
     report_sources_process,
+    create_planner,
+    build_agent,
+    create_evaluator
 )
-from redbox.graph.nodes.sends import build_document_chunk_send, build_document_group_send, build_tool_send
+from redbox.graph.nodes.sends import build_document_chunk_send, build_document_group_send, build_tool_send, sending_task_to_agent
 from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
 from redbox.models.chain import AgentDecision, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
@@ -46,7 +49,7 @@ from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
 
-def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, debug):
+def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, multi_agent_tools,  debug):
     agent_parser = ClaudeParser(pydantic_object=AgentDecision)
 
     def lm_choose_route_wrapper(state: RedboxState):
@@ -61,7 +64,7 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
     builder.add_node("summarise_graph", get_summarise_graph(all_chunks_retriever=all_chunks_retriever, debug=debug))
     builder.add_node(
         "new_route_graph",
-        build_new_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, debug),
+        build_new_graph(multi_agent_tools, debug),
     )
     builder.add_node(
         "retrieve_metadata", get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
@@ -781,144 +784,34 @@ def get_retrieve_metadata_graph(metadata_retriever: VectorStoreRetriever, debug:
 
     return builder.compile(debug=debug)
 
-
-# Root graph
-def get_root_graph(
-    all_chunks_retriever: VectorStoreRetriever,
-    parameterised_retriever: VectorStoreRetriever,
-    metadata_retriever: VectorStoreRetriever,
-    tools: List[StructuredTool],
-    debug: bool = False,
-) -> CompiledGraph:
-    """Creates the core Redbox graph."""
-    builder = StateGraph(RedboxState)
-
-    # Subgraphs
-    chat_subgraph = get_chat_graph(debug=debug)
-    rag_subgraph = get_search_graph(retriever=parameterised_retriever, debug=debug)
-    agent_subgraph = get_agentic_search_graph(tools=tools, debug=debug)
-    cwd_subgraph = get_chat_with_documents_graph(
-        all_chunks_retriever=all_chunks_retriever,
-        parameterised_retriever=parameterised_retriever,
-        debug=debug,
-    )
-    metadata_subgraph = get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
-
-    new_route = build_new_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, debug)
-    # Processes
-    builder.add_node(
-        "p_search",
-        rag_subgraph,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_search_agentic",
-        agent_subgraph,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_chat",
-        chat_subgraph,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_chat_with_documents",
-        cwd_subgraph,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_retrieve_metadata",
-        metadata_subgraph,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_new_route",
-        new_route,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_summarise",
-        get_summarise_graph(all_chunks_retriever=all_chunks_retriever, debug=debug),
-    )
-
-    # Log
-    builder.add_node(
-        "p_activity_log_user_request",
-        build_activity_log_node(
-            lambda s: [
-                RedboxActivityEvent(
-                    message=f"You selected {len(s.request.s3_keys)} file{"s" if len(s.request.s3_keys)>1 else ""} - {",".join(s.request.s3_keys)}"
-                )
-                if len(s.request.s3_keys) > 0
-                else "You selected no files",
-            ]
-        ),
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    # Decisions
-    builder.add_node(
-        "d_keyword_exists",
-        empty_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "d_docs_selected",
-        empty_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    # Edges
-    builder.add_edge(START, "p_activity_log_user_request")
-    builder.add_edge(START, "p_retrieve_metadata")
-    builder.add_edge("p_retrieve_metadata", "d_keyword_exists")
-    builder.add_conditional_edges(
-        "d_keyword_exists",
-        build_keyword_detection_conditional(*ROUTABLE_KEYWORDS.keys()),
-        {
-            ChatRoute.search: "p_search",
-            ChatRoute.gadget: "p_search_agentic",
-            ChatRoute.newroute: "p_new_route",
-            ChatRoute.summarise: "p_summarise",
-            "DEFAULT": "d_docs_selected",
-        },
-    )
-    builder.add_conditional_edges(
-        "d_docs_selected",
-        documents_selected_conditional,
-        {
-            True: "p_chat_with_documents",
-            False: "p_chat",
-        },
-    )
-    builder.add_node(
-        "is_summarise_route",
-        empty_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    builder.add_edge("p_search", "is_summarise_route")
-    builder.add_conditional_edges(
-        "is_summarise_route", lambda s: s.route_name == ChatRoute.summarise, {True: "p_summarise", False: END}
-    )
-
-    builder.add_edge("p_search_agentic", END)
-    builder.add_edge("p_chat", END)
-    builder.add_edge("p_chat_with_documents", END)
-
-    return builder.compile(debug=debug)
-
-
 def strip_route(state: RedboxState):
     state.request.question = state.request.question.replace("@newroute ", "")
     return state
 
 
 def build_new_graph(
-    all_chunks_retriever: VectorStoreRetriever,
-    parameterised_retriever: VectorStoreRetriever,
-    metadata_retriever: VectorStoreRetriever,
-    tools: list[StructuredTool],
+
+    multi_agent_tools: dict, 
     debug: bool = False,
 ) -> CompiledGraph:
-    return test_graph()
+    
+    builder = StateGraph(RedboxState)
+    builder.add_node("planner", create_planner())
+    builder.add_node("Document_Agent", build_agent(tools=multi_agent_tools["document_agent"]))
+    builder.add_node("send", empty_process)
+    builder.add_node("External_Data_Agent", build_agent(tools=multi_agent_tools["external_document_agent"]))
+    builder.add_node("Evaluator_Agent", create_evaluator())
+    builder.add_node(
+        "report_citations",
+        report_sources_process,
+        retry=RetryPolicy(max_attempts=3),
+    )
+
+    builder.add_edge(START, "planner")
+    builder.add_conditional_edges("planner", sending_task_to_agent)
+    builder.add_edge("Document_Agent", "Evaluator_Agent")
+    builder.add_edge("External_Data_Agent", "Evaluator_Agent")
+    builder.add_edge("Evaluator_Agent", "report_citations")
+    builder.add_edge("report_citations", END)
+
+    return builder.compile(debug=debug)

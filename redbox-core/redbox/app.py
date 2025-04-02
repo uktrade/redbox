@@ -73,11 +73,14 @@ class Redbox:
         #     debug=debug,
         # )
 
+        self.multi_agent_tools={"document_agent": [search_documents], "external_document_agent": [search_wikipedia, search_govuk]}
+
         self.graph = new_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,
             parameterised_retriever=self.parameterised_retriever,
             metadata_retriever=self.metadata_retriever,
             tools=self.tools,
+            multi_agent_tools = self.multi_agent_tools,
             debug=debug,
         )
 

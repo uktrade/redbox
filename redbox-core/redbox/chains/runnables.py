@@ -12,12 +12,13 @@ from langchain_core.runnables import Runnable, RunnableGenerator, RunnableLambda
 
 from redbox.api.format import format_documents
 from redbox.chains.activity import log_activity
-from redbox.chains.components import get_chat_llm, get_tokeniser
+from redbox.chains.components import get_chat_llm, get_tokeniser, get_basic_metadata_retriever
 from redbox.chains.parser import ClaudeParser
 from redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_prompts
 from redbox.models.errors import QuestionLengthError
 from redbox.models.graph import RedboxEventType
 from redbox.transform import bedrock_tokeniser, flatten_document_state, get_all_metadata
+from redbox.models.settings import get_settings
 
 log = logging.getLogger()
 re_string_pattern = re.compile(r"(\S+)")
@@ -269,24 +270,89 @@ class CannedChatLLM(BaseChatModel):
         return "canned"
 
 
-def basic_chat_chain(system_prompt, _additional_variables: dict = {}, parser=None):
+def basic_chat_chain(
+        system_prompt, tools=None, _additional_variables: dict = {}, parser=None, using_only_structure=False
+    ):
+        @chain
+        def _basic_chat_chain(state: RedboxState):
+            nonlocal parser
+            if tools:
+                llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
+            else:
+                llm = get_chat_llm(state.request.ai_settings.chat_backend)
+            context = {
+                "question": state.request.question,
+            } | _additional_variables
+            if parser:
+                if isinstance(parser, StrOutputParser):
+                    prompt = ChatPromptTemplate([(system_prompt)])
+                else:
+                    format_instructions = parser.get_format_instructions()
+                    prompt = ChatPromptTemplate(
+                        [(system_prompt)], partial_variables={"format_instructions": format_instructions}
+                    )
+                if using_only_structure:
+                    chain = prompt | llm
+                else:
+                    chain = prompt | llm | parser
+            else:
+                prompt = ChatPromptTemplate([(system_prompt)])
+                chain = prompt | llm
+            return chain.invoke(context)
+
+        return _basic_chat_chain
+
+def chain_use_metadata(
+        system_prompt: str, parser=None, tools=None, _additional_variables: dict = {}, using_only_structure=False
+    ):
+
+    metadata = None
+
     @chain
-    def _basic_chat_chain(state: RedboxState):
-        nonlocal parser
-        llm = get_chat_llm(state.request.ai_settings.chat_backend)
-        context = {
-            "question": state.request.question,
-        } | _additional_variables
+    def get_metadata(state: RedboxState):
+        nonlocal metadata
+        env = get_settings()
+        retriever = get_basic_metadata_retriever(env)
+        metadata = retriever.invoke(state)
+        return state
 
-        if parser:
-            format_instructions = parser.get_format_instructions()
-            prompt = ChatPromptTemplate(
-                [(system_prompt)], partial_variables={"format_instructions": format_instructions}
+    @chain
+    def use_result(state: RedboxState):
+        additional_variables = {"metadata": metadata}
+        if _additional_variables:
+            additional_variables = dict(additional_variables, **_additional_variables)
+        chain = basic_chat_chain(
+                system_prompt=system_prompt,
+                tools=tools,
+                parser=parser,
+                _additional_variables=additional_variables,
+                using_only_structure=using_only_structure,
             )
-        else:
-            prompt = ChatPromptTemplate([(system_prompt)])
-            parser = ClaudeParser()
-        chain = prompt | llm | parser
-        return chain.invoke(context)
+        return chain.invoke(state)
 
-    return _basic_chat_chain
+    return get_metadata | use_result
+
+def create_chain_agent(
+        system_prompt,
+        use_metadata=False,
+        tools=None,
+        parser=None,
+        _additional_variables: dict = {},
+        using_only_structure=False,
+    ):
+    if use_metadata:
+        return chain_use_metadata(
+                system_prompt=system_prompt,
+                tools=tools,
+                parser=parser,
+                _additional_variables=_additional_variables,
+                using_only_structure=using_only_structure,
+            )
+    else:
+        return basic_chat_chain(
+                system_prompt=system_prompt,
+                tools=tools,
+                parser=parser,
+                _additional_variables=_additional_variables,
+                using_only_structure=using_only_structure,
+            )

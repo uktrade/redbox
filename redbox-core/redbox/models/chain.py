@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from functools import reduce
 from types import UnionType
-from typing import Annotated, Literal, NotRequired, Required, TypedDict, get_args, get_origin
+from typing import Annotated, Literal, NotRequired, Required, TypedDict, get_args, get_origin, List
 from uuid import UUID, uuid4
 
 import environ
@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from redbox.models import prompts
 from redbox.models.chat import ToolEnum
 from redbox.models.settings import ChatLLMBackend
+from enum import Enum
 
 load_dotenv()
 env = environ.Env()
@@ -89,6 +90,9 @@ class AISettings(BaseModel):
     # settings for tool call
     tool_govuk_retrieved_results: int = 100
     tool_govuk_returned_results: int = 5
+
+    # agents reporting to planner agent
+    agents: list = ["Document_Agent", "External_Data_Agent"]
 
 
 class Source(BaseModel):
@@ -389,3 +393,15 @@ class GeneratedMetadata(BaseModel):
 
 class AgentDecision(BaseModel):
     next: ToolEnum = ToolEnum.search
+
+
+agent_options = {agent: agent for agent in AISettings().agents}
+AgentEnum = Enum("AgentEnum", agent_options)
+
+class AgentTask(BaseModel):
+    task: str = Field(description="Task to be completed by the agent", default="")
+    agent: AgentEnum = Field(description="Name of the agent to complete the task", default=AgentEnum.Document_Agent)
+    expected_output: str = Field(description="What this agent should produce", default="")
+
+class MultiAgentPlan(BaseModel):
+    tasks: List[AgentTask] = Field(description="A list of tasks to be carried out by agents", default=[])

@@ -3,7 +3,9 @@ from typing import Callable
 from langchain_core.messages import AIMessage
 from langgraph.constants import Send
 
-from redbox.models.chain import DocumentState, RedboxState
+from redbox.models.chain import DocumentState, RedboxState, MultiAgentPlan
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from redbox.chains.parser import ClaudeParser
 
 
 def _copy_state(state: RedboxState, **updates) -> RedboxState:
@@ -58,3 +60,45 @@ def build_tool_send(target: str) -> Callable[[RedboxState], list[Send]]:
         return [Send(node=target, arg=state) for state in tool_send_states]
 
     return _tool_send
+
+def run_tools_parallel(ai_msg, tools, state):
+        # Create a list to store futures
+        futures = []
+
+        # Use ThreadPoolExecutor for parallel execution
+        with ThreadPoolExecutor() as executor:
+            # Submit tool invocations to the executor
+            for tool_call in ai_msg.tool_calls:
+                # Find the matching tool by name
+                selected_tool = next((tool for tool in tools if tool.name == tool_call.get("name")), None)
+
+                if selected_tool is None:
+                    print(f"Warning: No tool found for {tool_call.get('name')}")
+                    continue
+
+                # Get arguments and submit the tool invocation
+                args = tool_call.get("args", {})
+                args["state"] = state
+                future = executor.submit(selected_tool.invoke, args)
+                futures.append(future)
+
+            # Collect responses as tools complete
+            responses = []
+            for future in as_completed(futures):
+                try:
+                    response = future.result()
+                    responses.append(AIMessage(response))
+                except Exception as e:
+                    print(f"Tool invocation error: {e}")
+
+            return responses
+        
+
+def sending_task_to_agent(state: RedboxState):
+    parser = ClaudeParser(pydantic_object=MultiAgentPlan)
+    plan = parser.parse(state.last_message.content)
+    task_send_states: list[RedboxState] = [
+            (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
+            for task in plan.tasks
+        ]
+    return [Send(node=target, arg=state) for target, state in task_send_states]
