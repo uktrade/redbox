@@ -19,15 +19,14 @@ from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
 
 from redbox.chains.activity import log_activity
-from redbox.chains.components import get_basic_metadata_retriever, get_chat_llm, get_tokeniser, get_structured_response_with_citations_parser
+from redbox.chains.components import get_chat_llm, get_tokeniser, get_structured_response_with_citations_parser
 from redbox.chains.parser import ClaudeParser
-from redbox.chains.runnables import CannedChatLLM, basic_chat_chain, build_llm_chain, chain_use_metadata, create_chain_agent
+from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_metadata, create_chain_agent
 from redbox.models import ChatRoute
 from redbox.models.chain import DocumentState, PromptSet, RedboxState, RequestMetadata, MultiAgentPlan, AgentTask
 from redbox.models.graph import ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActivityEvent, RedboxEventType
-from redbox.models.settings import get_settings
 from redbox.transform import combine_documents, flatten_document_state
-from redbox.models.prompts import DOCUMENT_AGENT_PROMPT, EXTERNAL_DATA_AGENT, PLANNER_PROMPT
+from redbox.models.prompts import DOCUMENT_AGENT_PROMPT, PLANNER_PROMPT
 from redbox.graph.nodes.sends import run_tools_parallel
 
 log = logging.getLogger(__name__)

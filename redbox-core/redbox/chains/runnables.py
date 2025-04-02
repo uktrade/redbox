@@ -13,7 +13,6 @@ from langchain_core.runnables import Runnable, RunnableGenerator, RunnableLambda
 from redbox.api.format import format_documents
 from redbox.chains.activity import log_activity
 from redbox.chains.components import get_chat_llm, get_tokeniser, get_basic_metadata_retriever
-from redbox.chains.parser import ClaudeParser
 from redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_prompts
 from redbox.models.errors import QuestionLengthError
 from redbox.models.graph import RedboxEventType
