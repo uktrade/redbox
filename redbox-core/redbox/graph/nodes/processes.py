@@ -19,14 +19,15 @@ from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
 
 from redbox.chains.activity import log_activity
-from redbox.chains.components import get_basic_metadata_retriever, get_chat_llm, get_tokeniser
+from redbox.chains.components import get_chat_llm, get_tokeniser, get_structured_response_with_citations_parser
 from redbox.chains.parser import ClaudeParser
-from redbox.chains.runnables import CannedChatLLM, basic_chat_chain, build_llm_chain
+from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_metadata, create_chain_agent
 from redbox.models import ChatRoute
-from redbox.models.chain import DocumentState, PromptSet, RedboxState, RequestMetadata
+from redbox.models.chain import DocumentState, PromptSet, RedboxState, RequestMetadata, MultiAgentPlan, AgentTask
 from redbox.models.graph import ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActivityEvent, RedboxEventType
-from redbox.models.settings import get_settings
 from redbox.transform import combine_documents, flatten_document_state
+from redbox.models.prompts import DOCUMENT_AGENT_PROMPT, PLANNER_PROMPT
+from redbox.graph.nodes.sends import run_tools_parallel
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
@@ -345,25 +346,63 @@ def lm_choose_route(state: RedboxState, parser: ClaudeParser):
     """
     LLM choose the route (search/summarise) based on user question and file metadata
     """
-    metadata = None
-
-    @RunnableLambda
-    def get_metadata(state: RedboxState):
-        nonlocal metadata
-        env = get_settings()
-        retriever = get_basic_metadata_retriever(env)
-        metadata = retriever.invoke(state)
-        return state
-
-    @RunnableLambda
-    def use_result(state: RedboxState):
-        chain = basic_chat_chain(
-            system_prompt=state.request.ai_settings.llm_decide_route_prompt,
-            parser=parser,
-            _additional_variables={"metadata": metadata},
-        )
-        return chain.invoke(state)
-
-    chain = get_metadata | use_result
+    chain = chain_use_metadata(system_prompt=state.request.ai_settings.llm_decide_route_prompt, parser=parser)
     res = chain.invoke(state)
     return res.next.value
+
+
+def create_planner():
+    @RunnableLambda
+    def _create_planner(state: RedboxState):
+        orchestration_agent = create_chain_agent(
+            system_prompt=PLANNER_PROMPT,
+            use_metadata=True,
+            tools=None,
+            parser=ClaudeParser(pydantic_object=MultiAgentPlan),
+            using_only_structure=True,
+        )
+        res = orchestration_agent.invoke(state)
+        state.messages.append(AIMessage(res.content))
+        return state
+
+    return _create_planner
+
+
+def build_agent(tools):
+    @RunnableLambda
+    def _build_agent(state: RedboxState):
+        # tools = [search_documents]
+        parser = ClaudeParser(pydantic_object=AgentTask)
+        try:
+            task = parser.parse(state.last_message.content)
+        except Exception as e:
+            print(f"Cannot parse in document agent: {e}")
+        activity_node = build_activity_log_node(
+            RedboxActivityEvent(message=f"Document Agent is completing task: {task.task}")
+        )
+        activity_node.invoke(state)
+
+        doc_agent = create_chain_agent(
+            system_prompt=DOCUMENT_AGENT_PROMPT,
+            use_metadata=True,
+            parser=None,
+            tools=tools,
+            _additional_variables={"task": task.task, "expected_output": task.expected_output},
+        )
+        ai_msg = doc_agent.invoke(state)
+        result = run_tools_parallel(ai_msg, tools, state)
+        return {"messages": result}
+
+    return _build_agent
+
+
+def create_evaluator():
+    citation_parser, format_instructions = get_structured_response_with_citations_parser()
+    evaluator_agent = build_stuff_pattern(
+        prompt_set=PromptSet.NewRoute,
+        tools=None,
+        output_parser=citation_parser,
+        format_instructions=format_instructions,
+        final_response_chain=False,
+    )
+    return evaluator_agent

@@ -20,7 +20,6 @@ from redbox.graph.edges import (
     multiple_docs_in_group_conditional,
     remove_gadget_keyword,
 )
-from redbox.graph.nodes.agents import test_graph
 from redbox.graph.nodes.processes import (
     PromptSet,
     build_activity_log_node,
@@ -37,8 +36,16 @@ from redbox.graph.nodes.processes import (
     empty_process,
     lm_choose_route,
     report_sources_process,
+    create_planner,
+    build_agent,
+    create_evaluator,
 )
-from redbox.graph.nodes.sends import build_document_chunk_send, build_document_group_send, build_tool_send
+from redbox.graph.nodes.sends import (
+    build_document_chunk_send,
+    build_document_group_send,
+    build_tool_send,
+    sending_task_to_agent,
+)
 from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
 from redbox.models.chain import AgentDecision, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
@@ -46,7 +53,7 @@ from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
 
-def get_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, debug):
+def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, multi_agent_tools, debug):
     agent_parser = ClaudeParser(pydantic_object=AgentDecision)
 
     def lm_choose_route_wrapper(state: RedboxState):
@@ -61,7 +68,7 @@ def get_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
     builder.add_node("summarise_graph", get_summarise_graph(all_chunks_retriever=all_chunks_retriever, debug=debug))
     builder.add_node(
         "new_route_graph",
-        build_new_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, debug),
+        build_new_graph(multi_agent_tools, debug),
     )
     builder.add_node(
         "retrieve_metadata", get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
@@ -788,10 +795,26 @@ def strip_route(state: RedboxState):
 
 
 def build_new_graph(
-    all_chunks_retriever: VectorStoreRetriever,
-    parameterised_retriever: VectorStoreRetriever,
-    metadata_retriever: VectorStoreRetriever,
-    tools: list[StructuredTool],
+    multi_agent_tools: dict,
     debug: bool = False,
 ) -> CompiledGraph:
-    return test_graph()
+    builder = StateGraph(RedboxState)
+    builder.add_node("planner", create_planner())
+    builder.add_node("Document_Agent", build_agent(tools=multi_agent_tools["document_agent"]))
+    builder.add_node("send", empty_process)
+    builder.add_node("External_Data_Agent", build_agent(tools=multi_agent_tools["external_document_agent"]))
+    builder.add_node("Evaluator_Agent", create_evaluator())
+    builder.add_node(
+        "report_citations",
+        report_sources_process,
+        retry=RetryPolicy(max_attempts=3),
+    )
+
+    builder.add_edge(START, "planner")
+    builder.add_conditional_edges("planner", sending_task_to_agent)
+    builder.add_edge("Document_Agent", "Evaluator_Agent")
+    builder.add_edge("External_Data_Agent", "Evaluator_Agent")
+    builder.add_edge("Evaluator_Agent", "report_citations")
+    builder.add_edge("report_citations", END)
+
+    return builder.compile(debug=debug)
