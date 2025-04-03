@@ -19,15 +19,15 @@ from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
 
 from redbox.chains.activity import log_activity
-from redbox.chains.components import get_chat_llm, get_tokeniser, get_structured_response_with_citations_parser
+from redbox.chains.components import get_chat_llm, get_structured_response_with_citations_parser, get_tokeniser
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_metadata, create_chain_agent
-from redbox.models import ChatRoute
-from redbox.models.chain import DocumentState, PromptSet, RedboxState, RequestMetadata, MultiAgentPlan, AgentTask
-from redbox.models.graph import ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActivityEvent, RedboxEventType
-from redbox.transform import combine_documents, flatten_document_state
-from redbox.models.prompts import DOCUMENT_AGENT_PROMPT, PLANNER_PROMPT
 from redbox.graph.nodes.sends import run_tools_parallel
+from redbox.models import ChatRoute
+from redbox.models.chain import AgentTask, DocumentState, MultiAgentPlan, PromptSet, RedboxState, RequestMetadata
+from redbox.models.graph import ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActivityEvent, RedboxEventType
+from redbox.models.prompts import PLANNER_PROMPT
+from redbox.transform import combine_documents, flatten_document_state
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
@@ -368,28 +368,27 @@ def create_planner():
     return _create_planner
 
 
-def build_agent(tools):
+def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: bool = False):
     @RunnableLambda
     def _build_agent(state: RedboxState):
-        # tools = [search_documents]
         parser = ClaudeParser(pydantic_object=AgentTask)
         try:
             task = parser.parse(state.last_message.content)
         except Exception as e:
-            print(f"Cannot parse in document agent: {e}")
+            print(f"Cannot parse in {agent_name}: {e}")
         activity_node = build_activity_log_node(
-            RedboxActivityEvent(message=f"Document Agent is completing task: {task.task}")
+            RedboxActivityEvent(message=f"{agent_name} is completing task: {task.task}")
         )
         activity_node.invoke(state)
 
-        doc_agent = create_chain_agent(
-            system_prompt=DOCUMENT_AGENT_PROMPT,
-            use_metadata=True,
+        worker_agent = create_chain_agent(
+            system_prompt=system_prompt,
+            use_metadata=use_metadata,
             parser=None,
             tools=tools,
             _additional_variables={"task": task.task, "expected_output": task.expected_output},
         )
-        ai_msg = doc_agent.invoke(state)
+        ai_msg = worker_agent.invoke(state)
         result = run_tools_parallel(ai_msg, tools, state)
         return {"messages": result}
 
