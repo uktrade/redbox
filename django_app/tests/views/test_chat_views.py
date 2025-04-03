@@ -4,7 +4,6 @@ import uuid
 from http import HTTPStatus
 
 import pytest
-from bs4 import BeautifulSoup
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
