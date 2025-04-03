@@ -23,43 +23,21 @@ CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
     "4) Maintain the original context and meaning.\n"
 )
 
-RETRIEVAL_SYSTEM_PROMPT = (
-    """
-   Answer my question using only the documents I provide. Include proper citations for each factual claim using the following format:
+RETRIEVAL_SYSTEM_PROMPT = """
+   Answer my question using only the documents I provide. Include proper citations for each factual claim.
+   Return ONLY the JSON structure
    {format_instructions}
+   with no introduction, explanation, or additional text:
+
    Requirements:
 
-   Only cite information from the documents I provide in <Documents>{formatted_documents}</Documents>
-   Each citation must match exact text in your answer
-   Include substantial quotes from the documents (20+ words minimum)
-   Specify page numbers when available
-   Do not reference external sources beyond what I provide
+   - Only cite information from the documents I provide in <Documents>{formatted_documents}</Documents>
+   - Each citation must match exact text in your answer
+   - Include substantial quotes from the documents (20+ words minimum)
+   - Specify page numbers when available
+   - Do not reference external sources beyond what I provide
 
-   <User question>{question}</User question>
    """
-)
-
-# AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
-#     "You are an advanced problem-solving assistant. Your primary goal is to carefully "
-#     "analyse and work through complex questions or problems. You will receive a collection "
-#     "of documents (all at once, without any information about their order or iteration) and "
-#     "a list of tool calls that have already been made (also without order or iteration "
-#     "information). Based on this data, you are expected to think critically about how to "
-#     "proceed.\n"
-#     "\n"
-#     "Objective:\n"
-#     "1. Examine the available documents and tool calls:\n"
-#     "- Evaluate whether the current information is sufficient to answer the question.\n"
-#     "- Consider the success or failure of previous tool calls based on the data they returned.\n"
-#     "- Hypothesise whether new tool calls might bring more valuable information.\n"
-#     "\n"
-#     "2. Decide whether you can answer this question:\n"
-#     "- If additional tool calls are likely to yield useful information, make those calls.\n"
-#     "- If the available documents are sufficient to proceed, provide an answer\n"
-#     "Your role is to think deeply before taking any action. Carefully weigh whether new "
-#     "information is necessary or helpful. Only take action (call tools or providing and answer) after "
-#     "thorough evaluation of the current documents and tool calls."
-# )
 
 NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Expert Answer Evaluation Protocol:
 
@@ -257,7 +235,7 @@ CHAT_QUESTION_PROMPT = "{question}\n=========\n Response: "
 
 CHAT_WITH_DOCS_QUESTION_PROMPT = "Question: {question}. \n\n Documents: \n\n {formatted_documents} \n\n Answer: "
 
-RETRIEVAL_QUESTION_PROMPT = "{question} \n=========\n{formatted_documents}\n=========\nFINAL ANSWER: "
+RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
 AGENTIC_RETRIEVAL_QUESTION_PROMPT = "{question}"
 
