@@ -804,7 +804,10 @@ def build_new_graph(
     builder.add_node(
         "Document_Agent",
         build_agent(
-            agent_name="Document Agent", system_prompt=DOCUMENT_AGENT_PROMPT, tools=multi_agent_tools["document_agent"]
+            agent_name="Document Agent",
+            system_prompt=DOCUMENT_AGENT_PROMPT,
+            tools=multi_agent_tools["document_agent"],
+            use_metadata=True,
         ),
     )
     builder.add_node("send", empty_process)
@@ -814,6 +817,7 @@ def build_new_graph(
             agent_name="External Data Agent",
             system_prompt=EXTERNAL_DATA_AGENT,
             tools=multi_agent_tools["external_document_agent"],
+            use_metadata=False,
         ),
     )
     builder.add_node("Evaluator_Agent", create_evaluator())

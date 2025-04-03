@@ -368,7 +368,7 @@ def create_planner():
     return _create_planner
 
 
-def build_agent(agent_name: str, system_prompt: str, tools):
+def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: bool = False):
     @RunnableLambda
     def _build_agent(state: RedboxState):
         parser = ClaudeParser(pydantic_object=AgentTask)
@@ -383,7 +383,7 @@ def build_agent(agent_name: str, system_prompt: str, tools):
 
         worker_agent = create_chain_agent(
             system_prompt=system_prompt,
-            use_metadata=True,
+            use_metadata=use_metadata,
             parser=None,
             tools=tools,
             _additional_variables={"task": task.task, "expected_output": task.expected_output},
