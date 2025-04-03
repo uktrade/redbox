@@ -24,11 +24,19 @@ CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
 )
 
 RETRIEVAL_SYSTEM_PROMPT = (
-    "Your task is to answer user queries with reliable sources.\n"
-    "**You must provide the citations where you use the information to answer.**\n"
-    "Use UK English spelling in response.\n"
-    "Use the document `creator_type` as `source_type` if available.\n"
-    "\n"
+    """
+   Answer my question using only the documents I provide. Include proper citations for each factual claim using the following format:
+   {format_instructions}
+   Requirements:
+
+   Only cite information from the documents I provide in <Documents>{formatted_documents}</Documents>
+   Each citation must match exact text in your answer
+   Include substantial quotes from the documents (20+ words minimum)
+   Specify page numbers when available
+   Do not reference external sources beyond what I provide
+
+   <User question>{question}</User question>
+   """
 )
 
 # AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
