@@ -166,9 +166,9 @@ def build_self_route_output_parser(
                 return
             elif token_count > max_tokens_to_check:
                 break
-        if final_response_chain:
-            dispatch_custom_event(RedboxEventType.response_tokens, current_content)
-        yield current_content
+            # if final_response_chain:
+            #     # dispatch_custom_event(RedboxEventType.response_tokens, current_content)
+            #     yield current_content
         for chunk in chunks:
             if final_response_chain:
                 dispatch_custom_event(RedboxEventType.response_tokens, chunk.content)
