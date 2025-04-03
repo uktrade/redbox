@@ -405,3 +405,21 @@ def create_evaluator():
         final_response_chain=False,
     )
     return evaluator_agent
+
+def invoke_custom_state(custom_graph, all_chunks_retriever : VectorStoreRetriever, debug: bool = False):
+    
+    @RunnableLambda
+    def _invoke_custom_state(state: RedboxState):
+        
+        # transform the state to the subgraph state
+        subgraph = custom_graph(all_chunks_retriever=all_chunks_retriever, debug=debug)
+        subgraph_state = state.model_copy()
+        agent_task=json.loads(subgraph_state.last_message.content)
+        subgraph_state.request.question = agent_task["task"]
+
+        #invoke the subgraph
+        response = subgraph.invoke(subgraph_state)
+
+        # transform response back to the parent state
+        return {"messages": response['messages'][-1]}
+    return _invoke_custom_state

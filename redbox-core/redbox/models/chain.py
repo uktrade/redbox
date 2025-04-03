@@ -92,7 +92,7 @@ class AISettings(BaseModel):
     tool_govuk_returned_results: int = 5
 
     # agents reporting to planner agent
-    agents: list = ["Document_Agent", "External_Data_Agent"]
+    agents: list = ["Document_Agent", "External_Data_Agent", "Summarisation_Agent"]
 
 
 class Source(BaseModel):
