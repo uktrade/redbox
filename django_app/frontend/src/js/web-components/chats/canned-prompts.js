@@ -62,7 +62,7 @@ class CannedPrompts extends HTMLElement {
     /** @type HTMLInputElement | null */
     let chatInput = document.querySelector(".iai-chat-input__input");
     if (chatInput) {
-      chatInput.value = prompt;
+      chatInput.innerHTML = prompt;
       chatInput.focus();
       chatInput.selectionStart = chatInput.value.length;
     }
