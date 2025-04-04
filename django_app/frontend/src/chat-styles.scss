@@ -816,3 +816,14 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   color: var(--iai-product-colour) !important;
   font-size: 1.1875rem;
 }
+
+.chat-group-container {
+  max-height: 270px;
+  overflow-y: auto;
+}
+
+.chat-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}

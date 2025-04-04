@@ -32,38 +32,39 @@
         
 
         <h2 class="govuk-heading-s iai-panel-heading">Recent chats</h2>
-        <!-- <div class="iai-panel__scrollable iai-panel__scrollable--chat-history govuk-!-padding-right-3"> -->
-
-          <chat-history>
-            <template id="template-chat_history_heading">
-              <div>
-                {% call chat_history_heading("-") %}
-                {% endcall %}
-              </div>
-            </template>
-            <template id="template-chat_history_item">
-              {{ chat_history_item({
-                "id": "id",
-                "name": ""
-              }, "", "id") }}
-            </template>
-
-            {% for date_group, chats in chat_grouped_by_date_group %}
-              {% call chat_history_heading(date_group) %}
-                {% for chat in chats %}
-                  {{ chat_history_item(chat, url('chats', chat.id), chat_id) }}
-                {% endfor %}
+        <chat-history>
+          <template id="template-chat_history_heading">
+            <div>
+              {% call chat_history_heading("-") %}
               {% endcall %}
-            {% endfor %}
-
-          </chat-history>
+            </div>
+          </template>
+          <template id="template-chat_history_item">
+            {{ chat_history_item({
+              "id": "id",
+              "name": ""
+            }, "", "id") }}
+          </template>
+        
+          {% for date_group, chats in chat_grouped_by_date_group %}
+            <div class="chat-group-container">
+              {% call chat_history_heading(date_group) %}
+                <ul class="chat-list">
+                  {% for chat in chats %}
+                    {{ chat_history_item(chat, url('chats', chat.id), chat_id) }}
+                  {% endfor %}
+                </ul>
+              {% endcall %}
+            </div>
+          {% endfor %}
+        </chat-history>
 
         <document-selector class="govuk-!-margin-top-5 govuk-!-padding-top-3">
           <fieldset class="govuk-fieldset">
             <legend class="full-width-panel-title">
               <h3 class="govuk-heading-s iai-panel-heading">Documents to use</h3>
             </legend>
-            <div class="govuk-checkboxes govuk-checkboxes--small iai-panel__scrollable govuk-!-margin-left-2" data-module="govuk-checkboxes">
+            <div class="govuk-checkboxes govuk-checkboxes--small chat-group-container govuk-!-margin-left-2" data-module="govuk-checkboxes">
               {% for file in completed_files %}
                 <div class="govuk-checkboxes__item rb-chat-history__title">
                   <input class="govuk-checkboxes__input" id="file-{{ file.id }}" name="file-{{ file.id }}" type="checkbox" value="{{ file.id }}" {% if file.selected %}checked{% endif %}>
