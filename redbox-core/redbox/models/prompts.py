@@ -31,11 +31,11 @@ RETRIEVAL_SYSTEM_PROMPT = """
 
    Requirements:
 
-   - Only cite information from the documents I provide in <Documents>{formatted_documents}</Documents>
+   - Only cite information from the documents I provide in <My_Documents>{formatted_documents}</My_Documents>
    - Each citation must match exact text in your answer
    - Include substantial quotes from the documents (20+ words minimum)
    - Specify page numbers when available
-   - Do not reference external sources beyond what I provide
+   - Do not reference external sources beyond what I provide in <My_Documents>
 
    """
 
@@ -145,21 +145,28 @@ AGENTIC_GIVE_UP_SYSTEM_PROMPT = (
 )
 
 SELF_ROUTE_SYSTEM_PROMPT = """
-   Answer my question using only the documents I provide. Include proper citations for each factual claim.
-   Return ONLY the JSON structure
-   {format_instructions}
-   with no introduction, explanation, or additional text:
+   Evaluate if you can answer my question using only the documents I provide in <My_Documents>{formatted_documents}</My_Documents>.
 
-   Requirements:
+   Choosing one option below:
 
-   - Only cite information from the documents I provide in <Documents>{formatted_documents}</Documents>
-   - Each citation must match exact text in your answer
-   - Include substantial quotes from the documents (20+ words minimum)
-   - Specify page numbers when available
-   - Do not reference external sources beyond what I provide
+   1. You are not able to answer, return the word "unanswerable". No explanation.
+
+   OR
+
+   2. You are able to answer. Include proper citations for each factual claim. Return ONLY the JSON structure:
+   {format_instructions}. DO NOT start by saying: 'Here is the JSON response', just return JSON.
+
+      Requirements:
+
+      - Only cite information from the documents I provide in <My_Documents>
+      - Each citation must match exact text in your answer
+      - Include substantial quotes from the documents (20+ words minimum)
+      - Specify page numbers when available
+      - Do not reference external sources beyond what I provide in <My_Documents>
 
    Remember: Only use information from documents. If the information isn't there, only return the word: "unanswerable".
    """
+
 # SELF_ROUTE_SYSTEM_PROMPT = """Answer the user's question using only information from documents. Do not use your own knowledge or information from any other source. Analyse document carefully to find relevant information.
 
 

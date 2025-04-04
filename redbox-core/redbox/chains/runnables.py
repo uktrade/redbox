@@ -8,7 +8,14 @@ from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import Runnable, RunnableGenerator, RunnableLambda, RunnablePassthrough, chain
+from langchain_core.runnables import (
+    Runnable,
+    RunnableBranch,
+    RunnableGenerator,
+    RunnableLambda,
+    RunnablePassthrough,
+    chain,
+)
 
 from redbox.api.format import format_documents
 from redbox.chains.activity import log_activity
@@ -143,7 +150,7 @@ def build_llm_chain(
 def build_self_route_output_parser(
     match_condition: Callable[[str], bool],
     max_tokens_to_check: int,
-    final_response_chain: bool = False,
+    parser=None,
 ) -> Runnable[Iterable[AIMessageChunk], Iterable[str]]:
     """
     This Runnable reads the streamed responses from an LLM until the match
@@ -156,6 +163,7 @@ def build_self_route_output_parser(
     """
 
     def _self_route_output_parser(chunks: Iterable[AIMessageChunk]) -> Iterable[str]:
+        nonlocal parser
         current_content = ""
         token_count = 0
         for chunk in chunks:
@@ -166,12 +174,11 @@ def build_self_route_output_parser(
                 return
             elif token_count > max_tokens_to_check:
                 break
+        yield current_content
         for chunk in chunks:
-            if final_response_chain:
-                dispatch_custom_event(RedboxEventType.response_tokens, chunk.content)
             yield chunk.content
 
-    return RunnableGenerator(_self_route_output_parser)
+    return _self_route_output_parser | parser
 
 
 @RunnableLambda

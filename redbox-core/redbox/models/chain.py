@@ -2,7 +2,8 @@ from datetime import UTC, datetime
 from enum import Enum, StrEnum
 from functools import reduce
 from types import UnionType
-from typing import Annotated, List, Literal, NotRequired, Required, TypedDict, get_args, get_origin
+from typing import (Annotated, List, Literal, NotRequired, Required, TypedDict,
+                    get_args, get_origin)
 from uuid import UUID, uuid4
 
 import environ
@@ -97,7 +98,7 @@ class AISettings(BaseModel):
 class Source(BaseModel):
     source: str = Field(description="URL or reference to the source", default="")
     source_type: str = Field(description="creator_type of tool", default="Unknown")
-    document_name: str = Field(description="Full title from document", default="")
+    document_name: str = Field(description="Full title from document", default="Unknown")
     highlighted_text_in_source: str = Field(
         description="Direct quote from the provided document (20+ words)", default=""
     )

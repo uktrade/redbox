@@ -201,10 +201,11 @@ def get_search_graph(
         "check_if_RAG_can_answer",
         build_stuff_pattern(
             prompt_set=PromptSet.SelfRoute,
+            format_instructions=format_instructions,
             output_parser=build_self_route_output_parser(
                 match_condition=rag_cannot_answer,
                 max_tokens_to_check=4,
-                final_response_chain=True,
+                parser=citations_output_parser,
             ),
             final_response_chain=False,
         ),
@@ -247,7 +248,7 @@ def get_search_graph(
     builder.add_conditional_edges(
         "RAG_cannot_answer",
         lambda s: rag_cannot_answer(s.last_message),
-        {True: "clear_documents", False: "set_route_to_search"},
+        {True: "clear_documents", False: "report_citations"},
     )
     builder.add_edge("clear_documents", "set_route_to_summarise")
     builder.add_edge("set_route_to_summarise", END)
