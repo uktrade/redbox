@@ -49,10 +49,6 @@ class CannedPrompts extends HTMLElement {
         this.#prepopulateMessageBox(button.textContent?.trim() || "");
       });
     });
-
-    window.setTimeout(() => {
-      this.scrollIntoView({ block: "end" });
-    }, 100);
   }
 
   /**
