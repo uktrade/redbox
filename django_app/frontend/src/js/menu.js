@@ -5,7 +5,6 @@
         const menuButton = document.querySelector(".govuk-header__menu-button");
         const headerList = document.querySelector(".header-list");
         const menuItems = document.querySelectorAll(".header-item")
-        console.log(menuItems)
 
         const toggleMenu = () => {
             const expanded = menuButton.getAttribute("aria-expanded") === "true";
