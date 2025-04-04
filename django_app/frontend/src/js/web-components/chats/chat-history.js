@@ -6,6 +6,19 @@ class ChatHistory extends HTMLElement {
   }
 
   /**
+   * Caps the amount of chats at 5 and the rest will be scrollable
+   */
+  #limitVisibleChats() {
+    const chatGroups = this.querySelectorAll(".chat-group-container");
+    chatGroups.forEach((group) => {
+      const chats = group.querySelectorAll(".chat-list li");
+      chats.forEach((chat, index) => {
+        chat.style.display = index < 5 ? "block" : "none";
+      });
+    });
+  }
+
+  /**
    * Creates a "Today" heading, if it doesn't already exist
    */
   #createTodayHeading() {
@@ -67,6 +80,7 @@ class ChatHistory extends HTMLElement {
       item = this.#createItem(chatId, title.substring(0, 30));
     }
     this.querySelector("ul")?.prepend(item);
+    this.#limitVisibleChats();
   }
 }
 
