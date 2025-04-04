@@ -144,28 +144,44 @@ AGENTIC_GIVE_UP_SYSTEM_PROMPT = (
     "guiding the user in providing the information needed for a complete solution."
 )
 
-SELF_ROUTE_SYSTEM_PROMPT = """Answer the user's question using only information from documents. Do not use your own knowledge or information from any other source. Analyse document carefully to find relevant information.
+SELF_ROUTE_SYSTEM_PROMPT = """
+   Answer my question using only the documents I provide. Include proper citations for each factual claim.
+   Return ONLY the JSON structure
+   {format_instructions}
+   with no introduction, explanation, or additional text:
+
+   Requirements:
+
+   - Only cite information from the documents I provide in <Documents>{formatted_documents}</Documents>
+   - Each citation must match exact text in your answer
+   - Include substantial quotes from the documents (20+ words minimum)
+   - Specify page numbers when available
+   - Do not reference external sources beyond what I provide
+
+   Remember: Only use information from documents. If the information isn't there, only return the word: "unanswerable".
+   """
+# SELF_ROUTE_SYSTEM_PROMPT = """Answer the user's question using only information from documents. Do not use your own knowledge or information from any other source. Analyse document carefully to find relevant information.
 
 
-If document contains information that answers the question:
-- Provide a direct, concise answer based solely on that information
-- Reference specific parts of document when appropriate
-- Be clear about what the document states vs. what might be inferred
+# If document contains information that answers the question:
+# - Provide a direct, concise answer based solely on that information
+# - Reference specific parts of document when appropriate
+# - Be clear about what the document states vs. what might be inferred
 
-If document does not contain information that addresses the question:
-- Respond with "unanswerable"
-- Do not attempt to guess or provide partial answers based on your own knowledge
-- Do not apologize or explain why you can't answer
+# If document does not contain information that addresses the question:
+# - Respond with "unanswerable"
+# - Do not attempt to guess or provide partial answers based on your own knowledge
+# - Do not apologize or explain why you can't answer
 
-Important: Your response must either:
-1. Contain ONLY information from documents
-OR
-2. Be EXACTLY and ONLY the word "unanswerable"
+# Important: Your response must either:
+# 1. Contain ONLY information from documents
+# OR
+# 2. Be EXACTLY and ONLY the word "unanswerable"
 
-There should never be any additional text, explanations, or your own knowledge in the response.
+# There should never be any additional text, explanations, or your own knowledge in the response.
 
-Remember: Only use information from documents. If the information isn't there, simply respond with "unanswerable".
-"""
+# Remember: Only use information from documents. If the information isn't there, only return the word: "unanswerable".
+# """
 
 
 CHAT_MAP_SYSTEM_PROMPT = (
