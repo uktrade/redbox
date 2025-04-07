@@ -38,7 +38,7 @@ from redbox.graph.nodes.processes import (
     empty_process,
     lm_choose_route,
     report_sources_process,
-    invoke_custom_state
+    invoke_custom_state,
 )
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -810,6 +810,7 @@ def strip_route(state: RedboxState):
     state.request.question = state.request.question.replace("@newroute ", "")
     return state
 
+
 def build_new_graph(
     all_chunks_retriever: VectorStoreRetriever,
     multi_agent_tools: dict,
@@ -838,7 +839,7 @@ def build_new_graph(
     )
     builder.add_node(
         "Summarisation_Agent",
-        invoke_custom_state(custom_graph = get_summarise_graph,all_chunks_retriever=all_chunks_retriever, debug=debug),
+        invoke_custom_state(custom_graph=get_summarise_graph, all_chunks_retriever=all_chunks_retriever, debug=debug),
     )
 
     builder.add_node("Evaluator_Agent", create_evaluator())
