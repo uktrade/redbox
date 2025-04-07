@@ -21,7 +21,6 @@ from redbox.graph.edges import (
     remove_gadget_keyword,
 )
 from redbox.graph.nodes.processes import (
-    PromptSet,
     build_activity_log_node,
     build_agent,
     build_chat_pattern,
@@ -47,7 +46,7 @@ from redbox.graph.nodes.sends import (
     sending_task_to_agent,
 )
 from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
-from redbox.models.chain import AgentDecision, RedboxState
+from redbox.models.chain import AgentDecision, PromptSet, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.models.prompts import DOCUMENT_AGENT_PROMPT, EXTERNAL_DATA_AGENT
