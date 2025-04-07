@@ -8,16 +8,16 @@ from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import Runnable, RunnableGenerator, RunnableLambda, RunnablePassthrough, chain
+from langchain_core.runnables import Runnable, RunnableLambda, RunnablePassthrough, chain
 
 from redbox.api.format import format_documents
 from redbox.chains.activity import log_activity
-from redbox.chains.components import get_chat_llm, get_tokeniser, get_basic_metadata_retriever
+from redbox.chains.components import get_basic_metadata_retriever, get_chat_llm, get_tokeniser
 from redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_prompts
 from redbox.models.errors import QuestionLengthError
 from redbox.models.graph import RedboxEventType
-from redbox.transform import bedrock_tokeniser, flatten_document_state, get_all_metadata
 from redbox.models.settings import get_settings
+from redbox.transform import bedrock_tokeniser, flatten_document_state, get_all_metadata
 
 log = logging.getLogger()
 re_string_pattern = re.compile(r"(\S+)")
@@ -143,7 +143,7 @@ def build_llm_chain(
 def build_self_route_output_parser(
     match_condition: Callable[[str], bool],
     max_tokens_to_check: int,
-    final_response_chain: bool = False,
+    parser=None,
 ) -> Runnable[Iterable[AIMessageChunk], Iterable[str]]:
     """
     This Runnable reads the streamed responses from an LLM until the match
@@ -166,15 +166,11 @@ def build_self_route_output_parser(
                 return
             elif token_count > max_tokens_to_check:
                 break
-        if final_response_chain:
-            dispatch_custom_event(RedboxEventType.response_tokens, current_content)
         yield current_content
         for chunk in chunks:
-            if final_response_chain:
-                dispatch_custom_event(RedboxEventType.response_tokens, chunk.content)
             yield chunk.content
 
-    return RunnableGenerator(_self_route_output_parser)
+    return _self_route_output_parser | parser
 
 
 @RunnableLambda

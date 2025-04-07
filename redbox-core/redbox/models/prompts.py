@@ -23,35 +23,22 @@ CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
     "4) Maintain the original context and meaning.\n"
 )
 
-RETRIEVAL_SYSTEM_PROMPT = (
-    "Your task is to answer user queries with reliable sources.\n"
-    "**You must provide the citations where you use the information to answer.**\n"
-    "Use UK English spelling in response.\n"
-    "Use the document `creator_type` as `source_type` if available.\n"
-    "\n"
-)
+RETRIEVAL_SYSTEM_PROMPT = """
+   Answer my question using only the documents I provide. Include proper citations for each factual claim.
+   Return ONLY the JSON structure
+   {format_instructions}
+   with no introduction, explanation, or additional text:
 
-# AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
-#     "You are an advanced problem-solving assistant. Your primary goal is to carefully "
-#     "analyse and work through complex questions or problems. You will receive a collection "
-#     "of documents (all at once, without any information about their order or iteration) and "
-#     "a list of tool calls that have already been made (also without order or iteration "
-#     "information). Based on this data, you are expected to think critically about how to "
-#     "proceed.\n"
-#     "\n"
-#     "Objective:\n"
-#     "1. Examine the available documents and tool calls:\n"
-#     "- Evaluate whether the current information is sufficient to answer the question.\n"
-#     "- Consider the success or failure of previous tool calls based on the data they returned.\n"
-#     "- Hypothesise whether new tool calls might bring more valuable information.\n"
-#     "\n"
-#     "2. Decide whether you can answer this question:\n"
-#     "- If additional tool calls are likely to yield useful information, make those calls.\n"
-#     "- If the available documents are sufficient to proceed, provide an answer\n"
-#     "Your role is to think deeply before taking any action. Carefully weigh whether new "
-#     "information is necessary or helpful. Only take action (call tools or providing and answer) after "
-#     "thorough evaluation of the current documents and tool calls."
-# )
+   Requirements:
+
+   - Only cite information from the documents I provide in <My_Documents>{formatted_documents}</My_Documents>
+   - Each citation must match exact text in your answer
+   - Include substantial quotes from the documents (20+ words minimum)
+   - Specify page numbers when available
+   - Do not reference external sources beyond what I provide in <My_Documents>
+   - Use UK English spelling in response
+
+   """
 
 NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Expert Answer Evaluation Protocol:
 
@@ -158,28 +145,51 @@ AGENTIC_GIVE_UP_SYSTEM_PROMPT = (
     "guiding the user in providing the information needed for a complete solution."
 )
 
-SELF_ROUTE_SYSTEM_PROMPT = """Answer the user's question using only information from documents. Do not use your own knowledge or information from any other source. Analyse document carefully to find relevant information.
+SELF_ROUTE_SYSTEM_PROMPT = """
+   Evaluate if you can answer my question using only the documents I provide in <My_Documents>{formatted_documents}</My_Documents>.
+
+   Choosing one option below:
+
+   1. You are not able to answer, return the word "unanswerable". No explanation.
+
+   OR
+
+   2. You are able to answer. Include proper citations for each factual claim. Return ONLY the JSON structure:
+   {format_instructions}. DO NOT start by saying: 'Here is the JSON response', just return JSON.
+
+      Requirements:
+
+      - Only cite information from the documents I provide in <My_Documents>
+      - Each citation must match exact text in your answer
+      - Include substantial quotes from the documents (20+ words minimum)
+      - Specify page numbers when available
+      - Do not reference external sources beyond what I provide in <My_Documents>
+
+   Remember: Only use information from documents. If the information isn't there, only return the word: "unanswerable".
+   """
+
+# SELF_ROUTE_SYSTEM_PROMPT = """Answer the user's question using only information from documents. Do not use your own knowledge or information from any other source. Analyse document carefully to find relevant information.
 
 
-If document contains information that answers the question:
-- Provide a direct, concise answer based solely on that information
-- Reference specific parts of document when appropriate
-- Be clear about what the document states vs. what might be inferred
+# If document contains information that answers the question:
+# - Provide a direct, concise answer based solely on that information
+# - Reference specific parts of document when appropriate
+# - Be clear about what the document states vs. what might be inferred
 
-If document does not contain information that addresses the question:
-- Respond with "unanswerable"
-- Do not attempt to guess or provide partial answers based on your own knowledge
-- Do not apologize or explain why you can't answer
+# If document does not contain information that addresses the question:
+# - Respond with "unanswerable"
+# - Do not attempt to guess or provide partial answers based on your own knowledge
+# - Do not apologize or explain why you can't answer
 
-Important: Your response must either:
-1. Contain ONLY information from documents
-OR
-2. Be EXACTLY and ONLY the word "unanswerable"
+# Important: Your response must either:
+# 1. Contain ONLY information from documents
+# OR
+# 2. Be EXACTLY and ONLY the word "unanswerable"
 
-There should never be any additional text, explanations, or your own knowledge in the response.
+# There should never be any additional text, explanations, or your own knowledge in the response.
 
-Remember: Only use information from documents. If the information isn't there, simply respond with "unanswerable".
-"""
+# Remember: Only use information from documents. If the information isn't there, only return the word: "unanswerable".
+# """
 
 
 CHAT_MAP_SYSTEM_PROMPT = (
@@ -249,7 +259,7 @@ CHAT_QUESTION_PROMPT = "{question}\n=========\n Response: "
 
 CHAT_WITH_DOCS_QUESTION_PROMPT = "Question: {question}. \n\n Documents: \n\n {formatted_documents} \n\n Answer: "
 
-RETRIEVAL_QUESTION_PROMPT = "{question} \n=========\n{formatted_documents}\n=========\nFINAL ANSWER: "
+RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
 AGENTIC_RETRIEVAL_QUESTION_PROMPT = "{question}"
 
