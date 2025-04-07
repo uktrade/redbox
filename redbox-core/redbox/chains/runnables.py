@@ -156,7 +156,6 @@ def build_self_route_output_parser(
     """
 
     def _self_route_output_parser(chunks: Iterable[AIMessageChunk]) -> Iterable[str]:
-        nonlocal parser
         current_content = ""
         token_count = 0
         for chunk in chunks:

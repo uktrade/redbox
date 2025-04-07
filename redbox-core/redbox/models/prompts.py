@@ -36,6 +36,7 @@ RETRIEVAL_SYSTEM_PROMPT = """
    - Include substantial quotes from the documents (20+ words minimum)
    - Specify page numbers when available
    - Do not reference external sources beyond what I provide in <My_Documents>
+   - Use UK English spelling in response
 
    """
 
