@@ -28,9 +28,6 @@ body:has(.iai-environment-warning) main:has(.iai-chat-input) {
   padding: 0.25rem 0.5rem 0.25rem 1rem;
   color: white;
 }
-.rb-chat-history__item:last-child {
-  border-bottom: 1px solid white;
-}
 .rb-chat-history__item:has(.rb-chat-history__current-indicator), .rb-chat-history__item:has([aria-expanded="true"]), .rb-chat-history__item:hover {
   background-color: #16578f;
   color: white;
@@ -780,12 +777,13 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 .iai-panel-heading {
   color: white;
   text-decoration: none;
-  border-bottom: 1px solid white;
   padding: 15px;
 }
 
 .chat-history-subheading{
   padding-left: 15px;
+  padding-top: 15px;
+  border-top: 1px solid white;
   color: white;
 }
 
@@ -818,7 +816,7 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 }
 
 .chat-group-container {
-  max-height: 270px;
+  max-height: 280px;
   overflow-y: auto;
 }
 
