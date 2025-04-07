@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
-from enum import StrEnum
+from enum import Enum, StrEnum
 from functools import reduce
 from types import UnionType
-from typing import Annotated, Literal, NotRequired, Required, TypedDict, get_args, get_origin, List
+from typing import Annotated, List, Literal, NotRequired, Required, TypedDict, get_args, get_origin
 from uuid import UUID, uuid4
 
 import environ
@@ -16,7 +16,6 @@ from pydantic import BaseModel, Field
 from redbox.models import prompts
 from redbox.models.chat import ToolEnum
 from redbox.models.settings import ChatLLMBackend
-from enum import Enum
 
 load_dotenv()
 env = environ.Env()
@@ -98,8 +97,10 @@ class AISettings(BaseModel):
 class Source(BaseModel):
     source: str = Field(description="URL or reference to the source", default="")
     source_type: str = Field(description="creator_type of tool", default="Unknown")
-    document_name: str = ""
-    highlighted_text_in_source: str = ""
+    document_name: str = Field(description="Full title from document", default="Unknown")
+    highlighted_text_in_source: str = Field(
+        description="Direct quote from the provided document (20+ words)", default=""
+    )
     page_numbers: list[int] = Field(description="Page Number in document the highlighted text is on", default=[1])
 
 
@@ -112,7 +113,7 @@ class Citation(BaseModel):
 
 
 class StructuredResponseWithCitations(BaseModel):
-    answer: str = Field(description="Markdown structured answer to the query", default="")
+    answer: str = Field(description="Markdown structured answer to the question", default="")
     citations: list[Citation] = Field(default_factory=list)
 
 
