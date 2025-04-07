@@ -21,7 +21,6 @@ from redbox.graph.edges import (
     remove_gadget_keyword,
 )
 from redbox.graph.nodes.processes import (
-    PromptSet,
     build_activity_log_node,
     build_agent,
     build_chat_pattern,
@@ -48,7 +47,7 @@ from redbox.graph.nodes.sends import (
     sending_task_to_agent,
 )
 from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
-from redbox.models.chain import AgentDecision, RedboxState
+from redbox.models.chain import AgentDecision, PromptSet, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.models.prompts import DOCUMENT_AGENT_PROMPT, EXTERNAL_DATA_AGENT
@@ -147,6 +146,8 @@ def get_search_graph(
     final_sources: bool = True,
 ) -> CompiledGraph:
     """Creates a subgraph for retrieval augmented generation (RAG)."""
+    citations_output_parser, format_instructions = get_structured_response_with_citations_parser()
+
     builder = StateGraph(RedboxState)
 
     # Processes
@@ -165,18 +166,29 @@ def get_search_graph(
         build_retrieve_pattern(
             retriever=retriever,
             structure_func=structure_documents_by_group_and_indices,
-            final_source_chain=final_sources,
+            final_source_chain=False,
         ),
         retry=RetryPolicy(max_attempts=3),
     )
     builder.add_node(
         "llm_answer_question",
-        build_stuff_pattern(prompt_set=prompt_set, final_response_chain=True),
+        build_stuff_pattern(
+            prompt_set=prompt_set,
+            output_parser=citations_output_parser,
+            format_instructions=format_instructions,
+            final_response_chain=False,
+        ),
         retry=RetryPolicy(max_attempts=3),
     )
+
     builder.add_node(
         "set_route_to_summarise",
         build_set_route_pattern(route=ChatRoute.summarise),
+        retry=RetryPolicy(max_attempts=3),
+    )
+    builder.add_node(
+        "report_citations",
+        report_sources_process,
         retry=RetryPolicy(max_attempts=3),
     )
 
@@ -189,10 +201,11 @@ def get_search_graph(
         "check_if_RAG_can_answer",
         build_stuff_pattern(
             prompt_set=PromptSet.SelfRoute,
+            format_instructions=format_instructions,
             output_parser=build_self_route_output_parser(
                 match_condition=rag_cannot_answer,
                 max_tokens_to_check=4,
-                final_response_chain=True,
+                parser=citations_output_parser,
             ),
             final_response_chain=False,
         ),
@@ -227,13 +240,15 @@ def get_search_graph(
         lambda s: s.request.ai_settings.self_route_enabled,
         {True: "check_if_RAG_can_answer", False: "llm_answer_question"},
     )
-    builder.add_edge("llm_answer_question", "set_route_to_search")
+    builder.add_edge("llm_answer_question", "report_citations")
+    builder.add_edge("report_citations", "set_route_to_search")
+
     builder.add_edge("check_if_RAG_can_answer", "RAG_cannot_answer")
 
     builder.add_conditional_edges(
         "RAG_cannot_answer",
         lambda s: rag_cannot_answer(s.last_message),
-        {True: "clear_documents", False: "set_route_to_search"},
+        {True: "clear_documents", False: "report_citations"},
     )
     builder.add_edge("clear_documents", "set_route_to_summarise")
     builder.add_edge("set_route_to_summarise", END)
