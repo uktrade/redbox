@@ -94,6 +94,8 @@ class SendMessage extends HTMLElement {
       alert("Microphone usage is not permitted");
       return;
     }
+    const textArea = document.querySelector("#message");
+    textArea.innerHTML = ''
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -121,8 +123,6 @@ class SendMessage extends HTMLElement {
           this.showRecordButton();
           this.buttonRecord.disabled = true
           this.clearConvertingSpinner();
-          
-          const textArea = document.querySelector("#message");
           if (textArea) {
             textArea.innerHTML = data.transcription;
             if (!data.transcription) {
@@ -171,6 +171,7 @@ class SendMessage extends HTMLElement {
       this.showRecordButton();
       this.buttonRecord.disabled = true
       console.log("Stopping stream");
+      this.isStreaming = false
       document.dispatchEvent(new CustomEvent("stop-streaming"));
     }
   }
