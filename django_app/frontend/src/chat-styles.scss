@@ -100,7 +100,6 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   font-size: 0.75rem;
   gap: 0.5rem;
   min-height: 2.5rem;
-  padding: 0.5rem 1rem;
   margin-left: auto;
   color: white;
 }
@@ -813,11 +812,6 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   background-color: white !important;
   color: var(--iai-product-colour) !important;
   font-size: 1.1875rem;
-}
-
-.chat-group-container {
-  max-height: 280px;
-  overflow-y: auto;
 }
 
 .chat-list {
