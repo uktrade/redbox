@@ -9,7 +9,6 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django_q.tasks import async_task
 from import_export.admin import ExportMixin, ImportExportMixin
-
 from redbox_app.worker import ingest
 
 from . import models
@@ -287,6 +286,18 @@ class ChatAdmin(ExportMixin, admin.ModelAdmin):
     search_fields = ["user__email"]
 
 
+class MonitorSearchRouteAdmin(admin.ModelAdmin):
+    list_display = [
+        "chat",
+        "user_text",
+        "user_text_rephrased",
+        "route",
+        "chunk_similarity_scores",
+        "rag_cannot_answer",
+        "ai_text",
+    ]
+    
+
 def reporting_dashboard(request):
     return render(request, "report.html", {}, using="django")
 
@@ -298,4 +309,5 @@ admin.site.register(models.ChatMessage, ChatMessageAdmin)
 admin.site.register(models.AISettings)
 admin.site.register(models.ChatMessageTokenUse, ChatMessageTokenUseAdmin)
 admin.site.register(models.ChatLLMBackend, ChatLLMBackendAdmin)
+admin.site.register(models.MonitorSearchRoute, MonitorSearchRouteAdmin)
 admin.site.register_view("report/", view=reporting_dashboard, name="Site report")
