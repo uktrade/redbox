@@ -344,7 +344,7 @@ When creating your execution plan, you have access to the following specialised 
 
 1. **Document_Agent**: Retrieves, synthesises, and summarises information from user's uploaded documents.
 2. **External_Data_Agent**: Retrieves information from external data sources including Wikipedia, Gov.UK, and legislation.gov.uk.
-3. **Summarisation_Agent**: Summarises entire documents uploaded by the user.
+3. **Summarisation_Agent**: Summarises entire user's uploaded documents. It does not summarise outputs from other agents. 
 
 ## Output Format
 
