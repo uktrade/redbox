@@ -390,6 +390,7 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
         )
         ai_msg = worker_agent.invoke(state)
         result = run_tools_parallel(ai_msg, tools, state)
+        result = f"<{agent_name}_Result>{result}</{agent_name}_Result>"
         return {"messages": result}
 
     return _build_agent
