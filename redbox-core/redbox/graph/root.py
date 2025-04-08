@@ -845,7 +845,7 @@ def build_new_graph(
     )
     builder.add_node(
         "Summarisation_Agent",
-        invoke_custom_state(custom_graph=get_summarise_graph,  use_as_agent=True, all_chunks_retriever=all_chunks_retriever, debug=debug),
+        invoke_custom_state(custom_graph=get_summarise_graph, agent_name="Summarisation_Agent", use_as_agent=True, all_chunks_retriever=all_chunks_retriever, debug=debug),
     )
 
     builder.add_node("Evaluator_Agent", create_evaluator())
