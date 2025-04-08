@@ -67,7 +67,10 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
     builder.add_node("chat_graph", get_chat_graph(debug=debug))
     builder.add_node("search_graph", get_search_graph(retriever=parameterised_retriever, debug=debug))
     builder.add_node("gadget_graph", get_agentic_search_graph(tools=tools, debug=debug))
-    builder.add_node("summarise_graph", get_summarise_graph(all_chunks_retriever=all_chunks_retriever, use_as_agent=False, debug=debug))
+    builder.add_node(
+        "summarise_graph",
+        get_summarise_graph(all_chunks_retriever=all_chunks_retriever, use_as_agent=False, debug=debug),
+    )
     builder.add_node(
         "new_route_graph",
         build_new_graph(all_chunks_retriever, multi_agent_tools, debug),
@@ -258,12 +261,9 @@ def get_search_graph(
     return builder.compile(debug=debug)
 
 
-
-
-def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent = False, debug=True):
-
+def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent=False, debug=True):
     final_response_chain = set_final_response_chain(use_as_agent)
-                             
+
     builder = StateGraph(RedboxState)
     builder.add_node("choose_route_based_on_request_token", empty_process)
     builder.add_node("set_route_to_summarise_large_doc", build_set_route_pattern(ChatRoute.chat_with_docs_map_reduce))
@@ -335,7 +335,7 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent
         "summarise_document",
         build_stuff_pattern(
             prompt_set=PromptSet.ChatwithDocs,
-            final_response_chain=final_response_chain, #True when use_as_agent=False
+            final_response_chain=final_response_chain,  # True when use_as_agent=False
         ),
         retry=RetryPolicy(max_attempts=3),
     )
@@ -845,7 +845,13 @@ def build_new_graph(
     )
     builder.add_node(
         "Summarisation_Agent",
-        invoke_custom_state(custom_graph=get_summarise_graph, agent_name="Summarisation_Agent", use_as_agent=True, all_chunks_retriever=all_chunks_retriever, debug=debug),
+        invoke_custom_state(
+            custom_graph=get_summarise_graph,
+            agent_name="Summarisation_Agent",
+            use_as_agent=True,
+            all_chunks_retriever=all_chunks_retriever,
+            debug=debug,
+        ),
     )
 
     builder.add_node("Evaluator_Agent", create_evaluator())
