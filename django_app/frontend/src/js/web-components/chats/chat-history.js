@@ -30,16 +30,16 @@ class ChatHistory extends HTMLElement {
       const chats = group.querySelectorAll(".chat-list li");
       const visibleCount = parseInt(group.dataset.visibleCount, 10) || 5;
       if (chats.length > visibleCount) {
-        const button = document.createElement("button");
-        button.textContent = "Show More";
-        button.id = "show-more-button"
-        button.classList.add("govuk-buttonx", "govuk-!-margin-left-2");
+        const showMoreLink = document.createElement("a");
+        showMoreLink.textContent = "Show More";
+        showMoreLink.id = "show-more-button"
+        showMoreLink.classList.add("rb-chat-history__link", "govuk-!-margin-left-3", "govuk-link--inverse");
 
-        button.addEventListener("click", () => {
+        showMoreLink.addEventListener("click", () => {
           this.#showMoreChats(group);
         });
 
-        group.appendChild(button);
+        group.appendChild(showMoreLink);
       }
     });
   }
