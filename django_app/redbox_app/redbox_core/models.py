@@ -9,9 +9,9 @@ from typing import override
 import jwt
 from django.conf import settings
 from django.contrib.auth.base_user import BaseUserManager as BaseSSOUserManager
-
 # from django_use_email_as_username.models import BaseUser, BaseUserManager
-from django.contrib.auth.models import AbstractBaseUser, Group, PermissionsMixin
+from django.contrib.auth.models import (AbstractBaseUser, Group,
+                                        PermissionsMixin)
 from django.contrib.postgres.fields import ArrayField
 from django.core import validators
 from django.db import models
@@ -19,10 +19,10 @@ from django.db.models import Max, Min, Prefetch, UniqueConstraint
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django_chunk_upload_handlers.clam_av import validate_virus_check_result
+from redbox_app.redbox_core.utils import get_date_group
 from yarl import URL
 
 from redbox.models.settings import get_settings
-from redbox_app.redbox_core.utils import get_date_group
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
@@ -891,3 +891,12 @@ class ActivityEvent(UUIDPrimaryKeyBase, TimeStampedModel):
 
     def __str__(self) -> str:
         return self.message
+
+class MonitorSearchRoute(UUIDPrimaryKeyBase, TimeStampedModel):
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
+    user_text = models.TextField(max_length=32768, null=False, blank=False)
+    user_text_rephrased = models.TextField(max_length=32768, null=False, blank=False)
+    route = models.CharField(max_length=25, null=True, blank=True)
+    chunk_similarity_scores = models.TextField(max_length=32768, null=False, blank=False)
+    rag_cannot_answer = models.BooleanField(default=None, null=True, blank=True)
+    ai_text = models.TextField(max_length=32768, null=False, blank=False)

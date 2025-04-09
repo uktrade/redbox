@@ -15,32 +15,21 @@ from django.forms.models import model_to_dict
 from django.utils import timezone
 from langchain_core.documents import Document
 from openai import RateLimitError
+from redbox_app.redbox_core import error_messages
+from redbox_app.redbox_core.models import ActivityEvent
+from redbox_app.redbox_core.models import AISettings as AISettingsModel
+from redbox_app.redbox_core.models import (Chat, ChatLLMBackend, ChatMessage,
+                                           ChatMessageTokenUse, Citation, File,
+                                           MonitorSearchRoute)
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
-from redbox.models.chain import (
-    AISettings,
-    ChainChatMessage,
-    RedboxQuery,
-    RedboxState,
-    RequestMetadata,
-    Source,
-    metadata_reducer,
-)
+from redbox.models.chain import AISettings, ChainChatMessage
 from redbox.models.chain import Citation as AICitation
+from redbox.models.chain import (RedboxQuery, RedboxState, RequestMetadata,
+                                 Source, metadata_reducer)
 from redbox.models.graph import RedboxActivityEvent
 from redbox.models.settings import get_settings
-from redbox_app.redbox_core import error_messages
-from redbox_app.redbox_core.models import (
-    ActivityEvent,
-    Chat,
-    ChatLLMBackend,
-    ChatMessage,
-    ChatMessageTokenUse,
-    Citation,
-    File,
-)
-from redbox_app.redbox_core.models import AISettings as AISettingsModel
 
 User = get_user_model()
 OptFileSeq = Sequence[File] | None
@@ -84,6 +73,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.external_citations = []
         self.route = None
         self.activities = []
+        self.final_state = None
 
         data = json.loads(text_data or bytes_data)
         logger.debug("received %s from browser", data)
@@ -118,6 +108,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.save_user_message(session, user_message_text, selected_files=selected_files, activities=activities)
 
         await self.llm_conversation(selected_files, session, user, user_message_text, permitted_files)
+
+        # save user, ai and intermediary graph outputs if 'search' route is invoked
+        if self.route == 'search':
+            score_dict = {}
+            for i, group in enumerate(self.final_state.documents.groups.values()):
+                for val in group.values():
+                    score_dict[i] = {
+                        'uuid': val.metadata['uuid'],
+                        'score': val.metadata['score'],
+                    }
+            await self.monitor_search_route(session, user_message_text, user_message_text)
+
         await self.close()
 
     async def llm_conversation(
@@ -148,7 +150,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
         try:
-            await self.redbox.run(
+            self.final_state = await self.redbox.run(
                 state,
                 response_tokens_callback=self.handle_text,
                 route_name_callback=self.handle_route,
@@ -270,6 +272,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
         chat_message.log()
 
         return chat_message
+    
+    @database_sync_to_async
+    def monitor_search_route(
+        self,
+        session: Chat,
+        user_message_text: str,
+        llm_rephrased_text: str,
+        similarity_scores: dict,
+        rag_cannot_answer: None,
+    ) -> MonitorSearchRoute:
+        monitor_search = MonitorSearchRoute(
+            chat=session,
+            user_text=user_message_text,
+            user_text_rephrased=llm_rephrased_text,
+            route=self.route,
+            # chunk_similarity_scores=similarity_scores,
+            # rag_cannot_answer=rag_cannot_answer,
+            ai_text=self.full_reply,
+        )
+        monitor_search.save()
 
     @staticmethod
     @database_sync_to_async
