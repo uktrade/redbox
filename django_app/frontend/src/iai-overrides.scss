@@ -4,7 +4,6 @@
     -moz-osx-font-smoothing: grayscale;
     font-weight: 400;
     font-size: 1rem;
-    line-height: 1.1875;
     box-sizing: border-box;
     display: inline-block;
     position: relative;
@@ -25,20 +24,6 @@
   @media print {
     .govuk-buttonx {
       font-family: GDS Transport, arial, sans-serif;
-    }
-  }
-
-  @media (min-width:40.0625em) {
-    .govuk-buttonx {
-      font-size: 1rem;
-      line-height: 1
-    }
-  }
-
-  @media print {
-    .govuk-buttonx {
-      font-size: 1rem;
-      line-height: 20px
     }
   }
 
@@ -253,7 +238,7 @@
     display: block;
     width: 100%;
     min-height: 40px;
-    margin-bottom: 20px;
+    margin-bottom: 0;
     padding: 4px;
     resize: vertical;
     border: 2px solid #0b0c0c;
@@ -280,12 +265,6 @@
     .govuk-textareax {
       font-size: 14pt;
       line-height: 1.25
-    }
-  }
-  
-  @media (min-width:40.0625em) {
-    .govuk-textareax {
-      margin-bottom: 32px
     }
   }
   
