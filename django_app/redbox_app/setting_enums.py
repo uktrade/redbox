@@ -24,7 +24,7 @@ class Environment(StrEnum):
     LOCAL = ("LOCAL", True, [*LOCAL_HOSTS, *ADDITIONAL_HOSTS])  # nosec: B104: Not in prod
     INTEGRATION = ("INTEGRATION", True, [*LOCAL_HOSTS, *ADDITIONAL_HOSTS])  # nosec: B104: Not in prod
     DEV = ("DEV", False, ["dev.redbox.uktrade.digital", *ADDITIONAL_HOSTS])
-    UAT = ("UAT", False, ["redbox.uat.uktrade.digital", *ADDITIONAL_HOSTS])
+    UAT = ("UAT", False, ["uat.redbox.uktrade.digital", *ADDITIONAL_HOSTS])
     PROD = ("PROD", False, ["redbox.prod.uktrade.digital", *ADDITIONAL_HOSTS])
 
 
@@ -34,5 +34,5 @@ class Classification(StrEnum):
 
     OFFICIAL = "Official"
     OFFICIAL_SENSITIVE = "Official Sensitive"
-    SECRET = "Secret"  # noqa: S105
-    TOP_SECRET = "Top Secret"  # noqa: S105
+    SECRET = "Secret"  # pragma: allowlist secret noqa: S105
+    TOP_SECRET = "Top Secret"  # pragma: allowlist secret noqa: S105
