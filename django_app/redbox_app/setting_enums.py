@@ -34,5 +34,5 @@ class Classification(StrEnum):
 
     OFFICIAL = "Official"
     OFFICIAL_SENSITIVE = "Official Sensitive"
-    SECRET = "Secret"  # pragma: allowlist secret noqa: S105
-    TOP_SECRET = "Top Secret"  # pragma: allowlist secret noqa: S105
+    SECRET = "Secret"  # noqa: S105
+    TOP_SECRET = "Top Secret"  # noqa: S105
