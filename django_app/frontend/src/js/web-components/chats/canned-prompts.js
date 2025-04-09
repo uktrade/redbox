@@ -6,7 +6,7 @@ class CannedPrompts extends HTMLElement {
     this.innerHTML = `
       <h3 class="govuk-heading-m">How can Redbox help you today?</h3>
       <p class="govuk-body">Select an option or type any question below.</p>
-      <div class="govuk-notification-bannerx" role="region" aria-labelledby="govuk-notification-banner-title" data-module="govuk-notification-banner">
+      <div class="govuk-notification-bannerx govuk-!-margin-bottom-4" role="region" aria-labelledby="govuk-notification-banner-title" data-module="govuk-notification-banner">
   <div class="govuk-notification-banner__headerx">
     <h2 class="govuk-notification-banner__titlex" id="govuk-notification-banner-title">
       Important
@@ -18,7 +18,7 @@ class CannedPrompts extends HTMLElement {
     </p>
   </div>
 </div>
-<div class="govuk-notification-bannerx" role="region" aria-labelledby="govuk-notification-banner-title" data-module="govuk-notification-banner">
+<div class="govuk-notification-bannerx govuk-!-margin-bottom-4" role="region" aria-labelledby="govuk-notification-banner-title" data-module="govuk-notification-banner">
   <div class="govuk-notification-banner__headerx">
     <h2 class="govuk-notification-banner__titlex" id="govuk-notification-banner-title">
       Important

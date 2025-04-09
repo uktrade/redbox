@@ -202,7 +202,8 @@
   .govuk-notification-banner__contentx {
     color: #0b0c0c;
     padding: 16px;
-    background-color: #fff
+    background-color: #fff;
+    white-space: nowrap;
   }
   
   @media print {
