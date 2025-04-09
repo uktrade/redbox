@@ -268,7 +268,7 @@
   }
   @media print {
     .cross-service-header__button {
-      font-family: sans-serif;
+      font-family: "GDS Transport";
     }
   }
   @media print {
@@ -388,7 +388,7 @@
   }
   @media print {
     .one-login-header {
-      font-family: sans-serif;
+      font-family: "GDS Transport";
     }
   }
   @media print {
@@ -431,7 +431,7 @@
     .one-login-header__link:link, .one-login-header__link:visited,
     .one-login-header__nav__link:link,
     .one-login-header__nav__link:visited {
-      font-family: sans-serif;
+      font-family: "GDS Transport";
     }
   }
   .one-login-header__link:link:link, .one-login-header__link:link:visited, .one-login-header__link:visited:link, .one-login-header__link:visited:visited,
@@ -511,7 +511,7 @@
   }
   @media print {
     .one-login-header__link--homepage {
-      font-family: sans-serif;
+      font-family: "GDS Transport";
     }
   }
   @media (min-width: 40.0625em) {
@@ -650,7 +650,7 @@
   }
   @media print {
     .service-header__heading {
-      font-family: sans-serif;
+      font-family: "GDS Transport";
     }
   }
   @media (min-width: 40.0625em) {
@@ -704,7 +704,7 @@
   }
   @media print {
     .service-header__nav-list {
-      font-family: sans-serif;
+      font-family: "GDS Transport";
     }
   }
   @media print {
@@ -725,7 +725,7 @@
   }
   @media print and (min-width: 40.0625em) {
     .service-header__nav-list {
-      font-family: sans-serif;
+      font-family: "GDS Transport";
     }
   }
   @media print and (min-width: 40.0625em) {
@@ -768,7 +768,7 @@
   }
   @media print {
     .service-header__nav-list-item-link {
-      font-family: sans-serif;
+      font-family: "GDS Transport";
     }
   }
   .service-header__nav-list-item-link:hover {

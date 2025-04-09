@@ -17,7 +17,7 @@ body:has(.iai-environment-warning) main:has(.iai-chat-input) {
 }
 .rb-chat-history__container {
   margin-top: 0.5rem;
-  padding: 0;
+  padding: 0 12px;
   list-style-type: none;
 }
 .rb-chat-history__item-container {
@@ -78,8 +78,8 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
 .rb-chat-history__actions-button span {
   border: 1px solid var(--iai-colour-text-primary);
   border-radius: 100%;
-  height: 3px;
-  width: 3px;
+  height: 4px;
+  width: 4px;
 }
 .rb-chat-history__actions-button:hover span {
   background-color: var(--iai-colour-text-primary);
@@ -126,7 +126,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   border: 0;
   cursor: pointer;
   color: white;
-  margin-top: 5px;
+  margin-top: 4px;
 }
 
 .rb-doc-selector__heading {
@@ -135,6 +135,8 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
 .rb-doc-selector__label {
   font-size: 0.75rem;
   line-height: 1.4;
+  word-wrap: break-word;
+  white-space: normal;
 }
 
 @media (min-width: 641px) {
@@ -178,13 +180,13 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
     z-index: 10;
   }
   body:has(.iai-environment-warning) .iai-top-nav {
-    top: 26px;
+    top: 24px;
   }
   .rb-left-column-container {
     left: 0;
     position: sticky;
     top: 4.5rem;
-    width: calc(100% - 30px);
+    width: calc(100% - 32px);
     background-color: #1D70B8;
   }
   body:has(.iai-environment-warning) .rb-left-column-container {
@@ -200,6 +202,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
 }
 
 .chat-title {
+  margin-top: 1rem;
   display: block;
   margin-bottom: 2rem;
 }
@@ -257,7 +260,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   justify-content: center;
   left: -0.5rem;
   position: relative;
-  top: -1px;
+  top: -2px;
   width: 1rem;
 }
 .rb-activity--user::before {
@@ -359,7 +362,7 @@ chat-message {
 .rb-footnote-link {
   background-color: var(--iai-colour-secondary-teal);
   color: white;
-  padding: 1px 4px;
+  padding: 2px 4px;
   text-decoration: none;
   border-radius: 2px;
   margin: 2px;
@@ -496,10 +499,8 @@ feedback-buttons:last-of-type {
 
 /* New Chat Options */
 .chat-options {
-  padding-bottom: 2rem;
-  padding-left: 2rem;
-  padding-top: 2rem;
   scroll-margin-bottom: 16rem;
+  padding-right: 0;
 }
 main:has(.iai-chat-bubble) .chat-options {
   display: none;
@@ -540,7 +541,6 @@ main:has(.iai-chat-bubble) .chat-options {
 @media (min-width: 641px) {
   .chat-options {
     display: block;
-    padding-right: 4rem;
   }
 }
 @media (min-width: 1020px) {
@@ -556,13 +556,13 @@ main:has(.iai-chat-bubble) .chat-options {
 .rb-send-button svg {
   background-color: white;
   border-radius: 100%;
-  box-shadow: 3px 3px 10px #edeef2;
+  box-shadow: 4px 4px 12px #edeef2;
 }
 .rb-send-button .rb-square-icon {
   align-items: center;
   background-color: white;
   border-radius: 100%;
-  box-shadow: 3px 3px 10px #edeef2;
+  box-shadow: 4px 4px 12px #edeef2;
   display: flex;
   height: 1.75rem;
   justify-content: center;
@@ -714,7 +714,7 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   background-color: transparent;
   border: 0;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   padding: 0;
 }
@@ -776,13 +776,15 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 .iai-panel-heading {
   color: white;
   text-decoration: none;
-  padding: 15px;
+  padding: 16px;
+  margin: 4px 12px;
+  border-top: 2px solid #B1B4B6;
 }
 
 .chat-history-subheading{
-  padding-left: 15px;
-  padding-top: 15px;
-  border-top: 1px solid white;
+  padding: 16px 12px 0;
+  margin: 0 16px;
+  border-top: 2px solid #B1B4B6;
   color: white;
 }
 
@@ -812,10 +814,15 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   background-color: white !important;
   color: var(--iai-product-colour) !important;
   font-size: 1.1875rem;
+  text-decoration: none;
 }
 
 .chat-list {
   list-style: none;
-  padding: 0;
+  padding: 0 12px;
   margin: 0;
+}
+
+#show-more-div {
+  margin: 16px 28px;
 }

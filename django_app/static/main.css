@@ -44,5 +44,5 @@
 
 #i-dot-ai * {
   /* copy the fallback approach from govuk-frontend */
-  font-family: Roboto, arial, sans-serif;
+  font-family: GDS Transport, arial, sans-serif;
 }
