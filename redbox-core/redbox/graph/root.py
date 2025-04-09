@@ -262,7 +262,6 @@ def get_search_graph(
 
 
 def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent=False, debug=True):
-    final_response_chain = set_final_response_chain(use_as_agent)
 
     builder = StateGraph(RedboxState)
     builder.add_node("choose_route_based_on_request_token", empty_process)
@@ -335,7 +334,7 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent
         "summarise_document",
         build_stuff_pattern(
             prompt_set=PromptSet.ChatwithDocs,
-            final_response_chain=final_response_chain,  # True when use_as_agent=False
+            final_response_chain=False if use_as_agent else True,  # True when use_as_agent=False
         ),
         retry=RetryPolicy(max_attempts=3),
     )

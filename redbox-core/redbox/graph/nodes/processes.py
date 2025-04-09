@@ -427,16 +427,12 @@ def invoke_custom_state(
 
         # invoke the subgraph
         response = subgraph.invoke(subgraph_state)
+        #add agent name as a tag to the response
+        result = response["messages"][-1]
+        result = f"<{agent_name}_Result>{result}</{agent_name}_Result>"
 
         # transform response back to the parent state
-        return {"messages": response["messages"][-1]}
+        return {"messages": result}
 
     return _invoke_custom_state
 
-
-def set_final_response_chain(use_as_agent: bool):
-    if use_as_agent:
-        final_response_chain = False
-    else:
-        final_response_chain = True
-    return final_response_chain
