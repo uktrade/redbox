@@ -428,7 +428,7 @@ def invoke_custom_state(
         # invoke the subgraph
         response = subgraph.invoke(subgraph_state)
         # add agent name as a tag to the response
-        result = response["messages"][-1]
+        result = response["messages"][-1].content
         result = f"<{agent_name}_Result>{result}</{agent_name}_Result>"
 
         # transform response back to the parent state
