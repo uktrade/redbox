@@ -39,7 +39,6 @@ from redbox.graph.nodes.processes import (
     lm_choose_route,
     report_sources_process,
     invoke_custom_state,
-    set_final_response_chain,
 )
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -262,7 +261,6 @@ def get_search_graph(
 
 
 def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent=False, debug=True):
-
     builder = StateGraph(RedboxState)
     builder.add_node("choose_route_based_on_request_token", empty_process)
     builder.add_node("set_route_to_summarise_large_doc", build_set_route_pattern(ChatRoute.chat_with_docs_map_reduce))
