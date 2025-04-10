@@ -31,7 +31,7 @@
                 {% if citation.page_numbers %}
                   <div class="govuk-body-s govuk-!-margin-top-3"><strong>Page number(s):</strong> {{ citation.page_numbers | join(", ") }}</div>
                 {% endif %}
-                <markdown-converter class="iai-chat-bubble__text">{{ citation.text }}</markdown-converter>
+                <markdown-converter id="{{ citation.id }}" class="iai-chat-bubble__text">{{ citation.text }}</markdown-converter>
               </li>
             {% endfor %}
           </ul>
