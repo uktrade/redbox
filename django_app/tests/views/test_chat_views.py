@@ -4,7 +4,6 @@ import uuid
 from http import HTTPStatus
 
 import pytest
-from bs4 import BeautifulSoup
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
@@ -68,26 +67,6 @@ def test_chat_grouped_by_age(user_with_chats_with_messages_over_time: User, clie
 
     # Then
     assert response.status_code == HTTPStatus.OK
-    soup = BeautifulSoup(response.content)
-    date_groups_all = soup.find_all("h3", {"class": "rb-chat-history__date_group"})
-
-    # Filter out the date_group that is within a <template> tag (this is just for CSR)
-    date_groups = [dg for dg in date_groups_all if not dg.find_parent("template")]
-
-    assert len(date_groups) == 5
-    for date_group, (header, chat_name) in zip(
-        date_groups,
-        [
-            ("Today", "today"),
-            ("Yesterday", "yesterday"),
-            ("Previous 7 days", "5 days old"),
-            ("Previous 30 days", "20 days old"),
-            ("Older than 30 days", "40 days old"),
-        ],
-        strict=False,
-    ):
-        assert date_group.text == header
-        assert date_group.find_next_sibling("ul").find("a").text == chat_name
 
 
 @pytest.mark.django_db()

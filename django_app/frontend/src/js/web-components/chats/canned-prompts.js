@@ -2,23 +2,45 @@
 
 class CannedPrompts extends HTMLElement {
   connectedCallback() {
+    this.securityClassification = this.getAttribute("security-classification");
     this.innerHTML = `
-      <h3 class="chat-options__heading govuk-heading-m">What would you like to ask your Redbox?</h3>
-      <div class="chat-options__options">
-          <button class="chat-options__option chat-options__option_agenda" type="button">
-              <img src="/static/icons/icon_square_doc.svg" alt=""/>
+      <h3 class="govuk-heading-m">How can Redbox help you today?</h3>
+      <p class="govuk-body">Select an option or type any question below.</p>
+      <div class="govuk-notification-bannerx govuk-!-margin-bottom-4" role="region" aria-labelledby="govuk-notification-banner-title" data-module="govuk-notification-banner">
+  <div class="govuk-notification-banner__headerx">
+    <h2 class="govuk-notification-banner__titlex" id="govuk-notification-banner-title">
+      Important
+    </h2>
+  </div>
+  <div class="govuk-notification-banner__contentx">
+    <p class="govuk-body govuk-!-font-weight-bold">
+      Redbox can make mistakes. You must check for accuracy before using the output.
+    </p>
+  </div>
+</div>
+<div class="govuk-notification-bannerx govuk-!-margin-bottom-8" role="region" aria-labelledby="govuk-notification-banner-title" data-module="govuk-notification-banner">
+  <div class="govuk-notification-banner__headerx">
+    <h2 class="govuk-notification-banner__titlex" id="govuk-notification-banner-title">
+      Important
+    </h2>
+  </div>
+  <div class="govuk-notification-banner__contentx">
+    <p class="govuk-body govuk-!-font-weight-bold">
+      You can use up to, and including, ${this.securityClassification} documents.
+    </p>
+  </div>
+</div>
+      <div class="chat-options__options govuk-!-margin-bottom-8">
+          <button class="govuk-buttonx govuk-button--secondaryx" type="button">
               Draft an agenda for a team meeting
           </button>
-          <button class="chat-options__option chat-options__option_objectives" type="button">
-              <img src="/static/icons/archery.svg" alt=""/>
+          <button class="govuk-buttonx govuk-button--secondaryx" type="button">
               Help me set my work objectives
           </button>
-          <button class="chat-options__option chat-options__option_ps_role" type="button">
-              <img src="/static/icons/person.svg" alt=""/>
+          <button class="govuk-buttonx govuk-button--secondaryx" type="button">
               Describe the role of a Permanent Secretary
           </button>
       </div>
-      <p class="chat-options__info-text">Or type any question below</p>
     `;
 
     let buttons = this.querySelectorAll("button");
@@ -27,10 +49,6 @@ class CannedPrompts extends HTMLElement {
         this.#prepopulateMessageBox(button.textContent?.trim() || "");
       });
     });
-
-    window.setTimeout(() => {
-      this.scrollIntoView({ block: "end" });
-    }, 100);
   }
 
   /**
@@ -40,7 +58,7 @@ class CannedPrompts extends HTMLElement {
     /** @type HTMLInputElement | null */
     let chatInput = document.querySelector(".iai-chat-input__input");
     if (chatInput) {
-      chatInput.value = prompt;
+      chatInput.innerHTML = prompt;
       chatInput.focus();
       chatInput.selectionStart = chatInput.value.length;
     }
