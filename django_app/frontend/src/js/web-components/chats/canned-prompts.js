@@ -18,7 +18,7 @@ class CannedPrompts extends HTMLElement {
     </p>
   </div>
 </div>
-<div class="govuk-notification-bannerx govuk-!-margin-bottom-4" role="region" aria-labelledby="govuk-notification-banner-title" data-module="govuk-notification-banner">
+<div class="govuk-notification-bannerx govuk-!-margin-bottom-8" role="region" aria-labelledby="govuk-notification-banner-title" data-module="govuk-notification-banner">
   <div class="govuk-notification-banner__headerx">
     <h2 class="govuk-notification-banner__titlex" id="govuk-notification-banner-title">
       Important
@@ -30,7 +30,7 @@ class CannedPrompts extends HTMLElement {
     </p>
   </div>
 </div>
-      <div class="chat-options__options">
+      <div class="chat-options__options govuk-!-margin-bottom-8">
           <button class="govuk-buttonx govuk-button--secondaryx" type="button">
               Draft an agenda for a team meeting
           </button>
