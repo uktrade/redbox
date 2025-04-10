@@ -33,8 +33,12 @@ body:has(.iai-environment-warning) main:has(.iai-chat-input) {
 }
 .rb-chat-history__item-text-container {
   align-items: center;
-  display: flex;
   gap: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .rb-chat-history__current-indicator {
   background-color: var(--iai-colour-secondary-teal);
@@ -812,4 +816,11 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 
 #document-link {
   float: right
+}
+
+div[data-page="1"] {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  align-items: center;
 }
