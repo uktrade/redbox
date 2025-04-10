@@ -3894,7 +3894,7 @@ only screen and (min-resolution:192dpi) {
   -moz-osx-font-smoothing: grayscale;
   font-weight: 400;
   font-size: 18px;
-  font-size: 1.125rem;
+  font-size: 1.875rem;
   line-height: 1;
   display: inline-table
 }
