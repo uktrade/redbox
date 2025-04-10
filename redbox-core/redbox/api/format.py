@@ -10,6 +10,7 @@ def format_documents(documents: list[Document]) -> str:
             f"<Document>\n"
             f"\t<SourceType>{d.metadata.get("creator_type", "Unknown")}</SourceType>\n"
             f"\t<Source>{d.metadata.get("uri", "")}</Source>\n"
+            f"\t<page_number>{d.metadata.get("page_number", "")}</page_number>\n"
             "\t<Content>\n"
             f"{d.page_content}\n"
             "\t</Content>\n"

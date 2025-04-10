@@ -1,9 +1,6 @@
 #!/bin/sh
 
-PORT=${PORT:-8080}
-if [["$ENVIRONMENT" == "LOCAL" ]]; then
-    PORT=8090
-fi
+PORT=8080
 
 venv/bin/django-admin migrate
 venv/bin/django-admin collectstatic --noinput

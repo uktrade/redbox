@@ -36,8 +36,12 @@ from redbox.transform import structure_documents_by_group_and_indices
 
 LANGGRAPH_DEBUG = True
 
-SELF_ROUTE_TO_SEARCH = ["Condense self route question", "Testing Response - Search"]
+
 SELF_ROUTE_TO_CHAT = ["Condense self route question", "unanswerable"]
+OUTPUT_WITH_CITATIONS = AIMessage(
+    content=StructuredResponseWithCitations(answer="AI is a lie", citations=[]).model_dump_json()
+)
+SELF_ROUTE_TO_SEARCH = ["Condense self route question", OUTPUT_WITH_CITATIONS]
 
 
 def assert_number_of_events(num_of_events: int):
@@ -119,6 +123,7 @@ TEST_CASES = [
                     tokens_in_all_docs=1_000,
                     llm_responses=SELF_ROUTE_TO_SEARCH,
                     expected_route=ChatRoute.search,
+                    expected_text="AI is a lie",
                     # expected_activity_events=assert_number_of_events(3),
                 ),
             ],
@@ -139,6 +144,7 @@ TEST_CASES = [
                     tokens_in_all_docs=40_000,
                     llm_responses=SELF_ROUTE_TO_SEARCH,
                     expected_route=ChatRoute.search,
+                    expected_text="AI is a lie",
                 ),
             ],
             test_id="Chat with multiple docs - self route ON",
@@ -215,6 +221,7 @@ TEST_CASES = [
                     chunk_resolution=ChunkResolution.normal,
                     llm_responses=SELF_ROUTE_TO_SEARCH,  # + ["Condense Question", "Testing Response 1"],
                     expected_route=ChatRoute.search,
+                    expected_text="AI is a lie",
                     # expected_activity_events=assert_number_of_events(2),
                 ),
             ],
@@ -252,14 +259,16 @@ TEST_CASES = [
                 RedboxTestData(
                     number_of_docs=1,
                     tokens_in_all_docs=10000,
-                    llm_responses=["Condense response", "The cake is a lie"],
+                    llm_responses=["Condense response", OUTPUT_WITH_CITATIONS],
                     expected_route=ChatRoute.search,
+                    expected_text="AI is a lie",
                 ),
                 RedboxTestData(
                     number_of_docs=5,
                     tokens_in_all_docs=10000,
-                    llm_responses=["Condense response", "The cake is a lie"],
+                    llm_responses=["Condense response", OUTPUT_WITH_CITATIONS],
                     expected_route=ChatRoute.search,
+                    expected_text="AI is a lie",
                 ),
             ],
             test_id="Search keyword - self route ON",
@@ -276,9 +285,10 @@ TEST_CASES = [
                 RedboxTestData(
                     number_of_docs=1,
                     tokens_in_all_docs=10000,
-                    llm_responses=["Condense response", "The cake is a lie"],
+                    llm_responses=["Condense response", OUTPUT_WITH_CITATIONS],
                     expected_route=ChatRoute.search,
-                    s3_keys=["s3_key"],
+                    expected_text="AI is a lie",
+                    s3_keys=[],
                 ),
             ],
             test_id="Search, nothing selected",

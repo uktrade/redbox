@@ -8,15 +8,15 @@ from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import Runnable, RunnableGenerator, RunnableLambda, RunnablePassthrough, chain
+from langchain_core.runnables import Runnable, RunnableLambda, RunnablePassthrough, chain
 
 from redbox.api.format import format_documents
 from redbox.chains.activity import log_activity
-from redbox.chains.components import get_chat_llm, get_tokeniser
-from redbox.chains.parser import ClaudeParser
+from redbox.chains.components import get_basic_metadata_retriever, get_chat_llm, get_tokeniser
 from redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_prompts
 from redbox.models.errors import QuestionLengthError
 from redbox.models.graph import RedboxEventType
+from redbox.models.settings import get_settings
 from redbox.transform import bedrock_tokeniser, flatten_document_state, get_all_metadata
 
 log = logging.getLogger()
@@ -108,6 +108,7 @@ def build_llm_chain(
     output_parser: Runnable | Callable = None,
     format_instructions: str = "",
     final_response_chain: bool = False,
+    additional_variables: dict = {},
 ) -> Runnable:
     """Builds a chain that correctly forms a text and metadata state update.
 
@@ -130,7 +131,9 @@ def build_llm_chain(
     }
 
     return (
-        build_chat_prompt_from_messages_runnable(prompt_set, format_instructions=format_instructions)
+        build_chat_prompt_from_messages_runnable(
+            prompt_set, format_instructions=format_instructions, additional_variables=additional_variables
+        )
         | text_and_tools
         | get_all_metadata
         | final_response_if_needed
@@ -140,7 +143,7 @@ def build_llm_chain(
 def build_self_route_output_parser(
     match_condition: Callable[[str], bool],
     max_tokens_to_check: int,
-    final_response_chain: bool = False,
+    parser=None,
 ) -> Runnable[Iterable[AIMessageChunk], Iterable[str]]:
     """
     This Runnable reads the streamed responses from an LLM until the match
@@ -163,15 +166,11 @@ def build_self_route_output_parser(
                 return
             elif token_count > max_tokens_to_check:
                 break
-        if final_response_chain:
-            dispatch_custom_event(RedboxEventType.response_tokens, current_content)
         yield current_content
         for chunk in chunks:
-            if final_response_chain:
-                dispatch_custom_event(RedboxEventType.response_tokens, chunk.content)
             yield chunk.content
 
-    return RunnableGenerator(_self_route_output_parser)
+    return _self_route_output_parser | parser
 
 
 @RunnableLambda
@@ -266,24 +265,90 @@ class CannedChatLLM(BaseChatModel):
         return "canned"
 
 
-def basic_chat_chain(system_prompt, _additional_variables: dict = {}, parser=None):
+def basic_chat_chain(
+    system_prompt, tools=None, _additional_variables: dict = {}, parser=None, using_only_structure=False
+):
     @chain
     def _basic_chat_chain(state: RedboxState):
         nonlocal parser
-        llm = get_chat_llm(state.request.ai_settings.chat_backend)
+        if tools:
+            llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
+        else:
+            llm = get_chat_llm(state.request.ai_settings.chat_backend)
         context = {
             "question": state.request.question,
         } | _additional_variables
-
         if parser:
-            format_instructions = parser.get_format_instructions()
-            prompt = ChatPromptTemplate(
-                [(system_prompt)], partial_variables={"format_instructions": format_instructions}
-            )
+            if isinstance(parser, StrOutputParser):
+                prompt = ChatPromptTemplate([(system_prompt)])
+            else:
+                format_instructions = parser.get_format_instructions()
+                prompt = ChatPromptTemplate(
+                    [(system_prompt)], partial_variables={"format_instructions": format_instructions}
+                )
+            if using_only_structure:
+                chain = prompt | llm
+            else:
+                chain = prompt | llm | parser
         else:
             prompt = ChatPromptTemplate([(system_prompt)])
-            parser = ClaudeParser()
-        chain = prompt | llm | parser
+            chain = prompt | llm
         return chain.invoke(context)
 
     return _basic_chat_chain
+
+
+def chain_use_metadata(
+    system_prompt: str, parser=None, tools=None, _additional_variables: dict = {}, using_only_structure=False
+):
+    metadata = None
+
+    @chain
+    def get_metadata(state: RedboxState):
+        nonlocal metadata
+        env = get_settings()
+        retriever = get_basic_metadata_retriever(env)
+        metadata = retriever.invoke(state)
+        return state
+
+    @chain
+    def use_result(state: RedboxState):
+        additional_variables = {"metadata": metadata}
+        if _additional_variables:
+            additional_variables = dict(additional_variables, **_additional_variables)
+        chain = basic_chat_chain(
+            system_prompt=system_prompt,
+            tools=tools,
+            parser=parser,
+            _additional_variables=additional_variables,
+            using_only_structure=using_only_structure,
+        )
+        return chain.invoke(state)
+
+    return get_metadata | use_result
+
+
+def create_chain_agent(
+    system_prompt,
+    use_metadata=False,
+    tools=None,
+    parser=None,
+    _additional_variables: dict = {},
+    using_only_structure=False,
+):
+    if use_metadata:
+        return chain_use_metadata(
+            system_prompt=system_prompt,
+            tools=tools,
+            parser=parser,
+            _additional_variables=_additional_variables,
+            using_only_structure=using_only_structure,
+        )
+    else:
+        return basic_chat_chain(
+            system_prompt=system_prompt,
+            tools=tools,
+            parser=parser,
+            _additional_variables=_additional_variables,
+            using_only_structure=using_only_structure,
+        )

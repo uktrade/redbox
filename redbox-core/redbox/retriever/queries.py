@@ -130,7 +130,7 @@ def build_document_query(
 
     return {
         "size": ai_settings.rag_k,
-        "min_score": 0.65,
+        "min_score": 0.6,
         "query": {
             "bool": {
                 "must": [

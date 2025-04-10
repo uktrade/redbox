@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
-from enum import StrEnum
+from enum import Enum, StrEnum
 from functools import reduce
 from types import UnionType
-from typing import Annotated, Literal, NotRequired, Required, TypedDict, get_args, get_origin
+from typing import Annotated, List, Literal, NotRequired, Required, TypedDict, get_args, get_origin
 from uuid import UUID, uuid4
 
 import environ
@@ -90,12 +90,17 @@ class AISettings(BaseModel):
     tool_govuk_retrieved_results: int = 100
     tool_govuk_returned_results: int = 5
 
+    # agents reporting to planner agent
+    agents: list = ["Document_Agent", "External_Data_Agent"]
+
 
 class Source(BaseModel):
     source: str = Field(description="URL or reference to the source", default="")
     source_type: str = Field(description="creator_type of tool", default="Unknown")
-    document_name: str = ""
-    highlighted_text_in_source: str = ""
+    document_name: str = Field(description="Full title from document", default="Unknown")
+    highlighted_text_in_source: str = Field(
+        description="Direct quote from the provided document (20+ words)", default=""
+    )
     page_numbers: list[int] = Field(description="Page Number in document the highlighted text is on", default=[1])
 
 
@@ -108,7 +113,7 @@ class Citation(BaseModel):
 
 
 class StructuredResponseWithCitations(BaseModel):
-    answer: str = Field(description="Markdown structured answer to the query", default="")
+    answer: str = Field(description="Markdown structured answer to the question", default="")
     citations: list[Citation] = Field(default_factory=list)
 
 
@@ -389,3 +394,17 @@ class GeneratedMetadata(BaseModel):
 
 class AgentDecision(BaseModel):
     next: ToolEnum = ToolEnum.search
+
+
+agent_options = {agent: agent for agent in AISettings().agents}
+AgentEnum = Enum("AgentEnum", agent_options)
+
+
+class AgentTask(BaseModel):
+    task: str = Field(description="Task to be completed by the agent", default="")
+    agent: AgentEnum = Field(description="Name of the agent to complete the task", default=AgentEnum.Document_Agent)
+    expected_output: str = Field(description="What this agent should produce", default="")
+
+
+class MultiAgentPlan(BaseModel):
+    tasks: List[AgentTask] = Field(description="A list of tasks to be carried out by agents", default=[])

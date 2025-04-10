@@ -1,14 +1,10 @@
 ## Context
 
-<!-- Why are you making this change? What might surprise someone about it? -->
+<!-- Why are you making this change? What might surprise someone about it? What problem does this PR solve?-->
 
-## Why have you proposed this change?
+## What
 
-<!-- If there are UI changes, please include Before and After screenshots. -->
-
-## What is this code aiming to achieve?
-
-<!-- What is being accomplished by this change in the code? -->
+<!-- What is this PR doing? What is being accomplished by this change in the code? -->
 
 ## Are there any specific instructions on how to test this change?
 
