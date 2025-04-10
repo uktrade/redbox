@@ -40,7 +40,7 @@ RETRIEVAL_SYSTEM_PROMPT = """
 
    """
 
-NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Expert Answer Evaluation Protocol:
+NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT_old = """Expert Answer Evaluation Protocol:
 
 1. Comprehensive Analysis:
    - Evaluate question against full message history
@@ -56,8 +56,8 @@ NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Expert Answer Evaluation Protocol:
 3. Response Strategy:
    a) If Answer Meets Criteria:
       - Analyse the answer and check whether the answer need to be synthesised. 
-      - If needed, synthesise all responses into a comprehensive final response by incorporating the key information from the original sources
-      - If you are providing a summary, simply extract the summary from the original source by keeping all information within the original summary. Make sure the summary is comprehensive containing all details from the original source.
+      - If needed, synthesise all responses from all agents (delimited by <Agent_Name_Result>) into a comprehensive final response by incorporating the key information from the original sources
+      - If you are providing a summary based on the summarisation agent's result, simply extract the summary from the original source (delimited by <Summarisation_Agent_Result>) by keeping all information within the original summary. Make sure the summary is comprehensive containing all details from the original source.
       - Provide:
         * Relevant background information
         * Practical examples
@@ -76,6 +76,29 @@ NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Expert Answer Evaluation Protocol:
    - Unsatisfactory: Explicit improvement guidance
 
 Core Principle: Deliver maximum insight with precision and technical depth by synthesising responses and keeping original summaries intact.
+User question:<Question>{question}</Question>."""
+
+NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """
+You are an intelligent assistant that can answer questions by gathering and synthesizing information from multiple sources. You will receive the following inputs:
+
+Your task is to answer the question asked by the user.
+
+Your goal is to provide a final answer to the user question by intelligently combining the results from other agents.
+
+A few key principles to follow:
+
+- You can rely on synthesising information contained within <Document> to formulate your answer.
+
+- If relevant document summaries are provided by the Summarisation Agent and the user question explicitely ask for a summary of the document, DO NOT interpret the summary content contained within <Summarisation_Agent_Result>. Simply copy the response contained within <Summarisation_Agent_Result> and </Summarisation_Agent_Result>. 
+
+- Identify any remaining gaps that the results from the agents do not address, and use your own knowledge abilities to warn the user about these gaps. Do not attempt to fill these gaps using your own knowledge.
+
+- Your final output should be a coherent and complete response to the original user question.
+
+Output Formats:
+
+  Comprehensive technical response using format <FORMAT>{format_instructions}</FORMAT>. Do not start your answer by saying: Here is the JSON instance.
+
 User question:<Question>{question}</Question>."""
 
 AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
@@ -342,7 +365,7 @@ When a user query involves finding information within known documents, ALWAYS ro
 
 When creating your execution plan, you have access to the following specialised agents:
 
-1. **Document_Agent**: Retrieves, synthesises, and summarises information from user's uploaded documents.
+1. **Document_Agent**: Retrieves and provides relevant information to answer questions about user's uploaded documents.
 2. **External_Data_Agent**: Retrieves information from external data sources including Wikipedia, Gov.UK, and legislation.gov.uk.
 3. **Summarisation_Agent**: Summarises entire user's uploaded documents. It does not summarise outputs from other agents. 
 
