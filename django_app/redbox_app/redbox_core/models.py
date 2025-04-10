@@ -546,6 +546,9 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
     def __str__(self) -> str:  # pragma: no cover
         return self.file_name
 
+    def __lt__(self, other):
+        return self.id < other.id
+
     def save(self, *args, **kwargs):
         if not self.last_referenced:
             if self.created_at:
@@ -627,9 +630,6 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
     @property
     def expires(self) -> timedelta:
         return self.expires_at - datetime.now(tz=UTC)
-
-    def __lt__(self, other):
-        return self.id < other.id
 
     @classmethod
     def get_completed_and_processing_files(cls, user: User) -> tuple[Sequence["File"], Sequence["File"]]:
@@ -862,7 +862,10 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
             return citation.file.file_name
 
         return sorted(
-            {(get_display(citation), citation.uri, citation.id, citation.text_in_answer) for citation in self.citation_set.all()}
+            {(get_display(citation),
+              citation.uri,
+              citation.id,
+              citation.text_in_answer) for citation in self.citation_set.all()}
         )
 
 
