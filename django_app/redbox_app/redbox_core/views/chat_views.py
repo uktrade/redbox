@@ -7,7 +7,6 @@ from itertools import groupby
 from operator import attrgetter
 from pathlib import Path
 
-import speech_recognition as sr
 from dataclasses_json import Undefined, dataclass_json
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -17,8 +16,9 @@ from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-from pydub import AudioSegment
 from yarl import URL
+from vosk import Model, KaldiRecognizer
+import wave
 
 from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, File
 
@@ -34,28 +34,35 @@ class TranscribeAudioView(View):
                 return JsonResponse({"error": "No audio found"}, status=400)
 
             audio_file = request.FILES["audio"]
-            input_path = "input_audio"
-            output_path = "output_audio.wav"
+            input_path = "input_audio.wav"
 
             with Path(input_path).open("wb") as f:
                 for chunk in audio_file.chunks():
                     f.write(chunk)
 
             try:
-                audio = AudioSegment.from_file(input_path)
-                audio.export(output_path, format="wav")
-            except Exception:
-                logger.exception("failed to convert audio")
-                return None
+                model = Model("vosk-model-small-en-us-0.15")
+                wf = wave.open(input_path, "rb")
 
-            recognizer = sr.Recognizer()
-            try:
-                with sr.AudioFile(output_path) as source:
-                    audio_data = recognizer.record(source)
-                    text = recognizer.recognize_google(audio_data)
-                    Path(input_path).unlink()
-                    Path(output_path).unlink()
-                    return JsonResponse({"transcription": text}, status=200)
+                if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getframerate() not in [8000, 16000]:
+                    return logger.exception("failed to understand audio"}, status=400)
+
+                rec = KaldiRecognizer(model, wf.getframerate())
+
+                transcription = ""
+                while True:
+                    data = wf.readframes(4000)
+                    if len(data) == 0:
+                        break
+                    if rec.AcceptWaveform(data):
+                        result = rec.Result()
+                        transcription += result
+
+                wf.close()
+                Path(input_path).unlink()
+
+                return JsonResponse({"transcription": transcription}, status=200)
+
             except Exception:
                 logger.exception("failed to transcribe")
                 return JsonResponse({"error": "Dictation not picked up"}, status=200)
@@ -63,7 +70,6 @@ class TranscribeAudioView(View):
         except Exception:
             logger.exception("an exceptional error occurred")
             return None
-
 
 class ChatsView(View):
     @method_decorator(login_required)
