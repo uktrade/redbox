@@ -1,5 +1,7 @@
 import logging
+import json
 import uuid
+import wave
 from collections.abc import Sequence
 from dataclasses import dataclass
 from http import HTTPStatus
@@ -16,14 +18,15 @@ from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
+from vosk import KaldiRecognizer, Model
 from yarl import URL
-from vosk import Model, KaldiRecognizer
-import wave
 
 from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, File
 
 logger = logging.getLogger(__name__)
 
+
+import subprocess
 
 @method_decorator(csrf_exempt, name="dispatch")
 class TranscribeAudioView(View):
@@ -34,19 +37,41 @@ class TranscribeAudioView(View):
                 return JsonResponse({"error": "No audio found"}, status=400)
 
             audio_file = request.FILES["audio"]
-            input_path = "input_audio.wav"
 
-            with Path(input_path).open("wb") as f:
-                for chunk in audio_file.chunks():
-                    f.write(chunk)
+            input_path = "input_audio.webm"
+            output_path = "input_audio.wav"
+
+            try:
+                with Path(input_path).open("wb") as f:
+                    for chunk in audio_file.chunks():
+                        f.write(chunk)
+            except Exception as e:
+                logger.exception(f"failed to save audio file: {e}")
+                return JsonResponse({"error": "failed to save audio file"}, status=500)
+
+            try:
+                logger.info("Converting audio to WAV format using ffmpeg")
+                subprocess.run(
+                    ["ffmpeg", "-i", input_path, "-ar", "16000", "-ac", "1", output_path],
+                    check=True
+                )
+                logger.info("Audio conversion successful")
+            except subprocess.CalledProcessError as e:
+                logger.exception(f"Audio conversion failed: {e}")
+                return JsonResponse({"error": "failed to convert audio file"}, status=500)
 
             try:
                 model = Model("vosk-model-small-en-us-0.15")
-                wf = wave.open(input_path, "rb")
+
+                wf = wave.open(output_path, "rb")
+                logger.info(f"channels={wf.getnchannels()}, sample width={wf.getsampwidth()}, framerate={wf.getframerate()}")
 
                 if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getframerate() not in [8000, 16000]:
-                    return logger.exception("failed to understand audio"}, status=400)
+                    logger.error("Invalid audio format for Vosk")
+                    return JsonResponse({"error": "Invalid audio format"}, status=400)
 
+                logger.info("starting transcription")
+                logger.debug(f"Converted WAV file size: {Path(output_path).stat().st_size} bytes")
                 rec = KaldiRecognizer(model, wf.getframerate())
 
                 transcription = ""
@@ -56,20 +81,25 @@ class TranscribeAudioView(View):
                         break
                     if rec.AcceptWaveform(data):
                         result = rec.Result()
-                        transcription += result
+                        logger.debug(f"intermediate result: {result}")
+                        transcription += json.loads(result).get("text", "")
+                    else:
+                        logger.debug(f"partial result: {rec.PartialResult()}")
 
                 wf.close()
-                Path(input_path).unlink()
-
+                Path(output_path).unlink()
+                logger.info(f"Transcription completed successfully {transcription}")
                 return JsonResponse({"transcription": transcription}, status=200)
 
-            except Exception:
-                logger.exception("failed to transcribe")
-                return JsonResponse({"error": "Dictation not picked up"}, status=200)
+            except Exception as e:
+                logger.exception(f"Failed during transcription: {e}")
+                return JsonResponse({"error": "Dictation not picked up"}, status=500)
 
-        except Exception:
-            logger.exception("an exceptional error occurred")
+        except Exception as e:
+            logger.exception(f"An exceptional error occurred: {e}")
             return None
+
+
 
 class ChatsView(View):
     @method_decorator(login_required)
