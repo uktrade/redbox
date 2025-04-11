@@ -1,4 +1,7 @@
 // @ts-check
+import { TranscribeStreamingClient, StartStreamTranscriptionCommand } from "@aws-sdk/client-transcribe-streaming";
+import { Readable } from 'readable-stream'
+
 class SendMessage extends HTMLElement {
   showConvertingSpinner() {
     const textArea = document.querySelector("#message");
@@ -136,58 +139,72 @@ class SendMessage extends HTMLElement {
       return;
     }
 
+    this.isStreaming = true;
+  
+    const client = new TranscribeStreamingClient({
+      region: "eu-west-2",
+      credentials: async () => {
+        const response = await (await fetch('/api/v0/aws-credentials')).json();
+        return {
+          accessKeyId: response.AccessKeyId,
+          secretAccessKey: response.SecretAccessKey,
+          sessionToken: response.SessionToken || undefined,
+        };
+      },
+    });
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      this.mediaRecorder = new MediaRecorder(stream);
+      const audioContext = new AudioContext({ sampleRate: 16000 });
+      const input = audioContext.createMediaStreamSource(stream);
+      const processor = audioContext.createScriptProcessor(1024, 1, 1);
 
-      this.audioChunks = [];
-      this.mediaRecorder.ondataavailable = (event) => {
-        this.audioChunks.push(event.data);
+      input.connect(processor);
+      processor.connect(audioContext.destination);
+
+      const readableStream = new Readable();
+      processor.onaudioprocess = (e) => {
+        const float32Array = e.inputBuffer.getChannelData(0);
+        const int16Array = new Int16Array(float32Array.length);
+        float32Array.forEach((val, idx) => {
+          int16Array[idx] = val < 0 ? val * 0x8000 : val * 0x7fff;
+        });
+        readableStream.emit("audioData", new Int8Array(int16Array.buffer));
       };
 
-      this.mediaRecorder.onstop = async () => {
-        this.buttonRecord.style.display = "none";
-        this.buttonStop.style.display = "none";
-        this.buttonSend.style.display = "none";
-        const audioBlob = new Blob(this.audioChunks, { type: "audio/webm" });
-        const formData = new FormData();
-        formData.append("audio", audioBlob, "recorded_audio.webm");
-
-        try {
-          const response = await fetch("/api/transcribe/", {
-            method: "POST",
-            body: formData,
-          });
-          const data = await response.json();
-          
-          this.clearConvertingSpinner();
-          
-          const textArea = document.querySelector("#message");
-          if (textArea) {
-            textArea.innerText = data.transcription;
-            if (data.transcription) {
-              this.showSendButton();
-            } else {
-              alert(data.error.toString());
-              this.showRecordButton();
-            }
-          }
-        } catch (error) {
-          this.clearConvertingSpinner();
-          console.error("Error:", error);
-          this.showRecordButton();
+      const audioStream = async function* () {
+        while (this.isStreaming) {
+          const chunk = await new Promise((resolve) => readableStream.once("audioData", resolve));
+          yield { AudioEvent: { AudioChunk: chunk } };
         }
-
-        stream.getTracks().forEach((track) => track.stop());
       };
 
-      this.mediaRecorder.start();
-      console.log("Starting recording");
-      this.buttonRecord.style.display = "none";
-      this.buttonStop.style.display = "flex";
-      this.buttonSend.style.display = "none";
-      this.isRecording = true;
+      const command = new StartStreamTranscriptionCommand({
+        LanguageCode: "en-GB",
+        MediaSampleRateHertz: 16000,
+        MediaEncoding: "pcm",
+        AudioStream: audioStream(),
+      });
+
+      const response = await client.send(command);
+
+      for await (const event of response.TranscriptResultStream) {
+        if (event.TranscriptEvent) {
+          const results = event.TranscriptEvent.Transcript.Results;
+          results.forEach((result) => {
+            const transcript = (result.Alternatives || []).map((alt) => alt.Transcript).join(" ");
+            if (result.IsPartial) {
+              this.partialOutput.innerText = transcript;
+            } else {
+              this.finalOutput.innerText += ` ${transcript}`;
+              this.partialOutput.innerText = "";
+            }
+          });
+        }
+      }
     } catch (error) {
+      console.error("Error starting streaming:", error);
+      this.isStreaming = false;
       alert("Microphone usage is not permitted");
     }
   }

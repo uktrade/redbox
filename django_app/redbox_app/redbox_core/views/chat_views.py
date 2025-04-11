@@ -1,92 +1,24 @@
 import logging
-import time
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 from http import HTTPStatus
 from itertools import groupby
 from operator import attrgetter
-from pathlib import Path
 
-import boto3
 from dataclasses_json import Undefined, dataclass_json
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.views.decorators.csrf import csrf_exempt
-from pydub import AudioSegment
 from yarl import URL
 
 from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, File
 
 logger = logging.getLogger(__name__)
-
-
-@method_decorator(csrf_exempt, name="dispatch")
-class TranscribeAudioView(View):
-    def post(self, request):
-        try:
-            if "audio" not in request.FILES:
-                logger.error("No audio found")
-                return JsonResponse({"error": "No audio found"}, status=400)
-
-            audio_file = request.FILES["audio"]
-            input_path = "input_audio"
-            output_path = "output_audio.wav"
-
-            with Path(input_path).open("wb") as f:
-                for chunk in audio_file.chunks():
-                    f.write(chunk)
-
-            try:
-                audio = AudioSegment.from_file(input_path)
-                audio.export(output_path, format="wav")
-            except Exception:
-                logger.exception("failed to convert audio")
-                return None
-
-            s3_client = boto3.client("s3")
-            bucket_name = settings.BUCKET_NAME
-            s3_key = "transcriptions/input_audio.wav"
-
-            try:
-                s3_client.upload_file(output_path, bucket_name, s3_key)
-            except Exception:
-                logger.exception("failed to upload audio to S3")
-                return None
-
-            transcribe_client = boto3.client("transcribe")
-            job_name = "transcription_job"
-            media_uri = f"s3://{bucket_name}/{s3_key}"
-
-            try:
-                transcribe_client.start_transcription_job(
-                    TranscriptionJobName=job_name,
-                    Media={"MediaFileUri": media_uri},
-                    MediaFormat="wav",
-                    LanguageCode="en-GB",
-                )
-
-                while True:
-                    status = transcribe_client.get_transcription_job(TranscriptionJobName=job_name)
-                    if status["TranscriptionJob"]["TranscriptionJobStatus"] in ["COMPLETED", "FAILED"]:
-                        break
-                    time.sleep(5)
-
-                if status["TranscriptionJob"]["TranscriptionJobStatus"] == "COMPLETED":
-                    transcription_url = status["TranscriptionJob"]["Transcript"]["TranscriptFileUri"]
-                    return JsonResponse({"transcription_url": transcription_url}, status=200)
-            except Exception:
-                logger.exception("failed to transcribe")
-                return JsonResponse({"error": "Dictation not picked up"}, status=500)
-
-        except Exception:
-            logger.exception("an exceptional error occurred")
-            return None
 
 
 class ChatsView(View):
