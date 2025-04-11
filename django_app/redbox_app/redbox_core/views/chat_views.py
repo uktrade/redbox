@@ -7,7 +7,6 @@ from http import HTTPStatus
 from itertools import groupby
 from operator import attrgetter
 from pathlib import Path
-from pydub import AudioSegment
 
 import boto3
 from dataclasses_json import Undefined, dataclass_json
@@ -19,6 +18,7 @@ from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
+from pydub import AudioSegment
 from yarl import URL
 
 from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, File
