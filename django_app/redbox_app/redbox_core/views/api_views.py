@@ -49,17 +49,6 @@ def message_view_pre_alpha(request):
 @permission_classes([IsAuthenticated])
 def aws_credentials_api(request):
     """Get credentials for AWS (used for transcription so far)"""
-    if settings.AWS_TRANSCRIBE_ACCESS_KEY_ID and settings.AWS_TRANSCRIBE_SECRET_ACCESS_KEY:
-
-        return JsonResponse(
-            {
-                "AccessKeyId": settings.AWS_TRANSCRIBE_ACCESS_KEY_ID,
-                "SecretAccessKey": settings.AWS_TRANSCRIBE_SECRET_ACCESS_KEY,
-                "SessionToken": settings.AWS_SESSION_TOKEN,
-                "Expiration": settings.AWS_EXPIRATION_TIMESTAMP
-            },
-            status=200,
-        )
 
     client = boto3.client("sts")
     role_arn = settings.AWS_TRANSCRIBE_ROLE_ARN
