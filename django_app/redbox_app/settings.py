@@ -51,6 +51,8 @@ STATICFILES_FINDERS = [
 
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
 
 # Application definition
 INSTALLED_APPS = [
@@ -263,7 +265,7 @@ PERMISSIONS_POLICY: dict[str, list] = {
     "gamepad": [],
     "geolocation": [],
     "gyroscope": [],
-    "microphone": [],
+    "microphone": ["self"],
     "midi": [],
     "payment": [],
 }
@@ -464,3 +466,5 @@ CLAM_AV_USERNAME = env.str("CLAM_AV_USERNAME", " ")
 CLAM_AV_PASSWORD = env.str("CLAM_AV_PASSWORD", " ")
 CLAM_AV_DOMAIN = env.str("CLAM_AV_DOMAIN", " ")
 CHUNK_UPLOADER_AWS_REGION = env.str("AWS_REGION", " ")
+
+AWS_TRANSCRIBE_ROLE_ARN = env.str("AWS_TRANSCRIBE_ROLE_ARN", "")

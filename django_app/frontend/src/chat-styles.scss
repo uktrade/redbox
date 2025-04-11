@@ -49,7 +49,7 @@ body:has(.iai-environment-warning) main:has(.iai-chat-input) {
 .rb-chat-history__link {
   color: var(--iai-colour-text-primary);
   font-size: 0.75rem;
-  text-decoration: none;
+  text-decoration: none; 
   text-underline-offset: 4px;
 }
 .rb-chat-history__link:hover {
@@ -126,7 +126,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   background-color: transparent;
   border: 0;
   cursor: pointer;
-}
+} 
 
 .rb-doc-selector__heading {
   font-size: 0.875rem;
@@ -330,6 +330,10 @@ chat-message {
     opacity: 1;
   }
 }
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 
 .rb-chat-message__container {
   margin-top: -1rem;
@@ -426,8 +430,8 @@ feedback-buttons:last-of-type {
 }
 .feedback__chips-inner-container {
   display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
+  flex-wrap: nowrap; 
+  align-items: center; 
   justify-content: flex-start; /* Aligns the groups to the left */
   gap: 2rem; /* Adds spacing between chip groups */
 }
@@ -466,11 +470,11 @@ feedback-buttons:last-of-type {
 }
 
 .thumb_feedback-btn {
-  border: none;
-  background: none;
-  padding: 2px;
-  cursor: pointer;
-  margin-right: 8px;
+  border: none; 
+  background: none; 
+  padding: 2px; 
+  cursor: pointer; 
+  margin-right: 8px; 
 }
 
 .feedback__text-area {
