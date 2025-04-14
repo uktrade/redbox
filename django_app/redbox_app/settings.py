@@ -247,7 +247,7 @@ CSP_CONNECT_SRC = [
     "https://www.google-analytics.com/",
     "https://region1.google-analytics.com/",
     "https://www.googletagmanager.com/",
-    "wss://transcribestreaming.eu-west-2.amazonaws.com:8443"
+    "wss://transcribestreaming.eu-west-2.amazonaws.com:8443",
 ]
 
 

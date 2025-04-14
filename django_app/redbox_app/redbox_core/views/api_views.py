@@ -1,8 +1,7 @@
 import logging
-import boto3
-import time
 import uuid
 
+import boto3
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse
@@ -16,6 +15,7 @@ from redbox_app.redbox_core.serializers import ChatMessageSerializer, UserSerial
 User = get_user_model()
 
 logger = logging.getLogger(__name__)
+
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 50
@@ -47,7 +47,7 @@ def message_view_pre_alpha(request):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def aws_credentials_api(request):
+def aws_credentials_api():
     """Get credentials for AWS (used for transcription so far)"""
 
     client = boto3.client("sts")
@@ -55,7 +55,7 @@ def aws_credentials_api(request):
 
     # Creating new credentials unfortunately sometimes fails
     max_attempts = 3
-    for i in range(0, 3):
+    for i in range(3):
         try:
             credentials = client.assume_role(
                 RoleArn=role_arn,
@@ -65,8 +65,6 @@ def aws_credentials_api(request):
         except Exception:
             if i == max_attempts - 1:
                 raise
-            else:
-                time.sleep(1)
 
     return JsonResponse(
         {
