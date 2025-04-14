@@ -5,64 +5,20 @@ from dataclasses import dataclass
 from http import HTTPStatus
 from itertools import groupby
 from operator import attrgetter
-from pathlib import Path
 
-import speech_recognition as sr
 from dataclasses_json import Undefined, dataclass_json
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.views.decorators.csrf import csrf_exempt
-from pydub import AudioSegment
 from yarl import URL
 
 from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, File
 
 logger = logging.getLogger(__name__)
-
-
-@method_decorator(csrf_exempt, name="dispatch")
-class TranscribeAudioView(View):
-    def post(self, request):
-        try:
-            if "audio" not in request.FILES:
-                logger.error("No audio found")
-                return JsonResponse({"error": "No audio found"}, status=400)
-
-            audio_file = request.FILES["audio"]
-            input_path = "input_audio"
-            output_path = "output_audio.wav"
-
-            with Path(input_path).open("wb") as f:
-                for chunk in audio_file.chunks():
-                    f.write(chunk)
-
-            try:
-                audio = AudioSegment.from_file(input_path)
-                audio.export(output_path, format="wav")
-            except Exception:
-                logger.exception("failed to convert audio")
-                return None
-
-            recognizer = sr.Recognizer()
-            try:
-                with sr.AudioFile(output_path) as source:
-                    audio_data = recognizer.record(source)
-                    text = recognizer.recognize_google(audio_data)
-                    Path(input_path).unlink()
-                    Path(output_path).unlink()
-                    return JsonResponse({"transcription": text}, status=200)
-            except Exception:
-                logger.exception("failed to transcribe")
-                return JsonResponse({"error": "Dictation not picked up"}, status=200)
-
-        except Exception:
-            logger.exception("an exceptional error occurred")
-            return None
 
 
 class ChatsView(View):
@@ -95,11 +51,11 @@ class ChatsView(View):
         # Add footnotes to messages
         for message in messages:
             footnote_counter = 1
-            for display, href, text_in_answer in message.unique_citation_uris():  # noqa: B007
+            for display, href, cit_id, text_in_answer in message.unique_citation_uris():  # noqa: B007
                 if text_in_answer:
                     message.text = message.text.replace(
                         text_in_answer,
-                        f'{text_in_answer}<a class="rb-footnote-link" href="#footnote-{message.id}-{footnote_counter}">{footnote_counter}</a>',  # noqa: E501
+                        f'{text_in_answer}<a class="rb-footnote-link" href="/citations/{message.id}/#{cit_id}">{footnote_counter}</a>',  # noqa: E501
                     )
                     footnote_counter = footnote_counter + 1
 
