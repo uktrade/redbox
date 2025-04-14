@@ -47,31 +47,33 @@ def message_view_pre_alpha(request):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def aws_credentials_api():
+def aws_credentials_api(request):
     """Get credentials for AWS (used for transcription so far)"""
+    if request.user.is_authenticated:
+        client = boto3.client("sts")
+        role_arn = settings.AWS_TRANSCRIBE_ROLE_ARN
 
-    client = boto3.client("sts")
-    role_arn = settings.AWS_TRANSCRIBE_ROLE_ARN
+        # Creating new credentials unfortunately sometimes fails
+        max_attempts = 3
+        for i in range(3):
+            try:
+                credentials = client.assume_role(
+                    RoleArn=role_arn,
+                    RoleSessionName="redbox_" + str(uuid.uuid4()),
+                    DurationSeconds=60 * 15,  # 15 minutes
+                )["Credentials"]
+            except Exception:
+                if i == max_attempts - 1:
+                    raise
 
-    # Creating new credentials unfortunately sometimes fails
-    max_attempts = 3
-    for i in range(3):
-        try:
-            credentials = client.assume_role(
-                RoleArn=role_arn,
-                RoleSessionName="redbox_" + str(uuid.uuid4()),
-                DurationSeconds=60 * 15,  # 15 minutes
-            )["Credentials"]
-        except Exception:
-            if i == max_attempts - 1:
-                raise
-
-    return JsonResponse(
-        {
-            "AccessKeyId": credentials["AccessKeyId"],
-            "SecretAccessKey": credentials["SecretAccessKey"],
-            "SessionToken": credentials["SessionToken"],
-            "Expiration": credentials["Expiration"],
-        },
-        status=200,
-    )
+        return JsonResponse(
+            {
+                "AccessKeyId": credentials["AccessKeyId"],
+                "SecretAccessKey": credentials["SecretAccessKey"],
+                "SessionToken": credentials["SessionToken"],
+                "Expiration": credentials["Expiration"],
+            },
+            status=200,
+        )
+    else:
+        return JsonResponse(403, safe=False)

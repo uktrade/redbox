@@ -13,7 +13,6 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.12,<3.13"
 django-staff-sso-client = "^4.3.0"
-pydub = "^0.25.1"
 
 [tool.poetry.group.dev.dependencies]
 bumpversion = "^0.6.0"
