@@ -55,13 +55,15 @@ NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Expert Answer Evaluation Protocol:
 
 3. Response Strategy:
    a) If Answer Meets Criteria:
-      - Provide detailed, structured response
-      - Include:
-        * Theoretical background
+      - Analyse the answer and check whether the answer need to be synthesised. 
+      - If needed, synthesise all responses into a comprehensive final response by incorporating the key information from the original sources
+      - If you are providing a summary, simply extract the summary from the original source by keeping all information within the original summary. Make sure the summary is comprehensive containing all details from the original source.
+      - Provide:
+        * Relevant background information
         * Practical examples
         * Potential use cases
         * Step-by-step explanation
-      - Return your answer for user question in a given format {format_instructions}.
+      - Return your final response for user question in a given format {format_instructions}.
 
    b) If Answer Insufficient:
       - Respond "not satisfactory"
@@ -73,7 +75,7 @@ NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Expert Answer Evaluation Protocol:
    - Satisfactory: Comprehensive technical response using format <FORMAT>{format_instructions}</FORMAT>. Do not start your answer by saying: Here is the JSON instance.
    - Unsatisfactory: Explicit improvement guidance
 
-Core Principle: Deliver maximum insight with precision and technical depth.
+Core Principle: Deliver maximum insight with precision and technical depth by synthesising responses and keeping original summaries intact.
 User question:<Question>{question}</Question>."""
 
 AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
@@ -342,6 +344,7 @@ When creating your execution plan, you have access to the following specialised 
 
 1. **Document_Agent**: Retrieves, synthesises, and summarises information from user's uploaded documents.
 2. **External_Data_Agent**: Retrieves information from external data sources including Wikipedia, Gov.UK, and legislation.gov.uk.
+3. **Summarisation_Agent**: Summarises entire user's uploaded documents. It does not summarise outputs from other agents. 
 
 ## Output Format
 
