@@ -19,10 +19,10 @@ from django.db.models import Max, Min, Prefetch, UniqueConstraint
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django_chunk_upload_handlers.clam_av import validate_virus_check_result
-from redbox_app.redbox_core.utils import get_date_group
 from yarl import URL
 
 from redbox.models.settings import get_settings
+from redbox_app.redbox_core.utils import get_date_group
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
@@ -904,3 +904,6 @@ class MonitorSearchRoute(UUIDPrimaryKeyBase, TimeStampedModel):
     chunk_similarity_scores = models.TextField(max_length=32768, null=False, blank=False)
     rag_cannot_answer = models.BooleanField(default=None, null=True, blank=True)
     ai_text = models.TextField(max_length=32768, null=False, blank=False)
+
+    def __str__(self):
+        return f"{self.user_text} {self.route} {self.chunk_similarity_scores} {self.rag_cannot_answer} {self.ai_text}"

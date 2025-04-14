@@ -15,10 +15,24 @@ from django.forms.models import model_to_dict
 from django.utils import timezone
 from langchain_core.documents import Document
 from openai import RateLimitError
+from websockets import ConnectionClosedError, WebSocketClientProtocol
+
+from redbox import Redbox
+from redbox.models.chain import (
+    AISettings,
+    ChainChatMessage,
+    RedboxQuery,
+    RedboxState,
+    RequestMetadata,
+    Source,
+    metadata_reducer,
+)
+from redbox.models.chain import Citation as AICitation
+from redbox.models.graph import RedboxActivityEvent
+from redbox.models.settings import get_settings
 from redbox_app.redbox_core import error_messages
-from redbox_app.redbox_core.models import ActivityEvent
-from redbox_app.redbox_core.models import AISettings as AISettingsModel
 from redbox_app.redbox_core.models import (
+    ActivityEvent,
     Chat,
     ChatLLMBackend,
     ChatMessage,
@@ -27,14 +41,7 @@ from redbox_app.redbox_core.models import (
     File,
     MonitorSearchRoute,
 )
-from websockets import ConnectionClosedError, WebSocketClientProtocol
-
-from redbox import Redbox
-from redbox.models.chain import AISettings, ChainChatMessage
-from redbox.models.chain import Citation as AICitation
-from redbox.models.chain import RedboxQuery, RedboxState, RequestMetadata, Source, metadata_reducer
-from redbox.models.graph import RedboxActivityEvent
-from redbox.models.settings import get_settings
+from redbox_app.redbox_core.models import AISettings as AISettingsModel
 
 User = get_user_model()
 OptFileSeq = Sequence[File] | None
@@ -115,8 +122,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.llm_conversation(selected_files, session, user, user_message_text, permitted_files)
 
         # save user, ai and intermediary graph outputs if 'search' route is invoked
-        logger.debug(f"richie_bird {self.route}")
-        logger.debug(f"richie_bird {self.final_state}")
+        logger.debug("richie_bird %s", self.route)
+        logger.debug("richie_bird %s", self.final_state)
         if self.route == "search":
             score_dict = {}
             for i, group in enumerate(self.final_state.documents.groups.values()):
@@ -286,9 +293,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         session: Chat,
         user_message_text: str,
         llm_rephrased_text: str,
-        similarity_scores: dict = {},
+        similarity_scores: dict | None = None,
         rag_cannot_answer: None = None,
     ) -> MonitorSearchRoute:
+        if similarity_scores is None:
+            similarity_scores = {}
         monitor_search = MonitorSearchRoute(
             chat=session,
             user_text=user_message_text,
