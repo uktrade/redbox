@@ -122,8 +122,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.llm_conversation(selected_files, session, user, user_message_text, permitted_files)
 
         # save user, ai and intermediary graph outputs if 'search' route is invoked
-        logger.debug("richie_bird %s", self.route)
-        logger.debug("richie_bird %s", self.final_state)
+        user_rephrased_text = self.final_state.messages[0].content
         if self.route == "search":
             score_dict = {}
             for i, group in enumerate(self.final_state.documents.groups.values()):
@@ -132,7 +131,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         "uuid": val.metadata["uuid"],
                         "score": val.metadata["score"],
                     }
-            await self.monitor_search_route(session, user_message_text, user_message_text)
+            await self.monitor_search_route(session, user_message_text, user_rephrased_text, score_dict, None)
 
         await self.close()
 
@@ -305,7 +304,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             route=self.route,
             chunk_similarity_scores=similarity_scores,
             rag_cannot_answer=rag_cannot_answer,
-            ai_text=self.full_reply,
+            ai_text="".join(self.full_reply),
         )
         monitor_search.save()
 
