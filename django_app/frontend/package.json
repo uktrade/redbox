@@ -55,7 +55,8 @@
     "aws-sdk": "^2.1692.0",
     "govuk-frontend": "^5.2.0",
     "i.ai-design-system": "^0.4.8",
-    "posthog-js": "^1.143.0"
+    "posthog-js": "^1.143.0",
+    "readable-stream": "^4.7.0"
   },
   "devDependencies": {
     "@parcel/transformer-sass": "^2.12.0",

@@ -59,7 +59,7 @@ def aws_credentials_api(request):
         try:
             credentials = client.assume_role(
                 RoleArn=role_arn,
-                RoleSessionName="scl_" + str(uuid.uuid4()),
+                RoleSessionName="redbox_" + str(uuid.uuid4()),
                 DurationSeconds=60 * 15,  # 15 minutes
             )["Credentials"]
         except Exception:

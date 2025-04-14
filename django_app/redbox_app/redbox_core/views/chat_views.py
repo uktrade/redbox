@@ -78,6 +78,7 @@ class ChatsView(View):
                 }
                 for chat_llm_backend in ChatLLMBackend.objects.filter(enabled=True)
             ],
+            "redbox_api_key": settings.REDBOX_API_KEY,
         }
 
         return render(
