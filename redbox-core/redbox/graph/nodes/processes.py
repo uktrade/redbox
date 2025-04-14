@@ -27,7 +27,8 @@ from redbox.models import ChatRoute
 from redbox.models.chain import AgentTask, DocumentState, MultiAgentPlan, PromptSet, RedboxState, RequestMetadata
 from redbox.models.graph import ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import PLANNER_PROMPT
-from redbox.transform import combine_documents, flatten_document_state
+from redbox.transform import combine_agents_state, combine_documents, flatten_document_state
+from langchain_core.messages import RemoveMessage
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
@@ -390,22 +391,28 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
         )
         ai_msg = worker_agent.invoke(state)
         result = run_tools_parallel(ai_msg, tools, state)
-        result = f"<{agent_name}_Result>{result}</{agent_name}_Result>"
-        return {"messages": result}
+        result_content = "".join([res.content for res in result])
+        result = f"<{agent_name}_Result>{result_content}</{agent_name}_Result>"
+        return {"agents_results": result}
 
     return _build_agent
 
 
 def create_evaluator():
-    citation_parser, format_instructions = get_structured_response_with_citations_parser()
-    evaluator_agent = build_stuff_pattern(
-        prompt_set=PromptSet.NewRoute,
-        tools=None,
-        output_parser=citation_parser,
-        format_instructions=format_instructions,
-        final_response_chain=False,
-    )
-    return evaluator_agent
+
+    def _create_evaluator(state: RedboxState):
+        citation_parser, format_instructions = get_structured_response_with_citations_parser()
+        _additional_variables = {"agents_results": combine_agents_state(state.agents_results)}
+        evaluator_agent = build_stuff_pattern(
+            prompt_set=PromptSet.NewRoute,
+            tools=None,
+            output_parser=None, #citation_parser,
+            format_instructions=None, #format_instructions,
+            final_response_chain=True, 
+            additional_variables = _additional_variables
+        )
+        return evaluator_agent
+    return _create_evaluator
 
 
 def invoke_custom_state(
@@ -432,6 +439,19 @@ def invoke_custom_state(
         result = f"<{agent_name}_Result>{result}</{agent_name}_Result>"
 
         # transform response back to the parent state
-        return {"messages": result}
+        return {"agents_results": result}
 
     return _invoke_custom_state
+
+def delete_plan_message():
+    @RunnableLambda
+    def _delete_plan_message(state: RedboxState):
+
+        last_message = state.messages[-1]
+        return {"messages": [RemoveMessage(id=last_message.id)]}
+
+    return _delete_plan_message
+
+
+
+
