@@ -122,16 +122,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.llm_conversation(selected_files, session, user, user_message_text, permitted_files)
 
         # save user, ai and intermediary graph outputs if 'search' route is invoked
-        user_rephrased_text = self.final_state.messages[0].content
         if self.route == "search":
-            score_dict = {}
-            for i, group in enumerate(self.final_state.documents.groups.values()):
-                for val in group.values():
-                    score_dict[i] = {
-                        "uuid": val.metadata["uuid"],
-                        "score": val.metadata["score"],
-                    }
-            await self.monitor_search_route(session, user_message_text, user_rephrased_text, score_dict, None)
+            await self.monitor_search_route(session, user_message_text, None)
 
         await self.close()
 
@@ -291,16 +283,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self,
         session: Chat,
         user_message_text: str,
-        llm_rephrased_text: str,
-        similarity_scores: dict | None = None,
         rag_cannot_answer: None = None,
     ) -> MonitorSearchRoute:
-        if similarity_scores is None:
-            similarity_scores = {}
+        user_rephrased_text = self.final_state.messages[0].content
+        similarity_scores = {}
+        if self.final_state.documents is not None:
+            for i, group in enumerate(self.final_state.documents.groups.values()):
+                for val in group.values():
+                    similarity_scores[i] = {
+                        "uuid": val.metadata["uuid"],
+                        "score": val.metadata["score"],
+                    }
+
         monitor_search = MonitorSearchRoute(
             chat=session,
             user_text=user_message_text,
-            user_text_rephrased=llm_rephrased_text,
+            user_text_rephrased=user_rephrased_text,
             route=self.route,
             chunk_similarity_scores=similarity_scores,
             rag_cannot_answer=rag_cannot_answer,
