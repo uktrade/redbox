@@ -14,6 +14,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
+from waffle import flag_is_active
 from yarl import URL
 
 from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, File
@@ -79,6 +80,7 @@ class ChatsView(View):
                 for chat_llm_backend in ChatLLMBackend.objects.filter(enabled=True)
             ],
             "redbox_api_key": settings.REDBOX_API_KEY,
+            "enable_dictation_flag_is_active": flag_is_active(request, "enable_dictation"),
         }
 
         return render(
