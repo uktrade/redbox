@@ -18,16 +18,21 @@ from openai import RateLimitError
 from redbox_app.redbox_core import error_messages
 from redbox_app.redbox_core.models import ActivityEvent
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
-from redbox_app.redbox_core.models import (Chat, ChatLLMBackend, ChatMessage,
-                                           ChatMessageTokenUse, Citation, File,
-                                           MonitorSearchRoute)
+from redbox_app.redbox_core.models import (
+    Chat,
+    ChatLLMBackend,
+    ChatMessage,
+    ChatMessageTokenUse,
+    Citation,
+    File,
+    MonitorSearchRoute,
+)
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
 from redbox.models.chain import AISettings, ChainChatMessage
 from redbox.models.chain import Citation as AICitation
-from redbox.models.chain import (RedboxQuery, RedboxState, RequestMetadata,
-                                 Source, metadata_reducer)
+from redbox.models.chain import RedboxQuery, RedboxState, RequestMetadata, Source, metadata_reducer
 from redbox.models.graph import RedboxActivityEvent
 from redbox.models.settings import get_settings
 
@@ -110,13 +115,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.llm_conversation(selected_files, session, user, user_message_text, permitted_files)
 
         # save user, ai and intermediary graph outputs if 'search' route is invoked
-        if self.route == 'search':
+        if self.route == "search":
             score_dict = {}
             for i, group in enumerate(self.final_state.documents.groups.values()):
                 for val in group.values():
                     score_dict[i] = {
-                        'uuid': val.metadata['uuid'],
-                        'score': val.metadata['score'],
+                        "uuid": val.metadata["uuid"],
+                        "score": val.metadata["score"],
                     }
             await self.monitor_search_route(session, user_message_text, user_message_text)
 
@@ -272,7 +277,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         chat_message.log()
 
         return chat_message
-    
+
     @database_sync_to_async
     def monitor_search_route(
         self,

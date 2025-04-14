@@ -296,7 +296,7 @@ class MonitorSearchRouteAdmin(admin.ModelAdmin):
         "rag_cannot_answer",
         "ai_text",
     ]
-    
+
 
 def reporting_dashboard(request):
     return render(request, "report.html", {}, using="django")

@@ -9,9 +9,9 @@ from typing import override
 import jwt
 from django.conf import settings
 from django.contrib.auth.base_user import BaseUserManager as BaseSSOUserManager
+
 # from django_use_email_as_username.models import BaseUser, BaseUserManager
-from django.contrib.auth.models import (AbstractBaseUser, Group,
-                                        PermissionsMixin)
+from django.contrib.auth.models import AbstractBaseUser, Group, PermissionsMixin
 from django.contrib.postgres.fields import ArrayField
 from django.core import validators
 from django.db import models
@@ -894,6 +894,7 @@ class ActivityEvent(UUIDPrimaryKeyBase, TimeStampedModel):
 
     def __str__(self) -> str:
         return self.message
+
 
 class MonitorSearchRoute(UUIDPrimaryKeyBase, TimeStampedModel):
     chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
