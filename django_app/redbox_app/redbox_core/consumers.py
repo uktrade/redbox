@@ -123,7 +123,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         # save user, ai and intermediary graph outputs if 'search' route is invoked
         if self.route == "search":
-            await self.monitor_search_route(session, user_message_text, None)
+            await self.monitor_search_route(session, user_message_text)
 
         await self.close()
 
@@ -283,7 +283,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self,
         session: Chat,
         user_message_text: str,
-        rag_cannot_answer: None = None,
     ) -> MonitorSearchRoute:
         user_rephrased_text = self.final_state.messages[0].content
         similarity_scores = {}
@@ -301,7 +300,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             user_text_rephrased=user_rephrased_text,
             route=self.route,
             chunk_similarity_scores=similarity_scores,
-            rag_cannot_answer=rag_cannot_answer,
             ai_text="".join(self.full_reply),
         )
         monitor_search.save()

@@ -294,7 +294,6 @@ class MonitorSearchRouteAdmin(admin.ModelAdmin):
         "user_text_rephrased",
         "route",
         "chunk_similarity_scores",
-        "rag_cannot_answer",
         "ai_text",
     ]
 

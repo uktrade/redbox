@@ -902,8 +902,7 @@ class MonitorSearchRoute(UUIDPrimaryKeyBase, TimeStampedModel):
     user_text_rephrased = models.TextField(max_length=32768, null=False, blank=False)
     route = models.CharField(max_length=25, null=True, blank=True)
     chunk_similarity_scores = models.TextField(max_length=32768, null=False, blank=False)
-    rag_cannot_answer = models.BooleanField(default=None, null=True, blank=True)
     ai_text = models.TextField(max_length=32768, null=False, blank=False)
 
     def __str__(self):
-        return f"{self.user_text} {self.route} {self.chunk_similarity_scores} {self.rag_cannot_answer} {self.ai_text}"
+        return f"{self.user_text} {self.route} {self.chunk_similarity_scores} {self.ai_text}"
