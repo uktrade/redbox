@@ -36,7 +36,7 @@
 }
 
 .govuk-link:link {
-  color: #1d70b8
+  color: #FE6D6A
 }
 
 .govuk-link:visited {
@@ -121,7 +121,7 @@
 
 .govuk-link--no-visited-state:link,
 .govuk-link--no-visited-state:visited {
-  color: #1d70b8
+  color: #FE6D6A
 }
 
 .govuk-link--no-visited-state:hover {
@@ -1225,7 +1225,7 @@
   margin-bottom: 9px;
   padding: 5px 2px 5px 0;
   border-width: 0;
-  color: #1d70b8;
+  color: #FE6D6A;
   background: none;
   cursor: pointer;
   -webkit-appearance: none
@@ -1444,7 +1444,7 @@
   font-size: 1rem;
   line-height: 1.25;
   font-weight: 400;
-  color: #1d70b8
+  color: #FE6D6A
 }
 
 @media (min-width:40.0625em) {
@@ -1491,7 +1491,7 @@
 @media (hover:none) {
   .js-enabled .govuk-accordion__section-header:hover {
     border-top-color: #b1b4b6;
-    box-shadow: inset 0 3px 0 0 #1d70b8
+    box-shadow: inset 0 3px 0 0 #FE6D6A
   }
 
   .js-enabled .govuk-accordion__section-header:hover .govuk-accordion__section-button {
@@ -3270,7 +3270,7 @@ screen and (forced-colors:active) {
   position: relative;
   margin-bottom: 5px;
   padding-left: 25px;
-  color: #1d70b8;
+  color: #FE6D6A;
   cursor: pointer
 }
 
@@ -3837,7 +3837,7 @@ only screen and (min-resolution:192dpi) {
 
 .govuk-header__container--full-width {
   padding: 0 15px;
-  border-color: #1d70b8
+  border-color: #FE6D6A
 }
 
 .govuk-header__container--full-width .govuk-header__menu-button {
@@ -3848,7 +3848,7 @@ only screen and (min-resolution:192dpi) {
   position: relative;
   margin-bottom: -10px;
   padding-top: 10px;
-  border-bottom: 10px solid #1d70b8
+  border-bottom: 10px solid #FE6D6A
 }
 
 .govuk-header__container:after {
@@ -4336,8 +4336,8 @@ only screen and (min-resolution:192dpi) {
   font-size: 1rem;
   line-height: 1.25;
   margin-bottom: 30px;
-  border: 5px solid #1d70b8;
-  background-color: #1d70b8
+  border: 5px solid #FE6D6A;
+  background-color: #FE6D6A
 }
 
 @media print {
@@ -4498,7 +4498,7 @@ only screen and (min-resolution:192dpi) {
 
 .govuk-notification-banner__link:link,
 .govuk-notification-banner__link:visited {
-  color: #1d70b8
+  color: #FE6D6A
 }
 
 .govuk-notification-banner__link:hover {
@@ -4656,11 +4656,11 @@ only screen and (min-resolution:192dpi) {
 .govuk-pagination__item--current {
   font-weight: 700;
   outline: 1px solid rgba(0, 0, 0, 0);
-  background-color: #1d70b8
+  background-color: #FE6D6A
 }
 
 .govuk-pagination__item--current:hover {
-  background-color: #1d70b8
+  background-color: #FE6D6A
 }
 
 .govuk-pagination__item--current .govuk-pagination__link:link,
@@ -4951,7 +4951,7 @@ only screen and (min-resolution:192dpi) {
   outline: 2px solid rgba(0, 0, 0, 0);
   outline-offset: -2px;
   color: #fff;
-  background-color: #1d70b8;
+  background-color: #FE6D6A;
   letter-spacing: 1px;
   text-decoration: none;
   text-transform: uppercase;
@@ -5206,7 +5206,7 @@ only screen and (min-resolution:192dpi) {
 }
 
 .govuk-tabs__tab:link {
-  color: #1d70b8
+  color: #FE6D6A
 }
 
 .govuk-tabs__tab:visited {
@@ -5661,7 +5661,7 @@ screen and (forced-colors:active) {
 .govuk-select option:active,
 .govuk-select option:checked {
   color: #fff;
-  background-color: #1d70b8
+  background-color: #FE6D6A
 }
 
 .govuk-select--error {
