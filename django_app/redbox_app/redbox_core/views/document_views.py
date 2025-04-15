@@ -79,6 +79,8 @@ class UploadView(View):
 
     @method_decorator(login_required)
     def post(self, request: HttpRequest) -> HttpResponse:
+        self.start = time.process_time()
+        logger.info(f'XXX - Starting post {self.start}')
         errors: MutableSequence[str] = []
 
         uploaded_files: MutableSequence[UploadedFile] = request.FILES.getlist("uploadDocs")
@@ -99,6 +101,7 @@ class UploadView(View):
             for uploaded_file in uploaded_files:
                 # ingest errors are handled differently, as the other documents have started uploading by this point
                 request.session["ingest_errors"] = self.ingest_file(uploaded_file, request.user)
+                logger.info("XXX - ingest_file called, now returning")
             return redirect(reverse("documents"))
 
         return self.build_response(request, errors)
@@ -117,6 +120,7 @@ class UploadView(View):
 
     @staticmethod
     def validate_uploaded_file(uploaded_file: UploadedFile) -> Sequence[str]:
+        logger.info(f'XXX - Validating uploaded file {(time.process_time())}')
         errors: MutableSequence[str] = []
         if not uploaded_file.name:
             errors.append("File has no name")
@@ -132,6 +136,8 @@ class UploadView(View):
 
     @staticmethod
     def is_utf8_compatible(uploaded_file: UploadedFile) -> bool:
+        logger.info(f'XXX - checking if it is utf8 compatible {(time.process_time())}')
+
         if not Path(uploaded_file.name).suffix.lower().endswith((".doc", ".txt")):
             logger.info("File does not require utf8 compatibility check")
             return True
@@ -173,6 +179,8 @@ class UploadView(View):
 
     @staticmethod
     def is_doc_file(uploaded_file: UploadedFile) -> bool:
+        logger.info(f'XXX - Checking if it is it a doc file {(time.process_time())}')
+
         return Path(uploaded_file.name).suffix.lower() == ".doc"
 
     @staticmethod
@@ -246,11 +254,13 @@ class UploadView(View):
     def ingest_file(uploaded_file: UploadedFile, user: User) -> Sequence[str]:
         try:
             logger.info("getting file from s3")
+            logger.info("XXX - about to call File.objects.create()")
             file = File.objects.create(
                 status=File.Status.processing.value,
                 user=user,
                 original_file=uploaded_file,
             )
+            logger.info("XXX - File.info.create() called")
         except (ValueError, FieldError, ValidationError) as e:
             logger.exception("Error creating File model object for %s.", uploaded_file, exc_info=e)
             return e.args
@@ -263,6 +273,7 @@ class UploadView(View):
             logger.exception("Unexpected error processing %s.", uploaded_file, exc_info=e)
             return [str(e)]
         else:
+            logger.info("XXX - no exceptions, async task being called now")
             async_task(ingest, file.id, task_name=file.unique_name, group="ingest")
             return []
 
