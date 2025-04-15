@@ -9,7 +9,8 @@
     "src/js/document-upload.js",
     "src/js/documents.js",
     "src/js/main.js",
-    "src/js/posthog.js"
+    "src/js/posthog.js",
+    "src/js/menu.js"
   ],
   "staticFiles": [
     {
