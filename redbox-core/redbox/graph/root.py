@@ -38,6 +38,7 @@ from redbox.graph.nodes.processes import (
     empty_process,
     lm_choose_route,
     report_sources_process,
+    invoke_custom_state,
 )
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -65,10 +66,13 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
     builder.add_node("chat_graph", get_chat_graph(debug=debug))
     builder.add_node("search_graph", get_search_graph(retriever=parameterised_retriever, debug=debug))
     builder.add_node("gadget_graph", get_agentic_search_graph(tools=tools, debug=debug))
-    builder.add_node("summarise_graph", get_summarise_graph(all_chunks_retriever=all_chunks_retriever, debug=debug))
+    builder.add_node(
+        "summarise_graph",
+        get_summarise_graph(all_chunks_retriever=all_chunks_retriever, use_as_agent=False, debug=debug),
+    )
     builder.add_node(
         "new_route_graph",
-        build_new_graph(multi_agent_tools, debug),
+        build_new_graph(all_chunks_retriever, multi_agent_tools, debug),
     )
     builder.add_node(
         "retrieve_metadata", get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
@@ -256,7 +260,7 @@ def get_search_graph(
     return builder.compile(debug=debug)
 
 
-def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, debug=True):
+def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent=False, debug=True):
     builder = StateGraph(RedboxState)
     builder.add_node("choose_route_based_on_request_token", empty_process)
     builder.add_node("set_route_to_summarise_large_doc", build_set_route_pattern(ChatRoute.chat_with_docs_map_reduce))
@@ -328,7 +332,7 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, debug=True):
         "summarise_document",
         build_stuff_pattern(
             prompt_set=PromptSet.ChatwithDocs,
-            final_response_chain=True,
+            final_response_chain=False if use_as_agent else True,  # True when use_as_agent=False
         ),
         retry=RetryPolicy(max_attempts=3),
     )
@@ -811,6 +815,7 @@ def strip_route(state: RedboxState):
 
 
 def build_new_graph(
+    all_chunks_retriever: VectorStoreRetriever,
     multi_agent_tools: dict,
     debug: bool = False,
 ) -> CompiledGraph:
@@ -835,6 +840,17 @@ def build_new_graph(
             use_metadata=False,
         ),
     )
+    builder.add_node(
+        "Summarisation_Agent",
+        invoke_custom_state(
+            custom_graph=get_summarise_graph,
+            agent_name="Summarisation_Agent",
+            use_as_agent=True,
+            all_chunks_retriever=all_chunks_retriever,
+            debug=debug,
+        ),
+    )
+
     builder.add_node("Evaluator_Agent", create_evaluator())
     builder.add_node(
         "report_citations",
@@ -846,6 +862,7 @@ def build_new_graph(
     builder.add_conditional_edges("planner", sending_task_to_agent)
     builder.add_edge("Document_Agent", "Evaluator_Agent")
     builder.add_edge("External_Data_Agent", "Evaluator_Agent")
+    builder.add_edge("Summarisation_Agent", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
 
