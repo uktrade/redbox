@@ -247,6 +247,7 @@ CSP_CONNECT_SRC = [
     "https://www.google-analytics.com/",
     "https://region1.google-analytics.com/",
     "https://www.googletagmanager.com/",
+    "wss://transcribestreaming.eu-west-2.amazonaws.com:8443",
 ]
 
 
@@ -468,3 +469,4 @@ CLAM_AV_DOMAIN = env.str("CLAM_AV_DOMAIN", " ")
 CHUNK_UPLOADER_AWS_REGION = env.str("AWS_REGION", " ")
 
 ENABLE_CITATION_NEWROUTE = env.bool("ENABLE_CITATION_NEWROUTE", True)
+AWS_TRANSCRIBE_ROLE_ARN = env.str("AWS_TRANSCRIBE_ROLE_ARN", "")

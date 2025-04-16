@@ -853,8 +853,8 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
             body=elastic_log_msg,
         )
 
-    def unique_citation_uris(self) -> list[tuple[str, str]]:
-        """a unique set of names and hrefs for all citations"""
+    def unique_citation_uris(self) -> list[tuple[str, str, str, str]]:
+        """a unique set of names, hrefs, ids and relevant texts for all citations"""
 
         def get_display(citation):
             if not citation.file:
@@ -862,7 +862,10 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
             return citation.file.file_name
 
         return sorted(
-            {(get_display(citation), citation.uri, citation.text_in_answer) for citation in self.citation_set.all()}
+            {
+                (get_display(citation), citation.uri, citation.id, citation.text_in_answer)
+                for citation in self.citation_set.all()
+            }
         )
 
 
@@ -891,3 +894,15 @@ class ActivityEvent(UUIDPrimaryKeyBase, TimeStampedModel):
 
     def __str__(self) -> str:
         return self.message
+
+
+class MonitorSearchRoute(UUIDPrimaryKeyBase, TimeStampedModel):
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
+    user_text = models.TextField(max_length=32768, null=False, blank=False)
+    user_text_rephrased = models.TextField(max_length=32768, null=False, blank=False)
+    route = models.CharField(max_length=25, null=True, blank=True)
+    chunk_similarity_scores = models.TextField(max_length=32768, null=False, blank=False)
+    ai_text = models.TextField(max_length=32768, null=False, blank=False)
+
+    def __str__(self):
+        return f"{self.user_text} {self.route} {self.chunk_similarity_scores} {self.ai_text}"
