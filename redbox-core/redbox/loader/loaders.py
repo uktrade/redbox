@@ -48,6 +48,7 @@ class MetadataLoader:
         Chunking data using local unstructured
         """
         file_bytes = self._get_file_bytes(s3_client=self.s3_client, file_name=self.file_name)
+        logger.info(f'XYZ - file bytes is {file_bytes}')
         if ENVIRONMENT.is_local:
             url = f"http://{self.env.unstructured_host}:8000/general/v0/general"
         else:
@@ -55,6 +56,7 @@ class MetadataLoader:
         files = {
             "files": (self.file_name, file_bytes),
         }
+        logger.info(f'XYZ - doing post request now to {url}')
         response = requests.post(
             url,
             files=files,
@@ -66,9 +68,11 @@ class MetadataLoader:
                 "overlap": 0,
                 "overlap_all": True,
             },
+            timeout=300
         )
 
         if response.status_code != 200:
+            logger.info(f'XYZ - response code is {response.status_code}')
             raise ValueError(response.text)
 
         elements = response.json()
