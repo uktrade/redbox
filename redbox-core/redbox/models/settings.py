@@ -85,8 +85,6 @@ class Settings(BaseSettings):
     embedding_backend: str = "amazon.titan-embed-text-v2:0"
     embedding_backend_vector_size: int = 1024
 
-    llm_max_tokens: int = 1024
-
     embedding_max_retries: int = 1
     embedding_retry_min_seconds: int = 120  # Azure uses 60s
     embedding_retry_max_seconds: int = 300
