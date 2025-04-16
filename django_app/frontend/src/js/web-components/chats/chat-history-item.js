@@ -34,7 +34,12 @@ class ChatHistoryItem extends HTMLElement {
 
     this.querySelector('[data-action="delete"]')?.addEventListener("click", () => {
       this.#changePage("2");
-      deleteButton.focus();
+    
+      let deleteButton = /** @type {HTMLButtonElement} */ (this.querySelector('[data-action="delete-confirm"]'));
+      if (deleteButton) {
+        deleteButton.focus();
+        deleteButton.click();
+      }
     });
     this.querySelector('[data-action="rename"]')?.addEventListener("click", () => {
       this.toggleButton?.setAttribute("aria-expanded", "false");
