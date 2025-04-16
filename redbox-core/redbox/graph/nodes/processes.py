@@ -406,8 +406,8 @@ def create_evaluator():
         evaluator_agent = build_stuff_pattern(
             prompt_set=PromptSet.NewRoute,
             tools=None,
-            output_parser=None, #citation_parser,
-            format_instructions=None, #format_instructions,
+            output_parser=None, #citation_parser, 
+            format_instructions="", #format_instructions, 
             final_response_chain=True, 
             additional_variables = _additional_variables
         )

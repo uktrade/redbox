@@ -868,8 +868,7 @@ def build_new_graph(
     builder.add_edge("Summarisation_Agent", "clear_tasks")
     builder.add_edge("clear_tasks", "pass_user_prompt_to_LLM_message")
     builder.add_edge("pass_user_prompt_to_LLM_message", "Evaluator_Agent")
-    builder.add_edge("Evaluator_Agent", END)
-    #builder.add_edge("Evaluator_Agent", "report_citations")
-    #builder.add_edge("report_citations", END)
+    builder.add_edge("Evaluator_Agent", "report_citations")
+    builder.add_edge("report_citations", END)
 
     return builder.compile(debug=debug)
