@@ -2,6 +2,7 @@ from typing import Annotated, Iterable, Union
 
 import numpy as np
 import requests
+from requests_hawk import HawkAuth
 from elasticsearch import Elasticsearch
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_core.documents import Document
@@ -216,6 +217,57 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
     return _search_wikipedia
 
 
+def build_search_data_hub_api_tool(dataset: str) -> Tool:
+    """Constructs a tool that searches the Data Hub API"""
+
+    @tool(response_format="content_and_artifact")
+    def _search_data_hub(query: str) -> tuple[str, list[Document]]:
+        """
+        Search the Data Hub API for relevant datasets based on search query.
+
+        Args:
+            query (str): search query string
+
+        Returns:
+            tuple[str, list[Document]]: matched datahub records
+        """
+        settings = get_settings()
+        base_url = settings.datahub_redbox_url
+        secret_key = settings.datahub_redbox_secret_key
+        access_key_id = settings.datahub_redbox_access_key_id
+
+        if not base_url or not secret_key or not access_key_id:
+            raise ValueError("Data Hub API credentials missing")
+
+        auth = HawkAuth(id=access_key_id, key=secret_key, algorithm="sha256")
+        response = requests.get(f"{base_url}/v4/dataset/{dataset}", params={"q": query}, auth=auth)
+        response.raise_for_status()
+        results = response.json()
+
+        mapped_documents = []
+        for i, record in enumerate(results.get("items", [])):
+            page_content = record.get("summary", "No summary available")
+            token_count = bedrock_tokeniser(page_content)
+
+            mapped_documents.append(
+                Document(
+                    page_content=page_content,
+                    metadata={
+                        "index": i,
+                        "title": record.get("title", "Unknown Title"),
+                        "url": record.get("url", "No URL"),
+                        "token_count": token_count,
+                        "creator_type": "data_hub",
+                        "dataset": dataset,
+                    }
+                )
+            )
+
+        return format_documents(mapped_documents), mapped_documents
+
+    return _search_data_hub
+
+
 class BaseRetrievalToolLogFormatter:
     def __init__(self, t: ToolCall) -> None:
         self.tool_call = t
@@ -251,12 +303,23 @@ class SearchGovUKLogFormatter(BaseRetrievalToolLogFormatter):
 
     def log_result(self, documents: Iterable[Document]):
         return f"Reading pages from .gov.uk, {','.join(set([d.metadata["uri"].split("/")[-1] for d in documents]))}"
+    
+
+class SearchDataHubLogFormatter(BaseRetrievalToolLogFormatter):
+    def log_call(self):
+        return f"Searching Data Hub datasets for '{self.tool_call['args']['query']}'"
+
+    def log_result(self, documents: Iterable[Document]):
+        if len(documents) == 0:
+            return f"{self.tool_call['name']} returned no documents"
+        return f"Reading Data Hub dataset document{'s' if len(documents) > 1 else ''} {','.join(set([d.metadata['uri'].split('/')[-1] for d in documents]))}"
 
 
 __RETRIEVEAL_TOOL_MESSAGE_FORMATTERS = {
     "_search_wikipedia": SearchWikipediaLogFormatter,
     "_search_documents": SearchDocumentsLogFormatter,
     "_search_govuk": SearchGovUKLogFormatter,
+    "_search_data_hub": SearchDataHubLogFormatter,
 }
 
 
