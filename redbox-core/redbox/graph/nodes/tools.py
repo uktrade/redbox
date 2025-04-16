@@ -217,7 +217,7 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
     return _search_wikipedia
 
 
-def build_search_data_hub_api_tool(dataset: str) -> Tool:
+def build_search_data_hub_api_tool(dataset="companies-dataset") -> Tool:
     """Constructs a tool that searches the Data Hub API"""
 
     @tool(response_format="content_and_artifact")
@@ -259,7 +259,7 @@ def build_search_data_hub_api_tool(dataset: str) -> Tool:
                         "token_count": token_count,
                         "creator_type": "data_hub",
                         "dataset": dataset,
-                    }
+                    },
                 )
             )
 
@@ -303,7 +303,7 @@ class SearchGovUKLogFormatter(BaseRetrievalToolLogFormatter):
 
     def log_result(self, documents: Iterable[Document]):
         return f"Reading pages from .gov.uk, {','.join(set([d.metadata["uri"].split("/")[-1] for d in documents]))}"
-    
+
 
 class SearchDataHubLogFormatter(BaseRetrievalToolLogFormatter):
     def log_call(self):

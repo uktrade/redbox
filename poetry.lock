@@ -2182,6 +2182,21 @@ mkdocs-autorefs = ">=1.0"
 mkdocstrings = ">=0.25"
 
 [[package]]
+name = "mohawk"
+version = "1.1.0"
+description = "Library for Hawk HTTP authorization"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "mohawk-1.1.0-py3-none-any.whl", hash = "sha256:3ed296a30453d0b724679e0fd41e4e940497f8e461a9a9c3b7f36e43bab0fa09"},
+    {file = "mohawk-1.1.0.tar.gz", hash = "sha256:d2a0e3ab10a209cc79e95e28f2dd54bd4a73fd1998ffe27b7ba0f962b6be9723"},
+]
+
+[package.dependencies]
+six = "*"
+
+[[package]]
 name = "moto"
 version = "5.0.28"
 description = "A library that allows you to easily mock out tests based on AWS infrastructure"
@@ -3570,6 +3585,22 @@ socks = ["PySocks (>=1.5.6,!=1.5.7)"]
 use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
 
 [[package]]
+name = "requests-hawk"
+version = "1.2.1"
+description = "requests-hawk"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "requests-hawk-1.2.1.tar.gz", hash = "sha256:ad9205042c94bdb15afaa19b0780e11077b24d9e5cffac1fb3d26cb08aa435b7"},
+    {file = "requests_hawk-1.2.1-py2.py3-none-any.whl", hash = "sha256:afe8add3c72a21405543a07464b62e36a5f378585e5cf3b54b1307e884f67324"},
+]
+
+[package.dependencies]
+mohawk = "*"
+requests = "*"
+
+[[package]]
 name = "requests-oauthlib"
 version = "2.0.0"
 description = "OAuthlib authentication support for Requests."
@@ -3700,7 +3731,7 @@ version = "1.17.0"
 description = "Python 2 and 3 compatibility utilities"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
-groups = ["dev", "docs"]
+groups = ["main", "dev", "docs"]
 files = [
     {file = "six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274"},
     {file = "six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81"},
@@ -4276,4 +4307,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "300bd33f2d93874efa2d7d2fce510fb682b9d4a20e6cd0e11e6af302707dcfdb"
+content-hash = "650010713ceba48874f6414c561f8ac2a2fd5c057a0eaaf46515b5d701e00c2e"
