@@ -894,3 +894,15 @@ class ActivityEvent(UUIDPrimaryKeyBase, TimeStampedModel):
 
     def __str__(self) -> str:
         return self.message
+
+
+class MonitorSearchRoute(UUIDPrimaryKeyBase, TimeStampedModel):
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
+    user_text = models.TextField(max_length=32768, null=False, blank=False)
+    user_text_rephrased = models.TextField(max_length=32768, null=False, blank=False)
+    route = models.CharField(max_length=25, null=True, blank=True)
+    chunk_similarity_scores = models.TextField(max_length=32768, null=False, blank=False)
+    ai_text = models.TextField(max_length=32768, null=False, blank=False)
+
+    def __str__(self):
+        return f"{self.user_text} {self.route} {self.chunk_similarity_scores} {self.ai_text}"
