@@ -39,6 +39,7 @@ from redbox_app.redbox_core.models import (
     ChatMessageTokenUse,
     Citation,
     File,
+    MonitorSearchRoute,
 )
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
 
@@ -84,6 +85,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.external_citations = []
         self.route = None
         self.activities = []
+        self.final_state = None
 
         data = json.loads(text_data or bytes_data)
         logger.debug("received %s from browser", data)
@@ -118,6 +120,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.save_user_message(session, user_message_text, selected_files=selected_files, activities=activities)
 
         await self.llm_conversation(selected_files, session, user, user_message_text, permitted_files)
+
+        # save user, ai and intermediary graph outputs if 'search' route is invoked
+        if self.route == "search":
+            await self.monitor_search_route(session, user_message_text)
+
         await self.close()
 
     async def llm_conversation(
@@ -148,7 +155,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
         try:
-            await self.redbox.run(
+            self.final_state = await self.redbox.run(
                 state,
                 response_tokens_callback=self.handle_text,
                 route_name_callback=self.handle_route,
@@ -270,6 +277,32 @@ class ChatConsumer(AsyncWebsocketConsumer):
         chat_message.log()
 
         return chat_message
+
+    @database_sync_to_async
+    def monitor_search_route(
+        self,
+        session: Chat,
+        user_message_text: str,
+    ) -> MonitorSearchRoute:
+        user_rephrased_text = self.final_state.messages[0].content
+        similarity_scores = {}
+        if self.final_state.documents is not None:
+            for i, group in enumerate(self.final_state.documents.groups.values()):
+                for val in group.values():
+                    similarity_scores[i] = {
+                        "uuid": val.metadata["uuid"],
+                        "score": val.metadata["score"],
+                    }
+
+        monitor_search = MonitorSearchRoute(
+            chat=session,
+            user_text=user_message_text,
+            user_text_rephrased=user_rephrased_text,
+            route=self.route,
+            chunk_similarity_scores=similarity_scores,
+            ai_text="".join(self.full_reply),
+        )
+        monitor_search.save()
 
     @staticmethod
     @database_sync_to_async
