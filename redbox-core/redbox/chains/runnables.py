@@ -39,8 +39,6 @@ def build_chat_prompt_from_messages_runnable(
         _tokeniser = tokeniser or get_tokeniser()
         _additional_variables = additional_variables or dict()
         task_system_prompt, task_question_prompt = get_prompts(state, prompt_set)
-        print("task_question_prompt")
-        print(task_question_prompt)
 
         log.debug("Setting chat prompt")
         # Set the system prompt to be our composed structure
@@ -133,8 +131,7 @@ def build_llm_chain(
         "model": lambda _: model_name,
         "final_chain": lambda _: final_response_chain,
     }
-    print("promp_set")
-    print(prompt_set)
+
     return (
         build_chat_prompt_from_messages_runnable(
             prompt_set, format_instructions=format_instructions, additional_variables=additional_variables
