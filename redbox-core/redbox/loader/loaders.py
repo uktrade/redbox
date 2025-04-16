@@ -48,7 +48,7 @@ class MetadataLoader:
         Chunking data using local unstructured
         """
         file_bytes = self._get_file_bytes(s3_client=self.s3_client, file_name=self.file_name)
-        logger.info(f'XYZ - file bytes is {file_bytes}')
+        logger.info(f'XYZ - just got file bytes')
         if ENVIRONMENT.is_local:
             url = f"http://{self.env.unstructured_host}:8000/general/v0/general"
         else:
