@@ -3357,6 +3357,21 @@ files = [
 ]
 
 [[package]]
+name = "mohawk"
+version = "1.1.0"
+description = "Library for Hawk HTTP authorization"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "mohawk-1.1.0-py3-none-any.whl", hash = "sha256:3ed296a30453d0b724679e0fd41e4e940497f8e461a9a9c3b7f36e43bab0fa09"},
+    {file = "mohawk-1.1.0.tar.gz", hash = "sha256:d2a0e3ab10a209cc79e95e28f2dd54bd4a73fd1998ffe27b7ba0f962b6be9723"},
+]
+
+[package.dependencies]
+six = "*"
+
+[[package]]
 name = "multidict"
 version = "6.3.0"
 description = "multidict implementation"
@@ -5158,6 +5173,22 @@ socks = ["PySocks (>=1.5.6,!=1.5.7)"]
 use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
 
 [[package]]
+name = "requests-hawk"
+version = "1.2.1"
+description = "requests-hawk"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "requests-hawk-1.2.1.tar.gz", hash = "sha256:ad9205042c94bdb15afaa19b0780e11077b24d9e5cffac1fb3d26cb08aa435b7"},
+    {file = "requests_hawk-1.2.1-py2.py3-none-any.whl", hash = "sha256:afe8add3c72a21405543a07464b62e36a5f378585e5cf3b54b1307e884f67324"},
+]
+
+[package.dependencies]
+mohawk = "*"
+requests = "*"
+
+[[package]]
 name = "requests-mock"
 version = "1.12.1"
 description = "Mock out responses from the requests package"
@@ -6812,4 +6843,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "20e5f8d59e1c8ddcb57e168f25d79dacecf62d5a4b6a912032540aa318a0f9c0"
+content-hash = "3145ceb9e436ab37c9cb707239bca37231ebbff0201ac53e8b77eba20155faaf"
