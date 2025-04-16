@@ -20,7 +20,7 @@ def homepage_view(request):
             template_name="homepage.html",
             context={"request": request, "allow_sign_ups": settings.ALLOW_SIGN_UPS},
         )
-    
+
     return redirect("chats")
 
 
