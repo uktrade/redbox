@@ -162,6 +162,27 @@ upload-button {
   text-decoration: none;
 }
 
+/* Readded logo CSS here as we store the background-image in a different location*/
+.govuk-footer__copyright-logo {
+  display: inline-block;
+  min-width: 125px;
+  padding-top: 112px;
+  background-image: url(/static/govuk-frontend/assets/images/govuk-crest.png);
+  background-repeat: no-repeat;
+  background-position: 50% 0;
+  background-size: 125px 102px;
+  text-align: center;
+  white-space: nowrap
+}
+
+@media only screen and (-webkit-min-device-pixel-ratio:2),
+only screen and (min-resolution:2dppx),
+only screen and (min-resolution:192dpi) {
+  .govuk-footer__copyright-logo {
+    background-image: url(static/govuk-frontend/assets/images/govuk-crest-2x.png)
+  }
+}
+
 /* Chats Page - to come after i.AI Design System */
 @import "./chat-styles.scss";
 
