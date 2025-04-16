@@ -14,14 +14,14 @@ logger = logging.getLogger(__name__)
 
 @require_http_methods(["GET"])
 def homepage_view(request):
-    if not request.user.is_authenticated and settings.LOGIN_METHOD == "sso":
-        return redirect("authbroker_client:login")
-    else:
+    if not request.user.is_authenticated:
         return render(
             request,
             template_name="homepage.html",
             context={"request": request, "allow_sign_ups": settings.ALLOW_SIGN_UPS},
         )
+
+    return redirect("chats")
 
 
 @require_http_methods(["GET"])

@@ -3,4 +3,5 @@
 set -e
 
 # Add commands below to run inside the container after all the other buildpacks have been applied
-python manage.py collectstatic --noinput --clear
+cd django_app
+poetry install
