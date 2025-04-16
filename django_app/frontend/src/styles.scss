@@ -162,6 +162,16 @@ upload-button {
   text-decoration: none;
 }
 
+.iai-chat-bubbles__sources-link:visited {
+  color: var(--iai-product-colour, var(--iai-colour-brand));
+}
+.iai-chat-bubbles__sources-link:target {
+  outline: 3px solid rgba(0, 0, 0, 0);
+  background-color: #fd0;
+  box-shadow: 0 -2px #fd0, 0 4px #0b0c0c;
+  text-decoration: none
+}
+
 /* Readded logo CSS here as we store the background-image in a different location*/
 .govuk-footer__copyright-logo {
   display: inline-block;
