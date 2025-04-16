@@ -275,6 +275,7 @@ def sort_documents(documents: list[Document]) -> list[Document]:
     # Step 4: Flatten the list of blocks back into a single list
     return list(itertools.chain.from_iterable(all_sorted_blocks_by_max_score))
 
+
 def combine_agents_state(agents_results: list[AnyMessage]):
     """Combine a list of agent results into a string."""
     if not agents_results:

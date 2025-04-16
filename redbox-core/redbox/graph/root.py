@@ -39,7 +39,7 @@ from redbox.graph.nodes.processes import (
     lm_choose_route,
     report_sources_process,
     invoke_custom_state,
-    delete_plan_message
+    delete_plan_message,
 )
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,

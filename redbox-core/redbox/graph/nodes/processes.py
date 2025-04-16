@@ -29,6 +29,8 @@ from redbox.models.graph import ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActi
 from redbox.models.prompts import PLANNER_PROMPT
 from redbox.transform import combine_agents_state, combine_documents, flatten_document_state
 from langchain_core.messages import RemoveMessage
+from redbox_app.settings import ENABLE_CITATION_NEWROUTE
+
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
@@ -399,19 +401,29 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
 
 
 def create_evaluator():
-
     def _create_evaluator(state: RedboxState):
-        citation_parser, format_instructions = get_structured_response_with_citations_parser()
         _additional_variables = {"agents_results": combine_agents_state(state.agents_results)}
-        evaluator_agent = build_stuff_pattern(
-            prompt_set=PromptSet.NewRoute,
-            tools=None,
-            output_parser=None, #citation_parser, 
-            format_instructions="", #format_instructions, 
-            final_response_chain=True, 
-            additional_variables = _additional_variables
-        )
+        if ENABLE_CITATION_NEWROUTE:
+            citation_parser, format_instructions = get_structured_response_with_citations_parser()
+            evaluator_agent = build_stuff_pattern(
+                prompt_set=PromptSet.NewRoute,
+                tools=None,
+                output_parser=citation_parser,
+                format_instructions=format_instructions,
+                final_response_chain=True,
+                additional_variables=_additional_variables,
+            )
+        else:
+            evaluator_agent = build_stuff_pattern(
+                prompt_set=PromptSet.NewRouteNoCitations,
+                tools=None,
+                output_parser=None,
+                format_instructions="",
+                final_response_chain=True,
+                additional_variables=_additional_variables,
+            )
         return evaluator_agent
+
     return _create_evaluator
 
 
@@ -443,15 +455,11 @@ def invoke_custom_state(
 
     return _invoke_custom_state
 
+
 def delete_plan_message():
     @RunnableLambda
     def _delete_plan_message(state: RedboxState):
-
         last_message = state.messages[-1]
         return {"messages": [RemoveMessage(id=last_message.id)]}
 
     return _delete_plan_message
-
-
-
-
