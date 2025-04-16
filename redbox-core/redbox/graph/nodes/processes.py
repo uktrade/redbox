@@ -410,7 +410,7 @@ def create_evaluator():
                 tools=None,
                 output_parser=citation_parser,
                 format_instructions=format_instructions,
-                final_response_chain=True,
+                final_response_chain=False,
                 additional_variables=_additional_variables,
             )
         else:
