@@ -10,7 +10,7 @@ from redbox.chains.components import (
     get_metadata_retriever,
     get_parameterised_retriever,
 )
-from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_documents_tool, build_search_wikipedia_tool
+from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_documents_tool, build_search_wikipedia_tool, build_search_data_hub_api_tool
 from redbox.graph.root import get_agentic_search_graph, get_chat_with_documents_graph, new_root_graph
 from redbox.models.chain import RedboxState
 from redbox.models.chat import ChatRoute
@@ -63,12 +63,13 @@ class Redbox:
         )
         search_wikipedia = build_search_wikipedia_tool()
         search_govuk = build_govuk_search_tool()
+        search_datahub = build_search_data_hub_api_tool()
 
-        self.tools = [search_documents, search_wikipedia, search_govuk]
+        self.tools = [search_documents, search_wikipedia, search_govuk, search_datahub]
 
         self.multi_agent_tools = {
             "document_agent": [search_documents],
-            "external_document_agent": [search_wikipedia, search_govuk],
+            "external_document_agent": [search_wikipedia, search_govuk, search_datahub],
         }
 
         self.graph = new_root_graph(
