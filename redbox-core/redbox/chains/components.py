@@ -14,7 +14,7 @@ from langchain_core.utils import convert_to_secret_str
 from langchain_openai.embeddings import AzureOpenAIEmbeddings, OpenAIEmbeddings
 
 from redbox.chains.parser import StreamingJsonOutputParser
-from redbox.models.chain import StructuredResponseWithCitations
+from redbox.models.chain import AISettings, StructuredResponseWithCitations
 from redbox.models.settings import ChatLLMBackend, Settings
 from redbox.retriever import (
     AllElasticsearchRetriever,
@@ -29,11 +29,20 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 
-def get_chat_llm(model: ChatLLMBackend, tools: list[StructuredTool] | None = None):
-    logger.debug("initialising model=%s model_provider=%s tools=%s", model.name, model.provider, tools)
+def get_chat_llm(
+    model: ChatLLMBackend, ai_settings: AISettings = AISettings(), tools: list[StructuredTool] | None = None
+):
+    logger.debug(
+        "initialising model=%s model_provider=%s tools=%s max_tokens=%s",
+        model.name,
+        model.provider,
+        tools,
+        ai_settings.llm_max_tokens,
+    )
     chat_model = init_chat_model(
         model=model.name,
         model_provider=model.provider,
+        max_tokens=ai_settings.llm_max_tokens,
         configurable_fields=["base_url"],
     )
     if tools:

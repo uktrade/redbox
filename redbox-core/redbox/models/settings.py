@@ -79,8 +79,10 @@ class Settings(BaseSettings):
     embedding_azure_openai_endpoint: str = "not an endpoint"
     azure_api_version_embeddings: str = "2024-02-01"
     metadata_extraction_llm: ChatLLMBackend = ChatLLMBackend(
-        name="anthropic.claude-3-sonnet-20240229-v1:0", provider="bedrock"
+        name="anthropic.claude-3-sonnet-20240229-v1:0",
+        provider="bedrock",
     )
+    metadata_max_token: int = 1024
 
     embedding_backend: str = "amazon.titan-embed-text-v2:0"
     embedding_backend_vector_size: int = 1024

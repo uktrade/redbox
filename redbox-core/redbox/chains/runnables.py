@@ -272,9 +272,14 @@ def basic_chat_chain(
     def _basic_chat_chain(state: RedboxState):
         nonlocal parser
         if tools:
-            llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
+            llm = get_chat_llm(
+                state.request.ai_settings.chat_backend, ai_settings=state.request.ai_settings, tools=tools
+            )
         else:
-            llm = get_chat_llm(state.request.ai_settings.chat_backend)
+            llm = get_chat_llm(
+                state.request.ai_settings.chat_backend,
+                ai_settings=state.request.ai_settings,
+            )
         context = {
             "question": state.request.question,
         } | _additional_variables
