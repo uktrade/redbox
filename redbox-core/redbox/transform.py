@@ -5,7 +5,7 @@ from uuid import NAMESPACE_DNS, UUID, uuid5
 
 from langchain_core.callbacks.manager import dispatch_custom_event
 from langchain_core.documents import Document
-from langchain_core.messages import AIMessage, AnyMessage
+from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 
 from redbox.models.chain import DocumentMapping, DocumentState, LLMCallMetadata, RedboxState, RequestMetadata
@@ -274,13 +274,3 @@ def sort_documents(documents: list[Document]) -> list[Document]:
 
     # Step 4: Flatten the list of blocks back into a single list
     return list(itertools.chain.from_iterable(all_sorted_blocks_by_max_score))
-
-
-def combine_agents_state(agents_results: list[AnyMessage]):
-    """Combine a list of agent results into a string."""
-    if not agents_results:
-        return []
-    print("agents_results")
-    print(agents_results)
-    flatten_agent_results = "\n\n".join([msg.content for msg in agents_results])
-    return flatten_agent_results
