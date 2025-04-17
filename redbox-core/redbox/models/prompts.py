@@ -140,6 +140,8 @@ AGENTIC_GIVE_UP_SYSTEM_PROMPT = (
     "is to provide the best possible answer with the resources available.\n\n"
     "Remember: While your priority is to answer the question, sometimes the best assistance involves "
     "guiding the user in providing the information needed for a complete solution."
+    "6. **Response Format**: When providing the answer, ALWAYS use this exact JSON schema:\n"
+    "{format_instructions}"
 )
 
 SELF_ROUTE_SYSTEM_PROMPT = """
