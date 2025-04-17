@@ -29,11 +29,13 @@ from redbox.models.graph import ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActi
 from redbox.models.prompts import PLANNER_PROMPT
 from redbox.transform import combine_agents_state, combine_documents, flatten_document_state
 from langchain_core.messages import RemoveMessage
-from redbox_app.settings import ENABLE_CITATION_NEWROUTE
+from redbox.models.settings import get_settings
 
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
+
+env = get_settings()
 
 
 # Patterns: functions that build processes
@@ -403,6 +405,7 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
 def create_evaluator():
     def _create_evaluator(state: RedboxState):
         _additional_variables = {"agents_results": combine_agents_state(state.agents_results)}
+        ENABLE_CITATION_NEWROUTE = env.enable_citation_newroute
         if ENABLE_CITATION_NEWROUTE:
             citation_parser, format_instructions = get_structured_response_with_citations_parser()
             evaluator_agent = build_stuff_pattern(
