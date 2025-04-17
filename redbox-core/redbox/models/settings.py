@@ -136,6 +136,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_nested_delimiter="__", extra="allow", frozen=True)
 
     enable_metadata_extraction: bool = env.bool("ENABLE_METADATA_EXTRACTION", default=True)
+    enable_citation_newroute: bool = env.bool("ENABLE_CITATION_NEWROUTE", default=True)
 
     ## Prompts
     metadata_prompt: tuple = (
