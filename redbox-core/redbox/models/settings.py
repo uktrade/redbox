@@ -137,6 +137,10 @@ class Settings(BaseSettings):
 
     enable_metadata_extraction: bool = env.bool("ENABLE_METADATA_EXTRACTION", default=True)
 
+    datahub_redbox_url: str = env.str("DATAHUB_REDBOX_URL", "")
+    datahub_redbox_secret_key: str = env.str("DATAHUB_REDBOX_SECRET_KEY", "")
+    datahub_redbox_access_key_id: str = env.str("DATAHUB_REDBOX_ACCESS_KEY_ID", "")
+
     ## Prompts
     metadata_prompt: tuple = (
         "system",
