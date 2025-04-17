@@ -31,7 +31,7 @@ class AISettings(BaseModel):
 
     # LLM settings
     context_window_size: int = 128_000
-    llm_max_tokens: int = 1024
+    llm_max_tokens: int = env.int("LLM_MAX_TOKENS", default=1024)
 
     # Prompts and LangGraph settings
     max_document_tokens: int = 1_000_000
