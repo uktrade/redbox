@@ -88,10 +88,10 @@
   </main>
 
   {% set footer_links = [
-    {'text': 'Privacy', 'url': url('privacy-notice') },
-    {'text': 'Accessibility', 'url': url('accessibility-statement') },
-    {'text': 'Support', 'url': url('support') },
-    {'text': 'Sitemap', 'url': url('sitemap') }
+    {'text': 'Privacy policy', 'url': 'privacy-notice' },
+    {'text': 'Accessibility statement', 'url': 'accessibility-statement' },
+    {'text': 'Support', 'url': 'support' },
+    {'text': 'Sitemap', 'url': 'sitemap' }
   ] %}
 
   <footer class="govuk-footer">
@@ -101,31 +101,13 @@
           <h2 class="govuk-visually-hidden">Support links</h2>
           <ul class="govuk-footer__inline-list">
 
-            <li class="govuk-footer__inline-list-item">
-              <a class="govuk-footer__link" href="/privacy-notice/">
-                Privacy
-              </a>
-            </li>
-
-            <li class="govuk-footer__inline-list-item">
-              <a class="govuk-footer__link" href="/accessibility-statement">
-                Accessibility
-              </a>
-            </li>
-
-
-
-            <li class="govuk-footer__inline-list-item">
-              <a class="govuk-footer__link" href="/support">
-                Support
-              </a>
-            </li>
-
-            <li class="govuk-footer__inline-list-item">
-              <a class="govuk-footer__link" href="/sitemap">
-                Sitemap
-              </a>
-            </li>
+            {% for item in footer_links %}
+              <li class="govuk-footer__inline-list-item">
+                <a class="govuk-footer__link" href="/{{ item['url'] }}/">
+                  {{ item['text'] }}
+                </a>
+              </li>
+            {% endfor %}
 
         </ul>
           <svg
