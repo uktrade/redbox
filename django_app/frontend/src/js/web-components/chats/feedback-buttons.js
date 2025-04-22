@@ -29,42 +29,6 @@ export class FeedbackButtons extends HTMLElement {
         <img src="/static/icons/thumbs-down.svg" alt="Thumbs down" />
       </button>
     </div>
-    <div class="feedback__container feedback__container--2" hidden tabindex="-1">
-      <fieldset class="feedback__chips-container feedback__negative">
-        <legend class="feedback__chips-legend">Select all that apply about the response</legend>
-        <div class="feedback__chips-inner-container">
-          <!-- Factuality Group -->
-          <div class="feedback__chip-group">
-            <input class="feedback__chip" type="checkbox" id="chip1-factual-${messageId}" data-testid="Factual" />
-            <label class="feedback__chip-label" for="chip1-factual-${messageId}">Factual</label>
-            <input class="feedback__chip" type="checkbox" id="chip2-inaccurate-${messageId}" data-testid="Inaccurate" />
-            <label class="feedback__chip-label" for="chip2-inaccurate-${messageId}">Inaccurate</label>
-          </div>
-          <!-- Completeness Group -->
-          <div class="feedback__chip-group">
-            <input class="feedback__chip" type="checkbox" id="chip3-complete-${messageId}" data-testid="Complete" />
-            <label class="feedback__chip-label" for="chip3-complete-${messageId}">Complete</label>
-            <input class="feedback__chip" type="checkbox" id="chip4-incomplete-${messageId}" data-testid="Incomplete" />
-            <label class="feedback__chip-label" for="chip4-incomplete-${messageId}">Incomplete</label>
-          </div>
-          <!-- Structure Group -->
-          <div class="feedback__chip-group">
-            <input class="feedback__chip" type="checkbox" id="chip5-structured-${messageId}" data-testid="Structured" />
-            <label class="feedback__chip-label" for="chip5-structured-${messageId}">Followed instructions</label>
-            <input class="feedback__chip" type="checkbox" id="chip6-unstructured-${messageId}" data-testid="Unstructured" />
-            <label class="feedback__chip-label" for="chip6-unstructured-${messageId}">Not as instructed</label>
-          </div>
-        </div>
-      </fieldset>
-    <div class="feedback__text-area">
-        <label for="text-${messageId}">Or describe with your own words:</label>
-        <textarea class="feedback__text-input" id="text-${messageId}" rows="1"></textarea>
-        <button class="feedback__submit-btn" type="button">Submit</button>
-    </div>
-    </div>
-    <div class="feedback__container feedback__container--thank-you" hidden tabindex="-1">
-      <p class="feedback__thank-you-message">Thank you for your feedback!</p>
-    </div>
      `;
 
     // 1 Thumbs up, 2 Thumbs down
@@ -86,7 +50,7 @@ export class FeedbackButtons extends HTMLElement {
 
       this.#collectChips();
       this.#sendFeedback();
-      this.#showPanel(1);
+      this.#showPanel();
     });
 
     thumbsDownButton?.addEventListener("click", () => {
@@ -125,24 +89,6 @@ export class FeedbackButtons extends HTMLElement {
         });
       });
     });
-
-    /** @type {HTMLTextAreaElement | null} */
-  // Updated Submit button logic
-  const textInput = this.querySelector(`#text-${messageId}`);
-  this.querySelector(".feedback__submit-btn")?.addEventListener("click", (evt) => {
-    evt.preventDefault();
-    if (!this.collectedData) return;
-
-    this.collectedData.text = textInput?.value || "";
-    this.#sendFeedback();
-
-    // Hide text area and submit button, show thank-you message
-    const textArea = this.querySelector(".feedback__text-area");
-    textArea.hidden = true;
-    const thankYouPanel = this.querySelector(".feedback__container--thank-you");
-    thankYouPanel.removeAttribute("hidden");
-    thankYouPanel.focus();
-  });
 }
 
   #highlightButton(selectedButton, otherButton) {
@@ -180,14 +126,49 @@ export class FeedbackButtons extends HTMLElement {
     }
   }
 
-  #showPanel(panelIndex) {
+  #showPanel() {
     if (!this.collectedData) return;
 
     /** @type {NodeListOf<HTMLElement>} */
     let panels = this.querySelectorAll(".feedback__container");
     panels.forEach((panel) => panel.setAttribute("hidden", ""));
-    panels[panelIndex].removeAttribute("hidden");
-    panels[panelIndex].focus();
+    this.closest(".chat-actions-container").insertAdjacentHTML("afterend",`<div class="feedback__container feedback__container--2" tabindex="-1">
+      <fieldset class="feedback__chips-container feedback__chips-container-${this.dataset.id} feedback__negative">
+        <legend class="feedback__chips-legend">Select all that apply about the response</legend>
+        <div class="feedback__chips-inner-container">
+          <!-- Factuality Group -->
+          <div class="feedback__chip-group">
+            <input class="feedback__chip" type="checkbox" id="chip1-factual-${this.dataset.id}" data-testid="Factual" />
+            <label class="feedback__chip-label" for="chip1-factual-${this.dataset.id}">Factual</label>
+            <input class="feedback__chip" type="checkbox" id="chip2-inaccurate-${this.dataset.id}" data-testid="Inaccurate" />
+            <label class="feedback__chip-label" for="chip2-inaccurate-${this.dataset.id}">Inaccurate</label>
+          </div>
+          <!-- Completeness Group -->
+          <div class="feedback__chip-group">
+            <input class="feedback__chip" type="checkbox" id="chip3-complete-${this.dataset.id}" data-testid="Complete" />
+            <label class="feedback__chip-label" for="chip3-complete-${this.dataset.id}">Complete</label>
+            <input class="feedback__chip" type="checkbox" id="chip4-incomplete-${this.dataset.id}" data-testid="Incomplete" />
+            <label class="feedback__chip-label" for="chip4-incomplete-${this.dataset.id}">Incomplete</label>
+          </div>
+          <!-- Structure Group -->
+          <div class="feedback__chip-group">
+            <input class="feedback__chip" type="checkbox" id="chip5-structured-${this.dataset.id}" data-testid="Structured" />
+            <label class="feedback__chip-label" for="chip5-structured-${this.dataset.id}">Followed instructions</label>
+            <input class="feedback__chip" type="checkbox" id="chip6-unstructured-${this.dataset.id}" data-testid="Unstructured" />
+            <label class="feedback__chip-label" for="chip6-unstructured-${this.dataset.id}">Not as instructed</label>
+          </div>
+        </div>
+      </fieldset>
+    <div class="feedback__text-area feedback__text-area-${this.dataset.id}">
+        <label for="text-${this.dataset.id}">Or describe with your own words:</label>
+        <textarea class="feedback__text-input" id="text-${this.dataset.id}" rows="1"></textarea>
+        <button class="feedback__submit-btn" type="button">Submit</button>
+    </div>
+    </div>`)
+
+    const feedbackChips = document.querySelector(`.feedback__chips-container-${this.dataset.id}`);
+    const feedbackTextArea = document.querySelector(`.feedback__text-area-${this.dataset.id}`);
+    this.#addSubmitEvent(feedbackChips, feedbackTextArea);
   }
 
   #collectChips() {
@@ -202,6 +183,28 @@ export class FeedbackButtons extends HTMLElement {
         }
       }
     });
+  }
+
+  #addSubmitEvent(feedbackChips, feedbackTextArea) {
+    /** @type {HTMLTextAreaElement | null} */
+  // Updated Submit button logic
+  const textInput = feedbackTextArea.querySelector(`#text-${this.dataset.id}`);
+  feedbackTextArea.querySelector(".feedback__submit-btn")?.addEventListener("click", (evt) => {
+    evt.preventDefault();
+    if (!this.collectedData) return;
+
+    this.collectedData.text = textInput?.value || "";
+    this.#sendFeedback();
+
+    // Hide text area and submit button, show thank-you message
+    feedbackChips.hidden = true;
+    feedbackTextArea.hidden = true;
+
+    this.closest(".chat-actions-container").insertAdjacentHTML("afterend",
+      `<div class="feedback__container feedback__container--thank-you" tabindex="-1">
+        <p class="feedback__thank-you-message">Thank you for your feedback!</p>
+       </div>`)
+  });
   }
 }
 

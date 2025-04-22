@@ -56,7 +56,7 @@ export class SourcesList extends HTMLElement {
     if (this.sources.length) {
       const html = `
         <div class="chat-actions-container">
-          <feedback-buttons data-id="{{ message.id }}"></feedback-buttons>
+          <feedback-buttons data-id="${chatId}"></feedback-buttons>
           <copy-text></copy-text>
           <a class="iai-chat-bubble__button" href="/citations/${chatId}">
             <svg width="20" height="19" viewBox="0 0 20 19" fill="none" focusable="false" aria-hidden="true">
@@ -72,7 +72,7 @@ export class SourcesList extends HTMLElement {
       ).innerHTML += html;
     } else {
       this.innerHTML = `<div class="chat-actions-container">
-                          <feedback-buttons data-id="{{ message.id }}"></feedback-buttons>
+                          <feedback-buttons data-id="${chatId}"></feedback-buttons>
                           <copy-text></copy-text>
                         </div>`;
     }
