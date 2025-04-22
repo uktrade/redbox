@@ -40,19 +40,6 @@ RETRIEVAL_SYSTEM_PROMPT = """
 
    """
 
-EVALUATOR_PROMPT = """
-1. Comprehensive Analysis:
-   - Evaluate question against full message history
-   - Assess contextual completeness
-   - Determine answer feasibility
-
-2. Quality Criteria:
-   - Technical accuracy
-   - Depth of explanation
-   - Contextual relevance
-   - Clarity of communication
-   """
-
 NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question usinng responses received from other AI agents. Use citations to back up your answer. Return in the format <Format>{format_instructions}</Format>
 """
 
