@@ -60,19 +60,20 @@ export class FeedbackButtons extends HTMLElement {
         <label for="text-${messageId}">Or describe with your own words:</label>
         <textarea class="feedback__text-input" id="text-${messageId}" rows="1"></textarea>
         <button class="feedback__submit-btn" type="button">Submit</button>
-    </div>    
+    </div>
     </div>
     <div class="feedback__container feedback__container--thank-you" hidden tabindex="-1">
       <p class="feedback__thank-you-message">Thank you for your feedback!</p>
     </div>
      `;
-    
+
     // 1 Thumbs up, 2 Thumbs down
     // Panel 1 Add event listeners for thumbs-up and thumbs-down buttons
     let thumbsUpButton = this.querySelector(".thumb_feedback-btn--up");
     let thumbsDownButton = this.querySelector(".thumb_feedback-btn--down");
 
     thumbsUpButton?.addEventListener("click", () => {
+      console.log(`Sending positive feedback for message ${this.dataset.id}`)
       if (!this.collectedData) return;
 
       if (this.collectedData.rating === 1) {
@@ -90,6 +91,7 @@ export class FeedbackButtons extends HTMLElement {
 
     thumbsDownButton?.addEventListener("click", () => {
       if (!this.collectedData) return;
+      console.log(`Sending negative feedback for message ${this.dataset.id}`)
 
       if (this.collectedData.rating === 2) {
         this.collectedData.rating = 0;

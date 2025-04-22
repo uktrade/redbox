@@ -37,15 +37,11 @@
 {% set role_text = "You" %}
 {% endif %}
 
-{% for activity in message.activityevent_set.all() %}
-  <p class="rb-activity rb-activity--{{ message.role }}">{{ activity }}</p>
-{% endfor %}
 
 <div
-  class="iai-chat-bubble govuk-body {{ classes }}"
+  class="govuk-inset-text {% if message.role != "user" %} govuk-inset-text-right {% endif %} govuk-body"
   data-role="{{ message.role }}" tabindex="-1">
   <div class="iai-chat-bubble__header">
-    <div class="iai-chat-bubble__role">{% if message.role == "ai" %}Redbox{% else %}You{% endif %}</div>
     {% if message.route %}
     {{ route_display(message.route) }}
     {% endif %}
@@ -62,7 +58,8 @@
         </li>
       {% endfor %}
     </ol>
-    <div class="iai-chat-bubble__citations-button-container">
+    <div class="chat-actions-container">
+      <feedback-buttons data-id="{{ message.id }}"></feedback-buttons>
       <copy-text></copy-text>
       <a class="iai-chat-bubble__button" href="{{url('citations', message.id)}}">
         <svg width="20" height="19" viewBox="0 0 20 19" fill="none" focusable="false" aria-hidden="true">
@@ -75,7 +72,10 @@
   </div>
   <br />
   {% elif message.role == "ai" %}
+  <div class="chat-actions-container">
+    <feedback-buttons data-id="{{ message.id }}"></feedback-buttons>
     <copy-text></copy-text>
+    </div>
   {% endif %}
 </div>
 

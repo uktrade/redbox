@@ -55,7 +55,8 @@ export class SourcesList extends HTMLElement {
     }
     if (this.sources.length) {
       const html = `
-        <div class="iai-chat-bubble__citations-button-container">
+        <div class="chat-actions-container">
+          <feedback-buttons data-id="{{ message.id }}"></feedback-buttons>
           <copy-text></copy-text>
           <a class="iai-chat-bubble__button" href="/citations/${chatId}">
             <svg width="20" height="19" viewBox="0 0 20 19" fill="none" focusable="false" aria-hidden="true">
@@ -70,7 +71,10 @@ export class SourcesList extends HTMLElement {
         this.querySelector(".iai-display-flex-from-desktop")
       ).innerHTML += html;
     } else {
-      this.innerHTML = `<copy-text></copy-text>`;
+      this.innerHTML = `<div class="chat-actions-container">
+                          <feedback-buttons data-id="{{ message.id }}"></feedback-buttons>
+                          <copy-text></copy-text>
+                        </div>`;
     }
   };
 }

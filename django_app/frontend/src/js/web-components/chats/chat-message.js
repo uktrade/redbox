@@ -11,14 +11,9 @@ export class ChatMessage extends HTMLElement {
   connectedCallback() {
     const uuid = crypto.randomUUID();
     this.innerHTML = `
-            <div class="iai-chat-bubble govuk-body {{ classes }}" data-role="${
+            <div class="govuk-inset-text ${this.dataset.role != 'user' ? `govuk-inset-text-right`: ''} govuk-body" data-role="${
               this.dataset.role
             }" tabindex="-1">
-                <div class="iai-chat-bubble__header">
-                    <div class="iai-chat-bubble__role">${
-                      this.dataset.role === "ai" ? "Redbox" : "You"
-                    }</div>
-                </div>
                 <markdown-converter class="iai-chat-bubble__text">${
                   this.dataset.text || ""
                 }</markdown-converter>
@@ -41,12 +36,6 @@ export class ChatMessage extends HTMLElement {
                 </div>
             </div>
         `;
-
-    // Add feedback buttons
-    if (this.dataset.role === "ai") {
-      this.feedbackButtons = /** @type {import("./feedback-buttons").FeedbackButtons} */(document.createElement("feedback-buttons"));
-      this.parentElement?.appendChild(this.feedbackButtons);
-    }
 
     // ensure new chat-messages aren't hidden behind the chat-input
     this.programmaticScroll = true;

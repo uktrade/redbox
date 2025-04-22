@@ -34,7 +34,6 @@ class ChatController extends HTMLElement {
           selectedDocuments.length === 1 ? "" : "s"
         }`);
       }
-      activites.push("You sent this prompt");
 
       // add filename to activity if only one file
       if (selectedDocuments.length === 1) {
@@ -73,7 +72,7 @@ class ChatController extends HTMLElement {
         feedbackButtons.dataset.status = "";
       }
       messageInput.reset();
-      
+
     });
 
     document.body.addEventListener("selected-docs-change", (evt) => {
