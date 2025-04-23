@@ -486,7 +486,7 @@ chat-message {
   scroll-margin-bottom: 16rem;
   padding-right: 0;
 }
-main:has(.iai-chat-bubble) .chat-options {
+main:has(.govuk-inset-text) .chat-options {
   display: none;
 }
 .chat-options__options {
@@ -818,7 +818,9 @@ div[data-page="1"] {
 
 .govuk-inset-text-right {
   border-left: none;
-  border-right: 10px solid #b1b4b6
+  border-right: 10px solid #b1b4b6;
+  padding-left: 100px;
+  text-align: right;
 }
 
 .chat-button {

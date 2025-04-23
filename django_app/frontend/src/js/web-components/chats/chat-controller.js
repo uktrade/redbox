@@ -64,7 +64,7 @@ class ChatController extends HTMLElement {
         this
       );
       /** @type {HTMLElement | null} */ (
-        aiMessage.querySelector(".iai-chat-bubble")
+        aiMessage.querySelector(".govuk-inset-text")
       )?.focus();
 
       // reset UI

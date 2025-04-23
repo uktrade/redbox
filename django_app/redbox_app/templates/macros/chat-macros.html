@@ -39,7 +39,7 @@
 
 
 <div
-  class="govuk-inset-text {% if message.role != "user" %} govuk-inset-text-right {% endif %} govuk-body"
+  class="govuk-inset-text {% if message.role == "user" %} govuk-inset-text-right {% endif %} govuk-body"
   data-role="{{ message.role }}" tabindex="-1">
   <div class="iai-chat-bubble__header">
     {% if message.route %}

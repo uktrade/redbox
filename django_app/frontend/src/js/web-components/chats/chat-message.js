@@ -11,7 +11,7 @@ export class ChatMessage extends HTMLElement {
   connectedCallback() {
     const uuid = crypto.randomUUID();
     this.innerHTML = `
-            <div class="govuk-inset-text ${this.dataset.role != 'user' ? `govuk-inset-text-right`: ''} govuk-body" data-role="${
+            <div class="govuk-inset-text ${this.dataset.role == 'user' ? `govuk-inset-text-right`: ''} govuk-body" data-role="${
               this.dataset.role
             }" tabindex="-1">
                 <markdown-converter class="iai-chat-bubble__text">${
