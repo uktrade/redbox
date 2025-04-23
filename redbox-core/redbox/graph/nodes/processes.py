@@ -29,13 +29,10 @@ from redbox.models.graph import ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActi
 from redbox.models.prompts import PLANNER_PROMPT
 from redbox.transform import combine_agents_state, combine_documents, flatten_document_state
 from langchain_core.messages import RemoveMessage
-from redbox.models.settings import get_settings
 
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
-
-env = get_settings()
 
 
 # Patterns: functions that build processes
