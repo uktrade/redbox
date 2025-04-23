@@ -407,13 +407,13 @@ def create_evaluator():
         _additional_variables = {"agents_results": combine_agents_state(state.agents_results)}
         citation_parser, format_instructions = get_structured_response_with_citations_parser()
         evaluator_agent = build_stuff_pattern(
-                prompt_set=PromptSet.NewRoute,
-                tools=None,
-                output_parser=citation_parser,
-                format_instructions=format_instructions,
-                final_response_chain=False,
-                additional_variables=_additional_variables,
-            )
+            prompt_set=PromptSet.NewRoute,
+            tools=None,
+            output_parser=citation_parser,
+            format_instructions=format_instructions,
+            final_response_chain=False,
+            additional_variables=_additional_variables,
+        )
         return evaluator_agent
 
     return _create_evaluator
