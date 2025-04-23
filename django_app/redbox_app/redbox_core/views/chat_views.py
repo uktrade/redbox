@@ -60,7 +60,7 @@ class ChatsView(View):
                     )
                     footnote_counter = footnote_counter + 1
                     if (
-                        '<a class="rb-footnote-link" href="/citations/{message.id}/#{cit_id}">{footnote_counter}</a>'
+                        f'<a class="rb-footnote-link" href="/citations/{message.id}/#{cit_id}">{footnote_counter}</a>'
                         not in message.text
                     ):
                         logger.info("Citation Numbering Missed")
