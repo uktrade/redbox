@@ -39,7 +39,6 @@ export class FeedbackButtons extends HTMLElement {
     thumbsUpButton?.addEventListener("click", () => {
       console.log(`Sending positive feedback for message ${this.dataset.id}`)
       if (!this.collectedData) return;
-
       if (this.collectedData.rating === 1) {
         this.collectedData.rating = 0;
         this.#resetButtons(thumbsUpButton, thumbsDownButton);
@@ -48,7 +47,6 @@ export class FeedbackButtons extends HTMLElement {
         this.#highlightButton(thumbsUpButton, thumbsDownButton);
       }
 
-      this.#collectChips();
       this.#sendFeedback();
       this.#showPanel();
     });
@@ -56,7 +54,6 @@ export class FeedbackButtons extends HTMLElement {
     thumbsDownButton?.addEventListener("click", () => {
       if (!this.collectedData) return;
       console.log(`Sending negative feedback for message ${this.dataset.id}`)
-
       if (this.collectedData.rating === 2) {
         this.collectedData.rating = 0;
         this.#resetButtons(thumbsUpButton, thumbsDownButton);
@@ -65,7 +62,6 @@ export class FeedbackButtons extends HTMLElement {
         this.#highlightButton(thumbsDownButton, thumbsUpButton);
       }
 
-      this.#collectChips();
       this.#sendFeedback();
       this.#showPanel(1);
     });
@@ -130,8 +126,8 @@ export class FeedbackButtons extends HTMLElement {
     if (!this.collectedData) return;
 
     /** @type {NodeListOf<HTMLElement>} */
-    let panels = this.querySelectorAll(".feedback__container");
-    panels.forEach((panel) => panel.setAttribute("hidden", ""));
+    let chipPanels = document.querySelector(`.feedback__chips-container-${this.dataset.id}`);
+    if (!chipPanels) {
     this.closest(".chat-actions-container").insertAdjacentHTML("afterend",`<div class="feedback__container feedback__container--2" tabindex="-1">
       <fieldset class="feedback__chips-container feedback__chips-container-${this.dataset.id} feedback__negative">
         <legend class="feedback__chips-legend">Select all that apply about the response</legend>
@@ -162,13 +158,11 @@ export class FeedbackButtons extends HTMLElement {
     <div class="feedback__text-area feedback__text-area-${this.dataset.id}">
         <label for="text-${this.dataset.id}">Or describe with your own words:</label>
         <textarea class="feedback__text-input" id="text-${this.dataset.id}" rows="1"></textarea>
-        <button class="feedback__submit-btn" type="button">Submit</button>
+        <button class="feedback__submit-btn" id="submit-button-${this.dataset.id}" type="button">Submit</button>
     </div>
-    </div>`)
+    </div>`)}
 
-    const feedbackChips = document.querySelector(`.feedback__chips-container-${this.dataset.id}`);
-    const feedbackTextArea = document.querySelector(`.feedback__text-area-${this.dataset.id}`);
-    this.#addSubmitEvent(feedbackChips, feedbackTextArea);
+    this.#addSubmitEvent();
   }
 
   #collectChips() {
@@ -185,11 +179,11 @@ export class FeedbackButtons extends HTMLElement {
     });
   }
 
-  #addSubmitEvent(feedbackChips, feedbackTextArea) {
+  #addSubmitEvent() {
     /** @type {HTMLTextAreaElement | null} */
   // Updated Submit button logic
-  const textInput = feedbackTextArea.querySelector(`#text-${this.dataset.id}`);
-  feedbackTextArea.querySelector(".feedback__submit-btn")?.addEventListener("click", (evt) => {
+  const textInput = document.querySelector(`#text-${this.dataset.id}`);
+  document.querySelector(`#submit-button-${this.dataset.id}`)?.addEventListener("click", (evt) => {
     evt.preventDefault();
     if (!this.collectedData) return;
 
@@ -197,8 +191,8 @@ export class FeedbackButtons extends HTMLElement {
     this.#sendFeedback();
 
     // Hide text area and submit button, show thank-you message
-    feedbackChips.hidden = true;
-    feedbackTextArea.hidden = true;
+    let chipPanels = document.querySelector(`.feedback__chips-container-${this.dataset.id}`);
+    chipPanels?.parentElement.remove()
 
     this.closest(".chat-actions-container").insertAdjacentHTML("afterend",
       `<div class="feedback__container feedback__container--thank-you" tabindex="-1">
