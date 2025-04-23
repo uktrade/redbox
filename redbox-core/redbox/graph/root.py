@@ -333,7 +333,8 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent
         "summarise_document",
         build_stuff_pattern(
             prompt_set=PromptSet.ChatwithDocs,
-            final_response_chain=False if use_as_agent else True,  # True when use_as_agent=False
+            final_response_chain=False if use_as_agent else True,  
+            summary_multiagent_response=True if use_as_agent else False,
         ),
         retry=RetryPolicy(max_attempts=3),
     )
@@ -384,7 +385,9 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent
     builder.add_edge("summarise_document", "clear_documents")
     builder.add_edge("clear_documents", END)
     builder.add_edge("files_too_large_error", END)
-    return builder.compile(debug=debug)
+    #compiled_graph = builder.compile(debug=debug).with_config(run_name="summarisation_agent_run", tags=["summary_multiagent_flag"]) if use_as_agent else builder.compile(debug=debug)
+    compiled_graph = builder.compile(debug=debug)
+    return compiled_graph
 
 
 def get_self_route_graph(retriever: VectorStoreRetriever, prompt_set: PromptSet, debug: bool = False):
@@ -846,11 +849,15 @@ def build_new_graph(
         invoke_custom_state(
             custom_graph=get_summarise_graph,
             agent_name="Summarisation_Agent",
-            use_as_agent=True,
+            use_as_agent=True, 
             all_chunks_retriever=all_chunks_retriever,
             debug=debug,
         ),
     )
+
+    #builder.add_node(
+        #"Summarisation_Agent", get_summarise_graph(all_chunks_retriever=all_chunks_retriever, use_as_agent=True, debug=debug)
+    #)
 
     builder.add_node("Evaluator_Agent", create_evaluator())
     builder.add_node("clear_tasks", delete_plan_message())

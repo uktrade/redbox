@@ -17,6 +17,7 @@ from redbox.models.chat import ChatRoute
 from redbox.models.file import ChunkResolution
 from redbox.models.graph import (
     FINAL_RESPONSE_TAG,
+    SUMMARY_MULTIAGENT_TAG,
     ROUTABLE_KEYWORDS,
     ROUTE_NAME_TAG,
     SOURCE_DOCUMENTS_TAG,
@@ -110,7 +111,12 @@ class Redbox:
                 content = event["data"]["chunk"].content
                 if isinstance(content, str):
                     await response_tokens_callback(content)
+            elif kind == "on_chat_model_stream" and SUMMARY_MULTIAGENT_TAG in tags:
+                content = event["data"]["chunk"].content
+                if isinstance(content, str):
+                    await response_tokens_callback(content)
             elif kind == "on_chain_end" and FINAL_RESPONSE_TAG in tags:
+                #print(kind)
                 content = event["data"]["output"]
                 if isinstance(content, str):
                     await response_tokens_callback(content)

@@ -29,13 +29,11 @@ from redbox.models.graph import ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActi
 from redbox.models.prompts import PLANNER_PROMPT
 from redbox.transform import combine_agents_state, combine_documents, flatten_document_state
 from langchain_core.messages import RemoveMessage
-from redbox.models.settings import get_settings
 
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
 
-env = get_settings()
 
 
 # Patterns: functions that build processes
@@ -163,6 +161,7 @@ def build_stuff_pattern(
     format_instructions: str = "",
     tools: list[StructuredTool] | None = None,
     final_response_chain: bool = False,
+    summary_multiagent_response: bool = False,
     additional_variables: dict = {},
 ) -> Runnable[RedboxState, dict[str, Any]]:
     """Returns a Runnable that uses state.request and state.documents to set state.messages.
@@ -182,6 +181,7 @@ def build_stuff_pattern(
                 output_parser=output_parser,
                 format_instructions=format_instructions,
                 final_response_chain=final_response_chain,
+                summary_multiagent_response=summary_multiagent_response,
                 additional_variables=additional_variables,
             ).stream(state)
         ]
@@ -405,23 +405,12 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
 def create_evaluator():
     def _create_evaluator(state: RedboxState):
         _additional_variables = {"agents_results": combine_agents_state(state.agents_results)}
-        ENABLE_CITATION_NEWROUTE = env.enable_citation_newroute
-        if ENABLE_CITATION_NEWROUTE:
-            citation_parser, format_instructions = get_structured_response_with_citations_parser()
-            evaluator_agent = build_stuff_pattern(
+        citation_parser, format_instructions = get_structured_response_with_citations_parser()
+        evaluator_agent = build_stuff_pattern(
                 prompt_set=PromptSet.NewRoute,
                 tools=None,
                 output_parser=citation_parser,
                 format_instructions=format_instructions,
-                final_response_chain=False,
-                additional_variables=_additional_variables,
-            )
-        else:
-            evaluator_agent = build_stuff_pattern(
-                prompt_set=PromptSet.NewRouteNoCitations,
-                tools=None,
-                output_parser=None,
-                format_instructions="",
                 final_response_chain=True,
                 additional_variables=_additional_variables,
             )
@@ -447,14 +436,10 @@ def invoke_custom_state(
         )
         activity_node.invoke(state)
 
-        # invoke the subgraph
-        response = subgraph.invoke(subgraph_state)
-        # add agent name as a tag to the response
-        result = response["messages"][-1].content
-        result = f"<{agent_name}_Result>{result}</{agent_name}_Result>"
-
-        # transform response back to the parent state
-        return {"agents_results": result}
+        ## invoke the subgraph
+        response = subgraph.invoke(subgraph_state) #the LLM response is streamed
+        
+        return response
 
     return _invoke_custom_state
 
