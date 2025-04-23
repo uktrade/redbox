@@ -343,7 +343,7 @@ When a user query involves finding information within known documents, ALWAYS ro
 When creating your execution plan, you have access to the following specialised agents:
 
 1. **Document_Agent**: Retrieves, synthesises, and summarises information from user's uploaded documents.
-2. **External_Data_Agent**: Retrieves information from external data sources including Wikipedia, Gov.UK, and legislation.gov.uk.
+2. **External_Data_Agent**: Retrieves information from external data sources including Wikipedia, Gov.UK, data-hub.trade.gov.uk and legislation.gov.uk.
 3. **Summarisation_Agent**: Summarises entire user's uploaded documents. It does not summarise outputs from other agents. 
 
 ## Output Format

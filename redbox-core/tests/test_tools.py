@@ -164,7 +164,7 @@ def test_data_hub_api_tool():
                     tool_calls=[
                         {
                             "name": "_search_data_hub",
-                            "args": {"query": "What is the company address for Archived"},
+                            "args": {"query": "What is the company address for Ball-Chen"},
                             "id": "1",
                         }
                     ],
@@ -173,18 +173,13 @@ def test_data_hub_api_tool():
         }
     )
 
-    print(response)
-    print('ehllo')
-
     assert response["messages"][0].content != ""
-
-    assert 1==2
 
     for document in response["messages"][0].artifact:
         assert document.page_content != ""
         metadata = ChunkMetadata.model_validate(document.metadata)
-        assert urlparse(metadata.uri).hostname == "en.wikipedia.org"
-        assert metadata.creator_type == ChunkCreatorType.wikipedia
+        assert urlparse(metadata.uri).hostname == "api.dev.datahub.uktrade.digital"
+        assert metadata.creator_type == ChunkCreatorType.data_hub
 
 
 def test_wikipedia_tool():

@@ -68,13 +68,13 @@ class Redbox:
         )
         search_wikipedia = build_search_wikipedia_tool()
         search_govuk = build_govuk_search_tool()
-        search_datahub = build_search_data_hub_api_tool()
+        search_data_hub = build_search_data_hub_api_tool()
 
-        self.tools = [search_documents, search_wikipedia, search_govuk, search_datahub]
+        self.tools = [search_documents, search_wikipedia, search_govuk, search_data_hub]
 
         self.multi_agent_tools = {
             "document_agent": [search_documents],
-            "external_document_agent": [search_wikipedia, search_govuk, search_datahub],
+            "external_document_agent": [search_wikipedia, search_govuk, search_data_hub],
         }
 
         self.graph = new_root_graph(

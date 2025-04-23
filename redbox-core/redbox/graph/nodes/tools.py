@@ -1,5 +1,10 @@
 from typing import Annotated, Iterable, Union
+from urllib.parse import urlparse
 
+
+from fuzzywuzzy import fuzz
+import boto3
+import json
 import numpy as np
 import re
 import requests
@@ -218,67 +223,86 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
     return _search_wikipedia
 
 
-def build_search_data_hub_api_tool(dataset="companies-dataset") -> Tool:
+def extract_company_name_bedrock(prompt: str) -> str:
+    client = boto3.client("bedrock-runtime", region_name="eu-west-2")
+    model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
+
+    response = client.invoke_model(
+        modelId=model_id,
+        contentType="application/json",
+        accept="application/json",
+        body=json.dumps({
+            "anthropic_version": "bedrock-2023-05-31",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": f"Extract just the company name from this question: \"{prompt}\". Respond with only the name."
+                }
+            ],
+            "max_tokens": 50,
+            "temperature": 0.2
+        })
+    )
+    body = json.loads(response["body"].read())
+    return body["content"][0]["text"].strip()
+
+
+def build_search_data_hub_api_tool(dataset="companies-dataset") -> tool:
     @tool(response_format="content_and_artifact")
     def _search_data_hub(query: str) -> tuple[str, list[Document]]:
-        """ Search the Data Hub API for relevant datasets based on search query. Args: query (str): search query string Returns: tuple[str, list[Document]]: matched datahub records """
-        
+        """Search the Data Hub API for relevant datasets based on query."""
+
         settings = get_settings()
-        base_url = f"{settings.datahub_redbox_url}/v4/dataset/companies-dataset"
+        base_url = f"{settings.datahub_redbox_url}/v4/dataset/{dataset}"
         secret_key = settings.datahub_redbox_secret_key
         access_key_id = settings.datahub_redbox_access_key_id
 
         if not base_url or not secret_key or not access_key_id:
             raise ValueError("Data Hub API credentials missing.")
-        
+
         credentials = {
-            "id": settings.datahub_redbox_access_key_id,
-            "key": settings.datahub_redbox_secret_key,
-            "algorithm": 'sha256'
+            "id": access_key_id,
+            "key": secret_key,
+            "algorithm": "sha256",
         }
-
-        sender = Sender(credentials, base_url, "GET", content='', content_type='')
-
-        headers = {
-            'Authorization': sender.request_header
-        }
+        sender = Sender(credentials, base_url, "GET", content="", content_type="")
+        headers = {"Authorization": sender.request_header}
         response = requests.get(base_url, headers=headers)
         response.raise_for_status()
         results = response.json()
 
         if not results or "results" not in results:
-            print("No results found in API response.")
             return "No data available for the query.", []
 
-        query_lower = query.lower()
-        match = re.search(r"address for (.+)", query_lower)
-        company_name_query = match.group(1).strip() if match else query_lower
+        extracted_name = extract_company_name_bedrock(query)
+        print(f"Extracted company name: {extracted_name}")
 
-        filtered_records = [
-            r for r in results["results"]
-            if "name" in r and company_name_query in r["name"].lower()
-        ]
+        matches = []
+        for r in results["results"]:
+            name = r.get("name", "")
+            similarity = fuzz.partial_ratio(extracted_name.lower(), name.lower())
+            if similarity > 70:  # Adjust threshold as needed
+                r["similarity"] = similarity
+                matches.append(r)
 
-        if not filtered_records:
-            print("No matching records found for query.")
+        if not matches:
             return "No matching data found for the query.", []
 
+        sorted_matches = sorted(matches, key=lambda x: x["similarity"], reverse=True)
+
         mapped_documents = []
-        for i, record in enumerate(filtered_records):
+        for i, record in enumerate(sorted_matches):
             page_content = record.get("summary") or f"{record.get('name', '')}: {record.get('registered_address_1', 'No address')}"
             token_count = bedrock_tokeniser(page_content)
             metadata = {
                 "index": i,
-                "uri": record.get("url", "No URL"),
+                "uri": results["next"],
                 "token_count": token_count,
                 "creator_type": ChunkCreatorType.data_hub,
             }
-            print(f"Document Metadata: {metadata}")
-
             mapped_documents.append(Document(page_content=page_content, metadata=metadata))
 
         response_content = format_documents(mapped_documents)
-        print(f"Tool Output: {response_content}, {mapped_documents}")
         return response_content, mapped_documents
 
     return _search_data_hub

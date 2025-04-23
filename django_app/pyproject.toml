@@ -51,6 +51,7 @@ dbt-copilot-python = "^0.2.2"
 django-log-formatter-asim = "^0.0.6"
 django-chunk-upload-handlers = "^0.0.15"
 requests-hawk = "^1.2.1"
+fuzzywuzzy = "^0.18.0"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -19,13 +19,17 @@ from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
 
 from redbox.chains.activity import log_activity
-from redbox.chains.components import get_chat_llm, get_structured_response_with_citations_parser, get_tokeniser
+from redbox.chains.components import (
+    get_chat_llm, get_structured_response_with_citations_parser, get_tokeniser)
 from redbox.chains.parser import ClaudeParser
-from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_metadata, create_chain_agent
+from redbox.chains.runnables import (CannedChatLLM, build_llm_chain,
+                                     chain_use_metadata, create_chain_agent)
 from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models import ChatRoute
-from redbox.models.chain import AgentTask, DocumentState, MultiAgentPlan, PromptSet, RedboxState, RequestMetadata
-from redbox.models.graph import ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActivityEvent, RedboxEventType
+from redbox.models.chain import (AgentTask, DocumentState, MultiAgentPlan,
+                                 PromptSet, RedboxState, RequestMetadata)
+from redbox.models.graph import (ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG,
+                                 RedboxActivityEvent, RedboxEventType)
 from redbox.models.prompts import PLANNER_PROMPT
 from redbox.transform import combine_documents, flatten_document_state
 
@@ -368,6 +372,7 @@ def create_planner():
     return _create_planner
 
 
+# this is what you use for the notebook - tools argument will be data hub, agent == customised for data hub, such as this agent is specialised in insert data hub specific functionality
 def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: bool = False):
     @RunnableLambda
     def _build_agent(state: RedboxState):

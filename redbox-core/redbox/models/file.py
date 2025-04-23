@@ -19,6 +19,7 @@ class ChunkCreatorType(StrEnum):
     wikipedia = "Wikipedia"
     user_uploaded_document = "UserUploadedDocument"
     gov_uk = "GOV.UK"
+    data_hub = "Data Hub"
 
 
 class ChunkMetadata(BaseModel):

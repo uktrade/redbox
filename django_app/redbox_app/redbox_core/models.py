@@ -714,6 +714,7 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         WIKIPEDIA = "Wikipedia", _("wikipedia")
         USER_UPLOADED_DOCUMENT = "UserUploadedDocument", _("user uploaded document")
         GOV_UK = "GOV.UK", _("gov.uk")
+        DATAHUB = "Data Hub", _("data_hub")
 
         @classmethod
         def try_parse(cls, value):
