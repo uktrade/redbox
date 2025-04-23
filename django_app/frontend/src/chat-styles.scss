@@ -370,7 +370,6 @@ chat-message {
 /* Response feedback - general styles */
 .feedback__container {
   font-size: 0.75rem;
-  margin-bottom: 0.5rem;
   margin-top: -0.25rem;
   padding: 0 1rem;
   text-align: left;
@@ -841,5 +840,6 @@ div[data-page="1"] {
 .chat-actions-container {
   display: flex;
   flex-direction: row;
+  align-items: center;
   gap: 10px;
 }
