@@ -59,6 +59,8 @@ class ChatsView(View):
                         f'{text_in_answer}<a class="rb-footnote-link" href="/citations/{message.id}/#{cit_id}">{footnote_counter}</a>',  # noqa: E501
                     )
                     footnote_counter = footnote_counter + 1
+                    if '<a class="rb-footnote-link" href="/citations/{message.id}/#{cit_id}">{footnote_counter}</a>' not in message.text:  # noqa: E501
+                        logger.info("Citation Numbering Missed")
 
         context = {
             "chat_id": chat_id,
