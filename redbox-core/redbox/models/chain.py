@@ -66,7 +66,6 @@ class AISettings(BaseModel):
     chat_map_question_prompt: str = prompts.CHAT_MAP_QUESTION_PROMPT
     reduce_system_prompt: str = prompts.REDUCE_SYSTEM_PROMPT
     new_route_retrieval_system_prompt: str = prompts.NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT
-    new_route_retrieval_system_prompt_nocitations: str = prompts.NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT_NOCITATIONS
     new_route_retrieval_question_prompt: str = prompts.NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT
     llm_decide_route_prompt: str = prompts.LLM_DECIDE_ROUTE
 
@@ -276,7 +275,6 @@ class PromptSet(StrEnum):
     SelfRoute = "self_route"
     CondenseQuestion = "condense_question"
     NewRoute = "new_route"
-    NewRouteNoCitations = "new_route_no_citations"
 
 
 def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str]:
@@ -306,9 +304,6 @@ def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str]:
         question_prompt = state.request.ai_settings.condense_question_prompt
     elif prompt_set == PromptSet.NewRoute:
         system_prompt = state.request.ai_settings.new_route_retrieval_system_prompt
-        question_prompt = state.request.ai_settings.new_route_retrieval_question_prompt
-    elif prompt_set == PromptSet.NewRouteNoCitations:
-        system_prompt = state.request.ai_settings.new_route_retrieval_system_prompt_nocitations
         question_prompt = state.request.ai_settings.new_route_retrieval_question_prompt
     return (system_prompt, question_prompt)
 

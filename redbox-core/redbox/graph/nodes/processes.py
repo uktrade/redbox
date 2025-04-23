@@ -405,24 +405,13 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
 def create_evaluator():
     def _create_evaluator(state: RedboxState):
         _additional_variables = {"agents_results": combine_agents_state(state.agents_results)}
-        ENABLE_CITATION_NEWROUTE = env.enable_citation_newroute
-        if ENABLE_CITATION_NEWROUTE:
-            citation_parser, format_instructions = get_structured_response_with_citations_parser()
-            evaluator_agent = build_stuff_pattern(
+        citation_parser, format_instructions = get_structured_response_with_citations_parser()
+        evaluator_agent = build_stuff_pattern(
                 prompt_set=PromptSet.NewRoute,
                 tools=None,
                 output_parser=citation_parser,
                 format_instructions=format_instructions,
                 final_response_chain=False,
-                additional_variables=_additional_variables,
-            )
-        else:
-            evaluator_agent = build_stuff_pattern(
-                prompt_set=PromptSet.NewRouteNoCitations,
-                tools=None,
-                output_parser=None,
-                format_instructions="",
-                final_response_chain=True,
                 additional_variables=_additional_variables,
             )
         return evaluator_agent
