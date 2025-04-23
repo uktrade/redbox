@@ -223,7 +223,7 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
     return _search_wikipedia
 
 
-def extract_company_name_bedrock(prompt: str) -> str:
+def parse_filters_bedrock(prompt: str) -> dict:
     client = boto3.client("bedrock-runtime", region_name="eu-west-2")
     model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
 
@@ -236,15 +236,44 @@ def extract_company_name_bedrock(prompt: str) -> str:
             "messages": [
                 {
                     "role": "user",
-                    "content": f"Extract just the company name from this question: \"{prompt}\". Respond with only the name."
+                    "content": (
+                        f"You are a data filter generator for a company dataset. "
+                        f"Based on this question: \"{prompt}\", respond ONLY with a JSON object "
+                        f"with relevant filters, e.g. created_on_from, created_on_to, name, "
+                        f"address_country__name, sector_name, archived, etc. "
+                        f"Use ISO format for dates: YYYY-MM-DD. Include only fields that apply."
+                    )
                 }
             ],
-            "max_tokens": 50,
+            "max_tokens": 200,
             "temperature": 0.2
         })
     )
     body = json.loads(response["body"].read())
-    return body["content"][0]["text"].strip()
+    try:
+        filters = json.loads(body["content"][0]["text"].strip())
+    except Exception:
+        filters = {}
+    return filters
+
+def filter_results(results, filters):
+    def matches(record):
+        for key, value in filters.items():
+            record_value = record.get(key)
+            if record_value is None:
+                return False
+            elif isinstance(record_value, str) and isinstance(value, str):
+                if value.lower() not in record_value.lower():
+                    return False
+            elif isinstance(record_value, bool):
+                if str(record_value).lower() != str(value).lower():
+                    return False
+            else:
+                if value != record_value:
+                    return False
+        return True
+
+    return [r for r in results if matches(r)]
 
 
 def build_search_data_hub_api_tool(dataset="companies-dataset") -> tool:
@@ -274,29 +303,23 @@ def build_search_data_hub_api_tool(dataset="companies-dataset") -> tool:
         if not results or "results" not in results:
             return "No data available for the query.", []
 
-        extracted_name = extract_company_name_bedrock(query)
-        print(f"Extracted company name: {extracted_name}")
+        filters = parse_filters_bedrock(query)
+        print(f"Parsed filters: {filters}")
 
-        matches = []
-        for r in results["results"]:
-            name = r.get("name", "")
-            similarity = fuzz.partial_ratio(extracted_name.lower(), name.lower())
-            if similarity > 70:  # Adjust threshold as needed
-                r["similarity"] = similarity
-                matches.append(r)
+        matches = filter_results(results["results"], filters)
 
         if not matches:
             return "No matching data found for the query.", []
 
-        sorted_matches = sorted(matches, key=lambda x: x["similarity"], reverse=True)
-
         mapped_documents = []
-        for i, record in enumerate(sorted_matches):
-            page_content = record.get("summary") or f"{record.get('name', '')}: {record.get('registered_address_1', 'No address')}"
+        for i, record in enumerate(matches):
+            page_content = "\n".join(
+                f"{k}: {v}" for k, v in record.items() if v not in [None, "", []]
+            )
             token_count = bedrock_tokeniser(page_content)
             metadata = {
                 "index": i,
-                "uri": results["next"],
+                "uri": results.get("next", ""),
                 "token_count": token_count,
                 "creator_type": ChunkCreatorType.data_hub,
             }
@@ -306,7 +329,6 @@ def build_search_data_hub_api_tool(dataset="companies-dataset") -> tool:
         return response_content, mapped_documents
 
     return _search_data_hub
-
 
 
 class BaseRetrievalToolLogFormatter:

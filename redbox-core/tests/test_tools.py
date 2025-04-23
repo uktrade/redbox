@@ -152,7 +152,13 @@ def test_govuk_search_tool():
         assert metadata.creator_type == ChunkCreatorType.gov_uk
 
 
-def test_data_hub_api_tool():
+@pytest.mark.parametrize("query,expected_fields", [
+    ("What companies are archived?", {"archived": True}),
+    ("Find companies located in France", {"address_country__name": "France"}),
+    ("Show me companies in the retail sector", {"sector_name": "retail"}),
+    ("List companies named Lambda plc", {"name": "Lambda plc"}),
+])
+def test_data_hub_api_tool(query, expected_fields):
     tool = build_search_data_hub_api_tool()
     tool_node = ToolNode(tools=[tool])
 
@@ -164,7 +170,7 @@ def test_data_hub_api_tool():
                     tool_calls=[
                         {
                             "name": "_search_data_hub",
-                            "args": {"query": "What is the company address for Ball-Chen"},
+                            "args": {"query": query},
                             "id": "1",
                         }
                     ],
@@ -173,13 +179,26 @@ def test_data_hub_api_tool():
         }
     )
 
-    assert response["messages"][0].content != ""
+    messages = response["messages"]
+    assert messages and messages[0].content != "", "Tool did not return any content."
 
-    for document in response["messages"][0].artifact:
-        assert document.page_content != ""
-        metadata = ChunkMetadata.model_validate(document.metadata)
+    artifacts = messages[0].artifact
+    assert isinstance(artifacts, list) and len(artifacts) > 0, "No documents returned."
+
+    for doc in artifacts:
+        assert doc.page_content != "", "Empty page_content found."
+        metadata = ChunkMetadata.model_validate(doc.metadata)
         assert urlparse(metadata.uri).hostname == "api.dev.datahub.uktrade.digital"
         assert metadata.creator_type == ChunkCreatorType.data_hub
+
+        for key, val in expected_fields.items():
+            if isinstance(val, str) and val.lower() not in doc.page_content.lower():
+                print(f"Warning: '{val}' not found in document content for query '{query}'")
+            elif isinstance(val, bool) and str(val).lower() not in doc.page_content.lower():
+                print(f"Warning: boolean field '{key}: {val}' not found")
+
+    print(f"\nQuery: {query}")
+    print(f"Returned document sample:\n{artifacts[0].page_content[:500]}")
 
 
 def test_wikipedia_tool():
