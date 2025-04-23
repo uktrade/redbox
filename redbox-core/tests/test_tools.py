@@ -7,7 +7,7 @@ from langchain_core.messages import AIMessage
 from langgraph.prebuilt import ToolNode
 from opensearchpy import OpenSearch
 
-from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_documents_tool, build_search_wikipedia_tool
+from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_documents_tool, build_search_wikipedia_tool, build_search_data_hub_api_tool
 from redbox.models.chain import AISettings, RedboxQuery, RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
 from redbox.models.settings import Settings
@@ -150,6 +150,41 @@ def test_govuk_search_tool():
         metadata = ChunkMetadata.model_validate(document.metadata)
         assert urlparse(metadata.uri).hostname == "www.gov.uk"
         assert metadata.creator_type == ChunkCreatorType.gov_uk
+
+
+def test_data_hub_api_tool():
+    tool = build_search_data_hub_api_tool()
+    tool_node = ToolNode(tools=[tool])
+
+    response = tool_node.invoke(
+        {
+            "messages": [
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "name": "_search_data_hub",
+                            "args": {"query": "What is the company address for Archived"},
+                            "id": "1",
+                        }
+                    ],
+                )
+            ]
+        }
+    )
+
+    print(response)
+    print('ehllo')
+
+    assert response["messages"][0].content != ""
+
+    assert 1==2
+
+    for document in response["messages"][0].artifact:
+        assert document.page_content != ""
+        metadata = ChunkMetadata.model_validate(document.metadata)
+        assert urlparse(metadata.uri).hostname == "en.wikipedia.org"
+        assert metadata.creator_type == ChunkCreatorType.wikipedia
 
 
 def test_wikipedia_tool():

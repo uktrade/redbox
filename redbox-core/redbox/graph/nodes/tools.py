@@ -1,8 +1,9 @@
 from typing import Annotated, Iterable, Union
 
 import numpy as np
+import re
 import requests
-from requests_hawk import HawkAuth
+from mohawk import Sender
 from elasticsearch import Elasticsearch
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_core.documents import Document
@@ -218,54 +219,70 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
 
 
 def build_search_data_hub_api_tool(dataset="companies-dataset") -> Tool:
-    """Constructs a tool that searches the Data Hub API"""
-
     @tool(response_format="content_and_artifact")
     def _search_data_hub(query: str) -> tuple[str, list[Document]]:
-        """
-        Search the Data Hub API for relevant datasets based on search query.
-
-        Args:
-            query (str): search query string
-
-        Returns:
-            tuple[str, list[Document]]: matched datahub records
-        """
+        """ Search the Data Hub API for relevant datasets based on search query. Args: query (str): search query string Returns: tuple[str, list[Document]]: matched datahub records """
+        
         settings = get_settings()
-        base_url = settings.datahub_redbox_url
+        base_url = f"{settings.datahub_redbox_url}/v4/dataset/companies-dataset"
         secret_key = settings.datahub_redbox_secret_key
         access_key_id = settings.datahub_redbox_access_key_id
 
         if not base_url or not secret_key or not access_key_id:
-            raise ValueError("Data Hub API credentials missing")
+            raise ValueError("Data Hub API credentials missing.")
+        
+        credentials = {
+            "id": settings.datahub_redbox_access_key_id,
+            "key": settings.datahub_redbox_secret_key,
+            "algorithm": 'sha256'
+        }
 
-        auth = HawkAuth(id=access_key_id, key=secret_key, algorithm="sha256")
-        response = requests.get(f"{base_url}/v4/dataset/{dataset}", params={"q": query}, auth=auth)
+        sender = Sender(credentials, base_url, "GET", content='', content_type='')
+
+        headers = {
+            'Authorization': sender.request_header
+        }
+        response = requests.get(base_url, headers=headers)
         response.raise_for_status()
         results = response.json()
 
+        if not results or "results" not in results:
+            print("No results found in API response.")
+            return "No data available for the query.", []
+
+        query_lower = query.lower()
+        match = re.search(r"address for (.+)", query_lower)
+        company_name_query = match.group(1).strip() if match else query_lower
+
+        filtered_records = [
+            r for r in results["results"]
+            if "name" in r and company_name_query in r["name"].lower()
+        ]
+
+        if not filtered_records:
+            print("No matching records found for query.")
+            return "No matching data found for the query.", []
+
         mapped_documents = []
-        for i, record in enumerate(results.get("items", [])):
-            page_content = record.get("summary", "No summary available")
+        for i, record in enumerate(filtered_records):
+            page_content = record.get("summary") or f"{record.get('name', '')}: {record.get('registered_address_1', 'No address')}"
             token_count = bedrock_tokeniser(page_content)
+            metadata = {
+                "index": i,
+                "uri": record.get("url", "No URL"),
+                "token_count": token_count,
+                "creator_type": ChunkCreatorType.data_hub,
+            }
+            print(f"Document Metadata: {metadata}")
 
-            mapped_documents.append(
-                Document(
-                    page_content=page_content,
-                    metadata={
-                        "index": i,
-                        "title": record.get("title", "Unknown Title"),
-                        "url": record.get("url", "No URL"),
-                        "token_count": token_count,
-                        "creator_type": "data_hub",
-                        "dataset": dataset,
-                    },
-                )
-            )
+            mapped_documents.append(Document(page_content=page_content, metadata=metadata))
 
-        return format_documents(mapped_documents), mapped_documents
+        response_content = format_documents(mapped_documents)
+        print(f"Tool Output: {response_content}, {mapped_documents}")
+        return response_content, mapped_documents
 
     return _search_data_hub
+
 
 
 class BaseRetrievalToolLogFormatter:
