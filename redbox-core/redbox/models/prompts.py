@@ -235,7 +235,7 @@ RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 AGENTIC_RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
 NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT = (
-    "<User question> {question} </User question> \n\n <Context>: \n\n {agents_results} \n\n <\Context> \n\n Answer:"
+    "<User question> {question} </User question> \n\n <Context>: \n\n {agents_results} \n\n </Context> \n\n Answer:"
 )
 
 AGENTIC_GIVE_UP_QUESTION_PROMPT = "{question}"
