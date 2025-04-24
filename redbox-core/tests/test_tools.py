@@ -153,10 +153,14 @@ def test_govuk_search_tool():
 
 
 @pytest.mark.parametrize("query,expected_fields", [
+    #companies
     ("What companies are archived?", {"archived": True}),
     ("Find companies located in France", {"address_country__name": "France"}),
     ("Show me companies in the retail sector", {"sector_name": "retail"}),
     ("List companies named Lambda plc", {"name": "Lambda plc"}),
+    #contacts
+    ("What is the email for Georgina Clark?", {"first_name": "Georgina", "last_name": "Clark", "email": "georgina@clark.com"}),
+    ("What is the job title of Kaylee Chan?", {"name": "Kaylee Chan", "job_title": "Therapist, nutritional"}),
 ])
 def test_data_hub_api_tool(query, expected_fields):
     tool = build_search_data_hub_api_tool()
