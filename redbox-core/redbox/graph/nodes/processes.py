@@ -420,12 +420,12 @@ def create_evaluator():
 
 
 def invoke_custom_state(
-    custom_graph, agent_name: str, use_as_agent: bool, all_chunks_retriever: VectorStoreRetriever, debug: bool = False
+    custom_graph, agent_name: str, all_chunks_retriever: VectorStoreRetriever, debug: bool = False
 ):
     @RunnableLambda
     def _invoke_custom_state(state: RedboxState):
         # transform the state to the subgraph state
-        subgraph = custom_graph(all_chunks_retriever=all_chunks_retriever, use_as_agent=use_as_agent, debug=debug)
+        subgraph = custom_graph(all_chunks_retriever=all_chunks_retriever, debug=debug)
         subgraph_state = state.model_copy()
         agent_task = json.loads(subgraph_state.last_message.content)
         subgraph_state.request.question = agent_task["task"]
