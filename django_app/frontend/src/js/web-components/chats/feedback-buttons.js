@@ -37,7 +37,6 @@ export class FeedbackButtons extends HTMLElement {
     let thumbsDownButton = this.querySelector(".thumb_feedback-btn--down");
 
     thumbsUpButton?.addEventListener("click", () => {
-      console.log(`Sending positive feedback for message ${this.dataset.id}`)
       if (!this.collectedData) return;
       if (this.collectedData.rating === 1) {
         this.collectedData.rating = 0;
@@ -53,7 +52,6 @@ export class FeedbackButtons extends HTMLElement {
 
     thumbsDownButton?.addEventListener("click", () => {
       if (!this.collectedData) return;
-      console.log(`Sending negative feedback for message ${this.dataset.id}`)
       if (this.collectedData.rating === 2) {
         this.collectedData.rating = 0;
         this.#resetButtons(thumbsUpButton, thumbsDownButton);
@@ -66,25 +64,6 @@ export class FeedbackButtons extends HTMLElement {
       this.#showPanel();
     });
 
-    // Panel 3 - text and chips
-    let chipGroups = this.querySelectorAll(".feedback__chip-group");
-    chipGroups.forEach((group) => {
-      let chips = group.querySelectorAll(".feedback__chip");
-      chips.forEach((chip) => {
-        chip.addEventListener("change", (e) => {
-          chips.forEach((otherChip) => {
-            if (otherChip !== e.target) {
-              otherChip.checked = false;
-            }
-          });
-
-          this.#collectChips();
-          if (this.collectedData.rating > 0) {
-            this.#sendFeedback();
-          }
-        });
-      });
-    });
 }
 
   #highlightButton(selectedButton, otherButton) {
@@ -112,7 +91,8 @@ export class FeedbackButtons extends HTMLElement {
           "X-CSRFToken": csrfToken,
         },
         body: JSON.stringify(this.collectedData),
-      });
+      })
+      this.collectedData.chips = [];
     } catch (err) {
       if (retry < MAX_RETRIES) {
         window.setTimeout(() => {
@@ -162,20 +142,44 @@ export class FeedbackButtons extends HTMLElement {
     </div>
     </div>`)}
 
+    this.#addChipEvents();
     this.#addSubmitEvent();
   }
 
   #collectChips() {
+    let chatController = this.closest("chat-controller")
     this.collectedData.chips = [];
     /** @type {NodeListOf<HTMLInputElement>} */
-    let chips = this.querySelectorAll(".feedback__chip");
+    let chips = chatController.querySelectorAll(".feedback__chip");
     chips.forEach((chip) => {
       if (chip.checked) {
-        const label = this.querySelector(`[for="${chip.id}"]`);
+        const label = chatController.querySelector(`[for="${chip.id}"]`);
         if (label) {
           this.collectedData.chips.push(label.textContent?.trim() || "");
         }
       }
+    });
+  }
+
+
+  #addChipEvents() {
+    let chatController = this.closest("chat-controller")
+    let chipGroups = chatController.querySelectorAll(".feedback__chip-group");
+    chipGroups.forEach((group) => {
+      let chips = group.querySelectorAll(".feedback__chip");
+      chips.forEach((chip) => {
+        chip.addEventListener("change", (e) => {
+          chips.forEach((otherChip) => {
+            if (otherChip !== e.target) {
+              otherChip.checked = false;
+            }
+          });
+
+          if (this.collectedData.rating > 0) {
+            this.#sendFeedback();
+          }
+        });
+      });
     });
   }
 
@@ -185,6 +189,7 @@ export class FeedbackButtons extends HTMLElement {
   const textInput = document.querySelector(`#text-${this.dataset.id}`);
   document.querySelector(`#submit-button-${this.dataset.id}`)?.addEventListener("click", (evt) => {
     evt.preventDefault();
+    this.#collectChips()
     if (!this.collectedData) return;
 
     this.collectedData.text = textInput?.value || "";
