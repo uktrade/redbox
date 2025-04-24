@@ -1,28 +1,23 @@
 {% macro route_display(route=None) %}
-<div class="iai-chat-bubble__route" {% if not route %}hidden{% endif %}>
-  <tool-tip class="iai-tooltip">
-    <div class="iai-tooltip__button" tabindex="0">
-      <span>Response generated using <strong>@<span class="iai-chat-bubble__route-text">{{ route }}</span></strong>
-        </span>
-      <img src="{{ static('icons/question-mark.svg') }}" alt="" width="14" />
-    </div>
-    <div class="iai-tooltip__content">
-      <h3 class="iai-chat-bubble__route-heading">
-        <img src="{{ static('icons/question-mark.svg') }}" alt="" width="24" />
-        <span>Redbox uses different paths to generate the best response</span>
-      </h3>
-      <ul class="iai-chat-bubble__route-list">
-        <li class="iai-chat-bubble__route-list-item">I can <strong>@chat</strong> about general questions, not related
-          to your documents</li>
-        <li class="iai-chat-bubble__route-list-item">I can <strong>@summarise</strong> over selected documents and
-          do Q&amp;A on them, extract information, summarise and more!</li>
-        <li class="iai-chat-bubble__route-list-item">I can help you <strong>@search</strong> over selected documents and
-          do Q&amp;A on them, with citations</li>
-        <li class="iai-chat-bubble__route-list-item">I can use agents to search on gov.uk and Wikipedia using the <strong>@gadget</strong> command, with citations</li>
-      </ul>
-    </div>
-  </tool-tip>
-</div>
+<details class="govuk-details redbox-message-route" {% if not route %} hidden {% endif %}>
+  <summary class="govuk-details__summary">
+    <span class="govuk-details__summary-text govuk-!-font-size-16">
+      Response generated using @<span class="route-text">{{ route }}</span>
+    </span>
+  </summary>
+  <div class="govuk-details__text govuk-!-font-size-16">
+    <span>Redbox uses different paths to generate the best response</span>
+    <ul>
+      <li>I can @chat about general questions, not related
+        to your documents</li>
+      <li>I can @summarise over selected documents and
+        do Q&amp;A on them, extract information, summarise and more!</li>
+      <li>I can help you @search over selected documents and
+        do Q&amp;A on them, with citations</li>
+      <li>I can use agents to search on gov.uk and Wikipedia using the @gadget command, with citations</li>
+    </ul>
+  </div>
+</details>
 {% endmacro %}
 
 
@@ -41,11 +36,6 @@
 <div
   class="govuk-inset-text {% if message.role == "user" %} govuk-inset-text-right {% endif %} govuk-body"
   data-role="{{ message.role }}" tabindex="-1" id="chat-message-{{ message.id }}">
-  <div class="iai-chat-bubble__header">
-    {% if message.route %}
-    {{ route_display(message.route) }}
-    {% endif %}
-  </div>
 
   <markdown-converter class="iai-chat-bubble__text">{{ message.text }}</markdown-converter>
   {% if message.unique_citation_uris() %}
@@ -60,6 +50,12 @@
     </ol>
   </div>
   <br />
+  {% endif %}
+</div>
+
+<div class="iai-chat-bubble__header">
+  {% if message.route %}
+  {{ route_display(message.route) }}
   {% endif %}
 </div>
 
@@ -85,5 +81,4 @@
 </div>
 
 {% endif %}
-
 {% endmacro %}

@@ -48,14 +48,18 @@ export class ChatMessage extends HTMLElement {
     this.scrollIntoView({ block: "end" });
 
     // Insert route_display HTML
+    if (this.dataset.role == "ai") {
     const routeTemplate = /** @type {HTMLTemplateElement} */ (
       document.querySelector("#template-route-display")
     );
     const routeClone = document.importNode(routeTemplate.content, true);
+    const actionsContainer = this.querySelector(".chat-actions-container");
+    if (actionsContainer) {
+      this.insertBefore(routeClone, actionsContainer);
+    }
+  }}
 
-    this.querySelector(".iai-chat-bubble__header")?.appendChild(routeClone);
 
-  }
 
   #addFootnotes = (content) => {
     let footnotes = this.querySelectorAll("sources-list a[data-text]");
@@ -205,8 +209,9 @@ export class ChatMessage extends HTMLElement {
           response.data.text_in_answer
         );
       } else if (response.type === "route") {
-        let route = this.querySelector(".iai-chat-bubble__route");
-        let routeText = route?.querySelector(".iai-chat-bubble__route-text");
+        // Update the route text on the page now the selected route is known
+        let route = this?.querySelector(".redbox-message-route");
+        let routeText = route?.querySelector(".route-text");
         if (route && routeText) {
           routeText.textContent = response.data;
           route.removeAttribute("hidden");
