@@ -218,7 +218,6 @@ export class ChatMessage extends HTMLElement {
         // Assign the new message its ID straight away
         const chatMessage = this.querySelector('.govuk-inset-text');
         if (chatMessage) {chatMessage.id = `chat-message-${response.data.message_id}`}
-        console.log(`chat message found? ${chatMessage}`)
         // Add in feedback and copy buttons dynamically
         if (actionsContainer) {actionsContainer.innerHTML = `
         <feedback-buttons data-id="${response.data.message_id}"></feedback-buttons>

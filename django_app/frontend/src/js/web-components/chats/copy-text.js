@@ -22,7 +22,7 @@ class CopyText extends HTMLElement {
 
     this.querySelector("button")?.addEventListener("click", () => {
       const textEl = /** @type {HTMLElement} */ (
-        document.querySelector(`#chat-message-${messageId}`))
+        document.querySelector(`#chat-message-${messageId} p`))
       this.#copyToClipboard(textEl?.innerHTML, textEl?.innerText);
     });
   }
