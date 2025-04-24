@@ -63,7 +63,7 @@ export class FeedbackButtons extends HTMLElement {
       }
 
       this.#sendFeedback();
-      this.#showPanel(1);
+      this.#showPanel();
     });
 
     // Panel 3 - text and chips

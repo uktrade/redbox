@@ -2,6 +2,7 @@
 
 class CopyText extends HTMLElement {
   connectedCallback() {
+    const messageId = this.dataset.id
     this.innerHTML = `
         <button class="chat-button" type="button">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -21,10 +22,7 @@ class CopyText extends HTMLElement {
 
     this.querySelector("button")?.addEventListener("click", () => {
       const textEl = /** @type {HTMLElement} */ (
-        this.closest(".govuk-inset-text")?.querySelector(
-          ".iai-chat-bubble__text"
-        )
-      );
+        document.querySelector(`#chat-message-${messageId}`))
       this.#copyToClipboard(textEl?.innerHTML, textEl?.innerText);
     });
   }

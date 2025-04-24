@@ -13,7 +13,7 @@ export class ChatMessage extends HTMLElement {
     this.innerHTML = `
             <div class="govuk-inset-text ${this.dataset.role == 'user' ? `govuk-inset-text-right`: ''} govuk-body" data-role="${
               this.dataset.role
-            }" tabindex="-1">
+            }" tabindex="-1" id="chat-message-${this.dataset.id}">
                 <markdown-converter class="iai-chat-bubble__text">${
                   this.dataset.text || ""
                 }</markdown-converter>
@@ -35,6 +35,12 @@ export class ChatMessage extends HTMLElement {
                     </div>
                 </div>
             </div>
+            ${this.dataset.role == 'ai' ?
+              `<div class="chat-actions-container">
+            </div>`
+            : ''}
+
+
         `;
 
     // ensure new chat-messages aren't hidden behind the chat-input
@@ -84,7 +90,6 @@ export class ChatMessage extends HTMLElement {
     let activityElement = document.createElement("p");
     activityElement.classList.add("rb-activity", `rb-activity--${type}`);
     activityElement.textContent = message;
-    this.insertBefore(activityElement, this.querySelector(".iai-chat-bubble"));
   };
 
   /**
@@ -127,6 +132,7 @@ export class ChatMessage extends HTMLElement {
     let responseLoading = /** @type HTMLElement */ (
       this.querySelector(".rb-loading-ellipsis")
     );
+    let actionsContainer = this.querySelector(".chat-actions-container")
     let responseComplete = this.querySelector(".rb-loading-complete");
     let webSocket = new WebSocket(endPoint);
     let streamedContent = "";
@@ -209,6 +215,15 @@ export class ChatMessage extends HTMLElement {
         this.addActivity(response.data, "ai");
       } else if (response.type === "end") {
         sourcesContainer.showCitations(response.data.message_id);
+        // Assign the new message its ID straight away
+        const chatMessage = this.querySelector('.govuk-inset-text');
+        if (chatMessage) {chatMessage.id = `chat-message-${response.data.message_id}`}
+        console.log(`chat message found? ${chatMessage}`)
+        // Add in feedback and copy buttons dynamically
+        if (actionsContainer) {actionsContainer.innerHTML = `
+        <feedback-buttons data-id="${response.data.message_id}"></feedback-buttons>
+        <copy-text data-id="${response.data.message_id}"></copy-text>`}
+
         this.feedbackButtons?.showFeedback(response.data.message_id);
         this.#addFootnotes(streamedContent);
         const chatResponseEndEvent = new CustomEvent("chat-response-end", {
