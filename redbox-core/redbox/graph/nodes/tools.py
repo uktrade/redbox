@@ -218,6 +218,7 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
 
     return _search_wikipedia
 
+
 def parse_filters_bedrock(prompt: str):
     client = boto3.client("bedrock-runtime", region_name="eu-west-2")
     model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
@@ -226,29 +227,31 @@ def parse_filters_bedrock(prompt: str):
         modelId=model_id,
         contentType="application/json",
         accept="application/json",
-        body=json.dumps({
-            "anthropic_version": "bedrock-2023-05-31",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": (
-                        f"You are a data filter generator for Data Hub.\n"
-                        f"Based on this question: \"{prompt}\", respond with a JSON object containing:\n"
-                        f" - dataset: one of [companies-dataset, contacts-dataset, events-dataset, "
-                        f"interactions-dataset, investment-projects-dataset]\n"
-                        f" - filters: a dictionary of relevant filters. These include:\n"
-                        f"   - For companies-dataset: address_1, address_2, address_county, address_country__name, address_postcode, address_area__name, address_town, archived, archived_on, archived_reason, business_type__name, company_number, created_by_id, created_on, description, duns_number, export_experience_category__name, global_headquarters_id, global_ultimate_duns_number, headquarter_type__name, id, is_number_of_employees_estimated, is_turnover_estimated, modified_on, name, number_of_employees, one_list_account_owner_id, one_list_tier__name, reference_code, registered_address_1, registered_address_2, registered_address_country__name, registered_address_county, registered_address_postcode, registered_address_area__name, registered_address_town, export_segment, export_sub_segment, trading_names, turnover, uk_region__name, vat_number, website, is_out_of_business, strategy, sector_name, Consumer and retail, one_list_core_team_advisers, turnover_gbp, etc.\n"
-                        f"   - For contacts-dataset: address_1, address_2, address_country__name, address_county, address_postcode, address_same_as_company, address_town, archived, archived_on, company_id, created_by_id, created_on, email, first_name, id, job_title, last_name, modified_on, notes, primary, full_telephone_number, valid_email, name, etc.\n"
-                        f"   - For events-dataset: address_1, address_2, address_country__name, address_county, address_postcode, address_town, created_by_id, created_on, disabled_on, end_date, event_type__name, id, lead_team_id, location_type__name, name, notes, organiser_id, start_date, uk_region__name, service_name, team_ids, related_programme_names, etc.\n"
-                        f"   - For interactions-dataset: communication_channel__name, company_id, created_by_id, created_on, date, event_id, grant_amount_offered, id, investment_project_id, company_export_id, kind, modified_on, net_company_receipt, notes, policy_feedback_notes, service_delivery_status__name, subject, theme, were_countries_discussed, export_barrier_notes, adviser_ids, contact_ids, interaction_link, policy_area_names, related_trade_agreement_names, policy_issue_type_names, sector, service_delivery, export_barrier_type_names, etc.\n"
-                        f"   - For investment-projects-dataset: actual_land_date, address_1, address_2, address_town, address_postcode, anonymous_description, associated_non_fdi_r_and_d_project_id, average_salary__name, client_relationship_manager_id, client_requirements, country_investment_originates_from_id, country_investment_originates_from__name, created_by_id, created_on, description, estimated_land_date, export_revenue, fdi_type__name, fdi_value__name, foreign_equity_investment, government_assistance, gross_value_added, gva_multiplier__multiplier, id, investment_type__name, investor_company_id, investor_type__name, likelihood_to_land__name, modified_by_id, modified_on, name, new_tech_to_uk, non_fdi_r_and_d_budget, number_new_jobs, number_safeguarded_jobs, other_business_activity, project_arrived_in_triage_on, project_assurance_adviser_id, project_manager_id, proposal_deadline, r_and_d_budget, referral_source_activity__name, referral_source_activity_marketing__name, referral_source_activity_website__name, stage__name, status, total_investment, uk_company_id, actual_uk_region_names, business_activity_names, competing_countries, delivery_partner_names, investor_company_sector, level_of_involvement_name, project_first_moved_to_won, project_reference, strategic_driver_names, sector_name, team_member_ids, uk_company_sector, uk_region_location_names, client_contact_ids, client_contact_names, client_contact_emails, specific_programme_names, eyb_lead_ids, etc.\n"
-                        f"Use ISO 8601 format for dates. Only include fields that apply to the selected dataset."
-                    )
-                }
-            ],
-            "max_tokens": 300,
-            "temperature": 0.2
-        })
+        body=json.dumps(
+            {
+                "anthropic_version": "bedrock-2023-05-31",
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": (
+                            f"You are a data filter generator for Data Hub.\n"
+                            f'Based on this question: "{prompt}", respond with a JSON object containing:\n'
+                            f" - dataset: one of [companies-dataset, contacts-dataset, events-dataset, "
+                            f"interactions-dataset, investment-projects-dataset]\n"
+                            f" - filters: a dictionary of relevant filters. These include:\n"
+                            f"   - For companies-dataset: address_1, address_2, address_county, address_country__name, address_postcode, address_area__name, address_town, archived, archived_on, archived_reason, business_type__name, company_number, created_by_id, created_on, description, duns_number, export_experience_category__name, global_headquarters_id, global_ultimate_duns_number, headquarter_type__name, id, is_number_of_employees_estimated, is_turnover_estimated, modified_on, name, number_of_employees, one_list_account_owner_id, one_list_tier__name, reference_code, registered_address_1, registered_address_2, registered_address_country__name, registered_address_county, registered_address_postcode, registered_address_area__name, registered_address_town, export_segment, export_sub_segment, trading_names, turnover, uk_region__name, vat_number, website, is_out_of_business, strategy, sector_name, Consumer and retail, one_list_core_team_advisers, turnover_gbp, etc.\n"
+                            f"   - For contacts-dataset: address_1, address_2, address_country__name, address_county, address_postcode, address_same_as_company, address_town, archived, archived_on, company_id, created_by_id, created_on, email, first_name, id, job_title, last_name, modified_on, notes, primary, full_telephone_number, valid_email, name, etc.\n"
+                            f"   - For events-dataset: address_1, address_2, address_country__name, address_county, address_postcode, address_town, created_by_id, created_on, disabled_on, end_date, event_type__name, id, lead_team_id, location_type__name, name, notes, organiser_id, start_date, uk_region__name, service_name, team_ids, related_programme_names, etc.\n"
+                            f"   - For interactions-dataset: communication_channel__name, company_id, created_by_id, created_on, date, event_id, grant_amount_offered, id, investment_project_id, company_export_id, kind, modified_on, net_company_receipt, notes, policy_feedback_notes, service_delivery_status__name, subject, theme, were_countries_discussed, export_barrier_notes, adviser_ids, contact_ids, interaction_link, policy_area_names, related_trade_agreement_names, policy_issue_type_names, sector, service_delivery, export_barrier_type_names, etc.\n"
+                            f"   - For investment-projects-dataset: actual_land_date, address_1, address_2, address_town, address_postcode, anonymous_description, associated_non_fdi_r_and_d_project_id, average_salary__name, client_relationship_manager_id, client_requirements, country_investment_originates_from_id, country_investment_originates_from__name, created_by_id, created_on, description, estimated_land_date, export_revenue, fdi_type__name, fdi_value__name, foreign_equity_investment, government_assistance, gross_value_added, gva_multiplier__multiplier, id, investment_type__name, investor_company_id, investor_type__name, likelihood_to_land__name, modified_by_id, modified_on, name, new_tech_to_uk, non_fdi_r_and_d_budget, number_new_jobs, number_safeguarded_jobs, other_business_activity, project_arrived_in_triage_on, project_assurance_adviser_id, project_manager_id, proposal_deadline, r_and_d_budget, referral_source_activity__name, referral_source_activity_marketing__name, referral_source_activity_website__name, stage__name, status, total_investment, uk_company_id, actual_uk_region_names, business_activity_names, competing_countries, delivery_partner_names, investor_company_sector, level_of_involvement_name, project_first_moved_to_won, project_reference, strategic_driver_names, sector_name, team_member_ids, uk_company_sector, uk_region_location_names, client_contact_ids, client_contact_names, client_contact_emails, specific_programme_names, eyb_lead_ids, etc.\n"
+                            f"Use ISO 8601 format for dates. Only include fields that apply to the selected dataset."
+                        ),
+                    }
+                ],
+                "max_tokens": 300,
+                "temperature": 0.2,
+            }
+        ),
     )
 
     body = json.loads(response["body"].read())
@@ -257,6 +260,7 @@ def parse_filters_bedrock(prompt: str):
         return response_json.get("dataset", "companies-dataset"), response_json.get("filters", {})
     except Exception:
         return "companies-dataset", {}
+
 
 def filter_results(results, filters):
     def matches(record):
@@ -315,9 +319,7 @@ def build_search_data_hub_api_tool() -> tool:
 
         mapped_documents = []
         for i, record in enumerate(matches):
-            page_content = "\n".join(
-                f"{k}: {v}" for k, v in record.items() if v not in [None, "", []]
-            )
+            page_content = "\n".join(f"{k}: {v}" for k, v in record.items() if v not in [None, "", []])
             token_count = bedrock_tokeniser(page_content)
             metadata = {
                 "index": i,
@@ -331,6 +333,7 @@ def build_search_data_hub_api_tool() -> tool:
         return response_content, mapped_documents
 
     return _search_data_hub
+
 
 class BaseRetrievalToolLogFormatter:
     def __init__(self, t: ToolCall) -> None:
