@@ -14,6 +14,7 @@ from langgraph.prebuilt import InjectedState
 from mohawk import Sender
 from opensearchpy import OpenSearch
 from sklearn.metrics.pairwise import cosine_similarity
+from waffle.decorators import waffle_flag
 
 from redbox.api.format import format_documents
 from redbox.chains.components import get_embeddings
@@ -219,6 +220,7 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
     return _search_wikipedia
 
 
+@waffle_flag("DATA_HUB_API_ROUTE_ON")
 def parse_filters_bedrock(prompt: str):
     client = boto3.client("bedrock-runtime", region_name="eu-west-2")
     model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
@@ -262,6 +264,7 @@ def parse_filters_bedrock(prompt: str):
         return "companies-dataset", {}
 
 
+@waffle_flag("DATA_HUB_API_ROUTE_ON")
 def filter_results(results, filters):
     def matches(record):
         for key, value in filters.items():
@@ -282,6 +285,7 @@ def filter_results(results, filters):
     return [r for r in results if matches(r)]
 
 
+@waffle_flag("DATA_HUB_API_ROUTE_ON")
 def build_search_data_hub_api_tool() -> tool:
     @tool(response_format="content_and_artifact")
     def _search_data_hub(query: str) -> tuple[str, list[Document]]:
@@ -372,6 +376,7 @@ class SearchGovUKLogFormatter(BaseRetrievalToolLogFormatter):
         return f"Reading pages from .gov.uk, {','.join(set([d.metadata["uri"].split("/")[-1] for d in documents]))}"
 
 
+@waffle_flag("DATA_HUB_API_ROUTE_ON")
 class SearchDataHubLogFormatter(BaseRetrievalToolLogFormatter):
     def log_call(self):
         return f"Searching Data Hub datasets for '{self.tool_call['args']['query']}'"
