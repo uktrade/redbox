@@ -219,7 +219,6 @@ export class ChatMessage extends HTMLElement {
       } else if (response.type === "activity") {
         this.addActivity(response.data, "ai");
       } else if (response.type === "end") {
-        sourcesContainer.showCitations(response.data.message_id);
         // Assign the new message its ID straight away
         const chatMessage = this.querySelector('.govuk-inset-text');
         if (chatMessage) {chatMessage.id = `chat-message-${response.data.message_id}`}
