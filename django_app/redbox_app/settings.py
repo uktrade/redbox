@@ -81,7 +81,7 @@ INSTALLED_APPS = [
 if USE_CLAM_AV:
     FILE_UPLOAD_HANDLERS = (
         "django_chunk_upload_handlers.clam_av.ClamAVFileUploadHandler",
-        "django_chunk_upload_handlers.s3.S3FileUploadHandler",
+        "redbox_app.storage.CustomS3FileUploadHandler",
     )
 
 if LOGIN_METHOD == "sso":
