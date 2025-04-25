@@ -82,6 +82,12 @@ class Settings(BaseSettings):
         name="anthropic.claude-3-sonnet-20240229-v1:0", provider="bedrock"
     )
 
+    mcp_caddy_url: str = env.str("MCP_CADDY_URL")
+    mcp_caddy_token: str = env.str("MCP_CADDY_TOKEN")
+    mcp_parlex_url: str = env.str("MCP_PARLEX_URL")
+    mcp_parlex_token: str = env.str("MCP_PARLEX_TOKEN")
+    mcp_headers: str = env.str("MCP_HEADERS")
+
     embedding_backend: str = "amazon.titan-embed-text-v2:0"
     embedding_backend_vector_size: int = 1024
 
