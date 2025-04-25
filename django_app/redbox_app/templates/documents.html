@@ -80,15 +80,18 @@
       <h2 class="govuk-visually-hidden">General actions</h2>
       <div class="govuk-button-group govuk-!-margin-top-8">
         {% if completed_files or processing_files %}
+        <div class="govuk-button-group">
           {{ govukButton(
             text="Start chat",
-            href=url('chats')
+            href=url('chats'),
+            classes="govuk-!-margin-right-2"
           ) }}
           {{ govukButton(
             text="Add documents",
             href=url('upload'),
-            classes="govuk-button--secondary"
+            classes="govuk-button--secondaryx"
           ) }}
+          </div>
         {% else %}
           {{ govukButton(
             text="Add documents",

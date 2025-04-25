@@ -1,23 +1,16 @@
 // @ts-check
 
 class SendMessage extends HTMLElement {
-    connectedCallback() {
-      const stopButtonHtml = `
-        <button class="iai-chat-input__button iai-icon-button rb-send-button" type="button">
-          <div class="rb-square-icon"></div>
-          Stop
-        </button>
-      `;
-      this.innerHTML += stopButtonHtml;
-  
-      this.buttonSend = /** @type {HTMLButtonElement} */ (
-        this.querySelector("button:nth-child(1)")
-      );
-      this.buttonStop = /** @type {HTMLButtonElement} */ (
-        this.querySelector("button:nth-child(2)")
-      );
-  
-      this.buttonStop.style.display = "none";
+
+  connectedCallback() {
+    this.buttonSend = /** @type {HTMLButtonElement} */ (
+      this.querySelector("button:nth-child(2)")
+    );
+    this.buttonStop = /** @type {HTMLButtonElement} */ (
+      this.querySelector("button:nth-child(3)")
+    );
+
+    this.buttonStop.style.display = "none";
       this.buttonStop.addEventListener("click", () => {
         const stopStreamingEvent = new CustomEvent("stop-streaming");
         document.dispatchEvent(stopStreamingEvent);
@@ -28,7 +21,7 @@ class SendMessage extends HTMLElement {
           return;
         }
         this.buttonSend.style.display = "none";
-        this.buttonStop.style.display = "flex";
+        this.buttonStop.style.display = "inline";
       });
   
       document.addEventListener("chat-response-end", this.#showSendButton);
@@ -39,7 +32,7 @@ class SendMessage extends HTMLElement {
       if (!this.buttonSend || !this.buttonStop) {
         return;
       }
-      this.buttonSend.style.display = "flex";
+      this.buttonSend.style.display = "inline";
       this.buttonStop.style.display = "none";
     };
   }

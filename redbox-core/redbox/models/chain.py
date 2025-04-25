@@ -31,7 +31,7 @@ class AISettings(BaseModel):
 
     # LLM settings
     context_window_size: int = 128_000
-    llm_max_tokens: int = 1024
+    llm_max_tokens: int = env.int("LLM_MAX_TOKENS", default=1024)
 
     # Prompts and LangGraph settings
     max_document_tokens: int = 1_000_000
@@ -91,7 +91,7 @@ class AISettings(BaseModel):
     tool_govuk_returned_results: int = 5
 
     # agents reporting to planner agent
-    agents: list = ["Document_Agent", "External_Data_Agent"]
+    agents: list = ["Document_Agent", "External_Data_Agent", "Summarisation_Agent"]
 
 
 class Source(BaseModel):

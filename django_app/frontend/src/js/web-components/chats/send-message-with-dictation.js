@@ -3,39 +3,26 @@ import { TranscribeStreamingClient, StartStreamTranscriptionCommand } from "@aws
 import { Readable } from 'readable-stream'
 
 class SendMessageWithDictation extends HTMLElement {
-
   connectedCallback() {
     const apiKey = this.getAttribute("data-api-key");
     this.apiKey = apiKey;
     this.removeAttribute("data-api-key");
 
-    const sendButtonHtml = `
-      <button class="iai-chat-input__button iai-icon-button rb-send-button" type="submit">
-        <svg width="28" height="28" viewBox="32 16 29 29" fill="none" focusable="false" aria-hidden="true"><g filter="url(#A)"><use xlink:href="#C" fill="#edeef2"/></g><g filter="url(#B)"><use xlink:href="#C" fill="#fff"/></g><path d="M47.331 36.205v-8.438l3.89 3.89.972-1.007-5.556-5.556-5.556 5.556.972.972 3.889-3.854v8.438h1.389z" fill="currentColor"/><defs><filter x="17" y="1" width="65" height="65" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="A"/><feColorMatrix in="SourceAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"/><feOffset dx="3" dy="3"/><feGaussianBlur stdDeviation="10"/><feColorMatrix values="0 0 0 0 0.141176 0 0 0 0 0.254902 0 0 0 0 0.364706 0 0 0 0.302 0"/><feBlend in2="A"/><feBlend in="SourceGraphic"/></filter><filter id="B" x="0" y="-16" width="85" height="85" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="A"/><feColorMatrix in="SourceAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"/><feOffset dx="-4" dy="-4"/><feGaussianBlur stdDeviation="15"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0"/><feBlend in2="A"/><feBlend in="SourceGraphic"/></filter><path id="C" d="M59 30.5C59 23.596 53.404 18 46.5 18S34 23.596 34 30.5 39.596 43 46.5 43 59 37.404 59 30.5z"/></defs></svg>
-        Send
-      </button>
-    `;
-    const stopButtonHtml = `
-      <button class="iai-chat-input__button iai-icon-button rb-send-button" type="button">
-        <div class="rb-square-icon"></div>
-        Stop
-      </button>
-    `;
-    this.innerHTML += sendButtonHtml;
-    this.innerHTML += stopButtonHtml;
-
     this.buttonRecord = /** @type {HTMLButtonElement} */ (
       this.querySelector("button:nth-child(1)")
     );
     this.buttonSend = /** @type {HTMLButtonElement} */ (
-      this.querySelector("button:nth-child(2)")
+      this.querySelector("button:nth-child(4)")
     );
     this.buttonStop = /** @type {HTMLButtonElement} */ (
-      this.querySelector("button:nth-child(3)")
+      this.querySelector("button:nth-child(2)")
+    );
+    this.buttonSendStop = /** @type {HTMLButtonElement} */ (
+      this.querySelector("button:nth-child(5)")
     );
 
-    this.buttonSend.style.display = "none";
     this.buttonStop.style.display = "none";
+    this.buttonSendStop.style.display = "none";
 
     this.mediaRecorder = null;
     this.audioChunks = [];
@@ -44,61 +31,67 @@ class SendMessageWithDictation extends HTMLElement {
 
     this.buttonRecord.addEventListener("click", this.startRecording.bind(this));
     this.buttonStop.addEventListener("click", this.stopAction.bind(this));
+    this.buttonSendStop.addEventListener("click", this.stopAction.bind(this));
     this.buttonSend.addEventListener("click", (e) => {
-      e.preventDefault();
       const form = this.closest("form");
-      if (form) {
+      try {
+        e.preventDefault();
         form.requestSubmit();
-      }
+      } catch (error) {
+          console.error("Error:", error);
+        }
     });
 
     const textArea = document.querySelector("#message");
     if (textArea) {
       textArea.addEventListener("input", () => {
-        if (textArea.innerText.trim()) {
-          this.showSendButton();
-        } else {
+        if (!textArea.innerHTML) {
           this.showRecordButton();
+          this.buttonRecord.disabled = false
         }
       });
     }
+    
 
     document.addEventListener("chat-response-start", () => {
       this.isStreaming = true;
       this.buttonSend.style.display = "none";
-      this.buttonRecord.style.display = "none";
-      this.buttonStop.style.display = "flex";
+      this.buttonSendStop.style.display = "inline";
     });
 
     document.addEventListener("chat-response-end", () => {
       this.isStreaming = false;
-      this.buttonStop.style.display = "none";
+      this.buttonSendStop.style.display = "none";
       const textArea = document.querySelector("#message");
-      if (textArea && textArea.innerText.trim()) {
-        this.showSendButton();
-      } else {
+      if (!textArea.innerHTML) {
         this.showRecordButton();
+        this.buttonRecord.disabled = false
       }
     });
     document.addEventListener("stop-streaming", () => {
       this.isStreaming = false;
       this.showRecordButton();
+      this.buttonRecord.disabled = false
+      this.buttonSendStop.style.display = "none";
+      this.buttonSend.style.display = "inline";
     });
   }
 
   async startRecording() {
     if (this.isRecording || this.isStreaming) return;
-  
+
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       alert("Microphone usage is not permitted");
       return;
     }
-  
+    const textArea = document.querySelector("#message");
+    textArea.innerHTML = ''
+
     this.isStreaming = true;
-    this.buttonSend.style.display = "none";
+    this.isStreaming = true;
     this.buttonRecord.style.display = "none";
-    this.buttonStop.style.display = "flex";
-  
+    this.buttonStop.style.display = "inline";
+
     const client = new TranscribeStreamingClient({
       region: "eu-west-2",
       credentials: async () => {
@@ -169,11 +162,11 @@ class SendMessageWithDictation extends HTMLElement {
   
             if (result.IsPartial) {
               partialTranscript = transcript;
-              textArea.innerText = `${lastFinalTranscript} ${partialTranscript}`;
+              textArea.innerHTML = `${lastFinalTranscript} ${partialTranscript}`;
             } else {
               lastFinalTranscript += ` ${transcript}`;
               partialTranscript = "";
-              textArea.innerText = lastFinalTranscript.trim();
+              textArea.innerHTML = lastFinalTranscript.trim();
             }
           });
         }
@@ -181,24 +174,32 @@ class SendMessageWithDictation extends HTMLElement {
     } catch (error) {
       console.error("Error starting streaming:", error);
       this.isStreaming = false;
-      this.buttonRecord.style.display = "none";
-      this.buttonSend.style.display = "flex";
+      this.buttonRecord.style.display = "inline";
+      this.buttonSend.style.display = "inline";
       this.buttonStop.style.display = "none";
+      this.buttonSendStop.style.display = "inline";
       alert("Microphone usage is not permitted");
     }
   }
-  
 
   stopAction() {
+    this.buttonRecord.style.display = "inline";
+    this.buttonSend.style.display = "inline";
+    this.buttonStop.style.display = "none";
+    this.buttonSendStop.style.display = "none";
+
     if (this.isRecording && this.mediaRecorder) {
       console.log("Stopped recording");
       this.mediaRecorder.stop();
       this.isRecording = false;
+      this.showRecordButton();
+      this.buttonRecord.disabled = true
     } else if (this.isStreaming) {
+      this.showRecordButton();
+      this.buttonRecord.disabled = true
       console.log("Stopping stream");
+      this.isStreaming = false
       document.dispatchEvent(new CustomEvent("stop-streaming"));
-      this.isStreaming = false;
-  
       if (this.audioStream) {
         const tracks = this.audioStream.getTracks();
         tracks.forEach((track) => {
@@ -210,26 +211,12 @@ class SendMessageWithDictation extends HTMLElement {
     } else {
       console.warn("No active recording or streaming to stop");
     }
-  
-    this.buttonStop.style.display = "none";
-    this.buttonRecord.style.display = "none";
-    this.buttonSend.style.display = "flex";
-  }
-
-  showSendButton() {
-    if (this.isRecording || this.isStreaming) return;
-    if (!this.buttonRecord || !this.buttonSend || !this.buttonStop) return;
-
-    this.buttonRecord.style.display = "none";
-    this.buttonSend.style.display = "flex";
-    this.buttonStop.style.display = "none";
   }
 
   showRecordButton() {
-    if (!this.buttonRecord || !this.buttonSend || !this.buttonStop) return;
+    if (!this.buttonRecord || !this.buttonStop) return;
 
-    this.buttonRecord.style.display = "flex";
-    this.buttonSend.style.display = "none";
+    this.buttonRecord.style.display = "inline";
     this.buttonStop.style.display = "none";
   }
 }

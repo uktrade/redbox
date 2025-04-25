@@ -40,41 +40,8 @@ RETRIEVAL_SYSTEM_PROMPT = """
 
    """
 
-NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Expert Answer Evaluation Protocol:
-
-1. Comprehensive Analysis:
-   - Evaluate question against full message history
-   - Assess contextual completeness
-   - Determine answer feasibility
-
-2. Quality Criteria:
-   - Technical accuracy
-   - Depth of explanation
-   - Contextual relevance
-   - Clarity of communication
-
-3. Response Strategy:
-   a) If Answer Meets Criteria:
-      - Provide detailed, structured response
-      - Include:
-        * Theoretical background
-        * Practical examples
-        * Potential use cases
-        * Step-by-step explanation
-      - Return your answer for user question in a given format {format_instructions}.
-
-   b) If Answer Insufficient:
-      - Respond "not satisfactory"
-      - Specify:
-        * Missing information
-        * Areas needing clarification
-
-4. Output Formats:
-   - Satisfactory: Comprehensive technical response using format <FORMAT>{format_instructions}</FORMAT>. Do not start your answer by saying: Here is the JSON instance.
-   - Unsatisfactory: Explicit improvement guidance
-
-Core Principle: Deliver maximum insight with precision and technical depth.
-User question:<Question>{question}</Question>."""
+NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question usinng responses received from other AI agents. Use citations to back up your answer. Return in the format <Format>{format_instructions}</Format>
+"""
 
 AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
     "You are an advanced problem-solving assistant. Your primary goal is to carefully "
@@ -261,7 +228,7 @@ CHAT_WITH_DOCS_QUESTION_PROMPT = "Question: {question}. \n\n Documents: \n\n {fo
 
 RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
-AGENTIC_RETRIEVAL_QUESTION_PROMPT = "{question}"
+AGENTIC_RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
 AGENTIC_GIVE_UP_QUESTION_PROMPT = "{question}"
 
@@ -335,13 +302,16 @@ When a user query involves finding information within known documents, ALWAYS ro
 2. The query requires synthesis of information not contained in available documents
 3. The query specifically requests external information sources
 
+If a user asks to summarise a document, ALWAYS call Summarisation_Agent.
+
 
 ## Available Agents
 
 When creating your execution plan, you have access to the following specialised agents:
 
-1. **Document_Agent**: Retrieves, synthesises, and summarises information from user's uploaded documents.
+1. **Document_Agent**: Retrieves information from user's uploaded documents.
 2. **External_Data_Agent**: Retrieves information from external data sources including Wikipedia, Gov.UK, and legislation.gov.uk.
+3. **Summarisation_Agent**: Summarises entire user's uploaded documents. It does not summarise outputs from other agents.
 
 ## Output Format
 
@@ -361,5 +331,5 @@ Remember that your primary value is in effective coordination and integration - 
 
 
 User question: <Question>{question}</Question>.
-User documents metadata:<Document_Metadata>{metadata}</Document_Metadata>.
+User uploaded documents metadata:<Document_Metadata>{metadata}</Document_Metadata>.
 """

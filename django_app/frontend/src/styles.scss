@@ -1,6 +1,6 @@
 $govuk-assets-path: "govuk-assets/";
-$govuk-font-family: sans-serif;
-$redbox-red: #9c0000; /*old:#A50202*/
+$govuk-font-family: GDS Transport, arial, sans-serif;
+$redbox-red: #1D70B8; /*old:#A50202*/
 
 @import "../node_modules/govuk-frontend/dist/govuk/all";
 
@@ -69,6 +69,30 @@ body {
   filter: brightness(0.9);
 }
 
+.collapsible-menu-button {
+  display: block
+}
+
+.header-item {
+  padding: 10px;
+  border-left: 1px solid govuk-colour("dark-grey");
+}
+
+.header-list {
+  display: none
+}
+
+@media screen and (min-width: 768px) {
+.header-list {
+  display:flex !important;
+  justify-content: flex-end;}
+
+.collapsible-menu-button {
+  display: none !important;
+}}
+
+
+
 /* File upload */
 .rb-file-types {
   font-size: 0.875rem;
@@ -91,11 +115,9 @@ upload-button {
 
 /* i.AI Design System */
 :root {
-  --iai-product-colour: #9c0000;
-  --iai-top-nav-gradient-colour-1: #9c0000;
-  --iai-top-nav-gradient-colour-2: #451818;
-  --iai-background-colour-1: #f6eef0;
-  --iai-background-colour-2: #f8f8f8;
+  --iai-product-colour: #1D70B8;
+  --iai-background-colour-1: white;
+  --iai-background-colour-2: white;
 }
 @import "../node_modules/i.ai-design-system/dist/styles.scss";
 
@@ -140,13 +162,6 @@ upload-button {
   text-decoration: none;
 }
 
-
-/* Chats Page - to come after i.AI Design System */
-@import "./chat-styles.scss";
-
-@import "./profile-overlay-styles.scss";
-
-/* To move to i.AI design system */
 .iai-chat-bubbles__sources-link:visited {
   color: var(--iai-product-colour, var(--iai-colour-brand));
 }
@@ -156,3 +171,31 @@ upload-button {
   box-shadow: 0 -2px #fd0, 0 4px #0b0c0c;
   text-decoration: none
 }
+
+/* Readded logo CSS here as we store the background-image in a different location*/
+.govuk-footer__copyright-logo {
+  display: inline-block;
+  min-width: 125px;
+  padding-top: 112px;
+  background-image: url(/static/govuk-frontend/assets/images/govuk-crest.png);
+  background-repeat: no-repeat;
+  background-position: 50% 0;
+  background-size: 125px 102px;
+  text-align: center;
+  white-space: nowrap
+}
+
+@media only screen and (-webkit-min-device-pixel-ratio:2),
+only screen and (min-resolution:2dppx),
+only screen and (min-resolution:192dpi) {
+  .govuk-footer__copyright-logo {
+    background-image: url(static/govuk-frontend/assets/images/govuk-crest-2x.png)
+  }
+}
+
+/* Chats Page - to come after i.AI Design System */
+@import "./chat-styles.scss";
+
+@import "./profile-overlay-styles.scss";
+
+@import "./iai-overrides.scss";
