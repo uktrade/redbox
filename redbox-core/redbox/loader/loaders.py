@@ -1,3 +1,4 @@
+import time
 import logging
 from collections.abc import Iterator
 from datetime import UTC, datetime
@@ -41,12 +42,17 @@ class MetadataLoader:
         self.file_name = file_name
 
     def _get_file_bytes(self, s3_client: S3Client, file_name: str) -> BytesIO:
-        return s3_client.get_object(Bucket=self.env.bucket_name, Key=file_name)["Body"].read()
+        start_time = time.time()
+        file_bytes = s3_client.get_object(Bucket=self.env.bucket_name, Key=file_name)["Body"].read()
+        end_time = time.time()
+        logger.info(f"S3 file download took {end_time - start_time:.2f} seconds")
+        return file_bytes
 
     def _chunking(self) -> list[dict]:
         """
         Chunking data using local unstructured
         """
+        start_time = time.time()
         file_bytes = self._get_file_bytes(s3_client=self.s3_client, file_name=self.file_name)
         if ENVIRONMENT.is_local:
             url = f"http://{self.env.unstructured_host}:8000/general/v0/general"
@@ -55,6 +61,7 @@ class MetadataLoader:
         files = {
             "files": (self.file_name, file_bytes),
         }
+        chunk_start = time.time()
         response = requests.post(
             url,
             files=files,
@@ -67,6 +74,8 @@ class MetadataLoader:
                 "overlap_all": True,
             },
         )
+        chunk_end = time.time()
+        logger.info(f"Unstructured API call took {chunk_end - chunk_start:.2f} seconds")
 
         if response.status_code != 200:
             raise ValueError(response.text)
@@ -76,14 +85,16 @@ class MetadataLoader:
         if not elements:
             raise ValueError("Unstructured failed to extract text for this file")
 
+        total_time = time.time() - start_time
+        logger.info(f"Total chunking time: {total_time:.2f} seconds")
         return elements
 
     def extract_metadata(self) -> GeneratedMetadata:
         """
         Extract metadata from first 1_000 chunks
         """
+        start_time = time.time()
         chunks = self._chunking()
-
         original_metadata = chunks[0]["metadata"] if chunks else {}
         first_thousand_words = "".join(chunk["text"] for chunk in chunks)[:10_000]
         try:
@@ -94,8 +105,10 @@ class MetadataLoader:
                 metadata = GeneratedMetadata(name=original_metadata.get("filename"))
             else:
                 metadata = GeneratedMetadata(name=self.file_name)
+        total_time = time.time() - start_time
+        logger.info(f"Total metadata extraction time: {total_time:.2f} seconds")
         return metadata
-
+    
     def create_file_metadata(self, page_content: str, original_metadata: dict | None = None) -> GeneratedMetadata:
         """Uses a sample of the document and any extracted metadata to generate further metadata."""
         if not original_metadata:
@@ -134,11 +147,11 @@ class MetadataLoader:
             return GeneratedMetadata(name=original_metadata.get("filename"))
 
 
+
 class UnstructuredChunkLoader:
     """
     Load, partition and chunk a document using local unstructured library.
     """
-
     def __init__(
         self,
         chunk_resolution: ChunkResolution,
@@ -163,6 +176,7 @@ class UnstructuredChunkLoader:
         When you're implementing lazy load methods, you should use a generator
         to yield documents one by one.
         """
+        start_time = time.time()
         if ENVIRONMENT.is_local:
             url = f"http://{self.env.unstructured_host}:8000/general/v0/general"
         else:
@@ -170,6 +184,7 @@ class UnstructuredChunkLoader:
         files = {
             "files": (file_name, file_bytes),
         }
+        api_start = time.time()
         response = requests.post(
             url,
             files=files,
@@ -182,6 +197,8 @@ class UnstructuredChunkLoader:
                 "overlap_all": self._overlap_all_chunks,
             },
         )
+        api_end = time.time()
+        logger.info(f"Unstructured API call in lazy_load took {api_end - api_start:.2f} seconds")
 
         if response.status_code != 200:
             raise ValueError(response.text)
@@ -191,7 +208,6 @@ class UnstructuredChunkLoader:
         if not elements:
             raise ValueError("Unstructured failed to extract text for this file")
 
-        # add metadata below
         for i, raw_chunk in enumerate(elements):
             yield Document(
                 page_content=raw_chunk["text"],
@@ -207,3 +223,5 @@ class UnstructuredChunkLoader:
                     keywords=self.metadata.keywords,
                 ).model_dump(),
             )
+        total_time = time.time() - start_time
+        logger.info(f"Total lazy_load time: {total_time:.2f} seconds")
