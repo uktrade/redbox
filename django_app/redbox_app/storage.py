@@ -1,14 +1,16 @@
-from django_chunk_upload_handlers.s3 import S3FileUploadHandler
 import logging
-from django.core.files.uploadedfile import UploadedFile
-import boto3
-import logging
+import tempfile
 import uuid
-import os
-from django.core.files.base import ContentFile
+from pathlib import Path
+
+import boto3
 from django.conf import settings
+from django.core.files.base import ContentFile
+from django.core.files.uploadedfile import UploadedFile
+from django_chunk_upload_handlers.s3 import S3FileUploadHandler
 
 logger = logging.getLogger(__name__)
+
 
 class CustomS3FileUploadHandler(S3FileUploadHandler):
     def __init__(self, *args, **kwargs):
@@ -24,30 +26,30 @@ class CustomS3FileUploadHandler(S3FileUploadHandler):
         logger.info("Starting upload for file: %s, temp_key: %s", self.original_file_name, self.temp_key)
         return super().new_file(field_name, file_name, content_type, content_length, charset, content_type_extra)
 
-    def get_s3_key(self, upload_id, chunk_number):
+    def get_s3_key(self, _upload_id, _chunk_number):
         logger.info("Getting S3 key for file: %s", self.original_file_name)
         return self.original_file_name
 
-    def receive_data_chunk(self, raw_data, start):
+    def receive_data_chunk(self, raw_data, _start):
         logger.info("Uploading chunk to temporary key: %s", self.temp_key)
-        
-        temp_file_path = f"/tmp/chunk_{uuid.uuid4()}"
-        with open(temp_file_path, "wb") as f:
-            f.write(raw_data)
-        
+
+        with tempfile.NamedTemporaryFile(delete=False, prefix="chunk_", suffix=".tmp") as temp_file:
+            temp_file.write(raw_data)
+            temp_file_path = temp_file.name
+
         self.s3_client.upload_file(
             temp_file_path,
             self.bucket,
             self.temp_key,
             ExtraArgs={"ContentType": self.content_type},
         )
-        os.remove(temp_file_path)
-        
+        Path(temp_file_path).unlink()
+
         return raw_data
 
     def file_complete(self, file_size):
         logger.info("File upload complete, size: %s, saving to: %s", file_size, self.original_file_name)
-        
+
         logger.info("Copying from %s to %s", self.temp_key, self.original_file_name)
         self.s3_client.copy_object(
             Bucket=self.bucket,
@@ -55,23 +57,20 @@ class CustomS3FileUploadHandler(S3FileUploadHandler):
             Key=self.original_file_name,
             ContentType=self.content_type,
         )
-        
+
         logger.info("Deleting temporary file: %s", self.temp_key)
         self.s3_client.delete_object(Bucket=self.bucket, Key=self.temp_key)
-        
+
         s3_response = self.s3_client.get_object(Bucket=self.bucket, Key=self.original_file_name)
         file_content = s3_response["Body"].read()
-        
-        uploaded_file = UploadedFile(
+
+        return UploadedFile(
             file=ContentFile(file_content, name=self.original_file_name),
             name=self.original_file_name,
             content_type=self.content_type,
             size=file_size,
         )
-        
-        return uploaded_file
 
     def upload_complete(self):
         logger.info("Upload completed for file: %s", self.original_file_name)
         return super().upload_complete()
-    
