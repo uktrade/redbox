@@ -28,19 +28,13 @@ class ChatController extends HTMLElement {
       userMessage.setAttribute("data-role", "user");
       messageContainer?.insertBefore(userMessage, insertPosition);
 
-      let activites = [];
+      let documents = [];
       if (selectedDocuments.length) {
-        activites.push(`You selected ${selectedDocuments.length} document${
-          selectedDocuments.length === 1 ? "" : "s"
-        }`);
+        selectedDocuments.forEach(document => { documents.push(document.name)})
       }
 
-      // add filename to activity if only one file
-      if (selectedDocuments.length === 1) {
-        activites[0] += ` (${selectedDocuments[0].name})`;
-      }
-      activites.forEach((activity) => {
-        userMessage.addActivity(activity, "user");
+      documents.forEach((activity) => {
+        userMessage.addFile(activity);
       });
 
       let aiMessage = /** @type {import("./chat-message").ChatMessage} */ (
@@ -57,7 +51,7 @@ class ChatController extends HTMLElement {
       aiMessage.stream(
         userText,
         selectedDocuments.map(doc => doc.id),
-        activites,
+        documents,
         llm,
         this.dataset.sessionId,
         this.dataset.streamUrl || "",
