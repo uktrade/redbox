@@ -1,6 +1,5 @@
 import time
 import logging
-from io import BytesIO
 from typing import TYPE_CHECKING
 
 from langchain_community.vectorstores import OpenSearchVectorSearch
@@ -25,6 +24,7 @@ log = logging.getLogger()
 env = get_settings()
 alias = env.elastic_chunk_alias
 
+
 def get_elasticsearch_store(es, es_index_name: str):
     return OpenSearchVectorSearch(
         index_name=es_index_name,
@@ -34,6 +34,7 @@ def get_elasticsearch_store(es, es_index_name: str):
         vector_query_field=env.embedding_document_field_name,
     )
 
+
 def get_elasticsearch_store_without_embeddings(es, es_index_name: str):
     return OpenSearchVectorSearch(
         index_name=es_index_name,
@@ -41,11 +42,13 @@ def get_elasticsearch_store_without_embeddings(es, es_index_name: str):
         embedding_function=FakeEmbeddings(size=env.embedding_backend_vector_size),
     )
 
+
 def create_alias(alias: str):
     es = env.elasticsearch_client()
     chunk_index_name = alias[:-8]
     es.indices.create(index=chunk_index_name, body=env.index_mapping, ignore=400)
     es.indices.put_alias(index=chunk_index_name, name=alias)
+
 
 def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_extraction=env.enable_metadata_extraction):
     start_time = time.time()
@@ -82,7 +85,9 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             metadata=GeneratedMetadata(name=file_name),
         )
         chunks = temp_loader.lazy_load(file_name, file_bytes_io, return_chunks=True)
-        logging.info(f"_ingest_file: Chunks type={type(chunks)}, length={len(chunks) if isinstance(chunks, list) else 'unknown'}")
+        logging.info(
+            f"_ingest_file: Chunks type={type(chunks)}, length={len(chunks) if isinstance(chunks, list) else 'unknown'}"
+        )
         metadata = metadata_loader.extract_metadata(chunks=chunks)
     else:
         metadata = GeneratedMetadata(name=file_name, description="", keywords=[])
@@ -138,6 +143,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
 
     total_time = time.time() - start_time
     logging.info(f"Total ingest_file time: {total_time:.2f} seconds")
+
 
 def ingest_file(file_name: str, es_index_name: str = alias) -> str | None:
     try:

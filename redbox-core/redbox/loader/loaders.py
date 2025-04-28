@@ -111,7 +111,7 @@ class MetadataLoader:
         total_time = time.time() - start_time
         logger.info(f"Total metadata extraction time: {total_time:.2f} seconds")
         return metadata
-    
+
     def create_file_metadata(self, page_content: str, original_metadata: dict | None = None) -> GeneratedMetadata:
         """Uses a sample of the document and any extracted metadata to generate further metadata."""
         if not original_metadata:
@@ -150,11 +150,11 @@ class MetadataLoader:
             return GeneratedMetadata(name=original_metadata.get("filename"))
 
 
-
 class UnstructuredChunkLoader:
     """
     Load, partition and chunk a document using local unstructured library.
     """
+
     def __init__(
         self,
         chunk_resolution: ChunkResolution,
@@ -173,7 +173,9 @@ class UnstructuredChunkLoader:
         self._overlap_all_chunks = overlap_all_chunks
         self.metadata = metadata
 
-    def lazy_load(self, file_name: str, file_bytes: BytesIO, return_chunks: bool = False) -> Iterator[Document] | list[dict]:
+    def lazy_load(
+        self, file_name: str, file_bytes: BytesIO, return_chunks: bool = False
+    ) -> Iterator[Document] | list[dict]:
         """A lazy loader that reads a file line by line.
 
         When you're implementing lazy load methods, you should use a generator
