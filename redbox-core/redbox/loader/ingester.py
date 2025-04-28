@@ -19,7 +19,7 @@ else:
     S3Client = object
 
 logging.basicConfig(level=logging.INFO)
-log = logging.getLogger()
+logger = logging.getLogger()
 
 env = get_settings()
 alias = env.elastic_chunk_alias
@@ -52,26 +52,27 @@ def create_alias(alias: str):
 
 def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_extraction=env.enable_metadata_extraction):
     start_time = time.time()
-    logging.info("Ingesting file: %s", file_name)
+    logger.info("Ingesting file: %s", file_name)
 
     es = env.elasticsearch_client()
 
+    # Check and create alias/index
     alias_start = time.time()
     if es_index_name == alias:
         if not es.indices.exists_alias(name=alias):
-            logging.info("Creating alias %s", alias)
+            logger.info("Creating alias %s", alias)
             create_alias(alias)
     else:
         es.indices.create(index=es_index_name, body=env.index_mapping, ignore=400)
     alias_end = time.time()
-    logging.info(f"Alias/index creation took {alias_end - alias_start:.2f} seconds")
+    logger.info(f"Alias/index creation took {alias_end - alias_start:.2f} seconds")
 
     # Download file once from S3 using MetadataLoader
     s3_start = time.time()
     metadata_loader = MetadataLoader(env=env, s3_client=env.s3_client(), file_name=file_name)
     file_bytes_io = metadata_loader._get_file_bytes(s3_client=env.s3_client(), file_name=file_name)
     s3_end = time.time()
-    logging.info(f"S3 file download (via MetadataLoader) took {s3_end - s3_start:.2f} seconds")
+    logger.info(f"S3 file download (via MetadataLoader) took {s3_end - s3_start:.2f} seconds")
 
     # Extract metadata using shared chunks
     metadata_start = time.time()
@@ -84,15 +85,19 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             overlap_chars=0,
             metadata=GeneratedMetadata(name=file_name),
         )
-        chunks = temp_loader.lazy_load(file_name, file_bytes_io, return_chunks=True)
-        logging.info(
-            f"_ingest_file: Chunks type={type(chunks)}, length={len(chunks) if isinstance(chunks, list) else 'unknown'}"
-        )
+        try:
+            chunks = temp_loader.lazy_load(file_name, file_bytes_io, return_chunks=True)
+            logger.info(
+                f"_ingest_file: Chunks type={type(chunks)}, length={len(chunks) if isinstance(chunks, list) else 'unknown'}"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to extract chunks for metadata for file {file_name}: {str(e)}")
+            chunks = []
         metadata = metadata_loader.extract_metadata(chunks=chunks)
     else:
         metadata = GeneratedMetadata(name=file_name, description="", keywords=[])
     metadata_end = time.time()
-    logging.info(f"Metadata extraction took {metadata_end - metadata_start:.2f} seconds")
+    logger.info(f"Metadata extraction took {metadata_end - metadata_start:.2f} seconds")
 
     # Normal chunk
     chunk_start = time.time()
@@ -110,7 +115,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
         env=env,
     )
     chunk_end = time.time()
-    logging.info(f"Normal chunk chain setup took {chunk_end - chunk_start:.2f} seconds")
+    logger.info(f"Normal chunk chain setup took {chunk_end - chunk_start:.2f} seconds")
 
     # Large chunk
     large_chunk_start = time.time()
@@ -128,26 +133,40 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
         env=env,
     )
     large_chunk_end = time.time()
-    logging.info(f"Large chunk chain setup took {large_chunk_end - large_chunk_start:.2f} seconds")
+    logger.info(f"Large chunk chain setup took {large_chunk_end - large_chunk_start:.2f} seconds")
 
     # Parallel
     parallel_start = time.time()
-    new_ids = RunnableParallel({"normal": chunk_ingest_chain, "largest": large_chunk_ingest_chain}).invoke(file_name)
+    new_ids = {"normal": [], "largest": []}
+    try:
+        normal_loader = chunk_ingest_chain.steps[0].loader
+        large_loader = large_chunk_ingest_chain.steps[0].loader
+        normal_chunks = list(normal_loader.lazy_load(file_name, file_bytes_io))
+        large_chunks = list(large_loader.lazy_load(file_name, file_bytes_io))
+        if not normal_chunks and not large_chunks:
+            logger.warning(f"No chunks to ingest for file: {file_name}, skipping OpenSearch ingestion")
+        else:
+            new_ids = RunnableParallel({"normal": chunk_ingest_chain, "largest": large_chunk_ingest_chain}).invoke(
+                file_name
+            )
+    except Exception as e:
+        logger.error(f"Failed to ingest chunks for file {file_name}: {str(e)}")
+        raise
     parallel_end = time.time()
-    logging.info(f"Parallel chunking and ingestion took {parallel_end - parallel_start:.2f} seconds")
-    logging.info(
+    logger.info(f"Parallel chunking and ingestion took {parallel_end - parallel_start:.2f} seconds")
+    logger.info(
         "File: %s %s chunks ingested",
         file_name,
         {k: len(v) for k, v in new_ids.items()},
     )
 
     total_time = time.time() - start_time
-    logging.info(f"Total ingest_file time: {total_time:.2f} seconds")
+    logger.info(f"Total ingest_file time: {total_time:.2f} seconds")
 
 
 def ingest_file(file_name: str, es_index_name: str = alias) -> str | None:
     try:
         _ingest_file(file_name, es_index_name)
     except Exception as e:
-        logging.exception("Error while processing file [%s]", file_name)
+        logger.exception("Error while processing file [%s]", file_name)
         return f"{type(e)}: {e.args[0]}"

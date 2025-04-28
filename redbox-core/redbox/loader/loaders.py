@@ -3,6 +3,7 @@ import logging
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from io import BytesIO
+import os
 from typing import TYPE_CHECKING
 
 import environ
@@ -43,10 +44,11 @@ class MetadataLoader:
 
     def _get_file_bytes(self, s3_client: S3Client, file_name: str) -> BytesIO:
         start_time = time.time()
-        file_bytes = s3_client.get_object(Bucket=self.env.bucket_name, Key=file_name)["Body"].read()
-        end_time = time.time()
-        logger.info(f"S3 file download took {end_time - start_time:.2f} seconds")
-        return file_bytes
+        response = s3_client.get_object(Bucket=self.env.bucket_name, Key=file_name)
+        file_bytes = response["Body"].read()
+        file_bytes_io = BytesIO(file_bytes)
+        logger.info(f"S3 file download took {time.time() - start_time:.2f} seconds, size={len(file_bytes)} bytes")
+        return file_bytes_io
 
     def _chunking(self) -> list[dict]:
         """
@@ -186,28 +188,45 @@ class UnstructuredChunkLoader:
             url = f"http://{self.env.unstructured_host}:8000/general/v0/general"
         else:
             url = f"http://{self.env.unstructured_host}:80/general/v0/general"
+        file_bytes.seek(0, os.SEEK_END)
+        file_size = file_bytes.tell()
+        file_bytes.seek(0)
+        logger.info(f"lazy_load: Processing file {file_name} with size {file_size} bytes")
+        if file_size == 0:
+            logger.warning(f"Empty file: {file_name}")
+            if return_chunks:
+                return []
+            return iter([])
+
         files = {
             "files": (file_name, file_bytes),
         }
         api_start = time.time()
-        response = requests.post(
-            url,
-            files=files,
-            data={
-                "strategy": "fast",
-                "chunking_strategy": "by_title",
-                "max_characters": self._max_chunk_size,
-                "combine_under_n_chars": self._min_chunk_size,
-                "overlap": self._overlap_chars,
-                "overlap_all": self._overlap_all_chunks,
-            },
-        )
+        try:
+            response = requests.post(
+                url,
+                files=files,
+                data={
+                    "strategy": "fast",
+                    "chunking_strategy": "by_title",
+                    "max_characters": self._max_chunk_size,
+                    "combine_under_n_chars": self._min_chunk_size,
+                    "overlap": self._overlap_chars,
+                    "overlap_all": self._overlap_all_chunks,
+                },
+            )
+            if response.status_code != 200:
+                logger.error(f"Unstructured API error for file {file_name}: {response.text}")
+                if return_chunks:
+                    return []
+                return iter([])
+        except Exception as e:
+            logger.error(f"Failed to call Unstructured API for file {file_name}: {str(e)}")
+            if return_chunks:
+                return []
+            return iter([])
         api_end = time.time()
         logger.info(f"Unstructured API call in lazy_load took {api_end - api_start:.2f} seconds")
-
-        if response.status_code != 200:
-            logger.error(f"Unstructured API error: {response.text}")
-            raise ValueError(response.text)
 
         elements = response.json()
         logger.info(f"lazy_load: Elements type={type(elements)}, length={len(elements)}")
@@ -216,7 +235,7 @@ class UnstructuredChunkLoader:
             logger.warning(f"No chunks extracted for file: {file_name}")
             if return_chunks:
                 return []
-            return iter([])  # Empty iterator for generator case
+            return iter([])
 
         if return_chunks:
             logger.info(f"lazy_load: Returning list of {len(elements)} chunks")
