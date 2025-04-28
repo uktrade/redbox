@@ -40,8 +40,10 @@ RETRIEVAL_SYSTEM_PROMPT = """
 
    """
 
-NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question usinng responses received from other AI agents. Use citations to back up your answer. Return in the format <Format>{format_instructions}</Format>
-"""
+
+NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context. Use citations to back up your answer.  {format_instructions}. 
+For example, your JSON output shoud be in the format: "answer": your_answer, "citations": citations
+DO NOT start by saying: 'Here is the JSON response', just return JSON."""
 
 AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
     "You are an advanced problem-solving assistant. Your primary goal is to carefully "
@@ -110,6 +112,8 @@ AGENTIC_GIVE_UP_SYSTEM_PROMPT = (
     "is to provide the best possible answer with the resources available.\n\n"
     "Remember: While your priority is to answer the question, sometimes the best assistance involves "
     "guiding the user in providing the information needed for a complete solution."
+    "6. **Response Format**: When providing the answer, ALWAYS use this exact JSON schema:\n"
+    "{format_instructions}"
 )
 
 SELF_ROUTE_SYSTEM_PROMPT = """
@@ -229,6 +233,10 @@ CHAT_WITH_DOCS_QUESTION_PROMPT = "Question: {question}. \n\n Documents: \n\n {fo
 RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
 AGENTIC_RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
+
+NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT = (
+    "<User question> {question} </User question> \n\n <Context>: \n\n {agents_results} \n\n </Context> \n\n Answer:"
+)
 
 AGENTIC_GIVE_UP_QUESTION_PROMPT = "{question}"
 
