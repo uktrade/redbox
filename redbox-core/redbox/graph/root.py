@@ -851,10 +851,6 @@ def build_new_graph(
         ),
     )
 
-    #builder.add_node(
-        #"Summarisation_Agent", get_summarise_graph(all_chunks_retriever=all_chunks_retriever, use_as_agent=True, debug=debug)
-    #)
-
     builder.add_node("Evaluator_Agent", create_evaluator())
     builder.add_node("clear_tasks", delete_plan_message())
     builder.add_node("pass_user_prompt_to_LLM_message", build_passthrough_pattern())
@@ -868,7 +864,6 @@ def build_new_graph(
     builder.add_conditional_edges("planner", sending_task_to_agent)
     builder.add_edge("Document_Agent", "clear_tasks")
     builder.add_edge("External_Data_Agent", "clear_tasks")
-    builder.add_edge("Summarisation_Agent", "clear_tasks")
     builder.add_edge("clear_tasks", "pass_user_prompt_to_LLM_message")
     builder.add_edge("pass_user_prompt_to_LLM_message", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
