@@ -81,13 +81,6 @@ class Settings(BaseSettings):
     metadata_extraction_llm: ChatLLMBackend = ChatLLMBackend(
         name="anthropic.claude-3-sonnet-20240229-v1:0", provider="bedrock"
     )
-
-    mcp_caddy_url: str = env.str("MCP_CADDY_URL")
-    mcp_caddy_token: str = env.str("MCP_CADDY_TOKEN")
-    mcp_parlex_url: str = env.str("MCP_PARLEX_URL")
-    mcp_parlex_token: str = env.str("MCP_PARLEX_TOKEN")
-    mcp_headers: str = env.str("MCP_HEADERS")
-
     embedding_backend: str = "amazon.titan-embed-text-v2:0"
     embedding_backend_vector_size: int = 1024
 
@@ -142,6 +135,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_nested_delimiter="__", extra="allow", frozen=True)
 
     enable_metadata_extraction: bool = env.bool("ENABLE_METADATA_EXTRACTION", default=True)
+    mcp_caddy_url: str = env.str("MCP_CADDY_URL")
+    mcp_caddy_token: str = env.str("MCP_CADDY_TOKEN")
+    mcp_parlex_url: str = env.str("MCP_PARLEX_URL")
+    mcp_parlex_token: str = env.str("MCP_PARLEX_TOKEN")
+    mcp_headers: str = env.str("MCP_HEADERS")
 
     ## Prompts
     metadata_prompt: tuple = (
