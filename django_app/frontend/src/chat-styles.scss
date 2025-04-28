@@ -367,19 +367,9 @@ chat-message {
 
 
 
-
-/* Only show feedback buttons on last message, for now */
-feedback-buttons {
-  display: none;
-}
-feedback-buttons:last-of-type {
-  display: block;
-}
-
 /* Response feedback - general styles */
 .feedback__container {
   font-size: 0.75rem;
-  margin-bottom: 0.5rem;
   margin-top: -0.25rem;
   padding: 0 1rem;
   text-align: left;
@@ -495,7 +485,7 @@ feedback-buttons:last-of-type {
   scroll-margin-bottom: 16rem;
   padding-right: 0;
 }
-main:has(.iai-chat-bubble) .chat-options {
+main:has(.govuk-inset-text) .chat-options {
   display: none;
 }
 .chat-options__options {
@@ -823,4 +813,33 @@ div[data-page="1"] {
   flex-wrap: nowrap;
   justify-content: space-between;
   align-items: center;
+}
+
+.govuk-inset-text-right {
+  border-left: none;
+  border-right: 10px solid #b1b4b6;
+  padding-left: 100px;
+  text-align: right;
+}
+
+.chat-button {
+  color: #1759BC;
+  cursor: pointer;
+  text-align: center;
+  background-color: #0000;
+  border: none;
+  align-items: center;
+  gap: .375rem;
+  margin-top: 0;
+  padding: .5rem .75rem;
+  font-size: .75rem;
+  text-decoration: none;
+  display: inline-flex;
+}
+
+.chat-actions-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
 }
