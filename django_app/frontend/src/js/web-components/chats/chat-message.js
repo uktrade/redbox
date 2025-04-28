@@ -236,11 +236,18 @@ export class ChatMessage extends HTMLElement {
         const chatMessage = this.querySelector('.govuk-inset-text');
         if (chatMessage) {chatMessage.id = `chat-message-${response.data.message_id}`}
         // Add in feedback and copy buttons dynamically
-        if (actionsContainer) {actionsContainer.innerHTML = `
-        <feedback-buttons data-id="${response.data.message_id}"></feedback-buttons>
-        <copy-text data-id="${response.data.message_id}"></copy-text>`}
+        if (actionsContainer) {
+          const feedbackButtons = document.createElement('feedback-buttons')
+          feedbackButtons.dataset.id = response.data.message_id
 
-        this.feedbackButtons?.showFeedback(response.data.message_id);
+          const copyText = document.createElement('copy-text')
+          copyText.dataset.id = response.data.message_id
+
+          actionsContainer.appendChild(feedbackButtons)
+          actionsContainer.appendChild(copyText)
+
+      }
+
         this.#addFootnotes(streamedContent);
         const chatResponseEndEvent = new CustomEvent("chat-response-end", {
           detail: {
