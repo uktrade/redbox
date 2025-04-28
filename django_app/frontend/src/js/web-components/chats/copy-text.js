@@ -2,22 +2,27 @@
 
 class CopyText extends HTMLElement {
   connectedCallback() {
+    const messageId = this.dataset.id
     this.innerHTML = `
-        <button class="iai-chat-bubble__button" type="button">
-          <svg width="19" height="18" viewBox="0 0 19 18" fill="none" focusable="false" aria-hidden="true">
-            <path d="M6.875 3H5C4.17157 3 3.5 3.67157 3.5 4.5V15C3.5 15.8284 4.17157 16.5 5 16.5H14C14.8284 16.5 15.5 15.8284 15.5 15V4.5C15.5 3.67157 14.8284 3 14 3H12.125" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <path d="M6.5 4.8V3.375C6.5 3.16789 6.66789 3 6.875 3C7.08211 3 7.25317 2.83203 7.28864 2.62798C7.39976 1.98878 7.83049 0.75 9.5 0.75C11.1695 0.75 11.6002 1.98878 11.7114 2.62798C11.7468 2.83203 11.9179 3 12.125 3C12.3321 3 12.5 3.16789 12.5 3.375V4.8C12.5 5.04853 12.2985 5.25 12.05 5.25H6.95C6.70147 5.25 6.5 5.04853 6.5 4.8Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <button class="chat-button" type="button">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <g clip-path="url(#clip0_690_405)">
+          <path d="M21 7.5V21H7.5V7.5H21ZM21 6H7.5C7.10218 6 6.72064 6.15804 6.43934 6.43934C6.15804 6.72064 6 7.10218 6 7.5V21C6 21.3978 6.15804 21.7794 6.43934 22.0607C6.72064 22.342 7.10218 22.5 7.5 22.5H21C21.3978 22.5 21.7794 22.342 22.0607 22.0607C22.342 21.7794 22.5 21.3978 22.5 21V7.5C22.5 7.10218 22.342 6.72064 22.0607 6.43934C21.7794 6.15804 21.3978 6 21 6Z" fill="#1D70B8"/>
+          <path d="M3 13.5H1.5V3C1.5 2.60218 1.65804 2.22064 1.93934 1.93934C2.22064 1.65804 2.60218 1.5 3 1.5H13.5V3H3V13.5Z" fill="#1D70B8"/>
+          </g>
+          <defs>
+          <clipPath id="clip0_690_405">
+          <rect width="24" height="24" fill="white"/>
+          </clipPath>
+          </defs>
           </svg>
-          Copy information
+          Copy
         </button>
     `;
 
     this.querySelector("button")?.addEventListener("click", () => {
       const textEl = /** @type {HTMLElement} */ (
-        this.closest(".iai-chat-bubble")?.querySelector(
-          ".iai-chat-bubble__text"
-        )
-      );
+        document.querySelector(`#chat-message-${messageId} markdown-converter`))
       this.#copyToClipboard(textEl?.innerHTML, textEl?.innerText);
     });
   }

@@ -407,13 +407,13 @@ def create_evaluator():
         _additional_variables = {"agents_results": combine_agents_state(state.agents_results)}
         citation_parser, format_instructions = get_structured_response_with_citations_parser()
         evaluator_agent = build_stuff_pattern(
-                prompt_set=PromptSet.NewRoute,
-                tools=None,
-                output_parser=citation_parser,
-                format_instructions=format_instructions,
-                final_response_chain=True,
-                additional_variables=_additional_variables,
-            )
+            prompt_set=PromptSet.NewRoute,
+            tools=None,
+            output_parser=citation_parser,
+            format_instructions=format_instructions,
+            final_response_chain=False,
+            additional_variables=_additional_variables,
+        )
         return evaluator_agent
 
     return _create_evaluator
@@ -436,10 +436,21 @@ def invoke_custom_state(
         )
         activity_node.invoke(state)
 
+<<<<<<< HEAD
         ## invoke the subgraph
         response = subgraph.invoke(subgraph_state) #the LLM response is streamed
         
         return response
+=======
+        # invoke the subgraph
+        response = subgraph.invoke(subgraph_state)
+        # add agent name as a tag to the response
+        result = response["messages"][-1].content
+        result = f"<{agent_name}_Result>{result}</{agent_name}_Result>"
+
+        # transform response back to the parent state
+        return {"agents_results": result}
+>>>>>>> dev
 
     return _invoke_custom_state
 

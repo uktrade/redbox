@@ -40,17 +40,10 @@ RETRIEVAL_SYSTEM_PROMPT = """
 
    """
 
-NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """
-Answer the question using only the context provided. The context may include results from document agent or external document agent.
-   To answer the question:
-   - check if the question is a single question or not. If the question consists of multiple sub-questions, answer each-sub question separately.
-   - always synthesise the raw results from the document agent and external document agent.
 
-Output Formats:
-
-   Comprehensive technical response using format {format_instructions}. Do not start your answer by saying: Here is the JSON instance.
-
-"""
+NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context. Use citations to back up your answer.  {format_instructions}. 
+For example, your JSON output shoud be in the format: "answer": your_answer, "citations": citations
+DO NOT start by saying: 'Here is the JSON response', just return JSON."""
 
 AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
     "You are an advanced problem-solving assistant. Your primary goal is to carefully "
@@ -239,7 +232,11 @@ CHAT_WITH_DOCS_QUESTION_PROMPT = "Question: {question}. \n\n Documents: \n\n {fo
 
 RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
-AGENTIC_RETRIEVAL_QUESTION_PROMPT = "{question}"
+AGENTIC_RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
+
+NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT = (
+    "<User question> {question} </User question> \n\n <Context>: \n\n {agents_results} \n\n </Context> \n\n Answer:"
+)
 
 NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT = (
     "Question: {question}. \n\n <Context>: \n\n {agents_results} \n\n <\Context> \n\n Answer: let's think step by step"
@@ -317,14 +314,16 @@ When a user query involves finding information within known documents, ALWAYS ro
 2. The query requires synthesis of information not contained in available documents
 3. The query specifically requests external information sources
 
+If a user asks to summarise a document, ALWAYS call Summarisation_Agent.
+
 
 ## Available Agents
 
 When creating your execution plan, you have access to the following specialised agents:
 
-1. **Document_Agent**: Retrieves information from user's uploaded documents. It does NOT summarise the document.
+1. **Document_Agent**: Retrieves information from user's uploaded documents.
 2. **External_Data_Agent**: Retrieves information from external data sources including Wikipedia, Gov.UK, and legislation.gov.uk.
-3. **Summarisation_Agent**: Summarises entire user's uploaded documents. It does not summarise outputs from other agents. 
+3. **Summarisation_Agent**: Summarises entire user's uploaded documents. It does not summarise outputs from other agents.
 
 ## Output Format
 
@@ -344,5 +343,5 @@ Remember that your primary value is in effective coordination and integration - 
 
 
 User question: <Question>{question}</Question>.
-User documents metadata:<Document_Metadata>{metadata}</Document_Metadata>.
+User uploaded documents metadata:<Document_Metadata>{metadata}</Document_Metadata>.
 """
