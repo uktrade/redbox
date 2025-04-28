@@ -1,5 +1,6 @@
 import time
 import logging
+from io import BytesIO
 from typing import TYPE_CHECKING
 
 from langchain_community.vectorstores import OpenSearchVectorSearch
@@ -62,16 +63,33 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
     alias_end = time.time()
     logging.info(f"Alias/index creation took {alias_end - alias_start:.2f} seconds")
 
-    # Extract metadata
+    # Download file once from S3 using MetadataLoader
+    s3_start = time.time()
+    metadata_loader = MetadataLoader(env=env, s3_client=env.s3_client(), file_name=file_name)
+    file_bytes_io = metadata_loader._get_file_bytes(s3_client=env.s3_client(), file_name=file_name)
+    s3_end = time.time()
+    logging.info(f"S3 file download (via MetadataLoader) took {s3_end - s3_start:.2f} seconds")
+
+    # Extract metadata using shared chunks
     metadata_start = time.time()
     if enable_metadata_extraction:
-        metadata_loader = MetadataLoader(env=env, s3_client=env.s3_client(), file_name=file_name)
-        metadata = metadata_loader.extract_metadata()
+        temp_loader = UnstructuredChunkLoader(
+            chunk_resolution=ChunkResolution.normal,
+            env=env,
+            min_chunk_size=env.worker_ingest_min_chunk_size,
+            max_chunk_size=env.worker_ingest_max_chunk_size,
+            overlap_chars=0,
+            metadata=GeneratedMetadata(name=file_name),
+        )
+        chunks = temp_loader.lazy_load(file_name, file_bytes_io, return_chunks=True)
+        logging.info(f"_ingest_file: Chunks type={type(chunks)}, length={len(chunks) if isinstance(chunks, list) else 'unknown'}")
+        metadata = metadata_loader.extract_metadata(chunks=chunks)
     else:
         metadata = GeneratedMetadata(name=file_name, description="", keywords=[])
     metadata_end = time.time()
     logging.info(f"Metadata extraction took {metadata_end - metadata_start:.2f} seconds")
 
+    # Normal chunk
     chunk_start = time.time()
     chunk_ingest_chain = ingest_from_loader(
         loader=UnstructuredChunkLoader(
@@ -89,6 +107,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
     chunk_end = time.time()
     logging.info(f"Normal chunk chain setup took {chunk_end - chunk_start:.2f} seconds")
 
+    # Large chunk
     large_chunk_start = time.time()
     large_chunk_ingest_chain = ingest_from_loader(
         loader=UnstructuredChunkLoader(
@@ -106,6 +125,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
     large_chunk_end = time.time()
     logging.info(f"Large chunk chain setup took {large_chunk_end - large_chunk_start:.2f} seconds")
 
+    # Parallel
     parallel_start = time.time()
     new_ids = RunnableParallel({"normal": chunk_ingest_chain, "largest": large_chunk_ingest_chain}).invoke(file_name)
     parallel_end = time.time()

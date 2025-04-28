@@ -89,14 +89,17 @@ class MetadataLoader:
         logger.info(f"Total chunking time: {total_time:.2f} seconds")
         return elements
 
-    def extract_metadata(self) -> GeneratedMetadata:
+    def extract_metadata(self, chunks: list[dict] = None) -> GeneratedMetadata:
         """
-        Extract metadata from first 1_000 chunks
+        Extract metadata from pre-chunked data or fallback to chunking.
         """
         start_time = time.time()
-        chunks = self._chunking()
-        original_metadata = chunks[0]["metadata"] if chunks else {}
-        first_thousand_words = "".join(chunk["text"] for chunk in chunks)[:10_000]
+        if chunks is None:
+            chunks = self._chunking()
+        else:
+            chunks = list(chunks) if not isinstance(chunks, list) else chunks
+        original_metadata = chunks[0]["metadata"] if chunks and len(chunks) > 0 else {}
+        first_thousand_words = "".join(chunk["text"] for chunk in chunks)[:2000]
         try:
             metadata = self.create_file_metadata(first_thousand_words, original_metadata=original_metadata)
         except Exception as e:
@@ -170,7 +173,7 @@ class UnstructuredChunkLoader:
         self._overlap_all_chunks = overlap_all_chunks
         self.metadata = metadata
 
-    def lazy_load(self, file_name: str, file_bytes: BytesIO) -> Iterator[Document]:
+    def lazy_load(self, file_name: str, file_bytes: BytesIO, return_chunks: bool = False) -> Iterator[Document] | list[dict]:
         """A lazy loader that reads a file line by line.
 
         When you're implementing lazy load methods, you should use a generator
@@ -201,13 +204,23 @@ class UnstructuredChunkLoader:
         logger.info(f"Unstructured API call in lazy_load took {api_end - api_start:.2f} seconds")
 
         if response.status_code != 200:
+            logger.error(f"Unstructured API error: {response.text}")
             raise ValueError(response.text)
 
         elements = response.json()
+        logger.info(f"lazy_load: Elements type={type(elements)}, length={len(elements)}")
 
         if not elements:
-            raise ValueError("Unstructured failed to extract text for this file")
+            logger.warning(f"No chunks extracted for file: {file_name}")
+            if return_chunks:
+                return []
+            return iter([])  # Empty iterator for generator case
 
+        if return_chunks:
+            logger.info(f"lazy_load: Returning list of {len(elements)} chunks")
+            return elements
+
+        logger.info(f"lazy_load: Returning generator for {len(elements)} elements")
         for i, raw_chunk in enumerate(elements):
             yield Document(
                 page_content=raw_chunk["text"],
