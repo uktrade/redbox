@@ -15,11 +15,17 @@ export class ChatTitle extends HTMLElement {
             `
             }
             <button class="chat-title__edit-btn" type="button">
-                <svg width="16" height="16" viewBox="0 0 25 24" fill="none" aria-hidden="true" focusable="false">
-                <path d="M11.9766 4H4.97656C4.44613 4 3.93742 4.21071 3.56235 4.58579C3.18728 4.96086 2.97656 5.46957 2.97656 6V20C2.97656 20.5304 3.18728 21.0391 3.56235 21.4142C3.93742 21.7893 4.44613 22 4.97656 22H18.9766C19.507 22 20.0157 21.7893 20.3908 21.4142C20.7658 21.0391 20.9766 20.5304 20.9766 20V13" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M19.4766 2.49998C19.8744 2.10216 20.414 1.87866 20.9766 1.87866C21.5392 1.87866 22.0787 2.10216 22.4766 2.49998C22.8744 2.89781 23.0979 3.43737 23.0979 3.99998C23.0979 4.56259 22.8744 5.10216 22.4766 5.49998L12.9766 15L8.97656 16L9.97656 12L19.4766 2.49998Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <g id="Fiormatting/Edit" clip-path="url(#clip0_519_205)">
+                    <path id="Vector" d="M22.5 19.5H1.5V21H22.5V19.5Z" fill="black"/>
+                    <path id="Vector_2" d="M19.05 6.75C19.65 6.15 19.65 5.25 19.05 4.65L16.35 1.95C15.75 1.35 14.85 1.35 14.25 1.95L3 13.2V18H7.8L19.05 6.75ZM15.3 3L18 5.7L15.75 7.95L13.05 5.25L15.3 3ZM4.5 16.5V13.8L12 6.3L14.7 9L7.2 16.5H4.5Z" fill="black"/>
+                    </g>
+                    <defs>
+                    <clipPath id="clip0_519_205">
+                    <rect width="24" height="24" fill="black"/>
+                    </clipPath>
+                    </defs>
                 </svg>
-                Edit
                 <span class="govuk-visually-hidden"> chat title</span>
             </button>
             </div>
