@@ -105,15 +105,12 @@ class MetadataLoader:
         try:
             metadata = self.create_file_metadata(first_thousand_words, original_metadata=original_metadata)
         except Exception as e:
-            logger.info(e)
-            if original_metadata.get("filename"):
-                metadata = GeneratedMetadata(name=original_metadata.get("filename"))
-            else:
-                metadata = GeneratedMetadata(name=self.file_name)
+            logger.info(f"Metadata extraction failed: {e}")
+            metadata = GeneratedMetadata(name=self.file_name)  # Full file name
         total_time = time.time() - start_time
         logger.info(f"Total metadata extraction time: {total_time:.2f} seconds")
         return metadata
-
+    
     def create_file_metadata(self, page_content: str, original_metadata: dict | None = None) -> GeneratedMetadata:
         """Uses a sample of the document and any extracted metadata to generate further metadata."""
         if not original_metadata:
@@ -156,7 +153,6 @@ class UnstructuredChunkLoader:
     """
     Load, partition and chunk a document using local unstructured library.
     """
-
     def __init__(
         self,
         chunk_resolution: ChunkResolution,
@@ -188,6 +184,7 @@ class UnstructuredChunkLoader:
             url = f"http://{self.env.unstructured_host}:8000/general/v0/general"
         else:
             url = f"http://{self.env.unstructured_host}:80/general/v0/general"
+
         file_bytes.seek(0, os.SEEK_END)
         file_size = file_bytes.tell()
         file_bytes.seek(0)
@@ -198,38 +195,42 @@ class UnstructuredChunkLoader:
                 return []
             return iter([])
 
-        files = {
-            "files": (file_name, file_bytes),
+        raw_bytes = file_bytes.read()
+        api_file_name = os.path.basename(file_name)
+        logger.info(f"lazy_load: Using API file name: {api_file_name}, full uri: {file_name}")
+        files = {"files": (api_file_name, raw_bytes, "application/pdf")}
+        data = {
+            "strategy": "fast",
+            "chunking_strategy": "by_title",
+            "max_characters": self._max_chunk_size,
+            "combine_under_n_chars": self._min_chunk_size,
+            "overlap": self._overlap_chars,
+            "overlap_all": self._overlap_all_chunks,
         }
+        logger.info(f"lazy_load: Sending to Unstructured API with files={files['files'][0]}, data={data}")
+        
         api_start = time.time()
         try:
-            response = requests.post(
-                url,
-                files=files,
-                data={
-                    "strategy": "fast",
-                    "chunking_strategy": "by_title",
-                    "max_characters": self._max_chunk_size,
-                    "combine_under_n_chars": self._min_chunk_size,
-                    "overlap": self._overlap_chars,
-                    "overlap_all": self._overlap_all_chunks,
-                },
-            )
+            response = requests.post(url, files=files, data=data)
+            logger.info(f"lazy_load: Unstructured API status: {response.status_code}, response: {response.text}")
+            logger.debug(f"lazy_load: Unstructured API headers: {response.headers}")
             if response.status_code != 200:
                 logger.error(f"Unstructured API error for file {file_name}: {response.text}")
                 if return_chunks:
                     return []
                 return iter([])
+
+            elements = response.json()
+            logger.info(f"lazy_load: Elements type={type(elements)}, length={len(elements)}")
+
         except Exception as e:
             logger.error(f"Failed to call Unstructured API for file {file_name}: {str(e)}")
             if return_chunks:
                 return []
             return iter([])
+
         api_end = time.time()
         logger.info(f"Unstructured API call in lazy_load took {api_end - api_start:.2f} seconds")
-
-        elements = response.json()
-        logger.info(f"lazy_load: Elements type={type(elements)}, length={len(elements)}")
 
         if not elements:
             logger.warning(f"No chunks extracted for file: {file_name}")
