@@ -9,7 +9,7 @@ test(`Content can be copied to clipboard`, async ({ page }) => {
   await sendMessage(page);
 
   await page.getByText("Copy information").click();
-  const response = page.locator(".iai-chat-bubble__text").nth(1);
+  const response = page.locator(".chat-message__text").nth(1);
 
   const messageInput = page.locator(".iai-chat-input__input");
   await messageInput.focus();
