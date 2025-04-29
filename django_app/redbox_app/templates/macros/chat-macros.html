@@ -72,11 +72,9 @@
     {{ file }}</p>
 {% endfor %}
 
-<div class="iai-chat-bubble__header">
-  {% if message.route %}
-  {{ route_display(message.route) }}
-  {% endif %}
-</div>
+{% if message.route %}
+{{ route_display(message.route) }}
+{% endif %}
 
 
 {% if message.role == "ai" %}
