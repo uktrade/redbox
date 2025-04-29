@@ -11,7 +11,7 @@ export class ChatMessage extends HTMLElement {
   connectedCallback() {
     const uuid = crypto.randomUUID();
     this.innerHTML = `
-            <div class="govuk-inset-text ${this.dataset.role == 'user' ? `govuk-inset-text-right`: ''} govuk-body" data-role="${
+            <div class="redbox-message-container govuk-inset-text ${this.dataset.role == 'user' ? `govuk-inset-text-right`: ''} govuk-body" data-role="${
               this.dataset.role
             }" tabindex="-1" id="chat-message-${this.dataset.id}">
                 <markdown-converter class="chat-message__text">${

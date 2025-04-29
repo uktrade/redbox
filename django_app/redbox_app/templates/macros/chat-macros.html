@@ -34,7 +34,7 @@
 
 
 <div
-  class="govuk-inset-text {% if message.role == "user" %} govuk-inset-text-right {% endif %} govuk-body"
+  class="redbox-message-container govuk-inset-text {% if message.role == "user" %} govuk-inset-text-right {% endif %} govuk-body"
   data-role="{{ message.role }}" tabindex="-1" id="chat-message-{{ message.id }}">
 
   <markdown-converter class="chat-message__text">{{ message.text }}</markdown-converter>
