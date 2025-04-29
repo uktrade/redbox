@@ -757,6 +757,15 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   margin: 4px 12px;
   border-top: 2px solid #B1B4B6;
 }
+.iai-panel-heading-button {
+  border-top: none;
+}
+
+.iai-panel-heading-button:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.1em;
+}
 
 .chat-history-subheading{
   padding: 16px 12px 0;
