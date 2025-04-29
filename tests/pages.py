@@ -312,7 +312,7 @@ class ChatMessage:
     chats_page: "ChatsPage" = field(repr=False)
 
     def navigate_to_citations(self) -> "CitationsPage":
-        self.element.locator(".iai-chat-bubble__citations-button-container a.iai-chat-bubble__button").click()
+        self.element.locator(".chat-actions-container a.iai-chat-bubble__button").click()
         return CitationsPage(self.chats_page.page)
 
     @classmethod

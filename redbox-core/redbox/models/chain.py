@@ -93,6 +93,7 @@ class AISettings(BaseModel):
 
     # agents reporting to planner agent
     agents: list = ["Document_Agent", "External_Data_Agent", "Summarisation_Agent"]
+    agents_max_tokens: dict = {"document_agent": 10000, "external_data_agent": 5000, "summarisation_agent": 20000}
 
 
 class Source(BaseModel):
