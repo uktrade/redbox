@@ -73,14 +73,18 @@
 {% endfor %}
 
 <div class="iai-chat-bubble__header">
+  {% if message.route %}
   {{ route_display(message.route) }}
+  {% endif %}
 </div>
 
 
+{% if message.role == "ai" %}
 
 <div class="chat-actions-container">
   <feedback-buttons data-id="{{ message.id }}"></feedback-buttons>
   <copy-text data-id="{{ message.id}}"></copy-text>
 </div>
 
+{% endif %}
 {% endmacro %}

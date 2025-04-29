@@ -397,7 +397,7 @@ chat-message {
 /* Response feedback - general styles */
 .feedback-container {
   margin-top: -0.25rem;
-  padding: 0 1rem;
+  padding-right: 40px;
   text-align: left;
 }
 .feedback-container--1:not([hidden]) {
@@ -859,7 +859,6 @@ div[data-page="1"] {
   align-items: center;
   gap: .375rem;
   margin-top: 0;
-  padding: .5rem .75rem;
   text-decoration: none;
   display: inline-flex;
 }
