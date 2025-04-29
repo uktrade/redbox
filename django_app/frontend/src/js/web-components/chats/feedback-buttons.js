@@ -195,14 +195,10 @@ export class FeedbackButtons extends HTMLElement {
     this.collectedData.text = textInput?.value || "";
     this.#sendFeedback();
 
-    // Hide text area and submit button, show thank-you message
+    // Hide text area and submit button
     let chipPanels = document.querySelector(`.feedback__chips-container-${this.dataset.id}`);
     chipPanels?.parentElement.remove()
 
-    this.closest(".chat-actions-container").insertAdjacentHTML("afterend",
-      `<div class="feedback-container feedback-container--thank-you" tabindex="-1">
-        <p class="feedback__thank-you-message">Thank you for your feedback!</p>
-       </div>`)
   });
   }
 }
