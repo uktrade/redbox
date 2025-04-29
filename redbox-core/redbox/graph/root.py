@@ -35,11 +35,11 @@ from redbox.graph.nodes.processes import (
     clear_documents_process,
     create_evaluator,
     create_planner,
+    delete_plan_message,
     empty_process,
+    invoke_custom_state,
     lm_choose_route,
     report_sources_process,
-    invoke_custom_state,
-    delete_plan_message,
 )
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -48,7 +48,7 @@ from redbox.graph.nodes.sends import (
     sending_task_to_agent,
 )
 from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
-from redbox.models.chain import AgentDecision, PromptSet, RedboxState
+from redbox.models.chain import AgentDecision, AISettings, PromptSet, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.models.prompts import DOCUMENT_AGENT_PROMPT, EXTERNAL_DATA_AGENT
@@ -820,6 +820,7 @@ def build_new_graph(
     multi_agent_tools: dict,
     debug: bool = False,
 ) -> CompiledGraph:
+    agents_max_tokens = AISettings().agents_max_tokens
     builder = StateGraph(RedboxState)
     builder.add_node("planner", create_planner())
     builder.add_node(
@@ -829,6 +830,7 @@ def build_new_graph(
             system_prompt=DOCUMENT_AGENT_PROMPT,
             tools=multi_agent_tools["document_agent"],
             use_metadata=True,
+            max_tokens=agents_max_tokens["document_agent"],
         ),
     )
     builder.add_node("send", empty_process)
@@ -837,8 +839,9 @@ def build_new_graph(
         build_agent(
             agent_name="External Data Agent",
             system_prompt=EXTERNAL_DATA_AGENT,
-            tools=multi_agent_tools["external_document_agent"],
+            tools=multi_agent_tools["external_data_agent"],
             use_metadata=False,
+            max_tokens=agents_max_tokens["external_data_agent"],
         ),
     )
     builder.add_node(

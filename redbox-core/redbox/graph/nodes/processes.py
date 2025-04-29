@@ -13,7 +13,7 @@ from botocore.exceptions import EventStreamError
 from langchain.schema import StrOutputParser
 from langchain_core.callbacks.manager import dispatch_custom_event
 from langchain_core.documents import Document
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
 from langchain_core.runnables import Runnable, RunnableLambda, RunnableParallel
 from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
@@ -28,8 +28,6 @@ from redbox.models.chain import AgentTask, DocumentState, MultiAgentPlan, Prompt
 from redbox.models.graph import ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import PLANNER_PROMPT
 from redbox.transform import combine_agents_state, combine_documents, flatten_document_state
-from langchain_core.messages import RemoveMessage
-
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
@@ -370,7 +368,7 @@ def create_planner():
     return _create_planner
 
 
-def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: bool = False):
+def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: bool = False, max_tokens: int = 5000):
     @RunnableLambda
     def _build_agent(state: RedboxState):
         parser = ClaudeParser(pydantic_object=AgentTask)
@@ -393,7 +391,8 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
         ai_msg = worker_agent.invoke(state)
         result = run_tools_parallel(ai_msg, tools, state)
         result_content = "".join([res.content for res in result])
-        result = f"<{agent_name}_Result>{result_content}</{agent_name}_Result>"
+        # truncate results to max_token
+        result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
         return {"agents_results": result}
 
     return _build_agent
@@ -417,7 +416,12 @@ def create_evaluator():
 
 
 def invoke_custom_state(
-    custom_graph, agent_name: str, use_as_agent: bool, all_chunks_retriever: VectorStoreRetriever, debug: bool = False
+    custom_graph,
+    agent_name: str,
+    use_as_agent: bool,
+    all_chunks_retriever: VectorStoreRetriever,
+    debug: bool = False,
+    max_tokens: int = 5000,
 ):
     @RunnableLambda
     def _invoke_custom_state(state: RedboxState):
@@ -425,7 +429,9 @@ def invoke_custom_state(
         subgraph = custom_graph(all_chunks_retriever=all_chunks_retriever, use_as_agent=use_as_agent, debug=debug)
         subgraph_state = state.model_copy()
         agent_task = json.loads(subgraph_state.last_message.content)
-        subgraph_state.request.question = agent_task["task"]
+        subgraph_state.request.question = (
+            agent_task["task"] + f"\nReturn response that is no longer than {max_tokens} tokens."
+        )
 
         # set activity log
         activity_node = build_activity_log_node(
@@ -437,7 +443,7 @@ def invoke_custom_state(
         response = subgraph.invoke(subgraph_state)
         # add agent name as a tag to the response
         result = response["messages"][-1].content
-        result = f"<{agent_name}_Result>{result}</{agent_name}_Result>"
+        result = f"<{agent_name}_Result>{result[:max_tokens]}</{agent_name}_Result>"
 
         # transform response back to the parent state
         return {"agents_results": result}
