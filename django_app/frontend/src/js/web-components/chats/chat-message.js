@@ -14,7 +14,7 @@ export class ChatMessage extends HTMLElement {
             <div class="govuk-inset-text ${this.dataset.role == 'user' ? `govuk-inset-text-right`: ''} govuk-body" data-role="${
               this.dataset.role
             }" tabindex="-1" id="chat-message-${this.dataset.id}">
-                <markdown-converter class="iai-chat-bubble__text">${
+                <markdown-converter class="chat-message__text">${
                   this.dataset.text || ""
                 }</markdown-converter>
                 ${

@@ -237,6 +237,33 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   width: 100%;
 }
 
+.chat-message__text {
+  word-break: break-word;
+  padding-top: .5rem;
+  font-size: 16px;
+  line-height: 1.5rem;
+}
+
+.chat-message__text code {
+  display: block;
+  overflow-x: auto;
+}
+
+.chat-message__textt li {
+  padding: 0;
+}
+
+.chat-message__text table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.chat-message__text th, .chat-message__text td {
+  text-align: left;
+  border: 1px solid #000;
+  padding: .25rem;
+}
+
 .rb-activity {
   border-left: 1px solid black;
   display: flex;
@@ -368,35 +395,27 @@ chat-message {
 
 
 /* Response feedback - general styles */
-.feedback__container {
-  font-size: 0.75rem;
+.feedback-container {
   margin-top: -0.25rem;
   padding: 0 1rem;
   text-align: left;
 }
-.feedback__container--1:not([hidden]) {
+.feedback-container--1:not([hidden]) {
   align-items: flex-start;
   color: #6b7280;
   display: flex;
   flex-wrap: wrap;
-  font-size: 0.625rem;
 }
 
 .feedback__heading {
   color: black;
-  font-size: 0.75rem;
-  font-weight: 400;
   margin: 0;
   margin-right: 1rem;
 }
 
-.feedback__container--negative .feedback__chips {
+.feedback-container--negative .feedback__chips {
   display: block;
 }
-// .feedback__container--negative .feedback__positive,
-// .feedback__container--positive .feedback__negative {
-//   display: none;
-// }
 
 
 .feedback__chips-container {
@@ -841,7 +860,6 @@ div[data-page="1"] {
   gap: .375rem;
   margin-top: 0;
   padding: .5rem .75rem;
-  font-size: .75rem;
   text-decoration: none;
   display: inline-flex;
 }
@@ -851,4 +869,5 @@ div[data-page="1"] {
   flex-direction: row;
   align-items: center;
   gap: 10px;
+  font-size: 14px;
 }

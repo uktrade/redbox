@@ -20,13 +20,13 @@ export class FeedbackButtons extends HTMLElement {
     this.dataset.id = messageId;
 
     this.innerHTML = `
-    <div class="feedback__container feedback__container--1" tabindex="-1">
-      <h3 class="feedback__heading">Is this response useful?</h3>
+    <div class="feedback-container feedback-container--1" tabindex="-1">
+      <p class="feedback__heading">Is this response useful?</p>
       <button class="thumb_feedback-btn thumb_feedback-btn--up" type="button">
-        <img src="/static/icons/thumbs-up.svg" alt="Thumbs Up" />
+        <img src="/static/icons/thumbs-up.svg" alt="Thumbs Up" aria-labelledby="feedback-heading" />
       </button>
       <button class="thumb_feedback-btn thumb_feedback-btn--down" type="button">
-        <img src="/static/icons/thumbs-down.svg" alt="Thumbs down" />
+        <img src="/static/icons/thumbs-down.svg" alt="Thumbs down" aria-labelledby="feedback-heading"/>
       </button>
     </div>
      `;
@@ -108,7 +108,7 @@ export class FeedbackButtons extends HTMLElement {
     /** @type {NodeListOf<HTMLElement>} */
     let chipPanels = document.querySelector(`.feedback__chips-container-${this.dataset.id}`);
     if (!chipPanels) {
-    this.closest(".chat-actions-container").insertAdjacentHTML("afterend",`<div class="feedback__container feedback__container--2" tabindex="-1">
+    this.closest(".chat-actions-container").insertAdjacentHTML("afterend",`<div class="feedback-container feedback-container--2" tabindex="-1">
       <fieldset class="feedback__chips-container feedback__chips-container-${this.dataset.id} feedback__negative">
         <legend class="feedback__chips-legend">Select all that apply about the response</legend>
         <div class="feedback__chips-inner-container">
@@ -200,7 +200,7 @@ export class FeedbackButtons extends HTMLElement {
     chipPanels?.parentElement.remove()
 
     this.closest(".chat-actions-container").insertAdjacentHTML("afterend",
-      `<div class="feedback__container feedback__container--thank-you" tabindex="-1">
+      `<div class="feedback-container feedback-container--thank-you" tabindex="-1">
         <p class="feedback__thank-you-message">Thank you for your feedback!</p>
        </div>`)
   });
