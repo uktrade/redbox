@@ -35,7 +35,6 @@ log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
 
 
-
 # Patterns: functions that build processes
 
 ## Core patterns
@@ -161,8 +160,8 @@ def build_stuff_pattern(
     format_instructions: str = "",
     tools: list[StructuredTool] | None = None,
     final_response_chain: bool = False,
-    summary_multiagent_response: bool = False,
     additional_variables: dict = {},
+    summary_multiagent_flag: bool = False,
 ) -> Runnable[RedboxState, dict[str, Any]]:
     """Returns a Runnable that uses state.request and state.documents to set state.messages.
 
@@ -181,8 +180,8 @@ def build_stuff_pattern(
                 output_parser=output_parser,
                 format_instructions=format_instructions,
                 final_response_chain=final_response_chain,
-                summary_multiagent_response=summary_multiagent_response,
                 additional_variables=additional_variables,
+                summary_multiagent_flag=summary_multiagent_flag,
             ).stream(state)
         ]
         return sum(events, {})
@@ -420,12 +419,12 @@ def create_evaluator():
 
 
 def invoke_custom_state(
-    custom_graph, agent_name: str, all_chunks_retriever: VectorStoreRetriever, debug: bool = False
+    custom_graph, agent_name: str, all_chunks_retriever: VectorStoreRetriever, use_as_agent: bool, debug: bool = False
 ):
     @RunnableLambda
     def _invoke_custom_state(state: RedboxState):
         # transform the state to the subgraph state
-        subgraph = custom_graph(all_chunks_retriever=all_chunks_retriever, debug=debug)
+        subgraph = custom_graph(all_chunks_retriever=all_chunks_retriever, use_as_agent=use_as_agent, debug=debug)
         subgraph_state = state.model_copy()
         agent_task = json.loads(subgraph_state.last_message.content)
         subgraph_state.request.question = agent_task["task"]
@@ -436,21 +435,10 @@ def invoke_custom_state(
         )
         activity_node.invoke(state)
 
-<<<<<<< HEAD
         ## invoke the subgraph
-        response = subgraph.invoke(subgraph_state) #the LLM response is streamed
-        
-        return response
-=======
-        # invoke the subgraph
-        response = subgraph.invoke(subgraph_state)
-        # add agent name as a tag to the response
-        result = response["messages"][-1].content
-        result = f"<{agent_name}_Result>{result}</{agent_name}_Result>"
+        response = subgraph.invoke(subgraph_state)  # the LLM response is streamed
 
-        # transform response back to the parent state
-        return {"agents_results": result}
->>>>>>> dev
+        return response
 
     return _invoke_custom_state
 

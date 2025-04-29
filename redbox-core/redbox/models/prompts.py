@@ -238,10 +238,6 @@ NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT = (
     "<User question> {question} </User question> \n\n <Context>: \n\n {agents_results} \n\n </Context> \n\n Answer:"
 )
 
-NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT = (
-    "Question: {question}. \n\n <Context>: \n\n {agents_results} \n\n <\Context> \n\n Answer: let's think step by step"
-)
-
 AGENTIC_GIVE_UP_QUESTION_PROMPT = "{question}"
 
 CHAT_MAP_QUESTION_PROMPT = "Question: {question}. \n Documents: \n {formatted_documents} \n\n Answer: "

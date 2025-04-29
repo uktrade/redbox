@@ -261,7 +261,7 @@ def get_search_graph(
     return builder.compile(debug=debug)
 
 
-def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, debug=True):
+def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent=False, debug=True):
     builder = StateGraph(RedboxState)
     builder.add_node("choose_route_based_on_request_token", empty_process)
     builder.add_node("set_route_to_summarise_large_doc", build_set_route_pattern(ChatRoute.chat_with_docs_map_reduce))
@@ -333,7 +333,8 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, debug=True):
         "summarise_document",
         build_stuff_pattern(
             prompt_set=PromptSet.ChatwithDocs,
-            final_response_chain=True, 
+            final_response_chain=False if use_as_agent else True,
+            summary_multiagent_flag=True if use_as_agent else False,
         ),
         retry=RetryPolicy(max_attempts=3),
     )
@@ -847,6 +848,7 @@ def build_new_graph(
             custom_graph=get_summarise_graph,
             agent_name="Summarisation_Agent",
             all_chunks_retriever=all_chunks_retriever,
+            use_as_agent=True,
             debug=debug,
         ),
     )
