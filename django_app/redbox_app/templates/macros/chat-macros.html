@@ -1,11 +1,11 @@
 {% macro route_display(route=None) %}
 <details class="govuk-details redbox-message-route" {% if not route %} hidden {% endif %}>
   <summary class="govuk-details__summary">
-    <span class="govuk-details__summary-text govuk-!-font-size-16">
+    <span class="govuk-details__summary-text font-size-14">
       Response generated using @<span class="route-text">{{ route }}</span>
     </span>
   </summary>
-  <div class="govuk-details__text govuk-!-font-size-16">
+  <div class="govuk-details__text font-size-14">
     <span>Redbox uses different paths to generate the best response</span>
     <ul>
       <li>I can @chat about general questions, not related
@@ -34,10 +34,10 @@
 
 
 <div
-  class="govuk-inset-text {% if message.role == "user" %} govuk-inset-text-right {% endif %} govuk-body"
+  class="redbox-message-container govuk-inset-text {% if message.role == "user" %} govuk-inset-text-right {% endif %} govuk-body"
   data-role="{{ message.role }}" tabindex="-1" id="chat-message-{{ message.id }}">
 
-  <markdown-converter class="iai-chat-bubble__text">{{ message.text }}</markdown-converter>
+  <markdown-converter class="chat-message__text">{{ message.text }}</markdown-converter>
   {% if message.unique_citation_uris() %}
   <h3 class="iai-chat-bubble__sources-heading govuk-heading-s govuk-!-margin-bottom-1">Sources</h3>
   <div class="iai-display-flex-from-desktop">
@@ -72,11 +72,9 @@
     {{ file }}</p>
 {% endfor %}
 
-<div class="iai-chat-bubble__header">
-  {% if message.route %}
-  {{ route_display(message.route) }}
-  {% endif %}
-</div>
+{% if message.route %}
+{{ route_display(message.route) }}
+{% endif %}
 
 
 {% if message.role == "ai" %}
