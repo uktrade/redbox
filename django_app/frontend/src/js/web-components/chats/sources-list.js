@@ -13,8 +13,9 @@ export class SourcesList extends HTMLElement {
    * @param {string} matchingText
    */
   add = (fileName, url, matchingText) => {
+
     // prevent duplicate sources
-    if (this.sources.some((source) => source.fileName === fileName)) {
+    if (this.sources.some((source) => source.matchingText === matchingText)) {
       return;
     }
 
@@ -41,7 +42,6 @@ export class SourcesList extends HTMLElement {
             `;
     });
     html += `</div></ol>`;
-
     this.innerHTML = html;
   };
 
