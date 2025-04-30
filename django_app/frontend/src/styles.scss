@@ -193,6 +193,11 @@ only screen and (min-resolution:192dpi) {
   }
 }
 
+/* No GOV.UK font override exists for 14px font */
+.font-size-14 {
+  font-size: 14px
+}
+
 /* Chats Page - to come after i.AI Design System */
 @import "./chat-styles.scss";
 
