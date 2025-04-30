@@ -68,7 +68,7 @@ class Redbox:
 
         self.multi_agent_tools = {
             "document_agent": [search_documents],
-            "external_document_agent": [search_wikipedia, search_govuk],
+            "external_data_agent": [search_wikipedia, search_govuk],
         }
 
         self.graph = new_root_graph(

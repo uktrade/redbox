@@ -118,7 +118,7 @@ def build_govuk_search_tool(filter=True) -> Tool:
         - consultations
         - appeals
         """
-
+        max_content_tokens = 1000
         url_base = "https://www.gov.uk"
         required_fields = [
             "format",
@@ -149,14 +149,15 @@ def build_govuk_search_tool(filter=True) -> Tool:
         for i, doc in enumerate(response["results"]):
             if any(field not in doc for field in required_fields):
                 continue
-
+            # truncate content
+            content = doc["indexable_content"][:max_content_tokens]
             mapped_documents.append(
                 Document(
-                    page_content=doc["indexable_content"],
+                    page_content=content,
                     metadata=ChunkMetadata(
                         index=i,
                         uri=f"{url_base}{doc['link']}",
-                        token_count=tokeniser(doc["indexable_content"]),
+                        token_count=tokeniser(content),
                         creator_type=ChunkCreatorType.gov_uk,
                     ).model_dump(),
                 )
