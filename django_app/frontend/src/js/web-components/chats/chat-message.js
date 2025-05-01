@@ -247,7 +247,6 @@ export class ChatMessage extends HTMLElement {
           actionsContainer.appendChild(copyText)
 
       }
-
         this.#addFootnotes(streamedContent,response.data.message_id);
         const chatResponseEndEvent = new CustomEvent("chat-response-end", {
           detail: {
@@ -256,6 +255,7 @@ export class ChatMessage extends HTMLElement {
           },
         });
         document.dispatchEvent(chatResponseEndEvent);
+        location.reload()
       } else if (response.type === "error") {
         this.querySelector(".govuk-notification-banner")?.removeAttribute(
           "hidden"
