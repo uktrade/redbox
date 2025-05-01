@@ -50,16 +50,12 @@ export class SourcesList extends HTMLElement {
                       source.url
                     }" id="footnote-${this.getAttribute("data-id")}-${
         this.sources.length
-      // }" data-text="${source.matchingText}">${source.fileName || source.url}</a>
-      //           </li>
-      //       `;
       }" data-text="${this.escapeHtmlAttribute(source.matchingText)}">${source.fileName || source.url}</a>
                 </li>
             `;
     });
     html += `</div></ol>`;
     this.innerHTML = html;
-    console.log(html)
   };
 
   }
