@@ -17,6 +17,7 @@ from redbox_app.redbox_core.views.document_views import (
     DocumentView,
     UploadView,
     file_status_api_view,
+    remove_all_docs_view,
     remove_doc_view,
 )
 from redbox_app.redbox_core.views.info_views import accessibility_statement_view, privacy_notice_view, support_view
@@ -39,6 +40,7 @@ __all__ = [
     "health",
     "homepage_view",
     "remove_doc_view",
+    "remove_all_docs_view",
     "privacy_notice_view",
     "accessibility_statement_view",
     "support_view",

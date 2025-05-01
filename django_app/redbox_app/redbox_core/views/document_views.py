@@ -294,6 +294,34 @@ def remove_doc_view(request, doc_id: uuid):
     )
 
 
+@login_required
+def remove_all_docs_view(request):
+    users_files = File.objects.filter(user=request.user)
+    errors: list[str] = []
+
+    if request.method == "POST":
+        try:
+            for file in users_files:
+                file.delete_from_elastic()
+                file.delete_from_s3()
+                file.status = File.Status.deleted
+                file.save()
+                logger.info("Removing document: %s", request.POST["doc_id"])
+        except Exception as e:
+            logger.exception("Error deleting file object %s.", file, exc_info=e)
+            errors.append("There was an error deleting all files")
+            file.status = File.Status.errored
+            file.save()
+
+        return redirect("documents")
+
+    return render(
+        request,
+        template_name="remove-all-docs.html",
+        context={"request": request, "errors": errors},
+    )
+
+
 @require_http_methods(["GET"])
 @login_required
 def file_status_api_view(request: HttpRequest) -> JsonResponse:
