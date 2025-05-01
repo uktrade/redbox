@@ -20,53 +20,17 @@ export class FeedbackButtons extends HTMLElement {
     this.dataset.id = messageId;
 
     this.innerHTML = `
-    <div class="feedback__container feedback__container--1" tabindex="-1">
-      <h3 class="feedback__heading">Is this response useful?</h3>
+    <div class="feedback-container feedback-container--1" tabindex="-1">
+      <p class="feedback__heading">Is this response useful?</p>
       <button class="thumb_feedback-btn thumb_feedback-btn--up" type="button">
-        <img src="/static/icons/thumbs-up.svg" alt="Thumbs Up" />
+        <img src="/static/icons/thumbs-up.svg" alt="Thumbs Up" aria-labelledby="feedback-heading" />
       </button>
       <button class="thumb_feedback-btn thumb_feedback-btn--down" type="button">
-        <img src="/static/icons/thumbs-down.svg" alt="Thumbs down" />
+        <img src="/static/icons/thumbs-down.svg" alt="Thumbs down" aria-labelledby="feedback-heading"/>
       </button>
     </div>
-    <div class="feedback__container feedback__container--2" hidden tabindex="-1">
-      <fieldset class="feedback__chips-container feedback__negative">
-        <legend class="feedback__chips-legend">Select all that apply about the response</legend>
-        <div class="feedback__chips-inner-container">
-          <!-- Factuality Group -->
-          <div class="feedback__chip-group">
-            <input class="feedback__chip" type="checkbox" id="chip1-factual-${messageId}" data-testid="Factual" />
-            <label class="feedback__chip-label" for="chip1-factual-${messageId}">Factual</label>
-            <input class="feedback__chip" type="checkbox" id="chip2-inaccurate-${messageId}" data-testid="Inaccurate" />
-            <label class="feedback__chip-label" for="chip2-inaccurate-${messageId}">Inaccurate</label>
-          </div>
-          <!-- Completeness Group -->
-          <div class="feedback__chip-group">
-            <input class="feedback__chip" type="checkbox" id="chip3-complete-${messageId}" data-testid="Complete" />
-            <label class="feedback__chip-label" for="chip3-complete-${messageId}">Complete</label>
-            <input class="feedback__chip" type="checkbox" id="chip4-incomplete-${messageId}" data-testid="Incomplete" />
-            <label class="feedback__chip-label" for="chip4-incomplete-${messageId}">Incomplete</label>
-          </div>
-          <!-- Structure Group -->
-          <div class="feedback__chip-group">
-            <input class="feedback__chip" type="checkbox" id="chip5-structured-${messageId}" data-testid="Structured" />
-            <label class="feedback__chip-label" for="chip5-structured-${messageId}">Followed instructions</label>
-            <input class="feedback__chip" type="checkbox" id="chip6-unstructured-${messageId}" data-testid="Unstructured" />
-            <label class="feedback__chip-label" for="chip6-unstructured-${messageId}">Not as instructed</label>
-          </div>
-        </div>
-      </fieldset>
-    <div class="feedback__text-area">
-        <label for="text-${messageId}">Or describe with your own words:</label>
-        <textarea class="feedback__text-input" id="text-${messageId}" rows="1"></textarea>
-        <button class="feedback__submit-btn" type="button">Submit</button>
-    </div>    
-    </div>
-    <div class="feedback__container feedback__container--thank-you" hidden tabindex="-1">
-      <p class="feedback__thank-you-message">Thank you for your feedback!</p>
-    </div>
      `;
-    
+
     // 1 Thumbs up, 2 Thumbs down
     // Panel 1 Add event listeners for thumbs-up and thumbs-down buttons
     let thumbsUpButton = this.querySelector(".thumb_feedback-btn--up");
@@ -74,7 +38,6 @@ export class FeedbackButtons extends HTMLElement {
 
     thumbsUpButton?.addEventListener("click", () => {
       if (!this.collectedData) return;
-
       if (this.collectedData.rating === 1) {
         this.collectedData.rating = 0;
         this.#resetButtons(thumbsUpButton, thumbsDownButton);
@@ -83,14 +46,12 @@ export class FeedbackButtons extends HTMLElement {
         this.#highlightButton(thumbsUpButton, thumbsDownButton);
       }
 
-      this.#collectChips();
       this.#sendFeedback();
-      this.#showPanel(1);
+      this.#showPanel();
     });
 
     thumbsDownButton?.addEventListener("click", () => {
       if (!this.collectedData) return;
-
       if (this.collectedData.rating === 2) {
         this.collectedData.rating = 0;
         this.#resetButtons(thumbsUpButton, thumbsDownButton);
@@ -99,48 +60,10 @@ export class FeedbackButtons extends HTMLElement {
         this.#highlightButton(thumbsDownButton, thumbsUpButton);
       }
 
-      this.#collectChips();
       this.#sendFeedback();
-      this.#showPanel(1);
+      this.#showPanel();
     });
 
-    // Panel 3 - text and chips
-    let chipGroups = this.querySelectorAll(".feedback__chip-group");
-    chipGroups.forEach((group) => {
-      let chips = group.querySelectorAll(".feedback__chip");
-      chips.forEach((chip) => {
-        chip.addEventListener("change", (e) => {
-          chips.forEach((otherChip) => {
-            if (otherChip !== e.target) {
-              otherChip.checked = false;
-            }
-          });
-
-          this.#collectChips();
-          if (this.collectedData.rating > 0) {
-            this.#sendFeedback();
-          }
-        });
-      });
-    });
-
-    /** @type {HTMLTextAreaElement | null} */
-  // Updated Submit button logic
-  const textInput = this.querySelector(`#text-${messageId}`);
-  this.querySelector(".feedback__submit-btn")?.addEventListener("click", (evt) => {
-    evt.preventDefault();
-    if (!this.collectedData) return;
-
-    this.collectedData.text = textInput?.value || "";
-    this.#sendFeedback();
-
-    // Hide text area and submit button, show thank-you message
-    const textArea = this.querySelector(".feedback__text-area");
-    textArea.hidden = true;
-    const thankYouPanel = this.querySelector(".feedback__container--thank-you");
-    thankYouPanel.removeAttribute("hidden");
-    thankYouPanel.focus();
-  });
 }
 
   #highlightButton(selectedButton, otherButton) {
@@ -168,7 +91,8 @@ export class FeedbackButtons extends HTMLElement {
           "X-CSRFToken": csrfToken,
         },
         body: JSON.stringify(this.collectedData),
-      });
+      })
+      this.collectedData.chips = [];
     } catch (err) {
       if (retry < MAX_RETRIES) {
         window.setTimeout(() => {
@@ -178,28 +102,104 @@ export class FeedbackButtons extends HTMLElement {
     }
   }
 
-  #showPanel(panelIndex) {
+  #showPanel() {
     if (!this.collectedData) return;
 
     /** @type {NodeListOf<HTMLElement>} */
-    let panels = this.querySelectorAll(".feedback__container");
-    panels.forEach((panel) => panel.setAttribute("hidden", ""));
-    panels[panelIndex].removeAttribute("hidden");
-    panels[panelIndex].focus();
+    let chipPanels = document.querySelector(`.feedback__chips-container-${this.dataset.id}`);
+    if (!chipPanels) {
+    this.closest(".chat-actions-container").insertAdjacentHTML("afterend",`<div class="feedback-container feedback-container--2" tabindex="-1">
+      <fieldset class="feedback__chips-container feedback__chips-container-${this.dataset.id} feedback__negative">
+        <legend class="feedback__chips-legend">Select all that apply about the response</legend>
+        <div class="feedback__chips-inner-container">
+          <!-- Factuality Group -->
+          <div class="feedback__chip-group">
+            <input class="feedback__chip" type="checkbox" id="chip1-factual-${this.dataset.id}" data-testid="Factual" />
+            <label class="feedback__chip-label" for="chip1-factual-${this.dataset.id}">Factual</label>
+            <input class="feedback__chip" type="checkbox" id="chip2-inaccurate-${this.dataset.id}" data-testid="Inaccurate" />
+            <label class="feedback__chip-label" for="chip2-inaccurate-${this.dataset.id}">Inaccurate</label>
+          </div>
+          <!-- Completeness Group -->
+          <div class="feedback__chip-group">
+            <input class="feedback__chip" type="checkbox" id="chip3-complete-${this.dataset.id}" data-testid="Complete" />
+            <label class="feedback__chip-label" for="chip3-complete-${this.dataset.id}">Complete</label>
+            <input class="feedback__chip" type="checkbox" id="chip4-incomplete-${this.dataset.id}" data-testid="Incomplete" />
+            <label class="feedback__chip-label" for="chip4-incomplete-${this.dataset.id}">Incomplete</label>
+          </div>
+          <!-- Structure Group -->
+          <div class="feedback__chip-group">
+            <input class="feedback__chip" type="checkbox" id="chip5-structured-${this.dataset.id}" data-testid="Structured" />
+            <label class="feedback__chip-label" for="chip5-structured-${this.dataset.id}">Followed instructions</label>
+            <input class="feedback__chip" type="checkbox" id="chip6-unstructured-${this.dataset.id}" data-testid="Unstructured" />
+            <label class="feedback__chip-label" for="chip6-unstructured-${this.dataset.id}">Not as instructed</label>
+          </div>
+        </div>
+      </fieldset>
+    <div class="feedback__text-area feedback__text-area-${this.dataset.id}">
+        <label for="text-${this.dataset.id}">Or describe with your own words:</label>
+        <textarea class="feedback__text-input" id="text-${this.dataset.id}" rows="1"></textarea>
+        <button class="feedback__submit-btn" id="submit-button-${this.dataset.id}" type="button">Submit</button>
+    </div>
+    </div>`)}
+
+    this.#addChipEvents();
+    this.#addSubmitEvent();
   }
 
   #collectChips() {
+    let chatController = this.closest("chat-controller")
     this.collectedData.chips = [];
     /** @type {NodeListOf<HTMLInputElement>} */
-    let chips = this.querySelectorAll(".feedback__chip");
+    let chips = chatController.querySelectorAll(".feedback__chip");
     chips.forEach((chip) => {
       if (chip.checked) {
-        const label = this.querySelector(`[for="${chip.id}"]`);
+        const label = chatController.querySelector(`[for="${chip.id}"]`);
         if (label) {
           this.collectedData.chips.push(label.textContent?.trim() || "");
         }
       }
     });
+  }
+
+
+  #addChipEvents() {
+    let chatController = this.closest("chat-controller")
+    let chipGroups = chatController.querySelectorAll(".feedback__chip-group");
+    chipGroups.forEach((group) => {
+      let chips = group.querySelectorAll(".feedback__chip");
+      chips.forEach((chip) => {
+        chip.addEventListener("change", (e) => {
+          chips.forEach((otherChip) => {
+            if (otherChip !== e.target) {
+              otherChip.checked = false;
+            }
+          });
+
+          if (this.collectedData.rating > 0) {
+            this.#sendFeedback();
+          }
+        });
+      });
+    });
+  }
+
+  #addSubmitEvent() {
+    /** @type {HTMLTextAreaElement | null} */
+  // Updated Submit button logic
+  const textInput = document.querySelector(`#text-${this.dataset.id}`);
+  document.querySelector(`#submit-button-${this.dataset.id}`)?.addEventListener("click", (evt) => {
+    evt.preventDefault();
+    this.#collectChips()
+    if (!this.collectedData) return;
+
+    this.collectedData.text = textInput?.value || "";
+    this.#sendFeedback();
+
+    // Hide text area and submit button
+    let chipPanels = document.querySelector(`.feedback__chips-container-${this.dataset.id}`);
+    chipPanels?.parentElement.remove()
+
+  });
   }
 }
 

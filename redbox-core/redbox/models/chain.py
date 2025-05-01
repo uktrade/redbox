@@ -66,6 +66,7 @@ class AISettings(BaseModel):
     chat_map_question_prompt: str = prompts.CHAT_MAP_QUESTION_PROMPT
     reduce_system_prompt: str = prompts.REDUCE_SYSTEM_PROMPT
     new_route_retrieval_system_prompt: str = prompts.NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT
+    new_route_retrieval_question_prompt: str = prompts.NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT
     llm_decide_route_prompt: str = prompts.LLM_DECIDE_ROUTE
 
     # Elasticsearch RAG and boost values
@@ -92,6 +93,7 @@ class AISettings(BaseModel):
 
     # agents reporting to planner agent
     agents: list = ["Document_Agent", "External_Data_Agent", "Summarisation_Agent"]
+    agents_max_tokens: dict = {"document_agent": 10000, "external_data_agent": 5000, "summarisation_agent": 20000}
 
 
 class Source(BaseModel):
@@ -255,6 +257,7 @@ class RedboxState(BaseModel):
     citations: list[Citation] | None = None
     steps_left: Annotated[int | None, RemainingStepsManager] = None
     messages: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
+    agents_results: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
 
     @property
     def last_message(self) -> AnyMessage:
@@ -302,7 +305,7 @@ def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str]:
         question_prompt = state.request.ai_settings.condense_question_prompt
     elif prompt_set == PromptSet.NewRoute:
         system_prompt = state.request.ai_settings.new_route_retrieval_system_prompt
-        question_prompt = state.request.ai_settings.agentic_retrieval_question_prompt
+        question_prompt = state.request.ai_settings.new_route_retrieval_question_prompt
     return (system_prompt, question_prompt)
 
 

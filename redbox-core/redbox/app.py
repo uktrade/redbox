@@ -17,6 +17,7 @@ from redbox.models.chat import ChatRoute
 from redbox.models.file import ChunkResolution
 from redbox.models.graph import (
     FINAL_RESPONSE_TAG,
+    SUMMARY_MULTIAGENT_TAG,
     ROUTABLE_KEYWORDS,
     ROUTE_NAME_TAG,
     SOURCE_DOCUMENTS_TAG,
@@ -68,7 +69,7 @@ class Redbox:
 
         self.multi_agent_tools = {
             "document_agent": [search_documents],
-            "external_document_agent": [search_wikipedia, search_govuk],
+            "external_data_agent": [search_wikipedia, search_govuk],
         }
 
         self.graph = new_root_graph(
@@ -99,6 +100,8 @@ class Redbox:
         final_state = None
         request_dict = input.request.model_dump()
         logger.info("Request: %s", {k: request_dict[k] for k in request_dict.keys() - {"ai_settings"}})
+        is_summary_multiagent_streamed = False
+        is_evaluator_output_streamed = False
         async for event in self.graph.astream_events(
             input=input,
             version="v2",
@@ -110,12 +113,28 @@ class Redbox:
                 content = event["data"]["chunk"].content
                 if isinstance(content, str):
                     await response_tokens_callback(content)
+            elif kind == "on_chat_model_stream" and SUMMARY_MULTIAGENT_TAG in tags:
+                if is_evaluator_output_streamed:
+                    await response_tokens_callback("\n\n")
+                    is_evaluator_output_streamed = False
+
+                content = event["data"]["chunk"].content
+                if isinstance(content, str):
+                    await response_tokens_callback(content)
+                is_summary_multiagent_streamed = True
+
             elif kind == "on_chain_end" and FINAL_RESPONSE_TAG in tags:
                 content = event["data"]["output"]
                 if isinstance(content, str):
                     await response_tokens_callback(content)
             elif kind == "on_custom_event" and event["name"] == RedboxEventType.response_tokens.value:
+                if is_summary_multiagent_streamed:
+                    await response_tokens_callback("\n\n")
+                    is_summary_multiagent_streamed = False
+
                 await response_tokens_callback(event["data"])
+                is_evaluator_output_streamed = True
+
             elif kind == "on_chain_end" and ROUTE_NAME_TAG in tags:
                 await route_name_callback(event["data"]["output"]["route_name"])
             elif kind == "on_retriever_end" and SOURCE_DOCUMENTS_TAG in tags:

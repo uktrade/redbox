@@ -33,7 +33,7 @@ class ChatHistory extends HTMLElement {
         const showMoreDiv = document.createElement("div");
         showMoreDiv.id = "show-more-div";
         const showMoreLink = document.createElement("a");
-        showMoreLink.textContent = "Show More";
+        showMoreLink.textContent = "Show more...";
         showMoreLink.id = "show-more-button";
         showMoreLink.classList.add("rb-chat-history__link", "govuk-link--inverse");
 

@@ -40,8 +40,12 @@ RETRIEVAL_SYSTEM_PROMPT = """
 
    """
 
-NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question usinng responses received from other AI agents. Use citations to back up your answer. Return in the format <Format>{format_instructions}</Format>
-"""
+
+NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context. Use citations to back up your answer when available. Always return your response in the following JSON format: {{"answer": your_answer, "citations": [list_of_citations]}}.
+
+If no citations are available or needed, return an empty array for citations like this: {{"answer": your_answer, "citations": []}}.
+
+{format_instructions}"""
 
 AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
     "You are an advanced problem-solving assistant. Your primary goal is to carefully "
@@ -110,6 +114,8 @@ AGENTIC_GIVE_UP_SYSTEM_PROMPT = (
     "is to provide the best possible answer with the resources available.\n\n"
     "Remember: While your priority is to answer the question, sometimes the best assistance involves "
     "guiding the user in providing the information needed for a complete solution."
+    "6. **Response Format**: When providing the answer, ALWAYS use this exact JSON schema:\n"
+    "{format_instructions}"
 )
 
 SELF_ROUTE_SYSTEM_PROMPT = """
@@ -134,30 +140,6 @@ SELF_ROUTE_SYSTEM_PROMPT = """
 
    Remember: Only use information from documents. If the information isn't there, only return the word: "unanswerable".
    """
-
-# SELF_ROUTE_SYSTEM_PROMPT = """Answer the user's question using only information from documents. Do not use your own knowledge or information from any other source. Analyse document carefully to find relevant information.
-
-
-# If document contains information that answers the question:
-# - Provide a direct, concise answer based solely on that information
-# - Reference specific parts of document when appropriate
-# - Be clear about what the document states vs. what might be inferred
-
-# If document does not contain information that addresses the question:
-# - Respond with "unanswerable"
-# - Do not attempt to guess or provide partial answers based on your own knowledge
-# - Do not apologize or explain why you can't answer
-
-# Important: Your response must either:
-# 1. Contain ONLY information from documents
-# OR
-# 2. Be EXACTLY and ONLY the word "unanswerable"
-
-# There should never be any additional text, explanations, or your own knowledge in the response.
-
-# Remember: Only use information from documents. If the information isn't there, only return the word: "unanswerable".
-# """
-
 
 CHAT_MAP_SYSTEM_PROMPT = (
     "Your goal is to extract the most important information and present it in "
@@ -229,6 +211,12 @@ CHAT_WITH_DOCS_QUESTION_PROMPT = "Question: {question}. \n\n Documents: \n\n {fo
 RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
 AGENTIC_RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
+
+NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT = (
+    "<User question> {question} </User question> \n\n <Context>: \n\n {agents_results} \n\n </Context> \n\n."
+    "Put it in <sonnet> tags.\n"
+    "Assistant: <sonnet>"
+)
 
 AGENTIC_GIVE_UP_QUESTION_PROMPT = "{question}"
 
