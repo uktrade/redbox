@@ -418,7 +418,12 @@ def create_evaluator():
 
 
 def invoke_custom_state(
-    custom_graph, agent_name: str, all_chunks_retriever: VectorStoreRetriever, use_as_agent: bool, debug: bool = False
+    custom_graph,
+    agent_name: str,
+    all_chunks_retriever: VectorStoreRetriever,
+    use_as_agent: bool,
+    debug: bool = False,
+    max_tokens: int = 5000,
 ):
     @RunnableLambda
     def _invoke_custom_state(state: RedboxState):
