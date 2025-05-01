@@ -58,9 +58,11 @@
             docs = completed_files,
             type = "complete"
           ) }}
+          {% if completed_files %}
           <a class="iai-doc-list__delete" role="button" href="{{ url('remove-all-docs') }}">
             Delete all documents
         </a>
+        {% endif %}
         </doc-list>
       </div>
 
