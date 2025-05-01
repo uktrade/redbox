@@ -13,15 +13,22 @@ from redbox.transform import get_document_token_count
 log = logging.getLogger()
 
 
-def calculate_token_budget(state: RedboxState, system_prompt: str, question_prompt: str) -> int:
+def calculate_token_budget(state: RedboxState, system_prompt: str, question_prompt: str, format_prompt: str) -> int:
     tokeniser = get_tokeniser()
 
     len_question_prompt = tokeniser(question_prompt)
     len_system_prompt = tokeniser(system_prompt)
+    len_format_prompt = tokeniser(format_prompt)
 
     ai_settings = state.request.ai_settings
 
-    return ai_settings.context_window_size - ai_settings.llm_max_tokens - len_system_prompt - len_question_prompt
+    return (
+        ai_settings.context_window_size
+        - ai_settings.llm_max_tokens
+        - len_system_prompt
+        - len_question_prompt
+        - len_format_prompt
+    )
 
 
 def build_total_tokens_request_handler_conditional(prompt_set: PromptSet) -> Runnable:
@@ -32,8 +39,8 @@ def build_total_tokens_request_handler_conditional(prompt_set: PromptSet) -> Run
     def _total_tokens_request_handler_conditional(
         state: RedboxState,
     ) -> Literal["max_exceeded", "context_exceeded", "pass"]:
-        system_prompt, question_prompt = get_prompts(state, prompt_set)
-        token_budget_remaining_in_context = calculate_token_budget(state, system_prompt, question_prompt)
+        system_prompt, question_prompt, format_prompt = get_prompts(state, prompt_set)
+        token_budget_remaining_in_context = calculate_token_budget(state, system_prompt, question_prompt, format_prompt)
         max_tokens_allowed = state.request.ai_settings.max_document_tokens
 
         total_tokens = state.metadata.selected_files_total_tokens
@@ -52,8 +59,8 @@ def build_documents_bigger_than_context_conditional(prompt_set: PromptSet) -> Ru
     """Uses a set of prompts to build the correct conditional for exceeding the context window."""
 
     def _documents_bigger_than_context_conditional(state: RedboxState) -> bool:
-        system_prompt, question_prompt = get_prompts(state, prompt_set)
-        token_budget = calculate_token_budget(state, system_prompt, question_prompt)
+        system_prompt, question_prompt, format_prompt = get_prompts(state, prompt_set)
+        token_budget = calculate_token_budget(state, system_prompt, question_prompt, format_prompt)
 
         return get_document_token_count(state) > token_budget
 
