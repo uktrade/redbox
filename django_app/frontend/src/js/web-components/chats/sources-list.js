@@ -8,11 +8,16 @@ export class SourcesList extends HTMLElement {
   // citations text sometimes contains quotation marks which breaks the link formed by data-text
   // The Function below helps preserve this information by converting it from an HTML attribute thus avoiding any issues.
   escapeHtmlAttribute(str) {
-    return str
-      .replace(/&/g, "&amp;")  // Escape & first
-      .replace(/"/g, "&quot;") // Escape double quotes
-      .replace(/</g, "&lt;")   // Escape <
-      .replace(/>/g, "&gt;");  // Escape >
+    try {
+      return str
+        .replace(/&/g, "&amp;")   // Escape &
+        .replace(/"/g, "&quot;")  // Escape "
+        .replace(/</g, "&lt;")    // Escape <
+        .replace(/>/g, "&gt;");   // Escape >
+    } catch (error) {
+      console.warn("escapeHtmlAttribute error:", error);
+      return str; // Fallback to original string
+    }
   }
   /**
    * Adds a source to the current message
