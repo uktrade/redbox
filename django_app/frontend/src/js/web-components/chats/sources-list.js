@@ -5,7 +5,20 @@ export class SourcesList extends HTMLElement {
     super();
     this.sources = [];
   }
-
+  // citations text sometimes contains quotation marks which breaks the link formed by data-text
+  // The Function below helps preserve this information by converting it from an HTML attribute thus avoiding any issues.
+  escapeHtmlAttribute(str) {
+    try {
+      return str
+        .replace(/&/g, "&amp;")   // Escape &
+        .replace(/"/g, "&quot;")  // Escape "
+        .replace(/</g, "&lt;")    // Escape <
+        .replace(/>/g, "&gt;");   // Escape >
+    } catch (error) {
+      console.warn("escapeHtmlAttribute error:", error);
+      return str; // Fallback to original string
+    }
+  }
   /**
    * Adds a source to the current message
    * @param {string} fileName
@@ -13,8 +26,9 @@ export class SourcesList extends HTMLElement {
    * @param {string} matchingText
    */
   add = (fileName, url, matchingText) => {
+
     // prevent duplicate sources
-    if (this.sources.some((source) => source.fileName === fileName)) {
+    if (this.sources.some((source) => source.matchingText === matchingText)) {
       return;
     }
 
@@ -36,12 +50,11 @@ export class SourcesList extends HTMLElement {
                       source.url
                     }" id="footnote-${this.getAttribute("data-id")}-${
         this.sources.length
-      }" data-text="${source.matchingText}">${source.fileName || source.url}</a>
+      }" data-text="${this.escapeHtmlAttribute(source.matchingText)}">${source.fileName || source.url}</a>
                 </li>
             `;
     });
     html += `</div></ol>`;
-
     this.innerHTML = html;
   };
 
