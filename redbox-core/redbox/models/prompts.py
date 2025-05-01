@@ -13,6 +13,13 @@ CHAT_SYSTEM_PROMPT = "You are tasked with providing information objectively and 
 
 CHAT_WITH_DOCS_SYSTEM_PROMPT = "You are tasked with providing information objectively and responding helpfully to users using context from their provided documents"
 
+CITATION_PROMPT = """Use citations to back up your answer when available. Return response in the following format: {format_instructions}.
+Example response:
+- If citations are available: {{"answer": your_answer, "citations": [list_of_citations]}}.
+- If no citations are available or needed, return an empty array for citations like this: {{"answer": your_answer, "citations": []}}.
+
+Assistant:<sonnet>"""
+
 CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
     "You are tasked with answering questions on user provided documents. "
     "Your goal is to answer the user question based on list of summaries in a coherent manner."
@@ -24,28 +31,11 @@ CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
 )
 
 RETRIEVAL_SYSTEM_PROMPT = """
-   Answer my question using only the documents I provide. Include proper citations for each factual claim.
-   Return ONLY the JSON structure
-   {format_instructions}
-   with no introduction, explanation, or additional text:
-
-   Requirements:
-
-   - Only cite information from the documents I provide in <My_Documents>{formatted_documents}</My_Documents>
-   - Each citation must match exact text in your answer
-   - Include substantial quotes from the documents (20+ words minimum)
-   - Specify page numbers when available
-   - Do not reference external sources beyond what I provide in <My_Documents>
-   - Use UK English spelling in response
-
+   Answer my question using only the documents I provide.
    """
 
 
-NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context. Use citations to back up your answer when available. Always return your response in the following JSON format: {{"answer": your_answer, "citations": [list_of_citations]}}.
-
-If no citations are available or needed, return an empty array for citations like this: {{"answer": your_answer, "citations": []}}.
-
-{format_instructions}"""
+NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context."""
 
 AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
     "You are an advanced problem-solving assistant. Your primary goal is to carefully "
@@ -55,12 +45,8 @@ AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
     "information). Based on this data, you are expected to think critically about how to "
     "proceed.\n"
     "1. Use available tools if required to complete the task, OR\n"
-    "2. Return a direct response in the specified JSON schema format\n\n"
-    "Important Guidelines:\n\n"
-    "1. Response Format:\n"
-    "When providing a direct answer (not using tools), ALWAYS use this exact JSON schema:\n"
-    "{format_instructions}"
-    "2. Tool Usage:\n"
+    "2. Return a direct response\n"
+    "2.1. Tool Usage:\n"
     "- Before responding, evaluate if you need any tools to complete the task\n"
     "- If tools are needed, call them using the appropriate function calls\n"
     "- document_selected is {has_selected_files}. If document_selected is True, then always call search_document tool.\n"
@@ -114,8 +100,6 @@ AGENTIC_GIVE_UP_SYSTEM_PROMPT = (
     "is to provide the best possible answer with the resources available.\n\n"
     "Remember: While your priority is to answer the question, sometimes the best assistance involves "
     "guiding the user in providing the information needed for a complete solution."
-    "6. **Response Format**: When providing the answer, ALWAYS use this exact JSON schema:\n"
-    "{format_instructions}"
 )
 
 SELF_ROUTE_SYSTEM_PROMPT = """
@@ -214,8 +198,6 @@ AGENTIC_RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
 NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT = (
     "<User question> {question} </User question> \n\n <Context>: \n\n {agents_results} \n\n </Context> \n\n."
-    "Put it in <sonnet> tags.\n"
-    "Assistant: <sonnet>"
 )
 
 AGENTIC_GIVE_UP_QUESTION_PROMPT = "{question}"
