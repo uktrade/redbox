@@ -434,11 +434,11 @@ REDBOX_VERSION = os.environ.get("REDBOX_VERSION", "not set")
 Q_CLUSTER = {
     "name": "redbox_django",
     "timeout": env.int("Q_TIMEOUT", 300),
-    "retry": env.int("Q_RETRY", 900),
+    "retry": env.int("Q_RETRY", 300),
     "max_attempts": env.int("Q_MAX_ATTEMPTS", 1),
     "catch_up": False,
     "orm": "default",
-    "workers": 1,
+    "workers": env.int("Q_WORKERS", 2),
     "error_reporter": {"sentry": {"dsn": env.str("SENTRY_DSN", " ")}},
 }
 
@@ -469,3 +469,7 @@ CLAM_AV_DOMAIN = env.str("CLAM_AV_DOMAIN", " ")
 CHUNK_UPLOADER_AWS_REGION = env.str("AWS_REGION", " ")
 
 AWS_TRANSCRIBE_ROLE_ARN = env.str("AWS_TRANSCRIBE_ROLE_ARN", "")
+
+DATAHUB_REDBOX_URL = env.str("DATAHUB_REDBOX_URL", "")
+DATAHUB_REDBOX_SECRET_KEY = env.str("DATAHUB_REDBOX_SECRET_KEY", "")
+DATAHUB_REDBOX_ACCESS_KEY_ID = env.str("DATAHUB_REDBOX_ACCESS_KEY_ID", "")

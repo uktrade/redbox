@@ -69,7 +69,7 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
     builder.add_node("gadget_graph", get_agentic_search_graph(tools=tools, debug=debug))
     builder.add_node(
         "summarise_graph",
-        get_summarise_graph(all_chunks_retriever=all_chunks_retriever, use_as_agent=False, debug=debug),
+        get_summarise_graph(all_chunks_retriever=all_chunks_retriever, debug=debug),
     )
     builder.add_node(
         "new_route_graph",
@@ -333,7 +333,8 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent
         "summarise_document",
         build_stuff_pattern(
             prompt_set=PromptSet.ChatwithDocs,
-            final_response_chain=False if use_as_agent else True,  # True when use_as_agent=False
+            final_response_chain=False if use_as_agent else True,
+            summary_multiagent_flag=True if use_as_agent else False,
         ),
         retry=RetryPolicy(max_attempts=3),
     )
@@ -849,8 +850,8 @@ def build_new_graph(
         invoke_custom_state(
             custom_graph=get_summarise_graph,
             agent_name="Summarisation_Agent",
-            use_as_agent=True,
             all_chunks_retriever=all_chunks_retriever,
+            use_as_agent=True,
             debug=debug,
         ),
     )
@@ -868,7 +869,6 @@ def build_new_graph(
     builder.add_conditional_edges("planner", sending_task_to_agent)
     builder.add_edge("Document_Agent", "clear_tasks")
     builder.add_edge("External_Data_Agent", "clear_tasks")
-    builder.add_edge("Summarisation_Agent", "clear_tasks")
     builder.add_edge("clear_tasks", "pass_user_prompt_to_LLM_message")
     builder.add_edge("pass_user_prompt_to_LLM_message", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
