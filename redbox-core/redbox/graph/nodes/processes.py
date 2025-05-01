@@ -159,6 +159,7 @@ def build_stuff_pattern(
     tools: list[StructuredTool] | None = None,
     final_response_chain: bool = False,
     additional_variables: dict = {},
+    summary_multiagent_flag: bool = False,
 ) -> Runnable[RedboxState, dict[str, Any]]:
     """Returns a Runnable that uses state.request and state.documents to set state.messages.
 
@@ -178,6 +179,7 @@ def build_stuff_pattern(
                 format_instructions=format_instructions,
                 final_response_chain=final_response_chain,
                 additional_variables=additional_variables,
+                summary_multiagent_flag=summary_multiagent_flag,
             ).stream(state)
         ]
         return sum(events, {})
@@ -418,8 +420,8 @@ def create_evaluator():
 def invoke_custom_state(
     custom_graph,
     agent_name: str,
-    use_as_agent: bool,
     all_chunks_retriever: VectorStoreRetriever,
+    use_as_agent: bool,
     debug: bool = False,
     max_tokens: int = 5000,
 ):
@@ -439,14 +441,10 @@ def invoke_custom_state(
         )
         activity_node.invoke(state)
 
-        # invoke the subgraph
-        response = subgraph.invoke(subgraph_state)
-        # add agent name as a tag to the response
-        result = response["messages"][-1].content
-        result = f"<{agent_name}_Result>{result[:max_tokens]}</{agent_name}_Result>"
+        ## invoke the subgraph
+        response = subgraph.invoke(subgraph_state)  # the LLM response is streamed
 
-        # transform response back to the parent state
-        return {"agents_results": result}
+        return response
 
     return _invoke_custom_state
 

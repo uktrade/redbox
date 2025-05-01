@@ -3357,6 +3357,21 @@ files = [
 ]
 
 [[package]]
+name = "mohawk"
+version = "1.1.0"
+description = "Library for Hawk HTTP authorization"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "mohawk-1.1.0-py3-none-any.whl", hash = "sha256:3ed296a30453d0b724679e0fd41e4e940497f8e461a9a9c3b7f36e43bab0fa09"},
+    {file = "mohawk-1.1.0.tar.gz", hash = "sha256:d2a0e3ab10a209cc79e95e28f2dd54bd4a73fd1998ffe27b7ba0f962b6be9723"},
+]
+
+[package.dependencies]
+six = "*"
+
+[[package]]
 name = "multidict"
 version = "6.3.0"
 description = "multidict implementation"
@@ -6812,4 +6827,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "20e5f8d59e1c8ddcb57e168f25d79dacecf62d5a4b6a912032540aa318a0f9c0"
+content-hash = "a0690c55f13d4ad31e3cadef07ba2f5b54190db73964a955515569a3b4a943d6"
