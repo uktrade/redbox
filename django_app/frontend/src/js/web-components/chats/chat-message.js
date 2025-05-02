@@ -61,7 +61,7 @@ export class ChatMessage extends HTMLElement {
 
 
 
-  #addFootnotes = (content) => {
+  #addFootnotes = (content, chatId) => {
     let footnotes = this.querySelectorAll("sources-list a[data-text]");
     footnotes.forEach((footnote, footnoteIndex) => {
       const matchingText = footnote.getAttribute("data-text");
@@ -76,7 +76,7 @@ export class ChatMessage extends HTMLElement {
       this.responseContainer.innerHTML =
         this.responseContainer.innerHTML.replace(
           matchingText,
-          `${matchingText}<a class="rb-footnote-link" href="#${
+          `${matchingText}<a class="rb-footnote-link" href="/citations/${chatId}/#${
             footnote.id
           }" aria-label="Footnote ${footnoteIndex + 1}">${
             footnoteIndex + 1
@@ -247,8 +247,7 @@ export class ChatMessage extends HTMLElement {
           actionsContainer.appendChild(copyText)
 
       }
-
-        this.#addFootnotes(streamedContent);
+        this.#addFootnotes(streamedContent,response.data.message_id);
         const chatResponseEndEvent = new CustomEvent("chat-response-end", {
           detail: {
             title: response.data.title,
@@ -256,6 +255,7 @@ export class ChatMessage extends HTMLElement {
           },
         });
         document.dispatchEvent(chatResponseEndEvent);
+        location.reload()
       } else if (response.type === "error") {
         this.querySelector(".govuk-notification-banner")?.removeAttribute(
           "hidden"

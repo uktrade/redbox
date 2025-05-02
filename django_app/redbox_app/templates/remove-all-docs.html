@@ -1,0 +1,28 @@
+{% set pageTitle = "Remove all documents" %}
+
+{% extends "base.html" %}
+{% from "macros/govuk-button.html" import govukButton %}
+{% from "macros/govuk-error-summary.html" import govukErrorSummary %}
+
+{% block content %}
+
+<form method="post" enctype="multipart/form-data">
+
+<div class="govuk-width-container">
+
+  <a href="{{url('documents')}}" class="govuk-back-link govuk-!-margin-bottom-5 govuk-!-margin-top-0">Back</a>
+
+  <form method="post" enctype="multipart/form-data">
+
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
+    <h1 class="govuk-heading-m">Are you sure you want to remove all your documents?</h1>
+
+    {{ govukErrorSummary(error_list=errors) }}
+
+    {{ govukButton(text="Remove all documents", classes="govuk-button--warning", prevent_double_click=True) }}
+
+  </form>
+</div>
+
+{% endblock %}
