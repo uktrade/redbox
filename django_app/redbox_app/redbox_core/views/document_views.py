@@ -325,7 +325,6 @@ def remove_all_docs_view(request):
     )
 
 
-
 @require_http_methods(["GET"])
 @login_required
 def file_status_api_view(request: HttpRequest) -> JsonResponse:
