@@ -31,7 +31,7 @@ CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
 )
 
 RETRIEVAL_SYSTEM_PROMPT = """
-   Answer my question using only the documents I provide.
+   Answer my question using only the documents I provide. <My_Documents>{formatted_documents}</My_Documents>
    """
 
 
