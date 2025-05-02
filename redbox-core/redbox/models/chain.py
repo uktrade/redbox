@@ -68,6 +68,7 @@ class AISettings(BaseModel):
     new_route_retrieval_system_prompt: str = prompts.NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT
     new_route_retrieval_question_prompt: str = prompts.NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT
     llm_decide_route_prompt: str = prompts.LLM_DECIDE_ROUTE
+    citation_prompt: str = prompts.CITATION_PROMPT
 
     # Elasticsearch RAG and boost values
     rag_k: int = 30
@@ -278,7 +279,8 @@ class PromptSet(StrEnum):
     NewRoute = "new_route"
 
 
-def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str]:
+def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str, str]:
+    format_prompt = ""
     if prompt_set == PromptSet.Chat:
         system_prompt = state.request.ai_settings.chat_system_prompt
         question_prompt = state.request.ai_settings.chat_question_prompt
@@ -291,9 +293,11 @@ def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str]:
     elif prompt_set == PromptSet.Search:
         system_prompt = state.request.ai_settings.retrieval_system_prompt
         question_prompt = state.request.ai_settings.retrieval_question_prompt
+        format_prompt = state.request.ai_settings.citation_prompt
     elif prompt_set == PromptSet.SearchAgentic:
         system_prompt = state.request.ai_settings.agentic_retrieval_system_prompt
         question_prompt = state.request.ai_settings.agentic_retrieval_question_prompt
+        format_prompt = state.request.ai_settings.citation_prompt
     elif prompt_set == PromptSet.GiveUpAgentic:
         system_prompt = state.request.ai_settings.agentic_give_up_system_prompt
         question_prompt = state.request.ai_settings.agentic_give_up_question_prompt
@@ -306,7 +310,8 @@ def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str]:
     elif prompt_set == PromptSet.NewRoute:
         system_prompt = state.request.ai_settings.new_route_retrieval_system_prompt
         question_prompt = state.request.ai_settings.new_route_retrieval_question_prompt
-    return (system_prompt, question_prompt)
+        format_prompt = state.request.ai_settings.citation_prompt
+    return (system_prompt, question_prompt, format_prompt)
 
 
 def is_dict_type[T](annotated_type: T) -> bool:

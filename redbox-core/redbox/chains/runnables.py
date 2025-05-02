@@ -38,7 +38,7 @@ def build_chat_prompt_from_messages_runnable(
         ai_settings = state.request.ai_settings
         _tokeniser = tokeniser or get_tokeniser()
         _additional_variables = additional_variables or dict()
-        task_system_prompt, task_question_prompt = get_prompts(state, prompt_set)
+        task_system_prompt, task_question_prompt, format_prompt = get_prompts(state, prompt_set)
 
         log.debug("Setting chat prompt")
         # Set the system prompt to be our composed structure
@@ -78,6 +78,7 @@ def build_chat_prompt_from_messages_runnable(
                 + [(msg["role"], msg["text"]) for msg in truncated_history]
                 + [MessagesPlaceholder("messages")]
                 + [task_question_prompt]
+                + ([format_prompt] if len(format_instructions) > 0 else [])
             ),
             partial_variables={"format_instructions": format_instructions},
         ).invoke(prompt_template_context)
