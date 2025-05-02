@@ -45,6 +45,7 @@ file_urlpatterns = [
     path("documents/", views.DocumentView.as_view(), name="documents"),
     path("upload/", views.UploadView.as_view(), name="upload"),
     path("remove-doc/<uuid:doc_id>", views.remove_doc_view, name="remove-doc"),
+    path("remove-all-docs", views.remove_all_docs_view, name="remove-all-docs"),
 ]
 
 chat_urlpatterns = [
