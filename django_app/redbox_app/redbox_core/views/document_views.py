@@ -80,25 +80,37 @@ class UploadView(View):
     @method_decorator(login_required)
     def post(self, request: HttpRequest) -> HttpResponse:
         errors: MutableSequence[str] = []
-
         uploaded_files: MutableSequence[UploadedFile] = request.FILES.getlist("uploadDocs")
 
         if not uploaded_files:
             errors.append("No document selected")
 
-        for index, uploaded_file in enumerate(uploaded_files):
+        processed_files = []
+        for uploaded_file in uploaded_files:
             errors += self.validate_uploaded_file(uploaded_file)
+            if errors:
+                continue
+            uploaded_file.seek(0)
+            content = uploaded_file.read()
+            temp_file = InMemoryUploadedFile(
+                file=BytesIO(content),
+                field_name=uploaded_file.field_name,
+                name=uploaded_file.name,
+                content_type=uploaded_file.content_type,
+                size=len(content),
+                charset=uploaded_file.charset,
+            )
             # handling doc -> docx conversion
-            if self.is_doc_file(uploaded_file):
-                uploaded_files[index] = self.convert_doc_to_docx(uploaded_file)
+            if self.is_doc_file(temp_file):
+                temp_file = self.convert_doc_to_docx(temp_file)
             # handling utf8 compatibility
-            if not self.is_utf8_compatible(uploaded_file):
-                uploaded_files[index] = self.convert_to_utf8(uploaded_file)
+            if not self.is_utf8_compatible(temp_file):
+                temp_file = self.convert_to_utf8(temp_file)
+            processed_files.append(temp_file)
 
         if not errors:
-            for uploaded_file in uploaded_files:
-                # ingest errors are handled differently, as the other documents have started uploading by this point
-                request.session["ingest_errors"] = self.ingest_file(uploaded_file, request.user)
+            for processed_file in processed_files:
+                request.session["ingest_errors"] = self.ingest_file(processed_file, request.user)
             return redirect(reverse("documents"))
 
         return self.build_response(request, errors)
@@ -136,11 +148,15 @@ class UploadView(View):
             logger.info("File does not require utf8 compatibility check")
             return True
         try:
-            uploaded_file.open()
-            uploaded_file.read().decode("utf-8")
+            uploaded_file.seek(0)
+            content = uploaded_file.read()
+            content.decode("utf-8")
             uploaded_file.seek(0)
         except UnicodeDecodeError:
             logger.info("File is incompatible with utf-8. Converting...")
+            return False
+        except Exception as e:
+            logger.exception("Error checking utf-8 compatibility for %s", uploaded_file.name, exc_info=e)
             return False
         else:
             logger.info("File is compatible with utf-8 - ready for processing")
@@ -149,7 +165,7 @@ class UploadView(View):
     @staticmethod
     def convert_to_utf8(uploaded_file: UploadedFile) -> UploadedFile:
         try:
-            uploaded_file.open()
+            uploaded_file.seek(0)
             content = uploaded_file.read().decode("ISO-8859-1")
 
             # Detect and replace non-UTF-8 characters
@@ -158,17 +174,18 @@ class UploadView(View):
             # Creating a new InMemoryUploadedFile object with the converted content
             new_uploaded_file = InMemoryUploadedFile(
                 file=BytesIO(new_bytes),
-                field_name=uploaded_file.name,
+                field_name=uploaded_file.field_name,
                 name=uploaded_file.name,
                 content_type="application/octet-stream",
                 size=len(new_bytes),
                 charset="utf-8",
             )
+            uploaded_file.seek(0)
         except Exception as e:
-            logger.exception("Error converting file %s to UTF-8.", uploaded_file, exc_info=e)
+            logger.exception("Error converting file %s to UTF-8.", uploaded_file.name, exc_info=e)
             return uploaded_file
         else:
-            logger.info("Conversion to UTF-8 successful")
+            logger.info("Conversion to UTF-8 successful for %s", uploaded_file.name)
             return new_uploaded_file
 
     @staticmethod
