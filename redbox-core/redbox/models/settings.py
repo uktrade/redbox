@@ -64,6 +64,11 @@ class ElasticCloudSettings(BaseModel):
     cloud_id: str
     subscription_level: str = "basic"
 
+class MCPServerSettings(BaseModel):
+    model_config = SettingsConfigDict(frozen=True)
+    name: str
+    url: str
+    secret_tokens: dict
 
 class ChatLLMBackend(BaseModel):
     name: str = "gpt-4o"
@@ -140,6 +145,21 @@ class Settings(BaseSettings):
     datahub_redbox_url: str = env.str("DATAHUB_REDBOX_URL", "")
     datahub_redbox_secret_key: str = env.str("DATAHUB_REDBOX_SECRET_KEY", "")
     datahub_redbox_access_key_id: str = env.str("DATAHUB_REDBOX_ACCESS_KEY_ID", "")
+
+    # mcp
+    caddy_mcp: MCPServerSettings = MCPServerSettings(
+        name="caddy_mcp",
+        url=env.str("MCP_CADDY_URL"),
+        secret_tokens={env.str("MCP_HEADERS"): env.str("MCP_CADDY_TOKEN")},
+    )
+
+    parlex_mcp: MCPServerSettings = MCPServerSettings(
+        name="parlex_mcp",
+        url=env.str("MCP_PARLEX_URL"),
+        secret_tokens={env.str("MCP_HEADERS"): env.str("MCP_PARLEX_TOKEN")},
+    )
+
+
 
     ## Prompts
     metadata_prompt: tuple = (
