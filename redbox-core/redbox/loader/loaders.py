@@ -1,4 +1,7 @@
 import logging
+import mimetypes
+import magic
+from pathlib import Path
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from io import BytesIO
@@ -33,6 +36,8 @@ else:
     S3Client = object
 
 
+
+
 class MetadataLoader:
     def __init__(self, env: Settings, s3_client: S3Client, file_name: str):
         self.env = env
@@ -41,25 +46,44 @@ class MetadataLoader:
         self.file_name = file_name
 
     def _get_file_bytes(self, s3_client: S3Client, file_name: str) -> BytesIO:
-        return s3_client.get_object(Bucket=self.env.bucket_name, Key=file_name)["Body"].read()
+        file_bytes = s3_client.get_object(Bucket=self.env.bucket_name, Key=file_name)["Body"].read()
+        logger.info(f"Loaded {len(file_bytes)} bytes from {file_name}")
+        return BytesIO(file_bytes)
 
     def _chunking(self) -> list[dict]:
         """
         Chunking data using local unstructured
         """
         file_bytes = self._get_file_bytes(s3_client=self.s3_client, file_name=self.file_name)
+
+        # Trying to fix bug by using python magic to hopefully inform unstructured
+        mime_detector = magic.Magic(mime=True)
+        detected_mime = mime_detector.from_buffer(file_bytes.getvalue()[:1024])
+        logger.info(f"Detected MIME type: {detected_mime} for file: {self.file_name}")
+
+        file_extension = Path(self.file_name).suffix.lower()
+        mime_type, _ = mimetypes.guess_type(self.file_name)
+        if detected_mime != "application/octet-stream":
+            mime_type = detected_mime
+        elif not mime_type:
+            mime_type = "application/octet-stream"
+
+        logger.info(f"Using MIME type: {mime_type} for file: {self.file_name}")
+
         if ENVIRONMENT.is_local:
             url = f"http://{self.env.unstructured_host}:8000/general/v0/general"
         else:
             url = f"http://{self.env.unstructured_host}:80/general/v0/general"
+
         files = {
-            "files": (self.file_name, file_bytes),
+            "files": (self.file_name, file_bytes, mime_type),
         }
+
         response = requests.post(
             url,
             files=files,
             data={
-                "strategy": "fast",
+                "strategy": "auto",
                 "chunking_strategy": "by_title",
                 "max_characters": self.env.worker_ingest_max_chunk_size,
                 "combine_under_n_chars": self.env.worker_ingest_min_chunk_size,
@@ -82,7 +106,11 @@ class MetadataLoader:
         """
         Extract metadata from first 1_000 chunks
         """
-        chunks = self._chunking()
+        try:
+            chunks = self._chunking()
+        except ValueError as e:
+            logger.error(f"Chunking failed for {self.file_name}: {str(e)}")
+            return GeneratedMetadata(name=self.file_name)
 
         original_metadata = chunks[0]["metadata"] if chunks else {}
         first_thousand_words = "".join(chunk["text"] for chunk in chunks)[:10_000]
@@ -167,14 +195,20 @@ class UnstructuredChunkLoader:
             url = f"http://{self.env.unstructured_host}:8000/general/v0/general"
         else:
             url = f"http://{self.env.unstructured_host}:80/general/v0/general"
+
+        file_extension = Path(file_name).suffix.lower()
+        mime_type, _ = mimetypes.guess_type(file_name)
+        if not mime_type:
+            mime_type = "application/octet-stream"
+
         files = {
-            "files": (file_name, file_bytes),
+            "files": (file_name, file_bytes, mime_type),
         }
         response = requests.post(
             url,
             files=files,
             data={
-                "strategy": "fast",
+                "strategy": "auto",
                 "chunking_strategy": "by_title",
                 "max_characters": self._max_chunk_size,
                 "combine_under_n_chars": self._min_chunk_size,
