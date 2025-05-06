@@ -169,6 +169,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 session,
                 "".join(self.full_reply),
             )
+            if not message_history[-1].text or message_history[-1].text=="":
+                msg = "Null LLM Response Received"
+                raise ValueError(msg)  # noqa: TRY301
             await self.send_to_client("end", {"message_id": message.id, "title": title, "session_id": session.id})
 
         except RateLimitError as e:
@@ -176,6 +179,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.send_to_client("error", error_messages.RATE_LIMITED)
         except (TimeoutError, ConnectionClosedError, CancelledError) as e:
             logger.exception("Error from core.", exc_info=e)
+            await self.send_to_client("error", error_messages.CORE_ERROR_MESSAGE)
+        except ValueError as e:
+            logger.exception("LLM Error - Null Response", exc_info=e)
             await self.send_to_client("error", error_messages.CORE_ERROR_MESSAGE)
         except Exception as e:
             logger.exception("General error.", exc_info=e)
