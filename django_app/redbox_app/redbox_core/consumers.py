@@ -169,7 +169,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 session,
                 "".join(self.full_reply),
             )
-            if not message_history[-1].text or message_history[-1].text=="":
+            if not message_history[-1].text or message_history[-1].text == "":
                 msg = "Null LLM Response Received"
                 raise ValueError(msg)  # noqa: TRY301
             await self.send_to_client("end", {"message_id": message.id, "title": title, "session_id": session.id})
