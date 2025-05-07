@@ -1,5 +1,5 @@
 # Use the existing image as the base image
-FROM quay.io/unstructured-io/unstructured-api:0.0.83
+FROM quay.io/unstructured-io/unstructured-api:latest
 
 # Expose port 8080
 EXPOSE 8080
