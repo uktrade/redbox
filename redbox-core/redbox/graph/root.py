@@ -874,4 +874,4 @@ def build_new_graph(
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
 
-    return builder.compile(debug=debug,interrupt_after= ["planner"],  interrupt_before=["Internal_Retrieval_Agent", "External_Retrieval_Agent", "Summarisation_Agent"])
+    return builder.compile(debug=debug)
