@@ -410,7 +410,9 @@ AgentEnum = Enum("AgentEnum", agent_options)
 
 class AgentTask(BaseModel):
     task: str = Field(description="Task to be completed by the agent", default="")
-    agent: AgentEnum = Field(description="Name of the agent to complete the task", default=AgentEnum.Internal_Retrieval_Agent)
+    agent: AgentEnum = Field(
+        description="Name of the agent to complete the task", default=AgentEnum.Internal_Retrieval_Agent
+    )
     expected_output: str = Field(description="What this agent should produce", default="")
 
 
