@@ -825,9 +825,9 @@ def build_new_graph(
     builder = StateGraph(RedboxState)
     builder.add_node("planner", create_planner())
     builder.add_node(
-        "Document_Agent",
+        "Internal_Retrieval_Agent",
         build_agent(
-            agent_name="Document Agent",
+            agent_name="Internal_Retrieval_Agent",
             system_prompt=DOCUMENT_AGENT_PROMPT,
             tools=multi_agent_tools["document_agent"],
             use_metadata=True,
@@ -836,9 +836,9 @@ def build_new_graph(
     )
     builder.add_node("send", empty_process)
     builder.add_node(
-        "External_Data_Agent",
+        "External_Retrieval_Agent",
         build_agent(
-            agent_name="External Data Agent",
+            agent_name="External_Retrieval_Agent",
             system_prompt=EXTERNAL_DATA_AGENT,
             tools=multi_agent_tools["external_data_agent"],
             use_metadata=False,
@@ -867,11 +867,11 @@ def build_new_graph(
 
     builder.add_edge(START, "planner")
     builder.add_conditional_edges("planner", sending_task_to_agent)
-    builder.add_edge("Document_Agent", "clear_tasks")
-    builder.add_edge("External_Data_Agent", "clear_tasks")
+    builder.add_edge("Internal_Retrieval_Agent", "clear_tasks")
+    builder.add_edge("External_Retrieval_Agent", "clear_tasks")
     builder.add_edge("clear_tasks", "pass_user_prompt_to_LLM_message")
     builder.add_edge("pass_user_prompt_to_LLM_message", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
 
-    return builder.compile(debug=debug)
+    return builder.compile(debug=debug,interrupt_after= ["planner"],  interrupt_before=["Internal_Retrieval_Agent", "External_Retrieval_Agent", "Summarisation_Agent"])
