@@ -93,8 +93,12 @@ class AISettings(BaseModel):
     tool_govuk_returned_results: int = 5
 
     # agents reporting to planner agent
-    agents: list = ["Document_Agent", "External_Data_Agent", "Summarisation_Agent"]
-    agents_max_tokens: dict = {"document_agent": 10000, "external_data_agent": 5000, "summarisation_agent": 20000}
+    agents: list = ["Internal_Retrieval_Agent", "External_Retrieval_Agent", "Summarisation_Agent"]
+    agents_max_tokens: dict = {
+        "Internal_Retrieval_Agent": 10000,
+        "External_Retrieval_Agent": 5000,
+        "Summarisation_Agent": 20000,
+    }
 
 
 class Source(BaseModel):
@@ -410,7 +414,9 @@ AgentEnum = Enum("AgentEnum", agent_options)
 
 class AgentTask(BaseModel):
     task: str = Field(description="Task to be completed by the agent", default="")
-    agent: AgentEnum = Field(description="Name of the agent to complete the task", default=AgentEnum.Document_Agent)
+    agent: AgentEnum = Field(
+        description="Name of the agent to complete the task", default=AgentEnum.Internal_Retrieval_Agent
+    )
     expected_output: str = Field(description="What this agent should produce", default="")
 
 
