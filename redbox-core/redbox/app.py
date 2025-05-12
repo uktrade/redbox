@@ -128,7 +128,6 @@ class Redbox:
                 kind = event["event"]
                 tags = event.get("tags", [])
                 try:
-                    logger.debug("this is just showing this is happening")
                     if kind == "on_chat_model_stream" and FINAL_RESPONSE_TAG in tags:
                         content = event["data"]["chunk"].content
                         if isinstance(content, str):
