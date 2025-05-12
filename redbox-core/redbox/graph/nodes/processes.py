@@ -395,7 +395,7 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
         result_content = "".join([res.content for res in result])
         # truncate results to max_token
         result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
-        return {"agents_results": result}
+        return {"agents_results": result, "tasks_evaluator": task.task}
 
     return _build_agent
 
@@ -441,8 +441,12 @@ def invoke_custom_state(
         )
         activity_node.invoke(state)
 
+
+
         ## invoke the subgraph
         response = subgraph.invoke(subgraph_state)  # the LLM response is streamed
+
+        #invoking this subgraph will change original state.question - we correct the state question in subsequent nodes
 
         return response
 
@@ -456,3 +460,12 @@ def delete_plan_message():
         return {"messages": [RemoveMessage(id=last_message.id)]}
 
     return _delete_plan_message
+
+def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
+    """Returns a Runnable that uses state["request"] to set state["text"]."""
+
+    @RunnableLambda
+    def _combine_question(state: RedboxState) -> dict[str, Any]:
+        state.request.question = "\n\n".join([task.content for task in state.tasks_evaluator])
+        return state
+    return _combine_question
