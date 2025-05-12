@@ -440,13 +440,10 @@ def invoke_custom_state(
             RedboxActivityEvent(message=f"{agent_name} is completing task: {agent_task["task"]}")
         )
         activity_node.invoke(state)
-
-
-
         ## invoke the subgraph
         response = subgraph.invoke(subgraph_state)  # the LLM response is streamed
 
-        #invoking this subgraph will change original state.question - we correct the state question in subsequent nodes
+        # invoking this subgraph will change original state.question - we correct the state question in subsequent nodes
 
         return response
 
@@ -461,6 +458,7 @@ def delete_plan_message():
 
     return _delete_plan_message
 
+
 def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
     """Returns a Runnable that uses state["request"] to set state["text"]."""
 
@@ -468,4 +466,5 @@ def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
     def _combine_question(state: RedboxState) -> dict[str, Any]:
         state.request.question = "\n\n".join([task.content for task in state.tasks_evaluator])
         return state
+
     return _combine_question
