@@ -51,7 +51,7 @@ from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
 from redbox.models.chain import AgentDecision, AISettings, PromptSet, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
-from redbox.models.prompts import DOCUMENT_AGENT_PROMPT, EXTERNAL_DATA_AGENT
+from redbox.models.prompts import INTERNAL_RETRIEVAL_AGENT_PROMPT, EXTERNAL_RETRIEVAL_AGENT_PROMPT
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
 
@@ -828,10 +828,10 @@ def build_new_graph(
         "Internal_Retrieval_Agent",
         build_agent(
             agent_name="Internal_Retrieval_Agent",
-            system_prompt=DOCUMENT_AGENT_PROMPT,
-            tools=multi_agent_tools["document_agent"],
+            system_prompt=INTERNAL_RETRIEVAL_AGENT_PROMPT,
+            tools=multi_agent_tools["Internal_Retrieval_Agent"],
             use_metadata=True,
-            max_tokens=agents_max_tokens["document_agent"],
+            max_tokens=agents_max_tokens["Internal_Retrieval_Agent"],
         ),
     )
     builder.add_node("send", empty_process)
@@ -839,10 +839,10 @@ def build_new_graph(
         "External_Retrieval_Agent",
         build_agent(
             agent_name="External_Retrieval_Agent",
-            system_prompt=EXTERNAL_DATA_AGENT,
-            tools=multi_agent_tools["external_data_agent"],
+            system_prompt=EXTERNAL_RETRIEVAL_AGENT_PROMPT,
+            tools=multi_agent_tools["External_Retrieval_Agent"],
             use_metadata=False,
-            max_tokens=agents_max_tokens["external_data_agent"],
+            max_tokens=agents_max_tokens["External_Retrieval_Agent"],
         ),
     )
     builder.add_node(
