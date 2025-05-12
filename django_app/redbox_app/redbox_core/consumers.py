@@ -5,6 +5,7 @@ from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 from uuid import UUID
+from uwotm8 import convert_american_to_british_spelling
 
 from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
@@ -226,7 +227,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     ) -> ChatMessage:
         chat_message = ChatMessage(
             chat=session,
-            text=user_message_text,
+            text=convert_american_to_british_spelling(user_message_text),
             role=ChatMessage.Role.ai,
             route=self.route,
         )
