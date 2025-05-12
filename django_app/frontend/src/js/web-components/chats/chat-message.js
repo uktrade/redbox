@@ -6,6 +6,7 @@ export class ChatMessage extends HTMLElement {
   constructor() {
     super();
     this.programmaticScroll = false;
+    this.streamedContent = "";
   }
 
   connectedCallback() {
@@ -73,15 +74,13 @@ export class ChatMessage extends HTMLElement {
         content.replace(matchingText, `${matchingText}<a href="#${footnote.id}" aria-label="Footnote ${footnoteIndex + 1}">[${footnoteIndex + 1}]</a>`)
       );
       */
-      this.responseContainer.innerHTML =
-        this.responseContainer.innerHTML.replace(
+      const footnoteLink = `<a class="rb-footnote-link" href="/citations/${chatId}/#${footnote.id}" aria-label="Footnote ${footnoteIndex + 1}">${footnoteIndex + 1}</a>`;
+      if (!this.responseContainer.innerHTML.includes(footnoteLink)) {
+        this.responseContainer.innerHTML = this.responseContainer.innerHTML.replace(
           matchingText,
-          `${matchingText}<a class="rb-footnote-link" href="/citations/${chatId}/#${
-            footnote.id
-          }" aria-label="Footnote ${footnoteIndex + 1}">${
-            footnoteIndex + 1
-          }</a>`
+          `${matchingText}${footnoteLink}`
         );
+      }
     });
   };
 
@@ -154,7 +153,6 @@ export class ChatMessage extends HTMLElement {
     let actionsContainer = this.querySelector(".chat-actions-container")
     let responseComplete = this.querySelector(".rb-loading-complete");
     let webSocket = new WebSocket(endPoint);
-    let streamedContent = "";
 
     // Stop streaming on escape-key or stop-button press
     const stopStreaming = () => {
@@ -223,6 +221,7 @@ export class ChatMessage extends HTMLElement {
           response.data.url,
           response.data.text_in_answer
         );
+        this.#addFootnotes(this.streamedContent, chatControllerRef.dataset.sessionId || "");
       } else if (response.type === "route") {
         // Update the route text on the page now the selected route is known
         let route = this?.querySelector(".redbox-message-route");
@@ -247,7 +246,7 @@ export class ChatMessage extends HTMLElement {
           actionsContainer.appendChild(copyText)
 
       }
-        this.#addFootnotes(streamedContent, response.data.message_id);
+        this.#addFootnotes(this.streamedContent, response.data.message_id);
         const chatResponseEndEvent = new CustomEvent("chat-response-end", {
           detail: {
             title: response.data.title,
@@ -255,7 +254,6 @@ export class ChatMessage extends HTMLElement {
           },
         });
         document.dispatchEvent(chatResponseEndEvent);
-        location.reload()
       } else if (response.type === "error") {
         this.querySelector(".govuk-notification-banner")?.removeAttribute(
           "hidden"

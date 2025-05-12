@@ -246,6 +246,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.chat_message.route = self.route
         self.chat_message.save()
 
+        # Important - clears existing citations and related objects to avoid duplicates
+        Citation.objects.filter(chat_message=self.chat_message).delete()
+        ChatMessageTokenUse.objects.filter(chat_message=self.chat_message).delete()
+        ActivityEvent.objects.filter(chat_message=self.chat_message).delete()
+
         # Save citations
         for file, ai_citation in self.citations:
             for citation_source in ai_citation.sources:
