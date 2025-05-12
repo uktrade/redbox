@@ -230,7 +230,7 @@ Execution Strategy:
 
 """
 
-EXTERNAL_RETRIEVAL_AGENT_PROMPT  = """You are an expert information analyst with the ability to critically assess when and how to retrieve information. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
+EXTERNAL_RETRIEVAL_AGENT_PROMPT = """You are an expert information analyst with the ability to critically assess when and how to retrieve information. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
 
 Guidelines for Tool Usage:
 1. Carefully evaluate the existing information first
