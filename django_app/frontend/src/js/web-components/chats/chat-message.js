@@ -247,7 +247,7 @@ export class ChatMessage extends HTMLElement {
           actionsContainer.appendChild(copyText)
 
       }
-        this.#addFootnotes(streamedContent,response.data.message_id);
+        this.#addFootnotes(streamedContent, response.data.message_id);
         const chatResponseEndEvent = new CustomEvent("chat-response-end", {
           detail: {
             title: response.data.title,
