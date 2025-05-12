@@ -38,7 +38,7 @@ def build_chat_prompt_from_messages_runnable(
         ai_settings = state.request.ai_settings
         _tokeniser = tokeniser or get_tokeniser()
         _additional_variables = additional_variables or dict()
-        task_system_prompt, task_question_prompt = get_prompts(state, prompt_set)
+        task_system_prompt, task_question_prompt, format_prompt = get_prompts(state, prompt_set)
 
         log.debug("Setting chat prompt")
         # Set the system prompt to be our composed structure
@@ -72,15 +72,18 @@ def build_chat_prompt_from_messages_runnable(
             | _additional_variables
         )
 
-        return ChatPromptTemplate(
+        chatprompt = ChatPromptTemplate(
             messages=(
                 [("system", system_prompt_message)]
                 + [(msg["role"], msg["text"]) for msg in truncated_history]
                 + [MessagesPlaceholder("messages")]
-                + [task_question_prompt + "\n\n{format_instructions}"]
+                + [task_question_prompt]
+                + ([format_prompt] if len(format_instructions) > 0 else [])
             ),
             partial_variables={"format_instructions": format_instructions},
         ).invoke(prompt_template_context)
+
+        return chatprompt
 
     return _chat_prompt_from_messages
 
@@ -109,6 +112,7 @@ def build_llm_chain(
     format_instructions: str = "",
     final_response_chain: bool = False,
     additional_variables: dict = {},
+    summary_multiagent_flag: bool = False,
 ) -> Runnable:
     """Builds a chain that correctly forms a text and metadata state update.
 
@@ -116,6 +120,9 @@ def build_llm_chain(
     """
     model_name = llm._default_config.get("model", "unknown")
     _llm = llm.with_config(tags=["response_flag"]) if final_response_chain else llm
+    _llm = (
+        _llm.with_config(tags=["summary_multiagent_tag"]) if summary_multiagent_flag else _llm
+    )  # used for summarisation in multi-agent route
     _output_parser = output_parser if output_parser else StrOutputParser()
 
     _llm_text_and_tools = _llm | {

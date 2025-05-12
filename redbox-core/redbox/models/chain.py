@@ -66,7 +66,9 @@ class AISettings(BaseModel):
     chat_map_question_prompt: str = prompts.CHAT_MAP_QUESTION_PROMPT
     reduce_system_prompt: str = prompts.REDUCE_SYSTEM_PROMPT
     new_route_retrieval_system_prompt: str = prompts.NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT
+    new_route_retrieval_question_prompt: str = prompts.NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT
     llm_decide_route_prompt: str = prompts.LLM_DECIDE_ROUTE
+    citation_prompt: str = prompts.CITATION_PROMPT
 
     # Elasticsearch RAG and boost values
     rag_k: int = 30
@@ -91,7 +93,12 @@ class AISettings(BaseModel):
     tool_govuk_returned_results: int = 5
 
     # agents reporting to planner agent
-    agents: list = ["Document_Agent", "External_Data_Agent", "Summarisation_Agent"]
+    agents: list = ["Internal_Retrieval_Agent", "External_Retrieval_Agent", "Summarisation_Agent"]
+    agents_max_tokens: dict = {
+        "Internal_Retrieval_Agent": 10000,
+        "External_Retrieval_Agent": 5000,
+        "Summarisation_Agent": 20000,
+    }
 
 
 class Source(BaseModel):
@@ -255,6 +262,7 @@ class RedboxState(BaseModel):
     citations: list[Citation] | None = None
     steps_left: Annotated[int | None, RemainingStepsManager] = None
     messages: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
+    agents_results: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
 
     @property
     def last_message(self) -> AnyMessage:
@@ -275,7 +283,8 @@ class PromptSet(StrEnum):
     NewRoute = "new_route"
 
 
-def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str]:
+def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str, str]:
+    format_prompt = ""
     if prompt_set == PromptSet.Chat:
         system_prompt = state.request.ai_settings.chat_system_prompt
         question_prompt = state.request.ai_settings.chat_question_prompt
@@ -288,9 +297,11 @@ def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str]:
     elif prompt_set == PromptSet.Search:
         system_prompt = state.request.ai_settings.retrieval_system_prompt
         question_prompt = state.request.ai_settings.retrieval_question_prompt
+        format_prompt = state.request.ai_settings.citation_prompt
     elif prompt_set == PromptSet.SearchAgentic:
         system_prompt = state.request.ai_settings.agentic_retrieval_system_prompt
         question_prompt = state.request.ai_settings.agentic_retrieval_question_prompt
+        format_prompt = state.request.ai_settings.citation_prompt
     elif prompt_set == PromptSet.GiveUpAgentic:
         system_prompt = state.request.ai_settings.agentic_give_up_system_prompt
         question_prompt = state.request.ai_settings.agentic_give_up_question_prompt
@@ -302,8 +313,9 @@ def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str]:
         question_prompt = state.request.ai_settings.condense_question_prompt
     elif prompt_set == PromptSet.NewRoute:
         system_prompt = state.request.ai_settings.new_route_retrieval_system_prompt
-        question_prompt = state.request.ai_settings.agentic_retrieval_question_prompt
-    return (system_prompt, question_prompt)
+        question_prompt = state.request.ai_settings.new_route_retrieval_question_prompt
+        format_prompt = state.request.ai_settings.citation_prompt
+    return (system_prompt, question_prompt, format_prompt)
 
 
 def is_dict_type[T](annotated_type: T) -> bool:
@@ -402,7 +414,9 @@ AgentEnum = Enum("AgentEnum", agent_options)
 
 class AgentTask(BaseModel):
     task: str = Field(description="Task to be completed by the agent", default="")
-    agent: AgentEnum = Field(description="Name of the agent to complete the task", default=AgentEnum.Document_Agent)
+    agent: AgentEnum = Field(
+        description="Name of the agent to complete the task", default=AgentEnum.Internal_Retrieval_Agent
+    )
     expected_output: str = Field(description="What this agent should produce", default="")
 
 

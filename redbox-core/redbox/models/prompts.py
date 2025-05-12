@@ -13,6 +13,13 @@ CHAT_SYSTEM_PROMPT = "You are tasked with providing information objectively and 
 
 CHAT_WITH_DOCS_SYSTEM_PROMPT = "You are tasked with providing information objectively and responding helpfully to users using context from their provided documents"
 
+CITATION_PROMPT = """Use citations to back up your answer when available. Return response in the following format: {format_instructions}.
+Example response:
+- If citations are available: {{"answer": your_answer, "citations": [list_of_citations]}}.
+- If no citations are available or needed, return an empty array for citations like this: {{"answer": your_answer, "citations": []}}.
+
+Assistant:<sonnet>"""
+
 CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
     "You are tasked with answering questions on user provided documents. "
     "Your goal is to answer the user question based on list of summaries in a coherent manner."
@@ -24,24 +31,11 @@ CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
 )
 
 RETRIEVAL_SYSTEM_PROMPT = """
-   Answer my question using only the documents I provide. Include proper citations for each factual claim.
-   Return ONLY the JSON structure
-   {format_instructions}
-   with no introduction, explanation, or additional text:
-
-   Requirements:
-
-   - Only cite information from the documents I provide in <My_Documents>{formatted_documents}</My_Documents>
-   - Each citation must match exact text in your answer
-   - Include substantial quotes from the documents (20+ words minimum)
-   - Specify page numbers when available
-   - Do not reference external sources beyond what I provide in <My_Documents>
-   - Use UK English spelling in response
-
+   Answer my question using only the documents I provide. <My_Documents>{formatted_documents}</My_Documents>
    """
 
-NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question usinng responses received from other AI agents. Use citations to back up your answer. Return in the format <Format>{format_instructions}</Format>
-"""
+
+NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context."""
 
 AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
     "You are an advanced problem-solving assistant. Your primary goal is to carefully "
@@ -51,12 +45,8 @@ AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
     "information). Based on this data, you are expected to think critically about how to "
     "proceed.\n"
     "1. Use available tools if required to complete the task, OR\n"
-    "2. Return a direct response in the specified JSON schema format\n\n"
-    "Important Guidelines:\n\n"
-    "1. Response Format:\n"
-    "When providing a direct answer (not using tools), ALWAYS use this exact JSON schema:\n"
-    "{format_instructions}"
-    "2. Tool Usage:\n"
+    "2. Return a direct response\n"
+    "2.1. Tool Usage:\n"
     "- Before responding, evaluate if you need any tools to complete the task\n"
     "- If tools are needed, call them using the appropriate function calls\n"
     "- document_selected is {has_selected_files}. If document_selected is True, then always call search_document tool.\n"
@@ -135,30 +125,6 @@ SELF_ROUTE_SYSTEM_PROMPT = """
    Remember: Only use information from documents. If the information isn't there, only return the word: "unanswerable".
    """
 
-# SELF_ROUTE_SYSTEM_PROMPT = """Answer the user's question using only information from documents. Do not use your own knowledge or information from any other source. Analyse document carefully to find relevant information.
-
-
-# If document contains information that answers the question:
-# - Provide a direct, concise answer based solely on that information
-# - Reference specific parts of document when appropriate
-# - Be clear about what the document states vs. what might be inferred
-
-# If document does not contain information that addresses the question:
-# - Respond with "unanswerable"
-# - Do not attempt to guess or provide partial answers based on your own knowledge
-# - Do not apologize or explain why you can't answer
-
-# Important: Your response must either:
-# 1. Contain ONLY information from documents
-# OR
-# 2. Be EXACTLY and ONLY the word "unanswerable"
-
-# There should never be any additional text, explanations, or your own knowledge in the response.
-
-# Remember: Only use information from documents. If the information isn't there, only return the word: "unanswerable".
-# """
-
-
 CHAT_MAP_SYSTEM_PROMPT = (
     "Your goal is to extract the most important information and present it in "
     "a concise and coherent manner. Please follow these guidelines while summarizing: \n"
@@ -230,6 +196,10 @@ RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
 AGENTIC_RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
+NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT = (
+    "<User question> {question} </User question> \n\n <Context>: \n\n {agents_results} \n\n </Context> \n\n."
+)
+
 AGENTIC_GIVE_UP_QUESTION_PROMPT = "{question}"
 
 CHAT_MAP_QUESTION_PROMPT = "Question: {question}. \n Documents: \n {formatted_documents} \n\n Answer: "
@@ -237,7 +207,7 @@ CHAT_MAP_QUESTION_PROMPT = "Question: {question}. \n Documents: \n {formatted_do
 CONDENSE_QUESTION_PROMPT = "{question}\n=========\n Standalone question: "
 
 
-DOCUMENT_AGENT_PROMPT = """You are an expert information analyst with the ability to critically assess when and how to retrieve information. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
+INTERNAL_RETRIEVAL_AGENT_PROMPT = """You are an expert information analyst with the ability to critically assess when and how to retrieve information. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
 
 Guidelines for Tool Usage:
 1. Carefully evaluate the existing information first
@@ -260,7 +230,7 @@ Execution Strategy:
 
 """
 
-EXTERNAL_DATA_AGENT = """You are an expert information analyst with the ability to critically assess when and how to retrieve information. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
+EXTERNAL_RETRIEVAL_AGENT_PROMPT = """You are an expert information analyst with the ability to critically assess when and how to retrieve information. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
 
 Guidelines for Tool Usage:
 1. Carefully evaluate the existing information first
@@ -291,27 +261,29 @@ Operational Framework
 - Determine if the request requires multi-agent coordination or can be handled directly
 
 2. Planning Phase
-
-- Define the necessary sub-tasks required to achieve the goal
+- Read carefully the responsibility of each agent.
+- Based on the agents responsibility, define the necessary sub-tasks required to achieve the goal. Each sub-task should be aligned with the agent responsibility.
 - Identify dependencies between sub-tasks
 - Select the most appropriate agent for each sub-task from the available agent pool
 - Create a structured execution plan with clear success criteria for each step
 
-When a user query involves finding information within known documents, ALWAYS route to the Document_Agent first. Only use other information retrieval agents if:
-1. The Document Agent explicitly reports it cannot find the information
-2. The query requires synthesis of information not contained in available documents
-3. The query specifically requests external information sources
 
-If a user asks to summarise a document, ALWAYS call Summarisation_Agent.
-
-
-## Available Agents
+## Available agents and their responsibilities
 
 When creating your execution plan, you have access to the following specialised agents:
 
-1. **Document_Agent**: Retrieves information from user's uploaded documents.
-2. **External_Data_Agent**: Retrieves information from external data sources including Wikipedia, Gov.UK, and legislation.gov.uk.
-3. **Summarisation_Agent**: Summarises entire user's uploaded documents. It does not summarise outputs from other agents.
+1. **Internal_Retrieval_Agent**: solely responsible for retrieving information from user's uploaded documents. It does not summarise documents.
+2. **External_Retrieval_Agent**: solely responsible for retrieving information outside of user's uploaded documents, specifically from external data sources:
+      - Wikipedia
+      - gov.uk
+      - legislation.gov.uk 
+3. **Summarisation_Agent**: solely responsible for summarising entire user's uploaded documents. It does not summarise outputs from other agents.
+
+## helpful instructions for calling agent
+
+When a user query involves finding information within selected documents (not summarising the documents), ALWAYS route to the Internal_Retrieval_Agent. Only use External_Retrieval_Agent if the query specifically requests external data sources.
+
+If a user asks to summarise a document, ALWAYS call Summarisation_Agent and do not call other agents.
 
 ## Output Format
 
@@ -329,7 +301,7 @@ For each user request, provide your response in the following format: {format_in
 
 Remember that your primary value is in effective coordination and integration - your role is to ensure that the specialised capabilities of each agent are leveraged optimally to achieve the user's goal.
 
-
+Do not start your answer by saying: here is the plan... Go straight to the point.
 User question: <Question>{question}</Question>.
 User uploaded documents metadata:<Document_Metadata>{metadata}</Document_Metadata>.
 """

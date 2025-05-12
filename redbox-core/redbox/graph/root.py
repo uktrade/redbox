@@ -35,10 +35,11 @@ from redbox.graph.nodes.processes import (
     clear_documents_process,
     create_evaluator,
     create_planner,
+    delete_plan_message,
     empty_process,
+    invoke_custom_state,
     lm_choose_route,
     report_sources_process,
-    invoke_custom_state,
 )
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -47,10 +48,10 @@ from redbox.graph.nodes.sends import (
     sending_task_to_agent,
 )
 from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
-from redbox.models.chain import AgentDecision, PromptSet, RedboxState
+from redbox.models.chain import AgentDecision, AISettings, PromptSet, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
-from redbox.models.prompts import DOCUMENT_AGENT_PROMPT, EXTERNAL_DATA_AGENT
+from redbox.models.prompts import INTERNAL_RETRIEVAL_AGENT_PROMPT, EXTERNAL_RETRIEVAL_AGENT_PROMPT
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
 
@@ -68,7 +69,7 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
     builder.add_node("gadget_graph", get_agentic_search_graph(tools=tools, debug=debug))
     builder.add_node(
         "summarise_graph",
-        get_summarise_graph(all_chunks_retriever=all_chunks_retriever, use_as_agent=False, debug=debug),
+        get_summarise_graph(all_chunks_retriever=all_chunks_retriever, debug=debug),
     )
     builder.add_node(
         "new_route_graph",
@@ -332,7 +333,8 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent
         "summarise_document",
         build_stuff_pattern(
             prompt_set=PromptSet.ChatwithDocs,
-            final_response_chain=False if use_as_agent else True,  # True when use_as_agent=False
+            final_response_chain=False if use_as_agent else True,
+            summary_multiagent_flag=True if use_as_agent else False,
         ),
         retry=RetryPolicy(max_attempts=3),
     )
@@ -819,25 +821,28 @@ def build_new_graph(
     multi_agent_tools: dict,
     debug: bool = False,
 ) -> CompiledGraph:
+    agents_max_tokens = AISettings().agents_max_tokens
     builder = StateGraph(RedboxState)
     builder.add_node("planner", create_planner())
     builder.add_node(
-        "Document_Agent",
+        "Internal_Retrieval_Agent",
         build_agent(
-            agent_name="Document Agent",
-            system_prompt=DOCUMENT_AGENT_PROMPT,
-            tools=multi_agent_tools["document_agent"],
+            agent_name="Internal_Retrieval_Agent",
+            system_prompt=INTERNAL_RETRIEVAL_AGENT_PROMPT,
+            tools=multi_agent_tools["Internal_Retrieval_Agent"],
             use_metadata=True,
+            max_tokens=agents_max_tokens["Internal_Retrieval_Agent"],
         ),
     )
     builder.add_node("send", empty_process)
     builder.add_node(
-        "External_Data_Agent",
+        "External_Retrieval_Agent",
         build_agent(
-            agent_name="External Data Agent",
-            system_prompt=EXTERNAL_DATA_AGENT,
-            tools=multi_agent_tools["external_document_agent"],
+            agent_name="External_Retrieval_Agent",
+            system_prompt=EXTERNAL_RETRIEVAL_AGENT_PROMPT,
+            tools=multi_agent_tools["External_Retrieval_Agent"],
             use_metadata=False,
+            max_tokens=agents_max_tokens["External_Retrieval_Agent"],
         ),
     )
     builder.add_node(
@@ -845,13 +850,15 @@ def build_new_graph(
         invoke_custom_state(
             custom_graph=get_summarise_graph,
             agent_name="Summarisation_Agent",
-            use_as_agent=True,
             all_chunks_retriever=all_chunks_retriever,
+            use_as_agent=True,
             debug=debug,
         ),
     )
 
     builder.add_node("Evaluator_Agent", create_evaluator())
+    builder.add_node("clear_tasks", delete_plan_message())
+    builder.add_node("pass_user_prompt_to_LLM_message", build_passthrough_pattern())
     builder.add_node(
         "report_citations",
         report_sources_process,
@@ -860,9 +867,10 @@ def build_new_graph(
 
     builder.add_edge(START, "planner")
     builder.add_conditional_edges("planner", sending_task_to_agent)
-    builder.add_edge("Document_Agent", "Evaluator_Agent")
-    builder.add_edge("External_Data_Agent", "Evaluator_Agent")
-    builder.add_edge("Summarisation_Agent", "Evaluator_Agent")
+    builder.add_edge("Internal_Retrieval_Agent", "clear_tasks")
+    builder.add_edge("External_Retrieval_Agent", "clear_tasks")
+    builder.add_edge("clear_tasks", "pass_user_prompt_to_LLM_message")
+    builder.add_edge("pass_user_prompt_to_LLM_message", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
 

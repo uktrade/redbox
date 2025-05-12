@@ -13,7 +13,7 @@ from botocore.exceptions import EventStreamError
 from langchain.schema import StrOutputParser
 from langchain_core.callbacks.manager import dispatch_custom_event
 from langchain_core.documents import Document
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
 from langchain_core.runnables import Runnable, RunnableLambda, RunnableParallel
 from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
@@ -27,7 +27,7 @@ from redbox.models import ChatRoute
 from redbox.models.chain import AgentTask, DocumentState, MultiAgentPlan, PromptSet, RedboxState, RequestMetadata
 from redbox.models.graph import ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import PLANNER_PROMPT
-from redbox.transform import combine_documents, flatten_document_state
+from redbox.transform import combine_agents_state, combine_documents, flatten_document_state
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
@@ -159,6 +159,7 @@ def build_stuff_pattern(
     tools: list[StructuredTool] | None = None,
     final_response_chain: bool = False,
     additional_variables: dict = {},
+    summary_multiagent_flag: bool = False,
 ) -> Runnable[RedboxState, dict[str, Any]]:
     """Returns a Runnable that uses state.request and state.documents to set state.messages.
 
@@ -178,6 +179,7 @@ def build_stuff_pattern(
                 format_instructions=format_instructions,
                 final_response_chain=final_response_chain,
                 additional_variables=additional_variables,
+                summary_multiagent_flag=summary_multiagent_flag,
             ).stream(state)
         ]
         return sum(events, {})
@@ -368,7 +370,7 @@ def create_planner():
     return _create_planner
 
 
-def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: bool = False):
+def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: bool = False, max_tokens: int = 5000):
     @RunnableLambda
     def _build_agent(state: RedboxState):
         parser = ClaudeParser(pydantic_object=AgentTask)
@@ -390,26 +392,38 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
         )
         ai_msg = worker_agent.invoke(state)
         result = run_tools_parallel(ai_msg, tools, state)
-        result = f"<{agent_name}_Result>{result}</{agent_name}_Result>"
-        return {"messages": result}
+        result_content = "".join([res.content for res in result])
+        # truncate results to max_token
+        result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
+        return {"agents_results": result}
 
     return _build_agent
 
 
 def create_evaluator():
-    citation_parser, format_instructions = get_structured_response_with_citations_parser()
-    evaluator_agent = build_stuff_pattern(
-        prompt_set=PromptSet.NewRoute,
-        tools=None,
-        output_parser=citation_parser,
-        format_instructions=format_instructions,
-        final_response_chain=False,
-    )
-    return evaluator_agent
+    def _create_evaluator(state: RedboxState):
+        _additional_variables = {"agents_results": combine_agents_state(state.agents_results)}
+        citation_parser, format_instructions = get_structured_response_with_citations_parser()
+        evaluator_agent = build_stuff_pattern(
+            prompt_set=PromptSet.NewRoute,
+            tools=None,
+            output_parser=citation_parser,
+            format_instructions=format_instructions,
+            final_response_chain=False,
+            additional_variables=_additional_variables,
+        )
+        return evaluator_agent
+
+    return _create_evaluator
 
 
 def invoke_custom_state(
-    custom_graph, agent_name: str, use_as_agent: bool, all_chunks_retriever: VectorStoreRetriever, debug: bool = False
+    custom_graph,
+    agent_name: str,
+    all_chunks_retriever: VectorStoreRetriever,
+    use_as_agent: bool,
+    debug: bool = False,
+    max_tokens: int = 5000,
 ):
     @RunnableLambda
     def _invoke_custom_state(state: RedboxState):
@@ -417,7 +431,9 @@ def invoke_custom_state(
         subgraph = custom_graph(all_chunks_retriever=all_chunks_retriever, use_as_agent=use_as_agent, debug=debug)
         subgraph_state = state.model_copy()
         agent_task = json.loads(subgraph_state.last_message.content)
-        subgraph_state.request.question = agent_task["task"]
+        subgraph_state.request.question = (
+            agent_task["task"] + f"\nReturn response that is no longer than {max_tokens} tokens."
+        )
 
         # set activity log
         activity_node = build_activity_log_node(
@@ -425,13 +441,18 @@ def invoke_custom_state(
         )
         activity_node.invoke(state)
 
-        # invoke the subgraph
-        response = subgraph.invoke(subgraph_state)
-        # add agent name as a tag to the response
-        result = response["messages"][-1].content
-        result = f"<{agent_name}_Result>{result}</{agent_name}_Result>"
+        ## invoke the subgraph
+        response = subgraph.invoke(subgraph_state)  # the LLM response is streamed
 
-        # transform response back to the parent state
-        return {"messages": result}
+        return response
 
     return _invoke_custom_state
+
+
+def delete_plan_message():
+    @RunnableLambda
+    def _delete_plan_message(state: RedboxState):
+        last_message = state.messages[-1]
+        return {"messages": [RemoveMessage(id=last_message.id)]}
+
+    return _delete_plan_message

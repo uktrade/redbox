@@ -5,7 +5,20 @@ export class SourcesList extends HTMLElement {
     super();
     this.sources = [];
   }
-
+  // citations text sometimes contains quotation marks which breaks the link formed by data-text
+  // The Function below helps preserve this information by converting it from an HTML attribute thus avoiding any issues.
+  escapeHtmlAttribute(str) {
+    try {
+      return str
+        .replace(/&/g, "&amp;")   // Escape &
+        .replace(/"/g, "&quot;")  // Escape "
+        .replace(/</g, "&lt;")    // Escape <
+        .replace(/>/g, "&gt;");   // Escape >
+    } catch (error) {
+      console.warn("escapeHtmlAttribute error:", error);
+      return str; // Fallback to original string
+    }
+  }
   /**
    * Adds a source to the current message
    * @param {string} fileName
@@ -13,8 +26,9 @@ export class SourcesList extends HTMLElement {
    * @param {string} matchingText
    */
   add = (fileName, url, matchingText) => {
+
     // prevent duplicate sources
-    if (this.sources.some((source) => source.fileName === fileName)) {
+    if (this.sources.some((source) => source.matchingText === matchingText)) {
       return;
     }
 
@@ -36,42 +50,13 @@ export class SourcesList extends HTMLElement {
                       source.url
                     }" id="footnote-${this.getAttribute("data-id")}-${
         this.sources.length
-      }" data-text="${source.matchingText}">${source.fileName || source.url}</a>
+      }" data-text="${this.escapeHtmlAttribute(source.matchingText)}">${source.fileName || source.url}</a>
                 </li>
             `;
     });
     html += `</div></ol>`;
-
     this.innerHTML = html;
   };
 
-  /**
-   * Shows to citations link/button
-   * @param {string} chatId
-   */
-  showCitations = (chatId) => {
-    if (!chatId) {
-      return;
-    }
-    if (this.sources.length) {
-      const html = `
-        <div class="iai-chat-bubble__citations-button-container">
-          <copy-text></copy-text>
-          <a class="iai-chat-bubble__button" href="/citations/${chatId}">
-            <svg width="20" height="19" viewBox="0 0 20 19" fill="none" focusable="false" aria-hidden="true">
-                <path d="M1.5 9.62502C1.5 9.62502 4.59036 3.55359 10 3.55359C15.4084 3.55359 18.5 9.62502 18.5 9.62502C18.5 9.62502 15.4084 15.6964 10 15.6964C4.59036 15.6964 1.5 9.62502 1.5 9.62502Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M9.99993 10.8392C10.322 10.8392 10.6308 10.7113 10.8586 10.4836C11.0863 10.2558 11.2142 9.94698 11.2142 9.62493C11.2142 9.30288 11.0863 8.99402 10.8586 8.7663C10.6308 8.53858 10.322 8.41064 9.99993 8.41064C9.67788 8.41064 9.36902 8.53858 9.1413 8.7663C8.91358 8.99402 8.78564 9.30288 8.78564 9.62493C8.78564 9.94698 8.91358 10.2558 9.1413 10.4836C9.36902 10.7113 9.67788 10.8392 9.99993 10.8392Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-             See source information
-          </a>
-        </div>
-      `;
-      /** @type {HTMLElement} */ (
-        this.querySelector(".iai-display-flex-from-desktop")
-      ).innerHTML += html;
-    } else {
-      this.innerHTML = `<copy-text></copy-text>`;
-    }
-  };
-}
+  }
 customElements.define("sources-list", SourcesList);

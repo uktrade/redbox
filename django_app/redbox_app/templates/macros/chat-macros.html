@@ -1,28 +1,23 @@
 {% macro route_display(route=None) %}
-<div class="iai-chat-bubble__route" {% if not route %}hidden{% endif %}>
-  <tool-tip class="iai-tooltip">
-    <div class="iai-tooltip__button" tabindex="0">
-      <span>Response generated using <strong>@<span class="iai-chat-bubble__route-text">{{ route }}</span></strong>
-        </span>
-      <img src="{{ static('icons/question-mark.svg') }}" alt="" width="14" />
-    </div>
-    <div class="iai-tooltip__content">
-      <h3 class="iai-chat-bubble__route-heading">
-        <img src="{{ static('icons/question-mark.svg') }}" alt="" width="24" />
-        <span>Redbox uses different paths to generate the best response</span>
-      </h3>
-      <ul class="iai-chat-bubble__route-list">
-        <li class="iai-chat-bubble__route-list-item">I can <strong>@chat</strong> about general questions, not related
-          to your documents</li>
-        <li class="iai-chat-bubble__route-list-item">I can <strong>@summarise</strong> over selected documents and
-          do Q&amp;A on them, extract information, summarise and more!</li>
-        <li class="iai-chat-bubble__route-list-item">I can help you <strong>@search</strong> over selected documents and
-          do Q&amp;A on them, with citations</li>
-        <li class="iai-chat-bubble__route-list-item">I can use agents to search on gov.uk and Wikipedia using the <strong>@gadget</strong> command, with citations</li>
-      </ul>
-    </div>
-  </tool-tip>
-</div>
+<details class="govuk-details redbox-message-route" {% if not route %} hidden {% endif %}>
+  <summary class="govuk-details__summary">
+    <span class="govuk-details__summary-text font-size-14">
+      Response generated using @<span class="route-text">{{ route }}</span>
+    </span>
+  </summary>
+  <div class="govuk-details__text font-size-14">
+    <span>Redbox uses different paths to generate the best response</span>
+    <ul>
+      <li>I can @chat about general questions, not related
+        to your documents</li>
+      <li>I can @summarise over selected documents and
+        do Q&amp;A on them, extract information, summarise and more!</li>
+      <li>I can help you @search over selected documents and
+        do Q&amp;A on them, with citations</li>
+      <li>I can use agents to search on GOV.UK and Wikipedia using the @gadget command, with citations</li>
+    </ul>
+  </div>
+</details>
 {% endmacro %}
 
 
@@ -37,21 +32,12 @@
 {% set role_text = "You" %}
 {% endif %}
 
-{% for activity in message.activityevent_set.all() %}
-  <p class="rb-activity rb-activity--{{ message.role }}">{{ activity }}</p>
-{% endfor %}
 
 <div
-  class="iai-chat-bubble govuk-body {{ classes }}"
-  data-role="{{ message.role }}" tabindex="-1">
-  <div class="iai-chat-bubble__header">
-    <div class="iai-chat-bubble__role">{% if message.role == "ai" %}Redbox{% else %}You{% endif %}</div>
-    {% if message.route %}
-    {{ route_display(message.route) }}
-    {% endif %}
-  </div>
+  class="redbox-message-container govuk-inset-text {% if message.role == "user" %} govuk-inset-text-right {% endif %} govuk-body"
+  data-role="{{ message.role }}" tabindex="-1" id="chat-message-{{ message.id }}">
 
-  <markdown-converter class="iai-chat-bubble__text">{{ message.text }}</markdown-converter>
+  <markdown-converter class="chat-message__text">{{ message.text }}</markdown-converter>
   {% if message.unique_citation_uris() %}
   <h3 class="iai-chat-bubble__sources-heading govuk-heading-s govuk-!-margin-bottom-1">Sources</h3>
   <div class="iai-display-flex-from-desktop">
@@ -62,21 +48,41 @@
         </li>
       {% endfor %}
     </ol>
-    <div class="iai-chat-bubble__citations-button-container">
-      <copy-text></copy-text>
-      <a class="iai-chat-bubble__button" href="{{url('citations', message.id)}}">
-        <svg width="20" height="19" viewBox="0 0 20 19" fill="none" focusable="false" aria-hidden="true">
-            <path d="M1.5 9.62502C1.5 9.62502 4.59036 3.55359 10 3.55359C15.4084 3.55359 18.5 9.62502 18.5 9.62502C18.5 9.62502 15.4084 15.6964 10 15.6964C4.59036 15.6964 1.5 9.62502 1.5 9.62502Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M9.99993 10.8392C10.322 10.8392 10.6308 10.7113 10.8586 10.4836C11.0863 10.2558 11.2142 9.94698 11.2142 9.62493C11.2142 9.30288 11.0863 8.99402 10.8586 8.7663C10.6308 8.53858 10.322 8.41064 9.99993 8.41064C9.67788 8.41064 9.36902 8.53858 9.1413 8.7663C8.91358 8.99402 8.78564 9.30288 8.78564 9.62493C8.78564 9.94698 8.91358 10.2558 9.1413 10.4836C9.36902 10.7113 9.67788 10.8392 9.99993 10.8392Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        See source information
-      </a>
-    </div>
   </div>
   <br />
-  {% elif message.role == "ai" %}
-    <copy-text></copy-text>
   {% endif %}
 </div>
 
+{% for file in message.selected_files.all() %}
+  <p class="govuk-body govuk-!-text-align-right govuk-!-font-size-16">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g clip-path="url(#clip0_771_609)">
+      <path d="M19.5 22.5H8.25C7.85232 22.4995 7.47105 22.3414 7.18984 22.0602C6.90864 21.7789 6.75046 21.3977 6.75 21V16.5H8.25V21H19.5V4.5H12.75V3H19.5C19.8977 3.00046 20.279 3.15864 20.5602 3.43984C20.8414 3.72105 20.9995 4.10232 21 4.5V21C20.9995 21.3977 20.8414 21.7789 20.5602 22.0602C20.279 22.3414 19.8977 22.4995 19.5 22.5Z" fill="black"/>
+      <path d="M18 7.5H12.75V9H18V7.5Z" fill="black"/>
+      <path d="M18 11.25H12V12.75H18V11.25Z" fill="black"/>
+      <path d="M18 15H11.25V16.5H18V15Z" fill="black"/>
+      <path d="M6.75 14.25C5.75577 14.2489 4.80258 13.8535 4.09956 13.1504C3.39653 12.4474 3.00109 11.4942 3 10.5V2.25H4.5V10.5C4.5 11.0967 4.73705 11.669 5.15901 12.091C5.58097 12.5129 6.15326 12.75 6.75 12.75C7.34674 12.75 7.91903 12.5129 8.34099 12.091C8.76295 11.669 9 11.0967 9 10.5V3.75C9 3.55109 8.92098 3.36032 8.78033 3.21967C8.63968 3.07902 8.44891 3 8.25 3C8.05109 3 7.86032 3.07902 7.71967 3.21967C7.57902 3.36032 7.5 3.55109 7.5 3.75V11.25H6V3.75C6 3.15326 6.23705 2.58097 6.65901 2.15901C7.08097 1.73705 7.65326 1.5 8.25 1.5C8.84674 1.5 9.41903 1.73705 9.84099 2.15901C10.2629 2.58097 10.5 3.15326 10.5 3.75V10.5C10.4989 11.4942 10.1035 12.4474 9.40044 13.1504C8.69742 13.8535 7.74423 14.2489 6.75 14.25Z" fill="black"/>
+      </g>
+      <defs>
+      <clipPath id="clip0_771_609">
+      <rect width="24" height="24" fill="white"/>
+      </clipPath>
+      </defs>
+      </svg>
+    {{ file }}</p>
+{% endfor %}
+
+{% if message.route %}
+{{ route_display(message.route) }}
+{% endif %}
+
+
+{% if message.role == "ai" %}
+
+<div class="chat-actions-container">
+  <feedback-buttons data-id="{{ message.id }}"></feedback-buttons>
+  <copy-text data-id="{{ message.id}}"></copy-text>
+</div>
+
+{% endif %}
 {% endmacro %}

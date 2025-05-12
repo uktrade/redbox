@@ -127,5 +127,5 @@ def test_staff_user_can_see_route(chat_with_files: Chat, client: Client):
 
     # Then
     assert response.status_code == HTTPStatus.OK
-    assert b"iai-chat-bubble__route" in response.content
-    assert b"iai-chat-bubble__route govuk-!-display-none" not in response.content
+    assert b"redbox-message-route" in response.content
+    assert b"redbox-message-route govuk-!-display-none" not in response.content

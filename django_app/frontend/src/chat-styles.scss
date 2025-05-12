@@ -237,6 +237,33 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   width: 100%;
 }
 
+.chat-message__text {
+  word-break: break-word;
+  padding-top: .5rem;
+  font-size: 16px;
+  line-height: 1.5rem;
+}
+
+.chat-message__text code {
+  display: block;
+  overflow-x: auto;
+}
+
+.chat-message__text li {
+  padding: 0;
+}
+
+.chat-message__text table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.chat-message__text th, .chat-message__text td {
+  text-align: left;
+  border: 1px solid #000;
+  padding: .25rem;
+}
+
 .rb-activity {
   border-left: 1px solid black;
   display: flex;
@@ -367,46 +394,27 @@ chat-message {
 
 
 
-
-/* Only show feedback buttons on last message, for now */
-feedback-buttons {
-  display: none;
-}
-feedback-buttons:last-of-type {
-  display: block;
-}
-
 /* Response feedback - general styles */
-.feedback__container {
-  font-size: 0.75rem;
-  margin-bottom: 0.5rem;
-  margin-top: -0.25rem;
-  padding: 0 1rem;
+.feedback-container {
+  padding-right: 40px;
   text-align: left;
 }
-.feedback__container--1:not([hidden]) {
+.feedback-container--1:not([hidden]) {
   align-items: flex-start;
   color: #6b7280;
   display: flex;
   flex-wrap: wrap;
-  font-size: 0.625rem;
 }
 
 .feedback__heading {
   color: black;
-  font-size: 0.75rem;
-  font-weight: 400;
   margin: 0;
   margin-right: 1rem;
 }
 
-.feedback__container--negative .feedback__chips {
+.feedback-container--negative .feedback__chips {
   display: block;
 }
-// .feedback__container--negative .feedback__positive,
-// .feedback__container--positive .feedback__negative {
-//   display: none;
-// }
 
 
 .feedback__chips-container {
@@ -495,7 +503,7 @@ feedback-buttons:last-of-type {
   scroll-margin-bottom: 16rem;
   padding-right: 0;
 }
-main:has(.iai-chat-bubble) .chat-options {
+main:has(.govuk-inset-text) .chat-options {
   display: none;
 }
 .chat-options__options {
@@ -767,6 +775,15 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   margin: 4px 12px;
   border-top: 2px solid #B1B4B6;
 }
+.iai-panel-heading-button {
+  border-top: none;
+}
+
+.iai-panel-heading-button:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.1em;
+}
 
 .chat-history-subheading{
   padding: 16px 12px 0;
@@ -823,4 +840,44 @@ div[data-page="1"] {
   flex-wrap: nowrap;
   justify-content: space-between;
   align-items: center;
+}
+
+.govuk-inset-text-right {
+  border-left: none;
+  border-right: 10px solid #b1b4b6;
+  padding-left: 100px;
+  text-align: right;
+}
+
+.chat-button {
+  color: #1759BC;
+  cursor: pointer;
+  text-align: center;
+  background-color: #0000;
+  border: none;
+  align-items: center;
+  gap: .375rem;
+  margin-top: 0;
+  text-decoration: none;
+  display: inline-flex;
+}
+
+.chat-actions-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.redbox-message-container {
+margin-top: 64px;
+margin-bottom: 16px;
+}
+.chat-input__input-container {
+margin-top: 64px;
+}
+
+.redbox-message-route {
+  margin-bottom: 16px
 }

@@ -19,7 +19,7 @@ from django.views import View
 from django.views.decorators.http import require_http_methods
 from django_q.tasks import async_task
 
-from redbox_app.redbox_core.models import File
+from redbox_app.redbox_core.models import File, InactiveFileError
 from redbox_app.worker import ingest
 
 User = get_user_model()
@@ -291,6 +291,37 @@ def remove_doc_view(request, doc_id: uuid):
         request,
         template_name="remove-doc.html",
         context={"request": request, "doc_id": doc_id, "doc_name": file.file_name, "errors": errors},
+    )
+
+
+@login_required
+def remove_all_docs_view(request):
+    users_files = File.objects.filter(user=request.user)
+    errors: list[str] = []
+
+    if request.method == "POST":
+        for file in users_files:
+            try:
+                file.delete_from_elastic()
+            except InactiveFileError:
+                logger.warning("File %s is inactive skipping delete_from_elastic", file)
+
+            try:
+                file.delete_from_s3()
+            except Exception as e:
+                logger.exception("Error deleting file %s from S3", file, exc_info=e)
+                errors.append(f"Error deleting file {file.id} from S3")
+
+            file.status = File.Status.deleted
+            file.save()
+            logger.info("Marking document %s as deleted", file.id)
+
+        return redirect("documents")
+
+    return render(
+        request,
+        template_name="remove-all-docs.html",
+        context={"request": request, "errors": errors},
     )
 
 

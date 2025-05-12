@@ -312,7 +312,7 @@ class ChatMessage:
     chats_page: "ChatsPage" = field(repr=False)
 
     def navigate_to_citations(self) -> "CitationsPage":
-        self.element.locator(".iai-chat-bubble__citations-button-container a.iai-chat-bubble__button").click()
+        self.element.locator(".chat-actions-container a.iai-chat-bubble__button").click()
         return CitationsPage(self.chats_page.page)
 
     @classmethod
@@ -320,7 +320,7 @@ class ChatMessage:
         status = element.get_attribute("data-status")
         role = element.locator(".iai-chat-bubble__role").inner_text()
         route = element.locator(".iai-chat-bubble__route-text").inner_text() or None
-        text = element.locator(".iai-chat-bubble__text").inner_text()
+        text = element.locator(".chat-message__text").inner_text()
         sources = element.locator("sources-list").get_by_role("listitem").all_inner_texts()
         return cls(status=status, role=role, route=route, text=text, sources=sources, element=element, chats_page=page)
 
@@ -329,7 +329,7 @@ class ChatsPage(SignedInBasePage):
     @override
     def check_a11y(self, **kwargs):
         # Exclude AI generated content, since we can't control it.
-        return super().check_a11y(exclude=[".iai-chat-bubble__text"])
+        return super().check_a11y(exclude=[".chat-message__text"])
 
     @property
     def expected_page_title(self) -> str:
@@ -365,21 +365,21 @@ class ChatsPage(SignedInBasePage):
                 checkbox.uncheck()
 
     def feedback_stars(self, rating: int):
-        self.page.locator(".feedback__container").get_by_role("button").nth(rating - 1).click()
+        self.page.locator(".feedback-container").get_by_role("button").nth(rating - 1).click()
 
     feedback_stars = property(fset=feedback_stars)
 
     @property
     def feedback_text(self) -> str:
-        return self.page.locator(".feedback__container").get_by_role("textbox").inner_text()
+        return self.page.locator(".feedback-container").get_by_role("textbox").inner_text()
 
     @feedback_text.setter
     def feedback_text(self, text: str):
-        self.page.locator(".feedback__container").get_by_role("textbox").fill(text)
+        self.page.locator(".feedback-container").get_by_role("textbox").fill(text)
 
     def feedback_chips(self, chips: Collection[str]):
         for chip in chips:
-            self.page.locator(".feedback__container").get_by_test_id(chip).check()
+            self.page.locator(".feedback-container").get_by_test_id(chip).check()
 
     feedback_chips = property(fset=feedback_chips)
 
@@ -416,7 +416,7 @@ class ChatsPage(SignedInBasePage):
         self.page.get_by_role("button", name="Help improve the response").click()
 
     def submit_feedback(self):
-        self.page.locator(".feedback__container").get_by_role("button", name="Submit").click()
+        self.page.locator(".feedback-container").get_by_role("button", name="Submit").click()
 
     @property
     def all_messages(self) -> Sequence[ChatMessage]:
@@ -450,7 +450,7 @@ class CitationsPage(SignedInBasePage):
     @override
     def check_a11y(self, **kwargs):
         # Exclude AI generated content, since we can't control it.
-        return super().check_a11y(exclude=[".iai-chat-bubble__text"])
+        return super().check_a11y(exclude=[".chat-message__text"])
 
     @property
     def expected_page_title(self) -> str:
