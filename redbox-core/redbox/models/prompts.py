@@ -303,4 +303,5 @@ Remember that your primary value is in effective coordination and integration - 
 
 Do not start your answer by saying: here is the plan... Go straight to the point.
 User question: <Question>{question}</Question>.
+User uploaded documents metadata:<Document_Metadata>{metadata}</Document_Metadata>.
 """
