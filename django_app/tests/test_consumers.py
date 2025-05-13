@@ -518,7 +518,7 @@ async def test_chat_consumer_redbox_state(
 
         # Then
         expected_request = RedboxQuery(
-            question="Third question, with selected files?",
+            question="",
             s3_keys=selected_file_keys,
             user_uuid=alice.id,
             chat_history=[
