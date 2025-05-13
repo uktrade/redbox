@@ -526,6 +526,7 @@ async def test_chat_consumer_redbox_state(
                 {"role": "ai", "text": "An answer."},
                 {"role": "user", "text": "A second question?"},
                 {"role": "ai", "text": "A second answer."},
+                {"role": "user", "text": "Third question, with selected files?"},  # Include latest user message
             ],
             ai_settings=ai_settings,
             permitted_s3_keys=permitted_file_keys,
