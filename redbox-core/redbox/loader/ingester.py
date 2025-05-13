@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import TYPE_CHECKING
 
 from langchain_community.vectorstores import OpenSearchVectorSearch
@@ -25,13 +26,6 @@ alias = env.elastic_chunk_alias
 
 
 def get_elasticsearch_store(es, es_index_name: str):
-    # return ElasticsearchStore(
-    #     index_name=es_index_name,
-    #     embedding=get_embeddings(env),
-    #     es_connection=es,
-    #     query_field="text",
-    #     vector_query_field=env.embedding_document_field_name,
-    # )
     return OpenSearchVectorSearch(
         index_name=es_index_name,
         opensearch_url=env.elastic.collection_endpoint,
@@ -42,13 +36,6 @@ def get_elasticsearch_store(es, es_index_name: str):
 
 
 def get_elasticsearch_store_without_embeddings(es, es_index_name: str):
-    # return ElasticsearchStore(
-    #     index_name=es_index_name,
-    #     es_connection=es,
-    #     query_field="text",
-    #     strategy=BM25Strategy(),
-    # )
-
     return OpenSearchVectorSearch(
         index_name=es_index_name,
         opensearch_url=env.elastic.collection_endpoint,
@@ -61,26 +48,21 @@ def create_alias(alias: str):
 
     chunk_index_name = alias[:-8]  # removes -current
 
-    # es.options(ignore_status=[400]).indices.create(index=chunk_index_name)
-    # es.indices.create(index=chunk_index_name, ignore=400)
     es.indices.create(index=chunk_index_name, body=env.index_mapping, ignore=400)
     es.indices.put_alias(index=chunk_index_name, name=alias)
 
 
 def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_extraction=env.enable_metadata_extraction):
     logging.info("Ingesting file: %s", file_name)
+    start_time = time.time()
 
     es = env.elasticsearch_client()
 
     if es_index_name == alias:
         if not es.indices.exists_alias(name=alias):
             print("The alias does not exist")
-            print(alias)
-            print(es.indices.exists_alias(name=alias))
             create_alias(alias)
     else:
-        # es.options(ignore_status=[400]).indices.create(index=es_index_name)
-        # es.indices.create(index=es_index_name, ignore=400)
         es.indices.create(index=es_index_name, body=env.index_mapping, ignore=400)
 
     # Extract metadata
@@ -120,12 +102,13 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
     )
 
     new_ids = RunnableParallel({"normal": chunk_ingest_chain, "largest": large_chunk_ingest_chain}).invoke(file_name)
-    # new_ids = RunnableParallel({"normal": chunk_ingest_chain}).invoke(file_name) #test one task to identify root cause
     logging.info(
         "File: %s %s chunks ingested",
         file_name,
         {k: len(v) for k, v in new_ids.items()},
     )
+    duration = time.time() - start_time
+    logging.info("total ingestion for file [%s] took %.2f seconds", file_name, duration)
 
 
 def ingest_file(file_name: str, es_index_name: str = alias) -> str | None:
