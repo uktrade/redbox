@@ -3,6 +3,8 @@ from typing import Literal
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from asyncio import CancelledError
 
 from redbox.chains.components import (
     get_all_chunks_retriever,
@@ -68,8 +70,8 @@ class Redbox:
         self.tools = [search_documents, search_wikipedia, search_govuk]
 
         self.multi_agent_tools = {
-            "document_agent": [search_documents],
-            "external_data_agent": [search_wikipedia, search_govuk],
+            "Internal_Retrieval_Agent": [search_documents],
+            "External_Retrieval_Agent": [search_wikipedia, search_govuk],
         }
 
         self.graph = new_root_graph(
@@ -102,56 +104,92 @@ class Redbox:
         logger.info("Request: %s", {k: request_dict[k] for k in request_dict.keys() - {"ai_settings"}})
         is_summary_multiagent_streamed = False
         is_evaluator_output_streamed = False
-        async for event in self.graph.astream_events(
-            input=input,
-            version="v2",
-            config={"recursion_limit": input.request.ai_settings.recursion_limit},
+
+        @retry(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=1, min=1, max=10),
+            retry=retry_if_exception_type(CancelledError),
+            before_sleep=lambda retry_state: logger.warning(
+                f"CancelledError in astream_events, attempt {retry_state.attempt_number}/3, retrying in {retry_state.next_action.sleep}s"
+            ),
+        )
+        async def stream_events_with_retry(
+            is_summary_multiagent_streamed=False,
+            is_evaluator_output_streamed=False,
         ):
-            kind = event["event"]
-            tags = event.get("tags", [])
-            if kind == "on_chat_model_stream" and FINAL_RESPONSE_TAG in tags:
-                content = event["data"]["chunk"].content
-                if isinstance(content, str):
-                    await response_tokens_callback(content)
-            elif kind == "on_chat_model_stream" and SUMMARY_MULTIAGENT_TAG in tags:
-                if is_evaluator_output_streamed:
-                    await response_tokens_callback("\n\n")
-                    is_evaluator_output_streamed = False
+            nonlocal final_state
+            local_is_summary_multiagent_streamed = is_summary_multiagent_streamed
+            local_is_evaluator_output_streamed = is_evaluator_output_streamed
+            async for event in self.graph.astream_events(
+                input=input,
+                version="v2",
+                config={"recursion_limit": input.request.ai_settings.recursion_limit},
+            ):
+                kind = event["event"]
+                tags = event.get("tags", [])
+                try:
+                    if kind == "on_chat_model_stream" and FINAL_RESPONSE_TAG in tags:
+                        content = event["data"]["chunk"].content
+                        if isinstance(content, str):
+                            await response_tokens_callback(content)
+                    elif kind == "on_chat_model_stream" and SUMMARY_MULTIAGENT_TAG in tags:
+                        if local_is_evaluator_output_streamed:
+                            await response_tokens_callback("\n\n")
+                            local_is_evaluator_output_streamed = False
 
-                content = event["data"]["chunk"].content
-                if isinstance(content, str):
-                    await response_tokens_callback(content)
-                is_summary_multiagent_streamed = True
+                        content = event["data"]["chunk"].content
+                        if isinstance(content, str):
+                            await response_tokens_callback(content)
+                        local_is_summary_multiagent_streamed = True
 
-            elif kind == "on_chain_end" and FINAL_RESPONSE_TAG in tags:
-                content = event["data"]["output"]
-                if isinstance(content, str):
-                    await response_tokens_callback(content)
-            elif kind == "on_custom_event" and event["name"] == RedboxEventType.response_tokens.value:
-                if is_summary_multiagent_streamed:
-                    await response_tokens_callback("\n\n")
-                    is_summary_multiagent_streamed = False
+                    elif kind == "on_chain_end" and FINAL_RESPONSE_TAG in tags:
+                        content = event["data"]["output"]
+                        if isinstance(content, str):
+                            await response_tokens_callback(content)
+                    elif kind == "on_custom_event" and event["name"] == RedboxEventType.response_tokens.value:
+                        if local_is_summary_multiagent_streamed:
+                            await response_tokens_callback("\n\n")
+                            local_is_summary_multiagent_streamed = False
 
-                await response_tokens_callback(event["data"])
-                is_evaluator_output_streamed = True
+                        await response_tokens_callback(event["data"])
+                        local_is_evaluator_output_streamed = True
 
-            elif kind == "on_chain_end" and ROUTE_NAME_TAG in tags:
-                await route_name_callback(event["data"]["output"]["route_name"])
-            elif kind == "on_retriever_end" and SOURCE_DOCUMENTS_TAG in tags:
-                await documents_callback(event["data"]["output"])
-            elif kind == "on_tool_end" and SOURCE_DOCUMENTS_TAG in tags:
-                documents = flatten_document_state(event["data"]["output"].get("documents", {}))
-                await documents_callback(documents)
-            elif kind == "on_custom_event" and event["name"] == RedboxEventType.on_source_report.value:
-                await documents_callback(event["data"])
-            elif kind == "on_custom_event" and event["name"] == RedboxEventType.on_citations_report.value:
-                await citations_callback(event["data"])
-            elif kind == "on_custom_event" and event["name"] == RedboxEventType.on_metadata_generation.value:
-                await metadata_tokens_callback(event["data"])
-            elif kind == "on_custom_event" and event["name"] == RedboxEventType.activity.value:
-                await activity_event_callback(event["data"])
-            elif kind == "on_chain_end" and event["name"] == "LangGraph":
-                final_state = RedboxState(**event["data"]["output"])
+                    elif kind == "on_chain_end" and ROUTE_NAME_TAG in tags:
+                        await route_name_callback(event["data"]["output"]["route_name"])
+                    elif kind == "on_retriever_end" and SOURCE_DOCUMENTS_TAG in tags:
+                        await documents_callback(event["data"]["output"])
+                    elif kind == "on_tool_end" and SOURCE_DOCUMENTS_TAG in tags:
+                        documents = flatten_document_state(event["data"]["output"].get("documents", {}))
+                        await documents_callback(documents)
+                    elif kind == "on_custom_event" and event["name"] == RedboxEventType.on_source_report.value:
+                        await documents_callback(event["data"])
+                    elif kind == "on_custom_event" and event["name"] == RedboxEventType.on_citations_report.value:
+                        await citations_callback(event["data"])
+                    elif kind == "on_custom_event" and event["name"] == RedboxEventType.on_metadata_generation.value:
+                        await metadata_tokens_callback(event["data"])
+                    elif kind == "on_custom_event" and event["name"] == RedboxEventType.activity.value:
+                        await activity_event_callback(event["data"])
+                    elif kind == "on_chain_end" and event["name"] == "LangGraph":
+                        final_state = RedboxState(**event["data"]["output"])
+                except Exception as e:
+                    logger.error(f"Error processing {kind} - {str(e)}")
+                    raise
+
+        try:
+            await stream_events_with_retry(
+                is_summary_multiagent_streamed=is_summary_multiagent_streamed,
+                is_evaluator_output_streamed=is_evaluator_output_streamed,
+            )
+        except CancelledError:
+            logger.error("All retries exhausted for CancelledError in the astream_events function")
+            raise
+
+        except Exception:
+            logger.error("Generic error in run - {str(e)}")
+            raise
+
+        if final_state is None:
+            logger.warning("No final state")
         return final_state
 
     def get_available_keywords(self) -> dict[ChatRoute, str]:
