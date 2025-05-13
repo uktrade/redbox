@@ -143,18 +143,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
         message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
 
-        user_messages = [msg for msg in message_history if msg.role == ChatMessage.Role.user]
-        if not user_messages:
-            logger.error("No user messages found in session")
-            await self.send_to_client("error", "No user messages found")
-            return
-
-        latest_user_message = user_messages[-1]
-
         ai_settings = await self.get_ai_settings(session)
         state = RedboxState(
             request=RedboxQuery(
-                question=latest_user_message.text,
+                question=message_history[-1].text,
                 s3_keys=[f.unique_name for f in selected_files],
                 user_uuid=user.id,
                 chat_history=[
@@ -162,8 +154,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         role=message.role,
                         text=escape_curly_brackets(message.text),
                     )
-                    for message in message_history
-                    if message != latest_user_message
+                    for message in message_history[:-1]
                 ],
                 ai_settings=ai_settings,
                 permitted_s3_keys=[f.unique_name async for f in permitted_files],
