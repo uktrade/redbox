@@ -168,7 +168,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 session,
                 "".join(self.full_reply),
             )
-            if not message_history[-1].text or message_history[-1].text == "" or self.full_reply=="":
+            if not message_history[-1].text or message_history[-1].text == "" or self.full_reply == "":
                 msg = "Null LLM Response Received"
                 raise ValueError(msg)  # noqa: TRY301
             await self.send_to_client("end", {"message_id": message.id, "title": title, "session_id": session.id})
@@ -236,8 +236,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             route=self.route,
         )
         chat_message.save()
-        if not chat_message.text or chat_message.text == "" or self.full_reply=="":
-                logger.exception("LLM Error - Blank Response")
+        if not chat_message.text or chat_message.text == "" or self.full_reply == "":
+            logger.exception("LLM Error - Blank Response")
         for file, ai_citation in self.citations:
             for citation_source in ai_citation.sources:
                 if file:
