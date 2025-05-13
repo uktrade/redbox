@@ -381,10 +381,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 # Use the async database query function
                 file = await get_latest_complete_file(ref)
                 if file:
-                    payload = {"url": str(file.url), "file_name": file.file_name}
+                    payload = {
+                        "url": str(file.url),
+                        "file_name": file.file_name,
+                        "text_in_answer": ""
+                    }
                 else:
                     # If no file with Status.complete is found, handle it as None
-                    payload = {"url": ref, "file_name": None}
+                    payload = {
+                        "url": ref,
+                        "file_name": None,
+                        "text_in_answer": ""
+                    }
 
                 response_sources = [
                     Source(
@@ -398,7 +406,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 ]
             except File.DoesNotExist:
                 file = None
-                payload = {"url": ref, "file_name": None}
+                payload = {
+                    "url": ref,
+                    "file_name": None,
+                    "text_in_answer": ""
+                }
                 response_sources = [
                     Source(
                         source=cited_chunk.metadata["uri"],
@@ -439,10 +451,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         }
                 except File.DoesNotExist:
                     file = None
+                    text_in_answer = c.text_in_answer or ""
                     payload = {
                         "url": s.source,
                         "file_name": s.source,
-                        "text_in_answer": convert_american_to_british_spelling(c.text_in_answer),
+                        "text_in_answer": convert_american_to_british_spelling(text_in_answer),
                     }
 
                 await self.send_to_client("source", payload)

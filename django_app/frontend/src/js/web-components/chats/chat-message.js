@@ -2,6 +2,17 @@
 
 import "../loading-message.js";
 
+window.addEventListener('load', () => {
+  const scrollPosition = sessionStorage.getItem('scrollPosition');
+  if (scrollPosition !== null) {
+    window.scrollTo({
+      top: parseInt(scrollPosition),
+      behavior: 'instant'
+    });
+    sessionStorage.removeItem('scrollPosition');
+  }
+});
+
 export class ChatMessage extends HTMLElement {
   constructor() {
     super();
@@ -74,13 +85,15 @@ export class ChatMessage extends HTMLElement {
         content.replace(matchingText, `${matchingText}<a href="#${footnote.id}" aria-label="Footnote ${footnoteIndex + 1}">[${footnoteIndex + 1}]</a>`)
       );
       */
-      const footnoteLink = `<a class="rb-footnote-link" href="/citations/${chatId}/#${footnote.id}" aria-label="Footnote ${footnoteIndex + 1}">${footnoteIndex + 1}</a>`;
-      if (!this.responseContainer.innerHTML.includes(footnoteLink)) {
-        this.responseContainer.innerHTML = this.responseContainer.innerHTML.replace(
+      this.responseContainer.innerHTML =
+        this.responseContainer.innerHTML.replace(
           matchingText,
-          `${matchingText}${footnoteLink}`
+          `${matchingText}<a class="rb-footnote-link" href="/citations/${chatId}/#${
+            footnote.id
+          }" aria-label="Footnote ${footnoteIndex + 1}">${
+            footnoteIndex + 1
+          }</a>`
         );
-      }
     });
   };
 
@@ -131,12 +144,24 @@ export class ChatMessage extends HTMLElement {
   ) => {
     // Scroll behaviour - depending on whether user has overridden this or not
     let scrollOverride = false;
+    function reloadAtCurrentPosition() {
+      sessionStorage.setItem('scrollPosition', window.scrollY.toString());
+      location.reload();
+    }    
     window.addEventListener("scroll", (evt) => {
       if (this.programmaticScroll) {
         this.programmaticScroll = false;
         return;
       }
       scrollOverride = true;
+    });
+
+    window.addEventListener('load', () => {
+      const scrollPosition = sessionStorage.getItem('scrollPosition');
+      if (scrollPosition !== null) {
+        window.scrollTo(0, parseInt(scrollPosition));
+        sessionStorage.removeItem('scrollPosition');
+      }
     });
 
     this.responseContainer =
@@ -211,17 +236,16 @@ export class ChatMessage extends HTMLElement {
       }
 
       if (response.type === "text") {
-        streamedContent += response.data;
-        this.responseContainer?.update(streamedContent);
+        this.streamedContent += response.data;
+        this.responseContainer?.update(this.streamedContent);
       } else if (response.type === "session-id") {
         chatControllerRef.dataset.sessionId = response.data;
       } else if (response.type === "source") {
         sourcesContainer.add(
           response.data.file_name,
           response.data.url,
-          response.data.text_in_answer
+          response.data.text_in_answer || ""
         );
-        this.#addFootnotes(this.streamedContent, chatControllerRef.dataset.sessionId || "");
       } else if (response.type === "route") {
         // Update the route text on the page now the selected route is known
         let route = this?.querySelector(".redbox-message-route");
@@ -254,6 +278,7 @@ export class ChatMessage extends HTMLElement {
           },
         });
         document.dispatchEvent(chatResponseEndEvent);
+        reloadAtCurrentPosition();
       } else if (response.type === "error") {
         this.querySelector(".govuk-notification-banner")?.removeAttribute(
           "hidden"
