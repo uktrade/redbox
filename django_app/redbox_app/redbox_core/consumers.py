@@ -164,7 +164,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 metadata_tokens_callback=self.handle_metadata,
                 activity_event_callback=self.handle_activity,
             )
-
             message = await self.save_ai_message(
                 session,
                 "".join(self.full_reply),
@@ -181,7 +180,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.exception("Error from core.", exc_info=e)
             await self.send_to_client("error", error_messages.CORE_ERROR_MESSAGE)
         except ValueError as e:
-            logger.exception("LLM Error - Null Response", exc_info=e)
+            logger.exception("LLM Error - Blank Response", exc_info=e)
             await self.send_to_client("error", error_messages.CORE_ERROR_MESSAGE)
         except Exception as e:
             logger.exception("General error.", exc_info=e)
@@ -237,6 +236,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             route=self.route,
         )
         chat_message.save()
+        if not chat_message.text or chat_message.text == "" or self.full_reply=="":
+                logger.exception("LLM Error - Blank Response")
         for file, ai_citation in self.citations:
             for citation_source in ai_citation.sources:
                 if file:
