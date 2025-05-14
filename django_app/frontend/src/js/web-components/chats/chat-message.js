@@ -18,6 +18,7 @@ export class ChatMessage extends HTMLElement {
     super();
     this.programmaticScroll = false;
     this.streamedContent = "";
+    this.pendingSources = [];
   }
 
   connectedCallback() {
@@ -241,11 +242,11 @@ export class ChatMessage extends HTMLElement {
       } else if (response.type === "session-id") {
         chatControllerRef.dataset.sessionId = response.data;
       } else if (response.type === "source") {
-        sourcesContainer.add(
-          response.data.file_name,
-          response.data.url,
-          response.data.text_in_answer || ""
-        );
+        this.pendingSources.push({
+          file_name: response.data.file_name,
+          url: response.data.url,
+          text_in_answer: response.data.text_in_answer || "",
+        });
       } else if (response.type === "route") {
         // Update the route text on the page now the selected route is known
         let route = this?.querySelector(".redbox-message-route");
@@ -255,21 +256,33 @@ export class ChatMessage extends HTMLElement {
           route.removeAttribute("hidden");
         }
       } else if (response.type === "end") {
-        // Assign the new message its ID straight away
         const chatMessage = this.querySelector('.govuk-inset-text');
-        if (chatMessage) {chatMessage.id = `chat-message-${response.data.message_id}`}
-        // Add in feedback and copy buttons dynamically
+        if (chatMessage) {
+          chatMessage.id = `chat-message-${response.data.message_id}`;
+        }
+        this.dataset.messageId = response.data.message_id;
+
+        // Add all pending sources with the chatId
+        this.pendingSources.forEach((source) => {
+          sourcesContainer.add(
+            source.file_name,
+            source.url,
+            source.text_in_answer,
+            response.data.message_id
+          );
+        });
+        this.pendingSources = []; // Clear pending sources
+
         if (actionsContainer) {
-          const feedbackButtons = document.createElement('feedback-buttons')
-          feedbackButtons.dataset.id = response.data.message_id
+          const feedbackButtons = document.createElement('feedback-buttons');
+          feedbackButtons.dataset.id = response.data.message_id;
 
-          const copyText = document.createElement('copy-text')
-          copyText.dataset.id = response.data.message_id
+          const copyText = document.createElement('copy-text');
+          copyText.dataset.id = response.data.message_id;
 
-          actionsContainer.appendChild(feedbackButtons)
-          actionsContainer.appendChild(copyText)
-
-      }
+          actionsContainer.appendChild(feedbackButtons);
+          actionsContainer.appendChild(copyText);
+        }
         this.#addFootnotes(this.streamedContent, response.data.message_id);
         const chatResponseEndEvent = new CustomEvent("chat-response-end", {
           detail: {
