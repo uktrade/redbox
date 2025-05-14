@@ -171,8 +171,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 metadata_tokens_callback=self.handle_metadata,
                 activity_event_callback=self.handle_activity,
             )
-
             await self.update_ai_message()
+            if len(self.full_reply) == 0 or self.chat_message.text == "":
+                logger.exception("LLM Error - Blank Response")
             await self.send_to_client(
                 "end", {"message_id": self.chat_message.id, "title": title, "session_id": session.id}
             )
@@ -245,7 +246,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.chat_message.text = converted_text
         self.chat_message.route = self.route
         self.chat_message.save()
-
         # Important - clears existing citations and related objects to avoid duplicates
         Citation.objects.filter(chat_message=self.chat_message).delete()
         ChatMessageTokenUse.objects.filter(chat_message=self.chat_message).delete()
