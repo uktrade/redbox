@@ -184,13 +184,13 @@ class DemographicsForm(forms.ModelForm):
             "redbox_response_preferences": "How do you want Redbox to respond?",
         }
         widgets: ClassVar[Mapping[str, forms.Widget]] = {
-            "name": forms.TextInput(attrs={"class": "govuk-input govuk-!-width-one-half"}),
+            "name": forms.TextInput(attrs={"class": "govuk-input govuk-!-width-two-thirds"}),
             "ai_experience": forms.RadioSelect(attrs={"class": "govuk-radios__item"}),
-            "business_unit": forms.Select(attrs={"class": "govuk-select"}),
-            "role": forms.TextInput(attrs={"class": "govuk-input govuk-!-width-one-half"}),
-            "grade": forms.Select(attrs={"class": "govuk-select"}),
-            "profession": forms.Select(attrs={"class": "govuk-select"}),
-            "info_about_user": forms.Textarea(attrs={"class": "govuk-textarea govuk-!-width-one-half", "rows": "5"}),
+            "business_unit": forms.Select(attrs={"class": "govuk-select govuk-!-width-two-thirds"}),
+            "role": forms.TextInput(attrs={"class": "govuk-input govuk-!-width-two-thirds"}),
+            "grade": forms.Select(attrs={"class": "govuk-select govuk-!-width-two-thirds"}),
+            "profession": forms.Select(attrs={"class": "govuk-select govuk-!-width-two-thirds"}),
+            "info_about_user": forms.Textarea(attrs={"class": "govuk-textarea govuk-!-width-two-thirds", "rows": "5"}),
             "redbox_response_preferences": forms.Textarea(
                 attrs={"class": "govuk-textarea govuk-!-width-one-half", "rows": "5"}
             ),
