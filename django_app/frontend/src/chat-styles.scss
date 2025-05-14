@@ -766,6 +766,8 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 
 .rb-left-column-container{
   background-color: #1D70B8;
+  float: left;
+  width: 33.33%
 }
 
 .iai-panel-heading {
