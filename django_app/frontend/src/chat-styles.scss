@@ -791,6 +791,11 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   border-top: 2px solid #B1B4B6;
   color: white;
 }
+.chat-history-subheading--no-border{
+  padding: 16px 12px 0;
+  margin: 0 16px;
+  color: white;
+}
 
 .full-width-panel-title {
   width: 100%
