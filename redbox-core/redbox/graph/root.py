@@ -51,7 +51,7 @@ from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
 from redbox.models.chain import AgentDecision, AISettings, PromptSet, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
-from redbox.models.prompts import INTERNAL_RETRIEVAL_AGENT_PROMPT, EXTERNAL_RETRIEVAL_AGENT_PROMPT
+from redbox.models.prompts import EXTERNAL_RETRIEVAL_AGENT_PROMPT, INTERNAL_RETRIEVAL_AGENT_PROMPT
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
 
@@ -823,6 +823,7 @@ def build_new_graph(
 ) -> CompiledGraph:
     agents_max_tokens = AISettings().agents_max_tokens
     builder = StateGraph(RedboxState)
+    builder.add_node("remove_keyword", strip_route)
     builder.add_node("planner", create_planner())
     builder.add_node(
         "Internal_Retrieval_Agent",
@@ -865,7 +866,8 @@ def build_new_graph(
         retry=RetryPolicy(max_attempts=3),
     )
 
-    builder.add_edge(START, "planner")
+    builder.add_edge(START, "remove_keyword")
+    builder.add_edge("planner", "remove_keyword")
     builder.add_conditional_edges("planner", sending_task_to_agent)
     builder.add_edge("Internal_Retrieval_Agent", "clear_tasks")
     builder.add_edge("External_Retrieval_Agent", "clear_tasks")
