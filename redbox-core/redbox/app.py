@@ -175,9 +175,8 @@ class Redbox:
                     elif kind == "on_chain_end" and event["name"] == "LangGraph":
                         final_state = RedboxState(**event["data"]["output"])
                         if final_state.tasks_evaluator != [] and not is_eval_printed:
-                            await response_tokens_callback(
-                                "\n\n Question sent to evaluator \n\n" + final_state.tasks_evaluator[-1].content
-                            )
+                            question_evaluator = "\n\n".join([task.content for task in final_state.tasks_evaluator])
+                            await response_tokens_callback("\n\n Question sent to evaluator \n\n" + question_evaluator)
                             is_eval_printed = True
                 except Exception as e:
                     logger.error(f"Error processing {kind} - {str(e)}")
