@@ -116,10 +116,12 @@ class Redbox:
         async def stream_events_with_retry(
             is_summary_multiagent_streamed=False,
             is_evaluator_output_streamed=False,
+            is_eval_printed=False,
         ):
             nonlocal final_state
             local_is_summary_multiagent_streamed = is_summary_multiagent_streamed
             local_is_evaluator_output_streamed = is_evaluator_output_streamed
+            is_eval_printed = is_eval_printed
             async for event in self.graph.astream_events(
                 input=input,
                 version="v2",
@@ -172,6 +174,11 @@ class Redbox:
                         await activity_event_callback(event["data"])
                     elif kind == "on_chain_end" and event["name"] == "LangGraph":
                         final_state = RedboxState(**event["data"]["output"])
+                        if final_state.tasks_evaluator != [] and not is_eval_printed:
+                            await response_tokens_callback(
+                                "\n\n Question sent to evaluator \n\n" + final_state.tasks_evaluator[-1].content
+                            )
+                            is_eval_printed = True
                 except Exception as e:
                     logger.error(f"Error processing {kind} - {str(e)}")
                     raise
