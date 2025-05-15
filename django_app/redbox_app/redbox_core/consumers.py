@@ -115,9 +115,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # save user message
         permitted_files = File.objects.filter(user=user, status=File.Status.complete)
         selected_files = permitted_files.filter(id__in=selected_file_uuids)
-        self.chat_message = await self.save_user_message(
-            session, user_message_text, selected_files=selected_files, activities=activities
-        )
+        await self.save_user_message(session, user_message_text, selected_files=selected_files, activities=activities)
+
+        self.chat_message = await self.create_ai_message(session)
 
         await self.llm_conversation(selected_files, session, user, user_message_text, permitted_files)
 
@@ -135,12 +135,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
         message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
-        logger.debug("message history %s from session", message_history)
+
+        logger.debug("question %s from session", message_history[-2].text)
+        logger.debug("message history %s from session", message_history[:-2])
         logger.debug("message history size: %s from session", len(message_history))
+
         ai_settings = await self.get_ai_settings(session)
         state = RedboxState(
             request=RedboxQuery(
-                question=message_history[-1].text,
+                question=message_history[-2].text,
                 s3_keys=[f.unique_name for f in selected_files],
                 user_uuid=user.id,
                 chat_history=[
@@ -148,7 +151,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         role=message.role,
                         text=escape_curly_brackets(message.text),
                     )
-                    for message in message_history[:-1]
+                    for message in message_history[:-2]
                 ],
                 ai_settings=ai_settings,
                 permitted_s3_keys=[f.unique_name async for f in permitted_files],
@@ -215,6 +218,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
             ActivityEvent.objects.create(chat_message=chat_message, message=message)
 
         chat_message.log()
+        return chat_message
+
+    @database_sync_to_async
+    def create_ai_message(self, session: Chat) -> ChatMessage:
+        chat_message = ChatMessage(
+            chat=session,
+            text="",
+            role=ChatMessage.Role.ai,
+            route=self.route,
+        )
+        chat_message.save()
         return chat_message
 
     @database_sync_to_async
