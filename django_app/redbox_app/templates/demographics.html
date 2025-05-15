@@ -80,6 +80,17 @@
         </label>
         {{ form.grade }}
       </div>
+
+      <div class="govuk-form-group">
+        <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+          <div class="govuk-checkboxes__item">
+            {{ form.uk_or_us_english }}
+            <label class="govuk-checkboxes__label govuk-label" for="{{ form.uk_or_us_english.id_for_label }}">
+              {{ form.uk_or_us_english.label }}
+            </label>
+        </div>
+        </div>
+      </div>
       
 
       <div class="govuk-button-group">
