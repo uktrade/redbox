@@ -15,34 +15,22 @@ from django.forms.models import model_to_dict
 from django.utils import timezone
 from langchain_core.documents import Document
 from openai import RateLimitError
+from redbox_app.redbox_core import error_messages
+from redbox_app.redbox_core.models import ActivityEvent
+from redbox_app.redbox_core.models import AISettings as AISettingsModel
+from redbox_app.redbox_core.models import (Chat, ChatLLMBackend, ChatMessage,
+                                           ChatMessageTokenUse, Citation, File,
+                                           MonitorSearchRoute)
 from uwotm8 import convert_american_to_british_spelling
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
-from redbox.models.chain import (
-    AISettings,
-    ChainChatMessage,
-    RedboxQuery,
-    RedboxState,
-    RequestMetadata,
-    Source,
-    metadata_reducer,
-)
+from redbox.models.chain import AISettings, ChainChatMessage
 from redbox.models.chain import Citation as AICitation
+from redbox.models.chain import (RedboxQuery, RedboxState, RequestMetadata,
+                                 Source, metadata_reducer)
 from redbox.models.graph import RedboxActivityEvent
 from redbox.models.settings import get_settings
-from redbox_app.redbox_core import error_messages
-from redbox_app.redbox_core.models import (
-    ActivityEvent,
-    Chat,
-    ChatLLMBackend,
-    ChatMessage,
-    ChatMessageTokenUse,
-    Citation,
-    File,
-    MonitorSearchRoute,
-)
-from redbox_app.redbox_core.models import AISettings as AISettingsModel
 
 User = get_user_model()
 OptFileSeq = Sequence[File] | None
@@ -122,9 +110,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # save user message
         permitted_files = File.objects.filter(user=user, status=File.Status.complete)
         selected_files = permitted_files.filter(id__in=selected_file_uuids)
-        await self.save_user_message(session, user_message_text, selected_files=selected_files, activities=activities)
-
-        self.chat_message = await self.create_ai_message(session)
+        self.chat_message = await self.save_user_message(session, user_message_text, selected_files=selected_files, activities=activities)
 
         await self.llm_conversation(selected_files, session, user, user_message_text, permitted_files)
 
@@ -142,7 +128,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
         message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
-
+        logger.debug("message history %s from session", message_history)
+        logger.debug("message history size: %s from session", len(message_history))
         ai_settings = await self.get_ai_settings(session)
         state = RedboxState(
             request=RedboxQuery(
@@ -221,17 +208,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             ActivityEvent.objects.create(chat_message=chat_message, message=message)
 
         chat_message.log()
-        return chat_message
-
-    @database_sync_to_async
-    def create_ai_message(self, session: Chat) -> ChatMessage:
-        chat_message = ChatMessage(
-            chat=session,
-            text="",
-            role=ChatMessage.Role.ai,
-            route=self.route,
-        )
-        chat_message.save()
         return chat_message
 
     @database_sync_to_async
