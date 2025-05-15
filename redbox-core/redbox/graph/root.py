@@ -867,7 +867,7 @@ def build_new_graph(
     )
 
     builder.add_edge(START, "remove_keyword")
-    builder.add_edge("planner", "remove_keyword")
+    builder.add_edge("remove_keyword", "planner")
     builder.add_conditional_edges("planner", sending_task_to_agent)
     builder.add_edge("Internal_Retrieval_Agent", "clear_tasks")
     builder.add_edge("External_Retrieval_Agent", "clear_tasks")
