@@ -15,10 +15,25 @@ from django.forms.models import model_to_dict
 from django.utils import timezone
 from langchain_core.documents import Document
 from openai import RateLimitError
+from uwotm8 import convert_american_to_british_spelling
+from websockets import ConnectionClosedError, WebSocketClientProtocol
+
+from redbox import Redbox
+from redbox.models.chain import (
+    AISettings,
+    ChainChatMessage,
+    RedboxQuery,
+    RedboxState,
+    RequestMetadata,
+    Source,
+    metadata_reducer,
+)
+from redbox.models.chain import Citation as AICitation
+from redbox.models.graph import RedboxActivityEvent
+from redbox.models.settings import get_settings
 from redbox_app.redbox_core import error_messages
-from redbox_app.redbox_core.models import ActivityEvent
-from redbox_app.redbox_core.models import AISettings as AISettingsModel
 from redbox_app.redbox_core.models import (
+    ActivityEvent,
     Chat,
     ChatLLMBackend,
     ChatMessage,
@@ -27,15 +42,7 @@ from redbox_app.redbox_core.models import (
     File,
     MonitorSearchRoute,
 )
-from uwotm8 import convert_american_to_british_spelling
-from websockets import ConnectionClosedError, WebSocketClientProtocol
-
-from redbox import Redbox
-from redbox.models.chain import AISettings, ChainChatMessage
-from redbox.models.chain import Citation as AICitation
-from redbox.models.chain import RedboxQuery, RedboxState, RequestMetadata, Source, metadata_reducer
-from redbox.models.graph import RedboxActivityEvent
-from redbox.models.settings import get_settings
+from redbox_app.redbox_core.models import AISettings as AISettingsModel
 
 User = get_user_model()
 OptFileSeq = Sequence[File] | None
