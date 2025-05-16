@@ -43,7 +43,7 @@ test-redbox: ## Test redbox
 
 .PHONY: test-django
 test-django: ## Test django-app
-	cd django_app && poetry install && poetry run pytest --cov=redbox_app -v --cov-report=term-missing --cov-fail-under=60 --ds redbox_app.settings
+	cd django_app && poetry install && poetry run python manage.py migrate && poetry run pytest --cov=redbox_app -v --cov-report=term-missing --cov-fail-under=60 --ds redbox_app.settings
 
 .PHONY: build-django-static
 build-django-static: ## Build django-app static files
