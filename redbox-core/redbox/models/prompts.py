@@ -17,7 +17,7 @@ CITATION_PROMPT = """Use citations to back up your answer when available. Return
 Example response:
 - If citations are available: {{"answer": your_answer, "citations": [list_of_citations]}}.
 - If no citations are available or needed, return an empty array for citations like this: {{"answer": your_answer, "citations": []}}.
-
+Do not provide citation from your own knowledge.
 Assistant:<sonnet>"""
 
 CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
@@ -31,7 +31,12 @@ CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
 )
 
 RETRIEVAL_SYSTEM_PROMPT = """
-   Answer my question using only the documents I provide. <My_Documents>{formatted_documents}</My_Documents>
+   Answer the following question based ONLY on the information contained in the provided documents.
+   <Provided_Documents>{formatted_documents}</Provided_Documents>.
+
+   If the information needed to answer the question is not present in the sources, state "The provided sources do not contain sufficient information to answer this question.
+
+   Do not use any prior knowledge or information not contained in the sources.
    """
 
 
@@ -276,7 +281,7 @@ When creating your execution plan, you have access to the following specialised 
 2. **External_Retrieval_Agent**: solely responsible for retrieving information outside of user's uploaded documents, specifically from external data sources:
       - Wikipedia
       - gov.uk
-      - legislation.gov.uk 
+      - legislation.gov.uk
 3. **Summarisation_Agent**: solely responsible for summarising entire user's uploaded documents. It does not summarise outputs from other agents.
 
 ## helpful instructions for calling agent
