@@ -1,32 +1,31 @@
 {% macro iaiDocList(docs, type="complete") %}
 
-    <table class="iai-doc-list iai-doc-list--{{type}}">
+    <table class="govuk-table">
         <caption class="govuk-visually-hidden">Document list</caption>
-        <thead class="iai-doc-list_thead">
-            <tr class="iai-doc-list__header">
-                <th scope="col" class="iai-doc-list__header-item iai-doc-list__cell--file-name">File Name</th>
-                <th scope="col" class="iai-doc-list__header-item iai-doc-list__cell--expiry">Expires in</th>
-                <th scope="col" class="iai-doc-list__header-item iai-doc-list__cell--status">Status</th>
-                <th scope="col" class="iai-doc-list__header-item iai-doc-list__cell--actions">
-                    <span class="govuk-visually-hidden">Actions</span>
-                </th>
+        <thead class="govuk-table__head">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Name</th>
+                {% if type=="complete" %}
+                <th scope="col" class="govuk-table__header">Expires</th>
+                {% else %}
+                <th scope="col" class="govuk-table__header">Status</th>
+                {% endif %}
+                <th scope="col" class="govuk-table__header">Action</th>
             </tr>
         </thead>
-        <tbody class="iai-doc-list__tbody">
+        <tbody class="govuk-table__body">
             {% for doc in docs %}
-                <tr class="iai-doc-list__item">
-                    <td class="iai-doc-list__cell--file-name">{{ doc.file_name }}</td>
-                    <td class="iai-doc-list__cell--expiry">{{ doc.expires | humanise_expiry }}</td>
-                    <td class="iai-doc-list__cell--status">
-                        {% if type == "complete" %}
-                            {{ doc.get_status_text() }}
-                        {% else %}
-                            <file-status data-id="{{ doc.id }}" data-status="{{ doc.get_status_text() }}">{{ doc.get_status_text() }}</file-status>
-                        {% endif %}
+                <tr class="govuk-table__row">
+                    <td class="govuk-table__cell">{{ doc.file_name }}</td>
+                    <td class="govuk-table__cell">{% if type=="complete" %}
+                        {{ doc.expires | humanise_expiry }}{% else %}
+                        <file-status data-id="{{ doc.id }}" data-status="{{ doc.get_status_text() }}">{{ doc.get_status_text() }}</file-status>
+                        {%endif %}
                     </td>
-                    <td class="iai-doc-list__cell--actions">
-                        <a class="iai-doc-list__delete" role="button" href="{{ url('remove-doc', doc.id) }}">
-                            Delete
+                    
+                    <td class="govuk-table__cell">
+                        <a class="govuk-body govuk-link--no-visited-state" role="button" href="{{ url('remove-doc', doc.id) }}">
+                            Remove
                             <span class="govuk-visually-hidden">{{ doc.name }}</span>
                         </a>
                     </td>

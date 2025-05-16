@@ -21,13 +21,7 @@ from redbox.models.graph import FINAL_RESPONSE_TAG, ROUTE_NAME_TAG, SOURCE_DOCUM
 from redbox.models.prompts import CHAT_MAP_QUESTION_PROMPT
 from redbox_app.redbox_core import error_messages
 from redbox_app.redbox_core.consumers import ChatConsumer
-from redbox_app.redbox_core.models import (
-    ActivityEvent,
-    Chat,
-    ChatMessage,
-    ChatMessageTokenUse,
-    File,
-)
+from redbox_app.redbox_core.models import ActivityEvent, Chat, ChatMessage, ChatMessageTokenUse, File
 
 User = get_user_model()
 
@@ -518,7 +512,7 @@ async def test_chat_consumer_redbox_state(
 
         # Then
         expected_request = RedboxQuery(
-            question="",
+            question="Third question, with selected files?",
             s3_keys=selected_file_keys,
             user_uuid=alice.id,
             chat_history=[
@@ -526,7 +520,6 @@ async def test_chat_consumer_redbox_state(
                 {"role": "ai", "text": "An answer."},
                 {"role": "user", "text": "A second question?"},
                 {"role": "ai", "text": "A second answer."},
-                {"role": "user", "text": "Third question, with selected files?"},  # Include latest user message
             ],
             ai_settings=ai_settings,
             permitted_s3_keys=permitted_file_keys,

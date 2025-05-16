@@ -184,6 +184,8 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
     top: 4.5rem;
     width: calc(100% - 32px);
     background-color: #1D70B8;
+    float: left;
+    width: 33.33%
   }
   body:has(.iai-environment-warning) .rb-left-column-container {
     top: 6.5rem;
@@ -762,10 +764,6 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   .exit-feedback__toggle-button:hover .exit-feedback__toggle-button-icon {
     animation-duration: 0;
   }
-}
-
-.rb-left-column-container{
-  background-color: #1D70B8;
 }
 
 .iai-panel-heading {
