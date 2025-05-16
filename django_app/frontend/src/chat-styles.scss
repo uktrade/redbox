@@ -179,13 +179,14 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
     top: 24px;
   }
   .rb-left-column-container {
-    left: 0;
     position: sticky;
-    top: 4.5rem;
-    width: calc(100% - 32px);
+    top: 0;
+    width: 33.33%;
     background-color: #1D70B8;
     float: left;
-    width: 33.33%
+    min-height: 100vh;
+    box-sizing: border-box;
+    padding: 16px;
   }
   body:has(.iai-environment-warning) .rb-left-column-container {
     top: 6.5rem;
@@ -883,4 +884,18 @@ margin-top: 64px;
 
 .redbox-message-route {
   margin-bottom: 16px
+}
+
+.sticky {
+  position: sticky;
+  top: 0;
+  background-color: white;
+  z-index: 1000;
+}
+
+.govuk-footer {
+  position: relative;
+  z-index: 1;
+  background-color: #f3f2f1;
+  clear: both;
 }
