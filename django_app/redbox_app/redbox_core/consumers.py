@@ -341,7 +341,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """Handle text chunks and British spelling conversion before sending to client."""
         logger.debug("Received text chunk: %s", response)
         try:
-            converted_chunk = convert_american_to_british_spelling(response)
+            converted_chunk = (
+                convert_american_to_british_spelling(response) if self.scope.get("user").uk_or_us_english else response
+            )
             logger.debug("converted text chunk: %s -> %s", response[:50], converted_chunk[:50])
         except Exception as e:
             logger.exception("conversion failed ", exc_info=e)
@@ -432,14 +434,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         payload = {
                             "url": str(file.url),
                             "file_name": file.file_name,
-                            "text_in_answer": convert_american_to_british_spelling(c.text_in_answer),
+                            "text_in_answer": convert_american_to_british_spelling(c.text_in_answer)
+                            if self.scope.get("user").uk_or_us_english
+                            else c.text_in_answer,
                         }
                     else:
                         # If no file with Status.complete is found, handle it as None
                         payload = {
                             "url": s.source,
                             "file_name": s.source,
-                            "text_in_answer": convert_american_to_british_spelling(c.text_in_answer),
+                            "text_in_answer": convert_american_to_british_spelling(c.text_in_answer)
+                            if self.scope.get("user").uk_or_us_english
+                            else c.text_in_answer,
                         }
                 except File.DoesNotExist:
                     file = None
@@ -447,14 +453,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     payload = {
                         "url": s.source,
                         "file_name": s.source,
-                        "text_in_answer": convert_american_to_british_spelling(text_in_answer),
+                        "text_in_answer": convert_american_to_british_spelling(text_in_answer)
+                        if self.scope.get("user").uk_or_us_english
+                        else text_in_answer,
                     }
 
                 await self.send_to_client("source", payload)
                 self.citations.append(
                     (
                         file,
-                        AICitation(text_in_answer=convert_american_to_british_spelling(c.text_in_answer), sources=[s]),
+                        AICitation(
+                            text_in_answer=convert_american_to_british_spelling(c.text_in_answer)
+                            if self.scope.get("user").uk_or_us_english
+                            else c.text_in_answer,
+                            sources=[s],
+                        ),
                     )
                 )
             await self.update_ai_message()

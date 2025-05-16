@@ -1,6 +1,5 @@
 # Custom generated migration will need to be amended for contribution back to i.ai
 
-import redbox_app.redbox_core.models
 from django.db import migrations, models
 
 
@@ -11,9 +10,9 @@ logger = logging.getLogger(__name__)
 
 
 def populate_existing_users_username(apps, schema_editor):
-    users = redbox_app.redbox_core.models.User.objects.all()
+    User = apps.get_model("redbox_core", "User")
 
-    for user in users:
+    for user in User.objects.all():
         user.username = user.email
         user.save(update_fields=["username"])
 
