@@ -878,7 +878,10 @@ margin-top: 64px;
 margin-bottom: 16px;
 }
 .chat-input__input-container {
-margin-top: 64px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  bottom: 0;
 }
 
 .redbox-message-route {
