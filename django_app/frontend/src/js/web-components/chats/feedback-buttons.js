@@ -114,33 +114,33 @@ export class FeedbackButtons extends HTMLElement {
         <div class="govuk-radios">
           <!-- Factuality Group -->
           <div class="govuk-radios__item">
-            <input type="radio" class="govuk-radios__input" id="chip1-factual-${this.dataset.id}" data-testid="Factual" />
+            <input type="radio" class="govuk-radios__input" id="chip1-factual-${this.dataset.id}" data-testid="Factual" name="factuality" />
             <label class="govuk-label govuk-radios__label" for="chip1-factual-${this.dataset.id}">Factual</label>
           </div>
           <div class="govuk-radios__item">
-            <input type="radio" class="govuk-radios__input" id="chip2-inaccurate-${this.dataset.id}" data-testid="Inaccurate" />
+            <input type="radio" class="govuk-radios__input" id="chip2-inaccurate-${this.dataset.id}" data-testid="Inaccurate" name="factuality" />
             <label class="govuk-label govuk-radios__label" for="chip2-inaccurate-${this.dataset.id}">Inaccurate</label>
           </div>
           </div>
           <!-- Completeness Group -->
           <div class="govuk-radios">
           <div class="govuk-radios__item">
-            <input type="radio" class="govuk-radios__input" type="checkbox" id="chip3-complete-${this.dataset.id}" data-testid="Complete" />
+            <input type="radio" class="govuk-radios__input" id="chip3-complete-${this.dataset.id}" data-testid="Complete" name="completeness" />
             <label class="govuk-label govuk-radios__label" for="chip3-complete-${this.dataset.id}">Complete</label>
           </div>
           <div class="govuk-radios__item">
-            <input type="radio" class="govuk-radios__input" type="checkbox" id="chip4-incomplete-${this.dataset.id}" data-testid="Incomplete" />
+            <input type="radio" class="govuk-radios__input" id="chip4-incomplete-${this.dataset.id}" data-testid="Incomplete" name="completeness" />
             <label class="govuk-label govuk-radios__label" for="chip4-incomplete-${this.dataset.id}">Incomplete</label>
           </div>
           </div>
           <!-- Structure Group -->
           <div class="govuk-radios">
           <div class="govuk-radios__item">
-            <input type="radio" class="govuk-radios__input" type="checkbox" id="chip5-structured-${this.dataset.id}" data-testid="Structured" />
+            <input type="radio" class="govuk-radios__input" id="chip5-structured-${this.dataset.id}" data-testid="Structured" name="structured" />
             <label class="govuk-label govuk-radios__label" for="chip5-structured-${this.dataset.id}">Followed instructions</label>
           </div>
           <div class="govuk-radios__item">
-            <input type="radio" class="govuk-radios__input" type="checkbox" id="chip6-unstructured-${this.dataset.id}" data-testid="Unstructured" />
+            <input type="radio" class="govuk-radios__input" id="chip6-unstructured-${this.dataset.id}" data-testid="Unstructured" name="structured" />
             <label class="govuk-label govuk-radios__label" for="chip6-unstructured-${this.dataset.id}">Not as instructed</label>
           </div>
         </div>
