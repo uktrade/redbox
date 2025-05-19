@@ -18,7 +18,7 @@ Example response:
 - If citations are available: {{"answer": your_answer, "citations": [list_of_citations]}}.
 - If no citations are available or needed, return an empty array for citations like this: {{"answer": your_answer, "citations": []}}.
 Do not provide citation from your own knowledge.
-Assistant:<sonnet>"""
+Assistant:<haiku>"""
 
 CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
     "You are tasked with answering questions on user provided documents. "
@@ -32,13 +32,15 @@ CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
 
 RETRIEVAL_SYSTEM_PROMPT = """
    Answer the following question based ONLY on the information contained in the provided documents.
+
+   If the information needed to answer the question is not present in the provided documents, state {{"answer": The provided documents do not contain sufficient information to answer this question., "citations": []}}
+
+   Do not use any prior knowledge or information not contained in the provided documents.
+
    <Provided_Documents>{formatted_documents}</Provided_Documents>.
-
-   If the information needed to answer the question is not present in the sources, state "The provided sources do not contain sufficient information to answer this question.
-
-   Do not use any prior knowledge or information not contained in the sources.
    """
 
+RETRIEVAL_QUESTION_PROMPT = "<User_question>From the provided documents, {question}</User_question>"
 
 NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context."""
 
@@ -197,7 +199,6 @@ CHAT_QUESTION_PROMPT = "{question}\n=========\n Response: "
 
 CHAT_WITH_DOCS_QUESTION_PROMPT = "Question: {question}. \n\n Documents: \n\n {formatted_documents} \n\n Answer: "
 
-RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
 AGENTIC_RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
