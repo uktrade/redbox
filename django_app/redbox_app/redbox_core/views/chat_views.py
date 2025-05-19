@@ -52,8 +52,17 @@ class ChatsView(View):
         # Add footnotes to messages
         for message in messages:
             footnote_counter = 1
-            for display, href, cit_id, text_in_answer in message.unique_citation_uris():  # noqa: B007
-                if text_in_answer:
+            for display, href, cit_id, text_in_answer, citation_name in message.unique_citation_uris():  # noqa: B007
+                if citation_name:
+                    message.text = message.text.replace(citation_name,f'<a class="rb-footnote-link" href="/citations/{message.id}/#{cit_id}">{footnote_counter}</a>',  # noqa: E501
+                    )
+                    footnote_counter = footnote_counter + 1
+                    if (
+                        f'<a class="rb-footnote-link" href="/citations/{message.id}/#{cit_id}">{footnote_counter}</a>'
+                        not in message.text
+                    ):
+                        logger.info("Citation Numbering Missed")
+                elif text_in_answer:
                     message.text = message.text.replace(
                         text_in_answer,
                         f'{text_in_answer}<a class="rb-footnote-link" href="/citations/{message.id}/#{cit_id}">{footnote_counter}</a>',  # noqa: E501
