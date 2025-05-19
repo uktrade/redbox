@@ -47,7 +47,8 @@ SELF_ROUTE_SYSTEM_PROMPT = """
 
    Choosing one option below:
 
-   1. You are not able to answer, return the word "unanswerable". No explanation.
+   1. If there is no provided documents, state {{"answer": unanswerable, "citations": []}}
+
 
    OR
 
