@@ -429,6 +429,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             "url": str(file.url),
                             "file_name": file.file_name,
                             "text_in_answer": convert_american_to_british_spelling(c.text_in_answer),
+                            # "ref_id": s.ref_id,
                         }
                     else:
                         # If no file with Status.complete is found, handle it as None
@@ -436,6 +437,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             "url": s.source,
                             "file_name": s.source,
                             "text_in_answer": convert_american_to_british_spelling(c.text_in_answer),
+                            # "ref_id": s.ref_id,
                         }
                 except File.DoesNotExist:
                     file = None
@@ -444,6 +446,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         "url": s.source,
                         "file_name": s.source,
                         "text_in_answer": convert_american_to_british_spelling(text_in_answer),
+                        # "ref_id": s.ref_id,
                     }
 
                 await self.send_to_client("source", payload)

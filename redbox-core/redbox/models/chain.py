@@ -109,6 +109,7 @@ class Source(BaseModel):
         description="Direct quote from the provided document (20+ words)", default=""
     )
     page_numbers: list[int] = Field(description="Page Number in document the highlighted text is on", default=[1])
+    # ref_id: str = Field(description="The Reference ID in the format 'ref_1', 'ref_2', etc.", default="",)
 
 
 class Citation(BaseModel):
@@ -117,6 +118,10 @@ class Citation(BaseModel):
         default="",
     )
     sources: list[Source] = Field(default_factory=list)
+    # citation_name: str = Field(
+    #     description="",
+    #     default="",
+    # )
 
 
 class StructuredResponseWithCitations(BaseModel):

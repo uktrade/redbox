@@ -750,8 +750,13 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
     text_in_answer = models.TextField(
         null=True,
         blank=True,
-        help_text="the part of the answer the citation refers too - useful for adding in footnotes",
+        help_text="the part of the answer the citation refers to - useful for adding in footnotes",
     )
+    # citation_name = models.TextField(
+    #     null=True,
+    #     blank=True,
+    #     help_text="the reference that the citation refers to - Will be replaced with the link going forward",
+    # )
 
     def __str__(self):
         text = self.text or "..."
