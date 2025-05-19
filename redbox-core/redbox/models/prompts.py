@@ -14,6 +14,7 @@ CHAT_SYSTEM_PROMPT = "You are tasked with providing information objectively and 
 CHAT_WITH_DOCS_SYSTEM_PROMPT = "You are tasked with providing information objectively and responding helpfully to users using context from their provided documents"
 
 CITATION_PROMPT = """Use citations to back up your answer when available. Return response in the following format: {format_instructions}.
+When a citation is included in the answer, make sure it is stated alongside the text in the answer using ref_1,ref_2,... sequentially.
 Example response:
 - If citations are available: {{"answer": your_answer, "citations": [list_of_citations]}}.
 - If no citations are available or needed, return an empty array for citations like this: {{"answer": your_answer, "citations": []}}.
@@ -117,7 +118,8 @@ SELF_ROUTE_SYSTEM_PROMPT = """
       Requirements:
 
       - Only cite information from the documents I provide in <My_Documents>
-      - Each citation must match exact text in your answer
+      - Each citation must match exact text in your answer.
+      - Each citation should then be followed by ref_1, ref_2, ref_3, ... etc.
       - Include substantial quotes from the documents (20+ words minimum)
       - Specify page numbers when available
       - Do not reference external sources beyond what I provide in <My_Documents>
@@ -276,7 +278,7 @@ When creating your execution plan, you have access to the following specialised 
 2. **External_Retrieval_Agent**: solely responsible for retrieving information outside of user's uploaded documents, specifically from external data sources:
       - Wikipedia
       - gov.uk
-      - legislation.gov.uk 
+      - legislation.gov.uk
 3. **Summarisation_Agent**: solely responsible for summarising entire user's uploaded documents. It does not summarise outputs from other agents.
 
 ## helpful instructions for calling agent
