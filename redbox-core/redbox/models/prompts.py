@@ -31,13 +31,27 @@ CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
 )
 
 RETRIEVAL_SYSTEM_PROMPT = """
-   Answer the following question based ONLY on the information contained in the provided documents.
+   Answer user's question based ONLY on the information contained in the provided documents.
 
    If the information needed to answer the question is not present in the provided documents, state {{"answer": The provided documents do not contain sufficient information to answer this question., "citations": []}}
 
    Do not use any prior knowledge or information not contained in the provided documents.
 
    <Provided_Documents>{formatted_documents}</Provided_Documents>.
+   """
+
+SELF_ROUTE_SYSTEM_PROMPT = """
+   Evaluate if you can answer user's question based ONLY on the information contained in the provided documents. Do not use any prior knowledge or information not contained in the provided documents.
+
+   <Provided_Documents>{formatted_documents}</Provided_Documents>.
+
+   Choosing one option below:
+
+   1. You are not able to answer, return the word "unanswerable". No explanation.
+
+   OR
+
+   2. You are able to answer. Include proper citations for each factual claim.
    """
 
 RETRIEVAL_QUESTION_PROMPT = "<User_question>From the provided documents, {question}</User_question>"
@@ -108,29 +122,6 @@ AGENTIC_GIVE_UP_SYSTEM_PROMPT = (
     "Remember: While your priority is to answer the question, sometimes the best assistance involves "
     "guiding the user in providing the information needed for a complete solution."
 )
-
-SELF_ROUTE_SYSTEM_PROMPT = """
-   Evaluate if you can answer my question using only the documents I provide in <My_Documents>{formatted_documents}</My_Documents>.
-
-   Choosing one option below:
-
-   1. You are not able to answer, return the word "unanswerable". No explanation.
-
-   OR
-
-   2. You are able to answer. Include proper citations for each factual claim. Return ONLY the JSON structure:
-   {format_instructions}. DO NOT start by saying: 'Here is the JSON response', just return JSON.
-
-      Requirements:
-
-      - Only cite information from the documents I provide in <My_Documents>
-      - Each citation must match exact text in your answer
-      - Include substantial quotes from the documents (20+ words minimum)
-      - Specify page numbers when available
-      - Do not reference external sources beyond what I provide in <My_Documents>
-
-   Remember: Only use information from documents. If the information isn't there, only return the word: "unanswerable".
-   """
 
 CHAT_MAP_SYSTEM_PROMPT = (
     "Your goal is to extract the most important information and present it in "
