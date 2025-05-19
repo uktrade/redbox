@@ -108,31 +108,42 @@ export class FeedbackButtons extends HTMLElement {
     /** @type {NodeListOf<HTMLElement>} */
     let chipPanels = document.querySelector(`.feedback__chips-container-${this.dataset.id}`);
     if (!chipPanels) {
-    this.closest(".chat-actions-container").insertAdjacentHTML("afterend",`<div class="feedback-container feedback-container--2" tabindex="-1">
-      <fieldset class="feedback__chips-container feedback__chips-container-${this.dataset.id} feedback__negative">
-        <legend class="feedback__chips-legend">Select all that apply about the response</legend>
-        <div class="feedback__chips-inner-container">
+    this.closest(".chat-actions-container").insertAdjacentHTML("afterend",`<div class="govuk-form-group" tabindex="-1">
+      <fieldset class="govuk-fieldset feedback__chips-container-${this.dataset.id} feedback__negative">
+        <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Select all that apply about the response</legend>
+        <div class="govuk-radios">
           <!-- Factuality Group -->
-          <div class="feedback__chip-group">
-            <input class="feedback__chip" type="checkbox" id="chip1-factual-${this.dataset.id}" data-testid="Factual" />
-            <label class="feedback__chip-label" for="chip1-factual-${this.dataset.id}">Factual</label>
-            <input class="feedback__chip" type="checkbox" id="chip2-inaccurate-${this.dataset.id}" data-testid="Inaccurate" />
-            <label class="feedback__chip-label" for="chip2-inaccurate-${this.dataset.id}">Inaccurate</label>
+          <div class="govuk-radios__item">
+            <input type="radio" class="govuk-radios__input" id="chip1-factual-${this.dataset.id}" data-testid="Factual" />
+            <label class="govuk-label govuk-radios__label" for="chip1-factual-${this.dataset.id}">Factual</label>
+          </div>
+          <div class="govuk-radios__item">
+            <input type="radio" class="govuk-radios__input" id="chip2-inaccurate-${this.dataset.id}" data-testid="Inaccurate" />
+            <label class="govuk-label govuk-radios__label" for="chip2-inaccurate-${this.dataset.id}">Inaccurate</label>
+          </div>
           </div>
           <!-- Completeness Group -->
-          <div class="feedback__chip-group">
-            <input class="feedback__chip" type="checkbox" id="chip3-complete-${this.dataset.id}" data-testid="Complete" />
-            <label class="feedback__chip-label" for="chip3-complete-${this.dataset.id}">Complete</label>
-            <input class="feedback__chip" type="checkbox" id="chip4-incomplete-${this.dataset.id}" data-testid="Incomplete" />
-            <label class="feedback__chip-label" for="chip4-incomplete-${this.dataset.id}">Incomplete</label>
+          <div class="govuk-radios">
+          <div class="govuk-radios__item">
+            <input type="radio" class="govuk-radios__input" type="checkbox" id="chip3-complete-${this.dataset.id}" data-testid="Complete" />
+            <label class="govuk-label govuk-radios__label" for="chip3-complete-${this.dataset.id}">Complete</label>
+          </div>
+          <div class="govuk-radios__item">
+            <input type="radio" class="govuk-radios__input" type="checkbox" id="chip4-incomplete-${this.dataset.id}" data-testid="Incomplete" />
+            <label class="govuk-label govuk-radios__label" for="chip4-incomplete-${this.dataset.id}">Incomplete</label>
+          </div>
           </div>
           <!-- Structure Group -->
-          <div class="feedback__chip-group">
-            <input class="feedback__chip" type="checkbox" id="chip5-structured-${this.dataset.id}" data-testid="Structured" />
-            <label class="feedback__chip-label" for="chip5-structured-${this.dataset.id}">Followed instructions</label>
-            <input class="feedback__chip" type="checkbox" id="chip6-unstructured-${this.dataset.id}" data-testid="Unstructured" />
-            <label class="feedback__chip-label" for="chip6-unstructured-${this.dataset.id}">Not as instructed</label>
+          <div class="govuk-radios">
+          <div class="govuk-radios__item">
+            <input type="radio" class="govuk-radios__input" type="checkbox" id="chip5-structured-${this.dataset.id}" data-testid="Structured" />
+            <label class="govuk-label govuk-radios__label" for="chip5-structured-${this.dataset.id}">Followed instructions</label>
           </div>
+          <div class="govuk-radios__item">
+            <input type="radio" class="govuk-radios__input" type="checkbox" id="chip6-unstructured-${this.dataset.id}" data-testid="Unstructured" />
+            <label class="govuk-label govuk-radios__label" for="chip6-unstructured-${this.dataset.id}">Not as instructed</label>
+          </div>
+        </div>
         </div>
       </fieldset>
     <div class="feedback__text-area feedback__text-area-${this.dataset.id}">
