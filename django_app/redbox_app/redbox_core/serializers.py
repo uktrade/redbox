@@ -54,6 +54,7 @@ class UserSerializer(serializers.ModelSerializer):
             "ai_experience",
             "business_unit",
             "grade",
+            "uk_or_us_english",
             "profession",
             "role",
             "is_staff",

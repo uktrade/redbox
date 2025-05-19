@@ -98,6 +98,7 @@ def test_user_serializer(chat_message_with_citation: ChatMessage):
         "ai_experience": "Experienced Navigator",
         "business_unit": "Digital, Data and Technology (DDaT)",
         "grade": "D",
+        "uk_or_us_english": True,
         "profession": "IA",
         "role": "Trade Advisor",
         "is_staff": False,

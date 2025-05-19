@@ -143,10 +143,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
         session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
         message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
 
+        logger.debug("question %s from session", message_history[-2].text)
+        logger.debug("message history %s from session", message_history[:-2])
+        logger.debug("message history size: %s from session", len(message_history))
+
         ai_settings = await self.get_ai_settings(session)
         state = RedboxState(
             request=RedboxQuery(
-                question=message_history[-1].text,
+                question=message_history[-2].text,
                 s3_keys=[f.unique_name for f in selected_files],
                 user_uuid=user.id,
                 chat_history=[
@@ -154,7 +158,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         role=message.role,
                         text=escape_curly_brackets(message.text),
                     )
-                    for message in message_history[:-1]
+                    for message in message_history[:-2]
                 ],
                 ai_settings=ai_settings,
                 permitted_s3_keys=[f.unique_name async for f in permitted_files],
@@ -337,7 +341,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """Handle text chunks and British spelling conversion before sending to client."""
         logger.debug("Received text chunk: %s", response)
         try:
-            converted_chunk = convert_american_to_british_spelling(response)
+            converted_chunk = (
+                convert_american_to_british_spelling(response) if self.scope.get("user").uk_or_us_english else response
+            )
             logger.debug("converted text chunk: %s -> %s", response[:50], converted_chunk[:50])
         except Exception as e:
             logger.exception("conversion failed ", exc_info=e)
@@ -428,7 +434,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         payload = {
                             "url": str(file.url),
                             "file_name": file.file_name,
-                            "text_in_answer": convert_american_to_british_spelling(c.text_in_answer),
+                            "text_in_answer": convert_american_to_british_spelling(c.text_in_answer)
+                            if self.scope.get("user").uk_or_us_english
+                            else c.text_in_answer,
                             # "ref_id": s.ref_id,
                         }
                     else:
@@ -436,7 +444,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         payload = {
                             "url": s.source,
                             "file_name": s.source,
-                            "text_in_answer": convert_american_to_british_spelling(c.text_in_answer),
+                            "text_in_answer": convert_american_to_british_spelling(c.text_in_answer)
+                            if self.scope.get("user").uk_or_us_english
+                            else c.text_in_answer,
                             # "ref_id": s.ref_id,
                         }
                 except File.DoesNotExist:
@@ -445,7 +455,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     payload = {
                         "url": s.source,
                         "file_name": s.source,
-                        "text_in_answer": convert_american_to_british_spelling(text_in_answer),
+                        "text_in_answer": convert_american_to_british_spelling(text_in_answer)
+                        if self.scope.get("user").uk_or_us_english
+                        else text_in_answer,
                         # "ref_id": s.ref_id,
                     }
 
@@ -453,7 +465,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 self.citations.append(
                     (
                         file,
-                        AICitation(text_in_answer=convert_american_to_british_spelling(c.text_in_answer), sources=[s]),
+                        AICitation(
+                            text_in_answer=convert_american_to_british_spelling(c.text_in_answer)
+                            if self.scope.get("user").uk_or_us_english
+                            else c.text_in_answer,
+                            sources=[s],
+                        ),
                     )
                 )
             await self.update_ai_message()
