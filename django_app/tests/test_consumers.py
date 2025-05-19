@@ -21,13 +21,7 @@ from redbox.models.graph import FINAL_RESPONSE_TAG, ROUTE_NAME_TAG, SOURCE_DOCUM
 from redbox.models.prompts import CHAT_MAP_QUESTION_PROMPT
 from redbox_app.redbox_core import error_messages
 from redbox_app.redbox_core.consumers import ChatConsumer
-from redbox_app.redbox_core.models import (
-    ActivityEvent,
-    Chat,
-    ChatMessage,
-    ChatMessageTokenUse,
-    File,
-)
+from redbox_app.redbox_core.models import ActivityEvent, Chat, ChatMessage, ChatMessageTokenUse, File
 
 User = get_user_model()
 

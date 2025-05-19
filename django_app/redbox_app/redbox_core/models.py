@@ -391,6 +391,7 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
     last_name = models.CharField(max_length=48)
     business_unit = models.CharField(null=True, blank=True, max_length=100, choices=BusinessUnit)
     grade = models.CharField(null=True, blank=True, max_length=3, choices=UserGrade)
+    uk_or_us_english = models.BooleanField(default=True)
     name = models.CharField(null=True, blank=True)
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)

@@ -1,4 +1,5 @@
 import logging
+import time
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from io import BytesIO
@@ -33,27 +34,37 @@ else:
     S3Client = object
 
 
-class MetadataLoader:
-    def __init__(self, env: Settings, s3_client: S3Client, file_name: str):
+class UnstructuredChunkLoader:
+    """
+    Load, partition and chunk a document using local unstructured library.
+    """
+
+    def __init__(
+        self,
+        chunk_resolution: ChunkResolution,
+        env: Settings,
+        min_chunk_size: int,
+        max_chunk_size: int,
+        metadata: GeneratedMetadata | None = None,
+        overlap_chars: int = 0,
+        overlap_all_chunks: bool = True,
+    ):
+        self.chunk_resolution = chunk_resolution
         self.env = env
-        self.s3_client = s3_client
-        self.llm = get_chat_llm(env.metadata_extraction_llm)
-        self.file_name = file_name
+        self._min_chunk_size = min_chunk_size
+        self._max_chunk_size = max_chunk_size
+        self._overlap_chars = overlap_chars
+        self._overlap_all_chunks = overlap_all_chunks
+        self.metadata = metadata or GeneratedMetadata(name="", description="", keywords=[])
 
-    def _get_file_bytes(self, s3_client: S3Client, file_name: str) -> BytesIO:
-        return s3_client.get_object(Bucket=self.env.bucket_name, Key=file_name)["Body"].read()
-
-    def _chunking(self) -> list[dict]:
-        """
-        Chunking data using local unstructured
-        """
-        file_bytes = self._get_file_bytes(s3_client=self.s3_client, file_name=self.file_name)
+    def _get_chunks(self, file_name: str, file_bytes: BytesIO) -> list[dict]:
+        """Helper method to perform chunking via the unstructured API"""
         if ENVIRONMENT.is_local:
             url = f"http://{self.env.unstructured_host}:8000/general/v0/general"
         else:
             url = f"http://{self.env.unstructured_host}:80/general/v0/general"
         files = {
-            "files": (self.file_name, file_bytes),
+            "files": (file_name, file_bytes),
         }
         response = requests.post(
             url,
@@ -61,10 +72,10 @@ class MetadataLoader:
             data={
                 "strategy": "fast",
                 "chunking_strategy": "by_title",
-                "max_characters": self.env.worker_ingest_max_chunk_size,
-                "combine_under_n_chars": self.env.worker_ingest_min_chunk_size,
-                "overlap": 0,
-                "overlap_all": True,
+                "max_characters": self._max_chunk_size,
+                "combine_under_n_chars": self._min_chunk_size,
+                "overlap": self._overlap_chars,
+                "overlap_all": self._overlap_all_chunks,
             },
         )
 
@@ -78,11 +89,59 @@ class MetadataLoader:
 
         return elements
 
+    def lazy_load(self, file_name: str, file_bytes: BytesIO) -> Iterator[Document]:
+        """A lazy loader that reads a file line by line.
+
+        When you're implementing lazy load methods, you should use a generator
+        to yield documents one by one.
+        """
+        elements = self._get_chunks(file_name, file_bytes)
+
+        for i, raw_chunk in enumerate(elements):
+            yield Document(
+                page_content=raw_chunk["text"],
+                metadata=UploadedFileMetadata(
+                    index=i,
+                    uri=file_name,
+                    page_number=raw_chunk["metadata"].get("page_number"),
+                    created_datetime=datetime.now(UTC),
+                    token_count=tokeniser(raw_chunk["text"]),
+                    chunk_resolution=self.chunk_resolution,
+                    name=self.metadata.name,
+                    description=self.metadata.description,
+                    keywords=self.metadata.keywords,
+                ).model_dump(),
+            )
+
+
+class MetadataLoader:
+    def __init__(self, env: Settings, s3_client: S3Client, file_name: str):
+        self.env = env
+        self.s3_client = s3_client
+        self.llm = get_chat_llm(env.metadata_extraction_llm)
+        self.file_name = file_name
+
+    def _get_file_bytes(self, s3_client: S3Client, file_name: str) -> BytesIO:
+        return BytesIO(s3_client.get_object(Bucket=self.env.bucket_name, Key=file_name)["Body"].read())
+
     def extract_metadata(self) -> GeneratedMetadata:
         """
-        Extract metadata from first 1_000 chunks
+        Extract metadata from first 1_000 chunks using UnstructuredChunkLoader
         """
-        chunks = self._chunking()
+        start_time = time.time()
+
+        chunk_loader = UnstructuredChunkLoader(
+            chunk_resolution=ChunkResolution.normal,
+            env=self.env,
+            min_chunk_size=self.env.worker_ingest_min_chunk_size,
+            max_chunk_size=self.env.worker_ingest_max_chunk_size,
+            overlap_chars=0,
+            metadata=None,
+        )
+
+        file_bytes = self._get_file_bytes(s3_client=self.s3_client, file_name=self.file_name)
+
+        chunks = chunk_loader._get_chunks(file_name=self.file_name, file_bytes=file_bytes)
 
         original_metadata = chunks[0]["metadata"] if chunks else {}
         first_thousand_words = "".join(chunk["text"] for chunk in chunks)[:10_000]
@@ -94,6 +153,10 @@ class MetadataLoader:
                 metadata = GeneratedMetadata(name=original_metadata.get("filename"))
             else:
                 metadata = GeneratedMetadata(name=self.file_name)
+
+        duration = time.time() - start_time
+        logger.info("total metadata extraction time for file [%s] took %.2f seconds", self.file_name, duration)
+
         return metadata
 
     def create_file_metadata(self, page_content: str, original_metadata: dict | None = None) -> GeneratedMetadata:
@@ -131,79 +194,4 @@ class MetadataLoader:
         except ValidationError as e:
             # error due to LLM return incorrect response
             logger.info(e.errors())
-            return GeneratedMetadata(name=original_metadata.get("filename"))
-
-
-class UnstructuredChunkLoader:
-    """
-    Load, partition and chunk a document using local unstructured library.
-    """
-
-    def __init__(
-        self,
-        chunk_resolution: ChunkResolution,
-        env: Settings,
-        min_chunk_size: int,
-        max_chunk_size: int,
-        metadata: dict,
-        overlap_chars: int = 0,
-        overlap_all_chunks: bool = True,
-    ):
-        self.chunk_resolution = chunk_resolution
-        self.env = env
-        self._min_chunk_size = min_chunk_size
-        self._max_chunk_size = max_chunk_size
-        self._overlap_chars = overlap_chars
-        self._overlap_all_chunks = overlap_all_chunks
-        self.metadata = metadata
-
-    def lazy_load(self, file_name: str, file_bytes: BytesIO) -> Iterator[Document]:
-        """A lazy loader that reads a file line by line.
-
-        When you're implementing lazy load methods, you should use a generator
-        to yield documents one by one.
-        """
-        if ENVIRONMENT.is_local:
-            url = f"http://{self.env.unstructured_host}:8000/general/v0/general"
-        else:
-            url = f"http://{self.env.unstructured_host}:80/general/v0/general"
-        files = {
-            "files": (file_name, file_bytes),
-        }
-        response = requests.post(
-            url,
-            files=files,
-            data={
-                "strategy": "fast",
-                "chunking_strategy": "by_title",
-                "max_characters": self._max_chunk_size,
-                "combine_under_n_chars": self._min_chunk_size,
-                "overlap": self._overlap_chars,
-                "overlap_all": self._overlap_all_chunks,
-            },
-        )
-
-        if response.status_code != 200:
-            raise ValueError(response.text)
-
-        elements = response.json()
-
-        if not elements:
-            raise ValueError("Unstructured failed to extract text for this file")
-
-        # add metadata below
-        for i, raw_chunk in enumerate(elements):
-            yield Document(
-                page_content=raw_chunk["text"],
-                metadata=UploadedFileMetadata(
-                    index=i,
-                    uri=file_name,
-                    page_number=raw_chunk["metadata"].get("page_number"),
-                    created_datetime=datetime.now(UTC),
-                    token_count=tokeniser(raw_chunk["text"]),
-                    chunk_resolution=self.chunk_resolution,
-                    name=self.metadata.name,
-                    description=self.metadata.description,
-                    keywords=self.metadata.keywords,
-                ).model_dump(),
-            )
+            return GeneratedMetadata(name=original_metadata.get("filename") or self.file_name)
