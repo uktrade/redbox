@@ -80,6 +80,7 @@ def create_user():
         username,
         is_staff=False,
         grade=User.UserGrade.DIRECTOR,
+        uk_or_us_english=True,
         business_unit=User.BusinessUnit.DIGITAL_DATA_AND_TECHNOLOGY,
         profession=User.Profession.IA,
         ai_experience=User.AIExperienceLevel.EXPERIENCED_NAVIGATOR,
@@ -90,6 +91,7 @@ def create_user():
         return User.objects.create_user(
             is_staff=is_staff,
             grade=grade,
+            uk_or_us_english=uk_or_us_english,
             business_unit=business_unit,
             profession=profession,
             ai_experience=ai_experience,
@@ -128,6 +130,7 @@ def user_with_demographic_data() -> User:
         name="Sir Gregory Pitkin",
         ai_experience=User.AIExperienceLevel.EXPERIENCED_NAVIGATOR,
         grade="DG",
+        uk_or_us_english=True,
         business_unit="Prime Minister's Office",
         profession="AN",
         username="mrs.tiggywinkle@example.com",
