@@ -1,11 +1,11 @@
 import logging
+import re
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 from http import HTTPStatus
 from itertools import groupby
 from operator import attrgetter
-import re
 
 from dataclasses_json import Undefined, dataclass_json
 from django.conf import settings
