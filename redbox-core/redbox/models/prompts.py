@@ -47,15 +47,11 @@ SELF_ROUTE_SYSTEM_PROMPT = """
 
    Choosing one of the following option below:
 
-   1. If there is no provided documents, state {{"answer": unanswerable, "citations": []}}
+   1. You are unable to answer using the provided documents, state {{"answer": unanswerable, "citations": []}}
 
    OR
 
-   2. You are unable to answer using the provided documents, state {{"answer": unanswerable, "citations": []}}
-
-   OR
-
-   3. You are able to answer. Provide a comprehensive answer to user's question based ONLY on the information contained in the provided documents. Include proper citations for each factual claim.
+   2. You are able to answer. Provide a comprehensive answer to user's question based ONLY on the information contained in the provided documents. Include proper citations for each factual claim.
    """
 
 RETRIEVAL_QUESTION_PROMPT = "<User_question>From the provided documents, {question}</User_question>"
