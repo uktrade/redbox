@@ -312,6 +312,7 @@ def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str, st
     elif prompt_set == PromptSet.SelfRoute:
         system_prompt = state.request.ai_settings.self_route_system_prompt
         question_prompt = state.request.ai_settings.retrieval_question_prompt
+        format_prompt = state.request.ai_settings.citation_prompt
     elif prompt_set == PromptSet.CondenseQuestion:
         system_prompt = state.request.ai_settings.condense_system_prompt
         question_prompt = state.request.ai_settings.condense_question_prompt
