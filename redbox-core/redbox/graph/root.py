@@ -232,6 +232,7 @@ def get_search_graph(
     )
     builder.add_node("is_using_search_keyword", empty_process)
 
+    builder.add_node("empty_docs_returned", empty_process)
     # Edges
     builder.add_edge(START, "llm_generate_query")
     builder.add_edge("llm_generate_query", "retrieve_documents")
@@ -242,8 +243,15 @@ def get_search_graph(
     builder.add_conditional_edges(
         "is_self_route_on",
         lambda s: s.request.ai_settings.self_route_enabled,
-        {True: "check_if_RAG_can_answer", False: "llm_answer_question"},
+        {True: "empty_docs_returned", False: "llm_answer_question"},
     )
+
+    builder.add_conditional_edges(
+        "empty_docs_returned",
+        lambda s: len(s.documents.groups) == 0,
+        {True: "set_route_to_summarise", False: "check_if_RAG_can_answer"},
+    )
+
     builder.add_edge("llm_answer_question", "report_citations")
     builder.add_edge("report_citations", "set_route_to_search")
 
