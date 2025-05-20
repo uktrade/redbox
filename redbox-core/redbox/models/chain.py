@@ -121,10 +121,6 @@ class Citation(BaseModel):
         default="",
     )
     sources: list[Source] = Field(default_factory=list)
-    # citation_name: str = Field(
-    #     description="",
-    #     default="",
-    # )
 
 
 class StructuredResponseWithCitations(BaseModel):
