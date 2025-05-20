@@ -889,6 +889,7 @@ margin-bottom: 16px;
 }
 
 
-.govuk-grid-column-one-third {
+.govuk-grid-column-one-thirdx {
+  @extend .govuk-grid-column-one-third;
   background-color: #1D70B8;
 }
