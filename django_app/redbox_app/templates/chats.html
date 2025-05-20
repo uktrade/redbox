@@ -23,42 +23,13 @@
   </div>
 
   <form class="govuk-grid-row js-message-input" action="/submit" method="post">
-
+    <div class="govuk-grid-column-one-third">
       <div class="rb-left-column-container">
         <a role="button" href="{{ url('chats') }}" id="new-chat-button"
    class="govuk-heading-s iai-panel-heading iai-panel-heading-button govuk-!-margin-left-2
-   govuk-!-margin-bottom-2">
+   govuk-!-margin-bottom-2 govuk-!-margin-top-4">
   New chat
 </a>
-
-
-        <h2 class="govuk-heading-s iai-panel-heading">Recent chats</h2>
-        <chat-history>
-          <template id="template-chat_history_heading">
-            <div>
-              {% call chat_history_heading("-") %}
-              {% endcall %}
-            </div>
-          </template>
-          <template id="template-chat_history_item">
-            {{ chat_history_item({
-              "id": "id",
-              "name": ""
-            }, "", "id") }}
-          </template>
-
-          {% for date_group, chats in chat_grouped_by_date_group %}
-            <div class="chat-group-container">
-              {% call chat_history_heading(date_group) %}
-                <ul class="chat-list">
-                  {% for chat in chats %}
-                    {{ chat_history_item(chat, url('chats', chat.id), chat_id) }}
-                  {% endfor %}
-                </ul>
-              {% endcall %}
-            </div>
-          {% endfor %}
-        </chat-history>
 
         <document-selector class="govuk-!-margin-top-5 govuk-!-padding-top-3">
           <fieldset class="govuk-fieldset">
@@ -99,6 +70,34 @@
             </div>
           </fieldset>
         </document-selector>
+        <h2 class="govuk-heading-s iai-panel-heading">Recent chats</h2>
+        <chat-history>
+          <template id="template-chat_history_heading">
+            <div>
+              {% call chat_history_heading("-") %}
+              {% endcall %}
+            </div>
+          </template>
+          <template id="template-chat_history_item">
+            {{ chat_history_item({
+              "id": "id",
+              "name": ""
+            }, "", "id") }}
+          </template>
+
+          {% for date_group, chats in chat_grouped_by_date_group %}
+            <div class="chat-group-container">
+              {% call chat_history_heading(date_group) %}
+                <ul class="chat-list">
+                  {% for chat in chats %}
+                    {{ chat_history_item(chat, url('chats', chat.id), chat_id) }}
+                  {% endfor %}
+                </ul>
+              {% endcall %}
+            </div>
+          {% endfor %}
+        </chat-history>
+
         <div class="iai-doc-list">
           <label for="llm-selector">Model</label>
           <select id="llm-selector" name="llm" class="govuk-select govuk-!-margin-top-1" {% if environment | lower == 'prod' %} disabled {% endif %}>
@@ -108,6 +107,7 @@
           </select>
         </div>
 
+      </div>
       </div>
 
     <div class="govuk-grid-column-two-thirds">
@@ -159,7 +159,6 @@
       <message-input>
         <div class="govuk-textareax iai-chat-input__input js-user-text" id="message" name="message" contenteditable="true" role="textbox" aria-multiline="true" data-text="Type here..."></div>
       </message-input>
-  </div>
   {% if enable_dictation_flag_is_active %}
   <send-message-with-dictation data-api-key="{{ redbox_api_key }}">
     <button type="submit" class="govuk-buttonx govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4" data-module="govuk-button">
@@ -203,6 +202,7 @@
       {% endif %}
 
       </div>
+    </div>
 
   </form>
 
