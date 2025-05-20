@@ -14,9 +14,9 @@ CHAT_SYSTEM_PROMPT = "You are tasked with providing information objectively and 
 CHAT_WITH_DOCS_SYSTEM_PROMPT = "You are tasked with providing information objectively and responding helpfully to users using context from their provided documents"
 
 CITATION_PROMPT = """Use citations to back up your answer when available. Return response in the following format: {format_instructions}.
-When a citation is included in the answer, make sure it is stated alongside the text in the answer using ref_1,ref_2,... sequentially.
 Example response:
 - If citations are available: {{"answer": your_answer, "citations": [list_of_citations]}}.
+- Each citation must be shown in the answer using a unique identifier in the format "ref_N" where N is an incrementing number starting from 1.
 - If no citations are available or needed, return an empty array for citations like this: {{"answer": your_answer, "citations": []}}.
 
 Assistant:<sonnet>"""
@@ -119,10 +119,10 @@ SELF_ROUTE_SYSTEM_PROMPT = """
 
       - Only cite information from the documents I provide in <My_Documents>
       - Each citation must match exact text in your answer.
-      - Each citation should then be followed by ref_1, ref_2, ref_3, ... etc.
       - Include substantial quotes from the documents (20+ words minimum)
       - Specify page numbers when available
       - Do not reference external sources beyond what I provide in <My_Documents>
+      - Each citation should be followed by a unique identifier in the format "ref_N" where N is an incrementing number starting from 1.
 
    Remember: Only use information from documents. If the information isn't there, only return the word: "unanswerable".
    """

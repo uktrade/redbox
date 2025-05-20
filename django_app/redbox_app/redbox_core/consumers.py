@@ -268,7 +268,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         text=citation_source.highlighted_text_in_source,
                         page_numbers=citation_source.page_numbers,
                         source=Citation.Origin.USER_UPLOADED_DOCUMENT,
-                        citation_name = citation_source.ref_id,
+                        citation_name=citation_source.ref_id,
                     )
                 else:
                     Citation.objects.create(
@@ -278,7 +278,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         text=citation_source.highlighted_text_in_source,
                         page_numbers=citation_source.page_numbers,
                         source=Citation.Origin.try_parse(citation_source.source_type),
-                        citation_name = citation_source.ref_id,
+                        citation_name=citation_source.ref_id,
                     )
 
         if self.metadata:

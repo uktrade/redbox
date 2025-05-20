@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from http import HTTPStatus
 from itertools import groupby
 from operator import attrgetter
+import re
 
 from dataclasses_json import Undefined, dataclass_json
 from django.conf import settings
@@ -20,6 +21,24 @@ from yarl import URL
 from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, File
 
 logger = logging.getLogger(__name__)
+
+
+def replace_ref(message_text: str, ref_name: str, message_id: str, cit_id: str, footnote_counter: int) -> str:
+    pattern = rf"[\[\(\{{<]{ref_name}[\]\)\}}>]|{ref_name}"
+    message_text = re.sub(
+        pattern,
+        f'<a class="rb-footnote-link" href="/citations/{message_id}/#{cit_id}">{footnote_counter}</a>',
+        message_text,
+        count=1,
+    )
+    message_text = re.sub(pattern, "", message_text)
+    return message_text
+
+
+def remove_dangling_citation(message_text: str) -> str:
+    pattern = r"[\[\(\{<]ref_\d+[\]\)\}>]"
+    message_text = re.sub(pattern, "", message_text)
+    return message_text
 
 
 class ChatsView(View):
@@ -54,14 +73,20 @@ class ChatsView(View):
             footnote_counter = 1
             for display, href, cit_id, text_in_answer, citation_name in message.unique_citation_uris():  # noqa: B007
                 if citation_name:
-                    message.text = message.text.replace(citation_name,f'<a class="rb-footnote-link" href="/citations/{message.id}/#{cit_id}">{footnote_counter}</a>',  # noqa: E501
+                    message.text = replace_ref(
+                        message_text=message.text,
+                        ref_name=citation_name,
+                        message_id=message.id,
+                        cit_id=cit_id,
+                        footnote_counter=footnote_counter,
                     )
-                    footnote_counter = footnote_counter + 1
                     if (
                         f'<a class="rb-footnote-link" href="/citations/{message.id}/#{cit_id}">{footnote_counter}</a>'
                         not in message.text
                     ):
                         logger.info("Citation Numbering Missed")
+                    else:
+                        footnote_counter = footnote_counter + 1
                 elif text_in_answer:
                     message.text = message.text.replace(
                         text_in_answer,
@@ -73,6 +98,7 @@ class ChatsView(View):
                         not in message.text
                     ):
                         logger.info("Citation Numbering Missed")
+            message.text = remove_dangling_citation(message_text=message.text)
 
         context = {
             "chat_id": chat_id,
