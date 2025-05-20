@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
             name="citation_name",
             field=models.TextField(
                 blank=True,
-                help_text="the reference that the citation refers to - Will be replaced with the link going forward",
+                help_text="the unique name of the citation in the format 'ref_N' where N is a strictly incrementing number starting from 1",
                 null=True,
             ),
         ),
