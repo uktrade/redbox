@@ -184,10 +184,8 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
     top: 4.5rem;
     width: calc(100% - 32px);
     background-color: #1D70B8 !important;
-    background-color: #1D70B8 !important;
   }
   body:has(.iai-environment-warning) .rb-left-column-container {
-    background-color: #1D70B8 !important;
     background-color: #1D70B8 !important;
     top: 6.5rem;
   }
@@ -879,11 +877,6 @@ margin-top: 64px;
 margin-bottom: 16px;
 }
 .chat-input__input-container {
-  position: sticky;
-  background-color: white;
-  top: 0;
-  z-index: 100;
-  bottom: 0;
   position: sticky;
   background-color: white;
   top: 0;
