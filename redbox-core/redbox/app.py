@@ -176,7 +176,10 @@ class Redbox:
                         if final_state.tasks_evaluator != [] and not is_eval_printed:
                             question_evaluator = "\n\n".join([task.content for task in final_state.tasks_evaluator])
                             await response_tokens_callback("\n\n Question sent to evaluator \n\n" + question_evaluator)
+                            planner_output = final_state.messages[0].content
+                            await response_tokens_callback("\n\n Planner output \n\n" + planner_output)
                             is_eval_printed = True
+                 
                 except Exception as e:
                     logger.error(f"Error processing {kind} - {str(e)}")
                     raise
