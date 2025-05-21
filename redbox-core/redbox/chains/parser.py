@@ -166,13 +166,23 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
         except Exception as e:
             print(f"Error processing JSON: {e}")
             return text
+    
+    def str_to_json(self, text: str):
+        text_json = json.dumps({"answer":text, "citations": []})
+        return text_json
 
     def parse_partial_json(self, text: str):
         try:
-            text = self.extract_json(text)
-            return parse_json_markdown(text)
+            json_text = self.extract_json(text)
+            return parse_json_markdown(json_text)
         except json.JSONDecodeError:
-            return None
+            transformed_text = self.str_to_json(text)
+            try:
+                text = self.extract_json(transformed_text)
+                return parse_json_markdown(text)
+            except json.JSONDecodeError:
+                return None
+
 
     def _to_generation_chunk(self, chunk: Union[str, BaseMessage]):
         chunk_gen: Union[GenerationChunk, ChatGenerationChunk]
@@ -191,8 +201,11 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
         for chunk in input:
             chunk_gen = self._to_generation_chunk(chunk)
             acc_gen = chunk_gen if acc_gen is None else acc_gen + chunk_gen  # type: ignore[operator]
-
+            print("my-chunk")
+            print(acc_gen)
             if parsed := self.parse_partial_json(acc_gen.text):
+                print('my-parsed')
+                print(parsed)
                 if field_content := parsed.get(self.name_of_streamed_field):
                     if new_tokens := field_content[field_length_at_last_run:]:
                         dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
@@ -208,8 +221,11 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
         async for chunk in input:
             chunk_gen = self._to_generation_chunk(chunk)
             acc_gen = chunk_gen if acc_gen is None else acc_gen + chunk_gen  # type: ignore[operator]
-
+            print("my-achunk")
+            print(acc_gen)
             if parsed := self.parse_partial_json(acc_gen.text):
+                print('my-aparsed')
+                print(parsed)
                 if field_content := parsed.get(self.name_of_streamed_field):
                     if new_tokens := field_content[field_length_at_last_run:]:
                         dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
