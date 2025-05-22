@@ -179,10 +179,14 @@ class Redbox:
                             planner_output = final_state.messages[0].content
                             await response_tokens_callback("\n\n Planner output \n\n" + planner_output)
                             is_eval_printed = True
-                 
+
                 except Exception as e:
                     logger.error(f"Error processing {kind} - {str(e)}")
                     raise
+
+            if not is_eval_printed:
+                planner_output = final_state.messages[0].content
+                await response_tokens_callback("\n\n Planner output \n\n" + planner_output)
 
         try:
             await stream_events_with_retry(
