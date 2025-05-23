@@ -16,6 +16,7 @@ CHAT_WITH_DOCS_SYSTEM_PROMPT = "You are tasked with providing information object
 CITATION_PROMPT = """Use citations to back up your answer when available. Return response in the following format: {format_instructions}.
 Example response:
 - If citations are available: {{"answer": your_answer, "citations": [list_of_citations]}}.
+- Each citation must be shown in the answer using a unique identifier in the format "ref_N" where N is an incrementing number starting from 1.
 - If no citations are available or needed, return an empty array for citations like this: {{"answer": your_answer, "citations": []}}.
 Do not provide citation from your own knowledge.
 Assistant:<haiku>"""
@@ -122,7 +123,6 @@ AGENTIC_GIVE_UP_SYSTEM_PROMPT = (
     "Remember: While your priority is to answer the question, sometimes the best assistance involves "
     "guiding the user in providing the information needed for a complete solution."
 )
-
 CHAT_MAP_SYSTEM_PROMPT = (
     "Your goal is to extract the most important information and present it in "
     "a concise and coherent manner. Please follow these guidelines while summarizing: \n"
