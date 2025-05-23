@@ -867,12 +867,21 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
                 return str(citation.uri)
             return citation.file.file_name
 
-        return sorted(
-            {
-                (get_display(citation), citation.uri, citation.id, citation.text_in_answer, citation.citation_name)
-                for citation in self.citation_set.all()
-            }, key= lambda x:x[-1]
-        )
+        try:
+            return sorted(
+                {
+                    (get_display(citation), citation.uri, citation.id, citation.text_in_answer, citation.citation_name)
+                    for citation in self.citation_set.all()
+                },
+                key=lambda x: x[-1],
+            )
+        except TypeError:
+            return sorted(
+                {
+                    (get_display(citation), citation.uri, citation.id, citation.text_in_answer, citation.citation_name)
+                    for citation in self.citation_set.all()
+                }
+            )
 
 
 class ChatMessageTokenUse(UUIDPrimaryKeyBase, TimeStampedModel):
