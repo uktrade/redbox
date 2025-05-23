@@ -500,6 +500,12 @@ chat-message {
   padding: 0.5rem 1rem;
 }
 
+.govuk-inset-text:focus,
+.govuk-inset-text:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 /* New Chat Options */
 .chat-options {
   scroll-margin-bottom: 16rem;
