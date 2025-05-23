@@ -14,15 +14,15 @@
 {% endif %}
 #}
 
-<div class="govuk-width-container">
+<div>
 
 
-  <form class="govuk-grid-row js-message-input" action="/submit" method="post">
-    <div class="govuk-grid-column-one-thirdx">
+  <form class="govuk-width-container govuk-grid-row js-message-input" action="/submit" method="post">
+    <div class="govuk-grid-column-one-quarterx">
       <div class="rb-left-column-container">
         <a role="button" href="{{ url('chats') }}" id="new-chat-button"
-   class="govuk-heading-s iai-panel-heading iai-panel-heading-button govuk-!-margin-left-2
-   govuk-!-margin-bottom-2 govuk-!-margin-top-4">
+   class="govuk-heading-s iai-panel-heading iai-panel-heading-button
+   govuk-!-margin-bottom-4 govuk-!-margin-top-4">
   New chat
 </a>
         <h2 class="govuk-heading-s iai-panel-heading">Recent chats</h2>
@@ -105,7 +105,10 @@
       </div>
       </div>
 
-    <div class="govuk-grid-column-two-thirds">
+    <div class="govuk-grid-column-three-quarters">
+      {% if not messages %}
+        <canned-prompts class="chat-options govuk-!-padding-top-5" security-classification="{{ security }}"></canned-prompts>
+      {% endif %}
       <div class="rb-chats-section">
 
         <chat-title class="chat-title" data-session-id="{{ chat_id or '' }}" data-title="{{ current_chat.name or '' }}", data-title-length="{{ chat_title_length }}">
@@ -141,12 +144,8 @@
         </chat-controller>
 
       </div>
-
-      {% if not messages %}
-        <canned-prompts class="chat-options" security-classification="{{ security }}"></canned-prompts>
-      {% endif %}
       <div class="chat-input__input-container">
-      <label class="govuk-label" for="message">
+      <label class="govuk-label govuk-!-padding-top-1" for="message">
       </label>
       <div id="message-hint" class="govuk-hint govuk-body">
         Need help? View <a href="{{ url('faq') }}" class="govuk-link" target="_blank">Advanced Prompt FAQ.</a>
