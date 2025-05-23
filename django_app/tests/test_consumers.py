@@ -17,7 +17,7 @@ from websockets import WebSocketClientProtocol
 from websockets.legacy.client import Connect
 
 from redbox.models.chain import LLMCallMetadata, RedboxQuery, RequestMetadata
-from redbox.models.graph import FINAL_RESPONSE_TAG, ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActivityEvent
+from redbox.models.graph import FINAL_RESPONSE_TAG, ROUTE_NAME_TAG, RedboxActivityEvent
 from redbox.models.prompts import CHAT_MAP_QUESTION_PROMPT
 from redbox_app.redbox_core import error_messages
 from redbox_app.redbox_core.consumers import ChatConsumer
@@ -567,7 +567,7 @@ class CannedGraphLLM(BaseChatModel):
 
 
 @pytest.fixture()
-def mocked_connect(uploaded_file: File) -> Connect:
+def mocked_connect() -> Connect:
     responses = [
         {
             "event": "on_chat_model_stream",
@@ -576,34 +576,6 @@ def mocked_connect(uploaded_file: File) -> Connect:
         },
         {"event": "on_chat_model_stream", "tags": [FINAL_RESPONSE_TAG], "data": {"chunk": Token(content="Mr. Amor.")}},
         {"event": "on_chain_end", "tags": [ROUTE_NAME_TAG], "data": {"output": {"route_name": "gratitude"}}},
-        {
-            "event": "on_retriever_end",
-            "tags": [SOURCE_DOCUMENTS_TAG],
-            "data": {
-                "output": [
-                    Document(
-                        metadata={"uri": uploaded_file.unique_name},
-                        page_content="Good afternoon Mr Amor",
-                    )
-                ]
-            },
-        },
-        {
-            "event": "on_retriever_end",
-            "tags": [SOURCE_DOCUMENTS_TAG],
-            "data": {
-                "output": [
-                    Document(
-                        metadata={"uri": uploaded_file.unique_name},
-                        page_content="Good afternoon Mr Amor",
-                    ),
-                    Document(
-                        metadata={"uri": uploaded_file.unique_name, "page_number": [34, 35]},
-                        page_content="Good afternoon Mr Amor",
-                    ),
-                ]
-            },
-        },
         {
             "event": "on_custom_event",
             "name": "on_metadata_generation",
@@ -626,7 +598,7 @@ def mocked_connect(uploaded_file: File) -> Connect:
 
 
 @pytest.fixture()
-def mocked_connect_with_naughty_citation(uploaded_file: File) -> CannedGraphLLM:
+def mocked_connect_with_naughty_citation() -> CannedGraphLLM:
     responses = [
         {
             "event": "on_chat_model_stream",
@@ -634,22 +606,6 @@ def mocked_connect_with_naughty_citation(uploaded_file: File) -> CannedGraphLLM:
             "data": {"chunk": Token(content="Good afternoon, Mr. Amor.")},
         },
         {"event": "on_chain_end", "tags": [ROUTE_NAME_TAG], "data": {"output": {"route_name": "gratitude"}}},
-        {
-            "event": "on_retriever_end",
-            "tags": [SOURCE_DOCUMENTS_TAG],
-            "data": {
-                "output": [
-                    Document(
-                        metadata={"uri": uploaded_file.unique_name},
-                        page_content="Good afternoon Mr Amor",
-                    ),
-                    Document(
-                        metadata={"uri": uploaded_file.unique_name},
-                        page_content="I shouldn't send a \x00",
-                    ),
-                ]
-            },
-        },
     ]
 
     return CannedGraphLLM(responses=responses)

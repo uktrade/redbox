@@ -19,7 +19,6 @@ class RedboxActivityEvent(BaseModel):
 
 FINAL_RESPONSE_TAG = "response_flag"
 SUMMARY_MULTIAGENT_TAG = "summary_multiagent_tag"
-SOURCE_DOCUMENTS_TAG = "source_documents_flag"
 ROUTE_NAME_TAG = "route_flag"
 ROUTABLE_KEYWORDS = {
     ChatRoute.search: "Search for an answer to the question in the document",
