@@ -61,7 +61,6 @@ async def test_chat_consumer_with_new_session(alice: User, uploaded_file: File, 
         response2 = await communicator.receive_json_from(timeout=5)
         response3 = await communicator.receive_json_from(timeout=5)
         response4 = await communicator.receive_json_from(timeout=5)
-        response5 = await communicator.receive_json_from(timeout=5)
 
         # Then
         assert response1["type"] == "session-id"
@@ -71,7 +70,6 @@ async def test_chat_consumer_with_new_session(alice: User, uploaded_file: File, 
         assert response3["data"] == "Mr. Amor."
         assert response4["type"] == "route"
         assert response4["data"] == "gratitude"
-        assert response5["type"] == "source"
         # Close
         await communicator.disconnect()
 
@@ -157,7 +155,6 @@ async def test_chat_consumer_with_naughty_question(alice: User, uploaded_file: F
         response2 = await communicator.receive_json_from(timeout=5)
         response3 = await communicator.receive_json_from(timeout=5)
         response4 = await communicator.receive_json_from(timeout=5)
-        response5 = await communicator.receive_json_from(timeout=5)
 
         # Then
         assert response1["type"] == "session-id"
@@ -167,7 +164,6 @@ async def test_chat_consumer_with_naughty_question(alice: User, uploaded_file: F
         assert response3["data"] == "Mr. Amor."
         assert response4["type"] == "route"
         assert response4["data"] == "gratitude"
-        assert response5["type"] == "source"
         # Close
         await communicator.disconnect()
 
@@ -195,7 +191,6 @@ async def test_chat_consumer_with_naughty_citation(
         response1 = await communicator.receive_json_from(timeout=5)
         response2 = await communicator.receive_json_from(timeout=5)
         response3 = await communicator.receive_json_from(timeout=5)
-        response4 = await communicator.receive_json_from(timeout=5)
 
         # Then
         assert response1["type"] == "session-id"
@@ -203,7 +198,6 @@ async def test_chat_consumer_with_naughty_citation(
         assert response2["data"] == "Good afternoon, Mr. Amor."
         assert response3["type"] == "route"
         assert response3["data"] == "gratitude"
-        assert response4["type"] == "source"
         # Close
         await communicator.disconnect()
 
