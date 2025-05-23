@@ -34,11 +34,11 @@ from redbox.graph.nodes.processes import (
     build_stuff_pattern,
     clear_documents_process,
     create_evaluator,
-    create_planner,
     delete_plan_message,
     empty_process,
     invoke_custom_state,
     lm_choose_route,
+    my_planner,
     report_sources_process,
 )
 from redbox.graph.nodes.sends import (
@@ -832,7 +832,9 @@ def build_new_graph(
     agents_max_tokens = AISettings().agents_max_tokens
     builder = StateGraph(RedboxState)
     builder.add_node("remove_keyword", strip_route)
-    builder.add_node("planner", create_planner())
+    builder.add_node(
+        "planner", my_planner(allow_feedback=True, node_after_streamed=END, node_afer_replan="sending_task")
+    )
     builder.add_node(
         "Internal_Retrieval_Agent",
         build_agent(

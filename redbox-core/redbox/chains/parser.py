@@ -147,6 +147,7 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
 
     diff: bool = False  # Ignored
     name_of_streamed_field: str = "answer"
+    sub_streamed_field: str = None
     pydantic_schema_object: type[BaseModel]
 
     def extract_json(self, text):
@@ -187,34 +188,79 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
     def _transform(self, input: Iterator[Union[str, BaseMessage]]) -> Iterator[Any]:
         acc_gen: Union[GenerationChunk, ChatGenerationChunk, None] = None
         field_length_at_last_run: int = 0
+        item_count: int = 0
         parsed = None
         for chunk in input:
             chunk_gen = self._to_generation_chunk(chunk)
             acc_gen = chunk_gen if acc_gen is None else acc_gen + chunk_gen  # type: ignore[operator]
 
             if parsed := self.parse_partial_json(acc_gen.text):
-                if field_content := parsed.get(self.name_of_streamed_field):
-                    if new_tokens := field_content[field_length_at_last_run:]:
-                        dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
-                        field_length_at_last_run = len(field_content)
-                        yield self.pydantic_schema_object.model_validate(parsed)
-        if parsed:
-            yield self.pydantic_schema_object.model_validate(parsed)
+                print(f"I am parsing {parsed}")
+                if self.sub_streamed_field:
+                    try:
+                        item = parsed.get(self.name_of_streamed_field)[item_count]
+                        if field_content := item.get(self.sub_streamed_field):
+                            if new_tokens := field_content[field_length_at_last_run:]:
+                                print(f"new_token: {new_tokens}")
+                                dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
+                                field_length_at_last_run = len(field_content)
+                                print(f"Yielding {field_content}")
+                                yield new_tokens
+                            else:
+                                print("new item here")
+                                dispatch_custom_event(RedboxEventType.response_tokens, data=".\n")
+                                item_count += 1
+                                field_length_at_last_run = 0
+                                yield ".\n"
+                    except (IndexError, TypeError):
+                        item = []
+                else:
+                    if field_content := parsed.get(self.name_of_streamed_field):
+                        if new_tokens := field_content[field_length_at_last_run:]:
+                            dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
+                            field_length_at_last_run = len(field_content)
+                            yield self.pydantic_schema_object.model_validate(parsed)
+
+        if not (self.sub_streamed_field):
+            if parsed:
+                yield self.pydantic_schema_object.model_validate(parsed)
 
     async def _atransform(self, input: AsyncIterator[Union[str, BaseMessage]]) -> AsyncIterator[Any]:
         acc_gen: Union[GenerationChunk, ChatGenerationChunk, None] = None
         field_length_at_last_run: int = 0
         parsed = None
+        item_count: int = 0
         async for chunk in input:
             chunk_gen = self._to_generation_chunk(chunk)
             acc_gen = chunk_gen if acc_gen is None else acc_gen + chunk_gen  # type: ignore[operator]
 
             if parsed := self.parse_partial_json(acc_gen.text):
-                if field_content := parsed.get(self.name_of_streamed_field):
-                    if new_tokens := field_content[field_length_at_last_run:]:
-                        dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
-                        field_length_at_last_run = len(field_content)
-                        yield self.pydantic_schema_object.model_validate(parsed)
+                print(f"I am parsing {parsed}")
+                if self.sub_streamed_field:
+                    try:
+                        item = parsed.get(self.name_of_streamed_field)[item_count]
+                        if field_content := item.get(self.sub_streamed_field):
+                            if new_tokens := field_content[field_length_at_last_run:]:
+                                print(f"new_token: {new_tokens}")
+                                dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
+                                field_length_at_last_run = len(field_content)
+                                print(f"Yielding {field_content}")
+                                yield new_tokens
+                            else:
+                                print("new item here")
+                                dispatch_custom_event(RedboxEventType.response_tokens, data=".\n")
+                                item_count += 1
+                                field_length_at_last_run = 0
+                                yield ".\n"
+                    except (IndexError, TypeError):
+                        item = []
+                else:
+                    if field_content := parsed.get(self.name_of_streamed_field):
+                        if new_tokens := field_content[field_length_at_last_run:]:
+                            dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
+                            field_length_at_last_run = len(field_content)
+                            yield self.pydantic_schema_object.model_validate(parsed)
+
         if parsed:
             yield self.pydantic_schema_object.model_validate(parsed)
 

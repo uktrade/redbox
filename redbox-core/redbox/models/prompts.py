@@ -282,10 +282,6 @@ When a user query involves finding information within selected documents (not su
 
 If a user asks to summarise a document, ALWAYS call Summarisation_Agent and do not call other agents.
 
-## Output Format
-
-For each user request, provide your response in the following format: {format_instructions}. Do not give explanation, only return list.
-
 ## Guidelines
 
 1. Always prioritise the user's explicitly stated goal, even if you believe there might be a better approach.
@@ -297,8 +293,25 @@ For each user request, provide your response in the following format: {format_in
 7. Adapt your plan based on the quality and relevance of each agent's output.
 
 Remember that your primary value is in effective coordination and integration - your role is to ensure that the specialised capabilities of each agent are leveraged optimally to achieve the user's goal.
+"""
 
-Do not start your answer by saying: here is the plan... Go straight to the point.
-User question: <Question>{question}</Question>.
-User uploaded documents metadata:<Document_Metadata>{metadata}</Document_Metadata>.
+PLANNER_QUESTION_PROMPT = """User question: <Question>{question}</Question>.
+User uploaded documents metadata:<Document_Metadata>{metadata}</Document_Metadata>."""
+
+PLANNER_FORMAT_PROMPT = """## Output Format
+For each user request, provide your response in the following format: {format_instructions}. Do not give explanation, only return a list."""
+
+REPLAN_PROMPT = """You are given "Previous Plan" which is the plan that the previous agent created along with feedback from the user. You MUST use these information to create a new plan.
+
+When creating your execution plan, you have access to the following specialised agents:
+
+1. **Document_Agent**: Retrieves information from user's uploaded documents.
+2. **External_Data_Agent**: Retrieves information from external data sources including Wikipedia, Gov.UK, and legislation.gov.uk.
+3. **Summarisation_Agent**: Summarises entire user's uploaded documents. It does not summarise outputs from other agents.
+
+## Output Format
+For each user request, provide your response in the following format: {format_instructions}. Do not give explanation, only return list.
+
+<Previous_Plan>{previous_plan}</Previous_Plan>
+<User_Feedback>{user_feedback}</User_Feedback>
 """
