@@ -1,4 +1,5 @@
 import logging
+import re
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -20,6 +21,22 @@ from yarl import URL
 from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, File
 
 logger = logging.getLogger(__name__)
+
+
+def replace_ref(message_text: str, ref_name: str, message_id: str, cit_id: str, footnote_counter: int) -> str:
+    pattern = rf"[\[\(\{{<]{ref_name}[\]\)\}}>]|{ref_name}"
+    message_text = re.sub(
+        pattern,
+        f'<a class="rb-footnote-link" href="/citations/{message_id}/#{cit_id}">{footnote_counter}</a>',
+        message_text,
+        count=1,
+    )
+    return re.sub(pattern, "", message_text)
+
+
+def remove_dangling_citation(message_text: str) -> str:
+    pattern = r"[\[\(\{<]ref_\d+[\]\)\}>]"
+    return re.sub(pattern, "", message_text)
 
 
 class ChatsView(View):
@@ -52,8 +69,23 @@ class ChatsView(View):
         # Add footnotes to messages
         for message in messages:
             footnote_counter = 1
-            for display, href, cit_id, text_in_answer in message.unique_citation_uris():  # noqa: B007
-                if text_in_answer:
+            for display, href, cit_id, text_in_answer, citation_name in message.unique_citation_uris():  # noqa: B007
+                if citation_name:
+                    message.text = replace_ref(
+                        message_text=message.text,
+                        ref_name=citation_name,
+                        message_id=message.id,
+                        cit_id=cit_id,
+                        footnote_counter=footnote_counter,
+                    )
+                    if (
+                        f'<a class="rb-footnote-link" href="/citations/{message.id}/#{cit_id}">{footnote_counter}</a>'
+                        not in message.text
+                    ):
+                        logger.info("Citation Numbering Missed")
+                    else:
+                        footnote_counter = footnote_counter + 1
+                elif text_in_answer:
                     message.text = message.text.replace(
                         text_in_answer,
                         f'{text_in_answer}<a class="rb-footnote-link" href="/citations/{message.id}/#{cit_id}">{footnote_counter}</a>',  # noqa: E501
@@ -64,6 +96,7 @@ class ChatsView(View):
                         not in message.text
                     ):
                         logger.info("Citation Numbering Missed")
+            message.text = remove_dangling_citation(message_text=message.text)
 
         context = {
             "chat_id": chat_id,

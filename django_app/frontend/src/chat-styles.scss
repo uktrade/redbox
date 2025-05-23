@@ -183,11 +183,10 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
     position: sticky;
     top: 4.5rem;
     width: calc(100% - 32px);
-    background-color: #1D70B8;
-    float: left;
-    width: 33.33%
+    background-color: #1D70B8 !important;
   }
   body:has(.iai-environment-warning) .rb-left-column-container {
+    background-color: #1D70B8 !important;
     top: 6.5rem;
   }
   .iai-panel__scrollable {
@@ -355,6 +354,7 @@ chat-message {
 
 .rb-chat-message__container {
   margin-top: -1rem;
+  padding-bottom: 32px;
 }
 .govuk-main-wrapper:has(.iai-chat-input) {
   padding-bottom: 0;
@@ -498,6 +498,12 @@ chat-message {
   font-weight: 500;
   margin-top: 1rem;
   padding: 0.5rem 1rem;
+}
+
+.govuk-inset-text:focus,
+.govuk-inset-text:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 /* New Chat Options */
@@ -786,7 +792,6 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 .chat-history-subheading{
   padding: 16px 12px 0;
   margin: 0 16px;
-  border-top: 2px solid #B1B4B6;
   color: white;
 }
 .chat-history-subheading--no-border{
@@ -878,9 +883,19 @@ margin-top: 64px;
 margin-bottom: 16px;
 }
 .chat-input__input-container {
-margin-top: 64px;
+  position: sticky;
+  background-color: white;
+  top: 0;
+  z-index: 100;
+  bottom: 0;
 }
 
 .redbox-message-route {
   margin-bottom: 16px
+}
+
+
+.govuk-grid-column-one-thirdx {
+  @extend .govuk-grid-column-one-third;
+  background-color: #1D70B8;
 }

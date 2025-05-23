@@ -391,6 +391,7 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
     last_name = models.CharField(max_length=48)
     business_unit = models.CharField(null=True, blank=True, max_length=100, choices=BusinessUnit)
     grade = models.CharField(null=True, blank=True, max_length=3, choices=UserGrade)
+    uk_or_us_english = models.BooleanField(default=True)
     name = models.CharField(null=True, blank=True)
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -752,6 +753,11 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         blank=True,
         help_text="the part of the answer the citation refers too - useful for adding in footnotes",
     )
+    citation_name = models.TextField(
+        null=True,
+        blank=True,
+        help_text="the unique name of the citation in the format 'ref_N' where N is a strictly incrementing number starting from 1",  # noqa: E501
+    )
 
     def __str__(self):
         text = self.text or "..."
@@ -863,7 +869,7 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
 
         return sorted(
             {
-                (get_display(citation), citation.uri, citation.id, citation.text_in_answer)
+                (get_display(citation), citation.uri, citation.id, citation.text_in_answer, citation.citation_name)
                 for citation in self.citation_set.all()
             }
         )
