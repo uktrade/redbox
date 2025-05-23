@@ -871,7 +871,7 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
             {
                 (get_display(citation), citation.uri, citation.id, citation.text_in_answer, citation.citation_name)
                 for citation in self.citation_set.all()
-            }
+            }, key= lambda x:x[-1]
         )
 
 
