@@ -114,35 +114,48 @@ export class FeedbackButtons extends HTMLElement {
         <div class="govuk-radios">
           <!-- Factuality Group -->
           <div class="govuk-radios__item">
-            <input type="radio" class="govuk-radios__input" id="chip1-factual-${this.dataset.id}" data-testid="Factual" name="factuality" />
-            <label class="govuk-label govuk-radios__label" for="chip1-factual-${this.dataset.id}">Factual</label>
+            <input type="radio" class="govuk-radios__input" id="radio1-mostlycorrect-${this.dataset.id}" data-testid="Mostly Correct" name="correctness" />
+            <label class="govuk-label govuk-radios__label" for="radio1-mostlycorrect-${this.dataset.id}">Mostly Correct</label>
           </div>
           <div class="govuk-radios__item">
-            <input type="radio" class="govuk-radios__input" id="chip2-inaccurate-${this.dataset.id}" data-testid="Inaccurate" name="factuality" />
-            <label class="govuk-label govuk-radios__label" for="chip2-inaccurate-${this.dataset.id}">Inaccurate</label>
+            <input type="radio" class="govuk-radios__input" id="radio2-mostlyincorrect-${this.dataset.id}" data-testid="Mostly Incorrect" name="correctness" />
+            <label class="govuk-label govuk-radios__label" for="radio2-mostlyincorrect-${this.dataset.id}">Inaccurate</label>
           </div>
           </div>
           <!-- Completeness Group -->
           <div class="govuk-radios">
           <div class="govuk-radios__item">
-            <input type="radio" class="govuk-radios__input" id="chip3-complete-${this.dataset.id}" data-testid="Complete" name="completeness" />
-            <label class="govuk-label govuk-radios__label" for="chip3-complete-${this.dataset.id}">Complete</label>
+            <input type="radio" class="govuk-radios__input" id="radio3-complete-${this.dataset.id}" data-testid="Complete" name="completeness" />
+            <label class="govuk-label govuk-radios__label" for="radio3-complete-${this.dataset.id}">Complete</label>
           </div>
           <div class="govuk-radios__item">
-            <input type="radio" class="govuk-radios__input" id="chip4-incomplete-${this.dataset.id}" data-testid="Incomplete" name="completeness" />
-            <label class="govuk-label govuk-radios__label" for="chip4-incomplete-${this.dataset.id}">Incomplete</label>
+            <input type="radio" class="govuk-radios__input" id="radio4-incomplete-${this.dataset.id}" data-testid="Incomplete" name="completeness" />
+            <label class="govuk-label govuk-radios__label" for="radio4-incomplete-${this.dataset.id}">Incomplete</label>
           </div>
           </div>
           <!-- Structure Group -->
           <div class="govuk-radios">
           <div class="govuk-radios__item">
-            <input type="radio" class="govuk-radios__input" id="chip5-structured-${this.dataset.id}" data-testid="Structured" name="structured" />
-            <label class="govuk-label govuk-radios__label" for="chip5-structured-${this.dataset.id}">Followed instructions</label>
+            <input type="radio" class="govuk-radios__input" id="radio5-structured-${this.dataset.id}" data-testid="Well-organised" name="structured" />
+            <label class="govuk-label govuk-radios__label" for="radio5-structured-${this.dataset.id}">Well-organised</label>
           </div>
           <div class="govuk-radios__item">
-            <input type="radio" class="govuk-radios__input" id="chip6-unstructured-${this.dataset.id}" data-testid="Unstructured" name="structured" />
-            <label class="govuk-label govuk-radios__label" for="chip6-unstructured-${this.dataset.id}">Not as instructed</label>
+            <input type="radio" class="govuk-radios__input" id="radio6-unstructured-${this.dataset.id}" data-testid="Confusing" name="structured" />
+            <label class="govuk-label govuk-radios__label" for="radio6-unstructured-${this.dataset.id}">Confusing</label>
           </div>
+          .radio-container {
+          display: flex;
+          flex-direction: row;
+          flex-wrap: wrap;
+          max width: 600px;
+          gap: 10px;
+          }
+
+          . radio-container {
+          width: 33.333%;
+          display: flex;
+          align-items: center;
+          }
         </div>
         </div>
       </fieldset>
