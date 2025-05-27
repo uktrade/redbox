@@ -143,19 +143,6 @@ export class FeedbackButtons extends HTMLElement {
             <input type="radio" class="govuk-radios__input" id="radio6-unstructured-${this.dataset.id}" data-testid="Confusing" name="structured" />
             <label class="govuk-label govuk-radios__label" for="radio6-unstructured-${this.dataset.id}">Confusing</label>
           </div>
-          .radio-container {
-          display: flex;
-          flex-direction: row;
-          flex-wrap: wrap;
-          max width: 600px;
-          gap: 10px;
-          }
-
-          . radio-container {
-          width: 33.333%;
-          display: flex;
-          align-items: center;
-          }
         </div>
         </div>
       </fieldset>
