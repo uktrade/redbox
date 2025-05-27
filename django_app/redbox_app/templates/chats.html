@@ -19,7 +19,6 @@
 
   <form class="govuk-width-container govuk-grid-row js-message-input" action="/submit" method="post">
     <div class="govuk-grid-column-one-quarterx">
-      <div class="rb-left-column-container">
         <a role="button" href="{{ url('chats') }}" id="new-chat-button"
    class="govuk-heading-s iai-panel-heading iai-panel-heading-button
    govuk-!-margin-bottom-4 govuk-!-margin-top-4">
@@ -27,6 +26,7 @@
 </a>
         <h2 class="govuk-heading-s iai-panel-heading">Recent chats</h2>
         <chat-history>
+          <div class="iai-panel__scrollable">
           <template id="template-chat_history_heading">
             <div>
               {% call chat_history_heading("-") %}
@@ -51,8 +51,8 @@
               {% endcall %}
             </div>
           {% endfor %}
+          </div>
         </chat-history>
-
         <document-selector class="govuk-!-margin-top-5 govuk-!-padding-top-3">
           <fieldset class="govuk-fieldset">
             <legend class="full-width-panel-title">
@@ -72,6 +72,7 @@
                 </h3>
 
             </legend>
+            <div class="iai-panel__scrollable">
             <div class="govuk-checkboxes govuk-checkboxes--small chat-group-container chat-history-subheading" data-module="govuk-checkboxes">
               {% for file in completed_files %}
                 <div class="govuk-checkboxes__item rb-chat-history__title">
@@ -90,6 +91,7 @@
                 {% endfor %}
               </div>
             </div>
+          </div>
           </fieldset>
         </document-selector>
 
@@ -102,7 +104,6 @@
           </select>
         </div>
 
-      </div>
       </div>
 
     <div class="govuk-grid-column-three-quarters">
