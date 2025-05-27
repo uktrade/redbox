@@ -52,8 +52,9 @@
   <br />
   {% endif %}
 </div>
-
+{% set seen_files = [] %}
 {% for file in message.selected_files.all() %}
+  {% if file not in seen_files %}
   <p class="govuk-body govuk-!-text-align-right govuk-!-font-size-16">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <g clip-path="url(#clip0_771_609)">
@@ -70,6 +71,8 @@
       </defs>
       </svg>
     {{ file }}</p>
+    {% set _ = seen_files.append(file) %}
+    {% endif %}
 {% endfor %}
 
 {% if message.route %}
