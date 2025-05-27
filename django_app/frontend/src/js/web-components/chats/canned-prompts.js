@@ -5,7 +5,6 @@ class CannedPrompts extends HTMLElement {
     this.securityClassification = this.getAttribute("security-classification");
     this.innerHTML = `
       <h3 class="govuk-heading-m">How can Redbox help you today?</h3>
-      <p class="govuk-body">Select an option or type any question below.</p>
       <div class="govuk-notification-bannerx govuk-!-margin-bottom-4" role="region" aria-labelledby="govuk-notification-banner-title" data-module="govuk-notification-banner">
   <div class="govuk-notification-banner__headerx">
     <h2 class="govuk-notification-banner__titlex" id="govuk-notification-banner-title">
@@ -30,17 +29,6 @@ class CannedPrompts extends HTMLElement {
     </p>
   </div>
 </div>
-      <div class="chat-options__options govuk-!-margin-bottom-8">
-          <button class="govuk-buttonx govuk-button--secondaryx" type="button">
-              Draft an agenda for a team meeting
-          </button>
-          <button class="govuk-buttonx govuk-button--secondaryx" type="button">
-              Help me set my work objectives
-          </button>
-          <button class="govuk-buttonx govuk-button--secondaryx" type="button">
-              Describe the role of a Permanent Secretary
-          </button>
-      </div>
     `;
 
     let buttons = this.querySelectorAll("button");
