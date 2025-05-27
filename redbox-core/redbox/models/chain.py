@@ -109,6 +109,10 @@ class Source(BaseModel):
         description="Direct quote from the provided document (20+ words)", default=""
     )
     page_numbers: list[int] = Field(description="Page Number in document the highlighted text is on", default=[1])
+    ref_id: str = Field(
+        description="The Reference ID in the format 'ref_N' where N is a strictly incrementing number starting from 1",
+        default="",
+    )
 
 
 class Citation(BaseModel):
