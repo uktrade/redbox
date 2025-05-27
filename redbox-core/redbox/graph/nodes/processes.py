@@ -25,7 +25,7 @@ from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_me
 from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models import ChatRoute
 from redbox.models.chain import AgentTask, DocumentState, MultiAgentPlan, PromptSet, RedboxState, RequestMetadata
-from redbox.models.graph import ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActivityEvent, RedboxEventType
+from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import PLANNER_PROMPT
 from redbox.transform import combine_agents_state, combine_documents, flatten_document_state
 
@@ -47,14 +47,7 @@ def build_retrieve_pattern(
 
     Uses structure_func to order the retriever documents for the state.
     """
-    retriever_chain = RunnableParallel({"documents": retriever | structure_func})
-
-    if final_source_chain:
-        _retriever = retriever_chain.with_config(tags=[SOURCE_DOCUMENTS_TAG])
-    else:
-        _retriever = retriever_chain
-
-    return _retriever
+    return RunnableParallel({"documents": retriever | structure_func})
 
 
 def build_chat_pattern(
