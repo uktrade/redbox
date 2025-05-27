@@ -423,3 +423,4 @@ class AgentTask(BaseModel):
 
 class MultiAgentPlan(BaseModel):
     tasks: List[AgentTask] = Field(description="A list of tasks to be carried out by agents", default=[])
+    model_config = {"extra": "forbid"}
