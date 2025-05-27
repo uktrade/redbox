@@ -1,5 +1,4 @@
 $govuk-assets-path: "govuk-assets/";
-$govuk-font-family: GDS Transport, arial, sans-serif;
 $redbox-red: #1D70B8; /*old:#A50202*/
 
 @import "../node_modules/govuk-frontend/dist/govuk/all";
@@ -203,3 +202,14 @@ only screen and (min-resolution:192dpi) {
 @import "./profile-overlay-styles.scss";
 
 @import "./iai-overrides.scss";
+
+.header-wrapper {
+  position: sticky;
+  top: 0;
+  bottom: 0;
+  z-index: 200;
+}
+
+.govuk-phase-banner{
+  background-color: white;
+}

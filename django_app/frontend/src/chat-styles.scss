@@ -16,7 +16,7 @@ body:has(.iai-environment-warning) main:has(.iai-chat-input) {
 }
 .rb-chat-history__container {
   margin-top: 0.5rem;
-  padding: 0 12px;
+  padding: 0 8px;
   list-style-type: none;
 }
 .rb-chat-history__item-container {
@@ -24,7 +24,7 @@ body:has(.iai-environment-warning) main:has(.iai-chat-input) {
   display: flex;
   justify-content: space-between;
   min-height: 2.5rem;
-  padding: 0.25rem 0.5rem 0.25rem 1rem;
+  padding: 8px;
   color: white;
 }
 .rb-chat-history__item:has(.rb-chat-history__current-indicator), .rb-chat-history__item:has([aria-expanded="true"]), .rb-chat-history__item:hover {
@@ -103,7 +103,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   min-height: 2.5rem;
   margin-left: auto;
   color: white;
-  padding-right: 10px
+  padding-right: 0;
 }
 .rb-chat-history__level2-button:hover {
   color: var(--iai-product-colour);
@@ -177,18 +177,6 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   }
   body:has(.iai-environment-warning) .iai-top-nav {
     top: 24px;
-  }
-  .rb-left-column-container {
-    left: 0;
-    position: sticky;
-    top: 4.5rem;
-    width: calc(100% - 32px);
-    background-color: #1D70B8;
-    float: left;
-    width: 33.33%
-  }
-  body:has(.iai-environment-warning) .rb-left-column-container {
-    top: 6.5rem;
   }
   .iai-panel__scrollable {
     max-height: calc(50vh - 12rem);
@@ -355,9 +343,10 @@ chat-message {
 
 .rb-chat-message__container {
   margin-top: -1rem;
+  padding-bottom: 32px;
 }
-.govuk-main-wrapper:has(.iai-chat-input) {
-  padding-bottom: 0;
+.govuk-main-wrapper:has(.iai-chat-input__input) {
+  padding: 0;
 }
 
 .rb-streaming-response-loading {
@@ -498,6 +487,12 @@ chat-message {
   font-weight: 500;
   margin-top: 1rem;
   padding: 0.5rem 1rem;
+}
+
+.govuk-inset-text:focus,
+.govuk-inset-text:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 /* New Chat Options */
@@ -769,8 +764,7 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 .iai-panel-heading {
   color: white;
   text-decoration: none;
-  padding: 16px;
-  margin: 4px 12px;
+  padding: 8px 0 0 8px;
   border-top: 2px solid #B1B4B6;
 }
 .iai-panel-heading-button {
@@ -784,14 +778,12 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 }
 
 .chat-history-subheading{
-  padding: 16px 12px 0;
-  margin: 0 16px;
-  border-top: 2px solid #B1B4B6;
+  margin: 0;
   color: white;
 }
 .chat-history-subheading--no-border{
-  padding: 16px 12px 0;
-  margin: 0 16px;
+  padding-left: 8px;
+  margin: 0;
   color: white;
 }
 
@@ -826,12 +818,12 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 
 .chat-list {
   list-style: none;
-  padding: 0 12px;
+  padding: 0;
   margin: 0;
 }
 
 #show-more-div {
-  margin: 16px 28px;
+  padding: 8px;
 }
 
 #document-link {
@@ -887,4 +879,10 @@ margin-bottom: 16px;
 
 .redbox-message-route {
   margin-bottom: 16px
+}
+
+
+.govuk-grid-column-one-quarterx {
+  @extend .govuk-grid-column-one-quarter;
+  background-color: #1D70B8;
 }

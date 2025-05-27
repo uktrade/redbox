@@ -16,9 +16,10 @@ CHAT_WITH_DOCS_SYSTEM_PROMPT = "You are tasked with providing information object
 CITATION_PROMPT = """Use citations to back up your answer when available. Return response in the following format: {format_instructions}.
 Example response:
 - If citations are available: {{"answer": your_answer, "citations": [list_of_citations]}}.
+- Each citation must be shown in the answer using a unique identifier in the format "ref_N" where N is an incrementing number starting from 1.
 - If no citations are available or needed, return an empty array for citations like this: {{"answer": your_answer, "citations": []}}.
-
-Assistant:<sonnet>"""
+Do not provide citation from your own knowledge.
+Assistant:<haiku>"""
 
 CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
     "You are tasked with answering questions on user provided documents. "
@@ -31,9 +32,30 @@ CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
 )
 
 RETRIEVAL_SYSTEM_PROMPT = """
-   Answer my question using only the documents I provide. <My_Documents>{formatted_documents}</My_Documents>
+   Provide a comprehensive answer to user's question based ONLY on the information contained in the provided documents.
+
+   If the information needed to answer the question is not present in the provided documents, state {{"answer": The provided documents do not contain sufficient information to answer this question., "citations": []}}
+
+   Do not use any prior knowledge or information not contained in the provided documents.
+
+   <Provided_Documents>{formatted_documents}</Provided_Documents>.
    """
 
+SELF_ROUTE_SYSTEM_PROMPT = """
+   Evaluate if you can answer user's question based ONLY on the information contained in the provided documents. Do not use any prior knowledge or information not contained in the provided documents.
+
+   <Provided_Documents>{formatted_documents}</Provided_Documents>.
+
+   Choosing one of the following option below:
+
+   1. You are unable to answer using the provided documents, state {{"answer": unanswerable, "citations": []}}
+
+   OR
+
+   2. You are able to answer. Provide a comprehensive answer to user's question based ONLY on the information contained in the provided documents. Include proper citations for each factual claim.
+   """
+
+RETRIEVAL_QUESTION_PROMPT = "<User_question>From the provided documents, {question}</User_question>"
 
 NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context."""
 
@@ -101,30 +123,6 @@ AGENTIC_GIVE_UP_SYSTEM_PROMPT = (
     "Remember: While your priority is to answer the question, sometimes the best assistance involves "
     "guiding the user in providing the information needed for a complete solution."
 )
-
-SELF_ROUTE_SYSTEM_PROMPT = """
-   Evaluate if you can answer my question using only the documents I provide in <My_Documents>{formatted_documents}</My_Documents>.
-
-   Choosing one option below:
-
-   1. You are not able to answer, return the word "unanswerable". No explanation.
-
-   OR
-
-   2. You are able to answer. Include proper citations for each factual claim. Return ONLY the JSON structure:
-   {format_instructions}. DO NOT start by saying: 'Here is the JSON response', just return JSON.
-
-      Requirements:
-
-      - Only cite information from the documents I provide in <My_Documents>
-      - Each citation must match exact text in your answer
-      - Include substantial quotes from the documents (20+ words minimum)
-      - Specify page numbers when available
-      - Do not reference external sources beyond what I provide in <My_Documents>
-
-   Remember: Only use information from documents. If the information isn't there, only return the word: "unanswerable".
-   """
-
 CHAT_MAP_SYSTEM_PROMPT = (
     "Your goal is to extract the most important information and present it in "
     "a concise and coherent manner. Please follow these guidelines while summarizing: \n"
@@ -192,7 +190,6 @@ CHAT_QUESTION_PROMPT = "{question}\n=========\n Response: "
 
 CHAT_WITH_DOCS_QUESTION_PROMPT = "Question: {question}. \n\n Documents: \n\n {formatted_documents} \n\n Answer: "
 
-RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
 AGENTIC_RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
@@ -276,7 +273,7 @@ When creating your execution plan, you have access to the following specialised 
 2. **External_Retrieval_Agent**: solely responsible for retrieving information outside of user's uploaded documents, specifically from external data sources:
       - Wikipedia
       - gov.uk
-      - legislation.gov.uk 
+      - legislation.gov.uk
 3. **Summarisation_Agent**: solely responsible for summarising entire user's uploaded documents. It does not summarise outputs from other agents.
 
 ## helpful instructions for calling agent
