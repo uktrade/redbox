@@ -203,34 +203,16 @@ only screen and (min-resolution:192dpi) {
 
 @import "./iai-overrides.scss";
 
-/* Changing feedback button to radio format and adding a flex */
-.radio-container {
+.radio-groups-container {
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
-  max-width:600px;
-  gap: 10px;
+  gap: 5px;
 }
 
-.radio-container {
-  width: 33.333%;
+.radio-flex-container {
   display: flex;
-  align-items: center;
-}
-
-/* Changing feedback button to radio format and adding a flex */
-.radio-container {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  max-width:600px;
-  gap: 10px;
-}
-
-.radio-container {
-  width: 33.333%;
-  display: flex;
-  align-items: center;
+  flex-direction: column;
+  min-width: 200px;
 }
 
 .header-wrapper {

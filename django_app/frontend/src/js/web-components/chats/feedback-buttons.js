@@ -111,7 +111,8 @@ export class FeedbackButtons extends HTMLElement {
     this.closest(".chat-actions-container").insertAdjacentHTML("afterend",`<div class="govuk-form-group" tabindex="-1">
       <fieldset class="govuk-fieldset feedback__chips-container-${this.dataset.id} feedback__negative">
         <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Select all that apply about the response</legend>
-        <div class="govuk-radios">
+        <div class="radio-groups-container">
+        <div class="govuk-radios radio-flex-container">
           <!-- Factuality Group -->
           <div class="govuk-radios__item">
             <input type="radio" class="govuk-radios__input" id="radio1-mostlycorrect-${this.dataset.id}" data-testid="Mostly Correct" name="correctness" />
@@ -119,11 +120,11 @@ export class FeedbackButtons extends HTMLElement {
           </div>
           <div class="govuk-radios__item">
             <input type="radio" class="govuk-radios__input" id="radio2-mostlyincorrect-${this.dataset.id}" data-testid="Mostly Incorrect" name="correctness" />
-            <label class="govuk-label govuk-radios__label" for="radio2-mostlyincorrect-${this.dataset.id}">Inaccurate</label>
+            <label class="govuk-label govuk-radios__label" for="radio2-mostlyincorrect-${this.dataset.id}">Mostly Incorrect</label>
           </div>
           </div>
           <!-- Completeness Group -->
-          <div class="govuk-radios">
+          <div class="govuk-radios radio-flex-container">
           <div class="govuk-radios__item">
             <input type="radio" class="govuk-radios__input" id="radio3-complete-${this.dataset.id}" data-testid="Complete" name="completeness" />
             <label class="govuk-label govuk-radios__label" for="radio3-complete-${this.dataset.id}">Complete</label>
@@ -134,14 +135,15 @@ export class FeedbackButtons extends HTMLElement {
           </div>
           </div>
           <!-- Structure Group -->
-          <div class="govuk-radios">
-          <div class="govuk-radios__item">
-            <input type="radio" class="govuk-radios__input" id="radio5-structured-${this.dataset.id}" data-testid="Well-organised" name="structured" />
-            <label class="govuk-label govuk-radios__label" for="radio5-structured-${this.dataset.id}">Well-organised</label>
-          </div>
-          <div class="govuk-radios__item">
-            <input type="radio" class="govuk-radios__input" id="radio6-unstructured-${this.dataset.id}" data-testid="Confusing" name="structured" />
-            <label class="govuk-label govuk-radios__label" for="radio6-unstructured-${this.dataset.id}">Confusing</label>
+          <div class="govuk-radios radio-flex-container">
+            <div class="govuk-radios__item">
+              <input type="radio" class="govuk-radios__input" id="radio5-structured-${this.dataset.id}" data-testid="Well-organised" name="structured" />
+              <label class="govuk-label govuk-radios__label" for="radio5-structured-${this.dataset.id}">Well-organised</label>
+            </div>
+            <div class="govuk-radios__item">
+              <input type="radio" class="govuk-radios__input" id="radio6-unstructured-${this.dataset.id}" data-testid="Confusing" name="structured" />
+              <label class="govuk-label govuk-radios__label" for="radio6-unstructured-${this.dataset.id}">Confusing</label>
+            </div>
           </div>
         </div>
         </div>
