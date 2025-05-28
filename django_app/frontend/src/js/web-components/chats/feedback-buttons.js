@@ -156,19 +156,20 @@ export class FeedbackButtons extends HTMLElement {
   }
 
   #collectChips() {
-    let chatController = this.closest("chat-controller")
+    let chatController = this.closest("chat-controller");
     this.collectedData.chips = [];
-    /** @type {NodeListOf<HTMLInputElement>} */
-    let chips = chatController.querySelectorAll(".feedback__chip");
-    chips.forEach((chip) => {
-      if (chip.checked) {
-        const label = chatController.querySelector(`[for="${chip.id}"]`);
+  
+    let chipGroups = chatController.querySelectorAll(".feedback__chip-group");
+    chipGroups.forEach((group) => {
+      let selectedChip = group.querySelector(".feedback__chip:checked");
+      if (selectedChip) {
+        const label = chatController.querySelector(`[for="${selectedChip.id}"]`);
         if (label) {
           this.collectedData.chips.push(label.textContent?.trim() || "");
         }
       }
     });
-  }
+  }  
 
 
   #addChipEvents() {
@@ -183,6 +184,8 @@ export class FeedbackButtons extends HTMLElement {
               otherChip.checked = false;
             }
           });
+
+          this.#collectChips();
 
           if (this.collectedData.rating > 0) {
             this.#sendFeedback();
