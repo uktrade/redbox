@@ -386,10 +386,6 @@ chat-message {
 
 
 /* Response feedback - general styles */
-.feedback-container {
-  padding-right: 40px;
-  text-align: left;
-}
 .feedback-container--1:not([hidden]) {
   align-items: flex-start;
   color: #6b7280;
@@ -401,60 +397,6 @@ chat-message {
   color: black;
   margin: 0;
   margin-right: 1rem;
-}
-
-.feedback-container--negative .feedback__chips {
-  display: block;
-}
-
-
-.feedback__chips-container {
-  border: 0;
-  margin: 0;
-  padding: 0;
-}
-.feedback__chips-legend {
-  padding: 0;
-}
-.feedback__chips-inner-container {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: flex-start; /* Aligns the groups to the left */
-  gap: 2rem; /* Adds spacing between chip groups */
-}
-
-.feedback__chip-group {
-  display: inline-flex;
-  align-items: center;
-  column-gap: 0.1rem; /* Adjust spacing between chips within a group */
-}
-
-.feedback__chip {
-  height: 0.75rem;
-  margin: 0;
-  opacity: 0;
-  width: 0.75rem;
-}
-
-.feedback__chip-label {
-  border: 1px solid #b1b4b6;
-  border-radius: 0.25rem;
-  color: #60697b;
-  cursor: pointer;
-  display: flex;
-  gap: 0.2rem;
-  left: -0.75rem;
-  margin-top: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  position: relative;
-}
-.feedback__chip:focus-visible + .feedback__chip-label {
-  outline: 2px solid;
-}
-.feedback__chip:checked + .feedback__chip-label {
-  background-color: #b1b4b6;
-  color: black;
 }
 
 .thumb_feedback-btn {
