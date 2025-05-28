@@ -22,7 +22,6 @@ from redbox import Redbox
 from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
-    MultiAgentPlan,
     RedboxQuery,
     RedboxState,
     RequestMetadata,
@@ -147,19 +146,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
         logger.debug("question %s from session", message_history[-2].text)
         logger.debug("message history %s from session", message_history[:-2])
         logger.debug("message history size: %s from session", len(message_history))
+        for m in range(len(message_history)):
+            logger.debug("all messages %s from session", message_history[m])
+
+        question = message_history[-2].text
+        user_feedback = ""
+        plan_prefix = "Here is my proposed plan"
 
         # Try convert AI message to plan
         try:
-            # if successfully converted then input is user feedback
-            _ = MultiAgentPlan.model_validate_strings(message_history[-1].text)
-            question = message_history[-4].text
-            user_feedback = message_history[-2].text
-            logger.debug("here is user feedback %s", user_feedback)
+            if message_history[-3].text.startswith(plan_prefix):
+                question = message_history[-4].text
+                user_feedback = message_history[-2].text
+                logger.debug("here is user feedback %s", user_feedback)
         except Exception as e:
-            logger.debug("cannot parse into plan object %s", message_history[-1].text)
+            logger.debug("cannot parse into plan object %s", message_history[-3].text)
             logger.exception("Error from getting plan.", exc_info=e)
-            question = message_history[-2].text
-            user_feedback = ""
 
         ai_settings = await self.get_ai_settings(session)
         state = RedboxState(

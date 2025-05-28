@@ -148,6 +148,8 @@ class Settings(BaseSettings):
     datahub_redbox_secret_key: str = env.str("DATAHUB_REDBOX_SECRET_KEY", "")
     datahub_redbox_access_key_id: str = env.str("DATAHUB_REDBOX_ACCESS_KEY_ID", "")
 
+    allow_plan_feedback: bool = env.bool("ALLOW_PLAN_FEEDBACK", False)
+
     # mcp
     caddy_mcp: MCPServerSettings = MCPServerSettings(
         name="caddy_mcp",

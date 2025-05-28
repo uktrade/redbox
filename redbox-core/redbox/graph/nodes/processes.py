@@ -33,7 +33,7 @@ from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models import ChatRoute
 from redbox.models.chain import AgentTask, DocumentState, MultiAgentPlan, PromptSet, RedboxState, RequestMetadata
 from redbox.models.graph import ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActivityEvent, RedboxEventType
-from redbox.models.prompts import PLANNER_PROMPT, REPLAN_PROMPT
+from redbox.models.prompts import PLANNER_FORMAT_PROMPT, PLANNER_PROMPT, PLANNER_QUESTION_PROMPT, REPLAN_PROMPT
 from redbox.models.settings import get_settings
 from redbox.transform import combine_agents_state, combine_documents, flatten_document_state
 
@@ -387,7 +387,7 @@ def create_planner(is_streamed=False):
     @RunnableLambda
     def _create_planner(state: RedboxState):
         orchestration_agent = create_chain_agent(
-            system_prompt=PLANNER_PROMPT,
+            system_prompt=PLANNER_PROMPT + "\n" + PLANNER_QUESTION_PROMPT + "\n" + PLANNER_FORMAT_PROMPT,
             use_metadata=True,
             tools=None,
             parser=ClaudeParser(pydantic_object=MultiAgentPlan),
@@ -401,12 +401,14 @@ def create_planner(is_streamed=False):
         return _create_planner
 
 
-def my_planner(allow_feedback=False, node_after_streamed: Any = "human", node_afer_replan: str = "sending_task"):
+def my_planner(allow_plan_feedback=False, node_after_streamed: Any = "human", node_afer_replan: str = "sending_task"):
     @RunnableLambda
     def _create_planner(state: RedboxState):
         if state.user_feedback:
             plan_prompt = REPLAN_PROMPT
-            plan = state.messages[-2].content
+            log.debug("state messages %s", state.request.chat_history)
+            log.debug("state messages size %s", len(state.request.chat_history))
+            plan = state.messages[-1].content
             user_input = state.user_feedback
             log.debug("old plan: %s.", plan)
             log.debug("User feedback: %s", user_input)
@@ -426,13 +428,16 @@ def my_planner(allow_feedback=False, node_after_streamed: Any = "human", node_af
             state.user_feedback = ""
             return Command(update=state, goto=node_afer_replan)
         else:
-            if allow_feedback:
+            if allow_plan_feedback:
                 orchestration_agent = create_planner(is_streamed=True)
+                res = orchestration_agent.invoke(state)
+                log.debug("here is the response from planner: %s", res)
+                return Command(update=res, goto=node_after_streamed)
             else:
                 orchestration_agent = create_planner(is_streamed=False)
-            res = orchestration_agent.invoke(state)
-            state.messages.append(AIMessage(res.content))
-            return Command(update=state, goto=node_after_streamed)
+                res = orchestration_agent.invoke(state)
+                state.messages.append(AIMessage(res.content))
+                return Command(update=state, goto=node_afer_replan)
 
     return _create_planner
 
