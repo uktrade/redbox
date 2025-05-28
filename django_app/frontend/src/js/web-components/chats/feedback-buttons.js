@@ -108,52 +108,48 @@ export class FeedbackButtons extends HTMLElement {
     /** @type {NodeListOf<HTMLElement>} */
     let chipPanels = document.querySelector(`.feedback__chips-container-${this.dataset.id}`);
     if (!chipPanels) {
-    this.closest(".chat-actions-container").insertAdjacentHTML("afterend",`<div class="govuk-form-group" tabindex="-1">
-      <fieldset class="govuk-fieldset feedback__chips-container-${this.dataset.id} feedback__negative">
-        <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Select all that apply about the response</legend>
-        <div class="radio-groups-container">
-        <div class="govuk-radios radio-flex-container">
-          <!-- Factuality Group -->
-          <div class="govuk-radios__item">
-            <input type="radio" class="govuk-radios__input" id="radio1-mostlycorrect-${this.dataset.id}" data-testid="Mostly Correct" name="correctness" />
-            <label class="govuk-label govuk-radios__label" for="radio1-mostlycorrect-${this.dataset.id}">Mostly Correct</label>
-          </div>
-          <div class="govuk-radios__item">
-            <input type="radio" class="govuk-radios__input" id="radio2-mostlyincorrect-${this.dataset.id}" data-testid="Mostly Incorrect" name="correctness" />
-            <label class="govuk-label govuk-radios__label" for="radio2-mostlyincorrect-${this.dataset.id}">Mostly Incorrect</label>
-          </div>
-          </div>
-          <!-- Completeness Group -->
-          <div class="govuk-radios radio-flex-container">
-          <div class="govuk-radios__item">
-            <input type="radio" class="govuk-radios__input" id="radio3-complete-${this.dataset.id}" data-testid="Complete" name="completeness" />
-            <label class="govuk-label govuk-radios__label" for="radio3-complete-${this.dataset.id}">Complete</label>
-          </div>
-          <div class="govuk-radios__item">
-            <input type="radio" class="govuk-radios__input" id="radio4-incomplete-${this.dataset.id}" data-testid="Incomplete" name="completeness" />
-            <label class="govuk-label govuk-radios__label" for="radio4-incomplete-${this.dataset.id}">Incomplete</label>
-          </div>
-          </div>
-          <!-- Structure Group -->
-          <div class="govuk-radios radio-flex-container">
-            <div class="govuk-radios__item">
-              <input type="radio" class="govuk-radios__input" id="radio5-structured-${this.dataset.id}" data-testid="Well-organised" name="structured" />
-              <label class="govuk-label govuk-radios__label" for="radio5-structured-${this.dataset.id}">Well-organised</label>
+    this.closest(".chat-actions-container").insertAdjacentHTML("afterend",`
+      <div class="govuk-form-group feedback-container feedback-container--2" tabindex="-1">
+        <fieldset class="govuk-fieldset feedback__chips-container feedback__chips-container-${this.dataset.id} feedback__negative">
+          <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Select all that apply about the response</legend>
+          <div class="radio-groups-container">
+            <!-- Factuality Group -->
+            <div class="govuk-radios radio-flex-container feedback__chip-group">
+              <div class="govuk-radios__item">
+                <input type="radio" class="feedback__chip govuk-radios__input" id="radio1-mostlycorrect-${this.dataset.id}" data-testid="Mostly Correct" name="correctness" />
+                <label class="feedback__chip-label govuk-radios__label" for="radio1-mostlycorrect-${this.dataset.id}">Mostly Correct</label>
+              </div>
+              <div class="govuk-radios__item">
+                <input type="radio" class="feedback__chip govuk-radios__input" id="radio2-mostlyincorrect-${this.dataset.id}" data-testid="Mostly Incorrect" name="correctness" />
+                <label class="feedback__chip-label govuk-radios__label" for="radio2-mostlyincorrect-${this.dataset.id}">Mostly Incorrect</label>
+              </div>
             </div>
-            <div class="govuk-radios__item">
-              <input type="radio" class="govuk-radios__input" id="radio6-unstructured-${this.dataset.id}" data-testid="Confusing" name="structured" />
-              <label class="govuk-label govuk-radios__label" for="radio6-unstructured-${this.dataset.id}">Confusing</label>
+            <!-- Completeness Group -->
+            <div class="govuk-radios radio-flex-container feedback__chip-group">
+              <div class="govuk-radios__item">
+                <input type="radio" class="feedback__chip govuk-radios__input" id="radio3-complete-${this.dataset.id}" data-testid="Complete" name="completeness" />
+                <label class="feedback__chip-label govuk-radios__label" for="radio3-complete-${this.dataset.id}">Complete</label>
+              </div>
+              <div class="govuk-radios__item">
+                <input type="radio" class="feedback__chip govuk-radios__input" id="radio4-incomplete-${this.dataset.id}" data-testid="Incomplete" name="completeness" />
+                <label class="feedback__chip-label govuk-radios__label" for="radio4-incomplete-${this.dataset.id}">Incomplete</label>
+              </div>
+            </div>
+            <!-- Structure Group -->
+            <div class="govuk-radios radio-flex-container feedback__chip-group">
+              <div class="govuk-radios__item">
+                <input type="radio" class="feedback__chip govuk-radios__input" id="radio5-structured-${this.dataset.id}" data-testid="Well-organised" name="structured" />
+                <label class="feedback__chip-label govuk-radios__label" for="radio5-structured-${this.dataset.id}">Well-organised</label>
+              </div>
+              <div class="govuk-radios__item">
+                <input type="radio" class="feedback__chip govuk-radios__input" id="radio6-unstructured-${this.dataset.id}" data-testid="Confusing" name="structured" />
+                <label class="feedback__chip-label govuk-radios__label" for="radio6-unstructured-${this.dataset.id}">Confusing</label>
+              </div>
             </div>
           </div>
-        </div>
-        </div>
-      </fieldset>
-    <div class="feedback__text-area feedback__text-area-${this.dataset.id}">
-        <label for="text-${this.dataset.id}">Or describe with your own words:</label>
-        <textarea class="feedback__text-input" id="text-${this.dataset.id}" rows="1"></textarea>
+        </fieldset>
         <button class="feedback__submit-btn" id="submit-button-${this.dataset.id}" type="button">Submit</button>
-    </div>
-    </div>`)}
+      </div>`)}
 
     this.#addChipEvents();
     this.#addSubmitEvent();
