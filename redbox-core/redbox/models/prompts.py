@@ -309,6 +309,10 @@ For each user request, provide your response in the following format: {format_in
 
 REPLAN_PROMPT = (
     """You are given "Previous Plan" which is the plan that the previous agent created along with feedback from the user. You MUST use these information to create a new plan.
+
+    <Previous_Plan>{previous_plan}</Previous_Plan>
+
+    <User_feedback>{user_feedback}</User_feedback>
 """
     + WORKER_AGENTS_PROMPT
     + PLANNER_FORMAT_PROMPT

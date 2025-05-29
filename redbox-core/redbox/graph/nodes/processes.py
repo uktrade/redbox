@@ -406,12 +406,8 @@ def my_planner(allow_plan_feedback=False, node_after_streamed: Any = "human", no
     def _create_planner(state: RedboxState):
         if state.user_feedback:
             plan_prompt = REPLAN_PROMPT
-            log.debug("state messages %s", state.request.chat_history)
-            log.debug("state messages size %s", len(state.request.chat_history))
             plan = state.request.chat_history[-1].get("text")
             user_input = state.user_feedback.replace("@newroute ", "")
-            log.debug("old plan: %s.", plan)
-            log.debug("User feedback: %s", user_input)
             orchestration_agent = create_chain_agent(
                 system_prompt=plan_prompt,
                 use_metadata=True,
