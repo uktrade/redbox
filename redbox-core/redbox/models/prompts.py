@@ -225,6 +225,7 @@ Execution Strategy:
    - Make a targeted, focused tool call
 4. Produce the expected output with maximum accuracy and efficiency. Only use information obtained from tools.
 
+<Document_Metadata>{metadata}</Document_Metadata>
 """
 
 EXTERNAL_RETRIEVAL_AGENT_PROMPT = """You are an expert information analyst with the ability to critically assess when and how to retrieve information. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
@@ -309,6 +310,10 @@ For each user request, provide your response in the following format: {format_in
 
 REPLAN_PROMPT = (
     """You are given "Previous Plan" which is the plan that the previous agent created along with feedback from the user. You MUST use these information to modify the previous plan. Don't add new task in the plan.
+
+    CRITICAL RULES:
+    1. NEVER add new tasks that weren't in the original plan, unless the user asks you to
+    2. NEVER remove tasks from the original recipe
 
     <Previous_Plan>{previous_plan}</Previous_Plan>
 
