@@ -14,59 +14,19 @@
 {% endif %}
 #}
 
-<div class="govuk-width-container">
+<div>
 
 
-  <form class="govuk-grid-row js-message-input" action="/submit" method="post">
-    <div class="govuk-grid-column-one-thirdx">
-      <div class="rb-left-column-container">
+  <form class="govuk-width-container govuk-grid-row js-message-input" action="/submit" method="post">
+    <div class="govuk-grid-column-one-quarterx">
         <a role="button" href="{{ url('chats') }}" id="new-chat-button"
-   class="govuk-heading-s iai-panel-heading iai-panel-heading-button govuk-!-margin-left-2
-   govuk-!-margin-bottom-2 govuk-!-margin-top-4">
+   class="govuk-heading-s iai-panel-heading iai-panel-heading-button
+   govuk-!-margin-bottom-4 govuk-!-margin-top-4">
   New chat
 </a>
-
-        <document-selector class="govuk-!-margin-top-5 govuk-!-padding-top-3">
-          <fieldset class="govuk-fieldset">
-            <legend class="full-width-panel-title">
-              <h3 class="govuk-heading-s iai-panel-heading">Your documents
-                <a href="{{ url('upload') }}"><svg id="document-link" width="24" height="25" viewBox="0 0 24 25" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g id="document--add 1" clip-path="url(#clip0_595_519)">
-                <path id="Vector" d="M22.5 18.5H19.5V15.5H18V18.5H15V20H18V23H19.5V20H22.5V18.5Z" fill="white"/>
-                <path id="Vector_2" d="M12 21.5H6V3.50001H12V8.00001C12.0011 8.39749 12.1596 8.77835 12.4406 9.05941C12.7217 9.34046 13.1025 9.49887 13.5 9.50001H18V12.5H19.5V8.00001C19.5027 7.90144 19.484 7.80346 19.4451 7.71282C19.4063 7.62218 19.3482 7.54105 19.275 7.47501L14.025 2.22501C13.959 2.15176 13.8778 2.09371 13.7872 2.05486C13.6966 2.01601 13.5986 1.9973 13.5 2.00001H6C5.60253 2.00116 5.22166 2.15957 4.94061 2.44062C4.65955 2.72168 4.50115 3.10254 4.5 3.50001V21.5C4.50115 21.8975 4.65955 22.2783 4.94061 22.5594C5.22166 22.8405 5.60253 22.9989 6 23H12V21.5ZM13.5 3.80001L17.7 8.00001H13.5V3.80001Z" fill="white"/>
-                </g>
-                <defs>
-                <clipPath id="clip0_595_519">
-                <rect width="24" height="24" fill="white" transform="translate(0 0.5)"/>
-                </clipPath>
-                </defs>
-                </svg>
-                </a>
-                </h3>
-
-            </legend>
-            <div class="govuk-checkboxes govuk-checkboxes--small chat-group-container chat-history-subheading" data-module="govuk-checkboxes">
-              {% for file in completed_files %}
-                <div class="govuk-checkboxes__item rb-chat-history__title">
-                  <input class="govuk-checkboxes__input" id="file-{{ file.id }}" name="file-{{ file.id }}" type="checkbox" value="{{ file.id }}" {% if file.selected %}checked{% endif %}>
-                  <label class="rb-doc-selector__label govuk-checkboxes__label" for="file-{{ file.id }}">{{ file.file_name }}</label>
-                </div>
-              {% endfor %}
-              {# files not yet ready - stored here to be moved to main list once ready #}
-              <div hidden>
-                {% for file in processing_files %}
-                  <div class="govuk-checkboxes__item">
-                    <input class="govuk-checkboxes__input" id="file-{{ file.id }}" name="file-{{ file.id }}" type="checkbox" value="{{ file.id }}" {% if file.selected %}checked{% endif %}>
-                    <label class="rb-doc-selector__label govuk-checkboxes__label" for="file-{{ file.id }}">{{ file.file_name }}</label>
-                    <file-status data-id="{{ file.id }}"></file-status>
-                  </div>
-                {% endfor %}
-              </div>
-            </div>
-          </fieldset>
-        </document-selector>
         <h2 class="govuk-heading-s iai-panel-heading">Recent chats</h2>
         <chat-history>
+          <div class="iai-panel__scrollable">
           <template id="template-chat_history_heading">
             <div>
               {% call chat_history_heading("-") %}
@@ -91,7 +51,49 @@
               {% endcall %}
             </div>
           {% endfor %}
+          </div>
         </chat-history>
+        <document-selector class="govuk-!-margin-top-5 govuk-!-padding-top-3">
+          <fieldset class="govuk-fieldset">
+            <legend class="full-width-panel-title">
+              <h3 class="govuk-heading-s iai-panel-heading">Your documents
+                <a href="{{ url('upload') }}"><svg id="document-link" width="24" height="25" viewBox="0 0 24 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g id="document--add 1" clip-path="url(#clip0_595_519)">
+                <path id="Vector" d="M22.5 18.5H19.5V15.5H18V18.5H15V20H18V23H19.5V20H22.5V18.5Z" fill="white"/>
+                <path id="Vector_2" d="M12 21.5H6V3.50001H12V8.00001C12.0011 8.39749 12.1596 8.77835 12.4406 9.05941C12.7217 9.34046 13.1025 9.49887 13.5 9.50001H18V12.5H19.5V8.00001C19.5027 7.90144 19.484 7.80346 19.4451 7.71282C19.4063 7.62218 19.3482 7.54105 19.275 7.47501L14.025 2.22501C13.959 2.15176 13.8778 2.09371 13.7872 2.05486C13.6966 2.01601 13.5986 1.9973 13.5 2.00001H6C5.60253 2.00116 5.22166 2.15957 4.94061 2.44062C4.65955 2.72168 4.50115 3.10254 4.5 3.50001V21.5C4.50115 21.8975 4.65955 22.2783 4.94061 22.5594C5.22166 22.8405 5.60253 22.9989 6 23H12V21.5ZM13.5 3.80001L17.7 8.00001H13.5V3.80001Z" fill="white"/>
+                </g>
+                <defs>
+                <clipPath id="clip0_595_519">
+                <rect width="24" height="24" fill="white" transform="translate(0 0.5)"/>
+                </clipPath>
+                </defs>
+                </svg>
+                </a>
+                </h3>
+
+            </legend>
+            <div class="iai-panel__scrollable">
+            <div class="govuk-checkboxes govuk-checkboxes--small chat-group-container chat-history-subheading" data-module="govuk-checkboxes">
+              {% for file in completed_files %}
+                <div class="govuk-checkboxes__item rb-chat-history__title">
+                  <input class="govuk-checkboxes__input" id="file-{{ file.id }}" name="file-{{ file.id }}" type="checkbox" value="{{ file.id }}" {% if file.selected %}checked{% endif %}>
+                  <label class="rb-doc-selector__label govuk-checkboxes__label" for="file-{{ file.id }}">{{ file.file_name }}</label>
+                </div>
+              {% endfor %}
+              {# files not yet ready - stored here to be moved to main list once ready #}
+              <div hidden>
+                {% for file in processing_files %}
+                  <div class="govuk-checkboxes__item">
+                    <input class="govuk-checkboxes__input" id="file-{{ file.id }}" name="file-{{ file.id }}" type="checkbox" value="{{ file.id }}" {% if file.selected %}checked{% endif %}>
+                    <label class="rb-doc-selector__label govuk-checkboxes__label" for="file-{{ file.id }}">{{ file.file_name }}</label>
+                    <file-status data-id="{{ file.id }}"></file-status>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          </fieldset>
+        </document-selector>
 
         <div class="iai-doc-list">
           <label for="llm-selector">Model</label>
@@ -103,9 +105,11 @@
         </div>
 
       </div>
-      </div>
 
-    <div class="govuk-grid-column-two-thirds">
+    <div class="govuk-grid-column-three-quarters">
+      {% if not messages %}
+        <canned-prompts class="chat-options govuk-!-padding-top-5" security-classification="{{ security }}"></canned-prompts>
+      {% endif %}
       <div class="rb-chats-section">
 
         <chat-title class="chat-title" data-session-id="{{ chat_id or '' }}" data-title="{{ current_chat.name or '' }}", data-title-length="{{ chat_title_length }}">
@@ -141,12 +145,8 @@
         </chat-controller>
 
       </div>
-
-      {% if not messages %}
-        <canned-prompts class="chat-options" security-classification="{{ security }}"></canned-prompts>
-      {% endif %}
       <div class="chat-input__input-container">
-      <label class="govuk-label" for="message">
+      <label class="govuk-label govuk-!-padding-top-1" for="message">
       </label>
       <div id="message-hint" class="govuk-hint govuk-body">
         Need help? View <a href="{{ url('faq') }}" class="govuk-link" target="_blank">Advanced Prompt FAQ.</a>

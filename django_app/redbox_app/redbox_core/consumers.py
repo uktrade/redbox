@@ -143,12 +143,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
         message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
 
-        logger.debug("question %s from session", message_history[-2].text)
-        logger.debug("message history %s from session", message_history[:-2])
-        logger.debug("message history size: %s from session", len(message_history))
-        for m in range(len(message_history)):
-            logger.debug("all messages %s from session", message_history[m])
-
         question = message_history[-2].text
         user_feedback = ""
         plan_prefix = "Here is my proposed plan"
@@ -287,6 +281,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         text=citation_source.highlighted_text_in_source,
                         page_numbers=citation_source.page_numbers,
                         source=Citation.Origin.USER_UPLOADED_DOCUMENT,
+                        citation_name=citation_source.ref_id,
                     )
                 else:
                     Citation.objects.create(
@@ -296,6 +291,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         text=citation_source.highlighted_text_in_source,
                         page_numbers=citation_source.page_numbers,
                         source=Citation.Origin.try_parse(citation_source.source_type),
+                        citation_name=citation_source.ref_id,
                     )
 
         if self.metadata:
@@ -456,6 +452,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             "text_in_answer": convert_american_to_british_spelling(c.text_in_answer)
                             if self.scope.get("user").uk_or_us_english
                             else c.text_in_answer,
+                            "citation_name": s.ref_id,
                         }
                     else:
                         # If no file with Status.complete is found, handle it as None
@@ -465,6 +462,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             "text_in_answer": convert_american_to_british_spelling(c.text_in_answer)
                             if self.scope.get("user").uk_or_us_english
                             else c.text_in_answer,
+                            "citation_name": s.ref_id,
                         }
                 except File.DoesNotExist:
                     file = None
@@ -475,6 +473,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         "text_in_answer": convert_american_to_british_spelling(text_in_answer)
                         if self.scope.get("user").uk_or_us_english
                         else text_in_answer,
+                        "citation_name": s.ref_id,
                     }
 
                 await self.send_to_client("source", payload)

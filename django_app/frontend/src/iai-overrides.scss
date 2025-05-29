@@ -1,5 +1,4 @@
 .govuk-buttonx {
-    font-family: GDS Transport, arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-weight: 400;
@@ -19,12 +18,6 @@
     vertical-align: top;
     cursor: pointer;
     -webkit-appearance: none
-  }
-
-  @media print {
-    .govuk-buttonx {
-      font-family: GDS Transport, arial, sans-serif;
-    }
   }
 
   @media (min-width:40.0625em) {
@@ -111,7 +104,6 @@
   }
 
   .govuk-notification-bannerx {
-    font-family: GDS Transport, arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-weight: 400;
@@ -121,12 +113,6 @@
     margin-bottom: 32px;
     border: 4px solid #1d70b8;
     background-color: #1d70b8
-  }
-
-  @media print {
-    .govuk-notification-bannerx {
-      font-family: GDS Transport, arial, sans-serif;
-    }
   }
 
   @media (min-width:40.0625em) {
@@ -166,7 +152,6 @@
   }
 
   .govuk-notification-banner__titlex {
-    font-family: GDS Transport, arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-weight: 700;
@@ -178,11 +163,6 @@
     color: #fff
   }
 
-  @media print {
-    .govuk-notification-banner__titlex {
-      font-family: GDS Transport, arial, sans-serif;
-    }
-  }
 
   @media (min-width:40.0625em) {
     .govuk-notification-banner__titlex {
@@ -203,8 +183,7 @@
     color: #0b0c0c;
     padding: 16px;
     background-color: #fff;
-    white-space: nowrap;
-    text-wrap: pretty;
+    white-space: normal;
   }
 
   @media print {
@@ -221,7 +200,7 @@
 
   .govuk-notification-banner__contentx>* {
     box-sizing: border-box;
-    max-width: 604px
+    max-width: 700px
   }
 
   .govuk-notification-banner__contentx>:last-child {
@@ -229,7 +208,6 @@
   }
 
   .govuk-textareax {
-    font-family: GDS Transport, arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-weight: 400;
@@ -247,13 +225,6 @@
     border-radius: 0;
     -webkit-appearance: none;
   }
-
-  @media print {
-    .govuk-textareax {
-      font-family: GDS Transport, arial, sans-serif;
-    }
-  }
-
   @media (min-width:40.0625em) {
     .govuk-textareax {
       font-size: 20px;
@@ -281,7 +252,6 @@
 }
 
 .govuk-header__product-namex {
-  font-family: GDS Transport, arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-weight: 400;
