@@ -152,16 +152,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
         question = message_history[-2].text
         user_feedback = ""
         plan_prefix = "Here is my proposed plan"
-
+        plan_message_size = 3
         # Try convert AI message to plan
-        try:
-            if message_history[-3].text.startswith(plan_prefix):
+        if (len(message_history) > plan_message_size) and (
+            message_history[-plan_message_size].text.startswith(plan_prefix)
+        ):
+            try:
                 question = message_history[-4].text
                 user_feedback = message_history[-2].text
                 logger.debug("here is user feedback %s", user_feedback)
-        except Exception as e:
-            logger.debug("cannot parse into plan object %s", message_history[-3].text)
-            logger.exception("Error from getting plan.", exc_info=e)
+            except Exception as e:
+                logger.debug("cannot parse into plan object %s", message_history[-3].text)
+                logger.exception("Error from getting plan.", exc_info=e)
 
         ai_settings = await self.get_ai_settings(session)
         state = RedboxState(

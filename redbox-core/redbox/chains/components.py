@@ -147,6 +147,9 @@ def get_structured_response_with_citations_parser() -> tuple[Runnable, str]:
 
 def get_structured_response_with_planner_parser() -> tuple[Runnable, str]:
     parser = StreamingPlanner(
-        name_of_streamed_field="tasks", pydantic_schema_object=MultiAgentPlan, sub_streamed_field="task"
+        name_of_streamed_field="tasks",
+        pydantic_schema_object=MultiAgentPlan,
+        sub_streamed_field="task",
+        suffix_text="\n\nPlease let me know if you want me to go ahead with the plan, or make any changes.",
     )
     return (parser, parser.get_format_instructions())

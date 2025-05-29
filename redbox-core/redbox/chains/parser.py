@@ -6,6 +6,7 @@ import re
 from collections.abc import AsyncIterator
 from json import JSONDecodeError
 from typing import Any, Iterator, List, Optional, Type, Union
+from xml.sax.xmlreader import InputSource
 
 import jsonpatch  # type: ignore[import]
 import pydantic  # pydantic: ignore
@@ -254,6 +255,17 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
 
 class StreamingPlanner(StreamingJsonOutputParser):
     sub_streamed_field: str = None
+    suffix_text: str = ""
+
+    def parse(self, text: str) -> Any:
+        return super().parse(text) + self.suffix_text
+
+    def parse_partial_json(self, text: str):
+        try:
+            text = super().extract_json(text)
+            return parse_json_markdown(text)
+        except json.JSONDecodeError:
+            return None
 
     def _transform(self, input: Iterator[Union[str, BaseMessage]]) -> Iterator[Any]:
         acc_gen: Union[GenerationChunk, ChatGenerationChunk, None] = None
@@ -270,15 +282,19 @@ class StreamingPlanner(StreamingJsonOutputParser):
                         item = parsed.get(self.name_of_streamed_field)[item_count]
                         if field_content := item.get(self.sub_streamed_field):
                             if new_tokens := field_content[field_length_at_last_run:]:
-                                print(f"new_token: {new_tokens}")
+                                if (item_count == 0) and (field_length_at_last_run == 0):
+                                    dispatch_custom_event(
+                                        RedboxEventType.response_tokens, data="Here is my proposed plan:\n\n1. "
+                                    )
+                                elif (item_count > 0) and (field_length_at_last_run == 0):
+                                    dispatch_custom_event(RedboxEventType.response_tokens, data=f"{item_count+1}. ")
                                 dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
                                 field_length_at_last_run = len(field_content)
                                 yield self.pydantic_schema_object.model_validate(parsed)
                             else:
-                                print("Here is my proposed plan")
                                 item_count += 1
                                 field_length_at_last_run = 0
-                                dispatch_custom_event(RedboxEventType.response_tokens, data="\n")
+                                dispatch_custom_event(RedboxEventType.response_tokens, data="\n\n")
 
                     except (IndexError, TypeError):
                         item = []
@@ -292,41 +308,9 @@ class StreamingPlanner(StreamingJsonOutputParser):
         if not (self.sub_streamed_field):
             if parsed:
                 yield self.pydantic_schema_object.model_validate(parsed)
+
+        # adding suffix here
+        dispatch_custom_event(RedboxEventType.response_tokens, data=self.suffix_text)
 
     async def _atransform(self, input: AsyncIterator[Union[str, BaseMessage]]) -> AsyncIterator[Any]:
-        acc_gen: Union[GenerationChunk, ChatGenerationChunk, None] = None
-        field_length_at_last_run: int = 0
-        item_count: int = 0
-        parsed = None
-        for chunk in input:
-            chunk_gen = self._to_generation_chunk(chunk)
-            acc_gen = chunk_gen if acc_gen is None else acc_gen + chunk_gen  # type: ignore[operator]
-
-            if parsed := self.parse_partial_json(acc_gen.text):
-                if self.sub_streamed_field:
-                    try:
-                        item = parsed.get(self.name_of_streamed_field)[item_count]
-                        if field_content := item.get(self.sub_streamed_field):
-                            if new_tokens := field_content[field_length_at_last_run:]:
-                                print(f"new_token: {new_tokens}")
-                                dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
-                                field_length_at_last_run = len(field_content)
-                                yield self.pydantic_schema_object.model_validate(parsed)
-                            else:
-                                print("Here is my proposed plan")
-                                item_count += 1
-                                field_length_at_last_run = 0
-                                dispatch_custom_event(RedboxEventType.response_tokens, data="\n")
-
-                    except (IndexError, TypeError):
-                        item = []
-                else:
-                    if field_content := parsed.get(self.name_of_streamed_field):
-                        if new_tokens := field_content[field_length_at_last_run:]:
-                            dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
-                            field_length_at_last_run = len(field_content)
-                            yield self.pydantic_schema_object.model_validate(parsed)
-
-        if not (self.sub_streamed_field):
-            if parsed:
-                yield self.pydantic_schema_object.model_validate(parsed)
+        self._transform(InputSource)

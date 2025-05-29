@@ -408,8 +408,8 @@ def my_planner(allow_plan_feedback=False, node_after_streamed: Any = "human", no
             plan_prompt = REPLAN_PROMPT
             log.debug("state messages %s", state.request.chat_history)
             log.debug("state messages size %s", len(state.request.chat_history))
-            plan = state.messages[-1].content
-            user_input = state.user_feedback
+            plan = state.request.chat_history[-1].get("text")
+            user_input = state.user_feedback.replace("@newroute ", "")
             log.debug("old plan: %s.", plan)
             log.debug("User feedback: %s", user_input)
             orchestration_agent = create_chain_agent(
@@ -431,7 +431,6 @@ def my_planner(allow_plan_feedback=False, node_after_streamed: Any = "human", no
             if allow_plan_feedback:
                 orchestration_agent = create_planner(is_streamed=True)
                 res = orchestration_agent.invoke(state)
-                log.debug("here is the response from planner: %s", res)
                 return Command(update=res, goto=node_after_streamed)
             else:
                 orchestration_agent = create_planner(is_streamed=False)
