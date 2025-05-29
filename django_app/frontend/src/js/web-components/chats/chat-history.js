@@ -3,76 +3,6 @@
 class ChatHistory extends HTMLElement {
   connectedCallback() {
     this.dataset.initialised = "true";
-    this.#limitVisibleChats();
-    this.#addShowMoreButton();
-  }
-
-  /**
-   * Caps the amount of chats at 7 and the rest will be scrollable
-   */
-  #limitVisibleChats() {
-    const chatGroups = this.querySelectorAll(".chat-group-container");
-    chatGroups.forEach((group) => {
-      const chats = group.querySelectorAll(".chat-list li");
-      chats.forEach((chat, index) => {
-        chat.style.display = index < 7 ? "block" : "none";
-      });
-      group.dataset.visibleCount = 7
-    });
-  }
-
-  /**
-   * Displays a 'Show more' button below the chat list
-   */
-  #addShowMoreButton() {
-    const chatGroups = this.querySelectorAll(".chat-group-container");
-    chatGroups.forEach((group) => {
-      const chats = group.querySelectorAll(".chat-list li");
-      const visibleCount = parseInt(group.dataset.visibleCount, 10) || 5;
-      if (chats.length > visibleCount) {
-        const showMoreDiv = document.createElement("div");
-        showMoreDiv.id = "show-more-div";
-        const showMoreLink = document.createElement("a");
-        showMoreLink.textContent = "Show more...";
-        showMoreLink.id = "show-more-button";
-        showMoreLink.classList.add("rb-chat-history__link", "govuk-link--inverse");
-
-        showMoreLink.addEventListener("click", () => {
-          this.#showMoreChats(group);
-        });
-
-        showMoreDiv.appendChild(showMoreLink);
-
-        group.appendChild(showMoreDiv);
-      }
-    });
-  }
-
-  /**
-   * Shows next 7 elements also
-   *  @param {HTMLElement} group
-   */
-
-  #showMoreChats(group) {
-    const chats = group.querySelectorAll(".chat-list li");
-    let visibleCount = parseInt(group.dataset.visibleCount, 10) || 5;
-    const newVisibleCount = Math.min(visibleCount + 5, chats.length);
-
-    chats.forEach((chat, index) => {
-      if (index < newVisibleCount) {
-        chat.style.display = "block";
-      }
-    });
-
-    group.dataset.visibleCount = newVisibleCount;
-
-    // Hide the button if all chats are now visible
-    if (newVisibleCount >= chats.length) {
-      const button = group.querySelector("#show-more-button");
-      if (button) {
-        button.style.display = "none";
-      }
-    }
   }
 
   /**
@@ -137,7 +67,6 @@ class ChatHistory extends HTMLElement {
       item = this.#createItem(chatId, title.substring(0, 30));
     }
     this.querySelector("ul")?.prepend(item);
-    this.#limitVisibleChats();
   }
 }
 

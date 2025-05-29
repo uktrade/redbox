@@ -42,18 +42,23 @@
   <h3 class="iai-chat-bubble__sources-heading govuk-heading-s govuk-!-margin-bottom-1">Sources</h3>
   <div class="iai-display-flex-from-desktop">
     <ol class="rb-footnote-list govuk-!-margin-bottom-0">
+      {% set seen_docs = [] %}
       {% for display, href, cit_id, text_in_answer, citation_name in message.unique_citation_uris() %}
+        {% if display not in seen_docs %}
         <li class="govuk-!-margin-bottom-0">
-          <a class="iai-chat-bubbles__sources-link govuk-link" id="footnote-{{ message.id }}-{{ loop.index }}" href="{{ href }}" target="_blank">{{ display }}</a>
+          <a class="iai-chat-bubbles__sources-link govuk-link" id="footnote-{{ message.id }}-{{ loop.index }}" href="/citations/{{message.id}}">{{ display }}</a>
         </li>
+        {% set _ = seen_docs.append(display) %}
+        {% endif %}
       {% endfor %}
     </ol>
   </div>
   <br />
   {% endif %}
 </div>
-
+{% set seen_files = [] %}
 {% for file in message.selected_files.all() %}
+  {% if file.id not in seen_files %}
   <p class="govuk-body govuk-!-text-align-right govuk-!-font-size-16">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <g clip-path="url(#clip0_771_609)">
@@ -70,6 +75,8 @@
       </defs>
       </svg>
     {{ file }}</p>
+    {% set _ = seen_files.append(file.id) %}
+    {% endif %}
 {% endfor %}
 
 {% if message.route %}

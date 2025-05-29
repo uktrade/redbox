@@ -203,6 +203,18 @@ only screen and (min-resolution:192dpi) {
 
 @import "./iai-overrides.scss";
 
+.radio-groups-container {
+  display: flex;
+  flex-direction: row;
+  gap: 5px;
+}
+
+.radio-flex-container {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+}
+
 .header-wrapper {
   position: sticky;
   top: 0;
