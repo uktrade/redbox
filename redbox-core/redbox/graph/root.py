@@ -85,6 +85,7 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
     builder.add_node("is_self_route_enabled", empty_process)
     builder.add_node("any_documents_selected", empty_process)
     builder.add_node("llm_choose_route", empty_process)
+    builder.add_node("no_user_feedback", empty_process)
 
     builder.add_node(
         "log_user_request",
@@ -102,7 +103,10 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
     # edges
     builder.add_edge(START, "log_user_request")
     builder.add_edge(START, "retrieve_metadata")
-    builder.add_edge("retrieve_metadata", "has_keyword")
+    builder.add_edge("retrieve_metadata", "no_user_feedback")
+    builder.add_conditional_edges(
+        "no_user_feedback", lambda s: s.user_feedback == "", {True: "has_keyword", False: "new_route_graph"}
+    )
     builder.add_conditional_edges(
         "has_keyword",
         build_keyword_detection_conditional(*ROUTABLE_KEYWORDS.keys()),
