@@ -150,7 +150,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         parser, _ = get_structured_response_with_planner_parser()
         # Try convert AI message to plan
         if (len(message_history) > plan_message_size) and (
-            message_history[-plan_message_size].text.startswith(parser.prefix_text)
+            any(n in message_history[-plan_message_size].text for n in parser.prefix_texts)
         ):
             try:
                 question = message_history[-4].text

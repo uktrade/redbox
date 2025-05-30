@@ -3,10 +3,10 @@ from __future__ import annotations
 import ast
 import json
 import logging
+import random
 import re
 from collections.abc import AsyncIterator
 from typing import Any, Iterator, List, Optional, Type, Union
-from xml.sax.xmlreader import InputSource
 
 import jsonpatch  # type: ignore[import]
 import pydantic  # pydantic: ignore
@@ -301,11 +301,8 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
 
 class StreamingPlanner(StreamingJsonOutputParser):
     sub_streamed_field: str = None
-    suffix_text: str = ""
-    prefix_text: str = ""
-
-    def parse(self, text: str) -> Any:
-        return super().parse(text) + self.suffix_text
+    suffix_texts: list = [""]
+    prefix_texts: list = [""]
 
     def parse_partial_json(self, text: str):
         try:
@@ -331,7 +328,8 @@ class StreamingPlanner(StreamingJsonOutputParser):
                             if new_tokens := field_content[field_length_at_last_run:]:
                                 if (item_count == 0) and (field_length_at_last_run == 0):
                                     dispatch_custom_event(
-                                        RedboxEventType.response_tokens, data=f"{self.prefix_text}\n\n1. "
+                                        RedboxEventType.response_tokens,
+                                        data=f"{random.choice(self.prefix_texts)}\n\n1. ",
                                     )
                                 elif (item_count > 0) and (field_length_at_last_run == 0):
                                     dispatch_custom_event(RedboxEventType.response_tokens, data=f"{item_count+1}. ")
@@ -357,7 +355,7 @@ class StreamingPlanner(StreamingJsonOutputParser):
                 yield self.pydantic_schema_object.model_validate(parsed)
 
         # adding suffix here
-        dispatch_custom_event(RedboxEventType.response_tokens, data=self.suffix_text)
+        dispatch_custom_event(RedboxEventType.response_tokens, data=random.choice(self.suffix_texts))
 
     async def _atransform(self, input: AsyncIterator[Union[str, BaseMessage]]) -> AsyncIterator[Any]:
-        self._transform(InputSource)
+        self._transform(input)
