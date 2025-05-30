@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 import logging
 import re
@@ -20,7 +21,6 @@ from langchain_core.utils.pydantic import PYDANTIC_MAJOR_VERSION
 from pydantic import BaseModel, ValidationError
 
 from redbox.models.graph import RedboxEventType
-import ast
 
 log = logging.getLogger(__name__)
 
@@ -302,6 +302,7 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
 class StreamingPlanner(StreamingJsonOutputParser):
     sub_streamed_field: str = None
     suffix_text: str = ""
+    prefix_text: str = ""
 
     def parse(self, text: str) -> Any:
         return super().parse(text) + self.suffix_text
@@ -330,7 +331,7 @@ class StreamingPlanner(StreamingJsonOutputParser):
                             if new_tokens := field_content[field_length_at_last_run:]:
                                 if (item_count == 0) and (field_length_at_last_run == 0):
                                     dispatch_custom_event(
-                                        RedboxEventType.response_tokens, data="Here is my proposed plan:\n\n1. "
+                                        RedboxEventType.response_tokens, data=f"{self.prefix_text}\n\n1. "
                                     )
                                 elif (item_count > 0) and (field_length_at_last_run == 0):
                                     dispatch_custom_event(RedboxEventType.response_tokens, data=f"{item_count+1}. ")

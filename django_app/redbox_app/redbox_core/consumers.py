@@ -19,6 +19,7 @@ from uwotm8 import convert_american_to_british_spelling
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
+from redbox.chains.components import get_structured_response_with_planner_parser
 from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
@@ -145,11 +146,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         question = message_history[-2].text
         user_feedback = ""
-        plan_prefix = "Here is my proposed plan"
         plan_message_size = 3
+        parser, _ = get_structured_response_with_planner_parser()
         # Try convert AI message to plan
         if (len(message_history) > plan_message_size) and (
-            message_history[-plan_message_size].text.startswith(plan_prefix)
+            message_history[-plan_message_size].text.startswith(parser.prefix_text)
         ):
             try:
                 question = message_history[-4].text

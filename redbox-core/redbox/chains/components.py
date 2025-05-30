@@ -151,5 +151,6 @@ def get_structured_response_with_planner_parser() -> tuple[Runnable, str]:
         pydantic_schema_object=MultiAgentPlan,
         sub_streamed_field="task",
         suffix_text="\n\nPlease let me know if you want me to go ahead with the plan, or make any changes.",
+        prefix_text="Here is my proposed plan",
     )
     return (parser, parser.get_format_instructions())
