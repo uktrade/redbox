@@ -44,6 +44,7 @@ export class SourcesList extends HTMLElement {
             <ol class="rb-footnote-list govuk-!-margin-bottom-0">
         `;
     this.sources.forEach((source) => {
+      if (source.fileName) {
       html += `
                 <li class="govuk-!-margin-bottom-0">
                     <a class="iai-chat-bubbles__sources-link govuk-link" href="${
@@ -53,6 +54,7 @@ export class SourcesList extends HTMLElement {
       }" data-text="${this.escapeHtmlAttribute(source.matchingText)}">${source.fileName || source.url}</a>
                 </li>
             `;
+    }
     });
     html += `</div></ol>`;
     this.innerHTML = html;
