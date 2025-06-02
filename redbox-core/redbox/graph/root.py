@@ -34,12 +34,12 @@ from redbox.graph.nodes.processes import (
     build_stuff_pattern,
     clear_documents_process,
     create_evaluator,
-    delete_plan_message,
     empty_process,
     invoke_custom_state,
     lm_choose_route,
     my_planner,
     report_sources_process,
+    combine_question_evaluator,
 )
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -880,8 +880,7 @@ def build_new_graph(
     )
 
     builder.add_node("Evaluator_Agent", create_evaluator())
-    builder.add_node("clear_tasks", delete_plan_message())
-    builder.add_node("pass_user_prompt_to_LLM_message", build_passthrough_pattern())
+    builder.add_node("combine_question_evaluator", combine_question_evaluator())
     builder.add_node(
         "report_citations",
         report_sources_process,
@@ -892,10 +891,9 @@ def build_new_graph(
     builder.add_edge(START, "remove_keyword")
     builder.add_edge("remove_keyword", "planner")
     builder.add_conditional_edges("sending_task", sending_task_to_agent)
-    builder.add_edge("Internal_Retrieval_Agent", "clear_tasks")
-    builder.add_edge("External_Retrieval_Agent", "clear_tasks")
-    builder.add_edge("clear_tasks", "pass_user_prompt_to_LLM_message")
-    builder.add_edge("pass_user_prompt_to_LLM_message", "Evaluator_Agent")
+    builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
+    builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
+    builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
     builder.add_edge("waiting_for_feedback", END)

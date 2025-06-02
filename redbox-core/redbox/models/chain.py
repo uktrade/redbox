@@ -271,6 +271,7 @@ class RedboxState(BaseModel):
     steps_left: Annotated[int | None, RemainingStepsManager] = None
     messages: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     agents_results: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
+    tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
 
     @property
     def last_message(self) -> AnyMessage:
