@@ -205,7 +205,10 @@ def get_all_metadata(obj: dict):
     text_and_tools = obj["text_and_tools"]
 
     if parsed_response := text_and_tools.get("parsed_response"):
-        text = getattr(parsed_response, "answer", parsed_response)
+        try:
+            text = getattr(parsed_response, "answer", parsed_response.model_dump_json())
+        except Exception:
+            text = getattr(parsed_response, "answer", parsed_response)
         citations = getattr(parsed_response, "citations", [])
     else:
         text = text_and_tools["raw_response"].content

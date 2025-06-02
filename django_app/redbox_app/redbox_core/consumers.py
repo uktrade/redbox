@@ -19,6 +19,7 @@ from uwotm8 import convert_american_to_british_spelling
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
+from redbox.chains.components import get_structured_response_with_planner_parser
 from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
@@ -143,14 +144,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
         session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
         message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
 
-        logger.debug("question %s from session", message_history[-2].text)
-        logger.debug("message history %s from session", message_history[:-2])
-        logger.debug("message history size: %s from session", len(message_history))
+        question = message_history[-2].text
+        user_feedback = ""
+        plan_message_size = 3
+        parser, _ = get_structured_response_with_planner_parser()
+        # Try convert AI message to plan
+        if (len(message_history) > plan_message_size) and (
+            any(n in message_history[-plan_message_size].text for n in parser.prefix_texts)
+        ):
+            try:
+                question = message_history[-4].text
+                user_feedback = message_history[-2].text
+                logger.debug("here is user feedback %s", user_feedback)
+            except Exception as e:
+                logger.debug("cannot parse into plan object %s", message_history[-3].text)
+                logger.exception("Error from getting plan.", exc_info=e)
 
         ai_settings = await self.get_ai_settings(session)
         state = RedboxState(
             request=RedboxQuery(
-                question=message_history[-2].text,
+                question=question,
                 s3_keys=[f.unique_name for f in selected_files],
                 user_uuid=user.id,
                 chat_history=[
@@ -163,6 +176,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 ai_settings=ai_settings,
                 permitted_s3_keys=[f.unique_name async for f in permitted_files],
             ),
+            user_feedback=user_feedback,
         )
 
         try:
