@@ -17,17 +17,11 @@ from websockets import WebSocketClientProtocol
 from websockets.legacy.client import Connect
 
 from redbox.models.chain import LLMCallMetadata, RedboxQuery, RequestMetadata
-from redbox.models.graph import FINAL_RESPONSE_TAG, ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActivityEvent
+from redbox.models.graph import FINAL_RESPONSE_TAG, ROUTE_NAME_TAG, RedboxActivityEvent
 from redbox.models.prompts import CHAT_MAP_QUESTION_PROMPT
 from redbox_app.redbox_core import error_messages
 from redbox_app.redbox_core.consumers import ChatConsumer
-from redbox_app.redbox_core.models import (
-    ActivityEvent,
-    Chat,
-    ChatMessage,
-    ChatMessageTokenUse,
-    File,
-)
+from redbox_app.redbox_core.models import ActivityEvent, Chat, ChatMessage, ChatMessageTokenUse, File
 
 User = get_user_model()
 
@@ -67,7 +61,6 @@ async def test_chat_consumer_with_new_session(alice: User, uploaded_file: File, 
         response2 = await communicator.receive_json_from(timeout=5)
         response3 = await communicator.receive_json_from(timeout=5)
         response4 = await communicator.receive_json_from(timeout=5)
-        response5 = await communicator.receive_json_from(timeout=5)
 
         # Then
         assert response1["type"] == "session-id"
@@ -77,7 +70,6 @@ async def test_chat_consumer_with_new_session(alice: User, uploaded_file: File, 
         assert response3["data"] == "Mr. Amor."
         assert response4["type"] == "route"
         assert response4["data"] == "gratitude"
-        assert response5["type"] == "source"
         # Close
         await communicator.disconnect()
 
@@ -163,7 +155,6 @@ async def test_chat_consumer_with_naughty_question(alice: User, uploaded_file: F
         response2 = await communicator.receive_json_from(timeout=5)
         response3 = await communicator.receive_json_from(timeout=5)
         response4 = await communicator.receive_json_from(timeout=5)
-        response5 = await communicator.receive_json_from(timeout=5)
 
         # Then
         assert response1["type"] == "session-id"
@@ -173,7 +164,6 @@ async def test_chat_consumer_with_naughty_question(alice: User, uploaded_file: F
         assert response3["data"] == "Mr. Amor."
         assert response4["type"] == "route"
         assert response4["data"] == "gratitude"
-        assert response5["type"] == "source"
         # Close
         await communicator.disconnect()
 
@@ -201,7 +191,6 @@ async def test_chat_consumer_with_naughty_citation(
         response1 = await communicator.receive_json_from(timeout=5)
         response2 = await communicator.receive_json_from(timeout=5)
         response3 = await communicator.receive_json_from(timeout=5)
-        response4 = await communicator.receive_json_from(timeout=5)
 
         # Then
         assert response1["type"] == "session-id"
@@ -209,7 +198,6 @@ async def test_chat_consumer_with_naughty_citation(
         assert response2["data"] == "Good afternoon, Mr. Amor."
         assert response3["type"] == "route"
         assert response3["data"] == "gratitude"
-        assert response4["type"] == "source"
         # Close
         await communicator.disconnect()
 
@@ -573,7 +561,7 @@ class CannedGraphLLM(BaseChatModel):
 
 
 @pytest.fixture()
-def mocked_connect(uploaded_file: File) -> Connect:
+def mocked_connect() -> Connect:
     responses = [
         {
             "event": "on_chat_model_stream",
@@ -582,34 +570,6 @@ def mocked_connect(uploaded_file: File) -> Connect:
         },
         {"event": "on_chat_model_stream", "tags": [FINAL_RESPONSE_TAG], "data": {"chunk": Token(content="Mr. Amor.")}},
         {"event": "on_chain_end", "tags": [ROUTE_NAME_TAG], "data": {"output": {"route_name": "gratitude"}}},
-        {
-            "event": "on_retriever_end",
-            "tags": [SOURCE_DOCUMENTS_TAG],
-            "data": {
-                "output": [
-                    Document(
-                        metadata={"uri": uploaded_file.unique_name},
-                        page_content="Good afternoon Mr Amor",
-                    )
-                ]
-            },
-        },
-        {
-            "event": "on_retriever_end",
-            "tags": [SOURCE_DOCUMENTS_TAG],
-            "data": {
-                "output": [
-                    Document(
-                        metadata={"uri": uploaded_file.unique_name},
-                        page_content="Good afternoon Mr Amor",
-                    ),
-                    Document(
-                        metadata={"uri": uploaded_file.unique_name, "page_number": [34, 35]},
-                        page_content="Good afternoon Mr Amor",
-                    ),
-                ]
-            },
-        },
         {
             "event": "on_custom_event",
             "name": "on_metadata_generation",
@@ -632,7 +592,7 @@ def mocked_connect(uploaded_file: File) -> Connect:
 
 
 @pytest.fixture()
-def mocked_connect_with_naughty_citation(uploaded_file: File) -> CannedGraphLLM:
+def mocked_connect_with_naughty_citation() -> CannedGraphLLM:
     responses = [
         {
             "event": "on_chat_model_stream",
@@ -640,22 +600,6 @@ def mocked_connect_with_naughty_citation(uploaded_file: File) -> CannedGraphLLM:
             "data": {"chunk": Token(content="Good afternoon, Mr. Amor.")},
         },
         {"event": "on_chain_end", "tags": [ROUTE_NAME_TAG], "data": {"output": {"route_name": "gratitude"}}},
-        {
-            "event": "on_retriever_end",
-            "tags": [SOURCE_DOCUMENTS_TAG],
-            "data": {
-                "output": [
-                    Document(
-                        metadata={"uri": uploaded_file.unique_name},
-                        page_content="Good afternoon Mr Amor",
-                    ),
-                    Document(
-                        metadata={"uri": uploaded_file.unique_name},
-                        page_content="I shouldn't send a \x00",
-                    ),
-                ]
-            },
-        },
     ]
 
     return CannedGraphLLM(responses=responses)

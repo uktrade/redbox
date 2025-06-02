@@ -1,8 +1,6 @@
-{% macro chat_history_heading (text) %}
-    <h3 class="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-1 chat-history-subheading">{{ text }}</h3>
-    <!-- <ul class="rb-chat-history__container"> -->
-        {{ caller() }}
-    <!-- </ul> -->
+{% macro chat_history_heading(text) %}
+    <h3 class="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-1 {% if text|lower == 'previous' or text|lower == 'today' %}chat-history-subheading--no-border{% else %}chat-history-subheading{% endif %}">{{ text }}</h3>
+    {{ caller() }}
 {% endmacro %}
 
 

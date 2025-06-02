@@ -2,10 +2,22 @@
 
 import "../loading-message.js";
 
+window.addEventListener('load', () => {
+  const scrollPosition = sessionStorage.getItem('scrollPosition');
+  if (scrollPosition !== null) {
+    window.scrollTo({
+      top: parseInt(scrollPosition),
+      behavior: 'instant'
+    });
+    sessionStorage.removeItem('scrollPosition');
+  }
+});
+
 export class ChatMessage extends HTMLElement {
   constructor() {
     super();
     this.programmaticScroll = false;
+    this.streamedContent = "";
   }
 
   connectedCallback() {
@@ -132,12 +144,24 @@ export class ChatMessage extends HTMLElement {
   ) => {
     // Scroll behaviour - depending on whether user has overridden this or not
     let scrollOverride = false;
+    function reloadAtCurrentPosition() {
+      sessionStorage.setItem('scrollPosition', window.scrollY.toString());
+      location.reload();
+    }    
     window.addEventListener("scroll", (evt) => {
       if (this.programmaticScroll) {
         this.programmaticScroll = false;
         return;
       }
       scrollOverride = true;
+    });
+
+    window.addEventListener('load', () => {
+      const scrollPosition = sessionStorage.getItem('scrollPosition');
+      if (scrollPosition !== null) {
+        window.scrollTo(0, parseInt(scrollPosition));
+        sessionStorage.removeItem('scrollPosition');
+      }
     });
 
     this.responseContainer =
@@ -154,7 +178,6 @@ export class ChatMessage extends HTMLElement {
     let actionsContainer = this.querySelector(".chat-actions-container")
     let responseComplete = this.querySelector(".rb-loading-complete");
     let webSocket = new WebSocket(endPoint);
-    let streamedContent = "";
 
     // Stop streaming on escape-key or stop-button press
     const stopStreaming = () => {
@@ -213,15 +236,15 @@ export class ChatMessage extends HTMLElement {
       }
 
       if (response.type === "text") {
-        streamedContent += response.data;
-        this.responseContainer?.update(streamedContent);
+        this.streamedContent += response.data;
+        this.responseContainer?.update(this.streamedContent);
       } else if (response.type === "session-id") {
         chatControllerRef.dataset.sessionId = response.data;
       } else if (response.type === "source") {
         sourcesContainer.add(
           response.data.file_name,
           response.data.url,
-          response.data.text_in_answer
+          response.data.text_in_answer || ""
         );
       } else if (response.type === "route") {
         // Update the route text on the page now the selected route is known
@@ -247,7 +270,7 @@ export class ChatMessage extends HTMLElement {
           actionsContainer.appendChild(copyText)
 
       }
-        this.#addFootnotes(streamedContent,response.data.message_id);
+        this.#addFootnotes(this.streamedContent, response.data.message_id);
         const chatResponseEndEvent = new CustomEvent("chat-response-end", {
           detail: {
             title: response.data.title,
@@ -255,7 +278,7 @@ export class ChatMessage extends HTMLElement {
           },
         });
         document.dispatchEvent(chatResponseEndEvent);
-        location.reload()
+        reloadAtCurrentPosition();
       } else if (response.type === "error") {
         this.querySelector(".govuk-notification-banner")?.removeAttribute(
           "hidden"

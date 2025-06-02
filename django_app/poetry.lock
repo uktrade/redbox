@@ -858,6 +858,17 @@ types-awscrt = "*"
 botocore = ["botocore"]
 
 [[package]]
+name = "breame"
+version = "0.1.2"
+description = "Breame is a lightweight Python package with a number of tools to aid in the detection of words that have dual spellings and meanings in British and American English."
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "breame-0.1.2.tar.gz", hash = "sha256:b6a2cbb390743ab0d7551a4a2ad1bcb7f3126b2d0f5bfa14ae0b4ddb990d8fa6"},
+]
+
+[[package]]
 name = "celery"
 version = "5.5.0"
 description = "Distributed Task Queue."
@@ -5566,14 +5577,14 @@ tests = ["coverage[toml] (>=5.0.2)", "pytest"]
 
 [[package]]
 name = "setuptools"
-version = "78.1.0"
+version = "78.1.1"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev"]
 files = [
-    {file = "setuptools-78.1.0-py3-none-any.whl", hash = "sha256:3e386e96793c8702ae83d17b853fb93d3e09ef82ec62722e61da5cd22376dcd8"},
-    {file = "setuptools-78.1.0.tar.gz", hash = "sha256:18fd474d4a82a5f83dac888df697af65afa82dec7323d09c3e37d1f14288da54"},
+    {file = "setuptools-78.1.1-py3-none-any.whl", hash = "sha256:c3a9c4211ff4c309edb8b8c4f1cbfa7ae324c4ba9f91ff254e3d305b9fd54561"},
+    {file = "setuptools-78.1.1.tar.gz", hash = "sha256:fcc17fd9cd898242f6b4adfaca46137a9edef687f43e6f78469692a5e70d851d"},
 ]
 
 [package.extras]
@@ -6207,6 +6218,21 @@ socks = ["pysocks (>=1.5.6,!=1.5.7,<2.0)"]
 zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
+name = "uwotm8"
+version = "0.1.4"
+description = "Converting American English to British English"
+optional = false
+python-versions = "<4.0,>=3.9"
+groups = ["main"]
+files = [
+    {file = "uwotm8-0.1.4-py3-none-any.whl", hash = "sha256:cb323a7b21c17629a9c1bad9aebdf2b29b0bc09ed7316ed50d002e3e9ea09ae9"},
+    {file = "uwotm8-0.1.4.tar.gz", hash = "sha256:a3e5b86d69517a8f0ca025e5e33ae12348490179e464368ad6f6780637de6880"},
+]
+
+[package.dependencies]
+breame = ">=0.1.2,<0.2.0"
+
+[[package]]
 name = "vine"
 version = "5.1.0"
 description = "Python promises."
@@ -6828,4 +6854,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "a0690c55f13d4ad31e3cadef07ba2f5b54190db73964a955515569a3b4a943d6"
+content-hash = "1a546ce4942bf194602ac5703101ea827a54d71b404ae985d5670ed86bc6855d"

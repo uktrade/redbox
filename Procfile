@@ -1,2 +1,2 @@
-redbox-django-app: cd django_app && bash start-aws.sh
-redbox-worker: cd django_app && bash start-aws.sh
+web: bash start-aws.sh
+redbox-worker: bash start-aws.sh

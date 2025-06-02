@@ -108,58 +108,68 @@ export class FeedbackButtons extends HTMLElement {
     /** @type {NodeListOf<HTMLElement>} */
     let chipPanels = document.querySelector(`.feedback__chips-container-${this.dataset.id}`);
     if (!chipPanels) {
-    this.closest(".chat-actions-container").insertAdjacentHTML("afterend",`<div class="feedback-container feedback-container--2" tabindex="-1">
-      <fieldset class="feedback__chips-container feedback__chips-container-${this.dataset.id} feedback__negative">
-        <legend class="feedback__chips-legend">Select all that apply about the response</legend>
-        <div class="feedback__chips-inner-container">
-          <!-- Factuality Group -->
-          <div class="feedback__chip-group">
-            <input class="feedback__chip" type="checkbox" id="chip1-factual-${this.dataset.id}" data-testid="Factual" />
-            <label class="feedback__chip-label" for="chip1-factual-${this.dataset.id}">Factual</label>
-            <input class="feedback__chip" type="checkbox" id="chip2-inaccurate-${this.dataset.id}" data-testid="Inaccurate" />
-            <label class="feedback__chip-label" for="chip2-inaccurate-${this.dataset.id}">Inaccurate</label>
+    this.closest(".chat-actions-container").insertAdjacentHTML("afterend",`
+      <div class="govuk-form-group feedback-container feedback-container--2" tabindex="-1">
+        <fieldset class="govuk-fieldset feedback__chips-container feedback__chips-container-${this.dataset.id} feedback__negative">
+          <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Select all that apply about the response</legend>
+          <div class="radio-groups-container">
+            <!-- Factuality Group -->
+            <div class="govuk-radios radio-flex-container feedback__chip-group">
+              <div class="govuk-radios__item">
+                <input type="radio" class="feedback__chip govuk-radios__input" id="radio1-mostlycorrect-${this.dataset.id}" data-testid="Mostly Correct" name="correctness" />
+                <label class="feedback__chip-label govuk-radios__label" for="radio1-mostlycorrect-${this.dataset.id}">Mostly Correct</label>
+              </div>
+              <div class="govuk-radios__item">
+                <input type="radio" class="feedback__chip govuk-radios__input" id="radio2-mostlyincorrect-${this.dataset.id}" data-testid="Mostly Incorrect" name="correctness" />
+                <label class="feedback__chip-label govuk-radios__label" for="radio2-mostlyincorrect-${this.dataset.id}">Mostly Incorrect</label>
+              </div>
+            </div>
+            <!-- Completeness Group -->
+            <div class="govuk-radios radio-flex-container feedback__chip-group">
+              <div class="govuk-radios__item">
+                <input type="radio" class="feedback__chip govuk-radios__input" id="radio3-complete-${this.dataset.id}" data-testid="Complete" name="completeness" />
+                <label class="feedback__chip-label govuk-radios__label" for="radio3-complete-${this.dataset.id}">Complete</label>
+              </div>
+              <div class="govuk-radios__item">
+                <input type="radio" class="feedback__chip govuk-radios__input" id="radio4-incomplete-${this.dataset.id}" data-testid="Incomplete" name="completeness" />
+                <label class="feedback__chip-label govuk-radios__label" for="radio4-incomplete-${this.dataset.id}">Incomplete</label>
+              </div>
+            </div>
+            <!-- Structure Group -->
+            <div class="govuk-radios radio-flex-container feedback__chip-group">
+              <div class="govuk-radios__item">
+                <input type="radio" class="feedback__chip govuk-radios__input" id="radio5-structured-${this.dataset.id}" data-testid="Well-organised" name="structured" />
+                <label class="feedback__chip-label govuk-radios__label" for="radio5-structured-${this.dataset.id}">Well-organised</label>
+              </div>
+              <div class="govuk-radios__item">
+                <input type="radio" class="feedback__chip govuk-radios__input" id="radio6-unstructured-${this.dataset.id}" data-testid="Confusing" name="structured" />
+                <label class="feedback__chip-label govuk-radios__label" for="radio6-unstructured-${this.dataset.id}">Confusing</label>
+              </div>
+            </div>
           </div>
-          <!-- Completeness Group -->
-          <div class="feedback__chip-group">
-            <input class="feedback__chip" type="checkbox" id="chip3-complete-${this.dataset.id}" data-testid="Complete" />
-            <label class="feedback__chip-label" for="chip3-complete-${this.dataset.id}">Complete</label>
-            <input class="feedback__chip" type="checkbox" id="chip4-incomplete-${this.dataset.id}" data-testid="Incomplete" />
-            <label class="feedback__chip-label" for="chip4-incomplete-${this.dataset.id}">Incomplete</label>
-          </div>
-          <!-- Structure Group -->
-          <div class="feedback__chip-group">
-            <input class="feedback__chip" type="checkbox" id="chip5-structured-${this.dataset.id}" data-testid="Structured" />
-            <label class="feedback__chip-label" for="chip5-structured-${this.dataset.id}">Followed instructions</label>
-            <input class="feedback__chip" type="checkbox" id="chip6-unstructured-${this.dataset.id}" data-testid="Unstructured" />
-            <label class="feedback__chip-label" for="chip6-unstructured-${this.dataset.id}">Not as instructed</label>
-          </div>
-        </div>
-      </fieldset>
-    <div class="feedback__text-area feedback__text-area-${this.dataset.id}">
-        <label for="text-${this.dataset.id}">Or describe with your own words:</label>
-        <textarea class="feedback__text-input" id="text-${this.dataset.id}" rows="1"></textarea>
+        </fieldset>
         <button class="feedback__submit-btn" id="submit-button-${this.dataset.id}" type="button">Submit</button>
-    </div>
-    </div>`)}
+      </div>`)}
 
     this.#addChipEvents();
     this.#addSubmitEvent();
   }
 
   #collectChips() {
-    let chatController = this.closest("chat-controller")
+    let chatController = this.closest("chat-controller");
     this.collectedData.chips = [];
-    /** @type {NodeListOf<HTMLInputElement>} */
-    let chips = chatController.querySelectorAll(".feedback__chip");
-    chips.forEach((chip) => {
-      if (chip.checked) {
-        const label = chatController.querySelector(`[for="${chip.id}"]`);
+  
+    let chipGroups = chatController.querySelectorAll(".feedback__chip-group");
+    chipGroups.forEach((group) => {
+      let selectedChip = group.querySelector(".feedback__chip:checked");
+      if (selectedChip) {
+        const label = chatController.querySelector(`[for="${selectedChip.id}"]`);
         if (label) {
           this.collectedData.chips.push(label.textContent?.trim() || "");
         }
       }
     });
-  }
+  }  
 
 
   #addChipEvents() {
@@ -174,6 +184,8 @@ export class FeedbackButtons extends HTMLElement {
               otherChip.checked = false;
             }
           });
+
+          this.#collectChips();
 
           if (this.collectedData.rating > 0) {
             this.#sendFeedback();

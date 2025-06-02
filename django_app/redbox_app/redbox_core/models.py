@@ -391,6 +391,7 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
     last_name = models.CharField(max_length=48)
     business_unit = models.CharField(null=True, blank=True, max_length=100, choices=BusinessUnit)
     grade = models.CharField(null=True, blank=True, max_length=3, choices=UserGrade)
+    uk_or_us_english = models.BooleanField(default=True)
     name = models.CharField(null=True, blank=True)
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -580,7 +581,7 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
 
     @property
     def url(self) -> str:
-        return self.original_file.url
+        return self.original_file.url if self.original_file else ""
 
     @property
     def file_name(self) -> str:
@@ -588,11 +589,14 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
             return self.original_file_name
 
         # could have a stronger (regex?) way of stripping the users email address?
-        if "/" in self.original_file.name:
+        if self.original_file and "/" in self.original_file.name:
             return self.original_file.name.split("/")[1]
 
-        logger.error("expected filename=%s to start with the user's email address", self.original_file.name)
-        return self.original_file.name
+        if self.original_file:
+            logger.error("expected filename=%s to start with the user's email address", self.original_file.name)
+            return self.original_file.name
+
+        return ""
 
     @property
     def unique_name(self) -> str:
@@ -602,7 +606,7 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
                 "User tried to delete %s with status %s, it has already been deleted", self.pk, self.status
             )
             raise InactiveFileError(self)
-        return self.original_file.name
+        return self.original_file.name if self.original_file else ""
 
     def get_status_text(self) -> str:
         permanent_error = "Error"
@@ -752,6 +756,11 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         blank=True,
         help_text="the part of the answer the citation refers too - useful for adding in footnotes",
     )
+    citation_name = models.TextField(
+        null=True,
+        blank=True,
+        help_text="the unique name of the citation in the format 'ref_N' where N is a strictly incrementing number starting from 1",  # noqa: E501
+    )
 
     def __str__(self):
         text = self.text or "..."
@@ -861,12 +870,21 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
                 return str(citation.uri)
             return citation.file.file_name
 
-        return sorted(
-            {
-                (get_display(citation), citation.uri, citation.id, citation.text_in_answer)
-                for citation in self.citation_set.all()
-            }
-        )
+        try:
+            return sorted(
+                {
+                    (get_display(citation), citation.uri, citation.id, citation.text_in_answer, citation.citation_name)
+                    for citation in self.citation_set.all()
+                },
+                key=lambda x: x[-1],
+            )
+        except TypeError:
+            return sorted(
+                {
+                    (get_display(citation), citation.uri, citation.id, citation.text_in_answer, citation.citation_name)
+                    for citation in self.citation_set.all()
+                }
+            )
 
 
 class ChatMessageTokenUse(UUIDPrimaryKeyBase, TimeStampedModel):

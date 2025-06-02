@@ -19,6 +19,7 @@ class SignUpForm(forms.ModelForm):
             "business_unit",
             "role",
             "grade",
+            "uk_or_us_english",
             "profession",
             "accessibility_options",
             "accessibility_categories",
@@ -67,6 +68,7 @@ class SignUpForm(forms.ModelForm):
             "business_unit": "What Business Unit are you part of",
             "role": "What's your role?",
             "grade": "What Grade (or equivalent) are you?",
+            "uk_or_us_english": "British English enabled",
             "profession": "What profession do you most identify with?",
             "accessibility_options": "Do you have any conditions or disabilities which may have an impact on your day to day life?",  # noqa: E501
             "accessibility_categories": "If you answered 'yes', which of the following categories would you class yourself in?",  # noqa: E501
@@ -115,6 +117,7 @@ class SignUpForm(forms.ModelForm):
             "business_unit": forms.Select(attrs={"class": "govuk-select"}),
             "role": forms.TextInput(attrs={"class": "govuk-input govuk-!-width-one-half"}),
             "grade": forms.Select(attrs={"class": "govuk-select"}),
+            "uk_or_us_english": forms.CheckboxInput(attrs={"class": "govuk-checkboxes__input"}),
             "profession": forms.Select(attrs={"class": "govuk-select"}),
             "accessibility_options": forms.RadioSelect(attrs={"class": "govuk-radios__item"}),
             "accessibility_categories": forms.TextInput(attrs={"class": "govuk-checkboxes__item"}),
@@ -169,6 +172,7 @@ class DemographicsForm(forms.ModelForm):
             "business_unit",
             "role",
             "grade",
+            "uk_or_us_english",
             "profession",
             "info_about_user",
             "redbox_response_preferences",
@@ -179,18 +183,20 @@ class DemographicsForm(forms.ModelForm):
             "business_unit": "Business Unit",
             "role": "Role",
             "grade": "Grade",
+            "uk_or_us_english": "British English enabled",
             "profession": "Profession",
             "info_about_user": "What do you want Redbox to know about you?",
             "redbox_response_preferences": "How do you want Redbox to respond?",
         }
         widgets: ClassVar[Mapping[str, forms.Widget]] = {
-            "name": forms.TextInput(attrs={"class": "govuk-input govuk-!-width-one-half"}),
+            "name": forms.TextInput(attrs={"class": "govuk-input govuk-!-width-two-thirds"}),
             "ai_experience": forms.RadioSelect(attrs={"class": "govuk-radios__item"}),
-            "business_unit": forms.Select(attrs={"class": "govuk-select"}),
-            "role": forms.TextInput(attrs={"class": "govuk-input govuk-!-width-one-half"}),
-            "grade": forms.Select(attrs={"class": "govuk-select"}),
-            "profession": forms.Select(attrs={"class": "govuk-select"}),
-            "info_about_user": forms.Textarea(attrs={"class": "govuk-textarea govuk-!-width-one-half", "rows": "5"}),
+            "business_unit": forms.Select(attrs={"class": "govuk-select govuk-!-width-two-thirds"}),
+            "role": forms.TextInput(attrs={"class": "govuk-input govuk-!-width-two-thirds"}),
+            "grade": forms.Select(attrs={"class": "govuk-select govuk-!-width-two-thirds"}),
+            "uk_or_us_english": forms.CheckboxInput(attrs={"class": "govuk-checkboxes__input"}),
+            "profession": forms.Select(attrs={"class": "govuk-select govuk-!-width-two-thirds"}),
+            "info_about_user": forms.Textarea(attrs={"class": "govuk-textarea govuk-!-width-two-thirds", "rows": "5"}),
             "redbox_response_preferences": forms.Textarea(
                 attrs={"class": "govuk-textarea govuk-!-width-one-half", "rows": "5"}
             ),

@@ -69,6 +69,9 @@ class AISettings(BaseModel):
     new_route_retrieval_question_prompt: str = prompts.NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT
     llm_decide_route_prompt: str = prompts.LLM_DECIDE_ROUTE
     citation_prompt: str = prompts.CITATION_PROMPT
+    planner_system_prompt: str = prompts.PLANNER_PROMPT
+    planner_question_prompt: str = prompts.PLANNER_QUESTION_PROMPT
+    planner_format_prompt: str = prompts.PLANNER_FORMAT_PROMPT
 
     # Elasticsearch RAG and boost values
     rag_k: int = 30
@@ -109,6 +112,10 @@ class Source(BaseModel):
         description="Direct quote from the provided document (20+ words)", default=""
     )
     page_numbers: list[int] = Field(description="Page Number in document the highlighted text is on", default=[1])
+    ref_id: str = Field(
+        description="The Reference ID in the format 'ref_N' where N is a strictly incrementing number starting from 1",
+        default="",
+    )
 
 
 class Citation(BaseModel):
@@ -256,6 +263,7 @@ def metadata_reducer(
 
 class RedboxState(BaseModel):
     request: RedboxQuery
+    user_feedback: str = ""
     documents: Annotated[DocumentState, document_reducer] = DocumentState()
     route_name: str | None = None
     metadata: Annotated[RequestMetadata | None, metadata_reducer] = None
@@ -282,6 +290,7 @@ class PromptSet(StrEnum):
     SelfRoute = "self_route"
     CondenseQuestion = "condense_question"
     NewRoute = "new_route"
+    Planner = "planner"
 
 
 def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str, str]:
@@ -309,6 +318,7 @@ def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str, st
     elif prompt_set == PromptSet.SelfRoute:
         system_prompt = state.request.ai_settings.self_route_system_prompt
         question_prompt = state.request.ai_settings.retrieval_question_prompt
+        format_prompt = state.request.ai_settings.citation_prompt
     elif prompt_set == PromptSet.CondenseQuestion:
         system_prompt = state.request.ai_settings.condense_system_prompt
         question_prompt = state.request.ai_settings.condense_question_prompt
@@ -316,6 +326,10 @@ def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str, st
         system_prompt = state.request.ai_settings.new_route_retrieval_system_prompt
         question_prompt = state.request.ai_settings.new_route_retrieval_question_prompt
         format_prompt = state.request.ai_settings.citation_prompt
+    elif prompt_set == PromptSet.Planner:
+        system_prompt = state.request.ai_settings.planner_system_prompt
+        question_prompt = state.request.ai_settings.planner_question_prompt
+        format_prompt = state.request.ai_settings.planner_format_prompt
     return (system_prompt, question_prompt, format_prompt)
 
 
@@ -423,3 +437,4 @@ class AgentTask(BaseModel):
 
 class MultiAgentPlan(BaseModel):
     tasks: List[AgentTask] = Field(description="A list of tasks to be carried out by agents", default=[])
+    model_config = {"extra": "forbid"}

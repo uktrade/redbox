@@ -34,10 +34,10 @@ from redbox.graph.nodes.processes import (
     build_stuff_pattern,
     clear_documents_process,
     create_evaluator,
-    create_planner,
     empty_process,
     invoke_custom_state,
     lm_choose_route,
+    my_planner,
     report_sources_process,
     combine_question_evaluator,
 )
@@ -51,7 +51,8 @@ from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
 from redbox.models.chain import AgentDecision, AISettings, PromptSet, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
-from redbox.models.prompts import INTERNAL_RETRIEVAL_AGENT_PROMPT, EXTERNAL_RETRIEVAL_AGENT_PROMPT
+from redbox.models.prompts import EXTERNAL_RETRIEVAL_AGENT_PROMPT, INTERNAL_RETRIEVAL_AGENT_PROMPT
+from redbox.models.settings import get_settings
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
 
@@ -84,6 +85,7 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
     builder.add_node("is_self_route_enabled", empty_process)
     builder.add_node("any_documents_selected", empty_process)
     builder.add_node("llm_choose_route", empty_process)
+    builder.add_node("no_user_feedback", empty_process)
 
     builder.add_node(
         "log_user_request",
@@ -101,7 +103,10 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
     # edges
     builder.add_edge(START, "log_user_request")
     builder.add_edge(START, "retrieve_metadata")
-    builder.add_edge("retrieve_metadata", "has_keyword")
+    builder.add_edge("retrieve_metadata", "no_user_feedback")
+    builder.add_conditional_edges(
+        "no_user_feedback", lambda s: s.user_feedback == "", {True: "has_keyword", False: "new_route_graph"}
+    )
     builder.add_conditional_edges(
         "has_keyword",
         build_keyword_detection_conditional(*ROUTABLE_KEYWORDS.keys()),
@@ -232,6 +237,7 @@ def get_search_graph(
     )
     builder.add_node("is_using_search_keyword", empty_process)
 
+    builder.add_node("empty_docs_returned", empty_process)
     # Edges
     builder.add_edge(START, "llm_generate_query")
     builder.add_edge("llm_generate_query", "retrieve_documents")
@@ -242,8 +248,15 @@ def get_search_graph(
     builder.add_conditional_edges(
         "is_self_route_on",
         lambda s: s.request.ai_settings.self_route_enabled,
-        {True: "check_if_RAG_can_answer", False: "llm_answer_question"},
+        {True: "empty_docs_returned", False: "llm_answer_question"},
     )
+
+    builder.add_conditional_edges(
+        "empty_docs_returned",
+        lambda s: len(s.documents.groups) == 0,
+        {True: "set_route_to_summarise", False: "check_if_RAG_can_answer"},
+    )
+
     builder.add_edge("llm_answer_question", "report_citations")
     builder.add_edge("report_citations", "set_route_to_search")
 
@@ -822,8 +835,18 @@ def build_new_graph(
     debug: bool = False,
 ) -> CompiledGraph:
     agents_max_tokens = AISettings().agents_max_tokens
+    allow_plan_feedback = get_settings().allow_plan_feedback
+
     builder = StateGraph(RedboxState)
-    builder.add_node("planner", create_planner())
+    builder.add_node("remove_keyword", strip_route)
+    builder.add_node(
+        "planner",
+        my_planner(
+            allow_plan_feedback=allow_plan_feedback,
+            node_after_streamed="waiting_for_feedback",
+            node_afer_replan="sending_task",
+        ),
+    )
     builder.add_node(
         "Internal_Retrieval_Agent",
         build_agent(
@@ -863,13 +886,16 @@ def build_new_graph(
         report_sources_process,
         retry=RetryPolicy(max_attempts=3),
     )
-
-    builder.add_edge(START, "planner")
-    builder.add_conditional_edges("planner", sending_task_to_agent)
+    builder.add_node("waiting_for_feedback", empty_process)
+    builder.add_node("sending_task", empty_process)
+    builder.add_edge(START, "remove_keyword")
+    builder.add_edge("remove_keyword", "planner")
+    builder.add_conditional_edges("sending_task", sending_task_to_agent)
     builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
     builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
+    builder.add_edge("waiting_for_feedback", END)
 
     return builder.compile(debug=debug)

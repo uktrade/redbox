@@ -64,7 +64,7 @@
       product_name = "Redbox@DBT",
       menu_items = [
       {"text": "Documents", "href": url('documents')},
-      {"text": "Chats", "href": url('chats')},
+      {"text": "Chat", "href": url('chats')},
       {"text": "My details", "href": url('demographics')},
       {"text": "Sign out", "href": url('signed-out')},
 
@@ -82,7 +82,7 @@
   {% endif %}
 
 
-  <main class="govuk-main-wrapper govuk-main-wrapper--auto-spacing" id="main-content" role="main">
+  <main id="main-content" role="main" class="govuk-main-wrapper govuk-main-wrapper--auto-spacing">
     {% block content %}
     {% endblock %}
   </main>

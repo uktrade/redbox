@@ -1,10 +1,10 @@
+from asyncio import CancelledError
 from logging import getLogger
 from typing import Literal
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-from asyncio import CancelledError
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from redbox.chains.components import (
     get_all_chunks_retriever,
@@ -19,14 +19,12 @@ from redbox.models.chat import ChatRoute
 from redbox.models.file import ChunkResolution
 from redbox.models.graph import (
     FINAL_RESPONSE_TAG,
-    SUMMARY_MULTIAGENT_TAG,
     ROUTABLE_KEYWORDS,
     ROUTE_NAME_TAG,
-    SOURCE_DOCUMENTS_TAG,
+    SUMMARY_MULTIAGENT_TAG,
     RedboxEventType,
 )
 from redbox.models.settings import Settings, get_settings
-from redbox.transform import flatten_document_state
 
 
 async def _default_callback(*args, **kwargs):
@@ -128,7 +126,6 @@ class Redbox:
                 kind = event["event"]
                 tags = event.get("tags", [])
                 try:
-                    logger.debug("this is just showing this is happening")
                     if kind == "on_chat_model_stream" and FINAL_RESPONSE_TAG in tags:
                         content = event["data"]["chunk"].content
                         if isinstance(content, str):
@@ -157,11 +154,6 @@ class Redbox:
 
                     elif kind == "on_chain_end" and ROUTE_NAME_TAG in tags:
                         await route_name_callback(event["data"]["output"]["route_name"])
-                    elif kind == "on_retriever_end" and SOURCE_DOCUMENTS_TAG in tags:
-                        await documents_callback(event["data"]["output"])
-                    elif kind == "on_tool_end" and SOURCE_DOCUMENTS_TAG in tags:
-                        documents = flatten_document_state(event["data"]["output"].get("documents", {}))
-                        await documents_callback(documents)
                     elif kind == "on_custom_event" and event["name"] == RedboxEventType.on_source_report.value:
                         await documents_callback(event["data"])
                     elif kind == "on_custom_event" and event["name"] == RedboxEventType.on_citations_report.value:
@@ -181,6 +173,10 @@ class Redbox:
                 is_summary_multiagent_streamed=is_summary_multiagent_streamed,
                 is_evaluator_output_streamed=is_evaluator_output_streamed,
             )
+            try:
+                _ = final_state.messages[-1].content
+            except Exception as _:
+                logger.exception("LLM Error - Blank Response")
         except CancelledError:
             logger.error("All retries exhausted for CancelledError in the astream_events function")
             raise

@@ -53,6 +53,7 @@ class UserAdmin(ImportExportMixin, admin.ModelAdmin):
                     "ai_experience",
                     "business_unit",
                     "grade",
+                    "uk_or_us_english",
                     "profession",
                     "is_superuser",
                     "is_staff",
@@ -149,11 +150,12 @@ class UserAdmin(ImportExportMixin, admin.ModelAdmin):
         "email",
         "business_unit",
         "grade",
+        "uk_or_us_english",
         "profession",
         "is_developer",
         "last_login",
     ]
-    list_filter = ["business_unit", "grade", "profession"]
+    list_filter = ["business_unit", "grade", "uk_or_us_english", "profession"]
     date_hierarchy = "last_login"
 
     @admin.display(ordering="ai_experience", description="AI Experience")

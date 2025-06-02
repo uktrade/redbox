@@ -16,9 +16,10 @@ CHAT_WITH_DOCS_SYSTEM_PROMPT = "You are tasked with providing information object
 CITATION_PROMPT = """Use citations to back up your answer when available. Return response in the following format: {format_instructions}.
 Example response:
 - If citations are available: {{"answer": your_answer, "citations": [list_of_citations]}}.
+- Each citation must be shown in the answer using a unique identifier in the format "ref_N" where N is an incrementing number starting from 1.
 - If no citations are available or needed, return an empty array for citations like this: {{"answer": your_answer, "citations": []}}.
-
-Assistant:<sonnet>"""
+Do not provide citation from your own knowledge.
+Assistant:<haiku>"""
 
 CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
     "You are tasked with answering questions on user provided documents. "
@@ -31,9 +32,30 @@ CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
 )
 
 RETRIEVAL_SYSTEM_PROMPT = """
-   Answer my question using only the documents I provide. <My_Documents>{formatted_documents}</My_Documents>
+   Provide a comprehensive answer to user's question based ONLY on the information contained in the provided documents.
+
+   If the information needed to answer the question is not present in the provided documents, state {{"answer": The provided documents do not contain sufficient information to answer this question., "citations": []}}
+
+   Do not use any prior knowledge or information not contained in the provided documents.
+
+   <Provided_Documents>{formatted_documents}</Provided_Documents>.
    """
 
+SELF_ROUTE_SYSTEM_PROMPT = """
+   Evaluate if you can answer user's question based ONLY on the information contained in the provided documents. Do not use any prior knowledge or information not contained in the provided documents.
+
+   <Provided_Documents>{formatted_documents}</Provided_Documents>.
+
+   Choosing one of the following option below:
+
+   1. You are unable to answer using the provided documents, state {{"answer": unanswerable, "citations": []}}
+
+   OR
+
+   2. You are able to answer. Provide a comprehensive answer to user's question based ONLY on the information contained in the provided documents. Include proper citations for each factual claim.
+   """
+
+RETRIEVAL_QUESTION_PROMPT = "<User_question>From the provided documents, {question}</User_question>"
 
 NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context."""
 
@@ -101,30 +123,6 @@ AGENTIC_GIVE_UP_SYSTEM_PROMPT = (
     "Remember: While your priority is to answer the question, sometimes the best assistance involves "
     "guiding the user in providing the information needed for a complete solution."
 )
-
-SELF_ROUTE_SYSTEM_PROMPT = """
-   Evaluate if you can answer my question using only the documents I provide in <My_Documents>{formatted_documents}</My_Documents>.
-
-   Choosing one option below:
-
-   1. You are not able to answer, return the word "unanswerable". No explanation.
-
-   OR
-
-   2. You are able to answer. Include proper citations for each factual claim. Return ONLY the JSON structure:
-   {format_instructions}. DO NOT start by saying: 'Here is the JSON response', just return JSON.
-
-      Requirements:
-
-      - Only cite information from the documents I provide in <My_Documents>
-      - Each citation must match exact text in your answer
-      - Include substantial quotes from the documents (20+ words minimum)
-      - Specify page numbers when available
-      - Do not reference external sources beyond what I provide in <My_Documents>
-
-   Remember: Only use information from documents. If the information isn't there, only return the word: "unanswerable".
-   """
-
 CHAT_MAP_SYSTEM_PROMPT = (
     "Your goal is to extract the most important information and present it in "
     "a concise and coherent manner. Please follow these guidelines while summarizing: \n"
@@ -192,7 +190,6 @@ CHAT_QUESTION_PROMPT = "{question}\n=========\n Response: "
 
 CHAT_WITH_DOCS_QUESTION_PROMPT = "Question: {question}. \n\n Documents: \n\n {formatted_documents} \n\n Answer: "
 
-RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
 AGENTIC_RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
@@ -228,6 +225,7 @@ Execution Strategy:
    - Make a targeted, focused tool call
 4. Produce the expected output with maximum accuracy and efficiency. Only use information obtained from tools.
 
+<Document_Metadata>{metadata}</Document_Metadata>
 """
 
 EXTERNAL_RETRIEVAL_AGENT_PROMPT = """You are an expert information analyst with the ability to critically assess when and how to retrieve information. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
@@ -249,7 +247,21 @@ Execution Strategy:
 2. Produce the expected output with maximum accuracy and efficiency. Only use information obtained from tools.
 """
 
-PLANNER_PROMPT = """
+WORKER_AGENTS_PROMPT = """
+## Available agents and their responsibilities
+
+When creating your execution plan, you have access to the following specialised agents:
+
+1. **Internal_Retrieval_Agent**: solely responsible for retrieving information from user's uploaded documents. It does not summarise documents.
+2. **External_Retrieval_Agent**: solely responsible for retrieving information outside of user's uploaded documents, specifically from external data sources:
+      - Wikipedia
+      - gov.uk
+      - legislation.gov.uk
+3. **Summarisation_Agent**: solely responsible for summarising entire user's uploaded documents. It does not summarise outputs from other agents.
+"""
+
+PLANNER_PROMPT = (
+    """
 You are an advanced orchestration agent designed to decompose complex user goals into logical sub-tasks and coordinate specialised agents to accomplish them. Your primary responsibility is to create and manage execution plans that achieve the user's objectives by determining which agents to call, in what order, and how to integrate their outputs.
 
 Operational Framework
@@ -267,27 +279,14 @@ Operational Framework
 - Select the most appropriate agent for each sub-task from the available agent pool
 - Create a structured execution plan with clear success criteria for each step
 
-
-## Available agents and their responsibilities
-
-When creating your execution plan, you have access to the following specialised agents:
-
-1. **Internal_Retrieval_Agent**: solely responsible for retrieving information from user's uploaded documents. It does not summarise documents.
-2. **External_Retrieval_Agent**: solely responsible for retrieving information outside of user's uploaded documents, specifically from external data sources:
-      - Wikipedia
-      - gov.uk
-      - legislation.gov.uk 
-3. **Summarisation_Agent**: solely responsible for summarising entire user's uploaded documents. It does not summarise outputs from other agents.
-
+"""
+    + WORKER_AGENTS_PROMPT
+    + """
 ## helpful instructions for calling agent
 
 When a user query involves finding information within selected documents (not summarising the documents), ALWAYS route to the Internal_Retrieval_Agent. Only use External_Retrieval_Agent if the query specifically requests external data sources.
 
 If a user asks to summarise a document, ALWAYS call Summarisation_Agent and do not call other agents.
-
-## Output Format
-
-For each user request, provide your response in the following format: {format_instructions}. Do not give explanation, only return list.
 
 ## Guidelines
 
@@ -300,8 +299,27 @@ For each user request, provide your response in the following format: {format_in
 7. Adapt your plan based on the quality and relevance of each agent's output.
 
 Remember that your primary value is in effective coordination and integration - your role is to ensure that the specialised capabilities of each agent are leveraged optimally to achieve the user's goal.
-
-Do not start your answer by saying: here is the plan... Go straight to the point.
-User question: <Question>{question}</Question>.
-User uploaded documents metadata:<Document_Metadata>{metadata}</Document_Metadata>.
 """
+)
+
+PLANNER_QUESTION_PROMPT = """User question: <Question>{question}</Question>.
+User uploaded documents metadata:<Document_Metadata>{metadata}</Document_Metadata>."""
+
+PLANNER_FORMAT_PROMPT = """## Output Format
+For each user request, provide your response in the following format: {format_instructions}. Do not give explanation, only return a list."""
+
+REPLAN_PROMPT = (
+    """You are given "Previous Plan" which is the plan that the previous agent created along with feedback from the user. You MUST use these information to modify the previous plan. Don't add new task in the plan.
+
+    CRITICAL RULES:
+    1. NEVER add new tasks that weren't in the original plan, unless the user asks you to
+    2. NEVER remove tasks from the original recipe
+
+    <Previous_Plan>{previous_plan}</Previous_Plan>
+
+    <User_feedback>{user_feedback}</User_feedback>
+"""
+    + WORKER_AGENTS_PROMPT
+    + PLANNER_FORMAT_PROMPT
+    + PLANNER_QUESTION_PROMPT
+)

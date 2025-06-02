@@ -101,29 +101,6 @@
 .experience-cards input:checked + label:hover::before {
   border-width: 0;
 }
-.experience-cards .govuk-radios__item:nth-child(1) label::before {
-  content: url("/static/icons/ai-experience-cards/Curious.svg");
-}
-.experience-cards .govuk-radios__item:nth-child(2) label::before {
-  content: url("/static/icons/ai-experience-cards/Cautious.svg");
-}
-.experience-cards .govuk-radios__item:nth-child(3) label::before {
-  content: url("/static/icons/ai-experience-cards/Enthusiastic.svg");
-  margin-bottom: 2rem;
-  margin-top: -0.75rem;
-}
-.experience-cards .govuk-radios__item:nth-child(4) label::before {
-  content: url("/static/icons/ai-experience-cards/Experienced.svg");
-}
-.experience-cards .govuk-radios__item:nth-child(5) label::before {
-  content: url("/static/icons/ai-experience-cards/Alchemist.svg");
-}
-.experience-cards input:checked + label::after {
-  content: url("/static/icons/ai-experience-cards/Tick.svg");
-  position: absolute;
-  right: 1rem;
-  top: 1rem;
-}
 .experience-cards .govuk-hint {
   color: var(--iai-colour-text-primary);
   font-size: 0.75rem;

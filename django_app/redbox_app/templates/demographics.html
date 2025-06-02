@@ -6,11 +6,7 @@
 
   <div class="govuk-width-container">
 
-    <div class="govuk-grid-row">
-      <div class="govuk-grid-column-one-third">
         <h1 class="govuk-heading-l">My details</h1>
-      </div>
-    </div>
 
     <form method='post'>
       <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
@@ -22,12 +18,17 @@
         {{ form.name }}
       </div>
 
-      <div class="govuk-form-group">
+      <div class="govuk-form-group  govuk-!-width-two-thirds">
         <fieldset class="govuk-fieldset">
-          <legend class="govuk-fieldset__legend">
+          <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">
+            <h1 class="govuk-fieldset__heading">
             {{ form.ai_experience.label }}
+            </h1>
           </legend>
-          <div class="govuk-radios experience-cards">
+          <div id="ai_experience-hint" class="govuk-hint govuk-!-margin-bottom-4">
+            Select what best describes your level of experience using AI tools. This will help us tailor your experience. You can always update this page anytime.
+          </div>
+          <div class="govuk-radios" data-module="govuk-radios">
             {% for value, label in form.ai_experience.field.choices %}
               {% if value %}
                 <div class="govuk-radios__item">
@@ -37,10 +38,11 @@
                         value="{{ value }}"
                         {% if value|string == form.ai_experience.value()|string %}checked{% endif %}
                         data-testid="{{ value }}">
-                  <label class="govuk-label" for="ai_experience_{{ loop.index0 }}">
+                  <label class="govuk-radios__label" for="ai_experience_{{ loop.index0 }}">
                     {{ value }}
-                    <span class="govuk-hint govuk-radios__hint">{{ label }}</span>
-                  </label>         
+                  </label>
+                  <div class="govuk-hint govuk-radios__hint">{{ label }}</div>
+         
                 </div>
               {% endif %}
             {% endfor %}
@@ -53,6 +55,12 @@
           {{ form.business_unit.label }}
         </label>
         {{ form.business_unit }}
+      </div>
+      <div class="govuk-form-group">
+        <label class="govuk-label" for="{{ form.profession.id_for_label }}">
+          {{ form.profession.label }}
+        </label>
+        {{ form.profession }}
       </div>
 
       <div class="govuk-form-group">
@@ -70,26 +78,15 @@
       </div>
 
       <div class="govuk-form-group">
-        <label class="govuk-label" for="{{ form.profession.id_for_label }}">
-          {{ form.profession.label }}
-        </label>
-        {{ form.profession }}
+        <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+          <div class="govuk-checkboxes__item">
+            {{ form.uk_or_us_english }}
+            <label class="govuk-checkboxes__label govuk-label" for="{{ form.uk_or_us_english.id_for_label }}">
+              {{ form.uk_or_us_english.label }}
+            </label>
+        </div>
+        </div>
       </div>
-      {# To be added in when profile overlay ready to go live
-      <div class="govuk-form-group">
-        <label class="govuk-label" for="{{ form.info_about_user.id_for_label }}">
-          {{ form.info_about_user.label }}
-        </label>
-        {{ form.info_about_user }}
-      </div>
-
-      <div class="govuk-form-group">
-        <label class="govuk-label" for="{{ form.redbox_response_preferences.id_for_label }}">
-          {{ form.redbox_response_preferences.label }}
-        </label>
-        {{ form.redbox_response_preferences }}
-      </div>
-      #}
       
 
       <div class="govuk-button-group">

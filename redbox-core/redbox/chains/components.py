@@ -13,8 +13,8 @@ from langchain_core.utils import convert_to_secret_str
 # from langchain_elasticsearch import ElasticsearchRetriever
 from langchain_openai.embeddings import AzureOpenAIEmbeddings, OpenAIEmbeddings
 
-from redbox.chains.parser import StreamingJsonOutputParser
-from redbox.models.chain import AISettings, StructuredResponseWithCitations
+from redbox.chains.parser import StreamingJsonOutputParser, StreamingPlanner
+from redbox.models.chain import AISettings, MultiAgentPlan, StructuredResponseWithCitations
 from redbox.models.settings import ChatLLMBackend, Settings
 from redbox.retriever import (
     AllElasticsearchRetriever,
@@ -141,5 +141,29 @@ def get_structured_response_with_citations_parser() -> tuple[Runnable, str]:
     # pydantic_parser = PydanticOutputParser(pydantic_object=StructuredResponseWithCitations)
     parser = StreamingJsonOutputParser(
         name_of_streamed_field="answer", pydantic_schema_object=StructuredResponseWithCitations
+    )
+    return (parser, parser.get_format_instructions())
+
+
+def get_structured_response_with_planner_parser() -> tuple[Runnable, str]:
+    parser = StreamingPlanner(
+        name_of_streamed_field="tasks",
+        pydantic_schema_object=MultiAgentPlan,
+        sub_streamed_field="task",
+        suffix_texts=[
+            "\n\n" + item
+            for item in [
+                "Please let me know if you want me to go ahead with the plan, or make any changes.",
+                "Let me know if you would like to proceed, or you can also ask me to make changes.",
+                "If you're happy with this approach let me know, or you can change the approach also.",
+                "Let me know if you'd like me to proceed, or if you want to amend or change the plan.",
+            ]
+        ],
+        prefix_texts=[
+            "Here is the plan I will execute:",
+            "Here is my proposed plan:",
+            "I can look into this for you, here's my current plan:",
+            "Sure, here's my current plan:",
+        ],
     )
     return (parser, parser.get_format_instructions())

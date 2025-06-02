@@ -17,16 +17,24 @@ from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
 from langchain_core.runnables import Runnable, RunnableLambda, RunnableParallel
 from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
+from langgraph.types import Command
 
 from redbox.chains.activity import log_activity
-from redbox.chains.components import get_chat_llm, get_structured_response_with_citations_parser, get_tokeniser
+from redbox.chains.components import (
+    get_basic_metadata_retriever,
+    get_chat_llm,
+    get_structured_response_with_citations_parser,
+    get_structured_response_with_planner_parser,
+    get_tokeniser,
+)
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_metadata, create_chain_agent
 from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models import ChatRoute
 from redbox.models.chain import AgentTask, DocumentState, MultiAgentPlan, PromptSet, RedboxState, RequestMetadata
-from redbox.models.graph import ROUTE_NAME_TAG, SOURCE_DOCUMENTS_TAG, RedboxActivityEvent, RedboxEventType
-from redbox.models.prompts import PLANNER_PROMPT
+from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
+from redbox.models.prompts import PLANNER_FORMAT_PROMPT, PLANNER_PROMPT, PLANNER_QUESTION_PROMPT, REPLAN_PROMPT
+from redbox.models.settings import get_settings
 from redbox.transform import combine_agents_state, combine_documents, flatten_document_state
 
 log = logging.getLogger(__name__)
@@ -47,14 +55,7 @@ def build_retrieve_pattern(
 
     Uses structure_func to order the retriever documents for the state.
     """
-    retriever_chain = RunnableParallel({"documents": retriever | structure_func})
-
-    if final_source_chain:
-        _retriever = retriever_chain.with_config(tags=[SOURCE_DOCUMENTS_TAG])
-    else:
-        _retriever = retriever_chain
-
-    return _retriever
+    return RunnableParallel({"documents": retriever | structure_func})
 
 
 def build_chat_pattern(
@@ -353,19 +354,78 @@ def lm_choose_route(state: RedboxState, parser: ClaudeParser):
     return res.next.value
 
 
-def create_planner():
+def create_planner(is_streamed=False):
+    metadata = None
+
+    @RunnableLambda
+    def _get_metadata(state: RedboxState):
+        nonlocal metadata
+        env = get_settings()
+        retriever = get_basic_metadata_retriever(env)
+        metadata = retriever.invoke(state)
+        return state
+
+    @RunnableLambda
+    def _stream_planner_agent(state: RedboxState):
+        planner_output_parser, format_instructions = get_structured_response_with_planner_parser()
+        agent = build_stuff_pattern(
+            prompt_set=PromptSet.Planner,
+            output_parser=planner_output_parser,
+            format_instructions=format_instructions,
+            final_response_chain=False,
+            additional_variables={"metadata": metadata},
+        )
+        return agent
+
     @RunnableLambda
     def _create_planner(state: RedboxState):
         orchestration_agent = create_chain_agent(
-            system_prompt=PLANNER_PROMPT,
+            system_prompt=PLANNER_PROMPT + "\n" + PLANNER_QUESTION_PROMPT + "\n" + PLANNER_FORMAT_PROMPT,
             use_metadata=True,
             tools=None,
             parser=ClaudeParser(pydantic_object=MultiAgentPlan),
             using_only_structure=True,
         )
-        res = orchestration_agent.invoke(state)
-        state.messages.append(AIMessage(res.content))
-        return state
+        return orchestration_agent
+
+    if is_streamed:
+        return _get_metadata | _stream_planner_agent
+    else:
+        return _create_planner
+
+
+def my_planner(allow_plan_feedback=False, node_after_streamed: Any = "human", node_afer_replan: str = "sending_task"):
+    @RunnableLambda
+    def _create_planner(state: RedboxState):
+        if state.user_feedback:
+            plan_prompt = REPLAN_PROMPT
+            plan = state.request.chat_history[-1].get("text")
+            user_input = state.user_feedback.replace("@newroute ", "")
+            orchestration_agent = create_chain_agent(
+                system_prompt=plan_prompt,
+                use_metadata=True,
+                tools=None,
+                parser=ClaudeParser(pydantic_object=MultiAgentPlan),
+                using_only_structure=True,
+                _additional_variables={"previous_plan": plan, "user_feedback": user_input}
+                if state.user_feedback
+                else {},
+            )
+            res = orchestration_agent.invoke(state)
+            state.messages.append(AIMessage(res.content))
+            # reset user feedback
+            state.user_feedback = ""
+            return Command(update=state, goto=node_afer_replan)
+        else:
+            if allow_plan_feedback:
+                orchestration_agent = create_planner(is_streamed=True)
+                res = orchestration_agent.invoke(state)
+                return Command(update=res, goto=node_after_streamed)
+            else:
+                orchestration_agent = create_planner(is_streamed=False)
+                res = orchestration_agent.invoke(state)
+                state.messages.append(AIMessage(res.content))
+                return Command(update=state, goto=node_afer_replan)
 
     return _create_planner
 
@@ -395,7 +455,7 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
         result_content = "".join([res.content for res in result])
         # truncate results to max_token
         result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
-        return {"agents_results": result, "tasks_evaluator": task.task}
+        return {"agents_results": result, "tasks_evaluator": task.task + "\n" + task.expected_output}
 
     return _build_agent
 

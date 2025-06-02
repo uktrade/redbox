@@ -1,5 +1,4 @@
 $govuk-assets-path: "govuk-assets/";
-$govuk-font-family: GDS Transport, arial, sans-serif;
 $redbox-red: #1D70B8; /*old:#A50202*/
 
 @import "../node_modules/govuk-frontend/dist/govuk/all";
@@ -143,14 +142,13 @@ upload-button {
   display: none;
 }
 .rb-docs__upload-error {
+  color: #d4351c;
+  font-weight: bold;
   align-items: center;
   display: none;
   font-size: 0.875rem;
   gap: 0.75rem;
   line-height: 1.4;
-}
-.rb-docs__upload-error svg {
-  color: var(--iai-product-colour);
 }
 .rb-docs:has(file-status[data-status*="error"]) .rb-docs__upload-error {
   display: flex;
@@ -189,7 +187,7 @@ upload-button {
 only screen and (min-resolution:2dppx),
 only screen and (min-resolution:192dpi) {
   .govuk-footer__copyright-logo {
-    background-image: url(static/govuk-frontend/assets/images/govuk-crest-2x.png)
+    background-image: url(/static/govuk-frontend/assets/images/govuk-crest-2x.png)
   }
 }
 
@@ -204,3 +202,26 @@ only screen and (min-resolution:192dpi) {
 @import "./profile-overlay-styles.scss";
 
 @import "./iai-overrides.scss";
+
+.radio-groups-container {
+  display: flex;
+  flex-direction: row;
+  gap: 5px;
+}
+
+.radio-flex-container {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+}
+
+.header-wrapper {
+  position: sticky;
+  top: 0;
+  bottom: 0;
+  z-index: 200;
+}
+
+.govuk-phase-banner{
+  background-color: white;
+}
