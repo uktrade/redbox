@@ -14,7 +14,7 @@ from langgraph.managed.is_last_step import RemainingStepsManager
 from pydantic import BaseModel, Field
 
 from redbox.models import prompts
-from redbox.models.chat import ToolEnum
+from redbox.models.chat import DecisionEnum, ToolEnum
 from redbox.models.settings import ChatLLMBackend
 
 load_dotenv()
@@ -261,6 +261,33 @@ def metadata_reducer(
     )
 
 
+agent_options = {agent: agent for agent in AISettings().agents}
+AgentEnum = Enum("AgentEnum", agent_options)
+
+
+class AgentTask(BaseModel):
+    task: str = Field(description="Task to be completed by the agent", default="")
+    agent: AgentEnum = Field(
+        description="Name of the agent to complete the task", default=AgentEnum.Internal_Retrieval_Agent
+    )
+    expected_output: str = Field(description="What this agent should produce", default="")
+
+
+class MultiAgentPlan(BaseModel):
+    tasks: List[AgentTask] = Field(description="A list of tasks to be carried out by agents", default=[])
+    model_config = {"extra": "forbid"}
+
+
+def agent_plan_reducer(current: MultiAgentPlan | None, update: MultiAgentPlan | None):
+    """Merge two agent plans state"""
+    if current is None:
+        return update
+    if update is None:
+        return current
+
+    return current.model_copy(update={"tasks": update.tasks})
+
+
 class RedboxState(BaseModel):
     request: RedboxQuery
     user_feedback: str = ""
@@ -271,6 +298,7 @@ class RedboxState(BaseModel):
     steps_left: Annotated[int | None, RemainingStepsManager] = None
     messages: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     agents_results: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
+    agent_plans: MultiAgentPlan | None = None  # Annotated[MultiAgentPlan | None, agent_plan_reducer] = None
 
     @property
     def last_message(self) -> AnyMessage:
@@ -422,18 +450,5 @@ class AgentDecision(BaseModel):
     next: ToolEnum = ToolEnum.search
 
 
-agent_options = {agent: agent for agent in AISettings().agents}
-AgentEnum = Enum("AgentEnum", agent_options)
-
-
-class AgentTask(BaseModel):
-    task: str = Field(description="Task to be completed by the agent", default="")
-    agent: AgentEnum = Field(
-        description="Name of the agent to complete the task", default=AgentEnum.Internal_Retrieval_Agent
-    )
-    expected_output: str = Field(description="What this agent should produce", default="")
-
-
-class MultiAgentPlan(BaseModel):
-    tasks: List[AgentTask] = Field(description="A list of tasks to be carried out by agents", default=[])
-    model_config = {"extra": "forbid"}
+class FeedbackEvalDecision(BaseModel):
+    next: DecisionEnum = DecisionEnum.approve
