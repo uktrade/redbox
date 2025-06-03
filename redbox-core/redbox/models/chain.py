@@ -278,16 +278,6 @@ class MultiAgentPlan(BaseModel):
     model_config = {"extra": "forbid"}
 
 
-def agent_plan_reducer(current: MultiAgentPlan | None, update: MultiAgentPlan | None):
-    """Merge two agent plans state"""
-    if current is None:
-        return update
-    if update is None:
-        return current
-
-    return current.model_copy(update={"tasks": update.tasks})
-
-
 class RedboxState(BaseModel):
     request: RedboxQuery
     user_feedback: str = ""
@@ -298,7 +288,7 @@ class RedboxState(BaseModel):
     steps_left: Annotated[int | None, RemainingStepsManager] = None
     messages: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     agents_results: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
-    agent_plans: MultiAgentPlan | None = None  # Annotated[MultiAgentPlan | None, agent_plan_reducer] = None
+    agent_plans: MultiAgentPlan | None = None
 
     @property
     def last_message(self) -> AnyMessage:
