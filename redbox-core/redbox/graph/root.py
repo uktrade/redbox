@@ -41,6 +41,7 @@ from redbox.graph.nodes.processes import (
     my_planner,
     report_sources_process,
     stream_plan,
+    stream_suggestion,
 )
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -881,7 +882,7 @@ def build_new_graph(
         ),
     )
 
-    builder.add_node("user_feedback_evaluation", build_user_feedback_evaluation())
+    builder.add_node("user_feedback_evaluation", empty_process)
 
     builder.add_node("Evaluator_Agent", create_evaluator())
     builder.add_node("pass_user_prompt_to_LLM_message", build_passthrough_pattern())
@@ -890,7 +891,7 @@ def build_new_graph(
         report_sources_process,
         retry=RetryPolicy(max_attempts=3),
     )
-    builder.add_node("waiting_for_feedback", empty_process)
+    builder.add_node("stream_suggestion", stream_suggestion())
     builder.add_node("sending_task", empty_process)
 
     builder.add_edge(START, "remove_keyword")
@@ -900,7 +901,12 @@ def build_new_graph(
     builder.add_conditional_edges(
         "user_feedback_evaluation",
         build_user_feedback_evaluation(),
-        {"approve": "sending_task", "modify": "planner", "reject": "waiting_for_feedback"},
+        {
+            "approve": "sending_task",
+            "modify": "planner",
+            "reject": "stream_suggestion",
+            "more_info": "stream_suggestion",
+        },
     )
     builder.add_conditional_edges("sending_task", sending_task_to_agent)
     builder.add_edge("Internal_Retrieval_Agent", "pass_user_prompt_to_LLM_message")
@@ -909,6 +915,6 @@ def build_new_graph(
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
     builder.add_edge("stream_plan", END)
-    builder.add_edge("waiting_for_feedback", END)
+    builder.add_edge("stream_suggestion", END)
 
     return builder.compile(debug=debug)

@@ -324,6 +324,11 @@ REPLAN_PROMPT = (
     + PLANNER_QUESTION_PROMPT
 )
 
-USER_FEEDBACK_EVAL_PROMPT = """Given a user feedback <User_feedback>{feedback}</User_feedback>
-                    Interpret whether user want to approve, modify or reject the plan.
-                    Return output in the following format <Output_format>{format_instructions}</Output_format>"""
+USER_FEEDBACK_EVAL_PROMPT = """Given a user feedback <User_feedback>{feedback}</User_feedback>,
+Interpret user feedback into one of the following categories:
+1. approve the plan
+2. modify the plan
+3. reject the plan
+4. you need more information from user
+
+Return output in the following format <Output_format>{format_instructions}</Output_format>"""

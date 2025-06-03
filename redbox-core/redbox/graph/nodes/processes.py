@@ -8,7 +8,7 @@ from functools import reduce
 from random import uniform
 from typing import Any, Iterable
 from uuid import uuid4
-
+import random
 from botocore.exceptions import EventStreamError
 from langchain.schema import StrOutputParser
 from langchain_core.callbacks.manager import dispatch_custom_event
@@ -558,7 +558,35 @@ def build_user_feedback_evaluation():
 def stream_plan():
     @RunnableLambda
     def _stream_plan(state: RedboxState):
-        for t in state.agent_plans.tasks:
-            dispatch_custom_event(RedboxEventType.response_tokens, data=f"{t.task}\n\n")
+        suffix_texts = [
+            "Please let me know if you want me to go ahead with the plan, or make any changes.",
+            "Let me know if you would like to proceed, or you can also ask me to make changes.",
+            "If you're happy with this approach let me know, or you can change the approach also.",
+            "Let me know if you'd like me to proceed, or if you want to amend or change the plan.",
+        ]
+        prefix_texts = [
+            "Here is the plan I will execute:",
+            "Here is my proposed plan:",
+            "I can look into this for you, here's my current plan:",
+            "Sure, here's my current plan:",
+        ]
+        dispatch_custom_event(RedboxEventType.response_tokens, data=f"{random.choice(prefix_texts)}\n\n")
+        for i, t in enumerate(state.agent_plans.tasks):
+            dispatch_custom_event(RedboxEventType.response_tokens, data=f"{i+1}. {t.task}\n\n")
+        dispatch_custom_event(RedboxEventType.response_tokens, data=f"\n\n{random.choice(suffix_texts)}")
 
     return _stream_plan
+
+
+def stream_suggestion():
+    @RunnableLambda
+    def _stream_suggestion(state: RedboxState):
+        texts = [
+            "It looks like you do not want to go ahead with the plan. Please let me know how I can help.",
+            "Okay, no problem. The plan has been canceled.",
+            "I've stopped that task as requested. Let me know if you need anything else."
+            "Cancellation confirmed. What would you like to do next?",
+        ]
+        dispatch_custom_event(RedboxEventType.response_tokens, data=f"{random.choice(texts)}")
+
+    return _stream_suggestion

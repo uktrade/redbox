@@ -24,3 +24,4 @@ class DecisionEnum(Enum):
     modify = "modify"
     reject = "reject"
     approve = "approve"
+    more_info = "more_info"
