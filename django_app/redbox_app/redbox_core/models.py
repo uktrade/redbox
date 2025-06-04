@@ -1,11 +1,11 @@
 import logging
 import os
+import re
 import textwrap
 import uuid
 from collections.abc import Collection, Sequence
 from datetime import UTC, date, datetime, timedelta
 from typing import override
-import re
 
 import jwt
 from django.conf import settings
