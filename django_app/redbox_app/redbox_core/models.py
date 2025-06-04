@@ -54,7 +54,8 @@ def sanitise_string(string: str | None) -> str | None:
     We can't save these characters, so we need to sanitise them."""
     return string.replace("\x00", "\ufffd") if string else string
 
-def get_id_digits(citation_items)->int:
+
+def get_id_digits(citation_items) -> int:
     """Extracts the digits from the citation_name."""
     string = citation_items[-1]
     if not string:
@@ -889,7 +890,7 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
                     (get_display(citation), citation.uri, citation.id, citation.text_in_answer, citation.citation_name)
                     for citation in self.citation_set.all()
                 },
-                key = get_id_digits,
+                key=get_id_digits,
             )
         except TypeError:
             return sorted(
