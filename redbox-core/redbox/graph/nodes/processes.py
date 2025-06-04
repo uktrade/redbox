@@ -39,6 +39,8 @@ from redbox.models.chain import (
     PromptSet,
     RedboxState,
     RequestMetadata,
+    get_plan_fix_prompts,
+    get_plan_fix_suggestion_prompts,
 )
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import (
@@ -556,24 +558,17 @@ def build_user_feedback_evaluation():
 
 
 def stream_plan():
+    """Stream task descriptions and also save the plan in messages"""
+
     @RunnableLambda
     def _stream_plan(state: RedboxState):
-        suffix_texts = [
-            "Please let me know if you want me to go ahead with the plan, or make any changes.",
-            "Let me know if you would like to proceed, or you can also ask me to make changes.",
-            "If you're happy with this approach let me know, or you can change the approach also.",
-            "Let me know if you'd like me to proceed, or if you want to amend or change the plan.",
-        ]
-        prefix_texts = [
-            "Here is the plan I will execute:",
-            "Here is my proposed plan:",
-            "I can look into this for you, here's my current plan:",
-            "Sure, here's my current plan:",
-        ]
+        prefix_texts, suffix_texts = get_plan_fix_prompts()
         dispatch_custom_event(RedboxEventType.response_tokens, data=f"{random.choice(prefix_texts)}\n\n")
         for i, t in enumerate(state.agent_plans.tasks):
             dispatch_custom_event(RedboxEventType.response_tokens, data=f"{i+1}. {t.task}\n\n")
         dispatch_custom_event(RedboxEventType.response_tokens, data=f"\n\n{random.choice(suffix_texts)}")
+        state.request.chat_history.append(AIMessage(content=state.agent_plans.model_dump_json()))
+        return state
 
     return _stream_plan
 
@@ -581,12 +576,7 @@ def stream_plan():
 def stream_suggestion():
     @RunnableLambda
     def _stream_suggestion(state: RedboxState):
-        texts = [
-            "It looks like you do not want to go ahead with the plan. Please let me know how I can help.",
-            "Okay, no problem. The plan has been canceled.",
-            "I've stopped that task as requested. Let me know if you need anything else."
-            "Cancellation confirmed. What would you like to do next?",
-        ]
+        texts = get_plan_fix_suggestion_prompts()
         dispatch_custom_event(RedboxEventType.response_tokens, data=f"{random.choice(texts)}")
 
     return _stream_suggestion

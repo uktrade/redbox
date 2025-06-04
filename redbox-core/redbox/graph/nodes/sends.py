@@ -96,8 +96,9 @@ def run_tools_parallel(ai_msg, tools, state):
 
 def sending_task_to_agent(state: RedboxState):
     plan = state.agent_plans
-    task_send_states: list[RedboxState] = [
-        (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
-        for task in plan.tasks
-    ]
-    return [Send(node=target, arg=state) for target, state in task_send_states]
+    if plan:
+        task_send_states: list[RedboxState] = [
+            (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
+            for task in plan.tasks
+        ]
+        return [Send(node=target, arg=state) for target, state in task_send_states]

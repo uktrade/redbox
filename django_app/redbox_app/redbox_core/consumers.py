@@ -19,14 +19,15 @@ from uwotm8 import convert_american_to_british_spelling
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
-from redbox.chains.components import get_structured_response_with_planner_parser
 from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
+    MultiAgentPlan,
     RedboxQuery,
     RedboxState,
     RequestMetadata,
     Source,
+    get_plan_fix_prompts,
     metadata_reducer,
 )
 from redbox.models.chain import Citation as AICitation
@@ -146,15 +147,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         question = message_history[-2].text
         user_feedback = ""
+        agent_plans = None
         plan_message_size = 3
-        parser, _ = get_structured_response_with_planner_parser()
+
         # Try convert AI message to plan
+        for i in range(len(message_history)):
+            logger.debug("message idx: %s", i)
+            logger.debug("message history from session %s", message_history[i])
+        plan_prefix, _ = get_plan_fix_prompts()
         if (len(message_history) > plan_message_size) and (
-            any(n in message_history[-plan_message_size].text for n in parser.prefix_texts)
+            any(n in message_history[-plan_message_size].text for n in plan_prefix)
         ):
             try:
                 question = message_history[-4].text
                 user_feedback = message_history[-2].text
+                agent_plans = MultiAgentPlan.model_validate_json(message_history[-1].text.model_dump_json())
                 logger.debug("here is user feedback %s", user_feedback)
             except Exception as e:
                 logger.debug("cannot parse into plan object %s", message_history[-3].text)
@@ -177,6 +184,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 permitted_s3_keys=[f.unique_name async for f in permitted_files],
             ),
             user_feedback=user_feedback,
+            agent_plans=agent_plans,
         )
 
         try:

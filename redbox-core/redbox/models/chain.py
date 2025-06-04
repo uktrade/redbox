@@ -442,3 +442,28 @@ class AgentDecision(BaseModel):
 
 class FeedbackEvalDecision(BaseModel):
     next: DecisionEnum = DecisionEnum.approve
+
+
+def get_plan_fix_prompts():
+    suffix_texts = [
+        "Please let me know if you want me to go ahead with the plan, or make any changes.",
+        "Let me know if you would like to proceed, or you can also ask me to make changes.",
+        "If you're happy with this approach let me know, or you can change the approach also.",
+        "Let me know if you'd like me to proceed, or if you want to amend or change the plan.",
+    ]
+    prefix_texts = [
+        "Here is the plan I will execute:",
+        "Here is my proposed plan:",
+        "I can look into this for you, here's my current plan:",
+        "Sure, here's my current plan:",
+    ]
+    return (prefix_texts, suffix_texts)
+
+
+def get_plan_fix_suggestion_prompts():
+    return [
+        "It looks like you do not want to go ahead with the plan. Please let me know how I can help.",
+        "Okay, no problem. The plan has been canceled.",
+        "I've stopped that task as requested. Let me know if you need anything else."
+        "Cancellation confirmed. What would you like to do next?",
+    ]
