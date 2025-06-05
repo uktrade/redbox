@@ -1,5 +1,6 @@
 import json
 import logging
+import random
 import re
 import textwrap
 import time
@@ -8,7 +9,7 @@ from functools import reduce
 from random import uniform
 from typing import Any, Iterable
 from uuid import uuid4
-import random
+
 from botocore.exceptions import EventStreamError
 from langchain.schema import StrOutputParser
 from langchain_core.callbacks.manager import dispatch_custom_event
@@ -33,8 +34,8 @@ from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models import ChatRoute
 from redbox.models.chain import (
     AgentTask,
-    FeedbackEvalDecision,
     DocumentState,
+    FeedbackEvalDecision,
     MultiAgentPlan,
     PromptSet,
     RedboxState,
@@ -479,7 +480,7 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
         result_content = "".join([res.content for res in result])
         # truncate results to max_token
         result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
-        return {"agents_results": result}
+        return {"agents_results": result, "tasks_evaluator": task.task + "\n" + task.expected_output}
 
     return _build_agent
 
@@ -524,9 +525,10 @@ def invoke_custom_state(
             RedboxActivityEvent(message=f"{agent_name} is completing task: {agent_task["task"]}")
         )
         activity_node.invoke(state)
-
         ## invoke the subgraph
         response = subgraph.invoke(subgraph_state)  # the LLM response is streamed
+
+        # invoking this subgraph will change original state.question - we correct the state question in subsequent nodes
 
         return response
 
@@ -548,7 +550,7 @@ def build_user_feedback_evaluation():
         decision_agent = create_chain_agent(
             system_prompt=USER_FEEDBACK_EVAL_PROMPT,
             parser=ClaudeParser(pydantic_object=FeedbackEvalDecision),
-            _additional_variables={"feedback": state.user_feedback},
+            _additional_variables={"plan": state.agent_plans, "feedback": state.user_feedback},
             use_metadata=False,
         )
         res = decision_agent.invoke(state)
@@ -580,3 +582,14 @@ def stream_suggestion():
         return state
 
     return _stream_suggestion
+
+
+def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
+    """Returns a Runnable that uses state["request"] to set state["text"]."""
+
+    @RunnableLambda
+    def _combine_question(state: RedboxState) -> dict[str, Any]:
+        state.request.question = "\n\n".join([task.content for task in state.tasks_evaluator])
+        return state
+
+    return _combine_question

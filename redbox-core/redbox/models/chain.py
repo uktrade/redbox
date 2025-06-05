@@ -289,6 +289,7 @@ class RedboxState(BaseModel):
     messages: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     agents_results: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     agent_plans: MultiAgentPlan | None = None
+    tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
 
     @property
     def last_message(self) -> AnyMessage:
