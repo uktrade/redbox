@@ -1,6 +1,4 @@
-import enum
 import logging
-from re import split
 import time
 from collections.abc import Iterator
 from datetime import UTC, datetime
