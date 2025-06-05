@@ -147,7 +147,7 @@ export class ChatMessage extends HTMLElement {
     function reloadAtCurrentPosition() {
       sessionStorage.setItem('scrollPosition', window.scrollY.toString());
       location.reload();
-    }    
+    }
     window.addEventListener("scroll", (evt) => {
       if (this.programmaticScroll) {
         this.programmaticScroll = false;
@@ -270,7 +270,7 @@ export class ChatMessage extends HTMLElement {
           actionsContainer.appendChild(copyText)
 
       }
-        this.#addFootnotes(this.streamedContent, response.data.message_id);
+        // this.#addFootnotes(this.streamedContent, response.data.message_id);
         const chatResponseEndEvent = new CustomEvent("chat-response-end", {
           detail: {
             title: response.data.title,
