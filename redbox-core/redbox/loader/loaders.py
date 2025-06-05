@@ -122,8 +122,6 @@ class UnstructuredChunkLoader:
                 "files": (file_name, file_bytes),
             }
 
-            # if file_bytes.getbuffer().nbytes>1024*1024:
-            #     print(f'LARGE FILE: {file_bytes.getbuffer().nbytes}')
             response = requests.post(
                 url,
                 files=files,
