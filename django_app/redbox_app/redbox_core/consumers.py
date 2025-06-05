@@ -132,7 +132,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         await self.llm_conversation(selected_files, session, user, user_message_text, permitted_files)
 
-        if self.final_state.agent_plans:
+        if (self.final_state) and (self.final_state.agent_plans):
             await self.agent_plan_save(session)
 
         # save user, ai and intermediary graph outputs if 'search' route is invoked
