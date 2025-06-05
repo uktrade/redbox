@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import environ
 import fitz
 import requests
+
 # from requests.adapters import HTTPAdapter
 # from requests.packages.urllib.util.retry import Retry
 from langchain_core.documents import Document
@@ -36,24 +37,27 @@ if TYPE_CHECKING:
 else:
     S3Client = object
 
-def is_large_pdf(file_name: str, filebytes: BytesIO, page_threshold=150)-> tuple[bool, int]:
+
+def is_large_pdf(file_name: str, filebytes: BytesIO, page_threshold=150) -> tuple[bool, int]:
     if not file_name.lower().endswith(".pdf"):
         return False, 0
     doc = fitz.open(stream=filebytes.getvalue(), filetype="pdf")
-    return len(doc)>page_threshold, len(doc)
+    return len(doc) > page_threshold, len(doc)
 
-def split_pdf(filebytes: BytesIO, pages_per_chunk: int = 75)-> list[BytesIO]:
+
+def split_pdf(filebytes: BytesIO, pages_per_chunk: int = 75) -> list[BytesIO]:
     doc = fitz.open(stream=filebytes.getvalue(), filetype="pdf")
-    chunks=[]
+    chunks = []
     for start in range(0, len(doc), pages_per_chunk):
         sub_doc = fitz.open()
-        for page_num in range(start, min(start+pages_per_chunk, len(doc))):
+        for page_num in range(start, min(start + pages_per_chunk, len(doc))):
             sub_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
-        if len(sub_doc)==0:
-            continue # Skip empty chunks
+        if len(sub_doc) == 0:
+            continue  # Skip empty chunks
         chunk_bytes = BytesIO(sub_doc.tobytes())
         chunks.append(chunk_bytes)
     return chunks
+
 
 class UnstructuredChunkLoader:
     """
@@ -88,19 +92,25 @@ class UnstructuredChunkLoader:
         is_large, _ = is_large_pdf(file_name=file_name, filebytes=file_bytes)
         file_bytes.seek(0)
         if is_large:
-            elements=[]
+            elements = []
             pdf_chunks = split_pdf(filebytes=file_bytes)
-            for idx , chunk in enumerate(pdf_chunks):
+            for idx, chunk in enumerate(pdf_chunks):
                 chunk.seek(0)
-                files = {"files": (file_name, chunk),}
-                response = requests.post(url,files=files,data={
-                    "strategy": "fast",
-                    "chunking_strategy": "by_title",
-                    "max_characters": self._max_chunk_size,
-                    "combine_under_n_chars": self._min_chunk_size,
-                    "overlap": self._overlap_chars,
-                    "overlap_all": self._overlap_all_chunks,
-                },)
+                files = {
+                    "files": (file_name, chunk),
+                }
+                response = requests.post(
+                    url,
+                    files=files,
+                    data={
+                        "strategy": "fast",
+                        "chunking_strategy": "by_title",
+                        "max_characters": self._max_chunk_size,
+                        "combine_under_n_chars": self._min_chunk_size,
+                        "overlap": self._overlap_chars,
+                        "overlap_all": self._overlap_all_chunks,
+                    },
+                )
 
                 if response.status_code != 200:
                     msg = f"Chunk {idx+1} failed: {response.text}"
