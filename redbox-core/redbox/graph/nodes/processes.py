@@ -567,7 +567,6 @@ def stream_plan():
         for i, t in enumerate(state.agent_plans.tasks):
             dispatch_custom_event(RedboxEventType.response_tokens, data=f"{i+1}. {t.task}\n\n")
         dispatch_custom_event(RedboxEventType.response_tokens, data=f"\n\n{random.choice(suffix_texts)}")
-        state.request.chat_history.append(AIMessage(content=state.agent_plans.model_dump_json()))
         return state
 
     return _stream_plan
@@ -578,5 +577,6 @@ def stream_suggestion():
     def _stream_suggestion(state: RedboxState):
         texts = get_plan_fix_suggestion_prompts()
         dispatch_custom_event(RedboxEventType.response_tokens, data=f"{random.choice(texts)}")
+        return state
 
     return _stream_suggestion
