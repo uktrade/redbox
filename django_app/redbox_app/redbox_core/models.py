@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import textwrap
 import uuid
 from collections.abc import Collection, Sequence
@@ -52,6 +53,19 @@ def sanitise_string(string: str | None) -> str | None:
     """We are seeing NUL (0x00) characters in user entered fields, and also in document citations.
     We can't save these characters, so we need to sanitise them."""
     return string.replace("\x00", "\ufffd") if string else string
+
+
+def get_id_digits(citation_items) -> int:
+    """Extracts the digits from the citation_name."""
+    string = citation_items[-1]
+    if not string:
+        msg = "None Value"
+        raise TypeError(msg)
+    match = re.search(pattern=r"\d+", string=string)
+    if not match:
+        msg = f"No numeric value present in {string}"
+        raise TypeError(msg)
+    return int(match.group())
 
 
 class ChatLLMBackend(models.Model):
@@ -876,7 +890,7 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
                     (get_display(citation), citation.uri, citation.id, citation.text_in_answer, citation.citation_name)
                     for citation in self.citation_set.all()
                 },
-                key=lambda x: x[-1],
+                key=get_id_digits,
             )
         except TypeError:
             return sorted(
