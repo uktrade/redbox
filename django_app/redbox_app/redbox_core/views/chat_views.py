@@ -35,8 +35,8 @@ def replace_ref(message_text: str, ref_name: str, message_id: str, cit_id: str, 
 
 
 def remove_dangling_citation(message_text: str) -> str:
-    pattern = r"[\[\(\{<]ref_\d+[\]\)\}>]"
-    return re.sub(pattern, "", message_text, flagx=re.IGNORECASE)
+    pattern = r"[\[\(\{<]ref_\d+[\]\)\}>]|ref_\d+"
+    return re.sub(pattern, "", message_text, flags=re.IGNORECASE)
 
 
 class ChatsView(View):
