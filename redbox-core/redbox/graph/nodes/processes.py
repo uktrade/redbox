@@ -1,5 +1,6 @@
 import json
 import logging
+import random
 import re
 import textwrap
 import time
@@ -31,9 +32,25 @@ from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_metadata, create_chain_agent
 from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models import ChatRoute
-from redbox.models.chain import AgentTask, DocumentState, MultiAgentPlan, PromptSet, RedboxState, RequestMetadata
+from redbox.models.chain import (
+    AgentTask,
+    DocumentState,
+    FeedbackEvalDecision,
+    MultiAgentPlan,
+    PromptSet,
+    RedboxState,
+    RequestMetadata,
+    get_plan_fix_prompts,
+    get_plan_fix_suggestion_prompts,
+)
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
-from redbox.models.prompts import PLANNER_FORMAT_PROMPT, PLANNER_PROMPT, PLANNER_QUESTION_PROMPT, REPLAN_PROMPT
+from redbox.models.prompts import (
+    PLANNER_FORMAT_PROMPT,
+    PLANNER_PROMPT,
+    PLANNER_QUESTION_PROMPT,
+    REPLAN_PROMPT,
+    USER_FEEDBACK_EVAL_PROMPT,
+)
 from redbox.models.settings import get_settings
 from redbox.transform import combine_agents_state, combine_documents, flatten_document_state
 
@@ -384,7 +401,7 @@ def create_planner(is_streamed=False):
             use_metadata=True,
             tools=None,
             parser=ClaudeParser(pydantic_object=MultiAgentPlan),
-            using_only_structure=True,
+            using_only_structure=False,
         )
         return orchestration_agent
 
@@ -394,37 +411,45 @@ def create_planner(is_streamed=False):
         return _create_planner
 
 
-def my_planner(allow_plan_feedback=False, node_after_streamed: Any = "human", node_afer_replan: str = "sending_task"):
+def my_planner(allow_plan_feedback=False, node_after_streamed: str = "human", node_afer_replan: str = "sending_task"):
     @RunnableLambda
     def _create_planner(state: RedboxState):
+        no_tasks_auto = 1
+
         if state.user_feedback:
+            # replanning
             plan_prompt = REPLAN_PROMPT
             plan = state.request.chat_history[-1].get("text")
+            # if we save plans we can use this
+            # plan = state.agent_plans[-1].model_dump_json()
             user_input = state.user_feedback.replace("@newroute ", "")
             orchestration_agent = create_chain_agent(
                 system_prompt=plan_prompt,
                 use_metadata=True,
                 tools=None,
                 parser=ClaudeParser(pydantic_object=MultiAgentPlan),
-                using_only_structure=True,
-                _additional_variables={"previous_plan": plan, "user_feedback": user_input}
-                if state.user_feedback
-                else {},
+                using_only_structure=False,
+                _additional_variables={"previous_plan": plan, "user_feedback": user_input},
             )
             res = orchestration_agent.invoke(state)
-            state.messages.append(AIMessage(res.content))
+            state.agent_plans = res
             # reset user feedback
             state.user_feedback = ""
             return Command(update=state, goto=node_afer_replan)
         else:
-            if allow_plan_feedback:
-                orchestration_agent = create_planner(is_streamed=True)
-                res = orchestration_agent.invoke(state)
-                return Command(update=res, goto=node_after_streamed)
+            # run planner agent
+            orchestration_agent = create_planner(is_streamed=False)
+            res = orchestration_agent.invoke(state)
+            state.agent_plans = res
+
+            # send task to worker agent if we have only 1 task
+            if len(state.agent_plans.tasks) > no_tasks_auto:
+                if allow_plan_feedback:
+                    # stream task
+                    return Command(update=state, goto=node_after_streamed)
+                else:
+                    return Command(update=state, goto=node_afer_replan)
             else:
-                orchestration_agent = create_planner(is_streamed=False)
-                res = orchestration_agent.invoke(state)
-                state.messages.append(AIMessage(res.content))
                 return Command(update=state, goto=node_afer_replan)
 
     return _create_planner
@@ -517,6 +542,46 @@ def delete_plan_message():
         return {"messages": [RemoveMessage(id=last_message.id)]}
 
     return _delete_plan_message
+
+
+def build_user_feedback_evaluation():
+    @RunnableLambda
+    def _build_user_feedback_evaluation(state: RedboxState):
+        decision_agent = create_chain_agent(
+            system_prompt=USER_FEEDBACK_EVAL_PROMPT,
+            parser=ClaudeParser(pydantic_object=FeedbackEvalDecision),
+            _additional_variables={"plan": state.agent_plans, "feedback": state.user_feedback},
+            use_metadata=False,
+        )
+        res = decision_agent.invoke(state)
+        return res.next.value
+
+    return _build_user_feedback_evaluation
+
+
+def stream_plan():
+    """Stream task descriptions and also save the plan in messages"""
+
+    @RunnableLambda
+    def _stream_plan(state: RedboxState):
+        prefix_texts, suffix_texts = get_plan_fix_prompts()
+        dispatch_custom_event(RedboxEventType.response_tokens, data=f"{random.choice(prefix_texts)}\n\n")
+        for i, t in enumerate(state.agent_plans.tasks):
+            dispatch_custom_event(RedboxEventType.response_tokens, data=f"{i+1}. {t.task}\n\n")
+        dispatch_custom_event(RedboxEventType.response_tokens, data=f"\n\n{random.choice(suffix_texts)}")
+        return state
+
+    return _stream_plan
+
+
+def stream_suggestion():
+    @RunnableLambda
+    def _stream_suggestion(state: RedboxState):
+        texts = get_plan_fix_suggestion_prompts()
+        dispatch_custom_event(RedboxEventType.response_tokens, data=f"{random.choice(texts)}")
+        return state
+
+    return _stream_suggestion
 
 
 def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
