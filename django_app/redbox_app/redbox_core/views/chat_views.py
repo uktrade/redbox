@@ -35,8 +35,14 @@ def replace_ref(message_text: str, ref_name: str, message_id: str, cit_id: str, 
 
 
 def remove_dangling_citation(message_text: str) -> str:
-    pattern = r"[\[\(\{<]ref_\d+[\]\)\}>]|ref_\d+"
-    return re.sub(pattern, "", message_text, flags=re.IGNORECASE)
+    pattern = r"[\[\(\{<]ref_\d+[\]\)\}>]|\bref_\d+\b"  # Hallucinated citations
+    empty_pattern = r"[\[\(\{<]\s*,?\s*[\]\)\}>]"  # Brackets with only commas and and spaces
+    left_pattern = r"\(\s*,\s*([^()]+)\)"  # remove (,text)
+    right_pattern = r"\(\s*([^()]+),\s*\)"  #  remove (text,)
+    text = re.sub(pattern, "", message_text, flags=re.IGNORECASE)
+    text = re.sub(empty_pattern, "", text)
+    text = re.sub(left_pattern, r"\1", text)
+    return re.sub(right_pattern, r"\1", text)
 
 
 class ChatsView(View):
