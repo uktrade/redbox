@@ -402,6 +402,7 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
     email = models.EmailField()
     password = models.CharField("password", max_length=128, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    last_active = models.DateTimeField(null=True, blank=True)
     first_name = models.CharField(max_length=48)
     last_name = models.CharField(max_length=48)
     business_unit = models.CharField(null=True, blank=True, max_length=100, choices=BusinessUnit)
