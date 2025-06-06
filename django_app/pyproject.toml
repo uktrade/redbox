@@ -52,6 +52,7 @@ django-log-formatter-asim = "^0.0.6"
 django-chunk-upload-handlers = "^0.0.15"
 mohawk = "^1.1.0"
 uwotm8 = "^0.1.4"
+pymupdf = "^1.26.0"
 
 
 [tool.poetry.group.dev.dependencies]
