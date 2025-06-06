@@ -464,7 +464,7 @@ def get_plan_fix_prompts():
 def get_plan_fix_suggestion_prompts():
     return [
         "It looks like you do not want to go ahead with the plan. Please let me know how I can help.",
-        "Okay, no problem. The plan has been canceled.",
-        "I've stopped that task as requested. Let me know if you need anything else."
+        "Okay, no problem. The plan has been cancelled.",
+        "I've stopped that task as requested. Let me know if you need anything else.",
         "Cancellation confirmed. What would you like to do next?",
     ]
