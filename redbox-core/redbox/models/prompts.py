@@ -16,6 +16,7 @@ CHAT_WITH_DOCS_SYSTEM_PROMPT = "You are tasked with providing information object
 CITATION_PROMPT = """Use citations to back up your answer when available. Return response in the following format: {format_instructions}.
 Example response:
 - If citations are available: {{"answer": your_answer, "citations": [list_of_citations]}}.
+- Each citation must be shown in the answer using a unique identifier in the format "ref_N" where N is an incrementing number starting from 1.
 - If no citations are available or needed, return an empty array for citations like this: {{"answer": your_answer, "citations": []}}.
 Do not provide citation from your own knowledge.
 Assistant:<haiku>"""
@@ -122,7 +123,6 @@ AGENTIC_GIVE_UP_SYSTEM_PROMPT = (
     "Remember: While your priority is to answer the question, sometimes the best assistance involves "
     "guiding the user in providing the information needed for a complete solution."
 )
-
 CHAT_MAP_SYSTEM_PROMPT = (
     "Your goal is to extract the most important information and present it in "
     "a concise and coherent manner. Please follow these guidelines while summarizing: \n"
@@ -225,6 +225,7 @@ Execution Strategy:
    - Make a targeted, focused tool call
 4. Produce the expected output with maximum accuracy and efficiency. Only use information obtained from tools.
 
+<Document_Metadata>{metadata}</Document_Metadata>
 """
 
 EXTERNAL_RETRIEVAL_AGENT_PROMPT = """You are an expert information analyst with the ability to critically assess when and how to retrieve information. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
@@ -246,7 +247,38 @@ Execution Strategy:
 2. Produce the expected output with maximum accuracy and efficiency. Only use information obtained from tools.
 """
 
-PLANNER_PROMPT = """
+WORKER_AGENTS_PROMPT = """
+## Available agents and their responsibilities
+
+When creating your execution plan, you have access to the following specialised agents:
+
+1. **Internal_Retrieval_Agent**:
+Purpose: Information retrieval and question answering
+Use when the user wants to:
+- Ask questions about specific documents or knowledge base content
+- Retrieve specific information or facts
+- Get answers to queries based on existing documents
+- Search for particular details within documents
+- Compare information across multiple documents
+- Get explanations about content within documents
+
+2. **External_Retrieval_Agent**: solely responsible for retrieving information outside of user's uploaded documents, specifically from external data sources:
+      - Wikipedia
+      - gov.uk
+      - legislation.gov.uk
+
+3. **Summarisation_Agent**:
+Purpose: Document summarization only
+Use when the user wants to:
+- Get a summary of an entire document
+- Create an executive summary
+- Generate a brief overview of document contents
+- Produce condensed versions of lengthy documents
+- Create abstracts or overviews
+"""
+
+PLANNER_PROMPT = (
+    """
 You are an advanced orchestration agent designed to decompose complex user goals into logical sub-tasks and coordinate specialised agents to accomplish them. Your primary responsibility is to create and manage execution plans that achieve the user's objectives by determining which agents to call, in what order, and how to integrate their outputs.
 
 Operational Framework
@@ -264,27 +296,14 @@ Operational Framework
 - Select the most appropriate agent for each sub-task from the available agent pool
 - Create a structured execution plan with clear success criteria for each step
 
-
-## Available agents and their responsibilities
-
-When creating your execution plan, you have access to the following specialised agents:
-
-1. **Internal_Retrieval_Agent**: solely responsible for retrieving information from user's uploaded documents. It does not summarise documents.
-2. **External_Retrieval_Agent**: solely responsible for retrieving information outside of user's uploaded documents, specifically from external data sources:
-      - Wikipedia
-      - gov.uk
-      - legislation.gov.uk
-3. **Summarisation_Agent**: solely responsible for summarising entire user's uploaded documents. It does not summarise outputs from other agents.
-
+"""
+    + WORKER_AGENTS_PROMPT
+    + """
 ## helpful instructions for calling agent
 
 When a user query involves finding information within selected documents (not summarising the documents), ALWAYS route to the Internal_Retrieval_Agent. Only use External_Retrieval_Agent if the query specifically requests external data sources.
 
 If a user asks to summarise a document, ALWAYS call Summarisation_Agent and do not call other agents.
-
-## Output Format
-
-For each user request, provide your response in the following format: {format_instructions}. Do not give explanation, only return list.
 
 ## Guidelines
 
@@ -297,8 +316,39 @@ For each user request, provide your response in the following format: {format_in
 7. Adapt your plan based on the quality and relevance of each agent's output.
 
 Remember that your primary value is in effective coordination and integration - your role is to ensure that the specialised capabilities of each agent are leveraged optimally to achieve the user's goal.
-
-Do not start your answer by saying: here is the plan... Go straight to the point.
-User question: <Question>{question}</Question>.
-User uploaded documents metadata:<Document_Metadata>{metadata}</Document_Metadata>.
 """
+)
+
+PLANNER_QUESTION_PROMPT = """User question: <Question>{question}</Question>.
+User uploaded documents metadata:<Document_Metadata>{metadata}</Document_Metadata>."""
+
+PLANNER_FORMAT_PROMPT = """## Output Format
+For each user request, provide your response in the following format: {format_instructions}. Do not give explanation, only return a list."""
+
+REPLAN_PROMPT = (
+    """You are given "Previous Plan" which is the plan that the previous agent created along with feedback from the user. You MUST use these information to modify the previous plan. Don't add new task in the plan.
+
+    CRITICAL RULES:
+    1. NEVER add new tasks that weren't in the original plan, unless the user asks you to
+    2. NEVER remove tasks from the original recipe
+
+    <Previous_Plan>{previous_plan}</Previous_Plan>
+
+    <User_feedback>{user_feedback}</User_feedback>
+"""
+    + WORKER_AGENTS_PROMPT
+    + PLANNER_FORMAT_PROMPT
+    + PLANNER_QUESTION_PROMPT
+)
+
+USER_FEEDBACK_EVAL_PROMPT = """Given a plan and user feedback,
+Interpret user feedback into one of the following categories:
+1. approve the plan
+2. modify the plan
+3. reject the plan
+4. you need more information from user
+
+<Plan>{plan}</Plan>
+<User_feedback>{feedback}</User_feedback>
+
+Return output in the following format <Output_format>{format_instructions}</Output_format>"""

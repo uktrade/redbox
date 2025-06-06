@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import ast
 import json
+import logging
+import random
 import re
 from collections.abc import AsyncIterator
-from json import JSONDecodeError
 from typing import Any, Iterator, List, Optional, Type, Union
 
 import jsonpatch  # type: ignore[import]
@@ -16,9 +18,11 @@ from langchain_core.output_parsers.transform import BaseCumulativeTransformOutpu
 from langchain_core.outputs import ChatGenerationChunk, Generation, GenerationChunk
 from langchain_core.utils.json import parse_json_markdown
 from langchain_core.utils.pydantic import PYDANTIC_MAJOR_VERSION
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from redbox.models.graph import RedboxEventType
+
+log = logging.getLogger(__name__)
 
 
 class ClaudeParser(BaseCumulativeTransformOutputParser[Any]):
@@ -46,6 +50,18 @@ class ClaudeParser(BaseCumulativeTransformOutputParser[Any]):
                 return pydantic_object.schema()
         return pydantic_object.schema()
 
+    def correct_json(self, text: str):
+        top_level_key = list(self.pydantic_object.__fields__.keys())  # get the name of top level key
+        if len(top_level_key) == 1:  # if there is only 1 top level key
+            if isinstance(
+                self.pydantic_object.model_json_schema()["properties"].get(top_level_key[0])["default"], list
+            ):  # if the value of the top level key is a list
+                text = ast.literal_eval(text)  # convert string to list
+                text_json = json.dumps({top_level_key[0]: text})
+            return text_json
+        else:
+            return text
+
     def parse_result(self, result: List[Generation], *, partial: bool = False) -> Any:
         """Parse the result of an LLM call to a pydantic object.
 
@@ -63,20 +79,23 @@ class ClaudeParser(BaseCumulativeTransformOutputParser[Any]):
         Raises:
             OutputParserException: If the output is not valid JSON.
         """
+
         text = result[0].text
         text = text.strip()
-        text = self.extract_json(text)
-        if partial:
+        try:
+            text_json = self.extract_json(text)
+            return self.pydantic_object.model_validate(parse_json_markdown(text_json))
+        except ValidationError:
             try:
-                return self.pydantic_object.model_validate(parse_json_markdown(text))
-            except JSONDecodeError:
-                return None
-        else:
-            try:
-                return self.pydantic_object.model_validate(parse_json_markdown(text))
-            except JSONDecodeError as e:
-                msg = f"Invalid json output: {text}"
-                raise OutputParserException(msg, llm_output=text) from e
+                text_json = self.correct_json(text)
+                return self.pydantic_object.model_validate(parse_json_markdown(text_json))
+            except ValidationError as e:
+                if partial:
+                    print(e)
+                    return None
+                else:
+                    msg = f"Invalid json output: {text}"
+                    raise OutputParserException(msg, llm_output=text) from e
 
     def extract_json(self, text):
         if isinstance(text, list):
@@ -108,7 +127,8 @@ class ClaudeParser(BaseCumulativeTransformOutputParser[Any]):
         try:
             return self.parse_result([Generation(text=text)])
 
-        except json.JSONDecodeError:
+        except Exception as e:
+            print(e)
             return None
 
     def get_format_instructions(self) -> str:
@@ -147,6 +167,7 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
 
     diff: bool = False  # Ignored
     name_of_streamed_field: str = "answer"
+    # sub_streamed_field: str = None
     pydantic_schema_object: type[BaseModel]
 
     def extract_json(self, text):
@@ -167,11 +188,16 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
             print(f"Error processing JSON: {e}")
             return text
 
+    def answer_str_to_json(self, text: str):
+        text_json = json.dumps({"answer": text, "citations": []})
+        return text_json
+
     def parse_partial_json(self, text: str):
         try:
-            text = self.extract_json(text)
-            return parse_json_markdown(text)
-        except json.JSONDecodeError:
+            json_text = self.extract_json(text)
+            return parse_json_markdown(json_text)
+        except json.JSONDecodeError as e:
+            print(e)
             return None
 
     def _to_generation_chunk(self, chunk: Union[str, BaseMessage]):
@@ -188,16 +214,28 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
         acc_gen: Union[GenerationChunk, ChatGenerationChunk, None] = None
         field_length_at_last_run: int = 0
         parsed = None
+        is_parsed = False
         for chunk in input:
             chunk_gen = self._to_generation_chunk(chunk)
             acc_gen = chunk_gen if acc_gen is None else acc_gen + chunk_gen  # type: ignore[operator]
-
             if parsed := self.parse_partial_json(acc_gen.text):
-                if field_content := parsed.get(self.name_of_streamed_field):
+                is_parsed = True
+                field_content = parsed.get(self.name_of_streamed_field)
+                if field_content:
                     if new_tokens := field_content[field_length_at_last_run:]:
                         dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
                         field_length_at_last_run = len(field_content)
                         yield self.pydantic_schema_object.model_validate(parsed)
+        if not is_parsed:  # if no tokens were parsed, parse last chunk
+            match = re.search(r"(\{)", acc_gen.text, re.DOTALL)
+            if not match:  # stream only when text does not contain json brackets to ensure quality of output
+                transformed_text = self.answer_str_to_json(acc_gen.text)
+                if parsed := self.parse_partial_json(transformed_text):
+                    field_content = parsed.get(self.name_of_streamed_field)
+                    if field_content:
+                        dispatch_custom_event(RedboxEventType.response_tokens, data=field_content)
+                        yield self.pydantic_schema_object.model_validate(parsed)
+
         if parsed:
             yield self.pydantic_schema_object.model_validate(parsed)
 
@@ -205,16 +243,29 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
         acc_gen: Union[GenerationChunk, ChatGenerationChunk, None] = None
         field_length_at_last_run: int = 0
         parsed = None
+        is_parsed = False
         async for chunk in input:
             chunk_gen = self._to_generation_chunk(chunk)
             acc_gen = chunk_gen if acc_gen is None else acc_gen + chunk_gen  # type: ignore[operator]
-
             if parsed := self.parse_partial_json(acc_gen.text):
-                if field_content := parsed.get(self.name_of_streamed_field):
+                is_parsed = True
+                field_content = parsed.get(self.name_of_streamed_field)
+                if field_content:
                     if new_tokens := field_content[field_length_at_last_run:]:
                         dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
                         field_length_at_last_run = len(field_content)
                         yield self.pydantic_schema_object.model_validate(parsed)
+
+        if not is_parsed:  # if no tokens were parsed, parse last chunk
+            match = re.search(r"(\{)", acc_gen.text, re.DOTALL)
+            if not match:  # stream only when text does not contain json brackets to ensure quality of output
+                transformed_text = self.answer_str_to_json(acc_gen.text)
+                if parsed := self.parse_partial_json(transformed_text):
+                    field_content = parsed.get(self.name_of_streamed_field)
+                    if field_content:
+                        dispatch_custom_event(RedboxEventType.response_tokens, data=field_content)
+                        yield self.pydantic_schema_object.model_validate(parsed)
+
         if parsed:
             yield self.pydantic_schema_object.model_validate(parsed)
 
@@ -246,3 +297,65 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
 
     def parse(self, text: str) -> Any:
         return super().parse(text)
+
+
+class StreamingPlanner(StreamingJsonOutputParser):
+    sub_streamed_field: str = None
+    suffix_texts: list = [""]
+    prefix_texts: list = [""]
+
+    def parse_partial_json(self, text: str):
+        try:
+            text = super().extract_json(text)
+            return parse_json_markdown(text)
+        except json.JSONDecodeError:
+            return None
+
+    def _transform(self, input: Iterator[Union[str, BaseMessage]]) -> Iterator[Any]:
+        acc_gen: Union[GenerationChunk, ChatGenerationChunk, None] = None
+        field_length_at_last_run: int = 0
+        item_count: int = 0
+        parsed = None
+        for chunk in input:
+            chunk_gen = self._to_generation_chunk(chunk)
+            acc_gen = chunk_gen if acc_gen is None else acc_gen + chunk_gen  # type: ignore[operator]
+
+            if parsed := self.parse_partial_json(acc_gen.text):
+                if self.sub_streamed_field:
+                    try:
+                        item = parsed.get(self.name_of_streamed_field)[item_count]
+                        if field_content := item.get(self.sub_streamed_field):
+                            if new_tokens := field_content[field_length_at_last_run:]:
+                                if (item_count == 0) and (field_length_at_last_run == 0):
+                                    dispatch_custom_event(
+                                        RedboxEventType.response_tokens,
+                                        data=f"{random.choice(self.prefix_texts)}\n\n1. ",
+                                    )
+                                elif (item_count > 0) and (field_length_at_last_run == 0):
+                                    dispatch_custom_event(RedboxEventType.response_tokens, data=f"{item_count+1}. ")
+                                dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
+                                field_length_at_last_run = len(field_content)
+                                yield self.pydantic_schema_object.model_validate(parsed)
+                            else:
+                                item_count += 1
+                                field_length_at_last_run = 0
+                                dispatch_custom_event(RedboxEventType.response_tokens, data="\n\n")
+
+                    except (IndexError, TypeError):
+                        item = []
+                else:
+                    if field_content := parsed.get(self.name_of_streamed_field):
+                        if new_tokens := field_content[field_length_at_last_run:]:
+                            dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
+                            field_length_at_last_run = len(field_content)
+                            yield self.pydantic_schema_object.model_validate(parsed)
+
+        if not (self.sub_streamed_field):
+            if parsed:
+                yield self.pydantic_schema_object.model_validate(parsed)
+
+        # adding suffix here
+        dispatch_custom_event(RedboxEventType.response_tokens, data=random.choice(self.suffix_texts))
+
+    async def _atransform(self, input: AsyncIterator[Union[str, BaseMessage]]) -> AsyncIterator[Any]:
+        self._transform(input)

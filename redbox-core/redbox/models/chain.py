@@ -14,7 +14,7 @@ from langgraph.managed.is_last_step import RemainingStepsManager
 from pydantic import BaseModel, Field
 
 from redbox.models import prompts
-from redbox.models.chat import ToolEnum
+from redbox.models.chat import DecisionEnum, ToolEnum
 from redbox.models.settings import ChatLLMBackend
 
 load_dotenv()
@@ -69,6 +69,9 @@ class AISettings(BaseModel):
     new_route_retrieval_question_prompt: str = prompts.NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT
     llm_decide_route_prompt: str = prompts.LLM_DECIDE_ROUTE
     citation_prompt: str = prompts.CITATION_PROMPT
+    planner_system_prompt: str = prompts.PLANNER_PROMPT
+    planner_question_prompt: str = prompts.PLANNER_QUESTION_PROMPT
+    planner_format_prompt: str = prompts.PLANNER_FORMAT_PROMPT
 
     # Elasticsearch RAG and boost values
     rag_k: int = 30
@@ -109,6 +112,10 @@ class Source(BaseModel):
         description="Direct quote from the provided document (20+ words)", default=""
     )
     page_numbers: list[int] = Field(description="Page Number in document the highlighted text is on", default=[1])
+    ref_id: str = Field(
+        description="The Reference ID in the format 'ref_N' where N is a strictly incrementing number starting from 1",
+        default="",
+    )
 
 
 class Citation(BaseModel):
@@ -254,8 +261,26 @@ def metadata_reducer(
     )
 
 
+agent_options = {agent: agent for agent in AISettings().agents}
+AgentEnum = Enum("AgentEnum", agent_options)
+
+
+class AgentTask(BaseModel):
+    task: str = Field(description="Task to be completed by the agent", default="")
+    agent: AgentEnum = Field(
+        description="Name of the agent to complete the task", default=AgentEnum.Internal_Retrieval_Agent
+    )
+    expected_output: str = Field(description="What this agent should produce", default="")
+
+
+class MultiAgentPlan(BaseModel):
+    tasks: List[AgentTask] = Field(description="A list of tasks to be carried out by agents", default=[])
+    model_config = {"extra": "forbid"}
+
+
 class RedboxState(BaseModel):
     request: RedboxQuery
+    user_feedback: str = ""
     documents: Annotated[DocumentState, document_reducer] = DocumentState()
     route_name: str | None = None
     metadata: Annotated[RequestMetadata | None, metadata_reducer] = None
@@ -263,6 +288,8 @@ class RedboxState(BaseModel):
     steps_left: Annotated[int | None, RemainingStepsManager] = None
     messages: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     agents_results: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
+    agent_plans: MultiAgentPlan | None = None
+    tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
 
     @property
     def last_message(self) -> AnyMessage:
@@ -281,6 +308,7 @@ class PromptSet(StrEnum):
     SelfRoute = "self_route"
     CondenseQuestion = "condense_question"
     NewRoute = "new_route"
+    Planner = "planner"
 
 
 def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str, str]:
@@ -316,6 +344,10 @@ def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str, st
         system_prompt = state.request.ai_settings.new_route_retrieval_system_prompt
         question_prompt = state.request.ai_settings.new_route_retrieval_question_prompt
         format_prompt = state.request.ai_settings.citation_prompt
+    elif prompt_set == PromptSet.Planner:
+        system_prompt = state.request.ai_settings.planner_system_prompt
+        question_prompt = state.request.ai_settings.planner_question_prompt
+        format_prompt = state.request.ai_settings.planner_format_prompt
     return (system_prompt, question_prompt, format_prompt)
 
 
@@ -409,17 +441,30 @@ class AgentDecision(BaseModel):
     next: ToolEnum = ToolEnum.search
 
 
-agent_options = {agent: agent for agent in AISettings().agents}
-AgentEnum = Enum("AgentEnum", agent_options)
+class FeedbackEvalDecision(BaseModel):
+    next: DecisionEnum = DecisionEnum.approve
 
 
-class AgentTask(BaseModel):
-    task: str = Field(description="Task to be completed by the agent", default="")
-    agent: AgentEnum = Field(
-        description="Name of the agent to complete the task", default=AgentEnum.Internal_Retrieval_Agent
-    )
-    expected_output: str = Field(description="What this agent should produce", default="")
+def get_plan_fix_prompts():
+    suffix_texts = [
+        "Please let me know if you want me to go ahead with the plan, or make any changes.",
+        "Let me know if you would like to proceed, or you can also ask me to make changes.",
+        "If you're happy with this approach let me know, or you can change the approach also.",
+        "Let me know if you'd like me to proceed, or if you want to amend or change the plan.",
+    ]
+    prefix_texts = [
+        "Here is the plan I will execute:",
+        "Here is my proposed plan:",
+        "I can look into this for you, here's my current plan:",
+        "Sure, here's my current plan:",
+    ]
+    return (prefix_texts, suffix_texts)
 
 
-class MultiAgentPlan(BaseModel):
-    tasks: List[AgentTask] = Field(description="A list of tasks to be carried out by agents", default=[])
+def get_plan_fix_suggestion_prompts():
+    return [
+        "It looks like you do not want to go ahead with the plan. Please let me know how I can help.",
+        "Okay, no problem. The plan has been cancelled.",
+        "I've stopped that task as requested. Let me know if you need anything else.",
+        "Cancellation confirmed. What would you like to do next?",
+    ]

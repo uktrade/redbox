@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import textwrap
 import uuid
 from collections.abc import Collection, Sequence
@@ -52,6 +53,19 @@ def sanitise_string(string: str | None) -> str | None:
     """We are seeing NUL (0x00) characters in user entered fields, and also in document citations.
     We can't save these characters, so we need to sanitise them."""
     return string.replace("\x00", "\ufffd") if string else string
+
+
+def get_id_digits(citation_items) -> int:
+    """Extracts the digits from the citation_name."""
+    string = citation_items[-1]
+    if not string:
+        msg = "None Value"
+        raise TypeError(msg)
+    match = re.search(pattern=r"\d+", string=string)
+    if not match:
+        msg = f"No numeric value present in {string}"
+        raise TypeError(msg)
+    return int(match.group())
 
 
 class ChatLLMBackend(models.Model):
@@ -387,6 +401,7 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
     username = models.EmailField(unique=True, blank=False, null=False)
     email = models.EmailField()
     password = models.CharField("password", max_length=128, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     first_name = models.CharField(max_length=48)
     last_name = models.CharField(max_length=48)
     business_unit = models.CharField(null=True, blank=True, max_length=100, choices=BusinessUnit)
@@ -581,7 +596,7 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
 
     @property
     def url(self) -> str:
-        return self.original_file.url
+        return self.original_file.url if self.original_file else ""
 
     @property
     def file_name(self) -> str:
@@ -589,11 +604,14 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
             return self.original_file_name
 
         # could have a stronger (regex?) way of stripping the users email address?
-        if "/" in self.original_file.name:
+        if self.original_file and "/" in self.original_file.name:
             return self.original_file.name.split("/")[1]
 
-        logger.error("expected filename=%s to start with the user's email address", self.original_file.name)
-        return self.original_file.name
+        if self.original_file:
+            logger.error("expected filename=%s to start with the user's email address", self.original_file.name)
+            return self.original_file.name
+
+        return ""
 
     @property
     def unique_name(self) -> str:
@@ -603,7 +621,7 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
                 "User tried to delete %s with status %s, it has already been deleted", self.pk, self.status
             )
             raise InactiveFileError(self)
-        return self.original_file.name
+        return self.original_file.name if self.original_file else ""
 
     def get_status_text(self) -> str:
         permanent_error = "Error"
@@ -753,6 +771,11 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         blank=True,
         help_text="the part of the answer the citation refers too - useful for adding in footnotes",
     )
+    citation_name = models.TextField(
+        null=True,
+        blank=True,
+        help_text="the unique name of the citation in the format 'ref_N' where N is a strictly incrementing number starting from 1",  # noqa: E501
+    )
 
     def __str__(self):
         text = self.text or "..."
@@ -862,12 +885,21 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
                 return str(citation.uri)
             return citation.file.file_name
 
-        return sorted(
-            {
-                (get_display(citation), citation.uri, citation.id, citation.text_in_answer)
-                for citation in self.citation_set.all()
-            }
-        )
+        try:
+            return sorted(
+                {
+                    (get_display(citation), citation.uri, citation.id, citation.text_in_answer, citation.citation_name)
+                    for citation in self.citation_set.all()
+                },
+                key=get_id_digits,
+            )
+        except TypeError:
+            return sorted(
+                {
+                    (get_display(citation), citation.uri, citation.id, citation.text_in_answer, citation.citation_name)
+                    for citation in self.citation_set.all()
+                }
+            )
 
 
 class ChatMessageTokenUse(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -907,3 +939,11 @@ class MonitorSearchRoute(UUIDPrimaryKeyBase, TimeStampedModel):
 
     def __str__(self):
         return f"{self.user_text} {self.route} {self.chunk_similarity_scores} {self.ai_text}"
+
+
+class AgentPlan(UUIDPrimaryKeyBase, TimeStampedModel):
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
+    agent_plans = models.TextField(max_length=32768, null=False, blank=False)
+
+    def __str__(self) -> str:
+        return self.agent_plans
