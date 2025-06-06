@@ -15,18 +15,20 @@ from django.forms.models import model_to_dict
 from django.utils import timezone
 from langchain_core.documents import Document
 from openai import RateLimitError
+from pydantic import ValidationError
 from uwotm8 import convert_american_to_british_spelling
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
-from redbox.chains.components import get_structured_response_with_planner_parser
 from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
+    MultiAgentPlan,
     RedboxQuery,
     RedboxState,
     RequestMetadata,
     Source,
+    get_plan_fix_prompts,
     metadata_reducer,
 )
 from redbox.models.chain import Citation as AICitation
@@ -35,6 +37,7 @@ from redbox.models.settings import get_settings
 from redbox_app.redbox_core import error_messages
 from redbox_app.redbox_core.models import (
     ActivityEvent,
+    AgentPlan,
     Chat,
     ChatLLMBackend,
     ChatMessage,
@@ -129,6 +132,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         await self.llm_conversation(selected_files, session, user, user_message_text, permitted_files)
 
+        if (self.final_state) and (self.final_state.agent_plans):
+            await self.agent_plan_save(session)
+
         # save user, ai and intermediary graph outputs if 'search' route is invoked
         if self.route == "search":
             await self.monitor_search_route(session, user_message_text)
@@ -143,22 +149,39 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
         message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
-
         question = message_history[-2].text
         user_feedback = ""
         plan_message_size = 3
-        parser, _ = get_structured_response_with_planner_parser()
-        # Try convert AI message to plan
+        agent_plans = None
+
+        plan_prefix, _ = get_plan_fix_prompts()
         if (len(message_history) > plan_message_size) and (
-            any(n in message_history[-plan_message_size].text for n in parser.prefix_texts)
+            any(n in message_history[-plan_message_size].text for n in plan_prefix)
         ):
+
+            @sync_to_async
+            def get_agent_plan(session: Chat):
+                return (
+                    AgentPlan.objects.filter(chat__id=session.id)
+                    .order_by("-created_at")
+                    .values_list("agent_plans")
+                    .first()
+                )
+
             try:
-                question = message_history[-4].text
-                user_feedback = message_history[-2].text
-                logger.debug("here is user feedback %s", user_feedback)
-            except Exception as e:
-                logger.debug("cannot parse into plan object %s", message_history[-3].text)
-                logger.exception("Error from getting plan.", exc_info=e)
+                plan = await get_agent_plan(session)
+            except AgentPlan.DoesNotExist as e:
+                logger.debug("Cannot find object in db %s", e)
+            if plan:
+                try:
+                    agent_plans = MultiAgentPlan.model_validate_json(plan[0])
+                    question = message_history[-4].text
+                    user_feedback = message_history[-2].text
+                    logger.debug("here is the plan: %s", plan[0])
+                    logger.debug("here is user feedback %s", user_feedback)
+                except ValidationError as e:
+                    logger.debug("cannot parse into plan object %s", plan[0])
+                    logger.exception("Error from converting plan.", exc_info=e)
 
         ai_settings = await self.get_ai_settings(session)
         state = RedboxState(
@@ -177,6 +200,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 permitted_s3_keys=[f.unique_name async for f in permitted_files],
             ),
             user_feedback=user_feedback,
+            agent_plans=agent_plans,
         )
 
         try:
@@ -316,6 +340,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 ActivityEvent.objects.create(chat_message=self.chat_message, message=activity.message)
 
         self.chat_message.log()
+
+    @database_sync_to_async
+    def agent_plan_save(self, session: Chat) -> AgentPlan:
+        logger.info("Saving agent plans")
+        agent_plan = AgentPlan(chat=session, agent_plans=self.final_state.agent_plans.model_dump_json())
+        agent_plan.save()
+        return agent_plan
 
     @database_sync_to_async
     def monitor_search_route(
