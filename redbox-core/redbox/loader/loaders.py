@@ -99,18 +99,7 @@ class UnstructuredChunkLoader:
                 files = {
                     "files": (file_name, chunk),
                 }
-                response = requests.post(
-                    url,
-                    files=files,
-                    data={
-                        "strategy": "fast",
-                        "chunking_strategy": "by_title",
-                        "max_characters": self._max_chunk_size,
-                        "combine_under_n_chars": self._min_chunk_size,
-                        "overlap": self._overlap_chars,
-                        "overlap_all": self._overlap_all_chunks,
-                    },
-                )
+                response = self.post_files(url, files)
 
                 if response.status_code != 200:
                     msg = f"Chunk {idx+1} failed: {response.text}"
@@ -122,18 +111,7 @@ class UnstructuredChunkLoader:
                 "files": (file_name, file_bytes),
             }
 
-            response = requests.post(
-                url,
-                files=files,
-                data={
-                    "strategy": "fast",
-                    "chunking_strategy": "by_title",
-                    "max_characters": self._max_chunk_size,
-                    "combine_under_n_chars": self._min_chunk_size,
-                    "overlap": self._overlap_chars,
-                    "overlap_all": self._overlap_all_chunks,
-                },
-            )
+            response = self.post_files(url, files)
 
             if response.status_code != 200:
                 raise ValueError(response.text)
@@ -144,6 +122,22 @@ class UnstructuredChunkLoader:
                 raise ValueError("Unstructured failed to extract text for this file")
         logger.debug(f"{len(elements)}")
         return elements
+
+    def post_files(self, url, files):
+        response = requests.post(
+            url,
+            files=files,
+            data={
+                "strategy": "fast",
+                "chunking_strategy": "by_title",
+                "max_characters": self._max_chunk_size,
+                "combine_under_n_chars": self._min_chunk_size,
+                "overlap": self._overlap_chars,
+                "overlap_all": self._overlap_all_chunks,
+            },
+        )
+
+        return response
 
     def lazy_load(self, file_name: str, file_bytes: BytesIO) -> Iterator[Document]:
         """A lazy loader that reads a file line by line.
