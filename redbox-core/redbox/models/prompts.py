@@ -218,12 +218,11 @@ Decision-Making Process:
 
 Execution Strategy:
 1. Review the provided document metadata
-2. Assess the completeness of existing information
-3. If additional information is needed:
+2. If additional information is needed:
    - Identify the specific knowledge gap
    - Select the most precise tool to fill that gap
    - Make a targeted, focused tool call
-4. Produce the expected output with maximum accuracy and efficiency. Only use information obtained from tools.
+3. Produce the expected output with maximum accuracy and efficiency. Only use information obtained from tools.
 
 <Document_Metadata>{metadata}</Document_Metadata>
 """

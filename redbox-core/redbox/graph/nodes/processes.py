@@ -480,7 +480,7 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
         result_content = "".join([res.content for res in result])
         # truncate results to max_token
         result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
-        return {"agents_results": result, "tasks_evaluator": task.task + "\n" + task.expected_output}
+        return {"agents_results": result, "tasks_evaluator": task.question}
 
     return _build_agent
 

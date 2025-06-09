@@ -271,6 +271,7 @@ class AgentTask(BaseModel):
         description="Name of the agent to complete the task", default=AgentEnum.Internal_Retrieval_Agent
     )
     expected_output: str = Field(description="What this agent should produce", default="")
+    question: str = Field(description="The portion of the user question this agent is responsible for", default="")
 
 
 class MultiAgentPlan(BaseModel):
