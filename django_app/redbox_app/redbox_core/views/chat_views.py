@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def replace_ref(message_text: str, ref_name: str, message_id: str, cit_id: str, footnote_counter: int) -> str:
-    pattern = rf"[\[\(\{{<]{ref_name}[\]\)\}}>]|{ref_name}"
+    pattern = rf"[\[\(\{{<]{ref_name}[\]\)\}}>]|\b{ref_name}\b"
     message_text = re.sub(
         pattern,
         f'<a class="rb-footnote-link" href="/citations/{message_id}/#{cit_id}">{footnote_counter}</a>',
