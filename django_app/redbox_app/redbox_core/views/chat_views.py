@@ -33,16 +33,14 @@ def replace_ref(message_text: str, ref_name: str, message_id: str, cit_id: str, 
     )
     return re.sub(pattern, "", message_text)
 
-def replace_text_in_answer(message_text: str,
-                           text_in_answer: str,
-                           message_id: str,
-                           cit_id: str,
-                           footnote_counter: int
-                           ) -> str:
+
+def replace_text_in_answer(
+    message_text: str, text_in_answer: str, message_id: str, cit_id: str, footnote_counter: int
+) -> str:
     return message_text.replace(
-                        text_in_answer,
-                        f'{text_in_answer}<a class="rb-footnote-link" href="/citations/{message_id}/#{cit_id}">{footnote_counter}</a>',  # noqa: E501
-                    )
+        text_in_answer,
+        f'{text_in_answer}<a class="rb-footnote-link" href="/citations/{message_id}/#{cit_id}">{footnote_counter}</a>',
+    )
 
 
 def remove_dangling_citation(message_text: str) -> str:
@@ -55,10 +53,15 @@ def remove_dangling_citation(message_text: str) -> str:
     text = re.sub(left_pattern, r"\1", text)
     return re.sub(right_pattern, r"\1", text)
 
-def citation_not_inserted(message_text, message_id, cit_id, footnote_counter)-> bool:
-    return f'<a class="rb-footnote-link" href="/citations/{message_id}/#{cit_id}">{footnote_counter}</a>' not in message_text
 
-def check_ref_ids_unique(message)-> bool:
+def citation_not_inserted(message_text, message_id, cit_id, footnote_counter) -> bool:
+    return (
+        f'<a class="rb-footnote-link" href="/citations/{message_id}/#{cit_id}">{footnote_counter}</a>'
+        not in message_text
+    )
+
+
+def check_ref_ids_unique(message) -> bool:
     ref_names = [citation_tup[-1] for citation_tup in message.unique_citation_uris()]
     return len(ref_names) == len(set(ref_names))
 
@@ -104,24 +107,30 @@ class ChatsView(View):
                         footnote_counter=footnote_counter,
                     )
 
-                    if citation_not_inserted(message_text=message.text,
-                                             message_id=message.id,
-                                             cit_id=cit_id,
-                                             footnote_counter=footnote_counter):
+                    if citation_not_inserted(
+                        message_text=message.text,
+                        message_id=message.id,
+                        cit_id=cit_id,
+                        footnote_counter=footnote_counter,
+                    ):
                         logger.info("Citation Numbering Missed")
                     else:
                         footnote_counter = footnote_counter + 1
                 elif text_in_answer:
-                    message.text = replace_text_in_answer(message_text=message.text,
-                                                          text_in_answer=text_in_answer,
-                                                          message_id=message.id,
-                                                          cit_id=cit_id,
-                                                          footnote_counter=footnote_counter)
+                    message.text = replace_text_in_answer(
+                        message_text=message.text,
+                        text_in_answer=text_in_answer,
+                        message_id=message.id,
+                        cit_id=cit_id,
+                        footnote_counter=footnote_counter,
+                    )
                     footnote_counter = footnote_counter + 1
-                    if  citation_not_inserted(message_text=message.text,
-                                             message_id=message.id,
-                                             cit_id=cit_id,
-                                             footnote_counter=footnote_counter):
+                    if citation_not_inserted(
+                        message_text=message.text,
+                        message_id=message.id,
+                        cit_id=cit_id,
+                        footnote_counter=footnote_counter,
+                    ):
                         logger.info("Citation Numbering Missed")
             message.text = remove_dangling_citation(message_text=message.text)
 
