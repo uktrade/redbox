@@ -20,7 +20,6 @@
           <h2 class="govuk-heading-m">Sources</h2>
           <ul class="rb-citations__list">
             {% for citation in message.citation_set.all() %}
-            {% if citation.text_in_answer or citation.citation_name %}
               <li class="rb-citations__item">
                 <h3 class="govuk-heading-s govuk-!-margin-bottom-0">
                   {% if citation.url %} {# an external reference #}
@@ -34,7 +33,6 @@
                 {% endif %}
                 <markdown-converter id="{{ citation.id }}" class="iai-chat-bubbles__sources-link">{{ citation.text }}</markdown-converter>
               </li>
-              {% endif %}
             {% endfor %}
           </ul>
         </div>
