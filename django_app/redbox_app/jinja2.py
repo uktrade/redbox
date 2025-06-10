@@ -1,5 +1,4 @@
 import datetime
-import re
 
 import humanize
 import jinja2
@@ -9,6 +8,7 @@ from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.timezone import template_localtime
 from markdown_it import MarkdownIt
+
 from redbox_app.redbox_core.views.chat_views import remove_dangling_citation
 
 # `js-default` setting required to sanitize inputs
@@ -66,6 +66,7 @@ def to_user_timezone(value):
     # Replace 'Europe/London' with the actual timezone string for the user
     user_tz = pytz.timezone("Europe/London")
     return value.astimezone(user_tz).strftime("%H:%M %d/%m/%Y")
+
 
 def environment(**options):
     extra_options = {}
