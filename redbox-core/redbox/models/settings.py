@@ -150,6 +150,8 @@ class Settings(BaseSettings):
 
     allow_plan_feedback: bool = env.bool("ALLOW_PLAN_FEEDBACK", True)
 
+    is_local = ENVIRONMENT.is_local
+
     # mcp
     caddy_mcp: MCPServerSettings = MCPServerSettings(
         name="caddy_mcp",
