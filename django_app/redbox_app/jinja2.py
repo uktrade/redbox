@@ -1,9 +1,9 @@
 import datetime
+import re
 
 import humanize
 import jinja2
 import pytz
-import re
 from django.conf import settings
 from django.templatetags.static import static
 from django.urls import reverse
@@ -66,8 +66,9 @@ def to_user_timezone(value):
     user_tz = pytz.timezone("Europe/London")
     return value.astimezone(user_tz).strftime("%H:%M %d/%m/%Y")
 
+
 def remove_refs(text):
-    return re.sub(r'\bref_\d+\b', '', text).strip()
+    return re.sub(r"\bref_\d+\b", "", text).strip()
 
 
 def environment(**options):
