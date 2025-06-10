@@ -32,14 +32,17 @@ from redbox.graph.nodes.processes import (
     build_set_route_pattern,
     build_set_self_route_from_llm_answer,
     build_stuff_pattern,
+    build_user_feedback_evaluation,
     clear_documents_process,
+    combine_question_evaluator,
     create_evaluator,
     empty_process,
     invoke_custom_state,
     lm_choose_route,
     my_planner,
     report_sources_process,
-    combine_question_evaluator,
+    stream_plan,
+    stream_suggestion,
 )
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -839,11 +842,12 @@ def build_new_graph(
 
     builder = StateGraph(RedboxState)
     builder.add_node("remove_keyword", strip_route)
+    builder.add_node("stream_plan", stream_plan())
     builder.add_node(
         "planner",
         my_planner(
             allow_plan_feedback=allow_plan_feedback,
-            node_after_streamed="waiting_for_feedback",
+            node_after_streamed="stream_plan",
             node_afer_replan="sending_task",
         ),
     )
@@ -879,6 +883,8 @@ def build_new_graph(
         ),
     )
 
+    builder.add_node("user_feedback_evaluation", empty_process)
+
     builder.add_node("Evaluator_Agent", create_evaluator())
     builder.add_node("combine_question_evaluator", combine_question_evaluator())
     builder.add_node(
@@ -886,16 +892,30 @@ def build_new_graph(
         report_sources_process,
         retry=RetryPolicy(max_attempts=3),
     )
-    builder.add_node("waiting_for_feedback", empty_process)
+    builder.add_node("stream_suggestion", stream_suggestion())
     builder.add_node("sending_task", empty_process)
+
     builder.add_edge(START, "remove_keyword")
-    builder.add_edge("remove_keyword", "planner")
+    builder.add_conditional_edges(
+        "remove_keyword", lambda s: s.user_feedback == "", {True: "planner", False: "user_feedback_evaluation"}
+    )
+    builder.add_conditional_edges(
+        "user_feedback_evaluation",
+        build_user_feedback_evaluation(),
+        {
+            "approve": "sending_task",
+            "modify": "planner",
+            "reject": "stream_suggestion",
+            "more_info": "stream_suggestion",
+        },
+    )
     builder.add_conditional_edges("sending_task", sending_task_to_agent)
     builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
     builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
-    builder.add_edge("waiting_for_feedback", END)
+    builder.add_edge("stream_plan", END)
+    builder.add_edge("stream_suggestion", END)
 
     return builder.compile(debug=debug)

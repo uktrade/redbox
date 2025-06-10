@@ -254,12 +254,29 @@ WORKER_AGENTS_PROMPT = """
 
 When creating your execution plan, you have access to the following specialised agents:
 
-1. **Internal_Retrieval_Agent**: solely responsible for retrieving information from user's uploaded documents. It does not summarise documents.
+1. **Internal_Retrieval_Agent**:
+Purpose: Information retrieval and question answering
+Use when the user wants to:
+- Ask questions about specific documents or knowledge base content
+- Retrieve specific information or facts
+- Get answers to queries based on existing documents
+- Search for particular details within documents
+- Compare information across multiple documents
+- Get explanations about content within documents
+
 2. **External_Retrieval_Agent**: solely responsible for retrieving information outside of user's uploaded documents, specifically from external data sources:
       - Wikipedia
       - gov.uk
       - legislation.gov.uk
-3. **Summarisation_Agent**: solely responsible for summarising entire user's uploaded documents. It does not summarise outputs from other agents.
+
+3. **Summarisation_Agent**:
+Purpose: Document summarization only
+Use when the user wants to:
+- Get a summary of an entire document
+- Create an executive summary
+- Generate a brief overview of document contents
+- Produce condensed versions of lengthy documents
+- Create abstracts or overviews
 """
 
 PLANNER_PROMPT = (
@@ -325,3 +342,15 @@ REPLAN_PROMPT = (
     + PLANNER_FORMAT_PROMPT
     + PLANNER_QUESTION_PROMPT
 )
+
+USER_FEEDBACK_EVAL_PROMPT = """Given a plan and user feedback,
+Interpret user feedback into one of the following categories:
+1. approve the plan
+2. modify the plan
+3. reject the plan
+4. you need more information from user
+
+<Plan>{plan}</Plan>
+<User_feedback>{feedback}</User_feedback>
+
+Return output in the following format <Output_format>{format_instructions}</Output_format>"""
