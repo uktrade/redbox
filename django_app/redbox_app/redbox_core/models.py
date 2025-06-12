@@ -530,8 +530,13 @@ def build_s3_key(instance, filename: str) -> str:
     this needs to be unique so that if a user uploads a file with the same name as
     1. an existing file that they own, then it is overwritten
     2. an existing file that another user owns then a new file is created
+
+    note: s3 key is not prefixed with the user's email address if not local as filename is unique
     """
-    return f"{instance.user.email}/{filename}"
+    if env.is_local:
+        # if local, prefix the filename with the user's email address
+        filename = f"{instance.user.email}/{filename}"
+    return f"{filename}"
 
 
 class File(UUIDPrimaryKeyBase, TimeStampedModel):
