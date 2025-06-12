@@ -99,6 +99,7 @@ class ChatsView(View):
             for display, href, cit_id, text_in_answer, citation_name in message.unique_citation_uris():  # noqa: B007
                 citation_names_unique = check_ref_ids_unique(message)
                 if citation_name and citation_names_unique:
+
                     message.text = replace_ref(
                         message_text=message.text,
                         ref_name=citation_name,
@@ -106,7 +107,6 @@ class ChatsView(View):
                         cit_id=cit_id,
                         footnote_counter=footnote_counter,
                     )
-
                     if citation_not_inserted(
                         message_text=message.text,
                         message_id=message.id,
