@@ -9,6 +9,8 @@ from django.urls import reverse
 from django.utils.timezone import template_localtime
 from markdown_it import MarkdownIt
 
+from redbox_app.redbox_core.views.chat_views import remove_dangling_citation
+
 # `js-default` setting required to sanitize inputs
 # https://markdown-it-py.readthedocs.io/en/latest/security.html
 markdown_converter = MarkdownIt("js-default")
@@ -81,6 +83,7 @@ def environment(**options):
             "static": static,
             "url": url,
             "humanise_expiry": humanise_expiry,
+            "remove_refs": remove_dangling_citation,
             "template_localtime": template_localtime,
             "to_user_timezone": to_user_timezone,
             "environment": settings.ENVIRONMENT.value,
@@ -92,6 +95,7 @@ def environment(**options):
             "static": static,
             "url": url,
             "humanise_expiry": humanise_expiry,
+            "remove_refs": remove_dangling_citation,
             "template_localtime": template_localtime,
             "to_user_timezone": to_user_timezone,
             "environment": settings.ENVIRONMENT.value,
