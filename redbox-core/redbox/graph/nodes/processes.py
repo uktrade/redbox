@@ -485,7 +485,23 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
     return _build_agent
 
 
-def create_evaluator():
+def create_evaluator(test_name: str = "A"):
+    @RunnableLambda
+    def _stream_test(state: RedboxState):
+        dispatch_custom_event(RedboxEventType.response_tokens, f"\n\n---Result from test {test_name}---\n\n")
+        agent_tasks = state.agent_plans.tasks
+        if test_name == "A":
+            state.request.question = "\n\n".join([task.task + "\n" + task.expected_output for task in agent_tasks])
+        elif test_name == "B":
+            state.request.question = ["\n\n".join([task.question for task in agent_tasks])]
+        elif test_name == "C":
+            state.request.question = "\n\n".join(
+                [task.question + "\n" + task.task + "\n" + task.expected_output for task in agent_tasks]
+            )
+        dispatch_custom_event(RedboxEventType.response_tokens, f"\n\n---Eval question: {state.request.question}---\n\n")
+        return state
+
+    @RunnableLambda
     def _create_evaluator(state: RedboxState):
         _additional_variables = {"agents_results": combine_agents_state(state.agents_results)}
         citation_parser, format_instructions = get_structured_response_with_citations_parser()
@@ -499,7 +515,7 @@ def create_evaluator():
         )
         return evaluator_agent
 
-    return _create_evaluator
+    return _stream_test | _create_evaluator
 
 
 def invoke_custom_state(
@@ -589,7 +605,7 @@ def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
 
     @RunnableLambda
     def _combine_question(state: RedboxState) -> dict[str, Any]:
-        state.request.question = "\n\n".join([task.content for task in state.tasks_evaluator])
+        # state.request.question = "\n\n".join([task.content for task in state.tasks_evaluator])
         return state
 
     return _combine_question

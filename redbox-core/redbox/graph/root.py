@@ -885,8 +885,12 @@ def build_new_graph(
 
     builder.add_node("user_feedback_evaluation", empty_process)
 
-    builder.add_node("Evaluator_Agent", create_evaluator())
+    builder.add_node("A_Testing_agent", create_evaluator("A"))
+    builder.add_node("B_Testing_agent", create_evaluator("B"))
+    builder.add_node("C_Testing_agent", create_evaluator("C"))
+
     builder.add_node("combine_question_evaluator", combine_question_evaluator())
+
     builder.add_node(
         "report_citations",
         report_sources_process,
@@ -912,8 +916,12 @@ def build_new_graph(
     builder.add_conditional_edges("sending_task", sending_task_to_agent)
     builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
     builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
-    builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
-    builder.add_edge("Evaluator_Agent", "report_citations")
+    builder.add_edge("combine_question_evaluator", "A_Testing_agent")
+    builder.add_edge("A_Testing_agent", "B_Testing_agent")
+    builder.add_edge("B_Testing_agent", "C_Testing_agent")
+    builder.add_edge("A_Testing_agent", "report_citations")
+    builder.add_edge("B_Testing_agent", "report_citations")
+    builder.add_edge("C_Testing_agent", "report_citations")
     builder.add_edge("report_citations", END)
     builder.add_edge("stream_plan", END)
     builder.add_edge("stream_suggestion", END)
