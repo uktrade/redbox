@@ -1,0 +1,35 @@
+route_evaluation_new,,,,,
+Prompt,Route,Route_Adela,Route_Alfie,Route_Nora,consensus
+What did Serena Williams say about fairness in relation to her experience with postnatal complications?,Search,Search,Search,search,search
+What did the US Bureau of Labor Statistics say about women in computer and mathematical occupations in 2018?,Search,Search,Search,search,search
+What are some examples of groups whose faces have been used to train software without their consent,Search,Search,Search,search,search
+What is the Safe Face Pledge?,Search,Search,Search,search,search
+What did the 2018 Newspaper Diversity Survey find about ProPublica and USA Today's leadership?,Search,Search,Search,search,search
+What are some examples of data science being used to disempower and oppress minoritized groups?,Search,Search,Search,search,search
+What is the main idea behind Mimi Onuoha's 'The Library of Missing Datasets' project?,Search,Search,Search,search,search
+What are the names of Black-women-led reproductive justice groups?,Search,Search,Search,search,search
+What are the four domains of the matrix of domination?,Search,Search,Search,search,search
+What did social scientist Kate Crawford say was the biggest threat from AI systems?,Search,Search,Search,search,search
+What did the ACLU and NAACP do in response to the 2018 gubernatorial election in Georgia?,Search,Search,Search,search,search
+What is Irth and how does it operate?,Search,Search,Search,search,search
+What is the Algorithmic Justice League?,Search,Search,Search,search,search
+What did the UN report co-authored by SisterSong describe about the state of data collection on maternal mortality in the United States?,Search,Search,Search,search,search
+"What did the chief of the CDC’s Maternal and Infant Health branch, William Callaghan, say about what we choose to measure?",Search,Search,Search,search,search
+What is the meaning of the term 'minoritized' as used in the text?,Search,Search,Summarise,search,search
+What are some examples of how voting rights were restricted even after the passage of the 19th Amendment?,Search,Search,Search,search,search
+What is the Center for Land Use Interpretation (CLUI) and what did they do in 2014?,Search,Search,Search,search,search
+What is the 'pregnancy prediction score' that Target used?,Search,Search,Search,search,search
+What was the problem that Joy Buolamwini encountered with facial-analysis software?,Search,Search,Search,search,search
+Summarize the main argument of the chapter,Summarise,Summarise,Summarise,summarise,summarise
+Give a summary of the matrix of domination.,Summarise,Summarise,Search,"search. this question is similar to ""what is matrix of domination"" (if the question is Give a summary of the whole document, it would be summarise)",search
+Summarize the events that led Serena Williams to advocate for better maternal health data,Summarise,Summarise,Summarise,search,summarise
+Provide a summary of the challenges with racial and gender bias in AI systems,Summarise,Summarise,Search,search ,search
+What are some of the key issues related to data collection and analysis discussed in the chapter?,Ambigous,Summarise,Summarise,search,summarise
+What are some examples of the ways in which algorithms can be biased?,Ambigous,Search,Search,search,search
+What are some of the challenges in achieving equitable representation in data science?,Ambigous,Search,Search,search,search
+What are the main arguments for why 'more data is always better' is a flawed assumption?,Ambigous,Summarise,Summarise,search,summarise
+What are the main arguments against using diverse datasets for facial recognition?,Ambigous,Summarise,Search,search,search
+What are the environmental impacts of data storage and processing?,Ambigous,Search,Search,search,search
+How can data be used to promote social justice?,Ambigous,Search,Search,search,search
+What is the matrix of domination and how does it relate to data science?,Ambigous,Search,Search,search,search
+How can data scientists ensure that their work is ethical and socially responsible?,Ambigous,Search,Search,search,search
