@@ -1,6 +1,7 @@
 **/*.db
 .idea/
 redbox-core/models/
+.envrc
 # Credentials
 .aws/
 
@@ -103,6 +104,7 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+notebooks/.intent_exports/
 
 # IPython
 profile_default/
