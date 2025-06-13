@@ -36,14 +36,6 @@ Because asdf uses shims, Poetry needs to be explicitly told what Python to use. 
 poetry env use $(asdf which python)
 ```
 
-### Install project dependencies with Poetry
-
-Once Python has been configured and installed using either pyenv or asdf, from each applications root directory (django_app, redbox-core, notebooks), run the following:
-
-```bash
-poetry install
-```
-
 ### Option 2: Using pyenv (recommended for python only projects)
 
 #### Step 1: Install pyenv 
@@ -67,6 +59,14 @@ pyenv local $(awk '/^python / {print $2}' .tool-versions)
 This sets the local version in the project repository
 
 Poetry will automatically detect the pyenv-managed Python version.
+
+### Install project dependencies with Poetry
+
+Once Python has been configured and installed using either pyenv or asdf, from each applications root directory (django_app, redbox-core, notebooks), run the following:
+
+```bash
+poetry install
+```
 
 ### Verifying Setup
 
