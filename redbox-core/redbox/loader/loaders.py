@@ -6,7 +6,11 @@ from io import BytesIO
 from typing import TYPE_CHECKING
 
 import environ
+import fitz
 import requests
+
+# from requests.adapters import HTTPAdapter
+# from requests.packages.urllib.util.retry import Retry
 from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
 from pydantic import ValidationError
@@ -32,6 +36,27 @@ if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
 else:
     S3Client = object
+
+
+def is_large_pdf(file_name: str, filebytes: BytesIO, page_threshold=150) -> tuple[bool, int]:
+    if not file_name.lower().endswith(".pdf"):
+        return False, 0
+    doc = fitz.open(stream=filebytes.getvalue(), filetype="pdf")
+    return len(doc) > page_threshold, len(doc)
+
+
+def split_pdf(filebytes: BytesIO, pages_per_chunk: int = 75) -> list[BytesIO]:
+    doc = fitz.open(stream=filebytes.getvalue(), filetype="pdf")
+    chunks = []
+    for start in range(0, len(doc), pages_per_chunk):
+        sub_doc = fitz.open()
+        for page_num in range(start, min(start + pages_per_chunk, len(doc))):
+            sub_doc.insert_pdf(doc, from_page=page_num, to_page=page_num)
+        if len(sub_doc) == 0:
+            continue  # Skip empty chunks
+        chunk_bytes = BytesIO(sub_doc.tobytes())
+        chunks.append(chunk_bytes)
+    return chunks
 
 
 class UnstructuredChunkLoader:
@@ -63,9 +88,42 @@ class UnstructuredChunkLoader:
             url = f"http://{self.env.unstructured_host}:8000/general/v0/general"
         else:
             url = f"http://{self.env.unstructured_host}:80/general/v0/general"
-        files = {
-            "files": (file_name, file_bytes),
-        }
+
+        is_large, _ = is_large_pdf(file_name=file_name, filebytes=file_bytes)
+        file_bytes.seek(0)
+        if is_large:
+            elements = []
+            pdf_chunks = split_pdf(filebytes=file_bytes)
+            for idx, chunk in enumerate(pdf_chunks):
+                chunk.seek(0)
+                files = {
+                    "files": (file_name, chunk),
+                }
+                response = self.post_files(url, files)
+
+                if response.status_code != 200:
+                    msg = f"Chunk {idx+1} failed: {response.text}"
+                    print(response)
+                    raise ValueError(msg)
+                elements.extend(response.json())
+        else:
+            files = {
+                "files": (file_name, file_bytes),
+            }
+
+            response = self.post_files(url, files)
+
+            if response.status_code != 200:
+                raise ValueError(response.text)
+
+            elements = response.json()
+
+            if not elements:
+                raise ValueError("Unstructured failed to extract text for this file")
+        logger.debug(f"{len(elements)}")
+        return elements
+
+    def post_files(self, url, files):
         response = requests.post(
             url,
             files=files,
@@ -79,15 +137,7 @@ class UnstructuredChunkLoader:
             },
         )
 
-        if response.status_code != 200:
-            raise ValueError(response.text)
-
-        elements = response.json()
-
-        if not elements:
-            raise ValueError("Unstructured failed to extract text for this file")
-
-        return elements
+        return response
 
     def lazy_load(self, file_name: str, file_bytes: BytesIO) -> Iterator[Document]:
         """A lazy loader that reads a file line by line.

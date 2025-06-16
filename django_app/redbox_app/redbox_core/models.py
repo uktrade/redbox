@@ -401,6 +401,7 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
     username = models.EmailField(unique=True, blank=False, null=False)
     email = models.EmailField()
     password = models.CharField("password", max_length=128, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     first_name = models.CharField(max_length=48)
     last_name = models.CharField(max_length=48)
     business_unit = models.CharField(null=True, blank=True, max_length=100, choices=BusinessUnit)
@@ -938,3 +939,11 @@ class MonitorSearchRoute(UUIDPrimaryKeyBase, TimeStampedModel):
 
     def __str__(self):
         return f"{self.user_text} {self.route} {self.chunk_similarity_scores} {self.ai_text}"
+
+
+class AgentPlan(UUIDPrimaryKeyBase, TimeStampedModel):
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
+    agent_plans = models.TextField(max_length=32768, null=False, blank=False)
+
+    def __str__(self) -> str:
+        return self.agent_plans

@@ -1,11 +1,10 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable
 
 from langchain_core.messages import AIMessage
 from langgraph.constants import Send
 
-from redbox.models.chain import DocumentState, RedboxState, MultiAgentPlan
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from redbox.chains.parser import ClaudeParser
+from redbox.models.chain import DocumentState, RedboxState
 
 
 def _copy_state(state: RedboxState, **updates) -> RedboxState:
@@ -96,10 +95,10 @@ def run_tools_parallel(ai_msg, tools, state):
 
 
 def sending_task_to_agent(state: RedboxState):
-    parser = ClaudeParser(pydantic_object=MultiAgentPlan)
-    plan = parser.parse(state.last_message.content)
-    task_send_states: list[RedboxState] = [
-        (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
-        for task in plan.tasks
-    ]
-    return [Send(node=target, arg=state) for target, state in task_send_states]
+    plan = state.agent_plans
+    if plan:
+        task_send_states: list[RedboxState] = [
+            (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
+            for task in plan.tasks
+        ]
+        return [Send(node=target, arg=state) for target, state in task_send_states]

@@ -14,7 +14,7 @@ from langgraph.managed.is_last_step import RemainingStepsManager
 from pydantic import BaseModel, Field
 
 from redbox.models import prompts
-from redbox.models.chat import ToolEnum
+from redbox.models.chat import DecisionEnum, ToolEnum
 from redbox.models.settings import ChatLLMBackend
 
 load_dotenv()
@@ -113,7 +113,7 @@ class Source(BaseModel):
     )
     page_numbers: list[int] = Field(description="Page Number in document the highlighted text is on", default=[1])
     ref_id: str = Field(
-        description="The Reference ID in the format 'ref_N' where N is a strictly incrementing number starting from 1",
+        description="The Reference ID in the format 'ref_N'. Number each quote sequentially starting from ref_1, then ref_2, ref_3, and so on.",
         default="",
     )
 
@@ -261,6 +261,23 @@ def metadata_reducer(
     )
 
 
+agent_options = {agent: agent for agent in AISettings().agents}
+AgentEnum = Enum("AgentEnum", agent_options)
+
+
+class AgentTask(BaseModel):
+    task: str = Field(description="Task to be completed by the agent", default="")
+    agent: AgentEnum = Field(
+        description="Name of the agent to complete the task", default=AgentEnum.Internal_Retrieval_Agent
+    )
+    expected_output: str = Field(description="What this agent should produce", default="")
+
+
+class MultiAgentPlan(BaseModel):
+    tasks: List[AgentTask] = Field(description="A list of tasks to be carried out by agents", default=[])
+    model_config = {"extra": "forbid"}
+
+
 class RedboxState(BaseModel):
     request: RedboxQuery
     user_feedback: str = ""
@@ -271,6 +288,7 @@ class RedboxState(BaseModel):
     steps_left: Annotated[int | None, RemainingStepsManager] = None
     messages: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     agents_results: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
+    agent_plans: MultiAgentPlan | None = None
     tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
 
     @property
@@ -423,18 +441,30 @@ class AgentDecision(BaseModel):
     next: ToolEnum = ToolEnum.search
 
 
-agent_options = {agent: agent for agent in AISettings().agents}
-AgentEnum = Enum("AgentEnum", agent_options)
+class FeedbackEvalDecision(BaseModel):
+    next: DecisionEnum = DecisionEnum.approve
 
 
-class AgentTask(BaseModel):
-    task: str = Field(description="Task to be completed by the agent", default="")
-    agent: AgentEnum = Field(
-        description="Name of the agent to complete the task", default=AgentEnum.Internal_Retrieval_Agent
-    )
-    expected_output: str = Field(description="What this agent should produce", default="")
+def get_plan_fix_prompts():
+    suffix_texts = [
+        "Please let me know if you want me to go ahead with the plan, or make any changes.",
+        "Let me know if you would like to proceed, or you can also ask me to make changes.",
+        "If you're happy with this approach let me know, or you can change the approach also.",
+        "Let me know if you'd like me to proceed, or if you want to amend or change the plan.",
+    ]
+    prefix_texts = [
+        "Here is the plan I will execute:",
+        "Here is my proposed plan:",
+        "I can look into this for you, here's my current plan:",
+        "Sure, here's my current plan:",
+    ]
+    return (prefix_texts, suffix_texts)
 
 
-class MultiAgentPlan(BaseModel):
-    tasks: List[AgentTask] = Field(description="A list of tasks to be carried out by agents", default=[])
-    model_config = {"extra": "forbid"}
+def get_plan_fix_suggestion_prompts():
+    return [
+        "It looks like you do not want to go ahead with the plan. Please let me know how I can help.",
+        "Okay, no problem. The plan has been cancelled.",
+        "I've stopped that task as requested. Let me know if you need anything else.",
+        "Cancellation confirmed. What would you like to do next?",
+    ]
