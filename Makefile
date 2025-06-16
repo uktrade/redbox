@@ -259,3 +259,6 @@ eval_backend:  ## Runs the only the necessary backend for evaluation BUCKET_NAME
 .PHONY: help
 help: ## Show this help
 	@ grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(makefile_name) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1,$$2}'
+
+magic-link: # Get magic link(s) for sign-in
+	docker compose logs django-app | grep 8080/magic_link

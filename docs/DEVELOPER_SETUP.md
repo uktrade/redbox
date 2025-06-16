@@ -212,7 +212,7 @@ We'll need to create a superuser to log in to the Django app, to do this run the
 3. Use the email you came up with in step 1, and a password (the password isn't used as we use magic links).
 4. Now go to http://localhost:8080/sign-in/ enter the email you just created a super user for.
 5. Press "Continue"
-6. Now go to your terminal and run `docker compose logs django-app | grep 8080/magic_link`
+6. Now go to your terminal and run `make magic-link` or `docker compose logs django-app | grep 8080/magic_link`
 7. Click that link and you should be logged in.
 
 ## Setting up the chat llm backend
