@@ -15,10 +15,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
-from redbox_app.redbox_core.models import (Chat, ChatLLMBackend, ChatMessage,
-                                           File)
 from waffle import flag_is_active
 from yarl import URL
+
+from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, File
 
 logger = logging.getLogger(__name__)
 
