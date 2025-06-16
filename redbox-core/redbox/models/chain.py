@@ -2,7 +2,8 @@ from datetime import UTC, datetime
 from enum import Enum, StrEnum
 from functools import reduce
 from types import UnionType
-from typing import Annotated, List, Literal, NotRequired, Required, TypedDict, get_args, get_origin
+from typing import (Annotated, List, Literal, NotRequired, Required, TypedDict,
+                    get_args, get_origin)
 from uuid import UUID, uuid4
 
 import environ
