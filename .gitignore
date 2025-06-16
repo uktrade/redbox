@@ -105,6 +105,7 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints
 notebooks/.intent_exports/
+notebooks/.files
 
 # IPython
 profile_default/
