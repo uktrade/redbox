@@ -2,7 +2,8 @@ from datetime import UTC, datetime
 from enum import Enum, StrEnum
 from functools import reduce
 from types import UnionType
-from typing import Annotated, List, Literal, NotRequired, Required, TypedDict, get_args, get_origin
+from typing import (Annotated, List, Literal, NotRequired, Required, TypedDict,
+                    get_args, get_origin)
 from uuid import UUID, uuid4
 
 import environ
@@ -113,7 +114,7 @@ class Source(BaseModel):
     )
     page_numbers: list[int] = Field(description="Page Number in document the highlighted text is on", default=[1])
     ref_id: str = Field(
-        description="The Reference ID in the format 'ref_N' where N is a strictly incrementing number starting from 1",
+        description="The Reference ID in the format 'ref_N'. Number each quote sequentially starting from ref_1, then ref_2, ref_3, and so on.",
         default="",
     )
 
