@@ -142,9 +142,22 @@
           {% if chat_id %}<input type="hidden" name="session-id" value="{{ chat_id }}"/>{% endif %}
 
         </chat-controller>
-
       </div>
       <div class="chat-input__input-container">
+      <div class="govuk-warning-text">
+  <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+  <strong class="govuk-warning-text__text">
+    <span class="govuk-visually-hidden">Warning</span>
+     Redbox can make mistakes. You must check for accuracy before using the output.
+  </strong>
+</div>
+<div class="govuk-warning-text">
+  <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+  <strong class="govuk-warning-text__text">
+    <span class="govuk-visually-hidden">Warning</span>
+    You can use up to, and including, official sensitive documents.
+  </strong>
+</div>
       <label class="govuk-label govuk-!-padding-top-1" for="message">
       </label>
       <div id="message-hint" class="govuk-hint govuk-body">
