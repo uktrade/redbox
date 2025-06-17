@@ -125,7 +125,7 @@ class Source(BaseModel):
 
     @field_validator("source_type", mode="before")
     def validate_source_type(cls, value):
-        if value == "" or value is None:
+        if not value:
             return cls.model_fields["source_type"].default
         return value
 
