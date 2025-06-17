@@ -1,4 +1,5 @@
 import datetime
+import re
 
 import humanize
 import jinja2
@@ -8,8 +9,6 @@ from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.timezone import template_localtime
 from markdown_it import MarkdownIt
-
-from redbox_app.redbox_core.views.chat_views import remove_dangling_citation
 
 # `js-default` setting required to sanitize inputs
 # https://markdown-it-py.readthedocs.io/en/latest/security.html
@@ -68,6 +67,11 @@ def to_user_timezone(value):
     return value.astimezone(user_tz).strftime("%H:%M %d/%m/%Y")
 
 
+def remove_refs(text):
+    pattern = r"(\[\s*ref_\d+\s*\]|\bref_\d+\b)\s*-?"
+    return re.sub(pattern, "", text).strip()
+
+
 def environment(**options):
     extra_options = {}
 
@@ -83,7 +87,7 @@ def environment(**options):
             "static": static,
             "url": url,
             "humanise_expiry": humanise_expiry,
-            "remove_refs": remove_dangling_citation,
+            "remove_refs": remove_refs,
             "template_localtime": template_localtime,
             "to_user_timezone": to_user_timezone,
             "environment": settings.ENVIRONMENT.value,
@@ -95,7 +99,7 @@ def environment(**options):
             "static": static,
             "url": url,
             "humanise_expiry": humanise_expiry,
-            "remove_refs": remove_dangling_citation,
+            "remove_refs": remove_refs,
             "template_localtime": template_localtime,
             "to_user_timezone": to_user_timezone,
             "environment": settings.ENVIRONMENT.value,
