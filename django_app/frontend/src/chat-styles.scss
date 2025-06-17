@@ -213,7 +213,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   gap: 0.25rem;
 }
 .chat-title__edit-btn:hover {
-  color: $redbox-red;
+  color: $govuk-brand-colour;
 }
 .chat-title__edit-btn svg {
   margin-bottom: 2px;
@@ -281,7 +281,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   background-color: #0779c4;
 }
 .rb-activity--ai::before {
-  background-color: #1D70B8;
+  background-color: $govuk-brand-colour;
   content: url("/static/icons/activity-redbox.svg")
 }
 
@@ -420,7 +420,7 @@ chat-message {
 }
 
 .feedback__submit-btn {
-  background-color: $redbox-red;
+  background-color: $govuk-brand-colour;
   border: none;
   border-radius: 0.25rem;
   color: white;
@@ -465,8 +465,8 @@ main:has(.govuk-inset-text) .chat-options {
   text-align: left;
 }
 .chat-options__option:hover {
-  border-color: $redbox-red;
-  color: $redbox-red;
+  border-color: $govuk-brand-colour;
+  color: $govuk-brand-colour;
 }
 .chat-options__info-text {
   color: #1f2937;
@@ -510,7 +510,7 @@ main:has(.govuk-inset-text) .chat-options {
   width: 0.625rem;
 }
 .rb-send-button:hover .rb-square-icon::before {
-  background-color: $redbox-red;
+  background-color: $govuk-brand-colour;
 }
 
 .iai-chat-input {
@@ -826,7 +826,7 @@ margin-bottom: 16px;
 
 .govuk-grid-column-one-quarterx {
   @extend .govuk-grid-column-one-quarter;
-  background-color: #1D70B8;
+  background-color: $govuk-brand-colour;
   position: sticky;
   top: 111px;
   bottom: 0;
