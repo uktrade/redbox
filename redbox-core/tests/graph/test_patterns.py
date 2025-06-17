@@ -7,6 +7,7 @@ from langchain_core.retrievers import BaseRetriever
 from langgraph.graph import END, START, StateGraph
 from pytest_mock import MockerFixture
 
+from redbox.chains.components import get_structured_response_with_citations_parser
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, build_chat_prompt_from_messages_runnable, build_llm_chain
 from redbox.graph.nodes.processes import (
@@ -21,7 +22,16 @@ from redbox.graph.nodes.processes import (
     empty_process,
     lm_choose_route,
 )
-from redbox.models.chain import AgentDecision, AISettings, DocumentState, PromptSet, RedboxQuery, RedboxState
+from redbox.models.chain import (
+    AgentDecision,
+    AISettings,
+    Citation,
+    DocumentState,
+    PromptSet,
+    RedboxQuery,
+    RedboxState,
+    Source,
+)
 from redbox.models.chat import ChatRoute
 from redbox.test.data import (
     RedboxChatTestCase,
@@ -502,3 +512,78 @@ def test_llm_choose_route(test_case: RedboxChatTestCase, basic_metadata: BaseRet
     llm_choose_search = lm_choose_route(state, parser=agent_parser)
 
     assert llm_choose_search == "search"
+
+
+STRUCTURED_OUTPUT_TEST_CASE = generate_test_cases(
+    query=RedboxQuery(
+        question="What is AI?",
+        s3_keys=["s3_key_1"],
+        user_uuid=uuid4(),
+        chat_history=[],
+        permitted_s3_keys=["s3_key_1"],
+        ai_settings=AISettings(
+            self_route_enabled=True,
+        ),
+    ),
+    test_data=[
+        RedboxTestData(
+            number_of_docs=1,
+            tokens_in_all_docs=20_000,
+            llm_responses=[
+                '{\n  "answer": "blah ref_1 foo ref_2",\n  "citations": [\n    {\n      "text_in_answer": "blah",\n      "sources": [\n        {\n          "source": "https://www.gov.uk/test/",\n          "source_type": "",\n          "document_name": "",\n          "highlighted_text_in_source": "blah",\n          "page_numbers": [],\n          "ref_id": "ref_1"\n        }\n      ]\n    },\n    {\n      "text_in_answer": "foo",\n      "sources": [\n        {\n          "source": "https://www.gov.uk/test",\n          "source_type": "GOV.UK", \n          "document_name": "test",\n          "highlighted_text_in_source": "foo foo",\n          "page_numbers": ["i", 2],\n          "ref_id": "ref_2"\n        }\n      ]\n    }  ]\n    }'
+            ],
+            expected_route=ChatRoute.search,
+        ),
+    ],
+    test_id="Structured output",
+)
+
+
+@pytest.mark.parametrize(
+    ("test_case"), STRUCTURED_OUTPUT_TEST_CASE, ids=[t.test_id for t in STRUCTURED_OUTPUT_TEST_CASE]
+)
+def test_citation_structured_output(test_case: RedboxChatTestCase, mocker: MockerFixture):
+    llm = GenericFakeChatModel(messages=iter(test_case.test_data.llm_responses))
+    llm._default_config = {"model": "bedrock"}
+
+    mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=llm)
+    state = RedboxState(request=test_case.query, documents=structure_documents_by_file_name(test_case.docs))
+
+    citations_output_parser, format_instructions = get_structured_response_with_citations_parser()
+    stuff = build_stuff_pattern(
+        prompt_set=PromptSet.Search,
+        output_parser=citations_output_parser,
+        format_instructions=format_instructions,
+        final_response_chain=True,
+    )
+    response = stuff.invoke(state)
+
+    final_state = RedboxState(**response, request=state.request)
+    assert final_state.citations == [
+        Citation(
+            text_in_answer="blah",
+            sources=[
+                Source(
+                    source="https://www.gov.uk/test/",
+                    source_type="Unknown",
+                    document_name="Unknown",
+                    highlighted_text_in_source="blah",
+                    page_numbers=[1],
+                    ref_id="ref_1",
+                )
+            ],
+        ),
+        Citation(
+            text_in_answer="foo",
+            sources=[
+                Source(
+                    source="https://www.gov.uk/test",
+                    source_type="GOV.UK",
+                    document_name="test",
+                    highlighted_text_in_source="foo foo",
+                    page_numbers=[1, 2],
+                    ref_id="ref_2",
+                )
+            ],
+        ),
+    ]
