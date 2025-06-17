@@ -134,10 +134,10 @@ class Source(BaseModel):
         if not value:
             return cls.model_fields["page_numbers"].default
         else:
-            for i in range(len(value)):
-                if isinstance(value[i], str):
+            for i, val in enumerate(value):
+                if isinstance(val, str):
                     try:
-                        value[i] = int(value[i])
+                        value[i] = int(val)
                     except ValueError:
                         value[i] = 1
             return value
