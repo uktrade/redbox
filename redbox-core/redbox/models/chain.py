@@ -11,7 +11,7 @@ from langchain_core.documents import Document
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
 from langgraph.managed.is_last_step import RemainingStepsManager
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from redbox.models import prompts
 from redbox.models.chat import DecisionEnum, ToolEnum
@@ -116,6 +116,31 @@ class Source(BaseModel):
         description="The Reference ID in the format 'ref_N'. Number each quote sequentially starting from ref_1, then ref_2, ref_3, and so on.",
         default="",
     )
+
+    @field_validator("document_name", mode="before")
+    def validate_document_name(cls, value):
+        if value == "" or value is None:
+            return cls.model_fields["document_name"].default
+        return value
+
+    @field_validator("source_type", mode="before")
+    def validate_source_type(cls, value):
+        if value == "" or value is None:
+            return cls.model_fields["source_type"].default
+        return value
+
+    @field_validator("page_numbers", mode="before")
+    def validate_page_numbers(cls, value):
+        if not value:
+            return cls.model_fields["page_numbers"].default
+        else:
+            for i in range(len(value)):
+                if isinstance(value[i], str):
+                    try:
+                        value[i] = int(value[i])
+                    except ValueError:
+                        value[i] = 1
+            return value
 
 
 class Citation(BaseModel):
