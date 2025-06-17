@@ -119,7 +119,7 @@ class Source(BaseModel):
 
     @field_validator("document_name", mode="before")
     def validate_document_name(cls, value):
-        if value == "" or value is None:
+        if not value:
             return cls.model_fields["document_name"].default
         return value
 
