@@ -281,7 +281,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   background-color: #0779c4;
 }
 .rb-activity--ai::before {
-  background-color: #1D70B8;
+  background-color: $govuk-brand-colour;
   content: url("/static/icons/activity-redbox.svg")
 }
 
@@ -826,7 +826,7 @@ margin-bottom: 16px;
 
 .govuk-grid-column-one-quarterx {
   @extend .govuk-grid-column-one-quarter;
-  background-color: #1D70B8;
+  background-color: $govuk-brand-colour;
   position: sticky;
   top: 111px;
   bottom: 0;
