@@ -730,7 +730,7 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 }
 
 .full-width-panel-title {
-  width: 100%
+  width: 100%;
 }
 
 .spinning {
@@ -769,7 +769,7 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 }
 
 #document-link {
-  float: right
+  float: right;
 }
 
 div[data-page="1"] {
@@ -820,11 +820,16 @@ margin-bottom: 16px;
 }
 
 .redbox-message-route {
-  margin-bottom: 16px
+  margin-bottom: 16px;
 }
 
 
 .govuk-grid-column-one-quarterx {
   @extend .govuk-grid-column-one-quarter;
   background-color: #1D70B8;
+  position: sticky;
+  top: 111px;
+  bottom: 0;
+  z-index: 100;
+  height: 100vh;
 }
