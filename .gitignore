@@ -1,6 +1,8 @@
 **/*.db
 .idea/
 redbox-core/models/
+.envrc
+
 # Credentials
 .aws/
 
