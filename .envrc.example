@@ -1,0 +1,3 @@
+export AWS_PROFILE=
+export AWS_REGION=
+export AWS_DEFAULT_REGION=
