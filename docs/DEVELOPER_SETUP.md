@@ -253,6 +253,28 @@ Ensure the default settings uses the chat backend you just created and hit save 
 
 Chat and document uploads should now work as expected.
 
+## Setting up AWS credentials
+
+To recieve responses from the LLM you will need to have access to redboc aws account (See another member of the team about requesting access).
+
+To configure your aws profile, run the following command or manaully update your `~/.aws/config` file with assistance from another team member.
+
+``` bash
+aws configure sso
+```
+
+*Note: If using a non-default profile name, (e.g. redbox), please make sure you create an `.envrc` file with the `AWS_PROFILE` value set.*
+
+Once access has been provided and credentials configured, run the aws-login script in the project root and follow the instructions on-screen to connect.
+
+``` bash
+./aws-login.sh
+```
+
+Once authenticated you should have a `.aws` directory within the project root and notebooks app with a `credentials` file populated. This directory is added to the gitignore and should *NOT* be commited.
+
+*Note: This script should be run periodically (daily) as the credentials will expire relatively soon.*
+
 ## Running Redbox in a notebook
 
 There are a number of notebooks available, in various states of working! The Redbox core app is able to be created in a notebook and run to allow easy experiementation without the django side.
@@ -267,6 +289,23 @@ In order to run notebooks in vscode, you will need to use the virtualenv created
 3. Add the path to `./redbox/notebooks`
 
 You may also want to add the path for the other apps in order to select the correct interpreter during development.
+
+### Configuring notebook environment variables
+
+Some notebooks may require specific environment variables to run. For non-sensetive variables that apply to all notebooks, add them to `.env.notebook` and override the root `.env` at the top of your notebook like so:
+
+``` bash
+dotenv .env
+dotenv -o ./.env.notebook
+```
+
+For sensetive environment variables, please create a seperate `notebooks/.env` file within the notebooks directory and add them there. You can then override the `.env` and `.env.notebook` in the same way.
+
+``` bash
+dotenv .env
+dotenv -o ./.env.notebook
+dotenv -o ./.env
+```
 
 ## Pre-commit hooks
 
