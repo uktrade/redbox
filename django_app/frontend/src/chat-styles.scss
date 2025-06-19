@@ -828,3 +828,16 @@ margin-bottom: 16px;
   @extend .govuk-grid-column-one-quarter;
   background-color: #1D70B8;
 }
+
+.small-warning {
+  border-radius: 50%;
+  justify-content: center;
+  align-items: center;
+  width: 30px;
+  min-width: 16px;
+  height: 16px;
+  font-size: 20px;
+  line-height: 16px;
+  display: inline-flex;
+  min-height: 30px;
+}
