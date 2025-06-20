@@ -834,7 +834,7 @@ margin-bottom: 16px;
   height: 100vh;
 }
 
-.recent-chats-scrollable {
+.side-panel-scrollable {
     max-height: 316px;
     overflow: hidden;
     scroll-behavior: smooth;
@@ -843,8 +843,8 @@ margin-bottom: 16px;
     transition: overflow 0.2s ease;
 }
 
-.recent-chats-scrollable:hover,
-.recent-chats-scrollable:focus,
-.recent-chats-scrollable:active {
+.side-panel-scrollable:hover,
+.side-panel-scrollable:focus,
+.side-panel-scrollable:active {
     overflow-y: auto;
 }
