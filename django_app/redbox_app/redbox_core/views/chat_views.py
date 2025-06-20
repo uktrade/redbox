@@ -138,6 +138,7 @@ class ChatsView(View):
             "chat_id": chat_id,
             "messages": messages,
             "chat_grouped_by_date_group": chat_grouped_by_date_group,
+            "chats": chat,
             "current_chat": current_chat,
             "streaming": {"endpoint": str(endpoint)},
             "contact_email": settings.CONTACT_EMAIL,

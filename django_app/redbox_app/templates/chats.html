@@ -39,18 +39,13 @@
               "name": ""
             }, "", "id") }}
           </template>
-
-          {% for date_group, chats in chat_grouped_by_date_group %}
-            <div class="chat-group-container">
-              {% call chat_history_heading(date_group) %}
-                <ul class="chat-list">
-                  {% for chat in chats %}
-                    {{ chat_history_item(chat, url('chats', chat.id), chat_id) }}
-                  {% endfor %}
-                </ul>
-              {% endcall %}
-            </div>
-          {% endfor %}
+          <div id="recent-chats" class="recent-chats-scrollable">
+            <ul class="chat-list">
+              {% for chat in chats %}
+                {{ chat_history_item(chat, url('chats', chat.id), chat_id) }}
+              {% endfor %}
+            </ul>
+          </div>
         </chat-history>
 
         <document-selector class="govuk-!-margin-top-5 govuk-!-padding-top-3">
