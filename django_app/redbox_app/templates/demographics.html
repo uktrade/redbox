@@ -20,12 +20,12 @@
 
       <div class="govuk-form-group  govuk-!-width-two-thirds">
         <fieldset class="govuk-fieldset">
-          <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">
+          <legend class="govuk-label">
             <h1 class="govuk-fieldset__heading">
             {{ form.ai_experience.label }}
             </h1>
           </legend>
-          <div id="ai_experience-hint" class="govuk-hint govuk-!-margin-bottom-4">
+          <div id="ai_experience-hint" class="govuk-hintx govuk-!-margin-bottom-4 govuk-body">
             Select what best describes your level of experience using AI tools. This will help us tailor your experience. You can always update this page anytime.
           </div>
           <div class="govuk-radios" data-module="govuk-radios">
@@ -38,10 +38,10 @@
                         value="{{ value }}"
                         {% if value|string == form.ai_experience.value()|string %}checked{% endif %}
                         data-testid="{{ value }}">
-                  <label class="govuk-radios__label" for="ai_experience_{{ loop.index0 }}">
+                  <label class="govuk-radios__labelx" for="ai_experience_{{ loop.index0 }}">
                     {{ value }}
                   </label>
-                  <div class="govuk-hint govuk-radios__hint">{{ label }}</div>
+                  <div class="govuk-hint govuk-radios__hintx">{{ label }}</div>
          
                 </div>
               {% endif %}
