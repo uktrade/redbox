@@ -1,11 +1,32 @@
 // @ts-check
 
+import { addShowMore } from "../show-more.js";
+
 class ChatHistory extends HTMLElement {
   chatLimit = 5;
   connectedCallback() {
     this.dataset.initialised = "true";
-    this.#limitVisibleChats();
+    // addShowMore({
+    //   container: this.querySelector(".recent-chats"),
+    //   itemSelector: 'li',
+    //   itemDisplay: 'block',
+    //   visibleCount: 5,
+    // })
     this.#addShowMoreButton();
+    // this.#limitVisibleChats();
+    // this.#addShowMoreButton();
+  }
+
+  /**
+   * Caps the amount of chats at 5 and the rest will be scrollable
+   */
+  #addShowMoreButton() {
+    addShowMore({
+      container: this.querySelector(".recent-chats"),
+      itemSelector: 'li',
+      itemDisplay: 'block',
+      visibleCount: 5,
+    })
   }
 
   /**
@@ -26,49 +47,49 @@ class ChatHistory extends HTMLElement {
   /**
    * Displays a 'Show more' button below the chat list
    */
-  #addShowMoreButton() {
-    const chatGroup = document.getElementById("recent-chats");
-    if (chatGroup) {
-      const chats = chatGroup.querySelectorAll("li");
-      let visibleCount = this.chatLimit
+  // #addShowMoreButton() {
+  //   const chatGroup = document.getElementById("recent-chats");
+  //   if (chatGroup) {
+  //     const chats = chatGroup.querySelectorAll("li");
+  //     let visibleCount = this.chatLimit
 
-      if (chats.length > visibleCount) {
-        const showMoreDiv = document.createElement("div");
-        showMoreDiv.id = "show-more-div";
-        const showMoreLink = document.createElement("a");
-        showMoreLink.textContent = "Show more...";
-        showMoreLink.id = "show-more-button";
-        showMoreLink.classList.add("rb-chat-history__link", "govuk-link--inverse");
+  //     if (chats.length > visibleCount) {
+  //       const showMoreDiv = document.createElement("div");
+  //       showMoreDiv.id = "show-more-div";
+  //       const showMoreLink = document.createElement("a");
+  //       showMoreLink.textContent = "Show more...";
+  //       showMoreLink.id = "show-more-button";
+  //       showMoreLink.classList.add("rb-chat-history__link", "govuk-link--inverse");
 
-        showMoreLink.addEventListener("click", () => {
-          this.#showMoreChats(chatGroup);
-        });
+  //       showMoreLink.addEventListener("click", () => {
+  //         this.#showMoreChats(chatGroup);
+  //       });
 
-        showMoreDiv.appendChild(showMoreLink);
-        chatGroup.appendChild(showMoreDiv);
-      }
-    }
-  }
+  //       showMoreDiv.appendChild(showMoreLink);
+  //       chatGroup.appendChild(showMoreDiv);
+  //     }
+  //   }
+  // }
 
   /**
    * Shows next 7 elements also
    *  @param {HTMLElement} group
    */
 
-  #showMoreChats(group) {
-    const chats = group.querySelectorAll("li");
-    if (group) {
-      chats.forEach((chat) => {
-        chat.style.display = "block";
-      });
+  // #showMoreChats(group) {
+  //   const chats = group.querySelectorAll("li");
+  //   if (group) {
+  //     chats.forEach((chat) => {
+  //       chat.style.display = "block";
+  //     });
 
-      // Hide the button now that all chats are visible
-      const button = document.getElementById("show-more-button");;
-        if (button) {
-          button.style.display = "none";
-        }
-    }
-  }
+  //     // Hide the button now that all chats are visible
+  //     const button = document.getElementById("show-more-button");;
+  //       if (button) {
+  //         button.style.display = "none";
+  //       }
+  //   }
+  // }
 
   /**
    * Creates a "Today" heading, if it doesn't already exist
@@ -126,13 +147,14 @@ class ChatHistory extends HTMLElement {
    * @param {string} title
    */
   addChat(chatId, title) {
-    this.#createTodayHeading();
+    // this.#createTodayHeading();
     let item = this.querySelector(`[data-chatid="${chatId}"]`)?.closest("li");
     if (!item) {
       item = this.#createItem(chatId, title.substring(0, 30));
     }
     this.querySelector("ul")?.prepend(item);
-    this.#limitVisibleChats();
+    this.#addShowMoreButton();
+    // this.#limitVisibleChats();
   }
 }
 

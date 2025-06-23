@@ -835,7 +835,6 @@ margin-bottom: 16px;
 }
 
 .side-panel-scrollable {
-    max-height: 316px;
     overflow: hidden;
     scroll-behavior: smooth;
     scrollbar-color: $govuk-border-colour $govuk-brand-colour;
@@ -847,4 +846,12 @@ margin-bottom: 16px;
 .side-panel-scrollable:focus,
 .side-panel-scrollable:active {
     overflow-y: auto;
+}
+
+.recent-chats {
+  max-height: 316px;
+}
+
+.your-documents {
+  max-height: 330px;
 }
