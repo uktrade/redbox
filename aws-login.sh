@@ -21,8 +21,14 @@ fi
 # Use AWS_PROFILE from env, or fallback to 'default'
 AWS_PROFILE="${AWS_PROFILE:-default}"
 AWS_DIR="$PROJECT_ROOT/.aws"
+
+DJANGO_APP_DIR="$PROJECT_ROOT/django_app"
+DJANGO_APP_AWS_DIR="$DJANGO_APP_DIR/.aws"
+
 NOTEBOOKS_DIR="$PROJECT_ROOT/notebooks"
 NOTEBOOKS_AWS_DIR="$NOTEBOOKS_DIR/.aws"
+
+
 echo "Using AWS profile: $AWS_PROFILE"
 
 # 1. Ensure main .aws directory and credentials file exist
@@ -45,7 +51,12 @@ done
 # 4. Clean up backup
 rm -f "$AWS_DIR/credentials.bak"
 
-# 5. Ensure notebooks/.aws exists and copy over credentials
+# 5. Ensure django_app/.aws exists and copy over credentials
+mkdir -p "$DJANGO_APP_AWS_DIR"
+cp "$AWS_DIR/credentials" "$DJANGO_APP_AWS_DIR/credentials"
+echo "AWS credentials updated and copied to notebooks/.aws"
+
+# 6. Ensure notebooks/.aws exists and copy over credentials
 mkdir -p "$NOTEBOOKS_AWS_DIR"
 cp "$AWS_DIR/credentials" "$NOTEBOOKS_AWS_DIR/credentials"
 echo "AWS credentials updated and copied to notebooks/.aws"

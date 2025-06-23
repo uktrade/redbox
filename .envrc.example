@@ -1,0 +1,4 @@
+export AWS_PROFILE=redbox
+export AWS_REGION=eu-west-2
+export AWS_DEFAULT_REGION=eu-west-2
+export DOCKER_DEFAULT_PLATFORM=linux/amd64
