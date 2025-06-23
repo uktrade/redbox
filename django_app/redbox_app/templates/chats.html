@@ -110,7 +110,7 @@
         
         <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1" security-classification="{{ security }}"></canned-prompts>
       
-      {% else %}
+      {% endif %}
         <div class="rb-chats-section">
 
         <chat-title class="chat-title" data-session-id="{{ chat_id or '' }}" data-title="{{ current_chat.name or '' }}", data-title-length="{{ chat_title_length }}">
@@ -145,7 +145,6 @@
 
         </chat-controller>
       </div>
-      {% endif %}
       <div class="chat-input__input-container">
       <label class="govuk-label govuk-!-padding-top-1" for="message">
       </label>
