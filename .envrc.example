@@ -1,0 +1,7 @@
+# AWS profile configuration
+export AWS_PROFILE=redbox
+export AWS_REGION=eu-west-2
+export AWS_DEFAULT_REGION=eu-west-2
+
+# Only needed for certain MAC OS.
+export DOCKER_DEFAULT_PLATFORM=linux/amd64
