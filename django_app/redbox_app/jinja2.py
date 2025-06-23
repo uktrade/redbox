@@ -1,4 +1,5 @@
 import datetime
+import re
 
 import humanize
 import jinja2
@@ -66,6 +67,11 @@ def to_user_timezone(value):
     return value.astimezone(user_tz).strftime("%H:%M %d/%m/%Y")
 
 
+def remove_refs(text):
+    pattern = r"(\[\s*ref_\d+\s*\]|\bref_\d+\b)\s*-?"
+    return re.sub(pattern, "", text).strip()
+
+
 def environment(**options):
     extra_options = {}
 
@@ -81,6 +87,7 @@ def environment(**options):
             "static": static,
             "url": url,
             "humanise_expiry": humanise_expiry,
+            "remove_refs": remove_refs,
             "template_localtime": template_localtime,
             "to_user_timezone": to_user_timezone,
             "environment": settings.ENVIRONMENT.value,
@@ -92,6 +99,7 @@ def environment(**options):
             "static": static,
             "url": url,
             "humanise_expiry": humanise_expiry,
+            "remove_refs": remove_refs,
             "template_localtime": template_localtime,
             "to_user_timezone": to_user_timezone,
             "environment": settings.ENVIRONMENT.value,

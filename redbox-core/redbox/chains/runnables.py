@@ -77,8 +77,8 @@ def build_chat_prompt_from_messages_runnable(
                 [("system", system_prompt_message)]
                 + [(msg["role"], msg["text"]) for msg in truncated_history]
                 + [MessagesPlaceholder("messages")]
-                + [task_question_prompt]
-                + ([format_prompt] if len(format_instructions) > 0 else [])
+                + [("human", task_question_prompt)]
+                + ([("human", format_prompt)] if len(format_instructions) > 0 else [])
             ),
             partial_variables={"format_instructions": format_instructions},
         ).invoke(prompt_template_context)
