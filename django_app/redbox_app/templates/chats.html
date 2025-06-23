@@ -103,9 +103,11 @@
 
     <div class="govuk-grid-column-three-quarters">
       {% if not messages %}
-        <canned-prompts class="chat-options govuk-!-padding-top-5" security-classification="{{ security }}"></canned-prompts>
+        
+        <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1" security-classification="{{ security }}"></canned-prompts>
+      
       {% endif %}
-      <div class="rb-chats-section">
+        <div class="rb-chats-section">
 
         <chat-title class="chat-title" data-session-id="{{ chat_id or '' }}" data-title="{{ current_chat.name or '' }}", data-title-length="{{ chat_title_length }}">
           {% if current_chat.name %}
@@ -189,20 +191,22 @@
         ) }}
       </send-message>
       {% endif %}
-      <div class="govuk-warning-text govuk-body govuk-!-margin-bottom-1 govuk-!-padding-bottom-0">
-        <span class="govuk-warning-text__icon small-warning" aria-hidden="true">!</span>
-        <strong class="govuk-warning-text__text govuk-!-padding-left-7">
-          <span class="govuk-visually-hidden">Warning</span>
-          You can use up to, and including, official sensitive documents.
-        </strong>
-      </div>
-      <div class="govuk-warning-text govuk-body govuk-!-margin-bottom-1 govuk-!-padding-bottom-0">
-        <span class="govuk-warning-text__icon small-warning" aria-hidden="true">!</span>
-        <strong class="govuk-warning-text__text govuk-!-padding-left-7">
-          <span class="govuk-visually-hidden">Warning</span>
-           Redbox can make mistakes. You must check for accuracy before using the output.
-        </strong>
-      </div>
+      {% if not messages %}
+        <div class="govuk-warning-text govuk-body govuk-!-margin-bottom-1 govuk-!-padding-bottom-0">
+          <span class="govuk-warning-text__icon small-warning" aria-hidden="true">!</span>
+          <strong class="govuk-warning-text__text govuk-!-padding-left-7">
+            <span class="govuk-visually-hidden">Warning</span>
+            You can use up to, and including, official sensitive documents.
+          </strong>
+        </div>
+        <div class="govuk-warning-text govuk-body govuk-!-margin-bottom-1 govuk-!-padding-bottom-0">
+          <span class="govuk-warning-text__icon small-warning" aria-hidden="true">!</span>
+          <strong class="govuk-warning-text__text govuk-!-padding-left-7">
+            <span class="govuk-visually-hidden">Warning</span>
+            Redbox can make mistakes. You must check for accuracy before using the output.
+          </strong>
+        </div>
+      {% endif %}
 
       </div>
     </div>

@@ -224,3 +224,18 @@ only screen and (min-resolution:192dpi) {
 .govuk-phase-banner{
   background-color: white;
 }
+
+.govuk-radios__labelx {
+  @extend .govuk-radios__label;
+  font-size: .875rem !important;
+}
+
+.govuk-radios__hintx {
+  @extend .govuk-radios__hint;
+  font-size: .875rem !important;
+}
+
+.govuk-hintx {
+  @extend .govuk-hint;
+  font-size: .875rem !important;
+}
