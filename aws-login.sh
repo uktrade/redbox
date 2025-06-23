@@ -34,8 +34,12 @@ echo "Using AWS profile: $AWS_PROFILE"
 # 1. Ensure main .aws directory and credentials file exist
 mkdir -p "$AWS_DIR"
 if [ ! -f "$AWS_DIR/credentials" ]; then
-  echo "Creating missing $AWS_DIR/credentials"
-  touch "$AWS_DIR/credentials"
+  echo "'credentials' file missing. Copying from example..."
+  if [ -f "$AWS_DIR/credentials.example" ]; then
+    cp "$AWS_DIR/credentials.example" "$AWS_DIR/credentials"
+  else
+    echo "'credentials.example' not found in $AWS_DIR!"
+  fi
 fi
 
 # 2. Login with AWS SSO
