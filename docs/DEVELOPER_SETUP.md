@@ -23,7 +23,7 @@ asdf plugin add python
 From project root:
 
 ```bash
-asdf install python 
+asdf install python
 ```
 
 This installs and sets the local Python version for the project.
@@ -38,7 +38,7 @@ poetry env use $(asdf which python)
 
 ### Option 2: Using pyenv (recommended for python only projects)
 
-#### Step 1: Install pyenv 
+#### Step 1: Install pyenv
 
 Installation instructions [here](https://github.com/pyenv/pyenv?tab=readme-ov-file#installation)
 
@@ -168,7 +168,7 @@ docker compose up django-app
 
 Sometimes, you might have used too much memory from previous docker runs. Memory need to be flushed before running docker. You can use the following commands:
 
- 
+
 ```bash
 docker system prune --all --force
 
@@ -176,7 +176,7 @@ DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose build
 
 DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose up
 
-# The DOCKER_DEFAULT_PLATFORM=linux/amd64 is only needed for certain MAC OS.
+# The DOCKER_DEFAULT_PLATFORM=linux/amd64 is only needed for certain MAC OS. You can omit this by adding the variable to your .envrc file.
 ```
 
 For any other commands available, check the `Makefile` [here](https://github.com/i-dot-ai/redbox/blob/main/Makefile).
@@ -263,7 +263,7 @@ To configure your aws profile, run the following command or manaully update your
 aws configure sso
 ```
 
-*Note: If using a non-default profile name, (e.g. redbox), please make sure you create an `.envrc` file with the `AWS_PROFILE` value set.*
+*Note: If using a non-default profile name, (e.g. redbox), please make sure you create an `.envrc` file with the `AWS_PROFILE` value set. See .envrc.example*
 
 Once access has been provided and credentials configured, run the aws-login script in the project root and follow the instructions on-screen to connect.
 
@@ -284,8 +284,8 @@ agent_experiments.ipynb shows this best currently.
 
 In order to run notebooks in vscode, you will need to use the virtualenv created by poetry within the notebooks directory. If this does not appear as an option, you may need to add the notebooks directory path to your vscode python settings:
 
-1. Open vscode settings: `[cmd + ,]` 
-2. Search: `python.venvFolders`, 
+1. Open vscode settings: `[cmd + ,]`
+2. Search: `python.venvFolders`,
 3. Add the path to `./redbox/notebooks`
 
 You may also want to add the path for the other apps in order to select the correct interpreter during development.
