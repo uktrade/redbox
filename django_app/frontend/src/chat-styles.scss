@@ -855,3 +855,16 @@ margin-bottom: 16px;
 .your-documents {
   max-height: 330px;
 }
+
+.small-warning {
+  border-radius: 50%;
+  justify-content: center;
+  align-items: center;
+  width: 30px;
+  min-width: 16px;
+  height: 16px;
+  font-size: 20px;
+  line-height: 16px;
+  display: inline-flex;
+  min-height: 30px;
+}
