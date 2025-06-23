@@ -6,15 +6,7 @@ class ChatHistory extends HTMLElement {
   chatLimit = 5;
   connectedCallback() {
     this.dataset.initialised = "true";
-    // addShowMore({
-    //   container: this.querySelector(".recent-chats"),
-    //   itemSelector: 'li',
-    //   itemDisplay: 'block',
-    //   visibleCount: 5,
-    // })
     this.#addShowMoreButton();
-    // this.#limitVisibleChats();
-    // this.#addShowMoreButton();
   }
 
   /**
@@ -27,93 +19,6 @@ class ChatHistory extends HTMLElement {
       itemDisplay: 'block',
       visibleCount: 5,
     })
-  }
-
-  /**
-   * Caps the amount of chats at 5 and the rest will be scrollable
-   */
-  #limitVisibleChats() {
-
-    const chatGroup = document.getElementById("recent-chats");
-    if (chatGroup) {
-      const chats = chatGroup.querySelectorAll("li");
-      chats.forEach((chat, index) => {
-        chat.style.display = index < this.chatLimit ? "block" : "none";
-      });
-      chatGroup.dataset.visibleCount = String(this.chatLimit);
-    }
-  }
-
-  /**
-   * Displays a 'Show more' button below the chat list
-   */
-  // #addShowMoreButton() {
-  //   const chatGroup = document.getElementById("recent-chats");
-  //   if (chatGroup) {
-  //     const chats = chatGroup.querySelectorAll("li");
-  //     let visibleCount = this.chatLimit
-
-  //     if (chats.length > visibleCount) {
-  //       const showMoreDiv = document.createElement("div");
-  //       showMoreDiv.id = "show-more-div";
-  //       const showMoreLink = document.createElement("a");
-  //       showMoreLink.textContent = "Show more...";
-  //       showMoreLink.id = "show-more-button";
-  //       showMoreLink.classList.add("rb-chat-history__link", "govuk-link--inverse");
-
-  //       showMoreLink.addEventListener("click", () => {
-  //         this.#showMoreChats(chatGroup);
-  //       });
-
-  //       showMoreDiv.appendChild(showMoreLink);
-  //       chatGroup.appendChild(showMoreDiv);
-  //     }
-  //   }
-  // }
-
-  /**
-   * Shows next 7 elements also
-   *  @param {HTMLElement} group
-   */
-
-  // #showMoreChats(group) {
-  //   const chats = group.querySelectorAll("li");
-  //   if (group) {
-  //     chats.forEach((chat) => {
-  //       chat.style.display = "block";
-  //     });
-
-  //     // Hide the button now that all chats are visible
-  //     const button = document.getElementById("show-more-button");;
-  //       if (button) {
-  //         button.style.display = "none";
-  //       }
-  //   }
-  // }
-
-  /**
-   * Creates a "Today" heading, if it doesn't already exist
-   */
-  #createTodayHeading() {
-    // Create "Today" heading if it doesn't already exist
-    let todayHeadingExists = false;
-    const headings = this.querySelectorAll("h3");
-    headings.forEach((heading) => {
-      if (heading.textContent === "Today") {
-        todayHeadingExists = true;
-      }
-    });
-    if (!todayHeadingExists) {
-      let newHeading = /** @type {HTMLTemplateElement} */ (
-        this.querySelector("#template-chat_history_heading")
-      ).content.querySelector("div");
-      let newHeadingText = newHeading?.querySelector("h3");
-      if (!newHeading || !newHeadingText) {
-        return;
-      }
-      newHeadingText.textContent = "Today";
-      this.prepend(newHeading);
-    }
   }
 
   /**
@@ -147,14 +52,12 @@ class ChatHistory extends HTMLElement {
    * @param {string} title
    */
   addChat(chatId, title) {
-    // this.#createTodayHeading();
     let item = this.querySelector(`[data-chatid="${chatId}"]`)?.closest("li");
     if (!item) {
       item = this.#createItem(chatId, title.substring(0, 30));
     }
     this.querySelector("ul")?.prepend(item);
     this.#addShowMoreButton();
-    // this.#limitVisibleChats();
   }
 }
 
