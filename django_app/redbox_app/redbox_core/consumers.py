@@ -62,51 +62,6 @@ logger = logging.getLogger(__name__)
 logger.info("WEBSOCKET_SCHEME is: %s", settings.WEBSOCKET_SCHEME)
 
 
-async def is_tabular_file(self, file: File) -> bool:  # noqa: ARG001
-    return file.file_name.endswith((".csv", ".xls", ".xlsx")) and file.db_location is not None
-
-
-async def handle_tabular_query(self, selected_files: Sequence[File], session: Chat, question: str):
-    model = init_chat_model(model="anthropic.claude-3-sonnet-20240229-v1:0", model_provider="bedrock")
-
-    # Handle multiple files by creating a temporary database
-    temp_db_path = Path(settings.MEDIA_ROOT) / f"session_{session.id}.db"
-    engine = create_engine(f"sqlite:///{temp_db_path}")
-
-    for file in selected_files:
-        if await self.is_tabular_file(file):
-            dfs = ingest_files(Path(settings.MEDIA_ROOT) / file.unique_name, sheet_names="all")
-            if isinstance(dfs, pd.DataFrame):
-                table_name = file.file_name.split(".")[0].strip().replace(" ", "_").lower()
-                create_db_tables({table_name: dfs}, engine, replace=True)
-            else:
-                create_db_tables(dfs, engine, replace=True)
-
-    db = SQLDatabase(engine=engine)
-    toolkit = SQLDatabaseToolkit(db=db, llm=model)
-    agent_executor = create_sql_agent(model, toolkit=toolkit, verbose=True)
-
-    try:
-        response = await sync_to_async(agent_executor.invoke)({"input": question})
-        self.full_reply.append(response["output"])
-        self.converted_reply.append(
-            convert_american_to_british_spelling(response["output"])
-            if self.scope.get("user").uk_or_us_english
-            else response["output"]
-        )
-        await self.send_to_client("text", self.converted_reply[-1])
-        await self.update_ai_message()
-        await self.send_to_client(
-            "end", {"message_id": self.chat_message.id, "title": question, "session_id": session.id}
-        )
-    except Exception as e:
-        logger.exception("Error processing tabular query", exc_info=e)
-        await self.send_to_client("error", error_messages.CORE_ERROR_MESSAGE)
-    finally:
-        if Path(temp_db_path).exists():
-            Path.unlink(temp_db_path)
-
-
 def parse_page_number(obj: int | list[int] | None) -> list[int]:
     if isinstance(obj, int):
         return [obj]
@@ -136,6 +91,49 @@ class ChatConsumer(AsyncWebsocketConsumer):
     metadata: RequestMetadata = RequestMetadata()
     redbox = Redbox(env=get_settings(), debug=True)
     chat_message = None  # incrementally updating the chat stream
+
+    async def is_tabular_file(self, file: File) -> bool:
+        return file.file_name.endswith((".csv", ".xls", ".xlsx")) and file.db_location is not None
+
+    async def handle_tabular_query(self, selected_files: Sequence[File], session: Chat, question: str):
+        model = init_chat_model(model="anthropic.claude-3-sonnet-20240229-v1:0", model_provider="bedrock")
+
+        # Handle multiple files by creating a temporary database
+        temp_db_path = Path(settings.MEDIA_ROOT) / f"session_{session.id}.db"
+        engine = create_engine(f"sqlite:///{temp_db_path}")
+
+        for file in selected_files:
+            if await self.is_tabular_file(file):
+                dfs = ingest_files(Path(settings.MEDIA_ROOT) / file.unique_name, sheet_names="all")
+                if isinstance(dfs, pd.DataFrame):
+                    table_name = file.file_name.split(".")[0].strip().replace(" ", "_").lower()
+                    create_db_tables({table_name: dfs}, engine, replace=True)
+                else:
+                    create_db_tables(dfs, engine, replace=True)
+
+        db = SQLDatabase(engine=engine)
+        toolkit = SQLDatabaseToolkit(db=db, llm=model)
+        agent_executor = create_sql_agent(model, toolkit=toolkit, verbose=True)
+
+        try:
+            response = await sync_to_async(agent_executor.invoke)({"input": question})
+            self.full_reply.append(response["output"])
+            self.converted_reply.append(
+                convert_american_to_british_spelling(response["output"])
+                if self.scope.get("user").uk_or_us_english
+                else response["output"]
+            )
+            await self.send_to_client("text", self.converted_reply[-1])
+            await self.update_ai_message()
+            await self.send_to_client(
+                "end", {"message_id": self.chat_message.id, "title": question, "session_id": session.id}
+            )
+        except Exception as e:
+            logger.exception("Error processing tabular query", exc_info=e)
+            await self.send_to_client("error", error_messages.CORE_ERROR_MESSAGE)
+        finally:
+            if Path(temp_db_path).exists():
+                Path.unlink(temp_db_path)
 
     async def receive(self, text_data=None, bytes_data=None):
         """Receive & respond to message from browser websocket."""
@@ -204,7 +202,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
         question = message_history[-2].text
 
-        is_tabular = all(await self.is_tabular_file(f) for f in selected_files)
+        is_tabular = all([await self.is_tabular_file(f) for f in selected_files])
 
         if is_tabular:
             await self.handle_tabular_query(selected_files, session, question)

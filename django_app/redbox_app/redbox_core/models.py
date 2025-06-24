@@ -564,6 +564,9 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         help_text="error, if any, encountered during ingest",
     )
 
+    db_location = models.CharField(max_length=255, null=True, blank=True)
+    table_names = models.JSONField(null=True, blank=True)
+
     def __str__(self) -> str:  # pragma: no cover
         return self.file_name
 
@@ -781,9 +784,6 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         blank=True,
         help_text="the unique name of the citation in the format 'ref_N' where N is a strictly incrementing number starting from 1",  # noqa: E501
     )
-
-    db_location = models.CharField(max_length=255, null=True, blank=True)
-    table_names = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         text = self.text or "..."
