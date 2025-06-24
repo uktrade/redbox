@@ -2079,6 +2079,17 @@ files = [
 all = ["flake8 (>=7.1.1)", "mypy (>=1.11.2)", "pytest (>=8.3.2)", "ruff (>=0.6.2)"]
 
 [[package]]
+name = "import-export"
+version = "0.3.1"
+description = "A Python module methods decorator"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "import-export-0.3.1.tar.gz", hash = "sha256:1e47906ef2cb35bedaf5082e37ead4f332f35757005a7eff85bf9aef85ea6a7b"},
+]
+
+[[package]]
 name = "importlib-metadata"
 version = "7.0.0"
 description = "Read metadata from Python packages"
@@ -5919,4 +5930,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "9724820921ffa33e33f408fd51c932094a3062c91c7047edc434f03b7c7458a7"
+content-hash = "fc0316f93dbcd78ba06fc481dd4689ab3cac4a4743e2fc956ccb72f7df5efb64"
