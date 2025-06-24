@@ -80,7 +80,10 @@ def build_chat_prompt_from_messages_runnable(
                 + [task_question_prompt]
                 + ([format_prompt] if len(format_instructions) > 0 else [])
             ),
-            partial_variables={"format_instructions": format_instructions},
+            partial_variables={
+                "format_instructions": format_instructions,
+                "max_token": ai_settings.llm_max_tokens,
+                },
         ).invoke(prompt_template_context)
 
         return chatprompt

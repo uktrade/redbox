@@ -11,21 +11,26 @@ While you strive to provide accurate and insightful information by fully utilisi
 # Used in all prompts for information about the caller and any query context. This is a placeholder for now.
 CALLER_INFO = ""
 
+MAX_TOKEN_PROMPT = """
+    Limit the number of tokens of your response to under this {max_token} number of tokens.
+"""
 
 CHAT_SYSTEM_PROMPT = "You are tasked with providing information objectively and responding helpfully to users"
 
 
 CHAT_WITH_DOCS_SYSTEM_PROMPT = "You are tasked with providing information objectively and responding helpfully to users using context from their provided documents"
 
-CITATION_PROMPT = """Use citations to back up your answer when available. Return your response in the following format: {format_instructions}.
+CITATION_PROMPT = ("""Use citations to back up your answer when available. Return your response in the following format: {format_instructions}.
 Example response:
-If citations are available: {{"answer": "your complete answer here including any 'ref_N' citation markers inline as required in plain text", "citations": [list_of_citations]}}.
+If citations are available: {{"answer": "your complete answer here including any 'ref_N' citation markers inline as required in plain text", "citations": [list_of_citations], "answer_process": "outline the processes you took to produce the answer, if you cannot outline the processes taken explain why"}}.
 - Each citation must be shown in the answer using a unique identifier in the format "ref_N". Number each quote sequentially starting from ref_1, then ref_2, ref_3, and so on.
 Do not repeat citations or citation identifiers across sources or documents. Do not include citation markers that do not exist.
 
-If no citations are available or needed, return an empty array for citations like this: {{"answer": "your complete answer here with no citation markers", "citations": []}}.
-Do not provide citation from your own knowledge.
-Assistant:<haiku>"""
+If no citations are available or needed, return an empty array for citations like this: {{"answer": "your complete answer here with no citation markers", "citations": [], "answer_process": "outline the processes you took to produce the answer, if you cannot outline the processes taken explain why"}}.
+Do not provide citation from your own knowledge.\n"""
++ MAX_TOKEN_PROMPT
++ """\nAssistant:<haiku>""")
+
 
 CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (
     "You are tasked with answering questions on user provided documents. "
@@ -63,7 +68,7 @@ SELF_ROUTE_SYSTEM_PROMPT = """
 
 RETRIEVAL_QUESTION_PROMPT = "<User_question>From the provided documents, {question}</User_question>"
 
-NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context."""
+NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context. In addition to the answer, outline the processes you took to produce the answer, if you cannot outline the processes taken explain why"""
 
 AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
     "You are an advanced problem-solving assistant. Your primary goal is to carefully "
