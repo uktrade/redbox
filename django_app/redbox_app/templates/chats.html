@@ -111,6 +111,22 @@
       {% endif %}
       <div class="rb-chats-section">
 
+       <div class="govuk-error-summary" data-module="govuk-error-summary">
+  <div role="alert">
+    <h2 class="govuk-error-summary__title">
+      There was an unexpected error communicating with Redbox. Please try again.
+    </h2>
+    <div class="govuk-error-summary__body">
+      <ul class="govuk-list govuk-error-summary__list">
+        <li>
+          <a href="#">If the problem persists, please contact <a href="/support/">support</a></a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+
         <chat-title class="chat-title" data-session-id="{{ chat_id or '' }}" data-title="{{ current_chat.name or '' }}", data-title-length="{{ chat_title_length }}">
           {% if current_chat.name %}
             <h2 class="chat-title__heading govuk-heading-m">{{ current_chat.name }}</h2>
