@@ -6,12 +6,12 @@ repos:
     hooks:
       - id: check-added-large-files
         name: Check for files larger than 5 MB
-        args: [ "--maxkb=5120" ]
+        args: ["--maxkb=5120"]
       - id: end-of-file-fixer
         name: Check for a blank line at the end of scripts (auto-fixes)
         exclude: '\.Rd'
       - id: trailing-whitespace
-        args : ["--markdown-linebreak-ext=md,markdown"]
+        args: ["--markdown-linebreak-ext=md,markdown"]
         name: Check for trailing whitespaces (auto-fixes)
       - id: check-yaml
         name: Check yaml files
@@ -26,6 +26,11 @@ repos:
       - id: detect-aws-credentials
         args: ["--allow-missing-credentials"]
         name: Check for existence of AWS secrets
+      - id: check-executables-have-shebangs
+        name: Check for executable files without shebangs
+      - id: check-json
+        name: Check JSON files for syntax errors
+      - id: check-case-conflict
 
   - repo: https://github.com/kynan/nbstripout
     rev: 0.8.1
@@ -37,26 +42,38 @@ repos:
     hooks:
       - id: detect-secrets
         exclude: poetry.lock
+        args:
+          - --baseline
+          - .secrets.baseline
+        name: Detect sensitive data (passwords, keys, etc.)
 
   - repo: local
     hooks:
       - id: detect-ip
         name: Detect IP addresses
-        entry: '^(?!0\.0\.0\.0$)(?!127\.0\.0\.1$)\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
+        entry: '^(?!0\.0\.0\.|127\.0\.0\.1)\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
         language: pygrep
-        exclude: '^static/|\.lock'
+        exclude: ^static/|\.lock
         files: .
-
-  - repo: local
-    hooks:
       - id: detect-aws-account
         name: Detect AWS account numbers
         language: pygrep
         entry: ':\d{12}:'
-  - repo: local
-    hooks:
       - id: make-format
         name: Run make format
         entry: make format
-        language: pygrep
+        language: system
         pass_filenames: false
+      - id: no-files
+        name: Prevent data files
+        entry: '\.(docx|doc|pdf|xlsx|csv|txt|log)$'
+        language: fail
+        description: Prevent committing data files (.docx, .pdf, .xlsx, .csv, .txt, .log)
+        exclude: '\.(yml|yaml|baseline|lock|toml|py|js|md|css|scss)$'
+
+  - repo: https://github.com/awslabs/git-secrets
+    rev: master
+    hooks:
+      - id: git-secrets
+        name: Scan for AWS secrets and other sensitive patterns
+        args: ["--aws"]

@@ -1,5 +1,4 @@
 $govuk-assets-path: "govuk-assets/";
-$redbox-red: #1D70B8; /*old:#A50202*/
 
 @import "../node_modules/govuk-frontend/dist/govuk/all";
 
@@ -40,7 +39,7 @@ body {
   padding-top: 0;
 }
 .rb-banner {
-  background-color: $redbox-red;
+  background-color: $govuk-brand-colour;
   color: white;
   padding-bottom: 3rem;
   padding-top: 2.75rem;
@@ -64,7 +63,7 @@ body {
   background-color: white !important;
 }
 .rb-banner__button:hover {
-  color: $redbox-red !important;
+  color: $govuk-brand-colour !important;
   filter: brightness(0.9);
 }
 
@@ -114,7 +113,7 @@ upload-button {
 
 /* i.AI Design System */
 :root {
-  --iai-product-colour: #1D70B8;
+  --iai-product-colour: $govuk-brand-colour#;
   --iai-background-colour-1: white;
   --iai-background-colour-2: white;
 }
@@ -224,4 +223,19 @@ only screen and (min-resolution:192dpi) {
 
 .govuk-phase-banner{
   background-color: white;
+}
+
+.govuk-radios__labelx {
+  @extend .govuk-radios__label;
+  font-size: .875rem !important;
+}
+
+.govuk-radios__hintx {
+  @extend .govuk-radios__hint;
+  font-size: .875rem !important;
+}
+
+.govuk-hintx {
+  @extend .govuk-hint;
+  font-size: .875rem !important;
 }

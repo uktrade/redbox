@@ -264,7 +264,7 @@ PERMISSIONS_POLICY: dict[str, list] = {
     "gamepad": [],
     "geolocation": [],
     "gyroscope": [],
-    "microphone": [],
+    "microphone": ["self"],
     "midi": [],
     "payment": [],
 }
