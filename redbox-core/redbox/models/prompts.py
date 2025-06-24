@@ -20,7 +20,8 @@ CHAT_SYSTEM_PROMPT = "You are tasked with providing information objectively and 
 
 CHAT_WITH_DOCS_SYSTEM_PROMPT = "You are tasked with providing information objectively and responding helpfully to users using context from their provided documents"
 
-CITATION_PROMPT = ("""Use citations to back up your answer when available. Return your response in the following format: {format_instructions}.
+CITATION_PROMPT = (
+    """Use citations to back up your answer when available. Return your response in the following format: {format_instructions}.
 Example response:
 If citations are available: {{"answer": "your complete answer here including any 'ref_N' citation markers inline as required in plain text", "citations": [list_of_citations], "answer_process": "outline the processes you took to produce the answer, if you cannot outline the processes taken explain why"}}.
 - Each citation must be shown in the answer using a unique identifier in the format "ref_N". Number each quote sequentially starting from ref_1, then ref_2, ref_3, and so on.
@@ -28,8 +29,9 @@ Do not repeat citations or citation identifiers across sources or documents. Do 
 
 If no citations are available or needed, return an empty array for citations like this: {{"answer": "your complete answer here with no citation markers", "citations": [], "answer_process": "outline the processes you took to produce the answer, if you cannot outline the processes taken explain why"}}.
 Do not provide citation from your own knowledge.\n"""
-+ MAX_TOKEN_PROMPT
-+ """\nAssistant:<haiku>""")
+    + MAX_TOKEN_PROMPT
+    + """\nAssistant:<haiku>"""
+)
 
 
 CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (

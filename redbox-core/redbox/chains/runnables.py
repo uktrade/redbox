@@ -83,7 +83,7 @@ def build_chat_prompt_from_messages_runnable(
             partial_variables={
                 "format_instructions": format_instructions,
                 "max_token": ai_settings.llm_max_tokens,
-                },
+            },
         ).invoke(prompt_template_context)
 
         return chatprompt
