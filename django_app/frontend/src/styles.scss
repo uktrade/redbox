@@ -160,7 +160,7 @@ upload-button {
 }
 
 .iai-chat-bubbles__sources-link:visited {
-  color: var(--iai-product-colour, var(--iai-colour-brand));
+  color: $govuk-brand-colour, var(--iai-colour-brand);
 }
 .iai-chat-bubbles__sources-link:target {
   outline: 3px solid rgba(0, 0, 0, 0);
