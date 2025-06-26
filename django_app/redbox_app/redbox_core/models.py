@@ -564,6 +564,9 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         help_text="error, if any, encountered during ingest",
     )
 
+    db_location = models.CharField(max_length=255, null=True, blank=True)
+    table_names = models.JSONField(null=True, blank=True)
+
     def __str__(self) -> str:  # pragma: no cover
         return self.file_name
 
