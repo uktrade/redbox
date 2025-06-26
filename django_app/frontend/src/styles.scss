@@ -2,7 +2,7 @@ $govuk-assets-path: "govuk-assets/";
 $govuk-border-colour: #bfc1c3;
 $govuk-brand-colour: #1d70b8;
 
-@import "../node_modules/govuk-frontend/dist/govuk/all";
+@import "../node_modules/govuk-frontend/dist/govuk/index";
 
 body {
   background-color: white;
@@ -176,7 +176,6 @@ upload-button {
 .govuk-footer__copyright-logo {
   display: inline-block;
   min-width: 125px;
-  padding-top: 112px;
   background-image: url(/static/govuk-frontend/assets/images/govuk-crest.png);
   background-repeat: no-repeat;
   background-position: 50% 0;
