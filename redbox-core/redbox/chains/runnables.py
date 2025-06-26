@@ -8,7 +8,7 @@ from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import Runnable, RunnableLambda, RunnablePassthrough, chain
+from langchain_core.runnables import Runnable, RunnableBranch, RunnableLambda, RunnablePassthrough, chain
 
 from redbox.api.format import format_documents
 from redbox.chains.activity import log_activity
@@ -121,6 +121,11 @@ def build_llm_chain(
 
     Permits both invoke and astream_events.
     """
+
+    def post_processing(x: AIMessage):
+        x.content = x.content.replace(": None", ": null")
+        return x
+
     model_name = llm._default_config.get("model", "unknown")
     _llm = llm.with_config(tags=["response_flag"]) if final_response_chain else llm
     _llm = (
@@ -130,7 +135,11 @@ def build_llm_chain(
 
     _llm_text_and_tools = _llm | {
         "raw_response": RunnablePassthrough(),
-        "parsed_response": _output_parser,
+        # "parsed_response": _output_parser
+        "parsed_response": RunnableBranch(
+            (lambda _: output_parser is not None, RunnableLambda(lambda x: post_processing(x)) | _output_parser),
+            _output_parser,
+        ),
     }
 
     text_and_tools = {
