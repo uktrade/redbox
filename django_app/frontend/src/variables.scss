@@ -1,0 +1,37 @@
+
+:root {
+  --govuk-assets-path: "govuk-assets/";
+
+  // Brand colours - for re-use in this file only
+  --dbt-red: #cf102d;
+  --dbt-blue: #00285f;
+  --dbt-light-blue: #0063be;
+  --dbt-light-blue-rgb: 0, 99, 190;
+  --dbt-white: #ffffff;
+  --dbt-miuk-light-grey: #dde5ed;
+  --dbt-background-blue: #d2e2f1;
+  --dbt-very-light-grey: #EEEFEF;
+  --dbt-dark-teel: #004D44;
+  --dbt-light-green: #CCE2D8;
+  --dbt-black: #000000;
+  --dbt-light-pink: #FCD6C3;
+  --dbt-burnt-orange: #E24912;
+  --dbt-light-purple: #DBD5E9;
+  --dbt-dark-purple: #4814A0;
+
+  // Redbox Colors
+  --redbox-red: #942514; /*old:#A50202, #1D70B8*/
+  --redbox-blue: govuk-colour("blue");
+  --redbox-white: var(--dbt-white);
+  --redbox-grey: govuk-colour("mid-grey");
+
+  // Project Colors
+  --color-background-white: var(--redbox-white);
+  --color-background-blue: var(--redbox-blue);
+  --color-background-red: var(--redbox-red);
+  --color-background: var(--color-background-red);
+  --color-background-secondary: var(--redbox-red-dark);
+  --color-border: var(--redbox-red);
+
+
+}

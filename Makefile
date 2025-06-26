@@ -83,6 +83,16 @@ check-migrations: stop  ## Check types in redbox and worker
 	cd django_app && poetry run python manage.py migrate
 	cd django_app && poetry run python manage.py makemigrations --check
 
+.PHONY: migrations
+migrations: stop  ## Create migrations
+	docker compose up -d --wait opensearch db
+	cd django_app && poetry run python manage.py makemigrations
+
+.PHONY: migrate
+migrate: stop  ## Apply migrations
+	docker compose up -d --wait opensearch db
+	cd django_app && poetry run python manage.py migrate
+
 .PHONY: reset-db
 reset-db:  ## Reset Django database
 	docker compose down db --volumes
@@ -260,5 +270,18 @@ eval_backend:  ## Runs the only the necessary backend for evaluation BUCKET_NAME
 help: ## Show this help
 	@ grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(makefile_name) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1,$$2}'
 
+.PHONY: magic-link
 magic-link: # Get magic link(s) for sign-in
 	docker compose logs django-app | grep 8080/magic_link
+
+.PHONY: frontend-dev
+frontend-dev: # Start parcel in dev/watch mode
+	@cd django_app/frontend && npm run dev
+
+.PHONY: django-runserver
+django-runserver: # Run the web app locally (not in docker)
+	cd django_app && poetry run python manage.py runserver 8081
+
+.PHONY: dev
+dev: # Start the app locally in development mode with hot-reloading enabled
+	./dev.sh

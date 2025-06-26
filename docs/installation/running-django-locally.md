@@ -28,3 +28,6 @@ Run the server
 Install frontend dependencies if not done already `npm install`
 
 Run `npm run dev` to watch for changes and automatically rebuild
+
+### Quick start
+Alternatively, run `make dev` to run migrations, copy static files and start the frontend with parcel in watch mode on [localhost:8081](http://localhost:8081/)
