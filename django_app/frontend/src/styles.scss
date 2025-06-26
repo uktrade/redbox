@@ -1,6 +1,6 @@
 $govuk-assets-path: "govuk-assets/";
 
-@import "../node_modules/govuk-frontend/dist/govuk/all";
+@import "../node_modules/govuk-frontend/dist/govuk/index";
 
 body {
   background-color: white;

@@ -1,16 +1,22 @@
 export function addShowMore({
     container,
     itemSelector,
-    itemDisplay = "block",
     visibleCount = 5,
     buttonText = "Show more...",
 }) {
     const items = container.querySelectorAll(itemSelector);
     if (items.length < visibleCount) return;
 
-    // Hide additional items
+    // Store display setting
+    const displayValue = items[0].style.display;
+    let displayValues = [];
+
     items.forEach((item, index) => {
-        item.style.display = index < visibleCount ? itemDisplay : "none";
+        // Preserve display value
+        displayValues[index] = item.style.display;
+
+        // Hide additional items
+        if (index >= visibleCount) item.style.display = "none";
       });
 
     // Create show more button
@@ -23,7 +29,7 @@ export function addShowMore({
 
     // Show all items and remove the button when clicked
     showMoreLink.addEventListener("click", () => {
-        items.forEach((item) => {item.style.display = itemDisplay});
+        items.forEach((item, index) => {item.style.display = displayValues[index]});
         showMoreLink.remove();
     });
 

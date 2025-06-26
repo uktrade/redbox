@@ -1,6 +1,6 @@
 // @ts-check
 
-import { addShowMore } from "../show-more.js";
+import { addShowMore } from '../show-more';
 
 class DocumentSelector extends HTMLElement {
   visibleDocumentLimit = 5;
@@ -11,7 +11,6 @@ class DocumentSelector extends HTMLElement {
     addShowMore({
       container: this.querySelector(".your-documents"),
       itemSelector: '.govuk-checkboxes__item',
-      itemDisplay: 'flex',
       visibleCount: 5,
     })
 
