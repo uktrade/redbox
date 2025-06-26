@@ -1,6 +1,6 @@
-main:has(.iai-chat-input),
+main,
 body {
-  min-height: 0;
+  min-height: 0 !important;
 }
 .rb-chat-history__title {
   position: relative;
