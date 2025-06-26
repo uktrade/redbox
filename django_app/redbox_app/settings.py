@@ -431,6 +431,7 @@ REDBOX_VERSION = os.environ.get("REDBOX_VERSION", "not set")
 
 Q_CLUSTER = {
     "name": "redbox_django",
+    "recycle": env.int("Q_RECYCLE", 500),
     "timeout": env.int("Q_TIMEOUT", 600),
     "retry": env.int("Q_RETRY", 60),
     "max_attempts": env.int("Q_MAX_ATTEMPTS", 3),
