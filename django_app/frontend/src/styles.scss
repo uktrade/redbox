@@ -225,3 +225,19 @@ only screen and (min-resolution:192dpi) {
 .govuk-phase-banner{
   background-color: white;
 }
+
+.govuk-error-summary{
+  font-size: 0.95rem;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.govuk-error-summary__title{
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+.govuk-error-summary__body{
+  font-size: 0.95rem;
+}
