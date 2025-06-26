@@ -1,4 +1,6 @@
 $govuk-assets-path: "govuk-assets/";
+$govuk-border-colour: #bfc1c3;
+$govuk-brand-colour: #1d70b8;
 
 @import "../node_modules/govuk-frontend/dist/govuk/all";
 
@@ -81,13 +83,14 @@ body {
 }
 
 @media screen and (min-width: 768px) {
-.header-list {
-  display:flex !important;
-  justify-content: flex-end;}
+  .header-list {
+    display:flex !important;
+    justify-content: flex-end;}
 
-.collapsible-menu-button {
-  display: none !important;
-}}
+  .collapsible-menu-button {
+    display: none !important;
+  }
+}
 
 
 
