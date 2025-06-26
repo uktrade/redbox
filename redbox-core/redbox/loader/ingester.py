@@ -32,7 +32,7 @@ def get_elasticsearch_store(es, es_index_name: str):
         embedding_function=get_embeddings(env),
         query_field="text",
         vector_query_field=env.embedding_document_field_name,
-        bulk_size=1000,
+        bulk_size=2000,
     )
 
 
@@ -41,7 +41,7 @@ def get_elasticsearch_store_without_embeddings(es, es_index_name: str):
         index_name=es_index_name,
         opensearch_url=env.elastic.collection_endpoint,
         embedding_function=FakeEmbeddings(size=env.embedding_backend_vector_size),
-        bulk_size=1000,
+        bulk_size=2000,
     )
 
 

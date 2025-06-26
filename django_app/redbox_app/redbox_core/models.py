@@ -622,9 +622,6 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
     def unique_name(self) -> str:
         """primary key for accessing file in s3"""
         if self.status in File.INACTIVE_STATUSES:
-            logger.exception(
-                "User tried to delete %s with status %s, it has already been deleted", self.pk, self.status
-            )
             raise InactiveFileError(self)
         return self.original_file.name if self.original_file else ""
 
