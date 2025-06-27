@@ -613,7 +613,6 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
             return self.original_file.name.split("/")[1]
 
         if self.original_file:
-            logger.error("expected filename=%s to start with the user's email address", self.original_file.name)
             return self.original_file.name
 
         return ""
