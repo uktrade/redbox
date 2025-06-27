@@ -63,7 +63,8 @@ SELF_ROUTE_SYSTEM_PROMPT = """
 
 RETRIEVAL_QUESTION_PROMPT = "<User_question>From the provided documents, {question}</User_question>"
 
-NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context."""
+NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context. At the start of your answer, outline the instructions step by step that you had taken to answer the question.
+    Highlight any steps that were unsuccessful in answering the question"""
 
 AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
     "You are an advanced problem-solving assistant. Your primary goal is to carefully "
