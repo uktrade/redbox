@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 import boto3
 import environ
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from elasticsearch import Elasticsearch
 from langchain.globals import set_debug
 from opensearchpy import OpenSearch, RequestsHttpConnection
@@ -18,6 +18,9 @@ logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger()
 
 load_dotenv()
+
+if os.getenv("USE_LOCAL_ENV", "False").lower() == "true":
+    load_dotenv(find_dotenv(".env.local"), override=True)
 
 env = environ.Env()
 

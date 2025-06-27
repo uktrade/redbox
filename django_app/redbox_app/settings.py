@@ -10,7 +10,7 @@ import sentry_sdk
 from dbt_copilot_python.database import database_from_env
 from django.urls import reverse_lazy
 from django_log_formatter_asim import ASIMFormatter
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from import_export.formats.base_formats import CSV
 from sentry_sdk.integrations.django import DjangoIntegration
 from storages.backends import s3boto3
@@ -22,6 +22,9 @@ logger = logging.getLogger(__name__)
 
 
 load_dotenv()
+
+if os.getenv("USE_LOCAL_ENV", "False").lower() == "true":
+    load_dotenv(find_dotenv(".env.local"), override=True)
 
 env = environ.Env()
 

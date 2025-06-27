@@ -8,7 +8,6 @@ export function addShowMore({
     if (items.length < visibleCount) return;
 
     // Store display setting
-    const displayValue = items[0].style.display;
     let displayValues = [];
 
     items.forEach((item, index) => {
