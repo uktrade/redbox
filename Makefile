@@ -280,7 +280,7 @@ frontend-dev: # Start parcel in dev/watch mode
 
 .PHONY: django-runserver
 django-runserver: # Run the web app locally (not in docker)
-	cd django_app && poetry run python manage.py runserver 8081
+	cd django_app && poetry run python manage.py runserver 0.0.0.0:8081
 
 .PHONY: dev
 dev: # Start the app locally in development mode with hot-reloading enabled
