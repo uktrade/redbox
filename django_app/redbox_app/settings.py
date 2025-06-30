@@ -372,7 +372,12 @@ LOGGING = {
     "filters": {
         "exclude_s3_urls": {
             "": "django.utils.log.CallbackFilter",
-            "callback": lambda record: "X-Amz-Algorithm" not in record.getMessage()
+            "callback": lambda record: all(
+                header not in record.getMessage()
+                for header in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Security-Token"]
+            )
+            if hasattr(record, "getMessage")
+            else True
             if hasattr(record, "getMessage")
             else True,
         },
