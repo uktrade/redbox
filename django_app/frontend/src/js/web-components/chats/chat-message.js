@@ -38,15 +38,20 @@ export class ChatMessage extends HTMLElement {
                     : ""
                 }
                 <sources-list data-id="${uuid}"></sources-list>
-                <div class="govuk-notification-banner govuk-notification-banner--error govuk-!-margin-bottom-3 govuk-!-margin-top-3" role="alert" aria-labelledby="notification-title-${uuid}" data-module="govuk-notification-banner" hidden>
-                    <div class="govuk-notification-banner__header">
-                        <h3 class="govuk-notification-banner__title" id="notification-title-${uuid}">Error</h3>
-                    </div>
-                    <div class="govuk-notification-banner__content">
-                        <p class="govuk-notification-banner__heading"></p>
-                    </div>
-                </div>
-            </div>
+                <div class="govuk-error-summary" data-module="govuk-error-summary">
+                  <div role="alert">
+                    <h2 class="govuk-error-summary__title">
+                      There was an unexpected error communicating with Redbox. Please try again.
+                    </h2>
+                    <div class="govuk-error-summary__body">
+                      <ul class="govuk-list govuk-error-summary__list">
+                        </li>
+                          <a href="#">If the problem persists, please contact <a href="/support/">support</a></a>
+                        </li>
+                       </ul>
+                     </div>
+                   </div>
+                  </div>
             ${this.dataset.role == 'ai' ?
               `<div class="chat-actions-container">
             </div>`
