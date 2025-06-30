@@ -10,6 +10,12 @@ Add or update the environment variables MINIO_HOST, POSTGRES_HOST and UNSTRUCTUR
 
 Set your COLLECTION_ENDPOINT to `"http://admin:Opensearch2024^@localhost:9200"`
 
+Alternatively, You can set the environment variable `USE_LOCAL_ENV=true` in order to use the env variables in env.local.example. Copy them into a `env.local` file before running the app;
+
+```bash
+cp .env.local.example .env.local
+```
+
 ## **Postgres**
 
 Ensure you have a postgress database named `redbox-core` owned by a user called `redbox-core` as this is what the current POSTGRES_USER and POSTGRES_DB are looking for
