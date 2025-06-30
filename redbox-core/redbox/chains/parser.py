@@ -197,8 +197,12 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
             json_text = self.extract_json(text)
             return parse_json_markdown(json_text)
         except json.JSONDecodeError as e:
-            print(e)
-            return None
+            if ": None" in json_text:
+                json_text = json_text.replace(": None", ": null")
+                return parse_json_markdown(json_text)
+            else:
+                print(e)
+                return None
 
     def _to_generation_chunk(self, chunk: Union[str, BaseMessage]):
         chunk_gen: Union[GenerationChunk, ChatGenerationChunk]

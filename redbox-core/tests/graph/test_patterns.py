@@ -530,7 +530,7 @@ STRUCTURED_OUTPUT_TEST_CASE = generate_test_cases(
             number_of_docs=1,
             tokens_in_all_docs=20_000,
             llm_responses=[
-                '{\n  "answer": "blah ref_1 foo ref_2",\n  "citations": [\n    {\n      "text_in_answer": "blah",\n      "sources": [\n        {\n          "source": "https://www.gov.uk/test/",\n          "source_type": "",\n          "document_name": "",\n          "highlighted_text_in_source": "blah",\n          "page_numbers": [],\n          "ref_id": "ref_1"\n        }\n      ]\n    },\n    {\n      "text_in_answer": "foo",\n      "sources": [\n        {\n          "source": "https://www.gov.uk/test",\n          "source_type": "GOV.UK", \n          "document_name": "test",\n          "highlighted_text_in_source": "foo foo",\n          "page_numbers": ["i", 2],\n          "ref_id": "ref_2"\n        }\n      ]\n    }  ]\n    }'
+                '{\n  "answer": "blah ref_1 foo ref_2",\n  "citations": [\n    {\n      "text_in_answer": "blah",\n      "sources": [\n        {\n          "source": "https://www.gov.uk/test/",\n          "source_type": "",\n          "document_name": "",\n          "highlighted_text_in_source": "blah",\n          "page_numbers": None,\n          "ref_id": "ref_1"\n        }\n      ]\n    },\n    {\n      "text_in_answer": "foo",\n      "sources": [\n        {\n          "source": "https://www.gov.uk/test",\n          "source_type": "GOV.UK", \n          "document_name": "test",\n          "highlighted_text_in_source": "foo foo",\n          "page_numbers": ["i", 2],\n          "ref_id": "ref_2"\n        }\n      ]\n    }  ]\n    }'
             ],
             expected_route=ChatRoute.search,
         ),
