@@ -38,20 +38,15 @@ export class ChatMessage extends HTMLElement {
                     : ""
                 }
                 <sources-list data-id="${uuid}"></sources-list>
-                <div class="govuk-error-summary" data-module="govuk-error-summary">
-                  <div role="alert">
-                    <h2 class="govuk-error-summary__title">
-                      There was an unexpected error communicating with Redbox. Please try again.
-                    </h2>
-                    <div class="govuk-error-summary__body">
-                      <ul class="govuk-list govuk-error-summary__list">
-                        </li>
-                          <a href="#">If the problem persists, please contact <a href="/support/">support</a></a>
-                        </li>
-                       </ul>
-                     </div>
-                   </div>
+                <div class="govuk-error-summary" data-module="govuk-error-summary" hidden>
+                  <div class="govuk-body govuk-!-font-weight-bold">
+                    There was an unexpected error communicating with Redbox. Please try again.
                   </div>
+                  <div class="govuk-body">
+                      If the problem persists, please contact
+                        <a class="govuk-body govuk-link" href="/support/">support</a>
+                    </div>
+                </div>
             ${this.dataset.role == 'ai' ?
               `<div class="chat-actions-container">
             </div>`
@@ -72,7 +67,7 @@ export class ChatMessage extends HTMLElement {
     const routeClone = document.importNode(routeTemplate.content, true);
     const actionsContainer = this.querySelector(".chat-actions-container");
     if (actionsContainer) {
-      this.insertBefore(routeClone, actionsContainer);
+      this.appendChild(routeClone);
     }
   }}
 
