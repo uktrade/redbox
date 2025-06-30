@@ -369,11 +369,20 @@ LOGGING = {
             "()": ASIMFormatter,
         },
     },
+    "filters": {
+        "exclude_s3_urls": {
+            "": "django.utils.log.CallbackFilter",
+            "callback": lambda record: "X-Amz-Algorithm" not in record.getMessage()
+            if hasattr(record, "getMessage")
+            else True,
+        },
+    },
     "handlers": {
         "console": {
             "level": LOG_LEVEL,
             "class": "logging.StreamHandler",
             "formatter": LOG_FORMAT,
+            "filters": ["exclude_s3_urls"],
         }
     },
     "root": {"handlers": ["console"], "level": LOG_LEVEL},
@@ -382,7 +391,16 @@ LOGGING = {
             "handlers": [LOG_HANDLER],
             "level": LOG_LEVEL,
             "propagate": True,
-        }
+        },
+        "boto3": {
+            "level": "WARNING",
+        },
+        "botocore": {
+            "level": "WARNING",
+        },
+        "s3transfer": {
+            "level": "WARNING",
+        },
     },
 }
 
