@@ -37,3 +37,5 @@ Run `npm run dev` to watch for changes and automatically rebuild
 
 ### Quick start
 Alternatively, run `make dev` to run migrations, copy static files and start the frontend with parcel in watch mode on [localhost:8081](http://localhost:8081/). The magic link for login should appear in the terminal: `CTRL+F` > `magic_link`.
+
+*Note: You will still need to setup the local environment variables as mentioned earlier.*
