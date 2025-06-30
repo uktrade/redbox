@@ -1,8 +1,7 @@
-main:has(.iai-chat-input),
-body:has(.iai-environment-warning) main:has(.iai-chat-input) {
-  min-height: 0;
+main,
+body {
+  min-height: 0 !important;
 }
-
 .rb-chat-history__title {
   position: relative;
   color: white;
@@ -106,7 +105,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   padding-right: 0;
 }
 .rb-chat-history__level2-button:hover {
-  color: var(--iai-product-colour);
+  color: $govuk-brand-colour;
 }
 .rb-chat-history__delete-confirmation {
   align-items: center;
@@ -581,7 +580,7 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 }
 .exit-feedback__thumb-icon--down:hover,
 .exit-feedback input:checked + label .exit-feedback__thumb-icon--down {
-  color: var(--iai-product-colour);
+  color: $govuk-brand-colour;
 }
 .exit-feedback
   input:checked
@@ -753,7 +752,7 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 
 .govuk-button--secondary-new {
   background-color: white !important;
-  color: var(--iai-product-colour) !important;
+  color: $govuk-brand-colour !important;
   font-size: 1.1875rem;
   text-decoration: none;
 }
@@ -831,7 +830,6 @@ margin-bottom: 16px;
   top: 111px;
   bottom: 0;
   z-index: 100;
-  height: 100vh;
 }
 
 .side-panel-scrollable {

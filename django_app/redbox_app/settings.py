@@ -369,11 +369,25 @@ LOGGING = {
             "()": ASIMFormatter,
         },
     },
+    "filters": {
+        "exclude_s3_urls": {
+            "": "django.utils.log.CallbackFilter",
+            "callback": lambda record: all(
+                header not in record.getMessage()
+                for header in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Security-Token"]
+            )
+            if hasattr(record, "getMessage")
+            else True
+            if hasattr(record, "getMessage")
+            else True,
+        },
+    },
     "handlers": {
         "console": {
             "level": LOG_LEVEL,
             "class": "logging.StreamHandler",
             "formatter": LOG_FORMAT,
+            "filters": ["exclude_s3_urls"],
         }
     },
     "root": {"handlers": ["console"], "level": LOG_LEVEL},
@@ -382,7 +396,16 @@ LOGGING = {
             "handlers": [LOG_HANDLER],
             "level": LOG_LEVEL,
             "propagate": True,
-        }
+        },
+        "boto3": {
+            "level": "WARNING",
+        },
+        "botocore": {
+            "level": "WARNING",
+        },
+        "s3transfer": {
+            "level": "WARNING",
+        },
     },
 }
 
@@ -431,6 +454,7 @@ REDBOX_VERSION = os.environ.get("REDBOX_VERSION", "not set")
 
 Q_CLUSTER = {
     "name": "redbox_django",
+    "recycle": env.int("Q_RECYCLE", 500),
     "timeout": env.int("Q_TIMEOUT", 600),
     "retry": env.int("Q_RETRY", 60),
     "max_attempts": env.int("Q_MAX_ATTEMPTS", 3),

@@ -47,7 +47,16 @@
             </ul>
           </div>
         </chat-history>
-
+        {% if request.user.is_superuser %}
+          <div class="govuk-form-group govuk-!-margin-top-5">
+            <label class="govuk-heading-s iai-panel-heading" for="llm-selector">Model</label>
+            <select id="llm-selector" name="llm" class="govuk-select govuk-!-margin-top-1" {% if environment | lower == 'prod' %} disabled {% endif %}>
+              {% for option in llm_options %}
+                <option value="{{ option.id }}" {% if option.selected %}selected{% endif %}>{{ option.name }}{% if option.default %} (default){% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+        {% endif %}
         <document-selector class="govuk-!-margin-top-5 govuk-!-padding-top-3">
           <fieldset class="govuk-fieldset">
             <legend class="full-width-panel-title">
@@ -89,23 +98,14 @@
           </fieldset>
         </document-selector>
 
-        <div class="iai-doc-list">
-          <label for="llm-selector">Model</label>
-          <select id="llm-selector" name="llm" class="govuk-select govuk-!-margin-top-1" {% if environment | lower == 'prod' %} disabled {% endif %}>
-            {% for option in llm_options %}
-              <option value="{{ option.id }}" {% if option.selected %}selected{% endif %}>{{ option.name }}{% if option.default %} (default){% endif %}</option>
-            {% endfor %}
-          </select>
-        </div>
-
       </div>
       </div>
 
     <div class="govuk-grid-column-three-quarters">
       {% if not messages %}
-        
+
         <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1" security-classification="{{ security }}"></canned-prompts>
-      
+
       {% endif %}
         <div class="rb-chats-section">
 

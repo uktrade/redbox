@@ -86,6 +86,9 @@ def build_chat_prompt_from_messages_runnable(
             },
         ).invoke(prompt_template_context)
 
+        # add llm input log
+        log.debug("Input sending to LLM: %s", chatprompt)
+
         return chatprompt
 
     return _chat_prompt_from_messages

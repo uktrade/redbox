@@ -1,6 +1,6 @@
 // @ts-check
 
-import { addShowMore } from "../show-more.js";
+import { addShowMore } from '../show-more';
 
 class ChatHistory extends HTMLElement {
   chatLimit = 5;
@@ -16,7 +16,6 @@ class ChatHistory extends HTMLElement {
     addShowMore({
       container: this.querySelector(".recent-chats"),
       itemSelector: 'li',
-      itemDisplay: 'block',
       visibleCount: 5,
     })
   }

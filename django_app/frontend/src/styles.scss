@@ -1,6 +1,8 @@
 $govuk-assets-path: "govuk-assets/";
+$govuk-border-colour: #bfc1c3;
+$govuk-brand-colour: #1d70b8;
 
-@import "../node_modules/govuk-frontend/dist/govuk/all";
+@import "../node_modules/govuk-frontend/dist/govuk/index";
 
 body {
   background-color: white;
@@ -23,7 +25,7 @@ body {
 }
 
 .govuk-phase-banner__content__tag {
-  background-color: govuk-colour("blue");
+  background-color: $govuk-brand-colour !important;
   color: white;
 }
 
@@ -81,13 +83,14 @@ body {
 }
 
 @media screen and (min-width: 768px) {
-.header-list {
-  display:flex !important;
-  justify-content: flex-end;}
+  .header-list {
+    display:flex !important;
+    justify-content: flex-end;}
 
-.collapsible-menu-button {
-  display: none !important;
-}}
+  .collapsible-menu-button {
+    display: none !important;
+  }
+}
 
 
 
@@ -113,7 +116,7 @@ upload-button {
 
 /* i.AI Design System */
 :root {
-  --iai-product-colour: $govuk-brand-colour#;
+  --iai-product-colour: $govuk-brand-colour;
   --iai-background-colour-1: white;
   --iai-background-colour-2: white;
 }
@@ -160,7 +163,7 @@ upload-button {
 }
 
 .iai-chat-bubbles__sources-link:visited {
-  color: var(--iai-product-colour, var(--iai-colour-brand));
+  color: $govuk-brand-colour, var(--iai-colour-brand);
 }
 .iai-chat-bubbles__sources-link:target {
   outline: 3px solid rgba(0, 0, 0, 0);
@@ -173,7 +176,6 @@ upload-button {
 .govuk-footer__copyright-logo {
   display: inline-block;
   min-width: 125px;
-  padding-top: 112px;
   background-image: url(/static/govuk-frontend/assets/images/govuk-crest.png);
   background-repeat: no-repeat;
   background-position: 50% 0;
