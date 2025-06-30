@@ -18,6 +18,7 @@ body {
   padding: 0 8px;
   list-style-type: none;
 }
+// Recent chat item container
 .rb-chat-history__item-container {
   align-items: center;
   display: flex;
@@ -45,6 +46,8 @@ body {
   height: 0.5rem;
   width: 0.5rem;
 }
+
+// Recent chat history link
 .rb-chat-history__link {
   color: white;
   text-decoration: none;
@@ -94,7 +97,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   display: block;
 }
 
-// Delete chat button
+// Recent chat delete button
 .rb-chat-history__level2-button {
   align-items: center;
   background-color: transparent;
@@ -123,6 +126,8 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   min-height: 2.5rem;
   padding: 0.5rem 1rem;
 }
+
+// Recent chat edit button
 .rb-chat-history__level3-button {
   background-color: transparent;
   border: 0;
