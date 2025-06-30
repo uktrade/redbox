@@ -285,11 +285,11 @@ export class ChatMessage extends HTMLElement {
         document.dispatchEvent(chatResponseEndEvent);
         reloadAtCurrentPosition();
       } else if (response.type === "error") {
-        this.querySelector(".govuk-notification-banner")?.removeAttribute(
+        this.querySelector(".govuk-error-summary")?.removeAttribute(
           "hidden"
         );
         let errorContentContainer = this.querySelector(
-          ".govuk-notification-banner__heading"
+          ".govuk-error-summary__title"
         );
         if (errorContentContainer) {
           errorContentContainer.innerHTML = response.data;
