@@ -195,6 +195,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         text=escape_curly_brackets(message.text),
                     )
                     for message in message_history[:-2]
+                    if message.text
                 ],
                 ai_settings=ai_settings,
                 permitted_s3_keys=[f.unique_name async for f in permitted_files],
