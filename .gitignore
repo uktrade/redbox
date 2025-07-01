@@ -157,6 +157,7 @@ celerybeat.pid
 # Environments
 .env
 .env.backup
+.env.local
 .venv
 env/
 venv/
@@ -228,4 +229,3 @@ django_app/tests/staticfiles
 # lambda files
 infrastructure/aws/cleanup_lambda/*.zip
 infrastructure/aws/cleanup_lambda/layer/*
-
