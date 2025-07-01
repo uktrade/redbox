@@ -43,7 +43,7 @@ from redbox.graph.nodes.processes import (
     report_sources_process,
     stream_plan,
     stream_suggestion,
-    stream_answer_process,
+    stream_answer,
 )
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -887,7 +887,7 @@ def build_new_graph(
     builder.add_node("user_feedback_evaluation", empty_process)
 
     builder.add_node("Evaluator_Agent", create_evaluator())
-    builder.add_node("stream_answer_process", stream_answer_process())
+    builder.add_node("stream_answer", stream_answer())
     builder.add_node("combine_question_evaluator", combine_question_evaluator())
     builder.add_node(
         "report_citations",
@@ -915,8 +915,8 @@ def build_new_graph(
     builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
     builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
-    builder.add_edge("Evaluator_Agent", "stream_answer_process")
-    builder.add_edge("stream_answer_process", "report_citations")
+    builder.add_edge("Evaluator_Agent", "stream_answer")
+    builder.add_edge("stream_answer", "report_citations")
     builder.add_edge("report_citations", END)
     builder.add_edge("stream_plan", END)
     builder.add_edge("stream_suggestion", END)

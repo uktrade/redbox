@@ -489,7 +489,9 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
 def create_evaluator():
     def _create_evaluator(state: RedboxState):
         _additional_variables = {"agents_results": combine_agents_state(state.agents_results)}
-        citation_parser, format_instructions = get_structured_response_with_citations_parser()
+        citation_parser, format_instructions = get_structured_response_with_citations_parser(
+            ["answer_process", "answer"]
+        )
         evaluator_agent = build_stuff_pattern(
             prompt_set=PromptSet.NewRoute,
             tools=None,
@@ -608,7 +610,7 @@ def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
     return _combine_question
 
 
-def stream_answer_process():
+def stream_answer():
     def extract_json(text):
         if isinstance(text, list):
             text = text[0].get("text")
@@ -628,12 +630,12 @@ def stream_answer_process():
             return text
 
     @RunnableLambda
-    def _stream_answer_process(state: RedboxState):
+    def _stream_answer(state: RedboxState):
         extract_text = extract_json(state.messages[-1].content)
         json_text = StructuredResponseWithCitations.model_validate_json(extract_text)
 
-        dispatch_custom_event(RedboxEventType.response_tokens, data=json_text.answer_process)
+        dispatch_custom_event(RedboxEventType.response_tokens, data=json_text.answer)
 
         return state
 
-    return _stream_answer_process
+    return _stream_answer

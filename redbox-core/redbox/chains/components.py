@@ -132,7 +132,7 @@ def get_basic_metadata_retriever(env: Settings):
     )
 
 
-def get_structured_response_with_citations_parser() -> tuple[Runnable, str]:
+def get_structured_response_with_citations_parser(name_of_streamed_field: list = ["answer"]) -> tuple[Runnable, str]:
     """
     Returns the output parser (as a runnable) for creating the StructuredResponseWithCitations object
     while streaming the answer tokens
@@ -140,7 +140,7 @@ def get_structured_response_with_citations_parser() -> tuple[Runnable, str]:
     """
     # pydantic_parser = PydanticOutputParser(pydantic_object=StructuredResponseWithCitations)
     parser = StreamingJsonOutputParser(
-        name_of_streamed_field="answer", pydantic_schema_object=StructuredResponseWithCitations
+        name_of_streamed_field=name_of_streamed_field, pydantic_schema_object=StructuredResponseWithCitations
     )
     return (parser, parser.get_format_instructions())
 
