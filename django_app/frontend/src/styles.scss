@@ -3,6 +3,7 @@ $govuk-border-colour: #bfc1c3;
 $govuk-brand-colour: #1d70b8;
 
 @import "../node_modules/govuk-frontend/dist/govuk/index";
+@import "./variables.scss";
 
 body {
   background-color: white;

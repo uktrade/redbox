@@ -1,0 +1,51 @@
+:root {
+  --govuk-assets-path: "govuk-assets/";
+
+  // GDS colours - for re-use in this file only
+  // https://design-system.service.gov.uk/styles/colour/#colour-palette
+  --gds-red: #d4351c;
+  --gds-yellow: #ffdd00;
+  --gds-blue: #1d70b8;
+  --gds-dark-blue: #003078;
+  --gds-green: #00703c;
+  --gds-dark-green: #005a30;
+  --gds-light-grey: #f3f2f1;
+  --gds-mid-grey: #b1b4b6;
+  --gds-dark-grey: #505a5f;
+  --gds-black: #0b0c0c;
+  --gds-purple: #4c2c92;
+
+  // Brand colours - for re-use in this file only
+  --dbt-red: #cf102d;
+  --dbt-blue: #00285f;
+  --dbt-light-blue: #0063be;
+  --dbt-light-blue-rgb: 0, 99, 190;
+  --dbt-white: #ffffff;
+  --dbt-miuk-light-grey: #dde5ed;
+  --dbt-background-blue: #d2e2f1;
+  --dbt-very-light-grey: #EEEFEF;
+  --dbt-dark-teel: #004D44;
+  --dbt-light-green: #CCE2D8;
+  --dbt-black: #000000;
+  --dbt-light-pink: #FCD6C3;
+  --dbt-burnt-orange: #E24912;
+  --dbt-light-purple: #DBD5E9;
+  --dbt-dark-purple: #4814A0;
+
+  // Redbox Colors
+  --redbox-red: #942514; /*old:#A50202, #1D70B8*/
+  --redbox-blue: var(--gds-blue); /*#1d70b8;*/
+  --redbox-white: var(--dbt-white);
+  --redbox-grey: var(--gds-mid-grey);
+
+  // Project Colors
+  --color-background-white: var(--redbox-white);
+  --color-background-blue: var(--redbox-blue);
+  --color-background-red: var(--redbox-red);
+  --color-background-black: var(--dbt-black);
+  --color-background: var(--color-background-blue);
+  --color-border: var(--redbox-grey);
+  --color-border-dark: var(--dbt-black);
+  --color-button-primary: var(--redbox-blue);/* old:#1759BC */
+  --color-text: var(--dbt-black);
+}
