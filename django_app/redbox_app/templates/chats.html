@@ -47,8 +47,7 @@
             </ul>
           </div>
         </chat-history>
-        {% if request.user.is_superuser %}
-          <div class="govuk-form-group govuk-!-margin-top-5">
+          <div class="govuk-form-group govuk-!-margin-top-5" {% if not request.user.is_superuser %}hidden{% endif %}>
             <label class="govuk-heading-s iai-panel-heading" for="llm-selector">Model</label>
             <select id="llm-selector" name="llm" class="govuk-select govuk-!-margin-top-1" {% if environment | lower == 'prod' %} disabled {% endif %}>
               {% for option in llm_options %}
@@ -56,7 +55,6 @@
               {% endfor %}
             </select>
           </div>
-        {% endif %}
         <document-selector class="govuk-!-margin-top-5 govuk-!-padding-top-3">
           <fieldset class="govuk-fieldset">
             <legend class="full-width-panel-title">
