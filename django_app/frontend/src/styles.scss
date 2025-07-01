@@ -1,9 +1,12 @@
+@use "../node_modules/govuk-frontend/dist/govuk/index" as govuk;
+@use "../node_modules/i.ai-design-system/dist/styles.scss" as iai;
+@use "./chat-styles.scss" as chat;
+@use "./profile-overlay-styles.scss" as profile;
+@use "./iai-overrides.scss" as overrides;
+
 $govuk-assets-path: "govuk-assets/";
 $govuk-border-colour: #bfc1c3;
 $govuk-brand-colour: #1d70b8;
-
-@import "../node_modules/govuk-frontend/dist/govuk/index";
-@import "./variables.scss";
 
 body {
   background-color: white;
@@ -121,7 +124,6 @@ upload-button {
   --iai-background-colour-1: white;
   --iai-background-colour-2: white;
 }
-@import "../node_modules/i.ai-design-system/dist/styles.scss";
 
 /* Documents page - to come after i.AI Design System */
 .rb-doc-retention {
@@ -199,11 +201,6 @@ only screen and (min-resolution:192dpi) {
 }
 
 /* Chats Page - to come after i.AI Design System */
-@import "./chat-styles.scss";
-
-@import "./profile-overlay-styles.scss";
-
-@import "./iai-overrides.scss";
 
 .radio-groups-container {
   display: flex;
@@ -241,4 +238,119 @@ only screen and (min-resolution:192dpi) {
 .govuk-hintx {
   @extend .govuk-hint;
   font-size: .875rem !important;
+}
+
+
+.govuk-notification-bannerx {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-weight: 400;
+  font-size: 16px;
+  font-size: 1rem;
+  line-height: 1.25;
+  margin-bottom: 32px;
+  border: 4px solid $govuk-brand-colour;
+  background-color: $govuk-brand-colour;
+}
+
+@media (min-width:40.0625em) {
+  .govuk-notification-bannerx {
+    font-size: 20px;
+    font-size: 1.1875rem;
+    line-height: 1.31579
+  }
+}
+
+@media print {
+  .govuk-notification-bannerx {
+    font-size: 14pt;
+    line-height: 1.15
+  }
+}
+
+@media (min-width:40.0625em) {
+  .govuk-notification-bannerx {
+    margin-bottom: 52px
+  }
+}
+
+.govuk-notification-bannerx:focus {
+  outline: 4px solid #fd0
+}
+
+.govuk-notification-banner__headerx {
+  padding: 2px 16px 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0)
+}
+
+@media (min-width:40.0625em) {
+  .govuk-notification-banner__headerx {
+    padding: 2px 20px 4px
+  }
+}
+
+.govuk-notification-banner__titlex {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-weight: 700;
+  font-size: 16px;
+  font-size: 1rem;
+  line-height: 1.25;
+  margin: 0;
+  padding: 0;
+  color: #fff
+}
+
+
+@media (min-width:40.0625em) {
+  .govuk-notification-banner__titlex {
+    font-size: 20px;
+    font-size: 1.1875rem;
+    line-height: 1.31579
+  }
+}
+
+@media print {
+  .govuk-notification-banner__titlex {
+    font-size: 14pt;
+    line-height: 1.15
+  }
+}
+
+.govuk-notification-banner__contentx {
+  color: #0b0c0c;
+  padding: 16px;
+  background-color: #fff;
+  white-space: normal;
+}
+
+@media print {
+  .govuk-notification-banner__contentx {
+    color: #000
+  }
+}
+
+@media (min-width:40.0625em) {
+  .govuk-notification-banner__contentx {
+    padding: 20px
+  }
+}
+
+.govuk-notification-banner__contentx>* {
+  box-sizing: border-box;
+  max-width: 700px
+}
+
+.govuk-notification-banner__contentx>:last-child {
+  margin-bottom: 0
+}
+
+.govuk-grid-column-one-quarterx {
+  @extend .govuk-grid-column-one-quarter;
+  background-color: var(--color-background);
+  position: sticky;
+  top: 111px;
+  bottom: 0;
+  z-index: 100;
+  overflow-y: clip;
 }
