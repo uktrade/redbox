@@ -585,6 +585,18 @@ def stream_suggestion():
     return _stream_suggestion
 
 
+def new_stream():
+    @RunnableLambda
+    def _stream_suggestion(state: RedboxState):
+        # convert one before last message to StructuredResponseWithCitation
+        output = StructuredResponseWithCitations.model_validate_json(state.message[-2])
+
+        dispatch_custom_event(RedboxEventType.response_tokens, data=output["answer"])
+        return state
+
+    return _stream_suggestion
+
+
 def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
     """Returns a Runnable that uses state["request"] to set state["text"]."""
 
