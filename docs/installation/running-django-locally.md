@@ -10,6 +10,12 @@ Add or update the environment variables MINIO_HOST, POSTGRES_HOST and UNSTRUCTUR
 
 Set your COLLECTION_ENDPOINT to `"http://admin:Opensearch2024^@localhost:9200"`
 
+Alternatively, You can set the environment variable `USE_LOCAL_ENV=true` in order to use the env variables in env.local.example. Copy them into a `env.local` file before running the app;
+
+```bash
+cp .env.local.example .env.local
+```
+
 ## **Postgres**
 
 Ensure you have a postgress database named `redbox-core` owned by a user called `redbox-core` as this is what the current POSTGRES_USER and POSTGRES_DB are looking for
@@ -28,3 +34,8 @@ Run the server
 Install frontend dependencies if not done already `npm install`
 
 Run `npm run dev` to watch for changes and automatically rebuild
+
+### Quick start
+Alternatively, run `make dev` to run migrations, copy static files and start the frontend with parcel in watch mode on [localhost:8081](http://localhost:8081/). The magic link for login should appear in the terminal: `CTRL+F` > `magic_link`.
+
+*Note: You will still need to setup the local environment variables as mentioned earlier.*
