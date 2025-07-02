@@ -3,6 +3,7 @@
 @use "./chat-styles.scss" as chat;
 @use "./profile-overlay-styles.scss" as profile;
 @use "./iai-overrides.scss" as overrides;
+@use "./variables.scss" as variables;
 
 $govuk-assets-path: "govuk-assets/";
 $govuk-border-colour: #bfc1c3;
