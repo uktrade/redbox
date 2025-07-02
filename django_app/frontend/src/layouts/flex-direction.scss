@@ -1,0 +1,17 @@
+.flex-row {
+    display: flex;
+    flex-direction: row;
+
+    @media (max-width: 640px) {
+        flex-direction: column;
+    }
+}
+
+.flex-column {
+    display: flex;
+    flex-direction: column;
+
+    .push-bottom {
+        margin-top: auto;
+    }
+}

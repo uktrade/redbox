@@ -158,3 +158,9 @@
   line-height: 1;
   display: inline-table
 }
+
+// Revert i.ai design system link color overrides
+.govuk-link:link,
+.govuk-link:visited {
+  color: revert;
+}

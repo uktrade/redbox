@@ -1,13 +1,15 @@
 @use "../node_modules/govuk-frontend/dist/govuk/index" as govuk;
+@use "./variables.scss" as *;
 @use "../node_modules/i.ai-design-system/dist/styles.scss" as iai;
 @use "./chat-styles.scss" as chat;
 @use "./profile-overlay-styles.scss" as profile;
 @use "./iai-overrides.scss" as overrides;
-@use "./variables.scss" as variables;
+@use "./layouts" as layouts;
 
-$govuk-assets-path: "govuk-assets/";
-$govuk-border-colour: #bfc1c3;
-$govuk-brand-colour: #1d70b8;
+
+// $govuk-assets-path: "govuk-assets/";
+// $govuk-border-colour: #bfc1c3;
+// $govuk-brand-colour: #1d70b8;
 
 body {
   background-color: white;
@@ -240,6 +242,29 @@ only screen and (min-resolution:192dpi) {
   @extend .govuk-hint;
   font-size: .875rem !important;
 }
+
+// .govuk-grid-rowx {
+//     @extend .govuk-grid-row;
+
+//     display: flex;
+//     flex-direction: row;
+
+//     @media (max-width: 640px) {
+//         flex-direction: column;
+//     }
+// }
+
+// .govuk-grid-column-one-thirdx {
+//     @extend .govuk-grid-column-one-third;
+
+//     display: flex;
+//     flex-direction: column;
+
+//     .push-bottom {
+//         margin-top: auto;
+//     }
+// }
+
 
 
 .govuk-notification-bannerx {
