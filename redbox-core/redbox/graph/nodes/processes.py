@@ -40,6 +40,7 @@ from redbox.models.chain import (
     PromptSet,
     RedboxState,
     RequestMetadata,
+    StructuredResponseWithCitations,
     get_plan_fix_prompts,
     get_plan_fix_suggestion_prompts,
 )
@@ -593,3 +594,34 @@ def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
         return state
 
     return _combine_question
+
+
+def stream_answer_process():
+    def extract_json(text):
+        if isinstance(text, list):
+            text = text[0].get("text")
+
+        try:
+            # Find content between first { and last }
+            match = re.search(r"(\{.*\})", text, re.DOTALL)
+            if not match:
+                return text
+
+            json_str = match.group(1)
+
+            return json_str
+
+        except Exception as e:
+            print(f"Error processing JSON: {e}")
+            return text
+
+    @RunnableLambda
+    def _stream_answer_process(state: RedboxState):
+        extract_text = extract_json(state.messages[-1].content)
+        json_text = StructuredResponseWithCitations.model_validate_json(extract_text)
+
+        dispatch_custom_event(RedboxEventType.response_tokens, data=json_text.answer_process)
+
+        return state
+
+    return _stream_answer_process
