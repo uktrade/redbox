@@ -53,18 +53,14 @@ def aws_credentials_api(request):
         client = boto3.client("sts")
         role_arn = settings.AWS_TRANSCRIBE_ROLE_ARN
 
-        # Creating new credentials unfortunately sometimes fails
-        max_attempts = 3
-        for i in range(3):
-            try:
-                credentials = client.assume_role(
-                    RoleArn=role_arn,
-                    RoleSessionName="redbox_" + str(uuid.uuid4()),
-                    DurationSeconds=60 * 15,  # 15 minutes
-                )["Credentials"]
-            except Exception:
-                if i == max_attempts - 1:
-                    raise
+        try:
+            credentials = client.assume_role(
+                RoleArn=role_arn,
+                RoleSessionName="redbox_" + str(uuid.uuid4()),
+                DurationSeconds=60 * 15,
+            )["Credentials"]
+        except Exception as e:
+            logger.exception("Failed to assume role:", exc_info=e)
 
         return JsonResponse(
             {
