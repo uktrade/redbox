@@ -205,17 +205,23 @@ def get_all_metadata(obj: dict):
     text_and_tools = obj["text_and_tools"]
 
     if parsed_response := text_and_tools.get("parsed_response"):
+        stream_field = text_and_tools.get("stream_field")
         try:
-            text = getattr(parsed_response, "answer", parsed_response.model_dump_json())
+            text = getattr(parsed_response, stream_field, parsed_response.model_dump_json())
         except Exception:
-            text = getattr(parsed_response, "answer", parsed_response)
+            text = getattr(parsed_response, stream_field, parsed_response)
         citations = getattr(parsed_response, "citations", [])
+        answer_process = getattr(parsed_response, "answer_process", "")
     else:
         text = text_and_tools["raw_response"].content
         citations = []
+        answer_process = ""
 
+    messages = [AIMessage(content=text, tool_calls=text_and_tools["raw_response"].tool_calls)]
+    if answer_process:
+        messages.append(AIMessage(content=answer_process))
     out = {
-        "messages": [AIMessage(content=text, tool_calls=text_and_tools["raw_response"].tool_calls)],
+        "messages": messages,
         "metadata": to_request_metadata(obj),
         "citations": citations,
         "final_chain": obj["final_chain"],

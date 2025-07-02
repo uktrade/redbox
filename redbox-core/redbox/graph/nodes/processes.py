@@ -40,7 +40,6 @@ from redbox.models.chain import (
     PromptSet,
     RedboxState,
     RequestMetadata,
-    StructuredResponseWithCitations,
     get_plan_fix_prompts,
     get_plan_fix_suggestion_prompts,
 )
@@ -486,11 +485,11 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
     return _build_agent
 
 
-def create_evaluator():
+def create_evaluator(name_of_streamed_field):
     def _create_evaluator(state: RedboxState):
         _additional_variables = {"agents_results": combine_agents_state(state.agents_results)}
         citation_parser, format_instructions = get_structured_response_with_citations_parser(
-            ["answer_process", "answer"]
+            name_of_streamed_field=name_of_streamed_field[0]
         )
         evaluator_agent = build_stuff_pattern(
             prompt_set=PromptSet.NewRoute,
@@ -587,18 +586,6 @@ def stream_suggestion():
     return _stream_suggestion
 
 
-def new_stream():
-    @RunnableLambda
-    def _stream_suggestion(state: RedboxState):
-        # convert one before last message to StructuredResponseWithCitation
-        output = StructuredResponseWithCitations.model_validate_json(state.message[-2])
-
-        dispatch_custom_event(RedboxEventType.response_tokens, data=output["answer"])
-        return state
-
-    return _stream_suggestion
-
-
 def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
     """Returns a Runnable that uses state["request"] to set state["text"]."""
 
@@ -631,10 +618,10 @@ def stream_answer():
 
     @RunnableLambda
     def _stream_answer(state: RedboxState):
-        extract_text = extract_json(state.messages[-1].content)
-        json_text = StructuredResponseWithCitations.model_validate_json(extract_text)
+        extract_text = extract_json(state.messages[0].content)
+        # json_text = StructuredResponseWithCitations.model_validate_json(extract_text)
 
-        dispatch_custom_event(RedboxEventType.response_tokens, data=json_text.answer)
+        dispatch_custom_event(RedboxEventType.response_tokens, data=extract_text)
 
         return state
 

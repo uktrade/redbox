@@ -166,7 +166,7 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
     """
 
     diff: bool = False  # Ignored
-    name_of_streamed_field: str = "answer"
+    name_of_streamed_field: str
     # sub_streamed_field: str = None
     pydantic_schema_object: type[BaseModel]
 

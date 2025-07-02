@@ -886,7 +886,7 @@ def build_new_graph(
 
     builder.add_node("user_feedback_evaluation", empty_process)
 
-    builder.add_node("Evaluator_Agent", create_evaluator())
+    builder.add_node("Evaluator_Agent", create_evaluator(["answer_process", "answer"]))
     builder.add_node("stream_answer", stream_answer())
     builder.add_node("combine_question_evaluator", combine_question_evaluator())
     builder.add_node(
