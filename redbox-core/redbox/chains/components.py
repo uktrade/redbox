@@ -132,7 +132,7 @@ def get_basic_metadata_retriever(env: Settings):
     )
 
 
-def get_structured_response_with_citations_parser(name_of_streamed_field: str = "answer") -> tuple[Runnable, str]:
+def get_structured_response_with_citations_parser(name_of_streamed_field: list = ["answer"]) -> tuple[Runnable, str]:
     """
     Returns the output parser (as a runnable) for creating the StructuredResponseWithCitations object
     while streaming the answer tokens

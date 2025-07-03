@@ -489,7 +489,7 @@ def create_evaluator(name_of_streamed_field):
     def _create_evaluator(state: RedboxState):
         _additional_variables = {"agents_results": combine_agents_state(state.agents_results)}
         citation_parser, format_instructions = get_structured_response_with_citations_parser(
-            name_of_streamed_field=name_of_streamed_field[0]
+            name_of_streamed_field=name_of_streamed_field
         )
         evaluator_agent = build_stuff_pattern(
             prompt_set=PromptSet.NewRoute,
@@ -598,30 +598,10 @@ def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
 
 
 def stream_answer():
-    def extract_json(text):
-        if isinstance(text, list):
-            text = text[0].get("text")
-
-        try:
-            # Find content between first { and last }
-            match = re.search(r"(\{.*\})", text, re.DOTALL)
-            if not match:
-                return text
-
-            json_str = match.group(1)
-
-            return json_str
-
-        except Exception as e:
-            print(f"Error processing JSON: {e}")
-            return text
-
     @RunnableLambda
     def _stream_answer(state: RedboxState):
-        extract_text = extract_json(state.messages[0].content)
-        # json_text = StructuredResponseWithCitations.model_validate_json(extract_text)
-
-        dispatch_custom_event(RedboxEventType.response_tokens, data=extract_text)
+        answer = state.messages.pop()
+        dispatch_custom_event(RedboxEventType.response_tokens, data=answer.content)
 
         return state
 

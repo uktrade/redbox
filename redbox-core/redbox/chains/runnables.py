@@ -86,9 +86,6 @@ def build_chat_prompt_from_messages_runnable(
             },
         ).invoke(prompt_template_context)
 
-        # add llm input log
-        log.debug("Input sending to LLM: %s", chatprompt)
-
         return chatprompt
 
     return _chat_prompt_from_messages
@@ -141,7 +138,7 @@ def build_llm_chain(
         "prompt": RunnableLambda(lambda prompt: prompt.to_string()),
         "model": lambda _: model_name,
         "final_chain": lambda _: final_response_chain,
-        "stream_field": output_parser.name_of_streamed_field if output_parser else "",
+        "list_of_stream_objects": RunnableLambda(lambda _: _output_parser.name_of_streamed_field),
     }
 
     return (
