@@ -166,7 +166,7 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
     """
 
     diff: bool = False  # Ignored
-    name_of_streamed_field: str = "answer"
+    name_of_streamed_field: list = ["answer"]
     # sub_streamed_field: str = None
     pydantic_schema_object: type[BaseModel]
 
@@ -224,7 +224,7 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
             acc_gen = chunk_gen if acc_gen is None else acc_gen + chunk_gen  # type: ignore[operator]
             if parsed := self.parse_partial_json(acc_gen.text):
                 is_parsed = True
-                field_content = parsed.get(self.name_of_streamed_field)
+                field_content = parsed.get(self.name_of_streamed_field[0])
                 if field_content:
                     if new_tokens := field_content[field_length_at_last_run:]:
                         dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
@@ -235,7 +235,7 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
             if not match:  # stream only when text does not contain json brackets to ensure quality of output
                 transformed_text = self.answer_str_to_json(acc_gen.text)
                 if parsed := self.parse_partial_json(transformed_text):
-                    field_content = parsed.get(self.name_of_streamed_field)
+                    field_content = parsed.get(self.name_of_streamed_field[0])
                     if field_content:
                         dispatch_custom_event(RedboxEventType.response_tokens, data=field_content)
                         yield self.pydantic_schema_object.model_validate(parsed)
@@ -253,7 +253,7 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
             acc_gen = chunk_gen if acc_gen is None else acc_gen + chunk_gen  # type: ignore[operator]
             if parsed := self.parse_partial_json(acc_gen.text):
                 is_parsed = True
-                field_content = parsed.get(self.name_of_streamed_field)
+                field_content = parsed.get(self.name_of_streamed_field[0])
                 if field_content:
                     if new_tokens := field_content[field_length_at_last_run:]:
                         dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
@@ -265,7 +265,7 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
             if not match:  # stream only when text does not contain json brackets to ensure quality of output
                 transformed_text = self.answer_str_to_json(acc_gen.text)
                 if parsed := self.parse_partial_json(transformed_text):
-                    field_content = parsed.get(self.name_of_streamed_field)
+                    field_content = parsed.get(self.name_of_streamed_field[0])
                     if field_content:
                         dispatch_custom_event(RedboxEventType.response_tokens, data=field_content)
                         yield self.pydantic_schema_object.model_validate(parsed)
@@ -327,7 +327,7 @@ class StreamingPlanner(StreamingJsonOutputParser):
             if parsed := self.parse_partial_json(acc_gen.text):
                 if self.sub_streamed_field:
                     try:
-                        item = parsed.get(self.name_of_streamed_field)[item_count]
+                        item = parsed.get(self.name_of_streamed_field[0])[item_count]
                         if field_content := item.get(self.sub_streamed_field):
                             if new_tokens := field_content[field_length_at_last_run:]:
                                 if (item_count == 0) and (field_length_at_last_run == 0):
@@ -348,7 +348,7 @@ class StreamingPlanner(StreamingJsonOutputParser):
                     except (IndexError, TypeError):
                         item = []
                 else:
-                    if field_content := parsed.get(self.name_of_streamed_field):
+                    if field_content := parsed.get(self.name_of_streamed_field[0]):
                         if new_tokens := field_content[field_length_at_last_run:]:
                             dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
                             field_length_at_last_run = len(field_content)

@@ -485,10 +485,12 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
     return _build_agent
 
 
-def create_evaluator():
+def create_evaluator(name_of_streamed_field):
     def _create_evaluator(state: RedboxState):
         _additional_variables = {"agents_results": combine_agents_state(state.agents_results)}
-        citation_parser, format_instructions = get_structured_response_with_citations_parser()
+        citation_parser, format_instructions = get_structured_response_with_citations_parser(
+            name_of_streamed_field=name_of_streamed_field
+        )
         evaluator_agent = build_stuff_pattern(
             prompt_set=PromptSet.NewRoute,
             tools=None,
@@ -593,3 +595,14 @@ def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
         return state
 
     return _combine_question
+
+
+def stream_answer():
+    @RunnableLambda
+    def _stream_answer(state: RedboxState):
+        answer = state.messages.pop()
+        dispatch_custom_event(RedboxEventType.response_tokens, data=answer.content)
+
+        return state
+
+    return _stream_answer
