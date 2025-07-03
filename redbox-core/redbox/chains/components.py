@@ -14,7 +14,12 @@ from langchain_core.utils import convert_to_secret_str
 from langchain_openai.embeddings import AzureOpenAIEmbeddings, OpenAIEmbeddings
 
 from redbox.chains.parser import StreamingJsonOutputParser, StreamingPlanner
-from redbox.models.chain import AISettings, MultiAgentPlan, StructuredResponseWithCitations
+from redbox.models.chain import (
+    AISettings,
+    MultiAgentPlan,
+    StructuredResponseWithCitations,
+    StructuredResponseWithCitationsProcess,
+)
 from redbox.models.settings import ChatLLMBackend, Settings
 from redbox.retriever import (
     AllElasticsearchRetriever,
@@ -139,9 +144,14 @@ def get_structured_response_with_citations_parser(name_of_streamed_field: list =
     Also returns the format instructions for this structure for use in the prompt
     """
     # pydantic_parser = PydanticOutputParser(pydantic_object=StructuredResponseWithCitations)
-    parser = StreamingJsonOutputParser(
-        name_of_streamed_field=name_of_streamed_field, pydantic_schema_object=StructuredResponseWithCitations
-    )
+    if "answer_process" in name_of_streamed_field:
+        parser = StreamingJsonOutputParser(
+            name_of_streamed_field=name_of_streamed_field, pydantic_schema_object=StructuredResponseWithCitationsProcess
+        )
+    else:
+        parser = StreamingJsonOutputParser(
+            name_of_streamed_field=name_of_streamed_field, pydantic_schema_object=StructuredResponseWithCitations
+        )
     return (parser, parser.get_format_instructions())
 
 
