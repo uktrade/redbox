@@ -15,7 +15,7 @@
 
                 <ul id="navigation" class="govuk-header__navigation-list header-list">
                     {% for menu_item in menu_items %}
-                    <li class="govuk-header__navigation-item{% if menu_item.active %}--active{% endif %} header-item">
+                    <li class="govuk-header__navigation-item{% if menu_item.active %}--active{% endif %} govuk-!-padding-2">
                         <a class="govuk-header__link" href="{{ menu_item.href }}" {% if menu_item.active
                             %}aria-current="page" {% endif %}>{{ menu_item.text }}</a>
                     </li>

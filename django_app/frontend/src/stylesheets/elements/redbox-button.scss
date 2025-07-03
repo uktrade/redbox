@@ -1,0 +1,19 @@
+.rb-button--blue {
+  background-color: var(--color-background-blue);
+}
+
+.rb-button--blue:hover {
+  background-color: var(--color-background-dark-blue);
+}
+
+.rb-button {
+  background-color: var(--color-background);
+
+  .blue {
+    background-color: var(--color-background-blue);
+  }
+
+  .red {
+    background-color: var(--color-background-red);
+  }
+}
