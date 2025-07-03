@@ -1,5 +1,7 @@
+// Only needed when using @extend
 @use "../../node_modules/govuk-frontend/dist/govuk/index";
 
+// Custom govuk class extension method
 .govuk-grid-rowx {
     @extend .govuk-grid-row;
 
@@ -14,6 +16,25 @@
 .govuk-grid-column-one-thirdx {
     @extend .govuk-grid-column-one-third;
 
+    display: flex;
+    flex-direction: column;
+
+    .push-bottom {
+        margin-top: auto;
+    }
+}
+
+// Override method (will affect all usages of govuk-grid-row and govuk-grid-column-one-third etc.)
+.govuk-grid-row {
+    display: flex;
+    flex-direction: row;
+
+    @media (max-width: 640px) {
+        flex-direction: column;
+    }
+}
+
+.govuk-grid-column-one-third {
     display: flex;
     flex-direction: column;
 

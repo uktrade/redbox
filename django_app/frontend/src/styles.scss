@@ -243,30 +243,6 @@ only screen and (min-resolution:192dpi) {
   font-size: .875rem !important;
 }
 
-// .govuk-grid-rowx {
-//     @extend .govuk-grid-row;
-
-//     display: flex;
-//     flex-direction: row;
-
-//     @media (max-width: 640px) {
-//         flex-direction: column;
-//     }
-// }
-
-// .govuk-grid-column-one-thirdx {
-//     @extend .govuk-grid-column-one-third;
-
-//     display: flex;
-//     flex-direction: column;
-
-//     .push-bottom {
-//         margin-top: auto;
-//     }
-// }
-
-
-
 .govuk-notification-bannerx {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
