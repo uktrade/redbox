@@ -409,6 +409,11 @@ LOGGING = {
         "s3transfer": {
             "level": "WARNING",
         },
+        "ddtrace": {
+            "handlers": ["asim"],
+            "level": "ERROR",
+            "propagate": False,
+        },
     },
 }
 
