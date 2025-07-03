@@ -391,6 +391,11 @@ LOGGING = {
             "class": "logging.StreamHandler",
             "formatter": LOG_FORMAT,
             "filters": ["exclude_s3_urls"],
+        },
+        "asim": {
+        "level": "ERROR", 
+        "class": "logging.StreamHandler",
+        "formatter": "asim_formatter",
         }
     },
     "root": {"handlers": ["console"], "level": LOG_LEVEL},
