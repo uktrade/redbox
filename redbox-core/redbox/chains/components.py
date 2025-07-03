@@ -44,6 +44,12 @@ def get_chat_llm(
         model_provider=model.provider,
         max_tokens=ai_settings.llm_max_tokens,
         configurable_fields=["base_url"],
+        additional_model_request_fields={
+            "thinking": {
+                "type": "enabled",
+                "budget_tokens": 1024,
+            }
+        },
     )
     if tools:
         chat_model = chat_model.bind_tools(tools)
