@@ -38,15 +38,15 @@ export class ChatMessage extends HTMLElement {
                     : ""
                 }
                 <sources-list data-id="${uuid}"></sources-list>
-                <div class="govuk-notification-banner govuk-notification-banner--error govuk-!-margin-bottom-3 govuk-!-margin-top-3" role="alert" aria-labelledby="notification-title-${uuid}" data-module="govuk-notification-banner" hidden>
-                    <div class="govuk-notification-banner__header">
-                        <h3 class="govuk-notification-banner__title" id="notification-title-${uuid}">Error</h3>
-                    </div>
-                    <div class="govuk-notification-banner__content">
-                        <p class="govuk-notification-banner__heading"></p>
+                <div class="govuk-error-summary" data-module="govuk-error-summary" hidden>
+                  <div class="govuk-body govuk-!-font-weight-bold">
+                    There was an unexpected error communicating with Redbox. Please try again.
+                  </div>
+                  <div class="govuk-body">
+                      If the problem persists, please contact
+                        <a class="govuk-body govuk-link" href="/support/">support</a>
                     </div>
                 </div>
-            </div>
             ${this.dataset.role == 'ai' ?
               `<div class="chat-actions-container">
             </div>`
@@ -67,7 +67,7 @@ export class ChatMessage extends HTMLElement {
     const routeClone = document.importNode(routeTemplate.content, true);
     const actionsContainer = this.querySelector(".chat-actions-container");
     if (actionsContainer) {
-      this.insertBefore(routeClone, actionsContainer);
+      this.appendChild(routeClone);
     }
   }}
 
@@ -280,11 +280,11 @@ export class ChatMessage extends HTMLElement {
         document.dispatchEvent(chatResponseEndEvent);
         reloadAtCurrentPosition();
       } else if (response.type === "error") {
-        this.querySelector(".govuk-notification-banner")?.removeAttribute(
+        this.querySelector(".govuk-error-summary")?.removeAttribute(
           "hidden"
         );
         let errorContentContainer = this.querySelector(
-          ".govuk-notification-banner__heading"
+          ".govuk-error-summary__title"
         );
         if (errorContentContainer) {
           errorContentContainer.innerHTML = response.data;
