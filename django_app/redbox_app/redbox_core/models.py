@@ -808,7 +808,9 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
     @property
     def uri(self) -> URL:
         """returns the url of either the external citation or the user-uploaded document"""
-        return URL(self.url or self.file.url)
+        if self.file or self.url:
+            return URL(self.url or self.file.url)
+        return None
 
 
 class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
