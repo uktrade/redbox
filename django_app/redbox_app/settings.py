@@ -104,7 +104,6 @@ MIDDLEWARE = [
     "redbox_app.redbox_core.middleware.security_header_middleware",
     "django_plotly_dash.middleware.BaseMiddleware",
     "waffle.middleware.WaffleMiddleware",
-    "redbox_app.redbox_core.middleware.SentryUserMiddleware",
 ]
 
 ROOT_URLCONF = "redbox_app.urls"
@@ -338,7 +337,7 @@ if not ENVIRONMENT.is_local:
                 DjangoIntegration(),
             ],
             environment=SENTRY_ENVIRONMENT,
-            send_default_pii=True,
+            send_default_pii=False,
             traces_sample_rate=1.0,
             before_send_transaction=filter_transactions,
             debug=False,

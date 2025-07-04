@@ -1,6 +1,5 @@
 import json
 
-import sentry_sdk
 from asgiref.sync import iscoroutinefunction
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -100,20 +99,3 @@ class APIKeyAuthentication(BaseAuthentication):
 
         msg = "Invalid API key"
         raise AuthenticationFailed(msg)
-
-
-@sync_and_async_middleware
-class SentryUserMiddleware:
-    def __init__(self, get_response):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        if hasattr(request, "user") and request.user.is_authenticated:
-            sentry_sdk.set_user(
-                {
-                    "id": request.user.id,
-                    "email": request.user.email,
-                    "name": request.user.name,
-                }
-            )
-        return self.get_response(request)
