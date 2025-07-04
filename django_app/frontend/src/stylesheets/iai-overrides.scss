@@ -1,5 +1,3 @@
-// @use "../node_modules/govuk-frontend/dist/govuk/index" as govuk;
-// @use "../../node_modules/govuk-frontend/dist/govuk/index" as govuk;
 .govuk-buttonx {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -163,4 +161,10 @@
 .govuk-link:link,
 .govuk-link:visited {
   color: revert;
+}
+
+// Override i.ai min-height calc for main element
+main,
+body {
+  min-height: 0 !important;
 }
