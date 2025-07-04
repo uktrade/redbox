@@ -41,7 +41,8 @@ class UserAdmin(ImportExportMixin, admin.ModelAdmin):
     export_as_json.short_description = "Export Selected"
     actions = ["export_as_json"]
 
-    search_fields = ["email"]
+    search_fields = ["email", "created_at", "name", "profession", "grade"]
+    readonly_fields = ["last_login", "created_at", "ai_experience"]
 
     fieldsets = [
         (
@@ -60,7 +61,6 @@ class UserAdmin(ImportExportMixin, admin.ModelAdmin):
                     "last_login",
                     "ai_settings",
                     "is_developer",
-                    "created_at",
                 ]
             },
         ),
@@ -222,7 +222,7 @@ class ChatMessageAdmin(ExportMixin, admin.ModelAdmin):
     date_hierarchy = "created_at"
     inlines = [CitationInline, ChatMessageTokenUseInline, ChatMessageActivityEventInline]
     readonly_fields = ["selected_files", "source_files"]
-    search_fields = ["chat__user__email"]
+    search_fields = ["chat__user__email", "text", "created_at", "route", "role"]
     ordering = ["-created_at"]
 
     @admin.display(ordering="chat__user", description="User")
