@@ -81,7 +81,10 @@ def build_chat_prompt_from_messages_runnable(
                 + [("human", task_question_prompt)]
                 + ([("human", format_prompt)] if len(format_instructions) > 0 else [])
             ),
-            partial_variables={"format_instructions": format_instructions},
+            partial_variables={
+                "format_instructions": format_instructions,
+                "max_token": ai_settings.llm_max_tokens,
+            },
         ).invoke(prompt_template_context)
 
         return chatprompt
@@ -137,6 +140,9 @@ def build_llm_chain(
         "model": lambda _: model_name,
         "final_chain": lambda _: final_response_chain,
     }
+
+    if output_parser:
+        text_and_tools["list_of_stream_objects"] = RunnableLambda(lambda _: _output_parser.name_of_streamed_field)
 
     return (
         build_chat_prompt_from_messages_runnable(

@@ -204,7 +204,12 @@ def to_request_metadata(obj: dict) -> RequestMetadata:
 def get_all_metadata(obj: dict):
     text_and_tools = obj["text_and_tools"]
 
+    text_additional = None
     if parsed_response := text_and_tools.get("parsed_response"):
+        list_of_stream_objects = obj.get("list_of_stream_objects")
+        if list_of_stream_objects:
+            if len(list_of_stream_objects) > 1:
+                text_additional = getattr(parsed_response, list_of_stream_objects[1], parsed_response.model_dump_json())
         try:
             text = getattr(parsed_response, "answer", parsed_response.model_dump_json())
         except Exception:
@@ -214,8 +219,12 @@ def get_all_metadata(obj: dict):
         text = text_and_tools["raw_response"].content
         citations = []
 
+    messages = [AIMessage(content=text, tool_calls=text_and_tools["raw_response"].tool_calls)]
+    if text_additional:
+        messages.append(AIMessage(content=text_additional))
+
     out = {
-        "messages": [AIMessage(content=text, tool_calls=text_and_tools["raw_response"].tool_calls)],
+        "messages": messages,
         "metadata": to_request_metadata(obj),
         "citations": citations,
         "final_chain": obj["final_chain"],

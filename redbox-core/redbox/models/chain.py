@@ -157,6 +157,15 @@ class StructuredResponseWithCitations(BaseModel):
     citations: list[Citation] = Field(default_factory=list)
 
 
+class StructuredResponseWithCitationsProcess(BaseModel):
+    answer: str = Field(description="Markdown structured answer to the question", default="")
+    citations: list[Citation] = Field(default_factory=list)
+    answer_process: str = Field(
+        description="outline the processes you took to produce the answer, if you cannot outline the processes taken explain why",
+        default="",
+    )
+
+
 DocumentMapping = dict[UUID, Document | None]
 DocumentGroup = dict[UUID, DocumentMapping | None]
 
