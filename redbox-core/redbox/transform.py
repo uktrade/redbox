@@ -207,14 +207,13 @@ def get_all_metadata(obj: dict):
     text_additional = None
     if parsed_response := text_and_tools.get("parsed_response"):
         list_of_stream_objects = obj.get("list_of_stream_objects")
-        if len(list_of_stream_objects) > 1:
-            text = getattr(parsed_response, list_of_stream_objects[0], parsed_response.model_dump_json())
-            text_additional = getattr(parsed_response, list_of_stream_objects[1], parsed_response.model_dump_json())
-        else:
-            try:
-                text = getattr(parsed_response, list_of_stream_objects[0], parsed_response.model_dump_json())
-            except Exception:
-                text = getattr(parsed_response, list_of_stream_objects[0], parsed_response)
+        if list_of_stream_objects:
+            if len(list_of_stream_objects) > 1:
+                text_additional = getattr(parsed_response, list_of_stream_objects[1], parsed_response.model_dump_json())
+        try:
+            text = getattr(parsed_response, "answer", parsed_response.model_dump_json())
+        except Exception:
+            text = getattr(parsed_response, "answer", parsed_response)
         citations = getattr(parsed_response, "citations", [])
     else:
         text = text_and_tools["raw_response"].content

@@ -139,8 +139,10 @@ def build_llm_chain(
         "prompt": RunnableLambda(lambda prompt: prompt.to_string()),
         "model": lambda _: model_name,
         "final_chain": lambda _: final_response_chain,
-        "list_of_stream_objects": RunnableLambda(lambda _: _output_parser.name_of_streamed_field),
     }
+
+    if output_parser:
+        text_and_tools["list_of_stream_objects"] = RunnableLambda(lambda _: _output_parser.name_of_streamed_field)
 
     return (
         build_chat_prompt_from_messages_runnable(
