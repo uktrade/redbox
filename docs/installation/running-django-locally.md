@@ -36,6 +36,6 @@ Install frontend dependencies if not done already `npm install`
 Run `npm run dev` to watch for changes and automatically rebuild
 
 ### Quick start
-Alternatively, run `make dev` to run migrations, copy static files and start the frontend with parcel in watch mode on [localhost:8081](http://localhost:8081/). The magic link for login should appear in the terminal: `CTRL+F` > `magic_link`.
+Alternatively, run `make dev` to run migrations, copy static files and start the frontend with parcel in watch mode on [localhost:8081](http://localhost:8081/). The magic link for login should appear in the terminal: `CTRL+F` > `magic_link`. You may need to increase the terminal buffer in order to capture the magic link. [Terminal › Integrated: Scrollback](vscode://settings/terminal.integrated.scrollback).
 
 *Note: You will still need to setup the local environment variables as mentioned earlier.*

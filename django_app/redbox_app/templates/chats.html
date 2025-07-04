@@ -18,14 +18,15 @@
 
 
   <form class="govuk-width-container govuk-grid-row js-message-input" action="/submit" method="post">
-    <div class="govuk-grid-column-one-quarterx">
+    <div class="govuk-grid-column-one-quarter side-panel">
       <div class="rb-left-column-container">
-        <a role="button" href="{{ url('chats') }}" id="new-chat-button"
-   class="govuk-heading-s iai-panel-heading iai-panel-heading-button
-   govuk-!-margin-bottom-4 govuk-!-margin-top-4">
-  New chat
-</a>
-        <h2 class="govuk-heading-s iai-panel-heading">Recent chats</h2>
+        <a role="button"
+           href="{{ url('chats') }}"
+           id="new-chat-button"
+           class="govuk-heading-s side-panel-heading side-panel-heading-button govuk-!-margin-bottom-4 govuk-!-margin-top-4">
+          New chat
+        </a>
+        <h2 class="govuk-heading-s side-panel-heading">Recent chats</h2>
         <chat-history>
           <template id="template-chat_history_heading">
             <div>
@@ -39,7 +40,7 @@
               "name": ""
             }, "", "id") }}
           </template>
-          <div id="recent-chats" class="recent-chats side-panel-scrollable">
+          <div id="recent-chats" class="recent-chats scrollable">
             <ul class="chat-list">
               {% for chat in chats %}
                 {{ chat_history_item(chat, url('chats', chat.id), chat_id) }}
@@ -48,7 +49,7 @@
           </div>
         </chat-history>
           <div class="govuk-form-group govuk-!-margin-top-5" {% if not request.user.is_superuser %}hidden{% endif %}>
-            <label class="govuk-heading-s iai-panel-heading" for="llm-selector">Model</label>
+            <label class="govuk-heading-s side-panel-heading" for="llm-selector">Model</label>
             <select id="llm-selector" name="llm" class="govuk-select govuk-!-margin-top-1" {% if environment | lower == 'prod' %} disabled {% endif %}>
               {% for option in llm_options %}
                 <option value="{{ option.id }}" {% if option.selected %}selected{% endif %}>{{ option.name }}{% if option.default %} (default){% endif %}</option>
@@ -58,7 +59,7 @@
         <document-selector class="govuk-!-margin-top-5 govuk-!-padding-top-3">
           <fieldset class="govuk-fieldset">
             <legend class="full-width-panel-title">
-              <h3 class="govuk-heading-s iai-panel-heading">Your documents
+              <h3 class="govuk-heading-s side-panel-heading">Your documents
                 <a href="{{ url('upload') }}"><svg id="document-link" width="24" height="25" viewBox="0 0 24 25" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <g id="document--add 1" clip-path="url(#clip0_595_519)">
                 <path id="Vector" d="M22.5 18.5H19.5V15.5H18V18.5H15V20H18V23H19.5V20H22.5V18.5Z" fill="white"/>
@@ -73,7 +74,7 @@
                 </a>
                 </h3>
             </legend>
-            <div id="your-documents" class="your-documents side-panel-scrollable">
+            <div id="your-documents" class="your-documents scrollable">
               <div class="govuk-checkboxes govuk-checkboxes--small chat-group-container chat-history-subheading" data-module="govuk-checkboxes">
                 {% for file in completed_files %}
                   <div class="govuk-checkboxes__item rb-chat-history__title">
