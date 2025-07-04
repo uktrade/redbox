@@ -32,6 +32,9 @@ mohawk = "^1.1.0"
 django-waffle = "^4.2.0"
 langchain-mcp-adapters = "^0.0.11"
 pymupdf = "^1.26.0"
+ddtrace = "^3.9.0"
+django-requestlogs = "^0.8"
+django-log-formatter-asim = "^1.0.0"
 
 
 
