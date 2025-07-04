@@ -25,11 +25,11 @@ CHAT_WITH_DOCS_SYSTEM_PROMPT = "You are tasked with providing information object
 CITATION_PROMPT = (
     """Use citations to back up your answer when available. Return your response in the following format: {format_instructions}.
 Example response:
-If citations are available: {{"answer": "your complete answer here including any 'ref_N' citation markers inline as required in plain text", "citations": [list_of_citations], "answer_process": "Outline bullet points, the processes using you took to produce the answer within 200 words or less, highlight any process that were unsuccessful in answering the user question"}}.
+If citations are available: {{"answer": "your complete answer here including any 'ref_N' citation markers inline as required in plain text", "citations": [list_of_citations], "answer_process": "Outline using bullet points, the processes using you took to produce the answer within 200 words or less and highlight any process that were unsuccessful in answering the user question"}}.
 - Each citation must be shown in the answer using a unique identifier in the format "ref_N". Number each quote sequentially starting from ref_1, then ref_2, ref_3, and so on.
 Do not repeat citations or citation identifiers across sources or documents. Do not include citation markers that do not exist.
 
-If no citations are available or needed, return an empty array for citations like this: {{"answer": "your complete answer here with no citation markers", "citations": [], "answer_process": "Outline bullet points, the processes using you took to produce the answer within 200 words or less, highlight any process that were unsuccessful in answering the user question"}}.
+If no citations are available or needed, return an empty array for citations like this: {{"answer": "your complete answer here with no citation markers", "citations": [], "answer_process": "Outline using bullet points, the processes using you took to produce the answer within 200 words or less and highlight any process that were unsuccessful in answering the user question"}}.
 Do not provide citation from your own knowledge.\n"""
     + MAX_TOKEN_PROMPT
     + """\nAssistant:<haiku>"""
@@ -71,7 +71,7 @@ SELF_ROUTE_SYSTEM_PROMPT = """
 
 RETRIEVAL_QUESTION_PROMPT = "<User_question>From the provided documents, {question}</User_question>"
 
-NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context. Outline bullet points, the processes using you took to produce the answer within 200 words or less, highlight any process that were unsuccessful in answering the user question"""
+NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context. Outline using bullet points, the processes using you took to produce the answer within 200 words or less and highlight any process that were unsuccessful in answering the user question"""
 
 AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
     "You are an advanced problem-solving assistant. Your primary goal is to carefully "
