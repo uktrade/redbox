@@ -13,6 +13,7 @@ class ChunkResolution(StrEnum):
     normal = "normal"
     large = "large"
     largest = "largest"
+    tabular = "tabular"
 
 
 class ChunkCreatorType(StrEnum):
