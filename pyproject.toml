@@ -16,7 +16,7 @@ django-staff-sso-client = "^4.3.0"
 dbt-copilot-python = "^1.1.0"
 uwotm8 = "^0.1.4"
 detect-secrets = "^1.5.0"
-ddtrace = "^3.9.0"
+ddtrace = "^3.10.0"
 django-log-formatter-asim = "^1.0.0"
 django-requestlogs = "^0.8"
 
