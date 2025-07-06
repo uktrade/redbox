@@ -601,7 +601,8 @@ def stream_answer():
     @RunnableLambda
     def _stream_answer(state: RedboxState):
         answer = state.messages.pop()
-        dispatch_custom_event(RedboxEventType.response_tokens, data=answer.content)
+        preprocess_answer = "\n" + answer.content
+        dispatch_custom_event(RedboxEventType.response_tokens, data=preprocess_answer)
 
         return state
 

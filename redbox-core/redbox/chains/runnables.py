@@ -141,7 +141,7 @@ def build_llm_chain(
         "final_chain": lambda _: final_response_chain,
     }
 
-    if output_parser:
+    if hasattr(_output_parser, "name_of_streamed_field"):
         text_and_tools["list_of_stream_objects"] = RunnableLambda(lambda _: _output_parser.name_of_streamed_field)
 
     return (
