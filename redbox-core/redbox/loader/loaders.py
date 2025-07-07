@@ -69,7 +69,7 @@ def read_csv_text(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
             raise ValidationError("Empty File Uploaded")
         return [
             {
-                "text": str(file_bytes),  # Convert bytes to string
+                "text": str(df.to_csv(index=False)),  # Convert bytes to string
                 "metadata": {},  # returning empty metadata dictionary,
             }
         ]
