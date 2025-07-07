@@ -1,0 +1,9 @@
+.edit-icon {
+
+  --icon-foreground-color: var(--color-icon-light-foreground);
+
+  .foreground {
+    fill: var(--icon-foreground-color);
+  }
+
+}

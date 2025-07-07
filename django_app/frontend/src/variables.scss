@@ -41,6 +41,7 @@ $govuk-brand-colour: #1d70b8;
   --redbox-blue: var(--gds-blue); /*#1d70b8;*/
   --redbox-white: var(--dbt-white);
   --redbox-grey: var(--gds-mid-grey);
+  --redbox-light-grey: var(--gds-light-grey);
 
   // Project Colors
   --color-background-white: var(--redbox-white);
@@ -48,9 +49,15 @@ $govuk-brand-colour: #1d70b8;
   --color-background-dark-blue: var(--gds-dark-blue);
   --color-background-red: var(--redbox-red);
   --color-background-black: var(--dbt-black);
+  --color-background-grey: var(--redbox-light-grey);
   --color-background: var(--color-background-blue);
+  --color-border-light: var(--redbox-light-grey);
   --color-border: var(--redbox-grey);
   --color-border-dark: var(--dbt-black);
   --color-button-primary: var(--redbox-blue);/* old:#1759BC */
   --color-text: var(--dbt-black);
+
+  // Icons
+  --color-icon-light-foreground: var(--gds-black);
+
 }

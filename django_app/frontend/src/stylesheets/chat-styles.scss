@@ -45,7 +45,7 @@
 
 // Recent chat history link
 .rb-chat-history__link {
-  color: white;
+  color: var(--color-text);
   text-decoration: none;
   text-underline-offset: 4px;
 }
@@ -207,6 +207,8 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   line-height: 1.3;
   margin-bottom: 0;
 }
+
+// To be removed
 .chat-title__edit-btn {
   align-items: center;
   background-color: transparent;
@@ -221,6 +223,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
 .chat-title__edit-btn svg {
   margin-bottom: 2px;
 }
+
 .chat-title__input {
   border: 1px solid #60697b;
   border-radius: 0.25rem;

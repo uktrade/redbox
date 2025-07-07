@@ -1,5 +1,5 @@
 .side-panel {
-  background-color: var(--color-background);
+  background-color: var(--color-background-grey);
   position: sticky;
   top: 111px;
   bottom: 0;
@@ -7,7 +7,7 @@
   overflow-y: clip;
 
   .side-panel-heading {
-    color: var(--color-background-white);
+    color: var(--color-text);
     text-decoration: none;
     padding: 8px 0 0 8px;
     border-top: 2px solid var(--color-border);
