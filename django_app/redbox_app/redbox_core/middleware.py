@@ -102,7 +102,6 @@ class APIKeyAuthentication(BaseAuthentication):
         raise AuthenticationFailed(msg)
 
 
-@sync_and_async_middleware
 class SentryUserMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
