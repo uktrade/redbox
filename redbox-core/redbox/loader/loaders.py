@@ -153,7 +153,7 @@ class UnstructuredChunkLoader:
                 metadata=UploadedFileMetadata(
                     index=i,
                     uri=file_name,
-                    page_number=[1]
+                    page_number=1
                     if not raw_chunk["metadata"].get("page_number")
                     else raw_chunk["metadata"].get("page_number"),
                     created_datetime=datetime.now(UTC),
