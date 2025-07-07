@@ -156,7 +156,7 @@ class StructuredResponseWithCitations(BaseModel):
     answer: str = Field(description="Markdown structured answer to the question", default="")
     citations: list[Citation] = Field(default_factory=list)
     answer_process: str = Field(
-        description="Using the title 'Steps Taken', outline the processes using you took to produce the answer within 200 words or less and highlight any process that were unsuccessful in answering the user question",
+        description="Using the title 'Steps Taken', outline the processes you took to produce the answer within 200 words or less, and highlight any processes that were unsuccessful in answering the user question",
         default="",
     )
 
