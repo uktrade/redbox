@@ -1,7 +1,3 @@
-main,
-body {
-  min-height: 0 !important;
-}
 .rb-chat-history__title {
   position: relative;
   color: white;
@@ -389,9 +385,6 @@ chat-message {
   padding-left: 1rem;
 }
 
-
-
-
 /* Response feedback - general styles */
 .feedback-container--1:not([hidden]) {
   align-items: flex-start;
@@ -715,23 +708,6 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   }
 }
 
-.iai-panel-heading {
-  color: var(--color-background-white);
-  text-decoration: none;
-  padding: 8px 0 0 8px;
-  border-top: 2px solid var(--color-border);
-}
-
-.iai-panel-heading-button {
-  border-top: none;
-}
-
-.iai-panel-heading-button:hover {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.1em;
-}
-
 .chat-history-subheading{
   margin: 0;
   color: var(--color-background-white);
@@ -771,12 +747,6 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   text-decoration: none;
 }
 
-.chat-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
 #show-more-div {
   padding: 8px;
 }
@@ -797,19 +767,6 @@ div[data-page="1"] {
   border-right: 10px solid var(--color-border);
   padding-left: 100px;
   text-align: right;
-}
-
-.chat-button {
-  color: var(--color-button-primary);
-  cursor: pointer;
-  text-align: center;
-  background-color: var(--color-background-white);
-  border: none;
-  align-items: center;
-  gap: .375rem;
-  margin-top: 0;
-  text-decoration: none;
-  display: inline-flex;
 }
 
 .chat-actions-container {
@@ -834,28 +791,6 @@ margin-bottom: 16px;
 
 .redbox-message-route {
   margin-bottom: 16px;
-}
-
-.side-panel-scrollable {
-    overflow: hidden;
-    scroll-behavior: smooth;
-    scrollbar-color: var(--color-border) var(--color-background);
-    scrollbar-gutter: stable;
-    transition: overflow 0.2s ease;
-}
-
-.side-panel-scrollable:hover,
-.side-panel-scrollable:focus,
-.side-panel-scrollable:active {
-    overflow-y: auto;
-}
-
-.recent-chats {
-  max-height: 316px;
-}
-
-.your-documents {
-  max-height: 330px;
 }
 
 .small-warning {
