@@ -1,4 +1,7 @@
 .side-panel {
+  --color-side-panel-text: var(--color-text);
+  --color-side-panel-link-text: var(--color-link-text);
+
   background-color: var(--color-background-grey);
   position: sticky;
   top: 111px;
@@ -7,11 +10,23 @@
   overflow-y: clip;
 
   .side-panel-heading {
-    color: var(--color-text);
+    color: var(--color-side-panel-text);
     text-decoration: none;
     padding: 8px 0 0 8px;
     border-top: 2px solid var(--color-border);
   }
+
+// No longer used
+.side-panel-subheading{
+  margin: 0;
+  color: var(--color-background-white);
+
+  &.no-border {
+    padding-left: 8px;
+    margin: 0;
+    color: var(--color-background-white);
+  }
+}
 
   .side-panel-heading-button {
     border-top: none;
@@ -24,16 +39,84 @@
   }
 
   .recent-chats {
+    --scrollbar-background-color: var(--color-background-grey);
+
     max-height: 316px;
+    color: var(--color-side-panel-link-text);
 
     .chat-list {
       list-style: none;
       padding: 0;
       margin: 0;
+
+      .chat-list-item {
+
+        &.selected {
+          --color-side-panel-link-text: var(--color-side-panel-text);
+          --color-icon-light-foreground: var(--color-side-panel-text);
+        }
+
+        .chat-item-container {
+          align-items: center;
+          display: flex;
+          justify-content: space-between;
+          min-height: 2.5rem;
+          padding: 8px;
+
+          &:hover {
+            // Do we need any hover styling?
+            color: var(--color-side-panel-text);
+          }
+
+          .chat-item-text-container {
+            gap: 0.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            box-sizing: border-box;
+
+            .chat-item-link {
+              color: var(--color-side-panel-link-text);
+              text-decoration: none;
+              text-underline-offset: 4px;
+
+              &:hover {
+                // Do we need hover styling?
+                --color-side-panel-text: var(--color-text);
+
+                color: var(--color-side-panel-text);
+                text-decoration: underline;
+              }
+            }
+          }
+        }
+      }
     }
   }
 
   .your-documents {
+    --scrollbar-background-color: var(--color-background-grey);
+
     max-height: 330px;
+    margin: 0;
+    color: var(--color-side-panel-link-text);
+
+    .no-border {
+      padding-left: 8px;
+    }
+  }
+
+  a, button {
+    cursor: pointer;
+  }
+
+  .show-more-link {
+    &:hover {
+      // Think of a cleaner way to do this...
+      // Maybe create an element to allow the variables
+      // to be overwritten wherever it's implemented?
+      color: var(--color-side-panel-text);
+    }
   }
 }

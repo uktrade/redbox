@@ -28,6 +28,7 @@
         </a>
         <h2 class="govuk-heading-s side-panel-heading">Recent chats</h2>
         <chat-history>
+          {# Are these templates needed? #}
           <template id="template-chat_history_heading">
             <div>
               {% call chat_history_heading("-") %}
@@ -74,24 +75,22 @@
                 </a>
                 </h3>
             </legend>
-            <div id="your-documents" class="your-documents scrollable">
-              <div class="govuk-checkboxes govuk-checkboxes--small chat-group-container chat-history-subheading" data-module="govuk-checkboxes">
-                {% for file in completed_files %}
-                  <div class="govuk-checkboxes__item rb-chat-history__title">
+            <div id="your-documents" class="your-documents scrollable govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+              {% for file in completed_files %}
+                <div class="govuk-checkboxes__item">
+                  <input class="govuk-checkboxes__input" id="file-{{ file.id }}" name="file-{{ file.id }}" type="checkbox" value="{{ file.id }}" {% if file.selected %}checked{% endif %}>
+                  <label class="rb-doc-selector__label govuk-checkboxes__label" for="file-{{ file.id }}">{{ file.file_name }}</label>
+                </div>
+              {% endfor %}
+              {# files not yet ready - stored here to be moved to main list once ready #}
+              <div hidden>
+                {% for file in processing_files %}
+                  <div class="govuk-checkboxes__item">
                     <input class="govuk-checkboxes__input" id="file-{{ file.id }}" name="file-{{ file.id }}" type="checkbox" value="{{ file.id }}" {% if file.selected %}checked{% endif %}>
                     <label class="rb-doc-selector__label govuk-checkboxes__label" for="file-{{ file.id }}">{{ file.file_name }}</label>
+                    <file-status data-id="{{ file.id }}"></file-status>
                   </div>
                 {% endfor %}
-                {# files not yet ready - stored here to be moved to main list once ready #}
-                <div hidden>
-                  {% for file in processing_files %}
-                    <div class="govuk-checkboxes__item">
-                      <input class="govuk-checkboxes__input" id="file-{{ file.id }}" name="file-{{ file.id }}" type="checkbox" value="{{ file.id }}" {% if file.selected %}checked{% endif %}>
-                      <label class="rb-doc-selector__label govuk-checkboxes__label" for="file-{{ file.id }}">{{ file.file_name }}</label>
-                      <file-status data-id="{{ file.id }}"></file-status>
-                    </div>
-                  {% endfor %}
-                </div>
               </div>
             </div>
           </fieldset>

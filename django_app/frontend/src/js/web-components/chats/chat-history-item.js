@@ -7,7 +7,7 @@ class ChatHistoryItem extends HTMLElement {
     this.initialised = false;
     /** @type {HTMLButtonElement | null} */
     this.toggleButton = this.querySelector("button[aria-expanded]");
-    this.chatLink = /** @type {HTMLAnchorElement} */ (this.querySelector(".rb-chat-history__link"));
+    this.chatLink = /** @type {HTMLAnchorElement} */ (this.querySelector(".chat-item-link"));
   }
 
   connectedCallback() {
@@ -19,7 +19,7 @@ class ChatHistoryItem extends HTMLElement {
   }
 
   #addEventListeners = () => {
-    
+
     this.toggleButton?.addEventListener("click", () => {
       if (!this.toggleButton) {
         return;
@@ -34,7 +34,7 @@ class ChatHistoryItem extends HTMLElement {
 
     this.querySelector('[data-action="delete"]')?.addEventListener("click", () => {
       this.#changePage("2");
-    
+
       let deleteButton = /** @type {HTMLButtonElement} */ (this.querySelector('[data-action="delete-confirm"]'));
       if (deleteButton) {
         deleteButton.focus();
@@ -53,9 +53,9 @@ class ChatHistoryItem extends HTMLElement {
       // move focus to nearest item
       let listItem = this.closest("li");
       if (listItem?.nextElementSibling) {
-        /** @type {HTMLAnchorElement | null} */ (listItem.nextElementSibling.querySelector(".rb-chat-history__link"))?.focus();
+        /** @type {HTMLAnchorElement | null} */ (listItem.nextElementSibling.querySelector(".chat-item-link"))?.focus();
       } else if (listItem?.previousElementSibling) {
-        /** @type {HTMLAnchorElement | null} */ (listItem.previousElementSibling.querySelector(".rb-chat-history__link"))?.focus();
+        /** @type {HTMLAnchorElement | null} */ (listItem.previousElementSibling.querySelector(".chat-item-link"))?.focus();
       } else {
         /** @type {HTMLAnchorElement | null} */ (document.querySelector("#new-chat-button"))?.focus();
       }
@@ -109,7 +109,7 @@ class ChatHistoryItem extends HTMLElement {
   };
 
   /**
-   * @param {string} pageNumber 
+   * @param {string} pageNumber
    */
   #changePage = (pageNumber) => {
     /** @type {NodeListOf<HTMLElement>} */
@@ -140,7 +140,7 @@ class ChatHistoryItem extends HTMLElement {
   };
 
   /**
-   * @param {boolean} show 
+   * @param {boolean} show
    */
   #toggleChatTitleEdit = (show) => {
     let chatTitleEdit = /** @type {HTMLElement} */ (this.querySelector(".rb-chat-history__text-input"));
@@ -159,7 +159,7 @@ class ChatHistoryItem extends HTMLElement {
   };
 
   /**
-   * @param {string} newTitle 
+   * @param {string} newTitle
    * @param {boolean} publishChanges Whether to let other components know about this change
    */
   #updateChatTitle = (newTitle, publishChanges) => {

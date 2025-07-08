@@ -1,9 +1,11 @@
 .edit-icon {
+  --edit-icon-foreground-color: var(--color-icon-light-foreground);
 
-  --icon-foreground-color: var(--color-icon-light-foreground);
-
-  .foreground {
-    fill: var(--icon-foreground-color);
+    &:hover {
+    --edit-icon-foreground-color: var(--color-icon-light-foreground-hover);
   }
 
+  .foreground {
+    fill: var(--edit-icon-foreground-color);
+  }
 }
