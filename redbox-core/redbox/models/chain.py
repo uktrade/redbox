@@ -32,6 +32,7 @@ class AISettings(BaseModel):
     # LLM settings
     context_window_size: int = 128_000
     llm_max_tokens: int = env.int("LLM_MAX_TOKENS", default=1024)
+    new_route_steps_max_tokens: int = env.int("NEW_ROUTE_STEPS_MAX_TOKENS", default=200)
 
     # Prompts and LangGraph settings
     max_document_tokens: int = 1_000_000
@@ -67,6 +68,7 @@ class AISettings(BaseModel):
     reduce_system_prompt: str = prompts.REDUCE_SYSTEM_PROMPT
     new_route_retrieval_system_prompt: str = prompts.NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT
     new_route_retrieval_question_prompt: str = prompts.NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT
+    new_route_citation_prompt: str = prompts.NEW_ROUTE_CITATION_PROMPT
     llm_decide_route_prompt: str = prompts.LLM_DECIDE_ROUTE
     citation_prompt: str = prompts.CITATION_PROMPT
     planner_system_prompt: str = prompts.PLANNER_PROMPT
@@ -155,10 +157,15 @@ class Citation(BaseModel):
 class StructuredResponseWithCitations(BaseModel):
     answer: str = Field(description="Markdown structured answer to the question", default="")
     citations: list[Citation] = Field(default_factory=list)
+
+
+class StructuredResponseWithCitationsProcess(BaseModel):
     answer_process: str = Field(
-        description="Using the title 'Steps Taken', outline the processes you took to produce the answer within 200 words or less, and highlight any processes that were unsuccessful in answering the user question",
+        description=f"Using the title 'Steps Taken', outline the processes you took to produce the answer within {AISettings().new_route_steps_max_tokens} words or less, and highlight any processes that were unsuccessful in answering the user question",
         default="",
     )
+    answer: str = Field(description="Markdown structured answer to the question", default="")
+    citations: list[Citation] = Field(default_factory=list)
 
 
 DocumentMapping = dict[UUID, Document | None]
@@ -373,7 +380,7 @@ def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str, st
     elif prompt_set == PromptSet.NewRoute:
         system_prompt = state.request.ai_settings.new_route_retrieval_system_prompt
         question_prompt = state.request.ai_settings.new_route_retrieval_question_prompt
-        format_prompt = state.request.ai_settings.citation_prompt
+        format_prompt = state.request.ai_settings.new_route_citation_prompt
     elif prompt_set == PromptSet.Planner:
         system_prompt = state.request.ai_settings.planner_system_prompt
         question_prompt = state.request.ai_settings.planner_question_prompt
