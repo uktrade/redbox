@@ -104,21 +104,33 @@ class APIKeyAuthentication(BaseAuthentication):
 
 
 @sync_and_async_middleware
-class SentryUserMiddleware:
-    def __init__(self, get_response):
-        self.get_response = get_response
+def sentry_user_middleware(get_response):
+    if iscoroutinefunction(get_response):
 
-    async def __call__(self, request):
-        if hasattr(request, "user") and await sync_to_async(lambda: request.user.is_authenticated)():
-            await sync_to_async(sentry_sdk.set_user)(
-                {
-                    "id": request.user.id,
-                    "email": request.user.email,
-                    "name": request.user.name,
-                }
-            )
-        return (
-            await self.get_response(request)
-            if asyncio.iscoroutinefunction(self.get_response)
-            else self.get_response(request)
-        )
+        async def middleware(request: HttpRequest) -> HttpResponse:
+            if hasattr(request, "user") and await sync_to_async(lambda: request.user.is_authenticated):
+                await sync_to_async(sentry_sdk.set_user)(
+                    {
+                        "id": request.user.id,
+                        "email": request.user.email,
+                        "name": request.user.name,
+                    }
+                )
+            response = await get_response(request)
+            if asyncio.iscoroutine(response):
+                response = await response
+            return response
+    else:
+
+        def middleware(request: HttpRequest) -> HttpResponse:
+            if hasattr(request, "user") and request.user.is_authenticated:
+                sentry_sdk.set_user(
+                    {
+                        "id": request.user.id,
+                        "email": request.user.email,
+                        "name": request.user.name,
+                    }
+                )
+            return get_response(request)
+
+    return middleware
