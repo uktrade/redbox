@@ -1,4 +1,3 @@
-import asyncio
 import json
 
 import sentry_sdk
@@ -15,18 +14,10 @@ User = get_user_model()
 
 @sync_and_async_middleware
 def nocache_middleware(get_response):
-    if iscoroutinefunction(get_response):
-
-        async def middleware(request: HttpRequest) -> HttpResponse:
-            response = await get_response(request)
-            response["Cache-Control"] = "no-store"
-            return response
-    else:
-
-        def middleware(request: HttpRequest) -> HttpResponse:
-            response = get_response(request)
-            response["Cache-Control"] = "no-store"
-            return response
+    async def middleware(request: HttpRequest) -> HttpResponse:
+        response = await get_response(request) if iscoroutinefunction(get_response) else get_response(request)
+        response["Cache-Control"] = "no-store"
+        return response
 
     return middleware
 
@@ -45,42 +36,23 @@ def security_header_middleware(get_response):
         default=str,
     )
 
-    if iscoroutinefunction(get_response):
-
-        async def middleware(request: HttpRequest) -> HttpResponse:
-            response = await get_response(request)
-            if settings.SENTRY_REPORT_TO_ENDPOINT:
-                response["Report-To"] = report_to
-            return response
-    else:
-
-        def middleware(request: HttpRequest) -> HttpResponse:
-            response = get_response(request)
-            if settings.SENTRY_REPORT_TO_ENDPOINT:
-                response["Report-To"] = report_to
-            return response
+    async def middleware(request: HttpRequest) -> HttpResponse:
+        response = await get_response(request) if iscoroutinefunction(get_response) else get_response(request)
+        if settings.SENTRY_REPORT_TO_ENDPOINT:
+            response["Report-To"] = report_to
+        return response
 
     return middleware
 
 
 @sync_and_async_middleware
 def plotly_no_csp_no_xframe_middleware(get_response):
-    if iscoroutinefunction(get_response):
-
-        async def middleware(request: HttpRequest) -> HttpResponse:
-            response = await get_response(request)
-            if "admin/report" in request.path:
-                response.headers.pop("Content-Security-Policy", None)
-                response.headers.pop("X-Frame-Options", None)
-            return response
-    else:
-
-        def middleware(request: HttpRequest) -> HttpResponse:
-            response = get_response(request)
-            if "admin/report" in request.path:
-                response.headers.pop("Content-Security-Policy", None)
-                response.headers.pop("X-Frame-Options", None)
-            return response
+    async def middleware(request: HttpRequest) -> HttpResponse:
+        response = await get_response(request) if iscoroutinefunction(get_response) else get_response(request)
+        if "admin/report" in request.path:
+            response.headers.pop("Content-Security-Policy", None)
+            response.headers.pop("X-Frame-Options", None)
+        return response
 
     return middleware
 
@@ -118,7 +90,5 @@ class SentryUserMiddleware:
                 }
             )
         return (
-            await self.get_response(request)
-            if asyncio.iscoroutinefunction(self.get_response)
-            else self.get_response(request)
+            await self.get_response(request) if iscoroutinefunction(self.get_response) else self.get_response(request)
         )
