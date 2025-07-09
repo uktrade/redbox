@@ -633,7 +633,8 @@ def get_all_tabular_docs(state: RedboxState) -> tuple[list[str], list[str]]:
 def load_texts_to_db(doc_texts: list[str], doc_names: list[str], conn: sqlite3.Connection) -> list[str]:
     table_names = []
     for idx, (doc_text, doc_name) in enumerate(zip(doc_texts, doc_names)):
-        table_name = f"{doc_name}_Table_{idx+1}"
+        clean_doc_name = sanitise_file_name(doc_name)
+        table_name = f"{clean_doc_name}_table_{idx+1}"
         parse_doc_text_as_db_table(doc_text, table_name, conn=conn)
         table_names.append(table_name)
     return table_names
@@ -645,3 +646,8 @@ def parse_doc_text_as_db_table(doc_text: str, table_name: str, conn: sqlite3.Con
         df.to_sql(table_name, conn, if_exists="replace", index=False)
     except Exception as e:
         log.exception(f"Failed to load table '{table_name}': {e}")
+
+
+def sanitise_file_name(file_name: str) -> str:
+    # Swap out spaces and special characters from file names
+    return re.sub(r"\W+", "", file_name.replace(" ", ""))
