@@ -1,6 +1,6 @@
 // @ts-check
 
-import { addShowMore } from '../show-more';
+import { addShowMore } from '../../../stylesheets/components/show-more';
 
 class ChatHistory extends HTMLElement {
   chatLimit = 5;

@@ -26,7 +26,8 @@
            class="govuk-heading-s side-panel-heading side-panel-heading-button govuk-!-margin-bottom-4 govuk-!-margin-top-4">
           New chat
         </a>
-        <h2 class="govuk-heading-s side-panel-heading">Recent chats</h2>
+        <div class="divider"></div>
+        <h2 class="govuk-heading-s side-panel-heading govuk-!-margin-top-4">Recent chats</h2>
         <chat-history>
           {# Are these templates needed? #}
           <template id="template-chat_history_heading">
@@ -50,7 +51,8 @@
           </div>
         </chat-history>
           <div class="govuk-form-group govuk-!-margin-top-5" {% if not request.user.is_superuser %}hidden{% endif %}>
-            <label class="govuk-heading-s side-panel-heading" for="llm-selector">Model</label>
+            <div class="divider"></div>
+            <label class="govuk-heading-s side-panel-heading govuk-!-margin-top-4" for="llm-selector">Model</label>
             <select id="llm-selector" name="llm" class="govuk-select govuk-!-margin-top-1" {% if environment | lower == 'prod' %} disabled {% endif %}>
               {% for option in llm_options %}
                 <option value="{{ option.id }}" {% if option.selected %}selected{% endif %}>{{ option.name }}{% if option.default %} (default){% endif %}</option>
@@ -60,20 +62,11 @@
         <document-selector class="govuk-!-margin-top-5 govuk-!-padding-top-3">
           <fieldset class="govuk-fieldset">
             <legend class="full-width-panel-title">
-              <h3 class="govuk-heading-s side-panel-heading">Your documents
-                <a href="{{ url('upload') }}"><svg id="document-link" width="24" height="25" viewBox="0 0 24 25" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <g id="document--add 1" clip-path="url(#clip0_595_519)">
-                <path id="Vector" d="M22.5 18.5H19.5V15.5H18V18.5H15V20H18V23H19.5V20H22.5V18.5Z" fill="white"/>
-                <path id="Vector_2" d="M12 21.5H6V3.50001H12V8.00001C12.0011 8.39749 12.1596 8.77835 12.4406 9.05941C12.7217 9.34046 13.1025 9.49887 13.5 9.50001H18V12.5H19.5V8.00001C19.5027 7.90144 19.484 7.80346 19.4451 7.71282C19.4063 7.62218 19.3482 7.54105 19.275 7.47501L14.025 2.22501C13.959 2.15176 13.8778 2.09371 13.7872 2.05486C13.6966 2.01601 13.5986 1.9973 13.5 2.00001H6C5.60253 2.00116 5.22166 2.15957 4.94061 2.44062C4.65955 2.72168 4.50115 3.10254 4.5 3.50001V21.5C4.50115 21.8975 4.65955 22.2783 4.94061 22.5594C5.22166 22.8405 5.60253 22.9989 6 23H12V21.5ZM13.5 3.80001L17.7 8.00001H13.5V3.80001Z" fill="white"/>
-                </g>
-                <defs>
-                <clipPath id="clip0_595_519">
-                <rect width="24" height="24" fill="white" transform="translate(0 0.5)"/>
-                </clipPath>
-                </defs>
-                </svg>
-                </a>
-                </h3>
+              <div class="divider"></div>
+              <h3 class="govuk-heading-s side-panel-heading govuk-!-margin-top-4">
+                Your documents
+                <a href="{{ url('upload') }}">{% include 'icons/document-add.html' %}</a>
+              </h3>
             </legend>
             <div id="your-documents" class="your-documents scrollable govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
               {% for file in completed_files %}

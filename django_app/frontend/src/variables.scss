@@ -43,6 +43,12 @@ $govuk-brand-colour: #1d70b8;
   --redbox-grey: var(--gds-mid-grey);
   --redbox-light-grey: var(--gds-light-grey);
 
+  // GDS Sass custom variables
+  --govuk-brand-colour: var(--gds-blue);
+  --govuk-header-border-color: var(--redbox-red);
+  --govuk-footer-border-color: var(--gds-mid-grey);
+  --govuk-footer-border-width: 1px;
+
   // Project Colors
   --color-background-white: var(--redbox-white);
   --color-background-blue: var(--redbox-blue);
