@@ -1,7 +1,9 @@
 import json
 import logging
+import os
 import random
 import re
+import sqlite3
 import textwrap
 import time
 from collections.abc import Callable
@@ -9,6 +11,8 @@ from functools import reduce
 from random import uniform
 from typing import Any, Iterable
 from uuid import uuid4
+import pandas as pd
+from io import StringIO
 
 from botocore.exceptions import EventStreamError
 from langchain.schema import StrOutputParser
@@ -593,3 +597,51 @@ def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
         return state
 
     return _combine_question
+
+
+def create_or_update_db_from_tabulars(state: RedboxState, db_path: str | None) -> RedboxState:
+    if not db_path:
+        db_path = "generated_db.db"
+
+    conn = sqlite3.connect(db_path)
+
+    doc_texts, doc_names = get_all_tabular_docs(state)
+
+    _ = load_texts_to_db(doc_texts, doc_names=doc_names, conn=conn)
+
+    conn.commit()
+    conn.close()
+
+    state.db_location = db_path
+    return state
+
+
+def get_all_tabular_docs(state: RedboxState) -> tuple[list[str], list[str]]:
+    all_texts, all_names = [], []
+    for doc_state in state.documents:
+        for group in doc_state.group.values():
+            if group:
+                for doc in group.values():
+                    uri = doc.metadata.get("uri", "")
+                    if uri.endswith((".csv", ".xlsx", ".xls")):
+                        all_texts.append(doc.page_content)
+                        all_names.append(os.path.splitext(os.path.basename(doc.metadata["uri"]))[0])  # Get file name
+
+    return all_texts, all_names
+
+
+def load_texts_to_db(doc_texts: list[str], doc_names: list[str], conn: sqlite3.Connection) -> list[str]:
+    table_names = []
+    for idx, (doc_text, doc_name) in enumerate(zip(doc_texts, doc_names)):
+        table_name = f"{doc_name}_Table_{idx+1}"
+        parse_doc_text_as_db_table(doc_text, table_name, conn=conn)
+        table_names.append(table_name)
+    return table_names
+
+
+def parse_doc_text_as_db_table(doc_text: str, table_name: str, conn: sqlite3.Connection):
+    try:
+        df = pd.read_csv(StringIO(doc_text))
+        df.to_sql(table_name, conn, if_exists="replace", index=False)
+    except Exception as e:
+        log.exception(f"Failed to load table '{table_name}': {e}")
