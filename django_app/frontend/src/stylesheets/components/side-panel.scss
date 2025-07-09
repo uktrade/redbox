@@ -57,15 +57,18 @@
             text-overflow: ellipsis;
             max-width: 100%;
             box-sizing: border-box;
+            color: var(--color-side-panel-link-text);
+
+            &:hover {
+              color: var(--color-side-panel-text);
+            }
 
             .chat-item-link {
               color: var(--color-side-panel-link-text);
               text-decoration: none;
-              text-underline-offset: 4px;
 
               &:hover {
                 color: var(--color-side-panel-text);
-                text-decoration: underline;
               }
             }
           }
