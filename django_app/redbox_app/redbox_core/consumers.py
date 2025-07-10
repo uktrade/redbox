@@ -488,16 +488,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             "citation_name": s.ref_id,
                         }
                     else:
-                        file =  await get_latest_complete_file(s.document_name) #sometime source is empty, and document file name is the document name. This occurs when document is uploaded outside of user email folde in s3.
+                        # if source is empty, attempt to filter by document name
+                        file = await get_latest_complete_file(s.document_name)
                         if file:
                             payload = {
-                            "url": str(file.url),
-                            "file_name": file.file_name,
-                            "text_in_answer": convert_american_to_british_spelling(c.text_in_answer)
-                            if self.scope.get("user").uk_or_us_english
-                            else c.text_in_answer,
-                            "citation_name": s.ref_id,
-                        }
+                                "url": str(file.url),
+                                "file_name": file.file_name,
+                                "text_in_answer": convert_american_to_british_spelling(c.text_in_answer)
+                                if self.scope.get("user").uk_or_us_english
+                                else c.text_in_answer,
+                                "citation_name": s.ref_id,
+                            }
                         else:
                             # If no file with Status.complete is found, handle it as None
                             payload = {
