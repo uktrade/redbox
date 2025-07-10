@@ -23,6 +23,8 @@ from langchain_core.runnables import Runnable, RunnableLambda, RunnableParallel
 from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.types import Command
+from langchain_community.utilities import SQLDatabase
+from langchain.agents import create_sql_agent
 
 from redbox.chains.activity import log_activity
 from redbox.chains.components import (
@@ -600,6 +602,7 @@ def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
 
 
 def create_or_update_db_from_tabulars(state: RedboxState, db_path: str | None) -> RedboxState:
+    """Initialise a databases and saves the location as db_path in the Redbox State."""
     if not db_path:
         db_path = "generated_db.db"
 
@@ -617,6 +620,7 @@ def create_or_update_db_from_tabulars(state: RedboxState, db_path: str | None) -
 
 
 def get_all_tabular_docs(state: RedboxState) -> tuple[list[str], list[str]]:
+    """Gets the file names and text for all tabular files in the redbox state"""
     all_texts, all_names = [], []
     for doc_state in state.documents:
         for group in doc_state.group.values():
@@ -630,7 +634,20 @@ def get_all_tabular_docs(state: RedboxState) -> tuple[list[str], list[str]]:
     return all_texts, all_names
 
 
+def detect_tabular_docs(state: RedboxState) -> bool:
+    """Returns True if a tabular document is selected"""
+    for doc_state in state.documents:
+        for group in doc_state.group.values():
+            if group:
+                for doc in group.values():
+                    uri = doc.metadata.get("uri", "")
+                    if uri.endswith((".csv", ".xlsx", ".xls")):
+                        return True
+    return False
+
+
 def load_texts_to_db(doc_texts: list[str], doc_names: list[str], conn: sqlite3.Connection) -> list[str]:
+    """Load document texts as tables in a database"""
     table_names = []
     for idx, (doc_text, doc_name) in enumerate(zip(doc_texts, doc_names)):
         clean_doc_name = sanitise_file_name(doc_name)
@@ -641,6 +658,7 @@ def load_texts_to_db(doc_texts: list[str], doc_names: list[str], conn: sqlite3.C
 
 
 def parse_doc_text_as_db_table(doc_text: str, table_name: str, conn: sqlite3.Connection):
+    """Convert document text to SQL"""
     try:
         df = pd.read_csv(StringIO(doc_text))
         df.to_sql(table_name, conn, if_exists="replace", index=False)
@@ -649,5 +667,13 @@ def parse_doc_text_as_db_table(doc_text: str, table_name: str, conn: sqlite3.Con
 
 
 def sanitise_file_name(file_name: str) -> str:
-    # Swap out spaces and special characters from file names
+    """Removes Spaces and special characters from file names"""
     return re.sub(r"\W+", "", file_name.replace(" ", ""))
+
+
+def build_tabular_agent(state: RedboxState, agent_name: str = "Tabular Agent", max_tokens: int = 5000):
+    state = create_or_update_db_from_tabulars(state=state)
+    db = SQLDatabase.from_uri(state.db_location)
+    llm = get_chat_llm(state.request.ai_settings.chat_backend)
+    agent = create_sql_agent(llm=llm, db=db, verbose=True)
+    return agent
