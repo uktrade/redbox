@@ -1,3 +1,7 @@
+$govuk-assets-path: "govuk-assets/";
+$govuk-border-colour: #bfc1c3;
+$govuk-brand-colour: #1d70b8;
+
 :root {
   --govuk-assets-path: "govuk-assets/";
 
@@ -41,6 +45,7 @@
   // Project Colors
   --color-background-white: var(--redbox-white);
   --color-background-blue: var(--redbox-blue);
+  --color-background-dark-blue: var(--gds-dark-blue);
   --color-background-red: var(--redbox-red);
   --color-background-black: var(--dbt-black);
   --color-background: var(--color-background-blue);

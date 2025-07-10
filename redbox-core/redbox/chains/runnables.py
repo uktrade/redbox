@@ -48,6 +48,7 @@ def build_chat_prompt_from_messages_runnable(
             {task_system_prompt}
             {ai_settings.persona_info_prompt}
             {ai_settings.caller_info_prompt}
+            {ai_settings.answer_instruction_prompt}
             """
         prompts_budget = bedrock_tokeniser(task_system_prompt) + bedrock_tokeniser(task_question_prompt)
         chat_history_budget = ai_settings.context_window_size - ai_settings.llm_max_tokens - prompts_budget
@@ -82,9 +83,6 @@ def build_chat_prompt_from_messages_runnable(
             ),
             partial_variables={"format_instructions": format_instructions},
         ).invoke(prompt_template_context)
-
-        # add llm input log
-        log.debug("Input sending to LLM: %s", chatprompt)
 
         return chatprompt
 

@@ -11,6 +11,7 @@ While you strive to provide accurate and insightful information by fully utilisi
 # Used in all prompts for information about the caller and any query context. This is a placeholder for now.
 CALLER_INFO = ""
 
+ANSWER_INSTRUCTION_SYSTEM_PROMPT = """\nDo not use backticks (```) in the response.\n\n"""
 
 CHAT_SYSTEM_PROMPT = "You are tasked with providing information objectively and responding helpfully to users"
 

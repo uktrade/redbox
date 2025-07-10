@@ -72,6 +72,7 @@ class AISettings(BaseModel):
     planner_system_prompt: str = prompts.PLANNER_PROMPT
     planner_question_prompt: str = prompts.PLANNER_QUESTION_PROMPT
     planner_format_prompt: str = prompts.PLANNER_FORMAT_PROMPT
+    answer_instruction_prompt: str = prompts.ANSWER_INSTRUCTION_SYSTEM_PROMPT
 
     # Elasticsearch RAG and boost values
     rag_k: int = 30
