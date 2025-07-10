@@ -85,7 +85,7 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
 
     builder.add_node("is_summarise_route", empty_process)
     builder.add_node("has_keyword", empty_process)
-    builder.add_node("is_self_route_enabled", empty_process)
+    builder.add_node("is_new_route_enabled", empty_process)
     builder.add_node("any_documents_selected", empty_process)
     builder.add_node("llm_choose_route", empty_process)
     builder.add_node("no_user_feedback", empty_process)
