@@ -31,7 +31,7 @@ test(`Chat history functionality works as expected`, async ({ page }) => {
   // A chat can be renamed
   await page.locator(".rb-chat-history__actions-button").first().click();
   await page.locator('button[data-action="rename"]').first().click();
-  const textInput = page.locator(".rb-chat-history__text-input input").first();
+  const textInput = page.locator(".chat-title-text-input input").first();
   await textInput.fill("Renamed chat");
   await textInput.press("Enter");
   await expect(chatHistoryItem).toContainText("Renamed chat");

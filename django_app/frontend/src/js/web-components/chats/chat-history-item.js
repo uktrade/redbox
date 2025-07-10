@@ -143,7 +143,7 @@ class ChatHistoryItem extends HTMLElement {
    * @param {boolean} show
    */
   #toggleChatTitleEdit = (show) => {
-    let chatTitleEdit = /** @type {HTMLElement} */ (this.querySelector(".rb-chat-history__text-input"));
+    let chatTitleEdit = /** @type {HTMLElement} */ (this.querySelector(".chat-title-text-input"));
     let chatTitleInput = /** @type {HTMLInputElement} */ (chatTitleEdit.querySelector("input"));
     if (show) {
       chatTitleInput.value = this.chatLink.textContent || "";
@@ -153,7 +153,7 @@ class ChatHistoryItem extends HTMLElement {
     } else {
       this.chatLink.textContent = chatTitleInput.value;
       chatTitleEdit.style.display = "none";
-      this.chatLink.style.display = "block";
+      this.chatLink.style.removeProperty('display');
       this.toggleButton?.focus();
     }
   };

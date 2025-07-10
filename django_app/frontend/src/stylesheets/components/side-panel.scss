@@ -65,10 +65,16 @@
 
             .chat-item-link {
               color: var(--color-side-panel-link-text);
-              text-decoration: none;
+            }
 
-              &:hover {
-                color: var(--color-side-panel-text);
+            .chat-title-text-input {
+              display: none;
+
+              input {
+                background-color: transparent;
+                border: 1px solid var(--color-border);
+                padding: 0.375rem;
+                width: 100%;
               }
             }
           }
