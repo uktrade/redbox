@@ -206,7 +206,9 @@ class UnstructuredChunkLoader:
                 metadata=UploadedFileMetadata(
                     index=i,
                     uri=file_name,
-                    page_number=raw_chunk["metadata"].get("page_number"),
+                    page_number=1
+                    if not raw_chunk["metadata"].get("page_number")
+                    else raw_chunk["metadata"].get("page_number"),
                     created_datetime=datetime.now(UTC),
                     token_count=tokeniser(raw_chunk["text"]),
                     chunk_resolution=self.chunk_resolution,
