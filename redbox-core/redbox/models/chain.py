@@ -35,7 +35,7 @@ class AISettings(BaseModel):
 
     # Prompts and LangGraph settings
     max_document_tokens: int = 1_000_000
-    self_route_enabled: bool = env.bool("SELF_ROUTE_ENABLED", default=False)
+    new_route_enabled: bool = env.bool("NEW_ROUTE_ENABLED", default=False)
     map_max_concurrency: int = 128
     stuff_chunk_context_ratio: float = 0.75
     recursion_limit: int = 50

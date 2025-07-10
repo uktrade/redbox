@@ -125,14 +125,14 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
         "any_documents_selected",
         documents_selected_conditional,
         {
-            True: "is_self_route_enabled",
+            True: "is_new_route_enabled",
             False: "chat_graph",
         },
     )
     builder.add_conditional_edges(
-        "is_self_route_enabled",
-        lambda s: s.request.ai_settings.self_route_enabled,
-        {True: "llm_choose_route", False: "summarise_graph"},
+        "is_new_route_enabled",
+        lambda s: s.request.ai_settings.new_route_enabled,
+        {True: "new_route_graph", False: "llm_choose_route"},
     )
     builder.add_conditional_edges(
         "llm_choose_route",
