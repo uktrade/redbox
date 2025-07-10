@@ -1,6 +1,6 @@
 // @ts-check
 
-import { addShowMore } from '../show-more';
+import { addShowMore } from '../../../stylesheets/components/show-more';
 
 class DocumentSelector extends HTMLElement {
   visibleDocumentLimit = 5;

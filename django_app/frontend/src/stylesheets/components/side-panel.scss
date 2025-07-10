@@ -1,5 +1,10 @@
 .side-panel {
-  background-color: var(--color-background);
+  --color-side-panel-text: var(--color-text);
+  --color-side-panel-link-text: var(--color-link-text);
+  --divider-container-padding: 15px;
+  --divider-thickness: 2px;
+
+  background-color: var(--color-background-grey);
   position: sticky;
   top: 111px;
   bottom: 0;
@@ -7,10 +12,9 @@
   overflow-y: clip;
 
   .side-panel-heading {
-    color: var(--color-background-white);
+    color: var(--color-side-panel-text);
     text-decoration: none;
     padding: 8px 0 0 8px;
-    border-top: 2px solid var(--color-border);
   }
 
   .side-panel-heading-button {
@@ -25,15 +29,72 @@
 
   .recent-chats {
     max-height: 316px;
+    color: var(--color-side-panel-link-text);
 
     .chat-list {
       list-style: none;
       padding: 0;
       margin: 0;
+
+      .chat-list-item {
+
+        &.selected {
+          --color-side-panel-link-text: var(--color-side-panel-text);
+          --color-icon-light-foreground: var(--color-side-panel-text);
+        }
+
+        .chat-item-container {
+          align-items: center;
+          display: flex;
+          justify-content: space-between;
+          min-height: 2.5rem;
+          padding: 8px;
+
+          .chat-item-text-container {
+            gap: 0.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            box-sizing: border-box;
+            color: var(--color-side-panel-link-text);
+
+            &:hover {
+              color: var(--color-side-panel-text);
+            }
+
+            .chat-item-link {
+              color: var(--color-side-panel-link-text);
+            }
+
+            .chat-title-text-input {
+              display: none;
+
+              input {
+                background-color: transparent;
+                border: 1px solid var(--color-border);
+                padding: 0.375rem;
+                width: 100%;
+              }
+            }
+          }
+        }
+      }
     }
   }
 
   .your-documents {
     max-height: 330px;
+    margin: 0;
+    color: var(--color-side-panel-link-text);
+
+    .no-border {
+      padding-left: 8px;
+    }
+  }
+
+  .document-add-icon {
+    --document-add-icon-foreground-color: var(--color-side-panel-text);
+    --document-add-icon-foreground-hover-color: var(--color-side-panel-link-text);
   }
 }

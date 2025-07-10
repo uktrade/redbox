@@ -7,7 +7,7 @@ test(`Chat history functionality works as expected`, async ({ page }) => {
   await page.goto("/chats");
 
   const count1 = await page.evaluate(
-    () => document.querySelectorAll(".rb-chat-history__link").length
+    () => document.querySelectorAll(".chat-item-link").length
   );
 
   await page.evaluate(() => {
@@ -15,9 +15,9 @@ test(`Chat history functionality works as expected`, async ({ page }) => {
   });
 
   // The chat history item has been created
-  const chatHistoryItem = page.locator(".rb-chat-history__link").first();
+  const chatHistoryItem = page.locator(".chat-item-link").first();
   const count2 = await page.evaluate(
-    () => document.querySelectorAll(".rb-chat-history__link").length
+    () => document.querySelectorAll(".chat-item-link").length
   );
   await expect(chatHistoryItem).toContainText("Test chat");
   await expect(chatHistoryItem).toHaveAttribute("href", "/chats/session-id");
@@ -31,7 +31,7 @@ test(`Chat history functionality works as expected`, async ({ page }) => {
   // A chat can be renamed
   await page.locator(".rb-chat-history__actions-button").first().click();
   await page.locator('button[data-action="rename"]').first().click();
-  const textInput = page.locator(".rb-chat-history__text-input input").first();
+  const textInput = page.locator(".chat-title-text-input input").first();
   await textInput.fill("Renamed chat");
   await textInput.press("Enter");
   await expect(chatHistoryItem).toContainText("Renamed chat");
@@ -42,7 +42,7 @@ test(`Chat history functionality works as expected`, async ({ page }) => {
   await page.locator('button[data-action="delete-confirm"]').first().click();
   await page.waitForTimeout(200);
   const count3 = await page.evaluate(
-    () => document.querySelectorAll(".rb-chat-history__link").length
+    () => document.querySelectorAll(".chat-item-link").length
   );
   expect(count3).toEqual(count1);
 });

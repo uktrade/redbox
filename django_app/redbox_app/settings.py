@@ -115,6 +115,7 @@ TEMPLATES = [
         "DIRS": [
             BASE_DIR / "redbox_app" / "templates",
             BASE_DIR / "redbox_app" / "templates" / "auth",
+            BASE_DIR / "frontend" / "src" / "stylesheets",
         ],
         "OPTIONS": {
             "environment": "redbox_app.jinja2.environment",
