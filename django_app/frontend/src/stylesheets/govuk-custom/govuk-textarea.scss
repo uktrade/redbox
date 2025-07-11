@@ -1,0 +1,31 @@
+@use "../../../node_modules/govuk-frontend/dist/govuk/index" as govuk;
+
+// Currently not a potential contribution due to the number of customisations made
+// which are very specific to redbox at the moment. Typography will need some work.
+.govuk-textareax {
+  @extend .govuk-textarea;
+  font-size: 16px;
+  font-size: 1rem;
+  min-height: 6em;
+  margin-bottom: 0;
+  padding: 4px;
+  font-family: var(--font-family-primary);
+}
+@media (min-width:40.0625em) {
+  .govuk-textareax {
+    white-space: pre-wrap;
+  }
+}
+
+@media print {
+  .govuk-textareax {
+    font-size: 14pt;
+    line-height: 1.25
+  }
+}
+
+.govuk-textareax:focus {
+  outline: 4px solid #fd0;
+  outline-offset: 0;
+  box-shadow: inset 0 0 0 2px
+}

@@ -9,7 +9,10 @@
         <chat-history-item data-chatid="{{ chat.id }}" {% if chat.id == active_chat_id %}data-iscurrentchat="true"{% endif %}>
             <div class="chat-item-container">
                 <span class="chat-item-text-container">
-                    <a class="chat-item-link govuk-link--no-underline" href="{{ link }}" {% if chat.id == active_chat_id %}aria-current="page"{% endif %}>{{ chat.name }}</a>
+                    <a class="chat-item-link govuk-link govuk-link--no-visited-state govuk-link--no-underline"
+                       href="{{ link }}" {% if chat.id == active_chat_id %}aria-current="page"{% endif %}>
+                        {{ chat.name }}
+                    </a>
                     <div class="chat-title-text-input">
                         <label class="govuk-visually-hidden" for="chat-title-text-input-{{ chat.id }}">Chat title</label>
                         <input type="text" id="chat-title-text-input-{{ chat.id }}"/>

@@ -29,7 +29,6 @@
 
   .recent-chats {
     max-height: 316px;
-    color: var(--color-side-panel-link-text);
 
     .chat-list {
       list-style: none;
@@ -41,6 +40,8 @@
         &.selected {
           --color-side-panel-link-text: var(--color-side-panel-text);
           --color-icon-light-foreground: var(--color-side-panel-text);
+
+          color: var(--color-side-panel-text);
         }
 
         .chat-item-container {
@@ -58,13 +59,14 @@
             max-width: 100%;
             box-sizing: border-box;
             color: var(--color-side-panel-link-text);
-
-            &:hover {
-              color: var(--color-side-panel-text);
-            }
+            padding-bottom: 3px;
 
             .chat-item-link {
               color: var(--color-side-panel-link-text);
+
+              &:hover {
+                color: var(--color-link-text-hover);
+              }
             }
 
             .chat-title-text-input {

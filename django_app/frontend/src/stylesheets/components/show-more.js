@@ -25,6 +25,7 @@ export function addShowMore({
     showMoreLink.textContent = buttonText;
     showMoreLink.classList.add(
         "show-more-link",
+        "govuk-link",
         "govuk-link--no-visited-state",
         "govuk-link--no-underline"
     );

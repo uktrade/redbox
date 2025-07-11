@@ -1,10 +1,6 @@
 .show-more-link {
     --show-more-link-color: var(--color-link-text);
-    --show-more-link-hover-color: var(--color-text);
 
     cursor: pointer;
-
-    &:hover {
-      color: var(--show-more-link-hover-color);
-    }
+    color: var(--show-more-link-color);
   }

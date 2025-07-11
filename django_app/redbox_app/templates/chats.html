@@ -139,7 +139,7 @@
         Need help? View <a href="{{ url('faq') }}" class="govuk-link" target="_blank">Advanced Prompt FAQ.</a>
       </div>
       <message-input>
-        <div class="govuk-textareax iai-chat-input__input js-user-text" id="message" name="message" contenteditable="true" role="textbox" aria-multiline="true" data-text="Type here..."></div>
+        <div class="govuk-textareax" id="message" name="message" contenteditable="true" role="textbox" aria-multiline="true" data-text="Type here..."></div>
       </message-input>
   {% if enable_dictation_flag_is_active %}
   <send-message-with-dictation data-api-key="{{ redbox_api_key }}">
