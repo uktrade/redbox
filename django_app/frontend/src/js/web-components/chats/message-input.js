@@ -14,6 +14,7 @@ export class MessageInput extends HTMLElement {
     // Submit form on enter-key press (providing shift isn't being pressed)
     this.textarea.addEventListener("keypress", (evt) => {
       if (evt.key === "Enter" && !evt.shiftKey && this.textarea) {
+        this.#hideWarnings();
         evt.preventDefault();
         if (this.textarea?.textContent?.trim()) {
           this.closest("form")?.requestSubmit();
@@ -52,6 +53,15 @@ export class MessageInput extends HTMLElement {
     }
     this.textarea.textContent = "";
     this.#adjustHeight();
+  };
+  /**
+   * Hides the warning messages displayed under the textarea
+   */
+  #hideWarnings = () => {
+    const chatWarnings = /** @type {HTMLDivElement} */ (
+      document.querySelector(".chat-warnings")
+    );
+    chatWarnings.style.display = "none";
   };
 }
 customElements.define("message-input", MessageInput);
