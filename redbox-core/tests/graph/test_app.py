@@ -36,6 +36,14 @@ from redbox.test.data import (
 )
 from redbox.transform import structure_documents_by_group_and_indices
 
+from redbox.models.chain import (AgentTask, AISettings, Citation,
+                                 MultiAgentPlan, RedboxQuery, RedboxState,
+                                 RequestMetadata, Source,
+                                 StructuredResponseWithCitations,
+                                 metadata_reducer)
+
+from langchain_core.messages import AIMessage, HumanMessage
+
 LANGGRAPH_DEBUG = True
 
 
@@ -45,6 +53,25 @@ OUTPUT_WITH_CITATIONS = AIMessage(
 )
 
 SELF_ROUTE_TO_SEARCH = ["Condense self route question", OUTPUT_WITH_CITATIONS]
+
+OUTPUT_WITH_PLANNER = AIMessage(
+    content=MultiAgentPlan(tasks=[
+        AgentTask(
+            task="Task to be completed by the agent",
+            agent="Internal_Retrieval_Agent",
+            expected_output="What this agent should produce",
+            )
+        ]).model_dump_json(),
+)
+
+# the below is likely wrong
+OUTPUT_FROM_WORKER = HumanMessage(
+    content="document returned"
+    ).model_dump_json()
+
+
+NEW_ROUTE_NO_FEEDBACK = [OUTPUT_WITH_PLANNER, OUTPUT_FROM_WORKER, OUTPUT_WITH_CITATIONS]
+ 
 
 
 def assert_number_of_events(num_of_events: int):
@@ -93,23 +120,23 @@ TEST_CASES = [
                 RedboxTestData(
                     number_of_docs=1,
                     tokens_in_all_docs=1_000,
-                    llm_responses=["Testing Response 1"],
+                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
                     expected_route=ChatRoute.newroute,
                 ),
                 RedboxTestData(
                     number_of_docs=1,
                     tokens_in_all_docs=50_000,
-                    llm_responses=["Testing Response 1"],
+                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
                     expected_route=ChatRoute.newroute,
                 ),
                 RedboxTestData(
                     number_of_docs=1,
                     tokens_in_all_docs=80_000,
-                    llm_responses=["Testing Response 1"],
+                    llm_responses = NEW_ROUTE_NO_FEEDBACK,
                     expected_route=ChatRoute.newroute,
                 ),
             ],
-            test_id="Chat with single doc - self_route OFF",
+            test_id="Chat with single doc self route OFF",
         ),
         generate_test_cases(
             query=RedboxQuery(
@@ -164,27 +191,25 @@ TEST_CASES = [
                 RedboxTestData(
                     number_of_docs=2,
                     tokens_in_all_docs=40_000,
-                    llm_responses=["Testing Response 1"],
+                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
                     expected_route=ChatRoute.newroute,
                 ),
                 RedboxTestData(
                     number_of_docs=2,
                     tokens_in_all_docs=80_000,
-                    llm_responses=["Testing Response 1"],
+                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
                     expected_route=ChatRoute.newroute,
                 ),
                 RedboxTestData(
                     number_of_docs=2,
                     tokens_in_all_docs=140_000,
-                    llm_responses=["Map Step Response"] * 2 + ["Testing Response 1"],
+                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
                     expected_route=ChatRoute.newroute,
                 ),
                 RedboxTestData(
                     number_of_docs=4,
                     tokens_in_all_docs=140_000,
-                    llm_responses=["Map Step Response"] * 4
-                    + ["Merge Per Document Response"] * 2
-                    + ["Testing Response 1"],
+                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
                     expected_route=ChatRoute.newroute,
                 ),
             ],
@@ -488,6 +513,12 @@ async def test_streaming(test: RedboxChatTestCase, env: Settings, mocker: Mocker
     llm = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
     llm._default_config = {"model": "bedrock"}
 
+    llm_planner_worker = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses[:2]))
+    llm_planner_worker._default_config = {"model": "bedrock"}
+
+    llm_evaluator = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses[-1]))
+    llm_evaluator._default_config = {"model": "bedrock"}
+
     @tool
     def _search_documents(query: str) -> dict[str, Any]:
         """Tool to search documents."""
@@ -500,7 +531,8 @@ async def test_streaming(test: RedboxChatTestCase, env: Settings, mocker: Mocker
 
     mocker.patch("redbox.app.build_search_documents_tool", return_value=_search_documents)
     mocker.patch("redbox.app.build_govuk_search_tool", return_value=_search_govuk)
-    mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=llm)
+    mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=llm_evaluator)
+    mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm_planner_worker)
 
     # Instantiate app
     app = Redbox(

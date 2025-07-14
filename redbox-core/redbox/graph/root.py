@@ -626,6 +626,11 @@ def build_new_graph(
     allow_plan_feedback = get_settings().allow_plan_feedback
 
     builder = StateGraph(RedboxState)
+    builder.add_node(
+        "set_route_to_newroute",
+        build_set_route_pattern(route=ChatRoute.newroute),
+        retry=RetryPolicy(max_attempts=3),
+    )
     builder.add_node("remove_keyword", strip_route)
     builder.add_node("stream_plan", stream_plan())
     builder.add_node(
@@ -680,7 +685,8 @@ def build_new_graph(
     builder.add_node("stream_suggestion", stream_suggestion())
     builder.add_node("sending_task", empty_process)
 
-    builder.add_edge(START, "remove_keyword")
+    builder.add_edge(START, "set_route_to_newroute")
+    builder.add_edge("set_route_to_newroute", "remove_keyword")
     builder.add_conditional_edges(
         "remove_keyword", lambda s: s.user_feedback == "", {True: "planner", False: "user_feedback_evaluation"}
     )
