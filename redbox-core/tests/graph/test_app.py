@@ -87,26 +87,26 @@ TEST_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
-                ai_settings=AISettings(new_route_enabled=False),
+                ai_settings=AISettings(new_route_enabled=True),
             ),
             test_data=[
                 RedboxTestData(
                     number_of_docs=1,
                     tokens_in_all_docs=1_000,
                     llm_responses=["Testing Response 1"],
-                    expected_route=ChatRoute.chat_with_docs,
+                    expected_route=ChatRoute.newroute,
                 ),
                 RedboxTestData(
                     number_of_docs=1,
                     tokens_in_all_docs=50_000,
                     llm_responses=["Testing Response 1"],
-                    expected_route=ChatRoute.chat_with_docs,
+                    expected_route=ChatRoute.newroute,
                 ),
                 RedboxTestData(
                     number_of_docs=1,
                     tokens_in_all_docs=80_000,
                     llm_responses=["Testing Response 1"],
-                    expected_route=ChatRoute.chat_with_docs,
+                    expected_route=ChatRoute.newroute,
                 ),
             ],
             test_id="Chat with single doc - self_route OFF",
@@ -118,7 +118,7 @@ TEST_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=[],
-                ai_settings=AISettings(self_route_enabled=True),
+                ai_settings=AISettings(new_route_enabled=False),
             ),
             test_data=[
                 RedboxTestData(
@@ -139,7 +139,7 @@ TEST_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key_1", "s3_key_2"],
-                ai_settings=AISettings(self_route_enabled=True),
+                ai_settings=AISettings(new_route_enabled=False),
             ),
             test_data=[
                 RedboxTestData(
@@ -158,26 +158,26 @@ TEST_CASES = [
                 s3_keys=["s3_key_1", "s3_key_2"],
                 user_uuid=uuid4(),
                 chat_history=[],
-                ai_settings=AISettings(self_route_enabled=False),
+                ai_settings=AISettings(new_route_enabled=True),
             ),
             test_data=[
                 RedboxTestData(
                     number_of_docs=2,
                     tokens_in_all_docs=40_000,
                     llm_responses=["Testing Response 1"],
-                    expected_route=ChatRoute.chat_with_docs,
+                    expected_route=ChatRoute.newroute,
                 ),
                 RedboxTestData(
                     number_of_docs=2,
                     tokens_in_all_docs=80_000,
                     llm_responses=["Testing Response 1"],
-                    expected_route=ChatRoute.chat_with_docs,
+                    expected_route=ChatRoute.newroute,
                 ),
                 RedboxTestData(
                     number_of_docs=2,
                     tokens_in_all_docs=140_000,
                     llm_responses=["Map Step Response"] * 2 + ["Testing Response 1"],
-                    expected_route=ChatRoute.chat_with_docs_map_reduce,
+                    expected_route=ChatRoute.newroute,
                 ),
                 RedboxTestData(
                     number_of_docs=4,
@@ -185,7 +185,7 @@ TEST_CASES = [
                     llm_responses=["Map Step Response"] * 4
                     + ["Merge Per Document Response"] * 2
                     + ["Testing Response 1"],
-                    expected_route=ChatRoute.chat_with_docs_map_reduce,
+                    expected_route=ChatRoute.newroute,
                 ),
             ],
             test_id="Chat with multiple docs - self route OFF",
@@ -215,7 +215,7 @@ TEST_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
-                ai_settings=AISettings(self_route_enabled=True),
+                ai_settings=AISettings(new_route_enabled=False),
             ),
             test_data=[
                 RedboxTestData(
@@ -237,7 +237,7 @@ TEST_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
-                ai_settings=AISettings(self_route_enabled=False),
+                ai_settings=AISettings(new_route_enabled=True),
             ),
             test_data=[
                 RedboxTestData(
@@ -256,7 +256,7 @@ TEST_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
-                ai_settings=AISettings(self_route_enabled=True),
+                ai_settings=AISettings(new_route_enabled=False),
             ),
             test_data=[
                 RedboxTestData(
@@ -425,14 +425,14 @@ TEST_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
-                ai_settings=AISettings(self_route_enabled=False),
+                ai_settings=AISettings(new_route_enabled=True),
             ),
             test_data=[
                 RedboxTestData(
                     number_of_docs=1,
                     tokens_in_all_docs=50_000,
                     llm_responses=["Testing Response 1"],
-                    expected_route=ChatRoute.chat_with_docs,
+                    expected_route=ChatRoute.newroute,
                 ),
             ],
             test_id="No Such Keyword with docs - Self route OFF",
