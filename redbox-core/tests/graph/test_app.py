@@ -1,4 +1,6 @@
 import copy
+
+# from enum import Enum
 from typing import Any
 from uuid import uuid4
 
@@ -41,6 +43,7 @@ SELF_ROUTE_TO_CHAT = ["Condense self route question", "unanswerable"]
 OUTPUT_WITH_CITATIONS = AIMessage(
     content=StructuredResponseWithCitations(answer="AI is a lie", citations=[]).model_dump_json()
 )
+
 SELF_ROUTE_TO_SEARCH = ["Condense self route question", OUTPUT_WITH_CITATIONS]
 
 
@@ -83,8 +86,8 @@ TEST_CASES = [
                 s3_keys=["s3_key"],
                 user_uuid=uuid4(),
                 chat_history=[],
-                permitted_s3_keys=[],
-                ai_settings=AISettings(self_route_enabled=False),
+                permitted_s3_keys=["s3_key"],
+                ai_settings=AISettings(new_route_enabled=False),
             ),
             test_data=[
                 RedboxTestData(
