@@ -3,7 +3,7 @@
 export class MessageInput extends HTMLElement {
   constructor() {
     super();
-    this.textarea = this.querySelector(".iai-chat-input__input");
+    this.textarea = this.querySelector(".message-input");
   }
 
   connectedCallback() {

@@ -211,10 +211,6 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   }
 }
 
-.govuk-main-wrapper:has(.iai-chat-input__input) {
-  padding: 0;
-}
-
 .rb-streaming-response-loading {
   align-items: center;
   display: flex;
@@ -383,14 +379,6 @@ main:has(.govuk-inset-text) .chat-options {
   .iai-chat-input {
     max-width: 100%;
   }
-}
-
-.iai-chat-input__input {
-  background-color: var(--color-background-white);
-  border: #767676 1px solid;
-  min-height: 1.5em;
-  max-height: 200px;
-  overflow-y: auto;
 }
 
 .exit-feedback {
