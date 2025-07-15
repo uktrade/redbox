@@ -2,7 +2,7 @@
 
 <div class="header-wrapper">
 <header class="govuk-header" role="banner" data-module="govuk-header" id="top">
-    <div class="govuk-header__container govuk-width-container">
+    <div class="govuk-header__containerx govuk-width-container">
         <div class="govuk-header__logo app-header-logo">
             <a class="govuk-header__link govuk-header__link--homepage" href="{{ home_path }}">
                 <span class="govuk-header__product-namex govuk-!-font-weight-bold">{{ product_name }}</span>
@@ -15,7 +15,7 @@
 
                 <ul id="navigation" class="govuk-header__navigation-list header-list">
                     {% for menu_item in menu_items %}
-                    <li class="govuk-header__navigation-item{% if menu_item.active %}--active{% endif %} header-item">
+                    <li class="govuk-header__navigation-item{% if menu_item.active %}--active{% endif %} govuk-!-padding-2">
                         <a class="govuk-header__link" href="{{ menu_item.href }}" {% if menu_item.active
                             %}aria-current="page" {% endif %}>{{ menu_item.text }}</a>
                     </li>
@@ -47,7 +47,6 @@
             Beta
         </strong>
         <span class="govuk-phase-banner__text">
-            <strong class="govuk-!-font-weight-bold">Important service update: Redbox has been upgraded to a new model, Sonnet 3.7</strong>
             Please give us <a class="govuk-link"
                 href="https://teams.microsoft.com/l/channel/19%3A9ae6b3b539724595a3139c2b16dc56ef%40thread.tacv2/Redbox%20trial%20participants%20Chat%20Channel?groupId=7a71ce78-fe77-4185-825c-ae40cb07d614&tenantId=8fa217ec-33aa-46fb-ad96-dfe68006bb86">feedback</a>
             so we can continue to improve the service

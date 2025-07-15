@@ -10,7 +10,7 @@ import sentry_sdk
 from dbt_copilot_python.database import database_from_env
 from django.urls import reverse_lazy
 from django_log_formatter_asim import ASIMFormatter
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from import_export.formats.base_formats import CSV
 from sentry_sdk.integrations.django import DjangoIntegration
 from storages.backends import s3boto3
@@ -22,6 +22,9 @@ logger = logging.getLogger(__name__)
 
 
 load_dotenv()
+
+if os.getenv("USE_LOCAL_ENV", "False").lower() == "true":
+    load_dotenv(find_dotenv(".env.local"), override=True)
 
 env = environ.Env()
 
@@ -101,6 +104,7 @@ MIDDLEWARE = [
     "redbox_app.redbox_core.middleware.security_header_middleware",
     "django_plotly_dash.middleware.BaseMiddleware",
     "waffle.middleware.WaffleMiddleware",
+    "redbox_app.redbox_core.middleware.sentry_user_middleware",
 ]
 
 ROOT_URLCONF = "redbox_app.urls"
@@ -111,6 +115,7 @@ TEMPLATES = [
         "DIRS": [
             BASE_DIR / "redbox_app" / "templates",
             BASE_DIR / "redbox_app" / "templates" / "auth",
+            BASE_DIR / "frontend" / "src" / "stylesheets",
         ],
         "OPTIONS": {
             "environment": "redbox_app.jinja2.environment",
@@ -334,7 +339,7 @@ if not ENVIRONMENT.is_local:
                 DjangoIntegration(),
             ],
             environment=SENTRY_ENVIRONMENT,
-            send_default_pii=False,
+            send_default_pii=True,
             traces_sample_rate=1.0,
             before_send_transaction=filter_transactions,
             debug=False,
@@ -369,12 +374,31 @@ LOGGING = {
             "()": ASIMFormatter,
         },
     },
+    "filters": {
+        "exclude_s3_urls": {
+            "": "django.utils.log.CallbackFilter",
+            "callback": lambda record: all(
+                header not in record.getMessage()
+                for header in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Security-Token"]
+            )
+            if hasattr(record, "getMessage")
+            else True
+            if hasattr(record, "getMessage")
+            else True,
+        },
+    },
     "handlers": {
         "console": {
             "level": LOG_LEVEL,
             "class": "logging.StreamHandler",
             "formatter": LOG_FORMAT,
-        }
+            "filters": ["exclude_s3_urls"],
+        },
+        "asim": {
+            "level": "ERROR",
+            "class": "logging.StreamHandler",
+            "formatter": "asim_formatter",
+        },
     },
     "root": {"handlers": ["console"], "level": LOG_LEVEL},
     "loggers": {
@@ -382,7 +406,21 @@ LOGGING = {
             "handlers": [LOG_HANDLER],
             "level": LOG_LEVEL,
             "propagate": True,
-        }
+        },
+        "boto3": {
+            "level": "WARNING",
+        },
+        "botocore": {
+            "level": "WARNING",
+        },
+        "s3transfer": {
+            "level": "WARNING",
+        },
+        "ddtrace": {
+            "handlers": ["asim"],
+            "level": "ERROR",
+            "propagate": False,
+        },
     },
 }
 
@@ -431,6 +469,7 @@ REDBOX_VERSION = os.environ.get("REDBOX_VERSION", "not set")
 
 Q_CLUSTER = {
     "name": "redbox_django",
+    "recycle": env.int("Q_RECYCLE", 500),
     "timeout": env.int("Q_TIMEOUT", 600),
     "retry": env.int("Q_RETRY", 60),
     "max_attempts": env.int("Q_MAX_ATTEMPTS", 3),

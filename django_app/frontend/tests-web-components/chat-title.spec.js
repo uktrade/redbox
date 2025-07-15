@@ -17,7 +17,7 @@ test(`Chat title functionality works as expected`, async ({ page }) => {
   await expect(chatTitle).not.toHaveClass(/govuk-visually-hidden/);
 
   // The title can be edited
-  await page.locator(".chat-title__edit-btn").click();
+  await page.locator(".chat-title-edit-button").click();
   let textInput = page.locator(".chat-title__input");
   await expect(textInput).toBeFocused();
   await textInput.fill("Updated chat title");

@@ -1,0 +1,12 @@
+.document-add-icon {
+  --document-add-icon-foreground-color: var(--color-icon-light-foreground);
+  --document-add-icon-foreground-hover-color: var(--color-icon-light-foreground-hover);
+
+    &:hover {
+    --document-add-icon-foreground-color: var(--document-add-icon-foreground-hover-color);
+  }
+
+  .foreground {
+    fill: var(--document-add-icon-foreground-color);
+  }
+}

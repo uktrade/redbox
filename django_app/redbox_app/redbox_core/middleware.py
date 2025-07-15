@@ -1,6 +1,8 @@
+import asyncio
 import json
 
-from asgiref.sync import iscoroutinefunction
+import sentry_sdk
+from asgiref.sync import iscoroutinefunction, sync_to_async
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpRequest, HttpResponse
@@ -99,3 +101,38 @@ class APIKeyAuthentication(BaseAuthentication):
 
         msg = "Invalid API key"
         raise AuthenticationFailed(msg)
+
+
+@sync_and_async_middleware
+def sentry_user_middleware(get_response):
+    if iscoroutinefunction(get_response):
+
+        async def middleware(request: HttpRequest) -> HttpResponse:
+            if hasattr(request, "user"):
+                is_authenticated = await sync_to_async(getattr)(request.user, "is_authenticated", False)
+                if is_authenticated:
+                    await sync_to_async(sentry_sdk.set_user)(
+                        {
+                            "id": request.user.id,
+                            "email": request.user.email,
+                            "name": request.user.name,
+                        }
+                    )
+            response = await get_response(request)
+            if asyncio.iscoroutine(response):
+                response = await response
+            return response
+    else:
+
+        def middleware(request: HttpRequest) -> HttpResponse:
+            if hasattr(request, "user") and request.user.is_authenticated:
+                sentry_sdk.set_user(
+                    {
+                        "id": request.user.id,
+                        "email": request.user.email,
+                        "name": request.user.name,
+                    }
+                )
+            return get_response(request)
+
+    return middleware

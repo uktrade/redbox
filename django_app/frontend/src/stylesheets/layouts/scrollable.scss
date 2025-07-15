@@ -1,0 +1,16 @@
+.scrollable {
+  --scrollbar-background-color: transparent;
+  --scrollbar-color: var(--color-border);
+
+  overflow: hidden;
+  scroll-behavior: smooth;
+  scrollbar-color: var(--scrollbar-color) var(--scrollbar-background-color);
+  scrollbar-gutter: stable;
+  transition: overflow 0.2s ease;
+
+  &:hover,
+  &:focus,
+  &:active {
+    overflow-y: auto;
+  }
+}
