@@ -1009,6 +1009,18 @@ files = [
 ]
 
 [[package]]
+name = "bytecode"
+version = "0.16.2"
+description = "Python module to generate and modify bytecode"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "bytecode-0.16.2-py3-none-any.whl", hash = "sha256:0a7dea0387ec5cae5ec77578690c5ca7470c8a202c50ce64a426d86380cddd7f"},
+    {file = "bytecode-0.16.2.tar.gz", hash = "sha256:f05020b6dc1f48cdadd946f7c3a03131ba0f312bd103767c5d75559de5c308f8"},
+]
+
+[[package]]
 name = "cattrs"
 version = "24.1.2"
 description = "Composable complex class support for attrs and dataclasses."
@@ -1719,6 +1731,90 @@ opentelemetry-sdk-extension-aws = ">=2.0.1,<3.0.0"
 requests = ">=2.31.0,<3.0.0"
 
 [[package]]
+name = "ddtrace"
+version = "3.10.2"
+description = "Datadog APM client library"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "ddtrace-3.10.2-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:dee9c5639e71f4186d39da16b2b875cbfd608cae499c2aabde4a1f9ae62364ba"},
+    {file = "ddtrace-3.10.2-cp310-cp310-macosx_12_0_x86_64.whl", hash = "sha256:8945f8a11bb3f3b9140c5c18ff13a388729488ccaac1ae8a6c11097c9cc2b9e0"},
+    {file = "ddtrace-3.10.2-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:6d6a66043c26ec2e941e1b6a195a6b93aab220fed0ac00ea58d467449f75a319"},
+    {file = "ddtrace-3.10.2-cp310-cp310-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:6e84247f37bd0765ddf201fecb340461bbadfb1faa5ccaecfb64cb78ce14cd66"},
+    {file = "ddtrace-3.10.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:cb9b6309162265a4bbcb2fcd05e2114609e6c7df2a59e258a81924cae353cc93"},
+    {file = "ddtrace-3.10.2-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:46afc63a056cdbcf0fc2ebed8804180a8e1029cf5a8beb3c11596b92dab2f21c"},
+    {file = "ddtrace-3.10.2-cp310-cp310-musllinux_1_2_i686.whl", hash = "sha256:3fcec5affb7e14e18c501433fc36928452a93e262383ffaf10b61890aded9557"},
+    {file = "ddtrace-3.10.2-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:eb6f6bc048fc4e1a65440afe45830e5b5a568fa0e03e23243c528ae570074713"},
+    {file = "ddtrace-3.10.2-cp310-cp310-win32.whl", hash = "sha256:7e06880a7384e163e2ec1de8a6db76a43f6e81519a9e9925b3fbda5d13ac0cbb"},
+    {file = "ddtrace-3.10.2-cp310-cp310-win_amd64.whl", hash = "sha256:ed4a3cb73f8839544f382d17b9de930e33e11e3341c22093dd92fdafcb637bb1"},
+    {file = "ddtrace-3.10.2-cp311-cp311-macosx_12_0_arm64.whl", hash = "sha256:c8c0e813dae5e5efb865a7469d4829d2fef54759770c28727a3f5ac4a605ea53"},
+    {file = "ddtrace-3.10.2-cp311-cp311-macosx_12_0_x86_64.whl", hash = "sha256:b3ab8ab9c41fc4718356b8581acc372b9d0245586749768a44ba4a426c897311"},
+    {file = "ddtrace-3.10.2-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d32cddde88b15c1df4955726120ab097f8ab69de36dcafb0aeeee316a7a75a31"},
+    {file = "ddtrace-3.10.2-cp311-cp311-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:7626b5791b27412f8bdb25e9bc6a6a4b12526e670c0ad8c6a7a65a42e73cdd9e"},
+    {file = "ddtrace-3.10.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0e4eb2da24364245a7621cad6585cc85038cd035ad600cc226772c5d216fa1a7"},
+    {file = "ddtrace-3.10.2-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:58c5b122016f9ca31e2e6792d2adb3bb3c47b09f87a5fd2190bbf767188af9f1"},
+    {file = "ddtrace-3.10.2-cp311-cp311-musllinux_1_2_i686.whl", hash = "sha256:30c38af11eeadd760b4ed73126348687497b9d9f81bda174550d9ca055c37ec1"},
+    {file = "ddtrace-3.10.2-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:cac39b508e664bac09413ce3b8de3973bf56265ffa6e32157f846889f68e92ff"},
+    {file = "ddtrace-3.10.2-cp311-cp311-win32.whl", hash = "sha256:3b1397badcd7d441b11dc37dff2bdc7b96bd641ab49656a3f45a9ed59a7cd8a7"},
+    {file = "ddtrace-3.10.2-cp311-cp311-win_amd64.whl", hash = "sha256:6ff0904e20077e0821b6a5f0747b9623ac820cc9ddaa1df8110eb6454c9e2dc5"},
+    {file = "ddtrace-3.10.2-cp312-cp312-macosx_12_0_arm64.whl", hash = "sha256:d1ddf83df85991293dc2c4ba3d2fcdc08b34638e6beb93f7fec8c9a91b2cd56d"},
+    {file = "ddtrace-3.10.2-cp312-cp312-macosx_12_0_x86_64.whl", hash = "sha256:9a1c17e361ed03bade97ef968e1e77705b25cbb0f64ce73bd8c413d4f89b47f8"},
+    {file = "ddtrace-3.10.2-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b9a3daf8294a51ccbdc63f13d8819a151e8c9a0ad314e416fe8f2c1f6ae7c0f6"},
+    {file = "ddtrace-3.10.2-cp312-cp312-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:e723d16d6905127b911a62b46998de8766ec2a2d0ff426e087b2c7ab2141ad31"},
+    {file = "ddtrace-3.10.2-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5d3512ba065eb2b23e59582b0e4a53e54a738e047ee92a844b0d995786f95b2c"},
+    {file = "ddtrace-3.10.2-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:c09c648f02d67069658e6fdfaea151ff1656153a11772c788807e1c97e280b23"},
+    {file = "ddtrace-3.10.2-cp312-cp312-musllinux_1_2_i686.whl", hash = "sha256:7d08d197fadc82c15de034c1a1575c3cf9de6d399acd456e99b858fbec23b37f"},
+    {file = "ddtrace-3.10.2-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:f6d3cb9d1afffa194f047506dc43d5740575c704176b14752b8887f45fb9fadd"},
+    {file = "ddtrace-3.10.2-cp312-cp312-win32.whl", hash = "sha256:321b2e1f8d448a28b5825b29867929efa30ce74f41e6271746962e069fe133bc"},
+    {file = "ddtrace-3.10.2-cp312-cp312-win_amd64.whl", hash = "sha256:099a3d96dc8644accf740ed38cdd428598c706a18c68cb5a93b72dd694c843a7"},
+    {file = "ddtrace-3.10.2-cp313-cp313-macosx_12_0_arm64.whl", hash = "sha256:ff0d8bc52a99ad04d1e75196d4b3ad3884d4d33600733acc414f9c09766fe5a3"},
+    {file = "ddtrace-3.10.2-cp313-cp313-macosx_12_0_x86_64.whl", hash = "sha256:e10efd12085f799a4080755a426e4e2260e56b994a9783d93a06f3108aa34c7e"},
+    {file = "ddtrace-3.10.2-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:552f1e968588915f6e8b5940a37bd8b0423f7e2de38dc448af111875a1ea1608"},
+    {file = "ddtrace-3.10.2-cp313-cp313-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:887de4156874c3da8924cd2e07eb5816f73ca6e95fa9e30fa201927464c49c19"},
+    {file = "ddtrace-3.10.2-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1963cd9341310841945de29dd7112c9eddb1d1c955477a45910de15647211f10"},
+    {file = "ddtrace-3.10.2-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:1f7e0bbe40d8ce96da40e0a33b0f2937df8166187907f028837a9a5b91b93248"},
+    {file = "ddtrace-3.10.2-cp313-cp313-musllinux_1_2_i686.whl", hash = "sha256:0f507e9fae08dfb4daefbe3e7d006700217e1ee09ebade2a68def7eb12c7ea4f"},
+    {file = "ddtrace-3.10.2-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:0c8d31398cbfc50e742b4e5cb808d841636b0afc6c2e792894d262274acb172a"},
+    {file = "ddtrace-3.10.2-cp313-cp313-win32.whl", hash = "sha256:2c4d52cab57d240ac063d01cbe2ced6c49e3f5bc54604b5892c02d2a94faec4e"},
+    {file = "ddtrace-3.10.2-cp313-cp313-win_amd64.whl", hash = "sha256:7e5a71056c316e3e332acab01077b824a877484867d339bdbcf5aee316a0fb76"},
+    {file = "ddtrace-3.10.2-cp38-cp38-macosx_12_0_arm64.whl", hash = "sha256:94636505c762880dbe4f43bd85d351a2efd747121722c859110e454c31defbd3"},
+    {file = "ddtrace-3.10.2-cp38-cp38-macosx_12_0_x86_64.whl", hash = "sha256:2f54170194291bd093f1c8719be9803038d19fbb2a272386bc8cc1e7990a9117"},
+    {file = "ddtrace-3.10.2-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:187daf47937c41855cb763584bd2c93867670fe5f79bd363fd50f29a134993fc"},
+    {file = "ddtrace-3.10.2-cp38-cp38-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:7287fa48491c3f3effa9f299101091d9138ffbc8e29667af4d100186bf54793b"},
+    {file = "ddtrace-3.10.2-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f06e83a005efba4e6817f4d894b2d4a5387d1e50b774eb0e43b8610f27779adf"},
+    {file = "ddtrace-3.10.2-cp38-cp38-musllinux_1_2_aarch64.whl", hash = "sha256:b09bad2ef8b28e18d0cef1469c2e9568ea362a8eb5170e13bfdb397afab34bfd"},
+    {file = "ddtrace-3.10.2-cp38-cp38-musllinux_1_2_i686.whl", hash = "sha256:da87062acd79ddba5686fa348bbb890aec96d5adbcaba6094ca26babfbcc1c15"},
+    {file = "ddtrace-3.10.2-cp38-cp38-musllinux_1_2_x86_64.whl", hash = "sha256:dac945fcb92ffef337aac2b7de39fcae34c06ab18d47a212fcbddf9e7f94e241"},
+    {file = "ddtrace-3.10.2-cp38-cp38-win32.whl", hash = "sha256:d57315b42159d14ba493145048af2edb42b2bc542035edd135fd7605698bf2d0"},
+    {file = "ddtrace-3.10.2-cp38-cp38-win_amd64.whl", hash = "sha256:c233784d4dc38dfba61ea4c0628e9704ffe5d4807bf3f6975f810d108ee51690"},
+    {file = "ddtrace-3.10.2-cp39-cp39-macosx_12_0_arm64.whl", hash = "sha256:0b79aed288a92fe2c08746678f754946cacb030db458424f16965cf9c10f553b"},
+    {file = "ddtrace-3.10.2-cp39-cp39-macosx_12_0_x86_64.whl", hash = "sha256:01a27b7306709acd5e9c9b6be5ed17b63529f6a588c5e96794f72d0d3ace9bb5"},
+    {file = "ddtrace-3.10.2-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:25c1eeea0e70b1a8571b96a32f1304fddc29dd61bc1e2afeca5ebb9b0377a5c9"},
+    {file = "ddtrace-3.10.2-cp39-cp39-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:37cc3be6575d6172a8bd179cafc37592c13f0cce0102b221b6581e4864b0ad1a"},
+    {file = "ddtrace-3.10.2-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:79fc49153db5f237b7bf55a3e406dfffc5f5e6ebb932b27547ddcf251240d1c9"},
+    {file = "ddtrace-3.10.2-cp39-cp39-musllinux_1_2_aarch64.whl", hash = "sha256:3667827078f6c30e5c842b074f83341a86c9b29d22a8c52328c481d3a19af452"},
+    {file = "ddtrace-3.10.2-cp39-cp39-musllinux_1_2_i686.whl", hash = "sha256:f8ad7e8ee8b77348f8b71b0c18def25b9446daa1693a07fdf5eeb64c4702e6cb"},
+    {file = "ddtrace-3.10.2-cp39-cp39-musllinux_1_2_x86_64.whl", hash = "sha256:177aeced4d72d5c2f3ff666c08c93381cf5b91823726e6c36d69eab911c8591a"},
+    {file = "ddtrace-3.10.2-cp39-cp39-win32.whl", hash = "sha256:2eb35c7f0df53fb7df1eea320ef22e9f81412e597a682957787272c6c5e1a475"},
+    {file = "ddtrace-3.10.2-cp39-cp39-win_amd64.whl", hash = "sha256:25153050982d7471e17a387701eb47408e328750649feb4b0f59f7ef84a716d0"},
+    {file = "ddtrace-3.10.2.tar.gz", hash = "sha256:116378e9273df04f6417d198288f23b652eb2ce6b0ae8d3873ba3f54e631a3cd"},
+]
+
+[package.dependencies]
+bytecode = {version = ">=0.15.1", markers = "python_version ~= \"3.12.0\""}
+envier = ">=0.6.1,<0.7.0"
+opentelemetry-api = ">=1"
+protobuf = ">=3"
+typing_extensions = "*"
+wrapt = ">=1"
+xmltodict = ">=0.12"
+
+[package.extras]
+openai = ["tiktoken"]
+opentracing = ["opentracing (>=2.0.0)"]
+
+[[package]]
 name = "debugpy"
 version = "1.8.11"
 description = "An implementation of the Debug Adapter Protocol for Python"
@@ -2073,17 +2169,18 @@ libsass = ">=0.7.0,<1"
 
 [[package]]
 name = "django-log-formatter-asim"
-version = "0.0.6"
+version = "1.0.0"
 description = "Formats Django logs in ASIM format."
 optional = false
 python-versions = "<4,>=3.9"
 groups = ["main"]
 files = [
-    {file = "django_log_formatter_asim-0.0.6-py3-none-any.whl", hash = "sha256:00923cb95b599082d94895af1333d1bb8fce05a3d742dd571d32b7e0e480ead3"},
-    {file = "django_log_formatter_asim-0.0.6.tar.gz", hash = "sha256:ba35df7a8c5f5bad2e006b55dea8e339ef82f7476a93e6cae4d2bbea12938c2b"},
+    {file = "django_log_formatter_asim-1.0.0-py3-none-any.whl", hash = "sha256:47af59f1282f77721398a3ad07d4c186041b911914c8cb655d1b4252598c89b9"},
+    {file = "django_log_formatter_asim-1.0.0.tar.gz", hash = "sha256:dc2938cfdfd220d15069948ef37fbb7389d3bbc8358ec3efbb23e4e54e105ebc"},
 ]
 
 [package.dependencies]
+ddtrace = ">=3.2.1,<4.0.0"
 django = {version = ">=3,<6", markers = "python_version >= \"3.10\" and python_version < \"4\""}
 pre-commit = ">=3.5.0,<4.0.0"
 
@@ -2197,6 +2294,27 @@ django-picklefield = ">=3.1,<4.0"
 rollbar = ["django-q-rollbar (>=0.1)"]
 sentry = ["django-q-sentry (>=0.1)"]
 testing = ["blessed (>=1.19.1,<2.0.0)", "boto3 (>=1.24.92,<2.0.0)", "croniter (>=2.0.1,<3.0.0)", "django-redis (>=5.2.0,<6.0.0)", "hiredis (>=2.0.0,<3.0.0)", "iron-mq (>=0.9,<0.10)", "psutil (>=5.9.2,<6.0.0)", "pymongo (>=4.2.0,<5.0.0)", "redis (>=4.3.4,<5.0.0)", "setproctitle (>=1.3.2,<2.0.0)"]
+
+[[package]]
+name = "django-requestlogs"
+version = "0.8.3"
+description = "Audit logging for Django and Django Rest Framework"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "django_requestlogs-0.8.3-py3-none-any.whl", hash = "sha256:ae3882f7559b89a39905c80548463b71739f7a1acbaffff1d7b31fd418277b3a"},
+    {file = "django_requestlogs-0.8.3.tar.gz", hash = "sha256:56dea839b18267a273d1d28fe50e06caf1fda526d5d3f2f5a66305a334209c0e"},
+]
+
+[package.dependencies]
+Django = ">=1.11,<6.0"
+djangorestframework = ">=3.0,<4.0"
+setuptools = "*"
+
+[package.extras]
+dev = ["pytest"]
+ipware = ["django-ipware"]
 
 [[package]]
 name = "django-schema-graph"
@@ -2386,6 +2504,33 @@ orjson = ["orjson (>=3)"]
 pyarrow = ["pyarrow (>=1)"]
 requests = ["requests (>=2.4.0,!=2.32.2,<3.0.0)"]
 vectorstore-mmr = ["numpy (>=1)", "simsimd (>=3)"]
+
+[[package]]
+name = "envier"
+version = "0.6.1"
+description = "Python application configuration via the environment"
+optional = false
+python-versions = ">=3.7"
+groups = ["main"]
+files = [
+    {file = "envier-0.6.1-py3-none-any.whl", hash = "sha256:73609040a76be48bbcb97074d9969666484aa0de706183a6e9ef773156a8a6a9"},
+    {file = "envier-0.6.1.tar.gz", hash = "sha256:3309a01bb3d8850c9e7a31a5166d5a836846db2faecb79b9cb32654dd50ca9f9"},
+]
+
+[package.extras]
+mypy = ["mypy"]
+
+[[package]]
+name = "et-xmlfile"
+version = "2.0.0"
+description = "An implementation of lxml.xmlfile for the standard library"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "et_xmlfile-2.0.0-py3-none-any.whl", hash = "sha256:7a91720bc756843502c3b7504c77b8fe44217c85c537d85037f0f536151b2caa"},
+    {file = "et_xmlfile-2.0.0.tar.gz", hash = "sha256:dab3f4764309081ce75662649be815c4c9081e88f0837825f90fd28317d4da54"},
+]
 
 [[package]]
 name = "events"
@@ -4687,6 +4832,21 @@ datalib = ["numpy (>=1)", "pandas (>=1.2.3)", "pandas-stubs (>=1.1.0.11)"]
 realtime = ["websockets (>=13,<15)"]
 
 [[package]]
+name = "openpyxl"
+version = "3.1.5"
+description = "A Python library to read/write Excel 2010 xlsx/xlsm files"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "openpyxl-3.1.5-py2.py3-none-any.whl", hash = "sha256:5282c12b107bffeef825f4617dc029afaf41d0ea60823bbb665ef3079dc79de2"},
+    {file = "openpyxl-3.1.5.tar.gz", hash = "sha256:cf0e3cf56142039133628b5acffe8ef0c12bc902d2aadd3e0fe5878dc08d1050"},
+]
+
+[package.dependencies]
+et-xmlfile = "*"
+
+[[package]]
 name = "opensearch-py"
 version = "2.8.0"
 description = "Python client for OpenSearch"
@@ -6302,6 +6462,7 @@ boto3 = "^1.34.160"
 channels = {version = "^4.1.0", extras = ["daphne"]}
 croniter = "^3.0.3"
 dbt-copilot-python = "^0.2.2"
+ddtrace = "^3.10.0"
 dj-database-url = "^2.3.0"
 django = "5.1.7"
 django-adminplus = "^0.6"
@@ -6311,11 +6472,12 @@ django-environ = "^0.12.0"
 django-gov-notify = "^0.5.0"
 django-import-export = "^4.0"
 django-libsass = "^0.9"
-django-log-formatter-asim = "^0.0.6"
+django-log-formatter-asim = "^1.0.0"
 django-magic-link = "^1.0.0"
 django-permissions-policy = "^4.21.0"
 django-plotly-dash = "^2.3.1"
 django-q2 = "^1.6.2"
+django-requestlogs = "^0.8"
 django-single-session = "^0.2.0"
 django-staff-sso-client = "^4.3.0"
 django-storages = "^1.14.2"
@@ -6326,6 +6488,7 @@ humanize = "^4.9.0"
 jinja2 = "3.1.6"
 markdown-it-py = "^3.0.0"
 mohawk = "^1.1.0"
+openpyxl = "^3.1.5"
 opensearch-py = "^2.7.1"
 pandas = "^2.2.2"
 psycopg2-binary = "^2.9.9"
@@ -6337,7 +6500,7 @@ redbox = {path = "../redbox-core", develop = true}
 requests = "^2.32.4"
 scikit-learn = "^1.5.2"
 sentry-sdk = {version = "^2.13.0", extras = ["django"]}
-urllib3 = "<2.3"
+urllib3 = "<2.6"
 uwotm8 = "^0.1.4"
 watchdog = {version = "^4.0.2", extras = ["watchmedo"]}
 websockets = "^12.0"
@@ -7710,14 +7873,14 @@ dev = ["flake8", "flake8-annotations", "flake8-bandit", "flake8-bugbear", "flake
 
 [[package]]
 name = "urllib3"
-version = "2.2.3"
+version = "2.5.0"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 groups = ["main", "dev"]
 files = [
-    {file = "urllib3-2.2.3-py3-none-any.whl", hash = "sha256:ca899ca043dcb1bafa3e262d73aa25c465bfb49e0bd9dd5d59f1d0acba2f8fac"},
-    {file = "urllib3-2.2.3.tar.gz", hash = "sha256:e7d814a81dad81e6caf2ec9fdedb284ecc9c73076b62654547cc64ccdcae26e9"},
+    {file = "urllib3-2.5.0-py3-none-any.whl", hash = "sha256:e6b01673c0fa6a13e374b50871808eb3bf7046c4b125b216f6bf1cc604cff0dc"},
+    {file = "urllib3-2.5.0.tar.gz", hash = "sha256:3fc47733c7e419d4bc3f6b3dc2b4f890bb743906a30d56ba4a5bfa4bbff92760"},
 ]
 
 [package.extras]
@@ -8135,7 +8298,7 @@ version = "0.14.2"
 description = "Makes working with XML feel like you are working with JSON"
 optional = false
 python-versions = ">=3.6"
-groups = ["dev"]
+groups = ["main", "dev"]
 files = [
     {file = "xmltodict-0.14.2-py2.py3-none-any.whl", hash = "sha256:20cc7d723ed729276e808f26fb6b3599f786cbc37e06c65e192ba77c40f20aac"},
     {file = "xmltodict-0.14.2.tar.gz", hash = "sha256:201e7c28bb210e374999d1dde6382923ab0ed1a8a5faeece48ab525b7810a553"},
