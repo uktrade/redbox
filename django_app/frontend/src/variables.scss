@@ -63,9 +63,13 @@ $govuk-brand-colour: #1d70b8;
   --color-button-primary: var(--redbox-blue);/* old:#1759BC */
   --color-text: var(--dbt-black);
   --color-link-text: var(--redbox-blue);
+  --color-link-text-hover: var(--gds-dark-blue);
 
   // Icons
   --color-icon-light-foreground: var(--redbox-blue);
   --color-icon-light-foreground-hover: var(--dbt-black);
   --color-icon-dark-foreground: var(--redbox-white);
+
+  // Typography
+  --font-family-primary: "Noto Sans", Arial;
 }

@@ -139,7 +139,7 @@
         Need help? View <a href="{{ url('faq') }}" class="govuk-link" target="_blank">Advanced Prompt FAQ.</a>
       </div>
       <message-input>
-        <div class="govuk-textareax iai-chat-input__input js-user-text" id="message" name="message" contenteditable="true" role="textbox" aria-multiline="true" data-text="Type here..."></div>
+        <div class="govuk-textareax message-input" id="message" name="message" contenteditable="true" role="textbox" aria-multiline="true" data-text="Type here..."></div>
       </message-input>
   {% if enable_dictation_flag_is_active %}
   <send-message-with-dictation data-api-key="{{ redbox_api_key }}">
@@ -183,19 +183,21 @@
       </send-message>
       {% endif %}
       {% if not messages %}
-        <div class="govuk-warning-text govuk-body govuk-!-margin-bottom-1 govuk-!-padding-bottom-0">
-          <span class="govuk-warning-text__icon small-warning" aria-hidden="true">!</span>
-          <strong class="govuk-warning-text__text govuk-!-padding-left-7">
-            <span class="govuk-visually-hidden">Warning</span>
-            You can use up to, and including, official sensitive documents.
-          </strong>
-        </div>
-        <div class="govuk-warning-text govuk-body govuk-!-margin-bottom-1 govuk-!-padding-bottom-0">
-          <span class="govuk-warning-text__icon small-warning" aria-hidden="true">!</span>
-          <strong class="govuk-warning-text__text govuk-!-padding-left-7">
-            <span class="govuk-visually-hidden">Warning</span>
-            Redbox can make mistakes. You must check for accuracy before using the output.
-          </strong>
+        <div class="chat-warnings">
+          <div class="govuk-warning-text govuk-body govuk-!-margin-bottom-1 govuk-!-padding-bottom-0">
+            <span class="govuk-warning-text__icon small-warning" aria-hidden="true">!</span>
+            <strong class="govuk-warning-text__text govuk-!-padding-left-7">
+              <span class="govuk-visually-hidden">Warning</span>
+              You can use up to, and including, official sensitive documents.
+            </strong>
+          </div>
+          <div class="govuk-warning-text govuk-body govuk-!-margin-bottom-1 govuk-!-padding-bottom-0">
+            <span class="govuk-warning-text__icon small-warning" aria-hidden="true">!</span>
+            <strong class="govuk-warning-text__text govuk-!-padding-left-7">
+              <span class="govuk-visually-hidden">Warning</span>
+              Redbox can make mistakes. You must check for accuracy before using the output.
+            </strong>
+          </div>
         </div>
       {% endif %}
 
