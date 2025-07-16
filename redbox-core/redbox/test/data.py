@@ -16,7 +16,7 @@ from redbox.models.chain import RedboxQuery
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.file import ChunkResolution, UploadedFileMetadata
 from redbox.models.graph import RedboxActivityEvent
-from redbox.models.chain import  MultiAgentPlan
+from redbox.models.chain import MultiAgentPlan
 
 log = logging.getLogger()
 
