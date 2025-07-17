@@ -14,9 +14,9 @@ export class ChatTitle extends HTMLElement {
                 <h2 class="chat-title__heading govuk-heading-s govuk-visually-hidden">Current chat</h2>
             `
             }
-            <button class="chat-title__edit-btn" type="button">
+            <button id="chat-title-edit-button" class="edit-button" type="button">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <g id="Fiormatting/Edit" clip-path="url(#clip0_519_205)">
+                    <g id="Formatting/Edit" clip-path="url(#clip0_519_205)">
                     <path id="Vector" d="M22.5 19.5H1.5V21H22.5V19.5Z" fill="black"/>
                     <path id="Vector_2" d="M19.05 6.75C19.65 6.15 19.65 5.25 19.05 4.65L16.35 1.95C15.75 1.35 14.85 1.35 14.25 1.95L3 13.2V18H7.8L19.05 6.75ZM15.3 3L18 5.7L15.75 7.95L13.05 5.25L15.3 3ZM4.5 16.5V13.8L12 6.3L14.7 9L7.2 16.5H4.5Z" fill="black"/>
                     </g>
@@ -43,7 +43,7 @@ export class ChatTitle extends HTMLElement {
     );
     this.formContainer = this.querySelector(".chat-title__form-container");
     /** @type {HTMLButtonElement | null} */
-    this.editButton = this.querySelector(".chat-title__edit-btn");
+    this.editButton = this.querySelector("#chat-title-edit-button");
     /** @type {HTMLInputElement | null} */
     this.input = this.querySelector(".chat-title__input");
     this.heading = this.querySelector(".chat-title__heading");

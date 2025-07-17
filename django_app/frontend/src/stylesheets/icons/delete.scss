@@ -1,0 +1,13 @@
+.delete-icon {
+  --delete-icon-foreground-color: var(--color-icon-light-foreground);
+
+  &.hover {
+    &:hover {
+      --delete-icon-foreground-color: var(--color-icon-light-foreground-hover);
+    }
+  }
+
+  .foreground {
+    fill: var(--delete-icon-foreground-color);
+  }
+}

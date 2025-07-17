@@ -389,7 +389,7 @@ class ChatsPage(SignedInBasePage):
 
     @chat_title.setter
     def chat_title(self, title: str):
-        self.page.locator(".chat-title__edit-btn").click()
+        self.page.locator(".chat-title-edit-button").click()
         input_ = self.page.get_by_label("Chat Title")
         input_.fill(title)
         input_.press("Enter")
@@ -405,7 +405,7 @@ class ChatsPage(SignedInBasePage):
         return ChatsPage(self.page)
 
     def count_chats(self) -> "ChatsPage":
-        chat_links = self.page.locator(".rb-chat-history__link").all()
+        chat_links = self.page.locator(".chat-item-link").all()
         return len(chat_links)
 
     def send(self) -> "ChatsPage":

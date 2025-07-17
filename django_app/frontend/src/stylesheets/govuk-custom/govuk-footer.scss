@@ -1,0 +1,8 @@
+@use "../../../node_modules/govuk-frontend/dist/govuk/index" as govuk;
+
+.govuk-footerx {
+    @extend .govuk-footer;
+
+    border-color: var(--govuk-footer-border-color, var(--govuk-brand-colour));
+    border-width: var(--govuk-footer-border-width, 10px);
+}

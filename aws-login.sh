@@ -13,9 +13,10 @@ if [ -f "$PROJECT_ROOT/.envrc" ]; then
     source "$PROJECT_ROOT/.envrc"
   else
     echo "direnv is not installed – skipping 'direnv allow'"
+    source "$PROJECT_ROOT/.envrc"
   fi
 else
-  echo ":information_source:  No .envrc found – using default AWS profile fallback"
+  echo ":information_source:  No .envrc found – using [default] AWS profile fallback"
 fi
 
 # Use AWS_PROFILE from env, or fallback to 'default'
@@ -27,7 +28,6 @@ DJANGO_APP_AWS_DIR="$DJANGO_APP_DIR/.aws"
 
 NOTEBOOKS_DIR="$PROJECT_ROOT/notebooks"
 NOTEBOOKS_AWS_DIR="$NOTEBOOKS_DIR/.aws"
-
 
 echo "Using AWS profile: $AWS_PROFILE"
 

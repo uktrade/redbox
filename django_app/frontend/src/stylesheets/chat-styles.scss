@@ -1,58 +1,8 @@
-.rb-chat-history__title {
-  position: relative;
-  color: white;
-}
-.iai-panel__scrollable--chat-history {
-  margin-top: -0.75rem;
-}
 .rb-chat-history__date_group {
   margin-top: 2rem;
   padding-left: 0.75rem;
 }
-.rb-chat-history__container {
-  margin-top: 0.5rem;
-  padding: 0 8px;
-  list-style-type: none;
-}
-// Recent chat item container
-.rb-chat-history__item-container {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-  min-height: 2.5rem;
-  padding: 8px;
-  color: white;
-}
-.rb-chat-history__item:has(.rb-chat-history__current-indicator), .rb-chat-history__item:has([aria-expanded="true"]), .rb-chat-history__item:hover {
-  background-color: #16578f;
-  color: white;
-}
-.rb-chat-history__item-text-container {
-  align-items: center;
-  gap: 0.5rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-.rb-chat-history__current-indicator {
-  background-color: var(--iai-colour-secondary-teal);
-  border-radius: 100%;
-  height: 0.5rem;
-  width: 0.5rem;
-}
 
-// Recent chat history link
-.rb-chat-history__link {
-  color: white;
-  text-decoration: none;
-  text-underline-offset: 4px;
-}
-.rb-chat-history__link:hover {
-  text-decoration: underline;
-  color: white;
-}
 .rb-chat-history__text-input {
   display: none;
 }
@@ -89,9 +39,6 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   background-color: #F3F3F3;
   display: none;
 }
-.rb-chat-history__item-container:has([aria-expanded="true"]) + .rb-chat-history__expanded-panel {
-  display: block;
-}
 
 // Recent chat delete button
 .rb-chat-history__level2-button {
@@ -121,15 +68,6 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   gap: 0.5rem;
   min-height: 2.5rem;
   padding: 0.5rem 1rem;
-}
-
-// Recent chat edit button
-.rb-chat-history__level3-button {
-  background-color: transparent;
-  border: 0;
-  cursor: pointer;
-  color: var(--color-background-white);
-  margin-top: 4px;
 }
 
 .rb-doc-selector__label {
@@ -190,73 +128,6 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   }
 }
 
-.chat-title {
-  margin-top: 1rem;
-  display: block;
-  margin-bottom: 2rem;
-}
-.chat-title__heading.govuk-visually-hidden + .chat-title__edit-btn {
-  display: none;
-}
-.chat-title__heading-container-inner {
-  align-items: center;
-  display: flex;
-  gap: 0.75rem;
-}
-.chat-title__heading {
-  line-height: 1.3;
-  margin-bottom: 0;
-}
-.chat-title__edit-btn {
-  align-items: center;
-  background-color: transparent;
-  border: 0;
-  cursor: pointer;
-  display: flex;
-  gap: 0.25rem;
-}
-.chat-title__edit-btn:hover {
-  color: var(--color-background);
-}
-.chat-title__edit-btn svg {
-  margin-bottom: 2px;
-}
-.chat-title__input {
-  border: 1px solid #60697b;
-  border-radius: 0.25rem;
-  font-weight: 700;
-  max-width: 18rem;
-  padding: 0.375rem;
-  width: 100%;
-}
-
-.chat-message__text {
-  word-break: break-word;
-  padding-top: .5rem;
-  font-size: 16px;
-  line-height: 1.5rem;
-}
-
-.chat-message__text code {
-  display: block;
-  overflow-x: auto;
-}
-
-.chat-message__text li {
-  padding: 0;
-}
-
-.chat-message__text table {
-  border-collapse: collapse;
-  width: 100%;
-}
-
-.chat-message__text th, .chat-message__text td {
-  text-align: left;
-  border: 1px solid var(--color-border-dark);
-  padding: .25rem;
-}
-
 .rb-activity {
   border-left: 1px solid var(--color-border-dark);
   display: flex;
@@ -286,10 +157,6 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
 .rb-activity--ai::before {
   background-color: var(--color-background);
   content: url("/static/icons/activity-redbox.svg")
-}
-
-chat-message {
-  scroll-margin-bottom: 10rem;
 }
 
 .rb-loading-ellipsis {
@@ -342,14 +209,6 @@ chat-message {
   75% {
     opacity: 1;
   }
-}
-
-.rb-chat-message__container {
-  margin-top: -1rem;
-  padding-bottom: 32px;
-}
-.govuk-main-wrapper:has(.iai-chat-input__input) {
-  padding: 0;
 }
 
 .rb-streaming-response-loading {
@@ -520,14 +379,6 @@ main:has(.govuk-inset-text) .chat-options {
   .iai-chat-input {
     max-width: 100%;
   }
-}
-
-.iai-chat-input__input {
-  background-color: var(--color-background-white);
-  border: #767676 1px solid;
-  min-height: 1.5em;
-  max-height: 200px;
-  overflow-y: auto;
 }
 
 .exit-feedback {
@@ -706,16 +557,6 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   .exit-feedback__toggle-button:hover .exit-feedback__toggle-button-icon {
     animation-duration: 0;
   }
-}
-
-.chat-history-subheading{
-  margin: 0;
-  color: var(--color-background-white);
-}
-.chat-history-subheading--no-border{
-  padding-left: 8px;
-  margin: 0;
-  color: var(--color-background-white);
 }
 
 .full-width-panel-title {

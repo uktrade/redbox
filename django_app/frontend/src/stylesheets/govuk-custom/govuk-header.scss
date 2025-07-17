@@ -1,0 +1,7 @@
+@use "../../../node_modules/govuk-frontend/dist/govuk/index" as govuk;
+
+.govuk-header__containerx {
+    @extend .govuk-header__container;
+
+    border-color: var(--govuk-header-border-color);
+}

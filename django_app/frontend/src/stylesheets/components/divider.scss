@@ -1,0 +1,13 @@
+.divider {
+  position: relative;
+  height: 1px;
+}
+
+.divider::before {
+    content: "";
+    position: absolute;
+    left: calc(-1 * var(--divider-container-padding, 0px));
+    right: calc(-1 * var(--divider-container-padding, 0px));
+    height: var(--divider-thickness, 1px);
+    background-color: var(--divider-color, var(--color-border));
+}

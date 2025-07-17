@@ -10,7 +10,7 @@ echo "Applying migrations..."
 make migrate
 
 echo "Starting Docker containers..."
-docker compose up -d --wait db opensearch minio
+docker compose up -d --wait db opensearch minio worker
 
 echo "Building static files..."
 make build-django-static

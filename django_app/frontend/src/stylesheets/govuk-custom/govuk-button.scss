@@ -1,0 +1,7 @@
+@use "../../../node_modules/govuk-frontend/dist/govuk/index" as govuk;
+
+.govuk-button--transparentx {
+    @extend .govuk-button;
+
+    background-color: transparent;
+}
