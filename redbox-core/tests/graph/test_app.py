@@ -1,4 +1,6 @@
 import copy
+
+# from enum import Enum
 from typing import Any
 from uuid import uuid4
 
@@ -34,14 +36,57 @@ from redbox.test.data import (
 )
 from redbox.transform import structure_documents_by_group_and_indices
 
+from redbox.models.chain import AgentTask, MultiAgentPlan
+
+
+import logging
+
+# create logger
+logger = logging.getLogger("simple_example")
+logger.setLevel(logging.INFO)
+
 LANGGRAPH_DEBUG = True
 
 
 SELF_ROUTE_TO_CHAT = ["Condense self route question", "unanswerable"]
+# OUTPUT_WITH_CITATIONS = AIMessage(
+# content=StructuredResponseWithCitations(answer="AI is a lie", citations=[]) #.model_dump_json()
+# )
+
 OUTPUT_WITH_CITATIONS = AIMessage(
     content=StructuredResponseWithCitations(answer="AI is a lie", citations=[]).model_dump_json()
 )
+
 SELF_ROUTE_TO_SEARCH = ["Condense self route question", OUTPUT_WITH_CITATIONS]
+
+
+NEW_ROUTE_NO_FEEDBACK = [OUTPUT_WITH_CITATIONS]  # only streaming tokens through evaluator
+
+
+class MockedAgent:
+    def __init__(self, return_value):
+        self.return_value = return_value
+
+    def invoke(self, state):
+        return self.return_value
+
+
+def mock_planner_agent(mocker, OUTPUT_WITH_PLANNER):
+    mocked_agent = MockedAgent(OUTPUT_WITH_PLANNER)
+    mocker.patch("redbox.graph.nodes.processes.create_planner", return_value=mocked_agent)
+    return mocked_agent
+
+
+def mock_worker_agent(mocker, OUTPUT_WITH_WORKER):
+    mocked_agent = MockedAgent("")
+    mocker.patch("redbox.graph.nodes.processes.create_chain_agent", return_value=mocked_agent)
+    mocker.patch("redbox.graph.nodes.processes.run_tools_parallel", return_value=[OUTPUT_WITH_WORKER])
+
+
+def mock_evaluator_agent(mocker, test_case):
+    llm_evaluator = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
+    llm_evaluator._default_config = {"model": "bedrock"}
+    mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=llm_evaluator)
 
 
 def assert_number_of_events(num_of_events: int):
@@ -83,30 +128,33 @@ TEST_CASES = [
                 s3_keys=["s3_key"],
                 user_uuid=uuid4(),
                 chat_history=[],
-                permitted_s3_keys=[],
-                ai_settings=AISettings(self_route_enabled=False),
+                permitted_s3_keys=["s3_key"],
+                ai_settings=AISettings(new_route_enabled=True),
             ),
             test_data=[
                 RedboxTestData(
                     number_of_docs=1,
                     tokens_in_all_docs=1_000,
-                    llm_responses=["Testing Response 1"],
-                    expected_route=ChatRoute.chat_with_docs,
+                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
+                    expected_route=ChatRoute.newroute,
+                    expected_text="AI is a lie",
                 ),
                 RedboxTestData(
                     number_of_docs=1,
                     tokens_in_all_docs=50_000,
-                    llm_responses=["Testing Response 1"],
-                    expected_route=ChatRoute.chat_with_docs,
+                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
+                    expected_route=ChatRoute.newroute,
+                    expected_text="AI is a lie",
                 ),
                 RedboxTestData(
                     number_of_docs=1,
                     tokens_in_all_docs=80_000,
-                    llm_responses=["Testing Response 1"],
-                    expected_route=ChatRoute.chat_with_docs,
+                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
+                    expected_route=ChatRoute.newroute,
+                    expected_text="AI is a lie",
                 ),
             ],
-            test_id="Chat with single doc - self_route OFF",
+            test_id="Chat with single doc - new route ON",
         ),
         generate_test_cases(
             query=RedboxQuery(
@@ -115,7 +163,7 @@ TEST_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=[],
-                ai_settings=AISettings(self_route_enabled=True),
+                ai_settings=AISettings(new_route_enabled=False),
             ),
             test_data=[
                 RedboxTestData(
@@ -136,7 +184,7 @@ TEST_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key_1", "s3_key_2"],
-                ai_settings=AISettings(self_route_enabled=True),
+                ai_settings=AISettings(new_route_enabled=False),
             ),
             test_data=[
                 RedboxTestData(
@@ -155,37 +203,39 @@ TEST_CASES = [
                 s3_keys=["s3_key_1", "s3_key_2"],
                 user_uuid=uuid4(),
                 chat_history=[],
-                ai_settings=AISettings(self_route_enabled=False),
+                ai_settings=AISettings(new_route_enabled=True),
             ),
             test_data=[
                 RedboxTestData(
                     number_of_docs=2,
                     tokens_in_all_docs=40_000,
-                    llm_responses=["Testing Response 1"],
-                    expected_route=ChatRoute.chat_with_docs,
+                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
+                    expected_route=ChatRoute.newroute,
+                    expected_text="AI is a lie",
                 ),
                 RedboxTestData(
                     number_of_docs=2,
                     tokens_in_all_docs=80_000,
-                    llm_responses=["Testing Response 1"],
-                    expected_route=ChatRoute.chat_with_docs,
+                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
+                    expected_route=ChatRoute.newroute,
+                    expected_text="AI is a lie",
                 ),
                 RedboxTestData(
                     number_of_docs=2,
                     tokens_in_all_docs=140_000,
-                    llm_responses=["Map Step Response"] * 2 + ["Testing Response 1"],
-                    expected_route=ChatRoute.chat_with_docs_map_reduce,
+                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
+                    expected_route=ChatRoute.newroute,
+                    expected_text="AI is a lie",
                 ),
                 RedboxTestData(
                     number_of_docs=4,
                     tokens_in_all_docs=140_000,
-                    llm_responses=["Map Step Response"] * 4
-                    + ["Merge Per Document Response"] * 2
-                    + ["Testing Response 1"],
-                    expected_route=ChatRoute.chat_with_docs_map_reduce,
+                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
+                    expected_route=ChatRoute.newroute,
+                    expected_text="AI is a lie",
                 ),
             ],
-            test_id="Chat with multiple docs - self route OFF",
+            test_id="Chat with multiple docs - new route ON",
         ),
         generate_test_cases(
             query=RedboxQuery(
@@ -212,7 +262,7 @@ TEST_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
-                ai_settings=AISettings(self_route_enabled=True),
+                ai_settings=AISettings(new_route_enabled=False),
             ),
             test_data=[
                 RedboxTestData(
@@ -229,12 +279,12 @@ TEST_CASES = [
         ),
         generate_test_cases(
             query=RedboxQuery(
-                question="What is AI?",
+                question=" What is AI?",
                 s3_keys=["s3_key"],
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
-                ai_settings=AISettings(self_route_enabled=False),
+                ai_settings=AISettings(new_route_enabled=True),
             ),
             test_data=[
                 RedboxTestData(
@@ -242,6 +292,7 @@ TEST_CASES = [
                     tokens_in_all_docs=2_000_000,
                     llm_responses=["These documents are too large to work with."],
                     expected_route=ErrorRoute.files_too_large,
+                    expected_text="These documents are too large to work with.",
                 ),
             ],
             test_id="Document too big for system",
@@ -253,7 +304,7 @@ TEST_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
-                ai_settings=AISettings(self_route_enabled=True),
+                ai_settings=AISettings(new_route_enabled=False),
             ),
             test_data=[
                 RedboxTestData(
@@ -422,17 +473,18 @@ TEST_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
-                ai_settings=AISettings(self_route_enabled=False),
+                ai_settings=AISettings(new_route_enabled=True),
             ),
             test_data=[
                 RedboxTestData(
                     number_of_docs=1,
                     tokens_in_all_docs=50_000,
-                    llm_responses=["Testing Response 1"],
-                    expected_route=ChatRoute.chat_with_docs,
+                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
+                    expected_route=ChatRoute.newroute,
+                    expected_text="AI is a lie",
                 ),
             ],
-            test_id="No Such Keyword with docs - Self route OFF",
+            test_id="No Such Keyword with docs - new route ON",
         ),
         generate_test_cases(
             query=RedboxQuery(
@@ -474,6 +526,17 @@ TEST_CASES = [
     for test_case in generated_cases
 ]
 
+NEW_ROUTE_internal_retrieval_test_ids = [
+    "Chat with single doc - new route ON-0",
+    "Chat with single doc - new route ON-1",
+    "Chat with single doc - new route ON-2",
+    "Chat with multiple docs - new route ON-0",
+    "Chat with multiple docs - new route ON-1",
+    "Chat with multiple docs - new route ON-2",
+    "Chat with multiple docs - new route ON-3",
+    "No Such Keyword with docs - new route ON-0",
+]
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(("test"), TEST_CASES, ids=[t.test_id for t in TEST_CASES])
@@ -481,9 +544,6 @@ async def test_streaming(test: RedboxChatTestCase, env: Settings, mocker: Mocker
     # Current setup modifies test data as it's not a fixture. This is a hack
     test_case = copy.deepcopy(test)
     mocker.patch("redbox.graph.root.lm_choose_route", return_value="search")
-    # Mock the LLM and relevant tools
-    llm = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
-    llm._default_config = {"model": "bedrock"}
 
     @tool
     def _search_documents(query: str) -> dict[str, Any]:
@@ -497,7 +557,45 @@ async def test_streaming(test: RedboxChatTestCase, env: Settings, mocker: Mocker
 
     mocker.patch("redbox.app.build_search_documents_tool", return_value=_search_documents)
     mocker.patch("redbox.app.build_govuk_search_tool", return_value=_search_govuk)
-    mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=llm)
+
+    if test_case.test_id in NEW_ROUTE_internal_retrieval_test_ids:
+        OUTPUT_WITH_PLANNER = MultiAgentPlan(
+            tasks=[
+                AgentTask(
+                    task="Task to be completed by the agent",
+                    agent="Internal_Retrieval_Agent",
+                    expected_output="What this agent should produce",
+                )
+            ]
+        )
+
+        OUTPUT_WITH_WORKER = AIMessage(content="document returned")
+
+        mock_planner_agent(mocker, OUTPUT_WITH_PLANNER)
+        mock_worker_agent(mocker, OUTPUT_WITH_WORKER)
+        mock_evaluator_agent(mocker, test_case)
+
+    elif test_case.test_id == "Document too big for system-0":
+        OUTPUT_WITH_PLANNER = MultiAgentPlan(
+            tasks=[
+                AgentTask(
+                    task="Task to be completed by the agent",
+                    agent="Summarisation_Agent",
+                    expected_output="What this agent should produce",
+                )
+            ]
+        )
+
+        mock_planner_agent(mocker, OUTPUT_WITH_PLANNER)
+        llm = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
+        llm._default_config = {"model": "bedrock"}
+        mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=llm)
+
+    else:
+        # Mock the LLM and relevant tools
+        llm = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
+        llm._default_config = {"model": "bedrock"}
+        mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=llm)
 
     # Instantiate app
     app = Redbox(
