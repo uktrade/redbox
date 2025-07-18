@@ -2,19 +2,18 @@
 <details class="govuk-details redbox-message-route" {% if not route %} hidden {% endif %}>
   <summary class="govuk-details__summary">
     <span class="govuk-details__summary-text font-size-14">
-      Response generated using @<span class="route-text">{{ route }}</span>
+      How Redbox generated this response</span>
     </span>
   </summary>
   <div class="govuk-details__text font-size-14">
-    <span>Redbox automatically determines what the best ‘tools’ are to answer your prompts/queries:</span>
+    <span>Redbox automatically determines what the best ‘tools' are to answer your prompts/queries:</span>
     <ul>
-      <li>If no document(s) selected, Redbox@DBT defaults to using ‘chat’, which gets answers from the model’s training data</li>
+      <li>If no document(s) selected, Redbox@DBT defaults to using ‘chat’, which gets answers from the model's training data</li>
       <li>When document(s) selected, Redbox@DBT will default to searching for information based on your prompt</li>
       <li>If you request a summary of one or more documents, Redbox@DBT will do that rather than search</li>
-      <li>Redbox@DBT can also use external search tools for <a href="https://www.gov.uk">GOV.uk</a> and <a href="https://www.wikipedia.org">Wikipedia</a></li>
-        <ul>
-          <li>when your request/prompt might best be answered by using two or more tools at the same time, Redbox@DBT will provide you with its proposed plan, which you can agree to, modify or cancel</li>
-        </ul>
+      <li>Redbox@DBT can use external search tools for <a href="https://www.gov.uk">GOV.UK</a> and <a href="https://www.wikipedia.org">Wikipedia</a></li>
+      <li>When your request/prompt might best be answered by using two or more tools at the same time, Redbox@DBT will provide you with its proposed plan, which you can agree to, modify or cancel</li>
+      <li>The knowledge that Redbox@DBT has access to is cut off in November 2024, so ensure that if you need up to date information you ask for Redbox@DBT to find additional online sources</li>
     </ul>
   </div>
 </details>
