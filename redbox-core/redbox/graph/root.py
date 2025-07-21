@@ -1,4 +1,6 @@
-from typing import List
+import asyncio
+
+from typing import List, Any
 
 from langchain_core.messages import AIMessage
 from langchain_core.tools import StructuredTool
@@ -57,6 +59,28 @@ from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.models.prompts import EXTERNAL_RETRIEVAL_AGENT_PROMPT, INTERNAL_RETRIEVAL_AGENT_PROMPT
 from redbox.models.settings import get_settings
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
+
+
+class AsyncToolNode(ToolNode):
+    async def _acall(self, inputs: dict[str, Any]) -> dict[str, Any]:
+        # Override to handle async tools
+        tools_by_name = {tool.name: tool for tool in self.tools}
+        tool_calls = inputs.get("tool_calls", [])
+        results = []
+        for tool_call in tool_calls:
+            tool = tools_by_name.get(tool_call["name"])
+            if tool is None:
+                results.append({"name": tool_call["name"], "args": tool_call["args"], "error": "Tool not found"})
+            else:
+                try:
+                    if asyncio.iscoroutinefunction(tool.func):
+                        result = await tool.func(**tool_call["args"])
+                    else:
+                        result = tool.func(**tool_call["args"])
+                    results.append({"name": tool_call["name"], "args": tool_call["args"], "result": result})
+                except Exception as e:
+                    results.append({"name": tool_call["name"], "args": tool_call["args"], "error": str(e)})
+        return {"results": results}
 
 
 def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, multi_agent_tools, debug):
@@ -516,11 +540,7 @@ def get_agentic_search_graph(tools: List[StructuredTool], debug: bool = False) -
         build_smart_agent,
         retry=RetryPolicy(max_attempts=3),
     )
-    builder.add_node(
-        "invoke_tool_calls",
-        ToolNode(tools=tools),
-        retry=RetryPolicy(max_attempts=3),
-    )
+    builder.add_node("invoke_tool_calls", AsyncToolNode(tools=tools), retry=RetryPolicy(max_attempts=3))
     builder.add_node(
         "give_up_agent",
         build_stuff_pattern(prompt_set=PromptSet.GiveUpAgentic, final_response_chain=True),
