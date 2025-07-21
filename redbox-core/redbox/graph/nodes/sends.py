@@ -1,10 +1,13 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import logging
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from typing import Callable
 
 from langchain_core.messages import AIMessage
 from langgraph.constants import Send
 
 from redbox.models.chain import DocumentState, RedboxState
+
+log = logging.getLogger(__name__)
 
 
 def _copy_state(state: RedboxState, **updates) -> RedboxState:
@@ -61,37 +64,43 @@ def build_tool_send(target: str) -> Callable[[RedboxState], list[Send]]:
     return _tool_send
 
 
-def run_tools_parallel(ai_msg, tools, state):
+def run_tools_parallel(ai_msg, tools, state, timeout=30):
     # Create a list to store futures
     futures = []
+    try:
+        # Use ThreadPoolExecutor for parallel execution
+        with ThreadPoolExecutor(max_workers=min(10, len(ai_msg.tool_calls))) as executor:
+            # Submit tool invocations to the executor
+            for tool_call in ai_msg.tool_calls:
+                # Find the matching tool by name
+                selected_tool = next((tool for tool in tools if tool.name == tool_call.get("name")), None)
 
-    # Use ThreadPoolExecutor for parallel execution
-    with ThreadPoolExecutor() as executor:
-        # Submit tool invocations to the executor
-        for tool_call in ai_msg.tool_calls:
-            # Find the matching tool by name
-            selected_tool = next((tool for tool in tools if tool.name == tool_call.get("name")), None)
+                if selected_tool is None:
+                    log.warning(f"Warning: No tool found for {tool_call.get('name')}")
+                    continue
 
-            if selected_tool is None:
-                print(f"Warning: No tool found for {tool_call.get('name')}")
-                continue
+                # Get arguments and submit the tool invocation
+                args = tool_call.get("args", {})
+                args["state"] = state
+                future = executor.submit(selected_tool.invoke, args)
+                futures.append(future)
 
-            # Get arguments and submit the tool invocation
-            args = tool_call.get("args", {})
-            args["state"] = state
-            future = executor.submit(selected_tool.invoke, args)
-            futures.append(future)
+            # Collect responses as tools complete
+            responses = []
+            for future in as_completed(futures, timeout=timeout):
+                try:
+                    response = future.result()
+                    responses.append(AIMessage(response))
+                except Exception as e:
+                    print(f"Tool invocation error: {e}")
 
-        # Collect responses as tools complete
-        responses = []
-        for future in as_completed(futures):
-            try:
-                response = future.result()
-                responses.append(AIMessage(response))
-            except Exception as e:
-                print(f"Tool invocation error: {e}")
-
-        return responses
+            return responses
+    except TimeoutError:
+        log.warning(f"Tool execution timed out after {timeout} seconds")
+        responses.append(AIMessage("Some tools timed out during execution"))
+    except Exception as e:
+        log.warning(f"Unexpected error in tool execution: {str(e)}", exc_info=True)
+        responses.append(AIMessage(f"Execution error: {str(e)}"))
 
 
 def sending_task_to_agent(state: RedboxState):
