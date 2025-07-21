@@ -96,10 +96,10 @@ def run_tools_parallel(ai_msg, tools, state, timeout=30):
 
             return responses
     except TimeoutError:
-        log.error(f"Tool execution timed out after {timeout} seconds")
+        log.warning(f"Tool execution timed out after {timeout} seconds")
         responses.append(AIMessage("Some tools timed out during execution"))
     except Exception as e:
-        log.error(f"Unexpected error in tool execution: {str(e)}", exc_info=True)
+        log.warning(f"Unexpected error in tool execution: {str(e)}", exc_info=True)
         responses.append(AIMessage(f"Execution error: {str(e)}"))
 
 
