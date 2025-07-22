@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 from io import BytesIO
 from typing import TYPE_CHECKING
-from waffle import flag_is_active
+from waffle import switch_is_active
 
 import environ
 import fitz
@@ -158,7 +158,7 @@ class UnstructuredChunkLoader:
                     print(response)
                     raise ValueError(msg)
                 elements.extend(response.json())
-        elif flag_is_active("tabular_ingestion_active") and is_tabular:
+        elif switch_is_active("tabular_ingestion_active") and is_tabular:
             elements = load_tabular_file(file_name=file_name, file_bytes=file_bytes)
         else:
             files = {
