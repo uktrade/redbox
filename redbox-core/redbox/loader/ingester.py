@@ -103,27 +103,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
         env=env,
     )
 
-    tabular_chunk_ingest_chain = ingest_from_loader(
-        loader=UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.tabular,
-            env=env,
-            min_chunk_size=env.worker_ingest_largest_chunk_size,
-            max_chunk_size=env.worker_ingest_largest_chunk_size,
-            overlap_chars=env.worker_ingest_largest_chunk_overlap,
-            metadata=metadata,
-        ),
-        s3_client=env.s3_client(),
-        vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
-        env=env,
-    )
-    if file_name.endswith((".csv", ".xls", "xlsx")):
-        new_ids = RunnableParallel({"tabular": tabular_chunk_ingest_chain}).invoke(
-            file_name
-        )  # Use Fake Embeddings for Excel Files or CSVs in case text files run on
-    else:
-        new_ids = RunnableParallel({"normal": chunk_ingest_chain, "largest": large_chunk_ingest_chain}).invoke(
-            file_name
-        )
+    new_ids = RunnableParallel({"normal": chunk_ingest_chain, "largest": large_chunk_ingest_chain}).invoke(file_name)
     logging.info(
         "File: %s %s chunks ingested",
         file_name,
