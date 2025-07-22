@@ -1,6 +1,4 @@
-import asyncio
-
-from typing import List, Any
+from typing import List
 
 from langchain_core.messages import AIMessage
 from langchain_core.tools import StructuredTool
@@ -59,28 +57,6 @@ from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.models.prompts import EXTERNAL_RETRIEVAL_AGENT_PROMPT, INTERNAL_RETRIEVAL_AGENT_PROMPT
 from redbox.models.settings import get_settings
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
-
-
-class AsyncToolNode(ToolNode):
-    async def _acall(self, inputs: dict[str, Any]) -> dict[str, Any]:
-        # Override to handle async tools
-        tools_by_name = {tool.name: tool for tool in self.tools}
-        tool_calls = inputs.get("tool_calls", [])
-        results = []
-        for tool_call in tool_calls:
-            tool = tools_by_name.get(tool_call["name"])
-            if tool is None:
-                results.append({"name": tool_call["name"], "args": tool_call["args"], "error": "Tool not found"})
-            else:
-                try:
-                    if asyncio.iscoroutinefunction(tool.func):
-                        result = await tool.func(**tool_call["args"])
-                    else:
-                        result = tool.func(**tool_call["args"])
-                    results.append({"name": tool_call["name"], "args": tool_call["args"], "result": result})
-                except Exception as e:
-                    results.append({"name": tool_call["name"], "args": tool_call["args"], "error": str(e)})
-        return {"results": results}
 
 
 def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, multi_agent_tools, debug):
@@ -312,9 +288,6 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent
         retry=RetryPolicy(max_attempts=3),
     )
 
-    # Add a node to clear messages before error
-    builder.add_node("clear_messages_before_error", lambda state: {"messages": []})
-
     builder.add_node(
         "files_too_large_error",
         build_error_pattern(
@@ -337,18 +310,17 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent
         retry=RetryPolicy(max_attempts=3),
     )
 
-    # Edges
+    # edges
     builder.add_edge(START, "choose_route_based_on_request_token")
     builder.add_conditional_edges(
         "choose_route_based_on_request_token",
         build_total_tokens_request_handler_conditional(PromptSet.ChatwithDocsMapReduce),
         {
-            "max_exceeded": "clear_messages_before_error",
+            "max_exceeded": "files_too_large_error",
             "context_exceeded": "set_route_to_summarise_large_doc",
             "pass": "set_route_to_summarise_doc",
         },
     )
-    builder.add_edge("clear_messages_before_error", "files_too_large_error")
     builder.add_edge("set_route_to_summarise_large_doc", "pass_user_prompt_to_LLM_message")
     builder.add_edge("set_route_to_summarise_doc", "pass_user_prompt_to_LLM_message")
     builder.add_edge("pass_user_prompt_to_LLM_message", "retrieve_all_chunks")
@@ -397,7 +369,7 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent
         "any_document_bigger_than_context_window",
         build_documents_bigger_than_context_conditional(PromptSet.ChatwithDocsMapReduce),
         {
-            True: "clear_messages_before_error",
+            True: "files_too_large_error",
             False: "sending_summarised_chunks",
         },
     )
@@ -411,7 +383,7 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent
         "any_summarised_docs_bigger_than_context_window",
         build_documents_bigger_than_context_conditional(PromptSet.ChatwithDocs),
         {
-            True: "clear_messages_before_error",
+            True: "files_too_large_error",
             False: "summarise_document",
         },
     )
@@ -470,7 +442,7 @@ def get_self_route_graph(retriever: VectorStoreRetriever, prompt_set: PromptSet,
         retry=RetryPolicy(max_attempts=3),
     )
 
-    # edges
+    # Edges
     builder.add_edge(START, "p_condense_question")
     builder.add_edge("p_condense_question", "p_retrieve_docs")
     builder.add_edge("p_retrieve_docs", "p_answer_question_or_decide_unanswerable")
@@ -544,7 +516,11 @@ def get_agentic_search_graph(tools: List[StructuredTool], debug: bool = False) -
         build_smart_agent,
         retry=RetryPolicy(max_attempts=3),
     )
-    builder.add_node("invoke_tool_calls", AsyncToolNode(tools=tools), retry=RetryPolicy(max_attempts=3))
+    builder.add_node(
+        "invoke_tool_calls",
+        ToolNode(tools=tools),
+        retry=RetryPolicy(max_attempts=3),
+    )
     builder.add_node(
         "give_up_agent",
         build_stuff_pattern(prompt_set=PromptSet.GiveUpAgentic, final_response_chain=True),
@@ -675,6 +651,7 @@ def build_new_graph(
             max_tokens=agents_max_tokens["Internal_Retrieval_Agent"],
         ),
     )
+    builder.add_node("send", empty_process)
     builder.add_node(
         "External_Retrieval_Agent",
         build_agent(
@@ -695,7 +672,9 @@ def build_new_graph(
             debug=debug,
         ),
     )
+
     builder.add_node("user_feedback_evaluation", empty_process)
+
     builder.add_node("Evaluator_Agent", create_evaluator())
     builder.add_node("combine_question_evaluator", combine_question_evaluator())
     builder.add_node(
@@ -706,7 +685,6 @@ def build_new_graph(
     builder.add_node("stream_suggestion", stream_suggestion())
     builder.add_node("sending_task", empty_process)
 
-    # Edges
     builder.add_edge(START, "set_route_to_newroute")
     builder.add_edge("set_route_to_newroute", "remove_keyword")
     builder.add_conditional_edges(
@@ -722,18 +700,9 @@ def build_new_graph(
             "more_info": "stream_suggestion",
         },
     )
-    builder.add_conditional_edges(
-        "sending_task",
-        sending_task_to_agent,
-        {
-            "Internal_Retrieval_Agent": "Internal_Retrieval_Agent",
-            "External_Retrieval_Agent": "External_Retrieval_Agent",
-            "Summarisation_Agent": "Summarisation_Agent",
-        },
-    )
+    builder.add_conditional_edges("sending_task", sending_task_to_agent)
     builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
     builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
-    builder.add_edge("Summarisation_Agent", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)

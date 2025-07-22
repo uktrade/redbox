@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from typing import Callable
 
 from langchain_core.messages import AIMessage
@@ -76,11 +76,11 @@ async def run_tools_parallel(ai_msg, tools, state, timeout=30):
             if asyncio.iscoroutinefunction(tool.func):
                 return await asyncio.wait_for(tool.ainvoke(args), timeout=timeout)
             else:
+
                 async def sync_tool_wrapper():
                     with ThreadPoolExecutor(max_workers=1) as executor:
-                        return await asyncio.get_event_loop().run_in_executor(
-                            executor, lambda: tool.invoke(args)
-                        )
+                        return await asyncio.get_event_loop().run_in_executor(executor, lambda: tool.invoke(args))
+
                 return await asyncio.wait_for(sync_tool_wrapper(), timeout=timeout)
         except asyncio.TimeoutError:
             log.warning(f"Tool {tool.name} timed out after {timeout} seconds")
