@@ -73,14 +73,24 @@ async def run_tools_parallel(ai_msg, tools, state, timeout=30):
         try:
             result = None
             log.debug(f"Executing tool {tool.name} with args: {args}")
-            if asyncio.iscoroutinefunction(tool.func):
-                result = await asyncio.wait_for(tool.ainvoke(args), timeout=timeout)
+            # Check if the tool has an async coroutine
+            is_async = hasattr(tool, "coroutine") and asyncio.iscoroutinefunction(tool.coroutine)
+            if is_async:
+                # Unpack args according to the tool's schema if it's a StructuredTool
+                if hasattr(tool, "args_schema") and tool.args_schema:
+                    try:
+                        schema_instance = tool.args_schema(**args)
+                        tool_args = schema_instance.dict()
+                    except Exception as e:
+                        log.error(f"Error parsing args for {tool.name}: {str(e)}")
+                        return AIMessage(content=f"Error: Invalid arguments for {tool.name}")
+                else:
+                    tool_args = args
+                result = await asyncio.wait_for(tool.ainvoke(tool_args), timeout=timeout)
             else:
-
                 async def sync_tool_wrapper():
                     with ThreadPoolExecutor(max_workers=1) as executor:
                         return await asyncio.get_event_loop().run_in_executor(executor, lambda: tool.invoke(args))
-
                 result = await asyncio.wait_for(sync_tool_wrapper(), timeout=timeout)
 
             log.debug(f"Raw tool result for {tool.name}: {result}")
@@ -90,16 +100,10 @@ async def run_tools_parallel(ai_msg, tools, state, timeout=30):
                     return AIMessage(content=f"Error: Invalid response format from {tool.name}")
                 content, artifact = result
                 if not isinstance(content, str) or not isinstance(artifact, list):
-                    log.error(
-                        f"Tool {tool.name} returned invalid types: content={type(content)}, artifact={type(artifact)}"
-                    )
+                    log.error(f"Tool {tool.name} returned invalid types: content={type(content)}, artifact={type(artifact)}")
                     return AIMessage(content=f"Error: Invalid response types from {tool.name}")
                 for doc in artifact:
-                    if (
-                        not isinstance(doc, Document)
-                        or not hasattr(doc, "page_content")
-                        or not hasattr(doc, "metadata")
-                    ):
+                    if not isinstance(doc, Document) or not hasattr(doc, "page_content") or not hasattr(doc, "metadata"):
                         log.error(f"Invalid Document in {tool.name} artifact: {doc}")
                         return AIMessage(content=f"Error: Invalid Document format from {tool.name}")
                 return AIMessage(content=content, additional_kwargs={"artifact": artifact})

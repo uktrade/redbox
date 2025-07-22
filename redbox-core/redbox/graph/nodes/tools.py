@@ -99,12 +99,10 @@ class GovUKSearchInput(BaseModel):
     query: str = Field(description="The search query string to match against gov.uk content")
     state: Annotated[RedboxState, InjectedState] = Field(description="The current state of the application")
 
-
 def build_govuk_search_tool(filter: bool = True) -> StructuredTool:
     """
     Constructs a tool that asynchronously searches gov.uk and returns formatted documents and raw documents.
     """
-
     @tool(response_format="content_and_artifact")
     async def _search_govuk(query: str, state: Annotated[RedboxState, InjectedState]) -> Tuple[str, list[Document]]:
         """
@@ -126,7 +124,7 @@ def build_govuk_search_tool(filter: bool = True) -> StructuredTool:
         url_base = "https://www.gov.uk"
         required_fields = ["format", "title", "description", "indexable_content", "link"]
         ai_settings = state.request.ai_settings
-        timeout = aiohttp.ClientTimeout(total=10)
+        timeout = aiohttp.ClientTimeout(total=30)
 
         async def recalculate_similarity(response: dict, query: str, num_results: int) -> dict:
             try:
@@ -141,9 +139,7 @@ def build_govuk_search_tool(filter: bool = True) -> StructuredTool:
                     result["similarity"] = cosine_similarity(
                         np.array(query_vector).reshape(1, -1), np.array(description_vector).reshape(1, -1)
                     )[0][0]
-                response["results"] = sorted(response.get("results", []), key=lambda x: x["similarity"], reverse=True)[
-                    :num_results
-                ]
+                response["results"] = sorted(response.get("results", []), key=lambda x: x["similarity"], reverse=True)[:num_results]
                 return response
             except Exception as e:
                 log.error(f"Error in recalculate_similarity: {str(e)}")
@@ -190,23 +186,33 @@ def build_govuk_search_tool(filter: bool = True) -> StructuredTool:
                     log.warning(f"Skipping document {i} due to missing required fields: {doc}")
                     continue
                 content = doc["indexable_content"][:max_content_tokens]
-                mapped_documents.append(
-                    Document(
-                        page_content=content,
-                        metadata=ChunkMetadata(
-                            index=i,
-                            uri=f"{url_base}{doc['link']}",
-                            token_count=tokeniser(content),
-                            creator_type=ChunkCreatorType.gov_uk,
-                        ).model_dump(),
+                if not content:
+                    log.warning(f"Skipping document {i} due to empty content")
+                    continue
+                try:
+                    token_count = tokeniser(content)
+                    mapped_documents.append(
+                        Document(
+                            page_content=content,
+                            metadata=ChunkMetadata(
+                                index=i,
+                                uri=f"{url_base}{doc['link']}",
+                                token_count=token_count,
+                                creator_type=ChunkCreatorType.gov_uk,
+                            ).model_dump(),
+                        )
                     )
-                )
+                except Exception as e:
+                    log.warning(f"Error creating Document for gov.uk result {i}: {str(e)}")
+                    continue
 
             if not mapped_documents:
                 log.warning(f"No valid documents after processing for query: {query}")
                 return "No valid documents found from gov.uk API.", []
 
-            return format_documents(mapped_documents), mapped_documents
+            formatted_content = format_documents(mapped_documents)
+            log.debug(f"Formatted content: {formatted_content[:500]}...")
+            return formatted_content, mapped_documents
 
         except aiohttp.ClientError as e:
             log.error(f"Error accessing gov.uk API: {str(e)}")
