@@ -1,7 +1,9 @@
-from typing import Annotated, Iterable, Union
+from typing import Annotated, Iterable, Union, Tuple
 
+import aiohttp
 import boto3
 import json
+import logging
 import numpy as np
 import requests
 from elasticsearch import Elasticsearch
@@ -9,10 +11,11 @@ from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.messages import ToolCall
-from langchain_core.tools import Tool, tool
+from langchain_core.tools import Tool, tool, StructuredTool
 from langgraph.prebuilt import InjectedState
 from mohawk import Sender
 from opensearchpy import OpenSearch
+from pydantic import BaseModel, Field
 from sklearn.metrics.pairwise import cosine_similarity
 from waffle.decorators import waffle_flag
 
@@ -89,25 +92,19 @@ def build_search_documents_tool(
     return _search_documents
 
 
-def build_govuk_search_tool(filter=True) -> Tool:
-    """Constructs a tool that searches gov.uk and sets state["documents"]."""
+log = logging.getLogger(__name__)
 
-    tokeniser = bedrock_tokeniser
 
-    def recalculate_similarity(response, query, num_results):
-        embedding_model = get_embeddings(get_settings())
-        em_query = embedding_model.embed_query(query)
-        for r in response.get("results"):
-            description = r.get("description")
-            em_des = embedding_model.embed_query(description)
-            r["similarity"] = cosine_similarity(np.array(em_query).reshape(1, -1), np.array(em_des).reshape(1, -1))[0][
-                0
-            ]
-        response["results"] = sorted(response.get("results"), key=lambda x: x["similarity"], reverse=True)[:num_results]
-        return response
+class GovUKSearchInput(BaseModel):
+    query: str = Field(description="The search query string to match against gov.uk content")
+    state: Annotated[RedboxState, InjectedState] = Field(description="The current state of the application")
 
+def build_govuk_search_tool(filter: bool = True) -> StructuredTool:
+    """
+    Constructs a tool that asynchronously searches gov.uk and returns formatted documents and raw documents.
+    """
     @tool(response_format="content_and_artifact")
-    def _search_govuk(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
+    async def _search_govuk(query: str, state: Annotated[RedboxState, InjectedState]) -> Tuple[str, list[Document]]:
         """
         Search for documents on gov.uk based on a query string.
         This endpoint is used to search for documents on gov.uk. There are many types of documents on gov.uk.
@@ -122,54 +119,116 @@ def build_govuk_search_tool(filter=True) -> Tool:
         - consultations
         - appeals
         """
+        tokeniser = bedrock_tokeniser
         max_content_tokens = 1000
         url_base = "https://www.gov.uk"
-        required_fields = [
-            "format",
-            "title",
-            "description",
-            "indexable_content",
-            "link",
-        ]
+        required_fields = ["format", "title", "description", "indexable_content", "link"]
         ai_settings = state.request.ai_settings
-        response = requests.get(
-            f"{url_base}/api/search.json",
-            params={
-                "q": query,
-                "count": (
-                    ai_settings.tool_govuk_retrieved_results if filter else ai_settings.tool_govuk_returned_results
-                ),
-                "fields": required_fields,
-            },
-            headers={"Accept": "application/json"},
-        )
-        response.raise_for_status()
-        response = response.json()
+        timeout = aiohttp.ClientTimeout(total=30)
 
-        if filter:
-            response = recalculate_similarity(response, query, ai_settings.tool_govuk_returned_results)
+        async def recalculate_similarity(response: dict, query: str, num_results: int) -> dict:
+            try:
+                embedding_model = get_embeddings(get_settings())
+                query_vector = embedding_model.embed_query(query)
+                for result in response.get("results", []):
+                    description = result.get("description", "")
+                    if not description:
+                        result["similarity"] = 0.0
+                        continue
+                    description_vector = embedding_model.embed_query(description)
+                    result["similarity"] = cosine_similarity(
+                        np.array(query_vector).reshape(1, -1), np.array(description_vector).reshape(1, -1)
+                    )[0][0]
+                response["results"] = sorted(response.get("results", []), key=lambda x: x["similarity"], reverse=True)[:num_results]
+                return response
+            except Exception as e:
+                log.error(f"Error in recalculate_similarity: {str(e)}")
+                return response
 
-        mapped_documents = []
-        for i, doc in enumerate(response["results"]):
-            if any(field not in doc for field in required_fields):
-                continue
-            # truncate content
-            content = doc["indexable_content"][:max_content_tokens]
-            mapped_documents.append(
-                Document(
-                    page_content=content,
-                    metadata=ChunkMetadata(
-                        index=i,
-                        uri=f"{url_base}{doc['link']}",
-                        token_count=tokeniser(content),
-                        creator_type=ChunkCreatorType.gov_uk,
-                    ).model_dump(),
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(
+                    f"{url_base}/api/search.json",
+                    params={
+                        "q": query,
+                        "count": (
+                            ai_settings.tool_govuk_retrieved_results
+                            if filter
+                            else ai_settings.tool_govuk_returned_results
+                        ),
+                        "fields": required_fields,
+                    },
+                    headers={"Accept": "application/json"},
+                ) as response:
+                    response.raise_for_status()
+                    try:
+                        response_data = await response.json()
+                        log.debug(f"Raw gov.uk API response: {response_data}")
+                    except aiohttp.ContentTypeError as e:
+                        log.error(f"Invalid content type from gov.uk API: {str(e)}")
+                        return "Error: Invalid response format from gov.uk API", []
+                    except ValueError as e:
+                        log.error(f"Failed to parse JSON from gov.uk API: {str(e)}")
+                        return "Error: Failed to parse API response", []
+
+            if not response_data.get("results"):
+                log.warning(f"No results found for query: {query}")
+                return "No results found from gov.uk API.", []
+
+            if filter:
+                response_data = await recalculate_similarity(
+                    response_data, query, ai_settings.tool_govuk_returned_results
                 )
-            )
 
-        return format_documents(mapped_documents), mapped_documents
+            mapped_documents = []
+            for i, doc in enumerate(response_data.get("results", [])):
+                if any(field not in doc for field in required_fields):
+                    log.warning(f"Skipping document {i} due to missing required fields: {doc}")
+                    continue
+                content = doc["indexable_content"][:max_content_tokens]
+                if not content:
+                    log.warning(f"Skipping document {i} due to empty content")
+                    continue
+                try:
+                    token_count = tokeniser(content)
+                    mapped_documents.append(
+                        Document(
+                            page_content=content,
+                            metadata=ChunkMetadata(
+                                index=i,
+                                uri=f"{url_base}{doc['link']}",
+                                token_count=token_count,
+                                creator_type=ChunkCreatorType.gov_uk,
+                            ).model_dump(),
+                        )
+                    )
+                except Exception as e:
+                    log.warning(f"Error creating Document for gov.uk result {i}: {str(e)}")
+                    continue
 
-    return _search_govuk
+            if not mapped_documents:
+                log.warning(f"No valid documents after processing for query: {query}")
+                return "No valid documents found from gov.uk API.", []
+
+            formatted_content = format_documents(mapped_documents)
+            log.debug(f"Formatted content: {formatted_content[:500]}...")
+            return formatted_content, mapped_documents
+
+        except aiohttp.ClientError as e:
+            log.error(f"Error accessing gov.uk API: {str(e)}")
+            return f"Error accessing gov.uk API: {str(e)}", []
+        except Exception as e:
+            log.error(f"Unexpected error in _search_govuk: {str(e)}")
+            return f"Error: {str(e)}", []
+
+    return StructuredTool.from_function(
+        func=_search_govuk,
+        name="_search_govuk",
+        description="Asynchronously search gov.uk for relevant documents.",
+        args_schema=GovUKSearchInput,
+        response_format="content_and_artifact",
+        coroutine=_search_govuk,
+    )
 
 
 def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_page=12000) -> Tool:
@@ -192,31 +251,39 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
                 This could be a keyword, phrase, or name
 
         Returns:
-            response (str): The content of the relevant Wikipedia page
+            tuple[str, list[Document]]: Formatted content and list of Document objects
         """
+        log.debug(f"Executing Wikipedia search for query: {query}")
         response = _wikipedia_wrapper.load(query)
+        log.debug(f"Wikipedia API response: {response}")
         if not response:
-            print("No Wikipedia response found.")
+            log.warning(f"No Wikipedia response found for query: {query}")
             return "", []
 
         mapped_documents = []
         for i, doc in enumerate(response):
+            if not hasattr(doc, "page_content") or not hasattr(doc, "metadata"):
+                log.warning(f"Invalid document from Wikipedia at index {i}: {doc}")
+                continue
             token_count = tokeniser(doc.page_content)
-            print(f"Document {i} token count: {token_count}")
-
+            log.debug(f"Document {i} token count: {token_count}")
             mapped_documents.append(
                 Document(
-                    page_content=doc.page_content,
+                    page_content=doc.page_content[:max_chars_per_wiki_page],
                     metadata=ChunkMetadata(
                         index=i,
-                        uri=doc.metadata["source"],
+                        uri=doc.metadata.get("source", ""),
                         token_count=token_count,
                         creator_type=ChunkCreatorType.wikipedia,
                     ).model_dump(),
                 )
             )
-        docs = mapped_documents
-        return format_documents(docs), docs
+        if not mapped_documents:
+            log.warning(f"No valid documents after processing for query: {query}")
+            return "No valid Wikipedia pages found.", []
+        formatted_content = format_documents(mapped_documents)
+        log.debug(f"Formatted content: {formatted_content[:500]}...")
+        return formatted_content, mapped_documents
 
     return _search_wikipedia
 

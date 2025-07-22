@@ -62,8 +62,8 @@ class Redbox:
             embedding_field_name=_env.embedding_document_field_name,
             chunk_resolution=ChunkResolution.normal,
         )
-        search_wikipedia = build_search_wikipedia_tool()
-        search_govuk = build_govuk_search_tool()
+        search_wikipedia = build_search_wikipedia_tool()  # Synchronous
+        search_govuk = build_govuk_search_tool()  # Asynchronous
 
         self.tools = [search_documents, search_wikipedia, search_govuk]
 
@@ -180,9 +180,8 @@ class Redbox:
         except CancelledError:
             logger.error("All retries exhausted for CancelledError in the astream_events function")
             raise
-
-        except Exception:
-            logger.error("Generic error in run - {str(e)}")
+        except Exception as e:
+            logger.error(f"Generic error in run - {str(e)}")
             raise
 
         if final_state is None:
