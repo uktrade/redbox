@@ -8,7 +8,7 @@ import time
 from collections.abc import Callable
 from functools import reduce
 from random import uniform
-from typing import Any, Iterable
+from typing import Any, Iterable, Dict
 from uuid import uuid4
 
 from botocore.exceptions import EventStreamError
@@ -456,9 +456,12 @@ def my_planner(allow_plan_feedback=False, node_after_streamed: str = "human", no
     return _create_planner
 
 
-def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: bool = False, max_tokens: int = 5000):
-    @RunnableLambda
-    def _build_agent(state: RedboxState):
+def build_agent(
+    agent_name: str, system_prompt: str, tools: list[StructuredTool], use_metadata: bool = False, max_tokens: int = 5000
+):
+    def _build_agent(state: RedboxState) -> Dict[str, Any]:
+        from redbox.chains.parser import ClaudeParser  # Move import inside to avoid circular imports
+
         parser = ClaudeParser(pydantic_object=AgentTask)
         try:
             task = parser.parse(state.last_message.content)
@@ -490,7 +493,7 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
             "last_message": updated_message,
         }
 
-    return _build_agent
+    return RunnableLambda(_build_agent)
 
 
 def create_evaluator():

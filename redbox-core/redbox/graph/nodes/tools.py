@@ -1,9 +1,9 @@
-from typing import Annotated, Iterable, Union
+from typing import Annotated, Iterable, Union, Tuple
 
 import aiohttp
-
 import boto3
 import json
+import logging
 import numpy as np
 import requests
 from elasticsearch import Elasticsearch
@@ -11,10 +11,11 @@ from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.messages import ToolCall
-from langchain_core.tools import Tool, tool
+from langchain_core.tools import Tool, tool, StructuredTool
 from langgraph.prebuilt import InjectedState
 from mohawk import Sender
 from opensearchpy import OpenSearch
+from pydantic import BaseModel, Field
 from sklearn.metrics.pairwise import cosine_similarity
 from waffle.decorators import waffle_flag
 
@@ -91,12 +92,20 @@ def build_search_documents_tool(
     return _search_documents
 
 
-def build_govuk_search_tool(filter: bool = True) -> Tool:
+log = logging.getLogger(__name__)
+
+
+class GovUKSearchInput(BaseModel):
+    query: str = Field(description="The search query string to match against gov.uk content")
+    state: Annotated[RedboxState, InjectedState] = Field(description="The current state of the application")
+
+
+def build_govuk_search_tool(filter: bool = True) -> StructuredTool:
     """
-    Constructs a tool that asynchronously searches gov.uk and sets state["documents"].
+    Constructs a tool that asynchronously searches gov.uk and returns formatted documents and raw documents.
     """
 
-    async def _search_govuk(query: str, state: Annotated[RedboxState, InjectedState]) -> str:
+    async def _search_govuk(query: str, state: Annotated[RedboxState, InjectedState]) -> Tuple[str, list[Document]]:
         """
         Search for documents on gov.uk based on a query string.
         This endpoint is used to search for documents on gov.uk. There are many types of documents on gov.uk.
@@ -116,63 +125,102 @@ def build_govuk_search_tool(filter: bool = True) -> Tool:
         url_base = "https://www.gov.uk"
         required_fields = ["format", "title", "description", "indexable_content", "link"]
         ai_settings = state.request.ai_settings
+        timeout = aiohttp.ClientTimeout(total=10)
 
         async def recalculate_similarity(response: dict, query: str, num_results: int) -> dict:
-            embedding_model = get_embeddings(get_settings())
-            query_vector = embedding_model.embed_query(query)
-            for result in response.get("results", []):
-                description = result.get("description", "")
-                description_vector = embedding_model.embed_query(description)
-                result["similarity"] = cosine_similarity(
-                    np.array(query_vector).reshape(1, -1), np.array(description_vector).reshape(1, -1)
-                )[0][0]
-            response["results"] = sorted(response.get("results", []), key=lambda x: x["similarity"], reverse=True)[
-                :num_results
-            ]
-            return response
+            try:
+                embedding_model = get_embeddings(get_settings())
+                query_vector = embedding_model.embed_query(query)
+                for result in response.get("results", []):
+                    description = result.get("description", "")
+                    if not description:
+                        result["similarity"] = 0.0
+                        continue
+                    description_vector = embedding_model.embed_query(description)
+                    result["similarity"] = cosine_similarity(
+                        np.array(query_vector).reshape(1, -1), np.array(description_vector).reshape(1, -1)
+                    )[0][0]
+                response["results"] = sorted(response.get("results", []), key=lambda x: x["similarity"], reverse=True)[
+                    :num_results
+                ]
+                return response
+            except Exception as e:
+                log.error(f"Error in recalculate_similarity: {str(e)}")
+                return response
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"{url_base}/api/search.json",
-                params={
-                    "q": query,
-                    "count": (
-                        ai_settings.tool_govuk_retrieved_results if filter else ai_settings.tool_govuk_returned_results
-                    ),
-                    "fields": required_fields,
-                },
-                headers={"Accept": "application/json"},
-            ) as response:
-                response.raise_for_status()
-                response_data = await response.json()
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(
+                    f"{url_base}/api/search.json",
+                    params={
+                        "q": query,
+                        "count": (
+                            ai_settings.tool_govuk_retrieved_results
+                            if filter
+                            else ai_settings.tool_govuk_returned_results
+                        ),
+                        "fields": required_fields,
+                    },
+                    headers={"Accept": "application/json"},
+                ) as response:
+                    response.raise_for_status()
+                    try:
+                        response_data = await response.json()
+                        log.debug(f"Raw gov.uk API response: {response_data}")
+                    except aiohttp.ContentTypeError as e:
+                        log.error(f"Invalid content type from gov.uk API: {str(e)}")
+                        return "Error: Invalid response format from gov.uk API", []
+                    except ValueError as e:
+                        log.error(f"Failed to parse JSON from gov.uk API: {str(e)}")
+                        return "Error: Failed to parse API response", []
 
-        if filter:
-            response_data = await recalculate_similarity(response_data, query, ai_settings.tool_govuk_returned_results)
+            if not response_data.get("results"):
+                log.warning(f"No results found for query: {query}")
+                return "No results found from gov.uk API.", []
 
-        mapped_documents = []
-        for i, doc in enumerate(response_data.get("results", [])):
-            if any(field not in doc for field in required_fields):
-                continue
-            # truncate content
-            content = doc["indexable_content"][:max_content_tokens]
-            mapped_documents.append(
-                Document(
-                    page_content=content,
-                    metadata=ChunkMetadata(
-                        index=i,
-                        uri=f"{url_base}{doc['link']}",
-                        token_count=tokeniser(content),
-                        creator_type=ChunkCreatorType.gov_uk,
-                    ).model_dump(),
+            if filter:
+                response_data = await recalculate_similarity(
+                    response_data, query, ai_settings.tool_govuk_returned_results
                 )
-            )
-        return format_documents(mapped_documents)
 
-    return Tool.from_function(
+            mapped_documents = []
+            for i, doc in enumerate(response_data.get("results", [])):
+                if any(field not in doc for field in required_fields):
+                    log.warning(f"Skipping document {i} due to missing required fields: {doc}")
+                    continue
+                content = doc["indexable_content"][:max_content_tokens]
+                mapped_documents.append(
+                    Document(
+                        page_content=content,
+                        metadata=ChunkMetadata(
+                            index=i,
+                            uri=f"{url_base}{doc['link']}",
+                            token_count=tokeniser(content),
+                            creator_type=ChunkCreatorType.gov_uk,
+                        ).model_dump(),
+                    )
+                )
+
+            if not mapped_documents:
+                log.warning(f"No valid documents after processing for query: {query}")
+                return "No valid documents found from gov.uk API.", []
+
+            return format_documents(mapped_documents), mapped_documents
+
+        except aiohttp.ClientError as e:
+            log.error(f"Error accessing gov.uk API: {str(e)}")
+            return f"Error accessing gov.uk API: {str(e)}", []
+        except Exception as e:
+            log.error(f"Unexpected error in _search_govuk: {str(e)}")
+            return f"Error: {str(e)}", []
+
+    return StructuredTool.from_function(
         func=_search_govuk,
         name="_search_govuk",
         description="Asynchronously search gov.uk for relevant documents.",
+        args_schema=GovUKSearchInput,
         response_format="content_and_artifact",
+        coroutine=_search_govuk,
     )
 
 

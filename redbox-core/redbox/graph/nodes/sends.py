@@ -1,12 +1,9 @@
 import asyncio
 import logging
-
 from concurrent.futures import ThreadPoolExecutor
 from typing import Callable
-
 from langchain_core.messages import AIMessage
 from langgraph.constants import Send
-
 from redbox.models.chain import DocumentState, RedboxState
 
 log = logging.getLogger(__name__)
@@ -73,15 +70,32 @@ async def run_tools_parallel(ai_msg, tools, state, timeout=30):
 
     async def execute_tool(tool, args):
         try:
+            result = None
             if asyncio.iscoroutinefunction(tool.func):
-                return await asyncio.wait_for(tool.ainvoke(args), timeout=timeout)
+                # Await the async tool function directly
+                result = await asyncio.wait_for(tool.ainvoke(args), timeout=timeout)
             else:
 
                 async def sync_tool_wrapper():
                     with ThreadPoolExecutor(max_workers=1) as executor:
                         return await asyncio.get_event_loop().run_in_executor(executor, lambda: tool.invoke(args))
 
-                return await asyncio.wait_for(sync_tool_wrapper(), timeout=timeout)
+                result = await asyncio.wait_for(sync_tool_wrapper(), timeout=timeout)
+
+            # Validate content_and_artifact format
+            if getattr(tool, "response_format", None) == "content_and_artifact":
+                if not isinstance(result, tuple) or len(result) != 2:
+                    log.error(f"Tool {tool.name} returned invalid content_and_artifact format: {type(result)}")
+                    return AIMessage(content=f"Error: Invalid response format from {tool.name}")
+                content, artifact = result
+                if not isinstance(content, str) or not isinstance(artifact, list):
+                    log.error(
+                        f"Tool {tool.name} returned invalid content_and_artifact types: {type(content)}, {type(artifact)}"
+                    )
+                    return AIMessage(content=f"Error: Invalid response types from {tool.name}")
+                return AIMessage(content=content, additional_kwargs={"artifact": artifact})
+            return result
+
         except asyncio.TimeoutError:
             log.warning(f"Tool {tool.name} timed out after {timeout} seconds")
             return AIMessage(content=f"Error: Tool {tool.name} timed out")
@@ -110,8 +124,12 @@ async def run_tools_parallel(ai_msg, tools, state, timeout=30):
             elif isinstance(result, Exception):
                 log.warning(f"Unexpected error in tool execution: {str(result)}", exc_info=True)
                 responses.append(AIMessage(content=f"Error: {str(result)}"))
+            elif isinstance(result, tuple) and len(result) == 2:
+                content, artifact = result
+                responses.append(AIMessage(content=content, additional_kwargs={"artifact": artifact}))
             else:
-                responses.append(AIMessage(content=str(result)))
+                log.warning(f"Unexpected result type from tool execution: {type(result)}")
+                responses.append(AIMessage(content=f"Error: Unexpected result type {type(result)}"))
 
     if not responses:
         responses.append(ai_msg)
