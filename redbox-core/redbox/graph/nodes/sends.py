@@ -1,12 +1,15 @@
 import asyncio
+import logging
 
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from typing import Callable
 
 from langchain_core.messages import AIMessage
 from langgraph.constants import Send
 
 from redbox.models.chain import DocumentState, RedboxState
+
+log = logging.getLogger(__name__)
 
 
 def _copy_state(state: RedboxState, **updates) -> RedboxState:
@@ -63,48 +66,53 @@ def build_tool_send(target: str) -> Callable[[RedboxState], list[Send]]:
     return _tool_send
 
 
-async def run_tools_parallel(ai_msg, tools, state):
-    """Execute tool calls in parallel, supporting both synchronous and asynchronous tools."""
+async def run_tools_parallel(ai_msg, tools, state, timeout=30):
+    """Execute tool calls in parallel, supporting both synchronous and asynchronous tools with a timeout."""
     responses = []
-
-    # Create a mapping of tool names to tools
     tools_by_name = {tool.name: tool for tool in tools}
 
-    # Gather coroutines for async tools and functions for sync tools
+    async def execute_tool(tool, args):
+        try:
+            if asyncio.iscoroutinefunction(tool.func):
+                return await asyncio.wait_for(tool.ainvoke(args), timeout=timeout)
+            else:
+                async def sync_tool_wrapper():
+                    with ThreadPoolExecutor(max_workers=1) as executor:
+                        return await asyncio.get_event_loop().run_in_executor(
+                            executor, lambda: tool.invoke(args)
+                        )
+                return await asyncio.wait_for(sync_tool_wrapper(), timeout=timeout)
+        except asyncio.TimeoutError:
+            log.warning(f"Tool {tool.name} timed out after {timeout} seconds")
+            return AIMessage(content=f"Error: Tool {tool.name} timed out")
+        except Exception as e:
+            log.warning(f"Tool {tool.name} invocation error: {str(e)}", exc_info=True)
+            return AIMessage(content=f"Error: {str(e)}")
+
     tasks = []
     for tool_call in ai_msg.tool_calls:
         tool_name = tool_call.get("name")
         selected_tool = tools_by_name.get(tool_name)
         if selected_tool is None:
-            print(f"Warning: No tool found for {tool_name}")
+            log.warning(f"No tool found for {tool_name}")
             responses.append(AIMessage(content=f"Error: Tool {tool_name} not found"))
             continue
 
         args = tool_call.get("args", {})
         args["state"] = state
+        tasks.append(execute_tool(selected_tool, args))
 
-        # Check async vs sync
-        if asyncio.iscoroutinefunction(selected_tool.func):
-            tasks.append(selected_tool.ainvoke(args))
-        else:
-
-            async def sync_tool_wrapper(tool, args):
-                with ThreadPoolExecutor() as executor:
-                    return await asyncio.get_event_loop().run_in_executor(executor, lambda: tool.invoke(args))
-
-            tasks.append(sync_tool_wrapper(selected_tool, args))
-
-    # Concurrent execution
     if tasks:
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for result in results:
-            if isinstance(result, Exception):
-                print(f"Tool invocation error: {result}")
+            if isinstance(result, AIMessage):
+                responses.append(result)
+            elif isinstance(result, Exception):
+                log.warning(f"Unexpected error in tool execution: {str(result)}", exc_info=True)
                 responses.append(AIMessage(content=f"Error: {str(result)}"))
             else:
                 responses.append(AIMessage(content=str(result)))
 
-    # If no tool calls, return the original AI message
     if not responses:
         responses.append(ai_msg)
 

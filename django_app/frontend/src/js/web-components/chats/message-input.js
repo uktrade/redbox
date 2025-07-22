@@ -61,7 +61,9 @@ export class MessageInput extends HTMLElement {
     const chatWarnings = /** @type {HTMLDivElement} */ (
       document.querySelector(".chat-warnings")
     );
+    if (chatWarnings) {
     chatWarnings.style.display = "none";
+    }
   };
 }
 customElements.define("message-input", MessageInput);
