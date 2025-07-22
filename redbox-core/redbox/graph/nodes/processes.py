@@ -460,7 +460,7 @@ def build_agent(
     agent_name: str, system_prompt: str, tools: list[StructuredTool], use_metadata: bool = False, max_tokens: int = 5000
 ):
     def _build_agent(state: RedboxState) -> Dict[str, Any]:
-        from redbox.chains.parser import ClaudeParser  # Move import inside to avoid circular imports
+        from redbox.chains.parser import ClaudeParser
 
         parser = ClaudeParser(pydantic_object=AgentTask)
         try:
@@ -482,15 +482,36 @@ def build_agent(
             _additional_variables={"task": task.task, "expected_output": task.expected_output},
         )
         ai_msg = worker_agent.invoke(state)
-        result = asyncio.run(run_tools_parallel(ai_msg, tools, state))
-        result_content = "".join([res.content for res in result]) if result else ai_msg.content
-        result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
-        updated_message = AIMessage(content=result) if result_content else ai_msg
+        tool_results = asyncio.run(run_tools_parallel(ai_msg, tools, state))
+
+        content = ai_msg.content
+        documents = []
+        artifact = []
+
+        if tool_results:
+            for result in tool_results:
+                if isinstance(result, AIMessage):
+                    if result.content:
+                        content = result.content
+                    if result.additional_kwargs.get("artifact"):
+                        artifact.extend(result.additional_kwargs["artifact"])
+                elif isinstance(result, tuple) and len(result) == 2:
+                    result_content, result_docs = result
+                    content = result_content
+                    documents.extend(result_docs)
+
+        # Truncate content if necessary
+        content = content[:max_tokens]
+
+        result = f"<{agent_name}_Result>{content}</{agent_name}_Result>"
+        updated_message = AIMessage(content=content, additional_kwargs={"artifact": artifact})
+
         return {
             "agents_results": result,
             "tasks_evaluator": task.task + "\n" + task.expected_output,
             "messages": [updated_message],
             "last_message": updated_message,
+            "documents": DocumentState(groups={uuid4(): {uuid4(): doc} for doc in documents}),
         }
 
     return RunnableLambda(_build_agent)

@@ -105,6 +105,7 @@ def build_govuk_search_tool(filter: bool = True) -> StructuredTool:
     Constructs a tool that asynchronously searches gov.uk and returns formatted documents and raw documents.
     """
 
+    @tool(response_format="content_and_artifact")
     async def _search_govuk(query: str, state: Annotated[RedboxState, InjectedState]) -> Tuple[str, list[Document]]:
         """
         Search for documents on gov.uk based on a query string.
@@ -244,31 +245,39 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
                 This could be a keyword, phrase, or name
 
         Returns:
-            response (str): The content of the relevant Wikipedia page
+            tuple[str, list[Document]]: Formatted content and list of Document objects
         """
+        log.debug(f"Executing Wikipedia search for query: {query}")
         response = _wikipedia_wrapper.load(query)
+        log.debug(f"Wikipedia API response: {response}")
         if not response:
-            print("No Wikipedia response found.")
+            log.warning(f"No Wikipedia response found for query: {query}")
             return "", []
 
         mapped_documents = []
         for i, doc in enumerate(response):
+            if not hasattr(doc, "page_content") or not hasattr(doc, "metadata"):
+                log.warning(f"Invalid document from Wikipedia at index {i}: {doc}")
+                continue
             token_count = tokeniser(doc.page_content)
-            print(f"Document {i} token count: {token_count}")
-
+            log.debug(f"Document {i} token count: {token_count}")
             mapped_documents.append(
                 Document(
-                    page_content=doc.page_content,
+                    page_content=doc.page_content[:max_chars_per_wiki_page],
                     metadata=ChunkMetadata(
                         index=i,
-                        uri=doc.metadata["source"],
+                        uri=doc.metadata.get("source", ""),
                         token_count=token_count,
                         creator_type=ChunkCreatorType.wikipedia,
                     ).model_dump(),
                 )
             )
-        docs = mapped_documents
-        return format_documents(docs), docs
+        if not mapped_documents:
+            log.warning(f"No valid documents after processing for query: {query}")
+            return "No valid Wikipedia pages found.", []
+        formatted_content = format_documents(mapped_documents)
+        log.debug(f"Formatted content: {formatted_content[:500]}...")
+        return formatted_content, mapped_documents
 
     return _search_wikipedia
 
