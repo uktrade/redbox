@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import random
@@ -463,6 +464,8 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
             task = parser.parse(state.last_message.content)
         except Exception as e:
             print(f"Cannot parse in {agent_name}: {e}")
+            task = AgentTask(task="Unknown task", expected_output="Unknown output")
+
         activity_node = build_activity_log_node(
             RedboxActivityEvent(message=f"{agent_name} is completing task: {task.task}")
         )
@@ -476,11 +479,16 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
             _additional_variables={"task": task.task, "expected_output": task.expected_output},
         )
         ai_msg = worker_agent.invoke(state)
-        result = run_tools_parallel(ai_msg, tools, state)
-        result_content = "".join([res.content for res in result])
-        # truncate results to max_token
+        result = asyncio.run(run_tools_parallel(ai_msg, tools, state))
+        result_content = "".join([res.content for res in result]) if result else ai_msg.content
         result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
-        return {"agents_results": result, "tasks_evaluator": task.task + "\n" + task.expected_output}
+        updated_message = AIMessage(content=result) if result_content else ai_msg
+        return {
+            "agents_results": result,
+            "tasks_evaluator": task.task + "\n" + task.expected_output,
+            "messages": [updated_message],
+            "last_message": updated_message,
+        }
 
     return _build_agent
 

@@ -1,4 +1,6 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import asyncio
+
+from concurrent.futures import ThreadPoolExecutor
 from typing import Callable
 
 from langchain_core.messages import AIMessage
@@ -61,37 +63,52 @@ def build_tool_send(target: str) -> Callable[[RedboxState], list[Send]]:
     return _tool_send
 
 
-def run_tools_parallel(ai_msg, tools, state):
-    # Create a list to store futures
-    futures = []
+async def run_tools_parallel(ai_msg, tools, state):
+    """Execute tool calls in parallel, supporting both synchronous and asynchronous tools."""
+    responses = []
 
-    # Use ThreadPoolExecutor for parallel execution
-    with ThreadPoolExecutor() as executor:
-        # Submit tool invocations to the executor
-        for tool_call in ai_msg.tool_calls:
-            # Find the matching tool by name
-            selected_tool = next((tool for tool in tools if tool.name == tool_call.get("name")), None)
+    # Create a mapping of tool names to tools
+    tools_by_name = {tool.name: tool for tool in tools}
 
-            if selected_tool is None:
-                print(f"Warning: No tool found for {tool_call.get('name')}")
-                continue
+    # Gather coroutines for async tools and functions for sync tools
+    tasks = []
+    for tool_call in ai_msg.tool_calls:
+        tool_name = tool_call.get("name")
+        selected_tool = tools_by_name.get(tool_name)
+        if selected_tool is None:
+            print(f"Warning: No tool found for {tool_name}")
+            responses.append(AIMessage(content=f"Error: Tool {tool_name} not found"))
+            continue
 
-            # Get arguments and submit the tool invocation
-            args = tool_call.get("args", {})
-            args["state"] = state
-            future = executor.submit(selected_tool.invoke, args)
-            futures.append(future)
+        args = tool_call.get("args", {})
+        args["state"] = state
 
-        # Collect responses as tools complete
-        responses = []
-        for future in as_completed(futures):
-            try:
-                response = future.result()
-                responses.append(AIMessage(response))
-            except Exception as e:
-                print(f"Tool invocation error: {e}")
+        # Check async vs sync
+        if asyncio.iscoroutinefunction(selected_tool.func):
+            tasks.append(selected_tool.ainvoke(args))
+        else:
 
-        return responses
+            async def sync_tool_wrapper(tool, args):
+                with ThreadPoolExecutor() as executor:
+                    return await asyncio.get_event_loop().run_in_executor(executor, lambda: tool.invoke(args))
+
+            tasks.append(sync_tool_wrapper(selected_tool, args))
+
+    # Concurrent execution
+    if tasks:
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for result in results:
+            if isinstance(result, Exception):
+                print(f"Tool invocation error: {result}")
+                responses.append(AIMessage(content=f"Error: {str(result)}"))
+            else:
+                responses.append(AIMessage(content=str(result)))
+
+    # If no tool calls, return the original AI message
+    if not responses:
+        responses.append(ai_msg)
+
+    return responses
 
 
 def sending_task_to_agent(state: RedboxState):

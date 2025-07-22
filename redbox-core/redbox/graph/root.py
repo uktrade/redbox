@@ -312,6 +312,9 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent
         retry=RetryPolicy(max_attempts=3),
     )
 
+    # Add a node to clear messages before error
+    builder.add_node("clear_messages_before_error", lambda state: {"messages": []})
+
     builder.add_node(
         "files_too_large_error",
         build_error_pattern(
@@ -334,17 +337,18 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent
         retry=RetryPolicy(max_attempts=3),
     )
 
-    # edges
+    # Edges
     builder.add_edge(START, "choose_route_based_on_request_token")
     builder.add_conditional_edges(
         "choose_route_based_on_request_token",
         build_total_tokens_request_handler_conditional(PromptSet.ChatwithDocsMapReduce),
         {
-            "max_exceeded": "files_too_large_error",
+            "max_exceeded": "clear_messages_before_error",
             "context_exceeded": "set_route_to_summarise_large_doc",
             "pass": "set_route_to_summarise_doc",
         },
     )
+    builder.add_edge("clear_messages_before_error", "files_too_large_error")
     builder.add_edge("set_route_to_summarise_large_doc", "pass_user_prompt_to_LLM_message")
     builder.add_edge("set_route_to_summarise_doc", "pass_user_prompt_to_LLM_message")
     builder.add_edge("pass_user_prompt_to_LLM_message", "retrieve_all_chunks")
@@ -393,7 +397,7 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent
         "any_document_bigger_than_context_window",
         build_documents_bigger_than_context_conditional(PromptSet.ChatwithDocsMapReduce),
         {
-            True: "files_too_large_error",
+            True: "clear_messages_before_error",
             False: "sending_summarised_chunks",
         },
     )
@@ -407,7 +411,7 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent
         "any_summarised_docs_bigger_than_context_window",
         build_documents_bigger_than_context_conditional(PromptSet.ChatwithDocs),
         {
-            True: "files_too_large_error",
+            True: "clear_messages_before_error",
             False: "summarise_document",
         },
     )
@@ -466,7 +470,7 @@ def get_self_route_graph(retriever: VectorStoreRetriever, prompt_set: PromptSet,
         retry=RetryPolicy(max_attempts=3),
     )
 
-    # Edges
+    # edges
     builder.add_edge(START, "p_condense_question")
     builder.add_edge("p_condense_question", "p_retrieve_docs")
     builder.add_edge("p_retrieve_docs", "p_answer_question_or_decide_unanswerable")
@@ -691,24 +695,6 @@ def build_new_graph(
             debug=debug,
         ),
     )
-    # Async node for parallel tool execution with state
-    builder.add_node(
-        "invoke_tool_calls",
-        AsyncToolNode(
-            tools=multi_agent_tools["Internal_Retrieval_Agent"] + multi_agent_tools["External_Retrieval_Agent"]
-        ),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "log_tool_call_activities",
-        build_activity_log_node(
-            lambda s: [
-                RedboxActivityEvent(message=get_log_formatter_for_retrieval_tool(tool_state_entry).log_call())
-                for tool_state_entry in s.last_message.tool_calls
-            ]
-        ),
-        retry=RetryPolicy(max_attempts=3),
-    )
     builder.add_node("user_feedback_evaluation", empty_process)
     builder.add_node("Evaluator_Agent", create_evaluator())
     builder.add_node("combine_question_evaluator", combine_question_evaluator())
@@ -719,8 +705,8 @@ def build_new_graph(
     )
     builder.add_node("stream_suggestion", stream_suggestion())
     builder.add_node("sending_task", empty_process)
-    builder.add_node("should_continue", empty_process)
 
+    # Edges
     builder.add_edge(START, "set_route_to_newroute")
     builder.add_edge("set_route_to_newroute", "remove_keyword")
     builder.add_conditional_edges(
@@ -745,27 +731,8 @@ def build_new_graph(
             "Summarisation_Agent": "Summarisation_Agent",
         },
     )
-    # Route from agents to tool invocation if tool calls are present
-    builder.add_conditional_edges(
-        "Internal_Retrieval_Agent",
-        lambda state: len(state.last_message.tool_calls) > 0,
-        {True: "log_tool_call_activities", False: "combine_question_evaluator"},
-    )
-    builder.add_conditional_edges(
-        "External_Retrieval_Agent",
-        lambda state: len(state.last_message.tool_calls) > 0,
-        {True: "log_tool_call_activities", False: "combine_question_evaluator"},
-    )
-    builder.add_edge("log_tool_call_activities", "invoke_tool_calls")
-    builder.add_edge("invoke_tool_calls", "should_continue")
-    builder.add_conditional_edges(
-        "should_continue",
-        lambda state: state.steps_left > 8,
-        {
-            True: "sending_task",  # Loop back to send task to agent if steps remain
-            False: "combine_question_evaluator",
-        },
-    )
+    builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
+    builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
     builder.add_edge("Summarisation_Agent", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
