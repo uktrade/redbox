@@ -4,6 +4,7 @@ from typing import List, Any
 
 from langchain_core.messages import AIMessage
 from langchain_core.tools import StructuredTool
+from langchain_core.runnables import RunnableLambda
 from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.graph import CompiledGraph
@@ -671,7 +672,6 @@ def build_new_graph(
             max_tokens=agents_max_tokens["Internal_Retrieval_Agent"],
         ),
     )
-    builder.add_node("send", empty_process)
     builder.add_node(
         "External_Retrieval_Agent",
         build_agent(
@@ -693,8 +693,28 @@ def build_new_graph(
         ),
     )
 
-    builder.add_node("user_feedback_evaluation", empty_process)
+    # Async node for parallel tool execution with state
+    async def invoke_tools(state: RedboxState) -> dict[str, Any]:
+        tool_node = AsyncToolNode(
+            tools=multi_agent_tools["Internal_Retrieval_Agent"] + multi_agent_tools["External_Retrieval_Agent"]
+        )
+        tool_calls = [
+            {"name": tc["name"], "args": {**tc["args"], "state": state}}
+            for tc in (state.last_message.tool_calls or [])
+            if isinstance(tc, dict) and "name" in tc and "args" in tc
+        ]
+        if not tool_calls:
+            return {"results": []}
+        return await tool_node._acall({"tool_calls": tool_calls})
 
+    builder.add_node(
+        "invoke_tool_calls",
+        RunnableLambda(invoke_tools),
+        retry=RetryPolicy(max_attempts=3),
+    )
+    builder.add_node("send", empty_process)
+    builder.add_node("sending_task", empty_process)
+    builder.add_node("user_feedback_evaluation", empty_process)
     builder.add_node("Evaluator_Agent", create_evaluator())
     builder.add_node("combine_question_evaluator", combine_question_evaluator())
     builder.add_node(
@@ -703,7 +723,6 @@ def build_new_graph(
         retry=RetryPolicy(max_attempts=3),
     )
     builder.add_node("stream_suggestion", stream_suggestion())
-    builder.add_node("sending_task", empty_process)
 
     builder.add_edge(START, "set_route_to_newroute")
     builder.add_edge("set_route_to_newroute", "remove_keyword")
@@ -720,9 +739,29 @@ def build_new_graph(
             "more_info": "stream_suggestion",
         },
     )
-    builder.add_conditional_edges("sending_task", sending_task_to_agent)
-    builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
-    builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
+    builder.add_conditional_edges(
+        "sending_task",
+        sending_task_to_agent,
+        {
+            "Internal_Retrieval_Agent": "Internal_Retrieval_Agent",
+            "External_Retrieval_Agent": "External_Retrieval_Agent",
+            "Summarisation_Agent": "Summarisation_Agent",
+        },
+    )
+    builder.add_conditional_edges(
+        "Internal_Retrieval_Agent",
+        build_tool_send("invoke_tool_calls"),
+        path_map=["invoke_tool_calls", "combine_question_evaluator"],
+    )
+    builder.add_conditional_edges(
+        "External_Retrieval_Agent",
+        build_tool_send("invoke_tool_calls"),
+        path_map=["invoke_tool_calls", "combine_question_evaluator"],
+    )
+    builder.add_edge(
+        "Summarisation_Agent", "combine_question_evaluator"
+    )  # Assuming no tool calls from Summarisation_Agent
+    builder.add_edge("invoke_tool_calls", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)

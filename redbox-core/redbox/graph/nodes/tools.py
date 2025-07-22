@@ -1,4 +1,4 @@
-from typing import Annotated, Iterable, Union, Tuple, List
+from typing import Annotated, Iterable, Union
 
 import aiohttp
 
@@ -96,7 +96,7 @@ def build_govuk_search_tool(filter: bool = True) -> Tool:
     Constructs a tool that asynchronously searches gov.uk and sets state["documents"].
     """
 
-    async def _search_govuk(query: str, state: Annotated[RedboxState, InjectedState]) -> Tuple[str, List[Document]]:
+    async def _search_govuk(query: str, state: Annotated[RedboxState, InjectedState]) -> str:
         """
         Search for documents on gov.uk based on a query string.
         This endpoint is used to search for documents on gov.uk. There are many types of documents on gov.uk.
@@ -166,8 +166,7 @@ def build_govuk_search_tool(filter: bool = True) -> Tool:
                     ).model_dump(),
                 )
             )
-
-        return format_documents(mapped_documents), mapped_documents
+        return format_documents(mapped_documents)
 
     return Tool.from_function(
         func=_search_govuk,
