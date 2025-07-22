@@ -4,7 +4,6 @@ from typing import List, Any
 
 from langchain_core.messages import AIMessage
 from langchain_core.tools import StructuredTool
-from langchain_core.runnables import RunnableLambda
 from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.graph import CompiledGraph
@@ -692,28 +691,24 @@ def build_new_graph(
             debug=debug,
         ),
     )
-
     # Async node for parallel tool execution with state
-    async def invoke_tools(state: RedboxState) -> dict[str, Any]:
-        tool_node = AsyncToolNode(
-            tools=multi_agent_tools["Internal_Retrieval_Agent"] + multi_agent_tools["External_Retrieval_Agent"]
-        )
-        tool_calls = [
-            {"name": tc["name"], "args": {**tc["args"], "state": state}}
-            for tc in (state.last_message.tool_calls or [])
-            if isinstance(tc, dict) and "name" in tc and "args" in tc
-        ]
-        if not tool_calls:
-            return {"results": []}
-        return await tool_node._acall({"tool_calls": tool_calls})
-
     builder.add_node(
         "invoke_tool_calls",
-        RunnableLambda(invoke_tools),
+        AsyncToolNode(
+            tools=multi_agent_tools["Internal_Retrieval_Agent"] + multi_agent_tools["External_Retrieval_Agent"]
+        ),
         retry=RetryPolicy(max_attempts=3),
     )
-    builder.add_node("send", empty_process)
-    builder.add_node("sending_task", empty_process)
+    builder.add_node(
+        "log_tool_call_activities",
+        build_activity_log_node(
+            lambda s: [
+                RedboxActivityEvent(message=get_log_formatter_for_retrieval_tool(tool_state_entry).log_call())
+                for tool_state_entry in s.last_message.tool_calls
+            ]
+        ),
+        retry=RetryPolicy(max_attempts=3),
+    )
     builder.add_node("user_feedback_evaluation", empty_process)
     builder.add_node("Evaluator_Agent", create_evaluator())
     builder.add_node("combine_question_evaluator", combine_question_evaluator())
@@ -723,6 +718,8 @@ def build_new_graph(
         retry=RetryPolicy(max_attempts=3),
     )
     builder.add_node("stream_suggestion", stream_suggestion())
+    builder.add_node("sending_task", empty_process)
+    builder.add_node("should_continue", empty_process)
 
     builder.add_edge(START, "set_route_to_newroute")
     builder.add_edge("set_route_to_newroute", "remove_keyword")
@@ -748,20 +745,28 @@ def build_new_graph(
             "Summarisation_Agent": "Summarisation_Agent",
         },
     )
+    # Route from agents to tool invocation if tool calls are present
     builder.add_conditional_edges(
         "Internal_Retrieval_Agent",
-        build_tool_send("invoke_tool_calls"),
-        path_map=["invoke_tool_calls", "combine_question_evaluator"],
+        lambda state: len(state.last_message.tool_calls) > 0,
+        {True: "log_tool_call_activities", False: "combine_question_evaluator"},
     )
     builder.add_conditional_edges(
         "External_Retrieval_Agent",
-        build_tool_send("invoke_tool_calls"),
-        path_map=["invoke_tool_calls", "combine_question_evaluator"],
+        lambda state: len(state.last_message.tool_calls) > 0,
+        {True: "log_tool_call_activities", False: "combine_question_evaluator"},
     )
-    builder.add_edge(
-        "Summarisation_Agent", "combine_question_evaluator"
-    )  # Assuming no tool calls from Summarisation_Agent
-    builder.add_edge("invoke_tool_calls", "combine_question_evaluator")
+    builder.add_edge("log_tool_call_activities", "invoke_tool_calls")
+    builder.add_edge("invoke_tool_calls", "should_continue")
+    builder.add_conditional_edges(
+        "should_continue",
+        lambda state: state.steps_left > 8,
+        {
+            True: "sending_task",  # Loop back to send task to agent if steps remain
+            False: "combine_question_evaluator",
+        },
+    )
+    builder.add_edge("Summarisation_Agent", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
