@@ -1,6 +1,7 @@
 import logging
 import time
 from typing import TYPE_CHECKING
+from waffle import flag_is_active
 
 from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.embeddings import FakeEmbeddings
@@ -116,7 +117,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
         env=env,
     )
-    if file_name.endswith((".csv", ".xls", "xlsx")):
+    if flag_is_active("tabular_ingestion_active") and file_name.endswith((".csv", ".xls", "xlsx")):
         new_ids = RunnableParallel({"tabular": tabular_chunk_ingest_chain}).invoke(
             file_name
         )  # Use Fake Embeddings for Excel Files or CSVs in case text files run on
