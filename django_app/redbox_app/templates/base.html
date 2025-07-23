@@ -55,14 +55,14 @@
 
   {% if environment | lower != "prod" %}
     <div class="rb-classification-banner govuk-warning-text rb-environment-warning iai-environment-warning">
-      {{environment|upper}} - This is not a live service
+      {{environment|upper}} - CORRESPONDENCE DRAFTER - This is not a live service
     </div>
   {% endif %}
 
 
   {% if request.user.is_authenticated %}
     {{ iaiTopNav(
-      product_name = "Redbox@DBT",
+      product_name = "Redbox@DBT Correspondence Drafter",
       menu_items = [
       {"text": "Documents", "href": url('documents')},
       {"text": "Chat", "href": url('chats')},
@@ -74,7 +74,7 @@
     ) }}
   {% else %}
     {{ iaiTopNav(
-      product_name = "Redbox@DBT",
+      product_name = "Redbox@DBT Correspondence Drafter",
       menu_items = [
         {"text": "Sign in", "href": url('sign-in')}
       ],

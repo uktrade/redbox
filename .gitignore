@@ -229,3 +229,5 @@ django_app/tests/staticfiles
 # lambda files
 infrastructure/aws/cleanup_lambda/*.zip
 infrastructure/aws/cleanup_lambda/layer/*
+aws-credentials
+refresh-creds.sh
