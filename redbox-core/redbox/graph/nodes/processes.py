@@ -57,6 +57,7 @@ from redbox.models.prompts import (
     PLANNER_QUESTION_PROMPT,
     REPLAN_PROMPT,
     USER_FEEDBACK_EVAL_PROMPT,
+    TABULAR_DATA_PROMPT,
 )
 from redbox.models.settings import get_settings
 from redbox.transform import combine_agents_state, combine_documents, flatten_document_state
@@ -786,7 +787,7 @@ def build_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 500
     @RunnableLambda
     def _build_tabular_agent(state: RedboxState):
         state = create_or_update_db_from_tabulars(state=state, db_path=None)
-        dispatch_custom_event(RedboxEventType.response_tokens, "\nBuilding a database for the selected data...\n")
+        # dispatch_custom_event(RedboxEventType.response_tokens, "\nBuilding a database for the selected data...\n")
         # return agent
         parser = ClaudeParser(pydantic_object=AgentTask)
         try:
@@ -807,7 +808,7 @@ def build_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 500
             # Create SQL database agent with structured output format
             db = SQLDatabase.from_uri(f"sqlite:///{state.db_location}")
             llm = get_base_chat_llm(model=state.request.ai_settings.chat_backend)
-            dispatch_custom_event(RedboxEventType.response_tokens, "\nInitialising SQL Agent...\n\n")
+            # dispatch_custom_event(RedboxEventType.response_tokens, "\nInitialising SQL Agent...\n\n")
 
             # Customise the agent to return structured responses
             agent = create_sql_agent(
@@ -815,21 +816,27 @@ def build_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 500
                 db=db,
                 verbose=False,
                 agent_executor_kwargs={
-                    "return_intermediate_steps": True,
+                    # "return_intermediate_steps": True,
                     "handle_parsing_errors": True,
                 },
             )
 
             # Run the agent with the task
-            agent_result = agent.invoke(
-                {"input": task.task.replace("@tabular ", "")}
-            )  # Remove the tabular route flag IF Present.
+            # agent_result = agent.invoke(
+            #     {"input": task.task.replace("@tabular ", "")}
+            # )  # Remove the tabular route flag IF Present.
+
             # agent_result = agent.invoke({"input": state.messages})
 
-            output = agent_result["output"]
-            reasoning = agent_result["intermediate_steps"]
+            agent_result = agent.invoke(
+                {"input": TABULAR_DATA_PROMPT.format(question=task.task.replace("@tabular ", ""))}
+            )
 
-            result = f"{parse_agent_steps(reasoning)}\n\n**Answer**: \n\n{output}"
+            output = agent_result["output"]
+            # reasoning = agent_result["intermediate_steps"]
+
+            # result = f"{parse_agent_steps(reasoning)}\n\n**Answer**: \n\n{output}"
+            result = output
 
             # Truncate to max_tokens
             result_content = result[:max_tokens]
