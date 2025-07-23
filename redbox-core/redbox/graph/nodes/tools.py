@@ -1,7 +1,7 @@
+import json
 from typing import Annotated, Iterable, Union
 
 import boto3
-import json
 import numpy as np
 import requests
 from elasticsearch import Elasticsearch
@@ -397,3 +397,56 @@ __RETRIEVEAL_TOOL_MESSAGE_FORMATTERS = {
 
 def get_log_formatter_for_retrieval_tool(t: ToolCall) -> BaseRetrievalToolLogFormatter:
     return __RETRIEVEAL_TOOL_MESSAGE_FORMATTERS.get(t["name"], BaseRetrievalToolLogFormatter)(t)
+
+
+def build_web_search_tool():
+    tokeniser = bedrock_tokeniser
+
+    @tool(response_format="content_and_artifact")
+    def _search_web(query: str, num_results=10, start_index=1):
+        """
+        Search entire web.
+
+        Args:
+            query (str): The search query to pass to Google Search engine.
+            - Can be natural language, keywords, or phrases
+            - More specific queries yield more precise results
+            - Query length should be 1-500 characters
+        Returns:
+            dict[str, Any]: Collection of matching document snippets with metadata:
+        """
+        # Settings
+        web_search_settings = get_settings().web_search_settings()
+        params = {"q": query}
+        headers = {}
+        try:
+            match web_search_settings.name.lower():
+                case "google":
+                    params.update(web_search_settings.secret_tokens)
+                case "brave":
+                    params.update(web_search_settings.secret_tokens)
+                case "kagi":
+                    headers = web_search_settings.secret_tokens
+            response = requests.get(web_search_settings.end_point, params=params, headers=headers)
+            if response.status_code == 200:
+                mapped_documents = []
+                for i, doc in enumerate(response.json().get("items")):
+                    token_count = tokeniser(doc.get("snippet", ""))
+                    print(f"Document {i} token count: {token_count}")
+                    mapped_documents.append(
+                        Document(
+                            page_content=doc.get("snippet", ""),
+                            metadata=ChunkMetadata(
+                                index=i,
+                                uri=doc.get("link", ""),
+                                token_count=token_count,
+                                creator_type=ChunkCreatorType.web_search,
+                            ).model_dump(),
+                        )
+                    )
+                docs = mapped_documents
+            return format_documents(docs), docs
+        except Exception as e:
+            print(f"Error: {e}")
+
+    return _search_web

@@ -75,6 +75,13 @@ class MCPServerSettings(BaseModel):
     secret_tokens: dict
 
 
+class WebSearchSettings(BaseModel):
+    model_config = SettingsConfigDict(frozen=True)
+    name: str
+    end_point: str
+    secret_tokens: dict
+
+
 class ChatLLMBackend(BaseModel):
     name: str = "gpt-4o"
     provider: str = "azure_openai"
@@ -167,6 +174,9 @@ class Settings(BaseSettings):
         url=env.str("MCP_PARLEX_URL", ""),
         secret_tokens={env.str("MCP_HEADERS", ""): env.str("MCP_PARLEX_TOKEN", "")},
     )
+
+    # web search
+    web_search: Literal["Google", "Brave", "Kagi"] = "Google"
 
     ## Prompts
     metadata_prompt: tuple = (
@@ -322,6 +332,27 @@ class Settings(BaseSettings):
 
         msg = f"unkown object_store={self.object_store}"
         raise NotImplementedError(msg)
+
+    def web_search_settings(self):
+        match self.web_search.lower():
+            case "google":
+                return WebSearchSettings(
+                    name="Google",
+                    end_point=env.str("GOOGLE_END_POINT", ""),
+                    secret_tokens={"key": env.str("GOOGLE_API_KEY", ""), "cx": env.str("GOOGLE_ENGINE_ID", "")},
+                )
+            case "brave":
+                return WebSearchSettings(
+                    name="Brave",
+                    end_point=env.str("BRAVE_END_POINT", ""),
+                    secret_tokens={"API_KEYS": env.str("BRAVE_API_KEY", "")},
+                )
+            case "kagi":
+                return WebSearchSettings(
+                    name="Kagi",
+                    end_point=env.str("KAGI_END_POINT", ""),
+                    secret_tokens={"API_KEYS": env.str("KAGI_API_KEY", "")},
+                )
 
 
 @cache
