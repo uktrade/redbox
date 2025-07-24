@@ -63,7 +63,15 @@ from redbox.models.settings import get_settings
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
 
-def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, multi_agent_tools, debug):
+def new_root_graph(
+    all_chunks_retriever,
+    parameterised_retriever,
+    metadata_retriever,
+    tabular_retriever,
+    tools,
+    multi_agent_tools,
+    debug,
+):
     agent_parser = ClaudeParser(pydantic_object=AgentDecision)
 
     def lm_choose_route_wrapper(state: RedboxState):
@@ -86,7 +94,7 @@ def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retri
     builder.add_node(
         "retrieve_metadata", get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
     )
-    builder.add_node("tabular_graph", build_tabular_graph(retriever=all_chunks_retriever, debug=debug))
+    builder.add_node("tabular_graph", build_tabular_graph(retriever=tabular_retriever, debug=debug))
 
     builder.add_node("is_summarise_route", empty_process)
     builder.add_node("has_keyword", empty_process)
