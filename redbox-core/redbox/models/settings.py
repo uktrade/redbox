@@ -338,8 +338,8 @@ class Settings(BaseSettings):
             case "google":
                 return WebSearchSettings(
                     name="Google",
-                    end_point=env.str("GOOGLE_END_POINT", ""),
-                    secret_tokens={"key": env.str("GOOGLE_API_KEY", ""), "cx": env.str("GOOGLE_ENGINE_ID", "")},
+                    end_point="https://customsearch.googleapis.com/customsearch/v1",
+                    secret_tokens={"key": env.str("GOOGLE_SEARCH_API", ""), "cx": env.str("GOOGLE_SEARCH_ENGINE", "")},
                 )
             case "brave":
                 return WebSearchSettings(

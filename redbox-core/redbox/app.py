@@ -14,6 +14,7 @@ from redbox.chains.components import (
 )
 from redbox.graph.nodes.tools import (
     build_govuk_search_tool,
+    build_legislation_search_tool,
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
@@ -70,12 +71,13 @@ class Redbox:
         search_wikipedia = build_search_wikipedia_tool()
         search_govuk = build_govuk_search_tool()
         search_web = build_web_search_tool()
+        search_legislation = build_legislation_search_tool()
 
         self.tools = [search_documents, search_wikipedia, search_govuk]
 
         self.multi_agent_tools = {
             "Internal_Retrieval_Agent": [search_documents],
-            "External_Retrieval_Agent": [search_wikipedia, search_govuk, search_web],
+            "External_Retrieval_Agent": [search_wikipedia, search_govuk, search_web, search_legislation],
         }
 
         self.graph = new_root_graph(

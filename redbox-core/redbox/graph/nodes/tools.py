@@ -109,8 +109,8 @@ def build_govuk_search_tool(filter=True) -> Tool:
     @tool(response_format="content_and_artifact")
     def _search_govuk(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
         """
-        Search for documents on gov.uk based on a query string.
-        This endpoint is used to search for documents on gov.uk. There are many types of documents on gov.uk.
+        Search for documents on www.gov.uk based on a query string.
+        This endpoint is used to search for documents on www.gov.uk. There are many types of documents on www.gov.uk.
         Types include:
         - guidance
         - policy
@@ -403,15 +403,16 @@ def build_web_search_tool():
     tokeniser = bedrock_tokeniser
 
     @tool(response_format="content_and_artifact")
-    def _search_web(query: str, num_results=10, start_index=1):
+    def _search_web(query: str, included_url: str = "", num_results=10, start_index=1):
         """
-        Search entire web.
+        Web Search tool is a versatile search tool that allows users to search the entire web (similar to a search engine) or to conduct targeted searches within specific websites.
 
         Args:
-            query (str): The search query to pass to Google Search engine.
+            query (str): The search query to pass to web search engine.
             - Can be natural language, keywords, or phrases
             - More specific queries yield more precise results
             - Query length should be 1-500 characters
+            included_url (str): the website url to include in the search e.g. www.example.com
         Returns:
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
@@ -423,6 +424,9 @@ def build_web_search_tool():
             match web_search_settings.name.lower():
                 case "google":
                     params.update(web_search_settings.secret_tokens)
+                    if included_url:
+                        params["siteSearch"] = included_url
+                        params["siteSearchFilter"] = "i"
                 case "brave":
                     params.update(web_search_settings.secret_tokens)
                 case "kagi":
@@ -445,8 +449,67 @@ def build_web_search_tool():
                         )
                     )
                 docs = mapped_documents
+            else:
+                print(f"Status returned: {response.status_code}")
             return format_documents(docs), docs
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"There is an error at web search tool: {e}")
 
     return _search_web
+
+
+def build_legislation_search_tool():
+    tokeniser = bedrock_tokeniser
+
+    @tool(response_format="content_and_artifact")
+    def _search_legislation(query: str, num_results=10, start_index=1):
+        """
+        Searching legiclation.gov.uk.
+
+        Args:
+            query (str): The search query to pass to legislation search engine.
+            - Can be natural language, keywords, or phrases
+            - More specific queries yield more precise results
+            - Query length should be 1-500 characters
+        Returns:
+            dict[str, Any]: Collection of matching document snippets with metadata:
+        """
+        # Settings
+        web_search_settings = get_settings().web_search_settings()
+        params = {"q": query}
+        headers = {}
+        try:
+            match web_search_settings.name.lower():
+                case "google":
+                    params.update(web_search_settings.secret_tokens)
+                    params["siteSearch"] = "https://www.legislation.gov.uk"
+                    params["siteSearchFilter"] = "i"
+                case "brave":
+                    params.update(web_search_settings.secret_tokens)
+                case "kagi":
+                    headers = web_search_settings.secret_tokens
+            response = requests.get(web_search_settings.end_point, params=params, headers=headers)
+            if response.status_code == 200:
+                mapped_documents = []
+                for i, doc in enumerate(response.json().get("items")):
+                    token_count = tokeniser(doc.get("snippet", ""))
+                    print(f"Document {i} token count: {token_count}")
+                    mapped_documents.append(
+                        Document(
+                            page_content=doc.get("snippet", ""),
+                            metadata=ChunkMetadata(
+                                index=i,
+                                uri=doc.get("link", ""),
+                                token_count=token_count,
+                                creator_type=ChunkCreatorType.web_search,
+                            ).model_dump(),
+                        )
+                    )
+                docs = mapped_documents
+            else:
+                print(f"Status returned: {response.status_code}")
+            return format_documents(docs), docs
+        except Exception as e:
+            print(f"There is an error at web search tool: {e}")
+
+    return _search_legislation
