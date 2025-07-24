@@ -548,14 +548,17 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
 
     INACTIVE_STATUSES = [Status.deleted, Status.errored]
 
-    status = models.CharField(choices=Status.choices, null=False, blank=False)
+    status = models.CharField(choices=Status.choices, null=False, blank=False, default=Status.processing)
     original_file = models.FileField(
         storage=settings.STORAGES["default"]["BACKEND"],
         upload_to=build_s3_key,
         validators=[validate_virus_check_result] if settings.USE_CLAM_AV else [],
+        null=True,  # Allow null temporarily for microservice integration
+        blank=True,
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     original_file_name = models.TextField(max_length=2048, blank=True, null=True)  # delete me
+    minio_path = models.CharField(max_length=2048, blank=True, null=True)  # Stores microservice's MinIO path
     last_referenced = models.DateTimeField(blank=True, null=True)
     ingest_error = models.TextField(
         max_length=2048,
@@ -584,7 +587,8 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
 
     def delete_from_s3(self):
         """Manually deletes the file from S3 storage."""
-        self.original_file.delete(save=False)
+        if self.original_file:
+            self.original_file.delete(save=False)
 
     def delete_from_elastic(self):
         index = env.elastic_chunk_alias

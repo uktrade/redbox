@@ -1,16 +1,12 @@
 import logging
-import subprocess
-import tempfile
-import time
 import uuid
 from collections.abc import MutableSequence, Sequence
-from io import BytesIO
-from pathlib import Path
+from typing import TYPE_CHECKING
 
+import requests
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import FieldError, SuspiciousFileOperation, ValidationError
-from django.core.files.uploadedfile import InMemoryUploadedFile, UploadedFile
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -20,7 +16,9 @@ from django.views.decorators.http import require_http_methods
 from django_q.tasks import async_task
 
 from redbox_app.redbox_core.models import File, InactiveFileError
-from redbox_app.worker import ingest
+
+if TYPE_CHECKING:
+    from django.core.files.uploadedfile import UploadedFile
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -82,24 +80,49 @@ class UploadView(View):
         errors: MutableSequence[str] = []
 
         uploaded_files: MutableSequence[UploadedFile] = request.FILES.getlist("uploadDocs")
-
         if not uploaded_files:
             errors.append("No document selected")
+            return self.build_response(request, errors)
 
-        for index, uploaded_file in enumerate(uploaded_files):
-            errors += self.validate_uploaded_file(uploaded_file)
-            # handling doc -> docx conversion
-            if self.is_doc_file(uploaded_file):
-                uploaded_files[index] = self.convert_doc_to_docx(uploaded_file)
-            # handling utf8 compatibility
-            if not self.is_utf8_compatible(uploaded_file):
-                uploaded_files[index] = self.convert_to_utf8(uploaded_file)
+        # Goes to the microservice
+        try:
+            files = [("files", (f.name, f, f.content_type)) for f in uploaded_files]
+            response = requests.post(
+                f"{settings.FILE_PROCESSOR_URL}/process-files/",
+                files=files,
+                timeout=30,
+            )
+            response.raise_for_status()
+            result = response.json()
+        except requests.RequestException:
+            logger.exception("Error communicating with file processor")
+            errors.append("Error processing files. Please try again later.")
+            return self.build_response(request, errors)
 
+        errors.extend(result["errors"])
         if not errors:
-            for uploaded_file in uploaded_files:
-                # ingest errors are handled differently, as the other documents have started uploading by this point
-                request.session["ingest_errors"] = self.ingest_file(uploaded_file, request.user)
-            return redirect(reverse("documents"))
+            for processed_file in result["processed_files"]:
+                try:
+                    file_obj = File.objects.create(
+                        id=uuid.uuid4(),
+                        status=File.Status.processing,
+                        user=request.user,
+                        original_file_name=processed_file["filename"],
+                        minio_path=processed_file["minio_path"],
+                    )
+                    async_task(
+                        "redbox_app.redbox_core.tasks.ingest",
+                        file_obj.id,
+                        task_name=file_obj.unique_name,
+                        group="ingest",
+                    )
+                except Exception:
+                    logger.exception("Error queuing file %s for ingestion", processed_file["filename"])
+                    errors.append("Error processing %s", processed_file["filename"])
+                    request.session["ingest_errors"] = errors
+
+            if not errors:
+                return redirect(reverse("documents"))
 
         return self.build_response(request, errors)
 
@@ -114,157 +137,6 @@ class UploadView(View):
                 "uploaded": not errors,
             },
         )
-
-    @staticmethod
-    def validate_uploaded_file(uploaded_file: UploadedFile) -> Sequence[str]:
-        errors: MutableSequence[str] = []
-        if not uploaded_file.name:
-            errors.append("File has no name")
-        else:
-            file_extension = Path(uploaded_file.name).suffix
-            if file_extension.lower() not in APPROVED_FILE_EXTENSIONS:
-                errors.append(f"Error with {uploaded_file.name}: File type {file_extension} not supported")
-        if not uploaded_file.content_type:
-            errors.append(f"Error with {uploaded_file.name}: File has no content-type")
-        if uploaded_file.size > MAX_FILE_SIZE:
-            errors.append(f"Error with {uploaded_file.name}: File is larger than 200MB")
-        return errors
-
-    @staticmethod
-    def is_utf8_compatible(uploaded_file: UploadedFile) -> bool:
-        if not Path(uploaded_file.name).suffix.lower().endswith((".doc", ".txt")):
-            logger.info("File does not require utf8 compatibility check")
-            return True
-        try:
-            uploaded_file.open()
-            uploaded_file.read().decode("utf-8")
-            uploaded_file.seek(0)
-        except UnicodeDecodeError:
-            logger.info("File is incompatible with utf-8. Converting...")
-            return False
-        else:
-            logger.info("File is compatible with utf-8 - ready for processing")
-            return True
-
-    @staticmethod
-    def convert_to_utf8(uploaded_file: UploadedFile) -> UploadedFile:
-        try:
-            uploaded_file.open()
-            content = uploaded_file.read().decode("ISO-8859-1")
-
-            # Detect and replace non-UTF-8 characters
-            new_bytes = content.encode("utf-8")
-
-            # Creating a new InMemoryUploadedFile object with the converted content
-            new_uploaded_file = InMemoryUploadedFile(
-                file=BytesIO(new_bytes),
-                field_name=uploaded_file.name,
-                name=uploaded_file.name,
-                content_type="application/octet-stream",
-                size=len(new_bytes),
-                charset="utf-8",
-            )
-        except Exception as e:
-            logger.exception("Error converting file %s to UTF-8.", uploaded_file, exc_info=e)
-            return uploaded_file
-        else:
-            logger.info("Conversion to UTF-8 successful")
-            return new_uploaded_file
-
-    @staticmethod
-    def is_doc_file(uploaded_file: UploadedFile) -> bool:
-        return Path(uploaded_file.name).suffix.lower() == ".doc"
-
-    @staticmethod
-    def convert_doc_to_docx(uploaded_file: UploadedFile) -> UploadedFile:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".doc") as tmp_input:
-            tmp_input.write(uploaded_file.read())
-            tmp_input.flush()
-            input_path = Path(tmp_input.name)
-            output_dir = input_path.parent
-
-            if not output_dir.exists():
-                output_dir.mkdir(parents=True, exist_ok=True)
-
-            temp_output_path = input_path.with_suffix(".docx")
-
-            try:
-                result = subprocess.run(  # noqa: S603
-                    [
-                        "/usr/bin/libreoffice",
-                        "--headless",
-                        "--convert-to",
-                        "docx",
-                        str(input_path),
-                        "--outdir",
-                        str(output_dir),
-                    ],
-                    check=True,
-                    capture_output=True,
-                    cwd=output_dir,
-                )
-                logger.info("LibreOffice output: %s", result.stdout.decode())
-                logger.info("LibreOffice errors: %s", result.stderr.decode())
-
-                if not temp_output_path.exists():
-                    logger.error("Output file not found: %s", temp_output_path)
-                    return uploaded_file
-
-                logger.info("Output path: %s", temp_output_path)
-
-                time.sleep(1)
-                with temp_output_path.open("rb") as f:
-                    converted_content = f.read()
-                    logger.info("Converted file size: %d bytes", len(converted_content))
-                    if len(converted_content) == 0:
-                        logger.error("Converted file is empty - this won't get converted")
-
-                    output_filename = Path(uploaded_file.name).with_suffix(".docx").name
-                    new_file = InMemoryUploadedFile(
-                        file=BytesIO(converted_content),
-                        field_name=uploaded_file.name,
-                        name=output_filename,
-                        content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                        size=len(converted_content),
-                        charset="utf-8",
-                    )
-                    logger.info("doc file conversion to docx successful for %s", uploaded_file.name)
-            except Exception as e:
-                logger.exception("Error converting doc file %s to docx", uploaded_file.name, exc_info=e)
-                new_file = uploaded_file
-            finally:
-                try:
-                    input_path.unlink()
-                    if temp_output_path.exists():
-                        temp_output_path.unlink()
-                except Exception as cleanup_error:  # noqa: BLE001
-                    logger.warning("Error cleaning up temporary files: %s", cleanup_error)
-
-            return new_file
-
-    @staticmethod
-    def ingest_file(uploaded_file: UploadedFile, user: User) -> Sequence[str]:
-        try:
-            logger.info("getting file from s3")
-            file = File.objects.create(
-                status=File.Status.processing.value,
-                user=user,
-                original_file=uploaded_file,
-            )
-        except (ValueError, FieldError, ValidationError) as e:
-            logger.exception("Error creating File model object for %s.", uploaded_file, exc_info=e)
-            return e.args
-        except SuspiciousFileOperation:
-            return [
-                f"Your file name is {len(uploaded_file.name)} characters long. "
-                f"The file name will need to be shortened by {len(uploaded_file.name) - 75} characters"
-            ]
-        except Exception as e:
-            logger.exception("Unexpected error processing %s.", uploaded_file, exc_info=e)
-            return [str(e)]
-        else:
-            async_task(ingest, file.id, task_name=file.unique_name, group="ingest")
-            return []
 
 
 @login_required

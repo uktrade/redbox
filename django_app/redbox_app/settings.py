@@ -363,7 +363,7 @@ else:
         }
     }
 
-LOG_LEVEL = env.str("DJANGO_LOG_LEVEL", "WARNING")
+LOG_LEVEL = env.str("DJANGO_LOG_LEVEL", "INFO")
 LOG_FORMAT = env.str("DJANGO_LOG_FORMAT", "asim_formatter")
 LOGGING = {
     "version": 1,
@@ -419,6 +419,11 @@ LOGGING = {
         "ddtrace": {
             "handlers": ["asim"],
             "level": "ERROR",
+            "propagate": False,
+        },
+        "daphne": {
+            "handlers": ["console"],
+            "level": "INFO" if ENVIRONMENT.is_local else LOG_LEVEL,
             "propagate": False,
         },
     },
@@ -510,3 +515,5 @@ AWS_TRANSCRIBE_ROLE_ARN = env.str("AWS_TRANSCRIBE_ROLE_ARN", "")
 DATAHUB_REDBOX_URL = env.str("DATAHUB_REDBOX_URL", "")
 DATAHUB_REDBOX_SECRET_KEY = env.str("DATAHUB_REDBOX_SECRET_KEY", "")
 DATAHUB_REDBOX_ACCESS_KEY_ID = env.str("DATAHUB_REDBOX_ACCESS_KEY_ID", "")
+
+FILE_PROCESSOR_URL = os.getenv("FILE_PROCESSOR_URL", "http://file-processor:8001")

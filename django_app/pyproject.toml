@@ -55,6 +55,7 @@ uwotm8 = "^0.1.4"
 pymupdf = "^1.26.0"
 ddtrace = "^3.10.0"
 django-requestlogs = "^0.8"
+minio = "^7.2.16"
 
 
 [tool.poetry.group.dev.dependencies]

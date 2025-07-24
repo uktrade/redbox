@@ -21,6 +21,8 @@ services:
         condition: service_healthy
       opensearch:
         condition: service_healthy
+      file-processor:
+        condition: service_healthy
     networks:
       - redbox-app-network
     env_file:
@@ -92,6 +94,8 @@ services:
         condition: service_healthy
       db:
         condition: service_healthy
+      file-processor:
+        condition: service_healthy
     networks:
       - redbox-app-network
     restart: unless-stopped
@@ -150,6 +154,26 @@ services:
     depends_on:
       opensearch:
         condition: service_healthy
+    restart: unless-stopped
+
+  file-processor:
+    image: file-processor:latest
+    build:
+      context: ./file_processor
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    networks:
+      - redbox-app-network
+    depends_on:
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8001/health"]
+      interval: 5s
+      timeout: 30s
+      retries: 24
+      start_period: 30s
     restart: unless-stopped
 
 networks:
