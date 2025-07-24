@@ -253,6 +253,17 @@ class AllElasticsearchRetriever(OpenSearchRetriever):
         return sorted(results, key=lambda result: result.metadata["index"])
 
 
+class TabularElasticsearchRetriever(AllElasticsearchRetriever):
+    """An modified AllElasticsearchRetriever that retrieves tabular chunks."""
+
+    chunk_resolution: ChunkResolution = ChunkResolution.tabular
+
+    def __init__(self, es_client: Union[Elasticsearch, OpenSearch], **kwargs: Any) -> None:
+        super().__init__(es_client, **kwargs)
+        # Reinitialise the body_func with tabular chunk resolution
+        self.body_func = partial(get_all, self.chunk_resolution)
+
+
 class MetadataRetriever(OpenSearchRetriever):
     """A modified ElasticsearchRetriever that retrieves query metadata without any content"""
 
