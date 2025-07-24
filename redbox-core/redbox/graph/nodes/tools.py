@@ -508,8 +508,10 @@ def build_legislation_search_tool():
                 docs = mapped_documents
             else:
                 print(f"Status returned: {response.status_code}")
+                return "", []
             return format_documents(docs), docs
         except Exception as e:
             print(f"There is an error at web search tool: {e}")
+            return "", []
 
     return _search_legislation
