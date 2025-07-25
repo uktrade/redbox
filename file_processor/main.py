@@ -1,15 +1,26 @@
+import asyncio
 import logging
 import os
-import subprocess
 import tempfile
+import time
 from io import BytesIO
 from pathlib import Path
 
 import boto3
 from botocore.exceptions import ClientError
 from fastapi import FastAPI, File, UploadFile
+from langchain_community.vectorstores import OpenSearchVectorSearch
+from langchain_core.embeddings import FakeEmbeddings
+from langchain_core.runnables import RunnableParallel
 from minio import Minio
 from minio.error import S3Error
+
+from redbox.chains.components import get_embeddings
+from redbox.chains.ingest import ingest_from_loader
+from redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader
+from redbox.models.chain import GeneratedMetadata
+from redbox.models.file import ChunkResolution
+from redbox.models.settings import get_settings
 
 app = FastAPI()
 logger = logging.getLogger(__name__)
@@ -17,7 +28,7 @@ logger = logging.getLogger(__name__)
 minio_client = Minio(
     endpoint="minio:9000",
     access_key="minioadmin",
-    secret_key="minioadmin",
+    secret_key="minioadmin",  # noqa: S106
     secure=False,
 )
 
@@ -62,6 +73,36 @@ APPROVED_FILE_EXTENSIONS = [
 ]
 MAX_FILE_SIZE = 209715200  # 200 MB or 200 * 1024 * 1024
 
+env = get_settings()
+alias = env.elastic_chunk_alias
+
+
+def get_elasticsearch_store(es_index_name: str):
+    return OpenSearchVectorSearch(
+        index_name=es_index_name,
+        opensearch_url=env.elastic.collection_endpoint,
+        embedding_function=get_embeddings(env),
+        query_field="text",
+        vector_query_field=env.embedding_document_field_name,
+        bulk_size=1000,
+    )
+
+
+def get_elasticsearch_store_without_embeddings(es_index_name: str):
+    return OpenSearchVectorSearch(
+        index_name=es_index_name,
+        opensearch_url=env.elastic.collection_endpoint,
+        embedding_function=FakeEmbeddings(size=env.embedding_backend_vector_size),
+        bulk_size=1000,
+    )
+
+
+def create_alias(alias: str):
+    es = env.elasticsearch_client()
+    chunk_index_name = alias[:-8]  # removes -current
+    es.indices.create(index=chunk_index_name, body=env.index_mapping, ignore=400)
+    es.indices.put_alias(index=chunk_index_name, name=alias)
+
 
 @app.get("/health")
 async def health_check():
@@ -69,15 +110,15 @@ async def health_check():
 
 
 @app.post("/process-files/")
-async def process_files(files: list[UploadFile] = File(...)) -> dict:
+async def process_files(files: list[UploadFile] = File(...)) -> dict:  # noqa: B008
     errors: list[str] = []
     processed_files: list[dict] = []
 
     if USES_MINIO:
         try:
-            buckets = storage_client.list_buckets()
-        except S3Error as e:
-            logger.error(f"Error connecting to MinIO: {e}")
+            storage_client.list_buckets()
+        except S3Error:
+            logger.exception("Error connecting to MinIO")
             errors.append("Cannot connect to MinIO server")
             return {"errors": errors, "processed_files": []}
 
@@ -104,10 +145,10 @@ async def process_single_file(uploaded_file: UploadFile) -> tuple[list[str], dic
         uploaded_file = await convert_to_utf8(uploaded_file)
 
     # Store in storage (MinIO or S3)
-    minio_path = f"{uploaded_file.filename}"
+    minio_path = str(uploaded_file.filename)
     try:
         content = await uploaded_file.read()
-        logger.debug(f"Uploading file {uploaded_file.filename} to bucket {BUCKET_NAME}")
+        logger.debug("Uploading file %s to bucket %s", uploaded_file.filename, BUCKET_NAME)
         if USES_MINIO:
             storage_client.put_object(
                 BUCKET_NAME,
@@ -123,10 +164,83 @@ async def process_single_file(uploaded_file: UploadFile) -> tuple[list[str], dic
                 Key=minio_path,
                 ExtraArgs={"ContentType": uploaded_file.content_type or "application/octet-stream"},
             )
-        logger.info(f"Successfully uploaded {uploaded_file.filename} to {BUCKET_NAME}/{minio_path}")
-    except (S3Error, ClientError) as e:
-        logger.error(f"Error uploading to storage: {e}", exc_info=True)
-        errors.append(f"Error storing {uploaded_file.filename}: {e!s}")
+        logger.info("Successfully uploaded %s to %s/%s", uploaded_file.filename, BUCKET_NAME, minio_path)
+    except (S3Error, ClientError):
+        logger.exception("Error uploading to storage")
+        errors.append("Error storing %s", uploaded_file.filename)
+        return errors, None
+
+    try:
+        es = env.elasticsearch_client()
+        es_index_name = alias
+
+        if not es.indices.exists_alias(name=alias):
+            logger.info("The alias does not exist, creating it")
+            create_alias(alias)
+
+        # Extract metadata
+        if env.enable_metadata_extraction:
+            metadata_loader = MetadataLoader(env=env, s3_client=env.s3_client(), file_name=minio_path)
+            metadata = metadata_loader.extract_metadata()
+        else:
+            metadata = GeneratedMetadata(name=uploaded_file.filename, description="", keywords=[])
+
+        # Create temporary file for UnstructuredChunkLoader
+        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(uploaded_file.filename).suffix) as tmp_file:
+            tmp_file.write(content)
+            tmp_file_path = tmp_file.name
+
+        # Chunking chains
+        chunk_ingest_chain = ingest_from_loader(
+            loader=UnstructuredChunkLoader(
+                chunk_resolution=ChunkResolution.normal,
+                env=env,
+                min_chunk_size=env.worker_ingest_min_chunk_size,
+                max_chunk_size=env.worker_ingest_max_chunk_size,
+                overlap_chars=0,
+                metadata=metadata,
+            ),
+            s3_client=env.s3_client(),
+            vectorstore=get_elasticsearch_store(es_index_name),
+            env=env,
+        )
+
+        large_chunk_ingest_chain = ingest_from_loader(
+            loader=UnstructuredChunkLoader(
+                chunk_resolution=ChunkResolution.largest,
+                env=env,
+                min_chunk_size=env.worker_ingest_largest_chunk_size,
+                max_chunk_size=env.worker_ingest_largest_chunk_size,
+                overlap_chars=env.worker_ingest_largest_chunk_overlap,
+                metadata=metadata,
+            ),
+            s3_client=env.s3_client(),
+            vectorstore=get_elasticsearch_store_without_embeddings(es_index_name),
+            env=env,
+        )
+
+        # Parallel chunks to save CPU's soul
+        start_time = time.time()
+        new_ids = RunnableParallel({"normal": chunk_ingest_chain, "largest": large_chunk_ingest_chain}).invoke(
+            minio_path
+        )
+        duration = time.time() - start_time
+        logger.info(
+            "File: %s %s chunks ingested in %.2f seconds",
+            uploaded_file.filename,
+            {k: len(v) for k, v in new_ids.items()},
+            duration,
+        )
+
+        # Clean up temporary file
+        try:
+            tmp_file_path.unlink(missing_ok=True)
+        except Exception:  # noqa: BLE001
+            logger.warning("Error cleaning up temporary file %s", tmp_file_path)
+
+    except Exception:
+        logger.exception("Error while processing file %s", uploaded_file.filename)
+        errors.append("Error processing %s", uploaded_file.filename)
         return errors, None
 
     return errors, {
@@ -134,6 +248,7 @@ async def process_single_file(uploaded_file: UploadFile) -> tuple[list[str], dic
         "minio_path": minio_path,
         "content_type": uploaded_file.content_type,
         "size": uploaded_file.size,
+        "chunks_ingested": {k: len(v) for k, v in new_ids.items()} if "new_ids" in locals() else {},
     }
 
 
@@ -171,16 +286,14 @@ async def convert_to_utf8(uploaded_file: UploadFile) -> UploadFile:
         content = await uploaded_file.read()
         decoded_content = content.decode("ISO-8859-1")
         new_bytes = decoded_content.encode("utf-8")
-        new_file = UploadFile(
+        return UploadFile(
             filename=uploaded_file.filename,
             file=BytesIO(new_bytes),
             content_type="application/octet-stream",
             size=len(new_bytes),
         )
-        logger.info("Conversion to UTF-8 successful")
-        return new_file
-    except Exception as e:
-        logger.exception(f"Error converting file {uploaded_file.filename} to UTF-8: {e}")
+    except Exception:
+        logger.exception("Error converting file %s to UTF-8", uploaded_file.filename)
         return uploaded_file
 
 
@@ -190,55 +303,61 @@ def is_doc_file(uploaded_file: UploadFile) -> bool:
 
 async def convert_doc_to_docx(uploaded_file: UploadFile) -> UploadFile:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".doc") as tmp_input:
-        tmp_input.write(await uploaded_file.read())
+        tmp_input.write(await uploaded_file.read)
         tmp_input.flush()
         input_path = Path(tmp_input.name)
         output_dir = input_path.parent
         temp_output_path = input_path.with_suffix(".docx")
 
         try:
-            result = subprocess.run(
-                [
-                    "/usr/bin/libreoffice",
-                    "--headless",
-                    "--convert-to",
-                    "docx",
-                    str(input_path),
-                    "--outdir",
-                    str(output_dir),
-                ],
-                check=True,
-                capture_output=True,
+            process = await asyncio.create_subprocess_exec(
+                "/usr/bin/libreoffice",
+                "--headless",
+                "--convert-to",
+                "docx",
+                str(input_path),
+                "--outdir",
+                str(output_dir),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
                 cwd=output_dir,
             )
-            logger.info(f"LibreOffice output: {result.stdout.decode()}")
-            if not temp_output_path.exists():
-                logger.error(f"Output file not found: {temp_output_path}")
+
+            stdout, stderr = await process.communicate
+
+            if process.returncode != 0:
+                logger.exception("LibreOffice conversion failed %s", stderr.decode("utf-8"))
+                return uploaded_file
+
+            logger.info("LibreOffice output: %s", stdout.decode("utf-8"))
+
+            if not temp_output_path.exists:
+                logger.exception("Output file not found: %s", temp_output_path)
                 return uploaded_file
 
             with temp_output_path.open("rb") as f:
                 converted_content = f.read()
-                new_file = UploadFile(
+                return UploadFile(
                     filename=Path(uploaded_file.filename).with_suffix(".docx").name,
                     file=BytesIO(converted_content),
                     content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     size=len(converted_content),
                 )
-                logger.info(f"Doc file conversion to docx successful for {uploaded_file.filename}")
-                return new_file
-        except Exception as e:
-            logger.exception(f"Error converting doc file {uploaded_file.filename} to docx: {e}")
+
+        except Exception:
+            logger.exception("Error converting doc file %s to docx", uploaded_file.filename)
             return uploaded_file
+
         finally:
             try:
                 input_path.unlink()
                 if temp_output_path.exists():
                     temp_output_path.unlink()
-            except Exception as cleanup_error:
-                logger.warning(f"Error cleaning up temporary files: {cleanup_error}")
+            except Exception:  # noqa: BLE001
+                logger.warning("Error cleaning up temporary files")
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8001)  # noqa: S104

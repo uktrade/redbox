@@ -1,12 +1,12 @@
 services:
   unstructured:
-    image: quay.io/unstructured-io/unstructured-api:latest
-    #image: unstructured:latest  #- TODO - separate this commented into a buildx ccommand somewhere
-    #build:
-      #context: .
-      #dockerfile: unstructured/Dockerfile
+    image: unstructured:latest
+    build:
+      context: .
+      dockerfile: unstructured/Dockerfile
     ports:
       - 8000:8000
+    restart: unless-stopped
     networks:
       - redbox-app-network
   django-app:
@@ -23,6 +23,8 @@ services:
         condition: service_healthy
       file-processor:
         condition: service_healthy
+      unstructured:
+        condition: service_started
     networks:
       - redbox-app-network
     env_file:
@@ -159,8 +161,8 @@ services:
   file-processor:
     image: file-processor:latest
     build:
-      context: ./file_processor
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: file_processor/Dockerfile
     ports:
       - "8001:8001"
     networks:
@@ -168,6 +170,11 @@ services:
     depends_on:
       minio:
         condition: service_healthy
+    env_file:
+      - path: tests/.env.integration
+        required: false
+      - path: .env
+        required: false
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8001/health"]
       interval: 5s
