@@ -399,72 +399,71 @@ def get_log_formatter_for_retrieval_tool(t: ToolCall) -> BaseRetrievalToolLogFor
     return __RETRIEVEAL_TOOL_MESSAGE_FORMATTERS.get(t["name"], BaseRetrievalToolLogFormatter)(t)
 
 
-def build_web_search_tool():
+def brave_search_call(query: str, country_code: str = "GB", ui_lang: str = "en-GB", no_search_result: int = 20):
     tokeniser = bedrock_tokeniser
+    web_search_settings = get_settings().web_search_settings()
+    response = requests.get(
+        web_search_settings.end_point,
+        headers=web_search_settings.secret_tokens,
+        params={
+            "q": query,
+            "country": country_code,
+            "ui_lang": ui_lang,
+            "count": str(no_search_result),
+            "extra_snippets": "true",
+        },
+    )
+    if response.status_code == 200:
+        mapped_documents = []
+        results = response.json().get("web", []).get("results")
+        for i, doc in enumerate(results):
+            page_content = "".join(doc.get("extra_snippets", []))
+            token_count = tokeniser(page_content)
+            print(f"Document {i} token count: {token_count}")
+            mapped_documents.append(
+                Document(
+                    page_content=page_content,
+                    metadata=ChunkMetadata(
+                        index=i,
+                        uri=doc.get("url", ""),
+                        token_count=token_count,
+                        creator_type=ChunkCreatorType.web_search,
+                    ).model_dump(),
+                )
+            )
+        docs = mapped_documents
+    else:
+        print(f"Status returned: {response.status_code}")
+        return "", []
+    return format_documents(docs), docs
 
+
+def build_web_search_tool():
     @tool(response_format="content_and_artifact")
-    def _search_web(query: str, included_url: str = "", num_results=10, start_index=1):
+    def _search_web(query: str, country_code="GB", ui_lang: str = "en-GB"):
         """
         Web Search tool is a versatile search tool that allows users to search the entire web (similar to a search engine) or to conduct targeted searches within specific websites.
 
         Args:
-            query (str): The search query to pass to web search engine.
+            query (str): The search query to pass to legislation search engine.
             - Can be natural language, keywords, or phrases
             - More specific queries yield more precise results
             - Query length should be 1-500 characters
-            included_url (str): the website url to include in the search e.g. www.example.com
+            country_code (str): The 2 character country code where the search results come from. Default is GB.
+            ui_lang (str):
         Returns:
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
-        # Settings
-        web_search_settings = get_settings().web_search_settings()
-        params = {"q": query}
-        headers = {}
-        try:
-            match web_search_settings.name.lower():
-                case "google":
-                    params.update(web_search_settings.secret_tokens)
-                    if included_url:
-                        params["siteSearch"] = included_url
-                        params["siteSearchFilter"] = "i"
-                case "brave":
-                    params.update(web_search_settings.secret_tokens)
-                case "kagi":
-                    headers = web_search_settings.secret_tokens
-            response = requests.get(web_search_settings.end_point, params=params, headers=headers)
-            if response.status_code == 200:
-                mapped_documents = []
-                for i, doc in enumerate(response.json().get("items")):
-                    token_count = tokeniser(doc.get("snippet", ""))
-                    print(f"Document {i} token count: {token_count}")
-                    mapped_documents.append(
-                        Document(
-                            page_content=doc.get("snippet", ""),
-                            metadata=ChunkMetadata(
-                                index=i,
-                                uri=doc.get("link", ""),
-                                token_count=token_count,
-                                creator_type=ChunkCreatorType.web_search,
-                            ).model_dump(),
-                        )
-                    )
-                docs = mapped_documents
-            else:
-                print(f"Status returned: {response.status_code}")
-            return format_documents(docs), docs
-        except Exception as e:
-            print(f"There is an error at web search tool: {e}")
+        return brave_search_call(query=query, country_code=country_code, ui_lang=ui_lang)
 
     return _search_web
 
 
 def build_legislation_search_tool():
-    tokeniser = bedrock_tokeniser
-
     @tool(response_format="content_and_artifact")
-    def _search_legislation(query: str, num_results=10, start_index=1):
+    def _search_legislation(query: str):
         """
-        Searching legiclation.gov.uk.
+        Searching legislation.gov.uk.
 
         Args:
             query (str): The search query to pass to legislation search engine.
@@ -474,44 +473,6 @@ def build_legislation_search_tool():
         Returns:
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
-        # Settings
-        web_search_settings = get_settings().web_search_settings()
-        params = {"q": query}
-        headers = {}
-        try:
-            match web_search_settings.name.lower():
-                case "google":
-                    params.update(web_search_settings.secret_tokens)
-                    params["siteSearch"] = "https://www.legislation.gov.uk"
-                    params["siteSearchFilter"] = "i"
-                case "brave":
-                    params.update(web_search_settings.secret_tokens)
-                case "kagi":
-                    headers = web_search_settings.secret_tokens
-            response = requests.get(web_search_settings.end_point, params=params, headers=headers)
-            if response.status_code == 200:
-                mapped_documents = []
-                for i, doc in enumerate(response.json().get("items")):
-                    token_count = tokeniser(doc.get("snippet", ""))
-                    print(f"Document {i} token count: {token_count}")
-                    mapped_documents.append(
-                        Document(
-                            page_content=doc.get("snippet", ""),
-                            metadata=ChunkMetadata(
-                                index=i,
-                                uri=doc.get("link", ""),
-                                token_count=token_count,
-                                creator_type=ChunkCreatorType.web_search,
-                            ).model_dump(),
-                        )
-                    )
-                docs = mapped_documents
-            else:
-                print(f"Status returned: {response.status_code}")
-                return "", []
-            return format_documents(docs), docs
-        except Exception as e:
-            print(f"There is an error at web search tool: {e}")
-            return "", []
+        return brave_search_call(query=query + " site:legislation.gov.uk")
 
     return _search_legislation

@@ -176,7 +176,7 @@ class Settings(BaseSettings):
     )
 
     # web search
-    web_search: Literal["Google", "Brave", "Kagi"] = "Google"
+    web_search: Literal["Google", "Brave", "Kagi"] = "Brave"
 
     ## Prompts
     metadata_prompt: tuple = (
@@ -344,13 +344,17 @@ class Settings(BaseSettings):
             case "brave":
                 return WebSearchSettings(
                     name="Brave",
-                    end_point=env.str("BRAVE_END_POINT", ""),
-                    secret_tokens={"API_KEYS": env.str("BRAVE_API_KEY", "")},
+                    end_point="https://api.search.brave.com/res/v1/web/search",
+                    secret_tokens={
+                        "Accept": "application/json",
+                        "Accept-Encoding": "gzip",
+                        "x-subscription-token": env.str("BRAVE_API_KEY", ""),
+                    },
                 )
             case "kagi":
                 return WebSearchSettings(
                     name="Kagi",
-                    end_point=env.str("KAGI_END_POINT", ""),
+                    end_point="",
                     secret_tokens={"API_KEYS": env.str("KAGI_API_KEY", "")},
                 )
 
