@@ -94,7 +94,15 @@ def new_root_graph(
     builder.add_node(
         "retrieve_metadata", get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
     )
-    builder.add_node("tabular_graph", build_tabular_graph(retriever=tabular_retriever, debug=debug))
+    builder.add_node(
+        "tabular_graph",
+        build_tabular_graph(
+            retriever=tabular_retriever,
+            fallback_retriever=all_chunks_retriever,
+            fallback_agent_tools=multi_agent_tools,
+            debug=debug,
+        ),
+    )
 
     builder.add_node("is_summarise_route", empty_process)
     builder.add_node("has_keyword", empty_process)
@@ -727,7 +735,7 @@ def build_new_graph(
     return builder.compile(debug=debug)
 
 
-def build_tabular_graph(retriever, debug: bool = False) -> CompiledGraph:
+def build_tabular_graph(retriever, fallback_retriever, fallback_agent_tools, debug: bool = False) -> CompiledGraph:
     """Creates a subgraph for processing tabular data."""
     builder = StateGraph(RedboxState)
 
@@ -747,30 +755,26 @@ def build_tabular_graph(retriever, debug: bool = False) -> CompiledGraph:
     builder.add_node(
         "check_tabular_docs",
         empty_process,
-        # retry=RetryPolicy(max_attempts=3),
     )
 
     builder.add_node(
         "create_tabular_agent",
         build_tabular_agent,
-        # retry=RetryPolicy(max_attempts=3),
     )
 
     builder.add_node(
         "set_route_to_tabular",
         build_set_route_pattern(route=ChatRoute.tabular),
-        # retry=RetryPolicy(max_attempts=3),
     )
 
     builder.add_node(
         "stream_tabular_failure",
         stream_tabular_failure(),
-        # retry=RetryPolicy(max_attempts=3),
     )
 
     builder.add_node(
-        "fallback_to_summarise",
-        get_summarise_graph(all_chunks_retriever=retriever),
+        "fallback_to_newroute",
+        build_new_graph(all_chunks_retriever=fallback_retriever, multi_agent_tools=fallback_agent_tools),
         retry=RetryPolicy(max_attempts=3),
     )
     builder.add_node("stream_tabular_response", stream_tabular_response())
@@ -778,13 +782,11 @@ def build_tabular_graph(retriever, debug: bool = False) -> CompiledGraph:
     builder.add_node(
         "log_success",
         build_activity_log_node(RedboxActivityEvent(message="Tabular analysis completed successfully")),
-        # retry=RetryPolicy(max_attempts=3),
     )
 
     builder.add_node(
         "log_error",
         build_activity_log_node(RedboxActivityEvent(message="Tabular analysis failed, falling back to summarise")),
-        # retry=RetryPolicy(max_attempts=3),
     )
 
     # Edges
@@ -806,8 +808,8 @@ def build_tabular_graph(retriever, debug: bool = False) -> CompiledGraph:
     builder.add_edge("stream_tabular_response", "log_success")
     builder.add_edge("log_success", "set_route_to_tabular")
     builder.add_edge("log_error", "stream_tabular_failure")
-    builder.add_edge("stream_tabular_failure", "fallback_to_summarise")
+    builder.add_edge("stream_tabular_failure", "fallback_to_newroute")
     builder.add_edge("set_route_to_tabular", END)
-    builder.add_edge("fallback_to_summarise", END)
+    builder.add_edge("fallback_to_newroute", END)
 
     return builder.compile(debug=debug)

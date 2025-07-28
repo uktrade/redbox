@@ -362,23 +362,10 @@ Interpret user feedback into one of the following categories:
 
 Return output in the following format <Output_format>{format_instructions}</Output_format>"""
 
-TABULAR_DATA_PROMPT = """Answer the following question: <Question>{question}</Question>
+TABULAR_FORMAT_PROMPT = """Answer the following question: <Question>{question}</Question>
 
 IMPORTANT: In your final answer, please:
 1. Explain your logic behind answering this question and in constructing a SQL query
 2. Always show the SQL query you created
 3. Interpret the results in plain language
-"""
-
-TABULAR_DATA_PROMPT2 = """You are an expert SQL data analyst working with a dataset that has been converted to SQL.
-
-When answering questions:
-1. First, think step-by-step about how to solve the problem with SQL
-2. Then, construct the appropriate SQL query
-3. Execute the query and analyse the results
-4. ALWAYS include your SQL query in your final answer using the format: 'SQL Query: <your query here>'
-5. ALWAYS explain your query logic line by line
-6. Finally, provide the answer in user-friendly terms
-
-Remember to show your full thinking process and explain WHY you chose certain SQL commands or approaches.
 """

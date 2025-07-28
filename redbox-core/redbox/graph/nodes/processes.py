@@ -57,7 +57,7 @@ from redbox.models.prompts import (
     PLANNER_QUESTION_PROMPT,
     REPLAN_PROMPT,
     USER_FEEDBACK_EVAL_PROMPT,
-    TABULAR_DATA_PROMPT,
+    TABULAR_FORMAT_PROMPT,
 )
 from redbox.models.settings import get_settings
 from redbox.transform import combine_agents_state, combine_documents, flatten_document_state
@@ -615,15 +615,18 @@ def split_into_random_chunks(text, min_len=20, max_len=50):
 
 
 def stream_tabular_failure():
-    """Stream the failure of the tabular agent and fallback to summarise"""
+    """Stream the failure of the tabular agent and fallback to newroute"""
 
     @RunnableLambda
     def _stream_tabular_failure(state: RedboxState):
         stream = split_into_random_chunks(
-            "I am unable to output a response using the Tabular Agent. I will retry with summarisation.\n", 5, 20
+            "Unfortunately, I am unable to output a response using the Tabular Agent. I will try a different approach.\n\n",
+            5,
+            20,
         )
         for char in stream:
             dispatch_custom_event(RedboxEventType.response_tokens, data=char)
+        state.request.question = state.request.question.lstrip("@tabular")
         return state
 
     return _stream_tabular_failure
@@ -681,14 +684,13 @@ def get_all_tabular_docs(state: RedboxState) -> tuple[list[str], list[str]]:
                 for doc in group.values():
                     if isinstance(doc, Document):
                         try:
-                            uri = doc.metadata.get("uri", "")
-                            if uri.endswith((".csv", ".xlsx", ".xls")):
-                                all_texts.append(doc.page_content)
-                                all_names.append(
-                                    os.path.splitext(os.path.basename(doc.metadata["uri"]))[0]
-                                )  # Get file name
+                            # Tabular Retriever will only get csvs or excel files.
+                            all_texts.append(doc.page_content)
+                            all_names.append(
+                                os.path.splitext(os.path.basename(doc.metadata["uri"]))[0]
+                            )  # Get file name
                         except Exception as e:
-                            print(f"{doc} could not be parsed! \n\n{e}")
+                            log.info(f"{doc} could not be parsed! \n\n{e}")
                             continue
 
     return all_texts, all_names
@@ -787,9 +789,8 @@ def build_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 500
     @RunnableLambda
     def _build_tabular_agent(state: RedboxState):
         state = create_or_update_db_from_tabulars(state=state, db_path=None)
-        # dispatch_custom_event(RedboxEventType.response_tokens, "\nBuilding a database for the selected data...\n")
-        # return agent
         parser = ClaudeParser(pydantic_object=AgentTask)
+
         try:
             task = parser.parse(state.last_message.content)
             # Log activity
@@ -808,7 +809,6 @@ def build_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 500
             # Create SQL database agent with structured output format
             db = SQLDatabase.from_uri(f"sqlite:///{state.db_location}")
             llm = get_base_chat_llm(model=state.request.ai_settings.chat_backend)
-            # dispatch_custom_event(RedboxEventType.response_tokens, "\nInitialising SQL Agent...\n\n")
 
             # Customise the agent to return structured responses
             agent = create_sql_agent(
@@ -816,26 +816,15 @@ def build_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 500
                 db=db,
                 verbose=False,
                 agent_executor_kwargs={
-                    # "return_intermediate_steps": True,
                     "handle_parsing_errors": True,
                 },
             )
 
-            # Run the agent with the task
-            # agent_result = agent.invoke(
-            #     {"input": task.task.replace("@tabular ", "")}
-            # )  # Remove the tabular route flag IF Present.
-
-            # agent_result = agent.invoke({"input": state.messages})
-
             agent_result = agent.invoke(
-                {"input": TABULAR_DATA_PROMPT.format(question=task.task.replace("@tabular ", ""))}
+                {"input": TABULAR_FORMAT_PROMPT.format(question=task.task.replace("@tabular ", ""))}
             )
 
             output = agent_result["output"]
-            # reasoning = agent_result["intermediate_steps"]
-
-            # result = f"{parse_agent_steps(reasoning)}\n\n**Answer**: \n\n{output}"
             result = output
 
             # Truncate to max_tokens
@@ -846,7 +835,7 @@ def build_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 500
 
         except Exception as e:
             log.error(f"Error generating agent output: {e}")
-            formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data: {str(e)}</Tabular_Agent_Result>"
+            formatted_result = "<Tabular_Agent_Result>Error analysing tabular data</Tabular_Agent_Result>"
 
             return {"agents_results": formatted_result, "tasks_evaluator": task.task + "\n" + task.expected_output}
 
