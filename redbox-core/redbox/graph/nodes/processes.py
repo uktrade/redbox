@@ -660,7 +660,7 @@ def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
 def create_or_update_db_from_tabulars(state: RedboxState, db_path: str | None) -> RedboxState:
     """Initialise a databases and saves the location as db_path in the Redbox State."""
     if not db_path:
-        db_path = "generated_db.db"
+        db_path = f"generated_db_{uuid4()}.db"
 
     conn = sqlite3.connect(db_path)
 
