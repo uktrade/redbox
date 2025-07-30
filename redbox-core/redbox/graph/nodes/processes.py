@@ -745,6 +745,15 @@ def parse_doc_text_as_db_table(doc_text: str, table_name: str, conn: sqlite3.Con
         log.exception(f"Failed to load table '{table_name}': {e}")
 
 
+def delete_db_file_if_exists(state: RedboxState):
+    db_path = state.db_location
+    if db_path and os.path.exists(db_path):
+        os.remove(db_path)
+    # Set the db location to None in the RedboxState
+    state.db_location = None
+    return state
+
+
 def sanitise_file_name(file_name: str) -> str:
     """Removes Spaces and special characters from file names"""
     return re.sub(r"\W+", "", file_name.replace(" ", ""))
@@ -831,12 +840,14 @@ def build_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 500
             result_content = result[:max_tokens]
 
             formatted_result = f"<Tabular_Agent_Result>{result_content}</Tabular_Agent_Result>"
+            state = delete_db_file_if_exists(state)  # Delete DB file if it exists
             return {"agents_results": formatted_result, "tasks_evaluator": task.task + "\n" + task.expected_output}
 
         except Exception as e:
             log.error(f"Error generating agent output: {e}")
-            formatted_result = "<Tabular_Agent_Result>Error analysing tabular data</Tabular_Agent_Result>"
 
+            formatted_result = "<Tabular_Agent_Result>Error analysing tabular data</Tabular_Agent_Result>"
+            state = delete_db_file_if_exists(state)  # Delete DB file if it exists
             return {"agents_results": formatted_result, "tasks_evaluator": task.task + "\n" + task.expected_output}
 
     return _build_tabular_agent
