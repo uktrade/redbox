@@ -240,8 +240,6 @@ CSP_FRAME_ANCESTORS = ("'none'",)
 CSP_CONNECT_SRC = [
     "'self'",
     f"{WEBSOCKET_SCHEME}://{ENVIRONMENT.hosts[0]}/ws/chat/",
-    "eu.i.posthog.com",
-    "eu-assets.i.posthog.com",
     "https://*.google-analytics.com",
     "https://*.analytics.google.com",
     "https://*.googletagmanager.com",
