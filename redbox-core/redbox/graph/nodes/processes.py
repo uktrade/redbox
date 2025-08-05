@@ -1,7 +1,9 @@
 import json
 import logging
+import os
 import random
 import re
+import sqlite3
 import textwrap
 import time
 from collections.abc import Callable
@@ -9,6 +11,8 @@ from functools import reduce
 from random import uniform
 from typing import Any, Iterable
 from uuid import uuid4
+import pandas as pd
+from io import StringIO
 
 from botocore.exceptions import EventStreamError
 from langchain.schema import StrOutputParser
@@ -19,11 +23,14 @@ from langchain_core.runnables import Runnable, RunnableLambda, RunnableParallel
 from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.types import Command
+from langchain_community.utilities import SQLDatabase
+from langchain_community.agent_toolkits.sql.base import create_sql_agent
 
 from redbox.chains.activity import log_activity
 from redbox.chains.components import (
     get_basic_metadata_retriever,
     get_chat_llm,
+    get_base_chat_llm,
     get_structured_response_with_citations_parser,
     get_structured_response_with_planner_parser,
     get_tokeniser,
@@ -50,6 +57,7 @@ from redbox.models.prompts import (
     PLANNER_QUESTION_PROMPT,
     REPLAN_PROMPT,
     USER_FEEDBACK_EVAL_PROMPT,
+    TABULAR_FORMAT_PROMPT,
 )
 from redbox.models.settings import get_settings
 from redbox.transform import combine_agents_state, combine_documents, flatten_document_state
@@ -584,6 +592,60 @@ def stream_suggestion():
     return _stream_suggestion
 
 
+def extract_response(answer: str) -> tuple[list[str], str]:
+    """Extracts the response from a the tabular agent using the 'html'-like Tabular_Agent_Result tags."""
+    match = re.search(r"<Tabular_Agent_Result>(.*?)</Tabular_Agent_Result>", answer, re.DOTALL)
+    out = match.group(1) if match else "I was unable to parse the result. Please try again."
+
+    def stream_chars(text):
+        return split_into_random_chunks(text)
+
+    return stream_chars(out), out
+
+
+def split_into_random_chunks(text, min_len=20, max_len=50):
+    """Splits response into chunks of random character size."""
+    chunks = []
+    i = 0
+    while i < len(text):
+        chunk_len = random.randint(min_len, max_len)
+        chunks.append(text[i : i + chunk_len])
+        i += chunk_len
+    return chunks
+
+
+def stream_tabular_failure():
+    """Stream the failure of the tabular agent and fallback to newroute"""
+
+    @RunnableLambda
+    def _stream_tabular_failure(state: RedboxState):
+        stream = split_into_random_chunks(
+            "Unfortunately, I am unable to output a response using the Tabular Agent. I will try a different approach.\n\n",
+            5,
+            20,
+        )
+        for char in stream:
+            dispatch_custom_event(RedboxEventType.response_tokens, data=char)
+        state.request.question = state.request.question.lstrip("@tabular")
+        return state
+
+    return _stream_tabular_failure
+
+
+def stream_tabular_response():
+    """Stream the tabular analysis response and save the analysis in messages"""
+
+    @RunnableLambda
+    def _stream_tabular_response(state: RedboxState):
+        stream, answer = extract_response(state.agents_results[-1].content)
+        for char in stream:
+            dispatch_custom_event(RedboxEventType.response_tokens, data=char)
+        state.messages.append(AIMessage(content=answer))
+        return state
+
+    return _stream_tabular_response
+
+
 def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
     """Returns a Runnable that uses state["request"] to set state["text"]."""
 
@@ -593,3 +655,199 @@ def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
         return state
 
     return _combine_question
+
+
+def create_or_update_db_from_tabulars(state: RedboxState, db_path: str | None) -> RedboxState:
+    """Initialise a databases and saves the location as db_path in the Redbox State."""
+    if not db_path:
+        db_path = f"generated_db_{uuid4()}.db"
+
+    conn = sqlite3.connect(db_path)
+
+    doc_texts, doc_names = get_all_tabular_docs(state)
+
+    _ = load_texts_to_db(doc_texts, doc_names=doc_names, conn=conn)
+
+    conn.commit()
+    conn.close()
+
+    state.db_location = db_path
+    return state
+
+
+def get_all_tabular_docs(state: RedboxState) -> tuple[list[str], list[str]]:
+    """Gets the file names and text for all tabular files in the redbox state"""
+    all_texts, all_names = [], []
+    for doc_state in state.documents:
+        for group in doc_state[1].values():
+            if group:
+                for doc in group.values():
+                    if isinstance(doc, Document):
+                        try:
+                            # Tabular Retriever will only get csvs or excel files.
+                            all_texts.append(doc.page_content)
+                            all_names.append(
+                                os.path.splitext(os.path.basename(doc.metadata["uri"]))[0]
+                            )  # Get file name
+                        except Exception as e:
+                            log.info(f"{doc} could not be parsed! \n\n{e}")
+                            continue
+
+    return all_texts, all_names
+
+
+def detect_tabular_docs(state: RedboxState) -> bool:
+    """Returns True if a tabular document is selected"""
+    for doc_state in state.documents:
+        for group in doc_state[1].values():
+            if group:
+                for doc in group.values():
+                    uri = doc.metadata.get("uri", "")
+                    if uri.endswith((".csv", ".xlsx", ".xls")):
+                        return True
+    return False
+
+
+def extract_table_names_and_text(doc_text: str) -> tuple[str, str]:
+    """Excel Files start with Sheet Names stored alongside text so we extract this if so."""
+    if doc_text.startswith("<table_name>"):
+        pattern = r"<table_name>(.*?)</table_name>(.*)"
+        match = re.match(pattern, doc_text, re.DOTALL)
+        if match:
+            table_name = match.group(1)
+            extracted_text = match.group(2).strip()
+            return table_name, extracted_text
+    return None, doc_text
+
+
+def load_texts_to_db(doc_texts: list[str], doc_names: list[str], conn: sqlite3.Connection) -> list[str]:
+    """Load document texts as tables in a database"""
+    table_names = []
+    for idx, (doc_text, doc_name) in enumerate(zip(doc_texts, doc_names)):
+        try:
+            clean_doc_name = sanitise_file_name(doc_name)
+            sheet_name, doc_text = extract_table_names_and_text(doc_text)
+            table_name = f"{clean_doc_name}_table_{idx+1}" if not sheet_name else f"{clean_doc_name}_{sheet_name}"
+            parse_doc_text_as_db_table(doc_text, table_name, conn=conn)
+            table_names.append(table_name)
+        except Exception as e:
+            log.exception(f"Failed to load table for Document '{table_name}': {e}")
+    return table_names
+
+
+def parse_doc_text_as_db_table(doc_text: str, table_name: str, conn: sqlite3.Connection):
+    """Convert document text to SQL"""
+    try:
+        df = pd.read_csv(StringIO(doc_text), sep=",")
+
+        df.to_sql(table_name, conn, if_exists="replace", index=False)
+    except Exception as e:
+        log.exception(f"Failed to load table '{table_name}': {e}")
+
+
+def delete_db_file_if_exists(state: RedboxState):
+    db_path = state.db_location
+    if db_path and os.path.exists(db_path):
+        os.remove(db_path)
+    # Set the db location to None in the RedboxState
+    state.db_location = None
+    return state
+
+
+def sanitise_file_name(file_name: str) -> str:
+    """Removes Spaces and special characters from file names"""
+    return re.sub(r"\W+", "", file_name.replace(" ", ""))
+
+
+def parse_agent_steps(intermediate_steps: list) -> str:
+    """Extracts the steps taken by the SQL Agent and parses them for display."""
+    results = []
+    queries = set()
+
+    for step in intermediate_steps:
+        # Extract tool, log, and input from the AgentAction
+        agent_action = step[0]
+        # tool = agent_action.tool
+        log = agent_action.log
+        action_input = agent_action.tool_input
+
+        # Extract the description part of the log (text before "Action:")
+        description = ""
+        if "Action:" in log:
+            description = log.split("Action:")[0].strip()
+
+        # Create formatted output
+        action_description = description
+
+        # Add SQL query if present and not empty
+        if action_input and len(action_input.strip()) > 0:
+            # Clean up the input to remove extra newlines
+            cleaned_input = action_input.strip()
+            action_description += f"\n\n``` sql \n{cleaned_input}\n```"
+            if cleaned_input in queries:
+                continue
+            else:
+                queries.add(cleaned_input)
+        if action_description not in results:
+            results.append(action_description)
+
+    return "\n".join(results)
+
+
+def build_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 5000):
+    @RunnableLambda
+    def _build_tabular_agent(state: RedboxState):
+        state = create_or_update_db_from_tabulars(state=state, db_path=None)
+        parser = ClaudeParser(pydantic_object=AgentTask)
+
+        try:
+            task = parser.parse(state.last_message.content)
+            # Log activity
+            activity_node = build_activity_log_node(
+                RedboxActivityEvent(message=f"{agent_name} is completing task: {task.task}")
+            )
+            activity_node.invoke(state)
+        except Exception as e:
+            print(f"Cannot parse in {agent_name}: {e}")
+            task = AgentTask(task=state.request.question, expected_output="Analysis of tabular data")
+
+        # Get the structured response parser
+        # steps_taken_parser, _ = get_structured_response_with_steps_taken_parser()
+
+        try:
+            # Create SQL database agent with structured output format
+            db = SQLDatabase.from_uri(f"sqlite:///{state.db_location}")
+            llm = get_base_chat_llm(model=state.request.ai_settings.chat_backend)
+
+            # Customise the agent to return structured responses
+            agent = create_sql_agent(
+                llm=llm,
+                db=db,
+                verbose=False,
+                agent_executor_kwargs={
+                    "handle_parsing_errors": True,
+                },
+            )
+
+            agent_result = agent.invoke(
+                {"input": TABULAR_FORMAT_PROMPT.format(question=task.task.replace("@tabular ", ""))}
+            )
+
+            output = agent_result["output"]
+            result = output
+
+            # Truncate to max_tokens
+            result_content = result[:max_tokens]
+
+            formatted_result = f"<Tabular_Agent_Result>{result_content}</Tabular_Agent_Result>"
+            state = delete_db_file_if_exists(state)  # Delete DB file if it exists
+            return {"agents_results": formatted_result, "tasks_evaluator": task.task + "\n" + task.expected_output}
+
+        except Exception as e:
+            log.error(f"Error generating agent output: {e}")
+
+            formatted_result = "<Tabular_Agent_Result>Error analysing tabular data</Tabular_Agent_Result>"
+            state = delete_db_file_if_exists(state)  # Delete DB file if it exists
+            return {"agents_results": formatted_result, "tasks_evaluator": task.task + "\n" + task.expected_output}
+
+    return _build_tabular_agent

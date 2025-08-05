@@ -35,7 +35,7 @@ class AISettings(BaseModel):
 
     # Prompts and LangGraph settings
     max_document_tokens: int = 1_000_000
-    self_route_enabled: bool = env.bool("SELF_ROUTE_ENABLED", default=False)
+    new_route_enabled: bool = env.bool("NEW_ROUTE_ENABLED", default=False)
     map_max_concurrency: int = 128
     stuff_chunk_context_ratio: float = 0.75
     recursion_limit: int = 50
@@ -155,6 +155,12 @@ class Citation(BaseModel):
 class StructuredResponseWithCitations(BaseModel):
     answer: str = Field(description="Markdown structured answer to the question", default="")
     citations: list[Citation] = Field(default_factory=list)
+
+
+class StructuredResponseWithStepsTaken(BaseModel):
+    output: str = Field(description="Markdown structured answer to the question", default="")
+    # sql_query: str = Field(description="The SQL Query used to generate a response", default="")
+    reasoning: str = Field(description="The Agent's reasoning", default="")
 
 
 DocumentMapping = dict[UUID, Document | None]
@@ -316,6 +322,7 @@ class RedboxState(BaseModel):
     agents_results: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     agent_plans: MultiAgentPlan | None = None
     tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
+    db_location: str | None = None
 
     @property
     def last_message(self) -> AnyMessage:

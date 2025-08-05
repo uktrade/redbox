@@ -280,7 +280,7 @@ SESSION_COOKIE_AGE = 60 * 60 * 24
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 
 LOG_ROOT = "."
-LOG_HANDLER = "console"
+LOG_HANDLER = "asim"
 BUCKET_NAME = env.str("BUCKET_NAME")
 AWS_S3_REGION_NAME = env.str("AWS_REGION")
 APPEND_SLASH = True
@@ -362,7 +362,7 @@ else:
     }
 
 LOG_LEVEL = env.str("DJANGO_LOG_LEVEL", "WARNING")
-LOG_FORMAT = env.str("DJANGO_LOG_FORMAT", "verbose")
+LOG_FORMAT = env.str("DJANGO_LOG_FORMAT", "asim_formatter")
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
