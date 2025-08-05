@@ -284,7 +284,7 @@ export class ChatMessage extends HTMLElement {
           },
         });
         document.dispatchEvent(chatResponseEndEvent);
-        // Testing no page-reload on response end
+        // Done via htmx content swap (chat_window) - testing
         // reloadAtCurrentPosition();
       } else if (response.type === "error") {
         this.querySelector(".govuk-error-summary")?.removeAttribute(
