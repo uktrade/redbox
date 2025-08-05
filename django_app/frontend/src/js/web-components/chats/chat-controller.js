@@ -1,27 +1,38 @@
 // @ts-check
 
+import { ChatMessage } from "./chat-message";
+
 class ChatController extends HTMLElement {
+
   connectedCallback() {
-    const messageForm = this.closest("form");
-    const messageContainer = this.querySelector(".js-message-container");
-    const insertPosition = this.querySelector(".js-response-feedback");
-    const feedbackButtons = /** @type {HTMLElement | null} */ (
-      this.querySelector("feedback-buttons")
-    );
+    this.#bindEvents();
+  }
+
+  #bindEvents = () => {
+    const chatsForm = document.querySelector("#chats-form");
     let selectedDocuments = [];
 
-    messageForm?.addEventListener("submit", (evt) => {
+    chatsForm?.addEventListener("submit", (evt) => {
       evt.preventDefault();
-      const messageInput =
-        /** @type {import("./message-input").MessageInput} */ (
-          document.querySelector("message-input")
-        );
-      const userText = messageInput?.getValue();
-      if (!messageInput || !userText) {
-        return;
-      }
 
-      let userMessage = /** @type {import("./chat-message").ChatMessage} */ (
+      const chatController = /** @type {ChatController} */ (
+        document.querySelector("chat-controller")
+      );
+
+      const messageContainer = chatController.querySelector(".js-message-container");
+      messageContainer?.classList.add("test-update-dom");
+      const insertPosition = chatController.querySelector(".js-response-feedback");
+      const feedbackButtons = /** @type {HTMLElement | null} */ (
+        chatController.querySelector("feedback-buttons")
+      );
+      const messageInput = /** @type {import("./message-input").MessageInput} */ (
+          document.querySelector("message-input")
+      );
+      const userText = messageInput?.getValue();
+
+      if (!messageInput || !userText) return;
+
+      let userMessage = /** @type {ChatMessage} */ (
         document.createElement("chat-message")
       );
       userMessage.setAttribute("data-text", userText);
@@ -53,20 +64,17 @@ class ChatController extends HTMLElement {
         selectedDocuments.map(doc => doc.id),
         documents,
         llm,
-        this.dataset.sessionId,
-        this.dataset.streamUrl || "",
-        this
+        chatController.dataset.sessionId,
+        chatController.dataset.streamUrl || "",
+        chatController
       );
       /** @type {HTMLElement | null} */ (
         aiMessage.querySelector(".govuk-inset-text")
       )?.focus();
 
       // reset UI
-      if (feedbackButtons) {
-        feedbackButtons.dataset.status = "";
-      }
+      if (feedbackButtons) feedbackButtons.dataset.status = "";
       messageInput.reset();
-
     });
 
     document.body.addEventListener("selected-docs-change", (evt) => {

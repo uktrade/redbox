@@ -1,0 +1,25 @@
+{% from "macros/chat-history-macros.html" import chat_history_heading, chat_history_item %}
+{% from "components/show-more.html" import show_more %}
+
+<chat-history>
+    <template id="template-chat_history_heading">
+        <div>
+            {% call chat_history_heading("-") %}
+            {% endcall %}
+        </div>
+    </template>
+    <template id="template-chat_history_item">
+        {{ chat_history_item({
+        "id": "00000000-0000-0000-0000-000000000000",
+        "name": ""
+        }, "", "id") }}
+    </template>
+    <div id="recent-chats" class="recent-chats scrollable">
+        <ul class="chat-list">
+            {% for chat in chats %}
+            {{ chat_history_item(chat, url('chats', chat.id), chat_id) }}
+            {% endfor %}
+        </ul>
+        {{ show_more('.chat-list', 'li', 3) }}
+    </div>
+</chat-history>

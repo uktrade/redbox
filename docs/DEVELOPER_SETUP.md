@@ -179,6 +179,19 @@ DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose up
 # The DOCKER_DEFAULT_PLATFORM=linux/amd64 is only needed for certain MAC OS. You can omit this by adding the variable to your .envrc file.
 ```
 
+We recommend installing direnv to prevent having to specify DOCKER_DEFAULT_PLATFORM for each docker command. To install:
+
+``` bash
+brew install direnv
+```
+
+Then add the following to your `~/.zshrc` or appropriate shell as seen [here](https://direnv.net/docs/hook.html).
+
+``` bash
+eval "$(direnv hook zsh)"
+plugins=(git direnv)
+```
+
 For any other commands available, check the `Makefile` [here](https://github.com/i-dot-ai/redbox/blob/main/Makefile).
 
 ## How to run tests

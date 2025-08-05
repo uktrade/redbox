@@ -14,13 +14,14 @@ window.addEventListener('load', () => {
 });
 
 export class ChatMessage extends HTMLElement {
-  constructor() {
-    super();
-    this.programmaticScroll = false;
-    this.streamedContent = "";
-  }
 
   connectedCallback() {
+    this.programmaticScroll = false;
+    this.streamedContent = "";
+    this.#loadMessage();
+  }
+
+  #loadMessage = () => {
     const uuid = crypto.randomUUID();
     this.innerHTML = `
             <div class="redbox-message-container govuk-inset-text ${this.dataset.role == 'user' ? `govuk-inset-text-right`: ''} govuk-body" data-role="${
@@ -61,15 +62,16 @@ export class ChatMessage extends HTMLElement {
 
     // Insert route_display HTML
     if (this.dataset.role == "ai") {
-    const routeTemplate = /** @type {HTMLTemplateElement} */ (
-      document.querySelector("#template-route-display")
-    );
-    const routeClone = document.importNode(routeTemplate.content, true);
-    const actionsContainer = this.querySelector(".chat-actions-container");
-    if (actionsContainer) {
-      this.appendChild(routeClone);
+      const routeTemplate = /** @type {HTMLTemplateElement} */ (
+        document.querySelector("#template-route-display")
+      );
+      const routeClone = document.importNode(routeTemplate.content, true);
+      const actionsContainer = this.querySelector(".chat-actions-container");
+      if (actionsContainer) {
+        this.appendChild(routeClone);
+      }
     }
-  }}
+  };
 
 
 
@@ -144,10 +146,13 @@ export class ChatMessage extends HTMLElement {
   ) => {
     // Scroll behaviour - depending on whether user has overridden this or not
     let scrollOverride = false;
+    let isNewChat = !sessionId;
+
     function reloadAtCurrentPosition() {
       sessionStorage.setItem('scrollPosition', window.scrollY.toString());
       location.reload();
     }
+
     window.addEventListener("scroll", (evt) => {
       if (this.programmaticScroll) {
         this.programmaticScroll = false;
@@ -275,6 +280,7 @@ export class ChatMessage extends HTMLElement {
           detail: {
             title: response.data.title,
             session_id: response.data.session_id,
+            is_new_chat: isNewChat,
           },
         });
         document.dispatchEvent(chatResponseEndEvent);

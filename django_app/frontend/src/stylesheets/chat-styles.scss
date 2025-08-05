@@ -70,12 +70,6 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   padding: 0.5rem 1rem;
 }
 
-.rb-doc-selector__label {
-  line-height: 1.4;
-  word-wrap: break-word;
-  white-space: normal;
-}
-
 @media (min-width: 641px) {
   .rb-chats-section {
     flex-grow: 1;
@@ -588,9 +582,7 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   text-decoration: none;
 }
 
-#show-more-div {
-  padding: 8px;
-}
+
 
 #document-link {
   float: right;
