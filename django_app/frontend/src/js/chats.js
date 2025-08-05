@@ -21,23 +21,22 @@ import { updateChatWindow, syncUrlWithContent } from "./services";
 // RBDS - tbc
 import "../stylesheets/components/show-more.js";
 import "../stylesheets/components/editable-text.js";
+import { getActiveChatId } from "./utils/active-chat.js";
 
 
 document.addEventListener("chat-response-end", (evt) => {
+  const sessionId = /** @type{CustomEvent} */ (evt).detail.session_id;
+  const sessionTitle = /** @type{CustomEvent} */ (evt).detail.title;
 
   // Update URL when a new chat is created
-  const isNewChat = /** @type{CustomEvent} */ (evt).detail.is_new_chat;
-  const sessionId = /** @type{CustomEvent} */ (evt).detail.session_id;
-
-  if (isNewChat) {
-    const sessionTitle = /** @type{CustomEvent} */ (evt).detail.title;
+  if (sessionId !== getActiveChatId()) {
     window.history.pushState({}, "", `/chats/${sessionId}`);
-
-    // And add to chat history
-    document.querySelector("chat-history").addChat(sessionId, sessionTitle);
   }
 
-  // Reload chat window to process citation references
+  // And add to chat history or move to top of recent chats if chat exists
+  document.querySelector("chat-history").addChat(sessionId, sessionTitle);
+
+  // Reload chat window to fix citation references
   updateChatWindow(sessionId);
 
 });

@@ -146,7 +146,6 @@ export class ChatMessage extends HTMLElement {
   ) => {
     // Scroll behaviour - depending on whether user has overridden this or not
     let scrollOverride = false;
-    let isNewChat = !sessionId;
 
     function reloadAtCurrentPosition() {
       sessionStorage.setItem('scrollPosition', window.scrollY.toString());
@@ -280,7 +279,6 @@ export class ChatMessage extends HTMLElement {
           detail: {
             title: response.data.title,
             session_id: response.data.session_id,
-            is_new_chat: isNewChat,
           },
         });
         document.dispatchEvent(chatResponseEndEvent);
