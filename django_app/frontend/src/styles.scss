@@ -3,6 +3,9 @@
 @use "../node_modules/i.ai-design-system/dist/styles.scss" as iai;
 @use "./stylesheets" as stylesheets;
 
+html.no-scroll {
+    overflow: hidden;
+}
 
 body {
   background-color: white;

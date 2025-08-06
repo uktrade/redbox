@@ -1,5 +1,7 @@
 {% from "components/show-more.html" import show_more %}
 {% from "components/editable-text.html" import editable_text %}
+{% from "components/modal.html" import modal %}
+
 <document-selector id="document-selector" class="govuk-!-margin-top-5 govuk-!-padding-top-3">
     <fieldset class="govuk-fieldset">
         <legend class="full-width-panel-title">
@@ -30,18 +32,32 @@
                             {% include 'icons/edit.html' %}
                             <span class="govuk-visually-hidden"> edit document: {{ file.file_name }}</span>
                         </button>
-                        <button class="delete-button"
-                                hx-post="/documents/{{ file.id }}/delete-document/"
-                                hx-vals='{
-                                    "active_chat_id": "{{ chat_id }}",
-                                    "file_selected": "{{ file.selected }}"
-                                }'
-                                hx-headers='{ "X-CSRFToken": "{{ csrf_token }}" }'
-                                hx-target="#document-selector"
-                                hx-swap="outerHTML">
-                            {% include 'icons/delete.html' %}
-                            <span class="govuk-visually-hidden"> delete document: {{ file.file_name }}</span>
-                        </button>
+                        {% call modal() %}
+                            <button class="delete-button modal-open">{% include 'icons/delete.html' %}</button>
+                            <dialog>
+                                <div>
+                                    <h2 class="govuk-heading-m">Are you sure you want to delete this file?</h2>
+                                    <span class="govuk-captionx-xs">This action will remove <span class="govuk-!-font-weight-bold text-emphasis">{{ file.file_name }}</span> from Redbox and cannot be reversed.</span>
+                                </div>
+                                <div>
+                                    <button class="govuk-buttonx govuk-!-margin-right-4 govuk-!-margin-bottom-0 govuk-!-margin-top-4 govuk-button--warningx modal-close"
+                                            hx-post="/documents/{{ file.id }}/delete-document/"
+                                            hx-vals='{
+                                                "active_chat_id": "{{ chat_id }}",
+                                                "file_selected": "{{ file.selected }}"
+                                            }'
+                                            hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+                                            hx-target="#document-selector"
+                                            hx-swap="outerHTML">
+                                        Yes delete
+                                        <span class="govuk-visually-hidden"> delete document: {{ file.file_name }}</span>
+                                    </button>
+                                    <button class="govuk-buttonx govuk-!-margin-right-4 govuk-!-margin-bottom-0 govuk-!-margin-top-4 govuk-button--secondaryx modal-close" data-module="govuk-button">
+                                        No cancel
+                                    </button>
+                                </div>
+                            </dialog>
+                        {% endcall %}
                     </div>
                 {% endcall %}
             </div>

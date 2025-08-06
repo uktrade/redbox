@@ -21,6 +21,7 @@ import { updateChatWindow, syncUrlWithContent } from "./services";
 // RBDS - tbc
 import "../stylesheets/components/show-more.js";
 import "../stylesheets/components/editable-text.js";
+import "../stylesheets/components/modal.js";
 import { getActiveChatId } from "./utils/active-chat.js";
 
 
