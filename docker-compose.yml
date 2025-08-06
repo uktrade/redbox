@@ -48,7 +48,7 @@ services:
       start_period: 60s
 
   db:
-    image: postgres:13
+    image: postgres:14
     env_file:
       - path: tests/.env.integration
         required: false
@@ -170,11 +170,15 @@ services:
     depends_on:
       minio:
         condition: service_healthy
+      db:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
     env_file:
-      - path: tests/.env.integration
-        required: false
       - path: .env
         required: false
+    volumes:
+      - ./.env:/app/.env
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8001/health"]
       interval: 5s

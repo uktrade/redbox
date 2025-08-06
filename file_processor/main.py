@@ -1,53 +1,23 @@
 import asyncio
+
+import django
+
+django.setup()
 import logging
-import os
 import tempfile
-import time
+from collections.abc import MutableSequence, Sequence
 from io import BytesIO
 from pathlib import Path
 
-import boto3
-from botocore.exceptions import ClientError
-from fastapi import FastAPI, File, UploadFile
-from langchain_community.vectorstores import OpenSearchVectorSearch
-from langchain_core.embeddings import FakeEmbeddings
-from langchain_core.runnables import RunnableParallel
-from minio import Minio
-from minio.error import S3Error
-
-from redbox.chains.components import get_embeddings
-from redbox.chains.ingest import ingest_from_loader
-from redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader
-from redbox.models.chain import GeneratedMetadata
-from redbox.models.file import ChunkResolution
-from redbox.models.settings import get_settings
+from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import InMemoryUploadedFile
+from django_q.tasks import async_task
+from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from starlette.responses import JSONResponse
 
 app = FastAPI()
 logger = logging.getLogger(__name__)
-
-minio_client = Minio(
-    endpoint="minio:9000",
-    access_key="minioadmin",
-    secret_key="minioadmin",  # noqa: S106
-    secure=False,
-)
-
-USES_MINIO = os.getenv("ENVIRONMENT", "LOCAL") == "LOCAL"
-BUCKET_NAME = os.getenv("BUCKET_NAME", "redbox-storage-dev")
-AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY")
-AWS_SECRET_KEY = os.getenv("AWS_SECRET_KEY")
-AWS_REGION = os.getenv("AWS_REGION", "eu-west-2")
-AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL")
-
-if not USES_MINIO:
-    session = boto3.Session(
-        aws_access_key_id=AWS_ACCESS_KEY,
-        aws_secret_access_key=AWS_SECRET_KEY,
-        region_name=AWS_REGION,
-    )
-    storage_client = session.client("s3", endpoint_url=AWS_S3_ENDPOINT_URL if AWS_S3_ENDPOINT_URL else None)
-else:
-    storage_client = minio_client
+User = get_user_model()
 
 APPROVED_FILE_EXTENSIONS = [
     ".eml",
@@ -71,37 +41,25 @@ APPROVED_FILE_EXTENSIONS = [
     ".xlsx",
     ".htm",
 ]
-MAX_FILE_SIZE = 209715200  # 200 MB or 200 * 1024 * 1024
+MAX_FILE_SIZE = 209715200  # 200 MB
 
-env = get_settings()
-alias = env.elastic_chunk_alias
+from asgiref.sync import sync_to_async
 
-
-def get_elasticsearch_store(es_index_name: str):
-    return OpenSearchVectorSearch(
-        index_name=es_index_name,
-        opensearch_url=env.elastic.collection_endpoint,
-        embedding_function=get_embeddings(env),
-        query_field="text",
-        vector_query_field=env.embedding_document_field_name,
-        bulk_size=1000,
-    )
+from redbox_app.redbox_core.models import File
+from redbox_app.worker import ingest
 
 
-def get_elasticsearch_store_without_embeddings(es_index_name: str):
-    return OpenSearchVectorSearch(
-        index_name=es_index_name,
-        opensearch_url=env.elastic.collection_endpoint,
-        embedding_function=FakeEmbeddings(size=env.embedding_backend_vector_size),
-        bulk_size=1000,
-    )
-
-
-def create_alias(alias: str):
-    es = env.elasticsearch_client()
-    chunk_index_name = alias[:-8]  # removes -current
-    es.indices.create(index=chunk_index_name, body=env.index_mapping, ignore=400)
-    es.indices.put_alias(index=chunk_index_name, name=alias)
+@sync_to_async
+def get_user(x_user_id: str = Header(...)):
+    """Dependency to fetch user from X-User-ID header."""
+    try:
+        user = User.objects.get(id=f"{x_user_id}")
+        return user
+    except User.DoesNotExist:
+        raise HTTPException(status_code=401, detail="Invalid user ID")
+    except Exception:
+        logger.exception("Error fetching user with ID %s", x_user_id)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/health")
@@ -110,150 +68,94 @@ async def health_check():
 
 
 @app.post("/process-files/")
-async def process_files(files: list[UploadFile] = File(...)) -> dict:  # noqa: B008
-    errors: list[str] = []
-    processed_files: list[dict] = []
+async def upload_files(files: list[UploadFile] = File(...), user=Depends(get_user)):
+    errors: MutableSequence[str] = []
+    processed_files: MutableSequence[dict] = []
 
-    if USES_MINIO:
-        try:
-            storage_client.list_buckets()
-        except S3Error:
-            logger.exception("Error connecting to MinIO")
-            errors.append("Cannot connect to MinIO server")
-            return {"errors": errors, "processed_files": []}
+    if not files:
+        errors.append("No document selected")
 
+    uploaded_files: MutableSequence[UploadFile] = []
     for uploaded_file in files:
-        file_errors, processed_file = await process_single_file(uploaded_file)
+        file_errors = validate_uploaded_file(uploaded_file)
         errors.extend(file_errors)
-        if processed_file:
-            processed_files.append(processed_file)
+        if file_errors:
+            continue
 
-    return {"errors": errors, "processed_files": processed_files}
+        if is_doc_file(uploaded_file):
+            uploaded_file = await convert_doc_to_docx(uploaded_file)
+
+        if not await is_utf8_compatible(uploaded_file):
+            uploaded_file = await convert_to_utf8(uploaded_file)
+
+        uploaded_files.append(uploaded_file)
+
+    if not errors:
+        ingest_errors: MutableSequence[str] = []
+        for uploaded_file in uploaded_files:
+            file_obj, store_errors = await store_and_create_file(uploaded_file, user)
+            if store_errors:
+                errors.extend(store_errors)
+                continue
+
+            processed_files.append(
+                {
+                    "filename": uploaded_file.filename,
+                    "minio_path": file_obj.minio_path,
+                }
+            )
+
+            async_task(ingest, file_obj.id, task_name=file_obj.unique_name, group="ingest")
+            ingest_errors.extend(getattr(file_obj, "ingest_error", []) or [])
+
+        if ingest_errors:
+            errors.extend(ingest_errors)
+
+    return JSONResponse(
+        status_code=400 if errors else 200,
+        content={
+            "errors": errors,
+            "processed_files": processed_files,
+            "uploaded": not errors,
+        },
+    )
 
 
-async def process_single_file(uploaded_file: UploadFile) -> tuple[list[str], dict]:
-    errors = validate_uploaded_file(uploaded_file)
-    if errors:
-        return errors, None
-
-    # Handle .doc to .docx conversion
-    if is_doc_file(uploaded_file):
-        uploaded_file = await convert_doc_to_docx(uploaded_file)
-
-    # Handle UTF-8 compatibility
-    if not await is_utf8_compatible(uploaded_file):
-        uploaded_file = await convert_to_utf8(uploaded_file)
-
-    # Store in storage (MinIO or S3)
+async def store_and_create_file(uploaded_file: UploadFile, user):
+    errors: MutableSequence[str] = []
     minio_path = str(uploaded_file.filename)
+
     try:
         content = await uploaded_file.read()
-        logger.debug("Uploading file %s to bucket %s", uploaded_file.filename, BUCKET_NAME)
-        if USES_MINIO:
-            storage_client.put_object(
-                BUCKET_NAME,
-                minio_path,
-                BytesIO(content),
-                len(content),
-                content_type=uploaded_file.content_type or "application/octet-stream",
-            )
-        else:
-            storage_client.upload_fileobj(
-                Fileobj=BytesIO(content),
-                Bucket=BUCKET_NAME,
-                Key=minio_path,
-                ExtraArgs={"ContentType": uploaded_file.content_type or "application/octet-stream"},
-            )
-        logger.info("Successfully uploaded %s to %s/%s", uploaded_file.filename, BUCKET_NAME, minio_path)
-    except (S3Error, ClientError):
-        logger.exception("Error uploading to storage")
-        errors.append("Error storing %s", uploaded_file.filename)
-        return errors, None
+        logger.debug("Processing file %s", uploaded_file.filename)
 
-    try:
-        es = env.elasticsearch_client()
-        es_index_name = alias
-
-        if not es.indices.exists_alias(name=alias):
-            logger.info("The alias does not exist, creating it")
-            create_alias(alias)
-
-        # Extract metadata
-        if env.enable_metadata_extraction:
-            metadata_loader = MetadataLoader(env=env, s3_client=env.s3_client(), file_name=minio_path)
-            metadata = metadata_loader.extract_metadata()
-        else:
-            metadata = GeneratedMetadata(name=uploaded_file.filename, description="", keywords=[])
-
-        # Create temporary file for UnstructuredChunkLoader
-        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(uploaded_file.filename).suffix) as tmp_file:
-            tmp_file.write(content)
-            tmp_file_path = tmp_file.name
-
-        # Chunking chains
-        chunk_ingest_chain = ingest_from_loader(
-            loader=UnstructuredChunkLoader(
-                chunk_resolution=ChunkResolution.normal,
-                env=env,
-                min_chunk_size=env.worker_ingest_min_chunk_size,
-                max_chunk_size=env.worker_ingest_max_chunk_size,
-                overlap_chars=0,
-                metadata=metadata,
-            ),
-            s3_client=env.s3_client(),
-            vectorstore=get_elasticsearch_store(es_index_name),
-            env=env,
+        django_file = InMemoryUploadedFile(
+            file=BytesIO(content),
+            field_name=uploaded_file.filename,
+            name=uploaded_file.filename,
+            content_type=uploaded_file.content_type or "application/octet-stream",
+            size=len(content),
+            charset="utf-8",
         )
 
-        large_chunk_ingest_chain = ingest_from_loader(
-            loader=UnstructuredChunkLoader(
-                chunk_resolution=ChunkResolution.largest,
-                env=env,
-                min_chunk_size=env.worker_ingest_largest_chunk_size,
-                max_chunk_size=env.worker_ingest_largest_chunk_size,
-                overlap_chars=env.worker_ingest_largest_chunk_overlap,
-                metadata=metadata,
-            ),
-            s3_client=env.s3_client(),
-            vectorstore=get_elasticsearch_store_without_embeddings(es_index_name),
-            env=env,
+        file_obj = await sync_to_async(File.objects.create)(
+            status=File.Status.processing.value,
+            user=user,
+            original_file=django_file,
+            minio_path=minio_path,
         )
+        logger.info("Successfully created File object for %s with minio_path %s", uploaded_file.filename, minio_path)
 
-        # Parallel chunks to save CPU's soul
-        start_time = time.time()
-        new_ids = RunnableParallel({"normal": chunk_ingest_chain, "largest": large_chunk_ingest_chain}).invoke(
-            minio_path
-        )
-        duration = time.time() - start_time
-        logger.info(
-            "File: %s %s chunks ingested in %.2f seconds",
-            uploaded_file.filename,
-            {k: len(v) for k, v in new_ids.items()},
-            duration,
-        )
+    except Exception as e:
+        logger.exception("Unexpected error processing %s: %s", uploaded_file.filename, e)
+        errors.append(f"Error processing {uploaded_file.filename}: {e!s}")
+        return None, errors
 
-        # Clean up temporary file
-        try:
-            tmp_file_path.unlink(missing_ok=True)
-        except Exception:  # noqa: BLE001
-            logger.warning("Error cleaning up temporary file %s", tmp_file_path)
-
-    except Exception:
-        logger.exception("Error while processing file %s", uploaded_file.filename)
-        errors.append("Error processing %s", uploaded_file.filename)
-        return errors, None
-
-    return errors, {
-        "filename": uploaded_file.filename,
-        "minio_path": minio_path,
-        "content_type": uploaded_file.content_type,
-        "size": uploaded_file.size,
-        "chunks_ingested": {k: len(v) for k, v in new_ids.items()} if "new_ids" in locals() else {},
-    }
+    return file_obj, errors
 
 
-def validate_uploaded_file(uploaded_file: UploadFile) -> list[str]:
-    errors: list[str] = []
+def validate_uploaded_file(uploaded_file: UploadFile) -> Sequence[str]:
+    errors: MutableSequence[str] = []
     if not uploaded_file.filename:
         errors.append("File has no name")
     else:
@@ -274,11 +176,14 @@ async def is_utf8_compatible(uploaded_file: UploadFile) -> bool:
     try:
         content = await uploaded_file.read()
         content.decode("utf-8")
-        await uploaded_file.seek(0)
+        await uploaded_file.seek(0)  # Reset file pointer
+        return True
     except UnicodeDecodeError:
         logger.info("File is incompatible with UTF-8. Converting...")
         return False
-    return True
+    except Exception as e:
+        logger.exception("Error checking UTF-8 compatibility for %s: %s", uploaded_file.filename, e)
+        return False
 
 
 async def convert_to_utf8(uploaded_file: UploadFile) -> UploadFile:
@@ -290,10 +195,9 @@ async def convert_to_utf8(uploaded_file: UploadFile) -> UploadFile:
             filename=uploaded_file.filename,
             file=BytesIO(new_bytes),
             content_type="application/octet-stream",
-            size=len(new_bytes),
         )
-    except Exception:
-        logger.exception("Error converting file %s to UTF-8", uploaded_file.filename)
+    except Exception as e:
+        logger.exception("Error converting file %s to UTF-8: %s", uploaded_file.filename, e)
         return uploaded_file
 
 
@@ -303,7 +207,8 @@ def is_doc_file(uploaded_file: UploadFile) -> bool:
 
 async def convert_doc_to_docx(uploaded_file: UploadFile) -> UploadFile:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".doc") as tmp_input:
-        tmp_input.write(await uploaded_file.read)
+        content = await uploaded_file.read()
+        tmp_input.write(content)
         tmp_input.flush()
         input_path = Path(tmp_input.name)
         output_dir = input_path.parent
@@ -320,41 +225,41 @@ async def convert_doc_to_docx(uploaded_file: UploadFile) -> UploadFile:
                 str(output_dir),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=output_dir,
+                cwd=str(output_dir),
             )
-
-            stdout, stderr = await process.communicate
+            stdout, stderr = await process.communicate()
 
             if process.returncode != 0:
-                logger.exception("LibreOffice conversion failed %s", stderr.decode("utf-8"))
+                logger.error("LibreOffice conversion failed: %s", stderr.decode())
                 return uploaded_file
 
-            logger.info("LibreOffice output: %s", stdout.decode("utf-8"))
+            logger.info("LibreOffice output: %s", stdout.decode())
 
-            if not temp_output_path.exists:
-                logger.exception("Output file not found: %s", temp_output_path)
+            if not temp_output_path.exists():
+                logger.error("Output file not found: %s", temp_output_path)
                 return uploaded_file
 
             with temp_output_path.open("rb") as f:
                 converted_content = f.read()
+                if len(converted_content) == 0:
+                    logger.error("Converted file is empty")
+                    return uploaded_file
+
                 return UploadFile(
                     filename=Path(uploaded_file.filename).with_suffix(".docx").name,
                     file=BytesIO(converted_content),
                     content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    size=len(converted_content),
                 )
-
-        except Exception:
-            logger.exception("Error converting doc file %s to docx", uploaded_file.filename)
+        except Exception as e:
+            logger.exception("Error converting doc file %s to docx: %s", uploaded_file.filename, e)
             return uploaded_file
-
         finally:
             try:
-                input_path.unlink()
+                input_path.unlink(missing_ok=True)
                 if temp_output_path.exists():
-                    temp_output_path.unlink()
-            except Exception:  # noqa: BLE001
-                logger.warning("Error cleaning up temporary files")
+                    temp_output_path.unlink(missing_ok=True)
+            except Exception as e:
+                logger.warning("Error cleaning up temporary files: %s", e)
 
 
 if __name__ == "__main__":

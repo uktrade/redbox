@@ -22,32 +22,6 @@ if TYPE_CHECKING:
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
-CHUNK_SIZE = 1024
-# move this somewhere
-APPROVED_FILE_EXTENSIONS = [
-    ".eml",
-    ".html",
-    ".json",
-    ".md",
-    ".msg",
-    ".rst",
-    ".rtf",
-    ".txt",
-    ".xml",
-    ".csv",
-    ".doc",
-    ".docx",
-    ".epub",
-    ".epub",
-    ".odt",
-    ".pdf",
-    ".ppt",
-    ".pptx",
-    ".tsv",
-    ".xlsx",
-    ".htm",
-]
-MAX_FILE_SIZE = 209715200  # 200 MB or 200 * 1024 * 1024
 
 
 class DocumentView(View):
@@ -87,9 +61,11 @@ class UploadView(View):
         # Goes to the microservice
         try:
             files = [("files", (f.name, f, f.content_type)) for f in uploaded_files]
+            headers = {"X-User-ID": str(request.user.id)}  # Pass user ID in headers
             response = requests.post(
                 f"{settings.FILE_PROCESSOR_URL}/process-files/",
                 files=files,
+                headers=headers,
                 timeout=30,
             )
             response.raise_for_status()

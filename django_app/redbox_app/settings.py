@@ -28,9 +28,9 @@ if os.getenv("USE_LOCAL_ENV", "False").lower() == "true":
 
 env = environ.Env()
 
-ALLOW_SIGN_UPS = env.bool("ALLOW_SIGN_UPS")
+ALLOW_SIGN_UPS = env.bool("ALLOW_SIGN_UPS", True)
 
-SECRET_KEY = env.str("DJANGO_SECRET_KEY")
+SECRET_KEY = env.str("DJANGO_SECRET_KEY", "123")
 ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
 WEBSOCKET_SCHEME = "ws" if ENVIRONMENT.is_test else "wss"
 LOGIN_METHOD = env.str("LOGIN_METHOD", None)
@@ -118,7 +118,7 @@ TEMPLATES = [
             BASE_DIR / "frontend" / "src" / "stylesheets",
         ],
         "OPTIONS": {
-            "environment": "redbox_app.jinja2.environment",
+            "environment": "redbox_app.redbox_jinja2.environment",
         },
     },
     {
