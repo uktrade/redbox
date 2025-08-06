@@ -17,6 +17,7 @@ def get_date_group(on: date) -> str:
 def render_with_oob(templates: list[RenderTemplateItem]) -> HttpResponse:
     """
     Render multiple templates with their own context, request and optional engine.
+    Using HTMX Out of bounds swap method.
 
     Args:
         templates (List[RenderTemplateItem]): A list of dicts like:

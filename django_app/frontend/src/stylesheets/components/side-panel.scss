@@ -116,7 +116,7 @@
         text-overflow: ellipsis;
         overflow: hidden;
         min-width: 0;
-        max-width: 13ch;
+        max-width: 18ch; // 1ch to account for ellipses
         flex: 1;
         padding: 0;
       }

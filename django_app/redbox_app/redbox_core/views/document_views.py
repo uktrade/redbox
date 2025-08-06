@@ -406,7 +406,6 @@ class DocumentsTitleView(View):
 
         request_body = DocumentsTitleView.Title.schema().loads(request.body)
 
-        # Debug and test the above first
         file.original_file_name = request_body.value
         file.save(update_fields=["original_file_name"])
 

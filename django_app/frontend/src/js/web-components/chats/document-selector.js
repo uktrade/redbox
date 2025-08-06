@@ -9,6 +9,7 @@ class DocumentSelector extends HTMLElement {
     this.documents = /** @type {NodeListOf<HTMLInputElement>} */ (
       this.querySelectorAll('input[type="checkbox"]')
     );
+
     if (!this.documents) return;
 
     // update on page load
@@ -16,7 +17,7 @@ class DocumentSelector extends HTMLElement {
 
     // update on any selection change
     this.documents.forEach((document) => {
-      document.addEventListener("change", this.#getSelectedDocuments);
+      document.addEventListener("change", () => this.#getSelectedDocuments());
     });
 
     // listen for completed docs
@@ -31,6 +32,7 @@ class DocumentSelector extends HTMLElement {
     // listen for deleted docs
     this.#observeDocumentDeletions();
   }
+
 
   #getSelectedDocuments() {
     if (!this.documents) return;

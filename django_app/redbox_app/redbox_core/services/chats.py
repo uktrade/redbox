@@ -120,3 +120,13 @@ def render_recent_chats(request, active_chat_id) -> TemplateResponse:
         "side_panel/recent_chats_list.html",
         context,
     )
+
+
+def render_chat_window(request, active_chat_id) -> TemplateResponse:
+    context = get_context(request, active_chat_id)
+
+    return TemplateResponse(
+        request,
+        "chat/chat_window.html",
+        context,
+    )

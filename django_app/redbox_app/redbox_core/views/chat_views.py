@@ -7,7 +7,6 @@ from dataclasses_json import Undefined, dataclass_json
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -107,8 +106,4 @@ class RecentChats(View):
 class ChatWindow(View):
     @method_decorator(login_required)
     def get(self, request: HttpRequest, active_chat_id: uuid.UUID) -> HttpResponse:
-        return TemplateResponse(
-            request,
-            "chat/chat_window.html",
-            chat_service.get_context(request, active_chat_id),
-        )
+        return chat_service.render_chat_window(request, active_chat_id)
