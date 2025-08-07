@@ -7,7 +7,13 @@ from langchain_core.messages import AIMessage
 from langgraph.prebuilt import ToolNode
 from opensearchpy import OpenSearch
 
-from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_documents_tool, build_search_wikipedia_tool
+from redbox.graph.nodes.tools import (
+    build_govuk_search_tool,
+    build_legislation_search_tool,
+    build_search_documents_tool,
+    build_search_wikipedia_tool,
+    build_web_search_tool,
+)
 from redbox.models.chain import AISettings, RedboxQuery, RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
 from redbox.models.settings import Settings
@@ -180,6 +186,64 @@ def test_wikipedia_tool():
         assert metadata.creator_type == ChunkCreatorType.wikipedia
 
 
+def test_web_search_tool():
+    tool = build_web_search_tool()
+    tool_node = ToolNode(tools=[tool])
+    response = tool_node.invoke(
+        {
+            "messages": [
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "name": "_search_web",
+                            "args": {"query": "Whats the next nearest UK bank holiday"},
+                            "id": "1",
+                        }
+                    ],
+                )
+            ]
+        }
+    )
+    assert response["messages"][0].content != ""
+
+    for document in response["messages"][0].artifact:
+        assert document.page_content != ""
+        metadata = ChunkMetadata.model_validate(document.metadata)
+        assert urlparse(metadata.uri).hostname != ""
+        assert metadata.creator_type == ChunkCreatorType.web_search
+
+
+def test_legislation_search_tool():
+    tool = build_legislation_search_tool()
+    tool_node = ToolNode(tools=[tool])
+    response = tool_node.invoke(
+        {
+            "messages": [
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "name": "_search_legislation",
+                            "args": {"query": "What was the latest legislation to be amended"},
+                            "id": "1",
+                        }
+                    ],
+                )
+            ]
+        }
+    )
+    assert response["messages"][0].content != ""
+
+    page_content_populated = []
+    for document in response["messages"][0].artifact:
+        page_content_populated.append(True if document.page_content != "" else False)
+        metadata = ChunkMetadata.model_validate(document.metadata)
+        assert urlparse(metadata.uri).hostname == "www.legislation.gov.uk"
+        assert metadata.creator_type == ChunkCreatorType.web_search
+    assert any(page_content_populated)
+
+
 @pytest.mark.parametrize(
     "is_filter, relevant_return, query, keyword",
     [
@@ -250,5 +314,7 @@ def test_gov_tool_params():
 
     documents = response["messages"][-1].artifact
 
+    # call gov tool without additional filter
+    assert len(documents) == ai_setting.tool_govuk_returned_results
     # call gov tool without additional filter
     assert len(documents) == ai_setting.tool_govuk_returned_results
