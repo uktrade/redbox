@@ -17,11 +17,10 @@ export function getChatIdFromUrl() {
  * Extract the active chat id from the currently selected chat
 */
 export function getSelectedChatId() {
-    const selectedChat = document.querySelector(".chat-list-item.selected");
-    const chatHistoryItem = /** @type {HTMLElement} */ (
-        selectedChat?.querySelector("chat-history-item")
+    const selectedChat = /** @type {HTMLElement} */ (
+        document.querySelector(".chat-list-item.selected")
     );
-    const selectedUUID = chatHistoryItem?.dataset?.chatid ?? null;
+    const selectedUUID = selectedChat?.dataset?.chatid ?? null;
 
     return selectedUUID;
 }

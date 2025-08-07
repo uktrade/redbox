@@ -2,7 +2,7 @@
 
 import htmx from 'htmx.org';
 
-class ChatHistory extends HTMLElement {
+export class ChatHistory extends HTMLElement {
 
   connectedCallback() {
     this.dataset.initialised = "true";
@@ -10,7 +10,7 @@ class ChatHistory extends HTMLElement {
 
 
   /**
-   * Internal method for adding the list-item to the chat history
+   * DEPRECIATED - Internal method for adding the list-item to the chat history
    * @param {string} chatId
    * @param {string} title
    * @returns {HTMLLIElement}
@@ -51,12 +51,16 @@ class ChatHistory extends HTMLElement {
     );
 
     let deleteButton = /** @type {HTMLButtonElement} */ (
-      chatListItem.querySelector(".delete-button")
+      chatListItem.querySelector("#delete-chat-confirm-button")
     );
 
+    let deleteConfirmTitle = /** @type {HTMLSpanElement} */ (
+      chatListItem.querySelector("#delete-chat-confirm-title")
+    );
+    deleteConfirmTitle.innerText = title;
     // TODO: Slight refactor upon completion of delete confirmation
     if (deleteButton) {
-      deleteButton.setAttribute("hx-post", `/chats/${chatId}/delete-chat`);
+      deleteButton.setAttribute("hx-post", `/chats/${chatId}/delete-chat/`);
       deleteButton.setAttribute("hx-vals", `{"active_chat_id": "${chatId}"}`);
       deleteButton.setAttribute("hx-target", `#chat-${chatId}`);
     }
@@ -65,8 +69,9 @@ class ChatHistory extends HTMLElement {
     return /** @type {HTMLLIElement} */ (chatListItem);
   }
 
+
   /**
-   * Adds an item to the chat history
+   * DEPRECIATED - Adds an item to the chat history
    * @param {string} chatId
    * @param {string} title
    */
@@ -75,6 +80,17 @@ class ChatHistory extends HTMLElement {
     if (!item) {
       item = this.#createItem(chatId, title.substring(0, 30));
     }
+    this.querySelector("ul")?.prepend(item);
+  }
+
+
+  /**
+   * Update item position
+   * @param {string} chatId
+   */
+  moveToTop(chatId) {
+    let item = this.querySelector(`[data-chatid="${chatId}"]`)?.closest("li");
+    if (!item) return;
     this.querySelector("ul")?.prepend(item);
   }
 }

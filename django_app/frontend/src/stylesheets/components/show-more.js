@@ -1,11 +1,11 @@
 // @ts-check
 
+import htmx from "htmx.org";
 import { hideElement, showElement, getNumericAttr } from "../../js/utils";
 
 class ShowMore extends HTMLElement {
     visibleCount = 5;
     labelText = "Show more...";
-
 
     connectedCallback() {
         this.visibleCount = getNumericAttr(this, 'visible-count', this.visibleCount);
@@ -13,7 +13,7 @@ class ShowMore extends HTMLElement {
 
         if (!this.container) return;
 
-        this.#updateVisibleItems();
+        htmx.onLoad(() => this.#updateVisibleItems());
         this.observer = new MutationObserver((mutations, observer) => {
             for (const mutation of mutations) {
                 if (mutation.target.nodeName !== this.nodeName) this.#updateVisibleItems();

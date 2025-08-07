@@ -129,7 +129,7 @@ class ChatHistoryItem extends HTMLElement {
         /** @type {HTMLInputElement | null} */ (
         document.querySelector('[name="csrfmiddlewaretoken"]')
     )?.value || "";
-    await fetch(`/chats/${this.dataset.chatid}/delete-chat`, {
+    await fetch(`/chats/${this.dataset.chatid}/delete-chat/`, {
         method: "POST",
         headers: {"Content-Type": "application/json", "X-CSRFToken": csrfToken},
     });

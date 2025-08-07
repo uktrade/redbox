@@ -146,6 +146,7 @@ export class ChatMessage extends HTMLElement {
   ) => {
     // Scroll behaviour - depending on whether user has overridden this or not
     let scrollOverride = false;
+    const is_new_chat = !sessionId;
 
     function reloadAtCurrentPosition() {
       sessionStorage.setItem('scrollPosition', window.scrollY.toString());
@@ -279,11 +280,10 @@ export class ChatMessage extends HTMLElement {
           detail: {
             title: response.data.title,
             session_id: response.data.session_id,
+            is_new_chat,
           },
         });
         document.dispatchEvent(chatResponseEndEvent);
-        // Done via htmx content swap (chat_window) - testing
-        // reloadAtCurrentPosition();
       } else if (response.type === "error") {
         this.querySelector(".govuk-error-summary")?.removeAttribute(
           "hidden"

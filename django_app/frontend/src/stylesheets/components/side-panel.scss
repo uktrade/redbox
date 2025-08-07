@@ -37,39 +37,13 @@
       margin: 0;
 
       .chat-list-item {
+        display: contents;
 
         &.selected {
           --color-side-panel-link-text: var(--color-side-panel-text);
           --color-icon-light-foreground: var(--color-side-panel-text);
 
           color: var(--color-side-panel-text);
-        }
-
-        .chat-item-container {
-          align-items: center;
-          display: flex;
-          justify-content: space-between;
-          min-height: 2.5rem;
-          padding: 8px;
-
-          .chat-item-text-container {
-            gap: 0.5rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 100%;
-            box-sizing: border-box;
-            color: var(--color-side-panel-link-text);
-            padding-bottom: 3px;
-
-            .chat-item-link {
-              color: var(--color-side-panel-link-text);
-
-              &:hover {
-                color: var(--color-link-text-hover);
-              }
-            }
-          }
         }
       }
     }
@@ -91,6 +65,7 @@
   }
 
   .side-panel-item-container {
+    justify-content: space-between;
     align-items: center;
     display: flex;
     padding: 8px;
@@ -121,15 +96,34 @@
         padding: 0;
       }
     }
-  }
 
-}
-.item-title-text-input {
+    .item-text-container {
+      gap: 0.5rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      box-sizing: border-box;
+      color: var(--color-side-panel-link-text);
+      padding-bottom: 3px;
+    }
 
-    input {
-      background-color: transparent;
-      border: 1px solid var(--color-border);
-      padding: 0.375rem;
-      width: 100%;
+    .item-text-input {
+
+      input {
+        background-color: transparent;
+        border: 1px solid var(--color-border);
+        padding: 0.375rem;
+        width: 100%;
+      }
+    }
+
+    .item-link {
+      color: var(--color-side-panel-link-text);
+
+      &:hover {
+        color: var(--color-link-text-hover);
+      }
     }
   }
+}

@@ -35,40 +35,6 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   background-color: var(--iai-colour-text-primary);
 }
 
-.rb-chat-history__expanded-panel {
-  background-color: #F3F3F3;
-  display: none;
-}
-
-// Recent chat delete button
-.rb-chat-history__level2-button {
-  align-items: center;
-  background-color: transparent;
-  border: 0;
-  cursor: pointer;
-  gap: 0.5rem;
-  min-height: 2.5rem;
-  margin-left: auto;
-  color: white;
-  padding-right: 0;
-}
-.rb-chat-history__level2-button:hover {
-  color: var(--color-background);
-}
-.rb-chat-history__delete-confirmation {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-  padding-right: 0.5rem;
-}
-
-.rb-chat-history__level3-text {
-  align-items: center;
-  display: flex;
-  gap: 0.5rem;
-  min-height: 2.5rem;
-  padding: 0.5rem 1rem;
-}
 
 @media (min-width: 641px) {
   .rb-chats-section {
@@ -586,13 +552,6 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 
 #document-link {
   float: right;
-}
-
-div[data-page="1"] {
-  display: flex;
-  flex-wrap: nowrap;
-  justify-content: space-between;
-  align-items: center;
 }
 
 .govuk-inset-text-right {
