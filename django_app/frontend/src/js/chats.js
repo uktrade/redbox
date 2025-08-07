@@ -17,13 +17,32 @@ import "./web-components/documents/file-status.js";
 import "./web-components/chats/profile-overlay.js";
 import "./web-components/chats/exit-feedback.js";
 
-document.addEventListener("chat-response-end", (evt) => {
-  
-  // Update URL when a new chat is created
-  const sessionId = /** @type{CustomEvent} */ (evt).detail.session_id;
-  const sessionTitle = /** @type{CustomEvent} */ (evt).detail.title;
-  window.history.pushState({}, "", `/chats/${sessionId}`);
+// RBDS - tbc
+import "../stylesheets/components/show-more.js";
+import "../stylesheets/components/editable-text.js";
+import "../stylesheets/components/modal.js";
 
-  // And add to chat history
-  document.querySelector("chat-history").addChat(sessionId, sessionTitle);
+import { updateChatWindow, syncUrlWithContent, updateRecentChatHistory } from "./services";
+import { ChatHistory } from "./web-components/chats/chat-history.js";
+
+
+
+document.addEventListener("chat-response-end", (evt) => {
+  const event = /** @type {CustomEvent} */ (evt);
+
+  const sessionId = event.detail.session_id;
+  const isNewChat = event.detail.is_new_chat;
+
+  if (isNewChat) {
+    // Update Recent chats section
+    updateRecentChatHistory(sessionId);
+  } else {
+    // Move current chat to top of list
+    /** @type {ChatHistory} */ (document.querySelector("chat-history")).moveToTop(sessionId);
+  }
+
+  // Reload chat window to fix citation references
+  updateChatWindow(sessionId);
 });
+
+syncUrlWithContent();

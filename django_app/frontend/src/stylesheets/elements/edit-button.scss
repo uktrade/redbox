@@ -3,4 +3,8 @@
   border: 0;
   cursor: pointer;
   margin-top: 4px;
+
+  &.dark {
+    --color-icon-light-foreground: var(--color-icon-light-foreground-secondary);
+  }
 }

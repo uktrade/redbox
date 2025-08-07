@@ -1,0 +1,5 @@
+{% macro modal(modal_classes='width-third') %}
+    <rbds-modal class="{{ modal_classes }}">
+        {{ caller() }}
+    </rbds-modal>
+{% endmacro %}

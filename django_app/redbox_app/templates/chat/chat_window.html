@@ -1,0 +1,105 @@
+{% from "macros/chat-macros.html" import message_box, route_display %}
+{% from "macros/govuk-button.html" import govukButton %}
+
+<div id="chat-window" name="swapped" class="govuk-grid-column-three-quarters" hx-swap-oob="outerHTML">
+    {% if not messages %}
+    <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1"
+        security-classification="{{ security }}"></canned-prompts>
+    {% endif %}
+    <div class="rb-chats-section">
+        {% include "chat/chat_title.html" %}
+        <chat-controller class="iai-chat-container" data-stream-url="{{ streaming.endpoint }}"
+            data-session-id="{{ chat_id or '' }}">
+            <div class="rb-chat-message__container js-message-container">
+
+                <template id="template-route-display">
+                    {{ route_display() }}
+                </template>
+
+                {# SSR messages #}
+
+                {% for message in messages %}
+                {{ message_box(message=message) }}
+                {% endfor %}
+
+                {# CSR messages are inserted here #}
+
+            </div>
+
+            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" />
+            {% if chat_id %}<input type="hidden" name="session-id" value="{{ chat_id }}" />{% endif %}
+
+        </chat-controller>
+    </div>
+    <div class="chat-input__input-container">
+        <label class="govuk-label govuk-!-padding-top-1" for="message"></label>
+        <div id="message-hint" class="govuk-hint govuk-body">
+            Need help? View <a href="{{ url('faq') }}" class="govuk-link" target="_blank">Advanced Prompt FAQ.</a>
+        </div>
+        <message-input>
+            <div class="govuk-textareax message-input" id="message" name="message" contenteditable="true" role="textbox"
+                aria-multiline="true" data-text="Type here..."></div>
+        </message-input>
+        {% if enable_dictation_flag_is_active %}
+        <send-message-with-dictation data-api-key="{{ redbox_api_key }}">
+            <button type="submit"
+                class="govuk-buttonx govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4"
+                data-module="govuk-button">
+                Dictate
+            </button>
+            {{ govukButton(
+            text="Stop",
+            classes="govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4",
+            dont_submit=True
+            ) }}
+            {{ govukButton(
+            text="Add document",
+            href=url('upload'),
+            classes="govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4"
+            ) }}
+            {{ govukButton(
+            text="Send",
+            classes="govuk-!-margin-top-5 rb-send-button"
+            ) }}
+            {{ govukButton(
+            text="Stop",
+            classes="govuk-!-margin-top-5"
+            ) }}
+        </send-message-with-dictation>
+        {% else %}
+        <send-message>
+            {{ govukButton(
+            text="Add document",
+            href=url('upload'),
+            classes="govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4"
+            ) }}
+            {{ govukButton(
+            text="Send",
+            classes="govuk-!-margin-top-5 rb-send-button"
+            ) }}
+            {{ govukButton(
+            text="Stop",
+            classes="govuk-!-margin-top-5"
+            ) }}
+        </send-message>
+        {% endif %}
+        {% if not messages %}
+        <div class="chat-warnings">
+            <div class="govuk-warning-text govuk-body govuk-!-margin-bottom-1 govuk-!-padding-bottom-0">
+                <span class="govuk-warning-text__icon small-warning" aria-hidden="true">!</span>
+                <strong class="govuk-warning-text__text govuk-!-padding-left-7">
+                    <span class="govuk-visually-hidden">Warning</span>
+                    You can use up to, and including, official sensitive documents.
+                </strong>
+            </div>
+            <div class="govuk-warning-text govuk-body govuk-!-margin-bottom-1 govuk-!-padding-bottom-0">
+                <span class="govuk-warning-text__icon small-warning" aria-hidden="true">!</span>
+                <strong class="govuk-warning-text__text govuk-!-padding-left-7">
+                    <span class="govuk-visually-hidden">Warning</span>
+                    Redbox can make mistakes. You must check for accuracy before using the output.
+                </strong>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
