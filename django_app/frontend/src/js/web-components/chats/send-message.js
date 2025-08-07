@@ -1,5 +1,7 @@
 // @ts-check
 
+import { hideElement, showElement } from "../../utils";
+
 class SendMessage extends HTMLElement {
 
   connectedCallback() {
@@ -10,30 +12,30 @@ class SendMessage extends HTMLElement {
       this.querySelector("button:nth-child(3)")
     );
 
-    this.buttonStop.style.display = "none";
+    hideElement(this.buttonStop);
       this.buttonStop.addEventListener("click", () => {
         const stopStreamingEvent = new CustomEvent("stop-streaming");
         document.dispatchEvent(stopStreamingEvent);
       });
-  
+
       document.addEventListener("chat-response-start", () => {
         if (!this.buttonSend || !this.buttonStop) {
           return;
         }
-        this.buttonSend.style.display = "none";
-        this.buttonStop.style.display = "inline";
+        hideElement(this.buttonSend);
+        showElement(this.buttonStop);
       });
-  
+
       document.addEventListener("chat-response-end", this.#showSendButton);
       document.addEventListener("stop-streaming", this.#showSendButton);
     }
-  
+
     #showSendButton = () => {
       if (!this.buttonSend || !this.buttonStop) {
         return;
       }
-      this.buttonSend.style.display = "inline";
-      this.buttonStop.style.display = "none";
+      showElement(this.buttonSend);
+      hideElement(this.buttonStop);
     };
   }
   customElements.define("send-message", SendMessage);

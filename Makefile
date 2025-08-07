@@ -294,3 +294,7 @@ local-setup: # Run the local setup commands
 .PHONY: aws-login
 aws-login: # Login to AWS
 	./aws-login.sh
+
+.PHONY: shell
+shell: # Launch python shell
+	cd django_app && python manage.py shell

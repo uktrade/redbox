@@ -43,6 +43,8 @@ info_urlpatterns = [
 
 file_urlpatterns = [
     path("documents/", views.DocumentView.as_view(), name="documents"),
+    path("documents/<uuid:doc_id>/delete-document/", views.delete_document, name="delete-document"),
+    path("documents/<uuid:doc_id>/title/", views.DocumentsTitleView.as_view(), name="document-titles"),
     path("upload/", views.UploadView.as_view(), name="upload"),
     path("remove-doc/<uuid:doc_id>", views.remove_doc_view, name="remove-doc"),
     path("remove-all-docs", views.remove_all_docs_view, name="remove-all-docs"),
@@ -55,7 +57,11 @@ chat_urlpatterns = [
     path("citations/<uuid:message_id>/", views.CitationsView.as_view(), name="citations"),
     path("ratings/<uuid:message_id>/", views.RatingsView.as_view(), name="ratings"),
     path("chats/<uuid:chat_id>/update-chat-feedback", views.UpdateChatFeedback.as_view(), name="chat-feedback"),
-    path("chats/<uuid:chat_id>/delete-chat", views.DeleteChat.as_view(), name="chat-delete"),
+    path("chats/<uuid:chat_id>/delete-chat/", views.DeleteChat.as_view(), name="delete-chat"),
+    path("chats/recent-chats/", views.RecentChats.as_view(), name="recent-chats-initial"),
+    path("chats/<uuid:active_chat_id>/recent-chats/", views.RecentChats.as_view(), name="recent-chats"),
+    path("chats/chat-window/", views.ChatWindow.as_view(), name="chat-window-initial"),
+    path("chats/<uuid:active_chat_id>/chat-window/", views.ChatWindow.as_view(), name="chat-window"),
 ]
 
 admin_urlpatterns = [

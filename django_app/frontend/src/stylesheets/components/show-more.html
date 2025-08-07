@@ -1,0 +1,8 @@
+{% macro show_more(containerSelector, itemSelector, visibleCount=5, labelText="Show more...") %}
+    <show-more
+        container-selector="{{ containerSelector }}"
+        item-selector="{{ itemSelector }}"
+        visible-count="{{ visibleCount | e }}"
+        label-text="{{ labelText }}">
+    </show-more>
+{% endmacro %}
