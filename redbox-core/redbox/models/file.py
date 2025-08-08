@@ -20,6 +20,7 @@ class ChunkCreatorType(StrEnum):
     wikipedia = "Wikipedia"
     user_uploaded_document = "UserUploadedDocument"
     gov_uk = "GOV.UK"
+    web_search = "WebSearch"
 
 
 class ChunkMetadata(BaseModel):

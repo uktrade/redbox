@@ -1,7 +1,7 @@
+import json
 from typing import Annotated, Iterable, Union
 
 import boto3
-import json
 import numpy as np
 import requests
 from elasticsearch import Elasticsearch
@@ -109,8 +109,8 @@ def build_govuk_search_tool(filter=True) -> Tool:
     @tool(response_format="content_and_artifact")
     def _search_govuk(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
         """
-        Search for documents on gov.uk based on a query string.
-        This endpoint is used to search for documents on gov.uk. There are many types of documents on gov.uk.
+        Search for documents on www.gov.uk based on a query string.
+        This endpoint is used to search for documents on www.gov.uk. There are many types of documents on www.gov.uk.
         Types include:
         - guidance
         - policy
@@ -397,3 +397,82 @@ __RETRIEVEAL_TOOL_MESSAGE_FORMATTERS = {
 
 def get_log_formatter_for_retrieval_tool(t: ToolCall) -> BaseRetrievalToolLogFormatter:
     return __RETRIEVEAL_TOOL_MESSAGE_FORMATTERS.get(t["name"], BaseRetrievalToolLogFormatter)(t)
+
+
+def brave_search_call(query: str, country_code: str = "GB", ui_lang: str = "en-GB", no_search_result: int = 20):
+    tokeniser = bedrock_tokeniser
+    web_search_settings = get_settings().web_search_settings()
+    response = requests.get(
+        web_search_settings.end_point,
+        headers=web_search_settings.secret_tokens,
+        params={
+            "q": query,
+            "country": country_code,
+            "ui_lang": ui_lang,
+            "count": str(no_search_result),
+            "extra_snippets": "true",
+        },
+    )
+    if response.status_code == 200:
+        mapped_documents = []
+        results = response.json().get("web", []).get("results")
+        for i, doc in enumerate(results):
+            page_content = "".join(doc.get("extra_snippets", []))
+            token_count = tokeniser(page_content)
+            print(f"Document {i} token count: {token_count}")
+            mapped_documents.append(
+                Document(
+                    page_content=page_content,
+                    metadata=ChunkMetadata(
+                        index=i,
+                        uri=doc.get("url", ""),
+                        token_count=token_count,
+                        creator_type=ChunkCreatorType.web_search,
+                    ).model_dump(),
+                )
+            )
+        docs = mapped_documents
+    else:
+        print(f"Status returned: {response.status_code}")
+        return "", []
+    return format_documents(docs), docs
+
+
+def build_web_search_tool():
+    @tool(response_format="content_and_artifact")
+    def _search_web(query: str, country_code="GB", ui_lang: str = "en-GB"):
+        """
+        Web Search tool is a versatile search tool that allows users to search the entire web (similar to a search engine) or to conduct targeted searches within specific websites.
+
+        Args:
+            query (str): The search query to pass to legislation search engine.
+            - Can be natural language, keywords, or phrases
+            - More specific queries yield more precise results
+            - Query length should be 1-500 characters
+            country_code (str): The 2 character country code where the search results come from. Default is GB.
+            ui_lang (str):
+        Returns:
+            dict[str, Any]: Collection of matching document snippets with metadata:
+        """
+        return brave_search_call(query=query, country_code=country_code, ui_lang=ui_lang)
+
+    return _search_web
+
+
+def build_legislation_search_tool():
+    @tool(response_format="content_and_artifact")
+    def _search_legislation(query: str):
+        """
+        Searching legislation.gov.uk.
+
+        Args:
+            query (str): The search query to pass to legislation search engine.
+            - Can be natural language, keywords, or phrases
+            - More specific queries yield more precise results
+            - Query length should be 1-500 characters
+        Returns:
+            dict[str, Any]: Collection of matching document snippets with metadata:
+        """
+        return brave_search_call(query=query + " site:legislation.gov.uk")
+
+    return _search_legislation
