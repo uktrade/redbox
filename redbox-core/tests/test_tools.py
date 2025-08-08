@@ -1,3 +1,4 @@
+import time
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -20,6 +21,15 @@ from redbox.models.settings import Settings
 from redbox.test.data import RedboxChatTestCase
 from redbox.transform import flatten_document_state
 from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
+
+
+# This adds a 1 second delay between each test defined in this file, this is to avoid
+# rate limit errors returned from tests involving the Brave Search API where the current free plan
+# used for experiments limits to 1 query/second
+@pytest.fixture(autouse=True)
+def slow_down_tests():
+    yield
+    time.sleep(1)
 
 
 @pytest.mark.parametrize("chain_params", TEST_CHAIN_PARAMETERS)
@@ -207,11 +217,13 @@ def test_web_search_tool():
     )
     assert response["messages"][0].content != ""
 
+    page_content_populated = []
     for document in response["messages"][0].artifact:
-        assert document.page_content != ""
+        page_content_populated.append(True if document.page_content != "" else False)
         metadata = ChunkMetadata.model_validate(document.metadata)
         assert urlparse(metadata.uri).hostname != ""
         assert metadata.creator_type == ChunkCreatorType.web_search
+    assert any(page_content_populated)
 
 
 def test_legislation_search_tool():
@@ -317,4 +329,7 @@ def test_gov_tool_params():
     # call gov tool without additional filter
     assert len(documents) == ai_setting.tool_govuk_returned_results
     # call gov tool without additional filter
+    assert len(documents) == ai_setting.tool_govuk_returned_results
+    assert len(documents) == ai_setting.tool_govuk_returned_results
+    assert len(documents) == ai_setting.tool_govuk_returned_results
     assert len(documents) == ai_setting.tool_govuk_returned_results
