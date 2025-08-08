@@ -323,12 +323,21 @@ class RedboxState(BaseModel):
     agent_plans: MultiAgentPlan | None = None
     tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     db_location: str | None = None
+    original_documents: DocumentState | None = None
 
     @property
     def last_message(self) -> AnyMessage:
         if not self.messages:
             raise ValueError("No messages in the state")
         return self.messages[-1]
+
+    def store_document_state(self):
+        self.original_documents = self.documents.model_copy(deep=True)
+
+    def documents_changed(self) -> bool:
+        if not self.original_documents:
+            return False
+        return self.original_documents != self.documents
 
 
 class PromptSet(StrEnum):
