@@ -657,21 +657,39 @@ def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
     return _combine_question
 
 
-def create_or_update_db_from_tabulars(state: RedboxState, db_path: str | None) -> RedboxState:
-    """Initialise a databases and saves the location as db_path in the Redbox State."""
-    if not db_path:
-        db_path = f"generated_db_{uuid4()}.db"
+def create_or_update_db_from_tabulars(state: RedboxState) -> RedboxState:
+    """
+    Initialise a database or use existing one if valid.
 
-    conn = sqlite3.connect(db_path)
+    If state.db_location is None, creates a new database at a generated path.
+    If state.db_location exists, checks if documents have changed since last use.
+    Only regenerates the database if the file doesn't exist or documents have changed.
+    """
+    should_create_db = True
+    db_path = state.db_location
 
-    doc_texts, doc_names = get_all_tabular_docs(state)
+    # Check if we have an existing db_path
+    if db_path:
+        # Check if the file exists
+        if os.path.exists(db_path) and not state.documents_changed():
+            # If the file exists and documents haven't changed, no need to recreate
+            should_create_db = False
+    else:
+        # Generate a new db path if self.db_location is none
+        db_path = f"generated_db_{uuid4}.db"
 
-    _ = load_texts_to_db(doc_texts, doc_names=doc_names, conn=conn)
+    # Create or update database if needed
+    if should_create_db:
+        # Creating/updating database at db_path
+        conn = sqlite3.connect(db_path)
+        doc_texts, doc_names = get_all_tabular_docs(state)
+        _ = load_texts_to_db(doc_texts, doc_names=doc_names, conn=conn)
+        conn.commit
+        conn.close
 
-    conn.commit()
-    conn.close()
-
-    state.db_location = db_path
+        # Store the original_documents to reflect current state
+        state.original_documents = state.store_document_state()
+        state.db_location = db_path
     return state
 
 
@@ -797,7 +815,7 @@ def parse_agent_steps(intermediate_steps: list) -> str:
 def build_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 5000):
     @RunnableLambda
     def _build_tabular_agent(state: RedboxState):
-        state = create_or_update_db_from_tabulars(state=state, db_path=None)
+        state = create_or_update_db_from_tabulars(state=state)
         parser = ClaudeParser(pydantic_object=AgentTask)
 
         try:
@@ -840,7 +858,6 @@ def build_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 500
             result_content = result[:max_tokens]
 
             formatted_result = f"<Tabular_Agent_Result>{result_content}</Tabular_Agent_Result>"
-            state = delete_db_file_if_exists(state)  # Delete DB file if it exists
             return {"agents_results": formatted_result, "tasks_evaluator": task.task + "\n" + task.expected_output}
 
         except Exception as e:
