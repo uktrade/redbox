@@ -666,7 +666,7 @@ def create_or_update_db_from_tabulars(state: RedboxState) -> RedboxState:
     Only regenerates the database if the file doesn't exist or documents have changed.
     """
     should_create_db = True
-    db_path = state.db_location
+    db_path = state.request.db_location
 
     # Check if we have an existing db_path
     if db_path:
@@ -676,7 +676,8 @@ def create_or_update_db_from_tabulars(state: RedboxState) -> RedboxState:
             should_create_db = False
     else:
         # Generate a new db path if self.db_location is none
-        db_path = f"generated_db_{uuid4}.db"
+        user_uuid = str(state.request.user_uuid) if state.request.user_uuid else uuid4()
+        db_path = f"generated_db_{user_uuid}.db"  # Initialise the database at a location that uses the user's UUID or a random one if it's not available
 
     # Create or update database if needed
     if should_create_db:
@@ -687,9 +688,9 @@ def create_or_update_db_from_tabulars(state: RedboxState) -> RedboxState:
         conn.commit
         conn.close
 
-        # Store the original_documents to reflect current state
-        state.original_documents = state.store_document_state()
-        state.db_location = db_path
+        # Store the current_documents to reflect current state
+        state.store_document_state()
+        state.request.db_location = db_path
     return state
 
 
@@ -763,53 +764,9 @@ def parse_doc_text_as_db_table(doc_text: str, table_name: str, conn: sqlite3.Con
         log.exception(f"Failed to load table '{table_name}': {e}")
 
 
-def delete_db_file_if_exists(state: RedboxState):
-    db_path = state.db_location
-    if db_path and os.path.exists(db_path):
-        os.remove(db_path)
-    # Set the db location to None in the RedboxState
-    state.db_location = None
-    return state
-
-
 def sanitise_file_name(file_name: str) -> str:
     """Removes Spaces and special characters from file names"""
     return re.sub(r"\W+", "", file_name.replace(" ", ""))
-
-
-def parse_agent_steps(intermediate_steps: list) -> str:
-    """Extracts the steps taken by the SQL Agent and parses them for display."""
-    results = []
-    queries = set()
-
-    for step in intermediate_steps:
-        # Extract tool, log, and input from the AgentAction
-        agent_action = step[0]
-        # tool = agent_action.tool
-        log = agent_action.log
-        action_input = agent_action.tool_input
-
-        # Extract the description part of the log (text before "Action:")
-        description = ""
-        if "Action:" in log:
-            description = log.split("Action:")[0].strip()
-
-        # Create formatted output
-        action_description = description
-
-        # Add SQL query if present and not empty
-        if action_input and len(action_input.strip()) > 0:
-            # Clean up the input to remove extra newlines
-            cleaned_input = action_input.strip()
-            action_description += f"\n\n``` sql \n{cleaned_input}\n```"
-            if cleaned_input in queries:
-                continue
-            else:
-                queries.add(cleaned_input)
-        if action_description not in results:
-            results.append(action_description)
-
-    return "\n".join(results)
 
 
 def build_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 5000):
@@ -826,7 +783,7 @@ def build_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 500
             )
             activity_node.invoke(state)
         except Exception as e:
-            print(f"Cannot parse in {agent_name}: {e}")
+            log.error(f"Cannot parse in {agent_name}: {e}")
             task = AgentTask(task=state.request.question, expected_output="Analysis of tabular data")
 
         # Get the structured response parser
@@ -834,7 +791,7 @@ def build_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 500
 
         try:
             # Create SQL database agent with structured output format
-            db = SQLDatabase.from_uri(f"sqlite:///{state.db_location}")
+            db = SQLDatabase.from_uri(f"sqlite:///{state.request.db_location}")
             llm = get_base_chat_llm(model=state.request.ai_settings.chat_backend)
 
             # Customise the agent to return structured responses
@@ -864,7 +821,6 @@ def build_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 500
             log.error(f"Error generating agent output: {e}")
 
             formatted_result = "<Tabular_Agent_Result>Error analysing tabular data</Tabular_Agent_Result>"
-            state = delete_db_file_if_exists(state)  # Delete DB file if it exists
             return {"agents_results": formatted_result, "tasks_evaluator": task.task + "\n" + task.expected_output}
 
     return _build_tabular_agent

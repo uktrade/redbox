@@ -1,6 +1,7 @@
 from asyncio import CancelledError
 from logging import getLogger
 from typing import Literal
+import os
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
@@ -47,6 +48,10 @@ class Redbox:
         debug: bool = False,
     ):
         _env = env or get_settings()
+
+        # DB Loction and s3_keys from the previous request
+        self.previous_db_location: str | None = None
+        self.previous_s3_keys: list[str] | None = None
 
         # Retrievers
 
@@ -106,6 +111,19 @@ class Redbox:
         logger.info("Request: %s", {k: request_dict[k] for k in request_dict.keys() - {"ai_settings"}})
         is_summary_multiagent_streamed = False
         is_evaluator_output_streamed = False
+
+        try:
+            # If the question is tabular, inject the previous docs and db_location into the request
+            # This will need to be updated if tabular goes into newroute
+            if input.request.question.startswith("@tabular"):
+                # Inject Previous s3 keys if they exist
+                if self.previous_s3_keys:
+                    input.request.previous_s3_keys = self.previous_s3_keys
+
+                # Inject previous db location
+                input.request.db_location = self.previous_db_location
+        except Exception as e:
+            logger.info(f"Exception logged while trying to access input state: \n\n{e}")
 
         @retry(
             stop=stop_after_attempt(3),
@@ -191,6 +209,16 @@ class Redbox:
 
         if final_state is None:
             logger.warning("No final state")
+            self.remove_db_file_if_exists(self.previous_db_location)
+            self.previous_db_location = None
+            self.previous_s3_keys = None
+        else:
+            # Delete Previous DB File Location if it has changed and it exists in memory, update the new db location and previous documentation
+            new_db_loc, old_db_loc = final_state.request.db_location, self.previous_db_location
+            if (new_db_loc != old_db_loc) or not (new_db_loc):
+                self.remove_db_file_if_exists(old_db_loc)
+                self.previous_db_location = new_db_loc
+            self.previous_s3_keys = final_state.request.s3_keys
         return final_state
 
     def get_available_keywords(self) -> dict[ChatRoute, str]:
@@ -209,3 +237,10 @@ class Redbox:
             raise Exception("Invalid graph_to_draw")
 
         return graph.draw_mermaid_png(draw_method=MermaidDrawMethod.API, output_file_path=output_path)
+
+    def remove_db_file_if_exists(self, db_path: str):
+        try:
+            if db_path and os.path.exists(db_path):
+                os.remove(db_path)
+        except Exception as e:
+            logger.error(f"Error encountered when deleting the db file at {db_path}: {e}")

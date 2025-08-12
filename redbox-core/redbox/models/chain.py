@@ -229,6 +229,10 @@ class RedboxQuery(BaseModel):
     chat_history: list[ChainChatMessage] = Field(description="All previous messages in chat (excluding question)")
     ai_settings: AISettings = Field(description="User request AI settings", default_factory=AISettings)
     permitted_s3_keys: list[str] = Field(description="List of permitted files for response", default_factory=list)
+    previous_s3_keys: list[str] | None = (
+        None  # Adding previous_s3_keys (which are the previous documents to the state request)
+    )
+    db_location: str | None = None  # Adding db_location to state request
 
 
 class LLMCallMetadata(BaseModel):
@@ -322,8 +326,8 @@ class RedboxState(BaseModel):
     agents_results: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     agent_plans: MultiAgentPlan | None = None
     tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
-    db_location: str | None = None
-    original_documents: DocumentState | None = None
+    db_location: str | None = None  # This is now superfluous and can be removed
+    original_documents: DocumentState | None = None  # This is now superfluous and can be removed
 
     @property
     def last_message(self) -> AnyMessage:
@@ -332,12 +336,14 @@ class RedboxState(BaseModel):
         return self.messages[-1]
 
     def store_document_state(self):
-        self.original_documents = self.documents.model_copy(deep=True)
+        """Stores s3_keys (which are the names of the documents) as previous-s3_keys. This will allow for review down the line"""
+        self.request.previous_s3_keys = self.request.s3_keys.copy()
 
     def documents_changed(self) -> bool:
-        if not self.original_documents:
+        """This checks if documents have changed between questions asked. Returns True if so."""
+        if not self.request.previous_s3_keys:
             return False
-        return self.original_documents != self.documents
+        return sorted(self.request.previous_s3_keys) != sorted(self.request.s3_keys)
 
 
 class PromptSet(StrEnum):
