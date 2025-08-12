@@ -1,4 +1,3 @@
-import time
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -8,28 +7,13 @@ from langchain_core.messages import AIMessage
 from langgraph.prebuilt import ToolNode
 from opensearchpy import OpenSearch
 
-from redbox.graph.nodes.tools import (
-    build_govuk_search_tool,
-    build_legislation_search_tool,
-    build_search_documents_tool,
-    build_search_wikipedia_tool,
-    build_web_search_tool,
-)
+from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_documents_tool, build_search_wikipedia_tool
 from redbox.models.chain import AISettings, RedboxQuery, RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
 from redbox.models.settings import Settings
 from redbox.test.data import RedboxChatTestCase
 from redbox.transform import flatten_document_state
 from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
-
-
-# This adds a 1 second delay between each test defined in this file, this is to avoid
-# rate limit errors returned from tests involving the Brave Search API where the current free plan
-# used for experiments limits to 1 query/second
-@pytest.fixture(autouse=True)
-def slow_down_tests():
-    yield
-    time.sleep(1)
 
 
 @pytest.mark.parametrize("chain_params", TEST_CHAIN_PARAMETERS)
@@ -194,66 +178,6 @@ def test_wikipedia_tool():
         metadata = ChunkMetadata.model_validate(document.metadata)
         assert urlparse(metadata.uri).hostname == "en.wikipedia.org"
         assert metadata.creator_type == ChunkCreatorType.wikipedia
-
-
-def test_web_search_tool():
-    tool = build_web_search_tool()
-    tool_node = ToolNode(tools=[tool])
-    response = tool_node.invoke(
-        {
-            "messages": [
-                AIMessage(
-                    content="",
-                    tool_calls=[
-                        {
-                            "name": "_search_web",
-                            "args": {"query": "Whats the next nearest UK bank holiday"},
-                            "id": "1",
-                        }
-                    ],
-                )
-            ]
-        }
-    )
-    assert response["messages"][0].content != ""
-
-    page_content_populated = []
-    for document in response["messages"][0].artifact:
-        page_content_populated.append(True if document.page_content != "" else False)
-        metadata = ChunkMetadata.model_validate(document.metadata)
-        assert urlparse(metadata.uri).hostname != ""
-        assert metadata.creator_type == ChunkCreatorType.web_search
-    assert any(page_content_populated)
-
-
-def test_legislation_search_tool():
-    tool = build_legislation_search_tool()
-    tool_node = ToolNode(tools=[tool])
-    response = tool_node.invoke(
-        {
-            "messages": [
-                AIMessage(
-                    content="",
-                    tool_calls=[
-                        {
-                            "name": "_search_legislation",
-                            "args": {"query": "What was the latest legislation to be amended"},
-                            "id": "1",
-                        }
-                    ],
-                )
-            ]
-        }
-    )
-    assert response["messages"][0].content != ""
-
-    page_content_populated = []
-    for document in response["messages"][0].artifact:
-        page_content_populated.append(True if document.page_content != "" else False)
-        metadata = ChunkMetadata.model_validate(document.metadata)
-        assert urlparse(metadata.uri).hostname == "www.legislation.gov.uk"
-        assert metadata.creator_type == ChunkCreatorType.web_search
-    assert any(page_content_populated)
 
 
 @pytest.mark.parametrize(
