@@ -252,8 +252,3 @@ def test_gov_tool_params():
 
     # call gov tool without additional filter
     assert len(documents) == ai_setting.tool_govuk_returned_results
-    # call gov tool without additional filter
-    assert len(documents) == ai_setting.tool_govuk_returned_results
-    assert len(documents) == ai_setting.tool_govuk_returned_results
-    assert len(documents) == ai_setting.tool_govuk_returned_results
-    assert len(documents) == ai_setting.tool_govuk_returned_results
