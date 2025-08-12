@@ -1,0 +1,244 @@
+[
+    {
+        "question_id": 90,
+        "db_id": "financial",
+        "question": "How many accounts who have region in Prague are eligible for loans?",
+        "evidence": "A3 contains the data of region",
+        "SQL": "SELECT COUNT(T1.account_id) FROM account AS T1 INNER JOIN loan AS T2 ON T1.account_id = T2.account_id INNER JOIN district AS T3 ON T1.district_id = T3.district_id WHERE T3.A3 = 'Prague'",
+        "difficulty": "simple"
+    },
+    {
+        "question_id": 91,
+        "db_id": "financial",
+        "question": "The average unemployment ratio of 1995 and 1996, which one has higher percentage?",
+        "evidence": "A12 refers to unemploymant rate 1995; A13 refers to unemploymant rate 1996",
+        "SQL": "SELECT DISTINCT IIF(AVG(A13) > AVG(A12), '1996', '1995') FROM district",
+        "difficulty": "simple"
+    },
+    {
+        "question_id": 92,
+        "db_id": "financial",
+        "question": "List out the no. of districts that have female average salary is more than 6000 but less than 10000?",
+        "evidence": "A11 refers to average salary; Female mapps to gender = 'F'",
+        "SQL": "SELECT COUNT(DISTINCT T2.district_id)  FROM client AS T1 INNER JOIN district AS T2 ON T1.district_id = T2.district_id WHERE T1.gender = 'F' AND T2.A11 BETWEEN 6000 AND 10000",
+        "difficulty": "simple"
+    },
+    {
+        "question_id": 96,
+        "db_id": "financial",
+        "question": "How many customers who choose statement of weekly issuance are Owner?",
+        "evidence": "'POPLATEK TYDNE' stands for weekly issuance",
+        "SQL": "SELECT COUNT(T1.account_id) FROM account AS T1 INNER JOIN disp AS T2 ON T1.account_id = T2.account_id WHERE T2.type = 'OWNER' AND T1.frequency = 'POPLATEK TYDNE'",
+        "difficulty": "simple"
+    },
+    {
+        "question_id": 97,
+        "db_id": "financial",
+        "question": "List out the id number of client who choose statement of issuance after transaction are Disponent?",
+        "evidence": "'POPLATEK PO OBRATU' stands for issuance after transaction",
+        "SQL": "SELECT T2.client_id FROM account AS T1 INNER JOIN disp AS T2 ON T1.account_id = T2.account_id WHERE T1.frequency = 'POPLATEK PO OBRATU' AND T2.type = 'DISPONENT'",
+        "difficulty": "simple"
+    },
+
+    {
+        "question_id": 103,
+        "db_id": "financial",
+        "question": "Which client issued his/her card in 1994/3/3, give his/her client id.",
+        "evidence": "",
+        "SQL": "SELECT T2.client_id FROM client AS T1 INNER JOIN disp AS T2 ON T1.client_id = T2.client_id INNER JOIN card AS T3 ON T2.disp_id = T3.disp_id WHERE T3.issued = '1994-03-03'",
+        "difficulty": "simple"
+    },
+    {
+        "question_id": 105,
+        "db_id": "financial",
+        "question": "There was a loan approved in 1994/8/25, where was that account opened, give the district Id of the branch.",
+        "evidence": "",
+        "SQL": "SELECT T1.district_id FROM account AS T1 INNER JOIN loan AS T2 ON T1.account_id = T2.account_id WHERE T2.date = '1994-08-25'",
+        "difficulty": "simple"
+    },
+      {
+    "question_id": 190,
+    "db_id": "financial",
+    "question": "How many clients who were born in 1920 stay in east Bohemia?",
+    "evidence": "East Bohemia appears in the column A3, which refers to the region.",
+    "SQL": "SELECT COUNT(T1.client_id) FROM client AS T1 INNER JOIN district AS T2 ON T1.district_id = T2.district_id WHERE STRFTIME('%Y', T1.birth_date) = '1920' AND T2.A3 = 'east Bohemia'",
+    "difficulty": "simple"
+  },
+  {
+    "question_id": 191,
+    "db_id": "financial",
+    "question": "How many loan accounts are for pre-payment of duration of 24 months with weekly issuance of statement.",
+    "evidence": "Frequency = 'POPLATEK TYDNE' referes to weekly statement",
+    "SQL": "SELECT COUNT(T2.account_id) FROM account AS T1 INNER JOIN loan AS T2 ON T1.account_id = T2.account_id WHERE T2.duration = 24 AND T1.frequency = 'POPLATEK TYDNE'",
+    "difficulty": "simple"
+  },
+    {
+    "question_id": 187,
+    "db_id": "financial",
+    "question": "How many clients who choose statement of weekly issuance are Owner?",
+    "evidence": "Frequency = 'POPLATEK TYDNE' refers to weekly issuance",
+    "SQL": "SELECT COUNT(T2.account_id) FROM account AS T1 INNER JOIN disp AS T2 ON T2.account_id = T1.account_id WHERE T1.frequency = 'POPLATEK TYDNE' AND T2.type = 'OWNER'",
+    "difficulty": "simple"
+  },
+    {
+        "question_id": 89,
+        "db_id": "financial",
+        "question": "How many accounts who choose issuance after transaction are staying in East Bohemia region?",
+        "evidence": "A3 contains the data of region; 'POPLATEK PO OBRATU' represents for 'issuance after transaction'.",
+        "SQL": "SELECT COUNT(T2.account_id) FROM district AS T1 INNER JOIN account AS T2 ON T1.district_id = T2.district_id WHERE T1.A3 = 'east Bohemia' AND T2.frequency = 'POPLATEK PO OBRATU'",
+        "difficulty": "moderate"
+    },
+    {
+        "question_id": 93,
+        "db_id": "financial",
+        "question": "How many male customers who are living in North Bohemia have average salary greater than 8000?",
+        "evidence": "Male means that gender = 'M'; A3 refers to region; A11 pertains to average salary.",
+        "SQL": "SELECT COUNT(T1.client_id) FROM client AS T1 INNER JOIN district AS T2 ON T1.district_id = T2.district_id WHERE T1.gender = 'M' AND T2.A3 = 'north Bohemia' AND T2.A11 > 8000",
+        "difficulty": "moderate"
+    },
+    {
+        "question_id": 95,
+        "db_id": "financial",
+        "question": "List out the account numbers of clients who are youngest and have highest average salary?",
+        "evidence": "If the person A's birthdate < B's birthdate, it means that person B is younger than person A; A11 refers to average salary",
+        "SQL": "SELECT T1.account_id  FROM account AS T1 INNER JOIN disp AS T2 ON T1.account_id = T2.account_id INNER JOIN client AS T3 ON T2.client_id = T3.client_id INNER JOIN district AS T4 on T4.district_id = T1.district_id WHERE T2.client_id = ( SELECT client_id FROM client ORDER BY birth_date DESC LIMIT 1) GROUP BY T4.A11, T1.account_id",
+        "difficulty": "moderate"
+    },
+    {
+        "question_id": 98,
+        "db_id": "financial",
+        "question": "Among the accounts who have approved loan date in 1997, list out the accounts that have the lowest approved amount and choose weekly issuance statement.",
+        "evidence": "'POPLATEK TYDNE' stands for weekly issuance",
+        "SQL": "SELECT T2.account_id FROM loan AS T1 INNER JOIN account AS T2 ON T1.account_id = T2.account_id WHERE STRFTIME('%Y', T1.date) = '1997' AND T2.frequency = 'POPLATEK TYDNE' ORDER BY T1.amount LIMIT 1",
+        "difficulty": "moderate"
+    },
+    {
+        "question_id": 99,
+        "db_id": "financial",
+        "question": "Among the accounts who have loan validity more than 12 months, list out the accounts that have the highest approved amount and have account opening date in 1993.",
+        "evidence": "Loan validity more than 12 months refers to duration > 12",
+        "SQL": "SELECT T1.account_id FROM loan AS T1 INNER JOIN account AS T2 ON T1.account_id = T2.account_id WHERE STRFTIME('%Y', T2.date) = '1993' AND T1.duration > 12 ORDER BY T1.amount DESC LIMIT 1",
+        "difficulty": "moderate"
+    },
+    {
+        "question_id": 100,
+        "db_id": "financial",
+        "question": "Among the account opened, how many female customers who were born before 1950 and stayed in Sokolov?",
+        "evidence": "Customers refer to clients; Female refers to gender = 'F'; Names of districts appear in column A2",
+        "SQL": "SELECT COUNT(T2.client_id) FROM district AS T1 INNER JOIN client AS T2 ON T1.district_id = T2.district_id WHERE T2.gender = 'F' AND STRFTIME('%Y', T2.birth_date) < '1950' AND T1.A2 = 'Sokolov'",
+        "difficulty": "moderate"
+    },
+    {
+        "question_id": 117,
+        "db_id": "financial",
+        "question": "What is the percentage of loan amount that has been fully paid with no issue.",
+        "evidence": "Loan paid with no issue means contract finished, no problems; status = 'A' means contract finished, no problems; Percentage of accounts by condition = [(total(amount) & condition) / (total amount)] * 100%",
+        "SQL": "SELECT (CAST(SUM(CASE WHEN status = 'A' THEN amount ELSE 0 END) AS REAL) * 100) / SUM(amount) FROM loan",
+        "difficulty": "moderate"
+    },
+    {
+        "question_id": 118,
+        "db_id": "financial",
+        "question": "For loan amount less than USD100,000, what is the percentage of accounts that is still running with no issue.",
+        "evidence": "Status = 'C' stands for running contract, ok so far; Percentage of accounts by condition = [(total(amount) & condition) / (total amount)] * 100.",
+        "SQL": "SELECT CAST(SUM(status = 'C') AS REAL) * 100 / COUNT(account_id) FROM loan WHERE amount < 100000",
+        "difficulty": "moderate"
+    },
+    {
+        "question_id": 119,
+        "db_id": "financial",
+        "question": "For accounts in 1993 with statement issued after transaction, list the account ID, district name and district region.",
+        "evidence": "Records about district names could be found in A2; A3 contains the information about regions. 'POPLATEK PO OBRATU' stands for issuance after transaction",
+        "SQL": "SELECT T1.account_id, T2.A2, T2.A3 FROM account AS T1 INNER JOIN district AS T2 ON T1.district_id = T2.district_id WHERE T1.frequency = 'POPLATEK PO OBRATU' AND STRFTIME('%Y', T1.date)= '1993'",
+        "difficulty": "moderate"
+    },
+    {
+        "question_id": 120,
+        "db_id": "financial",
+        "question": "From Year 1995 to 2000, who are the accounts holders from 'east Bohemia'. State the account ID the frequency of statement issuance.",
+        "evidence": "Accounts holder refers to the person who own this account.",
+        "SQL": "SELECT T1.account_id, T1.frequency FROM account AS T1 INNER JOIN district AS T2 ON T1.district_id = T2.district_id WHERE T2.A3 = 'east Bohemia' AND STRFTIME('%Y', T1.date) BETWEEN '1995' AND '2000'",
+        "difficulty": "moderate"
+    },
+    {
+        "question_id": 128,
+        "db_id": "financial",
+        "question": "List the top nine districts, by descending order, from the highest to the lowest, the number of female account holders.",
+        "evidence": "A2 refers to districts; Female refers to gender = 'F'",
+        "SQL": "SELECT T2.A2, COUNT(T1.client_id) FROM client AS T1 INNER JOIN district AS T2 ON T1.district_id = T2.district_id WHERE T1.gender = 'F' GROUP BY T2.district_id, T2.A2 ORDER BY COUNT(T1.client_id) DESC LIMIT 9",
+        "difficulty": "moderate"
+    },
+    {
+    "question_id": 194,
+    "db_id": "financial",
+    "question": "Provide the IDs and age of the client with high level credit card, which is eligible for loans.",
+    "evidence": "the credit card is high-level refers to card.type = 'gold'; eligible for loans refers to disp.type = 'OWNER'",
+    "SQL": "SELECT T1.client_id, STRFTIME('%Y', CURRENT_TIMESTAMP) - STRFTIME('%Y', T3.birth_date) FROM disp AS T1 INNER JOIN card AS T2 ON T2.disp_id = T1.disp_id INNER JOIN client AS T3 ON T1.client_id = T3.client_id WHERE T2.type = 'gold' AND T1.type = 'OWNER'",
+    "difficulty": "moderate"
+    },
+
+    {
+        "question_id": 130,
+        "db_id": "financial",
+        "question": "How many of the account holders in South Bohemia still do not own credit cards?",
+        "evidence": "A3 contains the region names; South Bohemia is one of region names.",
+        "SQL": "SELECT COUNT(T3.account_id) FROM district AS T1 INNER JOIN client AS T2 ON T1.district_id = T2.district_id INNER JOIN disp AS T3 ON T2.client_id = T3.client_id WHERE T1.A3 = 'south Bohemia' AND T3.type != 'OWNER'",
+        "difficulty": "moderate"
+    },
+      {
+    "question_id": 193,
+    "db_id": "financial",
+    "question": "List all ID and district for clients that can only have the right to issue permanent orders or apply for loans.",
+    "evidence": "Only the owner accounts have the right to issue permanent orders or apply for loans",
+    "SQL": "SELECT T3.client_id, T2.district_id, T2.A2 FROM account AS T1 INNER JOIN district AS T2 ON T1.district_id = T2.district_id INNER JOIN disp AS T3 ON T1.account_id = T3.account_id WHERE T3.type = 'OWNER'",
+    "difficulty": "moderate"
+  },
+    {
+        "question_id": 94,
+        "db_id": "financial",
+        "question": "List out the account numbers of female clients who are oldest and has lowest average salary, calculate the gap between this lowest average salary with the highest average salary?",
+        "evidence": "Female means gender = 'F'; A11 refers to average salary; Gap = highest average salary - lowest average salary; If the person A's birthdate > B's birthdate, it means that person B is order than person A.",
+        "SQL": "SELECT T1.account_id , ( SELECT MAX(A11) - MIN(A11) FROM district ) FROM account AS T1 INNER JOIN district AS T2 ON T1.district_id = T2.district_id INNER JOIN disp AS T3 ON T1.account_id = T3.account_id INNER JOIN client AS T4 ON T3.client_id = T4.client_id WHERE T2.district_id = ( SELECT district_id FROM client WHERE gender = 'F' ORDER BY birth_date ASC LIMIT 1 ) ORDER BY T2.A11 DESC LIMIT 1",
+        "difficulty": "challenging"
+    },
+    {
+        "question_id": 115,
+        "db_id": "financial",
+        "question": "For the branch which located in the south Bohemia with biggest number of inhabitants, what is the percentage of the male clients?",
+        "evidence": "Percentage of the male clients = DIVIDE(COUNT(male clients), COUNT(clients)) * 100; Male refers to gender = 'M', A3 is the region name. A4 contains the information about inhabitants.",
+        "SQL": "SELECT CAST(SUM(T1.gender = 'M') AS REAL) * 100 / COUNT(T1.client_id) FROM client AS T1 INNER JOIN district AS T2 ON T1.district_id = T2.district_id WHERE T2.A3 = 'south Bohemia' GROUP BY T2.A4 ORDER BY T2.A4 DESC LIMIT 1",
+        "difficulty": "challenging"
+    },
+    {
+        "question_id": 125,
+        "db_id": "financial",
+        "question": "For loans contracts which are still running where client are in debt, list the district of the and the state the percentage unemployment rate increment from year 1995 to 1996.",
+        "evidence": "Unemployment increment rate in percentage = [(unemployment rate 2016 - unemployment rate 2015) / unemployment rate 2015] * 100; unemployment rate 2015 appears in the A12; unemployment rate 2016 appears in the A13; Loan contracts which are still running where client are in debt can be presented as status = 'D'",
+        "SQL": "SELECT CAST((T3.A13 - T3.A12) AS REAL) * 100 / T3.A12 FROM loan AS T1 INNER JOIN account AS T2 ON T1.account_id = T2.account_id INNER JOIN district AS T3 ON T2.district_id = T3.district_id WHERE T1.status = 'D'",
+        "difficulty": "challenging"
+    },
+    {
+        "question_id": 149,
+        "db_id": "financial",
+        "question": "Please list the account types that are not eligible for loans, and the average income of residents in the district where the account is located exceeds $8000 but is no more than $9000.",
+        "evidence": "A11 represents the average salary; Salary and income share the similar meanings; when the account type = 'OWNER', it's eligible for loans",
+        "SQL": "SELECT T3.type FROM district AS T1 INNER JOIN account AS T2 ON T1.district_id = T2.district_id INNER JOIN disp AS T3 ON T2.account_id = T3.account_id WHERE T3.type != 'OWNER' AND T1.A11 BETWEEN 8000 AND 9000",
+        "difficulty": "challenging"
+    },
+    {
+        "question_id": 169,
+        "db_id": "financial",
+        "question": "What was the growth rate of the total amount of loans across all accounts for a male client between 1996 and 1997?",
+        "evidence": "Growth rate = (sum of amount_1997 - sum of amount_1996) / (sum of amount_1996) * 100%; Male refers to gender = 'M'",
+        "SQL": "SELECT CAST((SUM(CASE WHEN STRFTIME('%Y', T1.date) = '1997' THEN T1.amount ELSE 0 END) - SUM(CASE WHEN STRFTIME('%Y', T1.date) = '1996' THEN T1.amount ELSE 0 END)) AS REAL) * 100 / SUM(CASE WHEN STRFTIME('%Y', T1.date) = '1996' THEN T1.amount ELSE 0 END) FROM loan AS T1 INNER JOIN account AS T2 ON T1.account_id = T2.account_id INNER JOIN disp AS T3 ON T3.account_id = T2.account_id INNER JOIN client AS T4 ON T4.client_id = T3.client_id WHERE T4.gender = 'M' AND T3.type = 'OWNER'",
+        "difficulty": "challenging"
+    },
+    {
+        "question_id": 173,
+        "db_id": "financial",
+        "question": "How often does account number 3 request an account statement to be released? What was the aim of debiting 3539 in total?",
+        "evidence": "k_symbol refers to the purpose of payments",
+        "SQL": "SELECT T1.frequency, T2.k_symbol FROM account AS T1 INNER JOIN (SELECT account_id, k_symbol, SUM(amount) AS total_amount FROM `order` GROUP BY account_id, k_symbol) AS T2 ON T1.account_id = T2.account_id WHERE T1.account_id = 3 AND T2.total_amount = 3539",
+        "difficulty": "challenging"
+    }
+]
