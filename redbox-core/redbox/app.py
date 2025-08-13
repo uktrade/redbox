@@ -112,18 +112,7 @@ class Redbox:
         is_summary_multiagent_streamed = False
         is_evaluator_output_streamed = False
 
-        try:
-            # If the question is tabular, inject the previous docs and db_location into the request
-            # This will need to be updated if tabular goes into newroute
-            if input.request.question.startswith("@tabular"):
-                # Inject Previous s3 keys if they exist
-                if self.previous_s3_keys:
-                    input.request.previous_s3_keys = self.previous_s3_keys
-
-                # Inject previous db location
-                input.request.db_location = self.previous_db_location
-        except Exception as e:
-            logger.info(f"Exception logged while trying to access input state: \n\n{e}")
+        input = self.add_docs_and_db_to_input_state(input)
 
         @retry(
             stop=stop_after_attempt(3),
@@ -207,6 +196,16 @@ class Redbox:
             logger.error("Generic error in run - {str(e)}")
             raise
 
+        self.handle_db_file(final_state)
+        return final_state
+
+    def handle_db_file(self, final_state: RedboxState):
+        """Manages database file lifecycle based on state changes.
+
+        Note:
+            - If final_state is None, all database references and S3 keys are cleared
+            - When database location changes, the previous database file is removed if it exists
+            - The method maintains previous_db_location and previous_s3_keys as instance variables"""
         if final_state is None:
             logger.warning("No final state")
             self.remove_db_file_if_exists(self.previous_db_location)
@@ -219,7 +218,31 @@ class Redbox:
                 self.remove_db_file_if_exists(old_db_loc)
                 self.previous_db_location = new_db_loc
             self.previous_s3_keys = final_state.request.s3_keys
-        return final_state
+
+    def add_docs_and_db_to_input_state(self, input: RedboxState):
+        """
+        Updates the input state with previous document references and database location for tabular questions.
+
+        Note:
+            - The method specifically targets questions that start with "@tabular"
+            - Previous S3 keys are only injected if they exist in the current instance
+            - Any exceptions during this process are logged but not propagated
+        """
+        old_input = input.model_copy(deep=True)  # Copy the model as is incase an error occurs while modifying it.
+        try:
+            # If the question is tabular, inject the previous docs and db_location into the request
+            # This will need to be updated if tabular goes into newroute
+            if input.request.question.startswith("@tabular"):
+                # Inject Previous s3 keys if they exist
+                if self.previous_s3_keys:
+                    input.request.previous_s3_keys = self.previous_s3_keys
+
+                # Inject previous db location
+                input.request.db_location = self.previous_db_location
+        except Exception as e:
+            logger.info(f"Exception logged while trying to access input state: \n\n{e}")
+            return old_input
+        return input
 
     def get_available_keywords(self) -> dict[ChatRoute, str]:
         return ROUTABLE_KEYWORDS

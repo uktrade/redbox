@@ -661,8 +661,8 @@ def create_or_update_db_from_tabulars(state: RedboxState) -> RedboxState:
     """
     Initialise a database or use existing one if valid.
 
-    If state.db_location is None, creates a new database at a generated path.
-    If state.db_location exists, checks if documents have changed since last use.
+    If state.request.db_location is None, creates a new database at a generated path.
+    If state.request.db_location exists, checks if documents have changed since last use.
     Only regenerates the database if the file doesn't exist or documents have changed.
     """
     should_create_db = True

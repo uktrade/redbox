@@ -326,8 +326,6 @@ class RedboxState(BaseModel):
     agents_results: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     agent_plans: MultiAgentPlan | None = None
     tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
-    db_location: str | None = None  # This is now superfluous and can be removed
-    original_documents: DocumentState | None = None  # This is now superfluous and can be removed
 
     @property
     def last_message(self) -> AnyMessage:
