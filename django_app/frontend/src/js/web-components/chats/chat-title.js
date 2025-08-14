@@ -1,5 +1,6 @@
 // @ts-check
 
+// DEPRECIATED
 export class ChatTitle extends HTMLElement {
   connectedCallback() {
     this.innerHTML = `
@@ -81,11 +82,11 @@ export class ChatTitle extends HTMLElement {
     document.addEventListener("chat-title-change", (evt) => {
       let evtData = /** @type {object} */ (evt).detail;
       if (
-        evtData.sender !== "chat-title" &&
-        evtData.session_id === this.dataset.sessionId
+        evtData.sender_id !== "chat-title" &&
+        evtData.object_id === this.dataset.sessionId
       ) {
         if (this.input) {
-          this.input.value = evtData.title;
+          this.input.value = evtData.value;
         }
         this.#update(false);
       }
@@ -133,9 +134,9 @@ export class ChatTitle extends HTMLElement {
     if (publishChanges) {
       const chatTitleChangeEvent = new CustomEvent("chat-title-change", {
         detail: {
-          title: newTitle,
-          session_id: this.dataset.sessionId,
-          sender: "chat-title",
+          value: newTitle,
+          object_id: this.dataset.sessionId,
+          sender_id: "chat-title",
         },
       });
       document.dispatchEvent(chatTitleChangeEvent);
@@ -153,7 +154,7 @@ export class ChatTitle extends HTMLElement {
     fetch(`/chat/${this.dataset.sessionId}/title/`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
-      body: JSON.stringify({ name: newTitle }),
+      body: JSON.stringify({ value: newTitle }),
     });
   };
 }

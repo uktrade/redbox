@@ -4,9 +4,12 @@ import tempfile
 import time
 import uuid
 from collections.abc import MutableSequence, Sequence
+from dataclasses import dataclass
+from http import HTTPStatus
 from io import BytesIO
 from pathlib import Path
 
+from dataclasses_json import Undefined, dataclass_json
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import FieldError, SuspiciousFileOperation, ValidationError
@@ -20,6 +23,9 @@ from django.views.decorators.http import require_http_methods
 from django_q.tasks import async_task
 
 from redbox_app.redbox_core.models import File, InactiveFileError
+from redbox_app.redbox_core.services import chats as chat_service
+from redbox_app.redbox_core.services import documents as documents_service
+from redbox_app.redbox_core.utils import render_with_oob
 from redbox_app.worker import ingest
 
 User = get_user_model()
@@ -338,3 +344,69 @@ def file_status_api_view(request: HttpRequest) -> JsonResponse:
         logger.exception("File object information not found in django - file does not exist %s.", file_id, exc_info=ex)
         return JsonResponse({"status": File.Status.errored.label})
     return JsonResponse({"status": file.get_status_text()})
+
+
+@require_http_methods(["POST"])
+@login_required
+def delete_document(request, doc_id: uuid):
+    file = get_object_or_404(File, id=doc_id)
+    errors: list[str] = []
+    try:
+        file.delete_from_elastic()
+        file.delete_from_s3()
+        file.status = File.Status.deleted
+        file.save()
+        logger.info("Removing document: %s", request.POST["doc_id"])
+    except Exception as e:
+        logger.exception("Error deleting file object %s.", file, exc_info=e)
+        errors.append("There was an error deleting this file")
+        file.status = File.Status.errored
+        file.save()
+
+    currently_selected_document = False
+    session_id = request.POST.get("session-id")
+    file_selected = request.POST.get("file_selected")
+    active_chat_id = session_id if session_id else request.POST.get("active_chat_id")
+
+    if active_chat_id != "None":
+        active_chat_id = uuid.UUID(active_chat_id)
+        if file_selected == "True":
+            active_chat_id = None
+            currently_selected_document = True
+    else:
+        active_chat_id = None
+
+    if currently_selected_document:
+        context = chat_service.get_context(request, active_chat_id)
+
+        return render_with_oob(
+            [
+                {"template": "side_panel/your_documents_list.html", "context": context, "request": request},
+                {"template": "chat/chat_window.html", "context": context, "request": request},
+            ]
+        )
+    return documents_service.render_your_documents(request, active_chat_id)
+
+
+class YourDocuments(View):
+    @method_decorator(login_required)
+    def get(self, request: HttpRequest, active_chat_id: uuid.UUID) -> HttpResponse:
+        return documents_service.render_your_documents(request, active_chat_id)
+
+
+class DocumentsTitleView(View):
+    @dataclass_json(undefined=Undefined.EXCLUDE)
+    @dataclass(frozen=True)
+    class Title:
+        value: str
+
+    @method_decorator(login_required)
+    def post(self, request: HttpRequest, doc_id: uuid.UUID) -> HttpResponse:
+        file = get_object_or_404(File, id=doc_id)
+
+        request_body = DocumentsTitleView.Title.schema().loads(request.body)
+
+        file.original_file_name = request_body.value
+        file.save(update_fields=["original_file_name"])
+
+        return HttpResponse(status=HTTPStatus.NO_CONTENT)
