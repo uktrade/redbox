@@ -99,7 +99,7 @@ class DeleteChat(View):
 
 class RecentChats(View):
     @method_decorator(login_required)
-    def get(self, request: HttpRequest, active_chat_id: uuid.UUID) -> HttpResponse:
+    def get(self, request: HttpRequest, active_chat_id: uuid.UUID | None = None) -> HttpResponse:
         return chat_service.render_recent_chats(request, active_chat_id)
 
 

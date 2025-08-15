@@ -12,13 +12,13 @@ class SendMessageWithDictation extends HTMLElement {
       this.querySelector("button:nth-child(1)")
     );
     this.buttonSend = /** @type {HTMLButtonElement} */ (
-      this.querySelector("button:nth-child(4)")
+      this.querySelector("button:nth-child(3)")
     );
     this.buttonStop = /** @type {HTMLButtonElement} */ (
       this.querySelector("button:nth-child(2)")
     );
     this.buttonSendStop = /** @type {HTMLButtonElement} */ (
-      this.querySelector("button:nth-child(5)")
+      this.querySelector("button:nth-child(4)")
     );
 
     this.buttonStop.style.display = "none";
@@ -51,7 +51,7 @@ class SendMessageWithDictation extends HTMLElement {
         }
       });
     }
-    
+
 
     document.addEventListener("chat-response-start", () => {
       this.isStreaming = true;
@@ -109,16 +109,16 @@ class SendMessageWithDictation extends HTMLElement {
         };
       },
     });
-  
+
     try {
       this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const audioContext = new AudioContext({ sampleRate: 16000 });
       const input = audioContext.createMediaStreamSource(this.audioStream);
       const processor = audioContext.createScriptProcessor(1024, 1, 1);
-  
+
       input.connect(processor);
       processor.connect(audioContext.destination);
-  
+
       const readableStream = new Readable();
       processor.onaudioprocess = (e) => {
         const float32Array = e.inputBuffer.getChannelData(0);
@@ -128,7 +128,7 @@ class SendMessageWithDictation extends HTMLElement {
         });
         readableStream.emit("audioData", new Int8Array(int16Array.buffer));
       };
-  
+
       const audioStream = async function* () {
         while (this.isStreaming) {
           const chunk = await new Promise((resolve) =>
@@ -137,29 +137,29 @@ class SendMessageWithDictation extends HTMLElement {
           yield { AudioEvent: { AudioChunk: chunk } };
         }
       }.bind(this);
-  
+
       const command = new StartStreamTranscriptionCommand({
         LanguageCode: "en-GB",
         MediaSampleRateHertz: 16000,
         MediaEncoding: "pcm",
         AudioStream: audioStream(),
       });
-  
+
       const response = await client.send(command);
       const textArea = document.querySelector("#message");
-  
+
       let lastFinalTranscript = "";
       let partialTranscript = "";
-  
+
       for await (const event of response.TranscriptResultStream) {
         if (event.TranscriptEvent) {
           const results = event.TranscriptEvent.Transcript.Results;
-  
+
           results.forEach((result) => {
             const transcript = (result.Alternatives || [])
               .map((alt) => alt.Transcript)
               .join(" ");
-  
+
             if (result.IsPartial) {
               partialTranscript = transcript;
               textArea.innerHTML = `${lastFinalTranscript} ${partialTranscript}`;

@@ -1,0 +1,15 @@
+.uploaded-files-wrapper {
+    white-space: normal;
+}
+
+.uploaded-files {
+    user-select: none;
+    overflow: scroll;
+    align-items: center;
+    padding: 2px;
+    gap: 4px;
+}
+
+.uploaded-files[contenteditable="false"] {
+    pointer-events: auto;
+}

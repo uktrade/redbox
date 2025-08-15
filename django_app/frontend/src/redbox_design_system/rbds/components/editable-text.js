@@ -1,6 +1,6 @@
 // @ts-check
 
-import { getAttributeOrDefault, hideElement, showElement } from "../../js/utils";
+import { getAttributeOrDefault, hideElement, showElement } from "../../../js/utils";
 
 class EditableText extends HTMLElement {
     csrfTokenValue = "";

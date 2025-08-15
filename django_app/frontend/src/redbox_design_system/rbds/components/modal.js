@@ -1,6 +1,6 @@
 // @ts-check
 
-class Modal extends HTMLElement {
+export class Modal extends HTMLElement {
 
     connectedCallback() {
         this.#initialiseModal();
@@ -17,7 +17,8 @@ class Modal extends HTMLElement {
         const openElement = this.querySelector(".modal-open");
         const closeElements = this.querySelectorAll(".modal-close");
 
-        openElement?.addEventListener("click", () => {
+        openElement?.addEventListener("click", (evt) => {
+            evt.preventDefault();
             if (!this.dialog) return;
 
             this.dialog.showModal();
@@ -25,7 +26,8 @@ class Modal extends HTMLElement {
         });
 
         closeElements.forEach((element) => {
-            element.addEventListener("click", () => {
+            element.addEventListener("click", (evt) => {
+                evt.preventDefault();
                 if (!this.dialog) return;
 
                 this.dialog.close();

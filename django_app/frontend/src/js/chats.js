@@ -16,11 +16,10 @@ import "./web-components/chats/profile-overlay.js";
 import "./web-components/documents/file-status.js";
 import "./web-components/chats/profile-overlay.js";
 import "./web-components/chats/exit-feedback.js";
+import "./web-components/documents/file-upload.js";
 
-// RBDS - tbc
-import "../stylesheets/components/show-more.js";
-import "../stylesheets/components/editable-text.js";
-import "../stylesheets/components/modal.js";
+// RBDS
+import "../redbox_design_system/rbds";
 
 import { updateChatWindow, syncUrlWithContent, updateRecentChatHistory } from "./services";
 import { ChatHistory } from "./web-components/chats/chat-history.js";

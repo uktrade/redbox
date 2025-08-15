@@ -306,32 +306,6 @@ main:has(.govuk-inset-text) .chat-options {
   }
 }
 
-.rb-send-button svg {
-  background-color: var(--color-background-white);
-  border-radius: 100%;
-  box-shadow: 4px 4px 12px #edeef2;
-}
-.rb-send-button .rb-square-icon {
-  align-items: center;
-  background-color: var(--color-background-white);
-  border-radius: 100%;
-  box-shadow: 4px 4px 12px #edeef2;
-  display: flex;
-  height: 1.75rem;
-  justify-content: center;
-  width: 1.75rem;
-}
-.rb-send-button .rb-square-icon::before {
-  background-color: #60697b;
-  border-radius: 2px;
-  content: "";
-  height: 0.625rem;
-  width: 0.625rem;
-}
-.rb-send-button:hover .rb-square-icon::before {
-  background-color: var(--color-background);
-}
-
 .iai-chat-input {
   max-width: 94%;
 }
@@ -597,4 +571,17 @@ margin-bottom: 16px;
   display: inline-flex;
   min-height: 24px;
   margin-top: 0;
+}
+
+// TBC
+.drop-zone.drag-over {
+  border-color: var(--redbox-blue);
+  border-width: 3px;
+}
+
+.action-link {
+  --action-link-color: var(--color-link-text);
+
+  cursor: pointer;
+  color: var(--action-link-color);
 }

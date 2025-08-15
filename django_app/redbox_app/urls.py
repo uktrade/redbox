@@ -45,9 +45,12 @@ file_urlpatterns = [
     path("documents/", views.DocumentView.as_view(), name="documents"),
     path("documents/<uuid:doc_id>/delete-document/", views.delete_document, name="delete-document"),
     path("documents/<uuid:doc_id>/title/", views.DocumentsTitleView.as_view(), name="document-titles"),
+    path("documents/upload/", views.upload_document, name="document-upload"),
     path("upload/", views.UploadView.as_view(), name="upload"),
     path("remove-doc/<uuid:doc_id>", views.remove_doc_view, name="remove-doc"),
     path("remove-all-docs", views.remove_all_docs_view, name="remove-all-docs"),
+    path("documents/your-documents/", views.YourDocuments.as_view(), name="your-documents-initial"),
+    path("documents/your-documents/<uuid:active_chat_id>/", views.YourDocuments.as_view(), name="your-documents"),
 ]
 
 chat_urlpatterns = [
@@ -73,6 +76,7 @@ other_urlpatterns = [
     path("", views.homepage_view, name="homepage"),
     path("health/", views.health, name="health"),
     path("file-status/", views.file_status_api_view, name="file-status"),
+    path("file-ingest-errors/", views.file_ingest_errors, name="file-ingest-errors"),
     path(
         "check-demographics/", views.CheckDemographicsView.as_view(), name="check-demographics"
     ),  # Can be removed once profile overlay is enabled
