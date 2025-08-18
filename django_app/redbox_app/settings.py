@@ -203,8 +203,6 @@ CSP_DEFAULT_SRC = (
 
 CSP_SCRIPT_SRC = (
     "'self'",
-    "eu.i.posthog.com",
-    "eu-assets.i.posthog.com",
     "'sha256-RfLASrooywwZYqv6kr3TCnrZzfl6ZTfbpLBJOVR/Gt4='",
     "'sha256-GUQ5ad8JK5KmEWmROf3LZd9ge94daqNvd8xy9YS1iDw='",
     "'sha256-qmCu1kQifDfCnUd+L49nusp7+PeRl23639pzN5QF2WA='",
@@ -242,8 +240,6 @@ CSP_FRAME_ANCESTORS = ("'none'",)
 CSP_CONNECT_SRC = [
     "'self'",
     f"{WEBSOCKET_SCHEME}://{ENVIRONMENT.hosts[0]}/ws/chat/",
-    "eu.i.posthog.com",
-    "eu-assets.i.posthog.com",
     "https://*.google-analytics.com",
     "https://*.analytics.google.com",
     "https://*.googletagmanager.com",
@@ -282,7 +278,7 @@ SESSION_COOKIE_AGE = 60 * 60 * 24
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 
 LOG_ROOT = "."
-LOG_HANDLER = "console"
+LOG_HANDLER = "asim"
 BUCKET_NAME = env.str("BUCKET_NAME")
 AWS_S3_REGION_NAME = env.str("AWS_REGION")
 APPEND_SLASH = True
@@ -364,7 +360,7 @@ else:
     }
 
 LOG_LEVEL = env.str("DJANGO_LOG_LEVEL", "WARNING")
-LOG_FORMAT = env.str("DJANGO_LOG_FORMAT", "verbose")
+LOG_FORMAT = env.str("DJANGO_LOG_FORMAT", "asim_formatter")
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

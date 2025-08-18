@@ -116,10 +116,11 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
         env=env,
     )
+
     if file_name.endswith((".csv", ".xls", "xlsx")):
-        new_ids = RunnableParallel({"tabular": tabular_chunk_ingest_chain}).invoke(
-            file_name
-        )  # Use Fake Embeddings for Excel Files or CSVs in case text files run on
+        new_ids = RunnableParallel(
+            {"normal": chunk_ingest_chain, "largest": large_chunk_ingest_chain, "tabular": tabular_chunk_ingest_chain}
+        ).invoke(file_name)  # Run an additional tabular process if a tabular file is ingested
     else:
         new_ids = RunnableParallel({"normal": chunk_ingest_chain, "largest": large_chunk_ingest_chain}).invoke(
             file_name

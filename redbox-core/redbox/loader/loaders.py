@@ -61,7 +61,9 @@ def split_pdf(filebytes: BytesIO, pages_per_chunk: int = 75) -> list[BytesIO]:
 
 
 def read_csv_text(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
+    """Reads in a csv file, validates it using pandas and then returns the csv as string with a null metadata dictionary"""
     try:
+        file_bytes.seek(0)
         # Read bytes into pandas df. This acts as a pre-check that the csv is well formed
         df = pd.read_csv(file_bytes)
         if df.empty:
@@ -79,6 +81,7 @@ def read_csv_text(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
 
 
 def read_excel_file(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
+    """Reads in an excel file, validates each sheet using pandas and then returns a list of each valid sheet as string with a null metadata dictionary"""
     try:
         sheets = pd.read_excel(file_bytes, sheet_name=None)
         elements = []
@@ -88,12 +91,13 @@ def read_excel_file(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
                 if df.empty:
                     logger.info(f"Skipping Sheet {name}")
                     continue
-                csv_text = df.to_csv(index=False)
+                # Include the table name in the text that is stored. This will be extracted by the retriever
+                csv_text = f"<table_name>{name.lower().replace(" ","_")}</table_name>" + str(df.to_csv(index=False))
                 elements.append({"text": csv_text, "metadata": {}})
             except Exception as e:
                 logger.info(f"Skipping Sheet {name} due to error: {e}")
                 continue
-        return elements if elements else None
+        return elements if len(elements) else None
     except Exception as e:
         print(e)
         logger.info(f"Excel Read Error: {e}")
@@ -101,6 +105,7 @@ def read_excel_file(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
 
 
 def load_tabular_file(file_name: str, file_bytes: BytesIO) -> list[dict[str, str]]:
+    """Selects the right read method for each file type. Returns an empty list if n"""
     if file_name.endswith(".csv"):
         elements = read_csv_text(file_bytes=file_bytes)
     else:
@@ -157,7 +162,8 @@ class UnstructuredChunkLoader:
                     print(response)
                     raise ValueError(msg)
                 elements.extend(response.json())
-        elif is_tabular:
+        elif is_tabular and self.chunk_resolution == ChunkResolution.tabular:
+            # Carry out the special ingest process for tabular files - will be carried out in addition to
             elements = load_tabular_file(file_name=file_name, file_bytes=file_bytes)
         else:
             files = {

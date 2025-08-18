@@ -4,13 +4,10 @@
   "description": "Frontend dependencies for i.AI Redbox application",
   "source": [
     "src/styles.scss",
-    "src/js/autosubmit.js",
+    "src/js/base.js",
     "src/js/chats.js",
     "src/js/document-upload.js",
-    "src/js/documents.js",
-    "src/js/main.js",
-    "src/js/posthog.js",
-    "src/js/menu.js"
+    "src/js/documents.js"
   ],
   "staticFiles": [
     {
@@ -55,8 +52,8 @@
     "@parcel/transformer-typescript-tsc": "^2.13.1",
     "aws-sdk": "^2.1692.0",
     "govuk-frontend": "5.10.2",
+    "htmx.org": "^2.0.6",
     "i.ai-design-system": "^0.4.8",
-    "posthog-js": "^1.143.0",
     "readable-stream": "^4.7.0"
   },
   "devDependencies": {

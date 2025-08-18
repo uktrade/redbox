@@ -285,3 +285,16 @@ django-runserver: # Run the web app locally (not in docker)
 .PHONY: dev
 dev: # Start the app locally in development mode with hot-reloading enabled
 	./dev.sh
+
+.PHONY: local-setup
+local-setup: # Run the local setup commands
+	@cp .env.local.example .env.local
+	@cp .envrc.example .envrc
+
+.PHONY: aws-login
+aws-login: # Login to AWS
+	./aws-login.sh
+
+.PHONY: shell
+shell: # Launch python shell
+	cd django_app && python manage.py shell

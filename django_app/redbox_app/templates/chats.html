@@ -1,9 +1,6 @@
 {% set pageTitle = "Chats" %}
 {% extends "base.html" %}
-{% from "macros/chat-history-macros.html" import chat_history_heading, chat_history_item %}
-{% from "macros/chat-macros.html" import message_box, route_display %}
 {% from "macros/profile-overlay.html" import profile_overlay %}
-{% from "macros/govuk-button.html" import govukButton %}
 
 
 {% block content %}
@@ -15,9 +12,7 @@
 #}
 
 <div>
-
-
-  <form class="govuk-width-container govuk-grid-row js-message-input" action="/submit" method="post">
+  <form id="chats-form" class="govuk-width-container govuk-grid-row js-message-input" action="/submit" method="post">
     <div class="govuk-grid-column-one-quarter side-panel">
       <div class="rb-left-column-container">
         <a role="button"
@@ -28,180 +23,20 @@
         </a>
         <div class="divider"></div>
         <h2 class="govuk-heading-s side-panel-heading govuk-!-margin-top-4">Recent chats</h2>
-        <chat-history>
-          {# Are these templates needed? #}
-          <template id="template-chat_history_heading">
-            <div>
-              {% call chat_history_heading("-") %}
-              {% endcall %}
-            </div>
-          </template>
-          <template id="template-chat_history_item">
-            {{ chat_history_item({
-              "id": "id",
-              "name": ""
-            }, "", "id") }}
-          </template>
-          <div id="recent-chats" class="recent-chats scrollable">
-            <ul class="chat-list">
-              {% for chat in chats %}
-                {{ chat_history_item(chat, url('chats', chat.id), chat_id) }}
-              {% endfor %}
-            </ul>
-          </div>
-        </chat-history>
-          <div class="govuk-form-group govuk-!-margin-top-5" {% if not request.user.is_superuser %}hidden{% endif %}>
-            <div class="divider"></div>
-            <label class="govuk-heading-s side-panel-heading govuk-!-margin-top-4" for="llm-selector">Model</label>
-            <select id="llm-selector" name="llm" class="govuk-select govuk-!-margin-top-1" {% if environment | lower == 'prod' %} disabled {% endif %}>
-              {% for option in llm_options %}
-                <option value="{{ option.id }}" {% if option.selected %}selected{% endif %}>{{ option.name }}{% if option.default %} (default){% endif %}</option>
-              {% endfor %}
-            </select>
-          </div>
-        <document-selector class="govuk-!-margin-top-5 govuk-!-padding-top-3">
-          <fieldset class="govuk-fieldset">
-            <legend class="full-width-panel-title">
-              <div class="divider"></div>
-              <h3 class="govuk-heading-s side-panel-heading govuk-!-margin-top-4">
-                Your documents
-                <a href="{{ url('upload') }}">{% include 'icons/document-add.html' %}</a>
-              </h3>
-            </legend>
-            <div id="your-documents" class="your-documents scrollable govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
-              {% for file in completed_files %}
-                <div class="govuk-checkboxes__item">
-                  <input class="govuk-checkboxes__input" id="file-{{ file.id }}" name="file-{{ file.id }}" type="checkbox" value="{{ file.id }}" {% if file.selected %}checked{% endif %}>
-                  <label class="rb-doc-selector__label govuk-checkboxes__label" for="file-{{ file.id }}">{{ file.file_name }}</label>
-                </div>
-              {% endfor %}
-              {# files not yet ready - stored here to be moved to main list once ready #}
-              <div hidden>
-                {% for file in processing_files %}
-                  <div class="govuk-checkboxes__item">
-                    <input class="govuk-checkboxes__input" id="file-{{ file.id }}" name="file-{{ file.id }}" type="checkbox" value="{{ file.id }}" {% if file.selected %}checked{% endif %}>
-                    <label class="rb-doc-selector__label govuk-checkboxes__label" for="file-{{ file.id }}">{{ file.file_name }}</label>
-                    <file-status data-id="{{ file.id }}"></file-status>
-                  </div>
-                {% endfor %}
-              </div>
-            </div>
-          </fieldset>
-        </document-selector>
-
-      </div>
-      </div>
-
-    <div class="govuk-grid-column-three-quarters">
-      {% if not messages %}
-
-        <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1" security-classification="{{ security }}"></canned-prompts>
-
-      {% endif %}
-        <div class="rb-chats-section">
-
-        <chat-title class="chat-title" data-session-id="{{ chat_id or '' }}" data-title="{{ current_chat.name or '' }}", data-title-length="{{ chat_title_length }}">
-          {% if current_chat.name %}
-            <h2 class="chat-title__heading govuk-heading-m">{{ current_chat.name }}</h2>
-          {% else %}
-            <h2 class="chat-title__heading govuk-visually-hidden" hidden>Current chat</h2>
-          {% endif %}
-        </chat-title>
-
-
-        <chat-controller class="iai-chat-container" data-stream-url="{{ streaming.endpoint }}" data-session-id="{{ chat_id or '' }}">
-
-          <div class="rb-chat-message__container js-message-container">
-
-            <template id="template-route-display">
-              {{ route_display() }}
-            </template>
-
-            {# SSR messages #}
-            {% for message in messages %}
-              {{ message_box(message=message) }}
-
+        {% include "side_panel/recent_chats_list.html" %}
+        <div class="govuk-form-group govuk-!-margin-top-5" {% if request.user.is_superuser %}hidden{% endif %}>
+          <div class="divider"></div>
+          <label class="govuk-heading-s side-panel-heading govuk-!-margin-top-4" for="llm-selector">Model</label>
+          <select id="llm-selector" name="llm" class="govuk-select govuk-!-margin-top-1" {% if environment | lower == 'prod' %} disabled {% endif %}>
+            {% for option in llm_options %}
+              <option value="{{ option.id }}" {% if option.selected %}selected{% endif %}>{{ option.name }}{% if option.default %} (default){% endif %}</option>
             {% endfor %}
-
-            {# CSR messages are inserted here #}
-
-          </div>
-
-          <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}"/>
-          {% if chat_id %}<input type="hidden" name="session-id" value="{{ chat_id }}"/>{% endif %}
-
-        </chat-controller>
-      </div>
-      <div class="chat-input__input-container">
-      <label class="govuk-label govuk-!-padding-top-1" for="message">
-      </label>
-      <div id="message-hint" class="govuk-hint govuk-body">
-        Need help? View <a href="{{ url('faq') }}" class="govuk-link" target="_blank">Advanced Prompt FAQ.</a>
-      </div>
-      <message-input>
-        <div class="govuk-textareax iai-chat-input__input js-user-text" id="message" name="message" contenteditable="true" role="textbox" aria-multiline="true" data-text="Type here..."></div>
-      </message-input>
-  {% if enable_dictation_flag_is_active %}
-  <send-message-with-dictation data-api-key="{{ redbox_api_key }}">
-    <button type="submit" class="govuk-buttonx govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4" data-module="govuk-button">
-      Dictate
-    </button>
-    {{ govukButton(
-      text="Stop",
-      classes="govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4",
-      dont_submit=True
-    ) }}
-      {{ govukButton(
-        text="Add document",
-        href=url('upload'),
-        classes="govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4"
-      ) }}
-      {{ govukButton(
-        text="Send",
-        classes="govuk-!-margin-top-5 rb-send-button"
-      ) }}
-      {{ govukButton(
-        text="Stop",
-        classes="govuk-!-margin-top-5"
-      ) }}
-  </send-message-with-dictation>
-  {% else %}
-      <send-message>
-        {{ govukButton(
-          text="Add document",
-          href=url('upload'),
-          classes="govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4"
-        ) }}
-        {{ govukButton(
-          text="Send",
-          classes="govuk-!-margin-top-5 rb-send-button"
-        ) }}
-        {{ govukButton(
-          text="Stop",
-          classes="govuk-!-margin-top-5"
-        ) }}
-      </send-message>
-      {% endif %}
-      {% if not messages %}
-        <div class="govuk-warning-text govuk-body govuk-!-margin-bottom-1 govuk-!-padding-bottom-0">
-          <span class="govuk-warning-text__icon small-warning" aria-hidden="true">!</span>
-          <strong class="govuk-warning-text__text govuk-!-padding-left-7">
-            <span class="govuk-visually-hidden">Warning</span>
-            You can use up to, and including, official sensitive documents.
-          </strong>
+          </select>
         </div>
-        <div class="govuk-warning-text govuk-body govuk-!-margin-bottom-1 govuk-!-padding-bottom-0">
-          <span class="govuk-warning-text__icon small-warning" aria-hidden="true">!</span>
-          <strong class="govuk-warning-text__text govuk-!-padding-left-7">
-            <span class="govuk-visually-hidden">Warning</span>
-            Redbox can make mistakes. You must check for accuracy before using the output.
-          </strong>
-        </div>
-      {% endif %}
-
+        {% include "side_panel/your_documents_list.html" %}
       </div>
     </div>
-
+    {% include "chat/chat_window.html" %}
   </form>
 
   <exit-feedback class="exit-feedback" data-chatid="{{ current_chat.id }}" data-csrf="{{ csrf_token }}"></exit-feedback>

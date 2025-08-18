@@ -11,9 +11,10 @@ from redbox.chains.components import (
     get_embeddings,
     get_metadata_retriever,
     get_parameterised_retriever,
+    get_tabular_chunks_retriever,
 )
 from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_documents_tool, build_search_wikipedia_tool
-from redbox.graph.root import get_agentic_search_graph, get_chat_with_documents_graph, new_root_graph
+from redbox.graph.root import get_agentic_search_graph, get_summarise_graph, new_root_graph
 from redbox.models.chain import RedboxState
 from redbox.models.chat import ChatRoute
 from redbox.models.file import ChunkResolution
@@ -39,6 +40,7 @@ class Redbox:
         self,
         all_chunks_retriever: VectorStoreRetriever | None = None,
         parameterised_retriever: VectorStoreRetriever | None = None,
+        tabular_retriever: VectorStoreRetriever | None = None,
         metadata_retriever: VectorStoreRetriever | None = None,
         embedding_model: Embeddings | None = None,
         env: Settings | None = None,
@@ -50,6 +52,7 @@ class Redbox:
 
         self.all_chunks_retriever = all_chunks_retriever or get_all_chunks_retriever(_env)
         self.parameterised_retriever = parameterised_retriever or get_parameterised_retriever(_env)
+        self.tabular_retriever = tabular_retriever or get_tabular_chunks_retriever(_env)
         self.metadata_retriever = metadata_retriever or get_metadata_retriever(_env)
         self.embedding_model = embedding_model or get_embeddings(_env)
 
@@ -75,6 +78,7 @@ class Redbox:
         self.graph = new_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,
             parameterised_retriever=self.parameterised_retriever,
+            tabular_retriever=self.tabular_retriever,
             metadata_retriever=self.metadata_retriever,
             tools=self.tools,
             multi_agent_tools=self.multi_agent_tools,
@@ -200,7 +204,7 @@ class Redbox:
         elif graph_to_draw == "agent":
             graph = get_agentic_search_graph(self.tools).get_graph()
         elif graph_to_draw == "summarise":
-            graph = get_chat_with_documents_graph(self.all_chunks_retriever, self.parameterised_retriever).get_graph()
+            graph = get_summarise_graph(self.all_chunks_retriever, self.parameterised_retriever).get_graph()
         else:
             raise Exception("Invalid graph_to_draw")
 

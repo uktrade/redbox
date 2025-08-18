@@ -5,3 +5,9 @@
 
     background-color: transparent;
 }
+
+.govuk-button--warningx {
+    @extend .govuk-button--warning;
+
+    background-color: var(--color-button-warning-background) !important;
+}

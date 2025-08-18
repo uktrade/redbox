@@ -90,7 +90,7 @@ def test_post_chat_title(alice: User, chat: Chat, client: Client):
 
     # When
     url = reverse("chat-titles", kwargs={"chat_id": chat.id})
-    response = client.post(url, json.dumps({"name": "New chat name"}), content_type="application/json")
+    response = client.post(url, json.dumps({"value": "New chat name"}), content_type="application/json")
 
     # Then
     status = HTTPStatus(response.status_code)
@@ -106,7 +106,7 @@ def test_post_chat_title_with_naughty_string(alice: User, chat: Chat, client: Cl
 
     # When
     url = reverse("chat-titles", kwargs={"chat_id": chat.id})
-    response = client.post(url, json.dumps({"name": "New chat name \x00"}), content_type="application/json")
+    response = client.post(url, json.dumps({"value": "New chat name \x00"}), content_type="application/json")
 
     # Then
     status = HTTPStatus(response.status_code)

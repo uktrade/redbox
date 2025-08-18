@@ -1,0 +1,31 @@
+{% macro editable_text(
+    post_url,
+    edit_event,
+    sender_id='',
+    object_id='',
+    delete_url='',
+    delete_event='',
+    display_selector='.display',
+    text_selector='.title-text',
+    input_wrapper_selector='.edit-input-wrapper',
+    input_selector='.edit-input',
+    edit_selector='.edit-trigger',
+    delete_selector='.delete-trigger'
+) %}
+    <editable-text
+        post-url="{{ post_url }}"
+        edit-event="{{ edit_event }}"
+        sender-id="{{ sender_id }}"
+        delete-url="{{ delete_url }}"
+        delete-event="{{ delete_event }}"
+        object-id="{{ object_id }}"
+
+        display-selector="{{ display_selector }}"
+        text-selector="{{ text_selector }}"
+        input-wrapper-selector="{{ input_wrapper_selector }}"
+        input-selector="{{ input_selector }}"
+        edit-selector="{{ edit_selector }}"
+        delete-selector="{{ delete_selector }}">
+        {{ caller() }}
+    </editable-text>
+{% endmacro %}

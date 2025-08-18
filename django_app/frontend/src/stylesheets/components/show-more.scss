@@ -1,10 +1,17 @@
+show-more {
+  padding: 8px;
+  display: flex;
+}
+
 .show-more-link {
-    --show-more-link-color: var(--color-link-text);
-    --show-more-link-hover-color: var(--color-text);
+  --show-more-link-color: var(--color-link-text);
 
-    cursor: pointer;
+  cursor: pointer;
+  color: var(--show-more-link-color);
+}
 
-    &:hover {
-      color: var(--show-more-link-hover-color);
-    }
-  }
+// To be removed
+#show-more-div {
+  padding: 8px;
+  display: flex;
+}
