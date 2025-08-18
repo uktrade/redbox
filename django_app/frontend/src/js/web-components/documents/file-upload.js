@@ -174,12 +174,15 @@ class FileUpload extends HTMLElement {
      */
     #handleFiles(files) {
         if (!files) return;
+        const moveCaretToEnd = (!this.textarea?.textContent?.trim());
         for (const file of files) {
             const uploadedFileElement = this.#addFileToTextBox(file);
             this.uploadFile(file, uploadedFileElement);
         }
-        this.textarea?.appendChild(document.createTextNode("\n"));
-        this.#moveCaretToEnd();
+        if (moveCaretToEnd) {
+            this.textarea?.appendChild(document.createTextNode("\n"));
+            this.#moveCaretToEnd();
+        }
     }
 
 
