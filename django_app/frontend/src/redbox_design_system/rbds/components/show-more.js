@@ -10,7 +10,6 @@ export class ShowMore extends HTMLElement {
 
     connectedCallback() {
         if (!this.container) return;
-        console.log("SHOW MORE: ", this.container);
         htmx.onLoad(() => this.#updateVisibleItems());
         this.initObserver();
     }

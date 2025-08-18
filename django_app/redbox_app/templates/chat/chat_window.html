@@ -40,14 +40,14 @@
             <div class="govuk-textareax message-input drop-zone" id="message" name="message" contenteditable="true" role="textbox"
                 aria-multiline="true" data-text="Type here..."></div>
         </message-input>
-        <file-upload>
+        <file-upload textarea-selector=".message-input" file-input-selector="#upload-docs" file-upload-trigger-selector=".upload-button" upload-url="/documents/upload/">
             <input class="govuk-file-upload govuk-!-display-none" multiple id="upload-docs" name="uploadDocs" type="file" aria-describedby="upload-docs-notification upload-docs-filetypes">
             {{ govukButton(
                 text="Add document",
                 classes="upload-button govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4"
             ) }}
         </file-upload>
-        {% if enable_dictation_flag_is_active %}
+        {% if true %}
             <send-message-with-dictation data-api-key="{{ redbox_api_key }}">
                 <button type="submit"
                     class="govuk-buttonx govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4"
@@ -76,7 +76,7 @@
                 ) }}
                 {{ govukButton(
                 text="Stop",
-                classes="govuk-!-margin-top-5"
+                classes="govuk-!-margin-top-5 govuk-!-display-none"
                 ) }}
             </send-message>
         {% endif %}

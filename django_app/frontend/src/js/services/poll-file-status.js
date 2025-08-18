@@ -6,7 +6,6 @@
  * @param {number} retries - Number of retries
 */
  export async function pollFileStatus(id, retries=0) {
-    console.log("pollFileStatus ID: ", id);
     const FILE_STATUS_ENDPOINT = "/file-status";
     const CHECK_INTERVAL_MS = 6000;
     const MAX_RETRIES = 100;

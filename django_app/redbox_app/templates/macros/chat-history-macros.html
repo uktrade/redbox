@@ -8,7 +8,7 @@
 
 
 {% macro chat_history_item (chat, link, active_chat_id) %}
-    <li class="side-panel-item-container" id="chat-{{ chat.id }}">
+    <li class="side-panel-item-container govuk-!-display-none" id="chat-{{ chat.id }}">
         {% set chat_edit_url = url('chat-titles', chat.id) %}
         {% call editable_text(chat_edit_url, 'chat-title-change', 'recent-chats', chat.id) %}
             <div class="chat-list-item {% if chat.id == active_chat_id %}selected{% endif %}" data-chatid="{{ chat.id }}">

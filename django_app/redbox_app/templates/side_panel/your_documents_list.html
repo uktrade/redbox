@@ -14,7 +14,7 @@
         <div id="your-documents" class="your-documents scrollable govuk-checkboxes govuk-checkboxes--small"
             data-module="govuk-checkboxes">
             {% for file in completed_files %}
-            <div class="side-panel-item-container">
+            <div class="side-panel-item-container govuk-!-display-none">
                 {% set document_edit_url = url('document-titles', doc_id=file.id) %}
                 {% call editable_text(document_edit_url, 'document-title-change', 'your-documents', file.id) %}
                     <div class="govuk-checkboxes__item item-checkbox-container display">
