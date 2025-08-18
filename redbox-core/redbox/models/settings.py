@@ -176,7 +176,7 @@ class Settings(BaseSettings):
     )
 
     # web search
-    web_search: Literal["Google", "Brave", "Kagi"] = "Brave"
+    web_search: Literal["Google", "Brave", "Kagi"] = "Kagi"
 
     ## Prompts
     metadata_prompt: tuple = (
@@ -354,8 +354,8 @@ class Settings(BaseSettings):
             case "kagi":
                 return WebSearchSettings(
                     name="Kagi",
-                    end_point="",
-                    secret_tokens={"API_KEYS": env.str("KAGI_API_KEY", "")},
+                    end_point="https://kagi.com/api/v0/search",
+                    secret_tokens={"Authorization": " ".join(["Bot", env.str("KAGI_API_KEY", "")])},
                 )
 
 

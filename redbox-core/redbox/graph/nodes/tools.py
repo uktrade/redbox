@@ -399,7 +399,7 @@ def get_log_formatter_for_retrieval_tool(t: ToolCall) -> BaseRetrievalToolLogFor
     return __RETRIEVEAL_TOOL_MESSAGE_FORMATTERS.get(t["name"], BaseRetrievalToolLogFormatter)(t)
 
 
-def brave_search_call(query: str, country_code: str = "GB", ui_lang: str = "en-GB", no_search_result: int = 20):
+def kagi_search_call(query: str, no_search_result: int = 20):
     tokeniser = bedrock_tokeniser
     web_search_settings = get_settings().web_search_settings()
     response = requests.get(
@@ -407,17 +407,15 @@ def brave_search_call(query: str, country_code: str = "GB", ui_lang: str = "en-G
         headers=web_search_settings.secret_tokens,
         params={
             "q": query,
-            "country": country_code,
-            "ui_lang": ui_lang,
-            "count": str(no_search_result),
-            "extra_snippets": "true",
+            "limit": str(no_search_result),
         },
     )
+
     if response.status_code == 200:
         mapped_documents = []
-        results = response.json().get("web", []).get("results")
+        results = response.json().get("data", [])
         for i, doc in enumerate(results):
-            page_content = "".join(doc.get("extra_snippets", []))
+            page_content = "".join(doc.get("snippet", []))
             token_count = tokeniser(page_content)
             print(f"Document {i} token count: {token_count}")
             mapped_documents.append(
@@ -454,7 +452,7 @@ def build_web_search_tool():
         Returns:
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
-        return brave_search_call(query=query, country_code=country_code, ui_lang=ui_lang)
+        return kagi_search_call(query=query)
 
     return _search_web
 
@@ -473,6 +471,6 @@ def build_legislation_search_tool():
         Returns:
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
-        return brave_search_call(query=query + " site:legislation.gov.uk")
+        return kagi_search_call(query=query + " site:legislation.gov.uk")
 
     return _search_legislation
