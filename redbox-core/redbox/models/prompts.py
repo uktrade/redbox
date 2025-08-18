@@ -16,7 +16,7 @@ ANSWER_INSTRUCTION_SYSTEM_PROMPT = """\nDo not use backticks (```) in the respon
 CHAT_SYSTEM_PROMPT = "You are tasked with providing information objectively and responding helpfully to users. Based on the request and answers above, draft a response to the original request. Make sure to keep the introduction and final paragraphs in a similar style and tone to the examples provided and the uploaded style guides. Keep the response concise, and that only relevant legislation is mentioned. If the requestor mentions any legislation, this should be acknowledged in the response. Make sure the paragraphs use connectors so that the response flows.  Only use the information provided in the policy documents and previous responses to draft a response."
 
 
-#change for correspondence specific
+# change for correspondence specific
 CHAT_WITH_DOCS_SYSTEM_PROMPT = """You are tasked with using the documents provided to draft an answer to the request in the prompt. The documents will include policy documents which should be used to inform the contents of the response.
 The documents will also include previous requests and response pairs, these should be used to mimic the style and structure of the response as well as, if relevant, some of the content. 
 Finally, the documents might also include a style guide which should be scanned for scenarios where 'set phrases' can be used in the response.
@@ -33,7 +33,7 @@ If no citations are available or needed, return an empty array for citations lik
 Do not provide citation from your own knowledge.
 Assistant:<haiku>"""
 
-CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = ( #reduce = summarises
+CHAT_WITH_DOCS_REDUCE_SYSTEM_PROMPT = (  # reduce = summarises
     "You are tasked with drafting answers based on the input query and on user provided previous query and response pair documents. "
     "Your goal is to draft a response to the letter in the prompt (delimitted by quotation marks) based on the infor."
     "Please follow these guidelines while answering the question: \n"
