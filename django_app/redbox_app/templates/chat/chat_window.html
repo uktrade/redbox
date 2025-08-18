@@ -47,7 +47,7 @@
                 classes="upload-button govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4"
             ) }}
         </file-upload>
-        {% if true %}
+        {% if enable_dictation_flag_is_active %}
             <send-message-with-dictation data-api-key="{{ redbox_api_key }}">
                 <button type="submit"
                     class="govuk-buttonx govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4"
