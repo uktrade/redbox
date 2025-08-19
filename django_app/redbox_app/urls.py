@@ -62,6 +62,7 @@ chat_urlpatterns = [
     path("chats/<uuid:active_chat_id>/recent-chats/", views.RecentChats.as_view(), name="recent-chats"),
     path("chats/chat-window/", views.ChatWindow.as_view(), name="chat-window-initial"),
     path("chats/<uuid:active_chat_id>/chat-window/", views.ChatWindow.as_view(), name="chat-window"),
+    path("chats/generate_docx/", views.generate_docx, name="generate-docx"),
 ]
 
 admin_urlpatterns = [

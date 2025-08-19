@@ -8,6 +8,7 @@ from redbox_app.redbox_core.views.chat_views import (
     DeleteChat,
     RecentChats,
     UpdateChatFeedback,
+    generate_docx,
 )
 from redbox_app.redbox_core.views.citation_views import CitationsView
 from redbox_app.redbox_core.views.demographics_views import (
@@ -65,6 +66,7 @@ __all__ = [
     "DeleteChat",
     "RecentChats",
     "ChatWindow",
+    "generate_docx",
     "user_view_pre_alpha",
     "message_view_pre_alpha",
     "aws_credentials_api",

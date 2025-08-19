@@ -11,7 +11,7 @@ if (typeof window.trustedTypes !== "undefined") {
         RETURN_TRUSTED_TYPE: false,
         CUSTOM_ELEMENT_HANDLING: {
           tagNameCheck: (tagName) =>
-            tagName === "copy-text" ||
+            tagName === "copy-or-download-text" ||
             tagName === "feedback-buttons" ||
             tagName === "loading-message" ||
             tagName === "markdown-converter" ||

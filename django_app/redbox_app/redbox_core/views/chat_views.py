@@ -1,6 +1,9 @@
+import io
+import json
 import logging
 import uuid
 from dataclasses import dataclass
+from html.parser import HTMLParser
 from http import HTTPStatus
 
 from dataclasses_json import Undefined, dataclass_json
@@ -10,6 +13,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from docx import Document
 
 from redbox_app.redbox_core.models import Chat
 from redbox_app.redbox_core.services import chats as chat_service
@@ -107,3 +113,44 @@ class ChatWindow(View):
     @method_decorator(login_required)
     def get(self, request: HttpRequest, active_chat_id: uuid.UUID) -> HttpResponse:
         return chat_service.render_chat_window(request, active_chat_id)
+
+
+@csrf_exempt
+@require_POST
+def generate_docx(request):
+    try:
+        data = json.loads(request.body)
+        html_content = data.get("html_content", "")
+        text_content = data.get("text_content", "")
+        message_id = data.get("message_id", "document")
+
+        doc = Document()
+
+        class HTMLStripper(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.text = []
+
+            def handle_data(self, data):
+                self.text.append(data)
+
+        parser = HTMLStripper()
+        parser.feed(html_content)
+        cleaned_text = " ".join(parser.text).strip()
+
+        doc.add_heading("Redbox@DBT Correspondence Drafter", 0)
+        doc.add_paragraph(cleaned_text if cleaned_text else text_content)
+
+        buffer = io.BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+
+        response = HttpResponse(
+            content=buffer.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+        response["Content-Disposition"] = f"attachment; filename=draft-{message_id}.docx"
+        return response
+
+    except Exception as e:
+        return HttpResponse(status=500, content=str(e))

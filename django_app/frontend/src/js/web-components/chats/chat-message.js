@@ -265,14 +265,15 @@ export class ChatMessage extends HTMLElement {
         if (chatMessage) {chatMessage.id = `chat-message-${response.data.message_id}`}
         // Add in feedback and copy buttons dynamically
         if (actionsContainer) {
+
+          const copyOrDownloadText = document.createElement('copy-or-download-text')
+          copyOrDownloadText.dataset.id = response.data.message_id
+          
           const feedbackButtons = document.createElement('feedback-buttons')
           feedbackButtons.dataset.id = response.data.message_id
 
-          const copyText = document.createElement('copy-text')
-          copyText.dataset.id = response.data.message_id
-
+          actionsContainer.appendChild(copyOrDownloadText)
           actionsContainer.appendChild(feedbackButtons)
-          actionsContainer.appendChild(copyText)
 
       }
         // this.#addFootnotes(this.streamedContent, response.data.message_id);

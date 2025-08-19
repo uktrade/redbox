@@ -84,11 +84,7 @@
 
 
 {% if message.role == "ai" %}
-
-<div class="chat-actions-container">
+  <copy-or-download-text data-id="{{ message.id}}"></copy-or-download-text>
   <feedback-buttons data-id="{{ message.id }}"></feedback-buttons>
-  <copy-text data-id="{{ message.id}}"></copy-text>
-</div>
-
 {% endif %}
 {% endmacro %}
