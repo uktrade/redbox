@@ -138,7 +138,6 @@ def generate_docx(request):
         parser.feed(html_content)
         cleaned_text = " ".join(parser.text).strip()
 
-        doc.add_heading("Redbox@DBT Correspondence Drafter", 0)
         doc.add_paragraph(cleaned_text if cleaned_text else text_content)
 
         buffer = io.BytesIO()
