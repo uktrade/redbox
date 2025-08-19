@@ -27,6 +27,7 @@ class Environment(StrEnum):
     UAT = ("UAT", False, ["uat.redbox.uktrade.digital", *ADDITIONAL_HOSTS])
     LAB = ("LAB", False, ["lab.redbox.uktrade.digital", *ADDITIONAL_HOSTS])
     PROD = ("PROD", False, ["redbox.prod.uktrade.digital", *ADDITIONAL_HOSTS])
+    CORRESPONDENCE = ("CORRESPONDENCE", False, ["redbox-correspondence.prod.uktrade.digital", *ADDITIONAL_HOSTS])
 
 
 class Classification(StrEnum):
