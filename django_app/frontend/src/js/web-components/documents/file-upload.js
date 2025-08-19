@@ -301,6 +301,7 @@ class FileUpload extends HTMLElement {
         const checkbox = /** @type {HTMLInputElement} */ (document.querySelector(`#file-${id}`));
         if (!checkbox) return;
         checkbox.checked = checked;
+        checkbox.dispatchEvent(new Event("change", { bubbles: true}));
     }
 
 

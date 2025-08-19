@@ -1,7 +1,7 @@
 {% from "macros/chat-history-macros.html" import chat_history_heading, chat_history_item %}
 {% from "rbds/components/show-more.html" import show_more %}
 
-<chat-history>
+<chat-history hx-swap-oob="outerHTML">
     <div id="recent-chats" class="recent-chats scrollable">
         <ul class="chat-list">
             {% for chat in chats %}
