@@ -151,7 +151,7 @@ class FileUpload extends HTMLElement {
             if (!id) return;
 
             const uploadedFileWrapper = /** @type {HTMLDivElement} */ (
-                this.querySelector(`[data-id="${id}"]`)
+                document.querySelector(`[data-id="${id}"]`)
             );
             if (!uploadedFileWrapper) return;
 
