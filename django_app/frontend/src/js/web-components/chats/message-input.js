@@ -50,11 +50,13 @@ export class MessageInput extends HTMLElement {
 
 
   /**
-   * Returns the current message
+   * Returns the current message, without any uploaded files
    * @returns string
    */
   getValue = () => {
-    return this.textarea?.textContent?.trim() || "";
+    const clone = this.textarea;
+    clone?.querySelector(".uploaded-files-wrapper")?.remove();
+    return clone?.textContent?.trim() || "";
   };
 
 

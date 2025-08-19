@@ -19,14 +19,17 @@
             document.body.dispatchEvent(new CustomEvent("doc-complete", {
                 detail: {id, status: responseStatus},
             }));
+            break;
         case "processing":
             if (retries >= MAX_RETRIES) break;
             window.setTimeout(() => {
                 pollFileStatus(id, retries+1)
             }, CHECK_INTERVAL_MS);
+            break;
         default:
             document.body.dispatchEvent(new CustomEvent("doc-error", {
                 detail: {id, status: responseStatus},
             }));
+            break;
     }
 }

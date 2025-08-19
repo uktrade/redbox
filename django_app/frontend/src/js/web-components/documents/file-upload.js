@@ -51,17 +51,6 @@ class FileUpload extends HTMLElement {
 
 
     /**
-     * Form element for submission
-    */
-    get form() {
-        const formSelector = this.getAttribute("form-selector");
-        if (!formSelector) return null;
-
-        return /** @type {HTMLFormElement} */ (document.querySelector(formSelector));
-    }
-
-
-    /**
      * Container for file upload textbox UI elements
     */
     get uploadedFilesWrapper() {
@@ -108,13 +97,6 @@ class FileUpload extends HTMLElement {
                 this.#handleFiles(files);
             });
         }
-
-        // Remove uploaded files UI elements before submission
-        this.form?.addEventListener("submit", (evt) => {
-            evt.preventDefault();
-            this.uploadedFilesWrapper?.remove();
-            if (this.textarea?.textContent?.trim()) this.form?.submit();
-        });
 
         if (this.fileInput) {
             this.fileInput.addEventListener("change", (evt) => {
