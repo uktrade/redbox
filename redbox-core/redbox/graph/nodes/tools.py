@@ -377,6 +377,14 @@ class SearchGovUKLogFormatter(BaseRetrievalToolLogFormatter):
         return f"Reading pages from .gov.uk, {','.join(set([d.metadata["uri"].split("/")[-1] for d in documents]))}"
 
 
+class SearchLegislationGovUKLogFormatter(BaseRetrievalToolLogFormatter):
+    def log_call(self):
+        return f"Web searching legislation.gov.uk pages for '{self.tool_call["args"]["query"]}'"
+
+    def log_result(self, documents: Iterable[Document]):
+        return f"Reading pages from legislation.gov.uk, {','.join(set([d.metadata["uri"].split("/")[-1] for d in documents]))}"
+
+
 @waffle_flag("DATA_HUB_API_ROUTE_ON")
 class SearchDataHubLogFormatter(BaseRetrievalToolLogFormatter):
     def log_call(self):
@@ -392,6 +400,7 @@ __RETRIEVEAL_TOOL_MESSAGE_FORMATTERS = {
     "_search_wikipedia": SearchWikipediaLogFormatter,
     "_search_documents": SearchDocumentsLogFormatter,
     "_search_govuk": SearchGovUKLogFormatter,
+    "_search_legislation": SearchLegislationGovUKLogFormatter,
 }
 
 
@@ -399,7 +408,7 @@ def get_log_formatter_for_retrieval_tool(t: ToolCall) -> BaseRetrievalToolLogFor
     return __RETRIEVEAL_TOOL_MESSAGE_FORMATTERS.get(t["name"], BaseRetrievalToolLogFormatter)(t)
 
 
-def kagi_search_call(query: str, no_search_result: int = 20):
+def kagi_search_call(query: str, no_search_result: int = 20) -> Tool:
     tokeniser = bedrock_tokeniser
     web_search_settings = get_settings().web_search_settings()
     response = requests.get(

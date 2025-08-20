@@ -9,6 +9,7 @@ class ChatRoute(StrEnum):
     chat_with_docs_map_reduce = "chat/documents/large"
     newroute = "newroute"
     summarise = "summarise"
+    legislation = "legislation"
 
 
 class ErrorRoute(StrEnum):
