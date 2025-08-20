@@ -1,0 +1,60 @@
+.uploaded-file-wrapper {
+    display: inline-block;
+    width: min-content;
+    padding-right: 0.4rem;
+
+    .uploaded-file {
+        display: inline-flex;
+        gap: 0.4rem;
+        border-style: dotted;
+        border-color: var(--redbox-grey);
+        padding: 5px;
+        border-width: thin;
+        margin: 3px;
+
+        .file-name {
+            display: block;
+            text-overflow: ellipsis;
+            max-width: 13ch;
+            overflow: hidden;
+            white-space: nowrap;
+            min-width: 0;
+        }
+    }
+
+    .upload-progress {
+        width: 100%;
+        overflow: hidden;
+        display: inline-block;
+
+        .upload-progress-fill-wrapper {
+            display: flex;
+            align-items: center;
+            padding-right: 0.5ch;
+
+            .upload-progress-fill {
+                height: 6px;
+                background-color: var(--redbox-grey);
+                max-width: calc(100% - 3ch);
+                width: var(--progress-width, 0%);
+                transition: width 0.2s ease;
+                display: inline-flex;
+
+                &[data-status="error"],
+                &[data-status="processing"] {
+                    background-color: var(--redbox-red);
+                }
+
+                &[data-status="complete"] {
+                    background-color: var(--redbox-green);
+                }
+            }
+
+            .upload-progress-fill-text {
+                display: inline-flex;
+                margin-left: auto;
+                margin-right: 0;
+            }
+        }
+    }
+}

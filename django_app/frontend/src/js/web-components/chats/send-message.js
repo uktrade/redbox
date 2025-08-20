@@ -1,15 +1,15 @@
 // @ts-check
 
-import { hideElement, showElement } from "../../utils";
+import { getAttributeOrDefault, hideElement, showElement } from "../../utils";
 
 class SendMessage extends HTMLElement {
 
   connectedCallback() {
     this.buttonSend = /** @type {HTMLButtonElement} */ (
-      this.querySelector("button:nth-child(2)")
+      this.querySelector("button:nth-child(1)")
     );
     this.buttonStop = /** @type {HTMLButtonElement} */ (
-      this.querySelector("button:nth-child(3)")
+      this.querySelector("button:nth-child(2)")
     );
 
     hideElement(this.buttonStop);
@@ -37,5 +37,10 @@ class SendMessage extends HTMLElement {
       showElement(this.buttonSend);
       hideElement(this.buttonStop);
     };
+
+    get sendButton() {
+      const sendButtonSelector =  getAttributeOrDefault(this, "send-button-selector", "send-btn");
+      return this.querySelector(sendButtonSelector);
+    }
   }
   customElements.define("send-message", SendMessage);

@@ -1,4 +1,4 @@
-{% from "components/editable-text.html" import editable_text %}
+{% from "rbds/components/editable-text.html" import editable_text %}
 
 <div class="chat-title">
     <div class="chat-title__heading-container">
@@ -9,7 +9,7 @@
                     {% if current_chat.name %}
                         <h2 class="chat-title__heading govuk-heading-m title-text">{{ current_chat.name }}</h2>
                         <button id="chat-title-edit-button" class="edit-trigger edit-button dark" type="button">
-                            {% include 'icons/edit.html' %}
+                            {% include 'rbds/icons/edit.html' %}
                             <span class="govuk-visually-hidden">Chat Title</span>
                         </button>
                     {% endif %}

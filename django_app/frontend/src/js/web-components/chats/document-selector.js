@@ -22,10 +22,14 @@ class DocumentSelector extends HTMLElement {
 
     // listen for completed docs
     document.body.addEventListener("doc-complete", (evt) => {
-      const completedDoc = /** @type{CustomEvent} */ (evt).detail.closest(
+      const detail = /** @type {CustomEvent} */ (evt).detail;
+      if (!(detail instanceof HTMLElement)) return;
+
+      const completedDoc = detail.closest(
         ".govuk-checkboxes__item"
       );
-      completedDoc.querySelector("file-status").remove();
+      if (!completedDoc) return;
+      completedDoc.querySelector("file-status")?.remove();
       this.querySelector(".govuk-checkboxes")?.appendChild(completedDoc);
     });
 
