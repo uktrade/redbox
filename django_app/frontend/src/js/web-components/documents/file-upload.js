@@ -3,6 +3,11 @@
 import { pollFileStatus, updateYourDocuments } from "../../services";
 
 class FileUpload extends HTMLElement {
+    constructor() {
+        super();
+        this.uploadedFileIds = new Set();
+    }
+
     connectedCallback() {
         this.#bindFileInputEvent();
         this.#bindTextboxEvents();
@@ -55,6 +60,25 @@ class FileUpload extends HTMLElement {
     */
     get uploadedFilesWrapper() {
         return /** @type {HTMLDivElement} */ (this.textarea?.querySelector(".uploaded-files-wrapper"));
+    }
+
+
+    /**
+     * Setter for uploadedFiles object
+     * @param {String | null | undefined} id - File UUID from the server
+    */
+    addFileId(id) {
+        if (!id) return;
+        this.uploadedFileIds.add(id);
+    }
+
+
+    /**
+     * Removes a file from the uploadedFiles object
+     * @param {String | null | undefined} id - File UUID from the server
+    */
+    removeFileId(id) {
+        return this.uploadedFileIds.delete(id);
     }
 
 
@@ -125,7 +149,7 @@ class FileUpload extends HTMLElement {
             uploadProgressFill.dataset.status = "complete";
             uploadProgressText.textContent = "Ready to use";
 
-            updateYourDocuments().then(() => { this.#checkDocument(id) });
+            updateYourDocuments().finally(() => { this.#checkDocuments(id) });
         });
 
         document.body.addEventListener("doc-error", (evt) => {
@@ -212,7 +236,10 @@ class FileUpload extends HTMLElement {
             const uploadedFiles = this.textarea?.querySelector(".uploaded-files");
             const uploadedFilesWrapper = this.textarea?.querySelector(".uploaded-files-wrapper");
             if (uploadedFiles?.innerHTML === "") uploadedFilesWrapper?.remove();
-            updateYourDocuments().then(() => { this.#checkDocument(uploadedFileWrapper.dataset.id, false) });
+            updateYourDocuments().finally(() => {
+                this.#uncheckDocument(uploadedFileWrapper.dataset.id);
+                this.#checkDocuments();
+            });
         });
         return uploadedFileWrapper;
     }
@@ -267,7 +294,7 @@ class FileUpload extends HTMLElement {
                 if (response.status === "complete") {
                     progressFill.dataset.status = "complete";
                     progressText.innerText = "Ready to use";
-                    updateYourDocuments().then(() => { this.#checkDocument(response.file_id) });
+                    updateYourDocuments().finally(() => { this.#checkDocuments(response.file_id) });
                 }
                 progressFill.style.setProperty("--progress-width", "100%");
                 progressFillText.innerText = "100";
@@ -291,16 +318,29 @@ class FileUpload extends HTMLElement {
 
 
     /**
-     * Check/uncheck the specified document
+     * Check/uncheck the specified document(s)
      * @param {string | null | undefined} id - Document ID
-     * @param {boolean} checked - checked value
     */
-    #checkDocument(id, checked = true) {
-        if (!id) return;
+    #checkDocuments(id=null) {
+        this.addFileId(id);
+        this.uploadedFileIds.forEach(id => {
+            const checkbox = /** @type {HTMLInputElement} */ (document.querySelector(`#file-${id}`));
+            if (!checkbox) return;
+            checkbox.checked = true;
+            checkbox.dispatchEvent(new Event("change", { bubbles: true}));
+        })
+    }
 
+
+    /**
+     * Uncheck the specified document
+     * @param {string | null | undefined} id - Document ID
+    */
+    #uncheckDocument(id) {
+        this.removeFileId(id);
         const checkbox = /** @type {HTMLInputElement} */ (document.querySelector(`#file-${id}`));
         if (!checkbox) return;
-        checkbox.checked = checked;
+        checkbox.checked = false;
         checkbox.dispatchEvent(new Event("change", { bubbles: true}));
     }
 

@@ -1,7 +1,7 @@
 {% from "macros/chat-macros.html" import message_box, route_display %}
 {% from "macros/govuk-button.html" import govukButton %}
 
-<div id="chat-window" name="swapped" class="govuk-grid-column-three-quarters" hx-swap-oob="outerHTML">
+<div id="chat-window" name="swapped" class="govuk-grid-column-three-quarters" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
     {% if not messages %}
     <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1"
         security-classification="{{ security }}"></canned-prompts>

@@ -262,11 +262,13 @@ def delete_document(request, doc_id: uuid):
 
     if selected_document:
         context = chat_service.get_context(request, active_chat_id)
+        oob_context = context
+        oob_context["oob"] = True
 
         return render_with_oob(
             [
                 {"template": "side_panel/your_documents_list.html", "context": context, "request": request},
-                {"template": "chat/chat_window.html", "context": context, "request": request},
+                {"template": "chat/chat_window.html", "context": oob_context, "request": request},
             ]
         )
     return documents_service.render_your_documents(request, active_chat_id)

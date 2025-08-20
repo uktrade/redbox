@@ -2,7 +2,7 @@
 {% from "rbds/components/editable-text.html" import editable_text %}
 {% from "rbds/components/modal.html" import modal %}
 
-<document-selector id="document-selector" class="govuk-!-margin-top-5 govuk-!-padding-top-3" hx-swap-oob="outerHTML">
+<document-selector id="document-selector" class="govuk-!-margin-top-5 govuk-!-padding-top-3" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
     <fieldset class="govuk-fieldset">
         <legend class="full-width-panel-title">
             <div class="divider"></div>
