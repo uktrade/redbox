@@ -140,10 +140,10 @@ def new_root_graph(
         {
             ChatRoute.search: "search_graph",
             ChatRoute.gadget: "gadget_graph",
-            ChatRoute.legislation: "legislation_graph",
             ChatRoute.newroute: "new_route_graph",
             ChatRoute.summarise: "summarise_graph",
             ChatRoute.tabular: "tabular_graph",
+            ChatRoute.legislation: "legislation_graph",
             "DEFAULT": "any_documents_selected",
         },
     )
@@ -175,6 +175,7 @@ def new_root_graph(
     builder.add_edge("new_route_graph", END)
     builder.add_edge("summarise_graph", END)
     builder.add_edge("tabular_graph", END)
+    builder.add_edge("legislation_graph", END)
     return builder.compile()
 
 
@@ -739,86 +740,6 @@ def build_new_graph(
     return builder.compile(debug=debug)
 
 
-def build_tabular_graph(retriever, fallback_retriever, fallback_agent_tools, debug: bool = False) -> CompiledGraph:
-    """Creates a subgraph for processing tabular data."""
-    builder = StateGraph(RedboxState)
-
-    # # Send Prompt to Model
-    builder.add_node("pass_user_prompt_to_LLM_message", build_passthrough_pattern())
-
-    # Processes
-    builder.add_node(
-        "retrieve_documents",
-        build_retrieve_pattern(
-            retriever=retriever,
-            structure_func=structure_documents_by_file_name,
-            final_source_chain=False,
-        ),
-    )
-
-    builder.add_node(
-        "check_tabular_docs",
-        empty_process,
-    )
-
-    builder.add_node(
-        "create_tabular_agent",
-        build_tabular_agent,
-    )
-
-    builder.add_node(
-        "set_route_to_tabular",
-        build_set_route_pattern(route=ChatRoute.tabular),
-    )
-
-    builder.add_node(
-        "stream_tabular_failure",
-        stream_tabular_failure(),
-    )
-
-    builder.add_node(
-        "fallback_to_newroute",
-        build_new_graph(all_chunks_retriever=fallback_retriever, multi_agent_tools=fallback_agent_tools),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node("stream_tabular_response", stream_tabular_response())
-
-    builder.add_node(
-        "log_success",
-        build_activity_log_node(RedboxActivityEvent(message="Tabular analysis completed successfully")),
-    )
-
-    builder.add_node(
-        "log_error",
-        build_activity_log_node(RedboxActivityEvent(message="Tabular analysis failed, falling back to summarise")),
-    )
-
-    # Edges
-    builder.add_edge(START, "pass_user_prompt_to_LLM_message")
-    builder.add_edge("pass_user_prompt_to_LLM_message", "retrieve_documents")
-    builder.add_edge("retrieve_documents", "check_tabular_docs")
-
-    # Update conditional edge
-    builder.add_conditional_edges(
-        "check_tabular_docs", detect_tabular_docs, {True: "create_tabular_agent", False: "stream_tabular_failure"}
-    )
-
-    builder.add_conditional_edges(
-        "create_tabular_agent",
-        lambda s: "error analysing tabular data" not in s.agents_results[-1].content.lower(),
-        {True: "stream_tabular_response", False: "log_error"},
-    )
-
-    builder.add_edge("stream_tabular_response", "log_success")
-    builder.add_edge("log_success", "set_route_to_tabular")
-    builder.add_edge("log_error", "stream_tabular_failure")
-    builder.add_edge("stream_tabular_failure", "fallback_to_newroute")
-    builder.add_edge("set_route_to_tabular", END)
-    builder.add_edge("fallback_to_newroute", END)
-
-    return builder.compile(debug=debug)
-
-
 def get_legislation_graph(tools: List[StructuredTool], debug: bool = False) -> CompiledGraph:
     """Creates a subgraph for agentic RAG."""
 
@@ -909,3 +830,85 @@ def get_legislation_graph(tools: List[StructuredTool], debug: bool = False) -> C
     builder.add_conditional_edges("send_tool", build_tool_send("invoke_tool_calls"), path_map=["invoke_tool_calls"])
     builder.add_edge("invoke_tool_calls", "should_continue")
     builder.add_edge("report_citations", END)
+
+    return builder.compile(debug=debug)
+
+
+def build_tabular_graph(retriever, fallback_retriever, fallback_agent_tools, debug: bool = False) -> CompiledGraph:
+    """Creates a subgraph for processing tabular data."""
+    builder = StateGraph(RedboxState)
+
+    # # Send Prompt to Model
+    builder.add_node("pass_user_prompt_to_LLM_message", build_passthrough_pattern())
+
+    # Processes
+    builder.add_node(
+        "retrieve_documents",
+        build_retrieve_pattern(
+            retriever=retriever,
+            structure_func=structure_documents_by_file_name,
+            final_source_chain=False,
+        ),
+    )
+
+    builder.add_node(
+        "check_tabular_docs",
+        empty_process,
+    )
+
+    builder.add_node(
+        "create_tabular_agent",
+        build_tabular_agent,
+    )
+
+    builder.add_node(
+        "set_route_to_tabular",
+        build_set_route_pattern(route=ChatRoute.tabular),
+    )
+
+    builder.add_node(
+        "stream_tabular_failure",
+        stream_tabular_failure(),
+    )
+
+    builder.add_node(
+        "fallback_to_newroute",
+        build_new_graph(all_chunks_retriever=fallback_retriever, multi_agent_tools=fallback_agent_tools),
+        retry=RetryPolicy(max_attempts=3),
+    )
+    builder.add_node("stream_tabular_response", stream_tabular_response())
+
+    builder.add_node(
+        "log_success",
+        build_activity_log_node(RedboxActivityEvent(message="Tabular analysis completed successfully")),
+    )
+
+    builder.add_node(
+        "log_error",
+        build_activity_log_node(RedboxActivityEvent(message="Tabular analysis failed, falling back to summarise")),
+    )
+
+    # Edges
+    builder.add_edge(START, "pass_user_prompt_to_LLM_message")
+    builder.add_edge("pass_user_prompt_to_LLM_message", "retrieve_documents")
+    builder.add_edge("retrieve_documents", "check_tabular_docs")
+
+    # Update conditional edge
+    builder.add_conditional_edges(
+        "check_tabular_docs", detect_tabular_docs, {True: "create_tabular_agent", False: "stream_tabular_failure"}
+    )
+
+    builder.add_conditional_edges(
+        "create_tabular_agent",
+        lambda s: "error analysing tabular data" not in s.agents_results[-1].content.lower(),
+        {True: "stream_tabular_response", False: "log_error"},
+    )
+
+    builder.add_edge("stream_tabular_response", "log_success")
+    builder.add_edge("log_success", "set_route_to_tabular")
+    builder.add_edge("log_error", "stream_tabular_failure")
+    builder.add_edge("stream_tabular_failure", "fallback_to_newroute")
+    builder.add_edge("set_route_to_tabular", END)
+    builder.add_edge("fallback_to_newroute", END)
+
+    return builder.compile(debug=debug)

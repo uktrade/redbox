@@ -408,7 +408,7 @@ def get_log_formatter_for_retrieval_tool(t: ToolCall) -> BaseRetrievalToolLogFor
     return __RETRIEVEAL_TOOL_MESSAGE_FORMATTERS.get(t["name"], BaseRetrievalToolLogFormatter)(t)
 
 
-def kagi_search_call(query: str, no_search_result: int = 20):
+def kagi_search_call(query: str, no_search_result: int = 20) -> tool:
     tokeniser = bedrock_tokeniser
     web_search_settings = get_settings().web_search_settings()
     response = requests.get(
