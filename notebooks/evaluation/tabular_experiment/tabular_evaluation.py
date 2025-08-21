@@ -57,7 +57,7 @@ documents = ['account.csv', 'card.csv', 'client.csv', 'disp.csv', 'district.csv'
 documents_paths = [email_address +"/" + doc for doc in documents]
 
 #read evaluation dataset (also available in S3 bucket "redbox-evaluation-dataset/tabular" )
-with open('./notebooks/evaluation/data/tabular/financial_dataset_original.json') as f:
+with open('./notebooks/evaluation/data_results/tabular/financial_dataset_original.json') as f:
     eval_data = json.load(f)
 
 #regex to derive SQL from tabular output
@@ -128,7 +128,7 @@ for row in eval_data:
 
     results.append(row)
     # Writing to a JSON file with indentation
-    with open("./notebooks/evaluation/data/tabular/evaluation_results.json", "w") as outfile:
+    with open("./notebooks/evaluation/data_results/tabular/evaluation_results.json", "w") as outfile:
         json.dump(results, outfile, indent=4)
     time.sleep(5) #slow down request frequency to avoid API throttling
     logger.info("Iteration number: %s", str(eval_data.index(row)))
