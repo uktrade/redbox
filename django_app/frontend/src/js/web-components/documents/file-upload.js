@@ -231,6 +231,7 @@ class FileUpload extends HTMLElement {
                     uploadedFile.status = UploadedFile.StatusTypes.ERROR;
                     console.error(response.errors);
                 }
+
                 if (response.file_id) uploadedFile.fileId = response.file_id;
                 if (response.file_name !== file.name) uploadedFile.fileName = response.file_name;
 
@@ -238,7 +239,6 @@ class FileUpload extends HTMLElement {
                     uploadedFile.status = UploadedFile.StatusTypes.COMPLETE;
                     updateYourDocuments().finally(() => { this.#checkDocuments(response.file_id) });
                 }
-                uploadedFile.progressPercent = 100;
 
                 if (responseStatus === UploadedFile.StatusTypes.PROCESSING) pollFileStatus(response.file_id);
             } else {
@@ -262,7 +262,7 @@ class FileUpload extends HTMLElement {
      * Check/uncheck the specified document(s)
      * @param {string | null | undefined} id - Document ID
     */
-    #checkDocuments(id = null) {
+    #checkDocuments(id=null) {
         this.addFileId(id);
         this.uploadedFileIds.forEach(id => {
             const checkbox = /** @type {HTMLInputElement} */ (document.querySelector(`#file-${id}`));
