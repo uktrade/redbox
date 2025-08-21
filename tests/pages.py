@@ -409,7 +409,7 @@ class ChatsPage(SignedInBasePage):
         return len(chat_links)
 
     def send(self) -> "ChatsPage":
-        self.page.locator('.rb-send-button[type="submit"]').click()
+        self.page.locator('.send-button[type="submit"]').click()
         return ChatsPage(self.page)
 
     def improve(self):

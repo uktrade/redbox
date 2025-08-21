@@ -2,7 +2,7 @@
 
 import { getAttributeOrDefault, hideElement, showElement } from "../../utils";
 
-class SendMessage extends HTMLElement {
+export class SendMessage extends HTMLElement {
 
   connectedCallback() {
     this.buttonSend = /** @type {HTMLButtonElement} */ (
@@ -37,10 +37,5 @@ class SendMessage extends HTMLElement {
       showElement(this.buttonSend);
       hideElement(this.buttonStop);
     };
-
-    get sendButton() {
-      const sendButtonSelector =  getAttributeOrDefault(this, "send-button-selector", "send-btn");
-      return this.querySelector(sendButtonSelector);
-    }
   }
   customElements.define("send-message", SendMessage);

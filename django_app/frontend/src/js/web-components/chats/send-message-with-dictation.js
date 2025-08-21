@@ -2,7 +2,7 @@
 import { TranscribeStreamingClient, StartStreamTranscriptionCommand } from "@aws-sdk/client-transcribe-streaming";
 import { Readable } from 'readable-stream'
 
-class SendMessageWithDictation extends HTMLElement {
+export class SendMessageWithDictation extends HTMLElement {
   connectedCallback() {
     const apiKey = this.getAttribute("data-api-key");
     this.apiKey = apiKey;
@@ -11,17 +11,17 @@ class SendMessageWithDictation extends HTMLElement {
     this.buttonRecord = /** @type {HTMLButtonElement} */ (
       this.querySelector("button:nth-child(1)")
     );
+    this.buttonRecordStop = /** @type {HTMLButtonElement} */ (
+      this.querySelector("button:nth-child(2)")
+    );
     this.buttonSend = /** @type {HTMLButtonElement} */ (
       this.querySelector("button:nth-child(3)")
-    );
-    this.buttonStop = /** @type {HTMLButtonElement} */ (
-      this.querySelector("button:nth-child(2)")
     );
     this.buttonSendStop = /** @type {HTMLButtonElement} */ (
       this.querySelector("button:nth-child(4)")
     );
 
-    this.buttonStop.style.display = "none";
+    this.buttonRecordStop.style.display = "none";
     this.buttonSendStop.style.display = "none";
 
     this.mediaRecorder = null;
@@ -30,7 +30,7 @@ class SendMessageWithDictation extends HTMLElement {
     this.isStreaming = false;
 
     this.buttonRecord.addEventListener("click", this.startRecording.bind(this));
-    this.buttonStop.addEventListener("click", this.stopAction.bind(this));
+    this.buttonRecordStop.addEventListener("click", this.stopAction.bind(this));
     this.buttonSendStop.addEventListener("click", this.stopAction.bind(this));
     this.buttonSend.addEventListener("click", (e) => {
       const form = this.closest("form");
@@ -90,7 +90,7 @@ class SendMessageWithDictation extends HTMLElement {
     this.isStreaming = true;
     this.isStreaming = true;
     this.buttonRecord.style.display = "none";
-    this.buttonStop.style.display = "inline";
+    this.buttonRecordStop.style.display = "inline";
 
     const client = new TranscribeStreamingClient({
       region: "eu-west-2",
@@ -176,7 +176,7 @@ class SendMessageWithDictation extends HTMLElement {
       this.isStreaming = false;
       this.buttonRecord.style.display = "inline";
       this.buttonSend.style.display = "inline";
-      this.buttonStop.style.display = "none";
+      this.buttonRecordStop.style.display = "none";
       this.buttonSendStop.style.display = "inline";
       alert("Microphone usage is not permitted");
     }
@@ -185,7 +185,7 @@ class SendMessageWithDictation extends HTMLElement {
   stopAction() {
     this.buttonRecord.style.display = "inline";
     this.buttonSend.style.display = "inline";
-    this.buttonStop.style.display = "none";
+    this.buttonRecordStop.style.display = "none";
     this.buttonSendStop.style.display = "none";
 
     if (this.isRecording && this.mediaRecorder) {
@@ -214,10 +214,10 @@ class SendMessageWithDictation extends HTMLElement {
   }
 
   showRecordButton() {
-    if (!this.buttonRecord || !this.buttonStop) return;
+    if (!this.buttonRecord || !this.buttonRecordStop) return;
 
     this.buttonRecord.style.display = "inline";
-    this.buttonStop.style.display = "none";
+    this.buttonRecordStop.style.display = "none";
   }
 }
 
