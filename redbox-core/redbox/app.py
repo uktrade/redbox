@@ -1,3 +1,4 @@
+import os
 from asyncio import CancelledError
 from logging import getLogger
 from typing import Literal
@@ -11,6 +12,7 @@ from redbox.chains.components import (
     get_embeddings,
     get_metadata_retriever,
     get_parameterised_retriever,
+    get_tabular_chunks_retriever,
 )
 from redbox.graph.nodes.tools import (
     build_govuk_search_tool,
@@ -44,6 +46,7 @@ class Redbox:
         self,
         all_chunks_retriever: VectorStoreRetriever | None = None,
         parameterised_retriever: VectorStoreRetriever | None = None,
+        tabular_retriever: VectorStoreRetriever | None = None,
         metadata_retriever: VectorStoreRetriever | None = None,
         embedding_model: Embeddings | None = None,
         env: Settings | None = None,
@@ -51,10 +54,15 @@ class Redbox:
     ):
         _env = env or get_settings()
 
+        # DB Loction and s3_keys from the previous request
+        self.previous_db_location: str | None = None
+        self.previous_s3_keys: list[str] | None = None
+
         # Retrievers
 
         self.all_chunks_retriever = all_chunks_retriever or get_all_chunks_retriever(_env)
         self.parameterised_retriever = parameterised_retriever or get_parameterised_retriever(_env)
+        self.tabular_retriever = tabular_retriever or get_tabular_chunks_retriever(_env)
         self.metadata_retriever = metadata_retriever or get_metadata_retriever(_env)
         self.embedding_model = embedding_model or get_embeddings(_env)
 
@@ -83,6 +91,7 @@ class Redbox:
         self.graph = new_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,
             parameterised_retriever=self.parameterised_retriever,
+            tabular_retriever=self.tabular_retriever,
             metadata_retriever=self.metadata_retriever,
             tools=self.tools,
             legislation_tools=self.legislation_tools,
@@ -111,6 +120,8 @@ class Redbox:
         logger.info("Request: %s", {k: request_dict[k] for k in request_dict.keys() - {"ai_settings"}})
         is_summary_multiagent_streamed = False
         is_evaluator_output_streamed = False
+
+        input = self.add_docs_and_db_to_input_state(input)
 
         @retry(
             stop=stop_after_attempt(3),
@@ -194,9 +205,53 @@ class Redbox:
             logger.error("Generic error in run - {str(e)}")
             raise
 
+        self.handle_db_file(final_state)
+        return final_state
+
+    def handle_db_file(self, final_state: RedboxState):
+        """Manages database file lifecycle based on state changes.
+
+        Note:
+            - If final_state is None, all database references and S3 keys are cleared
+            - When database location changes, the previous database file is removed if it exists
+            - The method maintains previous_db_location and previous_s3_keys as instance variables"""
         if final_state is None:
             logger.warning("No final state")
-        return final_state
+            self.remove_db_file_if_exists(self.previous_db_location)
+            self.previous_db_location = None
+            self.previous_s3_keys = None
+        else:
+            # Delete Previous DB File Location if it has changed and it exists in memory, update the new db location and previous documentation
+            new_db_loc, old_db_loc = final_state.request.db_location, self.previous_db_location
+            if (new_db_loc != old_db_loc) or not (new_db_loc):
+                self.remove_db_file_if_exists(old_db_loc)
+                self.previous_db_location = new_db_loc
+            self.previous_s3_keys = final_state.request.s3_keys
+
+    def add_docs_and_db_to_input_state(self, input: RedboxState):
+        """
+        Updates the input state with previous document references and database location for tabular questions.
+
+        Note:
+            - The method specifically targets questions that start with "@tabular"
+            - Previous S3 keys are only injected if they exist in the current instance
+            - Any exceptions during this process are logged but not propagated
+        """
+        old_input = input.model_copy(deep=True)  # Copy the model as is incase an error occurs while modifying it.
+        try:
+            # If the question is tabular, inject the previous docs and db_location into the request
+            # This will need to be updated if tabular goes into newroute
+            if input.request.question.startswith("@tabular"):
+                # Inject Previous s3 keys if they exist
+                if self.previous_s3_keys:
+                    input.request.previous_s3_keys = self.previous_s3_keys
+
+                # Inject previous db location
+                input.request.db_location = self.previous_db_location
+        except Exception as e:
+            logger.info(f"Exception logged while trying to access input state: \n\n{e}")
+            return old_input
+        return input
 
     def get_available_keywords(self) -> dict[ChatRoute, str]:
         return ROUTABLE_KEYWORDS
@@ -214,3 +269,10 @@ class Redbox:
             raise Exception("Invalid graph_to_draw")
 
         return graph.draw_mermaid_png(draw_method=MermaidDrawMethod.API, output_file_path=output_path)
+
+    def remove_db_file_if_exists(self, db_path: str):
+        try:
+            if db_path and os.path.exists(db_path):
+                os.remove(db_path)
+        except Exception as e:
+            logger.error(f"Error encountered when deleting the db file at {db_path}: {e}")

@@ -11,9 +11,11 @@ redbox-core/models/
 
 ai-tests/data/
 
+
 # data files
 elk/elasticsearch/data
-data/
+/data/
+/data/*
 db/
 !*/user_preferences/classes_format.json
 !*/user_preferences/classes_subject.json
@@ -33,7 +35,6 @@ __pycache__/
 # C extensions
 *.so
 
-data/*
 
 # Distribution / packaging
 .Python

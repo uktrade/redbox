@@ -35,46 +35,6 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   background-color: var(--iai-colour-text-primary);
 }
 
-.rb-chat-history__expanded-panel {
-  background-color: #F3F3F3;
-  display: none;
-}
-
-// Recent chat delete button
-.rb-chat-history__level2-button {
-  align-items: center;
-  background-color: transparent;
-  border: 0;
-  cursor: pointer;
-  gap: 0.5rem;
-  min-height: 2.5rem;
-  margin-left: auto;
-  color: white;
-  padding-right: 0;
-}
-.rb-chat-history__level2-button:hover {
-  color: var(--color-background);
-}
-.rb-chat-history__delete-confirmation {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-  padding-right: 0.5rem;
-}
-
-.rb-chat-history__level3-text {
-  align-items: center;
-  display: flex;
-  gap: 0.5rem;
-  min-height: 2.5rem;
-  padding: 0.5rem 1rem;
-}
-
-.rb-doc-selector__label {
-  line-height: 1.4;
-  word-wrap: break-word;
-  white-space: normal;
-}
 
 @media (min-width: 641px) {
   .rb-chats-section {
@@ -346,32 +306,6 @@ main:has(.govuk-inset-text) .chat-options {
   }
 }
 
-.rb-send-button svg {
-  background-color: var(--color-background-white);
-  border-radius: 100%;
-  box-shadow: 4px 4px 12px #edeef2;
-}
-.rb-send-button .rb-square-icon {
-  align-items: center;
-  background-color: var(--color-background-white);
-  border-radius: 100%;
-  box-shadow: 4px 4px 12px #edeef2;
-  display: flex;
-  height: 1.75rem;
-  justify-content: center;
-  width: 1.75rem;
-}
-.rb-send-button .rb-square-icon::before {
-  background-color: #60697b;
-  border-radius: 2px;
-  content: "";
-  height: 0.625rem;
-  width: 0.625rem;
-}
-.rb-send-button:hover .rb-square-icon::before {
-  background-color: var(--color-background);
-}
-
 .iai-chat-input {
   max-width: 94%;
 }
@@ -588,19 +522,10 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   text-decoration: none;
 }
 
-#show-more-div {
-  padding: 8px;
-}
+
 
 #document-link {
   float: right;
-}
-
-div[data-page="1"] {
-  display: flex;
-  flex-wrap: nowrap;
-  justify-content: space-between;
-  align-items: center;
 }
 
 .govuk-inset-text-right {
@@ -646,4 +571,17 @@ margin-bottom: 16px;
   display: inline-flex;
   min-height: 24px;
   margin-top: 0;
+}
+
+// TBC
+.drop-zone.drag-over {
+  border-color: var(--redbox-blue);
+  border-width: 3px;
+}
+
+.action-link {
+  --action-link-color: var(--color-link-text);
+
+  cursor: pointer;
+  color: var(--action-link-color);
 }

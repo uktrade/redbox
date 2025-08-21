@@ -1,59 +1,73 @@
 // @ts-check
 
+import { pollFileStatus, updateYourDocuments } from "../../services";
+import { hideElement } from "../../utils";
+
 export class MessageInput extends HTMLElement {
   constructor() {
     super();
-    this.textarea = this.querySelector(".message-input");
   }
 
   connectedCallback() {
-    if (!this.textarea) {
-      return;
-    }
+    this.#bindEvents();
+  }
 
-    // Submit form on enter-key press (providing shift isn't being pressed)
-    this.textarea.addEventListener("keypress", (evt) => {
-      if (evt.key === "Enter" && !evt.shiftKey && this.textarea) {
-        this.#hideWarnings();
-        evt.preventDefault();
-        if (this.textarea?.textContent?.trim()) {
-          this.closest("form")?.requestSubmit();
-        }
-      }
+
+  #sendMessage() {
+    if (this.textarea?.textContent?.trim()) {
+      this.#hideWarnings();
+      this.closest("form")?.requestSubmit();
+    }
+  }
+
+
+  #bindEvents(textarea = this.textarea) {
+    if (!this.textarea) return;
+
+    this.sendButton?.addEventListener("click", (evt) => {
+      evt.preventDefault();
+      this.#sendMessage();
     });
 
-    // expand textarea as user adds lines
-    this.textarea.addEventListener("input", () => {
-      this.#adjustHeight();
+    // Submit form on enter-key press (providing shift isn't being pressed)
+    textarea.addEventListener("keypress", (evt) => {
+      if (evt.key === "Enter" && !evt.shiftKey && this.textarea) {
+        evt.preventDefault();
+        this.#sendMessage();
+      }
     });
   }
 
-  #adjustHeight = () => {
-    if (!this.textarea) {
-      return;
-    }
-    this.textarea.style.height = "auto";
-    this.textarea.style.height = `${this.textarea.scrollHeight || this.textarea.offsetHeight}px`;
-  };
+
+  get sendButton() {
+    return /** @type {HTMLButtonElement} */ (document.querySelector(".rb-send-button"));
+  }
+
+
+  get textarea() {
+    return /** @type {HTMLDivElement} */ (this.querySelector(".message-input"));
+  }
+
 
   /**
-   * Returns the current message
+   * Returns the current message, without any uploaded files
    * @returns string
    */
   getValue = () => {
-    return this.textarea?.textContent?.trim() || "";
+    const clone = this.textarea;
+    clone?.querySelector(".uploaded-files-wrapper")?.remove();
+    return clone?.textContent?.trim() || "";
   };
 
+
   /**
-   * Clears the message and resets to starting height
+   * Clears the message
    */
   reset = () => {
-    if (!this.textarea) {
-      return;
-    }
-    this.textarea.textContent = "";
-    this.#adjustHeight();
+    if (this.textarea) this.textarea.textContent = "";
   };
+
+
   /**
    * Hides the warning messages displayed under the textarea
    */
@@ -61,9 +75,7 @@ export class MessageInput extends HTMLElement {
     const chatWarnings = /** @type {HTMLDivElement} */ (
       document.querySelector(".chat-warnings")
     );
-    if (chatWarnings) {
-    chatWarnings.style.display = "none";
-    }
+    if (chatWarnings) hideElement(chatWarnings);
   };
 }
 customElements.define("message-input", MessageInput);

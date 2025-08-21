@@ -115,7 +115,7 @@ TEMPLATES = [
         "DIRS": [
             BASE_DIR / "redbox_app" / "templates",
             BASE_DIR / "redbox_app" / "templates" / "auth",
-            BASE_DIR / "frontend" / "src" / "stylesheets",
+            BASE_DIR / "frontend" / "src" / "redbox_design_system",
         ],
         "OPTIONS": {
             "environment": "redbox_app.jinja2.environment",
@@ -203,8 +203,6 @@ CSP_DEFAULT_SRC = (
 
 CSP_SCRIPT_SRC = (
     "'self'",
-    "eu.i.posthog.com",
-    "eu-assets.i.posthog.com",
     "'sha256-RfLASrooywwZYqv6kr3TCnrZzfl6ZTfbpLBJOVR/Gt4='",
     "'sha256-GUQ5ad8JK5KmEWmROf3LZd9ge94daqNvd8xy9YS1iDw='",
     "'sha256-qmCu1kQifDfCnUd+L49nusp7+PeRl23639pzN5QF2WA='",
@@ -242,8 +240,6 @@ CSP_FRAME_ANCESTORS = ("'none'",)
 CSP_CONNECT_SRC = [
     "'self'",
     f"{WEBSOCKET_SCHEME}://{ENVIRONMENT.hosts[0]}/ws/chat/",
-    "eu.i.posthog.com",
-    "eu-assets.i.posthog.com",
     "https://*.google-analytics.com",
     "https://*.analytics.google.com",
     "https://*.googletagmanager.com",

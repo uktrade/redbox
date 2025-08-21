@@ -43,9 +43,14 @@ info_urlpatterns = [
 
 file_urlpatterns = [
     path("documents/", views.DocumentView.as_view(), name="documents"),
+    path("documents/<uuid:doc_id>/delete-document/", views.delete_document, name="delete-document"),
+    path("documents/<uuid:doc_id>/title/", views.DocumentsTitleView.as_view(), name="document-titles"),
+    path("documents/upload/", views.upload_document, name="document-upload"),
     path("upload/", views.UploadView.as_view(), name="upload"),
     path("remove-doc/<uuid:doc_id>", views.remove_doc_view, name="remove-doc"),
     path("remove-all-docs", views.remove_all_docs_view, name="remove-all-docs"),
+    path("documents/your-documents/", views.YourDocuments.as_view(), name="your-documents-initial"),
+    path("documents/your-documents/<uuid:active_chat_id>/", views.YourDocuments.as_view(), name="your-documents"),
 ]
 
 chat_urlpatterns = [
@@ -55,7 +60,11 @@ chat_urlpatterns = [
     path("citations/<uuid:message_id>/", views.CitationsView.as_view(), name="citations"),
     path("ratings/<uuid:message_id>/", views.RatingsView.as_view(), name="ratings"),
     path("chats/<uuid:chat_id>/update-chat-feedback", views.UpdateChatFeedback.as_view(), name="chat-feedback"),
-    path("chats/<uuid:chat_id>/delete-chat", views.DeleteChat.as_view(), name="chat-delete"),
+    path("chats/<uuid:chat_id>/delete-chat/", views.DeleteChat.as_view(), name="delete-chat"),
+    path("chats/recent-chats/", views.RecentChats.as_view(), name="recent-chats-initial"),
+    path("chats/<uuid:active_chat_id>/recent-chats/", views.RecentChats.as_view(), name="recent-chats"),
+    path("chats/chat-window/", views.ChatWindow.as_view(), name="chat-window-initial"),
+    path("chats/<uuid:active_chat_id>/chat-window/", views.ChatWindow.as_view(), name="chat-window"),
 ]
 
 admin_urlpatterns = [
@@ -67,6 +76,7 @@ other_urlpatterns = [
     path("", views.homepage_view, name="homepage"),
     path("health/", views.health, name="health"),
     path("file-status/", views.file_status_api_view, name="file-status"),
+    path("file-ingest-errors/", views.file_ingest_errors, name="file-ingest-errors"),
     path(
         "check-demographics/", views.CheckDemographicsView.as_view(), name="check-demographics"
     ),  # Can be removed once profile overlay is enabled

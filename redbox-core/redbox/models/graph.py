@@ -26,4 +26,5 @@ ROUTABLE_KEYWORDS = {
     ChatRoute.newroute: "New amazing route",
     ChatRoute.summarise: "Summarise documents",
     ChatRoute.legislation: "Web search results from legislation.gov.uk",
+    ChatRoute.tabular: "Interrogate tabular files with SQL",
 }

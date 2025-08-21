@@ -1,5 +1,6 @@
 // @ts-check
 
+// DEPRECIATED - TODO: Complete delete confirmation functinoality and move to editable-text or a standalone component
 class ChatHistoryItem extends HTMLElement {
 
   constructor() {
@@ -13,7 +14,7 @@ class ChatHistoryItem extends HTMLElement {
   connectedCallback() {
     // So we don't rebind event listeners if this ChatHistoryItem moves
     if (!this.initialised) {
-      this.#addEventListeners();
+      // this.#addEventListeners();
     }
     this.initialised = true;
   }
@@ -46,20 +47,20 @@ class ChatHistoryItem extends HTMLElement {
       this.#toggleChatTitleEdit(true);
     });
 
-    let deleteButton = /** @type {HTMLButtonElement} */ (this.querySelector('[data-action="delete-confirm"]'));
-    deleteButton.addEventListener("click", async () => {
-      deleteButton.disabled = true;
-      this.#deleteChat();
-      // move focus to nearest item
-      let listItem = this.closest("li");
-      if (listItem?.nextElementSibling) {
-        /** @type {HTMLAnchorElement | null} */ (listItem.nextElementSibling.querySelector(".chat-item-link"))?.focus();
-      } else if (listItem?.previousElementSibling) {
-        /** @type {HTMLAnchorElement | null} */ (listItem.previousElementSibling.querySelector(".chat-item-link"))?.focus();
-      } else {
-        /** @type {HTMLAnchorElement | null} */ (document.querySelector("#new-chat-button"))?.focus();
-      }
-    });
+    // let deleteButton = /** @type {HTMLButtonElement} */ (this.querySelector('[data-action="delete-confirm"]'));
+    // deleteButton.addEventListener("click", async () => {
+    //   deleteButton.disabled = true;
+    //   this.#deleteChat();
+    //   // move focus to nearest item
+    //   let listItem = this.closest("li");
+    //   if (listItem?.nextElementSibling) {
+    //     /** @type {HTMLAnchorElement | null} */ (listItem.nextElementSibling.querySelector(".chat-item-link"))?.focus();
+    //   } else if (listItem?.previousElementSibling) {
+    //     /** @type {HTMLAnchorElement | null} */ (listItem.previousElementSibling.querySelector(".chat-item-link"))?.focus();
+    //   } else {
+    //     /** @type {HTMLAnchorElement | null} */ (document.querySelector("#new-chat-button"))?.focus();
+    //   }
+    // });
     this.querySelector('[data-action="delete-cancel"]')?.addEventListener("click", () => {
       this.toggleButton?.setAttribute("aria-expanded", "false");
       this.toggleButton?.focus();
@@ -85,7 +86,7 @@ class ChatHistoryItem extends HTMLElement {
       }
       switch (/** @type {KeyboardEvent} */ (evt).key) {
         case "Escape":
-          chatTitleInput.value = this.dataset.title || "";
+          chatTitleInput.value = chatTitleInput.dataset.title || "";
           this.#toggleChatTitleEdit(false);
           return true;
         case "Enter":
@@ -128,7 +129,7 @@ class ChatHistoryItem extends HTMLElement {
         /** @type {HTMLInputElement | null} */ (
         document.querySelector('[name="csrfmiddlewaretoken"]')
     )?.value || "";
-    await fetch(`/chats/${this.dataset.chatid}/delete-chat`, {
+    await fetch(`/chats/${this.dataset.chatid}/delete-chat/`, {
         method: "POST",
         headers: {"Content-Type": "application/json", "X-CSRFToken": csrfToken},
     });
@@ -146,12 +147,14 @@ class ChatHistoryItem extends HTMLElement {
     let chatTitleEdit = /** @type {HTMLElement} */ (this.querySelector(".chat-title-text-input"));
     let chatTitleInput = /** @type {HTMLInputElement} */ (chatTitleEdit.querySelector("input"));
     if (show) {
-      chatTitleInput.value = this.chatLink.textContent || "";
+      chatTitleInput.dataset.title = this.chatLink.innerText || "";
+      chatTitleInput.value = this.chatLink.innerText || "";
       this.chatLink.style.display = "none";
       chatTitleEdit.style.display = "block";
       chatTitleInput?.focus();
     } else {
-      this.chatLink.textContent = chatTitleInput.value;
+      this.chatLink.innerText = chatTitleInput.value;
+      this.chatLink.title = chatTitleInput.value;
       chatTitleEdit.style.display = "none";
       this.chatLink.style.removeProperty('display');
       this.toggleButton?.focus();

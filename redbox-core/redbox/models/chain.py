@@ -157,6 +157,12 @@ class StructuredResponseWithCitations(BaseModel):
     citations: list[Citation] = Field(default_factory=list)
 
 
+class StructuredResponseWithStepsTaken(BaseModel):
+    output: str = Field(description="Markdown structured answer to the question", default="")
+    # sql_query: str = Field(description="The SQL Query used to generate a response", default="")
+    reasoning: str = Field(description="The Agent's reasoning", default="")
+
+
 DocumentMapping = dict[UUID, Document | None]
 DocumentGroup = dict[UUID, DocumentMapping | None]
 
@@ -223,6 +229,10 @@ class RedboxQuery(BaseModel):
     chat_history: list[ChainChatMessage] = Field(description="All previous messages in chat (excluding question)")
     ai_settings: AISettings = Field(description="User request AI settings", default_factory=AISettings)
     permitted_s3_keys: list[str] = Field(description="List of permitted files for response", default_factory=list)
+    previous_s3_keys: list[str] | None = (
+        None  # Adding previous_s3_keys (which are the previous documents to the state request)
+    )
+    db_location: str | None = None  # Adding db_location to state request
 
 
 class LLMCallMetadata(BaseModel):
@@ -322,6 +332,16 @@ class RedboxState(BaseModel):
         if not self.messages:
             raise ValueError("No messages in the state")
         return self.messages[-1]
+
+    def store_document_state(self):
+        """Stores s3_keys (which are the names of the documents) as previous-s3_keys. This will allow for review down the line"""
+        self.request.previous_s3_keys = self.request.s3_keys.copy()
+
+    def documents_changed(self) -> bool:
+        """This checks if documents have changed between questions asked. Returns True if so."""
+        if not self.request.previous_s3_keys:
+            return False
+        return sorted(self.request.previous_s3_keys) != sorted(self.request.s3_keys)
 
 
 class PromptSet(StrEnum):
