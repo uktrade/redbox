@@ -130,3 +130,8 @@ def is_using_search_keyword(state: RedboxState) -> bool:
 def remove_gadget_keyword(state: RedboxState):
     state.request.question = state.request.question.replace("@gadget ", "")
     return state
+
+
+def remove_legislation_keyword(state: RedboxState):
+    state.request.question = state.request.question.replace("@legislation ", "")
+    return state

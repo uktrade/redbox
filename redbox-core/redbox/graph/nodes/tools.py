@@ -377,6 +377,14 @@ class SearchGovUKLogFormatter(BaseRetrievalToolLogFormatter):
         return f"Reading pages from .gov.uk, {','.join(set([d.metadata["uri"].split("/")[-1] for d in documents]))}"
 
 
+class SearchLegislationGovUKLogFormatter(BaseRetrievalToolLogFormatter):
+    def log_call(self):
+        return f"Web searching legislation.gov.uk pages for '{self.tool_call["args"]["query"]}'"
+
+    def log_result(self, documents: Iterable[Document]):
+        return f"Reading pages from legislation.gov.uk, {','.join(set([d.metadata["uri"].split("/")[-1] for d in documents]))}"
+
+
 @waffle_flag("DATA_HUB_API_ROUTE_ON")
 class SearchDataHubLogFormatter(BaseRetrievalToolLogFormatter):
     def log_call(self):
@@ -392,6 +400,7 @@ __RETRIEVEAL_TOOL_MESSAGE_FORMATTERS = {
     "_search_wikipedia": SearchWikipediaLogFormatter,
     "_search_documents": SearchDocumentsLogFormatter,
     "_search_govuk": SearchGovUKLogFormatter,
+    "_search_legislation": SearchLegislationGovUKLogFormatter,
 }
 
 

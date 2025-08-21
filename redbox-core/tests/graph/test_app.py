@@ -1,4 +1,5 @@
 import copy
+import logging
 
 # from enum import Enum
 from typing import Any
@@ -12,8 +13,10 @@ from pytest_mock import MockerFixture
 
 from redbox import Redbox
 from redbox.models.chain import (
+    AgentTask,
     AISettings,
     Citation,
+    MultiAgentPlan,
     RedboxQuery,
     RedboxState,
     RequestMetadata,
@@ -35,11 +38,6 @@ from redbox.test.data import (
     mock_parameterised_retriever,
 )
 from redbox.transform import structure_documents_by_group_and_indices
-
-from redbox.models.chain import AgentTask, MultiAgentPlan
-
-
-import logging
 
 # create logger
 logger = logging.getLogger("simple_example")
@@ -699,6 +697,13 @@ def test_get_available_keywords(env: Settings):
         env=env,
         debug=LANGGRAPH_DEBUG,
     )
-    keywords = {ChatRoute.search, ChatRoute.newroute, ChatRoute.gadget, ChatRoute.summarise, ChatRoute.tabular}
+    keywords = {
+        ChatRoute.search,
+        ChatRoute.newroute,
+        ChatRoute.gadget,
+        ChatRoute.summarise,
+        ChatRoute.tabular,
+        ChatRoute.legislation,
+    }
 
     assert keywords == set(app.get_available_keywords().keys())

@@ -19,6 +19,7 @@ from redbox.graph.edges import (
     is_using_search_keyword,
     multiple_docs_in_group_conditional,
     remove_gadget_keyword,
+    remove_legislation_keyword,
 )
 from redbox.graph.nodes.processes import (
     build_activity_log_node,
@@ -45,8 +46,8 @@ from redbox.graph.nodes.processes import (
     report_sources_process,
     stream_plan,
     stream_suggestion,
-    stream_tabular_response,
     stream_tabular_failure,
+    stream_tabular_response,
 )
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -69,6 +70,7 @@ def new_root_graph(
     metadata_retriever,
     tabular_retriever,
     tools,
+    legislation_tools,
     multi_agent_tools,
     debug,
 ):
@@ -83,6 +85,7 @@ def new_root_graph(
     builder.add_node("chat_graph", get_chat_graph(debug=debug))
     builder.add_node("search_graph", get_search_graph(retriever=parameterised_retriever, debug=debug))
     builder.add_node("gadget_graph", get_agentic_search_graph(tools=tools, debug=debug))
+    builder.add_node("legislation_graph", get_legislation_graph(tools=legislation_tools, debug=debug))
     builder.add_node(
         "summarise_graph",
         get_summarise_graph(all_chunks_retriever=all_chunks_retriever, debug=debug),
@@ -137,6 +140,7 @@ def new_root_graph(
         {
             ChatRoute.search: "search_graph",
             ChatRoute.gadget: "gadget_graph",
+            ChatRoute.legislation: "legislation_graph",
             ChatRoute.newroute: "new_route_graph",
             ChatRoute.summarise: "summarise_graph",
             ChatRoute.tabular: "tabular_graph",
@@ -813,3 +817,95 @@ def build_tabular_graph(retriever, fallback_retriever, fallback_agent_tools, deb
     builder.add_edge("fallback_to_newroute", END)
 
     return builder.compile(debug=debug)
+
+
+def get_legislation_graph(tools: List[StructuredTool], debug: bool = False) -> CompiledGraph:
+    """Creates a subgraph for agentic RAG."""
+
+    citations_output_parser, format_instructions = get_structured_response_with_citations_parser()
+    builder = StateGraph(RedboxState)
+
+    # Processes
+    builder.add_node("remove_keyword", remove_legislation_keyword)
+
+    builder.add_node(
+        "set_route_to_legislation",
+        build_set_route_pattern(route=ChatRoute.legislation),
+        retry=RetryPolicy(max_attempts=3),
+    )
+
+    def build_smart_agent(state: RedboxState):
+        return build_stuff_pattern(
+            prompt_set=PromptSet.SearchAgentic,
+            tools=tools,
+            output_parser=citations_output_parser,
+            format_instructions=format_instructions,
+            final_response_chain=False,  # Output parser handles streaming
+            additional_variables={"has_selected_files": True if state.request.s3_keys else False},
+        )
+
+    builder.add_node(
+        "smart_agent",
+        build_smart_agent,
+        retry=RetryPolicy(max_attempts=3),
+    )
+    builder.add_node(
+        "invoke_tool_calls",
+        ToolNode(tools=tools),
+        retry=RetryPolicy(max_attempts=3),
+    )
+    builder.add_node(
+        "give_up_agent",
+        build_stuff_pattern(prompt_set=PromptSet.GiveUpAgentic, final_response_chain=True),
+        retry=RetryPolicy(max_attempts=3),
+    )
+    builder.add_node(
+        "report_citations",
+        report_sources_process,
+        retry=RetryPolicy(max_attempts=3),
+    )
+
+    # Log
+    builder.add_node(
+        "log_tool_call_activities",
+        build_activity_log_node(
+            lambda s: [
+                RedboxActivityEvent(message=get_log_formatter_for_retrieval_tool(tool_state_entry).log_call())
+                for tool_state_entry in s.last_message.tool_calls
+            ]
+        ),
+        retry=RetryPolicy(max_attempts=3),
+    )
+
+    # Decisions
+    builder.add_node(
+        "should_continue",
+        empty_process,
+        retry=RetryPolicy(max_attempts=3),
+    )
+
+    # Sends
+    builder.add_node(
+        "send_tool",
+        empty_process,
+        retry=RetryPolicy(max_attempts=3),
+    )
+
+    # Edges
+    builder.add_edge(START, "remove_keyword")
+    builder.add_edge("remove_keyword", "set_route_to_legislation")
+    builder.add_edge("set_route_to_legislation", "should_continue")
+    builder.add_conditional_edges(
+        "should_continue",
+        lambda state: state.steps_left > 8,
+        {
+            True: "smart_agent",
+            False: "give_up_agent",
+        },
+    )
+    builder.add_edge("smart_agent", "send_tool")
+    builder.add_edge("send_tool", "report_citations")
+    builder.add_edge("smart_agent", "log_tool_call_activities")
+    builder.add_conditional_edges("send_tool", build_tool_send("invoke_tool_calls"), path_map=["invoke_tool_calls"])
+    builder.add_edge("invoke_tool_calls", "should_continue")
+    builder.add_edge("report_citations", END)
