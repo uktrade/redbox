@@ -16,7 +16,7 @@ export class MessageInput extends HTMLElement {
 
 
   #sendMessage() {
-    if (this.textarea?.textContent?.trim()) {
+    if (this.getValue()) {
       this.#hideWarnings();
       this.closest("form")?.requestSubmit();
     }
@@ -31,11 +31,20 @@ export class MessageInput extends HTMLElement {
       this.#sendMessage();
     });
 
-    // Submit form on enter-key press (providing shift isn't being pressed)
-    textarea.addEventListener("keypress", (evt) => {
-      if (evt.key === "Enter" && !evt.shiftKey && this.textarea) {
+
+    textarea.addEventListener("keydown", (evt) => {
+      if (!this.textarea) return;
+
+      // Submit form on enter-key press (providing shift isn't being pressed)
+      if (evt.key === "Enter" && !evt.shiftKey) {
         evt.preventDefault();
         if (!this.submitDisabled) this.#sendMessage();
+      }
+
+      // Prevent deletion of uploaded-files component if present
+      if (evt.key === "Backspace") {
+        const textContent = this.getValue(false);
+        if (textContent === "") evt.preventDefault();
       }
     });
   }
@@ -80,10 +89,11 @@ export class MessageInput extends HTMLElement {
    * Returns the current message, without any uploaded files
    * @returns string
    */
-  getValue = () => {
-    const clone = this.textarea;
-    clone?.querySelector(".uploaded-files-wrapper")?.remove();
-    return clone?.textContent?.trim() || "";
+  getValue = (trim=true) => {
+    const clone = /** @type {HTMLElement} */ (this.textarea.cloneNode(true));
+    clone.querySelector("uploaded-files")?.remove();
+    if (trim) return clone?.textContent?.trim() || "";
+    return clone?.textContent || "";
   };
 
 

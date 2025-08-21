@@ -3,6 +3,7 @@
 import { UploadedFile } from "../../../redbox_design_system/rbds";
 import { UploadedFiles } from "../../../redbox_design_system/rbds/components/uploaded-files";
 import { pollFileStatus, updateYourDocuments } from "../../services";
+import { getCsrfToken } from "../../utils";
 import { MessageInput } from "../chats/message-input";
 
 class FileUpload extends HTMLElement {
@@ -177,7 +178,7 @@ class FileUpload extends HTMLElement {
             this.uploadFile(file);
         }
         if (moveCaretToEnd) {
-            this.textarea?.appendChild(document.createTextNode("\n"));
+            this.textarea?.appendChild(document.createElement("br"));
             this.#moveCaretToEnd();
         }
     }
@@ -209,13 +210,9 @@ class FileUpload extends HTMLElement {
             });
         });
 
-        const csrfToken = /** @type {HTMLInputElement | null} */ (
-            document.querySelector('[name="csrfmiddlewaretoken"]')
-        )?.value || "";
-
         const xhr = new XMLHttpRequest();
         xhr.open("POST", uploadUrl);
-        xhr.setRequestHeader("X-CSRFToken", csrfToken);
+        xhr.setRequestHeader("X-CSRFToken", getCsrfToken());
 
         xhr.upload.addEventListener("progress", (evt) => {
             if (evt.lengthComputable) {

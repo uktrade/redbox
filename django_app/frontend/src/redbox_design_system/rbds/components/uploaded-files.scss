@@ -1,10 +1,10 @@
 uploaded-files {
     display: flex;
+    user-select: none;
 }
 
 .uploaded-files-wrapper {
     white-space: normal;
-    user-select: none;
 }
 
 .uploaded-files {

@@ -40,3 +40,14 @@ export function getNumericAttr(elem, attrName, fallback) {
     const parsed = parseInt(raw ?? "");
     return isNaN(parsed) ? fallback : parsed;
 }
+
+
+/**
+ * Returns the CSRF token
+ * @returns {String} CSRF token value
+*/
+export function getCsrfToken() {
+    return /** @type {HTMLInputElement | null} */ (
+        document.querySelector('[name="csrfmiddlewaretoken"]')
+    )?.value || "";
+}

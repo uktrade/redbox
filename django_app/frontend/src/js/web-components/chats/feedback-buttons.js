@@ -1,3 +1,5 @@
+import { getCsrfToken } from "../../utils";
+
 export class FeedbackButtons extends HTMLElement {
   connectedCallback() {
     this.collectedData = {
@@ -79,16 +81,12 @@ export class FeedbackButtons extends HTMLElement {
   async #sendFeedback(retry = 0) {
     const MAX_RETRIES = 10;
     const RETRY_INTERVAL_SECONDS = 10;
-    const csrfToken =
-      /** @type {HTMLInputElement | null} */ (
-        document.querySelector('[name="csrfmiddlewaretoken"]')
-      )?.value || "";
     try {
       await fetch(`/ratings/${this.dataset.id}/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-CSRFToken": csrfToken,
+          "X-CSRFToken": getCsrfToken(),
         },
         body: JSON.stringify(this.collectedData),
       })
@@ -158,7 +156,7 @@ export class FeedbackButtons extends HTMLElement {
   #collectChips() {
     let chatController = this.closest("chat-controller");
     this.collectedData.chips = [];
-  
+
     let chipGroups = chatController.querySelectorAll(".feedback__chip-group");
     chipGroups.forEach((group) => {
       let selectedChip = group.querySelector(".feedback__chip:checked");
@@ -169,7 +167,7 @@ export class FeedbackButtons extends HTMLElement {
         }
       }
     });
-  }  
+  }
 
 
   #addChipEvents() {

@@ -21,6 +21,7 @@ export class UploadedFiles extends HTMLElement {
             this.template.content.firstElementChild?.cloneNode(true)
         );
         this.appendChild(uploadedFilesWrapper);
+        this.setAttribute("contenteditable", "false");
     }
 
 
@@ -51,7 +52,7 @@ export class UploadedFiles extends HTMLElement {
      */
     removeFile(uploadedFile) {
         const index = this.files?.indexOf(uploadedFile);
-        if (index === -1 || !index) return false; // File not found
+        if (index === -1 || index === undefined) return false; // File not found
         this.files.splice(index, 1); // Remove file from array
         if (uploadedFile.parentNode === this.container) this.container.removeChild(uploadedFile);
         return true;
