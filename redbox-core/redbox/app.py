@@ -14,7 +14,12 @@ from redbox.chains.components import (
     get_parameterised_retriever,
     get_tabular_chunks_retriever,
 )
-from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_documents_tool, build_search_wikipedia_tool
+from redbox.graph.nodes.tools import (
+    build_govuk_search_tool,
+    build_legislation_search_tool,
+    build_search_documents_tool,
+    build_search_wikipedia_tool,
+)
 from redbox.graph.root import get_agentic_search_graph, get_summarise_graph, new_root_graph
 from redbox.models.chain import RedboxState
 from redbox.models.chat import ChatRoute
@@ -72,12 +77,13 @@ class Redbox:
         )
         search_wikipedia = build_search_wikipedia_tool()
         search_govuk = build_govuk_search_tool()
+        search_legislation = build_legislation_search_tool()
 
         self.tools = [search_documents, search_wikipedia, search_govuk]
 
         self.multi_agent_tools = {
             "Internal_Retrieval_Agent": [search_documents],
-            "External_Retrieval_Agent": [search_wikipedia, search_govuk],
+            "External_Retrieval_Agent": [search_wikipedia, search_govuk, search_legislation],
         }
 
         self.graph = new_root_graph(
