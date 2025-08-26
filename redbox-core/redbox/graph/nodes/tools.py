@@ -481,4 +481,3 @@ def build_legislation_search_tool():
         return kagi_search_call(query=query + " site:legislation.gov.uk")
 
     return _search_legislation
-    return _search_legislation
