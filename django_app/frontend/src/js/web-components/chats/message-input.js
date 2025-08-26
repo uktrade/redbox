@@ -1,5 +1,6 @@
 // @ts-check
 
+import { UploadedFiles } from "../../../redbox_design_system/rbds/components";
 import { hideElement } from "../../utils";
 import { SendMessage } from "./send-message";
 import { SendMessageWithDictation } from "./send-message-with-dictation";
@@ -101,27 +102,19 @@ export class MessageInput extends HTMLElement {
    * Clears the message
    */
   reset = () => {
-    if (this.textarea) this.textarea.textContent = "";
-  };
-
-
-  /**
-   * Disables submission
-   */
-  disableSubmit = () => {
-    this.submitDisabled = true;
-    if (this.sendButton) this.sendButton.disabled = true;
-    if (this.dictateButton) this.dictateButton.disabled = true;
-  };
-
-
-  /**
-   * Enables submission
-   */
-  enableSubmit = () => {
-    this.submitDisabled = false;
-    if (this.sendButton) this.sendButton.disabled = false;
-    if (this.dictateButton) this.dictateButton.disabled = false;
+    if (!this.textarea) return; //this.textarea.textContent = "";
+    let hasUploadedFiles = false;
+    for (const node of Array.from(this.textarea.childNodes)) {
+      switch(node.nodeType) {
+        case Node.ELEMENT_NODE:
+          if (node instanceof UploadedFiles) hasUploadedFiles = true;
+          if (!(node instanceof UploadedFiles)) this.textarea.removeChild(node);
+          break;
+        default:
+          this.textarea.removeChild(node);
+      }
+    }
+    if (hasUploadedFiles) this.textarea.appendChild(document.createElement("br"));
   };
 
 
@@ -135,4 +128,5 @@ export class MessageInput extends HTMLElement {
     if (chatWarnings) hideElement(chatWarnings);
   };
 }
+
 customElements.define("message-input", MessageInput);

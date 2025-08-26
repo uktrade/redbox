@@ -23,6 +23,7 @@ import "../redbox_design_system/rbds";
 
 import { updateChatWindow, syncUrlWithContent, updateRecentChatHistory } from "./services";
 import { ChatHistory } from "./web-components/chats/chat-history.js";
+import { getActiveChatId } from "./utils/active-chat.js";
 
 
 
@@ -32,7 +33,8 @@ document.addEventListener("chat-response-end", (evt) => {
   const sessionId = event.detail.session_id;
   const isNewChat = event.detail.is_new_chat;
 
-  if (isNewChat) {
+  // If new chat or first message was stopped prematurely
+  if (isNewChat || !getActiveChatId()) {
     // Update Recent chats section
     updateRecentChatHistory(sessionId);
   } else {
