@@ -41,6 +41,11 @@ export class UploadedFiles extends HTMLElement {
         uploadedFile.fileName = name;
         this.files.push(uploadedFile);
 
+        uploadedFile.removeElement.addEventListener("click", (evt) => {
+            evt.stopPropagation();
+            this.removeFile(uploadedFile);
+        });
+
         return uploadedFile;
     }
 
@@ -55,6 +60,7 @@ export class UploadedFiles extends HTMLElement {
         if (index === -1 || index === undefined) return false; // File not found
         this.files.splice(index, 1); // Remove file from array
         if (uploadedFile.parentNode === this.container) this.container.removeChild(uploadedFile);
+        if (this.isEmpty()) this.remove();
         return true;
     }
 

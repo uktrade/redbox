@@ -28,17 +28,17 @@
         display: inline-block;
 
         .upload-progress-fill-wrapper {
-            display: inline;
+            display: flex;
             align-items: center;
             padding-right: 0.5ch;
 
             .upload-progress-fill {
                 height: 6px;
                 background-color: var(--redbox-grey);
-                max-width: calc(100% - 3ch);
                 width: var(--progress-width, 0%);
                 transition: width 0.2s ease;
                 display: inline-flex;
+                margin-right: 1px;
 
                 &[data-status="error"],
                 &[data-status="processing"] {

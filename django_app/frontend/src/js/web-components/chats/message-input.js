@@ -87,6 +87,26 @@ export class MessageInput extends HTMLElement {
 
 
   /**
+   * Disables submission (Can be removed/refactored if send-message and send-message-with-dictation get merged at some point)
+   */
+  disableSubmit = () => {
+    this.submitDisabled = true;
+    if (this.sendButton) this.sendButton.disabled = true;
+    if (this.dictateButton) this.dictateButton.disabled = true;
+  };
+
+
+  /**
+   * Enables submission (Can be removed/refactored if send-message and send-message-with-dictation get merged at some point)
+   */
+  enableSubmit = () => {
+    this.submitDisabled = false;
+    if (this.sendButton) this.sendButton.disabled = false;
+    if (this.dictateButton) this.dictateButton.disabled = false;
+  };
+
+
+  /**
    * Returns the current message, without any uploaded files
    * @returns string
    */
@@ -102,7 +122,7 @@ export class MessageInput extends HTMLElement {
    * Clears the message
    */
   reset = () => {
-    if (!this.textarea) return; //this.textarea.textContent = "";
+    if (!this.textarea) return;
     let hasUploadedFiles = false;
     for (const node of Array.from(this.textarea.childNodes)) {
       switch(node.nodeType) {

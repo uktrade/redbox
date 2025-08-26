@@ -16,8 +16,21 @@ class DocumentSelector extends HTMLElement {
     this.#getSelectedDocuments();
 
     // update on any selection change
-    this.documents.forEach((document) => {
-      document.addEventListener("change", () => this.#getSelectedDocuments());
+    this.documents.forEach((doc) => {
+      doc.addEventListener("change", (evt) => {
+        this.#getSelectedDocuments();
+
+        const label = /** @type {HTMLLabelElement} */ (
+          document.querySelector(`label[for="${doc.id}"]`)
+        );
+        document.body.dispatchEvent(new CustomEvent("doc-selection-change", {
+          detail: {
+            id: doc.value,
+            name: label.title,
+            checked: doc.checked,
+          }
+        }));
+      });
     });
 
     // listen for completed docs

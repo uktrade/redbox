@@ -107,7 +107,7 @@ export class UploadedFile extends HTMLElement {
      */
     set progressPercent(percent) {
         this._progressPercent = percent;
-        this.progressPercentElement.innerText = percent.toString();
+        this.progressPercentElement.innerText = `${percent.toString()}%`;
         this.progressBarElement.style.setProperty("--progress-width", `${percent}%`);
     }
 

@@ -9,6 +9,7 @@ class FileUpload extends HTMLElement {
     constructor() {
         super();
         this.uploadedFileIds = new Set();
+        this.deselectedFileIds = new Set();
     }
 
     connectedCallback() {
@@ -61,9 +62,10 @@ class FileUpload extends HTMLElement {
      * Setter for uploadedFiles object
      * @param {String | null | undefined} id - File UUID from the server
     */
-    addFileId(id) {
+    addSelectedFileId(id) {
         if (!id) return;
         this.uploadedFileIds.add(id);
+        this.deselectedFileIds.delete(id);
     }
 
 
@@ -71,8 +73,10 @@ class FileUpload extends HTMLElement {
      * Removes a file from the uploadedFiles object
      * @param {String | null | undefined} id - File UUID from the server
     */
-    removeFileId(id) {
-        return this.uploadedFileIds.delete(id);
+    removeSelectedFileId(id) {
+        if (!id) return;
+        this.uploadedFileIds.delete(id);
+        this.deselectedFileIds.add(id);
     }
 
 
@@ -160,6 +164,51 @@ class FileUpload extends HTMLElement {
 
             if (this.uploadedFiles.allCompleted()) this.#enableSubmit();
         });
+
+        document.body.addEventListener("doc-selection-change", (evt) => {
+            const detail = /** @type{CustomEvent} */ (evt).detail;
+            let uploadedDocument = this.uploadedFiles?.getFileById(detail.id);
+
+            if (uploadedDocument && !detail.checked) {
+                this.removeSelectedFileId(detail.id);
+                this.uploadedFiles.removeFile(uploadedDocument)
+                return;
+            }
+
+            if (!uploadedDocument && detail.checked) {
+                this.addSelectedFileId(detail.id);
+                uploadedDocument = this.#createFile(detail.name);
+                uploadedDocument.fileId = detail.id;
+                uploadedDocument.status = UploadedFile.StatusTypes.COMPLETE;
+
+                uploadedDocument.removeElement.addEventListener("click", () => {
+                    updateYourDocuments().finally(() => {
+                        this.#uncheckDocument(uploadedDocument?.fileId);
+                        this.#checkDocuments();
+                    });
+                });
+                return;
+            }
+
+            if (!uploadedDocument && !detail.checked) {
+                this.removeSelectedFileId(detail.id);
+            }
+        });
+    }
+
+    /**
+     * Create a uploadedFile element
+     * @param {String} name - File(s) to be uploaded
+     */
+    #createFile(name) {
+        if (!this.uploadedFiles) {
+            const uploadedFiles = /** @type {UploadedFiles} */ (
+                document.createElement("uploaded-files")
+            );
+            this.textarea.prepend(uploadedFiles);
+        }
+
+        return this.uploadedFiles?.addFile(name);
     }
 
 
@@ -190,19 +239,9 @@ class FileUpload extends HTMLElement {
     uploadFile(file, uploadUrl = this.uploadUrl) {
         if (!file || !uploadUrl || !this.textarea) return;
 
-        if (!this.uploadedFiles) {
-            const uploadedFiles = /** @type {UploadedFiles} */ (
-                document.createElement("uploaded-files")
-            );
-            this.textarea.prepend(uploadedFiles);
-        }
-        const uploadedFile = this.uploadedFiles.addFile(file.name);
+        const uploadedFile = this.#createFile(file.name);
 
-        uploadedFile.removeElement.addEventListener("click", (evt) => {
-            evt.stopPropagation();
-            this.uploadedFiles.removeFile(uploadedFile);
-
-            if (this.uploadedFiles.isEmpty()) this.uploadedFiles?.remove();
+        uploadedFile.removeElement.addEventListener("click", () => {
             updateYourDocuments().finally(() => {
                 this.#uncheckDocument(uploadedFile.fileId);
                 this.#checkDocuments();
@@ -262,11 +301,17 @@ class FileUpload extends HTMLElement {
      * @param {string | null | undefined} id - Document ID
     */
     #checkDocuments(id=null) {
-        this.addFileId(id);
+        this.addSelectedFileId(id);
         this.uploadedFileIds.forEach(id => {
             const checkbox = /** @type {HTMLInputElement} */ (document.querySelector(`#file-${id}`));
             if (!checkbox) return;
             checkbox.checked = true;
+            checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+        })
+        this.deselectedFileIds.forEach(id => {
+            const checkbox = /** @type {HTMLInputElement} */ (document.querySelector(`#file-${id}`));
+            if (!checkbox) return;
+            checkbox.checked = false;
             checkbox.dispatchEvent(new Event("change", { bubbles: true }));
         })
     }
@@ -277,7 +322,7 @@ class FileUpload extends HTMLElement {
      * @param {string | null | undefined} id - Document ID
     */
     #uncheckDocument(id) {
-        this.removeFileId(id);
+        this.removeSelectedFileId(id);
         const checkbox = /** @type {HTMLInputElement} */ (document.querySelector(`#file-${id}`));
         if (!checkbox) return;
         checkbox.checked = false;
