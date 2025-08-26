@@ -85,7 +85,6 @@ def new_root_graph(
     builder.add_node("chat_graph", get_chat_graph(debug=debug))
     builder.add_node("search_graph", get_search_graph(retriever=parameterised_retriever, debug=debug))
     builder.add_node("gadget_graph", get_agentic_search_graph(tools=tools, debug=debug))
-    builder.add_node("legislation_graph", get_legislation_graph(tools=legislation_tools, debug=debug))
     builder.add_node(
         "summarise_graph",
         get_summarise_graph(all_chunks_retriever=all_chunks_retriever, debug=debug),
@@ -93,6 +92,10 @@ def new_root_graph(
     builder.add_node(
         "new_route_graph",
         build_new_graph(all_chunks_retriever, multi_agent_tools, debug),
+    )
+    builder.add_node(
+        "legislation_graph",
+        build_new_graph(all_chunks_retriever, legislation_tools, debug),
     )
     builder.add_node(
         "retrieve_metadata", get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
@@ -740,96 +743,85 @@ def build_new_graph(
     return builder.compile(debug=debug)
 
 
-def get_legislation_graph(tools: List[StructuredTool], debug: bool = False) -> CompiledGraph:
-    """Creates a subgraph for agentic RAG."""
+def get_legislation_graph(
+    all_chunks_retriever: VectorStoreRetriever, multi_agent_tools: dict, debug: bool = False
+) -> CompiledGraph:
+    agents_max_tokens = AISettings().agents_max_tokens
+    allow_plan_feedback = get_settings().allow_plan_feedback
 
-    citations_output_parser, format_instructions = get_structured_response_with_citations_parser()
     builder = StateGraph(RedboxState)
-
-    # Processes
-    builder.add_node("remove_keyword", remove_legislation_keyword)
-
     builder.add_node(
         "set_route_to_legislation",
         build_set_route_pattern(route=ChatRoute.legislation),
         retry=RetryPolicy(max_attempts=3),
     )
+    builder.add_node("remove_keyword", remove_legislation_keyword)
+    builder.add_node("stream_plan", stream_plan())
+    builder.add_node(
+        "planner",
+        my_planner(
+            allow_plan_feedback=allow_plan_feedback,
+            node_after_streamed="stream_plan",
+            node_afer_replan="sending_task",
+        ),
+    )
+    builder.add_node(
+        "Internal_Retrieval_Agent",
+        build_agent(
+            agent_name="Internal_Retrieval_Agent",
+            system_prompt=INTERNAL_RETRIEVAL_AGENT_PROMPT,
+            tools=multi_agent_tools["Internal_Retrieval_Agent"],
+            use_metadata=True,
+            max_tokens=agents_max_tokens["Internal_Retrieval_Agent"],
+        ),
+    )
+    builder.add_node("send", empty_process)
+    builder.add_node(
+        "External_Retrieval_Agent",
+        build_agent(
+            agent_name="External_Retrieval_Agent",
+            system_prompt=EXTERNAL_RETRIEVAL_AGENT_PROMPT,
+            tools=multi_agent_tools["External_Retrieval_Agent"],
+            use_metadata=False,
+            max_tokens=agents_max_tokens["External_Retrieval_Agent"],
+        ),
+    )
 
-    def build_smart_agent(state: RedboxState):
-        return build_stuff_pattern(
-            prompt_set=PromptSet.SearchAgentic,
-            tools=tools,
-            output_parser=citations_output_parser,
-            format_instructions=format_instructions,
-            final_response_chain=False,  # Output parser handles streaming
-            additional_variables={"has_selected_files": True if state.request.s3_keys else False},
-        )
+    builder.add_node("user_feedback_evaluation", empty_process)
 
-    builder.add_node(
-        "smart_agent",
-        build_smart_agent,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "invoke_tool_calls",
-        ToolNode(tools=tools),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "give_up_agent",
-        build_stuff_pattern(prompt_set=PromptSet.GiveUpAgentic, final_response_chain=True),
-        retry=RetryPolicy(max_attempts=3),
-    )
+    builder.add_node("Evaluator_Agent", create_evaluator())
+    builder.add_node("combine_question_evaluator", combine_question_evaluator())
     builder.add_node(
         "report_citations",
         report_sources_process,
         retry=RetryPolicy(max_attempts=3),
     )
+    builder.add_node("stream_suggestion", stream_suggestion())
+    builder.add_node("sending_task", empty_process)
 
-    # Log
-    builder.add_node(
-        "log_tool_call_activities",
-        build_activity_log_node(
-            lambda s: [
-                RedboxActivityEvent(message=get_log_formatter_for_retrieval_tool(tool_state_entry).log_call())
-                for tool_state_entry in s.last_message.tool_calls
-            ]
-        ),
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    # Decisions
-    builder.add_node(
-        "should_continue",
-        empty_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    # Sends
-    builder.add_node(
-        "send_tool",
-        empty_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    # Edges
-    builder.add_edge(START, "remove_keyword")
-    builder.add_edge("remove_keyword", "set_route_to_legislation")
-    builder.add_edge("set_route_to_legislation", "should_continue")
+    builder.add_edge(START, "set_route_to_legislation")
+    builder.add_edge("set_route_to_legislation", "remove_keyword")
     builder.add_conditional_edges(
-        "should_continue",
-        lambda state: state.steps_left > 8,
+        "remove_keyword", lambda s: s.user_feedback == "", {True: "planner", False: "user_feedback_evaluation"}
+    )
+    builder.add_conditional_edges(
+        "user_feedback_evaluation",
+        build_user_feedback_evaluation(),
         {
-            True: "smart_agent",
-            False: "give_up_agent",
+            "approve": "sending_task",
+            "modify": "planner",
+            "reject": "stream_suggestion",
+            "more_info": "stream_suggestion",
         },
     )
-    builder.add_edge("smart_agent", "send_tool")
-    builder.add_edge("send_tool", "report_citations")
-    builder.add_edge("smart_agent", "log_tool_call_activities")
-    builder.add_conditional_edges("send_tool", build_tool_send("invoke_tool_calls"), path_map=["invoke_tool_calls"])
-    builder.add_edge("invoke_tool_calls", "should_continue")
+    builder.add_conditional_edges("sending_task", sending_task_to_agent)
+    builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
+    builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
+    builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
+    builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
+    builder.add_edge("stream_plan", END)
+    builder.add_edge("stream_suggestion", END)
 
     return builder.compile(debug=debug)
 

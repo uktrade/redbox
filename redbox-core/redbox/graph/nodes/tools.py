@@ -419,12 +419,25 @@ def kagi_search_call(query: str, no_search_result: int = 20) -> tool:
             "limit": str(no_search_result),
         },
     )
+    # response = requests.get(
+    #     web_search_settings.end_point,
+    #     headers=web_search_settings.secret_tokens,
+    #     params={
+    #         "q": query,
+    #         # "country": country_code,
+    #         # "ui_lang": ui_lang,
+    #         "count": str(no_search_result),
+    #         "extra_snippets": "true",
+    #     },
+    # )
 
     if response.status_code == 200:
         mapped_documents = []
         results = response.json().get("data", [])
+        # results = response.json().get("web", []).get("results")
         for i, doc in enumerate(results):
             page_content = "".join(doc.get("snippet", []))
+            # page_content = "".join(doc.get("extra_snippets", []))
             token_count = tokeniser(page_content)
             print(f"Document {i} token count: {token_count}")
             mapped_documents.append(

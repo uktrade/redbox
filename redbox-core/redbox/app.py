@@ -81,7 +81,10 @@ class Redbox:
 
         self.tools = [search_documents, search_wikipedia, search_govuk]
 
-        self.legislation_tools = [search_legislation]
+        self.legislation_tools = {
+            "Internal_Retrieval_Agent": [search_documents],
+            "External_Retrieval_Agent": [search_legislation],
+        }
 
         self.multi_agent_tools = {
             "Internal_Retrieval_Agent": [search_documents],
