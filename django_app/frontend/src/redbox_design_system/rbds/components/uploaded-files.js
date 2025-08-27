@@ -22,6 +22,7 @@ export class UploadedFiles extends HTMLElement {
         );
         this.appendChild(uploadedFilesWrapper);
         this.setAttribute("contenteditable", "false");
+        this.#monitorProcessingStatus();
     }
 
 
@@ -60,6 +61,7 @@ export class UploadedFiles extends HTMLElement {
         if (index === -1 || index === undefined) return false; // File not found
         this.files.splice(index, 1); // Remove file from array
         if (uploadedFile.parentNode === this.container) this.container.removeChild(uploadedFile);
+        if (this.allProcessed()) this.#emitProcessedEvent();
         if (this.isEmpty()) this.remove();
         return true;
     }
@@ -76,10 +78,10 @@ export class UploadedFiles extends HTMLElement {
 
 
     /**
-     * Checks whether all files have finished uploading
+     * Checks whether all files have finished processing
      * @returns {Boolean} Uploaded status of all files
      */
-    allCompleted() {
+    allProcessed() {
         if (this.files.length === 0) return true;
 
         return this.files.every(file =>
@@ -97,6 +99,24 @@ export class UploadedFiles extends HTMLElement {
      */
     isEmpty() {
         return (this.files.length === 0);
+    }
+
+    /**
+     * Emits an event to signify that all uploads have finished processing
+     */
+    #emitProcessedEvent() {
+        document.body.dispatchEvent(new CustomEvent("file-uploads-processed"));
+    }
+
+    /**
+     * Monitors the processing status of each uploaded file
+     */
+    #monitorProcessingStatus() {
+        document.body.addEventListener("file-upload-processed", (evt) => {
+            const uploadedFile = /** @type {CustomEvent} */ (evt).detail;
+            if (uploadedFile.parentNode !== this.container) return;
+            if (this.allProcessed()) this.#emitProcessedEvent();
+        });
     }
 }
 customElements.define("uploaded-files", UploadedFiles);

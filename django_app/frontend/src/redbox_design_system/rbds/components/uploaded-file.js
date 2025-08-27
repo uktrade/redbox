@@ -69,6 +69,7 @@ export class UploadedFile extends HTMLElement {
         this._status = value.toLowerCase();
         this.statusTextElement.innerText = this.#getDisplayStatus();
         this.progressBarElement.dataset.status = this.status;
+        if (this.status !== UploadedFile.StatusTypes.PROCESSING) this.#emitProcessedEvent();
         if (this.status === UploadedFile.StatusTypes.COMPLETE) this.progressPercent = 100;
     }
 
@@ -161,6 +162,13 @@ export class UploadedFile extends HTMLElement {
         const iconHtml = await loadIcon(fileExt);
 
         if (iconHtml) this.iconElement.innerHTML = iconHtml;
+    }
+
+    /**
+     * Emits an event when the file has finished processing
+     */
+    #emitProcessedEvent() {
+        document.body.dispatchEvent(new CustomEvent("file-upload-processed", {detail: this}));
     }
 }
 customElements.define("uploaded-file", UploadedFile);

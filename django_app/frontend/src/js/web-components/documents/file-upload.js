@@ -147,10 +147,7 @@ class FileUpload extends HTMLElement {
 
             uploadedFile.status = UploadedFile.StatusTypes.COMPLETE;
 
-            updateYourDocuments().finally(() => {
-                this.#checkDocuments(id);
-                if (this.uploadedFiles.allCompleted()) this.#enableSubmit();
-            });
+            updateYourDocuments().finally(() => this.#checkDocuments(id));
         });
 
         document.body.addEventListener("doc-error", (evt) => {
@@ -161,8 +158,6 @@ class FileUpload extends HTMLElement {
             if (!uploadedFile) return;
 
             uploadedFile.status = UploadedFile.StatusTypes.ERROR;
-
-            if (this.uploadedFiles.allCompleted()) this.#enableSubmit();
         });
 
         document.body.addEventListener("doc-selection-change", (evt) => {
@@ -194,6 +189,8 @@ class FileUpload extends HTMLElement {
                 this.removeSelectedFileId(detail.id);
             }
         });
+
+        document.body.addEventListener("file-uploads-processed", this.messageInput?.enableSubmit);
     }
 
     /**
@@ -264,7 +261,10 @@ class FileUpload extends HTMLElement {
             if (xhr.status === 200) {
                 const response = JSON.parse(xhr.responseText);
                 const responseStatus = response.status.toLowerCase();
-                const errorStatus = ![UploadedFile.StatusTypes.COMPLETE, UploadedFile.StatusTypes.PROCESSING].includes(responseStatus);
+                const errorStatus = ![
+                    UploadedFile.StatusTypes.COMPLETE,
+                    UploadedFile.StatusTypes.PROCESSING,
+                ].includes(responseStatus);
 
                 if (response.errors || errorStatus) {
                     uploadedFile.status = UploadedFile.StatusTypes.ERROR;
@@ -283,13 +283,9 @@ class FileUpload extends HTMLElement {
             } else {
                 uploadedFile.status = UploadedFile.StatusTypes.ERROR;
             }
-            if (this.uploadedFiles.allCompleted()) this.#enableSubmit();
         };
 
-        xhr.onerror = () => {
-            uploadedFile.status = UploadedFile.StatusTypes.ERROR;
-            if (this.uploadedFiles.allCompleted()) this.#enableSubmit();
-        };
+        xhr.onerror = () => uploadedFile.status = UploadedFile.StatusTypes.ERROR;
 
         const formData = new FormData();
         formData.append("file", file);

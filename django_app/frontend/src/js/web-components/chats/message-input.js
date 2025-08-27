@@ -91,8 +91,14 @@ export class MessageInput extends HTMLElement {
    */
   disableSubmit = () => {
     this.submitDisabled = true;
-    if (this.sendButton) this.sendButton.disabled = true;
-    if (this.dictateButton) this.dictateButton.disabled = true;
+    if (this.sendButton) {
+      this.sendButton.disabled = true;
+      this.sendButton.classList.add("no-hover");
+    }
+    if (this.dictateButton) {
+      this.dictateButton.disabled = true;
+      this.dictateButton.classList.add("no-hover");
+    }
   };
 
 
@@ -101,8 +107,14 @@ export class MessageInput extends HTMLElement {
    */
   enableSubmit = () => {
     this.submitDisabled = false;
-    if (this.sendButton) this.sendButton.disabled = false;
-    if (this.dictateButton) this.dictateButton.disabled = false;
+    if (this.sendButton) {
+      this.sendButton.disabled = false;
+      this.sendButton.classList.remove("no-hover");
+    }
+    if (this.dictateButton) {
+      this.dictateButton.disabled = false;
+      this.dictateButton.classList.remove("no-hover");
+    }
   };
 
 
