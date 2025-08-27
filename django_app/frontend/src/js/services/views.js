@@ -40,3 +40,17 @@ export function updateYourDocuments(chatId = getActiveChatId()) {;
       swap: 'outerHTML',
     });
 }
+
+
+/**
+ * Fetch the icon svg for a given file extension
+ * @param {string | undefined} ext - file extension
+ * @returns {Promise<string | undefined>}
+ */
+export async function loadIcon(ext) {
+    if (!ext) return;
+    const response = await fetch(`/file-icon/${ext}/`);
+    if (!response.ok) throw new Error(`Icon not found for extension: ${ext}`);
+    const html = await response.text();
+    return html;
+}

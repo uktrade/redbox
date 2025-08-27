@@ -1,5 +1,7 @@
 // @ts-check
 
+import { loadIcon } from "../../../js/services";
+
 export class UploadedFile extends HTMLElement {
     constructor() {
         super();
@@ -154,9 +156,11 @@ export class UploadedFile extends HTMLElement {
     /**
      * Updates the icon display element with the correct icon for the file type
      */
-    #updateIconDisplay() {
-        const fileExt = this.fileName?.split(".")[1];
-        console.log("TODO - Implement Icon: ", fileExt, this.iconElement);
+    async #updateIconDisplay() {
+        const fileExt = this.fileName?.split(".").pop()?.toLowerCase();
+        const iconHtml = await loadIcon(fileExt);
+
+        if (iconHtml) this.iconElement.innerHTML = iconHtml;
     }
 }
 customElements.define("uploaded-file", UploadedFile);

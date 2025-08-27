@@ -242,6 +242,7 @@ class FileUpload extends HTMLElement {
         const uploadedFile = this.#createFile(file.name);
 
         uploadedFile.removeElement.addEventListener("click", () => {
+            if (uploadedFile.status !== UploadedFile.StatusTypes.COMPLETE) return;
             updateYourDocuments().finally(() => {
                 this.#uncheckDocument(uploadedFile.fileId);
                 this.#checkDocuments();

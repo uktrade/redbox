@@ -21,11 +21,14 @@ from redbox_app.redbox_core.views.document_views import (
     UploadView,
     YourDocuments,
     delete_document,
-    file_ingest_errors,
-    file_status_api_view,
     remove_all_docs_view,
     remove_doc_view,
     upload_document,
+)
+from redbox_app.redbox_core.views.file_views import (
+    file_icon_view,
+    file_ingest_errors_view,
+    file_status_api_view,
 )
 from redbox_app.redbox_core.views.info_views import accessibility_statement_view, privacy_notice_view, support_view
 from redbox_app.redbox_core.views.misc_views import SecurityTxtRedirectView, faq_view, health, homepage_view
@@ -46,9 +49,10 @@ __all__ = [
     "upload_document",
     "UpdateDemographicsView",
     "file_status_api_view",
-    "file_ingest_errors",
+    "file_ingest_errors_view",
     "health",
     "homepage_view",
+    "file_icon_view",
     "remove_doc_view",
     "remove_all_docs_view",
     "DocumentsTitleView",
