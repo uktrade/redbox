@@ -95,7 +95,7 @@ def new_root_graph(
     )
     builder.add_node(
         "legislation_graph",
-        build_new_graph(all_chunks_retriever, legislation_tools, debug),
+        build_legislation_graph(all_chunks_retriever, legislation_tools, debug),
     )
     builder.add_node(
         "retrieve_metadata", get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
@@ -743,7 +743,7 @@ def build_new_graph(
     return builder.compile(debug=debug)
 
 
-def get_legislation_graph(
+def build_legislation_graph(
     all_chunks_retriever: VectorStoreRetriever, multi_agent_tools: dict, debug: bool = False
 ) -> CompiledGraph:
     agents_max_tokens = AISettings().agents_max_tokens
