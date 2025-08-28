@@ -16,31 +16,10 @@ from django_q.tasks import async_task
 
 from redbox_app.redbox_core.models import File
 from redbox_app.redbox_core.services import chats as chat_service
+from redbox_app.redbox_core.types import APPROVED_FILE_EXTENSIONS
 from redbox_app.worker import ingest
 
 CHUNK_SIZE = 1024
-APPROVED_FILE_EXTENSIONS = [
-    ".eml",
-    ".html",
-    ".json",
-    ".md",
-    ".msg",
-    ".rst",
-    ".rtf",
-    ".txt",
-    ".xml",
-    ".csv",
-    ".doc",
-    ".docx",
-    ".epub",
-    ".odt",
-    ".pdf",
-    ".ppt",
-    ".pptx",
-    ".tsv",
-    ".xlsx",
-    ".htm",
-]
 
 User = get_user_model()
 logger = logging.getLogger(__name__)

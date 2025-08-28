@@ -209,12 +209,11 @@ export class ShowMore extends HTMLElement {
         let clickElement = document.createElement("a");
         clickElement.textContent = labelText;
         clickElement.classList.add(
-            "show-more-link",
+            "action-link",
             "govuk-link",
             "govuk-link--no-visited-state",
-            "govuk-link--no-underline"
+            "govuk-link--no-underline",
         );
-
         return clickElement;
     }
 

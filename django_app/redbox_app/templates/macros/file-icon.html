@@ -1,0 +1,4 @@
+{% macro file_icon(icon_name, icon_classes="") %}
+    {% set icon_classes = "file-icon " + icon_classes %}
+    {% include "rbds/icons/" ~ icon_name ~ ".svg" %}
+{% endmacro %}

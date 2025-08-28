@@ -41,7 +41,7 @@ info_urlpatterns = [
     path("support/", views.support_view, name="support"),
 ]
 
-file_urlpatterns = [
+document_urlpatterns = [
     path("documents/", views.DocumentView.as_view(), name="documents"),
     path("documents/<uuid:doc_id>/delete-document/", views.delete_document, name="delete-document"),
     path("documents/<uuid:doc_id>/title/", views.DocumentsTitleView.as_view(), name="document-titles"),
@@ -76,7 +76,7 @@ other_urlpatterns = [
     path("", views.homepage_view, name="homepage"),
     path("health/", views.health, name="health"),
     path("file-status/", views.file_status_api_view, name="file-status"),
-    path("file-ingest-errors/", views.file_ingest_errors, name="file-ingest-errors"),
+    path("file-ingest-errors/", views.file_ingest_errors_view, name="file-ingest-errors"),
     path(
         "check-demographics/", views.CheckDemographicsView.as_view(), name="check-demographics"
     ),  # Can be removed once profile overlay is enabled
@@ -86,6 +86,7 @@ other_urlpatterns = [
     path("security", views.SecurityTxtRedirectView.as_view(), name="security"),
     path("sitemap/", views.misc_views.sitemap_view, name="sitemap"),
     path("faq/", views.faq_view, name="faq"),
+    path("file-icon/<str:ext>/", views.file_icon_view, name="file-icon"),
 ]
 
 
@@ -100,7 +101,7 @@ urlpatterns = (
     + other_urlpatterns
     + auth_urlpatterns
     + chat_urlpatterns
-    + file_urlpatterns
+    + document_urlpatterns
     + admin_urlpatterns
     + api_url_patterns
 )

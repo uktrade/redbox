@@ -1,8 +1,8 @@
 // @ts-check
 
-import { getAttributeOrDefault, hideElement, showElement } from "../../utils";
+import { hideElement, showElement } from "../../utils";
 
-class SendMessage extends HTMLElement {
+export class SendMessage extends HTMLElement {
 
   connectedCallback() {
     this.buttonSend = /** @type {HTMLButtonElement} */ (
@@ -19,28 +19,33 @@ class SendMessage extends HTMLElement {
       });
 
       document.addEventListener("chat-response-start", () => {
-        if (!this.buttonSend || !this.buttonStop) {
-          return;
-        }
         hideElement(this.buttonSend);
         showElement(this.buttonStop);
       });
 
-      document.addEventListener("chat-response-end", this.#showSendButton);
-      document.addEventListener("stop-streaming", this.#showSendButton);
+      document.addEventListener("chat-response-end", () => {
+        this.showSendButton();
+      });
+
+      document.addEventListener("stop-streaming", this.showSendButton);
     }
 
-    #showSendButton = () => {
-      if (!this.buttonSend || !this.buttonStop) {
-        return;
-      }
+
+    /**
+     * Show Send button and hide stop send button
+     */
+    showSendButton = () => {
       showElement(this.buttonSend);
       hideElement(this.buttonStop);
     };
 
-    get sendButton() {
-      const sendButtonSelector =  getAttributeOrDefault(this, "send-button-selector", "send-btn");
-      return this.querySelector(sendButtonSelector);
+
+    /**
+     * Hide Send button and show stop send button
+     */
+    hideSendButton() {
+      hideElement(this.buttonSend);
+      showElement(this.buttonStop);
     }
   }
   customElements.define("send-message", SendMessage);

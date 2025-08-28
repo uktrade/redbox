@@ -1,15 +1,22 @@
 // @ts-check
 
+import { UploadedFiles, UploadedFile } from "../../../redbox_design_system/rbds/components";
 import { pollFileStatus, updateYourDocuments } from "../../services";
+import { getCsrfToken } from "../../utils";
+import { MessageInput } from "../chats/message-input";
 
 class FileUpload extends HTMLElement {
     constructor() {
         super();
         this.uploadedFileIds = new Set();
+        this.deselectedFileIds = new Set();
     }
 
     connectedCallback() {
-        this.#bindFileInputEvent();
+        this.input = /** @type {HTMLInputElement} */ (this.querySelector('input[type="file"]'));
+        this.button = /** @type {HTMLButtonElement} */ (this.querySelector('button'));
+
+        this.#bindButtonInputEvent();
         this.#bindTextboxEvents();
     }
 
@@ -18,32 +25,7 @@ class FileUpload extends HTMLElement {
      * Textarea for uploading files via drag/drop
     */
     get textarea() {
-        const textareaSelector = this.getAttribute("textarea-selector");
-        if (!textareaSelector) return null;
-
-        return /** @type {HTMLElement} */ (document.querySelector(textareaSelector));
-    }
-
-
-    /**
-     * File input element for triggering the file picker
-    */
-    get fileInput() {
-        const fileInputSelector = this.getAttribute("file-input-selector");
-        if (!fileInputSelector) return null;
-
-        return /** @type {HTMLInputElement} */ (document.querySelector(fileInputSelector));
-    }
-
-
-    /**
-     * Custom element for triggering input file element
-    */
-    get fileUploadTrigger() {
-        const fileUploadTriggerSelector = this.getAttribute("file-upload-trigger-selector");
-        if (!fileUploadTriggerSelector) return null;
-
-        return /** @type {HTMLElement} */ (document.querySelector(fileUploadTriggerSelector));
+        return this.messageInput.textarea;
     }
 
 
@@ -58,8 +40,21 @@ class FileUpload extends HTMLElement {
     /**
      * Container for file upload textbox UI elements
     */
-    get uploadedFilesWrapper() {
-        return /** @type {HTMLDivElement} */ (this.textarea?.querySelector(".uploaded-files-wrapper"));
+    get uploadedFiles() {
+        return /** @type {UploadedFiles} */ (this.textarea?.querySelector("uploaded-files"));
+    }
+
+
+    /**
+     * Message Input component
+    */
+    get messageInput() {
+        if (!this._messageInput || !document.body.contains(this._messageInput)) {
+            this._messageInput = /** @type {MessageInput} */ (
+                document.querySelector('message-input')
+            );
+        }
+        return this._messageInput;
     }
 
 
@@ -67,9 +62,10 @@ class FileUpload extends HTMLElement {
      * Setter for uploadedFiles object
      * @param {String | null | undefined} id - File UUID from the server
     */
-    addFileId(id) {
+    addSelectedFileId(id) {
         if (!id) return;
         this.uploadedFileIds.add(id);
+        this.deselectedFileIds.delete(id);
     }
 
 
@@ -77,22 +73,36 @@ class FileUpload extends HTMLElement {
      * Removes a file from the uploadedFiles object
      * @param {String | null | undefined} id - File UUID from the server
     */
-    removeFileId(id) {
-        return this.uploadedFileIds.delete(id);
+    removeSelectedFileId(id) {
+        if (!id) return;
+        this.uploadedFileIds.delete(id);
+        this.deselectedFileIds.add(id);
+    }
+
+
+    /**
+     * Disables the send/dictate functionality for the chat
+    */
+    #disableSubmit() {
+        if (this.messageInput) this.messageInput.disableSubmit();
+    }
+
+
+    /**
+     * Enables the send/dictate functionality for the chat
+    */
+    #enableSubmit() {
+        if (this.messageInput) this.messageInput.enableSubmit();
     }
 
 
     /**
      * Allow a custom element to trigger the file upload input element
-     * @param {HTMLInputElement | null} fileInput - File upload input element
-     * @param {HTMLElement | null} fileUploadTrigger - Custom trigger element
      */
-    #bindFileInputEvent(fileInput = this.fileInput, fileUploadTrigger = this.fileUploadTrigger) {
-        if (!fileInput || !fileUploadTrigger) return;
-
-        fileUploadTrigger.addEventListener("click", (evt) => {
+    #bindButtonInputEvent() {
+        this.button?.addEventListener("click", (evt) => {
             evt.preventDefault();
-            this.fileInput?.click();
+            this.input?.click();
         });
     }
 
@@ -100,21 +110,21 @@ class FileUpload extends HTMLElement {
     /**
      * Binds file upload events for a textarea is provided
      */
-    #bindTextboxEvents(textarea = this.textarea) {
-        if (!textarea) return;
+    #bindTextboxEvents() {
+        if (!this.textarea) return;
 
         // Attach drag/drop upload functionality to textbox
-        if (textarea.classList.contains("drop-zone")) {
-            textarea.addEventListener("dragover", (evt) => {
+        if (this.textarea.classList.contains("drop-zone")) {
+            this.textarea.addEventListener("dragover", (evt) => {
                 evt.preventDefault();
                 this.textarea?.classList.add("drag-over");
             });
 
-            textarea.addEventListener("dragleave", (evt) => {
+            this.textarea.addEventListener("dragleave", (evt) => {
                 this.textarea?.classList.remove("drag-over");
             });
 
-            textarea.addEventListener("drop", (evt) => {
+            this.textarea.addEventListener("drop", (evt) => {
                 evt.preventDefault();
                 this.textarea?.classList.remove("drag-over");
                 const files = evt.dataTransfer?.files;
@@ -122,55 +132,80 @@ class FileUpload extends HTMLElement {
             });
         }
 
-        if (this.fileInput) {
-            this.fileInput.addEventListener("change", (evt) => {
-                const target = /** @type {HTMLInputElement} */ (evt.target);
-                this.#handleFiles(target.files);
-                target.value = "";
-            });
-        }
+        this.input?.addEventListener("change", (evt) => {
+            const target = /** @type {HTMLInputElement} */ (evt.target);
+            this.#handleFiles(target.files);
+            target.value = "";
+        });
 
         document.body.addEventListener("doc-complete", (evt) => {
             const id = /** @type {CustomEvent} */ (evt).detail.id;
             if (!id) return;
 
-            const uploadedFileWrapper = /** @type {HTMLDivElement} */ (
-                document.querySelector(`[data-id="${id}"]`)
-            );
-            if (!uploadedFileWrapper) return;
+            const uploadedFile = this.uploadedFiles.getFileById(id);
+            if (!uploadedFile) return;
 
-            const uploadProgressText = /** @type {HTMLDivElement} */ (
-                uploadedFileWrapper.querySelector(".upload-progress-text")
-            );
-            const uploadProgressFill = /** @type {HTMLDivElement} */ (
-                uploadedFileWrapper.querySelector(".upload-progress-fill")
-            );
+            uploadedFile.status = UploadedFile.StatusTypes.COMPLETE;
 
-            uploadProgressFill.dataset.status = "complete";
-            uploadProgressText.textContent = "Ready to use";
-
-            updateYourDocuments().finally(() => { this.#checkDocuments(id) });
+            updateYourDocuments().finally(() => this.#checkDocuments(id));
         });
 
         document.body.addEventListener("doc-error", (evt) => {
             const id = /** @type {CustomEvent} */ (evt).detail.id;
             if (!id) return;
 
-            const uploadedFileWrapper = /** @type {HTMLDivElement} */ (
-                document.querySelector(`[data-id="${id}"]`)
-            );
-            if (!uploadedFileWrapper) return;
+            const uploadedFile = this.uploadedFiles.getFileById(id);
+            if (!uploadedFile) return;
 
-            const uploadProgressText = /** @type {HTMLDivElement} */ (
-                uploadedFileWrapper.querySelector(".upload-progress-text")
-            );
-            const uploadProgressFill = /** @type {HTMLDivElement} */ (
-                uploadedFileWrapper.querySelector(".upload-progress-fill")
-            );
-
-            uploadProgressFill.dataset.status = "error";
-            uploadProgressText.textContent = "Error";
+            uploadedFile.status = UploadedFile.StatusTypes.ERROR;
         });
+
+        document.body.addEventListener("doc-selection-change", (evt) => {
+            const detail = /** @type{CustomEvent} */ (evt).detail;
+            let uploadedDocument = this.uploadedFiles?.getFileById(detail.id);
+
+            if (uploadedDocument && !detail.checked) {
+                this.removeSelectedFileId(detail.id);
+                this.uploadedFiles.removeFile(uploadedDocument)
+                return;
+            }
+
+            if (!uploadedDocument && detail.checked) {
+                this.addSelectedFileId(detail.id);
+                uploadedDocument = this.#createFile(detail.name);
+                uploadedDocument.fileId = detail.id;
+                uploadedDocument.status = UploadedFile.StatusTypes.COMPLETE;
+
+                uploadedDocument.removeElement.addEventListener("click", () => {
+                    updateYourDocuments().finally(() => {
+                        this.#uncheckDocument(uploadedDocument?.fileId);
+                        this.#checkDocuments();
+                    });
+                });
+                return;
+            }
+
+            if (!uploadedDocument && !detail.checked) {
+                this.removeSelectedFileId(detail.id);
+            }
+        });
+
+        document.body.addEventListener("file-uploads-processed", this.messageInput?.enableSubmit);
+    }
+
+    /**
+     * Create a uploadedFile element
+     * @param {String} name - File(s) to be uploaded
+     */
+    #createFile(name) {
+        if (!this.uploadedFiles) {
+            const uploadedFiles = /** @type {UploadedFiles} */ (
+                document.createElement("uploaded-files")
+            );
+            this.textarea.prepend(uploadedFiles);
+        }
+
+        return this.uploadedFiles?.addFile(name);
     }
 
 
@@ -180,136 +215,77 @@ class FileUpload extends HTMLElement {
      */
     #handleFiles(files) {
         if (!files) return;
+
         const moveCaretToEnd = (!this.textarea?.textContent?.trim());
+        this.#disableSubmit();
+
         for (const file of files) {
-            const uploadedFileElement = this.#addFileToTextBox(file);
-            this.uploadFile(file, uploadedFileElement);
+            this.uploadFile(file);
         }
         if (moveCaretToEnd) {
-            this.textarea?.appendChild(document.createTextNode("\n"));
+            this.textarea?.appendChild(document.createElement("br"));
             this.#moveCaretToEnd();
         }
     }
 
 
     /**
-     * Add file display UI elements to textbox
+     * Triggers file upload to the server with the provided url
      * @param {File} file - File to be uploaded
      */
-    #addFileToTextBox(file, textarea = this.textarea) {
-        if (!textarea) return;
+    uploadFile(file, uploadUrl = this.uploadUrl) {
+        if (!file || !uploadUrl || !this.textarea) return;
 
-        let uploadedFiles = /** @type {HTMLDivElement} */ (textarea.querySelector(".uploaded-files"));
+        const uploadedFile = this.#createFile(file.name);
 
-        if (!this.uploadedFilesWrapper) {
-            const template = /** @type {HTMLTemplateElement} */ (document.getElementById('uploaded-files-template'));
-            const uploadedFilesWrapper = /** @type {HTMLDivElement} */ (template?.content.firstElementChild?.cloneNode(true));
-            uploadedFiles = /** @type {HTMLDivElement} */ (uploadedFilesWrapper.querySelector(".uploaded-files"));
-            textarea.prepend(uploadedFilesWrapper);
-        }
-        let uploadedFileElement = this.#createFileElement(file);
-        uploadedFiles.appendChild(uploadedFileElement);
-        return uploadedFileElement;
-    }
-
-
-    /**
-     * Creates a UI element for an uploaded file to be added to the textarea
-     * @param {File} file - File to be uploaded
-     */
-    #createFileElement(file) {
-        const template = /** @type {HTMLTemplateElement} */ (document.getElementById('uploaded-file-template'));
-        const uploadedFileWrapper = /** @type {HTMLDivElement} */ (template?.content.firstElementChild?.cloneNode(true));
-
-        const name = /** @type {HTMLDivElement} */ (uploadedFileWrapper.querySelector(".file-name"));
-        name.textContent = file.name;
-        name.setAttribute("title", file.name);
-
-        // TODO: Replace with proper icons
-        const icon = /** @type {HTMLDivElement} */ (uploadedFileWrapper.querySelector(".file-icon"));
-        icon.textContent = "📁";
-
-        const removeLink = /** @type {HTMLAnchorElement} */ (uploadedFileWrapper.querySelector(".action-link"));
-        removeLink.addEventListener("click", (evt) => {
-            evt.stopPropagation();
-            uploadedFileWrapper.remove();
-            const uploadedFiles = this.textarea?.querySelector(".uploaded-files");
-            const uploadedFilesWrapper = this.textarea?.querySelector(".uploaded-files-wrapper");
-            if (uploadedFiles?.innerHTML === "") uploadedFilesWrapper?.remove();
+        uploadedFile.removeElement.addEventListener("click", () => {
+            if (uploadedFile.status !== UploadedFile.StatusTypes.COMPLETE) return;
             updateYourDocuments().finally(() => {
-                this.#uncheckDocument(uploadedFileWrapper.dataset.id);
+                this.#uncheckDocument(uploadedFile.fileId);
                 this.#checkDocuments();
             });
         });
-        return uploadedFileWrapper;
-    }
-
-
-    /**
-     * Triggers file upload to the server with the provided url
-     * @param {File} file - File to be uploaded
-     * @param {HTMLElement | undefined} uploadedFileElement - UI element for uploaded file
-     */
-    uploadFile(file, uploadedFileElement, uploadUrl = this.uploadUrl) {
-        if (!file || !uploadedFileElement || !uploadUrl) return;
-
-        const progressFill = /** @type {HTMLDivElement} */ (uploadedFileElement.querySelector(".upload-progress-fill"));
-        const progressFillText = /** @type {HTMLDivElement} */ (uploadedFileElement.querySelector(".upload-progress-fill-text"));
-        const progressText = /** @type {HTMLDivElement} */ (uploadedFileElement.querySelector(".upload-progress-text"));
-
-        const csrfToken = /** @type {HTMLInputElement | null} */ (
-            document.querySelector('[name="csrfmiddlewaretoken"]')
-        )?.value || "";
 
         const xhr = new XMLHttpRequest();
         xhr.open("POST", uploadUrl);
-        xhr.setRequestHeader("X-CSRFToken", csrfToken);
+        xhr.setRequestHeader("X-CSRFToken", getCsrfToken());
 
         xhr.upload.addEventListener("progress", (evt) => {
             if (evt.lengthComputable) {
-                const percent = (evt.loaded / evt.total) * 100;
-                progressFill.style.setProperty("--progress-width", `${percent}%`);
-                progressFillText.innerText = percent.toString();
+                const percent = Math.round((evt.loaded / evt.total) * 100);
+                uploadedFile.progressPercent = percent - 1;
             }
         });
 
         xhr.onload = () => {
             if (xhr.status === 200) {
                 const response = JSON.parse(xhr.responseText);
+                const responseStatus = response.status.toLowerCase();
+                const errorStatus = ![
+                    UploadedFile.StatusTypes.COMPLETE,
+                    UploadedFile.StatusTypes.PROCESSING,
+                ].includes(responseStatus);
 
-                // TODO: Define status types somewhere?
-                if (response.errors || response.status in ["errored", "deleted"]) {
-                    progressFill.dataset.status = "error";
-                    progressText.innerText = "Error";
+                if (response.errors || errorStatus) {
+                    uploadedFile.status = UploadedFile.StatusTypes.ERROR;
                     console.error(response.errors);
                 }
-                if (response.file_id) uploadedFileElement.dataset.id = response.file_id;
 
-                if (response.file_name !== file.name) {
-                    const fileNameDiv = /** @type {HTMLDivElement} */ (uploadedFileElement.querySelector(".file-name"));
-                    fileNameDiv.textContent = response.file_name;
-                    fileNameDiv.setAttribute("title", response.file_name);
-                }
+                if (response.file_id) uploadedFile.fileId = response.file_id;
+                if (response.file_name !== file.name) uploadedFile.fileName = response.file_name;
 
-                if (response.status === "complete") {
-                    progressFill.dataset.status = "complete";
-                    progressText.innerText = "Ready to use";
+                if (responseStatus === UploadedFile.StatusTypes.COMPLETE) {
+                    uploadedFile.status = UploadedFile.StatusTypes.COMPLETE;
                     updateYourDocuments().finally(() => { this.#checkDocuments(response.file_id) });
                 }
-                progressFill.style.setProperty("--progress-width", "100%");
-                progressFillText.innerText = "100";
 
-                if (response.status === "processing") pollFileStatus(response.file_id);
+                if (responseStatus === UploadedFile.StatusTypes.PROCESSING) pollFileStatus(response.file_id);
             } else {
-                progressFill.dataset.status = "error";
-                progressText.innerText = "Error";
+                uploadedFile.status = UploadedFile.StatusTypes.ERROR;
             }
         };
 
-        xhr.onerror = () => {
-            progressFill.dataset.status = "error";
-            progressText.innerText = "Error";
-        };
+        xhr.onerror = () => uploadedFile.status = UploadedFile.StatusTypes.ERROR;
 
         const formData = new FormData();
         formData.append("file", file);
@@ -322,12 +298,18 @@ class FileUpload extends HTMLElement {
      * @param {string | null | undefined} id - Document ID
     */
     #checkDocuments(id=null) {
-        this.addFileId(id);
+        this.addSelectedFileId(id);
         this.uploadedFileIds.forEach(id => {
             const checkbox = /** @type {HTMLInputElement} */ (document.querySelector(`#file-${id}`));
             if (!checkbox) return;
             checkbox.checked = true;
-            checkbox.dispatchEvent(new Event("change", { bubbles: true}));
+            checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+        })
+        this.deselectedFileIds.forEach(id => {
+            const checkbox = /** @type {HTMLInputElement} */ (document.querySelector(`#file-${id}`));
+            if (!checkbox) return;
+            checkbox.checked = false;
+            checkbox.dispatchEvent(new Event("change", { bubbles: true }));
         })
     }
 
@@ -337,23 +319,23 @@ class FileUpload extends HTMLElement {
      * @param {string | null | undefined} id - Document ID
     */
     #uncheckDocument(id) {
-        this.removeFileId(id);
+        this.removeSelectedFileId(id);
         const checkbox = /** @type {HTMLInputElement} */ (document.querySelector(`#file-${id}`));
         if (!checkbox) return;
         checkbox.checked = false;
-        checkbox.dispatchEvent(new Event("change", { bubbles: true}));
+        checkbox.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
 
     /**
      * Moves the caret to the end of the textarea
     */
-    #moveCaretToEnd(textarea = this.textarea) {
-        if (!textarea) return;
+    #moveCaretToEnd() {
+        if (!this.textarea) return;
 
-        textarea.focus();
+        this.textarea.focus();
         const range = document.createRange();
-        range.selectNodeContents(textarea);
+        range.selectNodeContents(this.textarea);
         range.collapse(false);
         const selection = window.getSelection();
         selection?.removeAllRanges();
