@@ -1,7 +1,7 @@
+import os
 from asyncio import CancelledError
 from logging import getLogger
 from typing import Literal
-import os
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
@@ -81,9 +81,14 @@ class Redbox:
 
         self.tools = [search_documents, search_wikipedia, search_govuk]
 
+        self.legislation_tools = {
+            "Internal_Retrieval_Agent": [search_documents],
+            "External_Retrieval_Agent": [search_legislation],
+        }
+
         self.multi_agent_tools = {
             "Internal_Retrieval_Agent": [search_documents],
-            "External_Retrieval_Agent": [search_wikipedia, search_govuk, search_legislation],
+            "External_Retrieval_Agent": [search_wikipedia, search_govuk],
         }
 
         self.graph = new_root_graph(
@@ -92,6 +97,7 @@ class Redbox:
             tabular_retriever=self.tabular_retriever,
             metadata_retriever=self.metadata_retriever,
             tools=self.tools,
+            legislation_tools=self.legislation_tools,
             multi_agent_tools=self.multi_agent_tools,
             debug=debug,
         )
