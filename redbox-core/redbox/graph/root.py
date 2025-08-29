@@ -723,7 +723,9 @@ def get_legislation_graph(
     all_chunks_retriever: VectorStoreRetriever, multi_agent_tools: dict, debug: bool = False
 ) -> CompiledGraph:
     agents_max_tokens = AISettings().agents_max_tokens
-    allow_plan_feedback = get_settings().allow_plan_feedback
+    # Disabled as plan and user feedback is answered via newroute and those tools
+    # instead of legislation route and its specific set of tools
+    allow_legislation_plan_feedback = False
 
     builder = StateGraph(RedboxState)
     builder.add_node(
@@ -736,7 +738,7 @@ def get_legislation_graph(
     builder.add_node(
         "planner",
         my_planner(
-            allow_plan_feedback=allow_plan_feedback,
+            allow_plan_feedback=allow_legislation_plan_feedback,
             node_after_streamed="stream_plan",
             node_afer_replan="sending_task",
         ),
