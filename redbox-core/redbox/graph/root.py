@@ -139,8 +139,7 @@ def new_root_graph(
     builder.add_conditional_edges(
         "no_user_feedback", lambda s: s.user_feedback == "", {True: "has_keyword", False: "new_route_graph"}
     )
-    edge_mapping = (
-        {
+    edge_mapping = {
             ChatRoute.search: "search_graph",
             ChatRoute.gadget: "gadget_graph",
             ChatRoute.newroute: "new_route_graph",
@@ -148,7 +147,6 @@ def new_root_graph(
             ChatRoute.legislation: "legislation_graph",
             "DEFAULT": "any_documents_selected",
         },
-    )
     if get_settings().is_tabular_enabled and tabular_retriever is not None:
         edge_mapping[ChatRoute.tabular] = "tabular_graph"
     else:

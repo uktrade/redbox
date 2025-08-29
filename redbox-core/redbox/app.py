@@ -244,6 +244,10 @@ class Redbox:
         old_input = input.model_copy(deep=True)
         try:
             if not self._env.is_tabular_enabled:
+                # Strip @tabular and reset route_name if present
+                if input.request.question.startswith("@tabular"):
+                    input.request.question = input.request.question.replace("@tabular", "").strip()
+                    input.route_name = None
                 return input
             if input.request.question.startswith("@tabular"):
                 if self.previous_s3_keys:
