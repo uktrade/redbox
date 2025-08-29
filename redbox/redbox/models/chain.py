@@ -165,12 +165,6 @@ class StructuredResponseWithCitations(BaseModel):
     citations: list[Citation] = Field(default_factory=list)
 
 
-class StructuredResponseWithStepsTaken(BaseModel):
-    output: str = Field(description="Markdown structured answer to the question", default="")
-    # sql_query: str = Field(description="The SQL Query used to generate a response", default="")
-    reasoning: str = Field(description="The Agent's reasoning", default="")
-
-
 DocumentMapping = dict[UUID, Document | None]
 DocumentGroup = dict[UUID, DocumentMapping | None]
 
@@ -330,7 +324,6 @@ class RedboxState(BaseModel):
     agents_results: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     agent_plans: MultiAgentPlan | None = None
     tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
-    db_location: str | None = None
 
     @property
     def last_message(self) -> AnyMessage:

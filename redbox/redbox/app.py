@@ -12,7 +12,6 @@ from redbox.chains.components import (
     get_embeddings,
     get_metadata_retriever,
     get_parameterised_retriever,
-    get_tabular_chunks_retriever,
 )
 from redbox.graph.nodes.tools import (
     build_govuk_search_tool,
@@ -47,7 +46,6 @@ class Redbox:
         self,
         all_chunks_retriever: VectorStoreRetriever | None = None,
         parameterised_retriever: VectorStoreRetriever | None = None,
-        tabular_retriever: VectorStoreRetriever | None = None,
         metadata_retriever: VectorStoreRetriever | None = None,
         embedding_model: Embeddings | None = None,
         env: Settings | None = None,
@@ -59,7 +57,6 @@ class Redbox:
 
         self.all_chunks_retriever = all_chunks_retriever or get_all_chunks_retriever(_env)
         self.parameterised_retriever = parameterised_retriever or get_parameterised_retriever(_env)
-        self.tabular_retriever = tabular_retriever or get_tabular_chunks_retriever(_env)
         self.metadata_retriever = metadata_retriever or get_metadata_retriever(_env)
         self.embedding_model = embedding_model or get_embeddings(_env)
 
@@ -89,7 +86,6 @@ class Redbox:
         self.graph = build_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,
             parameterised_retriever=self.parameterised_retriever,
-            tabular_retriever=self.tabular_retriever,
             metadata_retriever=self.metadata_retriever,
             tools=self.tools,
             multi_agent_tools=self.multi_agent_tools,
