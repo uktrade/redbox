@@ -145,7 +145,7 @@ class UnstructuredChunkLoader:
             url = f"http://{self.env.unstructured_host}:80/general/v0/general"
 
         is_large, _ = is_large_pdf(file_name=file_name, filebytes=file_bytes)
-        is_tabular = file_name.endswith((".csv", ".xls", ".xlsx"))
+        is_tabular = self.env.is_tabular_enabled and file_name.endswith((".csv", ".xls", ".xlsx"))
         file_bytes.seek(0)
         if is_large:
             elements = []

@@ -91,17 +91,27 @@ class Redbox:
             "Internal_Retrieval_Agent": [search_documents],
             "External_Retrieval_Agent": [search_wikipedia, search_govuk],
         }
-
-        self.graph = new_root_graph(
-            all_chunks_retriever=self.all_chunks_retriever,
-            parameterised_retriever=self.parameterised_retriever,
-            tabular_retriever=self.tabular_retriever if self._env.is_tabular_enabled else None,
-            metadata_retriever=self.metadata_retriever,
-            tools=self.tools,
-            legislation_tools=self.legislation_tools,
-            multi_agent_tools=self.multi_agent_tools,
-            debug=debug,
-        )
+        if self._env.is_tabular_enabled:
+            self.graph = new_root_graph(
+                all_chunks_retriever=self.all_chunks_retriever,
+                parameterised_retriever=self.parameterised_retriever,
+                metadata_retriever=self.metadata_retriever,
+                tools=self.tools,
+                legislation_tools=self.legislation_tools,
+                multi_agent_tools=self.multi_agent_tools,
+                debug=debug,
+                tabular_retriever=self.tabular_retriever,
+            )
+        else:
+            self.graph = new_root_graph(
+                all_chunks_retriever=self.all_chunks_retriever,
+                parameterised_retriever=self.parameterised_retriever,
+                metadata_retriever=self.metadata_retriever,
+                tools=self.tools,
+                legislation_tools=self.legislation_tools,
+                multi_agent_tools=self.multi_agent_tools,
+                debug=debug,
+            )
 
     def run_sync(self, input: RedboxState):
         """
@@ -241,17 +251,16 @@ class Redbox:
             - Previous S3 keys are only injected if they exist in the current instance
             - Any exceptions during this process are logged but not propagated
         """
-        old_input = input.model_copy(deep=True)
+        old_input = input.model_copy(deep=True)  # Copy the model as is incase an error occurs while modifying it.
         try:
-            if not self._env.is_tabular_enabled:
-                # Strip @tabular and reset route_name if present
-                if input.request.question.startswith("@tabular"):
-                    input.request.question = input.request.question.replace("@tabular", "").strip()
-                    input.route_name = None
-                return input
+            # If the question is tabular, inject the previous docs and db_location into the request
+            # This will need to be updated if tabular goes into newroute
             if input.request.question.startswith("@tabular"):
+                # Inject Previous s3 keys if they exist
                 if self.previous_s3_keys:
                     input.request.previous_s3_keys = self.previous_s3_keys
+
+                # Inject previous db location
                 input.request.db_location = self.previous_db_location
         except Exception as e:
             logger.info(f"Exception logged while trying to access input state: \n\n{e}")
