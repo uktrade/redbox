@@ -702,7 +702,7 @@ def test_get_available_keywords(env: Settings):
         ChatRoute.newroute,
         ChatRoute.gadget,
         ChatRoute.summarise,
-        ChatRoute.tabular,
+        ChatRoute.tabular if env.is_tabular_enabled else None,
         ChatRoute.legislation,
     }
 
