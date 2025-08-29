@@ -62,11 +62,8 @@ class Redbox:
 
         self.all_chunks_retriever = all_chunks_retriever or get_all_chunks_retriever(self._env)
         self.parameterised_retriever = parameterised_retriever or get_parameterised_retriever(self._env)
-        self.tabular_retriever = (
-            tabular_retriever
-            if tabular_retriever is not None
-            else (get_tabular_chunks_retriever(self._env) if self._env.is_tabular_enabled else None)
-        )
+        if self._env.is_tabular_enabled:
+            self.tabular_retriever = tabular_retriever or get_tabular_chunks_retriever(self._env)
         self.metadata_retriever = metadata_retriever or get_metadata_retriever(self._env)
         self.embedding_model = embedding_model or get_embeddings(self._env)
 
