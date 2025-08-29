@@ -14,12 +14,7 @@ from langchain_core.utils import convert_to_secret_str
 from langchain_openai.embeddings import AzureOpenAIEmbeddings, OpenAIEmbeddings
 
 from redbox.chains.parser import StreamingJsonOutputParser, StreamingPlanner
-from redbox.models.chain import (
-    AISettings,
-    MultiAgentPlan,
-    StructuredResponseWithCitations,
-    StructuredResponseWithStepsTaken,
-)
+from redbox.models.chain import AISettings, MultiAgentPlan, StructuredResponseWithCitations
 from redbox.models.settings import ChatLLMBackend, Settings
 from redbox.retriever import (
     AllElasticsearchRetriever,
@@ -27,7 +22,6 @@ from redbox.retriever import (
     MetadataRetriever,
     OpenSearchRetriever,
     ParameterisedElasticsearchRetriever,
-    TabularElasticsearchRetriever,
 )
 from redbox.transform import bedrock_tokeniser
 
@@ -54,21 +48,6 @@ def get_chat_llm(
     if tools:
         chat_model = chat_model.bind_tools(tools)
     return chat_model
-
-
-def get_base_chat_llm(model: ChatLLMBackend, ai_settings: AISettings = AISettings()):
-    """Initialises a chat llm that returns a BaseChatModel object i.e. a model without tools that is not configurable."""
-    logger.debug(
-        "initialising model=%s model_provider=%s max_tokens=%s",
-        model.name,
-        model.provider,
-        ai_settings.llm_max_tokens,
-    )
-    return init_chat_model(
-        model=model.name,
-        model_provider=model.provider,
-        max_tokens=ai_settings.llm_max_tokens,
-    )
 
 
 @cache
@@ -119,13 +98,6 @@ def get_embeddings(env: Settings) -> Embeddings:
 
 def get_all_chunks_retriever(env: Settings) -> OpenSearchRetriever:
     return AllElasticsearchRetriever(
-        es_client=env.elasticsearch_client(),
-        index_name=env.elastic_chunk_alias,
-    )
-
-
-def get_tabular_chunks_retriever(env: Settings) -> OpenSearchRetriever:
-    return TabularElasticsearchRetriever(
         es_client=env.elasticsearch_client(),
         index_name=env.elastic_chunk_alias,
     )
@@ -195,10 +167,3 @@ def get_structured_response_with_planner_parser() -> tuple[Runnable, str]:
         ],
     )
     return (parser, parser.get_format_instructions())
-
-
-def get_structured_response_with_steps_taken_parser() -> tuple[Runnable, str]:
-    parser = StreamingJsonOutputParser(
-        name_of_streamed_field="output", pydantic_schema_object=StructuredResponseWithStepsTaken
-    )
-    return parser, parser.get_format_instructions()

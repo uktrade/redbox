@@ -33,12 +33,10 @@ from redbox.graph.nodes.processes import (
     build_set_route_pattern,
     build_set_self_route_from_llm_answer,
     build_stuff_pattern,
-    build_tabular_agent,
     build_user_feedback_evaluation,
     clear_documents_process,
     combine_question_evaluator,
     create_evaluator,
-    detect_tabular_docs,
     empty_process,
     invoke_custom_state,
     lm_choose_route,
@@ -46,8 +44,6 @@ from redbox.graph.nodes.processes import (
     report_sources_process,
     stream_plan,
     stream_suggestion,
-    stream_tabular_failure,
-    stream_tabular_response,
 )
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -64,16 +60,7 @@ from redbox.models.settings import get_settings
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
 
-def new_root_graph(
-    all_chunks_retriever,
-    parameterised_retriever,
-    metadata_retriever,
-    tabular_retriever,
-    tools,
-    legislation_tools,
-    multi_agent_tools,
-    debug,
-):
+def new_root_graph(all_chunks_retriever, parameterised_retriever, metadata_retriever, tools, multi_agent_tools, debug):
     agent_parser = ClaudeParser(pydantic_object=AgentDecision)
 
     def lm_choose_route_wrapper(state: RedboxState):
@@ -100,15 +87,6 @@ def new_root_graph(
     builder.add_node(
         "retrieve_metadata", get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
     )
-    builder.add_node(
-        "tabular_graph",
-        build_tabular_graph(
-            retriever=tabular_retriever,
-            fallback_retriever=all_chunks_retriever,
-            fallback_agent_tools=multi_agent_tools,
-            debug=debug,
-        ),
-    )
 
     builder.add_node("is_summarise_route", empty_process)
     builder.add_node("has_keyword", empty_process)
@@ -122,7 +100,7 @@ def new_root_graph(
         build_activity_log_node(
             lambda s: [
                 RedboxActivityEvent(
-                    message=f"You selected {len(s.request.s3_keys)} file{'s' if len(s.request.s3_keys) > 1 else ''} - {','.join(s.request.s3_keys)}"
+                    message=f"You selected {len(s.request.s3_keys)} file{"s" if len(s.request.s3_keys)>1 else ""} - {",".join(s.request.s3_keys)}"
                 )
                 if len(s.request.s3_keys) > 0
                 else "You selected no files",
@@ -145,8 +123,6 @@ def new_root_graph(
             ChatRoute.gadget: "gadget_graph",
             ChatRoute.newroute: "new_route_graph",
             ChatRoute.summarise: "summarise_graph",
-            ChatRoute.tabular: "tabular_graph",
-            ChatRoute.legislation: "legislation_graph",
             "DEFAULT": "any_documents_selected",
         },
     )
@@ -166,7 +142,7 @@ def new_root_graph(
     builder.add_conditional_edges(
         "llm_choose_route",
         lm_choose_route_wrapper,
-        {"search": "search_graph", "summarise": "summarise_graph", "tabular": "tabular_graph"},
+        {"search": "search_graph", "summarise": "summarise_graph"},
     )
 
     builder.add_edge("search_graph", "is_summarise_route")
@@ -177,8 +153,6 @@ def new_root_graph(
     builder.add_edge("gadget_graph", END)
     builder.add_edge("new_route_graph", END)
     builder.add_edge("summarise_graph", END)
-    builder.add_edge("tabular_graph", END)
-    builder.add_edge("legislation_graph", END)
     return builder.compile()
 
 
@@ -739,168 +713,5 @@ def build_new_graph(
     builder.add_edge("report_citations", END)
     builder.add_edge("stream_plan", END)
     builder.add_edge("stream_suggestion", END)
-
-    return builder.compile(debug=debug)
-
-
-def build_legislation_graph(
-    all_chunks_retriever: VectorStoreRetriever, multi_agent_tools: dict, debug: bool = False
-) -> CompiledGraph:
-    agents_max_tokens = AISettings().agents_max_tokens
-    allow_plan_feedback = get_settings().allow_plan_feedback
-
-    builder = StateGraph(RedboxState)
-    builder.add_node(
-        "set_route_to_legislation",
-        build_set_route_pattern(route=ChatRoute.legislation),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node("remove_keyword", remove_legislation_keyword)
-    builder.add_node("stream_plan", stream_plan())
-    builder.add_node(
-        "planner",
-        my_planner(
-            allow_plan_feedback=allow_plan_feedback,
-            node_after_streamed="stream_plan",
-            node_afer_replan="sending_task",
-        ),
-    )
-    builder.add_node(
-        "Internal_Retrieval_Agent",
-        build_agent(
-            agent_name="Internal_Retrieval_Agent",
-            system_prompt=INTERNAL_RETRIEVAL_AGENT_PROMPT,
-            tools=multi_agent_tools["Internal_Retrieval_Agent"],
-            use_metadata=True,
-            max_tokens=agents_max_tokens["Internal_Retrieval_Agent"],
-        ),
-    )
-    builder.add_node("send", empty_process)
-    builder.add_node(
-        "External_Retrieval_Agent",
-        build_agent(
-            agent_name="External_Retrieval_Agent",
-            system_prompt=EXTERNAL_RETRIEVAL_AGENT_PROMPT,
-            tools=multi_agent_tools["External_Retrieval_Agent"],
-            use_metadata=False,
-            max_tokens=agents_max_tokens["External_Retrieval_Agent"],
-        ),
-    )
-
-    builder.add_node("user_feedback_evaluation", empty_process)
-
-    builder.add_node("Evaluator_Agent", create_evaluator())
-    builder.add_node("combine_question_evaluator", combine_question_evaluator())
-    builder.add_node(
-        "report_citations",
-        report_sources_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node("stream_suggestion", stream_suggestion())
-    builder.add_node("sending_task", empty_process)
-
-    builder.add_edge(START, "set_route_to_legislation")
-    builder.add_edge("set_route_to_legislation", "remove_keyword")
-    builder.add_conditional_edges(
-        "remove_keyword", lambda s: s.user_feedback == "", {True: "planner", False: "user_feedback_evaluation"}
-    )
-    builder.add_conditional_edges(
-        "user_feedback_evaluation",
-        build_user_feedback_evaluation(),
-        {
-            "approve": "sending_task",
-            "modify": "planner",
-            "reject": "stream_suggestion",
-            "more_info": "stream_suggestion",
-        },
-    )
-    builder.add_conditional_edges("sending_task", sending_task_to_agent)
-    builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
-    builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
-    builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
-    builder.add_edge("Evaluator_Agent", "report_citations")
-    builder.add_edge("report_citations", END)
-    builder.add_edge("stream_plan", END)
-    builder.add_edge("stream_suggestion", END)
-
-    return builder.compile(debug=debug)
-
-
-def build_tabular_graph(retriever, fallback_retriever, fallback_agent_tools, debug: bool = False) -> CompiledGraph:
-    """Creates a subgraph for processing tabular data."""
-    builder = StateGraph(RedboxState)
-
-    # # Send Prompt to Model
-    builder.add_node("pass_user_prompt_to_LLM_message", build_passthrough_pattern())
-
-    # Processes
-    builder.add_node(
-        "retrieve_documents",
-        build_retrieve_pattern(
-            retriever=retriever,
-            structure_func=structure_documents_by_file_name,
-            final_source_chain=False,
-        ),
-    )
-
-    builder.add_node(
-        "check_tabular_docs",
-        empty_process,
-    )
-
-    builder.add_node(
-        "create_tabular_agent",
-        build_tabular_agent,
-    )
-
-    builder.add_node(
-        "set_route_to_tabular",
-        build_set_route_pattern(route=ChatRoute.tabular),
-    )
-
-    builder.add_node(
-        "stream_tabular_failure",
-        stream_tabular_failure(),
-    )
-
-    builder.add_node(
-        "fallback_to_newroute",
-        build_new_graph(all_chunks_retriever=fallback_retriever, multi_agent_tools=fallback_agent_tools),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node("stream_tabular_response", stream_tabular_response())
-
-    builder.add_node(
-        "log_success",
-        build_activity_log_node(RedboxActivityEvent(message="Tabular analysis completed successfully")),
-    )
-
-    builder.add_node(
-        "log_error",
-        build_activity_log_node(RedboxActivityEvent(message="Tabular analysis failed, falling back to summarise")),
-    )
-
-    # Edges
-    builder.add_edge(START, "pass_user_prompt_to_LLM_message")
-    builder.add_edge("pass_user_prompt_to_LLM_message", "retrieve_documents")
-    builder.add_edge("retrieve_documents", "check_tabular_docs")
-
-    # Update conditional edge
-    builder.add_conditional_edges(
-        "check_tabular_docs", detect_tabular_docs, {True: "create_tabular_agent", False: "stream_tabular_failure"}
-    )
-
-    builder.add_conditional_edges(
-        "create_tabular_agent",
-        lambda s: "error analysing tabular data" not in s.agents_results[-1].content.lower(),
-        {True: "stream_tabular_response", False: "log_error"},
-    )
-
-    builder.add_edge("stream_tabular_response", "log_success")
-    builder.add_edge("log_success", "set_route_to_tabular")
-    builder.add_edge("log_error", "stream_tabular_failure")
-    builder.add_edge("stream_tabular_failure", "fallback_to_newroute")
-    builder.add_edge("set_route_to_tabular", END)
-    builder.add_edge("fallback_to_newroute", END)
 
     return builder.compile(debug=debug)
