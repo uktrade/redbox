@@ -176,7 +176,7 @@ def new_root_graph(
 
     edge_mapping = {"search": "search_graph", "summarise": "summarise_graph"}
 
-    if not get_settings().is_tabular_enabled or tabular_retriever is None:
+    if get_settings().is_tabular_enabled and tabular_retriever is not None:
         edge_mapping["tabular"] = "tabular_graph"
     else:
         logging.warning("Tabular route is not enabled, so it will not be available in the graph.")
