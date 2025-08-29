@@ -241,16 +241,13 @@ class Redbox:
             - Previous S3 keys are only injected if they exist in the current instance
             - Any exceptions during this process are logged but not propagated
         """
-        old_input = input.model_copy(deep=True)  # Copy the model as is incase an error occurs while modifying it.
+        old_input = input.model_copy(deep=True)
         try:
-            # If the question is tabular, inject the previous docs and db_location into the request
-            # This will need to be updated if tabular goes into newroute
-            if self._env.is_tabular_enabled and input.request.question.startswith("@tabular"):
-                # Inject Previous s3 keys if they exist
+            if not self._env.is_tabular_enabled:
+                return input
+            if input.request.question.startswith("@tabular"):
                 if self.previous_s3_keys:
                     input.request.previous_s3_keys = self.previous_s3_keys
-
-                # Inject previous db location
                 input.request.db_location = self.previous_db_location
         except Exception as e:
             logger.info(f"Exception logged while trying to access input state: \n\n{e}")
