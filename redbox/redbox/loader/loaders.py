@@ -22,7 +22,6 @@ from redbox.models.chain import GeneratedMetadata
 from redbox.models.file import ChunkResolution, UploadedFileMetadata
 from redbox.models.settings import Settings
 from redbox.transform import bedrock_tokeniser
-import pandas as pd
 
 env = environ.Env()
 
@@ -147,7 +146,6 @@ class UnstructuredChunkLoader:
             url = f"http://{self.env.unstructured_host}/general/v0/general"
 
         is_large, _ = is_large_pdf(file_name=file_name, filebytes=file_bytes)
-        is_tabular = file_name.endswith((".csv", ".xls", ".xlsx"))
         file_bytes.seek(0)
         if is_large:
             elements = []
@@ -164,9 +162,6 @@ class UnstructuredChunkLoader:
                     print(response)
                     raise ValueError(msg)
                 elements.extend(response.json())
-        elif is_tabular and self.chunk_resolution == ChunkResolution.tabular:
-            # Carry out the special ingest process for tabular files - will be carried out in addition to
-            elements = load_tabular_file(file_name=file_name, file_bytes=file_bytes)
         else:
             files = {
                 "files": (file_name, file_bytes),
