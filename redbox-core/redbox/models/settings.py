@@ -162,6 +162,8 @@ class Settings(BaseSettings):
 
     is_local: bool = ENVIRONMENT.is_local
 
+    is_tabular_enabled: bool = env.bool("is_tabular_enabled", False)
+
     # mcp
     caddy_mcp: MCPServerSettings = MCPServerSettings(
         name="caddy_mcp",

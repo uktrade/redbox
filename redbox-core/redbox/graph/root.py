@@ -1,3 +1,4 @@
+import logging
 from typing import List
 
 from langchain_core.messages import AIMessage
@@ -100,15 +101,16 @@ def new_root_graph(
     builder.add_node(
         "retrieve_metadata", get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
     )
-    builder.add_node(
-        "tabular_graph",
-        build_tabular_graph(
-            retriever=tabular_retriever,
-            fallback_retriever=all_chunks_retriever,
-            fallback_agent_tools=multi_agent_tools,
-            debug=debug,
-        ),
-    )
+    if get_settings().is_tabular_enabled and tabular_retriever is not None:
+        builder.add_node(
+            "tabular_graph",
+            build_tabular_graph(
+                retriever=tabular_retriever,
+                fallback_retriever=all_chunks_retriever,
+                fallback_agent_tools=multi_agent_tools,
+                debug=debug,
+            ),
+        )
 
     builder.add_node("is_summarise_route", empty_process)
     builder.add_node("has_keyword", empty_process)
@@ -137,19 +139,27 @@ def new_root_graph(
     builder.add_conditional_edges(
         "no_user_feedback", lambda s: s.user_feedback == "", {True: "has_keyword", False: "new_route_graph"}
     )
-    builder.add_conditional_edges(
-        "has_keyword",
-        build_keyword_detection_conditional(*ROUTABLE_KEYWORDS.keys()),
+    edge_mapping = (
         {
             ChatRoute.search: "search_graph",
             ChatRoute.gadget: "gadget_graph",
             ChatRoute.newroute: "new_route_graph",
             ChatRoute.summarise: "summarise_graph",
-            ChatRoute.tabular: "tabular_graph",
             ChatRoute.legislation: "legislation_graph",
             "DEFAULT": "any_documents_selected",
         },
     )
+    if get_settings().is_tabular_enabled and tabular_retriever is not None:
+        edge_mapping[ChatRoute.tabular] = "tabular_graph"
+    else:
+        logging.warning("Tabular route is not enabled, so it will not be available in the graph.")
+
+    builder.add_conditional_edges(
+        "has_keyword",
+        build_keyword_detection_conditional(*ROUTABLE_KEYWORDS.keys()),
+        edge_mapping,
+    )
+
     builder.add_conditional_edges(
         "any_documents_selected",
         documents_selected_conditional,
@@ -163,10 +173,18 @@ def new_root_graph(
         lambda s: s.request.ai_settings.new_route_enabled,
         {True: "new_route_graph", False: "llm_choose_route"},
     )
+
+    edge_mapping = {"search": "search_graph", "summarise": "summarise_graph"}
+
+    if not get_settings().is_tabular_enabled or tabular_retriever is None:
+        edge_mapping["tabular"] = "tabular_graph"
+    else:
+        logging.warning("Tabular route is not enabled, so it will not be available in the graph.")
+
     builder.add_conditional_edges(
         "llm_choose_route",
         lm_choose_route_wrapper,
-        {"search": "search_graph", "summarise": "summarise_graph", "tabular": "tabular_graph"},
+        edge_mapping,
     )
 
     builder.add_edge("search_graph", "is_summarise_route")
@@ -177,7 +195,12 @@ def new_root_graph(
     builder.add_edge("gadget_graph", END)
     builder.add_edge("new_route_graph", END)
     builder.add_edge("summarise_graph", END)
-    builder.add_edge("tabular_graph", END)
+
+    if get_settings().is_tabular_enabled and tabular_retriever is not None:
+        builder.add_edge("tabular_graph", END)
+    else:
+        logging.warning("Tabular route is not enabled, so it will not be available in the graph.")
+
     builder.add_edge("legislation_graph", END)
     return builder.compile()
 
