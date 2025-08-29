@@ -106,7 +106,6 @@ class APIKeyAuthentication(BaseAuthentication):
 @sync_and_async_middleware
 def sentry_user_middleware(get_response):
     if iscoroutinefunction(get_response):
-
         async def middleware(request: HttpRequest) -> HttpResponse:
             if hasattr(request, "user"):
                 is_authenticated = await sync_to_async(getattr)(request.user, "is_authenticated", False)
@@ -123,7 +122,6 @@ def sentry_user_middleware(get_response):
                 response = await response
             return response
     else:
-
         def middleware(request: HttpRequest) -> HttpResponse:
             if hasattr(request, "user") and request.user.is_authenticated:
                 sentry_sdk.set_user(

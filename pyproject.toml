@@ -19,7 +19,6 @@ detect-secrets = "^1.5.0"
 ddtrace = "^3.10.0"
 django-log-formatter-asim = "^1.0.0"
 django-requestlogs = "^0.8"
-openpyxl = "^3.1.5"
 
 [tool.poetry.group.dev.dependencies]
 bumpversion = "^0.6.0"

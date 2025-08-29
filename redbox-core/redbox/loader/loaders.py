@@ -22,7 +22,6 @@ from redbox.models.chain import GeneratedMetadata
 from redbox.models.file import ChunkResolution, UploadedFileMetadata
 from redbox.models.settings import Settings
 from redbox.transform import bedrock_tokeniser
-import pandas as pd
 
 env = environ.Env()
 
@@ -60,60 +59,6 @@ def split_pdf(filebytes: BytesIO, pages_per_chunk: int = 75) -> list[BytesIO]:
     return chunks
 
 
-def read_csv_text(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
-    """Reads in a csv file, validates it using pandas and then returns the csv as string with a null metadata dictionary"""
-    try:
-        file_bytes.seek(0)
-        # Read bytes into pandas df. This acts as a pre-check that the csv is well formed
-        df = pd.read_csv(file_bytes)
-        if df.empty:
-            logger.error("Empty File Uploaded")
-            raise ValidationError("Empty File Uploaded")
-        return [
-            {
-                "text": str(df.to_csv(index=False)),  # Convert bytes to string
-                "metadata": {},  # returning empty metadata dictionary,
-            }
-        ]
-    except Exception as e:
-        logger.error(f"Error while trying to upload csv file {e}")
-        return None
-
-
-def read_excel_file(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
-    """Reads in an excel file, validates each sheet using pandas and then returns a list of each valid sheet as string with a null metadata dictionary"""
-    try:
-        sheets = pd.read_excel(file_bytes, sheet_name=None)
-        elements = []
-
-        for name, df in sheets.items():
-            try:
-                if df.empty:
-                    logger.info(f"Skipping Sheet {name}")
-                    continue
-                # Include the table name in the text that is stored. This will be extracted by the retriever
-                csv_text = f"<table_name>{name.lower().replace(" ","_")}</table_name>" + str(df.to_csv(index=False))
-                elements.append({"text": csv_text, "metadata": {}})
-            except Exception as e:
-                logger.info(f"Skipping Sheet {name} due to error: {e}")
-                continue
-        return elements if len(elements) else None
-    except Exception as e:
-        print(e)
-        logger.info(f"Excel Read Error: {e}")
-        return None
-
-
-def load_tabular_file(file_name: str, file_bytes: BytesIO) -> list[dict[str, str]]:
-    """Selects the right read method for each file type. Returns an empty list if n"""
-    if file_name.endswith(".csv"):
-        elements = read_csv_text(file_bytes=file_bytes)
-    else:
-        elements = read_excel_file(file_bytes=file_bytes)
-
-    return elements if elements else []
-
-
 class UnstructuredChunkLoader:
     """
     Load, partition and chunk a document using local unstructured library.
@@ -145,7 +90,6 @@ class UnstructuredChunkLoader:
             url = f"http://{self.env.unstructured_host}:80/general/v0/general"
 
         is_large, _ = is_large_pdf(file_name=file_name, filebytes=file_bytes)
-        is_tabular = file_name.endswith((".csv", ".xls", ".xlsx"))
         file_bytes.seek(0)
         if is_large:
             elements = []
@@ -162,9 +106,6 @@ class UnstructuredChunkLoader:
                     print(response)
                     raise ValueError(msg)
                 elements.extend(response.json())
-        elif is_tabular and self.chunk_resolution == ChunkResolution.tabular:
-            # Carry out the special ingest process for tabular files - will be carried out in addition to
-            elements = load_tabular_file(file_name=file_name, file_bytes=file_bytes)
         else:
             files = {
                 "files": (file_name, file_bytes),
