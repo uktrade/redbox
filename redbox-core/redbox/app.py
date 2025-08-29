@@ -81,7 +81,7 @@ class Redbox:
 
         self.multi_agent_tools = {
             "Internal_Retrieval_Agent": [search_documents],
-            "External_Retrieval_Agent": [search_wikipedia, search_govuk],
+            "External_Retrieval_Agent": [search_wikipedia, search_govuk, search_legislation],
         }
 
         self.graph = new_root_graph(

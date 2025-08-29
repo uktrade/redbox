@@ -25,4 +25,5 @@ ROUTABLE_KEYWORDS = {
     ChatRoute.gadget: "Let Redbox go-go-gadget to answer to the question using the documents",
     ChatRoute.newroute: "New amazing route",
     ChatRoute.summarise: "Summarise documents",
+    ChatRoute.legislation: "Web search results from legislation.gov.uk",
 }

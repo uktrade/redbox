@@ -697,6 +697,6 @@ def test_get_available_keywords(env: Settings):
         env=env,
         debug=LANGGRAPH_DEBUG,
     )
-    keywords = {ChatRoute.search, ChatRoute.newroute, ChatRoute.gadget, ChatRoute.summarise}
+    keywords = {ChatRoute.search, ChatRoute.newroute, ChatRoute.gadget, ChatRoute.summarise, ChatRoute.legislation}
 
     assert keywords == set(app.get_available_keywords().keys())
