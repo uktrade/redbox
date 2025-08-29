@@ -702,8 +702,9 @@ def test_get_available_keywords(env: Settings):
         ChatRoute.newroute,
         ChatRoute.gadget,
         ChatRoute.summarise,
-        ChatRoute.tabular if env.is_tabular_enabled else None,
         ChatRoute.legislation,
     }
+    if env.is_tabular_enabled:
+        keywords.update(ChatRoute.tabular)
 
     assert keywords == set(app.get_available_keywords().keys())

@@ -1,4 +1,5 @@
 from enum import Enum, StrEnum
+from redbox.models.settings import get_settings
 
 
 class ChatRoute(StrEnum):
@@ -9,7 +10,8 @@ class ChatRoute(StrEnum):
     chat_with_docs_map_reduce = "chat/documents/large"
     newroute = "newroute"
     summarise = "summarise"
-    tabular = "tabular"
+    if get_settings().is_tabular_enabled:
+        tabular = "tabular"
     legislation = "legislation"
 
 
