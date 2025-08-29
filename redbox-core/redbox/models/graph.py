@@ -4,6 +4,8 @@ from pydantic import BaseModel
 
 from redbox.models.chat import ChatRoute
 
+from redbox.models.settings import get_settings
+
 
 class RedboxEventType(StrEnum):
     on_metadata_generation = "on_metadata_generation"
@@ -25,6 +27,8 @@ ROUTABLE_KEYWORDS = {
     ChatRoute.gadget: "Let Redbox go-go-gadget to answer to the question using the documents",
     ChatRoute.newroute: "New amazing route",
     ChatRoute.summarise: "Summarise documents",
-    ChatRoute.tabular: "Interrogate tabular files with SQL",
     ChatRoute.legislation: "Web search results from legislation.gov.uk",
 }
+
+if get_settings().is_tabular_enabled:
+    ROUTABLE_KEYWORDS[ChatRoute.tabular] = "Interrogate tabular files with SQL"

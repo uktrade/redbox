@@ -52,7 +52,7 @@ class Redbox:
         env: Settings | None = None,
         debug: bool = False,
     ):
-        _env = env or get_settings()
+        self._env = env or get_settings()
 
         # DB Loction and s3_keys from the previous request
         self.previous_db_location: str | None = None
@@ -60,19 +60,20 @@ class Redbox:
 
         # Retrievers
 
-        self.all_chunks_retriever = all_chunks_retriever or get_all_chunks_retriever(_env)
-        self.parameterised_retriever = parameterised_retriever or get_parameterised_retriever(_env)
-        self.tabular_retriever = tabular_retriever or get_tabular_chunks_retriever(_env)
-        self.metadata_retriever = metadata_retriever or get_metadata_retriever(_env)
-        self.embedding_model = embedding_model or get_embeddings(_env)
+        self.all_chunks_retriever = all_chunks_retriever or get_all_chunks_retriever(self._env)
+        self.parameterised_retriever = parameterised_retriever or get_parameterised_retriever(self._env)
+        if self._env.is_tabular_enabled:
+            self.tabular_retriever = tabular_retriever or get_tabular_chunks_retriever(self._env)
+        self.metadata_retriever = metadata_retriever or get_metadata_retriever(self._env)
+        self.embedding_model = embedding_model or get_embeddings(self._env)
 
         # Tools
 
         search_documents = build_search_documents_tool(
-            es_client=_env.elasticsearch_client(),
-            index_name=_env.elastic_chunk_alias,
+            es_client=self._env.elasticsearch_client(),
+            index_name=self._env.elastic_chunk_alias,
             embedding_model=self.embedding_model,
-            embedding_field_name=_env.embedding_document_field_name,
+            embedding_field_name=self._env.embedding_document_field_name,
             chunk_resolution=ChunkResolution.normal,
         )
         search_wikipedia = build_search_wikipedia_tool()
@@ -90,17 +91,27 @@ class Redbox:
             "Internal_Retrieval_Agent": [search_documents],
             "External_Retrieval_Agent": [search_wikipedia, search_govuk],
         }
-
-        self.graph = new_root_graph(
-            all_chunks_retriever=self.all_chunks_retriever,
-            parameterised_retriever=self.parameterised_retriever,
-            tabular_retriever=self.tabular_retriever,
-            metadata_retriever=self.metadata_retriever,
-            tools=self.tools,
-            legislation_tools=self.legislation_tools,
-            multi_agent_tools=self.multi_agent_tools,
-            debug=debug,
-        )
+        if self._env.is_tabular_enabled:
+            self.graph = new_root_graph(
+                all_chunks_retriever=self.all_chunks_retriever,
+                parameterised_retriever=self.parameterised_retriever,
+                metadata_retriever=self.metadata_retriever,
+                tools=self.tools,
+                legislation_tools=self.legislation_tools,
+                multi_agent_tools=self.multi_agent_tools,
+                debug=debug,
+                tabular_retriever=self.tabular_retriever,
+            )
+        else:
+            self.graph = new_root_graph(
+                all_chunks_retriever=self.all_chunks_retriever,
+                parameterised_retriever=self.parameterised_retriever,
+                metadata_retriever=self.metadata_retriever,
+                tools=self.tools,
+                legislation_tools=self.legislation_tools,
+                multi_agent_tools=self.multi_agent_tools,
+                debug=debug,
+            )
 
     def run_sync(self, input: RedboxState):
         """
