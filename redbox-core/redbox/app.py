@@ -20,7 +20,7 @@ from redbox.graph.nodes.tools import (
     build_search_documents_tool,
     build_search_wikipedia_tool,
 )
-from redbox.graph.root import get_agentic_search_graph, get_summarise_graph, new_root_graph
+from redbox.graph.root import build_root_graph, get_agentic_search_graph, get_summarise_graph
 from redbox.models.chain import RedboxState
 from redbox.models.chat import ChatRoute
 from redbox.models.file import ChunkResolution
@@ -91,7 +91,7 @@ class Redbox:
             "External_Retrieval_Agent": [search_wikipedia, search_govuk],
         }
 
-        self.graph = new_root_graph(
+        self.graph = build_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,
             parameterised_retriever=self.parameterised_retriever,
             tabular_retriever=self.tabular_retriever,
