@@ -64,7 +64,7 @@ from redbox.models.settings import get_settings
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
 
-def new_root_graph(
+def build_root_graph(
     all_chunks_retriever,
     parameterised_retriever,
     metadata_retriever,
