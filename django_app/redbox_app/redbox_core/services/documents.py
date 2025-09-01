@@ -5,12 +5,13 @@ from pathlib import Path
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldError, SuspiciousFileOperation, ValidationError
 from django.core.files.uploadedfile import UploadedFile
+from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.template.response import TemplateResponse
 from django_q.tasks import async_task
 
-from redbox_app.redbox_core.models import File
+from redbox_app.redbox_core.models import File, UserTeamMembership
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.types import APPROVED_FILE_EXTENSIONS
 from redbox_app.worker import ingest
@@ -21,6 +22,21 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 MAX_FILE_SIZE = 209715200  # 200 MB or 200 * 1024 * 1024
+
+
+def get_file_context(request):
+    completed_files, processing_files = File.get_completed_and_processing_files(request.user)
+    team_files = (
+        File.objects.filter(
+            Q(team_associations__team__members__user=request.user, team_associations__visibility="TEAM")
+        )
+        .exclude(user=request.user)
+        .distinct()
+    )
+    return {
+        "completed_files": list(completed_files) + list(team_files.filter(status="complete")),
+        "processing_files": list(processing_files) + list(team_files.filter(status="processing")),
+    }
 
 
 def render_your_documents(request, active_chat_id) -> TemplateResponse:
@@ -34,6 +50,7 @@ def render_your_documents(request, active_chat_id) -> TemplateResponse:
 
 
 def build_upload_response(request: HttpRequest, errors: Sequence[str] | None = None) -> HttpResponse:
+    user_teams = UserTeamMembership.objects.filter(user=request.user)
     return render(
         request,
         template_name="upload.html",
@@ -41,6 +58,7 @@ def build_upload_response(request: HttpRequest, errors: Sequence[str] | None = N
             "request": request,
             "errors": {"upload_doc": errors or []},
             "uploaded": not errors,
+            "user_teams": user_teams,
         },
     )
 

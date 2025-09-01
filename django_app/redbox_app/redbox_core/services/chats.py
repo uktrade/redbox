@@ -12,14 +12,17 @@ from django.template.response import TemplateResponse
 from waffle import flag_is_active
 from yarl import URL
 
-from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, File
+from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage
 from redbox_app.redbox_core.services import message as message_service
+from redbox_app.redbox_core.services.documents import get_file_context
 
 logger = logging.getLogger(__name__)
 
 
 def get_context(request: HttpRequest, chat_id: uuid.UUID | None = None) -> dict:
     chat = Chat.get_ordered_by_last_message_date(request.user)
+
+    file_context = get_file_context(request)
 
     messages: Sequence[ChatMessage] = []
     current_chat = None
@@ -37,8 +40,10 @@ def get_context(request: HttpRequest, chat_id: uuid.UUID | None = None) -> dict:
         path=r"/ws/chat/",
     )
 
-    completed_files, processing_files = File.get_completed_and_processing_files(request.user)
-    completed_files = message_service.decorate_selected_files(completed_files, messages)
+    completed_files = message_service.decorate_selected_files(file_context["completed_files"], messages)
+
+    file_context["completed_files"] = completed_files
+
     chat_backend = current_chat.chat_backend if current_chat else ChatLLMBackend.objects.get(is_default=True)
 
     # Add footnotes to messages
@@ -95,8 +100,6 @@ def get_context(request: HttpRequest, chat_id: uuid.UUID | None = None) -> dict:
         "current_chat": current_chat,
         "streaming": {"endpoint": str(endpoint)},
         "contact_email": settings.CONTACT_EMAIL,
-        "completed_files": completed_files,
-        "processing_files": processing_files,
         "chat_title_length": settings.CHAT_TITLE_LENGTH,
         "llm_options": [
             {
@@ -109,6 +112,7 @@ def get_context(request: HttpRequest, chat_id: uuid.UUID | None = None) -> dict:
         ],
         "redbox_api_key": settings.REDBOX_API_KEY,
         "enable_dictation_flag_is_active": flag_is_active(request, "enable_dictation"),
+        **file_context,
     }
 
 
