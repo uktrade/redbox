@@ -91,7 +91,7 @@ def new_root_graph(
     )
     builder.add_node(
         "new_route_graph",
-        build_new_graph(all_chunks_retriever, multi_agent_tools, debug),
+        build_new_route_graph(all_chunks_retriever, multi_agent_tools, debug),
     )
     builder.add_node(
         "legislation_graph",
@@ -648,7 +648,7 @@ def strip_route(state: RedboxState):
     return state
 
 
-def build_new_graph(
+def build_new_route_graph(
     all_chunks_retriever: VectorStoreRetriever,
     multi_agent_tools: dict,
     debug: bool = False,
@@ -867,7 +867,7 @@ def build_tabular_graph(retriever, fallback_retriever, fallback_agent_tools, deb
 
     builder.add_node(
         "fallback_to_newroute",
-        build_new_graph(all_chunks_retriever=fallback_retriever, multi_agent_tools=fallback_agent_tools),
+        build_new_route_graph(all_chunks_retriever=fallback_retriever, multi_agent_tools=fallback_agent_tools),
         retry=RetryPolicy(max_attempts=3),
     )
     builder.add_node("stream_tabular_response", stream_tabular_response())
