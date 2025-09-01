@@ -6,7 +6,7 @@
 
 <head>
   <meta charset="utf-8">
-  <title>{% if pageTitle %} {{ pageTitle }} - {% endif %}Redbox@DBT Correspondence Drafter</title>
+  <title>{% if pageTitle %} {{ pageTitle }} - {% endif %}Redbox@DBT Submissions Checker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b0c0c">
 
@@ -55,14 +55,14 @@
 
   {% if environment | lower != "prod" %}
     <div class="rb-classification-banner govuk-warning-text rb-environment-warning iai-environment-warning">
-      {{environment|upper}} - CORRESPONDENCE DRAFTER - This is not a live service
+      {{environment|upper}} - SUBMISSIONS CHECKER - This is not a live service
     </div>
   {% endif %}
 
 
   {% if request.user.is_authenticated %}
     {{ iaiTopNav(
-      product_name = "Redbox@DBT Correspondence Drafter",
+      product_name = "Redbox@DBT SUBMISSIONS CHECKER",
       menu_items = [
       {"text": "Documents", "href": url('documents')},
       {"text": "Chat", "href": url('chats')},
