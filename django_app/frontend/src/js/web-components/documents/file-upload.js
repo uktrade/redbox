@@ -142,7 +142,7 @@ class FileUpload extends HTMLElement {
             const id = /** @type {CustomEvent} */ (evt).detail.id;
             if (!id) return;
 
-            const uploadedFile = this.uploadedFiles.getFileById(id);
+            const uploadedFile = this.uploadedFiles?.getFileById(id);
             if (!uploadedFile) return;
 
             uploadedFile.status = UploadedFile.StatusTypes.COMPLETE;
@@ -154,7 +154,7 @@ class FileUpload extends HTMLElement {
             const id = /** @type {CustomEvent} */ (evt).detail.id;
             if (!id) return;
 
-            const uploadedFile = this.uploadedFiles.getFileById(id);
+            const uploadedFile = this.uploadedFiles?.getFileById(id);
             if (!uploadedFile) return;
 
             uploadedFile.status = UploadedFile.StatusTypes.ERROR;
