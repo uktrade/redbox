@@ -191,6 +191,9 @@ class FileUpload extends HTMLElement {
         });
 
         document.body.addEventListener("file-uploads-processed", this.messageInput?.enableSubmit);
+        document.body.addEventListener("file-uploads-removed", () => {
+            if (!this.messageInput?.getValue()) this.messageInput.reset();
+        });
     }
 
     /**
@@ -203,9 +206,14 @@ class FileUpload extends HTMLElement {
                 document.createElement("uploaded-files")
             );
             this.textarea.prepend(uploadedFiles);
+
+            if (!this.messageInput.getValue()) {
+                this.messageInput.reset();
+                this.#moveCaretToEnd();
+            }
         }
 
-        return this.uploadedFiles?.addFile(name);
+        return this.uploadedFiles.addFile(name);
     }
 
 
@@ -216,15 +224,10 @@ class FileUpload extends HTMLElement {
     #handleFiles(files) {
         if (!files) return;
 
-        const moveCaretToEnd = (!this.textarea?.textContent?.trim());
         this.#disableSubmit();
 
         for (const file of files) {
             this.uploadFile(file);
-        }
-        if (moveCaretToEnd) {
-            this.textarea?.appendChild(document.createElement("br"));
-            this.#moveCaretToEnd();
         }
     }
 
