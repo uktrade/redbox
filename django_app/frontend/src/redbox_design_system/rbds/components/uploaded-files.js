@@ -62,7 +62,10 @@ export class UploadedFiles extends HTMLElement {
         this.files.splice(index, 1); // Remove file from array
         if (uploadedFile.parentNode === this.container) this.container.removeChild(uploadedFile);
         if (this.allProcessed()) this.#emitProcessedEvent();
-        if (this.isEmpty()) this.remove();
+        if (this.isEmpty()) {
+            this.remove();
+            this.#emitRemovedEvent();
+        }
         return true;
     }
 
@@ -107,6 +110,15 @@ export class UploadedFiles extends HTMLElement {
     #emitProcessedEvent() {
         document.body.dispatchEvent(new CustomEvent("file-uploads-processed"));
     }
+
+
+    /**
+     * Emits an event to signify that the element has been removed
+     */
+    #emitRemovedEvent() {
+        document.body.dispatchEvent(new CustomEvent("file-uploads-removed"));
+    }
+
 
     /**
      * Monitors the processing status of each uploaded file
