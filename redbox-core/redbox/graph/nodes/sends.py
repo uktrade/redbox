@@ -69,7 +69,7 @@ def run_tools_parallel(ai_msg, tools, state, timeout=30):
     futures = []
     if len(ai_msg.tool_calls) == 0:
         # No tool calls
-        return ai_msg.content
+        return ai_msg.AIMessage.content
     else:
         try:
             # Use ThreadPoolExecutor for parallel execution
