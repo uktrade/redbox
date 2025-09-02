@@ -484,12 +484,8 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
             _additional_variables={"task": task.task, "expected_output": task.expected_output},
         )
         ai_msg = worker_agent.invoke(state)
-
-        if len(ai_msg.tool_calls) > 0:
-            result = run_tools_parallel(ai_msg, tools, state)
-            result_content = "".join([res.content for res in result])
-        else:
-            result_content = ai_msg.content
+        result = run_tools_parallel(ai_msg, tools, state)
+        result_content = "".join([res.content for res in result])
         # truncate results to max_token
         result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
         return {"agents_results": result, "tasks_evaluator": task.task + "\n" + task.expected_output}
