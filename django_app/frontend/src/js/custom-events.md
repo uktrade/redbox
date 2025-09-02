@@ -12,4 +12,5 @@ Custom events are used for communication between web components. Here is a list 
 | chat-title-change    | /chats                | title: string<br/>session_id: string<br/>sender: string | When the chat title is changed by the user                                                |
 | file-upload-processed    | /chats                | (none) | When a individual file has finished processing processing                                                |
 | file-uploads-processed    | /chats                | (none) | When all file uploads have finished processing                                                |
-| doc-selection-change    | /chats                | id: string<br/>name: string<br/>checked: bool | When a document has been selected/deselected in the side panel                                                |
+| file-uploads-removed    | /chats                | (none) | When all file uploads have been removed                                                |
+|doc-selection-change    | /chats                | id: string<br/>name: string<br/>checked: bool | When a document has been selected/deselected in the side panel                                                |
