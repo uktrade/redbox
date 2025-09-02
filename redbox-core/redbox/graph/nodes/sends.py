@@ -69,7 +69,12 @@ def run_tools_parallel(ai_msg, tools, state, timeout=30):
     futures = []
     if len(ai_msg.tool_calls) == 0:
         # No tool calls
-        return ai_msg.AIMessage.content
+        if type(ai_msg) is dict:
+            return ai_msg.AIMessage.content
+        elif type(ai_msg) is AIMessage:
+            return ai_msg.content
+        else:
+            log.error(f"The response is in an unexpected format {type(ai_msg)}")
     else:
         try:
             # Use ThreadPoolExecutor for parallel execution
