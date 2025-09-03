@@ -447,7 +447,7 @@ def kagi_search_call(query: str, no_search_result: int = 20) -> tool:
 
 def build_web_search_tool():
     @tool(response_format="content_and_artifact")
-    def _search_web(query: str):
+    def _search_web(query: str, site: str = ""):
         """
         Web Search tool is a versatile search tool that allows users to search the entire web (similar to a search engine) or to conduct targeted searches within specific websites.
 
@@ -456,10 +456,14 @@ def build_web_search_tool():
             - Can be natural language, keywords, or phrases
             - More specific queries yield more precise results
             - Query length should be 1-500 characters
+            site (str, optional): URL or domain to restrict the search to. If provided, results will only be returned from this specific website or domain. If not provided, the search will be performed across all available sources.
         Returns:
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
-        return kagi_search_call(query=query)
+        if site == "":
+            return kagi_search_call(query=query)
+        else:
+            return kagi_search_call(query=query + " site:" + site)
 
     return _search_web
 
