@@ -485,7 +485,12 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
         )
         ai_msg = worker_agent.invoke(state)
         result = run_tools_parallel(ai_msg, tools, state)
-        result_content = "".join([res.content for res in result])
+        if type(result) is str:
+            result_content = result
+        elif type(result) is list:
+            result_content = "".join([res.content for res in result])
+        else:
+            log.error(f"Worker agent return incompatible data type {type(result)}")
         # truncate results to max_token
         result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
         return {"agents_results": result, "tasks_evaluator": task.task + "\n" + task.expected_output}
