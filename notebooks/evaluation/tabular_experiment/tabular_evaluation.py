@@ -72,7 +72,7 @@ def execute_sql(db, sql_statement):
     #execute tabular agent SQL
     conn = sqlite3.connect(db)
     cursor = conn.cursor()
-    cursor.executescript(sql_statement)
+    cursor.execute(sql_statement)
     results = cursor.fetchall()
     conn.close()
     return results
@@ -109,8 +109,8 @@ download_eval_db()
 for row in eval_data:
     prompt_no_evidence = row["question"]
     prompt_with_evidence = row["question"] + " " + row["evidence"]
-    print(prompt_no_evidence)
-    print(prompt_with_evidence)
+    #execute ground truth sql
+    ground_truth_results = execute_sql(ground_truth_db, row["SQL"])
     try_again, iter_limit = initialise_param()
     # without evidence
     while try_again and iter_limit < 3:
@@ -122,35 +122,42 @@ for row in eval_data:
         matches = re.findall(regex_pattern, answer, re.DOTALL)
         if len(matches) == 1:
             row["SQL_redbox_without_evidence"] = matches[0]
-            #execute tabular sql
+            
             tabular_db = get_tabular_db()
-            tabular_results = execute_sql(tabular_db, row["SQL_redbox_without_evidence"])
-            #execute tabular sql
-            ground_truth_results = execute_sql(ground_truth_db, row["SQL"])
-            if tabular_results == ground_truth_results:
-                row["is_accurate_without_evidence"] = 1
-            else:
+            try:
+                #execute tabular sql
+                tabular_results = execute_sql(tabular_db, row["SQL_redbox_without_evidence"])
+                if tabular_results == ground_truth_results:
+                    row["is_accurate_without_evidence"] = 1
+                else:
+                    row["is_accurate_without_evidence"] = 0
+            except Exception as e:
                 row["is_accurate_without_evidence"] = 0
+                row["redbox_sql_error_without_evidence"] = str(e)
+                tabular_results = "None"
             try_again = False
+            
         else:
             if answer == "Agent stopped due to iteration limit or time limit":
                 row["SQL_redbox_without_evidence"] = "None"
                 row["is_accurate_without_evidence"] = 0
-                try_again = False
-            else:
-                row["SQL_redbox_without_evidence"] = "None"
+                tabular_results = "None"
                 try_again = True
                 iter_limit += 1
-        if "is_accurate_without_evidence" not in row:
-            row["is_accurate_without_evidence"] = 0
+            else:
+                row["SQL_redbox_without_evidence"] = "None"
+                row["is_accurate_without_evidence"] = 0
+                tabular_results = "None"
+                try_again = True
+                iter_limit += 1
   
         if not tabular_db:
             tabular_db = get_tabular_db()
         delete_tabular_db(tabular_db)
-
+    
     with open('../data_results/tabular/tabular_results_'+str(row["question_id"])+"_without_evidence.txt",'w') as f:
         f.write(str(tabular_results))
-    with open('../data_results/tabular/ground_truth_results_'+str(row["question_id"])+"_without_evidence.txt",'w') as f:
+    with open('../data_results/tabular/ground_truth_results_'+str(row["question_id"])+".txt",'w') as f:
         f.write(str(ground_truth_results))
 
     try_again, iter_limit = initialise_param()
@@ -166,25 +173,31 @@ for row in eval_data:
             row["SQL_redbox_with_evidence"] = matches[0]
             #execute tabular sql
             tabular_db = get_tabular_db()
-            tabular_results = execute_sql(tabular_db, row["SQL_redbox_with_evidence"])
-            #execute tabular sql
-            ground_truth_results = execute_sql(ground_truth_db, row["SQL"])
-            if tabular_results == ground_truth_results:
-                row["is_accurate_with_evidence"] = 1
-            else:
+            try:
+                #execute tabular sql
+                tabular_results = execute_sql(tabular_db, row["SQL_redbox_with_evidence"])
+                if tabular_results == ground_truth_results:
+                    row["is_accurate_with_evidence"] = 1
+                else:
+                    row["is_accurate_with_evidence"] = 0
+            except Exception as e:
                 row["is_accurate_with_evidence"] = 0
+                row["redbox_sql_error_with_evidence"] = str(e)
+                tabular_results = "None"
             try_again = False
         else:
             if answer == "Agent stopped due to iteration limit or time limit":
                 row["SQL_redbox_with_evidence"] = "None"
                 row["is_accurate_with_evidence"] = 0
-                try_again = False
-            else:
-                row["SQL_redbox_with_evidence"] = "None"
+                tabular_results = "None"
                 try_again = True
                 iter_limit += 1
-        if "is_accurate_with_evidence" not in row:
-            row["is_accurate_with_evidence"] = 0
+            else:
+                row["SQL_redbox_with_evidence"] = "None"
+                row["is_accurate_with_evidence"] = 0
+                tabular_results = "None"
+                try_again = True
+                iter_limit += 1
   
         if not tabular_db:
             tabular_db = get_tabular_db()
@@ -192,12 +205,11 @@ for row in eval_data:
 
     with open('../data_results/tabular/tabular_results_'+str(row["question_id"])+"_with_evidence.txt",'w') as f:
         f.write(str(tabular_results))
-    with open('../data_results/tabular/ground_truth_results_'+str(row["question_id"])+"_with_evidence.txt",'w') as f:
-        f.write(str(ground_truth_results))
+
 
     results.append(row)
     # Writing to a JSON file with indentation
-    with open("../data_results/tabular/evaluation_results_test.json", "w") as outfile:
+    with open("../data_results/tabular/evaluation_results.json", "w") as outfile:
         json.dump(results, outfile, indent=4)
     time.sleep(5)  # slow down request frequency to avoid API throttling
     logger.info("Iteration number: %s", str(eval_data.index(row)))
