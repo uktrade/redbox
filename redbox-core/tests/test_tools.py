@@ -7,7 +7,12 @@ from langchain_core.messages import AIMessage
 from langgraph.prebuilt import ToolNode
 from opensearchpy import OpenSearch
 
-from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_documents_tool, build_search_wikipedia_tool
+from redbox.graph.nodes.tools import (
+    build_govuk_search_tool,
+    build_search_documents_tool,
+    build_search_wikipedia_tool,
+    build_web_search_tool,
+)
 from redbox.models.chain import AISettings, RedboxQuery, RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
 from redbox.models.settings import Settings
@@ -117,7 +122,7 @@ def test_search_documents_tool(
             assert {c.metadata["uri"] for c in result_flat} <= set(stored_file_parameterised.query.s3_keys)
 
 
-@pytest.mark.xfail(reason="calls openai")
+@pytest.mark.xfail(reason="calls api")
 def test_govuk_search_tool():
     tool = build_govuk_search_tool()
 
@@ -152,6 +157,7 @@ def test_govuk_search_tool():
         assert metadata.creator_type == ChunkCreatorType.gov_uk
 
 
+@pytest.mark.xfail(reason="calls api")
 def test_wikipedia_tool():
     tool = build_search_wikipedia_tool()
     tool_node = ToolNode(tools=[tool])
@@ -188,7 +194,7 @@ def test_wikipedia_tool():
     ],
 )
 @pytest.mark.vcr
-@pytest.mark.xfail(reason="calls openai")
+@pytest.mark.xfail(reason="calls api")
 def test_gov_filter_AI(is_filter, relevant_return, query, keyword):
     def run_tool(is_filter):
         tool = build_govuk_search_tool(filter=is_filter)
@@ -216,7 +222,7 @@ def test_gov_filter_AI(is_filter, relevant_return, query, keyword):
 
 
 @pytest.mark.vcr
-@pytest.mark.xfail(reason="calls openai")
+@pytest.mark.xfail(reason="calls api")
 def test_gov_tool_params():
     query = "driving in the UK"
     tool = build_govuk_search_tool(filter=True)
@@ -252,3 +258,21 @@ def test_gov_tool_params():
 
     # call gov tool without additional filter
     assert len(documents) == ai_setting.tool_govuk_returned_results
+
+
+@pytest.mark.parametrize(
+    "query, site",
+    [
+        ("What is AI?", ""),
+        ("What is Dict in Python?", "stackoverflow.com"),
+    ],
+)
+@pytest.mark.vcr
+@pytest.mark.xfail(reason="calls api")
+def test_web_search_tool(query, site):
+    tool = build_web_search_tool()
+    tool_node = ToolNode(tools=[tool])
+    response = tool_node.invoke(
+        [{"name": "_search_web", "args": {"query": query, "site": site}, "id": "1", "type": "tool_call"}]
+    )
+    assert response["messages"][0].content != ""
