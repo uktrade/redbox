@@ -24,7 +24,7 @@ class FileStatus extends HTMLElement {
       });
       document.body.dispatchEvent(evt);
     } else {
-      window.setTimeout(this.checkStatus, this.CHECK_INTERVAL_MS);
+      window.setTimeout(() => this.checkStatus(), this.CHECK_INTERVAL_MS);
     }
   }
 }
