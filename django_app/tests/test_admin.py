@@ -75,8 +75,8 @@ def test_message_serializer(chat_message_with_citation_and_tokens: ChatMessage):
     }
 
     expected_token_usage = [
-        {"use_type": "input", "model_name": "gpt-4o", "token_count": 20},
-        {"use_type": "output", "model_name": "gpt-4o", "token_count": 200},
+        {"use_type": "input", "model_name": "anthropic.claude-3-7-sonnet-20250219-v1:0", "token_count": 20},
+        {"use_type": "output", "model_name": "anthropic.claude-3-7-sonnet-20250219-v1:0", "token_count": 200},
     ]
 
     actual = ChatMessageSerializer().to_representation(chat_message_with_citation_and_tokens)

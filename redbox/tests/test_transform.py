@@ -164,7 +164,7 @@ def test_elbow_filter(scores: list[float], target_len: int):
         (
             {
                 "prompt": "Lorem ipsum dolor sit amet.",
-                "model": "gpt-4o",
+                "model": "anthropic.claude-3-7-sonnet-20250219-v1:0",
                 "text_and_tools": {
                     "raw_response": AIMessage(
                         content=(
@@ -175,7 +175,13 @@ def test_elbow_filter(scores: list[float], target_len: int):
                     )
                 },
             },
-            RequestMetadata(llm_calls={LLMCallMetadata(llm_model_name="gpt-4o", input_tokens=6, output_tokens=23)}),
+            RequestMetadata(
+                llm_calls={
+                    LLMCallMetadata(
+                        llm_model_name="anthropic.claude-3-7-sonnet-20250219-v1:0", input_tokens=6, output_tokens=23
+                    )
+                }
+            ),
         ),
         (
             {

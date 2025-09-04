@@ -42,8 +42,8 @@ Download and install [pre-commit](https://pre-commit.com) to benefit from pre-co
 
 This project is in two parts:
 
-- A https://langchain-ai.github.io/langgraph/ based AI class library called redbox-core
-- A django app to expose redbox-core to users over the web
+- A https://langchain-ai.github.io/langgraph/ based AI class library called redbox
+- A django app to expose redbox to users over the web
 
 The project is structured approximately like this:
 
@@ -56,7 +56,7 @@ redbox/
 │  ├── manage.py
 │  ├── pyproject.toml
 │  └── Dockerfile
-├── redbox-core/
+├── redbox/
 │  ├── redbox
 │  │  ├── api/
 │  │  ├── chains/
@@ -76,10 +76,10 @@ redbox/
 
 ## Configuration
 
-System-wide, static, settings are defined [Settings.py](redbox-core/redbox/models/settings.py), these are set via environment file .env
+System-wide, static, settings are defined [Settings.py](redbox/redbox/models/settings.py), these are set via environment file .env
 
-Dynamic, per-request, settings are defined in [AISettings.py](redbox-core/redbox/models/chain.py), these are set within the django-app,
-and can be changed by an administrator. This includes the LLM to use which by default will be GPT-4o.
+Dynamic, per-request, settings are defined in [AISettings.py](redbox/redbox/models/chain.py), these are set within the django-app,
+and can be changed by an administrator. This includes the LLM to use which by default will be Anthropic Claude 3.7.
 
 # Contributing
 

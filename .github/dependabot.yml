@@ -10,7 +10,7 @@ updates:
       - "/"
       - "/core-api/"
       - "/django_app/"
-      - "/redbox-core/"
+      - "/redbox/"
       - "/worker/"
     schedule:
       interval: "daily"
