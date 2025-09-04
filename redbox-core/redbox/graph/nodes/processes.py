@@ -8,14 +8,16 @@ import textwrap
 import time
 from collections.abc import Callable
 from functools import reduce
+from io import StringIO
 from random import uniform
 from typing import Any, Iterable
 from uuid import uuid4
-import pandas as pd
-from io import StringIO
 
+import pandas as pd
 from botocore.exceptions import EventStreamError
 from langchain.schema import StrOutputParser
+from langchain_community.agent_toolkits.sql.base import create_sql_agent
+from langchain_community.utilities import SQLDatabase
 from langchain_core.callbacks.manager import dispatch_custom_event
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
@@ -23,14 +25,12 @@ from langchain_core.runnables import Runnable, RunnableLambda, RunnableParallel
 from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.types import Command
-from langchain_community.utilities import SQLDatabase
-from langchain_community.agent_toolkits.sql.base import create_sql_agent
 
 from redbox.chains.activity import log_activity
 from redbox.chains.components import (
+    get_base_chat_llm,
     get_basic_metadata_retriever,
     get_chat_llm,
-    get_base_chat_llm,
     get_structured_response_with_citations_parser,
     get_structured_response_with_planner_parser,
     get_tokeniser,
@@ -56,8 +56,8 @@ from redbox.models.prompts import (
     PLANNER_PROMPT,
     PLANNER_QUESTION_PROMPT,
     REPLAN_PROMPT,
-    USER_FEEDBACK_EVAL_PROMPT,
     TABULAR_FORMAT_PROMPT,
+    USER_FEEDBACK_EVAL_PROMPT,
 )
 from redbox.models.settings import get_settings
 from redbox.transform import combine_agents_state, combine_documents, flatten_document_state
@@ -485,7 +485,12 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
         )
         ai_msg = worker_agent.invoke(state)
         result = run_tools_parallel(ai_msg, tools, state)
-        result_content = "".join([res.content for res in result])
+        if type(result) is str:
+            result_content = result
+        elif type(result) is list:
+            result_content = "".join([res.content for res in result])
+        else:
+            log.error(f"Worker agent return incompatible data type {type(result)}")
         # truncate results to max_token
         result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
         return {"agents_results": result, "tasks_evaluator": task.task + "\n" + task.expected_output}
