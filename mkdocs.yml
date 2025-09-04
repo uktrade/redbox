@@ -82,7 +82,7 @@ plugins:
       handlers:
         python:
           paths:
-            - redbox-core
+            - redbox
           options:
             extensions:
             - griffe_typingdoc

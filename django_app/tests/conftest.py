@@ -3,6 +3,7 @@ import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from uuid import UUID
 
 import boto3
 import pytest
@@ -27,6 +28,8 @@ from redbox_app.redbox_core.models import (
 User = get_user_model()
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_AISETTINGS_ID = UUID("00000000-0000-0000-0000-000000000000")
 
 
 @pytest.fixture()
@@ -69,8 +72,10 @@ def _collect_static():
 
 @pytest.fixture(autouse=True)
 def default_ai_settings(db):  # noqa: ARG001
-    gpt_4o, _ = ChatLLMBackend.objects.get_or_create(name="gpt-4o", provider="azure_openai", is_default=True)
-    ai_settings, _ = AISettings.objects.get_or_create(label="default", chat_backend=gpt_4o)
+    claude_3_7, _ = ChatLLMBackend.objects.get_or_create(
+        name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock", is_default=True
+    )
+    ai_settings, _ = AISettings.objects.get_or_create(label="Claude 3.7", chat_backend=claude_3_7)
     return ai_settings
 
 
@@ -197,10 +202,16 @@ def chat_message_with_citation(chat: Chat, uploaded_file: File) -> ChatMessage:
 def chat_message_with_citation_and_tokens(chat_message_with_citation: ChatMessage) -> ChatMessage:
     chat_message = chat_message_with_citation
     ChatMessageTokenUse.objects.create(
-        chat_message=chat_message, use_type=ChatMessageTokenUse.UseType.INPUT, model_name="gpt-4o", token_count=20
+        chat_message=chat_message,
+        use_type=ChatMessageTokenUse.UseType.INPUT,
+        model_name="anthropic.claude-3-7-sonnet-20250219-v1:0",
+        token_count=20,
     )
     ChatMessageTokenUse.objects.create(
-        chat_message=chat_message, use_type=ChatMessageTokenUse.UseType.OUTPUT, model_name="gpt-4o", token_count=200
+        chat_message=chat_message,
+        use_type=ChatMessageTokenUse.UseType.OUTPUT,
+        model_name="anthropic.claude-3-7-sonnet-20250219-v1:0",
+        token_count=200,
     )
     return chat_message
 
@@ -315,3 +326,17 @@ def chat_message_with_rating(chat_message: ChatMessage) -> ChatMessage:
     chat_message.rating_chips = ["speed", "accuracy", "blasphemy"]
     chat_message.save()
     return chat_message
+
+
+@pytest.fixture(autouse=True)
+def _ensure_default_ai_settings(db):  # noqa: ARG001
+    backend, _ = ChatLLMBackend.objects.get_or_create(
+        name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock", is_default=True
+    )
+    from redbox_app.redbox_core.models import AISettings
+
+    AISettings.objects.filter(label="default").exclude(id=DEFAULT_AISETTINGS_ID).delete()
+    AISettings.objects.get_or_create(
+        id=DEFAULT_AISETTINGS_ID,
+        defaults={"label": "default", "chat_backend": backend},
+    )
