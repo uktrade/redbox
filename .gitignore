@@ -21,6 +21,8 @@ db/
 !*/user_preferences/classes_subject.json
 /models/
 
+#tabular evaluation raw results
+notebooks/evaluation/data_results/tabular/*.txt
 # npm package files
 
 node_modules/

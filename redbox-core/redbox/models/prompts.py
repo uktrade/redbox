@@ -366,6 +366,6 @@ TABULAR_FORMAT_PROMPT = """Answer the following question: <Question>{question}</
 
 IMPORTANT: In your final answer, please:
 1. Explain your logic behind answering this question and in constructing a SQL query
-2. Always show the SQL query you created
+2. Always show the SQL query you created using the format: ```sql <sql_statement>```
 3. Interpret the results in plain language
 """
