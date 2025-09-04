@@ -62,7 +62,7 @@ Poetry will automatically detect the pyenv-managed Python version.
 
 ### Install project dependencies with Poetry
 
-Once Python has been configured and installed using either pyenv or asdf, from each applications root directory (django_app, redbox-core, notebooks), run the following:
+Once Python has been configured and installed using either pyenv or asdf, from each applications root directory (django_app, redbox, notebooks), run the following:
 
 ```bash
 poetry install
@@ -86,14 +86,14 @@ poetry env info
 ## Installing packages
 
 Currently, we use [poetry](https://python-poetry.org/) to manage our python packages. There are 4 `pyproject.toml`s
-- [redbox-core](https://github.com/i-dot-ai/redbox/blob/main/redbox-core/pyproject.toml) - core AI package
+- [redbox](https://github.com/i-dot-ai/redbox/blob/main/redbox/pyproject.toml) - core AI package
 - [django-app](https://github.com/i-dot-ai/redbox/blob/main/django_app/pyproject.toml) - django webserver and background worker
 - [root](https://github.com/i-dot-ai/redbox/blob/main/pyproject.toml) - Integration tests, QA, and docs
 - [notebooks](https://github.com/uktrade/redbox/blob/main/notebooks/pyproject.toml) - Jupyter notebooks
 
 ## VSCode
 To make use of the VSCode setup open the workspace file .vscode/redbox.code-workspace. This will open the relevant services as roots in a single workspace. The recommended way to use this is:
-* Create a venv in each of the main service directories (redbox-core, django-app) this should be in a directory called _venv_
+* Create a venv in each of the main service directories (redbox, django-app) this should be in a directory called _venv_
 * Configure each workspace directory to use it's own venv python interpreter. NB You may need to enter these manually when prompted as _./venv/bin/python_
 
 The tests should then all load separately and use their own env.
@@ -102,25 +102,28 @@ The tests should then all load separately and use their own env.
 
 We use `.env` files to populate the environment variables for local development. When cloning the repository the file `.env.example` will be populated.
 
-To run the project, create a new file called `.env` and populate this file with the setting names from `.env.example` and the values these settings need.
+To run the project:
+- `cp .env.example .env`
+- `cp .aws/credentials.example .aws/credentials`
 
-Typically this involves setting the following variables:
+Then set the relevant environment variables.
 
-- `AZURE_OPENAI_API_KEY` - Azure OpenAI API key
-- `AZURE_OPENAI_ENDPOINT` - Azure OpenAI API key
-- `OPENAI_API_VESION` - OpenAI API version
+Typically this involves setting the following variables in .aws/credentials (after running `cp .aws/credentials.example .aws/credentials`):
+- `AWS_ACCESS_KEY`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_SESSION_TOKEN`
+- `AWS_CREDENTIAL_EXPIRATION` - default 30
 
 It is best to leave hostnames out of the .env file. These are then set manually by vscode tasks or pulled from a deployment .env like .env.test/.env.integration
 
 ### Backend Profiles
-Redbox can use different backends for chat and embeddings, which are used is controlled by env vars. The defaults are currently to use Azure for both chat and embeddings but OpenAI can be used (and pointed to an OpenAI compliant local service).
-The relevant env vars for overriding to use OpenAI embeddings are:
-- `EMBEDDING_AZURE_OPENAI_ENDPOINT` - usually the same as one of your `AZURE_OPENAI_ENDPOINT_XX`
-- `EMBEDDING_OPENAI_KEY` - usually the same  as one of your `AZURE_OPENAI_API_KEY_XX`
+Redbox can use different backends for chat and embeddings, which are used is controlled by env vars. The defaults are currently to use Bedrock for both chat and embeddings but other providers can be used (and pointed to their relevant compliant local service).
+The relevant env vars for overriding to use bedrock's titan model for embeddings are:
+- `EMBEDDING_BACKEND` - usually `amazon.titan-embed-text-v2:0`
 
 
 
-**`.env` is in `.gitignore` and should not be committed to git**
+**`.env` and `.aws/credentials` are in `.gitignore` and should not be committed to git**
 
 
 
@@ -207,7 +210,7 @@ make test-django
 For the core AI:
 
 ``` bash
-make test-redbox-core
+make test-redbox
 ```
 
 For integration tests:

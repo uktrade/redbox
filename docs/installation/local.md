@@ -29,7 +29,7 @@ As the project deploys, you should eventually see the following message:
  ✔ Container redbox-minio-1           Healthy                                                                      22.7s
  ✔ Container redbox-db-1              Healthy                                                                      22.7s
  ✔ Container redbox-worker-1          Healthy                                                                      22.7s
- ✔ Container redbox-core-api-1        Healthy                                                                      22.6s
+ ✔ Container redbox-api-1        Healthy                                                                      22.6s
  ✔ Container redbox-django-app-1      Healthy                                                                      32.6s
 ```
 
