@@ -5,12 +5,8 @@
 			"path": "../django_app"
 		},
 		{
-			"name": "streamlit_app",
-			"path": "../streamlit_app"
-		},
-		{
 			"name": "Redbox Core",
-			"path": "../redbox-core"
+			"path": "../redbox"
 		},
 		{
 			"name": "AI Tests",

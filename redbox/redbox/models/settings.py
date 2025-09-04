@@ -83,8 +83,8 @@ class WebSearchSettings(BaseModel):
 
 
 class ChatLLMBackend(BaseModel):
-    name: str = "gpt-4o"
-    provider: str = "azure_openai"
+    name: str = "anthropic.claude-3-7-sonnet-20250219-v1:0"
+    provider: str = "bedrock"
     description: str | None = None
     model_config = {"frozen": True}
 
@@ -92,8 +92,6 @@ class ChatLLMBackend(BaseModel):
 class Settings(BaseSettings):
     """Settings for the redbox application."""
 
-    embedding_openai_api_key: str = "NotAKey"
-    embedding_azure_openai_endpoint: str = "not an endpoint"
     azure_api_version_embeddings: str = "2024-02-01"
     metadata_extraction_llm: ChatLLMBackend = ChatLLMBackend(
         name="anthropic.claude-3-sonnet-20240229-v1:0", provider="bedrock"
@@ -107,8 +105,6 @@ class Settings(BaseSettings):
     embedding_retry_max_seconds: int = 300
     embedding_max_batch_size: int = 512
     embedding_document_field_name: str = "embedding"
-
-    embedding_openai_base_url: str | None = None
 
     partition_strategy: Literal["auto", "fast", "ocr_only", "hi_res"] = "fast"
     clustering_strategy: Literal["full"] | None = None

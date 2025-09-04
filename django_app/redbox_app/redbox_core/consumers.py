@@ -7,6 +7,7 @@ from typing import Any, ClassVar
 from uuid import UUID
 
 from asgiref.sync import sync_to_async
+from botocore.exceptions import ClientError
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.conf import settings
@@ -14,7 +15,6 @@ from django.contrib.auth import get_user_model
 from django.forms.models import model_to_dict
 from django.utils import timezone
 from langchain_core.documents import Document
-from openai import RateLimitError
 from pydantic import ValidationError
 from uwotm8 import convert_american_to_british_spelling
 from websockets import ConnectionClosedError, WebSocketClientProtocol
@@ -103,7 +103,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         activities: Sequence[str] = data.get("activities", [])
         user: User = self.scope.get("user")
 
-        user_ai_settings = await AISettingsModel.objects.aget(label=user.ai_settings_id if user else "default")
+        user_ai_settings = await AISettingsModel.objects.aget(label=user.ai_settings_id if user else "Claude 3.7")
 
         chat_backend = await ChatLLMBackend.objects.aget(id=data.get("llm", user_ai_settings.chat_backend_id))
         temperature = data.get("temperature", user_ai_settings.temperature)
@@ -221,7 +221,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 "end", {"message_id": self.chat_message.id, "title": title, "session_id": session.id}
             )
 
-        except RateLimitError as e:
+        except ClientError as e:
             logger.exception("Rate limit error", exc_info=e)
             await self.send_to_client("error", error_messages.RATE_LIMITED)
         except (TimeoutError, ConnectionClosedError, CancelledError) as e:

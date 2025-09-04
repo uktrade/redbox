@@ -6444,7 +6444,7 @@ wikipedia = "^1.4.0"
 
 [package.source]
 type = "directory"
-url = "../redbox-core"
+url = "../redbox"
 
 [[package]]
 name = "redbox-app"
@@ -6496,7 +6496,7 @@ pymupdf = "^1.26.0"
 python-dotenv = "^1.0.0"
 pytz = "^2024.1"
 pyyaml = "^6.0.2"
-redbox = {path = "../redbox-core", develop = true}
+redbox = {path = "../redbox", develop = true}
 requests = "^2.32.4"
 scikit-learn = "^1.5.2"
 sentry-sdk = {version = "^2.13.0", extras = ["django"]}
