@@ -4809,14 +4809,14 @@ zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
 name = "uwotm8"
-version = "0.1.4"
+version = "0.1.6"
 description = "Converting American English to British English"
 optional = false
-python-versions = "<4.0,>=3.9"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "uwotm8-0.1.4-py3-none-any.whl", hash = "sha256:cb323a7b21c17629a9c1bad9aebdf2b29b0bc09ed7316ed50d002e3e9ea09ae9"},
-    {file = "uwotm8-0.1.4.tar.gz", hash = "sha256:a3e5b86d69517a8f0ca025e5e33ae12348490179e464368ad6f6780637de6880"},
+    {file = "uwotm8-0.1.6-py3-none-any.whl", hash = "sha256:befdb4027dd9eb701eff2ad4e5e3a0de70d6130ead70ac0733fc1605f46bca4a"},
+    {file = "uwotm8-0.1.6.tar.gz", hash = "sha256:a2a19ecd556b50b5edb264d5cb8e3c48e57711360fb6e9c3f7c6d9f90575cc4b"},
 ]
 
 [package.dependencies]
@@ -5253,4 +5253,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "fd86a77219dd1842e882cb36cc5d22809e010d72900126e94b6ba9f8984df389"
+content-hash = "8da8d65444690fcba75758377b15a6f3a29a769ceb02dbf4e003ba66d97eb28e"
