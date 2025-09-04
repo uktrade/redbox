@@ -6745,14 +6745,14 @@ standard = ["colorama (>=0.4) ; sys_platform == \"win32\"", "httptools (>=0.6.3)
 
 [[package]]
 name = "uwotm8"
-version = "0.1.4"
+version = "0.1.6"
 description = "Converting American English to British English"
 optional = false
-python-versions = "<4.0,>=3.9"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "uwotm8-0.1.4-py3-none-any.whl", hash = "sha256:cb323a7b21c17629a9c1bad9aebdf2b29b0bc09ed7316ed50d002e3e9ea09ae9"},
-    {file = "uwotm8-0.1.4.tar.gz", hash = "sha256:a3e5b86d69517a8f0ca025e5e33ae12348490179e464368ad6f6780637de6880"},
+    {file = "uwotm8-0.1.6-py3-none-any.whl", hash = "sha256:befdb4027dd9eb701eff2ad4e5e3a0de70d6130ead70ac0733fc1605f46bca4a"},
+    {file = "uwotm8-0.1.6.tar.gz", hash = "sha256:a2a19ecd556b50b5edb264d5cb8e3c48e57711360fb6e9c3f7c6d9f90575cc4b"},
 ]
 
 [package.dependencies]
@@ -7414,4 +7414,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "c2c3874bcd2b3f91845367a6bf46c9e8481a0126c512a6382a03c5d5b4e71e3e"
+content-hash = "93d56b50f31bde7559c33d915530a924a6efa14cfe4471aa4011098c9012d5bf"
