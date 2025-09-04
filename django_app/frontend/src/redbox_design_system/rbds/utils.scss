@@ -1,0 +1,9 @@
+.no-hover {
+    pointer-events: none;
+}
+
+// Can be moved to its own component if drag/drop functionality gets reused
+.drop-zone.drag-over {
+  border-color: var(--redbox-blue);
+  border-width: 3px;
+}

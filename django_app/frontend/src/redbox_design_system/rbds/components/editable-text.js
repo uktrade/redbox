@@ -1,9 +1,9 @@
 // @ts-check
 
-import { getAttributeOrDefault, hideElement, showElement } from "../../js/utils";
+import { getAttributeOrDefault, getCsrfToken, hideElement, showElement } from "../../../js/utils";
 
 class EditableText extends HTMLElement {
-    csrfTokenValue = "";
+    _csrfToken = "";
 
     connectedCallback() {
         this.deleteUrl = this.getAttribute("delete-url");
@@ -207,12 +207,8 @@ class EditableText extends HTMLElement {
 
 
     get csrfToken() {
-        if (!this.csrfTokenValue) {
-            this.csrfTokenValue = /** @type {HTMLInputElement | null} */ (
-                document.querySelector('[name="csrfmiddlewaretoken"]')
-            )?.value || "";
-        }
-        return this.csrfTokenValue;
+        if (!this._csrfToken) this._csrfToken = getCsrfToken();
+        return this._csrfToken;
     }
 }
 customElements.define("editable-text", EditableText);

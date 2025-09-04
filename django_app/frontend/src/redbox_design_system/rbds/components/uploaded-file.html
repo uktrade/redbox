@@ -1,0 +1,16 @@
+<template id="uploaded-file-template">
+    <div class="uploaded-file-wrapper" data-id="">
+        <div class="uploaded-file" contenteditable="false" aria-readonly="true" tabindex="-1">
+            <div data-icon></div>
+            <span class="file-name" title="" data-name></span>
+            <a class="action-link govuk-link govuk-link--no-visited-state govuk-link--no-underline" data-remove>Remove</a>
+        </div>
+        <div class="upload-progress">
+            <div class="upload-progress-text" data-status-text>Processing...</div>
+            <div class="upload-progress-fill-wrapper">
+                <div class="upload-progress-fill" data-progress-bar data-status="processing" style="--progress-width: 100%;"></div>
+                <div class="upload-progress-fill-text" data-progress-percent>0</div>
+            </div>
+        </div>
+    </div>
+</template>

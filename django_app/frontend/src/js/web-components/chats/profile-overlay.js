@@ -1,5 +1,7 @@
 // @ts-check
 
+import { getCsrfToken } from "../../utils";
+
 class ProfileOverlay extends HTMLElement {
   constructor() {
     super();
@@ -105,15 +107,11 @@ class ProfileOverlay extends HTMLElement {
       const sendData = async (data, retry = 0) => {
         const MAX_RETRIES = 10;
         const RETRY_INTERVAL_SECONDS = 10;
-        const csrfToken =
-          /** @type {HTMLInputElement | null} */ (
-            this.querySelector('[name="csrfmiddlewaretoken"]')
-          )?.value || "";
         try {
           await fetch(`/update-demographics`, {
             method: "POST",
             headers: {
-              "X-CSRFToken": csrfToken,
+              "X-CSRFToken": getCsrfToken(),
             },
             body: data,
           });

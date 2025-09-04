@@ -1,7 +1,7 @@
 {% from "macros/chat-macros.html" import message_box, route_display %}
 {% from "macros/govuk-button.html" import govukButton %}
 
-<div id="chat-window" name="swapped" class="govuk-grid-column-three-quarters" hx-swap-oob="outerHTML">
+<div id="chat-window" name="swapped" class="govuk-grid-column-three-quarters" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
     {% if not messages %}
     <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1"
         security-classification="{{ security }}"></canned-prompts>
@@ -37,51 +37,49 @@
             Need help? View <a href="{{ url('faq') }}" class="govuk-link" target="_blank">Advanced Prompt FAQ.</a>
         </div>
         <message-input>
-            <div class="govuk-textareax message-input" id="message" name="message" contenteditable="true" role="textbox"
+            <div class="govuk-textareax message-input drop-zone" id="message" name="message" contenteditable="true" role="textbox"
                 aria-multiline="true" data-text="Type here..."></div>
         </message-input>
+        <file-upload upload-url="/documents/upload/">
+            <input class="govuk-file-upload govuk-!-display-none" multiple id="upload-docs" name="uploadDocs" type="file" aria-describedby="upload-docs-notification upload-docs-filetypes">
+            {{ govukButton(
+                text="Add document",
+                classes="upload-button govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4",
+                id="upload-button"
+            ) }}
+        </file-upload>
         {% if enable_dictation_flag_is_active %}
-        <send-message-with-dictation data-api-key="{{ redbox_api_key }}">
-            <button type="submit"
-                class="govuk-buttonx govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4"
-                data-module="govuk-button">
-                Dictate
-            </button>
-            {{ govukButton(
-            text="Stop",
-            classes="govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4",
-            dont_submit=True
-            ) }}
-            {{ govukButton(
-            text="Add document",
-            href=url('upload'),
-            classes="govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4"
-            ) }}
-            {{ govukButton(
-            text="Send",
-            classes="govuk-!-margin-top-5 rb-send-button"
-            ) }}
-            {{ govukButton(
-            text="Stop",
-            classes="govuk-!-margin-top-5"
-            ) }}
-        </send-message-with-dictation>
+            <send-message-with-dictation data-api-key="{{ redbox_api_key }}">
+                <button type="submit"
+                    class="govuk-buttonx govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4 dictate-button"
+                    data-module="govuk-button">
+                    Dictate
+                </button>
+                {{ govukButton(
+                text="Stop",
+                classes="govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4",
+                dont_submit=True
+                ) }}
+                {{ govukButton(
+                text="Send",
+                classes="govuk-!-margin-top-5 send-button"
+                ) }}
+                {{ govukButton(
+                text="Stop",
+                classes="govuk-!-margin-top-5"
+                ) }}
+            </send-message-with-dictation>
         {% else %}
-        <send-message>
-            {{ govukButton(
-            text="Add document",
-            href=url('upload'),
-            classes="govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4"
-            ) }}
-            {{ govukButton(
-            text="Send",
-            classes="govuk-!-margin-top-5 rb-send-button"
-            ) }}
-            {{ govukButton(
-            text="Stop",
-            classes="govuk-!-margin-top-5"
-            ) }}
-        </send-message>
+            <send-message>
+                {{ govukButton(
+                text="Send",
+                classes="govuk-!-margin-top-5 send-button"
+                ) }}
+                {{ govukButton(
+                text="Stop",
+                classes="govuk-!-margin-top-5 govuk-!-display-none"
+                ) }}
+            </send-message>
         {% endif %}
         {% if not messages %}
         <div class="chat-warnings">

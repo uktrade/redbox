@@ -1,96 +1,98 @@
 // @ts-check
 import { TranscribeStreamingClient, StartStreamTranscriptionCommand } from "@aws-sdk/client-transcribe-streaming";
 import { Readable } from 'readable-stream'
+import { hideElement, showElement } from "../../utils";
+import { MessageInput } from "./message-input";
 
-class SendMessageWithDictation extends HTMLElement {
+export class SendMessageWithDictation extends HTMLElement {
   connectedCallback() {
-    const apiKey = this.getAttribute("data-api-key");
-    this.apiKey = apiKey;
+    this._apiKey = this.getAttribute("data-api-key");
     this.removeAttribute("data-api-key");
 
     this.buttonRecord = /** @type {HTMLButtonElement} */ (
       this.querySelector("button:nth-child(1)")
     );
-    this.buttonSend = /** @type {HTMLButtonElement} */ (
-      this.querySelector("button:nth-child(4)")
-    );
-    this.buttonStop = /** @type {HTMLButtonElement} */ (
+    this.buttonRecordStop = /** @type {HTMLButtonElement} */ (
       this.querySelector("button:nth-child(2)")
     );
+    this.buttonSend = /** @type {HTMLButtonElement} */ (
+      this.querySelector("button:nth-child(3)")
+    );
     this.buttonSendStop = /** @type {HTMLButtonElement} */ (
-      this.querySelector("button:nth-child(5)")
+      this.querySelector("button:nth-child(4)")
     );
 
-    this.buttonStop.style.display = "none";
-    this.buttonSendStop.style.display = "none";
+    if (!this.buttonRecord || !this.buttonRecordStop || !this.buttonSend || !this.buttonSendStop || !this.messageInput) return;
+
+    customElements.whenDefined("message-input").then(() => this.#bindEvents())
+  }
+
+  #bindEvents() {
+    this.showRecordButton();
+    this.showSendButton();
 
     this.mediaRecorder = null;
     this.audioChunks = [];
-    this.isRecording = false;
     this.isStreaming = false;
 
-    this.buttonRecord.addEventListener("click", this.startRecording.bind(this));
-    this.buttonStop.addEventListener("click", this.stopAction.bind(this));
-    this.buttonSendStop.addEventListener("click", this.stopAction.bind(this));
-    this.buttonSend.addEventListener("click", (e) => {
+    this.buttonRecord?.addEventListener("click", this.startRecording.bind(this));
+    this.buttonRecordStop?.addEventListener("click", this.stopResponse.bind(this));
+    this.buttonSendStop?.addEventListener("click", this.stopResponse.bind(this));
+    this.buttonSend?.addEventListener("click", (e) => {
       const form = this.closest("form");
       try {
         e.preventDefault();
-        form.requestSubmit();
+        form?.requestSubmit();
       } catch (error) {
           console.error("Error:", error);
         }
     });
 
-    const textArea = document.querySelector("#message");
-    if (textArea) {
-      textArea.addEventListener("input", () => {
-        if (!textArea.innerHTML) {
-          this.showRecordButton();
-          this.buttonRecord.disabled = false
-        }
-      });
-    }
-    
+    this.messageInput.textarea.addEventListener("input", () => {
+      if (!this.messageInput?.getValue() && !this.isStreaming) {
+        this.showRecordButton();
+        if (this.buttonRecord) this.buttonRecord.disabled = false;
+      }
+    });
 
     document.addEventListener("chat-response-start", () => {
       this.isStreaming = true;
-      this.buttonSend.style.display = "none";
-      this.buttonSendStop.style.display = "inline";
+      if (this.isRecording) this.stopRecording();
+      this.disableSubmit();
+      this.hideSendButton();
     });
 
     document.addEventListener("chat-response-end", () => {
       this.isStreaming = false;
-      this.buttonSendStop.style.display = "none";
-      const textArea = document.querySelector("#message");
-      if (!textArea.innerHTML) {
-        this.showRecordButton();
-        this.buttonRecord.disabled = false
-      }
+      this.enableSubmit();
+      this.showRecordButton();
+      this.showSendButton();
     });
+
     document.addEventListener("stop-streaming", () => {
       this.isStreaming = false;
+      this.enableSubmit();
       this.showRecordButton();
-      this.buttonRecord.disabled = false
-      this.buttonSendStop.style.display = "none";
-      this.buttonSend.style.display = "inline";
+      this.showSendButton();
     });
   }
 
+  get messageInput() {
+    return /** @type {MessageInput} */ (document.querySelector('message-input'));
+  }
+
   async startRecording() {
-    if (this.isRecording || this.isStreaming) return;
+    if (this.isStreaming) return;
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       alert("Microphone usage is not permitted");
       return;
     }
-    const textArea = document.querySelector("#message");
-    textArea.innerHTML = ''
 
+    this.messageInput?.reset();
+    this.isRecording = true;
     this.isStreaming = true;
-    this.isStreaming = true;
-    this.buttonRecord.style.display = "none";
-    this.buttonStop.style.display = "inline";
+    this.hideRecordButton();
 
     const client = new TranscribeStreamingClient({
       region: "eu-west-2",
@@ -98,7 +100,7 @@ class SendMessageWithDictation extends HTMLElement {
         const response = await (await fetch('/api/v0/aws-credentials', {
           method: 'GET',
           headers: {
-              'X-API-KEY': this.apiKey,
+              'X-API-KEY': this._apiKey || "",
               'Content-Type': 'application/json'
           }
         })).json();
@@ -109,16 +111,16 @@ class SendMessageWithDictation extends HTMLElement {
         };
       },
     });
-  
+
     try {
       this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const audioContext = new AudioContext({ sampleRate: 16000 });
       const input = audioContext.createMediaStreamSource(this.audioStream);
       const processor = audioContext.createScriptProcessor(1024, 1, 1);
-  
+
       input.connect(processor);
       processor.connect(audioContext.destination);
-  
+
       const readableStream = new Readable();
       processor.onaudioprocess = (e) => {
         const float32Array = e.inputBuffer.getChannelData(0);
@@ -128,7 +130,7 @@ class SendMessageWithDictation extends HTMLElement {
         });
         readableStream.emit("audioData", new Int8Array(int16Array.buffer));
       };
-  
+
       const audioStream = async function* () {
         while (this.isStreaming) {
           const chunk = await new Promise((resolve) =>
@@ -137,36 +139,40 @@ class SendMessageWithDictation extends HTMLElement {
           yield { AudioEvent: { AudioChunk: chunk } };
         }
       }.bind(this);
-  
+
       const command = new StartStreamTranscriptionCommand({
         LanguageCode: "en-GB",
         MediaSampleRateHertz: 16000,
         MediaEncoding: "pcm",
         AudioStream: audioStream(),
       });
-  
+
       const response = await client.send(command);
-      const textArea = document.querySelector("#message");
-  
+      const textArea = this.messageInput?.textarea;
+
       let lastFinalTranscript = "";
       let partialTranscript = "";
-  
+
+      if (!response.TranscriptResultStream) throw new Error("No TranscriptResultStream returned from AWS");
+
       for await (const event of response.TranscriptResultStream) {
         if (event.TranscriptEvent) {
-          const results = event.TranscriptEvent.Transcript.Results;
-  
-          results.forEach((result) => {
+          const results = event.TranscriptEvent.Transcript?.Results;
+
+          results?.forEach((result) => {
             const transcript = (result.Alternatives || [])
               .map((alt) => alt.Transcript)
               .join(" ");
-  
+
             if (result.IsPartial) {
               partialTranscript = transcript;
-              textArea.innerHTML = `${lastFinalTranscript} ${partialTranscript}`;
+              this.messageInput?.reset();
+              textArea?.appendChild(document.createTextNode(`${lastFinalTranscript} ${partialTranscript}`));
             } else {
               lastFinalTranscript += ` ${transcript}`;
               partialTranscript = "";
-              textArea.innerHTML = lastFinalTranscript.trim();
+              this.messageInput?.reset();
+              textArea?.appendChild(document.createTextNode(lastFinalTranscript.trim()));
             }
           });
         }
@@ -174,51 +180,93 @@ class SendMessageWithDictation extends HTMLElement {
     } catch (error) {
       console.error("Error starting streaming:", error);
       this.isStreaming = false;
-      this.buttonRecord.style.display = "inline";
-      this.buttonSend.style.display = "inline";
-      this.buttonStop.style.display = "none";
-      this.buttonSendStop.style.display = "inline";
+      this.showRecordButton();
+      this.showSendButton();
       alert("Microphone usage is not permitted");
     }
   }
 
-  stopAction() {
-    this.buttonRecord.style.display = "inline";
-    this.buttonSend.style.display = "inline";
-    this.buttonStop.style.display = "none";
-    this.buttonSendStop.style.display = "none";
-
-    if (this.isRecording && this.mediaRecorder) {
-      console.log("Stopped recording");
-      this.mediaRecorder.stop();
-      this.isRecording = false;
-      this.showRecordButton();
-      this.buttonRecord.disabled = true
-    } else if (this.isStreaming) {
-      this.showRecordButton();
-      this.buttonRecord.disabled = true
-      console.log("Stopping stream");
-      this.isStreaming = false
+  stopResponse() {
+    this.stopRecording();
+    if (this.isStreaming) {
+      console.log("Stopping response stream");
       document.dispatchEvent(new CustomEvent("stop-streaming"));
-      if (this.audioStream) {
-        const tracks = this.audioStream.getTracks();
-        tracks.forEach((track) => {
-          console.log("Stopping track:", track);
-          track.stop();
-        });
-        this.audioStream = null;
-      }
-    } else {
-      console.warn("No active recording or streaming to stop");
+      this.isStreaming = false;
+      this.enableSubmit();
     }
   }
 
-  showRecordButton() {
-    if (!this.buttonRecord || !this.buttonStop) return;
+  stopRecording() {
+    if (!this.isRecording) return console.warn("No active recording to stop");
 
-    this.buttonRecord.style.display = "inline";
-    this.buttonStop.style.display = "none";
+    this.showRecordButton();
+    console.log("Stopping stream");
+    this.isRecording = false;
+    if (this.audioStream) {
+      const tracks = this.audioStream.getTracks();
+      tracks.forEach((track) => {
+        console.log("Stopping track:", track);
+        track.stop();
+      });
+      this.audioStream = null;
+    }
   }
+
+
+  /**
+   * Show Dictate button and hide stop dictate button
+   */
+  showRecordButton() {
+    showElement(this.buttonRecord);
+    hideElement(this.buttonRecordStop);
+  }
+
+
+  /**
+   * Show Send button and hide stop send button
+   */
+  showSendButton() {
+    showElement(this.buttonSend);
+    hideElement(this.buttonSendStop);
+  }
+
+
+  /**
+   * Hide Dictate button and show stop dictate button
+   */
+  hideRecordButton() {
+    hideElement(this.buttonRecord);
+    showElement(this.buttonRecordStop);
+  }
+
+
+  /**
+   * Hide Send button and show stop send button
+   */
+  hideSendButton() {
+    hideElement(this.buttonSend);
+    showElement(this.buttonSendStop);
+  }
+
+
+  /**
+   * Disables submission
+   */
+  disableSubmit = () => {
+    this.submitDisabled = true;
+    if (this.buttonSend) this.buttonSend.disabled = true;
+    if (this.buttonRecord) this.buttonRecord.disabled = true;
+  };
+
+
+  /**
+   * Enables submission
+   */
+  enableSubmit = () => {
+    this.submitDisabled = false;
+    if (this.buttonSend) this.buttonSend.disabled = false;
+    if (this.buttonRecord) this.buttonRecord.disabled = false;
+  };
 }
 
 customElements.define("send-message-with-dictation", SendMessageWithDictation);

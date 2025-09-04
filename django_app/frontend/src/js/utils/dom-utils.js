@@ -2,19 +2,19 @@
 
 /**
  * Hide an element by using the govuk-!-display-none class
- * @param {HTMLElement} element - HTML element
+ * @param {HTMLElement | undefined} element - HTML element
 */
 export function hideElement(element) {
-    element.classList.add("govuk-!-display-none");
+    if (element) element.classList.add("govuk-!-display-none");
 }
 
 
 /**
  * Show an element by removing the govuk-!-display-none class
- * @param {HTMLElement} element - HTML element
+ * @param {HTMLElement | undefined} element - HTML element
 */
 export function showElement(element) {
-    element.classList.remove("govuk-!-display-none");
+    if (element) element.classList.remove("govuk-!-display-none");
 }
 
 
@@ -25,6 +25,7 @@ export function showElement(element) {
  * @param {string} fallback - default value
 */
 export function getAttributeOrDefault(elem, attr, fallback) {
+    if (!elem) return fallback;
     return elem.getAttribute(attr) ?? fallback;
 }
 
@@ -39,4 +40,15 @@ export function getNumericAttr(elem, attrName, fallback) {
     const raw = elem.getAttribute(attrName ?? "");
     const parsed = parseInt(raw ?? "");
     return isNaN(parsed) ? fallback : parsed;
+}
+
+
+/**
+ * Returns the CSRF token
+ * @returns {String} CSRF token value
+*/
+export function getCsrfToken() {
+    return /** @type {HTMLInputElement | null} */ (
+        document.querySelector('[name="csrfmiddlewaretoken"]')
+    )?.value || "";
 }

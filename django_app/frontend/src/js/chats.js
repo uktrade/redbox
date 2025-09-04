@@ -16,14 +16,14 @@ import "./web-components/chats/profile-overlay.js";
 import "./web-components/documents/file-status.js";
 import "./web-components/chats/profile-overlay.js";
 import "./web-components/chats/exit-feedback.js";
+import "./web-components/documents/file-upload.js";
 
-// RBDS - tbc
-import "../stylesheets/components/show-more.js";
-import "../stylesheets/components/editable-text.js";
-import "../stylesheets/components/modal.js";
+// RBDS
+import "../redbox_design_system/rbds";
 
 import { updateChatWindow, syncUrlWithContent, updateRecentChatHistory } from "./services";
 import { ChatHistory } from "./web-components/chats/chat-history.js";
+import { getActiveChatId } from "./utils/active-chat.js";
 
 
 
@@ -33,7 +33,8 @@ document.addEventListener("chat-response-end", (evt) => {
   const sessionId = event.detail.session_id;
   const isNewChat = event.detail.is_new_chat;
 
-  if (isNewChat) {
+  // If new chat or first message was stopped prematurely
+  if (isNewChat || !getActiveChatId()) {
     // Update Recent chats section
     updateRecentChatHistory(sessionId);
   } else {

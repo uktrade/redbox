@@ -1,7 +1,7 @@
+import os
 from asyncio import CancelledError
 from logging import getLogger
 from typing import Literal
-import os
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
@@ -14,8 +14,13 @@ from redbox.chains.components import (
     get_parameterised_retriever,
     get_tabular_chunks_retriever,
 )
-from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_documents_tool, build_search_wikipedia_tool
-from redbox.graph.root import get_agentic_search_graph, get_summarise_graph, new_root_graph
+from redbox.graph.nodes.tools import (
+    build_govuk_search_tool,
+    build_legislation_search_tool,
+    build_search_documents_tool,
+    build_search_wikipedia_tool,
+)
+from redbox.graph.root import build_root_graph, get_agentic_search_graph, get_summarise_graph
 from redbox.models.chain import RedboxState
 from redbox.models.chat import ChatRoute
 from redbox.models.file import ChunkResolution
@@ -72,20 +77,27 @@ class Redbox:
         )
         search_wikipedia = build_search_wikipedia_tool()
         search_govuk = build_govuk_search_tool()
+        search_legislation = build_legislation_search_tool()
 
         self.tools = [search_documents, search_wikipedia, search_govuk]
+
+        self.legislation_tools = {
+            "Internal_Retrieval_Agent": [search_documents],
+            "External_Retrieval_Agent": [search_legislation],
+        }
 
         self.multi_agent_tools = {
             "Internal_Retrieval_Agent": [search_documents],
             "External_Retrieval_Agent": [search_wikipedia, search_govuk],
         }
 
-        self.graph = new_root_graph(
+        self.graph = build_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,
             parameterised_retriever=self.parameterised_retriever,
             tabular_retriever=self.tabular_retriever,
             metadata_retriever=self.metadata_retriever,
             tools=self.tools,
+            legislation_tools=self.legislation_tools,
             multi_agent_tools=self.multi_agent_tools,
             debug=debug,
         )

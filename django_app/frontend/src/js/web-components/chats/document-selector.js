@@ -16,16 +16,33 @@ class DocumentSelector extends HTMLElement {
     this.#getSelectedDocuments();
 
     // update on any selection change
-    this.documents.forEach((document) => {
-      document.addEventListener("change", () => this.#getSelectedDocuments());
+    this.documents.forEach((doc) => {
+      doc.addEventListener("change", (evt) => {
+        this.#getSelectedDocuments();
+
+        const label = /** @type {HTMLLabelElement} */ (
+          document.querySelector(`label[for="${doc.id}"]`)
+        );
+        document.body.dispatchEvent(new CustomEvent("doc-selection-change", {
+          detail: {
+            id: doc.value,
+            name: label.title,
+            checked: doc.checked,
+          }
+        }));
+      });
     });
 
     // listen for completed docs
     document.body.addEventListener("doc-complete", (evt) => {
-      const completedDoc = /** @type{CustomEvent} */ (evt).detail.closest(
+      const detail = /** @type {CustomEvent} */ (evt).detail;
+      if (!(detail instanceof HTMLElement)) return;
+
+      const completedDoc = detail.closest(
         ".govuk-checkboxes__item"
       );
-      completedDoc.querySelector("file-status").remove();
+      if (!completedDoc) return;
+      completedDoc.querySelector("file-status")?.remove();
       this.querySelector(".govuk-checkboxes")?.appendChild(completedDoc);
     });
 

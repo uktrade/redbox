@@ -10,6 +10,7 @@ class ChatRoute(StrEnum):
     newroute = "newroute"
     summarise = "summarise"
     tabular = "tabular"
+    legislation = "legislation"
 
 
 class ErrorRoute(StrEnum):

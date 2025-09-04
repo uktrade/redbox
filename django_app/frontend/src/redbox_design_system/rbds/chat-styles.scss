@@ -306,32 +306,6 @@ main:has(.govuk-inset-text) .chat-options {
   }
 }
 
-.rb-send-button svg {
-  background-color: var(--color-background-white);
-  border-radius: 100%;
-  box-shadow: 4px 4px 12px #edeef2;
-}
-.rb-send-button .rb-square-icon {
-  align-items: center;
-  background-color: var(--color-background-white);
-  border-radius: 100%;
-  box-shadow: 4px 4px 12px #edeef2;
-  display: flex;
-  height: 1.75rem;
-  justify-content: center;
-  width: 1.75rem;
-}
-.rb-send-button .rb-square-icon::before {
-  background-color: #60697b;
-  border-radius: 2px;
-  content: "";
-  height: 0.625rem;
-  width: 0.625rem;
-}
-.rb-send-button:hover .rb-square-icon::before {
-  background-color: var(--color-background);
-}
-
 .iai-chat-input {
   max-width: 94%;
 }

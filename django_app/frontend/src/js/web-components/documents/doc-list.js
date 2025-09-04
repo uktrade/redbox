@@ -15,7 +15,7 @@ class DocList extends HTMLElement {
     document.body.addEventListener("doc-complete", (evt) => {
       // Move completed doc to this list
       const completedDoc = /** @type{CustomEvent} */ (evt).detail.closest(
-        ".iai-doc-list__item"
+        ".govuk-table__row"
       );
       completedDoc.querySelector("file-status").remove();
       this.querySelector("tbody")?.appendChild(completedDoc);
