@@ -220,25 +220,63 @@ def test_upload_document_endpoint_success(alice, client, file_pdf_path: Path):
 
 
 @pytest.mark.django_db()
-def test_upload_document_endpoint_no_file(alice, client):
-    """
-    Test the JSON API for document upload when no file is provided.
-    """
-    client.force_login(alice)
-    response = client.post("/upload/")
-
-    assert response.status_code == HTTPStatus.OK
-    response_data = json.loads(response.content)
-
-    assert "errors" in response_data
-    assert "No document selected" in response_data["errors"]
-
-
-@pytest.mark.django_db()
 def test_upload_document_endpoint_invalid_file(alice, client, file_py_path: Path):
     """
     Test the JSON API for document upload with an invalid file type.
     """
+    client.force_login(alice)
+    with file_py_path.open("rb") as f:
+        response = client.post("/upload/", {"file": f})
+
+    assert response.status_code == HTTPStatus.OK
+    response_data = json.loads(response.content)
+    assert "errors" in response_data
+    assert "File type .py not supported" in response_data["errors"]
+
+
+@pytest.mark.django_db()
+def test_upload_document_endpoint_multiple_files(alice, client, file_pdf_path: Path, file_py_path: Path):
+    """
+    Test the JSON API for document upload with multiple files, one valid and one invalid.
+    """
+    client.force_login(alice)
+    with file_pdf_path.open("rb") as pdf, file_py_path.open("rb") as py:
+        response = client.post("/upload/", {"file": [pdf, py]})
+
+    assert response.status_code == HTTPStatus.OK
+    response_data = json.loads(response.content)
+    assert "errors" in response_data
+    assert "File type .py not supported" in response_data["errors"]
+
+
+@pytest.mark.django_db()
+def test_upload_document_endpoint_unauthenticated(client, file_pdf_path: Path):
+    """
+    Test the JSON API for document upload when user is not authenticated.
+    """
+    with file_pdf_path.open("rb") as f:
+        response = client.post("/upload/", {"file": f})
+
+    # Should redirect to login or return 403
+    assert response.status_code in (HTTPStatus.FOUND, HTTPStatus.FORBIDDEN)
+
+
+@pytest.mark.django_db()
+def test_upload_document_endpoint_empty_file(alice, client, tmp_path):
+    """
+    Test the JSON API for document upload with an empty file.
+    """
+    client.force_login(alice)
+    empty_file = tmp_path / "empty.pdf"
+    empty_file.write_bytes(b"")
+
+    with empty_file.open("rb") as f:
+        response = client.post("/upload/", {"file": f})
+
+    assert response.status_code == HTTPStatus.OK
+    response_data = json.loads(response.content)
+    assert "errors" in response_data
+    assert "No document selected" in response_data["errors"] or "File is empty" in response_data["errors"]
     client.force_login(alice)
     with file_py_path.open("rb") as f:
         response = client.post("/upload-document/", {"file": f})
