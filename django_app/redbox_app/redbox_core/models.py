@@ -750,7 +750,7 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         blank=True,
         help_text="file for internal citation",
     )
-    url = models.URLField(null=True, blank=True, help_text="url for external")
+    url = models.URLField(null=True, blank=True, help_text="url for external", max_length=2048)
     chat_message = models.ForeignKey("ChatMessage", on_delete=models.CASCADE)
     text = models.TextField(null=True, blank=True)
     page_numbers = ArrayField(
