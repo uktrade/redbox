@@ -207,7 +207,11 @@ def test_upload_document_endpoint_success(alice, client, file_pdf_path: Path):
         response = client.post("/upload/", {"file": f})
 
     assert response.status_code == HTTPStatus.OK
-    response_data = json.loads(response.content)
+    try:
+        response_data = json.loads(response.content)
+    except json.JSONDecodeError:
+        print(response.content)
+        assert False, "Response is not valid JSON"
 
     assert "file_id" in response_data
     assert "file_name" in response_data
@@ -215,7 +219,7 @@ def test_upload_document_endpoint_success(alice, client, file_pdf_path: Path):
 
     file_id = uuid.UUID(response_data["file_id"])
     file = File.objects.get(id=file_id)
-    assert file.file_name == file_pdf_path.name
+    assert file.original_file_name == file_pdf_path.name
     assert file.user == alice
 
 
@@ -229,7 +233,11 @@ def test_upload_document_endpoint_invalid_file(alice, client, file_py_path: Path
         response = client.post("/upload/", {"file": f})
 
     assert response.status_code == HTTPStatus.OK
-    response_data = json.loads(response.content)
+    try:
+        response_data = json.loads(response.content)
+    except json.JSONDecodeError:
+        print(response.content)
+        assert False, "Response is not valid JSON"
     assert "errors" in response_data
     assert "File type .py not supported" in response_data["errors"]
 
@@ -244,7 +252,11 @@ def test_upload_document_endpoint_multiple_files(alice, client, file_pdf_path: P
         response = client.post("/upload/", {"file": [pdf, py]})
 
     assert response.status_code == HTTPStatus.OK
-    response_data = json.loads(response.content)
+    try:
+        response_data = json.loads(response.content)
+    except json.JSONDecodeError:
+        print(response.content)
+        assert False, "Response is not valid JSON"
     assert "errors" in response_data
     assert "File type .py not supported" in response_data["errors"]
 
@@ -274,14 +286,22 @@ def test_upload_document_endpoint_empty_file(alice, client, tmp_path, file_py_pa
         response = client.post("/upload/", {"file": f})
 
     assert response.status_code == HTTPStatus.OK
-    response_data = json.loads(response.content)
+    try:
+        response_data = json.loads(response.content)
+    except json.JSONDecodeError:
+        print(response.content)
+        assert False, "Response is not valid JSON"
     assert "errors" in response_data
     assert "No document selected" in response_data["errors"] or "File is empty" in response_data["errors"]
     client.force_login(alice)
     with file_py_path.open("rb") as f:
-        response = client.post("/upload-document/", {"file": f})
+        response = client.post("/upload/", {"file": f})
 
-    response_data = json.loads(response.content)
+    try:
+        response_data = json.loads(response.content)
+    except json.JSONDecodeError:
+        print(response.content)
+        assert False, "Response is not valid JSON"
     assert "errors" in response_data
     assert "File type .py not supported" in response_data["errors"]
 
@@ -304,13 +324,17 @@ def test_upload_document_ingest_errors(mock_service, alice, client, tmp_path):
     mock_file = MagicMock()
     mock_file.id = uuid.uuid4()
     mock_file.status = File.Status.errored
-    mock_file.file_name = "test.txt"
+    mock_file.original_file_name = "test.txt"
     mock_service.ingest_file.return_value = (["Error processing document"], mock_file)
 
     with file.open("rb") as f:
-        response = client.post("/upload-document/", {"file": f})
+        response = client.post("/upload/", {"file": f})
 
-    response_data = json.loads(response.content)
+    try:
+        response_data = json.loads(response.content)
+    except json.JSONDecodeError:
+        print(response.content)
+        assert False, "Response is not valid JSON"
     assert "ingest_errors" in response_data
     assert response_data["ingest_errors"] == File.Status.errored
 
@@ -321,7 +345,7 @@ def test_remove_doc_view_get(alice, client):
     Test the remove document view GET request.
     """
     file = File.objects.create(
-        user=alice, file_name="test.pdf", unique_name=f"{alice.email}/test.pdf", status=File.Status.complete
+        user=alice, original_file_name="test.pdf", unique_name=f"{alice.email}/test.pdf", status=File.Status.complete
     )
 
     client.force_login(alice)
@@ -339,7 +363,7 @@ def test_remove_doc_view_post(alice, client, mocker):
     Test the remove document view POST request for document deletion.
     """
     file = File.objects.create(
-        user=alice, file_name="test.pdf", unique_name=f"{alice.email}/test.pdf", status=File.Status.complete
+        user=alice, original_file_name="test.pdf", unique_name=f"{alice.email}/test.pdf", status=File.Status.complete
     )
 
     mocker.patch.object(File, "delete_from_elastic")
@@ -365,7 +389,7 @@ def test_remove_doc_view_error_handling(alice, client, mocker):
     Test error handling in the remove document view.
     """
     file = File.objects.create(
-        user=alice, file_name="test.pdf", unique_name=f"{alice.email}/test.pdf", status=File.Status.complete
+        user=alice, original_file_name="test.pdf", unique_name=f"{alice.email}/test.pdf", status=File.Status.complete
     )
 
     mocker.patch.object(File, "delete_from_elastic", side_effect=Exception("Test error"))
@@ -399,10 +423,10 @@ def test_remove_all_docs_view_post(alice, client, mocker):
     Test the remove all documents view POST request for bulk deletion.
     """
     file1 = File.objects.create(
-        user=alice, file_name="test1.pdf", unique_name=f"{alice.email}/test1.pdf", status=File.Status.complete
+        user=alice, original_file_name="test1.pdf", unique_name=f"{alice.email}/test1.pdf", status=File.Status.complete
     )
     file2 = File.objects.create(
-        user=alice, file_name="test2.pdf", unique_name=f"{alice.email}/test2.pdf", status=File.Status.complete
+        user=alice, original_file_name="test2.pdf", unique_name=f"{alice.email}/test2.pdf", status=File.Status.complete
     )
 
     mocker.patch.object(File, "delete_from_elastic")
