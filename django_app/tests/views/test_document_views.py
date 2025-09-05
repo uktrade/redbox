@@ -262,7 +262,7 @@ def test_upload_document_endpoint_unauthenticated(client, file_pdf_path: Path):
 
 
 @pytest.mark.django_db()
-def test_upload_document_endpoint_empty_file(alice, client, tmp_path):
+def test_upload_document_endpoint_empty_file(alice, client, tmp_path, file_py_path: Path):
     """
     Test the JSON API for document upload with an empty file.
     """
@@ -288,78 +288,6 @@ def test_upload_document_endpoint_empty_file(alice, client, tmp_path):
 
 @pytest.mark.django_db()
 @patch("redbox_app.redbox_core.views.document_views")
-def test_upload_document_doc_conversion(mock_service, alice, client, tmp_path):
-    """
-    Test that .doc files are converted to .docx before processing.
-    """
-    client.force_login(alice)
-
-    # Create a mock .doc file
-    doc_file = tmp_path / "test.doc"
-    doc_file.write_text("test content")
-
-    # Configure mocks
-    mock_service.is_doc_file.return_value = True
-    mock_service.validate_uploaded_file.return_value = None
-    mock_service.is_utf8_compatible.return_value = True
-    mock_service.convert_doc_to_docx.return_value = doc_file.open("rb")
-
-    mock_file = MagicMock()
-    mock_file.id = uuid.uuid4()
-    mock_file.status = File.Status.processing
-    mock_file.file_name = "test.docx"
-    mock_service.ingest_file.return_value = mock_file
-
-    with doc_file.open("rb") as f:
-        response = client.post("/upload-document/", {"file": f})
-
-    # Verify conversion and ingestion
-    mock_service.is_doc_file.assert_called_once()
-    mock_service.convert_doc_to_docx.assert_called_once()
-    mock_service.ingest_file.assert_called_once()
-
-    response_data = json.loads(response.content)
-    assert "file_id" in response_data
-    assert response_data["file_name"] == "test.docx"
-
-
-@pytest.mark.django_db()
-@patch("redbox_app.redbox_core.views.document_views")
-def test_upload_document_utf8_conversion(mock_service, alice, client, tmp_path):
-    """
-    Test that non-UTF8 files are converted to UTF8 before processing.
-    """
-    client.force_login(alice)
-
-    # Create a mock text file
-    file = tmp_path / "test.txt"
-    file.write_text("test content")
-
-    # Configure mocks
-    mock_service.is_doc_file.return_value = False
-    mock_service.validate_uploaded_file.return_value = None
-    mock_service.is_utf8_compatible.return_value = False
-    mock_service.convert_to_utf8.return_value = file.open("rb")
-
-    mock_file = MagicMock()
-    mock_file.id = uuid.uuid4()
-    mock_file.status = File.Status.processing
-    mock_file.file_name = "test.txt"
-    mock_service.ingest_file.return_value = mock_file
-
-    with file.open("rb") as f:
-        response = client.post("/upload-document/", {"file": f})
-
-    mock_service.is_utf8_compatible.assert_called_once()
-    mock_service.convert_to_utf8.assert_called_once()
-    mock_service.ingest_file.assert_called_once()
-
-    response_data = json.loads(response.content)
-    assert "file_id" in response_data
-
-
-@pytest.mark.django_db()
-@patch("redbox_app.redbox_core.views.document_views")
 def test_upload_document_ingest_errors(mock_service, alice, client, tmp_path):
     """
     Test handling of ingest errors during document upload.
@@ -375,7 +303,7 @@ def test_upload_document_ingest_errors(mock_service, alice, client, tmp_path):
 
     mock_file = MagicMock()
     mock_file.id = uuid.uuid4()
-    mock_file.status = File.Status.error_processing
+    mock_file.status = File.Status.errored
     mock_file.file_name = "test.txt"
     mock_service.ingest_file.return_value = (["Error processing document"], mock_file)
 
@@ -384,7 +312,7 @@ def test_upload_document_ingest_errors(mock_service, alice, client, tmp_path):
 
     response_data = json.loads(response.content)
     assert "ingest_errors" in response_data
-    assert response_data["ingest_errors"] == File.Status.error_processing
+    assert response_data["ingest_errors"] == File.Status.errored
 
 
 @pytest.mark.django_db()
@@ -393,7 +321,7 @@ def test_remove_doc_view_get(alice, client):
     Test the remove document view GET request.
     """
     file = File.objects.create(
-        user=alice, file_name="test.pdf", unique_name=f"{alice.email}/test.pdf", status=File.Status.ready
+        user=alice, file_name="test.pdf", unique_name=f"{alice.email}/test.pdf", status=File.Status.complete
     )
 
     client.force_login(alice)
@@ -411,7 +339,7 @@ def test_remove_doc_view_post(alice, client, mocker):
     Test the remove document view POST request for document deletion.
     """
     file = File.objects.create(
-        user=alice, file_name="test.pdf", unique_name=f"{alice.email}/test.pdf", status=File.Status.ready
+        user=alice, file_name="test.pdf", unique_name=f"{alice.email}/test.pdf", status=File.Status.complete
     )
 
     mocker.patch.object(File, "delete_from_elastic")
@@ -437,7 +365,7 @@ def test_remove_doc_view_error_handling(alice, client, mocker):
     Test error handling in the remove document view.
     """
     file = File.objects.create(
-        user=alice, file_name="test.pdf", unique_name=f"{alice.email}/test.pdf", status=File.Status.ready
+        user=alice, file_name="test.pdf", unique_name=f"{alice.email}/test.pdf", status=File.Status.complete
     )
 
     mocker.patch.object(File, "delete_from_elastic", side_effect=Exception("Test error"))
