@@ -204,7 +204,7 @@ def test_upload_document_endpoint_success(alice, client, file_pdf_path: Path):
     """
     client.force_login(alice)
     with file_pdf_path.open("rb") as f:
-        response = client.post("/upload-document/", {"file": f})
+        response = client.post("/upload/", {"file": f})
 
     assert response.status_code == HTTPStatus.OK
     response_data = json.loads(response.content)
@@ -225,7 +225,7 @@ def test_upload_document_endpoint_no_file(alice, client):
     Test the JSON API for document upload when no file is provided.
     """
     client.force_login(alice)
-    response = client.post("/upload-document/")
+    response = client.post("/upload/")
 
     assert response.status_code == HTTPStatus.OK
     response_data = json.loads(response.content)
@@ -249,7 +249,7 @@ def test_upload_document_endpoint_invalid_file(alice, client, file_py_path: Path
 
 
 @pytest.mark.django_db()
-@patch("redbox_app.documents.views.document_service")
+@patch("redbox_app.redbox_core.views.document_views")
 def test_upload_document_doc_conversion(mock_service, alice, client, tmp_path):
     """
     Test that .doc files are converted to .docx before processing.
@@ -286,7 +286,7 @@ def test_upload_document_doc_conversion(mock_service, alice, client, tmp_path):
 
 
 @pytest.mark.django_db()
-@patch("redbox_app.documents.views.document_service")
+@patch("redbox_app.redbox_core.views.document_views")
 def test_upload_document_utf8_conversion(mock_service, alice, client, tmp_path):
     """
     Test that non-UTF8 files are converted to UTF8 before processing.
@@ -321,7 +321,7 @@ def test_upload_document_utf8_conversion(mock_service, alice, client, tmp_path):
 
 
 @pytest.mark.django_db()
-@patch("redbox_app.documents.views.document_service")
+@patch("redbox_app.redbox_core.views.document_views")
 def test_upload_document_ingest_errors(mock_service, alice, client, tmp_path):
     """
     Test handling of ingest errors during document upload.
@@ -433,10 +433,10 @@ def test_remove_all_docs_view_post(alice, client, mocker):
     Test the remove all documents view POST request for bulk deletion.
     """
     file1 = File.objects.create(
-        user=alice, file_name="test1.pdf", unique_name=f"{alice.email}/test1.pdf", status=File.Status.ready
+        user=alice, file_name="test1.pdf", unique_name=f"{alice.email}/test1.pdf", status=File.Status.complete
     )
     file2 = File.objects.create(
-        user=alice, file_name="test2.pdf", unique_name=f"{alice.email}/test2.pdf", status=File.Status.ready
+        user=alice, file_name="test2.pdf", unique_name=f"{alice.email}/test2.pdf", status=File.Status.complete
     )
 
     mocker.patch.object(File, "delete_from_elastic")
