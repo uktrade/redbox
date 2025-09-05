@@ -59,7 +59,11 @@ from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
 from redbox.models.chain import AgentDecision, AISettings, PromptSet, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
-from redbox.models.prompts import EXTERNAL_RETRIEVAL_AGENT_PROMPT, INTERNAL_RETRIEVAL_AGENT_PROMPT
+from redbox.models.prompts import (
+    EXTERNAL_RETRIEVAL_AGENT_PROMPT,
+    INTERNAL_RETRIEVAL_AGENT_PROMPT,
+    WEB_SEARCH_AGENT_PROMPT,
+)
 from redbox.models.settings import get_settings
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
@@ -704,6 +708,17 @@ def build_new_route_graph(
         ),
     )
 
+    builder.add_node(
+        "Web_Search_Agent",
+        build_agent(
+            agent_name="Web_Search_Agent",
+            system_prompt=WEB_SEARCH_AGENT_PROMPT,
+            tools=multi_agent_tools["Web_Search_Agent"],
+            use_metadata=False,
+            max_tokens=agents_max_tokens["Web_Search_Agent"],
+        ),
+    )
+
     builder.add_node("user_feedback_evaluation", empty_process)
 
     builder.add_node("Evaluator_Agent", create_evaluator())
@@ -734,6 +749,7 @@ def build_new_route_graph(
     builder.add_conditional_edges("sending_task", sending_task_to_agent)
     builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
     builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
+    builder.add_edge("Web_Search_Agent", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
