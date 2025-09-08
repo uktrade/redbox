@@ -34,12 +34,12 @@ rebuild: stop prune ## Rebuild all images
 
 .PHONY: test-ai
 test-ai: ## Test code with live LLM
-	cd redbox-core && poetry install --with dev && poetry run python -m pytest -m "ai" --cov=redbox -v --cov-report=term-missing --cov-fail-under=80
+	cd redbox && poetry install --with dev && poetry run python -m pytest -m "ai" --cov=redbox -v --cov-report=term-missing --cov-fail-under=80
 
 .PHONY: test-redbox
 test-redbox: ## Test redbox
-	cd redbox-core && PYTHONPATH=$(PWD)/django_app:$(PWD)/redbox-core DJANGO_SETTINGS_MODULE=django_app.settings poetry install && \
-	PYTHONPATH=$(PWD)/django_app:$(PWD)/redbox-core poetry run pytest -m "not ai" --cov=redbox -v --cov-report=term-missing --cov-fail-under=60
+	cd redbox && PYTHONPATH=$(PWD)/django_app:$(PWD)/redbox DJANGO_SETTINGS_MODULE=django_app.settings poetry install && \
+	PYTHONPATH=$(PWD)/django_app:$(PWD)/redbox poetry run pytest -m "not ai" --cov=redbox -v --cov-report=term-missing --cov-fail-under=60
 
 .PHONY: test-django
 test-django: ## Test django-app
