@@ -8,7 +8,6 @@ import boto3
 import environ
 from dotenv import find_dotenv, load_dotenv
 from elasticsearch import Elasticsearch
-from traitlets import default
 from langchain.globals import set_debug
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from pydantic import AnyUrl, BaseModel
