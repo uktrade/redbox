@@ -8,6 +8,7 @@ import boto3
 import environ
 from dotenv import find_dotenv, load_dotenv
 from elasticsearch import Elasticsearch
+from traitlets import default
 from langchain.globals import set_debug
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from pydantic import AnyUrl, BaseModel
@@ -97,7 +98,8 @@ class Settings(BaseSettings):
         name="anthropic.claude-3-sonnet-20240229-v1:0", provider="bedrock"
     )
 
-    embedding_backend: str = "amazon.titan-embed-text-v2:0"
+    embedding_backend: str = env.str("EMBEDDING_BACKEND", "amazon.titan-embed-text-v2:0")
+
     embedding_backend_vector_size: int = 1024
 
     embedding_max_retries: int = 1
@@ -153,6 +155,8 @@ class Settings(BaseSettings):
     datahub_redbox_url: str = env.str("DATAHUB_REDBOX_URL", "")
     datahub_redbox_secret_key: str = env.str("DATAHUB_REDBOX_SECRET_KEY", "")
     datahub_redbox_access_key_id: str = env.str("DATAHUB_REDBOX_ACCESS_KEY_ID", "")
+
+    default_model_id: Optional[str] = env.str("DEFAULT_MODEL_ID", None)
 
     allow_plan_feedback: bool = env.bool("ALLOW_PLAN_FEEDBACK", True)
 
