@@ -2,6 +2,7 @@ import logging
 import uuid
 from http import HTTPStatus
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 from botocore.exceptions import ClientError
@@ -193,3 +194,179 @@ def file_exists(s3_client, file_name) -> bool:
         raise
     else:
         return True
+
+
+@pytest.mark.django_db()
+def test_upload_document_endpoint_invalid_file(alice, client, file_py_path: Path):
+    """
+    Test document upload with an invalid file type.
+    """
+    client.force_login(alice)
+    with file_py_path.open("rb") as f:
+        response = client.post("/upload/", {"uploadDocs": f})
+
+    assert response.status_code == HTTPStatus.OK
+
+    assert "File type .py not supported" in str(response.content)
+
+
+@pytest.mark.django_db()
+def test_upload_document_endpoint_multiple_files(alice, client, file_pdf_path: Path, file_py_path: Path):
+    """
+    Test the document upload with multiple files, one valid and one invalid.
+    """
+    client.force_login(alice)
+    with file_pdf_path.open("rb") as pdf, file_py_path.open("rb") as py:
+        response = client.post("/upload/", {"uploadDocs": [pdf, py]})
+
+    assert response.status_code == HTTPStatus.OK
+
+    assert "File type .py not supported" in str(response.content)
+
+
+@pytest.mark.django_db()
+def test_upload_document_endpoint_unauthenticated(client, file_pdf_path: Path):
+    """
+    Test the document upload when user is not authenticated.
+    """
+    with file_pdf_path.open("rb") as f:
+        response = client.post("/upload/", {"uploadDocs": f})
+
+    # Should redirect to login or return 403
+    assert response.status_code in (HTTPStatus.FOUND, HTTPStatus.FORBIDDEN)
+
+
+@pytest.mark.django_db()
+def test_upload_document_endpoint_empty_file(alice, client, tmp_path):
+    """
+    Test the document upload with an empty file.
+    """
+    client.force_login(alice)
+    empty_file = tmp_path / "empty.pdf"
+    empty_file.write_bytes(b"")
+
+    with empty_file.open("rb") as f:
+        response = client.post("/upload/", {"uploadDocs": f})
+
+    assert response.status_code == HTTPStatus.FOUND
+
+
+@pytest.mark.django_db()
+@patch("redbox_app.redbox_core.views.document_views")
+def test_upload_document_ingest_errors(mock_service, alice, client, tmp_path):
+    """
+    Test handling of ingest errors during document upload.
+    """
+    client.force_login(alice)
+
+    file = tmp_path / "test.txt"
+    file.write_text("test content")
+
+    mock_service.validate_uploaded_file.return_value = None
+    mock_service.is_doc_file.return_value = False
+    mock_service.is_utf8_compatible.return_value = True
+
+    mock_file = MagicMock()
+    mock_file.id = uuid.uuid4()
+    mock_file.status = File.Status.errored
+    mock_file.original_file_name = "test.txt"
+    mock_service.ingest_file.return_value = (["Error processing document"], mock_file)
+
+
+@pytest.mark.django_db()
+def test_remove_doc_view_get(alice, client):
+    """
+    Test the remove document view GET request.
+    """
+    file = File.objects.create(user=alice, original_file_name="test.pdf", status=File.Status.complete)
+
+    client.force_login(alice)
+    url = reverse("remove-doc", kwargs={"doc_id": file.id})
+    response = client.get(url)
+
+    assert response.status_code == HTTPStatus.OK
+    assert "test.pdf" in str(response.content)
+    assert str(file.id) in str(response.content)
+
+
+@pytest.mark.django_db()
+def test_remove_doc_view_post(alice, client, mocker):
+    """
+    Test the remove document view POST request for document deletion.
+    """
+    file = File.objects.create(user=alice, original_file_name="test.pdf", status=File.Status.complete)
+
+    mocker.patch.object(File, "delete_from_elastic")
+    mocker.patch.object(File, "delete_from_s3")
+
+    client.force_login(alice)
+    url = reverse("remove-doc", kwargs={"doc_id": file.id})
+    response = client.post(url, {"doc_id": file.id})
+
+    assert response.status_code == HTTPStatus.FOUND
+    assert response.url == "/documents/"
+
+    file.refresh_from_db()
+    assert file.status == File.Status.deleted
+
+    File.delete_from_elastic.assert_called_once()
+    File.delete_from_s3.assert_called_once()
+
+
+@pytest.mark.django_db()
+def test_remove_doc_view_error_handling(alice, client, mocker):
+    """
+    Test error handling in the remove document view.
+    """
+    file = File.objects.create(user=alice, original_file_name="test.pdf", status=File.Status.complete)
+
+    mocker.patch.object(File, "delete_from_elastic", side_effect=Exception("Test error"))
+    mocker.patch.object(File, "delete_from_s3")
+
+    client.force_login(alice)
+    url = reverse("remove-doc", kwargs={"doc_id": file.id})
+    response = client.post(url, {"doc_id": file.id})
+
+    assert response.status_code == HTTPStatus.FOUND
+
+    file.refresh_from_db()
+    assert file.status == File.Status.errored
+
+
+@pytest.mark.django_db()
+def test_remove_all_docs_view_get(alice, client):
+    """
+    Test the remove all documents view GET request.
+    """
+    client.force_login(alice)
+    url = reverse("remove-all-docs")
+    response = client.get(url)
+
+    assert response.status_code == HTTPStatus.OK
+
+
+@pytest.mark.django_db()
+def test_remove_all_docs_view_post(alice, client, mocker):
+    """
+    Test the remove all documents view POST request for bulk deletion.
+    """
+    file1 = File.objects.create(user=alice, original_file_name="test1.pdf", status=File.Status.complete)
+    file2 = File.objects.create(user=alice, original_file_name="test2.pdf", status=File.Status.complete)
+
+    mocker.patch.object(File, "delete_from_elastic")
+    mocker.patch.object(File, "delete_from_s3")
+
+    client.force_login(alice)
+    url = reverse("remove-all-docs")
+    response = client.post(url)
+
+    assert response.status_code == HTTPStatus.FOUND
+    assert response.url == "/documents/"
+
+    file1.refresh_from_db()
+    file2.refresh_from_db()
+    assert file1.status == File.Status.deleted
+    assert file2.status == File.Status.deleted
+
+    assert File.delete_from_elastic.call_count == 2
+    assert File.delete_from_s3.call_count == 2
