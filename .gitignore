@@ -1,6 +1,6 @@
 **/*.db
 .idea/
-redbox-core/models/
+redbox/models/
 .envrc
 
 # Credentials

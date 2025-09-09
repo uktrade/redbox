@@ -12,7 +12,3 @@ We decided to have a clear separation between the backend and the frontend. This
 ## Django
 
 ![Django](../assets/redbox_django_ui.gif)
-
-## Streamlit
-
-![Streamlit](../assets/streamlit_chat.gif)
