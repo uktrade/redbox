@@ -89,7 +89,7 @@ class AISettings(BaseModel):
     knn_boost: float = 2.0
     similarity_threshold: float = 0.7
 
-    # this is also the azure_openai_model
+    # this is also the bedrock model
     chat_backend: ChatLLMBackend = ChatLLMBackend()
 
     # settings for tool call

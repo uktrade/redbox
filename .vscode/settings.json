@@ -12,7 +12,7 @@
         "pythonTerminalEnvVarActivation"
     ],
     "python.testing.pytestArgs": [
-        "redbox-core"
+        "redbox"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,

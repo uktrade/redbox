@@ -632,7 +632,7 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
                 "ConnectionError",
                 "RateLimitError",
                 "ConnectTimeout",
-                "openai.InternalServerError",
+                "botocore.ClientError",
             ]
             for substring in temporary_error_substrings:
                 if substring in self.ingest_error:

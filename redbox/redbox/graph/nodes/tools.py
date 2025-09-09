@@ -224,7 +224,10 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
 @waffle_flag("DATA_HUB_API_ROUTE_ON")
 def parse_filters_bedrock(prompt: str):
     client = boto3.client("bedrock-runtime", region_name="eu-west-2")
-    model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
+
+    settings = get_settings()
+
+    model_id = settings.default_model_id if settings.default_model_id else "anthropic.claude-3-sonnet-20240229-v1:0"
 
     response = client.invoke_model(
         modelId=model_id,

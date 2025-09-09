@@ -49,6 +49,15 @@ jobs:
       run: |
         make test-redbox
 
+    - name: Move coverage report
+      run: |
+        find . -name coverage.xml -exec mv {} ./coverage.xml \;
+
+    - name: Upload results to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
 
   test-django:
 
@@ -79,6 +88,15 @@ jobs:
     - name: Test django with pytest
       run: |
         make test-django
+    
+    - name: Move coverage report
+      run: |
+        find . -name coverage.xml -exec mv {} ./coverage.xml \;
+
+    - name: Upload results to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
 
     - name: Test migrations
       run: |
