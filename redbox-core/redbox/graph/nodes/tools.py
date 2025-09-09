@@ -461,9 +461,9 @@ def build_web_search_tool():
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
         if site == "":
-            return kagi_search_call(query=query)
+            return kagi_search_call(query=query, no_search_result=5)
         else:
-            return kagi_search_call(query=query + " site:" + site)
+            return kagi_search_call(query=query + " site:" + site, no_search_result=5)
 
     return _search_web
 

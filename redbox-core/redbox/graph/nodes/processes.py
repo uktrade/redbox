@@ -495,7 +495,7 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
         result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
         return {"agents_results": result, "tasks_evaluator": task.task + "\n" + task.expected_output}
 
-    return _build_agent
+    return _build_agent.with_retry(stop_after_attempt=3)
 
 
 def create_evaluator():
