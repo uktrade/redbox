@@ -232,7 +232,6 @@ def main():
             json.dump(results, outfile, indent=4)
         time.sleep(5)  # slow down request frequency to avoid API throttling
         logger.info("Iteration number: %s", str(eval_data.index(row)))
-        break
     # clean up
     os.remove(ground_truth_db)
 
