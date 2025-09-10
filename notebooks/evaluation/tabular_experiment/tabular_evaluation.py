@@ -135,7 +135,7 @@ def get_tabular_results(row, ground_truth_results, documents, ai_setting, env, q
     try_again, iter_limit = initialise_param()
     while try_again and iter_limit < 3:
         x = get_state(uuid4(), prompts=[question], documents=documents, ai_setting=ai_setting)
-        app = Redbox(debug=False, env=env)
+        app = Redbox(debug=True, env=env)
         result = run_app(app, x)
         answer = result["messages"][-1].content
         row["redbox_answer_" + suffix] = answer
@@ -177,10 +177,21 @@ def main():
     env = get_settings()
     env = env.model_copy(update={"elastic_root_index": "redbox-data-integration"})
     env = env.model_copy(update={"elastic_chunk_alias": "redbox-data-integration-chunk-current"})
+    #use claude 3.7 without extended thinking
+    #ai_setting = AISettings(
+        #chat_backend=ChatLLMBackend(name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock")
+    #)
+    #OR use claude 3.7 WITH extended thinking
+    thinking_params= {
+    "thinking": {
+        "type": "enabled",
+        "budget_tokens": 1024,
+    }
+}
     ai_setting = AISettings(
-        chat_backend=ChatLLMBackend(name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock")
+        chat_backend=ChatLLMBackend(name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock-converse", additional_model_request_fields = thinking_params)
     )
-    langchain.debug = False
+    langchain.debug = True
     email_address = os.getenv("USER_EMAIL")
     documents = ["account.csv", "card.csv", "client.csv", "disp.csv", "district.csv", "loan.csv", "order.csv"]
     documents_paths = [email_address + "/" + doc for doc in documents]
@@ -228,7 +239,7 @@ def main():
         )
         results.append(row)
         # Writing to a JSON file with indentation
-        with open("../data_results/tabular/evaluation_results.json", "w") as outfile:
+        with open("../data_results/tabular/evaluation_results_extended_thinking.json", "w") as outfile:
             json.dump(results, outfile, indent=4)
         time.sleep(5)  # slow down request frequency to avoid API throttling
         logger.info("Iteration number: %s", str(eval_data.index(row)))

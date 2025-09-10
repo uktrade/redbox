@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 
-def get_chat_llm(
+def get_chat_llm_old(
     model: ChatLLMBackend, ai_settings: AISettings = AISettings(), tools: list[StructuredTool] | None = None
 ):
     logger.debug(
@@ -50,6 +50,26 @@ def get_chat_llm(
         chat_model = chat_model.bind_tools(tools)
     return chat_model
 
+def get_chat_llm(
+    model: ChatLLMBackend, ai_settings: AISettings = AISettings(), tools: list[StructuredTool] | None = None
+):
+    logger.debug(
+        "initialising model=%s model_provider=%s tools=%s max_tokens=%s",
+        ai_settings.chat_backend.name,
+        ai_settings.chat_backend.provider,
+        tools,
+        ai_settings.llm_max_tokens,
+    )
+    chat_model = init_chat_model(
+        model=ai_settings.chat_backend.name,
+        model_provider=ai_settings.chat_backend.provider,
+        max_tokens=ai_settings.llm_max_tokens,
+        configurable_fields=["base_url"],
+        additional_model_request_fields = ai_settings.additional_model_request_fields
+    )
+    if tools:
+        chat_model = chat_model.bind_tools(tools)
+    return chat_model
 
 def get_base_chat_llm(model: ChatLLMBackend, ai_settings: AISettings = AISettings()):
     """Initialises a chat llm that returns a BaseChatModel object i.e. a model without tools that is not configurable."""
@@ -59,11 +79,20 @@ def get_base_chat_llm(model: ChatLLMBackend, ai_settings: AISettings = AISetting
         model.provider,
         ai_settings.llm_max_tokens,
     )
-    return init_chat_model(
-        model=model.name,
-        model_provider=model.provider,
-        max_tokens=ai_settings.llm_max_tokens,
-    )
+    if ai_settings.chat_backend.provider == "bedrock-converse":
+        return init_chat_model(
+            model=ai_settings.chat_backend.name,
+            model_provider=ai_settings.chat_backend.provider,
+            max_tokens=ai_settings.llm_max_tokens,
+            additional_model_request_fields = ai_settings.additional_model_request_fields
+        )
+    else:
+        return init_chat_model(
+            model=ai_settings.chat_backend.name,
+            model_provider=ai_settings.chat_backend.provider,
+            max_tokens=ai_settings.llm_max_tokens
+        )
+
 
 
 @cache

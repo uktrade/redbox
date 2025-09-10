@@ -797,7 +797,7 @@ def build_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 500
         try:
             # Create SQL database agent with structured output format
             db = SQLDatabase.from_uri(f"sqlite:///{state.request.db_location}")
-            llm = get_base_chat_llm(model=state.request.ai_settings.chat_backend)
+            llm = get_base_chat_llm(model=state.request.ai_settings.chat_backend, ai_settings=state.request.ai_settings)
 
             # Customise the agent to return structured responses
             agent = create_sql_agent(

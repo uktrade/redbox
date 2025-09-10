@@ -1,3 +1,4 @@
+from ast import Dict
 from datetime import UTC, datetime
 from enum import Enum, StrEnum
 from functools import reduce
@@ -32,6 +33,7 @@ class AISettings(BaseModel):
     # LLM settings
     context_window_size: int = 128_000
     llm_max_tokens: int = env.int("LLM_MAX_TOKENS", default=1024)
+    additional_model_request_fields : dict = None
 
     # Prompts and LangGraph settings
     max_document_tokens: int = 1_000_000
