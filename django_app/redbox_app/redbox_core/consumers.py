@@ -16,7 +16,6 @@ from django.forms.models import model_to_dict
 from django.utils import timezone
 from langchain_core.documents import Document
 from pydantic import ValidationError
-from uwotm8 import convert_american_to_british_spelling
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
@@ -47,6 +46,11 @@ from redbox_app.redbox_core.models import (
     MonitorSearchRoute,
 )
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
+from redbox_app.redbox_core.services import message as message_service
+
+convert_american_to_british_spelling = sync_to_async(
+    message_service.convert_american_to_british_spelling, thread_sensitive=True
+)
 
 User = get_user_model()
 OptFileSeq = Sequence[File] | None
