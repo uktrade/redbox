@@ -15,7 +15,6 @@ from redbox.graph.edges import (
     build_documents_bigger_than_context_conditional,
     build_keyword_detection_conditional,
     build_total_tokens_request_handler_conditional,
-    documents_selected_conditional,
     is_using_search_keyword,
     multiple_docs_in_group_conditional,
     remove_gadget_keyword,
@@ -59,7 +58,11 @@ from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
 from redbox.models.chain import AgentDecision, AISettings, PromptSet, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
-from redbox.models.prompts import EXTERNAL_RETRIEVAL_AGENT_PROMPT, INTERNAL_RETRIEVAL_AGENT_PROMPT
+from redbox.models.prompts import (
+    EXTERNAL_RETRIEVAL_AGENT_PROMPT,
+    INTERNAL_RETRIEVAL_AGENT_PROMPT,
+    WEB_SEARCH_AGENT_PROMPT,
+)
 from redbox.models.settings import get_settings
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
@@ -82,7 +85,6 @@ def build_root_graph(
     builder = StateGraph(RedboxState)
 
     # nodes
-    builder.add_node("chat_graph", get_chat_graph(debug=debug))
     builder.add_node("search_graph", get_search_graph(retriever=parameterised_retriever, debug=debug))
     builder.add_node("gadget_graph", get_agentic_search_graph(tools=tools, debug=debug))
     builder.add_node(
@@ -146,27 +148,9 @@ def build_root_graph(
             ChatRoute.newroute: "new_route_graph",
             ChatRoute.summarise: "summarise_graph",
             ChatRoute.tabular: "tabular_graph",
-            ChatRoute.legislation: "legislation_graph",
-            "DEFAULT": "any_documents_selected",
+            # ChatRoute.legislation: "legislation_graph",
+            "DEFAULT": "new_route_graph",
         },
-    )
-    builder.add_conditional_edges(
-        "any_documents_selected",
-        documents_selected_conditional,
-        {
-            True: "is_new_route_enabled",
-            False: "chat_graph",
-        },
-    )
-    builder.add_conditional_edges(
-        "is_new_route_enabled",
-        lambda s: s.request.ai_settings.new_route_enabled,
-        {True: "new_route_graph", False: "llm_choose_route"},
-    )
-    builder.add_conditional_edges(
-        "llm_choose_route",
-        lm_choose_route_wrapper,
-        {"search": "search_graph", "summarise": "summarise_graph", "tabular": "tabular_graph"},
     )
 
     builder.add_edge("search_graph", "is_summarise_route")
@@ -670,6 +654,7 @@ def build_new_route_graph(
             allow_plan_feedback=allow_plan_feedback,
             node_after_streamed="stream_plan",
             node_afer_replan="sending_task",
+            node_for_no_task="Evaluator_Agent",
         ),
     )
     builder.add_node(
@@ -704,6 +689,28 @@ def build_new_route_graph(
         ),
     )
 
+    builder.add_node(
+        "Web_Search_Agent",
+        build_agent(
+            agent_name="Web_Search_Agent",
+            system_prompt=WEB_SEARCH_AGENT_PROMPT,
+            tools=multi_agent_tools["Web_Search_Agent"],
+            use_metadata=False,
+            max_tokens=agents_max_tokens["Web_Search_Agent"],
+        ),
+    )
+
+    builder.add_node(
+        "Chat_Agent",
+        build_agent(
+            agent_name="Web_Search_Agent",
+            system_prompt=WEB_SEARCH_AGENT_PROMPT,
+            tools=multi_agent_tools["Web_Search_Agent"],
+            use_metadata=False,
+            max_tokens=agents_max_tokens["Web_Search_Agent"],
+        ),
+    )
+
     builder.add_node("user_feedback_evaluation", empty_process)
 
     builder.add_node("Evaluator_Agent", create_evaluator())
@@ -734,6 +741,7 @@ def build_new_route_graph(
     builder.add_conditional_edges("sending_task", sending_task_to_agent)
     builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
     builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
+    builder.add_edge("Web_Search_Agent", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
@@ -765,6 +773,7 @@ def build_legislation_graph(
             allow_plan_feedback=allow_legislation_plan_feedback,
             node_after_streamed="stream_plan",
             node_afer_replan="sending_task",
+            node_for_no_task="Evaluator_Agent",
         ),
     )
     builder.add_node(
