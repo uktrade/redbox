@@ -419,7 +419,12 @@ def create_planner(is_streamed=False):
         return _create_planner
 
 
-def my_planner(allow_plan_feedback=False, node_after_streamed: str = "human", node_afer_replan: str = "sending_task"):
+def my_planner(
+    allow_plan_feedback=False,
+    node_after_streamed: str = "human",
+    node_afer_replan: str = "sending_task",
+    node_for_no_task="evaluator",
+):
     @RunnableLambda
     def _create_planner(state: RedboxState):
         no_tasks_auto = 1
@@ -457,6 +462,9 @@ def my_planner(allow_plan_feedback=False, node_after_streamed: str = "human", no
                     return Command(update=state, goto=node_after_streamed)
                 else:
                     return Command(update=state, goto=node_afer_replan)
+            # if there is no task, go to evaluator
+            elif len(state.agent_plans.tasks) == 0:
+                return Command(update=state, goto=node_for_no_task)
             else:
                 return Command(update=state, goto=node_afer_replan)
 
@@ -495,7 +503,7 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
         result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
         return {"agents_results": result, "tasks_evaluator": task.task + "\n" + task.expected_output}
 
-    return _build_agent
+    return _build_agent.with_retry(stop_after_attempt=3)
 
 
 def create_evaluator():
