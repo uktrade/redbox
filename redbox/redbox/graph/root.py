@@ -85,6 +85,7 @@ def build_root_graph(
     builder = StateGraph(RedboxState)
 
     # nodes
+    builder.add_node("chat_graph", get_chat_graph(debug=debug))
     builder.add_node("search_graph", get_search_graph(retriever=parameterised_retriever, debug=debug))
     builder.add_node("gadget_graph", get_agentic_search_graph(tools=tools, debug=debug))
     builder.add_node(
@@ -148,6 +149,7 @@ def build_root_graph(
             ChatRoute.newroute: "new_route_graph",
             ChatRoute.summarise: "summarise_graph",
             ChatRoute.tabular: "tabular_graph",
+            ChatRoute.chat: "chat_graph",
             # ChatRoute.legislation: "legislation_graph",
             "DEFAULT": "new_route_graph",
         },
