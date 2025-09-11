@@ -14,7 +14,7 @@
                 <li><a class="govuk-link" href="{{ url('accessibility-statement') }}">Accessibility</a></li>
                 <li><a class="govuk-link" href="{{ url('homepage') }}">Home page</a></li>
                 {% if request.user.is_authenticated %}
-                    <li><a class="govuk-link" href="{{ url('demographics') }}">My details</a></li>
+                    <li><a class="govuk-link" href="{{ url('settings') }}">Settings</a></li>
                 {% endif %}
                 <li><a class="govuk-link" href="{{ url('privacy-notice') }}">Privacy</a></li>
                 {% if not request.user.is_authenticated %}
