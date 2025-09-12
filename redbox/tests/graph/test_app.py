@@ -865,4 +865,3 @@ def test_add_docs_and_db_to_input_state(env: Settings, mocker: MockerFixture):
 
     assert not hasattr(result.request, "previous_s3_keys") or result.request.previous_s3_keys is None
     assert not hasattr(result.request, "db_location") or result.request.db_location is None
-
