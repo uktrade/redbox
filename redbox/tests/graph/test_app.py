@@ -712,7 +712,7 @@ def test_get_available_keywords(env: Settings):
 
 
 def test_draw_method(env: Settings, mocker: MockerFixture):
-    # Initialize the app with mocked retrievers
+    # Initialise the app with mocked retrievers
     app = Redbox(
         all_chunks_retriever=mock_all_chunks_retriever([]),
         parameterised_retriever=mock_parameterised_retriever([]),
@@ -737,3 +737,132 @@ def test_draw_method(env: Settings, mocker: MockerFixture):
         draw_method=MermaidDrawMethod.PYPPETEER, output_file_path=None
     )
     assert result_root == "mermaid_png_output"
+
+
+def test_handle_db_file_operations(env: Settings, mocker: MockerFixture):
+    app = Redbox(
+        all_chunks_retriever=mock_all_chunks_retriever([]),
+        parameterised_retriever=mock_parameterised_retriever([]),
+        metadata_retriever=mock_metadata_retriever([]),
+        env=env,
+    )
+
+    mock_remove = mocker.patch("os.remove")
+    mock_exists = mocker.patch("os.path.exists", return_value=True)
+
+    app.previous_db_location = "/path/to/old_db.sqlite"
+    app.previous_s3_keys = ["key1", "key2"]
+    app.handle_db_file(None)
+
+    mock_exists.assert_called_once_with("/path/to/old_db.sqlite")
+    mock_remove.assert_called_once_with("/path/to/old_db.sqlite")
+    assert app.previous_db_location is None
+    assert app.previous_s3_keys is None
+
+    mock_remove.reset_mock()
+    mock_exists.reset_mock()
+
+    app.previous_db_location = "/path/to/old_db.sqlite"
+
+    final_state = RedboxState(
+        request=RedboxQuery(
+            question="What is the meaning of life?",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            db_location="/path/to/new_db.sqlite",
+        ),
+        db_location=None,
+    )
+    app.handle_db_file(final_state)
+
+    mock_exists.assert_called_once_with("/path/to/old_db.sqlite")
+    mock_remove.assert_called_once_with("/path/to/old_db.sqlite")
+    assert app.previous_db_location == "/path/to/new_db.sqlite"
+
+    mock_remove.reset_mock()
+    mock_exists.reset_mock()
+
+    app.previous_db_location = "/path/to/same_db.sqlite"
+    final_state = RedboxState(
+        request=RedboxQuery(
+            question="Why do dogs bark?",
+            s3_keys=["key1"],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=["key1"],
+            db_location="/path/to/same_db.sqlite",
+        )
+    )
+    app.handle_db_file(final_state)
+
+    mock_exists.assert_not_called()
+    mock_remove.assert_not_called()
+    assert app.previous_db_location == "/path/to/same_db.sqlite"
+    assert app.previous_s3_keys == ["key1"]
+
+
+def test_remove_db_file_if_exists_error_handling(env: Settings, mocker: MockerFixture):
+    app = Redbox(
+        all_chunks_retriever=mock_all_chunks_retriever([]),
+        parameterised_retriever=mock_parameterised_retriever([]),
+        metadata_retriever=mock_metadata_retriever([]),
+        env=env,
+    )
+
+    mock_logger = mocker.patch("redbox.app.logger")
+    app.remove_db_file_if_exists(None)
+    mock_logger.error.assert_not_called()
+
+    mock_exists = mocker.patch("os.path.exists", return_value=False)
+    app.remove_db_file_if_exists("/path/to/nonexistent.db")
+    mock_exists.assert_called_once_with("/path/to/nonexistent.db")
+    mock_logger.error.assert_not_called()
+
+    mock_exists = mocker.patch("os.path.exists", return_value=True)
+    app.remove_db_file_if_exists("/path/to/protected.db")
+    mock_logger.error.assert_called_once()
+    assert "Error encountered when deleting the db file" in mock_logger.error.call_args[0][0]
+
+
+def test_add_docs_and_db_to_input_state(env: Settings, mocker: MockerFixture):
+    app = Redbox(
+        all_chunks_retriever=mock_all_chunks_retriever([]),
+        parameterised_retriever=mock_parameterised_retriever([]),
+        metadata_retriever=mock_metadata_retriever([]),
+        env=env,
+    )
+
+    app.previous_db_location = "/path/to/db.sqlite"
+    app.previous_s3_keys = ["key1", "key2"]
+
+    input_state = RedboxState(
+        request=RedboxQuery(
+            question="@tabular How many rows in this table?",
+            s3_keys=["new_key"],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=["new_key"],
+        )
+    )
+
+    result = app.add_docs_and_db_to_input_state(input_state)
+
+    assert result.request.previous_s3_keys == ["key1", "key2"]
+    assert result.request.db_location == "/path/to/db.sqlite"
+
+    input_state = RedboxState(
+        request=RedboxQuery(
+            question="What is the purpose of AI long term?",
+            s3_keys=["new_key"],
+            user_uuid=uuid4(),
+            chat_history=[],
+        )
+    )
+
+    result = app.add_docs_and_db_to_input_state(input_state)
+
+    assert not hasattr(result.request, "previous_s3_keys") or result.request.previous_s3_keys is None
+    assert not hasattr(result.request, "db_location") or result.request.db_location is None
+
