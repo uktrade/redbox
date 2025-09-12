@@ -4,10 +4,12 @@ import logging
 # from enum import Enum
 from typing import Any
 from uuid import uuid4
+from unittest.mock import MagicMock
 
 import pytest
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage
+from langchain_core.runnables.graph import MermaidDrawMethod
 from langchain_core.tools import tool
 from pytest_mock import MockerFixture
 
@@ -707,3 +709,31 @@ def test_get_available_keywords(env: Settings):
     }
 
     assert keywords == set(app.get_available_keywords().keys())
+
+
+def test_draw_method(env: Settings, mocker: MockerFixture):
+    # Initialize the app with mocked retrievers
+    app = Redbox(
+        all_chunks_retriever=mock_all_chunks_retriever([]),
+        parameterised_retriever=mock_parameterised_retriever([]),
+        metadata_retriever=mock_metadata_retriever([]),
+        env=env,
+    )
+
+    # Create a mock graph instance
+    mock_graph_instance = MagicMock()
+    mock_graph_instance.draw_mermaid_png.return_value = "mermaid_png_output"
+
+    # Mock the graph retrieval methods
+    mocker.patch.object(app.graph, "get_graph", return_value=mock_graph_instance)
+    mocker.patch("redbox.graph.root.get_agentic_search_graph", return_value=MagicMock())
+    mocker.patch("redbox.graph.root.get_summarise_graph", return_value=MagicMock())
+
+    # Act
+    result_root = app.draw(graph_to_draw="root")
+
+    # Assert
+    mock_graph_instance.draw_mermaid_png.assert_called_with(
+        draw_method=MermaidDrawMethod.PYPPETEER, output_file_path=None
+    )
+    assert result_root == "mermaid_png_output"

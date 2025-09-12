@@ -271,7 +271,7 @@ class Redbox:
         else:
             raise Exception("Invalid graph_to_draw")
 
-        return graph.draw_mermaid_png(draw_method=MermaidDrawMethod.API, output_file_path=output_path)
+        return graph.draw_mermaid_png(draw_method=MermaidDrawMethod.PYPPETEER, output_file_path=output_path)
 
     def remove_db_file_if_exists(self, db_path: str):
         try:

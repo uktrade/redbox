@@ -2,11 +2,13 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 import pytest
+from langchain_core.documents import Document
 from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.messages import AIMessage
 from langgraph.prebuilt import ToolNode
 from opensearchpy import OpenSearch
 
+from redbox.api.format import reduce_chunks_by_tokens
 from redbox.graph.nodes.tools import (
     build_govuk_search_tool,
     build_search_documents_tool,
@@ -17,7 +19,8 @@ from redbox.models.chain import AISettings, RedboxQuery, RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
 from redbox.models.settings import Settings
 from redbox.test.data import RedboxChatTestCase
-from redbox.transform import flatten_document_state
+from redbox.transform import flatten_document_state, combine_documents
+
 from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
 
 
@@ -276,3 +279,127 @@ def test_web_search_tool(query, site):
         [{"name": "_search_web", "args": {"query": query, "site": site}, "id": "1", "type": "tool_call"}]
     )
     assert response["messages"][0].content != ""
+
+
+def test_reduce_chunks_by_tokens_empty_chunks():
+    """
+    Test when chunks is None or empty.
+
+    Asserts:
+    * When chunks is None, the function returns a list containing only the provided chunk
+    * When chunks is an empty list, the function returns a list containing only the provided chunk
+    """
+    chunk = Document(page_content="Test content", metadata={"token_count": 10})
+
+    result = reduce_chunks_by_tokens(None, chunk, 100)
+    assert len(result) == 1
+    assert result[0] == chunk
+
+    result = reduce_chunks_by_tokens([], chunk, 100)
+    assert len(result) == 1
+    assert result[0] == chunk
+
+
+def test_reduce_chunks_by_tokens_combine():
+    """
+    Test when the new chunk can be combined with the last chunk.
+
+    Asserts:
+    * The function combines the last chunk and the new chunk
+    * The returned list has the same length as the input list
+    * The combination is done correctly using combine_documents
+    """
+    last_chunk = Document(page_content="Last chunk", metadata={"token_count": 30})
+    new_chunk = Document(page_content="New chunk", metadata={"token_count": 20})
+    chunks = [Document(page_content="First chunk", metadata={"token_count": 25}), last_chunk]
+
+    result = reduce_chunks_by_tokens(chunks, new_chunk, 100)
+
+    assert len(result) == 2
+    assert result[0] == chunks[0]
+
+    expected_combined = combine_documents(last_chunk, new_chunk)
+    assert result[1] == expected_combined
+
+
+def test_reduce_chunks_by_tokens_append():
+    """
+    Test when the new chunk cannot be combined with the last chunk.
+
+    Asserts:
+    * The function appends the new chunk to the list
+    * The returned list is one element longer than the input list
+    * The original chunks are unchanged
+    """
+    last_chunk = Document(page_content="Last chunk", metadata={"token_count": 80})
+    new_chunk = Document(page_content="New chunk", metadata={"token_count": 30})
+    chunks = [Document(page_content="First chunk", metadata={"token_count": 25}), last_chunk]
+
+    result = reduce_chunks_by_tokens(chunks, new_chunk, 100)
+
+    assert len(result) == 3
+    assert result[0] == chunks[0]
+    assert result[1] == chunks[1]
+    assert result[2] == new_chunk
+
+
+def test_reduce_chunks_by_tokens_exact_boundary():
+    """
+    Test when the token counts sum exactly to the maximum.
+
+    Asserts:
+    * The function combines chunks when the sum equals the max_tokens
+    """
+    last_chunk = Document(page_content="Last chunk", metadata={"token_count": 50})
+    new_chunk = Document(page_content="New chunk", metadata={"token_count": 50})
+    chunks = [last_chunk]
+
+    # Should combine since 50 + 50 = 100
+    result = reduce_chunks_by_tokens(chunks, new_chunk, 100)
+
+    assert len(result) == 1
+    expected_combined = combine_documents(last_chunk, new_chunk)
+    assert result[0] == expected_combined
+
+
+def test_reduce_chunks_by_tokens_multiple_operations(monkeypatch):
+    """
+    Test multiple operations in sequence to ensure state is maintained correctly.
+
+    Asserts:
+    * The function correctly handles a sequence of operations
+    """
+
+    def mock_combine(doc1, doc2):
+        combined_content = f"{doc1.page_content} + {doc2.page_content}"
+        combined_tokens = doc1.metadata["token_count"] + doc2.metadata["token_count"]
+        return Document(page_content=combined_content, metadata={"token_count": combined_tokens})
+
+    monkeypatch.setattr("redbox.transform.combine_documents", mock_combine)
+
+    chunks = []
+    max_tokens = 100
+
+    chunk1 = Document(page_content="Chunk 1", metadata={"token_count": 40})
+    chunks = reduce_chunks_by_tokens(chunks, chunk1, max_tokens)
+    assert len(chunks) == 1
+    assert chunks[0].page_content == "Chunk 1"
+
+    chunk2 = Document(page_content="Chunk 2", metadata={"token_count": 30})
+    chunks = reduce_chunks_by_tokens(chunks, chunk2, max_tokens)
+    assert len(chunks) == 1
+    assert chunks[0].page_content == "Chunk 1Chunk 2"
+    assert chunks[0].metadata["token_count"] == 70
+
+    chunk3 = Document(page_content="Chunk 3", metadata={"token_count": 50})
+    chunks = reduce_chunks_by_tokens(chunks, chunk3, max_tokens)
+    assert len(chunks) == 2
+    assert chunks[0].page_content == "Chunk 1Chunk 2"
+    assert chunks[1].page_content == "Chunk 3"
+
+    chunk4 = Document(page_content="Chunk 4", metadata={"token_count": 40})
+    chunks = reduce_chunks_by_tokens(chunks, chunk4, max_tokens)
+    assert len(chunks) == 2
+    assert chunks[0].page_content == "Chunk 1Chunk 2"
+    assert chunks[1].page_content == "Chunk 3Chunk 4"
+    assert chunks[1].metadata["token_count"] == 90
