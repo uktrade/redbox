@@ -4,8 +4,8 @@ import pytest
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage
 from pytest_mock import MockerFixture
+from redbox_app.redbox_core.consumers import escape_curly_brackets
 
-from django_app.redbox_app.redbox_core.consumers import escape_curly_brackets
 from redbox import Redbox
 from redbox.models.chain import (
     AgentEnum,
