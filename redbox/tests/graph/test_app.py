@@ -3,8 +3,8 @@ import logging
 
 # from enum import Enum
 from typing import Any
-from uuid import uuid4
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pytest
 from langchain_core.documents import Document
@@ -92,18 +92,6 @@ def mock_planner_agent(mocker, planner_output):
     mocked_agent = MockedAgent(planner_output)
     mocker.patch("redbox.graph.nodes.processes.create_planner", return_value=mocked_agent)
     return mocked_agent
-
-
-def mock_worker_agent(mocker, OUTPUT_WITH_WORKER):
-    mocked_agent = MockedAgent("")
-    mocker.patch("redbox.graph.nodes.processes.create_chain_agent", return_value=mocked_agent)
-    mocker.patch("redbox.graph.nodes.processes.run_tools_parallel", return_value=[OUTPUT_WITH_WORKER])
-
-
-def mock_evaluator_agent(mocker, test_case):
-    llm_evaluator = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
-    llm_evaluator._default_config = {"model": "bedrock"}
-    mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=llm_evaluator)
 
 
 def assert_number_of_events(num_of_events: int):

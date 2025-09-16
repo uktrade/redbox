@@ -338,7 +338,6 @@ class TestNewRoutes:
             old_plan = [
                 ChainChatMessage(
                     role="ai",
-                    # text=escape_curly_brackets(MultiAgentPlan(tasks=tasks).model_dump_json()),
                     text=(MultiAgentPlan(tasks=tasks).model_dump_json()).replace("{", "{{").replace("}", "}}"),
                 )
             ]
