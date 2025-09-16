@@ -19,6 +19,7 @@ from redbox.graph.nodes.tools import (
     build_legislation_search_tool,
     build_search_documents_tool,
     build_search_wikipedia_tool,
+    build_web_search_tool,
 )
 from redbox.graph.root import build_root_graph, get_agentic_search_graph, get_summarise_graph
 from redbox.models.chain import RedboxState
@@ -78,8 +79,9 @@ class Redbox:
         search_wikipedia = build_search_wikipedia_tool()
         search_govuk = build_govuk_search_tool()
         search_legislation = build_legislation_search_tool()
+        web_search = build_web_search_tool()
 
-        self.tools = [search_documents, search_wikipedia, search_govuk]
+        self.tools = [search_documents, search_wikipedia, search_govuk, web_search]
 
         self.legislation_tools = {
             "Internal_Retrieval_Agent": [search_documents],
@@ -89,6 +91,7 @@ class Redbox:
         self.multi_agent_tools = {
             "Internal_Retrieval_Agent": [search_documents],
             "External_Retrieval_Agent": [search_wikipedia, search_govuk],
+            "Web_Search_Agent": [web_search],
         }
 
         self.graph = build_root_graph(
