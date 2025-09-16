@@ -4,7 +4,6 @@ import pytest
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage
 from pytest_mock import MockerFixture
-from redbox_app.redbox_core.consumers import escape_curly_brackets
 
 from redbox import Redbox
 from redbox.models.chain import (
@@ -339,7 +338,8 @@ class TestNewRoutes:
             old_plan = [
                 ChainChatMessage(
                     role="ai",
-                    text=escape_curly_brackets(MultiAgentPlan(tasks=tasks).model_dump_json()),
+                    # text=escape_curly_brackets(MultiAgentPlan(tasks=tasks).model_dump_json()),
+                    text=(MultiAgentPlan(tasks=tasks).model_dump_json()).replace("{", "{{").replace("}", "}}"),
                 )
             ]
 
