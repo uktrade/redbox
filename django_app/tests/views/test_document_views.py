@@ -569,6 +569,51 @@ def test_delete_document_error_handling(alice, client, mocker):
 
 
 @pytest.mark.django_db()
+def test_delete_document_invalid_doc_id(alice, client, mocker):
+    """
+    Test the delete_document endpoint with an invalid document ID.
+    """
+    logger_spy = mocker.spy(logging.getLogger(), "exception")
+
+    client.force_login(alice)
+    invalid_doc_id = "invalid-uuid"
+    url = reverse("delete-document", kwargs={"doc_id": invalid_doc_id})
+    response = client.post(url, {"doc_id": invalid_doc_id})
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.content.decode() == "Invalid document ID"
+
+    logger_spy.assert_called_once_with("Invalid document ID: %s", invalid_doc_id)
+
+
+@pytest.mark.django_db()
+def test_delete_document_invalid_active_chat_id(alice, client, mocker):
+    """
+    Test the delete_document endpoint with an invalid active chat ID.
+    """
+    file_id = uuid.uuid4()
+    file = File.objects.create(id=file_id, user=alice, original_file_name="test.pdf", status=File.Status.complete)
+
+    logger_spy = mocker.spy(logging.getLogger(), "exception")
+
+    mocker.patch.object(File, "delete_from_elastic")
+    mocker.patch.object(File, "delete_from_s3")
+
+    client.force_login(alice)
+    url = reverse("delete-document", kwargs={"doc_id": str(file.id)})
+    invalid_chat_id = "invalid-uuid"
+    response = client.post(
+        url,
+        {"doc_id": str(file.id), "session-id": invalid_chat_id, "file_selected": "True"},
+    )
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.content.decode() == "Invalid active chat ID"
+
+    logger_spy.assert_called_once_with("Invalid active chat ID: %s", invalid_chat_id)
+
+
+@pytest.mark.django_db()
 def test_upload_document_api_endpoint(alice, client, file_pdf_path, s3_client):
     """
     Test the API endpoint for uploading a document.
