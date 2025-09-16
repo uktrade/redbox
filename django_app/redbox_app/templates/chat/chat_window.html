@@ -8,7 +8,7 @@
     {% endif %}
     <div class="rb-chats-section">
         {% include "chat/chat_title.html" %}
-        <chat-controller class="iai-chat-container" data-stream-url="{{ streaming.endpoint }}"
+        <chat-controller class="iai-chat-container" data-stream-url="{{ streaming.endpoint if streaming else '' }}"
             data-session-id="{{ chat_id or '' }}">
             <div class="rb-chat-message__container js-message-container">
 

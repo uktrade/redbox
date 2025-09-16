@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 from dataclasses_json import Undefined, dataclass_json
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.decorators import method_decorator
@@ -180,33 +180,45 @@ def remove_all_docs_view(request):
 
 @require_http_methods(["POST"])
 @login_required
-def delete_document(request, doc_id: uuid):
-    file = get_object_or_404(File, id=doc_id)
+def delete_document(request, doc_id: uuid.UUID):
+    try:
+        doc_uuid = uuid.UUID(str(doc_id))
+    except ValueError:
+        logger.exception("Invalid document ID: %s", doc_id)
+        return HttpResponseBadRequest("Invalid document ID")
+
+    file = get_object_or_404(File, id=doc_uuid, user=request.user)
     errors: list[str] = []
+
     try:
         file.delete_from_elastic()
         file.delete_from_s3()
         file.status = File.Status.deleted
         file.save()
-        logger.info("Removing document: %s", request.POST["doc_id"])
+        logger.info("Removing document: %s", request.POST.get("doc_id"))
     except Exception as e:
         logger.exception("Error deleting file object %s.", file, exc_info=e)
         errors.append("There was an error deleting this file")
         file.status = File.Status.errored
         file.save()
 
-    selected_document = False
     session_id = request.POST.get("session-id")
     file_selected = request.POST.get("file_selected")
     active_chat_id = session_id if session_id else request.POST.get("active_chat_id")
 
-    if active_chat_id != "None":
-        active_chat_id = uuid.UUID(active_chat_id)
-        if file_selected == "True":
-            active_chat_id = None
-            selected_document = True
+    if active_chat_id and active_chat_id != "None":
+        try:
+            active_chat_id = uuid.UUID(str(active_chat_id))
+        except ValueError:
+            logger.exception("Invalid active chat ID: %s", active_chat_id)
+            return HttpResponseBadRequest("Invalid active chat ID")
     else:
         active_chat_id = None
+
+    selected_document = False
+    if active_chat_id and file_selected == "True":
+        active_chat_id = None
+        selected_document = True
 
     if selected_document:
         context = chat_service.get_context(request, active_chat_id)
@@ -219,6 +231,7 @@ def delete_document(request, doc_id: uuid):
                 {"template": "chat/chat_window.html", "context": oob_context, "request": request},
             ]
         )
+
     return documents_service.render_your_documents(request, active_chat_id)
 
 

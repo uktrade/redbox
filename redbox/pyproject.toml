@@ -35,6 +35,8 @@ pymupdf = "^1.26.0"
 ddtrace = "^3.10.0"
 django-requestlogs = "^0.8"
 django-log-formatter-asim = "^1.0.0"
+pytest = "^8.4.2"
+pyppeteer = "^2.0.0"
 
 
 
