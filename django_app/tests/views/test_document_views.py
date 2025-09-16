@@ -8,10 +8,11 @@ import pytest
 from botocore.exceptions import ClientError
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import Client
+from django.test import Client, RequestFactory
 from django.urls import reverse
 
-from redbox_app.redbox_core.models import File
+from redbox_app.redbox_core.models import ChatLLMBackend, File
+from redbox_app.redbox_core.views.document_views import delete_document
 
 User = get_user_model()
 
@@ -144,10 +145,10 @@ def test_remove_doc_view(client: Client, alice: User, file_pdf_path: Path, s3_cl
 
         new_file = File.objects.filter(user=alice).order_by("-created_at")[0]
 
-        client.post(f"/remove-doc/{new_file.id}", {"doc_id": new_file.id})
+        client.post(f"/remove-doc/{new_file.id!s}", {"doc_id": str(new_file.id)})
         assert not file_exists(s3_client, file_name)
         assert count_s3_objects(s3_client) == previous_count
-        assert File.objects.get(id=new_file.id).status == File.Status.deleted
+        assert File.objects.get(id=str(new_file.id)).status == File.Status.deleted
 
 
 @pytest.mark.django_db()
@@ -278,10 +279,11 @@ def test_remove_doc_view_get(alice, client):
     """
     Test the remove document view GET request.
     """
-    file = File.objects.create(user=alice, original_file_name="test.pdf", status=File.Status.complete)
+    file_id = uuid.uuid4()
+    file = File.objects.create(id=file_id, user=alice, original_file_name="test.pdf", status=File.Status.complete)
 
     client.force_login(alice)
-    url = reverse("remove-doc", kwargs={"doc_id": file.id})
+    url = reverse("remove-doc", kwargs={"doc_id": str(file.id)})
     response = client.get(url)
 
     assert response.status_code == HTTPStatus.OK
@@ -294,14 +296,15 @@ def test_remove_doc_view_post(alice, client, mocker):
     """
     Test the remove document view POST request for document deletion.
     """
-    file = File.objects.create(user=alice, original_file_name="test.pdf", status=File.Status.complete)
+    file_id = uuid.uuid4()
+    file = File.objects.create(id=file_id, user=alice, original_file_name="test.pdf", status=File.Status.complete)
 
     mocker.patch.object(File, "delete_from_elastic")
     mocker.patch.object(File, "delete_from_s3")
 
     client.force_login(alice)
-    url = reverse("remove-doc", kwargs={"doc_id": file.id})
-    response = client.post(url, {"doc_id": file.id})
+    url = reverse("remove-doc", kwargs={"doc_id": str(file.id)})
+    response = client.post(url, {"doc_id": str(file.id)})
 
     assert response.status_code == HTTPStatus.FOUND
     assert response.url == "/documents/"
@@ -318,14 +321,15 @@ def test_remove_doc_view_error_handling(alice, client, mocker):
     """
     Test error handling in the remove document view.
     """
-    file = File.objects.create(user=alice, original_file_name="test.pdf", status=File.Status.complete)
+    file_id = uuid.uuid4()
+    file = File.objects.create(id=file_id, user=alice, original_file_name="test.pdf", status=File.Status.complete)
 
     mocker.patch.object(File, "delete_from_elastic", side_effect=Exception("Test error"))
     mocker.patch.object(File, "delete_from_s3")
 
     client.force_login(alice)
-    url = reverse("remove-doc", kwargs={"doc_id": file.id})
-    response = client.post(url, {"doc_id": file.id})
+    url = reverse("remove-doc", kwargs={"doc_id": str(file.id)})
+    response = client.post(url, {"doc_id": str(file.id)})
 
     assert response.status_code == HTTPStatus.FOUND
 
@@ -370,3 +374,288 @@ def test_remove_all_docs_view_post(alice, client, mocker):
 
     assert File.delete_from_elastic.call_count == 2
     assert File.delete_from_s3.call_count == 2
+
+
+# new tests
+@pytest.mark.django_db()
+def test_document_view_get(alice, client):
+    """
+    Test the DocumentView GET request.
+    """
+    # Create some files for testing
+    completed_file = File.objects.create(user=alice, original_file_name="completed.pdf", status=File.Status.complete)
+    processing_file = File.objects.create(
+        user=alice, original_file_name="processing.pdf", status=File.Status.processing
+    )
+
+    # Login and request the documents page
+    client.force_login(alice)
+    response = client.get("/documents/")
+
+    # Verify the response
+    assert response.status_code == HTTPStatus.OK
+    content = str(response.content)
+    assert completed_file.original_file_name in content
+    assert processing_file.original_file_name in content
+
+    # Check session handling for ingest errors
+    client.session["ingest_errors"] = ["Test error"]
+    response = client.get("/documents/")
+    assert response.status_code == HTTPStatus.OK
+    assert client.session.get("ingest_errors") == []
+
+
+@pytest.mark.django_db()
+def test_documents_title_view(alice, client):
+    """
+    Test updating a document title via DocumentsTitleView.
+    """
+    # Create a file
+    file_id = uuid.uuid4()
+    file = File.objects.create(id=file_id, user=alice, original_file_name="original.pdf", status=File.Status.complete)
+
+    # Login and make the request
+    client.force_login(alice)
+    url = reverse("document-titles", kwargs={"doc_id": str(file.id)})
+    response = client.post(url, data='{"value": "updated.pdf"}', content_type="application/json")
+
+    # Verify the response and changes
+    assert response.status_code == HTTPStatus.NO_CONTENT
+    file.refresh_from_db()
+    assert file.original_file_name == "updated.pdf"
+
+
+@pytest.mark.django_db()
+def test_your_documents_view(alice, client):
+    """
+    Test the YourDocuments view functionality.
+    """
+    # Create a file
+    file_id = uuid.uuid4()
+    file = File.objects.create(id=file_id, user=alice, original_file_name="test.pdf", status=File.Status.complete)
+
+    # Login and make the request
+    client.force_login(alice)
+    response = client.get("/documents/")
+
+    # Verify the response
+    assert response.status_code == HTTPStatus.OK
+    assert file.original_file_name in str(response.content)
+
+
+@pytest.mark.django_db()
+def test_file_status_api_view(alice, client):
+    """
+    Test the file status API view.
+    """
+    # Create a file
+    file_id = uuid.uuid4()
+    file = File.objects.create(id=file_id, user=alice, original_file_name="test.pdf", status=File.Status.processing)
+
+    # Login and make the request
+    client.force_login(alice)
+    response = client.get("/file-status/", {"id": str(file.id)})
+
+    # Verify the response
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+    assert data["status"] == File.Status.processing.capitalize()
+
+
+@pytest.mark.django_db()
+def test_delete_document_endpoint(alice, client, mocker):
+    """
+    Test the delete_document endpoint.
+    """
+    # Create a file
+    file_id = uuid.uuid4()
+
+    file = File.objects.create(id=file_id, user=alice, original_file_name="test.pdf", status=File.Status.complete)
+
+    mocker.patch.object(File, "delete_from_elastic")
+    mocker.patch.object(File, "delete_from_s3")
+
+    client.force_login(alice)
+    url = reverse("delete-document", kwargs={"doc_id": str(file.id)})
+    response = client.post(url, {"doc_id": str(file.id)})
+
+    assert response.status_code == HTTPStatus.OK
+    assert File.objects.get(id=file_id).status == File.Status.deleted
+    assert File.delete_from_elastic.called
+    assert File.delete_from_s3.called
+
+
+@pytest.mark.django_db()
+def test_delete_document_with_chat(alice, client, mocker):
+    """
+    Test the delete_document endpoint with active chat session.
+    """
+    file_id = uuid.uuid4()
+    # Create a file
+    file = File.objects.create(id=file_id, user=alice, original_file_name="test.pdf", status=File.Status.complete)
+
+    # Mock methods
+    mocker.patch.object(File, "delete_from_elastic")
+    mocker.patch.object(File, "delete_from_s3")
+
+    # Mock chat_service.get_context to return simple context
+    mocker.patch("redbox_app.redbox_core.services.chats.get_context", return_value={"files": []})
+
+    chat_llm_backend = ChatLLMBackend.objects.get(name="anthropic.claude-3-7-sonnet-20250219-v1:0")
+
+    context = {
+        "chat_id": str(uuid.uuid4()),
+        "messages": [],
+        "chats": [],
+        "current_chat": None,
+        "streaming": {"endpoint": "/ws/chat/"},
+        "contact_email": "support@example.com",
+        "completed_files": [],
+        "processing_files": [],
+        "chat_title_length": 100,
+        "llm_options": [
+            {
+                "name": str(chat_llm_backend),
+                "default": chat_llm_backend.is_default,
+                "selected": True,
+                "id": chat_llm_backend.id,
+            }
+        ],
+        "redbox_api_key": "mock-api-key",
+        "enable_dictation_flag_is_active": False,
+        "csrf_token": "mock-csrf-token",
+        "request": mocker.MagicMock(),
+    }
+
+    client.force_login(alice)
+    url = reverse("delete-document", kwargs={"doc_id": str(file.id)})
+    session_id = context["chat_id"]
+
+    response = client.post(
+        url,
+        {"doc_id": str(file.id), "session-id": session_id, "file_selected": "False"},
+    )
+    assert response.status_code == HTTPStatus.OK
+
+    response = client.post(
+        url,
+        {
+            "doc_id": str(file.id),
+            "session-id": session_id,
+            "file_selected": "True",
+            "streaming": {"endpoint": "/ws/chat/"},
+        },
+    )
+    assert response.status_code == HTTPStatus.OK
+
+
+@pytest.mark.django_db()
+def test_delete_document_error_handling(alice, client, mocker):
+    """
+    Test error handling in the delete_document endpoint.
+    """
+    file_id = uuid.uuid4()
+    file = File.objects.create(id=file_id, user=alice, original_file_name="test.pdf", status=File.Status.complete)
+
+    mocker.patch.object(File, "delete_from_elastic", side_effect=Exception("Test error"))
+    mocker.patch.object(File, "delete_from_s3")
+
+    client.force_login(alice)
+    url = reverse("delete-document", kwargs={"doc_id": str(file.id)})
+    response = client.post(url, {"doc_id": str(file.id)})
+
+    assert response.status_code == HTTPStatus.OK
+    file.refresh_from_db()
+    assert file.status == File.Status.errored
+
+
+@pytest.mark.django_db()
+def test_delete_document_invalid_doc_id(alice, mocker):
+    """
+    Test the delete_document endpoint with an invalid document ID.
+    """
+    logger_spy = mocker.spy(logging.getLogger("redbox_app.redbox_core.views.document_views"), "exception")
+
+    factory = RequestFactory()
+    request = factory.post("/documents/invalid-uuid/delete-document/", {"doc_id": "invalid-uuid"})
+    request.user = alice
+
+    response = delete_document(request, doc_id="invalid-uuid")
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.content.decode() == "Invalid document ID"
+
+    logger_spy.assert_called_once_with("Invalid document ID: %s", "invalid-uuid")
+
+
+@pytest.mark.django_db()
+def test_delete_document_invalid_active_chat_id(alice, client, mocker):
+    """
+    Test the delete_document endpoint with an invalid active chat ID.
+    """
+    file_id = uuid.uuid4()
+    file = File.objects.create(id=file_id, user=alice, original_file_name="test.pdf", status=File.Status.complete)
+
+    logger_spy = mocker.spy(logging.getLogger("redbox_app.redbox_core.views.document_views"), "exception")
+
+    mocker.patch.object(File, "delete_from_elastic")
+    mocker.patch.object(File, "delete_from_s3")
+
+    client.force_login(alice)
+    url = reverse("delete-document", kwargs={"doc_id": str(file.id)})
+    invalid_chat_id = "invalid-uuid"
+    response = client.post(
+        url,
+        {
+            "doc_id": str(file.id),
+            "session-id": "",
+            "active_chat_id": invalid_chat_id,
+            "file_selected": "True",
+        },
+    )
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.content.decode() == "Invalid active chat ID"
+
+    logger_spy.assert_called_once_with("Invalid active chat ID: %s", invalid_chat_id)
+
+
+@pytest.mark.django_db()
+def test_upload_document_api_endpoint(alice, client, file_pdf_path, s3_client):
+    """
+    Test the API endpoint for uploading a document.
+    """
+    file_name = f"{alice.email}/{file_pdf_path.name}"
+    # Remove any existing file
+    s3_client.delete_object(Bucket=settings.BUCKET_NAME, Key=file_name.replace(" ", "_"))
+    assert not file_exists(s3_client, file_name)
+
+    client.force_login(alice)
+    previous_count = count_s3_objects(s3_client)
+
+    with file_pdf_path.open("rb") as f:
+        response = client.post("/upload/", {"uploadDocs": f})
+
+    # For successful uploads, the view redirects to /documents/
+    assert response.status_code == HTTPStatus.FOUND
+    assert response.url == "/documents/"
+    assert count_s3_objects(s3_client) == previous_count + 1
+
+    # Verify a file was created in the database
+    uploaded_file = File.objects.filter(user=alice).order_by("-created_at")[0]
+    assert uploaded_file.file_name == file_pdf_path.name.replace(" ", "_")
+
+
+@pytest.mark.django_db()
+def test_upload_document_api_invalid_file(alice, client, file_py_path):
+    """
+    Test the API endpoint with invalid file type.
+    """
+    client.force_login(alice)
+
+    with file_py_path.open("rb") as f:
+        response = client.post("/upload/", {"uploadDocs": f})
+
+    assert response.status_code == HTTPStatus.OK
+    content = str(response.content)
+    assert "File type .py not supported" in content
