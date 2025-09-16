@@ -8,10 +8,11 @@ import pytest
 from botocore.exceptions import ClientError
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import Client
+from django.test import Client, RequestFactory
 from django.urls import reverse
 
 from redbox_app.redbox_core.models import ChatLLMBackend, File
+from redbox_app.redbox_core.views.document_views import delete_document
 
 User = get_user_model()
 
@@ -569,21 +570,22 @@ def test_delete_document_error_handling(alice, client, mocker):
 
 
 @pytest.mark.django_db()
-def test_delete_document_invalid_doc_id(alice, client, mocker):
+def test_delete_document_invalid_doc_id(alice, mocker):
     """
     Test the delete_document endpoint with an invalid document ID.
     """
-    logger_spy = mocker.spy(logging.getLogger(), "exception")
+    logger_spy = mocker.spy(logging.getLogger("redbox_app.redbox_core.views.document_views"), "exception")
 
-    client.force_login(alice)
-    invalid_doc_id = "invalid-uuid"
-    url = reverse("delete-document", kwargs={"doc_id": invalid_doc_id})
-    response = client.post(url, {"doc_id": invalid_doc_id})
+    factory = RequestFactory()
+    request = factory.post("/documents/invalid-uuid/delete-document/", {"doc_id": "invalid-uuid"})
+    request.user = alice
+
+    response = delete_document(request, doc_id="invalid-uuid")
 
     assert response.status_code == HTTPStatus.BAD_REQUEST
     assert response.content.decode() == "Invalid document ID"
 
-    logger_spy.assert_called_once_with("Invalid document ID: %s", invalid_doc_id)
+    logger_spy.assert_called_once_with("Invalid document ID: %s", "invalid-uuid")
 
 
 @pytest.mark.django_db()
@@ -594,7 +596,7 @@ def test_delete_document_invalid_active_chat_id(alice, client, mocker):
     file_id = uuid.uuid4()
     file = File.objects.create(id=file_id, user=alice, original_file_name="test.pdf", status=File.Status.complete)
 
-    logger_spy = mocker.spy(logging.getLogger(), "exception")
+    logger_spy = mocker.spy(logging.getLogger("redbox_app.redbox_core.views.document_views"), "exception")
 
     mocker.patch.object(File, "delete_from_elastic")
     mocker.patch.object(File, "delete_from_s3")
@@ -604,7 +606,12 @@ def test_delete_document_invalid_active_chat_id(alice, client, mocker):
     invalid_chat_id = "invalid-uuid"
     response = client.post(
         url,
-        {"doc_id": str(file.id), "session-id": invalid_chat_id, "file_selected": "True"},
+        {
+            "doc_id": str(file.id),
+            "session-id": "",
+            "active_chat_id": invalid_chat_id,
+            "file_selected": "True",
+        },
     )
 
     assert response.status_code == HTTPStatus.BAD_REQUEST
