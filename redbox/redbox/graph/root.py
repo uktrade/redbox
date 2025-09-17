@@ -137,7 +137,6 @@ def build_root_graph(
             ChatRoute.gadget: "gadget_graph",
             ChatRoute.newroute: "new_route_graph",
             ChatRoute.summarise: "summarise_graph",
-            ChatRoute.tabular: "tabular_graph",
             ChatRoute.chat: "chat_graph",
             # ChatRoute.legislation: "legislation_graph",
             "DEFAULT": "new_route_graph",
