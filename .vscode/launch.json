@@ -1,0 +1,26 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Django: Docker Remote Debug",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5678
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/django_app",
+                    "remoteRoot": "/app/django_app"
+                },
+                {
+                    "localRoot": "${workspaceFolder}/django_app",
+                    "remoteRoot": "/usr/src/app"
+                }
+            ],
+            "django": true,
+            "logToFile": true
+        }
+    ]
+}

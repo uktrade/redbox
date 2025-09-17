@@ -11,7 +11,6 @@ COPY django_app/frontend/src/ ./src/
 COPY django_app/frontend/images/ ./images/
 RUN npx parcel build
 
-
 # poetry
 FROM python:3.12-slim AS poetry-packages
 
@@ -32,11 +31,8 @@ COPY redbox/ ../redbox/
 COPY django_app/pyproject.toml .
 COPY django_app/poetry.lock .
 
-# do this so that poetry bundle can run without the project - can't pass --no-root to bundle
-#RUN touch README.md
-RUN poetry install
-RUN poetry bundle venv ./venv
-
+# Install debugpy in the Poetry environment
+RUN poetry add --group dev debugpy^1.8.5 && poetry install --with dev && poetry bundle venv ./venv
 
 # app
 FROM python:3.12-slim
@@ -62,11 +58,12 @@ COPY --from=poetry-packages /src/venv ./venv
 ENV DJANGO_SETTINGS_MODULE='redbox_app.settings'
 ENV PYTHONPATH "${PYTHONPATH}:/."
 
-EXPOSE 8080
+EXPOSE 8080 5678
 
 RUN chmod +x start.sh
 RUN chmod +x health.sh
 
 RUN libreoffice --version
 
-CMD ["./start.sh"]
+CMD ["sh", "-c", "if [ \"$DEBUG\" = 'true' ]; then ./venv/bin/python -Xfrozen_modules=off -m debugpy --listen 0.0.0.0:5678 manage.py runserver 0.0.0.0:8080; else ./start.sh; fi"]
+
