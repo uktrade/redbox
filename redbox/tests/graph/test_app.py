@@ -3,11 +3,13 @@ import logging
 
 # from enum import Enum
 from typing import Any
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage
+from langchain_core.runnables.graph import MermaidDrawMethod
 from langchain_core.tools import tool
 from pytest_mock import MockerFixture
 
@@ -25,7 +27,6 @@ from redbox.models.chain import (
     metadata_reducer,
 )
 from redbox.models.chat import ChatRoute, ErrorRoute
-from redbox.models.file import ChunkResolution
 from redbox.models.graph import RedboxActivityEvent
 from redbox.models.settings import Settings
 from redbox.test.data import (
@@ -59,6 +60,24 @@ SELF_ROUTE_TO_SEARCH = ["Condense self route question", OUTPUT_WITH_CITATIONS]
 
 
 NEW_ROUTE_NO_FEEDBACK = [OUTPUT_WITH_CITATIONS]  # only streaming tokens through evaluator
+TASK_INTERNAL_AGENT = MultiAgentPlan(
+    tasks=[
+        AgentTask(
+            task="Task to be completed by the agent",
+            agent="Internal_Retrieval_Agent",
+            expected_output="What this agent should produce",
+        )
+    ]
+)
+TASK_SUMMARISE_AGENT = MultiAgentPlan(
+    tasks=[
+        AgentTask(
+            task="Task to be completed by the agent",
+            agent="Summarisation_Agent",
+            expected_output="What this agent should produce",
+        )
+    ]
+)
 
 
 class MockedAgent:
@@ -69,22 +88,10 @@ class MockedAgent:
         return self.return_value
 
 
-def mock_planner_agent(mocker, OUTPUT_WITH_PLANNER):
-    mocked_agent = MockedAgent(OUTPUT_WITH_PLANNER)
+def mock_planner_agent(mocker, planner_output):
+    mocked_agent = MockedAgent(planner_output)
     mocker.patch("redbox.graph.nodes.processes.create_planner", return_value=mocked_agent)
     return mocked_agent
-
-
-def mock_worker_agent(mocker, OUTPUT_WITH_WORKER):
-    mocked_agent = MockedAgent("")
-    mocker.patch("redbox.graph.nodes.processes.create_chain_agent", return_value=mocked_agent)
-    mocker.patch("redbox.graph.nodes.processes.run_tools_parallel", return_value=[OUTPUT_WITH_WORKER])
-
-
-def mock_evaluator_agent(mocker, test_case):
-    llm_evaluator = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
-    llm_evaluator._default_config = {"model": "bedrock"}
-    mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=llm_evaluator)
 
 
 def assert_number_of_events(num_of_events: int):
@@ -96,13 +103,13 @@ TEST_CASES = [
     for generated_cases in [
         generate_test_cases(
             query=RedboxQuery(
-                question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+                question="@chat What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
             ),
             test_data=[
                 RedboxTestData(
                     number_of_docs=0,
                     tokens_in_all_docs=0,
-                    llm_responses=["Testing Response 1"],
+                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
                     expected_route=ChatRoute.chat,
                 ),
                 RedboxTestData(
@@ -118,122 +125,7 @@ TEST_CASES = [
                     expected_route=ChatRoute.chat,
                 ),
             ],
-            test_id="Basic Chat",
-        ),
-        generate_test_cases(
-            query=RedboxQuery(
-                question="What is AI?",
-                s3_keys=["s3_key"],
-                user_uuid=uuid4(),
-                chat_history=[],
-                permitted_s3_keys=["s3_key"],
-                ai_settings=AISettings(new_route_enabled=True),
-            ),
-            test_data=[
-                RedboxTestData(
-                    number_of_docs=1,
-                    tokens_in_all_docs=1_000,
-                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
-                    expected_route=ChatRoute.newroute,
-                    expected_text="AI is a lie",
-                ),
-                RedboxTestData(
-                    number_of_docs=1,
-                    tokens_in_all_docs=50_000,
-                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
-                    expected_route=ChatRoute.newroute,
-                    expected_text="AI is a lie",
-                ),
-                RedboxTestData(
-                    number_of_docs=1,
-                    tokens_in_all_docs=80_000,
-                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
-                    expected_route=ChatRoute.newroute,
-                    expected_text="AI is a lie",
-                ),
-            ],
-            test_id="Chat with single doc - new route ON",
-        ),
-        generate_test_cases(
-            query=RedboxQuery(
-                question="What is AI?",
-                s3_keys=["s3_key"],
-                user_uuid=uuid4(),
-                chat_history=[],
-                permitted_s3_keys=[],
-                ai_settings=AISettings(new_route_enabled=False),
-            ),
-            test_data=[
-                RedboxTestData(
-                    number_of_docs=1,
-                    tokens_in_all_docs=1_000,
-                    llm_responses=SELF_ROUTE_TO_SEARCH,
-                    expected_route=ChatRoute.search,
-                    expected_text="AI is a lie",
-                    # expected_activity_events=assert_number_of_events(3),
-                ),
-            ],
-            test_id="Chat with single doc - self_route ON",
-        ),
-        generate_test_cases(
-            query=RedboxQuery(
-                question="What is AI?",
-                s3_keys=["s3_key_1", "s3_key_2"],
-                user_uuid=uuid4(),
-                chat_history=[],
-                permitted_s3_keys=["s3_key_1", "s3_key_2"],
-                ai_settings=AISettings(new_route_enabled=False),
-            ),
-            test_data=[
-                RedboxTestData(
-                    number_of_docs=2,
-                    tokens_in_all_docs=40_000,
-                    llm_responses=SELF_ROUTE_TO_SEARCH,
-                    expected_route=ChatRoute.search,
-                    expected_text="AI is a lie",
-                ),
-            ],
-            test_id="Chat with multiple docs - self route ON",
-        ),
-        generate_test_cases(
-            query=RedboxQuery(
-                question="What is AI?",
-                s3_keys=["s3_key_1", "s3_key_2"],
-                user_uuid=uuid4(),
-                chat_history=[],
-                ai_settings=AISettings(new_route_enabled=True),
-            ),
-            test_data=[
-                RedboxTestData(
-                    number_of_docs=2,
-                    tokens_in_all_docs=40_000,
-                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
-                    expected_route=ChatRoute.newroute,
-                    expected_text="AI is a lie",
-                ),
-                RedboxTestData(
-                    number_of_docs=2,
-                    tokens_in_all_docs=80_000,
-                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
-                    expected_route=ChatRoute.newroute,
-                    expected_text="AI is a lie",
-                ),
-                RedboxTestData(
-                    number_of_docs=2,
-                    tokens_in_all_docs=140_000,
-                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
-                    expected_route=ChatRoute.newroute,
-                    expected_text="AI is a lie",
-                ),
-                RedboxTestData(
-                    number_of_docs=4,
-                    tokens_in_all_docs=140_000,
-                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
-                    expected_route=ChatRoute.newroute,
-                    expected_text="AI is a lie",
-                ),
-            ],
-            test_id="Chat with multiple docs - new route ON",
+            test_id="Using keyword @Chat",
         ),
         generate_test_cases(
             query=RedboxQuery(
@@ -251,29 +143,7 @@ TEST_CASES = [
                     expected_route=ChatRoute.chat_with_docs_map_reduce,
                 ),
             ],
-            test_id="Chat with large doc",
-        ),
-        generate_test_cases(
-            query=RedboxQuery(
-                question="What is AI?",
-                s3_keys=["s3_key"],
-                user_uuid=uuid4(),
-                chat_history=[],
-                permitted_s3_keys=["s3_key"],
-                ai_settings=AISettings(new_route_enabled=False),
-            ),
-            test_data=[
-                RedboxTestData(
-                    number_of_docs=2,
-                    tokens_in_all_docs=200_000,
-                    chunk_resolution=ChunkResolution.normal,
-                    llm_responses=SELF_ROUTE_TO_SEARCH,  # + ["Condense Question", "Testing Response 1"],
-                    expected_route=ChatRoute.search,
-                    expected_text="AI is a lie",
-                    # expected_activity_events=assert_number_of_events(2),
-                ),
-            ],
-            test_id="Self Route Search large doc",
+            test_id="Using keyword @summarise",
         ),
         generate_test_cases(
             query=RedboxQuery(
@@ -320,7 +190,7 @@ TEST_CASES = [
                     expected_text="AI is a lie",
                 ),
             ],
-            test_id="Search keyword - self route ON",
+            test_id="Using keyword @search",
         ),
         generate_test_cases(
             query=RedboxQuery(
@@ -340,7 +210,7 @@ TEST_CASES = [
                     s3_keys=[],
                 ),
             ],
-            test_id="Search, nothing selected",
+            test_id="Using keyword @search, nothing selected",
         ),
         generate_test_cases(
             query=RedboxQuery(
@@ -410,7 +280,7 @@ TEST_CASES = [
                     expected_route=ChatRoute.gadget,
                 ),
             ],
-            test_id="Agentic search",
+            test_id="Using keyword @gadget",
         ),
         generate_test_cases(
             query=RedboxQuery(
@@ -444,45 +314,7 @@ TEST_CASES = [
                     s3_keys=["s3_key"],
                 ),
             ],
-            test_id="Agentic search, nothing selected",
-        ),
-        generate_test_cases(
-            query=RedboxQuery(
-                question="@nosuchkeyword What is AI?",
-                s3_keys=[],
-                user_uuid=uuid4(),
-                chat_history=[],
-                permitted_s3_keys=[],
-            ),
-            test_data=[
-                RedboxTestData(
-                    number_of_docs=10,
-                    tokens_in_all_docs=1000,
-                    llm_responses=["Testing Response 1"],
-                    expected_route=ChatRoute.chat,
-                ),
-            ],
-            test_id="No Such Keyword",
-        ),
-        generate_test_cases(
-            query=RedboxQuery(
-                question="@nosuchkeyword What is AI?",
-                s3_keys=["s3_key"],
-                user_uuid=uuid4(),
-                chat_history=[],
-                permitted_s3_keys=["s3_key"],
-                ai_settings=AISettings(new_route_enabled=True),
-            ),
-            test_data=[
-                RedboxTestData(
-                    number_of_docs=1,
-                    tokens_in_all_docs=50_000,
-                    llm_responses=NEW_ROUTE_NO_FEEDBACK,
-                    expected_route=ChatRoute.newroute,
-                    expected_text="AI is a lie",
-                ),
-            ],
-            test_id="No Such Keyword with docs - new route ON",
+            test_id="Using keyword @gadget, nothing selected",
         ),
         generate_test_cases(
             query=RedboxQuery(
@@ -518,21 +350,10 @@ TEST_CASES = [
                     expected_route=ChatRoute.gadget,
                 ),
             ],
-            test_id="Agentic govuk search",
+            test_id="Using keyword @gadget gov search",
         ),
     ]
     for test_case in generated_cases
-]
-
-NEW_ROUTE_internal_retrieval_test_ids = [
-    "Chat with single doc - new route ON-0",
-    "Chat with single doc - new route ON-1",
-    "Chat with single doc - new route ON-2",
-    "Chat with multiple docs - new route ON-0",
-    "Chat with multiple docs - new route ON-1",
-    "Chat with multiple docs - new route ON-2",
-    "Chat with multiple docs - new route ON-3",
-    "No Such Keyword with docs - new route ON-0",
 ]
 
 
@@ -556,35 +377,8 @@ async def test_streaming(test: RedboxChatTestCase, env: Settings, mocker: Mocker
     mocker.patch("redbox.app.build_search_documents_tool", return_value=_search_documents)
     mocker.patch("redbox.app.build_govuk_search_tool", return_value=_search_govuk)
 
-    if test_case.test_id in NEW_ROUTE_internal_retrieval_test_ids:
-        OUTPUT_WITH_PLANNER = MultiAgentPlan(
-            tasks=[
-                AgentTask(
-                    task="Task to be completed by the agent",
-                    agent="Internal_Retrieval_Agent",
-                    expected_output="What this agent should produce",
-                )
-            ]
-        )
-
-        OUTPUT_WITH_WORKER = AIMessage(content="document returned")
-
-        mock_planner_agent(mocker, OUTPUT_WITH_PLANNER)
-        mock_worker_agent(mocker, OUTPUT_WITH_WORKER)
-        mock_evaluator_agent(mocker, test_case)
-
-    elif test_case.test_id == "Document too big for system-0":
-        OUTPUT_WITH_PLANNER = MultiAgentPlan(
-            tasks=[
-                AgentTask(
-                    task="Task to be completed by the agent",
-                    agent="Summarisation_Agent",
-                    expected_output="What this agent should produce",
-                )
-            ]
-        )
-
-        mock_planner_agent(mocker, OUTPUT_WITH_PLANNER)
+    if test_case.test_id == "Document too big for system-0":
+        mock_planner_agent(mocker, planner_output=TASK_SUMMARISE_AGENT)
         llm = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
         llm._default_config = {"model": "bedrock"}
         mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=llm)
@@ -704,6 +498,163 @@ def test_get_available_keywords(env: Settings):
         ChatRoute.summarise,
         ChatRoute.tabular,
         ChatRoute.legislation,
+        ChatRoute.chat,
     }
 
     assert keywords == set(app.get_available_keywords().keys())
+
+
+def test_draw_method(env: Settings, mocker: MockerFixture):
+    # Initialise the app with mocked retrievers
+    app = Redbox(
+        all_chunks_retriever=mock_all_chunks_retriever([]),
+        parameterised_retriever=mock_parameterised_retriever([]),
+        metadata_retriever=mock_metadata_retriever([]),
+        env=env,
+    )
+
+    # Create a mock graph instance
+    mock_graph_instance = MagicMock()
+    mock_graph_instance.draw_mermaid_png.return_value = "mermaid_png_output"
+
+    # Mock the graph retrieval methods
+    mocker.patch.object(app.graph, "get_graph", return_value=mock_graph_instance)
+    mocker.patch("redbox.graph.root.get_agentic_search_graph", return_value=MagicMock())
+    mocker.patch("redbox.graph.root.get_summarise_graph", return_value=MagicMock())
+
+    # Act
+    result_root = app.draw(graph_to_draw="root")
+
+    # Assert
+    mock_graph_instance.draw_mermaid_png.assert_called_with(
+        draw_method=MermaidDrawMethod.PYPPETEER, output_file_path=None
+    )
+    assert result_root == "mermaid_png_output"
+
+
+def test_handle_db_file_operations(env: Settings, mocker: MockerFixture):
+    app = Redbox(
+        all_chunks_retriever=mock_all_chunks_retriever([]),
+        parameterised_retriever=mock_parameterised_retriever([]),
+        metadata_retriever=mock_metadata_retriever([]),
+        env=env,
+    )
+
+    mock_remove = mocker.patch("os.remove")
+    mock_exists = mocker.patch("os.path.exists", return_value=True)
+
+    app.previous_db_location = "/path/to/old_db.sqlite"
+    app.previous_s3_keys = ["key1", "key2"]
+    app.handle_db_file(None)
+
+    mock_exists.assert_called_once_with("/path/to/old_db.sqlite")
+    mock_remove.assert_called_once_with("/path/to/old_db.sqlite")
+    assert app.previous_db_location is None
+    assert app.previous_s3_keys is None
+
+    mock_remove.reset_mock()
+    mock_exists.reset_mock()
+
+    app.previous_db_location = "/path/to/old_db.sqlite"
+
+    final_state = RedboxState(
+        request=RedboxQuery(
+            question="What is the meaning of life?",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            db_location="/path/to/new_db.sqlite",
+        ),
+        db_location=None,
+    )
+    app.handle_db_file(final_state)
+
+    mock_exists.assert_called_once_with("/path/to/old_db.sqlite")
+    mock_remove.assert_called_once_with("/path/to/old_db.sqlite")
+    assert app.previous_db_location == "/path/to/new_db.sqlite"
+
+    mock_remove.reset_mock()
+    mock_exists.reset_mock()
+
+    app.previous_db_location = "/path/to/same_db.sqlite"
+    final_state = RedboxState(
+        request=RedboxQuery(
+            question="Why do dogs bark?",
+            s3_keys=["key1"],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=["key1"],
+            db_location="/path/to/same_db.sqlite",
+        )
+    )
+    app.handle_db_file(final_state)
+
+    mock_exists.assert_not_called()
+    mock_remove.assert_not_called()
+    assert app.previous_db_location == "/path/to/same_db.sqlite"
+    assert app.previous_s3_keys == ["key1"]
+
+
+def test_remove_db_file_if_exists_error_handling(env: Settings, mocker: MockerFixture):
+    app = Redbox(
+        all_chunks_retriever=mock_all_chunks_retriever([]),
+        parameterised_retriever=mock_parameterised_retriever([]),
+        metadata_retriever=mock_metadata_retriever([]),
+        env=env,
+    )
+
+    mock_logger = mocker.patch("redbox.app.logger")
+    app.remove_db_file_if_exists(None)
+    mock_logger.error.assert_not_called()
+
+    mock_exists = mocker.patch("os.path.exists", return_value=False)
+    app.remove_db_file_if_exists("/path/to/nonexistent.db")
+    mock_exists.assert_called_once_with("/path/to/nonexistent.db")
+    mock_logger.error.assert_not_called()
+
+    mock_exists = mocker.patch("os.path.exists", return_value=True)
+    app.remove_db_file_if_exists("/path/to/protected.db")
+    mock_logger.error.assert_called_once()
+    assert "Error encountered when deleting the db file" in mock_logger.error.call_args[0][0]
+
+
+def test_add_docs_and_db_to_input_state(env: Settings, mocker: MockerFixture):
+    app = Redbox(
+        all_chunks_retriever=mock_all_chunks_retriever([]),
+        parameterised_retriever=mock_parameterised_retriever([]),
+        metadata_retriever=mock_metadata_retriever([]),
+        env=env,
+    )
+
+    app.previous_db_location = "/path/to/db.sqlite"
+    app.previous_s3_keys = ["key1", "key2"]
+
+    input_state = RedboxState(
+        request=RedboxQuery(
+            question="@tabular How many rows in this table?",
+            s3_keys=["new_key"],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=["new_key"],
+        )
+    )
+
+    result = app.add_docs_and_db_to_input_state(input_state)
+
+    assert result.request.previous_s3_keys == ["key1", "key2"]
+    assert result.request.db_location == "/path/to/db.sqlite"
+
+    input_state = RedboxState(
+        request=RedboxQuery(
+            question="What is the purpose of AI long term?",
+            s3_keys=["new_key"],
+            user_uuid=uuid4(),
+            chat_history=[],
+        )
+    )
+
+    result = app.add_docs_and_db_to_input_state(input_state)
+
+    assert not hasattr(result.request, "previous_s3_keys") or result.request.previous_s3_keys is None
+    assert not hasattr(result.request, "db_location") or result.request.db_location is None

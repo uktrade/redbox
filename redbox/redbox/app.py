@@ -20,6 +20,7 @@ from redbox.graph.nodes.tools import (
     build_search_documents_tool,
     build_search_wikipedia_tool,
     execute_sql_query,
+    build_web_search_tool,
 )
 from redbox.graph.root import build_root_graph, get_agentic_search_graph, get_summarise_graph
 from redbox.models.chain import RedboxState
@@ -80,8 +81,9 @@ class Redbox:
         search_govuk = build_govuk_search_tool()
         search_legislation = build_legislation_search_tool()
         execute_sql = execute_sql_query()
+        web_search = build_web_search_tool()
 
-        self.tools = [search_documents, search_wikipedia, search_govuk]
+        self.tools = [search_documents, search_wikipedia, search_govuk, web_search]
 
         self.legislation_tools = {
             "Internal_Retrieval_Agent": [search_documents],
@@ -92,6 +94,7 @@ class Redbox:
             "Internal_Retrieval_Agent": [search_documents],
             "External_Retrieval_Agent": [search_wikipedia, search_govuk],
             "Tabular_Agent": [execute_sql],
+            "Web_Search_Agent": [web_search],
         }
 
         self.graph = build_root_graph(
@@ -274,7 +277,7 @@ class Redbox:
         else:
             raise Exception("Invalid graph_to_draw")
 
-        return graph.draw_mermaid_png(draw_method=MermaidDrawMethod.API, output_file_path=output_path)
+        return graph.draw_mermaid_png(draw_method=MermaidDrawMethod.PYPPETEER, output_file_path=output_path)
 
     def remove_db_file_if_exists(self, db_path: str):
         try:
