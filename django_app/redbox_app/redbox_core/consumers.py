@@ -526,13 +526,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     }
 
                 await self.send_to_client("source", payload)
+
+                text_in_answer = (
+                    await convert_american_to_british_spelling(c.text_in_answer)
+                    if self.scope.get("user").uk_or_us_english
+                    else c.text_in_answer
+                )
+
                 self.citations.append(
                     (
                         file,
                         AICitation(
-                            text_in_answer=convert_american_to_british_spelling(c.text_in_answer)
-                            if self.scope.get("user").uk_or_us_english
-                            else c.text_in_answer,
+                            text_in_answer=text_in_answer,
                             sources=[s],
                         ),
                     )
