@@ -702,17 +702,6 @@ def build_new_route_graph(
         ),
     )
 
-    builder.add_node(
-        "Chat_Agent",
-        build_agent(
-            agent_name="Web_Search_Agent",
-            system_prompt=WEB_SEARCH_AGENT_PROMPT,
-            tools=multi_agent_tools["Web_Search_Agent"],
-            use_metadata=False,
-            max_tokens=agents_max_tokens["Web_Search_Agent"],
-        ),
-    )
-
     builder.add_node("user_feedback_evaluation", empty_process)
 
     builder.add_node("Evaluator_Agent", create_evaluator())
