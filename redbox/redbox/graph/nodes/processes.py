@@ -765,7 +765,13 @@ def get_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 5000,
             )
             ai_msg = worker_agent.invoke(state)
             results = run_tools_parallel(ai_msg["messages"][-1], tools, state)
-            result = results[-1].content[:max_tokens]  # Truncate to max_tokens. only using one tool here.
+
+            # Truncate to max_tokens. only using one tool here.
+            if isinstance(results, str):
+                result = results[:max_tokens]
+            else:
+                result = results[-1].content[:max_tokens]
+
             success = result[1]
             if success == "fail":
                 sql_error = result[0]
