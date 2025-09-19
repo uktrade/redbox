@@ -72,10 +72,12 @@ def read_csv_text(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
         return [
             {
                 "text": str(df.to_csv(index=False)),  # Convert bytes to string
-                "metadata": {},  # returning empty metadata dictionary,
+                "metadata": {},  # returning empty metadata dictionary
             }
         ]
     except Exception as e:
+        if isinstance(e, ValidationError):
+            raise
         logger.error(f"Error while trying to upload csv file {e}")
         return None
 
@@ -193,9 +195,9 @@ class UnstructuredChunkLoader:
                 "combine_under_n_chars": self._min_chunk_size,
                 "overlap": self._overlap_chars,
                 "overlap_all": self._overlap_all_chunks,
+                "infer_table_structure": "true",
             },
         )
-
         return response
 
     def lazy_load(self, file_name: str, file_bytes: BytesIO) -> Iterator[Document]:
