@@ -27,6 +27,34 @@ logger = logging.getLogger(__name__)
 MAX_FILE_SIZE = 209715200  # 200 MB or 200 * 1024 * 1024
 
 
+def create_file_without_ingest(uploaded_file: UploadedFile, user: User) -> tuple[Sequence[str], File | None]:
+    """
+    Create a File object for the uploaded file without ingesting it.
+    Returns a tuple of errors and file.
+    """
+    try:
+        logger.info("Creating file object for %s", uploaded_file.name)
+        file = File.objects.create(
+            status=File.Status.processing.value,
+            user=user,
+            original_file=uploaded_file,
+            original_file_name=uploaded_file.name,
+        )
+    except (ValueError, FieldError, ValidationError) as e:
+        logger.exception("Error creating File model object for %s.", uploaded_file, exc_info=e)
+        return e.args, None
+    except SuspiciousFileOperation:
+        return [
+            f"Your file name is {len(uploaded_file.name)} characters long. "
+            f"The file name will need to be shortened by {len(uploaded_file.name) - 75} characters"
+        ], None
+    except Exception as e:
+        logger.exception("Unexpected error creating file %s.", uploaded_file, exc_info=e)
+        return [str(e)], None
+    else:
+        return [], file
+
+
 def render_your_documents(request, active_chat_id) -> TemplateResponse:
     context = chat_service.get_context(request, active_chat_id)
 
@@ -57,8 +85,6 @@ def validate_uploaded_file(uploaded_file: UploadedFile) -> Sequence[str]:
         file_extension = Path(uploaded_file.name).suffix
         if file_extension.lower() not in APPROVED_FILE_EXTENSIONS:
             errors.append(f"Error with {uploaded_file.name}: File type {file_extension} not supported")
-    if not uploaded_file.content_type:
-        errors.append(f"Error with {uploaded_file.name}: File has no content-type")
     if uploaded_file.size > MAX_FILE_SIZE:
         errors.append(f"Error with {uploaded_file.name}: File is larger than 200MB")
     return errors

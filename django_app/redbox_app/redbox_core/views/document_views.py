@@ -1,8 +1,19 @@
 import logging
+import time
 import uuid
+from collections.abc import MutableSequence
 from dataclasses import dataclass
 from http import HTTPStatus
 from typing import TYPE_CHECKING
+
+from django.contrib.auth.decorators import login_required
+from django.core.files.uploadedfile import UploadedFile
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import reverse
+from django.views import View
+from django_q.tasks import async_task
+
+from redbox_app.redbox_core.services import documents as documents_service
 
 if TYPE_CHECKING:
     from collections.abc import MutableSequence
@@ -11,17 +22,13 @@ if TYPE_CHECKING:
 
 from dataclasses_json import Undefined, dataclass_json
 from django.contrib.auth import get_user_model
-from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
 from django.utils.decorators import method_decorator
-from django.views import View
 from django.views.decorators.http import require_http_methods
 
 from redbox_app.redbox_core.models import File, InactiveFileError
 from redbox_app.redbox_core.services import chats as chat_service
-from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.utils import render_with_oob
 
 User = get_user_model()
@@ -56,67 +63,68 @@ class UploadView(View):
     @method_decorator(login_required)
     def post(self, request: HttpRequest) -> HttpResponse:
         errors: MutableSequence[str] = []
+        file_ids: MutableSequence[str] = []
 
         uploaded_files: MutableSequence[UploadedFile] = request.FILES.getlist("uploadDocs")
 
         if not uploaded_files:
             errors.append("No document selected")
+            return documents_service.build_upload_response(request, errors)
 
-        for index, uploaded_file in enumerate(uploaded_files):
-            errors += documents_service.validate_uploaded_file(uploaded_file)
-            # handling doc -> docx conversion
-            if documents_service.is_doc_file(uploaded_file):
-                uploaded_files[index] = documents_service.convert_doc_to_docx(uploaded_file)
-            # handling utf8 compatibility
-            if not documents_service.is_utf8_compatible(uploaded_file):
-                uploaded_files[index] = documents_service.convert_to_utf8(uploaded_file)
+        # Create a record for each uploaded file
+        for uploaded_file in uploaded_files:
+            file_errors, file = documents_service.create_file_without_ingest(uploaded_file, request.user)
+            if file_errors:
+                errors.extend(file_errors)
+            elif file:
+                file_ids.append(str(file.id))
 
-        if not errors:
-            for uploaded_file in uploaded_files:
-                # ingest errors are handled differently, as the other documents have started uploading by this point
-                request.session["ingest_errors"], _ = documents_service.ingest_file(uploaded_file, request.user)
-            return redirect(reverse("documents"))
+        if errors:
+            return documents_service.build_upload_response(request, errors)
 
-        return documents_service.build_upload_response(request, errors)
+        # Hit the worker to process the files
+        async_task(
+            "redbox_app.worker.process_uploaded_files",
+            file_ids,
+            str(request.user.id),
+            task_name=f"process_files_{request.user.id}_{int(time.time())}",
+            group="ingest",
+        )
+
+        # Storing errors in session to display after redirect
+        request.session["ingest_errors"] = []
+        return redirect(reverse("documents"))
 
 
 @require_http_methods(["POST"])
 @login_required
-def upload_document(request):
+def upload_document(request: HttpRequest) -> JsonResponse:
     errors: MutableSequence[str] = []
+    response = {}
 
     uploaded_file: UploadedFile = request.FILES.get("file")
-    response = {}
 
     if not uploaded_file:
         errors.append("No document selected")
-
-    errors += documents_service.validate_uploaded_file(uploaded_file)
-
-    # handling doc -> docx conversion
-    if documents_service.is_doc_file(uploaded_file):
-        uploaded_file = documents_service.convert_doc_to_docx(uploaded_file)
-
-    # handling utf8 compatibility
-    if not documents_service.is_utf8_compatible(uploaded_file):
-        uploaded_file = documents_service.convert_to_utf8(uploaded_file)
-
-    if errors:
         response["errors"] = errors
-        return JsonResponse(response)
+        return JsonResponse(response, status=400)
 
-    # ingest errors are handled differently, as the other documents have started uploading by this point
-    ingest_errors, file = documents_service.ingest_file(uploaded_file, request.user)
-    request.session["ingest_errors"] = ingest_errors
+    # Create record for file
+    file_errors, file = documents_service.create_file_without_ingest(uploaded_file, request.user)
+    if file_errors:
+        response["errors"] = file_errors
+        return JsonResponse(response, status=400)
 
-    if ingest_errors:
-        response["ingest_errors"] = file.status
+    # Hit the worker to process the files
+    async_task(
+        "redbox_app.worker.process_uploaded_files",
+        [str(file.id)],
+        str(request.user.id),
+        task_name=f"process_file_{file.id}_{int(time.time())}",
+        group="ingest",
+    )
 
-    if file:
-        response["status"] = file.status
-        response["file_id"] = str(file.id)
-        response["file_name"] = file.file_name
-
+    response = {"file_id": str(file.id), "file_name": file.file_name, "status": file.status}
     return JsonResponse(response)
 
 

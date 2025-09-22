@@ -112,7 +112,7 @@ def test_upload_view_bad_data(alice, client, file_py_path: Path, s3_client):
     with file_py_path.open("rb") as f:
         response = client.post("/upload/", {"uploadDocs": f})
 
-        assert response.status_code == HTTPStatus.OK
+        assert response.status_code == HTTPStatus.FOUND
         assert "File type .py not supported" in str(response.content)
         assert count_s3_objects(s3_client) == previous_count
 
@@ -123,7 +123,7 @@ def test_upload_view_no_file(alice, client):
 
     response = client.post("/upload/")
 
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.FOUND
     assert "No document selected" in str(response.content)
 
 
@@ -206,7 +206,7 @@ def test_upload_document_endpoint_invalid_file(alice, client, file_py_path: Path
     with file_py_path.open("rb") as f:
         response = client.post("/upload/", {"uploadDocs": f})
 
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.FOUND
 
     assert "File type .py not supported" in str(response.content)
 
@@ -220,7 +220,7 @@ def test_upload_document_endpoint_multiple_files(alice, client, file_pdf_path: P
     with file_pdf_path.open("rb") as pdf, file_py_path.open("rb") as py:
         response = client.post("/upload/", {"uploadDocs": [pdf, py]})
 
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.FOUND
 
     assert "File type .py not supported" in str(response.content)
 
@@ -643,7 +643,7 @@ def test_upload_document_api_endpoint(alice, client, file_pdf_path, s3_client):
 
     # Verify a file was created in the database
     uploaded_file = File.objects.filter(user=alice).order_by("-created_at")[0]
-    assert uploaded_file.file_name == file_pdf_path.name.replace(" ", "_")
+    assert uploaded_file.file_name == file_pdf_path.name
 
 
 @pytest.mark.django_db()
@@ -656,6 +656,6 @@ def test_upload_document_api_invalid_file(alice, client, file_py_path):
     with file_py_path.open("rb") as f:
         response = client.post("/upload/", {"uploadDocs": f})
 
-    assert response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.FOUND
     content = str(response.content)
     assert "File type .py not supported" in content
