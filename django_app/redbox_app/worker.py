@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 
 from redbox.loader.ingester import ingest_file
 from redbox.models.settings import get_settings
+from redbox_app.redbox_core.models import File
 from redbox_app.redbox_core.services import documents as documents_service
 
 env = get_settings()
@@ -14,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 def ingest(file_id: UUID, es_index: str | None = None) -> None:
     # These models need to be loaded at runtime otherwise they can be loaded before they exist
-    from redbox_app.redbox_core.models import File
 
     if not es_index:
         es_index = env.elastic_chunk_alias
@@ -39,7 +39,6 @@ def process_uploaded_files(
     Returns a tuple of errors and the results where results contain file statuses.
     """
     # These models need to be loaded at runtime otherwise they can be loaded before they exist
-    from redbox_app.redbox_core.models import File
 
     if not es_index:
         es_index = env.elastic_chunk_alias
@@ -67,18 +66,18 @@ def process_uploaded_files(
             if documents_service.is_doc_file(uploaded_file):
                 converted_file = documents_service.convert_doc_to_docx(uploaded_file)
                 file.original_file = converted_file
-                file.file_name = converted_file.name
+                file.original_file_name = converted_file.name
                 file.save()
 
             # Handle UTF-8 compatibility
             if not documents_service.is_utf8_compatible(file.original_file):
                 converted_file = documents_service.convert_to_utf8(file.original_file)
                 file.original_file = converted_file
-                file.file_name = converted_file.name
+                file.original_file_name = converted_file.name
                 file.save()
 
             # Ingest the file
-            ingest_errors, _ = documents_service.ingest_file(file.original_file, user)
+            ingest_errors = ingest(file.id, user.id)
             file.refresh_from_db()  # Refresh to get updated status
             result = {"file_id": str(file.id), "file_name": file.file_name, "status": file.status}
             if ingest_errors:
