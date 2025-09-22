@@ -38,7 +38,7 @@ def create_file_without_ingest(uploaded_file: UploadedFile, user: User) -> tuple
             status=File.Status.processing.value,
             user=user,
             original_file=uploaded_file,
-            file_name=uploaded_file.name,
+            original_file_name=uploaded_file.name,
         )
     except (ValueError, FieldError, ValidationError) as e:
         logger.exception("Error creating File model object for %s.", uploaded_file, exc_info=e)
@@ -85,8 +85,6 @@ def validate_uploaded_file(uploaded_file: UploadedFile) -> Sequence[str]:
         file_extension = Path(uploaded_file.name).suffix
         if file_extension.lower() not in APPROVED_FILE_EXTENSIONS:
             errors.append(f"Error with {uploaded_file.name}: File type {file_extension} not supported")
-    if not uploaded_file.content_type:
-        errors.append(f"Error with {uploaded_file.name}: File has no content-type")
     if uploaded_file.size > MAX_FILE_SIZE:
         errors.append(f"Error with {uploaded_file.name}: File is larger than 200MB")
     return errors
