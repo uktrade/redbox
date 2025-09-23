@@ -239,6 +239,14 @@ class TestNewRoutes:
                 ANSWER_WITH_CITATION,
             ),
             (
+                "chat with tabular doc one task",
+                "What is AI",
+                [1, 1000],
+                True,
+                AgentEnum.Tabular_Agent,
+                ANSWER_WITH_CITATION,
+            ),
+            (
                 "no such keyword no doc",
                 "@nosuschkeyword what is 2+2?",
                 [0, 0],
