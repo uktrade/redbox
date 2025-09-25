@@ -18,7 +18,6 @@ from redbox.graph.edges import (
     is_using_search_keyword,
     multiple_docs_in_group_conditional,
     remove_gadget_keyword,
-    remove_legislation_keyword,
 )
 from redbox.graph.nodes.processes import (
     build_activity_log_node,
@@ -61,6 +60,7 @@ from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.models.prompts import (
     EXTERNAL_RETRIEVAL_AGENT_PROMPT,
     INTERNAL_RETRIEVAL_AGENT_PROMPT,
+    LEGISLATION_SEARCH_AGENT_PROMPT,
     WEB_SEARCH_AGENT_PROMPT,
 )
 from redbox.models.settings import get_settings
@@ -73,7 +73,6 @@ def build_root_graph(
     metadata_retriever,
     tabular_retriever,
     tools,
-    legislation_tools,
     multi_agent_tools,
     debug,
 ):
@@ -96,10 +95,10 @@ def build_root_graph(
         "new_route_graph",
         build_new_route_graph(all_chunks_retriever, multi_agent_tools, debug),
     )
-    builder.add_node(
-        "legislation_graph",
-        build_legislation_graph(all_chunks_retriever, legislation_tools, debug),
-    )
+    # builder.add_node(
+    #     "legislation_graph",
+    #     build_legislation_graph(all_chunks_retriever, legislation_tools, debug),
+    # )
     builder.add_node(
         "retrieve_metadata", get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
     )
@@ -164,7 +163,7 @@ def build_root_graph(
     builder.add_edge("new_route_graph", END)
     builder.add_edge("summarise_graph", END)
     builder.add_edge("tabular_graph", END)
-    builder.add_edge("legislation_graph", END)
+    # builder.add_edge("legislation_graph", END)
     return builder.compile()
 
 
@@ -702,6 +701,17 @@ def build_new_route_graph(
         ),
     )
 
+    builder.add_node(
+        "Legislation_Search_Agent",
+        build_agent(
+            agent_name="Legislation_Search_Agent",
+            system_prompt=LEGISLATION_SEARCH_AGENT_PROMPT,
+            tools=multi_agent_tools["Legislation_Search_Agent"],
+            use_metadata=False,
+            max_tokens=agents_max_tokens["Legislation_Search_Agent"],
+        ),
+    )
+
     builder.add_node("user_feedback_evaluation", empty_process)
 
     builder.add_node("Evaluator_Agent", create_evaluator())
@@ -733,6 +743,7 @@ def build_new_route_graph(
     builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
     builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
     builder.add_edge("Web_Search_Agent", "combine_question_evaluator")
+    builder.add_edge("Legislation_Search_Agent", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
@@ -742,90 +753,90 @@ def build_new_route_graph(
     return builder.compile(debug=debug)
 
 
-def build_legislation_graph(
-    all_chunks_retriever: VectorStoreRetriever, multi_agent_tools: dict, debug: bool = False
-) -> CompiledGraph:
-    agents_max_tokens = AISettings().agents_max_tokens
-    # Disabled as plan and user feedback is answered via newroute and those tools
-    # instead of legislation route and its specific set of tools
-    allow_legislation_plan_feedback = False
+# def build_legislation_graph(
+#     all_chunks_retriever: VectorStoreRetriever, multi_agent_tools: dict, debug: bool = False
+# ) -> CompiledGraph:
+#     agents_max_tokens = AISettings().agents_max_tokens
+#     # Disabled as plan and user feedback is answered via newroute and those tools
+#     # instead of legislation route and its specific set of tools
+#     allow_legislation_plan_feedback = False
 
-    builder = StateGraph(RedboxState)
-    builder.add_node(
-        "set_route_to_legislation",
-        build_set_route_pattern(route=ChatRoute.legislation),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node("remove_keyword", remove_legislation_keyword)
-    builder.add_node("stream_plan", stream_plan())
-    builder.add_node(
-        "planner",
-        my_planner(
-            allow_plan_feedback=allow_legislation_plan_feedback,
-            node_after_streamed="stream_plan",
-            node_afer_replan="sending_task",
-            node_for_no_task="Evaluator_Agent",
-        ),
-    )
-    builder.add_node(
-        "Internal_Retrieval_Agent",
-        build_agent(
-            agent_name="Internal_Retrieval_Agent",
-            system_prompt=INTERNAL_RETRIEVAL_AGENT_PROMPT,
-            tools=multi_agent_tools["Internal_Retrieval_Agent"],
-            use_metadata=True,
-            max_tokens=agents_max_tokens["Internal_Retrieval_Agent"],
-        ),
-    )
-    builder.add_node("send", empty_process)
-    builder.add_node(
-        "External_Retrieval_Agent",
-        build_agent(
-            agent_name="External_Retrieval_Agent",
-            system_prompt=EXTERNAL_RETRIEVAL_AGENT_PROMPT,
-            tools=multi_agent_tools["External_Retrieval_Agent"],
-            use_metadata=False,
-            max_tokens=agents_max_tokens["External_Retrieval_Agent"],
-        ),
-    )
+#     builder = StateGraph(RedboxState)
+#     builder.add_node(
+#         "set_route_to_legislation",
+#         build_set_route_pattern(route=ChatRoute.legislation),
+#         retry=RetryPolicy(max_attempts=3),
+#     )
+#     builder.add_node("remove_keyword", remove_legislation_keyword)
+#     builder.add_node("stream_plan", stream_plan())
+#     builder.add_node(
+#         "planner",
+#         my_planner(
+#             allow_plan_feedback=allow_legislation_plan_feedback,
+#             node_after_streamed="stream_plan",
+#             node_afer_replan="sending_task",
+#             node_for_no_task="Evaluator_Agent",
+#         ),
+#     )
+#     builder.add_node(
+#         "Internal_Retrieval_Agent",
+#         build_agent(
+#             agent_name="Internal_Retrieval_Agent",
+#             system_prompt=INTERNAL_RETRIEVAL_AGENT_PROMPT,
+#             tools=multi_agent_tools["Internal_Retrieval_Agent"],
+#             use_metadata=True,
+#             max_tokens=agents_max_tokens["Internal_Retrieval_Agent"],
+#         ),
+#     )
+#     builder.add_node("send", empty_process)
+#     builder.add_node(
+#         "External_Retrieval_Agent",
+#         build_agent(
+#             agent_name="External_Retrieval_Agent",
+#             system_prompt=EXTERNAL_RETRIEVAL_AGENT_PROMPT,
+#             tools=multi_agent_tools["External_Retrieval_Agent"],
+#             use_metadata=False,
+#             max_tokens=agents_max_tokens["External_Retrieval_Agent"],
+#         ),
+#     )
 
-    builder.add_node("user_feedback_evaluation", empty_process)
+#     builder.add_node("user_feedback_evaluation", empty_process)
 
-    builder.add_node("Evaluator_Agent", create_evaluator())
-    builder.add_node("combine_question_evaluator", combine_question_evaluator())
-    builder.add_node(
-        "report_citations",
-        report_sources_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node("stream_suggestion", stream_suggestion())
-    builder.add_node("sending_task", empty_process)
+#     builder.add_node("Evaluator_Agent", create_evaluator())
+#     builder.add_node("combine_question_evaluator", combine_question_evaluator())
+#     builder.add_node(
+#         "report_citations",
+#         report_sources_process,
+#         retry=RetryPolicy(max_attempts=3),
+#     )
+#     builder.add_node("stream_suggestion", stream_suggestion())
+#     builder.add_node("sending_task", empty_process)
 
-    builder.add_edge(START, "set_route_to_legislation")
-    builder.add_edge("set_route_to_legislation", "remove_keyword")
-    builder.add_conditional_edges(
-        "remove_keyword", lambda s: s.user_feedback == "", {True: "planner", False: "user_feedback_evaluation"}
-    )
-    builder.add_conditional_edges(
-        "user_feedback_evaluation",
-        build_user_feedback_evaluation(),
-        {
-            "approve": "sending_task",
-            "modify": "planner",
-            "reject": "stream_suggestion",
-            "more_info": "stream_suggestion",
-        },
-    )
-    builder.add_conditional_edges("sending_task", sending_task_to_agent)
-    builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
-    builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
-    builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
-    builder.add_edge("Evaluator_Agent", "report_citations")
-    builder.add_edge("report_citations", END)
-    builder.add_edge("stream_plan", END)
-    builder.add_edge("stream_suggestion", END)
+#     builder.add_edge(START, "set_route_to_legislation")
+#     builder.add_edge("set_route_to_legislation", "remove_keyword")
+#     builder.add_conditional_edges(
+#         "remove_keyword", lambda s: s.user_feedback == "", {True: "planner", False: "user_feedback_evaluation"}
+#     )
+#     builder.add_conditional_edges(
+#         "user_feedback_evaluation",
+#         build_user_feedback_evaluation(),
+#         {
+#             "approve": "sending_task",
+#             "modify": "planner",
+#             "reject": "stream_suggestion",
+#             "more_info": "stream_suggestion",
+#         },
+#     )
+#     builder.add_conditional_edges("sending_task", sending_task_to_agent)
+#     builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
+#     builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
+#     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
+#     builder.add_edge("Evaluator_Agent", "report_citations")
+#     builder.add_edge("report_citations", END)
+#     builder.add_edge("stream_plan", END)
+#     builder.add_edge("stream_suggestion", END)
 
-    return builder.compile(debug=debug)
+#     return builder.compile(debug=debug)
 
 
 def build_tabular_graph(retriever, fallback_retriever, fallback_agent_tools, debug: bool = False) -> CompiledGraph:
