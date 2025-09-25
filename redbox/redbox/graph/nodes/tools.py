@@ -380,14 +380,6 @@ class SearchGovUKLogFormatter(BaseRetrievalToolLogFormatter):
         return f"Reading pages from .gov.uk, {','.join(set([d.metadata["uri"].split("/")[-1] for d in documents]))}"
 
 
-class SearchLegislationGovUKLogFormatter(BaseRetrievalToolLogFormatter):
-    def log_call(self):
-        return f"Web searching legislation.gov.uk pages for '{self.tool_call["args"]["query"]}'"
-
-    def log_result(self, documents: Iterable[Document]):
-        return f"Reading pages from legislation.gov.uk, {','.join(set([d.metadata["uri"].split("/")[-1] for d in documents]))}"
-
-
 @waffle_flag("DATA_HUB_API_ROUTE_ON")
 class SearchDataHubLogFormatter(BaseRetrievalToolLogFormatter):
     def log_call(self):
@@ -403,7 +395,6 @@ __RETRIEVEAL_TOOL_MESSAGE_FORMATTERS = {
     "_search_wikipedia": SearchWikipediaLogFormatter,
     "_search_documents": SearchDocumentsLogFormatter,
     "_search_govuk": SearchGovUKLogFormatter,
-    "_search_legislation": SearchLegislationGovUKLogFormatter,
 }
 
 
@@ -455,7 +446,7 @@ def build_web_search_tool():
         Web Search tool is a versatile search tool that allows users to search the entire web (similar to a search engine) or to conduct targeted searches within specific websites.
 
         Args:
-            query (str): The search query to pass to legislation search engine.
+            query (str): The search query to pass to web search engine.
             - Can be natural language, keywords, or phrases
             - More specific queries yield more precise results
             - Query length should be 1-500 characters
