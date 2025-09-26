@@ -40,6 +40,7 @@ from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_me
 from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models import ChatRoute
 from redbox.models.chain import (
+    AgentEnum,
     AgentTask,
     DocumentState,
     FeedbackEvalDecision,
@@ -425,6 +426,12 @@ def my_planner(
     node_afer_replan: str = "sending_task",
     node_for_no_task="evaluator",
 ):
+    def remove_evaluator_task(state: RedboxState, res: MultiAgentPlan) -> MultiAgentPlan:
+        if res.tasks[-1].agent == AgentEnum.Evaluator_Agent:
+            state.tasks_evaluator = res.tasks[-1].task + " " + res.tasks[-1].expected_output
+            res.tasks.pop(-1)
+        return res
+
     @RunnableLambda
     def _create_planner(state: RedboxState):
         no_tasks_auto = 1
@@ -445,6 +452,8 @@ def my_planner(
                 _additional_variables={"previous_plan": plan, "user_feedback": user_input},
             )
             res = orchestration_agent.invoke(state)
+            # remove evaluator agent task
+            res = remove_evaluator_task(state, res)
             state.agent_plans = res
             # reset user feedback
             state.user_feedback = ""
@@ -453,6 +462,8 @@ def my_planner(
             # run planner agent
             orchestration_agent = create_planner(is_streamed=False)
             res = orchestration_agent.invoke(state)
+            # remove evaluator agent task
+            res = remove_evaluator_task(state, res)
             state.agent_plans = res
 
             # send task to worker agent if we have only 1 task
@@ -472,6 +483,11 @@ def my_planner(
 
 
 def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: bool = False, max_tokens: int = 5000):
+    def remove_task_dependecies(state: RedboxState, task_id: str):
+        for task in state.agent_plans.tasks:
+            if task_id in task.dependencies:
+                task.dependencies.remove(task_id)
+
     @RunnableLambda
     def _build_agent(state: RedboxState):
         parser = ClaudeParser(pydantic_object=AgentTask)
@@ -479,29 +495,42 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
             task = parser.parse(state.last_message.content)
         except Exception as e:
             print(f"Cannot parse in {agent_name}: {e}")
-        activity_node = build_activity_log_node(
-            RedboxActivityEvent(message=f"{agent_name} is completing task: {task.task}")
-        )
-        activity_node.invoke(state)
 
-        worker_agent = create_chain_agent(
-            system_prompt=system_prompt,
-            use_metadata=use_metadata,
-            parser=None,
-            tools=tools,
-            _additional_variables={"task": task.task, "expected_output": task.expected_output},
-        )
-        ai_msg = worker_agent.invoke(state)
-        result = run_tools_parallel(ai_msg, tools, state)
-        if type(result) is str:
-            result_content = result
-        elif type(result) is list:
-            result_content = "".join([res.content for res in result])
-        else:
-            log.error(f"Worker agent return incompatible data type {type(result)}")
-        # truncate results to max_token
-        result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
-        return {"agents_results": result, "tasks_evaluator": task.task + "\n" + task.expected_output}
+        # check if dependencies are met before running task
+        if not task.dependencies:
+            activity_node = build_activity_log_node(
+                RedboxActivityEvent(message=f"{agent_name} is completing task: {task.task}")
+            )
+            activity_node.invoke(state)
+
+            worker_agent = create_chain_agent(
+                system_prompt=system_prompt,
+                use_metadata=use_metadata,
+                parser=None,
+                tools=tools,
+                _additional_variables={
+                    "task": task.task,
+                    "expected_output": task.expected_output,
+                    "agents_results": state.agents_results,
+                },
+            )
+            ai_msg = worker_agent.invoke(state)
+            result = run_tools_parallel(ai_msg, tools, state)
+            if type(result) is str:
+                result_content = result
+            elif type(result) is list:
+                result_content = "".join([res.content for res in result])
+            else:
+                log.error(f"Worker agent return incompatible data type {type(result)}")
+            # truncate results to max_token
+            result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
+
+            # remove task and dependecies
+            state.agents_results = result
+            # state.tasks_evaluator = task.task + "\n" + task.expected_output
+            remove_task_dependecies(state=state, task_id=task.id)
+            state.agent_plans.tasks.remove(task)
+            return state
 
     return _build_agent.with_retry(stop_after_attempt=3)
 

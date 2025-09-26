@@ -703,9 +703,10 @@ def build_new_route_graph(
     )
 
     builder.add_node("user_feedback_evaluation", empty_process)
+    builder.add_node("all_tasks_completed", empty_process)
 
     builder.add_node("Evaluator_Agent", create_evaluator())
-    builder.add_node("combine_question_evaluator", combine_question_evaluator())
+    # builder.add_node("combine_question_evaluator", combine_question_evaluator())
     builder.add_node(
         "report_citations",
         report_sources_process,
@@ -729,11 +730,17 @@ def build_new_route_graph(
             "more_info": "stream_suggestion",
         },
     )
+
     builder.add_conditional_edges("sending_task", sending_task_to_agent)
-    builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
-    builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
-    builder.add_edge("Web_Search_Agent", "combine_question_evaluator")
-    builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
+
+    builder.add_conditional_edges(
+        "all_tasks_completed", lambda s: not s.agent_plans.tasks, {True: "Evaluator_Agent", False: "sending_task"}
+    )
+
+    builder.add_edge("Internal_Retrieval_Agent", "all_tasks_completed")
+    builder.add_edge("External_Retrieval_Agent", "all_tasks_completed")
+    builder.add_edge("Web_Search_Agent", "all_tasks_completed")
+    # builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
     builder.add_edge("stream_plan", END)

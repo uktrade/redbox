@@ -212,9 +212,14 @@ CHAT_MAP_QUESTION_PROMPT = "Question: {question}. \n Documents: \n {formatted_do
 
 CONDENSE_QUESTION_PROMPT = "{question}\n=========\n Standalone question: "
 
+WORKER_TASK_PROMPT = """Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible. Here is agents results which might be useful to you:
 
-INTERNAL_RETRIEVAL_AGENT_PROMPT = """You are an expert information analyst with the ability to critically assess when and how to retrieve information. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
+<Previous_Agents_Results>{agents_results}</Previous_Agents_Results>"""
 
+INTERNAL_RETRIEVAL_AGENT_PROMPT = (
+    """You are an expert information analyst with the ability to critically assess when and how to retrieve information."""
+    + WORKER_TASK_PROMPT
+    + """
 Guidelines for Tool Usage:
 1. Carefully evaluate the existing information first
 2. Please use the available tools to perform multiple parallel tool calls to gather all necessary information.
@@ -236,10 +241,12 @@ Execution Strategy:
 
 <Document_Metadata>{metadata}</Document_Metadata>
 """
+)
 
-EXTERNAL_RETRIEVAL_AGENT_PROMPT = """You are an expert information analyst with the ability to critically assess when and how to retrieve information. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
-
-Guidelines for Tool Usage:
+EXTERNAL_RETRIEVAL_AGENT_PROMPT = (
+    """You are an expert information analyst with the ability to critically assess when and how to retrieve information."""
+    + WORKER_TASK_PROMPT
+    + """Guidelines for Tool Usage:
 1. Carefully evaluate the existing information first
 2. Please use the available tools to perform multiple parallel tool calls to gather all necessary information.
 
@@ -255,8 +262,12 @@ Execution Strategy:
    - Make a targeted, focused tool call
 2. Produce the expected output with maximum accuracy and efficiency. Only use information obtained from tools.
 """
+)
 
-WEB_SEARCH_AGENT_PROMPT = """You are WebSearchAgent, an AI assistant designed to search websites based on user questions. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
+WEB_SEARCH_AGENT_PROMPT = (
+    """You are WebSearchAgent, an AI assistant designed to search websites based on user questions."""
+    + WORKER_TASK_PROMPT
+    + """
 Guidelines for Tool Usage:
 1. Please use the available tools to perform multiple parallel tool calls to gather all necessary information.
 Decision-Making Process:
@@ -273,6 +284,7 @@ Operational Parameters:
 When a user provides a website, focus your search exclusively on that domain
 Always prioritize official, authoritative sources within the specified domain
 """
+)
 
 WORKER_AGENTS_PROMPT = """
 ## Available agents and their responsibilities
