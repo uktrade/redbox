@@ -58,6 +58,7 @@ ddtrace = "^3.10.0"
 django-requestlogs = "^0.8"
 unoserver = "^3.3.2"
 coverage = "^7.10.6"
+python-docx = "^1.2.0"
 
 
 [tool.poetry.group.dev.dependencies]

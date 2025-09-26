@@ -1,3 +1,4 @@
+import docx
 import logging
 import time
 from typing import TYPE_CHECKING
@@ -52,6 +53,27 @@ def create_alias(alias: str):
 
     es.indices.create(index=chunk_index_name, body=env.index_mapping, ignore=400)
     es.indices.put_alias(index=chunk_index_name, name=alias)
+    
+    
+def has_tables_in_docx(file_name: str, s3_client: S3Client) -> bool:
+    try:
+        # Download the file to a temporary location
+        local_path = "/tmp/" + file_name.split("/")[-1]
+        s3_client.download_file(env.bucket_name, file_name, local_path)
+        
+        # Open and check for tables
+        doc = docx.Document(local_path)
+        return len(doc.tables) > 0
+    except Exception as e:
+        logging.warning(f"Failed to check tables in DOCX file {file_name}: {e}")
+        return False
+    finally:
+        # Clean up temporary file
+        import os
+        try:
+            os.remove(local_path)
+        except:
+            pass
 
 
 def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_extraction=env.enable_metadata_extraction):
@@ -121,6 +143,10 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
         new_ids = RunnableParallel(
             {"normal": chunk_ingest_chain, "largest": large_chunk_ingest_chain, "tabular": tabular_chunk_ingest_chain}
         ).invoke(file_name)  # Run an additional tabular process if a tabular file is ingested
+    elif file_name.endswith(".docx") and has_tables_in_docx(file_name, env.s3_client()):
+        new_ids = RunnableParallel(
+            {"normal": chunk_ingest_chain, "largest": large_chunk_ingest_chain, "tabular": tabular_chunk_ingest_chain}
+        ).invoke(file_name)  # Run an additional tabular process if a docx file with tables is ingested
     else:
         new_ids = RunnableParallel({"normal": chunk_ingest_chain, "largest": large_chunk_ingest_chain}).invoke(
             file_name
