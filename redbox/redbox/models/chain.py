@@ -308,12 +308,24 @@ agent_options = {agent: agent for agent in AISettings().agents}
 AgentEnum = Enum("AgentEnum", agent_options)
 
 
+class TaskStatus(str, Enum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    RUNNING = "running"
+
+
 class AgentTask(BaseModel):
+    id: str = Field(description="Unique identifier for the task")
     task: str = Field(description="Task to be completed by the agent", default="")
     agent: AgentEnum = Field(
         description="Name of the agent to complete the task", default=AgentEnum.Internal_Retrieval_Agent
     )
     expected_output: str = Field(description="What this agent should produce", default="")
+    dependencies: List[str] = Field(
+        description="List of task IDs that must be complete before this task can run", default_factory=list
+    )
+    status: TaskStatus = Field(TaskStatus.PENDING, description="Current status of the task")
 
 
 class MultiAgentPlan(BaseModel):
