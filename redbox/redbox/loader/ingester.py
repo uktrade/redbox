@@ -53,14 +53,14 @@ def create_alias(alias: str):
 
     es.indices.create(index=chunk_index_name, body=env.index_mapping, ignore=400)
     es.indices.put_alias(index=chunk_index_name, name=alias)
-    
-    
+
+
 def has_tables_in_docx(file_name: str, s3_client: S3Client) -> bool:
     try:
         # Download the file to a temporary location
         local_path = "/tmp/" + file_name.split("/")[-1]
         s3_client.download_file(env.bucket_name, file_name, local_path)
-        
+
         # Open and check for tables
         doc = docx.Document(local_path)
         return len(doc.tables) > 0
@@ -70,9 +70,10 @@ def has_tables_in_docx(file_name: str, s3_client: S3Client) -> bool:
     finally:
         # Clean up temporary file
         import os
+
         try:
             os.remove(local_path)
-        except:
+        except Exception:
             pass
 
 
