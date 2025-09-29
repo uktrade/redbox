@@ -418,20 +418,22 @@ def kagi_search_call(query: str, no_search_result: int = 20) -> tool:
         mapped_documents = []
         results = response.json().get("data", [])
         for i, doc in enumerate(results):
-            page_content = "".join(doc.get("snippet", []))
-            token_count = tokeniser(page_content)
-            print(f"Document {i} token count: {token_count}")
-            mapped_documents.append(
-                Document(
-                    page_content=page_content,
-                    metadata=ChunkMetadata(
-                        index=i,
-                        uri=doc.get("url", ""),
-                        token_count=token_count,
-                        creator_type=ChunkCreatorType.web_search,
-                    ).model_dump(),
+            # kagi search api object types: t=0 (Search Result), t=1 (Related Searches)
+            if doc["t"] == 0:
+                page_content = "".join(doc.get("snippet", []))
+                token_count = tokeniser(page_content)
+                print(f"Document {i} token count: {token_count}")
+                mapped_documents.append(
+                    Document(
+                        page_content=page_content,
+                        metadata=ChunkMetadata(
+                            index=i,
+                            uri=doc.get("url", ""),
+                            token_count=token_count,
+                            creator_type=ChunkCreatorType.web_search,
+                        ).model_dump(),
+                    )
                 )
-            )
         docs = mapped_documents
     else:
         print(f"Status returned: {response.status_code}")
@@ -441,7 +443,7 @@ def kagi_search_call(query: str, no_search_result: int = 20) -> tool:
 
 def build_web_search_tool():
     @tool(response_format="content_and_artifact")
-    def _search_web(query: str, site: str = ""):
+    def _search_web(query: str, site: str = "", no_search_result=5):
         """
         Web Search tool is a versatile search tool that allows users to search the entire web (similar to a search engine) or to conduct targeted searches within specific websites.
 
@@ -455,16 +457,16 @@ def build_web_search_tool():
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
         if site == "":
-            return kagi_search_call(query=query, no_search_result=5)
+            return kagi_search_call(query=query, no_search_result=no_search_result)
         else:
-            return kagi_search_call(query=query + " site:" + site, no_search_result=5)
+            return kagi_search_call(query=query + " site:" + site, no_search_result=no_search_result)
 
     return _search_web
 
 
 def build_legislation_search_tool():
     @tool(response_format="content_and_artifact")
-    def _search_legislation(query: str):
+    def _search_legislation(query: str, no_search_result=20):
         """
         Searching legislation.gov.uk.
 
@@ -476,6 +478,6 @@ def build_legislation_search_tool():
         Returns:
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
-        return kagi_search_call(query=query + " site:legislation.gov.uk")
+        return kagi_search_call(query=query + " site:legislation.gov.uk", no_search_result=no_search_result)
 
     return _search_legislation

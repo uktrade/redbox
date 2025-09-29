@@ -11,6 +11,7 @@ from opensearchpy import OpenSearch
 from redbox.api.format import reduce_chunks_by_tokens
 from redbox.graph.nodes.tools import (
     build_govuk_search_tool,
+    build_legislation_search_tool,
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
@@ -19,8 +20,7 @@ from redbox.models.chain import AISettings, RedboxQuery, RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
 from redbox.models.settings import Settings
 from redbox.test.data import RedboxChatTestCase
-from redbox.transform import flatten_document_state, combine_documents
-
+from redbox.transform import combine_documents, flatten_document_state
 from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
 
 
@@ -279,6 +279,35 @@ def test_web_search_tool(query, site):
         [{"name": "_search_web", "args": {"query": query, "site": site}, "id": "1", "type": "tool_call"}]
     )
     assert response["messages"][0].content != ""
+
+
+@pytest.mark.parametrize(
+    "query, site, no_search_result",
+    [
+        ("What is AI?", "", 10),
+        ("What is the new upcoming temporary piece of legislation regarding road traffic in Scotland", "", 20),
+    ],
+)
+@pytest.mark.vcr
+@pytest.mark.xfail(reason="calls api")
+def test_legislation_search_tool(query, site, no_search_result):
+    tool = build_legislation_search_tool()
+    tool_node = ToolNode(tools=[tool])
+    response = tool_node.invoke(
+        [
+            {
+                "name": "_search_legislation",
+                "args": {"query": query, "site": site, "no_search_result": no_search_result},
+                "id": "1",
+                "type": "tool_call",
+            }
+        ]
+    )
+    assert response["messages"][0].content != ""
+    assert len(response["messages"][0].artifact) == no_search_result
+    for res in response["messages"][0].artifact:
+        assert "legislation.gov.uk" in res.metadata["uri"]
+    print(True)
 
 
 def test_reduce_chunks_by_tokens_empty_chunks():

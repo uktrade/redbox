@@ -330,13 +330,13 @@ class TestNewRoutes:
             (
                 "approve plan",
                 '{"next": "approve"}',
-                [AgentEnum.Internal_Retrieval_Agent, AgentEnum.Web_Search_Agent, AgentEnum.Legislation_Search_Agent],
+                [AgentEnum.Internal_Retrieval_Agent, AgentEnum.Web_Search_Agent],
                 ANSWER_WITH_CITATION,
             ),
             (
                 "modify plan",
                 '{"next": "modify"}',
-                [AgentEnum.Internal_Retrieval_Agent, AgentEnum.Web_Search_Agent, AgentEnum.Legislation_Search_Agent],
+                [AgentEnum.Internal_Retrieval_Agent, AgentEnum.Web_Search_Agent],
                 ANSWER_WITH_CITATION,
             ),
         ],
