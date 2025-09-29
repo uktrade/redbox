@@ -30,6 +30,7 @@ from redbox.test.data import (
     mock_all_chunks_retriever,
     mock_metadata_retriever,
     mock_parameterised_retriever,
+    mock_tabular_retriever,
 )
 
 
@@ -104,6 +105,7 @@ async def run_app(
     app = Redbox(
         all_chunks_retriever=mock_all_chunks_retriever(test_case.docs),
         parameterised_retriever=mock_parameterised_retriever(test_case.docs),
+        tabular_retriever=mock_tabular_retriever(test_case.docs),
         metadata_retriever=mock_metadata_retriever(
             [d for d in test_case.docs if d.metadata["uri"] in test_case.query.s3_keys]
         ),
@@ -188,6 +190,8 @@ WORKER_RESPONSE = AIMessage(
 )
 
 WORKER_TOOL_RESPONSE = AIMessage(content="this work is done by worker")
+
+TABULAR_TOOL_RESPONSE = AIMessage(content=["this work is done by worker", "pass", "False"])
 
 
 class TestNewRoutes:
@@ -294,8 +298,14 @@ class TestNewRoutes:
             worker_response._default_config = {"model": "bedrock"}
             mock_chat_chain = mocker.patch("redbox.chains.runnables.get_chat_llm")
             mock_chat_chain.side_effect = [planner_response, worker_response]
+
             # mock tool call
-            mocker.patch("redbox.graph.nodes.processes.run_tools_parallel", return_value=[WORKER_TOOL_RESPONSE])
+            if agent == AgentEnum.Tabular_Agent:
+                tool_response = TABULAR_TOOL_RESPONSE
+            else:
+                tool_response = WORKER_TOOL_RESPONSE
+            mocker.patch("redbox.graph.nodes.processes.run_tools_parallel", return_value=[tool_response])
+
         else:
             mock_chat_chain = mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=planner_response)
 

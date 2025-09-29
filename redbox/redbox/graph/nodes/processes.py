@@ -750,9 +750,8 @@ def get_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 5000,
         success = "fail"
         num_iter = 0
         sql_error = ""
-        is_intermediate_step = False
         previous_answer = ""
-        while (success == "fail" or is_intermediate_step) and num_iter < 3:
+        while success != "pass" and num_iter < 3:
             worker_agent = build_stuff_pattern(
                 prompt_set=PromptSet.Tabular,
                 tools=tools,
@@ -764,22 +763,27 @@ def get_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 5000,
                 },
             )
             ai_msg = worker_agent.invoke(state)
+
+            num_iter += 1
+            # Check execute_sql_query tool call
+            if not ai_msg["messages"][-1].tool_calls:
+                continue
+
             results = run_tools_parallel(ai_msg["messages"][-1], tools, state)
 
+            # Check tool run successful
+            if len(results) < len(tools):
+                continue
+
+            result = results[-1].content
             # Truncate to max_tokens. only using one tool here.
-            if isinstance(results, str):
-                result = results[:max_tokens]
-            else:
-                result = results[-1].content[:max_tokens]
+            result[0] = result[0][:max_tokens]
 
             success = result[1]
-            if success == "fail":
+            if success != "pass":
                 sql_error = result[0]
-            else:
-                is_intermediate_step = bool(result[2])
-                if is_intermediate_step:
-                    previous_answer = "\n\n".join([previous_answer, result[1]])
-            num_iter += 1
+
+            previous_answer = "\n\n".join([previous_answer, result[1]])
 
         if success == "pass":
             formatted_result = f"<Tabular_Agent_Result>{result[0]}</Tabular_Agent_Result>"
