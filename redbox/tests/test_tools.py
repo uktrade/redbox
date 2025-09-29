@@ -282,22 +282,22 @@ def test_web_search_tool(query, site):
 
 
 @pytest.mark.parametrize(
-    "query, site, no_search_result",
+    "query, no_search_result",
     [
-        ("What is AI?", "", 10),
-        ("What is the new upcoming temporary piece of legislation regarding road traffic in Scotland", "", 20),
+        ("tell me about AI legislation", 10),
+        ("What is the new upcoming temporary piece of legislation regarding road traffic in Scotland", 20),
     ],
 )
 @pytest.mark.vcr
 @pytest.mark.xfail(reason="calls api")
-def test_legislation_search_tool(query, site, no_search_result):
+def test_legislation_search_tool(query, no_search_result):
     tool = build_legislation_search_tool()
     tool_node = ToolNode(tools=[tool])
     response = tool_node.invoke(
         [
             {
                 "name": "_search_legislation",
-                "args": {"query": query, "site": site, "no_search_result": no_search_result},
+                "args": {"query": query, "no_search_result": no_search_result},
                 "id": "1",
                 "type": "tool_call",
             }
@@ -306,8 +306,8 @@ def test_legislation_search_tool(query, site, no_search_result):
     assert response["messages"][0].content != ""
     assert len(response["messages"][0].artifact) == no_search_result
     for res in response["messages"][0].artifact:
-        assert "legislation.gov.uk" in res.metadata["uri"]
-    print(True)
+        netloc = urlparse(res.metadata["uri"]).netloc
+        assert "www.legislation.gov.uk" == netloc
 
 
 def test_reduce_chunks_by_tokens_empty_chunks():

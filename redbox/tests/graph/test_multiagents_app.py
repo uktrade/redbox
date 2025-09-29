@@ -232,7 +232,7 @@ class TestNewRoutes:
             ),
             (
                 "no document one task",
-                "What is AI",
+                "tell me about AI legislation",
                 [0, 0],
                 True,
                 AgentEnum.Legislation_Search_Agent,
@@ -240,7 +240,7 @@ class TestNewRoutes:
             ),
             (
                 "chat with single doc",
-                "What is AI",
+                "tell me about AI legislation",
                 [1, 1000],
                 True,
                 AgentEnum.Legislation_Search_Agent,
@@ -280,7 +280,7 @@ class TestNewRoutes:
             ),
             (
                 "no such keyword no doc",
-                "@nosuschkeyword What is AI",
+                "@nosuschkeyword tell me about AI legislation",
                 [0, 0],
                 True,
                 AgentEnum.Legislation_Search_Agent,
