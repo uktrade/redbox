@@ -767,12 +767,14 @@ def get_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 5000,
             num_iter += 1
             # Check execute_sql_query tool call
             if not ai_msg["messages"][-1].tool_calls:
+                error = "_execute_sql_query tool not called"
                 continue
 
             results = run_tools_parallel(ai_msg["messages"][-1], tools, state)
 
             # Check tool run successful
             if len(results) < len(tools):
+                error = "_execute_sql_query SQL query failed"
                 continue
 
             result = results[-1].content
@@ -780,15 +782,19 @@ def get_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 5000,
             result[0] = result[0][:max_tokens]
 
             success = result[1]
-            if success != "pass":
+            if success == "fail" and len(result) == 2:
                 sql_error = result[0]
-
-            previous_answer = "\n\n".join([previous_answer, result[1]])
+            else:
+                previous_answer = "\n\n".join([previous_answer, result[0]])
+                sql_error = ""
 
         if success == "pass":
             formatted_result = f"<Tabular_Agent_Result>{result[0]}</Tabular_Agent_Result>"
         else:
-            formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the error from the executed SQL query: {result[0]} </Tabular_Agent_Result>"
+            if sql_error:
+                formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the error from the executed SQL query: {sql_error} </Tabular_Agent_Result>"
+            else:
+                formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the reason for error: {error} </Tabular_Agent_Result>"
         return {
             "agents_results": [formatted_result],
             "tasks_evaluator": task + "\n" + expected_output,
