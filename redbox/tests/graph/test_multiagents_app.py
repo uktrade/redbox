@@ -273,7 +273,15 @@ class TestNewRoutes:
         )
         # mocking planner agent
         tasks = (
-            [AgentTask(task="This is a fake task", agent=agent, expected_output="This is a fake output")]
+            [
+                AgentTask(
+                    id="task1",
+                    task="This is a fake task",
+                    agent=agent,
+                    expected_output="This is a fake output",
+                    dependencies=[],
+                )
+            ]
             if has_task
             else []
         )
@@ -329,7 +337,15 @@ class TestNewRoutes:
         # mocking planner agent with tasks
         tasks = []
         for i in range(len(agents)):
-            tasks += [AgentTask(task="This is a fake task", agent=agents[i], expected_output="This is a fake output")]
+            tasks += [
+                AgentTask(
+                    id=f"task{i}",
+                    task="This is a fake task",
+                    agent=agents[i],
+                    expected_output="This is a fake output",
+                    dependencies=[],
+                )
+            ]
 
         planner = MultiAgentPlan(tasks=tasks)
         old_plan = []

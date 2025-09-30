@@ -427,9 +427,11 @@ def my_planner(
     node_for_no_task="evaluator",
 ):
     def remove_evaluator_task(state: RedboxState, res: MultiAgentPlan) -> MultiAgentPlan:
-        if res.tasks[-1].agent == AgentEnum.Evaluator_Agent:
-            state.tasks_evaluator = res.tasks[-1].task + " " + res.tasks[-1].expected_output
-            res.tasks.pop(-1)
+        if len(res.tasks) > 0:
+            if res.tasks[-1].agent == AgentEnum.Evaluator_Agent:
+                state.tasks_evaluator = res.tasks[-1].task + " " + res.tasks[-1].expected_output
+                res.tasks.pop(-1)
+            return res
         return res
 
     @RunnableLambda
@@ -524,13 +526,12 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
                 log.error(f"Worker agent return incompatible data type {type(result)}")
             # truncate results to max_token
             result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
-
             # remove task and dependecies
             state.agents_results = result
-            # state.tasks_evaluator = task.task + "\n" + task.expected_output
             remove_task_dependecies(state=state, task_id=task.id)
-            state.agent_plans.tasks.remove(task)
-            return state
+            if task in state.agent_plans.tasks:
+                state.agent_plans.tasks.remove(task)
+            return {"agents_results": result, "agent_plans": state.agent_plans}
 
     return _build_agent.with_retry(stop_after_attempt=3)
 

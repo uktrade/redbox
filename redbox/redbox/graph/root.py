@@ -740,7 +740,6 @@ def build_new_route_graph(
     builder.add_edge("Internal_Retrieval_Agent", "all_tasks_completed")
     builder.add_edge("External_Retrieval_Agent", "all_tasks_completed")
     builder.add_edge("Web_Search_Agent", "all_tasks_completed")
-    # builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
     builder.add_edge("stream_plan", END)
