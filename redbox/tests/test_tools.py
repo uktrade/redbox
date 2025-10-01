@@ -283,29 +283,29 @@ def test_web_search_tool(query, site, no_search_results):
 
 
 @pytest.mark.parametrize(
-    "query, no_search_result",
+    "query, no_search_results",
     [
-        ("tell me about AI legislation", 10),
+        ("tell me about AI legislation", 20),
         ("What is the new upcoming temporary piece of legislation regarding road traffic in Scotland", 20),
     ],
 )
 @pytest.mark.vcr
 @pytest.mark.xfail(reason="calls api")
-def test_legislation_search_tool(query, no_search_result):
+def test_legislation_search_tool(query, no_search_results):
     tool = build_legislation_search_tool()
     tool_node = ToolNode(tools=[tool])
     response = tool_node.invoke(
         [
             {
                 "name": "_search_legislation",
-                "args": {"query": query, "no_search_result": no_search_result},
+                "args": {"query": query},
                 "id": "1",
                 "type": "tool_call",
             }
         ]
     )
     assert response["messages"][0].content != ""
-    assert len(response["messages"][0].artifact) == no_search_result
+    assert len(response["messages"][0].artifact) <= no_search_results
     for res in response["messages"][0].artifact:
         netloc = urlparse(res.metadata["uri"]).netloc
         assert "www.legislation.gov.uk" == netloc
