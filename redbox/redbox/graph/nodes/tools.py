@@ -418,7 +418,7 @@ def kagi_search_call(query: str, no_search_result: int = 20) -> tool:
         mapped_documents = []
         results = response.json().get("data", [])
         for i, doc in enumerate(results):
-            # kagi search api object types: t=0 (Search Result), t=1 (Related Searches)
+            # extract only search results asper kagi documentation
             if doc["t"] == 0:
                 page_content = "".join(doc.get("snippet", []))
                 token_count = tokeniser(page_content)
@@ -434,7 +434,7 @@ def kagi_search_call(query: str, no_search_result: int = 20) -> tool:
                         ).model_dump(),
                     )
                 )
-        docs = mapped_documents
+            docs = mapped_documents
     else:
         print(f"Status returned: {response.status_code}")
         return "", []
@@ -443,7 +443,7 @@ def kagi_search_call(query: str, no_search_result: int = 20) -> tool:
 
 def build_web_search_tool():
     @tool(response_format="content_and_artifact")
-    def _search_web(query: str, site: str = "", no_search_result=5):
+    def _search_web(query: str, site: str = ""):
         """
         Web Search tool is a versatile search tool that allows users to search the entire web (similar to a search engine) or to conduct targeted searches within specific websites.
 
@@ -457,16 +457,16 @@ def build_web_search_tool():
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
         if site == "":
-            return kagi_search_call(query=query, no_search_result=no_search_result)
+            return kagi_search_call(query=query)
         else:
-            return kagi_search_call(query=query + " site:" + site, no_search_result=no_search_result)
+            return kagi_search_call(query=query + " site:" + site)
 
     return _search_web
 
 
 def build_legislation_search_tool():
     @tool(response_format="content_and_artifact")
-    def _search_legislation(query: str, no_search_result=20):
+    def _search_legislation(query: str):
         """
         Searching legislation.gov.uk.
 
@@ -478,6 +478,6 @@ def build_legislation_search_tool():
         Returns:
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
-        return kagi_search_call(query=query + " site:legislation.gov.uk", no_search_result=no_search_result)
+        return kagi_search_call(query=query + " site:legislation.gov.uk")
 
     return _search_legislation
