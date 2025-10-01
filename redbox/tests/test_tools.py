@@ -19,8 +19,7 @@ from redbox.models.chain import AISettings, RedboxQuery, RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
 from redbox.models.settings import Settings
 from redbox.test.data import RedboxChatTestCase
-from redbox.transform import flatten_document_state, combine_documents
-
+from redbox.transform import combine_documents, flatten_document_state
 from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
 
 
@@ -264,21 +263,22 @@ def test_gov_tool_params():
 
 
 @pytest.mark.parametrize(
-    "query, site",
+    "query, site, no_search_results",
     [
-        ("What is AI?", ""),
-        ("What is Dict in Python?", "stackoverflow.com"),
+        ("What is AI?", "", 20),
+        ("What is Dict in Python?", "stackoverflow.com", 20),
     ],
 )
 @pytest.mark.vcr
 @pytest.mark.xfail(reason="calls api")
-def test_web_search_tool(query, site):
+def test_web_search_tool(query, site, no_search_results):
     tool = build_web_search_tool()
     tool_node = ToolNode(tools=[tool])
     response = tool_node.invoke(
         [{"name": "_search_web", "args": {"query": query, "site": site}, "id": "1", "type": "tool_call"}]
     )
     assert response["messages"][0].content != ""
+    assert len(response["messages"][0].artifact) <= no_search_results
 
 
 def test_reduce_chunks_by_tokens_empty_chunks():
