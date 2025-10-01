@@ -782,6 +782,7 @@ def get_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 5000,
             result[0] = result[0][:max_tokens]
 
             success = result[1]
+            # In the case of SQL Exception tool returns result with length 2
             if success == "fail" and len(result) == 2:
                 sql_error = result[0]
             else:

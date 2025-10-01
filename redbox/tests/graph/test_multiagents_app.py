@@ -249,7 +249,7 @@ class TestNewRoutes:
                 [1, 1000],
                 True,
                 AgentEnum.Tabular_Agent,
-                ANSWER_WITH_CITATION,
+                ANSWER_NO_CITATION,
             ),
             (
                 "no such keyword no doc",
