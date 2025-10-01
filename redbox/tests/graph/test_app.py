@@ -497,7 +497,6 @@ def test_get_available_keywords(env: Settings):
         ChatRoute.gadget,
         ChatRoute.summarise,
         ChatRoute.tabular,
-        ChatRoute.legislation,
         ChatRoute.chat,
     }
 
