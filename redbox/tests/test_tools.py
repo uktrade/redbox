@@ -270,7 +270,7 @@ def test_gov_tool_params():
     ],
 )
 @pytest.mark.vcr
-# @pytest.mark.xfail(reason="calls api")
+@pytest.mark.xfail(reason="calls api")
 def test_web_search_tool(query, site, no_search_results):
     tool = build_web_search_tool()
     tool_node = ToolNode(tools=[tool])
