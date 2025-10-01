@@ -427,21 +427,23 @@ def kagi_search_call(query: str, no_search_result: int = 20) -> tool:
         mapped_documents = []
         results = response.json().get("data", [])
         for i, doc in enumerate(results):
-            page_content = "".join(doc.get("snippet", []))
-            token_count = tokeniser(page_content)
-            print(f"Document {i} token count: {token_count}")
-            mapped_documents.append(
-                Document(
-                    page_content=page_content,
-                    metadata=ChunkMetadata(
-                        index=i,
-                        uri=doc.get("url", ""),
-                        token_count=token_count,
-                        creator_type=ChunkCreatorType.web_search,
-                    ).model_dump(),
+            # extract only search results asper kagi documentation
+            if doc["t"] == 0:
+                page_content = "".join(doc.get("snippet", []))
+                token_count = tokeniser(page_content)
+                print(f"Document {i} token count: {token_count}")
+                mapped_documents.append(
+                    Document(
+                        page_content=page_content,
+                        metadata=ChunkMetadata(
+                            index=i,
+                            uri=doc.get("url", ""),
+                            token_count=token_count,
+                            creator_type=ChunkCreatorType.web_search,
+                        ).model_dump(),
+                    )
                 )
-            )
-        docs = mapped_documents
+            docs = mapped_documents
     else:
         print(f"Status returned: {response.status_code}")
         return "", []
