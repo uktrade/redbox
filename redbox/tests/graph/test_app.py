@@ -63,6 +63,7 @@ NEW_ROUTE_NO_FEEDBACK = [OUTPUT_WITH_CITATIONS]  # only streaming tokens through
 TASK_INTERNAL_AGENT = MultiAgentPlan(
     tasks=[
         AgentTask(
+            id="task1",
             task="Task to be completed by the agent",
             agent="Internal_Retrieval_Agent",
             expected_output="What this agent should produce",
@@ -72,6 +73,7 @@ TASK_INTERNAL_AGENT = MultiAgentPlan(
 TASK_SUMMARISE_AGENT = MultiAgentPlan(
     tasks=[
         AgentTask(
+            id="task1",
             task="Task to be completed by the agent",
             agent="Summarisation_Agent",
             expected_output="What this agent should produce",
