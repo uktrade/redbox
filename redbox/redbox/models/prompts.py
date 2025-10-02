@@ -308,7 +308,7 @@ Use when the user wants to:
 
 4. **Tabular_Agent**:
 Purpose: Retrieves information from database tables. Only retrieves what the user asks for.
-Use when the selected documents are tabular data such as CSV files or Excel spreadsheets.
+Use instead of the Internal_Retrieval_Agent when the selected documents are tabular data such as CSV files or Excel spreadsheets.
 
 5. **Web_Search_Agent***:
 Purpose: Perform searches across web sites or on specific domains
@@ -397,8 +397,8 @@ Interpret user feedback into one of the following categories:
 
 Return output in the following format <Output_format>{format_instructions}</Output_format>"""
 
-TABULAR_PROMPT = """ You are a SQL expert with a strong attention to detail. You are assisting users to retrieve information from database. 
-Your task is to retrieve the relevant information from the database that help answer user question. Use SQL to retrieve data from the SQLite database.
+TABULAR_PROMPT = """ You are a SQL expert with a strong attention to detail. You are assisting users to retrieve information from a database. 
+Your task is to retrieve the relevant information from the database that helps answer the users question. Generate a SQL query then retrieve data from the SQLite database using tools.
 
 Operational Framework:
 1. Initial data assessment:

@@ -495,12 +495,12 @@ def execute_sql_query():
     @tool(response_format="content")
     def _execute_sql_query(sql_query: str, is_intermediate_step: bool, state: Annotated[RedboxState, InjectedState]):
         """
-        SQL verificatiom tool is a versatile tool that executes SQL queries against a SQLite database.
+        SQL verification tool is a versatile tool that executes SQL queries against a SQLite database.
         Args:
             sql_query (str): The sql query to be executed against the SQLite database.
             is_intermediate_step (bool): True if your sql query is an intermediate step to allow you to gather information about the database before making the final sql query. False if your sql query would retrieve the relevant information to answer the user question.
         Returns:
-            results of the sql query execution if it is successful or an error message if the sql query exection failed
+            results of the sql query execution if it is successful or an error message if the sql query execution failed
         """
         # execute tabular agent SQL
         conn = sqlite3.connect(state.request.db_location)
