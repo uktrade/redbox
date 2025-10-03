@@ -40,6 +40,7 @@ from redbox.graph.nodes.processes import (
     invoke_custom_state,
     lm_choose_route,
     my_planner,
+    remove_evaluator_task,
     report_sources_process,
     stream_plan,
     stream_suggestion,
@@ -717,6 +718,7 @@ def build_new_route_graph(
     )
     builder.add_node("stream_suggestion", stream_suggestion())
     builder.add_node("sending_task", empty_process)
+    builder.add_node("send_evaluator_task", remove_evaluator_task)
 
     builder.add_edge(START, "set_route_to_newroute")
     builder.add_edge("set_route_to_newroute", "remove_keyword")
@@ -727,7 +729,7 @@ def build_new_route_graph(
         "user_feedback_evaluation",
         build_user_feedback_evaluation(),
         {
-            "approve": "sending_task",
+            "approve": "send_evaluator_task",
             "modify": "planner",
             "reject": "stream_suggestion",
             "more_info": "stream_suggestion",
@@ -736,6 +738,7 @@ def build_new_route_graph(
 
     builder.add_conditional_edges("sending_task", sending_task_to_agent)
 
+    builder.add_edge("send_evaluator_task", "sending_task")
     builder.add_conditional_edges(
         "all_tasks_completed", lambda s: not s.agent_plans.tasks, {True: "Evaluator_Agent", False: "sending_task"}
     )

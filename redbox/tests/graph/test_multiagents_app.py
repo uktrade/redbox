@@ -32,7 +32,47 @@ from redbox.test.data import (
     mock_parameterised_retriever,
 )
 
+## Data
 
+ANSWER_NO_CITATION = AIMessage(
+    content=StructuredResponseWithCitations(answer="AI is a lie", citations=[]).model_dump_json()
+)
+ANSWER_WITH_CITATION = AIMessage(
+    content=StructuredResponseWithCitations(
+        answer="AI is a lie",
+        citations=[
+            Citation(
+                text_in_answer="AI is a lie I made up",
+                sources=[
+                    Source(
+                        source="SomeAIGuy",
+                        document_name="http://localhost/someaiguy.html",
+                        highlighted_text_in_source="I lied about AI",
+                        page_numbers=[1],
+                    )
+                ],
+            )
+        ],
+    ).model_dump_json()
+)
+
+WORKER_RESPONSE = AIMessage(
+    content="I will be calling a tool",
+    additional_kwargs={
+        "tool_calls": [
+            {
+                "id": "call_e4003b",
+                "function": {"arguments": '{\n  "query": "ai"\n}', "name": "_some_tool"},
+                "type": "function",
+            }
+        ]
+    },
+)
+
+WORKER_TOOL_RESPONSE = AIMessage(content="this work is done by worker")
+
+
+## App functions
 def run_assertion(
     test_case,
     final_state: RedboxState,
@@ -152,44 +192,6 @@ async def run_app(
     run_assertion(test_case, final_state, route_name, token_events, metadata_events, activity_events, document_events)
 
 
-ANSWER_NO_CITATION = AIMessage(
-    content=StructuredResponseWithCitations(answer="AI is a lie", citations=[]).model_dump_json()
-)
-ANSWER_WITH_CITATION = AIMessage(
-    content=StructuredResponseWithCitations(
-        answer="AI is a lie",
-        citations=[
-            Citation(
-                text_in_answer="AI is a lie I made up",
-                sources=[
-                    Source(
-                        source="SomeAIGuy",
-                        document_name="http://localhost/someaiguy.html",
-                        highlighted_text_in_source="I lied about AI",
-                        page_numbers=[1],
-                    )
-                ],
-            )
-        ],
-    ).model_dump_json()
-)
-
-WORKER_RESPONSE = AIMessage(
-    content="I will be calling a tool",
-    additional_kwargs={
-        "tool_calls": [
-            {
-                "id": "call_e4003b",
-                "function": {"arguments": '{\n  "query": "ai"\n}', "name": "_some_tool"},
-                "type": "function",
-            }
-        ]
-    },
-)
-
-WORKER_TOOL_RESPONSE = AIMessage(content="this work is done by worker")
-
-
 class TestNewRoutes:
     def create_new_route_test(
         self, question: str, number_of_docs: int = 0, tokens_in_all_docs: int = 0, chat_history: list = []
@@ -304,10 +306,25 @@ class TestNewRoutes:
                     agent=agent,
                     expected_output="This is a fake output",
                     dependencies=[],
-                )
+                ),
+                AgentTask(
+                    id="task2",
+                    task="Produce final response",
+                    agent=AgentEnum.Evaluator_Agent,
+                    expected_output="Final response",
+                    dependencies=[],
+                ),
             ]
             if has_task
-            else []
+            else [
+                AgentTask(
+                    id="task2",
+                    task="Produce final response",
+                    agent=AgentEnum.Evaluator_Agent,
+                    expected_output="Final response",
+                    dependencies=[],
+                )
+            ]
         )
         planner = (MultiAgentPlan(tasks=tasks)).model_dump_json()
         planner_response = GenericFakeChatModelWithTools(messages=iter([planner]))
@@ -370,7 +387,15 @@ class TestNewRoutes:
                     dependencies=[],
                 )
             ]
-
+        tasks += [
+            AgentTask(
+                id="task_last",
+                task="Produce final response",
+                agent=AgentEnum.Evaluator_Agent,
+                expected_output="Final response",
+                dependencies=[],
+            )
+        ]
         planner = MultiAgentPlan(tasks=tasks)
         old_plan = []
         if "modify" in user_feedback:

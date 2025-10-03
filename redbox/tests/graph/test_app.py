@@ -15,6 +15,7 @@ from pytest_mock import MockerFixture
 
 from redbox import Redbox
 from redbox.models.chain import (
+    AgentEnum,
     AgentTask,
     AISettings,
     Citation,
@@ -77,7 +78,14 @@ TASK_SUMMARISE_AGENT = MultiAgentPlan(
             task="Task to be completed by the agent",
             agent="Summarisation_Agent",
             expected_output="What this agent should produce",
-        )
+        ),
+        AgentTask(
+            id="task2",
+            task="Produce final response",
+            agent=AgentEnum.Evaluator_Agent,
+            expected_output="Final response",
+            dependencies=[],
+        ),
     ]
 )
 
@@ -149,7 +157,7 @@ TEST_CASES = [
         ),
         generate_test_cases(
             query=RedboxQuery(
-                question=" What is AI?",
+                question="What is AI?",
                 s3_keys=["s3_key"],
                 user_uuid=uuid4(),
                 chat_history=[],

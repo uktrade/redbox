@@ -420,20 +420,20 @@ def create_planner(is_streamed=False):
         return _create_planner
 
 
+def remove_evaluator_task(state: RedboxState):
+    if len(state.agent_plans.tasks) > 0:
+        if state.agent_plans.tasks[-1].agent == AgentEnum.Evaluator_Agent:
+            state.tasks_evaluator = state.agent_plans.tasks[-1].task + " " + state.agent_plans.tasks[-1].expected_output
+            state.agent_plans.tasks.pop(-1)
+    return state
+
+
 def my_planner(
     allow_plan_feedback=False,
     node_after_streamed: str = "human",
     node_afer_replan: str = "sending_task",
     node_for_no_task="evaluator",
 ):
-    def remove_evaluator_task(state: RedboxState, res: MultiAgentPlan) -> MultiAgentPlan:
-        if len(res.tasks) > 0:
-            if res.tasks[-1].agent == AgentEnum.Evaluator_Agent:
-                state.tasks_evaluator = res.tasks[-1].task + " " + res.tasks[-1].expected_output
-                res.tasks.pop(-1)
-            return res
-        return res
-
     @RunnableLambda
     def _create_planner(state: RedboxState):
         no_tasks_auto = 1
@@ -454,9 +454,9 @@ def my_planner(
                 _additional_variables={"previous_plan": plan, "user_feedback": user_input},
             )
             res = orchestration_agent.invoke(state)
-            # remove evaluator agent task
-            res = remove_evaluator_task(state, res)
             state.agent_plans = res
+            # remove evaluator agent task
+            remove_evaluator_task(state)
             # reset user feedback
             state.user_feedback = ""
             return Command(update=state, goto=node_afer_replan)
@@ -464,22 +464,26 @@ def my_planner(
             # run planner agent
             orchestration_agent = create_planner(is_streamed=False)
             res = orchestration_agent.invoke(state)
-            # remove evaluator agent task
-            res = remove_evaluator_task(state, res)
             state.agent_plans = res
 
-            # send task to worker agent if we have only 1 task
-            if len(state.agent_plans.tasks) > no_tasks_auto:
-                if allow_plan_feedback:
-                    # stream task
-                    return Command(update=state, goto=node_after_streamed)
-                else:
-                    return Command(update=state, goto=node_afer_replan)
-            # if there is no task, go to evaluator
-            elif len(state.agent_plans.tasks) == 0:
-                return Command(update=state, goto=node_for_no_task)
+            if res.tasks[-1].agent == AgentEnum.Evaluator_Agent:
+                # if there are 0 or 1 task
+                if len(res.tasks[:-1]) <= no_tasks_auto:
+                    remove_evaluator_task(state)
+                    if len(state.agent_plans.tasks) == 0:
+                        return Command(update=state, goto=node_for_no_task)
+                    else:
+                        return Command(update=state, goto=node_afer_replan)
+                else:  # there is more than 1 tasks
+                    if allow_plan_feedback:
+                        # stream task
+                        return Command(update=state, goto=node_after_streamed)
+                    else:
+                        remove_evaluator_task(state)
+                        return Command(update=state, goto=node_afer_replan)
             else:
-                return Command(update=state, goto=node_afer_replan)
+                log.error("The evaluator is not the last agent!")
+                return Command(update=state, goto=node_for_no_task)
 
     return _create_planner
 
@@ -618,7 +622,8 @@ def stream_plan():
         prefix_texts, suffix_texts = get_plan_fix_prompts()
         dispatch_custom_event(RedboxEventType.response_tokens, data=f"{random.choice(prefix_texts)}\n\n")
         for i, t in enumerate(state.agent_plans.tasks):
-            dispatch_custom_event(RedboxEventType.response_tokens, data=f"{i+1}. {t.task}\n\n")
+            if t.agent != AgentEnum.Evaluator_Agent:
+                dispatch_custom_event(RedboxEventType.response_tokens, data=f"{i+1}. {t.task}\n\n")
         dispatch_custom_event(RedboxEventType.response_tokens, data=f"\n\n{random.choice(suffix_texts)}")
         return state
 
