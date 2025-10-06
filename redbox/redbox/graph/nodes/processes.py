@@ -751,7 +751,8 @@ def get_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 5000,
         num_iter = 0
         sql_error = ""
         previous_answer = ""
-        while success != "pass" and num_iter < 3:
+        is_intermediate_step = False
+        while (success == "fail" or is_intermediate_step) and num_iter < 3:
             worker_agent = build_stuff_pattern(
                 prompt_set=PromptSet.Tabular,
                 tools=tools,
@@ -782,20 +783,27 @@ def get_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 5000,
             result[0] = result[0][:max_tokens]
 
             success = result[1]
-            # In the case of SQL Exception tool returns result with length 2
-            if success == "fail" and len(result) == 2:
-                sql_error = result[0]
+
+            if success == "fail":
+                # In the case of SQL Exception tool returns result with length 2
+                if len(result) == 2:
+                    sql_error = result[0]
+                else:
+                    error = result[0]
+                    is_intermediate_step = eval(result[2])
+                    sql_error = ""
             else:
                 previous_answer = "\n\n".join([previous_answer, result[0]])
+                is_intermediate_step = eval(result[2])
                 sql_error = ""
 
         if success == "pass":
             formatted_result = f"<Tabular_Agent_Result>{result[0]}</Tabular_Agent_Result>"
+        elif success == "fail" and sql_error:
+            formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the error from the executed SQL query: {sql_error} </Tabular_Agent_Result>"
         else:
-            if sql_error:
-                formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the error from the executed SQL query: {sql_error} </Tabular_Agent_Result>"
-            else:
-                formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the reason for error: {error} </Tabular_Agent_Result>"
+            formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the error: {error} </Tabular_Agent_Result>"
+
         return {
             "agents_results": [formatted_result],
             "tasks_evaluator": task + "\n" + expected_output,
