@@ -465,6 +465,33 @@ async def test_chat_consumer_get_ai_settings(
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio()
+async def test_chat_consumer_with_american_to_british_conversion(
+    alice: User, mocked_connect_with_american_to_british_conversion: Connect
+):
+    with patch(
+        "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph",
+        new=mocked_connect_with_american_to_british_conversion,
+    ):
+        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        communicator.scope["user"] = alice
+        connected, _ = await communicator.connect()
+        assert connected
+
+        await communicator.send_json_to({"message": "Hello Hal."})
+        response1 = await communicator.receive_json_from(timeout=5)
+        response2 = await communicator.receive_json_from(timeout=5)
+
+        # Then
+        assert response1["type"] == "session-id"
+        assert response2["type"] == "text"
+        assert response2["data"] == "Recognise this colour?"  # Converted from "Recognize this color?"
+
+        # Close
+        await communicator.disconnect()
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio()
 async def test_chat_consumer_redbox_state(
     alice: User,
     several_files: Sequence[File],
@@ -726,6 +753,19 @@ def mocked_connect_with_several_files(several_files: Sequence[File]) -> Connect:
         json.dumps({"resource_type": "end"}),
     ]
     return mocked_connect
+
+
+@pytest.fixture()
+def mocked_connect_with_american_to_british_conversion() -> Connect:
+    responses = [
+        {
+            "event": "on_chat_model_stream",
+            "tags": [FINAL_RESPONSE_TAG],
+            "data": {"chunk": Token(content="Recognize this color?")},
+        }
+    ]
+
+    return CannedGraphLLM(responses=responses)
 
 
 @database_sync_to_async

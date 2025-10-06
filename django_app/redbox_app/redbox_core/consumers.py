@@ -398,7 +398,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
             logger.debug("converted text chunk: %s -> %s", response[:50], converted_chunk[:50])
         except Exception as e:
-            logger.exception("conversion failed ", exc_info=e)
+            logger.exception("conversion failed on converting text chunk: %s", response[:50], exc_info=e)
             converted_chunk = response  # use unconverted text
 
         # store both original and converted chunks
