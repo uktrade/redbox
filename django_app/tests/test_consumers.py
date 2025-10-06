@@ -484,7 +484,9 @@ async def test_chat_consumer_with_american_to_british_conversion(
         # Then
         assert response1["type"] == "session-id"
         assert response2["type"] == "text"
-        assert response2["data"] == "Recognise this colour?"  # Converted from "Recognize this color?"
+        assert (
+            response2["data"] == "Recognise these coloured filters?"
+        )  # Converted from "Recognize these colored filters?"
 
         # Close
         await communicator.disconnect()
@@ -761,7 +763,7 @@ def mocked_connect_with_american_to_british_conversion() -> Connect:
         {
             "event": "on_chat_model_stream",
             "tags": [FINAL_RESPONSE_TAG],
-            "data": {"chunk": Token(content="Recognize this color?")},
+            "data": {"chunk": Token(content="Recognize these colored filters?")},
         }
     ]
 

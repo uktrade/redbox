@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 from uuid import UUID
 
+import uwotm8.convert as uwm8
 from asgiref.sync import sync_to_async
 from botocore.exceptions import ClientError
 from channels.db import database_sync_to_async
@@ -46,11 +47,9 @@ from redbox_app.redbox_core.models import (
     MonitorSearchRoute,
 )
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
-from redbox_app.redbox_core.services import message as message_service
 
-convert_american_to_british_spelling = sync_to_async(
-    message_service.convert_american_to_british_spelling, thread_sensitive=True
-)
+# Temporary condition before next uwotm8 release: monkey patch CONVERSION_IGNORE_LIST
+uwm8.CONVERSION_IGNORE_LIST = uwm8.CONVERSION_IGNORE_LIST | {"filters": "philtres", "connection": "connexion"}
 
 User = get_user_model()
 OptFileSeq = Sequence[File] | None
@@ -394,7 +393,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         logger.debug("Received text chunk: %s", response)
         try:
             converted_chunk = (
-                convert_american_to_british_spelling(response) if self.scope.get("user").uk_or_us_english else response
+                uwm8.convert_american_to_british_spelling(response)
+                if self.scope.get("user").uk_or_us_english
+                else response
             )
             logger.debug("converted text chunk: %s -> %s", response[:50], converted_chunk[:50])
         except Exception as e:
@@ -479,6 +480,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """
         for c in citations:
             for s in c.sources:
+                text_in_answer = c.text_in_answer or ""
+                text_in_answer = (
+                    uwm8.convert_american_to_british_spelling(text_in_answer)
+                    if self.scope.get("user").uk_or_us_english
+                    else text_in_answer
+                )
+
                 try:
                     # Use the async database query function
                     file = await get_latest_complete_file(s.source)
@@ -486,9 +494,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         payload = {
                             "url": str(file.url),
                             "file_name": file.file_name,
-                            "text_in_answer": convert_american_to_british_spelling(c.text_in_answer)
-                            if self.scope.get("user").uk_or_us_english
-                            else c.text_in_answer,
+                            "text_in_answer": text_in_answer,
                             "citation_name": s.ref_id,
                         }
                     else:
@@ -498,9 +504,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             payload = {
                                 "url": str(file.url),
                                 "file_name": file.file_name,
-                                "text_in_answer": convert_american_to_british_spelling(c.text_in_answer)
-                                if self.scope.get("user").uk_or_us_english
-                                else c.text_in_answer,
+                                "text_in_answer": text_in_answer,
                                 "citation_name": s.ref_id,
                             }
                         else:
@@ -508,9 +512,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             payload = {
                                 "url": s.source,
                                 "file_name": s.source,
-                                "text_in_answer": convert_american_to_british_spelling(c.text_in_answer)
-                                if self.scope.get("user").uk_or_us_english
-                                else c.text_in_answer,
+                                "text_in_answer": text_in_answer,
                                 "citation_name": s.ref_id,
                             }
                 except File.DoesNotExist:
@@ -519,19 +521,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     payload = {
                         "url": s.source,
                         "file_name": s.source,
-                        "text_in_answer": convert_american_to_british_spelling(text_in_answer)
-                        if self.scope.get("user").uk_or_us_english
-                        else text_in_answer,
+                        "text_in_answer": text_in_answer,
                         "citation_name": s.ref_id,
                     }
 
                 await self.send_to_client("source", payload)
-
-                text_in_answer = (
-                    await convert_american_to_british_spelling(c.text_in_answer)
-                    if self.scope.get("user").uk_or_us_english
-                    else c.text_in_answer
-                )
 
                 self.citations.append(
                     (
