@@ -394,7 +394,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         logger.debug("Received text chunk: %s", response)
         try:
             converted_chunk = (
-                convert_american_to_british_spelling(response) if self.scope.get("user").uk_or_us_english else response
+                await convert_american_to_british_spelling(response)
+                if self.scope.get("user").uk_or_us_english
+                else response
             )
             logger.debug("converted text chunk: %s -> %s", response[:50], converted_chunk[:50])
         except Exception as e:
@@ -479,16 +481,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """
         for c in citations:
             for s in c.sources:
+                text_in_answer = c.text_in_answer or ""
+                text_in_answer = (
+                    await convert_american_to_british_spelling(text_in_answer)
+                    if self.scope.get("user").uk_or_us_english
+                    else text_in_answer
+                )
+
                 try:
                     # Use the async database query function
                     file = await get_latest_complete_file(s.source)
+
                     if file:
                         payload = {
                             "url": str(file.url),
                             "file_name": file.file_name,
-                            "text_in_answer": convert_american_to_british_spelling(c.text_in_answer)
-                            if self.scope.get("user").uk_or_us_english
-                            else c.text_in_answer,
+                            "text_in_answer": text_in_answer,
                             "citation_name": s.ref_id,
                         }
                     else:
@@ -498,9 +506,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             payload = {
                                 "url": str(file.url),
                                 "file_name": file.file_name,
-                                "text_in_answer": convert_american_to_british_spelling(c.text_in_answer)
-                                if self.scope.get("user").uk_or_us_english
-                                else c.text_in_answer,
+                                "text_in_answer": text_in_answer,
                                 "citation_name": s.ref_id,
                             }
                         else:
@@ -508,30 +514,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             payload = {
                                 "url": s.source,
                                 "file_name": s.source,
-                                "text_in_answer": convert_american_to_british_spelling(c.text_in_answer)
-                                if self.scope.get("user").uk_or_us_english
-                                else c.text_in_answer,
+                                "text_in_answer": text_in_answer,
                                 "citation_name": s.ref_id,
                             }
                 except File.DoesNotExist:
                     file = None
-                    text_in_answer = c.text_in_answer or ""
                     payload = {
                         "url": s.source,
                         "file_name": s.source,
-                        "text_in_answer": convert_american_to_british_spelling(text_in_answer)
-                        if self.scope.get("user").uk_or_us_english
-                        else text_in_answer,
+                        "text_in_answer": text_in_answer,
                         "citation_name": s.ref_id,
                     }
 
                 await self.send_to_client("source", payload)
-
-                text_in_answer = (
-                    await convert_american_to_british_spelling(c.text_in_answer)
-                    if self.scope.get("user").uk_or_us_english
-                    else c.text_in_answer
-                )
 
                 self.citations.append(
                     (
