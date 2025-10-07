@@ -10,7 +10,6 @@ from collections.abc import Callable
 from functools import reduce
 from io import StringIO
 from random import uniform
-from tkinter import EXCEPTION
 from typing import Any, Iterable
 from uuid import uuid4
 
