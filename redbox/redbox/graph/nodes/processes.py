@@ -10,6 +10,7 @@ from collections.abc import Callable
 from functools import reduce
 from io import StringIO
 from random import uniform
+from tkinter import EXCEPTION
 from typing import Any, Iterable
 from uuid import uuid4
 
@@ -725,7 +726,9 @@ def sanitise_file_name(file_name: str) -> str:
     return re.sub(r"\W+", "", file_name.replace(" ", ""))
 
 
-def get_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 5000, tools=list[StructuredTool]):
+def get_tabular_agent(
+    agent_name: str = "Tabular Agent", max_tokens: int = 5000, tools=list[StructuredTool], max_attempt=int
+):
     @RunnableLambda
     def _build_tabular_agent(state: RedboxState):
         # update activity
@@ -750,56 +753,64 @@ def get_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 5000,
         success = "fail"
         num_iter = 0
         sql_error = ""
-        previous_answer = ""
-        while success != "pass" and num_iter < 3:
+        is_intermediate_step = False
+        messages = []
+        while (success == "fail" or is_intermediate_step) and num_iter < max_attempt:
             worker_agent = build_stuff_pattern(
                 prompt_set=PromptSet.Tabular,
                 tools=tools,
                 final_response_chain=False,
-                additional_variables={
-                    "sql_error": sql_error,
-                    "db_schema": state.tabular_schema,
-                    "previous_answer": previous_answer,
-                },
+                additional_variables={"sql_error": sql_error, "db_schema": state.tabular_schema},
             )
             ai_msg = worker_agent.invoke(state)
 
+            messages.append(AIMessage(ai_msg["messages"][-1].content))
+            try:
+                messages.append(
+                    AIMessage(f"Here is the SQL query: {ai_msg["messages"][-1].tool_calls[-1]['args']['sql_query']}")
+                )
+            except EXCEPTION:
+                log.info("no sql query input to tool")
+
             num_iter += 1
-            # Check execute_sql_query tool call
-            if not ai_msg["messages"][-1].tool_calls:
-                error = "_execute_sql_query tool not called"
-                continue
 
-            results = run_tools_parallel(ai_msg["messages"][-1], tools, state)
+            tool_output = run_tools_parallel(ai_msg["messages"][-1], tools, state)
 
-            # Check tool run successful
-            if len(results) < len(tools):
-                error = "_execute_sql_query SQL query failed"
-                continue
+            results = tool_output[-1].content  # this is a tuple
 
-            result = results[-1].content
             # Truncate to max_tokens. only using one tool here.
-            result[0] = result[0][:max_tokens]
+            # retrieve result from database or sql error
+            result = results[0][:max_tokens]  # saving this as a new variable as tuples are immutable.
 
-            success = result[1]
-            # In the case of SQL Exception tool returns result with length 2
-            if success == "fail" and len(result) == 2:
-                sql_error = result[0]
+            success = results[1]
+
+            is_intermediate_step = eval(results[2])
+
+            if success == "fail":
+                sql_error = result  # capture sql error
+                messages.append(
+                    AIMessage(f"The SQL query failed to execute correctly. Here is the error message: {sql_error}")
+                )
             else:
-                previous_answer = "\n\n".join([previous_answer, result[0]])
-                sql_error = ""
+                if is_intermediate_step:
+                    sql_error = ""
+                    messages.append(AIMessage(f"Here are the results from the query: {result}"))
+            # update state messages
+            state.messages = messages
 
         if success == "pass":
-            formatted_result = f"<Tabular_Agent_Result>{result[0]}</Tabular_Agent_Result>"
-        else:
-            if sql_error:
-                formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the error from the executed SQL query: {sql_error} </Tabular_Agent_Result>"
+            if not is_intermediate_step:  # if this is the final step
+                formatted_result = f"<Tabular_Agent_Result>{result}</Tabular_Agent_Result>"
             else:
-                formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the reason for error: {error} </Tabular_Agent_Result>"
+                formatted_result = f"<Tabular_Agent_Result>Iteration limit of {num_iter} is reached by the tabular agent</Tabular_Agent_Result>"
+
+        else:
+            formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the error from the executed SQL query: {result} </Tabular_Agent_Result>"
+
         return {
             "agents_results": [formatted_result],
             "tasks_evaluator": task + "\n" + expected_output,
-        }  # , "messages": ai_msg["messages"][-1]} #, "tasks_evaluator": task.task + "\n" + task.expected_output}
+        }
 
     return _build_tabular_agent
 

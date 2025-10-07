@@ -518,6 +518,6 @@ def execute_sql_query():
             error_message = (
                 f"The SQL query syntax is wrong. Here is the error message: {e}.  Please correct your SQL query."
             )
-            return (error_message, "fail")
+            return (error_message, "fail", str(is_intermediate_step))
 
     return _execute_sql_query

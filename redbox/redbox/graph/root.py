@@ -676,7 +676,7 @@ def build_new_route_graph(
 
     builder.add_node(
         "call_tabular_agent",
-        get_tabular_agent(tools=multi_agent_tools["Tabular_Agent"]),
+        get_tabular_agent(tools=multi_agent_tools["Tabular_Agent"], max_attempt=10),
     )
 
     builder.add_node("send", empty_process)
