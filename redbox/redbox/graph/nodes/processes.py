@@ -768,7 +768,7 @@ def get_tabular_agent(
                 messages.append(
                     AIMessage(f"Here is the SQL query: {ai_msg["messages"][-1].tool_calls[-1]['args']['sql_query']}")
                 )
-            except EXCEPTION:
+            except Exception:
                 log.info("no sql query input to tool")
 
             num_iter += 1
