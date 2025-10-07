@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from asyncio import CancelledError
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
@@ -44,6 +45,7 @@ from redbox_app.redbox_core.models import (
     Citation,
     File,
     MonitorSearchRoute,
+    MonitorWebSearchResults,
 )
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
 from redbox_app.redbox_core.services import message as message_service
@@ -130,7 +132,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # save user message
         permitted_files = File.objects.filter(user=user, status=File.Status.complete)
         selected_files = permitted_files.filter(id__in=selected_file_uuids)
-        await self.save_user_message(session, user_message_text, selected_files=selected_files, activities=activities)
+        user_chat_message = await self.save_user_message(
+            session, user_message_text, selected_files=selected_files, activities=activities
+        )
 
         self.chat_message = await self.create_ai_message(session)
 
@@ -142,6 +146,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # save user, ai and intermediary graph outputs if 'search' route is invoked
         if self.route == "search":
             await self.monitor_search_route(session, user_message_text)
+
+        # save web search query and all web results, note: multiple agents can return web search results
+        if (self.final_state) and (self.final_state.agents_results):
+            web_search_results_urls = []
+            for agent_res in self.final_state.agents_results:
+                source_type = re.search("<SourceType>(.*?)</SourceType>", agent_res.content)
+                if source_type:  # noqa: SIM102
+                    if source_type.group(1) == Citation.Origin.WEB_SEARCH:
+                        web_search_results_urls += re.findall("<Source>(.*?)</Source>", agent_res.content)
+
+            await self.monitor_web_search_results(
+                user_chat_message, user_message_text, web_search_results_urls, selected_files=selected_files
+            )
 
         await self.close()
 
@@ -379,6 +396,25 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
         monitor_search.save()
         return monitor_search
+
+    @database_sync_to_async
+    def monitor_web_search_results(
+        self,
+        message: ChatMessage,
+        user_message_text: str,
+        web_search_urls: list,
+        selected_files: Sequence[File] | None = None,
+    ) -> MonitorWebSearchResults:
+        logger.info("Saving web search urls")
+        monitor_web_search = MonitorWebSearchResults(
+            chat_message=message,
+            user_text=user_message_text,
+            web_search_urls=str(web_search_urls),
+        )
+        monitor_web_search.save()
+        if selected_files:
+            monitor_web_search.selected_files.set(selected_files)
+        return monitor_web_search
 
     @database_sync_to_async
     def get_ai_settings(self, chat: Chat) -> AISettings:
