@@ -212,9 +212,14 @@ CHAT_MAP_QUESTION_PROMPT = "Question: {question}. \n Documents: \n {formatted_do
 
 CONDENSE_QUESTION_PROMPT = "{question}\n=========\n Standalone question: "
 
+WORKER_TASK_PROMPT = """Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible. Here is agents results which might be useful to you:
 
-INTERNAL_RETRIEVAL_AGENT_PROMPT = """You are an expert information analyst with the ability to critically assess when and how to retrieve information. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
+<Previous_Agents_Results>{agents_results}</Previous_Agents_Results>"""
 
+INTERNAL_RETRIEVAL_AGENT_PROMPT = (
+    """You are an expert information analyst with the ability to critically assess when and how to retrieve information."""
+    + WORKER_TASK_PROMPT
+    + """
 Guidelines for Tool Usage:
 1. Carefully evaluate the existing information first
 2. Please use the available tools to perform multiple parallel tool calls to gather all necessary information.
@@ -236,10 +241,12 @@ Execution Strategy:
 
 <Document_Metadata>{metadata}</Document_Metadata>
 """
+)
 
-EXTERNAL_RETRIEVAL_AGENT_PROMPT = """You are an expert information analyst with the ability to critically assess when and how to retrieve information. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
-
-Guidelines for Tool Usage:
+EXTERNAL_RETRIEVAL_AGENT_PROMPT = (
+    """You are an expert information analyst with the ability to critically assess when and how to retrieve information."""
+    + WORKER_TASK_PROMPT
+    + """Guidelines for Tool Usage:
 1. Carefully evaluate the existing information first
 2. Please use the available tools to perform multiple parallel tool calls to gather all necessary information.
 
@@ -255,8 +262,12 @@ Execution Strategy:
    - Make a targeted, focused tool call
 2. Produce the expected output with maximum accuracy and efficiency. Only use information obtained from tools.
 """
+)
 
-WEB_SEARCH_AGENT_PROMPT = """You are WebSearchAgent, an AI assistant designed to search websites based on user questions. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
+WEB_SEARCH_AGENT_PROMPT = (
+    """You are WebSearchAgent, an AI assistant designed to search websites based on user questions."""
+    + WORKER_TASK_PROMPT
+    + """
 Guidelines for Tool Usage:
 1. Please use the available tools to perform multiple parallel tool calls to gather all necessary information.
 Decision-Making Process:
@@ -273,6 +284,7 @@ Operational Parameters:
 When a user provides a website, focus your search exclusively on that domain
 Always prioritize official, authoritative sources within the specified domain
 """
+)
 
 LEGISLATION_SEARCH_AGENT_PROMPT = """
 You are a specialised LegislationSearchAgent, as AI assistant designed to only search the legislation.gov.uk website based on user questions.
@@ -316,14 +328,19 @@ Use when the user wants to:
 - Find information from Wikipedia
 - Find information from gov.uk
 
-3. **Summarisation_Agent**:
-Purpose: Document summarization only
-Use when the user wants to:
-- Get a summary of an entire document
-- Create an executive summary
-- Generate a brief overview of document contents
-- Produce condensed versions of lengthy documents
-- Create abstracts or overviews
+3. **Summarisation_Agent:
+STRICT LIMITATION: This agent can ONLY process and summarise documents that users have DIRECTLY UPLOADED.
+DO NOT use this agent to summarise outputs from other agents, search results, or any text not from user uploads.
+NEVER include this agent in a plan to summarise information retrieved by other agents.
+
+Purpose: Create summaries exclusively from user-uploaded documents.
+Appropriate uses:
+- Summarising a PDF, Word document, or other file uploaded by the user
+- Creating executive summaries of user-provided documents
+- Condensing lengthy user-provided files
+- If a task requires summarising information from search results, web searches, or other agent outputs, use the Evaluator_Agent instead for this purpose.
+
+When planning responses, if summarisation of search results or other retrieved information is needed, this MUST be performed by the EvaluatorAgent as part of its synthesis role, not by the SummarisationAgent.
 
 4. **Web_Search_Agent**:
 Purpose: Perform searches across web sites or on specific domains
@@ -365,10 +382,9 @@ Operational Framework
     + WORKER_AGENTS_PROMPT
     + """
 ## helpful instructions for calling agent
-
-When a user query involves finding information within selected documents (not summarising the documents), ALWAYS route to the Internal_Retrieval_Agent. Only use External_Retrieval_Agent if the query specifically requests external data sources.
-
-If a user asks to summarise a document, ALWAYS call Summarisation_Agent and do not call other agents.
+1. Check if user has selected a documen by lookin at in tag <Document_Metadata>. Document refers to user document. Agents do not produce document but agent responses and artifacts.
+1. Internal_Retrieval_Agent and/or Summarisation_Agent MUST be used whenever analysis of documents is required as part of the response
+2. The Evaluator_Agent must be used for every multi-agent response to ensure consistency and quality in the final output delivered to the user.
 
 ## Guidelines
 
