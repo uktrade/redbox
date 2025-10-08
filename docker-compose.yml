@@ -32,12 +32,14 @@ services:
         required: false
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-production}
+      - DEBUG=true
     volumes:
       - /app/django_app/frontend/node_modules
       - ./django_app:/app/django_app/
       - .aws:/root/.aws
     ports:
       - "${PORT:-8080}:${PORT:-8080}"
+      - "5678:5678"
     healthcheck:
       test: curl --fail http://localhost:${PORT:-8080}/health/ || exit 1
       interval: 5s
@@ -46,7 +48,7 @@ services:
       start_period: 60s
 
   db:
-    image: postgres:13
+    image: postgres:14
     env_file:
       - path: tests/.env.integration
         required: false
