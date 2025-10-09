@@ -33,7 +33,7 @@ yarl = "^1.9.4"
 humanize = "^4.9.0"
 channels = {extras = ["daphne"], version = "^4.1.0"}
 django-gov-notify = "^0.5.0"
-websockets = "^10.4"
+websockets = "^10.0"
 django-import-export = "^4.0"
 django-q2 = "^1.6.2"
 blessed = "^1.20.0"
@@ -58,7 +58,6 @@ ddtrace = "^3.10.0"
 django-requestlogs = "^0.8"
 unoserver = "^3.3.2"
 coverage = "^7.10.6"
-python-docx = "^1.2.0"
 
 
 [tool.poetry.group.dev.dependencies]
