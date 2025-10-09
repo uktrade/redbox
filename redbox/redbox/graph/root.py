@@ -734,10 +734,11 @@ def build_new_route_graph(
         },
     )
     builder.add_conditional_edges("sending_task", sending_task_to_agent)
-    builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
-    builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
-    builder.add_edge("Web_Search_Agent", "combine_question_evaluator")
     builder.add_edge("Legislation_Search_Agent", "combine_question_evaluator")
+    builder.add_edge(
+        ["Internal_Retrieval_Agent", "External_Retrieval_Agent", "Web_Search_Agent", "Legislation_Search_Agent"],
+        "combine_question_evaluator",
+    )
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
