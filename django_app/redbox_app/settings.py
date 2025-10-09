@@ -75,12 +75,7 @@ INSTALLED_APPS = [
     "django_plotly_dash.apps.DjangoPlotlyDashConfig",
     "adminplus",
     "waffle",
-    "django_chunk_upload_handlers",
 ]
-
-
-if not ENVIRONMENT.uses_minio:
-    FILE_UPLOAD_HANDLERS = ("django_chunk_upload_handlers.s3.S3FileUploadHandler",)
 
 if LOGIN_METHOD == "sso":
     INSTALLED_APPS.append("authbroker_client")
