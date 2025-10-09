@@ -34,7 +34,6 @@ SECRET_KEY = env.str("DJANGO_SECRET_KEY")
 ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
 WEBSOCKET_SCHEME = "ws" if ENVIRONMENT.is_test else "wss"
 LOGIN_METHOD = env.str("LOGIN_METHOD", None)
-USE_CLAM_AV = env.bool("USE_CLAM_AV")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG")
@@ -79,11 +78,9 @@ INSTALLED_APPS = [
     "django_chunk_upload_handlers",
 ]
 
-if USE_CLAM_AV:
-    FILE_UPLOAD_HANDLERS = (
-        "django_chunk_upload_handlers.clam_av.ClamAVFileUploadHandler",
-        "django_chunk_upload_handlers.s3.S3FileUploadHandler",
-    )
+
+if not ENVIRONMENT.uses_minio:
+    FILE_UPLOAD_HANDLERS = ("django_chunk_upload_handlers.s3.S3FileUploadHandler",)
 
 if LOGIN_METHOD == "sso":
     INSTALLED_APPS.append("authbroker_client")
@@ -496,9 +493,6 @@ REDBOX_API_KEY = env.str("REDBOX_API_KEY")
 
 ENABLE_METADATA_EXTRACTION = env.str("ENABLE_METADATA_EXTRACTION")
 
-CLAM_AV_USERNAME = env.str("CLAM_AV_USERNAME", " ")
-CLAM_AV_PASSWORD = env.str("CLAM_AV_PASSWORD", " ")
-CLAM_AV_DOMAIN = env.str("CLAM_AV_DOMAIN", " ")
 CHUNK_UPLOADER_AWS_REGION = env.str("AWS_REGION", " ")
 
 AWS_TRANSCRIBE_ROLE_ARN = env.str("AWS_TRANSCRIBE_ROLE_ARN", "")
