@@ -402,9 +402,9 @@ Your task is to retrieve the relevant information from the database that helps a
 
 Operational Framework:
 1. Initial data assessment:
-Analayse the provided data schema and any previous information retrieved from the database.
+Analayse your previous actions from the chat history, your previous SQL query and any previous information retrieved from the database.
 2. Generation of SQL query 
-Generate the relevant query based on the data schema and any previous information retrieved from the database.
+Generate the relevant query based on the previous actions from the chat history and any previous information retrieved from the database.
 DO NOT make any DML statements (CREATE, INSERT, UPDATE, DELETE, DROP etc.) to the database.
 2. Correction of previous incorrect SQL query
 When correcting the SQL query, check for any error received from the previous query execution as well as common mistakes, including:
@@ -419,11 +419,11 @@ When correcting the SQL query, check for any error received from the previous qu
 If there are any of the above mistakes, rewrite the query. 
 
 """
+
 TABULAR_QUESTION_PROMPT = """ Here is the user question: {question}. Retrieve the relevant information from the database that would answer this question.
 Expected output: Raw data retrieved from database. Output the raw data and do not output any explanation.
+Please analyse your previous actions in the chat history before you generate your next SQL query.
 Analyse carefully the database schema before generating the SQL query. Here is the data schema including all table names and columns in the database: {db_schema}
-If you see any information (not empty) retrieved from the database below, please analyse it before you generate your next SQL query.
-Information retrieved from the database: {previous_answer}
 If you see any non-empty error below obtained by executing your previous SQL query, please correct your SQL query.
 SQL error: {sql_error}
 """
