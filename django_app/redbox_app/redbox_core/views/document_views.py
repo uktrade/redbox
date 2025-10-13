@@ -19,7 +19,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.http import require_http_methods
 
-from redbox_app.redbox_core.models import File, InactiveFileError
+from redbox_app.redbox_core.models import File
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.utils import render_with_oob
@@ -90,7 +90,6 @@ def upload_document(request):
 
     if not uploaded_file:
         errors.append("No document selected")
-
     errors += documents_service.validate_uploaded_file(uploaded_file)
 
     # handling doc -> docx conversion
@@ -109,31 +108,25 @@ def upload_document(request):
     ingest_errors, file = documents_service.ingest_file(uploaded_file, request.user)
     request.session["ingest_errors"] = ingest_errors
 
-    if ingest_errors:
-        response["ingest_errors"] = file.status
-
     if file:
-        response["status"] = file.status
-        response["file_id"] = str(file.id)
-        response["file_name"] = file.file_name
+        response.update({"status": file.status, "file_id": str(file.id), "file_name": file.file_name})
+        if ingest_errors:
+            response["ingest_errors"] = file.status
 
     return JsonResponse(response)
 
 
 @login_required
-def remove_doc_view(request, doc_id: uuid):
+def remove_doc_view(request, doc_id: uuid.UUID):
     file = get_object_or_404(File, id=doc_id)
     errors: list[str] = []
 
     if request.method == "POST":
         try:
-            file.delete_from_elastic()
-            file.delete_from_s3()
-            file.status = File.Status.deleted
-            file.save()
-            logger.info("Removing document: %s", request.POST["doc_id"])
+            file.safe_delete(reason="User deleted file")
+            logger.info("Removing document: %s", doc_id)
         except Exception as e:
-            logger.exception("Error deleting file object %s.", file, exc_info=e)
+            logger.exception("Error deleting file %s", file, exc_info=e)
             errors.append("There was an error deleting this file")
             file.status = File.Status.errored
             file.save()
@@ -155,19 +148,11 @@ def remove_all_docs_view(request):
     if request.method == "POST":
         for file in users_files:
             try:
-                file.delete_from_elastic()
-            except InactiveFileError:
-                logger.warning("File %s is inactive skipping delete_from_elastic", file)
-
-            try:
-                file.delete_from_s3()
+                file.safe_delete(reason="User deleted file")
+                logger.info("Marking document %s as deleted", file.id)
             except Exception as e:
-                logger.exception("Error deleting file %s from S3", file, exc_info=e)
-                errors.append(f"Error deleting file {file.id} from S3")
-
-            file.status = File.Status.deleted
-            file.save()
-            logger.info("Marking document %s as deleted", file.id)
+                logger.exception("Error deleting file %s", file, exc_info=e)
+                errors.append(f"Error deleting file {file.id}")
 
         return redirect("documents")
 
@@ -191,16 +176,11 @@ def delete_document(request, doc_id: uuid.UUID):
     errors: list[str] = []
 
     try:
-        file.delete_from_elastic()
-        file.delete_from_s3()
-        file.status = File.Status.deleted
-        file.save()
-        logger.info("Removing document: %s", request.POST.get("doc_id"))
+        file.safe_delete(reason="User deleted file")
+        logger.info("Removing document: %s", doc_id)
     except Exception as e:
-        logger.exception("Error deleting file object %s.", file, exc_info=e)
+        logger.exception("Error deleting file %s", file, exc_info=e)
         errors.append("There was an error deleting this file")
-        file.status = File.Status.errored
-        file.save()
 
     session_id = request.POST.get("session-id")
     file_selected = request.POST.get("file_selected")
@@ -224,7 +204,6 @@ def delete_document(request, doc_id: uuid.UUID):
         context = chat_service.get_context(request, active_chat_id)
         oob_context = context
         oob_context["oob"] = True
-
         return render_with_oob(
             [
                 {"template": "side_panel/your_documents_list.html", "context": context, "request": request},
@@ -250,10 +229,7 @@ class DocumentsTitleView(View):
     @method_decorator(login_required)
     def post(self, request: HttpRequest, doc_id: uuid.UUID) -> HttpResponse:
         file = get_object_or_404(File, id=doc_id)
-
         request_body = DocumentsTitleView.Title.schema().loads(request.body)
-
         file.original_file_name = request_body.value
         file.save(update_fields=["original_file_name"])
-
         return HttpResponse(status=HTTPStatus.NO_CONTENT)

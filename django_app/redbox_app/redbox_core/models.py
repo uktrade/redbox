@@ -590,6 +590,31 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
                 body={"query": {"term": {"metadata.file_name.keyword": self.unique_name}}},
             )
 
+    def safe_delete(self, reason: str):
+        """
+        Safely delete the file from S3 and Elasticsearch, mark as deleted and store the reason.
+        Works for GuardDuty-flagged files, user-deleted files, or ingestion errors.
+        """
+
+        # Delete from Elasticsearch
+        try:
+            self.delete_from_elastic()
+        except InactiveFileError:
+            logger.warning("File %s is inactive, skipping delete_from_elastic", self)
+        except Exception as e:
+            logger.exception("Error deleting file %s from Elasticsearch", self, exc_info=e)
+
+        # Delete from S3
+        try:
+            self.delete_from_s3()
+        except Exception as e:
+            logger.exception("Error deleting file %s from S3", self, exc_info=e)
+
+        # Update status and ingest_error
+        self.status = File.Status.deleted
+        self.ingest_error = reason
+        self.save(update_fields=["status", "ingest_error"])
+
     @property
     def file_type(self) -> str:
         name = self.file_name
