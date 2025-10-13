@@ -147,7 +147,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if self.route == "search":
             await self.monitor_search_route(session, user_message_text)
 
-        # save web search query and all web results, note: multiple agents can return web search results
+        # save web search query and all web results from web search related agents
         if (self.final_state) and (self.final_state.agents_results):
             web_search_results_urls = []
             for agent_res in self.final_state.agents_results:

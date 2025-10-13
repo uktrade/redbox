@@ -952,7 +952,7 @@ class MonitorWebSearchResults(UUIDPrimaryKeyBase, TimeStampedModel):
     web_search_urls = models.TextField(max_length=32768, null=False, blank=False)
 
     def __str__(self):
-        return f"{self.user_text} {self.web_search_urls}"
+        return f"{self.user_text}"
 
 
 class AgentPlan(UUIDPrimaryKeyBase, TimeStampedModel):
