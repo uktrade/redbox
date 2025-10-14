@@ -19,7 +19,6 @@ from django.db import models
 from django.db.models import Max, Min, Prefetch, UniqueConstraint
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django_chunk_upload_handlers.clam_av import validate_virus_check_result
 from yarl import URL
 
 from redbox.models.settings import get_settings
@@ -533,9 +532,7 @@ def build_s3_key(instance, filename: str) -> str:
 
     note: s3 key is not prefixed with the user's email address if not local as filename is unique
     """
-    if env.is_local:
-        # if local, prefix the filename with the user's email address
-        filename = f"{instance.user.email}/{filename}"
+    filename = f"{instance.user.email}/{filename}"
     return f"{filename}"
 
 
@@ -552,7 +549,6 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
     original_file = models.FileField(
         storage=settings.STORAGES["default"]["BACKEND"],
         upload_to=build_s3_key,
-        validators=[validate_virus_check_result] if settings.USE_CLAM_AV else [],
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     original_file_name = models.TextField(max_length=2048, blank=True, null=True)  # delete me
