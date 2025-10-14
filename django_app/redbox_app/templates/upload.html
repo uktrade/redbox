@@ -30,7 +30,14 @@
               <span class="govuk-visually-hidden">Error:</span> {{ error }}
             </p>
           {% endfor %}
-          <input class="govuk-file-upload {% if errors.upload_doc %} govuk-file-upload--error{% endif %}" multiple id="upload-docs" name="uploadDocs" type="file" aria-describedby="upload-docs-notification upload-docs-filetypes {% if errors.upload_doc %} file-upload-docs-error{% endif %}">
+          <label class="govuk-label" for="upload-docs">
+            Upload a file
+          </label>
+          <div
+            class="govuk-drop-zone"
+            data-module="govuk-file-upload">
+            <input class="govuk-file-upload {% if errors.upload_doc %} govuk-file-upload--error{% endif %}" multiple id="upload-docs" name="uploadDocs" type="file" aria-describedby="upload-docs-notification upload-docs-filetypes {% if errors.upload_doc %} file-upload-docs-error{% endif %}">
+          </div>
         </div>
         {% if not request.user.is_superuser %}<div class="govuk-!-display-none">{% endif %}
           <!-- Manage access to team or personal -->
@@ -61,6 +68,7 @@
                 <option value="{{ team.team.id }}">{{ team.team.team_name }}</option>
               {% endfor %}
             </select>
+            {% include "document-help-text.html" %}
           </div>
         {% if not request.user.is_superuser %}</div>{% endif %}
         <upload-button>

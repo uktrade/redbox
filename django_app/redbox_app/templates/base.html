@@ -37,6 +37,9 @@
 <body class="govuk-template__body">
 
   {% if environment | lower == "prod" %}
+  <!-- CSRF Token -->
+  <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
   <!-- Google Tag Manager (noscript) -->
   <noscript><iframe src="{{ google_analytics_iframe_src }}"
   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
@@ -44,11 +47,7 @@
   {% endif %}
 
   <script hash="sha256-GUQ5ad8JK5KmEWmROf3LZd9ge94daqNvd8xy9YS1iDw=">document.body.className += ' js-enabled' + ('noModule' in HTMLScriptElement.prototype ? ' govuk-frontend-supported' : '');</script> <!-- pragma: allowlist secret -->
-  <script type="module" src="{{static('js/libs/govuk-frontend.min.js')}}" nonce="{{ request.csp_nonce }}"></script>
-  <script hash="sha256-qmCu1kQifDfCnUd+L49nusp7+PeRl23639pzN5QF2WA=" type="module" nonce="{{ request.csp_nonce }}">
-    import { initAll } from '../static/js/libs/govuk-frontend.min.js'
-    initAll()
-  </script>
+
   <a href="#main-content" class="govuk-skip-link" data-module="govuk-skip-link">Skip to main content</a>
 
 

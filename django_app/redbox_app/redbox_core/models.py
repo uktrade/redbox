@@ -537,6 +537,18 @@ class Team(UUIDPrimaryKeyBase):
             user=user, team=self, role_type=UserTeamMembership.RoleType.ADMIN
         ).exists()
 
+    def get_members(self):
+        return self.members.select_related("user")
+
+    def eligible_users(self):
+        member_ids = list(self.members.values_list("user_id", flat=True))
+        return User.objects.exclude(id__in=member_ids)
+
+    def add_member(self, user: User, role_type: "UserTeamMembership.RoleType"):
+        member = UserTeamMembership(user=user, team=self, role_type=role_type or UserTeamMembership.RoleType.MEMBER)
+        member.save()
+        return member
+
 
 class UserTeamMembership(models.Model):
     class RoleType(models.TextChoices):
