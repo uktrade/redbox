@@ -914,7 +914,7 @@ class ChatMessageTokenUse(UUIDPrimaryKeyBase, TimeStampedModel):
         help_text="input or output tokens",
         default=UseType.INPUT,
     )
-    model_name = models.CharField(max_length=50, null=True, blank=True)
+    model_name = models.CharField(max_length=150, null=True, blank=True)
     token_count = models.PositiveIntegerField(null=True, blank=True)
 
     def __str__(self) -> str:
