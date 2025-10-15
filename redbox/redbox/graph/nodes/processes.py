@@ -861,7 +861,7 @@ def get_tabular_schema():
         ).fetchall()
         schema = {"tables": []}
         for (table_name,) in tables:
-            cols = cursor.execute(f"PRAGMA table_info(\"{table_name}\");").fetchall()
+            cols = cursor.execute(f'PRAGMA table_info("{table_name}");').fetchall()
             # convert to JSON
             schema["tables"].append(
                 {
