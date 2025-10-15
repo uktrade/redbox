@@ -423,7 +423,8 @@ If there are any of the above mistakes, rewrite the query.
 TABULAR_QUESTION_PROMPT = """ Here is the user question: {question}. Retrieve the relevant information from the database that would answer this question.
 Expected output: Raw data retrieved from database. Output the raw data and do not output any explanation.
 Please analyse your previous actions in the chat history before you generate your next SQL query.
-Analyse carefully the database schema before generating the SQL query. Here is the data schema including all table names and columns in the database: {db_schema}
+Analyse carefully the database schema before generating the SQL query. Here is the data schema including all table names and columns and any Excel formatting extracted from the source document: {db_schema}
+If any Excel formulas are provided in the database schema please use this information to infer relationships between columns in the database.
 If you see any non-empty error below obtained by executing your previous SQL query, please correct your SQL query.
 SQL error: {sql_error}
 """
