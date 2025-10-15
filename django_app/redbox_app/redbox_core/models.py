@@ -941,6 +941,16 @@ class MonitorSearchRoute(UUIDPrimaryKeyBase, TimeStampedModel):
         return f"{self.user_text} {self.route} {self.chunk_similarity_scores} {self.ai_text}"
 
 
+class MonitorWebSearchResults(UUIDPrimaryKeyBase, TimeStampedModel):
+    chat_message = models.ForeignKey(ChatMessage, on_delete=models.CASCADE)
+    user_text = models.TextField(max_length=32768, null=False, blank=False)
+    selected_files = models.ManyToManyField(File, related_name="+", symmetrical=False, null=True, blank=False)
+    web_search_urls = models.TextField(max_length=32768, null=False, blank=False)
+
+    def __str__(self):
+        return f"{self.user_text}"
+
+
 class AgentPlan(UUIDPrimaryKeyBase, TimeStampedModel):
     chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
     agent_plans = models.TextField(max_length=32768, null=False, blank=False)
