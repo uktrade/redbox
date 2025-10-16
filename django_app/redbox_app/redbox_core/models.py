@@ -19,7 +19,6 @@ from django.db import models
 from django.db.models import Max, Min, Prefetch, UniqueConstraint
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django_chunk_upload_handlers.clam_av import validate_virus_check_result
 from yarl import URL
 
 from redbox.models.settings import get_settings
@@ -533,9 +532,7 @@ def build_s3_key(instance, filename: str) -> str:
 
     note: s3 key is not prefixed with the user's email address if not local as filename is unique
     """
-    if env.is_local:
-        # if local, prefix the filename with the user's email address
-        filename = f"{instance.user.email}/{filename}"
+    filename = f"{instance.user.email}/{filename}"
     return f"{filename}"
 
 
@@ -552,7 +549,6 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
     original_file = models.FileField(
         storage=settings.STORAGES["default"]["BACKEND"],
         upload_to=build_s3_key,
-        validators=[validate_virus_check_result] if settings.USE_CLAM_AV else [],
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     original_file_name = models.TextField(max_length=2048, blank=True, null=True)  # delete me
@@ -918,7 +914,7 @@ class ChatMessageTokenUse(UUIDPrimaryKeyBase, TimeStampedModel):
         help_text="input or output tokens",
         default=UseType.INPUT,
     )
-    model_name = models.CharField(max_length=50, null=True, blank=True)
+    model_name = models.CharField(max_length=150, null=True, blank=True)
     token_count = models.PositiveIntegerField(null=True, blank=True)
 
     def __str__(self) -> str:
@@ -943,6 +939,16 @@ class MonitorSearchRoute(UUIDPrimaryKeyBase, TimeStampedModel):
 
     def __str__(self):
         return f"{self.user_text} {self.route} {self.chunk_similarity_scores} {self.ai_text}"
+
+
+class MonitorWebSearchResults(UUIDPrimaryKeyBase, TimeStampedModel):
+    chat_message = models.ForeignKey(ChatMessage, on_delete=models.CASCADE)
+    user_text = models.TextField(max_length=32768, null=False, blank=False)
+    selected_files = models.ManyToManyField(File, related_name="+", symmetrical=False, null=True, blank=False)
+    web_search_urls = models.TextField(max_length=32768, null=False, blank=False)
+
+    def __str__(self):
+        return f"{self.user_text}"
 
 
 class AgentPlan(UUIDPrimaryKeyBase, TimeStampedModel):

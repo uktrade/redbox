@@ -308,6 +308,23 @@ class MonitorSearchRouteAdmin(admin.ModelAdmin):
     ]
 
 
+class MonitorWebSearchResultsAdmin(admin.ModelAdmin):
+    list_display = [
+        "chat_message",
+        "user_text",
+        "web_search_urls",
+        "created_at",
+    ]
+    readonly_fields = [
+        "chat_message",
+        "user_text",
+        "selected_files",
+        "web_search_urls",
+        "created_at",
+    ]
+    ordering = ["-created_at"]
+
+
 def reporting_dashboard(request):
     return render(request, "report.html", {}, using="django")
 
@@ -320,4 +337,5 @@ admin.site.register(models.AISettings)
 admin.site.register(models.ChatMessageTokenUse, ChatMessageTokenUseAdmin)
 admin.site.register(models.ChatLLMBackend, ChatLLMBackendAdmin)
 admin.site.register(models.MonitorSearchRoute, MonitorSearchRouteAdmin)
+admin.site.register(models.MonitorWebSearchResults, MonitorWebSearchResultsAdmin)
 admin.site.register_view("report/", view=reporting_dashboard, name="Site report")
