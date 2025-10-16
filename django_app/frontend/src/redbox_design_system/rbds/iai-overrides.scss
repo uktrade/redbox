@@ -2,7 +2,7 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-weight: 400;
-  font-size: 1rem;
+  font-size: var(--font-size-xs);
   box-sizing: border-box;
   display: inline-block;
   position: relative;
@@ -17,7 +17,8 @@
   text-align: center;
   vertical-align: top;
   cursor: pointer;
-  -webkit-appearance: none
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 @media (min-width:40.0625em) {

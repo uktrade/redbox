@@ -6,7 +6,7 @@
 
 <head>
   <meta charset="utf-8">
-  <title>{% if pageTitle %} {{ pageTitle }} - {% endif %}Redbox@DBT</title>
+  <title>{% if pageTitle %} {{ pageTitle }} - {% endif %}Redbox at DBT</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b0c0c">
 
@@ -61,19 +61,19 @@
 
   {% if request.user.is_authenticated %}
     {{ iaiTopNav(
-      product_name = "Redbox@DBT",
+      product_name = "Redbox at DBT",
       menu_items = [
       {"text": "Documents", "href": url('documents')},
       {"text": "Chat", "href": url('chats')},
       {"text": "My details", "href": url('demographics')},
-      {"text": "Sign out", "href": url('signed-out')},
+      {"text": "Log out", "href": url('signed-out')},
 
       ],
       phase = "Beta"
     ) }}
   {% else %}
     {{ iaiTopNav(
-      product_name = "Redbox@DBT",
+      product_name = "Redbox at DBT",
       menu_items = [
         {"text": "Sign in", "href": url('sign-in')}
       ],
