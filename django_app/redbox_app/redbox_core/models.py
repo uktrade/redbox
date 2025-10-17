@@ -519,6 +519,65 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
             return ""
 
 
+class Team(UUIDPrimaryKeyBase):
+    team_name = models.CharField(max_length=100, unique=True, blank=False, null=False)
+    directorate = models.CharField(max_length=100, blank=False, null=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Team"
+        verbose_name_plural = "Teams"
+
+    def __str__(self):
+        return f"{self.team_name} ({self.directorate})"
+
+    def is_admin(self, user: User):
+        return UserTeamMembership.objects.filter(
+            user=user, team=self, role_type=UserTeamMembership.RoleType.ADMIN
+        ).exists()
+
+
+class UserTeamMembership(models.Model):
+    class RoleType(models.TextChoices):
+        ADMIN = "ADMIN", _("Team Lead")
+        MEMBER = "MEMBER", _("Team Member")
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="team_memberships")
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="members")
+    role_type = models.CharField(max_length=20, choices=RoleType.choices, default=RoleType.MEMBER)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "User Team Membership"
+        verbose_name_plural = "User Team Memberships"
+        unique_together = ("user", "team")
+
+    def __str__(self):
+        return f"{self.user.email} - {self.team.team_name} ({self.role_type})"
+
+
+class FileTeamMembership(models.Model):
+    class Visibility(models.TextChoices):
+        TEAM = "TEAM", _("Team Shared")
+        PERSONAL = "PERSONAL", _("Personal")
+
+    file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="team_associations")
+    team = models.ForeignKey("Team", on_delete=models.CASCADE, related_name="files")
+    visibility = models.CharField(max_length=20, choices=Visibility.choices, default=Visibility.TEAM)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "File Team Membership"
+        verbose_name_plural = "File Team Membership"
+        unique_together = ("file", "team")
+
+    def __str__(self):
+        return f"{self.file.file_name} - {self.team.team_name} ({self.visibility})"
+
+
 class InactiveFileError(ValueError):
     def __init__(self, file):
         super().__init__(f"{file.pk} is inactive, status is {file.status}")

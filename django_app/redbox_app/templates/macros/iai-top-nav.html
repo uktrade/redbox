@@ -21,20 +21,6 @@
                     </li>
                     {% endfor %}
                 </ul>
-                {% if user_items %}
-                <button class="iai-top-nav__link iai-top-nav__link--user" aria-expanded="false">
-                    {{ user_items.initials }}
-                    <span class="govuk-visually-hidden">user</span>
-                </button>
-                <ul class="iai-top-nav__user-drop-down">
-                    {% for menu_item in user_items.menu_items %}
-                    <li class="govuk-header__navigation-item header-item">
-                        <a class="govuk-header__link" href="{{ menu_item.href }}" {% if menu_item.active
-                            %}aria-current="page" {% endif %}>{{ menu_item.text }}</a>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% endif %}
             </nav>
         </div>
     </div>
