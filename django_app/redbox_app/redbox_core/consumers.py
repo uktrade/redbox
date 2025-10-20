@@ -158,7 +158,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         web_search_results_urls += re.findall("<Source>(.*?)</Source>", agent_res.content)
                         web_search_api_counter += 1
 
-            if len(web_search_results_urls) > 1:
+            if len(web_search_results_urls) > 0:
                 await self.monitor_web_search_results(
                     user_chat_message,
                     user_question,
