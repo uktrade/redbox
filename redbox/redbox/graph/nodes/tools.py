@@ -1,4 +1,7 @@
 import json
+import logging
+import random
+import time
 from typing import Annotated, Iterable, Union
 
 import boto3
@@ -24,6 +27,8 @@ from redbox.models.settings import get_settings
 from redbox.retriever.queries import add_document_filter_scores_to_query, build_document_query
 from redbox.retriever.retrievers import query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
+
+log = logging.getLogger(__name__)
 
 
 def build_search_documents_tool(
@@ -380,14 +385,6 @@ class SearchGovUKLogFormatter(BaseRetrievalToolLogFormatter):
         return f"Reading pages from .gov.uk, {','.join(set([d.metadata["uri"].split("/")[-1] for d in documents]))}"
 
 
-class SearchLegislationGovUKLogFormatter(BaseRetrievalToolLogFormatter):
-    def log_call(self):
-        return f"Web searching legislation.gov.uk pages for '{self.tool_call["args"]["query"]}'"
-
-    def log_result(self, documents: Iterable[Document]):
-        return f"Reading pages from legislation.gov.uk, {','.join(set([d.metadata["uri"].split("/")[-1] for d in documents]))}"
-
-
 @waffle_flag("DATA_HUB_API_ROUTE_ON")
 class SearchDataHubLogFormatter(BaseRetrievalToolLogFormatter):
     def log_call(self):
@@ -403,7 +400,6 @@ __RETRIEVEAL_TOOL_MESSAGE_FORMATTERS = {
     "_search_wikipedia": SearchWikipediaLogFormatter,
     "_search_documents": SearchDocumentsLogFormatter,
     "_search_govuk": SearchGovUKLogFormatter,
-    "_search_legislation": SearchLegislationGovUKLogFormatter,
 }
 
 
@@ -411,41 +407,55 @@ def get_log_formatter_for_retrieval_tool(t: ToolCall) -> BaseRetrievalToolLogFor
     return __RETRIEVEAL_TOOL_MESSAGE_FORMATTERS.get(t["name"], BaseRetrievalToolLogFormatter)(t)
 
 
+def web_search_with_retry(query: str, no_search_result: int = 20, max_retries: int = 3):
+    web_search_settings = get_settings().web_search_settings()
+    for attempt in range(max_retries):
+        response = requests.get(
+            web_search_settings.end_point,
+            headers=web_search_settings.secret_tokens,
+            params={
+                "q": query,
+                "limit": str(no_search_result),
+            },
+        )
+        if response.status_code == 429:
+            if attempt < max_retries - 1:
+                # Exponential backoff with jitter
+                delay = (2**attempt) + random.uniform(0, 1)
+                time.sleep(delay)
+        else:
+            return response
+
+
 def kagi_search_call(query: str, no_search_result: int = 20) -> tool:
     tokeniser = bedrock_tokeniser
-    web_search_settings = get_settings().web_search_settings()
-    response = requests.get(
-        web_search_settings.end_point,
-        headers=web_search_settings.secret_tokens,
-        params={
-            "q": query,
-            "limit": str(no_search_result),
-        },
-    )
 
+    response = web_search_with_retry(query=query, no_search_result=no_search_result)
     if response.status_code == 200:
         mapped_documents = []
         results = response.json().get("data", [])
         for i, doc in enumerate(results):
-            page_content = "".join(doc.get("snippet", []))
-            token_count = tokeniser(page_content)
-            print(f"Document {i} token count: {token_count}")
-            mapped_documents.append(
-                Document(
-                    page_content=page_content,
-                    metadata=ChunkMetadata(
-                        index=i,
-                        uri=doc.get("url", ""),
-                        token_count=token_count,
-                        creator_type=ChunkCreatorType.web_search,
-                    ).model_dump(),
+            # extract only search results asper kagi documentation
+            if doc["t"] == 0:
+                page_content = "".join(doc.get("snippet", []))
+                token_count = tokeniser(page_content)
+                print(f"Document {i} token count: {token_count}")
+                mapped_documents.append(
+                    Document(
+                        page_content=page_content,
+                        metadata=ChunkMetadata(
+                            index=i,
+                            uri=doc.get("url", ""),
+                            token_count=token_count,
+                            creator_type=ChunkCreatorType.web_search,
+                        ).model_dump(),
+                    )
                 )
-            )
-        docs = mapped_documents
+            docs = mapped_documents
+        return format_documents(docs), docs
     else:
-        print(f"Status returned: {response.status_code}")
+        log.exception(f"Web search api call failed. Status: {response.status_code}")
         return "", []
-    return format_documents(docs), docs
 
 
 def build_web_search_tool():
@@ -455,7 +465,7 @@ def build_web_search_tool():
         Web Search tool is a versatile search tool that allows users to search the entire web (similar to a search engine) or to conduct targeted searches within specific websites.
 
         Args:
-            query (str): The search query to pass to legislation search engine.
+            query (str): The search query to pass to web search engine.
             - Can be natural language, keywords, or phrases
             - More specific queries yield more precise results
             - Query length should be 1-500 characters
@@ -464,9 +474,9 @@ def build_web_search_tool():
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
         if site == "":
-            return kagi_search_call(query=query, no_search_result=5)
+            return kagi_search_call(query=query)
         else:
-            return kagi_search_call(query=query + " site:" + site, no_search_result=5)
+            return kagi_search_call(query=query + " site:" + site)
 
     return _search_web
 

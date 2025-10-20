@@ -40,11 +40,21 @@ def get_chat_llm(
         tools,
         ai_settings.llm_max_tokens,
     )
+
+    kwargs = {}
+    if model.name.startswith("arn"):
+        if not model.provider:
+            raise ValueError(
+                "When using a model ARN you must set model.provider to the foundation-model provider (e.g., 'anthropic')."
+            )
+        kwargs["provider"] = "anthropic"
+
     chat_model = init_chat_model(
         model=model.name,
         model_provider=model.provider,
         max_tokens=ai_settings.llm_max_tokens,
         configurable_fields=["base_url"],
+        **kwargs,
     )
     if tools:
         chat_model = chat_model.bind_tools(tools)
@@ -59,10 +69,19 @@ def get_base_chat_llm(model: ChatLLMBackend, ai_settings: AISettings = AISetting
         model.provider,
         ai_settings.llm_max_tokens,
     )
+    kwargs = {}
+    if model.name.startswith("arn"):
+        if not model.provider:
+            raise ValueError(
+                "When using a model ARN you must set model.provider to the foundation-model provider (e.g., 'anthropic')."
+            )
+        kwargs["provider"] = "anthropic"
+
     return init_chat_model(
         model=model.name,
         model_provider=model.provider,
         max_tokens=ai_settings.llm_max_tokens,
+        **kwargs,
     )
 
 

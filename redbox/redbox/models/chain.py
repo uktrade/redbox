@@ -97,12 +97,19 @@ class AISettings(BaseModel):
     tool_govuk_returned_results: int = 5
 
     # agents reporting to planner agent
-    agents: list = ["Internal_Retrieval_Agent", "External_Retrieval_Agent", "Summarisation_Agent", "Web_Search_Agent"]
+    agents: list = [
+        "Internal_Retrieval_Agent",
+        "External_Retrieval_Agent",
+        "Summarisation_Agent",
+        "Web_Search_Agent",
+        "Legislation_Search_Agent",
+    ]
     agents_max_tokens: dict = {
         "Internal_Retrieval_Agent": 10000,
         "External_Retrieval_Agent": 5000,
         "Summarisation_Agent": 20000,
         "Web_Search_Agent": 5000,
+        "Legislation_Search_Agent": 5000,
     }
 
 
