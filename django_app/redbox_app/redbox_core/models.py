@@ -19,7 +19,6 @@ from django.db import models
 from django.db.models import Max, Min, Prefetch, UniqueConstraint
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django_chunk_upload_handlers.clam_av import validate_virus_check_result
 from yarl import URL
 
 from redbox.models.settings import get_settings
@@ -520,6 +519,65 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
             return ""
 
 
+class Team(UUIDPrimaryKeyBase):
+    team_name = models.CharField(max_length=100, unique=True, blank=False, null=False)
+    directorate = models.CharField(max_length=100, blank=False, null=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Team"
+        verbose_name_plural = "Teams"
+
+    def __str__(self):
+        return f"{self.team_name} ({self.directorate})"
+
+    def is_admin(self, user: User):
+        return UserTeamMembership.objects.filter(
+            user=user, team=self, role_type=UserTeamMembership.RoleType.ADMIN
+        ).exists()
+
+
+class UserTeamMembership(models.Model):
+    class RoleType(models.TextChoices):
+        ADMIN = "ADMIN", _("Team Lead")
+        MEMBER = "MEMBER", _("Team Member")
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="team_memberships")
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="members")
+    role_type = models.CharField(max_length=20, choices=RoleType.choices, default=RoleType.MEMBER)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "User Team Membership"
+        verbose_name_plural = "User Team Memberships"
+        unique_together = ("user", "team")
+
+    def __str__(self):
+        return f"{self.user.email} - {self.team.team_name} ({self.role_type})"
+
+
+class FileTeamMembership(models.Model):
+    class Visibility(models.TextChoices):
+        TEAM = "TEAM", _("Team Shared")
+        PERSONAL = "PERSONAL", _("Personal")
+
+    file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="team_associations")
+    team = models.ForeignKey("Team", on_delete=models.CASCADE, related_name="files")
+    visibility = models.CharField(max_length=20, choices=Visibility.choices, default=Visibility.TEAM)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "File Team Membership"
+        verbose_name_plural = "File Team Membership"
+        unique_together = ("file", "team")
+
+    def __str__(self):
+        return f"{self.file.file_name} - {self.team.team_name} ({self.visibility})"
+
+
 class InactiveFileError(ValueError):
     def __init__(self, file):
         super().__init__(f"{file.pk} is inactive, status is {file.status}")
@@ -533,9 +591,7 @@ def build_s3_key(instance, filename: str) -> str:
 
     note: s3 key is not prefixed with the user's email address if not local as filename is unique
     """
-    if env.is_local:
-        # if local, prefix the filename with the user's email address
-        filename = f"{instance.user.email}/{filename}"
+    filename = f"{instance.user.email}/{filename}"
     return f"{filename}"
 
 
@@ -552,7 +608,6 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
     original_file = models.FileField(
         storage=settings.STORAGES["default"]["BACKEND"],
         upload_to=build_s3_key,
-        validators=[validate_virus_check_result] if settings.USE_CLAM_AV else [],
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     original_file_name = models.TextField(max_length=2048, blank=True, null=True)  # delete me
@@ -918,7 +973,7 @@ class ChatMessageTokenUse(UUIDPrimaryKeyBase, TimeStampedModel):
         help_text="input or output tokens",
         default=UseType.INPUT,
     )
-    model_name = models.CharField(max_length=50, null=True, blank=True)
+    model_name = models.CharField(max_length=150, null=True, blank=True)
     token_count = models.PositiveIntegerField(null=True, blank=True)
 
     def __str__(self) -> str:
@@ -943,6 +998,16 @@ class MonitorSearchRoute(UUIDPrimaryKeyBase, TimeStampedModel):
 
     def __str__(self):
         return f"{self.user_text} {self.route} {self.chunk_similarity_scores} {self.ai_text}"
+
+
+class MonitorWebSearchResults(UUIDPrimaryKeyBase, TimeStampedModel):
+    chat_message = models.ForeignKey(ChatMessage, on_delete=models.CASCADE)
+    user_text = models.TextField(max_length=32768, null=False, blank=False)
+    selected_files = models.ManyToManyField(File, related_name="+", symmetrical=False, null=True, blank=False)
+    web_search_urls = models.TextField(max_length=32768, null=False, blank=False)
+
+    def __str__(self):
+        return f"{self.user_text}"
 
 
 class AgentPlan(UUIDPrimaryKeyBase, TimeStampedModel):
