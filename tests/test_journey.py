@@ -48,7 +48,7 @@ def test_user_journey(page: Page, email_address: str):
     # Dismiss profile overlay
     page.press("body", "Escape")
 
-    # Settings - My details page
+    # My details page
     my_details_page = chats_page.navigate_my_details()
     my_details_page.name = "Roland Hamilton-Jones"
     my_details_page.ai_experience = "Enthusiastic Experimenter"

@@ -99,7 +99,8 @@ class SignedInBasePage(BasePage, ABC):
         return ChatsPage(self.page)
 
     def navigate_my_details(self) -> "MyDetailsPage":
-        self.page.get_by_role("link", name="Settings", exact=True).click()
+        self.page.locator(".iai-top-nav__link--user").click()
+        self.page.get_by_role("link", name="My details", exact=True).click()
         return MyDetailsPage(self.page)
 
     def sign_out(self) -> "LandingPage":
@@ -169,7 +170,7 @@ class SignInConfirmationPage(BasePage):
 
     @staticmethod
     def _where_are_we(page: Page) -> Union["ChatsPage", "MyDetailsPage"]:
-        return MyDetailsPage(page) if page.title().startswith("Settings - My details") else ChatsPage(page)
+        return MyDetailsPage(page) if page.title().startswith("My details") else ChatsPage(page)
 
 
 class HomePage(SignedInBasePage):
@@ -181,7 +182,7 @@ class HomePage(SignedInBasePage):
 class MyDetailsPage(SignedInBasePage):
     @property
     def expected_page_title(self) -> str:
-        return "Settings - My details - Redbox@DBT"
+        return "My details - Redbox"
 
     @property
     def name(self) -> str:
