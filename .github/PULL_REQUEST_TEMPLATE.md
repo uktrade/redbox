@@ -7,8 +7,8 @@
 <!-- What is this PR doing? What is being accomplished by this change in the code? -->
 
 ## Have you written unit tests?
-- [ ] Yes (add why you have not)
-- [ ] No
+- [ ] Yes
+- [ ] No (add why you have not)
 
 
 ## Are there any specific instructions on how to test this change?

@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
@@ -16,9 +16,20 @@ from redbox.loader import ingester
 from redbox.loader.ingester import ingest_file
 from redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader
 from redbox.models.chain import GeneratedMetadata
+
+
+from redbox.loader.loaders import (
+    is_large_pdf,
+    split_pdf,
+    read_csv_text,
+    read_excel_file,
+)
 from redbox.models.file import ChunkResolution
 from redbox.models.settings import Settings
 from redbox.retriever.queries import build_query_filter
+from io import BytesIO
+import pandas as pd
+
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -406,3 +417,200 @@ def test_ingest_file(
 
         # Teardown
         es_client.delete_by_query(index=es_index, body=file_query)
+
+
+def test_is_large_pdf_small_file():
+    # Create a mock PDF with fewer pages than the threshold
+    mock_doc = MagicMock()
+    mock_doc.__len__.return_value = 50  # Less than default threshold of 150
+
+    with patch("fitz.open", return_value=mock_doc):
+        filebytes = BytesIO(b"mock pdf content")
+        is_large, page_count = is_large_pdf("test.pdf", filebytes)
+
+        assert is_large is False
+        assert page_count == 50
+
+
+def test_is_large_pdf_large_file():
+    # Create a mock PDF with more pages than the threshold
+    mock_doc = MagicMock()
+    mock_doc.__len__.return_value = 200  # More than default threshold of 150
+
+    with patch("fitz.open", return_value=mock_doc):
+        filebytes = BytesIO(b"mock pdf content")
+        is_large, page_count = is_large_pdf("test.pdf", filebytes)
+
+        assert is_large is True
+        assert page_count == 200
+
+
+def test_is_large_pdf_custom_threshold():
+    # Test with custom threshold
+    mock_doc = MagicMock()
+    mock_doc.__len__.return_value = 75
+
+    with patch("fitz.open", return_value=mock_doc):
+        filebytes = BytesIO(b"mock pdf content")
+        is_large, page_count = is_large_pdf("test.pdf", filebytes, page_threshold=50)
+
+        assert is_large is True
+        assert page_count == 75
+
+
+def test_is_large_pdf_non_pdf_file():
+    # Test with a non-PDF file
+    filebytes = BytesIO(b"mock content")
+    is_large, page_count = is_large_pdf("test.txt", filebytes)
+
+    assert is_large is False
+    assert page_count == 0
+
+
+def test_split_pdf_single_chunk():
+    # Mock a PDF with fewer pages than chunk size
+    mock_doc = MagicMock()
+    mock_doc.__len__.return_value = 50
+
+    # Mock the sub document
+    mock_sub_doc = MagicMock()
+    mock_sub_doc.tobytes.return_value = b"chunk content"
+    mock_sub_doc.__len__.return_value = 50
+
+    with patch("fitz.open", side_effect=[mock_doc, mock_sub_doc]):
+        filebytes = BytesIO(b"mock pdf content")
+        chunks = split_pdf(filebytes)
+
+        assert len(chunks) == 1
+        mock_sub_doc.insert_pdf.assert_has_calls([call(mock_doc, from_page=i, to_page=i) for i in range(50)])
+
+
+def test_split_pdf_multiple_chunks():
+    # Mock a PDF with more pages than chunk size
+    mock_doc = MagicMock()
+    mock_doc.__len__.return_value = 100
+
+    # Mock the sub documents
+    mock_sub_docs = [MagicMock(), MagicMock()]
+    for doc in mock_sub_docs:
+        doc.tobytes.return_value = b"chunk content"
+        doc.__len__.return_value = 100
+
+    with patch("fitz.open", side_effect=[mock_doc] + mock_sub_docs):
+        filebytes = BytesIO(b"mock pdf content")
+        chunks = split_pdf(filebytes, pages_per_chunk=50)
+
+        assert len(chunks) == 2
+        # First chunk should have pages 0-49
+        mock_sub_docs[0].insert_pdf.assert_has_calls([call(mock_doc, from_page=i, to_page=i) for i in range(50)])
+        # Second chunk should have pages 50-99
+        mock_sub_docs[1].insert_pdf.assert_has_calls([call(mock_doc, from_page=i, to_page=i) for i in range(50, 100)])
+
+
+def test_split_pdf_uneven_chunks():
+    # Mock a PDF with pages that don't divide evenly by chunk size
+    mock_doc = MagicMock()
+    mock_doc.__len__.return_value = 80
+
+    # Mock the sub documents
+    mock_sub_docs = [MagicMock(), MagicMock()]
+    for doc in mock_sub_docs:
+        doc.tobytes.return_value = b"chunk content"
+        doc.__len__.return_value = 80
+
+    with patch("fitz.open", side_effect=[mock_doc] + mock_sub_docs):
+        filebytes = BytesIO(b"mock pdf content")
+        chunks = split_pdf(filebytes, pages_per_chunk=50)
+
+        assert len(chunks) == 2
+        # First chunk should have pages 0-49
+        mock_sub_docs[0].insert_pdf.assert_has_calls([call(mock_doc, from_page=i, to_page=i) for i in range(50)])
+        # Second chunk should have pages 50-79
+        mock_sub_docs[1].insert_pdf.assert_has_calls([call(mock_doc, from_page=i, to_page=i) for i in range(50, 80)])
+
+
+def test_read_csv_text_valid_file():
+    # Create a valid CSV file
+    csv_content = "name,age\nJohn,30\nJane,25"
+    file_bytes = BytesIO(csv_content.encode())
+
+    result = read_csv_text(file_bytes)
+
+    assert len(result) == 1
+    assert "name,age\nJohn,30\nJane,25" in result[0]["text"]
+    assert result[0]["metadata"] == {}
+
+
+def test_read_csv_text_pandas_error():
+    # Test handling of pandas errors
+    file_bytes = BytesIO(b"invalid csv content")
+
+    with patch("pandas.read_csv", side_effect=Exception("CSV parsing error")):
+        result = read_csv_text(file_bytes)
+        assert result is None
+
+
+def test_read_excel_file_multiple_sheets():
+    # Mock pandas read_excel to return multiple sheets
+    sheet1 = pd.DataFrame({"Col1": [1, 2], "Col2": [3, 4]})
+    sheet2 = pd.DataFrame({"Col3": [5, 6], "Col4": [7, 8]})
+    mock_sheets = {"Sheet1": sheet1, "Sheet2": sheet2}
+
+    with patch("pandas.read_excel", return_value=mock_sheets):
+        file_bytes = BytesIO(b"mock excel content")
+        result = read_excel_file(file_bytes)
+
+        assert len(result) == 2
+        assert "<table_name>sheet1</table_name>" in result[0]["text"]
+        assert "<table_name>sheet2</table_name>" in result[1]["text"]
+
+
+def test_read_excel_file_empty_sheet():
+    # Mock pandas read_excel to return one empty and one valid sheet
+    sheet1 = pd.DataFrame  # Empty sheet
+    sheet2 = pd.DataFrame({"Col1": [1, 2], "Col2": [3, 4]})
+    mock_sheets = {"Sheet1": sheet1, "Sheet2": sheet2}
+
+    with patch("pandas.read_excel", return_value=mock_sheets):
+        file_bytes = BytesIO(b"mock excel content")
+        result = read_excel_file(file_bytes)
+
+        assert len(result) == 1
+        assert "<table_name>sheet2</table_name>" in result[0]["text"]
+
+
+def test_read_excel_file_sheet_error():
+    # Mock pandas read_excel to return sheet with error
+    sheet1 = MagicMock()
+    sheet1.to_csv.side_effect = Exception("Sheet conversion error")
+    sheet2 = pd.DataFrame({"Col1": [1, 2], "Col2": [3, 4]})
+    mock_sheets = {"Sheet1": sheet1, "Sheet2": sheet2}
+
+    with patch("pandas.read_excel", return_value=mock_sheets):
+        file_bytes = BytesIO(b"mock excel content")
+        result = read_excel_file(file_bytes)
+
+        assert len(result) == 1
+        assert "<table_name>sheet2</table_name>" in result[0]["text"]
+
+
+def test_read_excel_file_all_empty_sheets():
+    # Mock pandas read_excel to return all empty sheets
+    sheet1 = pd.DataFrame
+    sheet2 = pd.DataFrame
+    mock_sheets = {"Sheet1": sheet1, "Sheet2": sheet2}
+
+    with patch("pandas.read_excel", return_value=mock_sheets):
+        file_bytes = BytesIO(b"mock excel content")
+        result = read_excel_file(file_bytes)
+
+        assert result is None
+
+
+def test_read_excel_file_pandas_error():
+    # Mock pandas read_excel to raise exception
+    with patch("pandas.read_excel", side_effect=Exception("Excel parsing error")):
+        file_bytes = BytesIO(b"mock excel content")
+        result = read_excel_file(file_bytes)
+
+        assert result is None

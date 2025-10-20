@@ -62,14 +62,8 @@ class UploadView(View):
         if not uploaded_files:
             errors.append("No document selected")
 
-        for index, uploaded_file in enumerate(uploaded_files):
+        for _index, uploaded_file in enumerate(uploaded_files):
             errors += documents_service.validate_uploaded_file(uploaded_file)
-            # handling doc -> docx conversion
-            if documents_service.is_doc_file(uploaded_file):
-                uploaded_files[index] = documents_service.convert_doc_to_docx(uploaded_file)
-            # handling utf8 compatibility
-            if not documents_service.is_utf8_compatible(uploaded_file):
-                uploaded_files[index] = documents_service.convert_to_utf8(uploaded_file)
 
         if not errors:
             for uploaded_file in uploaded_files:
@@ -92,14 +86,6 @@ def upload_document(request):
         errors.append("No document selected")
 
     errors += documents_service.validate_uploaded_file(uploaded_file)
-
-    # handling doc -> docx conversion
-    if documents_service.is_doc_file(uploaded_file):
-        uploaded_file = documents_service.convert_doc_to_docx(uploaded_file)
-
-    # handling utf8 compatibility
-    if not documents_service.is_utf8_compatible(uploaded_file):
-        uploaded_file = documents_service.convert_to_utf8(uploaded_file)
 
     if errors:
         response["errors"] = errors

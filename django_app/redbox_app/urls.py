@@ -67,6 +67,10 @@ chat_urlpatterns = [
     path("chats/<uuid:active_chat_id>/chat-window/", views.ChatWindow.as_view(), name="chat-window"),
 ]
 
+notification_urlpatterns = [
+    path("send-team-addition-email/", views.send_team_addition_email_view, name="send-team-addition-email"),
+]
+
 admin_urlpatterns = [
     path("admin/report/", include("django_plotly_dash.urls")),
     path("admin/", admin.site.urls),
@@ -87,6 +91,7 @@ other_urlpatterns = [
     path("sitemap/", views.misc_views.sitemap_view, name="sitemap"),
     path("faq/", views.faq_view, name="faq"),
     path("file-icon/<str:ext>/", views.file_icon_view, name="file-icon"),
+    path("settings/", views.SettingsView.as_view(), name="settings"),
 ]
 
 
@@ -102,6 +107,7 @@ urlpatterns = (
     + auth_urlpatterns
     + chat_urlpatterns
     + document_urlpatterns
+    + notification_urlpatterns
     + admin_urlpatterns
     + api_url_patterns
 )

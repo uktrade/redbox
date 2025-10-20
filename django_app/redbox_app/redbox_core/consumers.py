@@ -1,11 +1,13 @@
 import json
 import logging
+import re
 from asyncio import CancelledError
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 from uuid import UUID
 
+import uwotm8.convert as uwm8
 from asgiref.sync import sync_to_async
 from botocore.exceptions import ClientError
 from channels.db import database_sync_to_async
@@ -44,13 +46,12 @@ from redbox_app.redbox_core.models import (
     Citation,
     File,
     MonitorSearchRoute,
+    MonitorWebSearchResults,
 )
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
-from redbox_app.redbox_core.services import message as message_service
 
-convert_american_to_british_spelling = sync_to_async(
-    message_service.convert_american_to_british_spelling, thread_sensitive=True
-)
+# Temporary condition before next uwotm8 release: monkey patch CONVERSION_IGNORE_LIST
+uwm8.CONVERSION_IGNORE_LIST = uwm8.CONVERSION_IGNORE_LIST | {"filters": "philtres", "connection": "connexion"}
 
 User = get_user_model()
 OptFileSeq = Sequence[File] | None
@@ -130,7 +131,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # save user message
         permitted_files = File.objects.filter(user=user, status=File.Status.complete)
         selected_files = permitted_files.filter(id__in=selected_file_uuids)
-        await self.save_user_message(session, user_message_text, selected_files=selected_files, activities=activities)
+        user_chat_message = await self.save_user_message(
+            session, user_message_text, selected_files=selected_files, activities=activities
+        )
 
         self.chat_message = await self.create_ai_message(session)
 
@@ -142,6 +145,27 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # save user, ai and intermediary graph outputs if 'search' route is invoked
         if self.route == "search":
             await self.monitor_search_route(session, user_message_text)
+
+        # save web search query and all web results from web search related agents
+        if (self.final_state) and (self.final_state.agents_results):
+            user_question = self.final_state.request.question
+            web_search_results_urls = []
+            web_search_api_counter = 0
+            for agent_res in self.final_state.agents_results:
+                source_type = re.search("<SourceType>(.*?)</SourceType>", agent_res.content)
+                if source_type:  # noqa: SIM102
+                    if source_type.group(1) == Citation.Origin.WEB_SEARCH:
+                        web_search_results_urls += re.findall("<Source>(.*?)</Source>", agent_res.content)
+                        web_search_api_counter += 1
+
+            if len(web_search_results_urls) > 0:
+                await self.monitor_web_search_results(
+                    user_chat_message,
+                    user_question,
+                    web_search_results_urls,
+                    web_search_api_counter,
+                    selected_files=selected_files,
+                )
 
         await self.close()
 
@@ -381,6 +405,27 @@ class ChatConsumer(AsyncWebsocketConsumer):
         return monitor_search
 
     @database_sync_to_async
+    def monitor_web_search_results(
+        self,
+        message: ChatMessage,
+        user_message_text: str,
+        web_search_urls: list,
+        web_search_api_count: int,
+        selected_files: Sequence[File] | None = None,
+    ) -> MonitorWebSearchResults:
+        logger.info("Saving web search urls")
+        monitor_web_search = MonitorWebSearchResults(
+            chat_message=message,
+            user_text=user_message_text,
+            web_search_urls=str(web_search_urls),
+            web_search_api_count=web_search_api_count,
+        )
+        monitor_web_search.save()
+        if selected_files:
+            monitor_web_search.selected_files.set(selected_files)
+        return monitor_web_search
+
+    @database_sync_to_async
     def get_ai_settings(self, chat: Chat) -> AISettings:
         ai_settings = model_to_dict(chat.user.ai_settings, exclude=["label", "chat_backend"])
         ai_settings["chat_backend"] = model_to_dict(chat.chat_backend)
@@ -394,11 +439,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         logger.debug("Received text chunk: %s", response)
         try:
             converted_chunk = (
-                convert_american_to_british_spelling(response) if self.scope.get("user").uk_or_us_english else response
+                uwm8.convert_american_to_british_spelling(response)
+                if self.scope.get("user").uk_or_us_english
+                else response
             )
             logger.debug("converted text chunk: %s -> %s", response[:50], converted_chunk[:50])
         except Exception as e:
-            logger.exception("conversion failed ", exc_info=e)
+            logger.exception("conversion failed on converting text chunk: %s", response[:50], exc_info=e)
             converted_chunk = response  # use unconverted text
 
         # store both original and converted chunks
@@ -479,6 +526,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """
         for c in citations:
             for s in c.sources:
+                text_in_answer = c.text_in_answer or ""
+                text_in_answer = (
+                    uwm8.convert_american_to_british_spelling(text_in_answer)
+                    if self.scope.get("user").uk_or_us_english
+                    else text_in_answer
+                )
+
                 try:
                     # Use the async database query function
                     file = await get_latest_complete_file(s.source)
@@ -486,9 +540,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         payload = {
                             "url": str(file.url),
                             "file_name": file.file_name,
-                            "text_in_answer": convert_american_to_british_spelling(c.text_in_answer)
-                            if self.scope.get("user").uk_or_us_english
-                            else c.text_in_answer,
+                            "text_in_answer": text_in_answer,
                             "citation_name": s.ref_id,
                         }
                     else:
@@ -498,9 +550,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             payload = {
                                 "url": str(file.url),
                                 "file_name": file.file_name,
-                                "text_in_answer": convert_american_to_british_spelling(c.text_in_answer)
-                                if self.scope.get("user").uk_or_us_english
-                                else c.text_in_answer,
+                                "text_in_answer": text_in_answer,
                                 "citation_name": s.ref_id,
                             }
                         else:
@@ -508,9 +558,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             payload = {
                                 "url": s.source,
                                 "file_name": s.source,
-                                "text_in_answer": convert_american_to_british_spelling(c.text_in_answer)
-                                if self.scope.get("user").uk_or_us_english
-                                else c.text_in_answer,
+                                "text_in_answer": text_in_answer,
                                 "citation_name": s.ref_id,
                             }
                 except File.DoesNotExist:
@@ -519,19 +567,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     payload = {
                         "url": s.source,
                         "file_name": s.source,
-                        "text_in_answer": convert_american_to_british_spelling(text_in_answer)
-                        if self.scope.get("user").uk_or_us_english
-                        else text_in_answer,
+                        "text_in_answer": text_in_answer,
                         "citation_name": s.ref_id,
                     }
 
                 await self.send_to_client("source", payload)
-
-                text_in_answer = (
-                    await convert_american_to_british_spelling(c.text_in_answer)
-                    if self.scope.get("user").uk_or_us_english
-                    else c.text_in_answer
-                )
 
                 self.citations.append(
                     (

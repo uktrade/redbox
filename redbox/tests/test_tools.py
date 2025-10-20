@@ -2,6 +2,7 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 import pytest
+import requests_mock
 from langchain_core.documents import Document
 from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.messages import AIMessage
@@ -11,16 +12,17 @@ from opensearchpy import OpenSearch
 from redbox.api.format import reduce_chunks_by_tokens
 from redbox.graph.nodes.tools import (
     build_govuk_search_tool,
+    build_legislation_search_tool,
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
+    kagi_search_call,
 )
 from redbox.models.chain import AISettings, RedboxQuery, RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
-from redbox.models.settings import Settings
+from redbox.models.settings import Settings, get_settings
 from redbox.test.data import RedboxChatTestCase
-from redbox.transform import flatten_document_state, combine_documents
-
+from redbox.transform import combine_documents, flatten_document_state
 from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
 
 
@@ -224,6 +226,24 @@ def test_gov_filter_AI(is_filter, relevant_return, query, keyword):
     assert any(keyword in document.page_content for document in documents) == relevant_return
 
 
+@requests_mock.Mocker(kw="mock")
+def test_web_search_rate_limit(**kwargs):
+    env = get_settings()
+    kwargs["mock"].get(
+        env.web_search_settings().end_point,
+        [
+            {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "1"}},
+            {"status_code": 200, "json": {"data": [{"t": 0, "snippet": "fake doc", "url": "http://fake.com"}]}},
+        ],
+    )
+
+    response = kagi_search_call(query="hello")
+
+    assert kwargs["mock"].call_count == 2
+    assert kwargs["mock"].called
+    assert len(response[1]) > 0
+
+
 @pytest.mark.vcr
 @pytest.mark.xfail(reason="calls api")
 def test_gov_tool_params():
@@ -264,21 +284,51 @@ def test_gov_tool_params():
 
 
 @pytest.mark.parametrize(
-    "query, site",
+    "query, site, no_search_results",
     [
-        ("What is AI?", ""),
-        ("What is Dict in Python?", "stackoverflow.com"),
+        ("What is AI?", "", 20),
+        ("What is Dict in Python?", "stackoverflow.com", 20),
     ],
 )
 @pytest.mark.vcr
 @pytest.mark.xfail(reason="calls api")
-def test_web_search_tool(query, site):
+def test_web_search_tool(query, site, no_search_results):
     tool = build_web_search_tool()
     tool_node = ToolNode(tools=[tool])
     response = tool_node.invoke(
         [{"name": "_search_web", "args": {"query": query, "site": site}, "id": "1", "type": "tool_call"}]
     )
     assert response["messages"][0].content != ""
+    assert len(response["messages"][0].artifact) <= no_search_results
+
+
+@pytest.mark.parametrize(
+    "query, no_search_results",
+    [
+        ("tell me about AI legislation", 20),
+        ("What is the new upcoming temporary piece of legislation regarding road traffic in Scotland", 20),
+    ],
+)
+@pytest.mark.vcr
+@pytest.mark.xfail(reason="calls api")
+def test_legislation_search_tool(query, no_search_results):
+    tool = build_legislation_search_tool()
+    tool_node = ToolNode(tools=[tool])
+    response = tool_node.invoke(
+        [
+            {
+                "name": "_search_legislation",
+                "args": {"query": query},
+                "id": "1",
+                "type": "tool_call",
+            }
+        ]
+    )
+    assert response["messages"][0].content != ""
+    assert len(response["messages"][0].artifact) <= no_search_results
+    for res in response["messages"][0].artifact:
+        netloc = urlparse(res.metadata["uri"]).netloc
+        assert "www.legislation.gov.uk" == netloc
 
 
 def test_reduce_chunks_by_tokens_empty_chunks():
