@@ -710,12 +710,45 @@ def load_texts_to_db(doc_texts: list[str], doc_names: list[str], conn: sqlite3.C
     return table_names
 
 
+def detect_header(doc_text: str):
+    # split the content into lines
+    lines = doc_text.splitlines()
+    # find the first line that look like an actual header
+    header_row = None
+    for i, line in enumerate(lines):
+        values = [value.strip() for value in line.split(",")]
+        # if there are more than 1 columns and first few columns are not empty
+        trimmed_values = values[:10]
+        if (
+            len(values) > 1
+            and all(not value.lower().startswith("unnamed") for value in trimmed_values)
+            and "".join(trimmed_values)
+            and sum([1 if not val else 0 for val in trimmed_values]) < 2
+        ):
+            header_row = i
+            break
+
+    if header_row is None:  # in case there is only one column
+        header_row = 0
+    text_from_header = "\n".join(lines[header_row:])
+    return text_from_header
+
+
+def delete_null_values(df: pd.DataFrame):
+    # delete rows where all values are null
+    df.dropna(axis=0, how="all", inplace=True)
+    # delete columns where all values are null
+    df.dropna(axis=1, how="all", inplace=True)
+    return df
+
+
 def parse_doc_text_as_db_table(doc_text: str, table_name: str, conn: sqlite3.Connection):
     """Convert document text to SQL"""
     try:
-        df = pd.read_csv(StringIO(doc_text), sep=",")
-
-        df.to_sql(table_name, conn, if_exists="replace", index=False)
+        text_from_header = detect_header(doc_text)
+        df = pd.read_csv(StringIO(text_from_header), sep=",")
+        df_cleaned = delete_null_values(df)
+        df_cleaned.to_sql(table_name, conn, if_exists="replace", index=False)
     except Exception as e:
         log.exception(f"Failed to load table '{table_name}': {e}")
 
@@ -828,7 +861,7 @@ def get_tabular_schema():
         ).fetchall()
         schema = {"tables": []}
         for (table_name,) in tables:
-            cols = cursor.execute(f"PRAGMA table_info({table_name});").fetchall()
+            cols = cursor.execute(f'PRAGMA table_info("{table_name}");').fetchall()
             # convert to JSON
             schema["tables"].append(
                 {
