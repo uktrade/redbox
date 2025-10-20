@@ -1003,8 +1003,9 @@ class MonitorSearchRoute(UUIDPrimaryKeyBase, TimeStampedModel):
 class MonitorWebSearchResults(UUIDPrimaryKeyBase, TimeStampedModel):
     chat_message = models.ForeignKey(ChatMessage, on_delete=models.CASCADE)
     user_text = models.TextField(max_length=32768, null=False, blank=False)
-    selected_files = models.ManyToManyField(File, related_name="+", symmetrical=False, null=True, blank=False)
+    selected_files = models.ManyToManyField(File, related_name="+", symmetrical=False, blank=False)
     web_search_urls = models.TextField(max_length=32768, null=False, blank=False)
+    web_search_api_count = models.PositiveIntegerField(null=False, blank=False)
 
     def __str__(self):
         return f"{self.user_text}"

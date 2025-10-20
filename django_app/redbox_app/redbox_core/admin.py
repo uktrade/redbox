@@ -334,6 +334,7 @@ class MonitorWebSearchResultsAdmin(admin.ModelAdmin):
         "chat_message",
         "user_text",
         "web_search_urls",
+        "web_search_api_count",
         "created_at",
     ]
     readonly_fields = [
@@ -341,6 +342,7 @@ class MonitorWebSearchResultsAdmin(admin.ModelAdmin):
         "user_text",
         "selected_files",
         "web_search_urls",
+        "web_search_api_count",
         "created_at",
     ]
     ordering = ["-created_at"]
