@@ -28,7 +28,7 @@ const signIn = async (page) => {
   const magicLink = await getMagicLink();
 
   await page.goto(`${magicLink}`);
-  await expect(page.locator("h1")).toContainText("My details");
+  await expect(page.locator("h1")).toContainText("Settings");
 };
 
 const sendMessage = async (page) => {

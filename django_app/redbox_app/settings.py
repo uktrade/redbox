@@ -75,12 +75,7 @@ INSTALLED_APPS = [
     "django_plotly_dash.apps.DjangoPlotlyDashConfig",
     "adminplus",
     "waffle",
-    "django_chunk_upload_handlers",
 ]
-
-
-if not ENVIRONMENT.uses_minio:
-    FILE_UPLOAD_HANDLERS = ("django_chunk_upload_handlers.s3.S3FileUploadHandler",)
 
 if LOGIN_METHOD == "sso":
     INSTALLED_APPS.append("authbroker_client")
@@ -430,11 +425,15 @@ elif EMAIL_BACKEND_TYPE == "CONSOLE":
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 elif EMAIL_BACKEND_TYPE == "GOVUKNOTIFY":
     EMAIL_BACKEND = "django_gov_notify.backends.NotifyEmailBackend"
-    GOVUK_NOTIFY_API_KEY = env.str("GOVUK_NOTIFY_API_KEY")
-    GOVUK_NOTIFY_PLAIN_EMAIL_TEMPLATE_ID = env.str("GOVUK_NOTIFY_PLAIN_EMAIL_TEMPLATE_ID")
+
 else:
     message = f"Unknown EMAIL_BACKEND_TYPE of {EMAIL_BACKEND_TYPE}"
     raise ValueError(message)
+
+# Notifications
+GOVUK_NOTIFY_API_KEY = env.str("GOVUK_NOTIFY_API_KEY", None)
+GOVUK_NOTIFY_PLAIN_EMAIL_TEMPLATE_ID = env.str("GOVUK_NOTIFY_PLAIN_EMAIL_TEMPLATE_ID", None)
+GOVUK_NOTIFY_TEAM_ADDITION_EMAIL_TEMPLATE_ID = env.str("GOVUK_NOTIFY_TEAM_ADDITION_EMAIL_TEMPLATE_ID", None)
 
 # Magic link
 
