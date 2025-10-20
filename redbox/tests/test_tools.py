@@ -2,6 +2,7 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 import pytest
+import requests_mock
 from langchain_core.documents import Document
 from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.messages import AIMessage
@@ -15,10 +16,11 @@ from redbox.graph.nodes.tools import (
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
+    kagi_search_call,
 )
 from redbox.models.chain import AISettings, RedboxQuery, RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
-from redbox.models.settings import Settings
+from redbox.models.settings import Settings, get_settings
 from redbox.test.data import RedboxChatTestCase
 from redbox.transform import combine_documents, flatten_document_state
 from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
@@ -222,6 +224,24 @@ def test_gov_filter_AI(is_filter, relevant_return, query, keyword):
     # call gov tool without additional filter
     documents = run_tool(is_filter)
     assert any(keyword in document.page_content for document in documents) == relevant_return
+
+
+@requests_mock.Mocker(kw="mock")
+def test_web_search_rate_limit(**kwargs):
+    env = get_settings()
+    kwargs["mock"].get(
+        env.web_search_settings().end_point,
+        [
+            {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "1"}},
+            {"status_code": 200, "json": {"data": [{"t": 0, "snippet": "fake doc", "url": "http://fake.com"}]}},
+        ],
+    )
+
+    response = kagi_search_call(query="hello")
+
+    assert kwargs["mock"].call_count == 2
+    assert kwargs["mock"].called
+    assert len(response[1]) > 0
 
 
 @pytest.mark.vcr

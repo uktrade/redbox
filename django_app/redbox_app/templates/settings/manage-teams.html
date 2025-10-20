@@ -1,0 +1,21 @@
+{% from "macros/govuk-button.html" import govukButton %}
+
+<div class="govuk-width-container">
+
+  <h1 class="govuk-heading-l">Manage Teams</h1>
+
+  {% if request.user.is_superuser %}
+    <form method='post' action="/send-team-addition-email/">
+      <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
+      <div class="govuk-form-group">
+        <label class="govuk-label" for="user-id">User ID</label>
+        <input class="govuk-input govuk-!-width-two-thirds" type="text" name="user-id" id="user-id" value="{{ request.user.id }}">
+        <label class="govuk-label" for="user-id">Team ID</label>
+        <input class="govuk-input govuk-!-width-two-thirds" type="text" name="team-id" id="team-id">
+      </div>
+      {{ govukButton(text="Send Team Addition Email") }}
+    </form>
+  {% endif %}
+
+</div>

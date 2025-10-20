@@ -1,0 +1,24 @@
+{% set pageTitle = "Settings" %}
+{% extends "base.html" %}
+
+{% block content %}
+<div class="govuk-width-container">
+  <div class="govuk-tabs" data-module="govuk-tabs">
+
+    <ul class="govuk-tabs__list">
+      {% for tab in tabs %}
+        <li class="govuk-tabs__list-item">
+          <a class="govuk-tabs__tab" href="#{{ tab.id }}">{{ tab.title }}</a>
+        </li>
+      {% endfor %}
+    </ul>
+
+    {% for tab in tabs %}
+      <div class="govuk-tabs__panel {% if not loop.first %}govuk-tabs__panel--hidden{% endif %}" id="{{ tab.id }}">
+        {% include tab.template %}
+      </div>
+    {% endfor %}
+
+  </div>
+</div>
+{% endblock %}
