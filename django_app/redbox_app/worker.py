@@ -15,7 +15,7 @@ env = get_settings()
 
 
 def is_utf8_compatible(uploaded_file: UploadedFile) -> bool:
-    if not Path(uploaded_file.name).suffix.lower().endswith((".doc", ".txt")):
+    if not Path(uploaded_file.unique_name).suffix.lower().endswith((".doc", ".txt")):
         logging.info("File does not require utf8 compatibility check")
         return True
     try:
@@ -41,8 +41,8 @@ def convert_to_utf8(uploaded_file: UploadedFile) -> UploadedFile:
         # Creating a new InMemoryUploadedFile object with the converted content
         new_uploaded_file = InMemoryUploadedFile(
             file=BytesIO(new_bytes),
-            field_name=uploaded_file.name,
-            name=uploaded_file.name,
+            field_name=uploaded_file.unique_name,
+            name=uploaded_file.unique_name,
             content_type="application/octet-stream",
             size=len(new_bytes),
             charset="utf-8",
@@ -56,14 +56,14 @@ def convert_to_utf8(uploaded_file: UploadedFile) -> UploadedFile:
 
 
 def is_doc_file(uploaded_file: UploadedFile) -> bool:
-    return Path(uploaded_file.name).suffix.lower() == ".doc"
+    return Path(uploaded_file.unique_name).suffix.lower() == ".doc"
 
 
 def convert_doc_to_docx(uploaded_file: UploadedFile) -> UploadedFile:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".doc") as tmp_input:
         tmp_input.write(uploaded_file.read())
         tmp_input.flush()
-        input_path = Path(tmp_input.name)
+        input_path = Path(tmp_input.unique_name)
         output_dir = input_path.parent
 
         if not output_dir.exists():
@@ -102,18 +102,18 @@ def convert_doc_to_docx(uploaded_file: UploadedFile) -> UploadedFile:
                 if len(converted_content) == 0:
                     logging.error("Converted file is empty - this won't get converted")
 
-                output_filename = Path(uploaded_file.name).with_suffix(".docx").name
+                output_filename = Path(uploaded_file.unique_name).with_suffix(".docx").name
                 new_file = InMemoryUploadedFile(
                     file=BytesIO(converted_content),
-                    field_name=uploaded_file.name,
+                    field_name=uploaded_file.unique_name,
                     name=output_filename,
                     content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     size=len(converted_content),
                     charset="utf-8",
                 )
-                logging.info("doc file conversion to docx successful for %s", uploaded_file.name)
+                logging.info("doc file conversion to docx successful for %s", uploaded_file.unique_name)
         except Exception as e:
-            logging.exception("Error converting doc file %s to docx", uploaded_file.name, exc_info=e)
+            logging.exception("Error converting doc file %s to docx", uploaded_file.unique_name, exc_info=e)
             new_file = uploaded_file
         finally:
             try:
