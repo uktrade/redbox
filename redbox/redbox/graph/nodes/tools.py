@@ -31,6 +31,8 @@ import sqlite3
 
 log = logging.getLogger(__name__)
 
+log = logging.getLogger(__name__)
+
 
 def build_search_documents_tool(
     es_client: Union[Elasticsearch, OpenSearch],
