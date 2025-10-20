@@ -9,7 +9,12 @@ from langchain_core.runnables import Runnable
 from langchain_core.tools import StructuredTool
 
 from redbox.chains.parser import StreamingJsonOutputParser, StreamingPlanner
-from redbox.models.chain import AISettings, MultiAgentPlan, StructuredResponseWithCitations
+from redbox.models.chain import (
+    AISettings,
+    MultiAgentPlan,
+    StructuredResponseWithCitations,
+    StructuredResponseWithStepsTaken,
+)
 from redbox.models.settings import ChatLLMBackend, Settings
 from redbox.retriever import (
     AllElasticsearchRetriever,
@@ -17,6 +22,7 @@ from redbox.retriever import (
     MetadataRetriever,
     OpenSearchRetriever,
     ParameterisedElasticsearchRetriever,
+    TabularElasticsearchRetriever,
 )
 from redbox.transform import bedrock_tokeniser
 
@@ -105,6 +111,13 @@ def get_all_chunks_retriever(env: Settings) -> OpenSearchRetriever:
     )
 
 
+def get_tabular_chunks_retriever(env: Settings) -> OpenSearchRetriever:
+    return TabularElasticsearchRetriever(
+        es_client=env.elasticsearch_client(),
+        index_name=env.elastic_chunk_alias,
+    )
+
+
 def get_parameterised_retriever(env: Settings, embeddings: Embeddings | None = None):
     """Creates an Elasticsearch retriever runnable.
 
@@ -169,3 +182,10 @@ def get_structured_response_with_planner_parser() -> tuple[Runnable, str]:
         ],
     )
     return (parser, parser.get_format_instructions())
+
+
+def get_structured_response_with_steps_taken_parser() -> tuple[Runnable, str]:
+    parser = StreamingJsonOutputParser(
+        name_of_streamed_field="output", pydantic_schema_object=StructuredResponseWithStepsTaken
+    )
+    return parser, parser.get_format_instructions()

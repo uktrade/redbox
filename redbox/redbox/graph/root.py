@@ -31,10 +31,12 @@ from redbox.graph.nodes.processes import (
     build_set_route_pattern,
     build_set_self_route_from_llm_answer,
     build_stuff_pattern,
+    build_tabular_agent,
     build_user_feedback_evaluation,
     clear_documents_process,
     combine_question_evaluator,
     create_evaluator,
+    detect_tabular_docs,
     empty_process,
     invoke_custom_state,
     lm_choose_route,
@@ -42,6 +44,8 @@ from redbox.graph.nodes.processes import (
     report_sources_process,
     stream_plan,
     stream_suggestion,
+    stream_tabular_failure,
+    stream_tabular_response,
 )
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -94,6 +98,15 @@ def build_root_graph(
     builder.add_node(
         "retrieve_metadata", get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
     )
+    builder.add_node(
+        "tabular_graph",
+        build_tabular_graph(
+            retriever=tabular_retriever,
+            fallback_retriever=all_chunks_retriever,
+            fallback_agent_tools=multi_agent_tools,
+            debug=debug,
+        ),
+    )
 
     builder.add_node("is_summarise_route", empty_process)
     builder.add_node("has_keyword", empty_process)
@@ -107,7 +120,7 @@ def build_root_graph(
         build_activity_log_node(
             lambda s: [
                 RedboxActivityEvent(
-                    message=f"You selected {len(s.request.s3_keys)} file{"s" if len(s.request.s3_keys)>1 else ""} - {",".join(s.request.s3_keys)}"
+                    message=f"You selected {len(s.request.s3_keys)} file{'s' if len(s.request.s3_keys) > 1 else ''} - {','.join(s.request.s3_keys)}"
                 )
                 if len(s.request.s3_keys) > 0
                 else "You selected no files",
