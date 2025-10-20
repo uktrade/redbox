@@ -1,16 +1,13 @@
-{% set pageTitle = "Settings - My details" %}
-{% extends "base.html" %}
 {% from "macros/govuk-button.html" import govukButton %}
 
-{% block content %}
+<div class="govuk-width-container">
 
-  <div class="govuk-width-container">
+  <h1 class="govuk-heading-l">My Details</h1>
 
-        <h1 class="govuk-heading-l">Settings</h1>
+  <form method='post'>
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
 
-    <form method='post'>
-      <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-
+    {% with form=tab.context.form %}
       <div class="govuk-form-group">
         <label class="govuk-label" for="{{ form.name.id_for_label }}">
           {{ form.name.label }}
@@ -42,7 +39,6 @@
                     {{ value }}
                   </label>
                   <div class="govuk-hint govuk-radios__hintx">{{ label }}</div>
-         
                 </div>
               {% endif %}
             {% endfor %}
@@ -84,10 +80,11 @@
             <label class="govuk-checkboxes__label govuk-label" for="{{ form.uk_or_us_english.id_for_label }}">
               {{ form.uk_or_us_english.label }}
             </label>
-        </div>
+          </div>
         </div>
       </div>
-      
+
+      <input type="hidden" name="active_tab" value="{{ tab.id }}">
 
       <div class="govuk-button-group">
         {{ govukButton(text="Update") }}
@@ -108,7 +105,5 @@
         </div>
       </div>
     {% endif %}
-
-  </div>
-
-{% endblock %}
+  {% endwith %}
+</div>

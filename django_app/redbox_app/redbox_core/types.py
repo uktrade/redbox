@@ -1,14 +1,8 @@
-from typing import TypedDict
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any, TypedDict
 
 from django.http import HttpRequest
-
-
-class RenderTemplateItem(TypedDict):
-    template: str
-    context: dict
-    request: HttpRequest
-    engine: str | None
-
 
 # Valid icon path mappings
 FILE_EXTENSION_MAPPING: dict[str, str] = {
@@ -35,3 +29,34 @@ FILE_EXTENSION_MAPPING: dict[str, str] = {
 }
 
 APPROVED_FILE_EXTENSIONS = list(FILE_EXTENSION_MAPPING.keys())
+
+
+class RenderTemplateItem(TypedDict):
+    template: str
+    context: dict
+    request: HttpRequest
+    engine: str | None
+
+
+@dataclass
+class TabConfig:
+    id: str
+    title: str
+    template: str
+    get_context: Callable[[HttpRequest], dict] = lambda _: {}
+    handle_post: Callable[[HttpRequest], Any] = lambda _: None
+
+
+class TabRegistry:
+    def __init__(self, tabs: list[TabConfig]):
+        self._tabs = tabs
+        self._lookup = {tab.id: tab for tab in tabs}
+
+    def __iter__(self):
+        return iter(self._tabs)
+
+    def __getitem__(self, key: str) -> TabConfig:
+        return self._lookup[key]
+
+    def get(self, key: str, default=None):
+        return self._lookup.get(key, default)

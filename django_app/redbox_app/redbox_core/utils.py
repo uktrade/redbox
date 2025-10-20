@@ -1,5 +1,6 @@
 from datetime import date
 
+from django import forms
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -40,3 +41,19 @@ def render_with_oob(templates: list[RenderTemplateItem]) -> HttpResponse:
         html += render_to_string(template, context, request, using=engine)
 
     return HttpResponse(html)
+
+
+def save_forms(form_dict: forms.BaseForm | dict[str, forms.BaseForm]):
+    results = {}
+
+    if isinstance(form_dict, forms.BaseForm):
+        results["form"] = form_dict.is_valid()
+        if results["form"]:
+            form_dict.save()
+    else:
+        for name, form in form_dict.items():
+            results[name] = form.is_valid()
+            if results[name]:
+                form.save()
+
+    return results

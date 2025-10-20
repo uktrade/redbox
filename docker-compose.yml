@@ -46,7 +46,7 @@ services:
       start_period: 60s
 
   db:
-    image: postgres:13
+    image: postgres:14
     env_file:
       - path: tests/.env.integration
         required: false
