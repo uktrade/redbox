@@ -19,9 +19,8 @@ def is_utf8_compatible(uploaded_file: UploadedFile) -> bool:
         logging.info("File does not require utf8 compatibility check")
         return True
     try:
-        uploaded_file.open()
-        uploaded_file.read().decode("utf-8")
-        uploaded_file.seek(0)
+        uploaded_file.original_file.read().decode("utf-8")
+        uploaded_file.original_file.seek(0)
     except UnicodeDecodeError:
         logging.info("File is incompatible with utf-8. Converting...")
         return False
@@ -32,8 +31,7 @@ def is_utf8_compatible(uploaded_file: UploadedFile) -> bool:
 
 def convert_to_utf8(uploaded_file: UploadedFile) -> UploadedFile:
     try:
-        uploaded_file.open()
-        content = uploaded_file.read().decode("ISO-8859-1")
+        content = uploaded_file.original_file.read().decode("ISO-8859-1")
 
         # Detect and replace non-UTF-8 characters
         new_bytes = content.encode("utf-8")
@@ -61,9 +59,9 @@ def is_doc_file(uploaded_file: UploadedFile) -> bool:
 
 def convert_doc_to_docx(uploaded_file: UploadedFile) -> UploadedFile:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".doc") as tmp_input:
-        tmp_input.write(uploaded_file.read())
+        tmp_input.write(uploaded_file.original_file.read())
         tmp_input.flush()
-        input_path = Path(tmp_input.unique_name)
+        input_path = Path(tmp_input.name)
         output_dir = input_path.parent
 
         if not output_dir.exists():
