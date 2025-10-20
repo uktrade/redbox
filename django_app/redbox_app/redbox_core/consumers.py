@@ -148,6 +148,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         # save web search query and all web results from web search related agents
         if (self.final_state) and (self.final_state.agents_results):
+            user_question = self.final_state.request.question
             web_search_results_urls = []
             for agent_res in self.final_state.agents_results:
                 source_type = re.search("<SourceType>(.*?)</SourceType>", agent_res.content)
@@ -156,7 +157,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         web_search_results_urls += re.findall("<Source>(.*?)</Source>", agent_res.content)
 
             await self.monitor_web_search_results(
-                user_chat_message, user_message_text, web_search_results_urls, selected_files=selected_files
+                user_chat_message, user_question, web_search_results_urls, selected_files=selected_files
             )
 
         await self.close()
