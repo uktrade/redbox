@@ -8,7 +8,7 @@ from opensearchpy import OpenSearch
 from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_community.vectorstores import OpenSearchVectorSearch
 
-from redbox.models.settings import Settings
+from redbox.redbox.models.settings import Settings
 from redbox.retriever import (
     AllElasticsearchRetriever,
     MetadataRetriever,
