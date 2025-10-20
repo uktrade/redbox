@@ -150,15 +150,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if (self.final_state) and (self.final_state.agents_results):
             user_question = self.final_state.request.question
             web_search_results_urls = []
+            web_search_api_counter = 0
             for agent_res in self.final_state.agents_results:
                 source_type = re.search("<SourceType>(.*?)</SourceType>", agent_res.content)
                 if source_type:  # noqa: SIM102
                     if source_type.group(1) == Citation.Origin.WEB_SEARCH:
                         web_search_results_urls += re.findall("<Source>(.*?)</Source>", agent_res.content)
+                        web_search_api_counter += 1
 
-            await self.monitor_web_search_results(
-                user_chat_message, user_question, web_search_results_urls, selected_files=selected_files
-            )
+            if len(web_search_results_urls) > 1:
+                await self.monitor_web_search_results(
+                    user_chat_message,
+                    user_question,
+                    web_search_results_urls,
+                    web_search_api_counter,
+                    selected_files=selected_files,
+                )
 
         await self.close()
 
@@ -403,6 +410,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         message: ChatMessage,
         user_message_text: str,
         web_search_urls: list,
+        web_search_api_count: int,
         selected_files: Sequence[File] | None = None,
     ) -> MonitorWebSearchResults:
         logger.info("Saving web search urls")
@@ -410,6 +418,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             chat_message=message,
             user_text=user_message_text,
             web_search_urls=str(web_search_urls),
+            web_search_api_count=web_search_api_count,
         )
         monitor_web_search.save()
         if selected_files:
