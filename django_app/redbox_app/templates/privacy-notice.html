@@ -5,7 +5,7 @@
 {% set departmental_owner = "Department for Business and Trade" %}
 {% set department_address = "Department for Business and Trade, Old Admiralty Building, Admiralty Place, London, SW1A
 2DY" %}
-{% set last_updated = "3rd July 2025" %}
+{% set last_updated = "09 October 2025" %}
 
 
 {% block content %}
@@ -16,85 +16,163 @@
 
       <h1 class="govuk-heading-l">Privacy notice for Redbox</h1>
       <div class="govuk-body">
-        <p class="govuk-body-l">This notice sets out how we will use your personal data, and your rights. It is made
-          under Articles 13 and/or 14 of the UK General Data Protection Regulation (UK GDPR).</p>
+        <p class="govuk-body-l">
+          This notice sets out how we will use your personal data, and your rights.
+          It is made under Articles 13 and/or 14 of the UK General Data Protection Regulation (UK GDPR).
+        </p>
 
         <h2 class="govuk-heading-m">Your data</h2>
         <h3 class="govuk-heading-s">Purpose</h3>
         <p class="govuk-body">The purposes for which we are processing your personal data are:</p>
         <ul class="govuk-list govuk-list--bullet govuk-body">
-          <li>enabling login to the platform</li>
-          <li>chat history and log information will be anonymised and analysis of this will be used to improve the
-            service</li>
+          <li>Enabling login to the platform</li>
+          <li>
+            Chat history and log information will be pseudonymised and analysis
+            of this will be used to improve the service for you as the user.
+          </li>
+          <li>
+            Processing any personal data you choose to upload to the system
+            as part of your work and in accordance with the guidance
+          </li>
         </ul>
 
         <h3 class="govuk-heading-s">The data</h3>
         <p class="govuk-body">We will process the following personal data:</p>
         <ul class="govuk-list govuk-list--bullet govuk-body">
-          <li>organisational email address</li>
-          <li>chat history</li>
+          <li>Full name</li>
+          <li>Organisational email address</li>
+          <li>Chat history</li>
         </ul>
 
         <h3 class="govuk-heading-s">Legal basis of processing</h3>
         <p class="govuk-body">The legal basis for processing your personal data is:</p>
         <ul class="govuk-list govuk-list--bullet govuk-body">
-          <li>data subject consents</li>
+          <li>
+            To perform a task in the public interest (Article 6(1)(e) of the
+            UK GDPR and section 8 of the Data Protection Act 2018
+          </li>
         </ul>
 
         <h3 class="govuk-heading-s">Recipients</h3>
-        <p class="govuk-body">Your personal data will be made available to Redbox user researchers and with analysts/researchers within the {{ departmental_owner }} for the purposes of research, you can opt out of this by emailing: redbox@businessandtrade.gov.uk</p>
-        <p class="govuk-body">As your personal data will be stored on our IT infrastructure it will also be shared with
-          our data processors who provide email and document management and storage services.</p>
+        <p class="govuk-body">
+          Your personal data will be made available to Redbox@DBT user researchers and
+          with analysts/researchers within the Department for Business and Trade for analysis
+          to improve the service, you can opt out of this by emailing: redbox@businessandtrade.gov.uk
+        </p>
+        <p class="govuk-body">
+          As your personal data will be stored on our IT infrastructure it will also be shared with
+          our data processors who provide email and document management and storage services.
+        </p>
+        <ul class="govuk-list govuk-list--bullet govuk-body">
+          <li>Each user's content is stored in isolated personal S3 buckets</li>
+          <li>Access controls ensure only you can access your content and generations</li>
+          <li>SOC monitoring is in place to detect and prevent potential data breaches </li>
+          <li>
+            In the future, DataDog LLM observability features may be
+            implemented for enhanced monitoring for security purposes
+          </li>
+        </ul>
 
         <h3 class="govuk-heading-s">Retention</h3>
-        <p class="govuk-body">Your personal data will be retained for 12 months after account inactivity. At that point
-          we will delete your email address, depersonalising the data we hold. If you have provided us consent to
-          contact you, we will retain your email until <DATE> and continue sharing it with evaluators so they can
-            conduct research on the long term impact of Redbox.</p>
+        <p class="govuk-body">
+          Any personal data you upload as part of documents or chats will be automatically deleted after 6 months.
+        </p>
+        <h3 class="govuk-heading-s">Personal Data Usage Guidelines</h3>
+        <p class="govuk-body">When working with personal data, the use cases which Redbox@DBT supports:</p>
+        <ol class="govuk-list govuk-list--number govuk-body">
+          <li>Consultations processing and analysis</li>
+          <li>Survey response processing and analysis</li>
+          <li>Correspondence drafting</li>
+        </ol>
+        <p class="govuk-body">When using Redbox to process personal data as part of your work:</p>
+        <ul class="govuk-list govuk-list--bullet govuk-body">
+          <li>Where possible, remove or redact personal data before uploading if not essential for your work</li>
+          <li><u>Do not</u> process data related to children or vulnerable individuals</li>
+          <li>
+            <u>Avoid</u> uploading special category data (health data, racial or ethnic origin, political opinions,
+            religious or philosophical beliefs, trade union membership, genetic data, biometric data,
+            data relating to sex life or sexual orientation) unless necessary for your specific role</li>
+          <li>
+            Remember you remain responsible for complying with data protection principles
+            when processing others' personal data outlined in the
+            <a href="https://workspace.trade.gov.uk/working-at-dbt/policies-and-guidance/policies/data-protection-policy/"
+               class="govuk-link">
+                data protection policy
+            </a>
+          </li>
+        </ul>
 
         <h3 class="govuk-heading-s">Your rights</h3>
-        <p class="govuk-body">You have the right to request information about how your personal data are processed, and
-          to request a copy of that personal data.</p>
-        <p class="govuk-body">You have the right to request that any inaccuracies in your personal data are rectified
-          without delay.</p>
-        <p class="govuk-body">You have the right to request that any incomplete personal data are completed, including
-          by means of a supplementary statement.</p>
-        <p class="govuk-body">You have the right to request that your personal data are erased if there is no longer a
-          justification for them to be processed.</p>
-        <p class="govuk-body">You have the right in certain circumstances (for example, where accuracy is contested) to
-          request that the processing of your personal data is restricted.</p>
-        <p class="govuk-body">You have the right to object to the processing of your personal data where it is processed
-          for direct marketing purposes.</p>
-        <p class="govuk-body">You have the right to withdraw consent to the processing of your personal data at any
-          time.</p>
+        <p class="govuk-body">
+          You have the right to request information about how your personal data
+          are processed, and to request a copy of that personal data.
+        </p>
+        <p class="govuk-body">
+          You have the right to request that any inaccuracies in your personal data are
+          rectified without delay, however, technical restrictions mean that personal data
+          cannot be directly amended once entered (permitted under Article 19 UK GDPR).
+        </p>
+        <p class="govuk-body">
+          You have the right to request that any incomplete personal data are completed, including
+          by means of a supplementary statement, however, technical restrictions mean that
+          personal data cannot be directly amended once entered (permitted under Article 19 UK GDPR).
+        </p>
+        <p class="govuk-body">
+          You have the right to request that your personal data are erased if there is no longer a
+          justification for them to be processed.
+        </p>
+        <p class="govuk-body">
+          You have the right in certain circumstances (for example, where accuracy is contested) to
+          request that the processing of your personal data is restricted.
+        </p>
+        <p class="govuk-body">
+          You have the right to object to the processing of your personal data
+          where it is processed for direct marketing purposes.
+        </p>
+        <p class="govuk-body">
+          You have the right to withdraw consent to the processing of your personal data at any time.
+        </p>
 
         <h3 class="govuk-heading-s">International transfers</h3>
-        <p class="govuk-body">As your personal data is stored on our IT infrastructure, and shared with our data
-          processors, it may be transferred and stored securely outside the UK. Where that is the case it will be
-          subject to equivalent legal protection through an adequacy decision or reliance on Standard Contractual
-          Clauses.</p>
+        <p class="govuk-body">
+          As your personal data is stored on our IT infrastructure, and shared with our data processors, it may be
+          transferred and stored securely outside the UK, in EU West 1 (Ireland) on DBT Infrastructure. There is a
+          reciprocal Adequacy decision between the UK and Ireland, personal data will not be stored outside the EU.
+        </p>
 
         <h3 class="govuk-heading-s">Complaints</h3>
-        <p class="govuk-body">If you consider that your personal data has been misused or mishandled, you may make a
+        <p class="govuk-body">
+          If you consider that your personal data has been misused or mishandled, you may make a
           complaint to the Information Commissioner, who is an independent regulator. The Information Commissioner can
           be contacted at: Information Commissioner's Office, Wycliffe House, Water Lane, Wilmslow, Cheshire, SK9 5AF,
           or 0303 123 1113, or <a href="mailto:icocasework@ico.org.uk" class="govuk-link">icocasework@ico.org.uk</a>.
           Any complaint to the Information Commissioner is without prejudice to your right to seek redress through the
-          courts.</p>
+          courts.
+        </p>
 
         <h3 class="govuk-heading-s">Contact details</h3>
-        <p class="govuk-body">The data controller for your personal data is the {{ departmental_owner }}. The contact
-          details for the data controller are: {{ department_address | safe }}.</p>
-        <p class="govuk-body">The contact details for the data controller's Data Protection Officer are: <a
-            href="mailto:redbox@businessandtrade.gov.uk" class="govuk-link">redbox@businessandtrade.gov.uk</a>.</p>
-        <p class="govuk-body">The Data Protection Officer provides independent advice and monitoring of {{
-          departmental_owner }}'s use of personal information.</p>
+        <p class="govuk-body">
+          The data controller for your personal data is the {{ departmental_owner }}.
+          The contact details for the data controller are: {{ department_address | safe }}.
+        </p>
+        <p class="govuk-body">
+          The contact details for the data controller's Data Protection Officer are:
+          <a href="mailto:data.protection@businessandtrade.gov.uk " class="govuk-link">
+            data.protection@businessandtrade.gov.uk
+          </a>.
+        </p>
+        <p class="govuk-body">
+          The Data Protection Officer provides independent advice and monitoring
+          of {{ departmental_owner }}'s use of personal information.
+        </p>
 
         <h2 class="govuk-heading-m">Changes to this notice</h2>
-        <p class="govuk-body">We may change this privacy notice. When we make changes to this notice, the "last updated"
-          date at the bottom of this page will also change. Any changes to this privacy notice will apply to you and
-          your data immediately. If these changes affect how your personal data is processed, {{ departmental_owner }}
-          will take reasonable steps to make sure you know.</p>
+        <p class="govuk-body">
+          We may change this privacy notice. When we make changes to this notice, the "last updated" date
+          at the bottom of this page will also change. Any changes to this privacy notice will apply to you
+          and your data immediately. If these changes affect how your personal data is processed,
+          {{ departmental_owner }} will take reasonable steps to make sure you know.
+        </p>
         <p class="govuk-body">Last updated: {{ last_updated }}</p>
 
       </div>

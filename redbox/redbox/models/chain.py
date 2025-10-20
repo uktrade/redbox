@@ -105,6 +105,7 @@ class AISettings(BaseModel):
         "Summarisation_Agent",
         "Tabular_Agent",
         "Web_Search_Agent",
+        "Legislation_Search_Agent",
     ]
     agents_max_tokens: dict = {
         "Internal_Retrieval_Agent": 10000,
@@ -112,6 +113,7 @@ class AISettings(BaseModel):
         "Summarisation_Agent": 20000,
         "Tabular_Agent": 10000,
         "Web_Search_Agent": 5000,
+        "Legislation_Search_Agent": 5000,
     }
 
 

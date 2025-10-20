@@ -1,7 +1,5 @@
 import logging
 import re
-import subprocess
-import sys
 from collections.abc import Sequence
 
 from redbox_app.redbox_core.models import ChatMessage, File
@@ -72,19 +70,3 @@ def decorate_selected_files(all_files: Sequence[File], messages: Sequence[ChatMe
     for file in all_files:
         file.selected = file in selected_files
     return all_files
-
-
-def convert_american_to_british_spelling(text):
-    try:
-        result = subprocess.run(  # noqa: S603
-            [sys.executable, "-m", "uwotm8", "--ignore", "oritem8.txt"],
-            input=text,
-            text=True,
-            capture_output=True,
-            check=True,
-        )
-    except Exception as e:
-        logger.exception("Failed to convert text: %s", text, exc_info=e)
-        return text
-
-    return result.stdout
