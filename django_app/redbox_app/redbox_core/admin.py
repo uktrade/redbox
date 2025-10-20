@@ -176,6 +176,27 @@ class UserAdmin(ImportExportMixin, admin.ModelAdmin):
         import_id_fields = ["email"]
 
 
+class TeamAdmin(admin.ModelAdmin):
+    list_display = ("team_name", "directorate", "created_at", "updated_at")
+    list_filter = ("directorate",)
+    search_fields = ("team_name", "directorate")
+    ordering = ("team_name",)
+
+    class Meta:
+        model = models.Team
+
+
+class UserTeamMembershipAdmin(admin.ModelAdmin):
+    list_display = ("user", "team", "role_type", "created_at", "updated_at")
+    list_filter = ("role_type", "team__directorate")
+    search_fields = ("user__email", "team__team_name")
+    ordering = ("user__email",)
+    raw_id_fields = ("user", "team")
+
+    class Meta:
+        model = models.UserTeamMembership
+
+
 class FileAdmin(ExportMixin, admin.ModelAdmin):
     def reupload(self, _request, queryset):
         for file in queryset:
@@ -353,4 +374,6 @@ admin.site.register(models.ChatLLMBackend, ChatLLMBackendAdmin)
 admin.site.register(models.MonitorSearchRoute, MonitorSearchRouteAdmin)
 admin.site.register(models.MonitorWebSearchResults, MonitorWebSearchResultsAdmin)
 admin.site.register(models.AgentPlan, AgentPlanAdmin)
+admin.site.register(models.Team, TeamAdmin)
+admin.site.register(models.UserTeamMembership, UserTeamMembershipAdmin)
 admin.site.register_view("report/", view=reporting_dashboard, name="Site report")
