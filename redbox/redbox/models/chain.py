@@ -73,6 +73,8 @@ class AISettings(BaseModel):
     planner_question_prompt: str = prompts.PLANNER_QUESTION_PROMPT
     planner_format_prompt: str = prompts.PLANNER_FORMAT_PROMPT
     answer_instruction_prompt: str = prompts.ANSWER_INSTRUCTION_SYSTEM_PROMPT
+    tabular_system_prompt: str = prompts.TABULAR_PROMPT
+    tabular_question_prompt: str = prompts.TABULAR_QUESTION_PROMPT
 
     # Elasticsearch RAG and boost values
     rag_k: int = 30
@@ -101,6 +103,7 @@ class AISettings(BaseModel):
         "Internal_Retrieval_Agent",
         "External_Retrieval_Agent",
         "Summarisation_Agent",
+        "Tabular_Agent",
         "Web_Search_Agent",
         "Legislation_Search_Agent",
     ]
@@ -108,6 +111,7 @@ class AISettings(BaseModel):
         "Internal_Retrieval_Agent": 10000,
         "External_Retrieval_Agent": 5000,
         "Summarisation_Agent": 20000,
+        "Tabular_Agent": 10000,
         "Web_Search_Agent": 5000,
         "Legislation_Search_Agent": 5000,
     }
@@ -334,6 +338,7 @@ class RedboxState(BaseModel):
     agents_results: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     agent_plans: MultiAgentPlan | None = None
     tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
+    tabular_schema: str = ""
 
     @property
     def last_message(self) -> AnyMessage:
@@ -363,6 +368,7 @@ class PromptSet(StrEnum):
     CondenseQuestion = "condense_question"
     NewRoute = "new_route"
     Planner = "planner"
+    Tabular = "tabular"
 
 
 def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str, str]:
@@ -402,6 +408,9 @@ def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str, st
         system_prompt = state.request.ai_settings.planner_system_prompt
         question_prompt = state.request.ai_settings.planner_question_prompt
         format_prompt = state.request.ai_settings.planner_format_prompt
+    elif prompt_set == PromptSet.Tabular:
+        system_prompt = state.request.ai_settings.tabular_system_prompt
+        question_prompt = state.request.ai_settings.tabular_question_prompt
     return (system_prompt, question_prompt, format_prompt)
 
 
