@@ -14,13 +14,18 @@ from redbox.models.settings import get_settings
 env = get_settings()
 
 
+def get_file_name(uploaded_file) -> str:
+    """Return the correct name field for both model and file objects."""
+    return getattr(uploaded_file, "unique_name", getattr(uploaded_file, "name", ""))
+
+
 def is_utf8_compatible(uploaded_file: UploadedFile) -> bool:
-    if not Path(uploaded_file.unique_name).suffix.lower().endswith((".doc", ".txt")):
+    if not Path(get_file_name(uploaded_file)).suffix.lower().endswith((".doc", ".txt")):
         logging.info("File does not require utf8 compatibility check")
         return True
     try:
-        uploaded_file.original_file.read().decode("utf-8")
-        uploaded_file.original_file.seek(0)
+        uploaded_file.read().decode("utf-8")
+        uploaded_file.seek(0)
     except UnicodeDecodeError:
         logging.info("File is incompatible with utf-8. Converting...")
         return False
@@ -39,8 +44,8 @@ def convert_to_utf8(uploaded_file: UploadedFile) -> UploadedFile:
         # Creating a new InMemoryUploadedFile object with the converted content
         new_uploaded_file = InMemoryUploadedFile(
             file=BytesIO(new_bytes),
-            field_name=uploaded_file.unique_name,
-            name=uploaded_file.unique_name,
+            field_name=get_file_name(uploaded_file),
+            name=get_file_name(uploaded_file),
             content_type="application/octet-stream",
             size=len(new_bytes),
             charset="utf-8",
@@ -54,7 +59,7 @@ def convert_to_utf8(uploaded_file: UploadedFile) -> UploadedFile:
 
 
 def is_doc_file(uploaded_file: UploadedFile) -> bool:
-    return Path(uploaded_file.unique_name).suffix.lower() == ".doc"
+    return Path(get_file_name(uploaded_file)).suffix.lower() == ".doc"
 
 
 def convert_doc_to_docx(uploaded_file: UploadedFile) -> UploadedFile:
@@ -100,18 +105,18 @@ def convert_doc_to_docx(uploaded_file: UploadedFile) -> UploadedFile:
                 if len(converted_content) == 0:
                     logging.error("Converted file is empty - this won't get converted")
 
-                output_filename = Path(uploaded_file.unique_name).with_suffix(".docx").name
+                output_filename = Path(get_file_name(uploaded_file)).with_suffix(".docx").name
                 new_file = InMemoryUploadedFile(
                     file=BytesIO(converted_content),
-                    field_name=uploaded_file.unique_name,
+                    field_name=get_file_name(uploaded_file),
                     name=output_filename,
                     content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     size=len(converted_content),
                     charset="utf-8",
                 )
-                logging.info("doc file conversion to docx successful for %s", uploaded_file.unique_name)
+                logging.info("doc file conversion to docx successful for %s", get_file_name(uploaded_file))
         except Exception as e:
-            logging.exception("Error converting doc file %s to docx", uploaded_file.unique_name, exc_info=e)
+            logging.exception("Error converting doc file %s to docx", get_file_name(uploaded_file), exc_info=e)
             new_file = uploaded_file
         finally:
             try:
@@ -135,12 +140,12 @@ def ingest(file_id: UUID, es_index: str | None = None) -> None:
 
     # handling doc -> docx conversion
     if is_doc_file(file):
-        file = convert_doc_to_docx(file)
+        file.original_file = convert_doc_to_docx(file)
+        file.save()
     # handling utf8 compatibility
     if not is_utf8_compatible(file):
-        file = convert_to_utf8(file)
-
-    file.save()
+        file.original_file = convert_to_utf8(file)
+        file.save()
 
     logging.info("Ingesting file: %s", file)
 
