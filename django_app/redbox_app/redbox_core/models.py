@@ -591,7 +591,7 @@ def build_s3_key(instance, filename: str) -> str:
 
     note: s3 key is not prefixed with the user's email address if not local as filename is unique
     """
-    filename = f"{instance.user.email}/{filename}"
+    filename = f"{instance.user.email}/{filename}_{datetime.now(UTC).strftime('%Y%m%d%H%M%S%f')}"
     return f"{filename}"
 
 
