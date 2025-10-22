@@ -128,10 +128,6 @@ def load_tabular_file(file_name: str, file_bytes: BytesIO) -> list[dict[str, str
 
 
 class UnstructuredChunkLoader:
-    """
-    Load, partition and chunk a document using local unstructured library.
-    """
-
     def __init__(
         self,
         chunk_resolution,
@@ -152,8 +148,6 @@ class UnstructuredChunkLoader:
         self._overlap_all_chunks = overlap_all_chunks
         self.metadata = metadata
         self.request_timeout = request_timeout
-
-        # requests session with retries/backoff
         self.session = requests.Session()
         retries = Retry(
             total=max_retries,
@@ -164,18 +158,12 @@ class UnstructuredChunkLoader:
         self.session.mount("http://", HTTPAdapter(max_retries=retries))
 
     def _get_api_url(self) -> str:
-        if ENVIRONMENT.is_local:
-            return f"http://{self.env.unstructured_host}:8000/general/v0/general"
-        return f"http://{self.env.unstructured_host}/general/v0/general"
+        host = self.env.unstructured_host
+        return f"http://{host}:8000/general/v0/general" if ENVIRONMENT.is_local else f"http://{host}/general/v0/general"
 
-    def post_files(self, url: str, files, strategy: str = "fast"):
-        """Use session.post with configured timeout and logging."""
-        logger.info(
-            "Posting bytes to unstructured API; strategy=%s, size=%.2fMB",
-            strategy,
-            (files[0][1].getbuffer().nbytes / 1_000_000.0) if hasattr(files[0][1], "getbuffer") else -1,
-        )
-        resp = self.session.post(
+    def post_files(self, url: str, files, strategy: str = "fast", use_ocr: bool = False):
+        logger.info("Posting to Unstructured API: strategy=%s, OCR=%s", strategy, use_ocr)
+        return self.session.post(
             url,
             files=files,
             data={
@@ -187,73 +175,56 @@ class UnstructuredChunkLoader:
                 "overlap_all": self._overlap_all_chunks,
                 "infer_table_structure": "true",
                 "pdf_infer_table_structure": "true",
-                "ocr_languages": "eng",
+                "ocr_languages": "eng" if use_ocr else "",
                 "response_type": "application/json",
             },
             timeout=self.request_timeout,
         )
-        return resp
 
     def _get_chunks(self, file_name: str, file_bytes: BytesIO) -> list[dict]:
-        """Helper method to perform chunking via the unstructured API"""
         url = self._get_api_url()
-        is_large, _ = is_large_pdf(file_name=file_name, filebytes=file_bytes)
+        is_large, _ = is_large_pdf(file_name, file_bytes)
         is_tabular = file_name.endswith((".csv", ".xls", ".xlsx"))
 
         if is_tabular and self.chunk_resolution.name.lower() == "tabular":
-            return load_tabular_file(file_name=file_name, file_bytes=file_bytes)
+            return load_tabular_file(file_name, file_bytes)
 
-        # small/normal file -> post once (fast, fallback hi_res)
-        if not is_large:
-            file_bytes.seek(0)
-            files = {"files": (file_name, file_bytes)}
+        def extract_elements(bytes_io, strategy="fast", use_ocr=False):
+            files = {"files": (file_name, bytes_io)}
+            resp = self.post_files(url, list(files.items()), strategy=strategy, use_ocr=use_ocr)
+            if resp.status_code != 200:
+                logger.warning("Unstructured API returned %s", resp.status_code)
+                return []
             try:
-                resp = self.post_files(url, list(files.items()), strategy="fast")
-            except Exception as e:
-                logger.exception("Unstructured fast request failed: %s", e)
-                raise
-            try:
-                elements = resp.json()
+                return resp.json()
             except Exception:
-                logger.exception("Failed to parse JSON from unstructured response")
-                raise ValueError("Invalid response from unstructured")
-            if not elements or all(not (r.get("text") and r["text"].strip()) for r in elements):
-                logger.info("No text extracted with fast strategy; retrying with hi_res")
-                file_bytes.seek(0)
-                resp = self.post_files(url, list(files.items()), strategy="hi_res")
-                resp.raise_for_status()
-                elements = resp.json()
-            if not elements:
-                raise ValueError("Unstructured failed to extract text for this file")
-            return elements
+                logger.exception("Failed to parse JSON from Unstructured response")
+                return []
 
-        # large file: split into chunks and POST each chunk (use the chunk BytesIO)
         elements = []
-        pdf_chunks = split_pdf(filebytes=file_bytes)
-        logger.info("Split PDF into %d chunks", len(pdf_chunks))
-        for idx, chunk in enumerate(pdf_chunks):
+        chunks = [file_bytes] if not is_large else split_pdf(file_bytes)
+        logger.info("Processing %d chunk(s)", len(chunks))
+
+        for idx, chunk in enumerate(chunks):
             chunk.seek(0)
-            files = {"files": (file_name, chunk)}
-            try:
-                resp = self.post_files(url, list(files.items()), strategy="fast")
-                if resp.status_code != 200:
-                    logger.warning("Fast strategy returned status %s for chunk %d", resp.status_code, idx + 1)
-                chunk_elements = resp.json() if resp.status_code == 200 else []
-                # if no text, retry hi_res once for this chunk
-                if not chunk_elements or all(not (r.get("text") and r["text"].strip()) for r in chunk_elements):
-                    logger.info("Chunk %d: no text with fast -> retrying hi_res", idx + 1)
-                    chunk.seek(0)
-                    resp = self.post_files(url, list(files.items()), strategy="hi_res")
-                    resp.raise_for_status()
-                    chunk_elements = resp.json()
-                elements.extend(chunk_elements or [])
-            except Exception as e:
-                logger.exception("Chunk %d failed: %s", idx + 1, e)
-                # decide on behavior: continue with next chunk or raise?
-                # For safety, raise so caller can handle. If you prefer partial ingestion, continue instead.
-                raise
+            chunk_text = fitz.open(stream=chunk.getvalue(), filetype="pdf").load_page(0).get_text("text")
+            use_ocr = not chunk_text.strip()
+
+            chunk_elements = extract_elements(chunk, strategy="fast", use_ocr=use_ocr)
+            if not chunk_elements or all(not (e.get("text") and e["text"].strip()) for e in chunk_elements):
+                logger.info("Chunk %d: retrying with hi_res", idx + 1)
+                chunk.seek(0)
+                chunk_elements = extract_elements(chunk, strategy="hi_res", use_ocr=use_ocr)
+
+            if not chunk_elements:
+                logger.warning("Chunk %d failed completely; skipping", idx + 1)
+                continue
+
+            elements.extend(chunk_elements)
+
         if not elements:
-            raise ValueError("Unstructured failed to extract text for this file (all chunks empty)")
+            raise ValueError("Unstructured failed to extract text from all chunks")
+
         return elements
 
     def lazy_load(self, file_name: str, file_bytes: BytesIO) -> Iterator[Document]:
@@ -261,7 +232,6 @@ class UnstructuredChunkLoader:
         for i, raw_chunk in enumerate(elements):
             text = raw_chunk.get("text", "") or ""
             if not text.strip():
-                # skip empty chunks (optionally)
                 continue
             page_number = raw_chunk.get("metadata", {}).get("page_number", 1)
             yield Document(
@@ -278,7 +248,6 @@ class UnstructuredChunkLoader:
                     keywords=(self.metadata.keywords if self.metadata else []),
                 ).model_dump(),
             )
-
 
 class MetadataLoader:
     def __init__(self, env: Settings, s3_client: S3Client, file_name: str):
