@@ -642,7 +642,7 @@ def test_upload_document_api_endpoint(alice, client, file_pdf_path, s3_client):
 
     # Verify a file was created in the database
     uploaded_file = File.objects.filter(user=alice).order_by("-created_at")[0]
-    assert uploaded_file.file_name.startswith(file_pdf_path.name.replace(" ", "_"))
+    assert uploaded_file.file_name.startswith(file_pdf_path.name.rstrip(file_pdf_path.name[-4:]).replace(" ", "_"))
 
 
 @pytest.mark.django_db()

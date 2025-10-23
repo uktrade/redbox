@@ -591,8 +591,10 @@ def build_s3_key(instance, filename: str) -> str:
 
     note: s3 key is not prefixed with the user's email address if not local as filename is unique
     """
-    filename = f"{instance.user.email}/{filename}_{datetime.now(UTC).strftime('%Y%m%d%H%M%S%f')}"
-    return f"{filename}"
+    timestamp = datetime.now(UTC).strftime('%Y%m%d%H%M%S%f')[:-3]
+    name, ext = os.path.splitext(filename)
+    new_filename = f"{name}_{timestamp}{ext}"
+    return f"{instance.user.email}/{new_filename}"
 
 
 class File(UUIDPrimaryKeyBase, TimeStampedModel):

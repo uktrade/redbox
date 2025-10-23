@@ -46,8 +46,8 @@ def test_citations_shown(client: Client, alice: User, chat: Chat, several_files:
     citations = [element.get_text().strip() for element in citation_items]
 
     expected = [
-        "original_file_0.txt",
-        "original_file_1.txt",
+        "original_file_0",
+        "original_file_1",
         "https://wikipedia-test",
     ]
 
