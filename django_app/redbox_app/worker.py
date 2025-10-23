@@ -19,15 +19,21 @@ def get_file_name(uploaded_file) -> str:
     return getattr(uploaded_file, "unique_name", getattr(uploaded_file, "name", ""))
 
 
-def is_utf8_compatible(uploaded_file: UploadedFile) -> bool:
+def is_utf8_compatible(uploaded_file) -> bool:
     if not Path(get_file_name(uploaded_file)).suffix.lower().endswith((".doc", ".txt")):
         logging.info("File does not require utf8 compatibility check")
         return True
+
+    # Determine the file-like object to read from
+    file_obj = uploaded_file.original_file if hasattr(uploaded_file, "unique_name") else uploaded_file
+
     try:
-        uploaded_file.read().decode("utf-8")
-        uploaded_file.seek(0)
+        content = file_obj.read()
+        content.decode("utf-8")
+        file_obj.seek(0)
     except UnicodeDecodeError:
         logging.info("File is incompatible with utf-8. Converting...")
+        file_obj.seek(0)
         return False
     else:
         logging.info("File is compatible with utf-8 - ready for processing")
