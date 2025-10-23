@@ -78,6 +78,7 @@ team_urlpatterns = [
     path("team/<uuid:team_id>/add-member/", views.add_team_member_view, name="add-member"),
     path("team/edit-member/<member_id>/", views.edit_team_member_view, name="edit-member"),
     path("team/<uuid:team_id>/delete-team/", views.delete_team_view, name="delete-team"),
+    path("team/create-team/", views.create_team_view, name="create-team"),
 ]
 
 admin_urlpatterns = [

@@ -44,6 +44,7 @@ from redbox_app.redbox_core.views.signup_views import Signup1, Signup2, Signup3,
 from redbox_app.redbox_core.views.team_views import (
     add_team_member_row_view,
     add_team_member_view,
+    create_team_view,
     delete_team_member_row_view,
     delete_team_view,
     edit_team_member_row_view,
@@ -102,4 +103,5 @@ __all__ = [
     "add_team_member_view",
     "edit_team_member_view",
     "delete_team_view",
+    "create_team_view",
 ]

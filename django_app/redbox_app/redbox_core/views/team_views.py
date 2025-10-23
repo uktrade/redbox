@@ -10,6 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
 from redbox_app.redbox_core.models import Team, UserTeamMembership
+from redbox_app.redbox_core.services import teams as teams_service
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ def add_team_member_row_view(request: HttpRequest, team_id: uuid.UUID, user_id: 
 @login_required
 def edit_team_member_row_view(request: HttpRequest, member_id: uuid.UUID | Any):
     member = get_object_or_404(UserTeamMembership, id=member_id)
+    cancel = request.GET.get("cancel") or "false"
 
     if not member.team.is_admin(request.user):
         return HttpResponse("You are not an admin of this team.", status=HTTPStatus.FORBIDDEN)
@@ -52,7 +54,7 @@ def edit_team_member_row_view(request: HttpRequest, member_id: uuid.UUID | Any):
     context = {
         "member": member,
         "role_choices": UserTeamMembership.RoleType.choices,
-        "editing": request.GET.get("cancel").lower() != "true",
+        "editing": cancel.lower() != "true",
     }
 
     return render(request, "settings/team-member-row.html", context)
@@ -67,6 +69,8 @@ def delete_team_member_row_view(request: HttpRequest, member_id: uuid.UUID | Any
         if not member.team.is_admin(request.user):
             return HttpResponse("You are not an admin of this team.", status=HTTPStatus.FORBIDDEN)
         member.delete()
+    else:
+        return HttpResponse(status=HTTPStatus.NOT_FOUND)
 
     return HttpResponse(status=HTTPStatus.OK)
 
@@ -78,7 +82,7 @@ def create_team_view(request: HttpRequest):
     directorate = request.POST.get("directorate")
 
     try:
-        Team(team_name=team_name, directorate=directorate)
+        teams_service.create_team(team_name, directorate, request.user)
     except Exception as e:
         error = f"Failed to create Team: {e}"
         logger.exception(error)
