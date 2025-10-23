@@ -504,6 +504,6 @@ EMBEDDING_BACKEND = env.str("EMBEDDING_BACKEND", "amazon.titan-embed-text-v2:0")
 
 DEFAULT_MODEL_ID = env.str("DEFAULT_MODEL_ID", "anthropic.claude-3-sonnet-20240229-v1:0")
 
-WEB_SEARCH_API_LIMIT = 400  # 400*$0.025 = $10
+WEB_SEARCH_API_LIMIT = env.int("WEB_SEARCH_API_LIMIT", 100)
 
 ADMIN_EMAIL = env.str("ADMIN_EMAIL", "")
