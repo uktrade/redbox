@@ -28,8 +28,9 @@ def add_team_member_row_view(request: HttpRequest, team_id: uuid.UUID, user_id: 
     try:
         member = UserTeamMembership(user=user, team=team, role_type=UserTeamMembership.RoleType.MEMBER)
     except Exception as e:
-        error = f"Failed to create UserTeamMembership object: {e}"
-        logger.exception(error)
+        error = "Failed to update UserTeamMembership object"
+        error_exception = f"{error}: {e}"
+        logger.exception(error_exception)
         return HttpResponse(error, status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
     context = {
@@ -84,8 +85,9 @@ def create_team_view(request: HttpRequest):
     try:
         teams_service.create_team(team_name, directorate, request.user)
     except Exception as e:
-        error = f"Failed to create Team: {e}"
-        logger.exception(error)
+        error = "Failed to create Team"
+        error_exception = f"{error}: {e}"
+        logger.exception(error_exception)
         return HttpResponse(error, status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
     return HttpResponse(status=HTTPStatus.OK)
@@ -102,8 +104,9 @@ def add_team_member_view(request: HttpRequest, team_id: uuid.UUID):
     try:
         team.add_member(user, role_type)
     except Exception as e:
-        error = f"Failed to add team member: {e}"
-        logger.exception(error)
+        error = "Failed to add team member"
+        error_exception = f"{error}: {e}"
+        logger.exception(error_exception)
         return HttpResponse(error, status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
     if next_url:
@@ -125,8 +128,9 @@ def edit_team_member_view(request: HttpRequest, member_id: uuid.UUID | Any):
         member.role_type = role_type
         member.save()
     except Exception as e:
-        error = f"Failed to update UserTeamMembership object: {e}"
-        logger.exception(error)
+        error = "Failed to update UserTeamMembership object"
+        error_exception = f"{error}: {e}"
+        logger.exception(error_exception)
         return HttpResponse(error, status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
     context = {
@@ -150,8 +154,9 @@ def delete_team_view(request: HttpRequest, team_id: uuid.UUID):
     try:
         team.delete()
     except Exception as e:
-        error = f"Failed to delete Team object: {e}"
-        logger.exception(error)
+        error = "Failed to delete Team object"
+        error_exception = f"{error}: {e}"
+        logger.exception(error_exception)
         return HttpResponse(error, status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
     if next_url:
