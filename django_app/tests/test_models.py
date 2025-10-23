@@ -122,7 +122,7 @@ def test_internal_citation_uri(chat_message: ChatMessage, uploaded_file: File):
         file=uploaded_file,
     )
     citation.save()
-    assert citation.uri.parts[-1].startswith("original_file.txt")
+    assert citation.uri.parts[-1] == "original_file.txt"
 
 
 def test_external_citation_uri(
@@ -161,8 +161,8 @@ def test_unique_citation_uris(chat_message: ChatMessage, uploaded_file: File):
 
     assert urls[0][0] == "http://example.com"
     assert urls[0][1] == URL("http://example.com")
-    assert urls[1][0].startswith("original_file.txt")
-    assert urls[1][1].parts[-1].startswith("original_file.txt")
+    assert urls[1][0] == "original_file.txt"
+    assert urls[1][1].parts[-1] == "original_file.txt"
 
 
 @pytest.mark.parametrize(("value", "expected"), [("invalid origin", None), ("Wikipedia", "Wikipedia")])
