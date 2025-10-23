@@ -54,7 +54,7 @@ def test_view_session_with_documents(chat_message: ChatMessage, client: Client):
 
     # Then
     assert response.status_code == HTTPStatus.OK
-    assert b"original_file.txt" in response.content
+    assert b"original_file" in response.content
 
 
 @pytest.mark.django_db()

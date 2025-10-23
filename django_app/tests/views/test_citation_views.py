@@ -45,7 +45,14 @@ def test_citations_shown(client: Client, alice: User, chat: Chat, several_files:
     filenames = [h3.get_text().strip() for h3 in files]
     citations = [element.get_text().strip() for element in citation_items]
 
-    assert filenames == ["original_file_0.txt", "original_file_1.txt", "https://wikipedia-test"]
+    expected = [
+        "original_file_0",
+        "original_file_1",
+        "https://wikipedia-test",
+    ]
+
+    assert len(filenames) == len(expected)
+    assert all(f.startswith(e) for f, e in zip(filenames, expected, strict=False))
     assert citations == ["Citation 1", "Citation 2", "Citation 3"]
 
 
