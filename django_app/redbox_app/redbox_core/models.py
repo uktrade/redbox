@@ -591,7 +591,7 @@ def build_s3_key(instance, filename: str) -> str:
 
     note: s3 key is not prefixed with the user's email address if not local as filename is unique
     """
-    filename = f"{instance.user.email}/{filename}"
+    filename = f"{instance.user.email}/{filename}_{datetime.now(UTC).strftime('%Y%m%d%H%M%S%f')}"
     return f"{filename}"
 
 
@@ -1003,8 +1003,9 @@ class MonitorSearchRoute(UUIDPrimaryKeyBase, TimeStampedModel):
 class MonitorWebSearchResults(UUIDPrimaryKeyBase, TimeStampedModel):
     chat_message = models.ForeignKey(ChatMessage, on_delete=models.CASCADE)
     user_text = models.TextField(max_length=32768, null=False, blank=False)
-    selected_files = models.ManyToManyField(File, related_name="+", symmetrical=False, null=True, blank=False)
+    selected_files = models.ManyToManyField(File, related_name="+", symmetrical=False, blank=False)
     web_search_urls = models.TextField(max_length=32768, null=False, blank=False)
+    web_search_api_count = models.PositiveIntegerField(null=False, blank=False)
 
     def __str__(self):
         return f"{self.user_text}"

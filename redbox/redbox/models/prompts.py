@@ -66,7 +66,8 @@ SELF_ROUTE_SYSTEM_PROMPT = """
 
 RETRIEVAL_QUESTION_PROMPT = "<User_question>From the provided documents, {question}</User_question>"
 
-NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context."""
+NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context.
+When analysing results from the tabular agent, only synthesise or summarise the provided information to answer the question. Do not derive new statistics from the tabular agent results."""
 
 AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
     "You are an advanced problem-solving assistant. Your primary goal is to carefully "
@@ -302,6 +303,7 @@ When creating your execution plan, you have access to the following specialised 
 
 1. **Internal_Retrieval_Agent**:
 Purpose: Information retrieval and question answering
+Use when the selected documents are NOT tabular data such as PDF files or Word documents
 Use when the user wants to:
 - Ask questions about specific documents or knowledge base content
 - Retrieve specific information or facts
@@ -325,7 +327,11 @@ Use when the user wants to:
 - Produce condensed versions of lengthy documents
 - Create abstracts or overviews
 
-4. **Web_Search_Agent**:
+4. **Tabular_Agent**:
+Purpose: Retrieves information from database tables. Only retrieves what the user asks for.
+Use instead of the Internal_Retrieval_Agent when the selected documents are tabular data such as CSV files or Excel spreadsheets.
+
+5. **Web_Search_Agent***:
 Purpose: Perform searches across web sites or on specific domains
 Use when the user wants to:
 - Search for information across web sites
@@ -334,7 +340,7 @@ Use when the user wants to:
 - ALWAYS use this agent when a user requests information from a specific website that isn't covered by other agents
 - Use this agent even if the search involves future dates or hypothetical scenarios, as the agent will handle these appropriately
 
-5. **Legislation_Search_Agent**:
+6. **Legislation_Search_Agent**:
 Purpose: Perform searches across the legislation.gov.uk website domain only
 Use when the user wants to:
 - Search for information only from the legislation.gov.uk website
@@ -385,6 +391,7 @@ Remember that your primary value is in effective coordination and integration - 
 )
 
 PLANNER_QUESTION_PROMPT = """User question: <Question>{question}</Question>.
+User selected documents: {document_filenames}
 User uploaded documents metadata:<Document_Metadata>{metadata}</Document_Metadata>."""
 
 PLANNER_FORMAT_PROMPT = """## Output Format
@@ -418,10 +425,33 @@ Interpret user feedback into one of the following categories:
 
 Return output in the following format <Output_format>{format_instructions}</Output_format>"""
 
-TABULAR_FORMAT_PROMPT = """Answer the following question: <Question>{question}</Question>
+TABULAR_PROMPT = """ You are a SQL expert with a strong attention to detail. You are assisting users to retrieve information from a database. 
+Your task is to retrieve the relevant information from the database that helps answer the users question. Generate a SQL query then retrieve data from the SQLite database using tools.
 
-IMPORTANT: In your final answer, please:
-1. Explain your logic behind answering this question and in constructing a SQL query
-2. Always show the SQL query you created using the format: ```sql <sql_statement>```
-3. Interpret the results in plain language
+Operational Framework:
+1. Initial data assessment:
+Analayse your previous actions from the chat history, your previous SQL query and any previous information retrieved from the database.
+2. Generation of SQL query 
+Generate the relevant query based on the previous actions from the chat history and any previous information retrieved from the database.
+DO NOT make any DML statements (CREATE, INSERT, UPDATE, DELETE, DROP etc.) to the database.
+2. Correction of previous incorrect SQL query
+When correcting the SQL query, check for any error received from the previous query execution as well as common mistakes, including:
+- Using NOT IN with NULL values
+- Using UNION when UNION ALL should have been used
+- Using BETWEEN for exclusive ranges
+- Data type mismatch in predicates
+- Properly quoting identifiers
+- Using the correct number of arguments for functions
+- Casting to the correct data type
+- Using the proper columns for joins
+If there are any of the above mistakes, rewrite the query. 
+
+"""
+
+TABULAR_QUESTION_PROMPT = """ Here is the user question: {question}. Retrieve the relevant information from the database that would answer this question.
+Expected output: Raw data retrieved from database. Output the raw data and do not output any explanation.
+Please analyse your previous actions in the chat history before you generate your next SQL query.
+Analyse carefully the database schema before generating the SQL query. Here is the data schema including all table names and columns in the database: {db_schema}
+If you see any non-empty error below obtained by executing your previous SQL query, please correct your SQL query.
+SQL error: {sql_error}
 """
