@@ -28,17 +28,8 @@ def test_upload_view(alice, client, file_pdf_path: Path, s3_client):
     """
     file_name = f"{alice.email}/{file_pdf_path.name}"
 
-    # we begin by removing any file in minio that starts with this key prefix
-    try:
-        paginator = s3_client.get_paginator("list_objects_v2")
-        for page in paginator.paginate(Bucket=settings.BUCKET_NAME, Prefix=file_name.replace(" ", "_")):
-            if "Contents" in page:
-                delete_objects = [{"Key": obj["Key"]} for obj in page["Contents"]]
-                if delete_objects:
-                    s3_client.delete_objects(Bucket=settings.BUCKET_NAME, Delete={"Objects": delete_objects})
-    except Exception:
-        logging.exception("Error cleaning up S3 objects before test")
-        # Ignore errors during cleanup
+    # we begin by removing any file in minio that has this key
+    s3_client.delete_object(Bucket=settings.BUCKET_NAME, Key=file_name.replace(" ", "_"))
 
     assert not file_exists(s3_client, file_name)
 
@@ -56,17 +47,8 @@ def test_upload_view(alice, client, file_pdf_path: Path, s3_client):
 def test_document_upload_status(client, alice, file_pdf_path: Path, s3_client):
     file_name = f"{alice}/{file_pdf_path.name}"
 
-    # we begin by removing any file in minio that starts with this key prefix
-    try:
-        paginator = s3_client.get_paginator("list_objects_v2")
-        for page in paginator.paginate(Bucket=settings.BUCKET_NAME, Prefix=file_name.replace(" ", "_")):
-            if "Contents" in page:
-                delete_objects = [{"Key": obj["Key"]} for obj in page["Contents"]]
-                if delete_objects:
-                    s3_client.delete_objects(Bucket=settings.BUCKET_NAME, Delete={"Objects": delete_objects})
-    except Exception:
-        logging.exception("Error cleaning up S3 objects before test")
-        # Ignore errors during cleanup
+    # we begin by removing any file in minio that has this key
+    s3_client.delete_object(Bucket=settings.BUCKET_NAME, Key=file_name.replace(" ", "_"))
 
     assert not file_exists(s3_client, file_name)
     client.force_login(alice)
@@ -80,6 +62,46 @@ def test_document_upload_status(client, alice, file_pdf_path: Path, s3_client):
         assert count_s3_objects(s3_client) == previous_count + 1
         uploaded_file = File.objects.filter(user=alice).order_by("-created_at")[0]
         assert uploaded_file.status == File.Status.processing
+
+
+@pytest.mark.django_db()
+def test_upload_view_duplicate_files(alice, bob, client, file_pdf_path: Path, s3_client):
+    # delete all alice's files
+    for key in s3_client.list_objects(Bucket=settings.BUCKET_NAME, Prefix=alice.email).get("Contents", []):
+        s3_client.delete_object(Bucket=settings.BUCKET_NAME, Key=key["Key"])
+
+    # delete all bob's files
+    for key in s3_client.list_objects(Bucket=settings.BUCKET_NAME, Prefix=bob.email).get("Contents", []):
+        s3_client.delete_object(Bucket=settings.BUCKET_NAME, Key=key["Key"])
+
+    previous_count = count_s3_objects(s3_client)
+
+    def upload_file():
+        with file_pdf_path.open("rb") as f:
+            client.post("/upload/", {"uploadDocs": f})
+            response = client.post("/upload/", {"uploadDocs": f})
+
+            assert response.status_code == HTTPStatus.FOUND
+            assert response.url == "/documents/"
+
+            return File.objects.order_by("-created_at")[0]
+
+    client.force_login(alice)
+    alices_file = upload_file()
+
+    assert count_s3_objects(s3_client) == previous_count + 1  # new file added
+    assert alices_file.unique_name.startswith(alice.email)
+
+    client.force_login(bob)
+    bobs_file = upload_file()
+
+    assert count_s3_objects(s3_client) == previous_count + 2  # new file added
+    assert bobs_file.unique_name.startswith(bob.email)
+
+    bobs_new_file = upload_file()
+
+    assert count_s3_objects(s3_client) == previous_count + 2  # no change, duplicate file
+    assert bobs_new_file.unique_name == bobs_file.unique_name
 
 
 @pytest.mark.django_db()
@@ -108,20 +130,10 @@ def test_upload_view_no_file(alice, client):
 @pytest.mark.django_db()
 def test_remove_doc_view(client: Client, alice: User, file_pdf_path: Path, s3_client: Client):
     file_name = f"{alice.email}/{file_pdf_path.name}"
-    prefix = file_name.replace(" ", "_")
 
     client.force_login(alice)
-    # we begin by removing any file in minio that starts with this key prefix
-    try:
-        paginator = s3_client.get_paginator("list_objects_v2")
-        for page in paginator.paginate(Bucket=settings.BUCKET_NAME, Prefix=prefix):
-            if "Contents" in page:
-                delete_objects = [{"Key": obj["Key"]} for obj in page["Contents"]]
-                if delete_objects:
-                    s3_client.delete_objects(Bucket=settings.BUCKET_NAME, Delete={"Objects": delete_objects})
-    except Exception:
-        logging.exception("Error cleaning up S3 objects before test")
-        # Ignore errors during cleanup
+    # we begin by removing any file in minio that has this key
+    s3_client.delete_object(Bucket=settings.BUCKET_NAME, Key=file_name.replace(" ", "_"))
 
     previous_count = count_s3_objects(s3_client)
 
@@ -173,18 +185,16 @@ def count_s3_objects(s3_client) -> int:
 
 def file_exists(s3_client, file_name) -> bool:
     """
-    If any file key starts with the given file_name prefix, return True, otherwise False
+    if the file key exists return True otherwise False
     """
-    prefix = file_name.replace(" ", "_")
     try:
-        response = s3_client.list_objects_v2(Bucket=settings.BUCKET_NAME, Prefix=prefix)
+        s3_client.get_object(Bucket=settings.BUCKET_NAME, Key=file_name.replace(" ", "_"))
     except ClientError as client_error:
-        if client_error.response["Error"]["Code"] in ["NoSuchBucket", "AccessDenied"]:
+        if client_error.response["Error"]["Code"] == "NoSuchKey":
             return False
         raise
     else:
-        # Check for actual objects (handles empty responses correctly)
-        return bool(response.get("Contents", []))
+        return True
 
 
 @pytest.mark.django_db()
@@ -616,17 +626,8 @@ def test_upload_document_api_endpoint(alice, client, file_pdf_path, s3_client):
     Test the API endpoint for uploading a document.
     """
     file_name = f"{alice.email}/{file_pdf_path.name}"
-    # we begin by removing any file in minio that starts with this key prefix
-    try:
-        paginator = s3_client.get_paginator("list_objects_v2")
-        for page in paginator.paginate(Bucket=settings.BUCKET_NAME, Prefix=file_name.replace(" ", "_")):
-            if "Contents" in page:
-                delete_objects = [{"Key": obj["Key"]} for obj in page["Contents"]]
-                if delete_objects:
-                    s3_client.delete_objects(Bucket=settings.BUCKET_NAME, Delete={"Objects": delete_objects})
-    except Exception:
-        logging.exception("Error cleaning up S3 objects before test")
-        # Ignore errors during cleanup
+    # Remove any existing file
+    s3_client.delete_object(Bucket=settings.BUCKET_NAME, Key=file_name.replace(" ", "_"))
     assert not file_exists(s3_client, file_name)
 
     client.force_login(alice)
@@ -642,7 +643,7 @@ def test_upload_document_api_endpoint(alice, client, file_pdf_path, s3_client):
 
     # Verify a file was created in the database
     uploaded_file = File.objects.filter(user=alice).order_by("-created_at")[0]
-    assert uploaded_file.file_name.startswith(file_pdf_path.name.replace(" ", "_"))
+    assert uploaded_file.file_name == file_pdf_path.name.replace(" ", "_")
 
 
 @pytest.mark.django_db()
