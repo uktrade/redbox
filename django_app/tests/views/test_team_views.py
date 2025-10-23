@@ -72,7 +72,7 @@ def test_user_can_delete_their_own_team_members(redbox_team: Team, alice: User, 
     membership = redbox_team.add_member(bob)
 
     # When
-    response = client.get(f"/team/delete-member/{membership.id}/")
+    response = client.delete(f"/team/delete-member/{membership.id}/")
 
     # Then
     assert response.status_code == HTTPStatus.OK
@@ -156,7 +156,7 @@ def test_user_can_add_team_members(redbox_team: Team, alice: User, bob: User, cl
 
 
 @pytest.mark.django_db(transaction=True)
-def test_user_can_delete_team(alice: User, redbox_team, client: Client):
+def test_user_can_delete_team(alice: User, redbox_team: Team, client: Client):
     # Given
     client.force_login(alice)
     redbox_team.add_member(alice, UserTeamMembership.RoleType.ADMIN)
