@@ -2,6 +2,8 @@ import logging
 import re
 from typing import Any, Callable, Iterable, Iterator
 
+from botocore.exceptions import ServiceUnavailableException
+
 from langchain_core.callbacks.manager import CallbackManagerForLLMRun, dispatch_custom_event
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
@@ -16,7 +18,7 @@ from redbox.chains.components import get_basic_metadata_retriever, get_chat_llm,
 from redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_prompts
 from redbox.models.errors import QuestionLengthError
 from redbox.models.graph import RedboxEventType
-from redbox.models.settings import get_settings
+from redbox.models.settings import get_settings, ChatLLMBackend
 from redbox.transform import bedrock_tokeniser, flatten_document_state, get_all_metadata
 
 log = logging.getLogger()
@@ -279,29 +281,56 @@ def basic_chat_chain(
     @chain
     def _basic_chat_chain(state: RedboxState):
         nonlocal parser
-        if tools:
-            llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
-        else:
-            llm = get_chat_llm(state.request.ai_settings.chat_backend)
-        context = {
-            "question": state.request.question,
-        } | _additional_variables
-        if parser:
-            if isinstance(parser, StrOutputParser):
-                prompt = ChatPromptTemplate([(system_prompt)])
+        ai_settings = state.request.ai_settings
+        current_backend = ai_settings.chat_backend
+        fallback_backend = ChatLLMBackend(name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock")
+
+        def build_chain(llm_backend: ChatLLMBackend) -> Any:
+            if tools:
+                llm = get_chat_llm(llm_backend, ai_settings=ai_settings, tools=tools)
             else:
-                format_instructions = parser.get_format_instructions()
-                prompt = ChatPromptTemplate(
-                    [(system_prompt)], partial_variables={"format_instructions": format_instructions}
+                llm = get_chat_llm(
+                    llm_backend,
+                    ai_settings=ai_settings,
                 )
-            if using_only_structure:
-                chain = prompt | llm
+            context = {
+                "question": state.request.question,
+            } | _additional_variables
+            if parser:
+                if isinstance(parser, StrOutputParser):
+                    prompt = ChatPromptTemplate([(system_prompt)])
+                else:
+                    format_instructions = parser.get_format_instructions()
+                    prompt = ChatPromptTemplate(
+                        [(system_prompt)], partial_variables={"format_instructions": format_instructions}
+                    )
+                if using_only_structure:
+                    return prompt | llm, context
+                else:
+                    return prompt | llm | parser, context
             else:
-                chain = prompt | llm | parser
-        else:
-            prompt = ChatPromptTemplate([(system_prompt)])
-            chain = prompt | llm
-        return chain.invoke(context)
+                prompt = ChatPromptTemplate([(system_prompt)])
+                return prompt | llm, context
+
+        # First attempt with current backend
+        try:
+            chain, context = build_chain(current_backend)
+            return chain.invoke(context)
+        except ServiceUnavailableException as e:
+            if "Too many connections" not in str(e):
+                raise  # Re-raise if not the specific connection issue
+            # Fallback to alternative model
+            log.warning(
+                "ServiceUnavailableException encountered with %s. Falling back to %s",
+                current_backend.name,
+                fallback_backend.name,
+            )
+            try:
+                chain_fallback, context_fallback = build_chain(fallback_backend)
+                return chain_fallback.invoke(context_fallback)
+            except Exception as fallback_e:
+                log.error("Fallback invocation also failed: %s", fallback_e)
+                raise fallback_e from e
 
     return _basic_chat_chain
 
