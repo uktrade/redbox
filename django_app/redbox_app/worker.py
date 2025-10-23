@@ -41,12 +41,12 @@ def is_utf8_compatible(uploaded_file) -> bool:
 
 
 def convert_to_utf8(uploaded_file: UploadedFile) -> UploadedFile:
+    # Determine the file-like object to read from
+    file_obj = uploaded_file.original_file if hasattr(uploaded_file, "unique_name") else uploaded_file
+
     try:
-        content = uploaded_file.original_file.read().decode("ISO-8859-1")
-
-        # Detect and replace non-UTF-8 characters
+        content = file_obj.read().decode("ISO-8859-1")
         new_bytes = content.encode("utf-8")
-
         # Creating a new InMemoryUploadedFile object with the converted content
         new_uploaded_file = InMemoryUploadedFile(
             file=BytesIO(new_bytes),
@@ -58,6 +58,7 @@ def convert_to_utf8(uploaded_file: UploadedFile) -> UploadedFile:
         )
     except Exception as e:
         logging.exception("Error converting file %s to UTF-8.", uploaded_file, exc_info=e)
+        file_obj.seek(0)
         return uploaded_file
     else:
         logging.info("Conversion to UTF-8 successful")
@@ -69,8 +70,16 @@ def is_doc_file(uploaded_file: UploadedFile) -> bool:
 
 
 def convert_doc_to_docx(uploaded_file: UploadedFile) -> UploadedFile:
+    # Determine the file-like object to read from
+    file_obj = uploaded_file.original_file if hasattr(uploaded_file, "unique_name") else uploaded_file
+
+    content = file_obj.read()
+    file_obj.seek(0)
+
+    new_file = uploaded_file  # Default to original
+
     with tempfile.NamedTemporaryFile(delete=False, suffix=".doc") as tmp_input:
-        tmp_input.write(uploaded_file.original_file.read())
+        tmp_input.write(content)
         tmp_input.flush()
         input_path = Path(tmp_input.name)
         output_dir = input_path.parent
@@ -110,6 +119,7 @@ def convert_doc_to_docx(uploaded_file: UploadedFile) -> UploadedFile:
                 logging.info("Converted file size: %d bytes", len(converted_content))
                 if len(converted_content) == 0:
                     logging.error("Converted file is empty - this won't get converted")
+                    return uploaded_file
 
                 output_filename = Path(get_file_name(uploaded_file)).with_suffix(".docx").name
                 new_file = InMemoryUploadedFile(
@@ -123,7 +133,6 @@ def convert_doc_to_docx(uploaded_file: UploadedFile) -> UploadedFile:
                 logging.info("doc file conversion to docx successful for %s", get_file_name(uploaded_file))
         except Exception as e:
             logging.exception("Error converting doc file %s to docx", get_file_name(uploaded_file), exc_info=e)
-            new_file = uploaded_file
         finally:
             try:
                 input_path.unlink()
@@ -132,7 +141,7 @@ def convert_doc_to_docx(uploaded_file: UploadedFile) -> UploadedFile:
             except Exception as cleanup_error:  # noqa: BLE001
                 logging.warning("Error cleaning up temporary files: %s", cleanup_error)
 
-        return new_file
+    return new_file
 
 
 def ingest(file_id: UUID, es_index: str | None = None) -> None:
