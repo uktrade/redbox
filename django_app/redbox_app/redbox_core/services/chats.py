@@ -13,8 +13,8 @@ from waffle import flag_is_active
 from yarl import URL
 
 from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage
+from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.services import message as message_service
-from redbox_app.redbox_core.services.documents import get_file_context
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 def get_context(request: HttpRequest, chat_id: uuid.UUID | None = None) -> dict:
     chat = Chat.get_ordered_by_last_message_date(request.user)
 
-    file_context = get_file_context(request)
+    file_context = documents_service.get_file_context(request)
 
     messages: Sequence[ChatMessage] = []
     current_chat = None
