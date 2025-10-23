@@ -10,6 +10,7 @@ from opensearchpy.helpers import scan
 from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_community.vectorstores import OpenSearchVectorSearch
+from openpyxl import Workbook
 
 from redbox.chains.ingest import document_loader, ingest_from_loader
 from redbox.loader import ingester
@@ -556,7 +557,9 @@ def test_read_excel_file_multiple_sheets():
     sheet2 = pd.DataFrame({"Col3": [5, 6], "Col4": [7, 8]})
     mock_sheets = {"Sheet1": sheet1, "Sheet2": sheet2}
 
-    with patch("pandas.read_excel", return_value=mock_sheets):
+    with patch("pandas.read_excel", return_value=mock_sheets) and patch(
+        "openpyxl.load_workbook", return_value=Workbook()
+    ):
         file_bytes = BytesIO(b"mock excel content")
         result = read_excel_file(file_bytes)
 
@@ -571,7 +574,9 @@ def test_read_excel_file_empty_sheet():
     sheet2 = pd.DataFrame({"Col1": [1, 2], "Col2": [3, 4]})
     mock_sheets = {"Sheet1": sheet1, "Sheet2": sheet2}
 
-    with patch("pandas.read_excel", return_value=mock_sheets):
+    with patch("pandas.read_excel", return_value=mock_sheets) and patch(
+        "openpyxl.load_workbook", return_value=Workbook()
+    ):
         file_bytes = BytesIO(b"mock excel content")
         result = read_excel_file(file_bytes)
 
@@ -586,7 +591,9 @@ def test_read_excel_file_sheet_error():
     sheet2 = pd.DataFrame({"Col1": [1, 2], "Col2": [3, 4]})
     mock_sheets = {"Sheet1": sheet1, "Sheet2": sheet2}
 
-    with patch("pandas.read_excel", return_value=mock_sheets):
+    with patch("pandas.read_excel", return_value=mock_sheets) and patch(
+        "openpyxl.load_workbook", return_value=Workbook()
+    ):
         file_bytes = BytesIO(b"mock excel content")
         result = read_excel_file(file_bytes)
 
@@ -600,7 +607,9 @@ def test_read_excel_file_all_empty_sheets():
     sheet2 = pd.DataFrame
     mock_sheets = {"Sheet1": sheet1, "Sheet2": sheet2}
 
-    with patch("pandas.read_excel", return_value=mock_sheets):
+    with patch("pandas.read_excel", return_value=mock_sheets) and patch(
+        "openpyxl.load_workbook", return_value=Workbook()
+    ):
         file_bytes = BytesIO(b"mock excel content")
         result = read_excel_file(file_bytes)
 

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import environ
 import fitz
 import requests
+from openpyxl import load_workbook
 
 # from requests.adapters import HTTPAdapter
 # from requests.packages.urllib.util.retry import Retry
@@ -87,14 +88,27 @@ def read_excel_file(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
     try:
         sheets = pd.read_excel(file_bytes, sheet_name=None)
         elements = []
+        wb = load_workbook(file_bytes)
 
         for name, df in sheets.items():
             try:
                 if df.empty:
                     logger.info(f"Skipping Sheet {name}")
                     continue
+
+                # Extract additional Excel metadata
+                tables = f"<tables>{wb[name].tables}</tables>"
+                merged_cells = f"<merged_cells>{wb[name].merged_cells}</merged_cells>"
+                formula = f"<formula>{str([v for v in wb[name].values])}</formula>"
+
                 # Include the table name in the text that is stored. This will be extracted by the retriever
-                csv_text = f"<table_name>{name.lower().replace(" ","_")}</table_name>" + str(df.to_csv(index=False))
+                csv_text = (
+                    f"<table_name>{name.lower().replace(" ","_")}</table_name>"
+                    + tables
+                    + merged_cells
+                    + formula
+                    + str(df.to_csv(index=False))
+                )
                 elements.append({"text": csv_text, "metadata": {}})
             except Exception as e:
                 logger.info(f"Skipping Sheet {name} due to error: {e}")

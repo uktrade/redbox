@@ -647,19 +647,16 @@ def create_or_update_db_from_tabulars(state: RedboxState) -> RedboxState:
         user_uuid = str(state.request.user_uuid) if state.request.user_uuid else uuid4()
         db_path = f"generated_db_{user_uuid}.db"  # Initialise the database at a location that uses the user's UUID or a random one if it's not available
 
-    # Create or update database if needed
-    if should_create_db:
-        # Creating/updating database at db_path
-        conn = sqlite3.connect(db_path)
-        doc_texts, doc_names = get_all_tabular_docs(state)
-        _ = load_texts_to_db(doc_texts, doc_names=doc_names, conn=conn)
-        conn.commit
-        conn.close
+    doc_texts, doc_names = get_all_tabular_docs(state)
 
+    # Loads to database only if db_path is not None
+    _, additional_structure = load_texts_to_db(doc_texts, doc_names=doc_names, db_path=db_path)
+
+    if should_create_db:
         # Store the current_documents to reflect current state
         state.store_document_state()
         state.request.db_location = db_path
-    return state
+    return state, additional_structure
 
 
 def get_all_tabular_docs(state: RedboxState) -> tuple[list[str], list[str]]:
@@ -686,28 +683,43 @@ def get_all_tabular_docs(state: RedboxState) -> tuple[list[str], list[str]]:
 def extract_table_names_and_text(doc_text: str) -> tuple[str, str]:
     """Excel Files start with Sheet Names stored alongside text so we extract this if so."""
     if doc_text.startswith("<table_name>"):
-        pattern = r"<table_name>(.*?)</table_name>(.*)"
+        pattern = r"<table_name>(.*?)</table_name><tables>(.*?)</tables><merged_cells>(.*?)</merged_cells><formula>(.*?)</formula>(.*)"
         match = re.match(pattern, doc_text, re.DOTALL)
         if match:
             table_name = match.group(1)
-            extracted_text = match.group(2).strip()
-            return table_name, extracted_text
-    return None, doc_text
+            tables = match.group(2)
+            merged_cells = match.group(3)
+            formula = match.group(4)
+            extracted_text = match.group(5).strip()
+            return table_name, extracted_text, tables, merged_cells, formula
+    return None, doc_text, None, None, None
 
 
-def load_texts_to_db(doc_texts: list[str], doc_names: list[str], conn: sqlite3.Connection) -> list[str]:
+def load_texts_to_db(doc_texts: list[str], doc_names: list[str], db_path: str) -> list[str]:
     """Load document texts as tables in a database"""
     table_names = []
+    additional_structure = {}
     for idx, (doc_text, doc_name) in enumerate(zip(doc_texts, doc_names)):
         try:
             clean_doc_name = sanitise_file_name(doc_name)
-            sheet_name, doc_text = extract_table_names_and_text(doc_text)
+            sheet_name, doc_text, tables, merged_cells, formula = extract_table_names_and_text(doc_text)
             table_name = f"{clean_doc_name}_table_{idx+1}" if not sheet_name else f"{clean_doc_name}_{sheet_name}"
-            parse_doc_text_as_db_table(doc_text, table_name, conn=conn)
             table_names.append(table_name)
+            additional_structure[table_name] = {
+                "tables": tables,
+                "merged_cells": merged_cells,
+                "formula": formula,
+            }
+
+            if db_path:
+                # Creating/updating database at db_path
+                conn = sqlite3.connect(db_path)
+                parse_doc_text_as_db_table(doc_text, table_name, conn=conn)
+                conn.commit
+                conn.close
         except Exception as e:
             log.exception(f"Failed to load table for Document '{table_name}': {e}")
-    return table_names
+    return table_names, additional_structure
 
 
 def detect_header(doc_text: str):
@@ -850,7 +862,7 @@ def get_tabular_agent(
 def get_tabular_schema():
     def _get_tabular_schema(state: RedboxState):
         # create db
-        state = create_or_update_db_from_tabulars(state=state)
+        state, additional_structure = create_or_update_db_from_tabulars(state=state)
         db_path = state.request.db_location
         # get schema
         conn = sqlite3.connect(db_path)
@@ -877,6 +889,7 @@ def get_tabular_schema():
                         for col in cols
                     ],
                 }
+                | additional_structure.get(table_name)
             )
 
         conn.close()
