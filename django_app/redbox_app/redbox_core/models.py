@@ -5,6 +5,7 @@ import textwrap
 import uuid
 from collections.abc import Collection, Sequence
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 from typing import override
 
 import jwt
@@ -591,8 +592,10 @@ def build_s3_key(instance, filename: str) -> str:
 
     note: s3 key is not prefixed with the user's email address if not local as filename is unique
     """
-    filename = f"{instance.user.email}/{filename}_{datetime.now(UTC).strftime('%Y%m%d%H%M%S%f')}"
-    return f"{filename}"
+    timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S%f")[:-3]
+    path = Path(filename)
+    new_filename = f"{path.stem}_{timestamp}{path.suffix}"
+    return f"{instance.user.email}/{new_filename}"
 
 
 class File(UUIDPrimaryKeyBase, TimeStampedModel):
