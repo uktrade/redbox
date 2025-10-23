@@ -34,4 +34,6 @@ def web_search_notification(sender, instance, created, **kwargs):  # noqa: ARG00
                 subject="Calls exceeded etc...",
                 body=f"Current API count: {count_today} exceeds "
                 "the daily limit of {settings.WEB_SEARCH_API_LIMIT} per day.",
+                reference="web_search_api",
+                check_if_sent=True,
             )
