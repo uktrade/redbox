@@ -49,7 +49,10 @@ def send_email(
             template_type="email", status="delivered", reference=reference
         )["notifications"]
         has_today_email = [
-            s for s in notifications if datetime.fromisoformat(s["sent_at"]).date() == timezone.now().date()
+            s
+            for s in notifications
+            if (datetime.fromisoformat(s["sent_at"]).date() == timezone.now().date())
+            and (s["email_address"] == recipient_email)
         ]
         if has_today_email:
             logger.info("Email has alredy sent to %s today", recipient_email)

@@ -2,6 +2,7 @@ import logging
 
 from django.apps import AppConfig
 from django.conf import settings
+from django.db.models.signals import post_save
 
 from redbox_app.setting_enums import LOCAL_HOSTS
 
@@ -13,6 +14,10 @@ class RedboxCoreConfig(AppConfig):
     name = "redbox_app.redbox_core"
 
     def ready(self):
+        from redbox_app.redbox_core import signals
+
+        post_save.connect(signals.web_search_notification)
+
         try:
             from django.contrib.sites.models import Site
 
