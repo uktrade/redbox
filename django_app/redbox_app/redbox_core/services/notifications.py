@@ -72,7 +72,7 @@ def send_email(
     return response
 
 
-def send_low_credit_email(credit: int):
+def send_low_credit_email(credit: float):
     if credit <= settings.WEB_SEARCH_CREDIT_LIMIT:
         logger.info("Sending credit notification email to admin..")
         send_email(
