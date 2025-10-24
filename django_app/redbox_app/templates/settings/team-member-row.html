@@ -1,0 +1,56 @@
+{% from "macros/select-input.html" import select_input %}
+
+{% set role_type_options %}
+    {% for value, label in role_choices %}
+        <option value="{{ value }}" {% if member.role_type==value %}selected{% endif %}>
+            {{ label }}
+        </option>
+    {% endfor %}
+{% endset %}
+
+<tr id="member-row-{{ member.id }}" class="govuk-table__row">
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+    <th scope="row" class="govuk-table__header align-middle">{{ member.user.name }}</th>
+    <td class="govuk-table__cell align-middle">{{ member.user.email }}</td>
+    <td class="govuk-table__cell align-middle">
+        {% if not editing %}
+            {{ member.get_role_type_display() }}
+        {% else %}
+            {{ select_input("role-type", options=role_type_options, classes="row-value", aria_labelledby="role-header") }}
+        {% endif %}
+    </td>
+    <td class="govuk-table__cell">
+        <div class="flex-row">
+            {% if editing %}
+                <button class="icon-button"
+                        hx-post="{{ url('edit-member', member.id) }}"
+                        hx-include="#member-row-{{ member.id }} .row-value"
+                        hx-target="closest tr"
+                        hx-swap="outerHTML">
+                    {% include 'rbds/icons/check.svg' %}
+                </button>
+            {% endif %}
+            <button class="icon-button"
+                    type="button"
+                    hx-get="{{ url('edit-member-row', member.id) }}"
+                    hx-vals='{"cancel": "{{ "true" if editing else "false" }}"}'
+                    hx-target="closest tr"
+                    hx-swap="outerHTML">
+                {% if editing %}
+                    {% include 'rbds/icons/close.svg' %}
+                {% else %}
+                    {% include 'rbds/icons/edit.html' %}
+                {% endif %}
+            </button>
+            {% if not editing %}
+                <button class="icon-button"
+                        type="button"
+                        hx-delete="{{ url('delete-member', member.id) }}"
+                        hx-target="closest tr"
+                        hx-swap="delete">
+                    {% include 'rbds/icons/delete.html' %}
+                </button>
+            {% endif %}
+        </div>
+    </td>
+</tr>

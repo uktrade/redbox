@@ -19,7 +19,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.http import require_http_methods
 
-from redbox_app.redbox_core.models import File, InactiveFileError
+from redbox_app.redbox_core.models import File, FileTeamMembership, InactiveFileError, Team, UserTeamMembership
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.utils import render_with_oob
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 class DocumentView(View):
     @method_decorator(login_required)
     def get(self, request: HttpRequest) -> HttpResponse:
-        completed_files, processing_files = File.get_completed_and_processing_files(request.user)
+        file_context = documents_service.get_file_context(request)
 
         ingest_errors = request.session.get("ingest_errors", [])
         request.session["ingest_errors"] = []
@@ -41,8 +41,8 @@ class DocumentView(View):
             template_name="documents.html",
             context={
                 "request": request,
-                "completed_files": completed_files,
-                "processing_files": processing_files,
+                "completed_files": file_context["completed_files"],
+                "processing_files": file_context["processing_files"],
                 "ingest_errors": ingest_errors,
             },
         )
@@ -62,13 +62,31 @@ class UploadView(View):
         if not uploaded_files:
             errors.append("No document selected")
 
+        team_id = request.POST.get("team")
+
+        visibility = request.POST.get("visibility", "PERSONAL")
+
         for _index, uploaded_file in enumerate(uploaded_files):
             errors += documents_service.validate_uploaded_file(uploaded_file)
 
         if not errors:
             for uploaded_file in uploaded_files:
                 # ingest errors are handled differently, as the other documents have started uploading by this point
-                request.session["ingest_errors"], _ = documents_service.ingest_file(uploaded_file, request.user)
+                request.session["ingest_errors"], file_obj = documents_service.ingest_file(uploaded_file, request.user)
+                if file_obj and team_id:
+                    try:
+                        team = Team.objects.get(id=team_id)
+                        if UserTeamMembership.objects.filter(user=request.user, team=team).exists():
+                            FileTeamMembership.objects.create(
+                                file=file_obj,
+                                team=team,
+                                visibility=visibility,
+                            )
+                        else:
+                            request.session["ingest_errors"].append("You are not a lead for the selected team")
+                    except Team.DoesNotExist:
+                        request.session["ingest_errors"].append("The selected team does not exist")
+
             return redirect(reverse("documents"))
 
         return documents_service.build_upload_response(request, errors)

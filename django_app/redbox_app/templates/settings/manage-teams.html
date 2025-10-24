@@ -1,21 +1,120 @@
 {% from "macros/govuk-button.html" import govukButton %}
+{% from "rbds/components/modal.html" import modal %}
+{% from "macros/govuk-notification-banner.html" import govukNotificationBanner %}
+{% from "macros/adaptive-select.html" import adaptive_select %}
+{% from "macros/select-input.html" import select_input %}
+
+{% set messages = get_messages(request) %}
+
+{% if messages %}
+  {% for message in messages %}
+    {% set team_id = message.tags.split(" ")[0] %}
+    {% call govukNotificationBanner(message) %}
+      <a href="#team-section-{{ team_id }}">Click here</a> to manage details
+    {% endcall %}
+  {% endfor %}
+{% endif %}
+
+{% set role_choice_options %}
+  {% for value, label in tab.context.role_choices %}
+    <option value="{{ value }}" {% if value==tab.context.default_role %}selected{% endif %}>
+      {{ label }}
+    </option>
+  {% endfor %}
+{% endset %}
 
 <div class="govuk-width-container">
 
   <h1 class="govuk-heading-l">Manage Teams</h1>
+  {% include "document-help-text.html" %}
 
   {% if request.user.is_superuser %}
+  <h2 class="govuk-heading-m">Send Team Addition Email</h2>
+  <div class="send-team-addition-email-section govuk-!-margin-bottom-5">
     <form method='post' action="/send-team-addition-email/">
-      <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-
       <div class="govuk-form-group">
-        <label class="govuk-label" for="user-id">User ID</label>
-        <input class="govuk-input govuk-!-width-two-thirds" type="text" name="user-id" id="user-id" value="{{ request.user.id }}">
-        <label class="govuk-label" for="user-id">Team ID</label>
-        <input class="govuk-input govuk-!-width-two-thirds" type="text" name="team-id" id="team-id">
+        {% call(user) adaptive_select(tab.context.users, "user-id", id="user-id", label="User", threshold=10) %}
+          <option value="{{ user.pk }}"data-name="{{ user.name }}">{{ user.email }}</option>
+        {% endcall %}
       </div>
-      {{ govukButton(text="Send Team Addition Email") }}
+      <div class="govuk-form-group">
+        {% call(team) adaptive_select(tab.context.user_teams, "team-id", id="team-id", label="Team") %}
+          <option value="{{ team.team.id }}">{{ team.team.team_name }}</option>
+        {% endcall %}
+      </div>
+      {{ govukButton(text="Send Email") }}
     </form>
+  </div>
   {% endif %}
+  <div class="create-team-section govuk-!-margin-bottom-5">
+    <h2 class="govuk-heading-m">Create a Team</h2>
+    <form method='post'>
+      <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+      <div class="govuk-form-group">
+        <label class="govuk-label" for="team-name">Name</label>
+        <input class="govuk-input govuk-!-width-two-thirds" type="text" name="name" id="team-name" value="">
+        <label class="govuk-label" for="team-directorate">Directorate</label>
+        <input class="govuk-input govuk-!-width-two-thirds" type="text" name="directorate" id="team-directorate" value="">
+      </div>
+      {{ govukButton(text="Create Team") }}
+      <input type="hidden" name="active_tab" value="{{ tab.id }}">
+    </form>
+  </div>
 
+  <h2 class="govuk-heading-m">Your teams</h2>
+  <div class="govuk-accordion" data-module="govuk-accordion" id="accordion-default">
+    {% for team in tab.context.user_teams %}
+      <div class="govuk-accordion__section {% if loop.last and messages %}govuk-accordion__section--expanded{% endif %}" id="team-section-{{ team.team.id }}">
+        <div class="govuk-accordion__section-header">
+          <h2 class="govuk-accordion__section-heading">
+            <span class="govuk-accordion__section-button govuk-!-font-size-19" id="accordion-default-heading-1">
+              {{ team.team.team_name }}
+            </span>
+          </h2>
+        </div>
+        <div id="accordion-default-content-1" class="govuk-accordion__section-content">
+          <table class="govuk-table">
+            <input type="hidden" name="team_id" value="{{ team.team.id }}">
+            <caption class="govuk-table__caption govuk-table__caption--m">
+              {{ team.team.team_name }}
+              <button class="icon-button"
+                      type="button"
+                      hx-delete="{{ url('delete-team', team.team.id) }}"
+                      hx-target="#team-section-{{ team.team.id }}"
+                      hx-swap="delete">
+              {% include 'rbds/icons/delete.html' %}
+          </button>
+            </caption>
+            <thead class="govuk-table__head">
+              <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">Name</th>
+                <th scope="col" class="govuk-table__header" >Email</th>
+                <th scope="col" class="govuk-table__header" id="role-header">Role</th>
+                <th scope="col" class="govuk-table__header"></th>
+              </tr>
+            </thead>
+            <tbody id="team-members-tbody-{{ team.team.id }}" class="govuk-table__body">
+              {% for member in team.team.get_members() %}
+                {% with role_choices=tab.context.role_choices %}
+                  {% include 'settings/team-member-row.html' %}
+                {% endwith %}
+              {% endfor %}
+            </tbody>
+          </table>
+          <h2 class="govuk-heading-m">Add a user</h2>
+          <form method='post' action="/team/{{ team.team.id }}/add-member/?next=/settings/#manage-teams">
+            <div class="govuk-form-group">
+              {% call(user) adaptive_select(team.team.eligible_users(), "user-id", id="team-user-select-" ~ team.team.id, label="User") %}
+                <option value="{{ user.pk }}"data-name="{{ user.name }}">{{ user.email }}</option>
+              {% endcall %}
+            </div>
+            <div class="govuk-form-group">
+              {{ select_input("role-type", id="team-role-type-" ~ team.team.id, label="Role Type", options=role_choice_options) }}
+            </div>
+            {{ govukButton(text="Add", prevent_double_click=True) }}
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
 </div>

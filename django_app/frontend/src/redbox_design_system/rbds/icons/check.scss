@@ -1,0 +1,12 @@
+.check-icon {
+  --check-icon-foreground-color: var(--color-icon-light-foreground);
+
+  &.hover {
+    &:hover {
+      --check-icon-foreground-color: var(--color-icon-light-foreground-hover);
+    }
+  }
+
+  fill: var(--check-icon-foreground-color);
+
+}

@@ -200,9 +200,11 @@ CSP_SCRIPT_SRC = (
     "'sha256-qmCu1kQifDfCnUd+L49nusp7+PeRl23639pzN5QF2WA='",
     "'sha256-1NTuHcjvzzB6D69Pb9lbxI5pMJNybP/SwBliv3OvOOE='",
     "'sha256-DrkvIvFj5cNADO03twE83GwgAKgP224E5UyyxXFfvTc='",
+    "'sha256-6BIGXagXVUHOQ8pw9flNwo/urWufeay+hbx+Q+U6/DM='",  # pragma: allowlist secret
     "https://*.googletagmanager.com",
     "https://tagmanager.google.com/",
     "https://www.googletagmanager.com/",
+    "https://www.google-analytics.com/",
     "ajax.googleapis.com/",
     "sha256-T/1K73p+yppfXXw/AfMZXDh5VRDNaoEh3enEGFmZp8M=",
 )

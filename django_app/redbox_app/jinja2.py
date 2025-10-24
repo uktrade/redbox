@@ -5,6 +5,7 @@ import humanize
 import jinja2
 import pytz
 from django.conf import settings
+from django.contrib import messages
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.timezone import template_localtime
@@ -107,6 +108,7 @@ def environment(**options):
             "google_analytics_tag": settings.GOOGLE_ANALYTICS_TAG,
             "google_analytics_link": settings.GOOGLE_ANALYTICS_LINK,
             "google_analytics_iframe_src": settings.GOOGLE_ANALYTICS_IFRAME_SRC,
+            "get_messages": messages.get_messages,
         }
     )
     return env

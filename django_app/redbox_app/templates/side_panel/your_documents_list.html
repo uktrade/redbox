@@ -18,7 +18,12 @@
                         <input class="govuk-checkboxes__input" id="file-{{ file.id }}" name="file-{{ file.id }}" type="checkbox"
                             value="{{ file.id }}" {% if file.selected %}checked{% endif %}>
                         <label class="item-checkbox-label govuk-checkboxes__label title-text" for="file-{{ file.id }}"
-                            title="{{ file.file_name }}">{{ file.file_name }}</label>
+                            title="{{ file.file_name }}">
+                            {{ file.file_name }}
+                            {% if request.user.is_superuser and file.team_associations.exists() and file.team_associations.first.visibility == 'TEAM' %}
+                                (Shared with {{ file.team_associations.first().team.team_name }})
+                            {% endif %}
+                        </label>
                     </div>
                     <div class="item-text-input govuk-!-display-none edit-input-wrapper">
                         <label class="govuk-visually-hidden" for="item-title-text-input-{{ file.id }}">Document name</label>
@@ -43,7 +48,6 @@
                                                 "active_chat_id": "{{ chat_id }}",
                                                 "file_selected": "{{ file.selected }}"
                                             }'
-                                            hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
                                             hx-target="#document-selector"
                                             hx-swap="outerHTML">
                                         Yes delete
@@ -65,8 +69,12 @@
                 <div class="govuk-checkboxes__item">
                     <input class="govuk-checkboxes__input" id="file-{{ file.id }}" name="file-{{ file.id }}"
                         type="checkbox" value="{{ file.id }}" {% if file.selected %}checked{% endif %}>
-                    <label class="item-checkbox-label govuk-checkboxes__label" for="file-{{ file.id }}">{{
-                        file.file_name }}</label>
+                    <label class="item-checkbox-label govuk-checkboxes__label" for="file-{{ file.id }}">
+                        {{ file.file_name }}
+                        {% if request.user.is_superuser and file.team_associations.exists() %}
+                            (Shared with {{ file.team_associations.first().team.team_name }})
+                        {% endif %}
+                    </label>
                     <file-status data-id="{{ file.id }}"></file-status>
                 </div>
                 {% endfor %}

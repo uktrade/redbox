@@ -23,6 +23,7 @@ from redbox_app.redbox_core.models import (
     ChatMessageTokenUse,
     Citation,
     File,
+    Team,
 )
 
 User = get_user_model()
@@ -340,3 +341,8 @@ def _ensure_default_ai_settings(db):  # noqa: ARG001
         id=DEFAULT_AISETTINGS_ID,
         defaults={"label": "default", "chat_backend": backend},
     )
+
+
+@pytest.fixture()
+def redbox_team() -> Team:
+    return Team.objects.create(team_name="Redbox Team", directorate="DDaT")

@@ -21,6 +21,26 @@
   appearance: none;
 }
 
+.govuk-button {
+  color:unset;
+  border-radius: unset;
+  border-color: unset;
+  border: revert;
+}
+
+.govuk-button--secondary {
+  box-shadow: 0 2px 0 #929191;
+  font-weight: revert;
+  font-size: 1rem;
+  min-height: revert;
+}
+
+.govuk-button--secondary:hover,
+.govuk-button--secondary:link,
+.govuk-button--secondary:visited {
+  color: #0b0c0c
+}
+
 @media (min-width:40.0625em) {
   .govuk-buttonx {
     // margin-bottom: 40px;

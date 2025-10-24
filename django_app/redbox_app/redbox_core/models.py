@@ -6,7 +6,7 @@ import uuid
 from collections.abc import Collection, Sequence
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
-from typing import override
+from typing import Optional, override
 
 import jwt
 from django.conf import settings
@@ -537,6 +537,18 @@ class Team(UUIDPrimaryKeyBase):
         return UserTeamMembership.objects.filter(
             user=user, team=self, role_type=UserTeamMembership.RoleType.ADMIN
         ).exists()
+
+    def get_members(self):
+        return self.members.select_related("user")
+
+    def eligible_users(self):
+        member_ids = list(self.members.values_list("user_id", flat=True))
+        return User.objects.exclude(id__in=member_ids)
+
+    def add_member(self, user: User, role_type: Optional["UserTeamMembership.RoleType"] = None):
+        member = UserTeamMembership(user=user, team=self, role_type=role_type or UserTeamMembership.RoleType.MEMBER)
+        member.save()
+        return member
 
 
 class UserTeamMembership(models.Model):

@@ -1,0 +1,12 @@
+.close-icon {
+  --close-icon-foreground-color: var(--color-icon-light-foreground);
+
+  &.hover {
+    &:hover {
+      --close-icon-foreground-color: var(--color-icon-light-foreground-hover);
+    }
+  }
+
+  fill: var(--close-icon-foreground-color);
+
+}

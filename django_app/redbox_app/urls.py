@@ -71,6 +71,16 @@ notification_urlpatterns = [
     path("send-team-addition-email/", views.send_team_addition_email_view, name="send-team-addition-email"),
 ]
 
+team_urlpatterns = [
+    path("team/<uuid:team_id>/add-member-row/<uuid:user_id>/", views.add_team_member_row_view, name="add-member-row"),
+    path("team/edit-member-row/<member_id>/", views.edit_team_member_row_view, name="edit-member-row"),
+    path("team/delete-member/<member_id>/", views.delete_team_member_row_view, name="delete-member"),
+    path("team/<uuid:team_id>/add-member/", views.add_team_member_view, name="add-member"),
+    path("team/edit-member/<member_id>/", views.edit_team_member_view, name="edit-member"),
+    path("team/<uuid:team_id>/delete-team/", views.delete_team_view, name="delete-team"),
+    path("team/create-team/", views.create_team_view, name="create-team"),
+]
+
 admin_urlpatterns = [
     path("admin/report/", include("django_plotly_dash.urls")),
     path("admin/", admin.site.urls),
@@ -108,6 +118,7 @@ urlpatterns = (
     + chat_urlpatterns
     + document_urlpatterns
     + notification_urlpatterns
+    + team_urlpatterns
     + admin_urlpatterns
     + api_url_patterns
 )
