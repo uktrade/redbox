@@ -30,10 +30,10 @@ def web_search_notification(sender, instance, created, **kwargs):  # noqa: ARG00
         if count_today > settings.WEB_SEARCH_API_LIMIT:
             logger.info("Sending email to admin..")
             notifications_service.send_email(
-                recipient=settings.ADMIN_EMAIL,
+                recipient_email=settings.ADMIN_EMAIL,
                 subject="Calls exceeded etc...",
                 body=f"Current API count: {count_today} exceeds "
-                "the daily limit of {settings.WEB_SEARCH_API_LIMIT} per day.",
+                f"the daily limit of {settings.WEB_SEARCH_API_LIMIT} per day.",
                 reference="web_search_api",
                 check_if_sent=True,
             )
