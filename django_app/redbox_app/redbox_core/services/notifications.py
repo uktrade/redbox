@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from django.conf import settings
@@ -39,7 +40,9 @@ def send_team_addition_email(admin: User | UUID, user: User | UUID, team: Team |
     return response
 
 
-def send_email(recipient_email: str, subject: str, body: str, reference: None, check_if_sent=False):
+def send_email(
+    recipient_email: str, subject: str, body: str, reference: Any | None = None, check_if_sent: bool = False
+):
     if check_if_sent:
         notifications_client = NotificationsAPIClient(settings.GOVUK_NOTIFY_API_KEY)
         notifications = notifications_client.get_all_notifications(
