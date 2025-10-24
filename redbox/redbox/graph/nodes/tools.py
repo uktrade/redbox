@@ -1,12 +1,14 @@
 import json
 import logging
 import random
+import sqlite3
 import time
 from typing import Annotated, Iterable, Union
 
 import boto3
 import numpy as np
 import requests
+from django.conf import settings
 from elasticsearch import Elasticsearch
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_core.documents import Document
@@ -16,6 +18,7 @@ from langchain_core.tools import Tool, tool
 from langgraph.prebuilt import InjectedState
 from mohawk import Sender
 from opensearchpy import OpenSearch
+from redbox_app.redbox_core.services import notifications as notifications_service
 from sklearn.metrics.pairwise import cosine_similarity
 from waffle.decorators import waffle_flag
 
@@ -27,7 +30,6 @@ from redbox.models.settings import get_settings
 from redbox.retriever.queries import add_document_filter_scores_to_query, build_document_query
 from redbox.retriever.retrievers import query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
-import sqlite3
 
 log = logging.getLogger(__name__)
 
@@ -435,10 +437,22 @@ def kagi_search_call(query: str, no_search_result: int = 20) -> tool:
 
     response = web_search_with_retry(query=query, no_search_result=no_search_result)
     if response.status_code == 200:
+        # check if credit is low
+        api_credit = response.json()["meta"]["api_balance"]
+        if api_credit <= settings.WEB_SEARCH_CREDIT_LIMIT:
+            notifications_service.send_email(
+                recipient_email=settings.ADMIN_EMAIL,
+                subject="Web search API credit is low",
+                body=f"Current API credit: ${api_credit} is lower than"
+                f"the credit limit of {settings.WEB_SEARCH_CREDIT_LIMIT}.",
+                reference="web_search_credit",
+                check_if_sent=True,
+            )
+
         mapped_documents = []
         results = response.json().get("data", [])
         for i, doc in enumerate(results):
-            # extract only search results asper kagi documentation
+            # extract only search results as per kagi documentation
             if doc["t"] == 0:
                 page_content = "".join(doc.get("snippet", []))
                 token_count = tokeniser(page_content)
