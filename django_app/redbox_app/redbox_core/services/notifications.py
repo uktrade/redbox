@@ -70,3 +70,29 @@ def send_email(
     )
     logger.info("Email sent to %s", recipient_email)
     return response
+
+
+def send_low_credit_email(credit: int):
+    if credit <= settings.WEB_SEARCH_CREDIT_LIMIT:
+        logger.info("Sending credit notification email to admin..")
+        send_email(
+            recipient_email=settings.ADMIN_EMAIL,
+            subject="Web search API credit is low",
+            body=f"Current API credit: ${credit} is lower than"
+            f"the credit limit of {settings.WEB_SEARCH_CREDIT_LIMIT}.",
+            reference="web_search_credit",
+            check_if_sent=True,
+        )
+
+
+def send_api_limit_exceed_email(api_count: int):
+    if api_count > settings.WEB_SEARCH_API_LIMIT:
+        logger.info("Sending api limit notification email to admin..")
+        send_email(
+            recipient_email=settings.ADMIN_EMAIL,
+            subject="Web search API call exceeded limit",
+            body=f"Current API count: {api_count} exceeds "
+            f"the daily limit of {settings.WEB_SEARCH_API_LIMIT} per day.",
+            reference="web_search_api",
+            check_if_sent=True,
+        )

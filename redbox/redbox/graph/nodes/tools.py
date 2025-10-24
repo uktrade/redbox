@@ -8,7 +8,6 @@ from typing import Annotated, Iterable, Union
 import boto3
 import numpy as np
 import requests
-from django.conf import settings
 from elasticsearch import Elasticsearch
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_core.documents import Document
@@ -18,7 +17,7 @@ from langchain_core.tools import Tool, tool
 from langgraph.prebuilt import InjectedState
 from mohawk import Sender
 from opensearchpy import OpenSearch
-from redbox_app.redbox_core.services import notifications as notifications_service
+from redbox_app.redbox_core.services.notifications import send_low_credit_email
 from sklearn.metrics.pairwise import cosine_similarity
 from waffle.decorators import waffle_flag
 
@@ -438,16 +437,7 @@ def kagi_search_call(query: str, no_search_result: int = 20) -> tool:
     response = web_search_with_retry(query=query, no_search_result=no_search_result)
     if response.status_code == 200:
         # check if credit is low
-        api_credit = response.json()["meta"]["api_balance"]
-        if api_credit <= settings.WEB_SEARCH_CREDIT_LIMIT:
-            notifications_service.send_email(
-                recipient_email=settings.ADMIN_EMAIL,
-                subject="Web search API credit is low",
-                body=f"Current API credit: ${api_credit} is lower than"
-                f"the credit limit of {settings.WEB_SEARCH_CREDIT_LIMIT}.",
-                reference="web_search_credit",
-                check_if_sent=True,
-            )
+        send_low_credit_email(credit=response.json()["meta"]["api_balance"])
 
         mapped_documents = []
         results = response.json().get("data", [])

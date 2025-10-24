@@ -1,15 +1,10 @@
-import logging
-
-from django.conf import settings
 from django.db.models import Sum
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 
 from redbox_app.redbox_core.models import MonitorWebSearchResults
-from redbox_app.redbox_core.services import notifications as notifications_service
-
-logger = logging.getLogger(__name__)
+from redbox_app.redbox_core.services.notifications import send_api_limit_exceed_email
 
 
 @receiver(post_save, sender=MonitorWebSearchResults)
@@ -26,13 +21,4 @@ def web_search_notification(sender, instance, created, **kwargs):  # noqa: ARG00
             ]
             or 0
         )
-        if count_today > settings.WEB_SEARCH_API_LIMIT:
-            logger.info("Sending email to admin..")
-            notifications_service.send_email(
-                recipient_email=settings.ADMIN_EMAIL,
-                subject="Web search API call exceeded limit",
-                body=f"Current API count: {count_today} exceeds "
-                f"the daily limit of {settings.WEB_SEARCH_API_LIMIT} per day.",
-                reference="web_search_api",
-                check_if_sent=True,
-            )
+        send_api_limit_exceed_email(api_count=count_today)
