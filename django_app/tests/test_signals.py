@@ -14,7 +14,7 @@ class TestWebSearchLimit:
     ):
         """Test that no email is sent when we're under the daily limit."""
         mock_send_email = mocker.patch(
-            "redbox_app.redbox_core.signals.notifications_service.send_email", return_value="email sent"
+            "redbox_app.redbox_core.services.notifications.send_email", return_value="email sent"
         )
         settings.WEB_SEARCH_API_LIMIT = 2
         # Create fewer records than the limit
@@ -37,7 +37,7 @@ class TestWebSearchLimit:
     def test_only_counts_today(self, chat_message: ChatMessage, mocker: MockerFixture):
         """Test that only today's records are counted toward the limit."""
         mock_send_email = mocker.patch(
-            "redbox_app.redbox_core.signals.notifications_service.send_email", return_value="email sent"
+            "redbox_app.redbox_core.services.notifications.send_email", return_value="email sent"
         )
         # Create a record with yesterday's date
         MonitorWebSearchResults.objects.create(

@@ -8,6 +8,7 @@ from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.messages import AIMessage
 from langgraph.prebuilt import ToolNode
 from opensearchpy import OpenSearch
+from pytest_mock import MockerFixture
 
 from redbox.api.format import reduce_chunks_by_tokens
 from redbox.graph.nodes.tools import (
@@ -233,7 +234,13 @@ def test_web_search_rate_limit(**kwargs):
         env.web_search_settings().end_point,
         [
             {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "1"}},
-            {"status_code": 200, "json": {"data": [{"t": 0, "snippet": "fake doc", "url": "http://fake.com"}]}},
+            {
+                "status_code": 200,
+                "json": {
+                    "meta": {"id": "1", "node": "abc", "ms": 1, "api_balance": 120.3},
+                    "data": [{"t": 0, "snippet": "fake doc", "url": "http://fake.com"}],
+                },
+            },
         ],
     )
 
@@ -391,6 +398,38 @@ def test_reduce_chunks_by_tokens_append():
     assert result[0] == chunks[0]
     assert result[1] == chunks[1]
     assert result[2] == new_chunk
+
+
+@requests_mock.Mocker(
+    kw="mock",
+)
+def test_web_search_credit_low(mocker: MockerFixture, **kwargs):
+    mock_email = mocker.patch("redbox_app.redbox_core.services.notifications.send_email", return_value="email sent")
+    env = get_settings()
+    kwargs["mock"].get(
+        env.web_search_settings().end_point,
+        [
+            {
+                "status_code": 200,
+                "json": {
+                    "meta": {"id": "1", "node": "abc", "ms": 1, "api_balance": 120},
+                    "data": [{"t": 0, "snippet": "fake doc", "url": "http://fake.com"}],
+                },
+            },
+            {
+                "status_code": 200,
+                "json": {
+                    "meta": {"id": "1", "node": "abc", "ms": 1, "api_balance": 5.0},
+                    "data": [{"t": 0, "snippet": "fake doc", "url": "http://fake.com"}],
+                },
+            },
+        ],
+    )
+
+    _ = kagi_search_call(query="what is AI?")
+    _ = kagi_search_call(query="What is Python?")
+
+    mock_email.assert_called_once()
 
 
 def test_reduce_chunks_by_tokens_exact_boundary():

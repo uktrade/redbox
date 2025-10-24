@@ -1,6 +1,7 @@
 import json
 import logging
 import random
+import sqlite3
 import time
 from typing import Annotated, Iterable, Union
 
@@ -27,7 +28,6 @@ from redbox.models.settings import get_settings
 from redbox.retriever.queries import add_document_filter_scores_to_query, build_document_query
 from redbox.retriever.retrievers import query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
-import sqlite3
 
 log = logging.getLogger(__name__)
 
@@ -435,10 +435,15 @@ def kagi_search_call(query: str, no_search_result: int = 20) -> tool:
 
     response = web_search_with_retry(query=query, no_search_result=no_search_result)
     if response.status_code == 200:
+        # check if credit is low
+        from redbox_app.redbox_core.services.notifications import send_low_credit_email
+
+        send_low_credit_email(credit=response.json()["meta"]["api_balance"])
+
         mapped_documents = []
         results = response.json().get("data", [])
         for i, doc in enumerate(results):
-            # extract only search results asper kagi documentation
+            # extract only search results as per kagi documentation
             if doc["t"] == 0:
                 page_content = "".join(doc.get("snippet", []))
                 token_count = tokeniser(page_content)
