@@ -185,7 +185,10 @@ WORKER_RESPONSE = AIMessage(
         "tool_calls": [
             {
                 "id": "call_e4003b",
-                "function": {"arguments": '{\n  "query": "ai"\n}', "name": "_some_tool"},
+                "function": {
+                    "arguments": '{\n  "query": "ai"\n, \n  "sql_query": "SELECT 1;"\n}',
+                    "name": "_some_tool",
+                },
                 "type": "function",
             }
         ]
