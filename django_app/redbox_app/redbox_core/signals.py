@@ -18,7 +18,6 @@ def web_search_notification(sender, instance, created, **kwargs):  # noqa: ARG00
     Runs automatically after an Web Search API call is saved.
     Only triggers when the no. of daily call exceed limit.
     """
-    logger.info("Checking Kagi credit")
     if created:  # Only check on creation, not updates
         today = timezone.now().date()
         count_today = (
