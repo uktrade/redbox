@@ -339,7 +339,7 @@ def basic_chat_chain(
                     raise fallback_e from e
             else:
                 raise e
-            
+
         except (TimeoutError, ConnectionError, EndpointConnectionError, ConnectTimeoutError, ReadTimeoutError) as e:
             log.warning(
                 "Connection issue (%s) with %s. Falling back to %s",
