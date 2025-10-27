@@ -31,8 +31,15 @@ from redbox_app.redbox_core.views.file_views import (
     file_status_api_view,
 )
 from redbox_app.redbox_core.views.info_views import accessibility_statement_view, privacy_notice_view, support_view
-from redbox_app.redbox_core.views.misc_views import SecurityTxtRedirectView, faq_view, health, homepage_view
+from redbox_app.redbox_core.views.misc_views import (
+    SecurityTxtRedirectView,
+    faq_view,
+    health,
+    homepage_view,
+)
+from redbox_app.redbox_core.views.notification_views import send_team_addition_email_view
 from redbox_app.redbox_core.views.ratings_views import RatingsView
+from redbox_app.redbox_core.views.settings_views import SettingsView
 from redbox_app.redbox_core.views.signup_views import Signup1, Signup2, Signup3, Signup4, Signup5, Signup6, Signup7
 
 __all__ = [
@@ -79,4 +86,6 @@ __all__ = [
     "message_view_pre_alpha",
     "aws_credentials_api",
     "faq_view",
+    "send_team_addition_email_view",
+    "SettingsView",
 ]

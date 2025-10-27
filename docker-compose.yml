@@ -1,14 +1,17 @@
 services:
   unstructured:
     image: quay.io/unstructured-io/unstructured-api:latest
-    #image: unstructured:latest  #- TODO - separate this commented into a buildx ccommand somewhere
-    #build:
-      #context: .
-      #dockerfile: unstructured/Dockerfile
     ports:
       - 8000:8000
     networks:
       - redbox-app-network
+    mem_limit: 6g        
+    cpus: 2
+    environment:
+      - UNSTRUCTURED_MAX_WORKERS=2
+      - UNSTRUCTURED_TEMP_DIR=/tmp/unstructured_temp
+    volumes:
+      - ./unstructured_temp:/tmp/unstructured_temp
   django-app:
     image: django-app:latest
     build:
@@ -46,7 +49,7 @@ services:
       start_period: 60s
 
   db:
-    image: postgres:13
+    image: postgres:14
     env_file:
       - path: tests/.env.integration
         required: false
@@ -122,7 +125,7 @@ services:
       start_period: 30s
 
   opensearch:
-    image: opensearchproject/opensearch:2.18.0
+    image: opensearchproject/opensearch:3
     environment:
       - discovery.type=single-node
       - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m

@@ -1,4 +1,7 @@
 import json
+import logging
+import random
+import time
 from typing import Annotated, Iterable, Union
 
 import boto3
@@ -24,6 +27,11 @@ from redbox.models.settings import get_settings
 from redbox.retriever.queries import add_document_filter_scores_to_query, build_document_query
 from redbox.retriever.retrievers import query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
+import sqlite3
+
+log = logging.getLogger(__name__)
+
+log = logging.getLogger(__name__)
 
 
 def build_search_documents_tool(
@@ -402,18 +410,30 @@ def get_log_formatter_for_retrieval_tool(t: ToolCall) -> BaseRetrievalToolLogFor
     return __RETRIEVEAL_TOOL_MESSAGE_FORMATTERS.get(t["name"], BaseRetrievalToolLogFormatter)(t)
 
 
+def web_search_with_retry(query: str, no_search_result: int = 20, max_retries: int = 3):
+    web_search_settings = get_settings().web_search_settings()
+    for attempt in range(max_retries):
+        response = requests.get(
+            web_search_settings.end_point,
+            headers=web_search_settings.secret_tokens,
+            params={
+                "q": query,
+                "limit": str(no_search_result),
+            },
+        )
+        if response.status_code == 429:
+            if attempt < max_retries - 1:
+                # Exponential backoff with jitter
+                delay = (2**attempt) + random.uniform(0, 1)
+                time.sleep(delay)
+        else:
+            return response
+
+
 def kagi_search_call(query: str, no_search_result: int = 20) -> tool:
     tokeniser = bedrock_tokeniser
-    web_search_settings = get_settings().web_search_settings()
-    response = requests.get(
-        web_search_settings.end_point,
-        headers=web_search_settings.secret_tokens,
-        params={
-            "q": query,
-            "limit": str(no_search_result),
-        },
-    )
 
+    response = web_search_with_retry(query=query, no_search_result=no_search_result)
     if response.status_code == 200:
         mapped_documents = []
         results = response.json().get("data", [])
@@ -435,10 +455,10 @@ def kagi_search_call(query: str, no_search_result: int = 20) -> tool:
                     )
                 )
             docs = mapped_documents
+        return format_documents(docs), docs
     else:
-        print(f"Status returned: {response.status_code}")
+        log.exception(f"Web search api call failed. Status: {response.status_code}")
         return "", []
-    return format_documents(docs), docs
 
 
 def build_web_search_tool():
@@ -481,3 +501,35 @@ def build_legislation_search_tool():
         return kagi_search_call(query=query + " site:legislation.gov.uk")
 
     return _search_legislation
+
+
+def execute_sql_query():
+    @tool(response_format="content")
+    def _execute_sql_query(sql_query: str, is_intermediate_step: bool, state: Annotated[RedboxState, InjectedState]):
+        """
+        SQL verification tool is a versatile tool that executes SQL queries against a SQLite database.
+        Args:
+            sql_query (str): The sql query to be executed against the SQLite database.
+            is_intermediate_step (bool): True if your sql query is an intermediate step to allow you to gather information about the database before making the final sql query. False if your sql query would retrieve the relevant information to answer the user question.
+        Returns:
+            results of the sql query execution if it is successful or an error message if the sql query execution failed
+        """
+        # execute tabular agent SQL
+        conn = sqlite3.connect(state.request.db_location)
+        cursor = conn.cursor()
+        try:
+            cursor.execute(sql_query)
+            results = str(cursor.fetchall())
+            conn.close()
+            if results not in ["", "None", "[]"]:
+                return (str(results), "pass", str(is_intermediate_step))
+            else:
+                error_message = "empty result set. Verify your query."
+                return (error_message, "fail", str(is_intermediate_step))
+        except Exception as e:
+            error_message = (
+                f"The SQL query syntax is wrong. Here is the error message: {e}.  Please correct your SQL query."
+            )
+            return (error_message, "fail", str(is_intermediate_step))
+
+    return _execute_sql_query

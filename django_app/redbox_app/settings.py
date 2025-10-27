@@ -1,6 +1,7 @@
 # mypy: ignore-errors
 import logging
 import os
+import re
 import socket
 from pathlib import Path
 from urllib.parse import urlparse
@@ -34,7 +35,6 @@ SECRET_KEY = env.str("DJANGO_SECRET_KEY")
 ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
 WEBSOCKET_SCHEME = "ws" if ENVIRONMENT.is_test else "wss"
 LOGIN_METHOD = env.str("LOGIN_METHOD", None)
-USE_CLAM_AV = env.bool("USE_CLAM_AV")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG")
@@ -76,14 +76,7 @@ INSTALLED_APPS = [
     "django_plotly_dash.apps.DjangoPlotlyDashConfig",
     "adminplus",
     "waffle",
-    "django_chunk_upload_handlers",
 ]
-
-if USE_CLAM_AV:
-    FILE_UPLOAD_HANDLERS = (
-        "django_chunk_upload_handlers.clam_av.ClamAVFileUploadHandler",
-        "django_chunk_upload_handlers.s3.S3FileUploadHandler",
-    )
 
 if LOGIN_METHOD == "sso":
     INSTALLED_APPS.append("authbroker_client")
@@ -371,14 +364,15 @@ LOGGING = {
         },
     },
     "filters": {
-        "exclude_s3_urls": {
+        "exclude_s3_urls_and_emails": {
             "": "django.utils.log.CallbackFilter",
-            "callback": lambda record: all(
-                header not in record.getMessage()
-                for header in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Security-Token"]
+            "callback": lambda record: (
+                all(
+                    header not in record.getMessage()
+                    for header in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Security-Token"]
+                )
+                and not re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", record.getMessage())
             )
-            if hasattr(record, "getMessage")
-            else True
             if hasattr(record, "getMessage")
             else True,
         },
@@ -388,7 +382,7 @@ LOGGING = {
             "level": LOG_LEVEL,
             "class": "logging.StreamHandler",
             "formatter": LOG_FORMAT,
-            "filters": ["exclude_s3_urls"],
+            "filters": ["exclude_s3_urls_and_emails"],
         },
         "asim": {
             "level": "ERROR",
@@ -433,11 +427,15 @@ elif EMAIL_BACKEND_TYPE == "CONSOLE":
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 elif EMAIL_BACKEND_TYPE == "GOVUKNOTIFY":
     EMAIL_BACKEND = "django_gov_notify.backends.NotifyEmailBackend"
-    GOVUK_NOTIFY_API_KEY = env.str("GOVUK_NOTIFY_API_KEY")
-    GOVUK_NOTIFY_PLAIN_EMAIL_TEMPLATE_ID = env.str("GOVUK_NOTIFY_PLAIN_EMAIL_TEMPLATE_ID")
+
 else:
     message = f"Unknown EMAIL_BACKEND_TYPE of {EMAIL_BACKEND_TYPE}"
     raise ValueError(message)
+
+# Notifications
+GOVUK_NOTIFY_API_KEY = env.str("GOVUK_NOTIFY_API_KEY", None)
+GOVUK_NOTIFY_PLAIN_EMAIL_TEMPLATE_ID = env.str("GOVUK_NOTIFY_PLAIN_EMAIL_TEMPLATE_ID", None)
+GOVUK_NOTIFY_TEAM_ADDITION_EMAIL_TEMPLATE_ID = env.str("GOVUK_NOTIFY_TEAM_ADDITION_EMAIL_TEMPLATE_ID", None)
 
 # Magic link
 
@@ -496,9 +494,6 @@ REDBOX_API_KEY = env.str("REDBOX_API_KEY")
 
 ENABLE_METADATA_EXTRACTION = env.str("ENABLE_METADATA_EXTRACTION")
 
-CLAM_AV_USERNAME = env.str("CLAM_AV_USERNAME", " ")
-CLAM_AV_PASSWORD = env.str("CLAM_AV_PASSWORD", " ")
-CLAM_AV_DOMAIN = env.str("CLAM_AV_DOMAIN", " ")
 CHUNK_UPLOADER_AWS_REGION = env.str("AWS_REGION", " ")
 
 AWS_TRANSCRIBE_ROLE_ARN = env.str("AWS_TRANSCRIBE_ROLE_ARN", "")
@@ -510,3 +505,7 @@ DATAHUB_REDBOX_ACCESS_KEY_ID = env.str("DATAHUB_REDBOX_ACCESS_KEY_ID", "")
 EMBEDDING_BACKEND = env.str("EMBEDDING_BACKEND", "amazon.titan-embed-text-v2:0")
 
 DEFAULT_MODEL_ID = env.str("DEFAULT_MODEL_ID", "anthropic.claude-3-sonnet-20240229-v1:0")
+
+WEB_SEARCH_API_LIMIT = env.int("WEB_SEARCH_API_LIMIT", 100)
+
+ADMIN_EMAIL = env.str("ADMIN_EMAIL", "")
