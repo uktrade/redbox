@@ -33,13 +33,13 @@ load_dotenv()
 def get_chat_llm(
     model: ChatLLMBackend, ai_settings: AISettings = AISettings(), tools: list[StructuredTool] | None = None
 ):
-    logger.debug(
-        "initialising model=%s model_provider=%s tools=%s max_tokens=%s",
-        model.name,
-        model.provider,
-        tools,
-        ai_settings.llm_max_tokens,
-    )
+    # logger.debug(
+    #     "initialising model=%s model_provider=%s tools=%s max_tokens=%s",
+    #     model.name,
+    #     model.provider,
+    #     tools,
+    #     ai_settings.llm_max_tokens,
+    # )
 
     kwargs = {}
     if model.name.startswith("arn"):

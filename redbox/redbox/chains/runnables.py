@@ -319,16 +319,16 @@ def basic_chat_chain(
         except ClientError as e:
             if e.response["Error"]["Code"] == "ServiceUnavailableException":
                 # Fallback to alternative model
-                log.warning(
-                    "ServiceUnavailableException encountered with %s. Falling back to %s",
-                    current_backend.name,
-                    fallback_backend.name,
-                )
+                # log.warning(
+                #     "ServiceUnavailableException encountered with %s. Falling back to %s",
+                #     current_backend.name,
+                #     fallback_backend.name,
+                # )
                 try:
                     chain_fallback, context_fallback = build_chain(fallback_backend)
                     return chain_fallback.invoke(context_fallback)
                 except Exception as fallback_e:
-                    log.error("Fallback invocation also failed: %s", fallback_e)
+                    # log.error("Fallback invocation also failed: %s", fallback_e)
                     raise fallback_e from e
             else:
                 raise e
