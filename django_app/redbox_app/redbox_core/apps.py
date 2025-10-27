@@ -13,6 +13,8 @@ class RedboxCoreConfig(AppConfig):
     name = "redbox_app.redbox_core"
 
     def ready(self):
+        from redbox_app.redbox_core import signals  # noqa: F401
+
         try:
             from django.contrib.sites.models import Site
 

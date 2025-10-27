@@ -1,6 +1,7 @@
 # mypy: ignore-errors
 import logging
 import os
+import re
 import socket
 from pathlib import Path
 from urllib.parse import urlparse
@@ -365,14 +366,15 @@ LOGGING = {
         },
     },
     "filters": {
-        "exclude_s3_urls": {
+        "exclude_s3_urls_and_emails": {
             "": "django.utils.log.CallbackFilter",
-            "callback": lambda record: all(
-                header not in record.getMessage()
-                for header in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Security-Token"]
+            "callback": lambda record: (
+                all(
+                    header not in record.getMessage()
+                    for header in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Security-Token"]
+                )
+                and not re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", record.getMessage())
             )
-            if hasattr(record, "getMessage")
-            else True
             if hasattr(record, "getMessage")
             else True,
         },
@@ -382,7 +384,7 @@ LOGGING = {
             "level": LOG_LEVEL,
             "class": "logging.StreamHandler",
             "formatter": LOG_FORMAT,
-            "filters": ["exclude_s3_urls"],
+            "filters": ["exclude_s3_urls_and_emails"],
         },
         "asim": {
             "level": "ERROR",
@@ -505,3 +507,7 @@ DATAHUB_REDBOX_ACCESS_KEY_ID = env.str("DATAHUB_REDBOX_ACCESS_KEY_ID", "")
 EMBEDDING_BACKEND = env.str("EMBEDDING_BACKEND", "amazon.titan-embed-text-v2:0")
 
 DEFAULT_MODEL_ID = env.str("DEFAULT_MODEL_ID", "anthropic.claude-3-sonnet-20240229-v1:0")
+
+WEB_SEARCH_API_LIMIT = env.int("WEB_SEARCH_API_LIMIT", 100)
+
+ADMIN_EMAIL = env.str("ADMIN_EMAIL", "")
