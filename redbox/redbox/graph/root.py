@@ -33,17 +33,17 @@ from redbox.graph.nodes.processes import (
     build_stuff_pattern,
     build_user_feedback_evaluation,
     clear_documents_process,
-    combine_question_evaluator,
     create_evaluator,
     empty_process,
+    get_tabular_agent,
+    get_tabular_schema,
     invoke_custom_state,
     lm_choose_route,
     my_planner,
+    remove_evaluator_task,
     report_sources_process,
     stream_plan,
     stream_suggestion,
-    get_tabular_agent,
-    get_tabular_schema,
 )
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -717,9 +717,10 @@ def build_new_route_graph(
     )
 
     builder.add_node("user_feedback_evaluation", empty_process)
+    builder.add_node("all_tasks_completed", empty_process)
 
     builder.add_node("Evaluator_Agent", create_evaluator())
-    builder.add_node("combine_question_evaluator", combine_question_evaluator())
+    # builder.add_node("combine_question_evaluator", combine_question_evaluator())
     builder.add_node(
         "report_citations",
         report_sources_process,
@@ -727,6 +728,7 @@ def build_new_route_graph(
     )
     builder.add_node("stream_suggestion", stream_suggestion())
     builder.add_node("sending_task", empty_process)
+    builder.add_node("send_evaluator_task", remove_evaluator_task)
 
     builder.add_edge(START, "set_route_to_newroute")
     builder.add_edge("set_route_to_newroute", "remove_keyword")
@@ -737,22 +739,28 @@ def build_new_route_graph(
         "user_feedback_evaluation",
         build_user_feedback_evaluation(),
         {
-            "approve": "sending_task",
+            "approve": "send_evaluator_task",
             "modify": "planner",
             "reject": "stream_suggestion",
             "more_info": "stream_suggestion",
         },
     )
+
     builder.add_conditional_edges("sending_task", sending_task_to_agent)
     builder.add_edge("Tabular_Agent", "retrieve_tabular_documents")
     builder.add_edge("retrieve_tabular_documents", "retrieve_tabular_schema")
     builder.add_edge("retrieve_tabular_schema", "call_tabular_agent")
-    builder.add_edge("call_tabular_agent", "combine_question_evaluator")
-    builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
-    builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
-    builder.add_edge("Web_Search_Agent", "combine_question_evaluator")
-    builder.add_edge("Legislation_Search_Agent", "combine_question_evaluator")
-    builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
+    builder.add_edge("call_tabular_agent", "all_tasks_completed")
+
+    builder.add_edge("send_evaluator_task", "sending_task")
+    builder.add_conditional_edges(
+        "all_tasks_completed", lambda s: not s.agent_plans.tasks, {True: "Evaluator_Agent", False: "sending_task"}
+    )
+
+    builder.add_edge("Internal_Retrieval_Agent", "all_tasks_completed")
+    builder.add_edge("External_Retrieval_Agent", "all_tasks_completed")
+    builder.add_edge("Web_Search_Agent", "all_tasks_completed")
+    builder.add_edge("Legislation_Search_Agent", "all_tasks_completed")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
     builder.add_edge("stream_plan", END)

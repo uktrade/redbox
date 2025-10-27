@@ -1,12 +1,13 @@
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from unittest.mock import Mock
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage
 from pytest_mock import MockerFixture
 
 from redbox import Redbox
+from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models.chain import (
     AgentEnum,
     AgentTask,
@@ -20,7 +21,6 @@ from redbox.models.chain import (
     StructuredResponseWithCitations,
     metadata_reducer,
 )
-from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models.chat import ChatRoute
 from redbox.models.graph import RedboxActivityEvent
 from redbox.models.settings import Settings
@@ -35,7 +35,47 @@ from redbox.test.data import (
     mock_tabular_retriever,
 )
 
+## Data
 
+ANSWER_NO_CITATION = AIMessage(
+    content=StructuredResponseWithCitations(answer="AI is a lie", citations=[]).model_dump_json()
+)
+ANSWER_WITH_CITATION = AIMessage(
+    content=StructuredResponseWithCitations(
+        answer="AI is a lie",
+        citations=[
+            Citation(
+                text_in_answer="AI is a lie I made up",
+                sources=[
+                    Source(
+                        source="SomeAIGuy",
+                        document_name="http://localhost/someaiguy.html",
+                        highlighted_text_in_source="I lied about AI",
+                        page_numbers=[1],
+                    )
+                ],
+            )
+        ],
+    ).model_dump_json()
+)
+
+WORKER_RESPONSE = AIMessage(
+    content="I will be calling a tool",
+    additional_kwargs={
+        "tool_calls": [
+            {
+                "id": "call_e4003b",
+                "function": {"arguments": '{\n  "query": "ai"\n}', "name": "_some_tool"},
+                "type": "function",
+            }
+        ]
+    },
+)
+
+WORKER_TOOL_RESPONSE = AIMessage(content="this work is done by worker")
+
+
+## App functions
 def run_assertion(
     test_case,
     final_state: RedboxState,
@@ -312,9 +352,32 @@ class TestNewRoutes:
         )
         # mocking planner agent
         tasks = (
-            [AgentTask(task="This is a fake task", agent=agent, expected_output="This is a fake output")]
+            [
+                AgentTask(
+                    id="task1",
+                    task="This is a fake task",
+                    agent=agent,
+                    expected_output="This is a fake output",
+                    dependencies=[],
+                ),
+                AgentTask(
+                    id="task2",
+                    task="Produce final response",
+                    agent=AgentEnum.Evaluator_Agent,
+                    expected_output="Final response",
+                    dependencies=[],
+                ),
+            ]
             if has_task
-            else []
+            else [
+                AgentTask(
+                    id="task2",
+                    task="Produce final response",
+                    agent=AgentEnum.Evaluator_Agent,
+                    expected_output="Final response",
+                    dependencies=[],
+                )
+            ]
         )
         planner = (MultiAgentPlan(tasks=tasks)).model_dump_json()
         planner_response = GenericFakeChatModelWithTools(messages=iter([planner]))
@@ -375,8 +438,24 @@ class TestNewRoutes:
         # mocking planner agent with tasks
         tasks = []
         for i in range(len(agents)):
-            tasks += [AgentTask(task="This is a fake task", agent=agents[i], expected_output="This is a fake output")]
-
+            tasks += [
+                AgentTask(
+                    id=f"task{i}",
+                    task="This is a fake task",
+                    agent=agents[i],
+                    expected_output="This is a fake output",
+                    dependencies=[],
+                )
+            ]
+        tasks += [
+            AgentTask(
+                id="task_last",
+                task="Produce final response",
+                agent=AgentEnum.Evaluator_Agent,
+                expected_output="Final response",
+                dependencies=[],
+            )
+        ]
         planner = MultiAgentPlan(tasks=tasks)
         old_plan = []
         if "modify" in user_feedback:

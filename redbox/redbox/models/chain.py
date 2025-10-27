@@ -105,6 +105,7 @@ class AISettings(BaseModel):
         "Summarisation_Agent",
         "Tabular_Agent",
         "Web_Search_Agent",
+        "Evaluator_Agent",
         "Legislation_Search_Agent",
     ]
     agents_max_tokens: dict = {
@@ -314,16 +315,30 @@ AgentEnum = Enum("AgentEnum", agent_options)
 
 
 class AgentTask(BaseModel):
+    id: str = Field(description="Unique identifier for the task")
     task: str = Field(description="Task to be completed by the agent", default="")
     agent: AgentEnum = Field(
         description="Name of the agent to complete the task", default=AgentEnum.Internal_Retrieval_Agent
     )
     expected_output: str = Field(description="What this agent should produce", default="")
+    dependencies: List[str] = Field(
+        description="List of task IDs that must be complete before this task can run", default_factory=list
+    )
 
 
 class MultiAgentPlan(BaseModel):
     tasks: List[AgentTask] = Field(description="A list of tasks to be carried out by agents", default=[])
     model_config = {"extra": "forbid"}
+
+
+def agent_plans_reducer(current: MultiAgentPlan | None, update: MultiAgentPlan | None):
+    # If state is empty, return update
+    # If the plans are different, get the intersection
+    if current is None:
+        return update
+    current_tasks = set(x.id for x in current.tasks)
+    intersection = [item for item in update.tasks if item.id in current_tasks]
+    return MultiAgentPlan(tasks=intersection)
 
 
 class RedboxState(BaseModel):
@@ -336,7 +351,7 @@ class RedboxState(BaseModel):
     steps_left: Annotated[int | None, RemainingStepsManager] = None
     messages: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     agents_results: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
-    agent_plans: MultiAgentPlan | None = None
+    agent_plans: Annotated[MultiAgentPlan | None, agent_plans_reducer] = None
     tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     tabular_schema: str = ""
 

@@ -37,6 +37,7 @@ from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_me
 from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models import ChatRoute
 from redbox.models.chain import (
+    AgentEnum,
     AgentTask,
     DocumentState,
     FeedbackEvalDecision,
@@ -423,6 +424,14 @@ def create_planner(is_streamed=False):
         return _document_filenames | _create_planner
 
 
+def remove_evaluator_task(state: RedboxState):
+    if len(state.agent_plans.tasks) > 0:
+        if state.agent_plans.tasks[-1].agent == AgentEnum.Evaluator_Agent:
+            state.tasks_evaluator = state.agent_plans.tasks[-1].task + " " + state.agent_plans.tasks[-1].expected_output
+            state.agent_plans.tasks.pop(-1)
+    return state
+
+
 def my_planner(
     allow_plan_feedback=False,
     node_after_streamed: str = "human",
@@ -455,6 +464,8 @@ def my_planner(
             )
             res = orchestration_agent.invoke(state)
             state.agent_plans = res
+            # remove evaluator agent task
+            remove_evaluator_task(state)
             # reset user feedback
             state.user_feedback = ""
             return Command(update=state, goto=node_afer_replan)
@@ -464,23 +475,34 @@ def my_planner(
             res = orchestration_agent.invoke(state)
             state.agent_plans = res
 
-            # send task to worker agent if we have only 1 task
-            if len(state.agent_plans.tasks) > no_tasks_auto:
-                if allow_plan_feedback:
-                    # stream task
-                    return Command(update=state, goto=node_after_streamed)
-                else:
-                    return Command(update=state, goto=node_afer_replan)
-            # if there is no task, go to evaluator
-            elif len(state.agent_plans.tasks) == 0:
-                return Command(update=state, goto=node_for_no_task)
+            if res.tasks[-1].agent == AgentEnum.Evaluator_Agent:
+                # if there are 0 or 1 task
+                if len(res.tasks[:-1]) <= no_tasks_auto:
+                    remove_evaluator_task(state)
+                    if len(state.agent_plans.tasks) == 0:
+                        return Command(update=state, goto=node_for_no_task)
+                    else:
+                        return Command(update=state, goto=node_afer_replan)
+                else:  # there is more than 1 tasks
+                    if allow_plan_feedback:
+                        # stream task
+                        return Command(update=state, goto=node_after_streamed)
+                    else:
+                        remove_evaluator_task(state)
+                        return Command(update=state, goto=node_afer_replan)
             else:
-                return Command(update=state, goto=node_afer_replan)
+                log.error("The evaluator is not the last agent!")
+                return Command(update=state, goto=node_for_no_task)
 
     return _create_planner
 
 
 def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: bool = False, max_tokens: int = 5000):
+    def remove_task_dependecies(state: RedboxState, task_id: str):
+        for task in state.agent_plans.tasks:
+            if task_id in task.dependencies:
+                task.dependencies.remove(task_id)
+
     @RunnableLambda
     def _build_agent(state: RedboxState):
         parser = ClaudeParser(pydantic_object=AgentTask)
@@ -488,29 +510,41 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
             task = parser.parse(state.last_message.content)
         except Exception as e:
             print(f"Cannot parse in {agent_name}: {e}")
-        activity_node = build_activity_log_node(
-            RedboxActivityEvent(message=f"{agent_name} is completing task: {task.task}")
-        )
-        activity_node.invoke(state)
 
-        worker_agent = create_chain_agent(
-            system_prompt=system_prompt,
-            use_metadata=use_metadata,
-            parser=None,
-            tools=tools,
-            _additional_variables={"task": task.task, "expected_output": task.expected_output},
-        )
-        ai_msg = worker_agent.invoke(state)
-        result = run_tools_parallel(ai_msg, tools, state)
-        if type(result) is str:
-            result_content = result
-        elif type(result) is list:
-            result_content = "".join([res.content for res in result])
-        else:
-            log.error(f"Worker agent return incompatible data type {type(result)}")
-        # truncate results to max_token
-        result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
-        return {"agents_results": result, "tasks_evaluator": task.task + "\n" + task.expected_output}
+        # check if dependencies are met before running task
+        if not task.dependencies:
+            activity_node = build_activity_log_node(
+                RedboxActivityEvent(message=f"{agent_name} is completing task: {task.task}")
+            )
+            activity_node.invoke(state)
+
+            worker_agent = create_chain_agent(
+                system_prompt=system_prompt,
+                use_metadata=use_metadata,
+                parser=None,
+                tools=tools,
+                _additional_variables={
+                    "task": task.task,
+                    "expected_output": task.expected_output,
+                    "agents_results": state.agents_results,
+                },
+            )
+            ai_msg = worker_agent.invoke(state)
+            result = run_tools_parallel(ai_msg, tools, state)
+            if type(result) is str:
+                result_content = result
+            elif type(result) is list:
+                result_content = "".join([res.content for res in result])
+            else:
+                log.error(f"Worker agent return incompatible data type {type(result)}")
+            # truncate results to max_token
+            result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
+            # remove task and dependecies
+            state.agents_results = result
+            remove_task_dependecies(state=state, task_id=task.id)
+            if task in state.agent_plans.tasks:
+                state.agent_plans.tasks.remove(task)
+            return {"agents_results": result, "agent_plans": state.agent_plans}
 
     return _build_agent.with_retry(stop_after_attempt=3)
 
@@ -597,7 +631,8 @@ def stream_plan():
         prefix_texts, suffix_texts = get_plan_fix_prompts()
         dispatch_custom_event(RedboxEventType.response_tokens, data=f"{random.choice(prefix_texts)}\n\n")
         for i, t in enumerate(state.agent_plans.tasks):
-            dispatch_custom_event(RedboxEventType.response_tokens, data=f"{i+1}. {t.task}\n\n")
+            if t.agent != AgentEnum.Evaluator_Agent:
+                dispatch_custom_event(RedboxEventType.response_tokens, data=f"{i+1}. {t.task}\n\n")
         dispatch_custom_event(RedboxEventType.response_tokens, data=f"\n\n{random.choice(suffix_texts)}")
         return state
 
