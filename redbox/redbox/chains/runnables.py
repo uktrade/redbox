@@ -2,7 +2,7 @@ import logging
 import re
 from typing import Any, Callable, Iterable, Iterator
 
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, EndpointConnectionError, ConnectTimeoutError, ReadTimeoutError
 
 from langchain_core.callbacks.manager import CallbackManagerForLLMRun, dispatch_custom_event
 from langchain_core.language_models import BaseChatModel
@@ -275,9 +275,6 @@ class CannedChatLLM(BaseChatModel):
         return "canned"
 
 
-
-safe_log = logging.getLogger("redbox.safe")
-
 def basic_chat_chain(
     system_prompt, tools=None, _additional_variables: dict = {}, parser=None, using_only_structure=False
 ):
@@ -292,8 +289,13 @@ def basic_chat_chain(
             if tools:
                 llm = get_chat_llm(llm_backend, ai_settings=ai_settings, tools=tools)
             else:
-                llm = get_chat_llm(llm_backend, ai_settings=ai_settings)
-            context = {"question": state.request.question} | _additional_variables
+                llm = get_chat_llm(
+                    llm_backend,
+                    ai_settings=ai_settings,
+                )
+            context = {
+                "question": state.request.question,
+            } | _additional_variables
             if parser:
                 if isinstance(parser, StrOutputParser):
                     prompt = ChatPromptTemplate([(system_prompt)])
@@ -310,24 +312,43 @@ def basic_chat_chain(
                 prompt = ChatPromptTemplate([(system_prompt)])
                 return prompt | llm, context
 
+        # First attempt with current backend
         try:
             chain, context = build_chain(current_backend)
             return chain.invoke(context)
-
         except ClientError as e:
-            code = e.response.get("Error", {}).get("Code", "")
-            if code == "ServiceUnavailableException":
-                safe_log.warning(
-                    f"ServiceUnavailableException on {current_backend.name}, retrying with {fallback_backend.name}"
+            error_code = e.response["Error"].get("Code", "")
+            if error_code in (
+                "ServiceUnavailableException",
+                "ThrottlingException",
+                "RateLimitExceeded",
+                "TooManyRequestsException",
+            ):
+                # Fallback to alternative model
+                log.warning(
+                    "Rate/service limit (%s) encountered with %s. Falling back to %s",
+                    error_code,
+                    current_backend.name,
+                    fallback_backend.name,
                 )
                 try:
                     chain_fallback, context_fallback = build_chain(fallback_backend)
                     return chain_fallback.invoke(context_fallback)
                 except Exception as fallback_e:
-                    safe_log.error(f"Fallback also failed: {fallback_e}")
+                    log.error("Fallback invocation also failed: %s", fallback_e)
                     raise fallback_e from e
             else:
                 raise e
+            
+        except (TimeoutError, ConnectionError, EndpointConnectionError, ConnectTimeoutError, ReadTimeoutError) as e:
+            log.warning(
+                "Connection issue (%s) with %s. Falling back to %s",
+                str(e),
+                current_backend.name,
+                fallback_backend.name,
+            )
+            chain_fallback, context_fallback = build_chain(fallback_backend)
+            return chain_fallback.invoke(context_fallback)
 
     return _basic_chat_chain
 
