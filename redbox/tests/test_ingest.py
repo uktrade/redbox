@@ -42,6 +42,11 @@ import numpy as np
 fake_embedding = np.random.rand(1024).tolist()
 
 
+mock_workbook = Workbook()
+mock_workbook.create_sheet("Sheet1")
+mock_workbook.create_sheet("Sheet2")
+
+
 def file_to_s3(filename: str, s3_client: S3Client, env: Settings) -> str:
     file_path = Path(__file__).parents[2] / "tests" / "data" / filename
     file_name = file_path.name
@@ -557,8 +562,9 @@ def test_read_excel_file_multiple_sheets():
     sheet2 = pd.DataFrame({"Col3": [5, 6], "Col4": [7, 8]})
     mock_sheets = {"Sheet1": sheet1, "Sheet2": sheet2}
 
-    with patch("pandas.read_excel", return_value=mock_sheets) and patch(
-        "openpyxl.load_workbook", return_value=Workbook()
+    with (
+        patch("pandas.read_excel", return_value=mock_sheets),
+        patch("openpyxl.load_workbook", return_value=mock_workbook),
     ):
         file_bytes = BytesIO(b"mock excel content")
         result = read_excel_file(file_bytes)
@@ -574,8 +580,9 @@ def test_read_excel_file_empty_sheet():
     sheet2 = pd.DataFrame({"Col1": [1, 2], "Col2": [3, 4]})
     mock_sheets = {"Sheet1": sheet1, "Sheet2": sheet2}
 
-    with patch("pandas.read_excel", return_value=mock_sheets) and patch(
-        "openpyxl.load_workbook", return_value=Workbook()
+    with (
+        patch("pandas.read_excel", return_value=mock_sheets),
+        patch("openpyxl.load_workbook", return_value=mock_workbook),
     ):
         file_bytes = BytesIO(b"mock excel content")
         result = read_excel_file(file_bytes)
@@ -591,8 +598,9 @@ def test_read_excel_file_sheet_error():
     sheet2 = pd.DataFrame({"Col1": [1, 2], "Col2": [3, 4]})
     mock_sheets = {"Sheet1": sheet1, "Sheet2": sheet2}
 
-    with patch("pandas.read_excel", return_value=mock_sheets) and patch(
-        "openpyxl.load_workbook", return_value=Workbook()
+    with (
+        patch("pandas.read_excel", return_value=mock_sheets),
+        patch("openpyxl.load_workbook", return_value=mock_workbook),
     ):
         file_bytes = BytesIO(b"mock excel content")
         result = read_excel_file(file_bytes)
@@ -607,8 +615,9 @@ def test_read_excel_file_all_empty_sheets():
     sheet2 = pd.DataFrame
     mock_sheets = {"Sheet1": sheet1, "Sheet2": sheet2}
 
-    with patch("pandas.read_excel", return_value=mock_sheets) and patch(
-        "openpyxl.load_workbook", return_value=Workbook()
+    with (
+        patch("pandas.read_excel", return_value=mock_sheets),
+        patch("openpyxl.load_workbook", return_value=mock_workbook),
     ):
         file_bytes = BytesIO(b"mock excel content")
         result = read_excel_file(file_bytes)

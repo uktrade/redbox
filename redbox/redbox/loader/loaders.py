@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import environ
 import fitz
 import requests
-from openpyxl import load_workbook
+import openpyxl as opxl
 
 # from requests.adapters import HTTPAdapter
 # from requests.packages.urllib.util.retry import Retry
@@ -88,7 +88,7 @@ def read_excel_file(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
     try:
         sheets = pd.read_excel(file_bytes, sheet_name=None)
         elements = []
-        wb = load_workbook(file_bytes)
+        wb = opxl.load_workbook(file_bytes)
 
         for name, df in sheets.items():
             try:
