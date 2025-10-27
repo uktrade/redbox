@@ -1,6 +1,7 @@
 # mypy: ignore-errors
 import logging
 import os
+import re
 import socket
 from pathlib import Path
 from urllib.parse import urlparse
@@ -363,14 +364,15 @@ LOGGING = {
         },
     },
     "filters": {
-        "exclude_s3_urls": {
+        "exclude_s3_urls_and_emails": {
             "": "django.utils.log.CallbackFilter",
-            "callback": lambda record: all(
-                header not in record.getMessage()
-                for header in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Security-Token"]
+            "callback": lambda record: (
+                all(
+                    header not in record.getMessage()
+                    for header in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Security-Token"]
+                )
+                and not re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", record.getMessage())
             )
-            if hasattr(record, "getMessage")
-            else True
             if hasattr(record, "getMessage")
             else True,
         },
@@ -380,7 +382,7 @@ LOGGING = {
             "level": LOG_LEVEL,
             "class": "logging.StreamHandler",
             "formatter": LOG_FORMAT,
-            "filters": ["exclude_s3_urls"],
+            "filters": ["exclude_s3_urls_and_emails"],
         },
         "asim": {
             "level": "ERROR",
