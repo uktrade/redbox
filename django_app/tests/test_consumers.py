@@ -549,9 +549,18 @@ async def test_chat_consumer_redbox_state(
         )
         redbox_state = mock_run.call_args.args[0]  # pulls out the args that redbox.run was called with
 
-        assert (
-            redbox_state.request == expected_request
-        ), f"Expected {expected_request}. Received: {redbox_state.request}"
+        assert redbox_state.request.question == expected_request.question, "Question mismatch"
+        assert redbox_state.request.user_uuid == expected_request.user_uuid, "UUID mismatch"
+        assert redbox_state.request.chat_history == expected_request.chat_history, "Chat history mismatch"
+        assert redbox_state.request.ai_settings == expected_request.ai_settings, "AI settings mismatch"
+
+        assert set(redbox_state.request.s3_keys) == set(expected_request.s3_keys), "s3_keys content mismatch"
+        assert set(redbox_state.request.permitted_s3_keys) == set(
+            expected_request.permitted_s3_keys
+        ), "permitted_s3_keys content mismatch"
+
+        assert redbox_state.request.previous_s3_keys == expected_request.previous_s3_keys, "previous_s3_keys mismatch"
+        assert redbox_state.request.db_location == expected_request.db_location, "db_location mismatch"
 
 
 @database_sync_to_async

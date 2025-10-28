@@ -19,7 +19,7 @@
           <label class="govuk-label" for="upload-docs">
             <h1 class="govuk-heading-l">{{ pageTitle }}</h1>
           </label>
-          
+
           <div id="upload-docs-notification">
             <p class="govuk-body-l">The AI will use all documents you upload. You can use up to, and including, {{ security }} documents. Do not upload any documents with personal data.</p>
           </div>
@@ -30,9 +30,47 @@
               <span class="govuk-visually-hidden">Error:</span> {{ error }}
             </p>
           {% endfor %}
-          <input class="govuk-file-upload {% if errors.upload_doc %} govuk-file-upload--error{% endif %}" multiple id="upload-docs" name="uploadDocs" type="file" aria-describedby="upload-docs-notification upload-docs-filetypes {% if errors.upload_doc %} file-upload-docs-error{% endif %}">
+          <label class="govuk-label" for="upload-docs">
+            Upload a file
+          </label>
+          <div
+            class="govuk-drop-zone"
+            data-module="govuk-file-upload">
+            <input class="govuk-file-upload {% if errors.upload_doc %} govuk-file-upload--error{% endif %}" multiple id="upload-docs" name="uploadDocs" type="file" aria-describedby="upload-docs-notification upload-docs-filetypes {% if errors.upload_doc %} file-upload-docs-error{% endif %}">
+          </div>
         </div>
+        {% if not request.user.is_superuser %}<div class="govuk-!-display-none">{% endif %}
+          <!-- Manage access to team or personal -->
+          <div class="govuk-form-group govuk-!-display-none" id="visibility-group">
+            <label class="govuk-label" for="visibility">
+              Visibility
+            </label>
+            <div class="govuk-radios" data-module="govuk-radios">
+              <div class="govuk-radios__item">
+                <input class="govuk-radios__input" id="visibility-individual" name="visibility" type="radio" value="INDIVIDUAL" checked>
+                <label class="govuk-label govuk-radios__label" for="visibility-individual">Individual</label>
+              </div>
+              <div class="govuk-radios__item">
+                <input class="govuk-radios__input" id="visibility-team" name="visibility" type="radio" value="TEAM">
+                <label class="govuk-label govuk-radios__label" for="visibility-team">Share with team</label>
+              </div>
+            </div>
+          </div>
 
+          <!-- Team -->
+          <div class="govuk-form-group govuk-!-display-none" id="team-group">
+            <label class="govuk-label" for="team">
+              Share with team (optional)
+            </label>
+            <select class="govuk-select" id="team" name="team">
+              <option value="">---------</option>
+              {% for team in user_teams %}
+                <option value="{{ team.team.id }}">{{ team.team.team_name }}</option>
+              {% endfor %}
+            </select>
+            {% include "document-help-text.html" %}
+          </div>
+        {% if not request.user.is_superuser %}</div>{% endif %}
         <upload-button>
           {{ govukButton(text="Upload", prevent_double_click=True, classes="govuk-!-display-inline-block") }}
         </upload-button>

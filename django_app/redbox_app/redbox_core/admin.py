@@ -211,6 +211,23 @@ class FileAdmin(ExportMixin, admin.ModelAdmin):
     search_fields = ["user__email"]
 
 
+class FileTeamMembershipAdmin(admin.ModelAdmin):
+    list_display = ("file", "team", "visibility", "created_at")
+    list_filter = ("visibility", "team")
+    search_fields = ("file__file_name", "team__team_name")
+    raw_id_fields = ("file", "team")
+    ordering = ("-created_at",)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        # You only have team choices if you are a superuser or a team lead
+        if not request.user.is_superuser:
+            form.base_fields["team"].queryset = models.Team.objects.filter(
+                members__user=request.user, members__role_type="ADMIN"
+            )
+        return form
+
+
 class CitationInline(admin.StackedInline):
     model = models.Citation
     ordering = ("modified_at",)
@@ -378,4 +395,5 @@ admin.site.register(models.MonitorWebSearchResults, MonitorWebSearchResultsAdmin
 admin.site.register(models.AgentPlan, AgentPlanAdmin)
 admin.site.register(models.Team, TeamAdmin)
 admin.site.register(models.UserTeamMembership, UserTeamMembershipAdmin)
+admin.site.register(models.FileTeamMembership, FileTeamMembershipAdmin)
 admin.site.register_view("report/", view=reporting_dashboard, name="Site report")
