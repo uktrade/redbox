@@ -4,6 +4,7 @@
     {% set use_autocomplete = items|length > threshold %}
 
     {% set options %}
+        <option value="">---------</option>
         {% for item in items %}
             {{ caller(item) }}
         {% endfor %}
