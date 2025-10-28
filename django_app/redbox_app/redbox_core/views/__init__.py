@@ -41,6 +41,15 @@ from redbox_app.redbox_core.views.notification_views import send_team_addition_e
 from redbox_app.redbox_core.views.ratings_views import RatingsView
 from redbox_app.redbox_core.views.settings_views import SettingsView
 from redbox_app.redbox_core.views.signup_views import Signup1, Signup2, Signup3, Signup4, Signup5, Signup6, Signup7
+from redbox_app.redbox_core.views.team_views import (
+    add_team_member_row_view,
+    add_team_member_view,
+    create_team_view,
+    delete_team_member_row_view,
+    delete_team_view,
+    edit_team_member_row_view,
+    edit_team_member_view,
+)
 
 __all__ = [
     "ChatsTitleView",
@@ -88,4 +97,11 @@ __all__ = [
     "faq_view",
     "send_team_addition_email_view",
     "SettingsView",
+    "add_team_member_row_view",
+    "edit_team_member_row_view",
+    "delete_team_member_row_view",
+    "add_team_member_view",
+    "edit_team_member_view",
+    "delete_team_view",
+    "create_team_view",
 ]

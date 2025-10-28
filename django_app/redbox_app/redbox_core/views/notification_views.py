@@ -7,7 +7,6 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
-from django_q.tasks import async_task
 
 from redbox_app.redbox_core.models import Team
 from redbox_app.redbox_core.services import notifications as notifications_service
@@ -26,7 +25,7 @@ def send_team_addition_email_view(request: HttpRequest):
         return HttpResponse("You are not an admin of this team.", status=HTTPStatus.FORBIDDEN)
 
     try:
-        async_task(notifications_service.send_team_addition_email, request.user.pk, user.pk, team.pk)
+        notifications_service.send_team_addition_email(request.user.pk, user.pk, team.pk)
     except Exception as e:
         error = f"Failed to queue task: {e}"
         logger.exception(error)
