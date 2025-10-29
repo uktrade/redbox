@@ -68,6 +68,91 @@ def get_id_digits(citation_items) -> int:
     return int(match.group())
 
 
+class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
+    """
+    Skills feature model. To be used against:
+    - users
+    - teams
+    - documents
+    - chat messages
+    - agent backends
+    """
+
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name_plural = "skills"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class UserSkill(UUIDPrimaryKeyBase, TimeStampedModel):
+    """
+    Junction for user/skill many-to-many relationship
+    """
+
+    user = models.ForeignKey("User", on_delete=models.CASCADE, related_name="user_skills")
+    skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="user_skills")
+
+    class Meta:
+        unique_together = ("user", "skill")
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return self.user.email + " - " + self.skill.name
+
+
+class TeamSkill(UUIDPrimaryKeyBase, TimeStampedModel):
+    """
+    Junction model for team/skill many-to-many relationship
+    """
+
+    team = models.ForeignKey("Team", on_delete=models.CASCADE)
+    skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="team_skills")
+
+    class Meta:
+        unique_together = ("team", "skill")
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return self.team.team_name + " - " + self.skill.name
+
+
+class FileSkill(UUIDPrimaryKeyBase, TimeStampedModel):
+    """
+    Junction model for file/skill many-to-many relationship to tag files with relevant skill for contextual retrieval
+    """
+
+    file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="file_skills")
+    skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="file_skills")
+
+    class Meta:
+        unique_together = ("file", "skill")
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return self.file.file_name + " - " + self.skill.name
+
+
+class BackendSkill(UUIDPrimaryKeyBase, TimeStampedModel):
+    """
+    Junction model for LLM/skill many-to-many relationship. Key point: agents are not exclusive to skills
+    """
+
+    backend = models.ForeignKey("ChatLLMBackend", on_delete=models.CASCADE, related_name="backend_skills")
+    skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="backend_skills")
+
+    class Meta:
+        unique_together = ("backend", "skill")
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return self.backend.name + " - " + self.skill.name
+
+
 class ChatLLMBackend(models.Model):
     """https://python.langchain.com/docs/how_to/chat_models_universal_init/"""
 
@@ -96,6 +181,8 @@ class ChatLLMBackend(models.Model):
     is_default = models.BooleanField(default=False, help_text="is this the default llm to use.")
     enabled = models.BooleanField(default=True, help_text="is this model enabled.")
     display = models.CharField(max_length=128, null=True, blank=True, help_text="name to display in UI.")
+
+    skills = models.ManyToManyField(Skill, through=BackendSkill, related_name="agent_backends", blank=True)
 
     class Meta:
         constraints = [UniqueConstraint(fields=["name", "provider"], name="unique_name_provider")]
@@ -422,6 +509,8 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
     ai_settings = models.ForeignKey(AISettings, on_delete=models.SET_DEFAULT, default="default", to_field="label")
     is_developer = models.BooleanField(null=True, blank=True, default=False, help_text="is this user a developer?")
 
+    skills = models.ManyToManyField(Skill, through=UserSkill, related_name="users", blank=True)
+
     # Additional fields for sign-up form
     # Page 1
     role = models.TextField(null=True, blank=True)
@@ -525,6 +614,8 @@ class Team(UUIDPrimaryKeyBase):
     directorate = models.CharField(max_length=100, blank=False, null=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    skills = models.ManyToManyField(Skill, through=TeamSkill, related_name="teams", blank=True)
 
     class Meta:
         verbose_name = "Team"
@@ -633,6 +724,8 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         null=True,
         help_text="error, if any, encountered during ingest",
     )
+
+    skills = models.ManyToManyField(Skill, through=FileSkill, related_name="files", blank=True)
 
     def __str__(self) -> str:  # pragma: no cover
         return self.file_name
@@ -896,6 +989,8 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
     route = models.CharField(max_length=25, null=True, blank=True)
     selected_files = models.ManyToManyField(File, related_name="+", symmetrical=False, blank=True)
     source_files = models.ManyToManyField(File, through=Citation)
+
+    skill = models.ForeignKey(Skill, on_delete=models.SET_NULL, null=True, blank=True, related_name="chat_messages")
 
     rating = models.PositiveIntegerField(
         blank=True,
