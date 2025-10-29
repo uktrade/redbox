@@ -23,6 +23,22 @@ log = logging.getLogger()
 re_string_pattern = re.compile(r"(\S+)")
 
 
+def trancate_chat_history(state: RedboxState, chat_history_budget: int, tokeniser: callable = bedrock_tokeniser):
+    _tokeniser = tokeniser or get_tokeniser()
+    if chat_history_budget <= 0:
+        raise QuestionLengthError
+
+    truncated_history: list[ChainChatMessage] = []
+    for msg in state.request.chat_history[::-1]:
+        chat_history_budget -= _tokeniser(msg["text"])
+        if chat_history_budget <= 0:
+            break
+        else:
+            truncated_history.insert(0, msg)
+
+    return truncated_history
+
+
 def build_chat_prompt_from_messages_runnable(
     prompt_set: PromptSet,
     tokeniser: callable = bedrock_tokeniser,
@@ -56,13 +72,9 @@ def build_chat_prompt_from_messages_runnable(
         if chat_history_budget <= 0:
             raise QuestionLengthError
 
-        truncated_history: list[ChainChatMessage] = []
-        for msg in state.request.chat_history[::-1]:
-            chat_history_budget -= _tokeniser(msg["text"])
-            if chat_history_budget <= 0:
-                break
-            else:
-                truncated_history.insert(0, msg)
+        truncated_history = trancate_chat_history(
+            state=state, chat_history_budget=chat_history_budget, tokeniser=_tokeniser
+        )
 
         prompt_template_context = (
             state.request.model_dump()
