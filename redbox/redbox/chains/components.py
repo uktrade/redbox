@@ -1,9 +1,12 @@
 import logging
+import time
 from functools import cache
 
 from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langchain_community.embeddings import BedrockEmbeddings
+from botocore.exceptions import ClientError, EndpointConnectionError, ConnectTimeoutError, ReadTimeoutError
+
 from langchain_core.embeddings import Embeddings, FakeEmbeddings
 from langchain_core.runnables import Runnable
 from langchain_core.tools import StructuredTool
@@ -30,59 +33,164 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 
+_FALLBACK_CACHE = {}
+
+FALLBACK_COOLDOWN_SECS = 420  # 7 mins feels ok
+
+
 def get_chat_llm(
-    model: ChatLLMBackend, ai_settings: AISettings = AISettings(), tools: list[StructuredTool] | None = None
+    model: ChatLLMBackend,
+    ai_settings: AISettings = AISettings(),
+    tools: list[StructuredTool] | None = None,
 ):
-    logger.debug(
-        "initialising model=%s model_provider=%s tools=%s max_tokens=%s",
-        model.name,
-        model.provider,
-        tools,
-        ai_settings.llm_max_tokens,
+    fallback_backend = ai_settings.fallback_backend or ChatLLMBackend(
+        name="anthropic.claude-3-7-sonnet-20250219-v1:0",
+        provider="bedrock",
     )
 
-    kwargs = {}
-    if model.name.startswith("arn"):
-        if not model.provider:
-            raise ValueError(
-                "When using a model ARN you must set model.provider to the foundation-model provider (e.g., 'anthropic')."
+    def _init_model(backend: ChatLLMBackend):
+        kwargs = {}
+        if backend.name.startswith("arn"):
+            if not backend.provider:
+                raise ValueError(
+                    "When using a model ARN you must set model.provider "
+                    "to the foundation-model provider (e.g., 'anthropic')."
+                )
+            kwargs["provider"] = backend.provider or "anthropic"
+
+        chat_model = init_chat_model(
+            model=backend.name,
+            model_provider=backend.provider,
+            max_tokens=ai_settings.llm_max_tokens,
+            configurable_fields=["base_url"],
+            **kwargs,
+        )
+        if tools:
+            chat_model = chat_model.bind_tools(tools)
+        return chat_model
+
+    cache_entry = _FALLBACK_CACHE.get(model.name)
+    if cache_entry and cache_entry["until"] > time.time():
+        logger.debug(
+            "Using cached fallback for %s until %s",
+            model.name,
+            time.strftime("%H:%M:%S", time.localtime(cache_entry["until"])),
+        )
+        return _init_model(cache_entry["backend"])
+
+    try:
+        return _init_model(model)
+
+    except ClientError as e:
+        error_code = e.response["Error"].get("Code", "")
+        if error_code in (
+            "ServiceUnavailableException",
+            "ThrottlingException",
+            "RateLimitExceeded",
+            "TooManyRequestsException",
+        ):
+            logger.warning(
+                "Rate/service limit (%s) encountered with %s. Falling back to %s",
+                error_code,
+                model.name,
+                fallback_backend.name,
             )
-        kwargs["provider"] = "anthropic"
+            _FALLBACK_CACHE[model.name] = {
+                "until": time.time() + FALLBACK_COOLDOWN_SECS,
+                "backend": fallback_backend,
+            }
+            return _init_model(fallback_backend)
+        else:
+            raise e
 
-    chat_model = init_chat_model(
-        model=model.name,
-        model_provider=model.provider,
-        max_tokens=ai_settings.llm_max_tokens,
-        configurable_fields=["base_url"],
-        **kwargs,
-    )
-    if tools:
-        chat_model = chat_model.bind_tools(tools)
-    return chat_model
+    except (TimeoutError, ConnectionError, EndpointConnectionError, ConnectTimeoutError, ReadTimeoutError) as e:
+        logger.warning(
+            "Connection issue (%s) with %s. Falling back to %s",
+            str(e),
+            model.name,
+            fallback_backend.name,
+        )
+        _FALLBACK_CACHE[model.name] = {
+            "until": time.time() + FALLBACK_COOLDOWN_SECS,
+            "backend": fallback_backend,
+        }
+        return _init_model(fallback_backend)
 
 
 def get_base_chat_llm(model: ChatLLMBackend, ai_settings: AISettings = AISettings()):
-    """Initialises a chat llm that returns a BaseChatModel object i.e. a model without tools that is not configurable."""
-    logger.debug(
-        "initialising model=%s model_provider=%s max_tokens=%s",
-        model.name,
-        model.provider,
-        ai_settings.llm_max_tokens,
-    )
-    kwargs = {}
-    if model.name.startswith("arn"):
-        if not model.provider:
-            raise ValueError(
-                "When using a model ARN you must set model.provider to the foundation-model provider (e.g., 'anthropic')."
-            )
-        kwargs["provider"] = "anthropic"
+    """
+    Initialises a chat LLM that returns a BaseChatModel object (no tools, not configurable),
+    with built-in fallback and cooldown caching.
+    """
 
-    return init_chat_model(
-        model=model.name,
-        model_provider=model.provider,
-        max_tokens=ai_settings.llm_max_tokens,
-        **kwargs,
+    fallback_backend = ai_settings.fallback_backend or ChatLLMBackend(
+        name="anthropic.claude-3-7-sonnet-20250219-v1:0",
+        provider="bedrock",
     )
+
+    def _init_model(backend: ChatLLMBackend):
+        kwargs = {}
+        if backend.name.startswith("arn"):
+            if not backend.provider:
+                raise ValueError(
+                    "When using a model ARN you must set model.provider "
+                    "to the foundation-model provider (e.g., 'anthropic')."
+                )
+            kwargs["provider"] = backend.provider or "anthropic"
+
+        return init_chat_model(
+            model=backend.name,
+            model_provider=backend.provider,
+            max_tokens=ai_settings.llm_max_tokens,
+            **kwargs,
+        )
+
+    cache_entry = _FALLBACK_CACHE.get(model.name)
+    if cache_entry and cache_entry["until"] > time.time():
+        logger.debug(
+            "Using cached fallback for %s until %s",
+            model.name,
+            time.strftime("%H:%M:%S", time.localtime(cache_entry["until"])),
+        )
+        return _init_model(cache_entry["backend"])
+
+    try:
+        return _init_model(model)
+
+    except ClientError as e:
+        error_code = e.response["Error"].get("Code", "")
+        if error_code in (
+            "ServiceUnavailableException",
+            "ThrottlingException",
+            "RateLimitExceeded",
+            "TooManyRequestsException",
+        ):
+            logger.warning(
+                "Rate/service limit (%s) encountered with %s. Falling back to %s",
+                error_code,
+                model.name,
+                fallback_backend.name,
+            )
+            _FALLBACK_CACHE[model.name] = {
+                "until": time.time() + FALLBACK_COOLDOWN_SECS,
+                "backend": fallback_backend,
+            }
+            return _init_model(fallback_backend)
+        else:
+            raise e
+
+    except (TimeoutError, ConnectionError, EndpointConnectionError, ConnectTimeoutError, ReadTimeoutError) as e:
+        logger.warning(
+            "Connection issue (%s) with %s. Falling back to %s",
+            str(e),
+            model.name,
+            fallback_backend.name,
+        )
+        _FALLBACK_CACHE[model.name] = {
+            "until": time.time() + FALLBACK_COOLDOWN_SECS,
+            "backend": fallback_backend,
+        }
+        return _init_model(fallback_backend)
 
 
 @cache
