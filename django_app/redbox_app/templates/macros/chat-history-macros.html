@@ -39,7 +39,6 @@
                                         id="delete-chat-confirm-button"
                                         hx-post="/chats/{{ chat.id }}/delete-chat/"
                                         hx-vals='{"active_chat_id": "{{ active_chat_id }}"}'
-                                        hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
                                         hx-target="#chat-{{ chat.id }}"
                                         hx-swap="delete">
                                     Yes delete

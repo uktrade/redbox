@@ -2,7 +2,8 @@
   background-color: transparent;
   border: 0;
   cursor: pointer;
-  margin-top: 4px;
+  vertical-align: middle;
+  align-items: center;
 
   &.dark {
     --color-icon-light-foreground: var(--color-icon-light-foreground-secondary);

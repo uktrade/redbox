@@ -5,7 +5,8 @@ import textwrap
 import uuid
 from collections.abc import Collection, Sequence
 from datetime import UTC, date, datetime, timedelta
-from typing import override
+from pathlib import Path
+from typing import Optional, override
 
 import jwt
 from django.conf import settings
@@ -537,6 +538,18 @@ class Team(UUIDPrimaryKeyBase):
             user=user, team=self, role_type=UserTeamMembership.RoleType.ADMIN
         ).exists()
 
+    def get_members(self):
+        return self.members.select_related("user")
+
+    def eligible_users(self):
+        member_ids = list(self.members.values_list("user_id", flat=True))
+        return User.objects.exclude(id__in=member_ids)
+
+    def add_member(self, user: User, role_type: Optional["UserTeamMembership.RoleType"] = None):
+        member = UserTeamMembership(user=user, team=self, role_type=role_type or UserTeamMembership.RoleType.MEMBER)
+        member.save()
+        return member
+
 
 class UserTeamMembership(models.Model):
     class RoleType(models.TextChoices):
@@ -591,8 +604,10 @@ def build_s3_key(instance, filename: str) -> str:
 
     note: s3 key is not prefixed with the user's email address if not local as filename is unique
     """
-    filename = f"{instance.user.email}/{filename}"
-    return f"{filename}"
+    timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S%f")[:-3]
+    path = Path(filename)
+    new_filename = f"{path.stem}_{timestamp}{path.suffix}"
+    return f"{instance.user.email}/{new_filename}"
 
 
 class File(UUIDPrimaryKeyBase, TimeStampedModel):

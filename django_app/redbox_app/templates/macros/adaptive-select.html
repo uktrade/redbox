@@ -1,0 +1,16 @@
+{% from "macros/select-input.html" import select_input %}
+
+{% macro adaptive_select(items, name, threshold=10, id=None, multiple=False, label="", aria_labelledby="", classes="") %}
+    {% set use_autocomplete = items|length > threshold %}
+
+    {% set options %}
+        <option value="">---------</option>
+        {% for item in items %}
+            {{ caller(item) }}
+        {% endfor %}
+    {% endset %}
+
+    {% if use_autocomplete %}<accessible-autocomplete>{% endif %}
+        {{ select_input(name, id=id, multiple=multiple, label=label, options=options, aria_labelledby=aria_labelledby, classes=classes) }}
+    {% if use_autocomplete %}</accessible-autocomplete>{% endif %}
+{% endmacro %}
