@@ -119,6 +119,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
             session.temperature = temperature
             logger.info("updating session: chat_backend=%s temperature=%s", chat_backend, temperature)
             await session.asave()
+            if data.get("selectedFiles",[]):
+                #get previous selected files from db
+                latest_message = await ChatMessage.objects.filter(chat=session, role="user").order_by("-created_at").afirst() 
+                if latest_message:
+                    latest_files = latest_message.selected_files.all()
+                    previous_selected_files = [file async for file in latest_files]
+                
+            else:
+                previous_selected_files = []
         else:
             logger.info("creating session: chat_backend=%s temperature=%s", chat_backend, temperature)
             session = await Chat.objects.acreate(
@@ -127,7 +136,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 chat_backend=chat_backend,
                 temperature=temperature,
             )
-
+            previous_selected_files = []
         # save user message
         permitted_files = File.objects.filter(user=user, status=File.Status.complete)
         selected_files = permitted_files.filter(id__in=selected_file_uuids)
@@ -137,7 +146,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         self.chat_message = await self.create_ai_message(session)
 
-        await self.llm_conversation(selected_files, session, user, user_message_text, permitted_files)
+        await self.llm_conversation(selected_files, session, user, user_message_text, permitted_files, previous_selected_files)
 
         if (self.final_state) and (self.final_state.agent_plans):
             await self.agent_plan_save(session)
@@ -170,7 +179,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.close()
 
     async def llm_conversation(
-        self, selected_files: Sequence[File], session: Chat, user: User, title: str, permitted_files: Sequence[File]
+        self, selected_files: Sequence[File], session: Chat, user: User, title: str, permitted_files: Sequence[File], previous_selected_files: Sequence[File]
     ) -> None:
         """Initiate & close websocket conversation with the core-api message endpoint."""
         await self.send_to_client("session-id", session.id)
@@ -227,6 +236,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 ],
                 ai_settings=ai_settings,
                 permitted_s3_keys=[f.unique_name async for f in permitted_files],
+                previous_s3_keys = [f.unique_name for f in previous_selected_files]
             ),
             user_feedback=user_feedback,
             agent_plans=agent_plans,

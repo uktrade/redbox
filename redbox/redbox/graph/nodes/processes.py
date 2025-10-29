@@ -634,31 +634,27 @@ def create_or_update_db_from_tabulars(state: RedboxState) -> RedboxState:
     Only regenerates the database if the file doesn't exist or documents have changed.
     """
     should_create_db = True
-    db_path = state.request.db_location
+    user_uuid = str(state.request.user_uuid) if state.request.user_uuid else uuid4()
+    db_path = f"generated_db_{user_uuid}.db"  # Initialise the database at a location that uses the user's UUID or a random one if it's not available
+    state.request.db_location = db_path
 
     # Check if we have an existing db_path
-    if db_path:
-        # Check if the file exists
-        if os.path.exists(db_path) and not state.documents_changed():
-            # If the file exists and documents haven't changed, no need to recreate
-            should_create_db = False
-    else:
-        # Generate a new db path if self.db_location is none
-        user_uuid = str(state.request.user_uuid) if state.request.user_uuid else uuid4()
-        db_path = f"generated_db_{user_uuid}.db"  # Initialise the database at a location that uses the user's UUID or a random one if it's not available
+    # Check if the file exists
+    if os.path.exists(db_path) and not state.documents_changed():
+        # If the file exists and documents haven't changed, no need to recreate
+        should_create_db = False
 
     # Create or update database if needed
     if should_create_db:
+        #delete existing database
+        if os.path.exists(db_path):
+            os.remove(db_path)
         # Creating/updating database at db_path
         conn = sqlite3.connect(db_path)
         doc_texts, doc_names = get_all_tabular_docs(state)
         _ = load_texts_to_db(doc_texts, doc_names=doc_names, conn=conn)
         conn.commit
         conn.close
-
-        # Store the current_documents to reflect current state
-        state.store_document_state()
-        state.request.db_location = db_path
     return state
 
 

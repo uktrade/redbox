@@ -353,7 +353,7 @@ class RedboxState(BaseModel):
     def documents_changed(self) -> bool:
         """This checks if documents have changed between questions asked. Returns True if so."""
         if not self.request.previous_s3_keys:
-            return False
+            return True
         return sorted(self.request.previous_s3_keys) != sorted(self.request.s3_keys)
 
 
