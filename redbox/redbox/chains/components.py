@@ -43,7 +43,7 @@ def get_chat_llm(
     ai_settings: AISettings = AISettings(),
     tools: list[StructuredTool] | None = None,
 ):
-    fallback_backend = ai_settings.fallback_backend or ChatLLMBackend(
+    fallback_backend = ChatLLMBackend(
         name="anthropic.claude-3-7-sonnet-20250219-v1:0",
         provider="bedrock",
     )
@@ -56,7 +56,7 @@ def get_chat_llm(
                     "When using a model ARN you must set model.provider "
                     "to the foundation-model provider (e.g., 'anthropic')."
                 )
-            kwargs["provider"] = backend.provider or "anthropic"
+            kwargs["provider"] = "anthropic"
 
         chat_model = init_chat_model(
             model=backend.name,
@@ -118,12 +118,9 @@ def get_chat_llm(
 
 
 def get_base_chat_llm(model: ChatLLMBackend, ai_settings: AISettings = AISettings()):
-    """
-    Initialises a chat LLM that returns a BaseChatModel object (no tools, not configurable),
-    with built-in fallback and cooldown caching.
-    """
+    """Initialises a chat llm that returns a BaseChatModel object i.e. a model without tools that is not configurable."""
 
-    fallback_backend = ai_settings.fallback_backend or ChatLLMBackend(
+    fallback_backend = ChatLLMBackend(
         name="anthropic.claude-3-7-sonnet-20250219-v1:0",
         provider="bedrock",
     )
@@ -136,7 +133,7 @@ def get_base_chat_llm(model: ChatLLMBackend, ai_settings: AISettings = AISetting
                     "When using a model ARN you must set model.provider "
                     "to the foundation-model provider (e.g., 'anthropic')."
                 )
-            kwargs["provider"] = backend.provider or "anthropic"
+            kwargs["provider"] = "anthropic"
 
         return init_chat_model(
             model=backend.name,
