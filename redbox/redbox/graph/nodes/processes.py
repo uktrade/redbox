@@ -646,7 +646,7 @@ def create_or_update_db_from_tabulars(state: RedboxState) -> RedboxState:
 
     # Create or update database if needed
     if should_create_db:
-        #delete existing database
+        # delete existing database
         if os.path.exists(db_path):
             os.remove(db_path)
         # Creating/updating database at db_path

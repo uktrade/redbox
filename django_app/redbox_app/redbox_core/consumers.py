@@ -92,6 +92,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
     redbox = Redbox(env=get_settings(), debug=True)
     chat_message = None  # incrementally updating the chat stream
 
+    # flake8: noqa: C901
+    # flake8: noqa: PLR0915
+
     async def receive(self, text_data=None, bytes_data=None):
         """Receive & respond to message from browser websocket."""
         self.full_reply = []
@@ -123,13 +126,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
             session.temperature = temperature
             logger.info("updating session: chat_backend=%s temperature=%s", chat_backend, temperature)
             await session.asave()
-            if data.get("selectedFiles",[]):
-                #get previous selected files from db
-                latest_message = await ChatMessage.objects.filter(chat=session, role="user").order_by("-created_at").afirst() 
+            if data.get("selectedFiles", []):
+                # get previous selected files from db
+                latest_message = (
+                    await ChatMessage.objects.filter(chat=session, role="user").order_by("-created_at").afirst()
+                )
                 if latest_message:
                     latest_files = latest_message.selected_files.all()
                     previous_selected_files = [file async for file in latest_files]
-                
+
             else:
                 previous_selected_files = []
         else:
@@ -162,7 +167,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         self.chat_message = await self.create_ai_message(session)
 
-        await self.llm_conversation(selected_files, session, user, user_message_text, permitted_files, previous_selected_files)
+        await self.llm_conversation(
+            selected_files, session, user, user_message_text, permitted_files, previous_selected_files
+        )
 
         if (self.final_state) and (self.final_state.agent_plans):
             await self.agent_plan_save(session)
@@ -195,7 +202,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.close()
 
     async def llm_conversation(
-        self, selected_files: Sequence[File], session: Chat, user: User, title: str, permitted_files: Sequence[File], previous_selected_files: Sequence[File]
+        self,
+        selected_files: Sequence[File],
+        session: Chat,
+        user: User,
+        title: str,
+        permitted_files: Sequence[File],
+        previous_selected_files: Sequence[File],
     ) -> None:
         """Initiate & close websocket conversation with the core-api message endpoint."""
         await self.send_to_client("session-id", session.id)
@@ -252,7 +265,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 ],
                 ai_settings=ai_settings,
                 permitted_s3_keys=[f.unique_name async for f in permitted_files],
-                previous_s3_keys = [f.unique_name for f in previous_selected_files]
+                previous_s3_keys=[f.unique_name for f in previous_selected_files],
             ),
             user_feedback=user_feedback,
             agent_plans=agent_plans,

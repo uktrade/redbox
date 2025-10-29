@@ -505,5 +505,3 @@ def test_draw_method(env: Settings, mocker: MockerFixture):
         draw_method=MermaidDrawMethod.PYPPETEER, output_file_path=None
     )
     assert result_root == "mermaid_png_output"
-
-

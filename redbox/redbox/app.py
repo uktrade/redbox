@@ -1,4 +1,3 @@
-import os
 from asyncio import CancelledError
 from logging import getLogger
 from typing import Literal
@@ -55,7 +54,6 @@ class Redbox:
         debug: bool = False,
     ):
         _env = env or get_settings()
-
 
         # Retrievers
 
@@ -121,7 +119,6 @@ class Redbox:
         logger.info("Request: %s", {k: request_dict[k] for k in request_dict.keys() - {"ai_settings"}})
         is_summary_multiagent_streamed = False
         is_evaluator_output_streamed = False
-
 
         @retry(
             stop=stop_after_attempt(3),
@@ -207,7 +204,6 @@ class Redbox:
 
         return final_state
 
-
     def get_available_keywords(self) -> dict[ChatRoute, str]:
         return ROUTABLE_KEYWORDS
 
@@ -224,4 +220,3 @@ class Redbox:
             raise Exception("Invalid graph_to_draw")
 
         return graph.draw_mermaid_png(draw_method=MermaidDrawMethod.PYPPETEER, output_file_path=output_path)
-
