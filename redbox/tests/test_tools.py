@@ -16,7 +16,7 @@ from redbox.graph.nodes.tools import (
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
-    kagi_search_call,
+    web_search_call,
 )
 from redbox.models.chain import AISettings, RedboxQuery, RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
@@ -237,7 +237,7 @@ def test_web_search_rate_limit(**kwargs):
         ],
     )
 
-    response = kagi_search_call(query="hello")
+    response = web_search_call(query="hello")
 
     assert kwargs["mock"].call_count == 2
     assert kwargs["mock"].called
