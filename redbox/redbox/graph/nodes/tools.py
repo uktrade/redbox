@@ -1,6 +1,7 @@
 import json
 import logging
 import random
+import sqlite3
 import time
 from typing import Annotated, Iterable, Union
 
@@ -27,7 +28,6 @@ from redbox.models.settings import get_settings
 from redbox.retriever.queries import add_document_filter_scores_to_query, build_document_query
 from redbox.retriever.retrievers import query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
-import sqlite3
 
 log = logging.getLogger(__name__)
 
@@ -410,17 +410,34 @@ def get_log_formatter_for_retrieval_tool(t: ToolCall) -> BaseRetrievalToolLogFor
     return __RETRIEVEAL_TOOL_MESSAGE_FORMATTERS.get(t["name"], BaseRetrievalToolLogFormatter)(t)
 
 
-def web_search_with_retry(query: str, no_search_result: int = 20, max_retries: int = 3):
+def web_search_with_retry(
+    query: str, no_search_result: int = 20, max_retries: int = 3, country_code: str = "GB", ui_lang: str = "en-GB"
+) -> requests.Response:
     web_search_settings = get_settings().web_search_settings()
     for attempt in range(max_retries):
-        response = requests.get(
-            web_search_settings.end_point,
-            headers=web_search_settings.secret_tokens,
-            params={
-                "q": query,
-                "limit": str(no_search_result),
-            },
-        )
+        if web_search_settings.name == "Brave":
+            response = requests.get(
+                web_search_settings.end_point,
+                headers=web_search_settings.secret_tokens,
+                params={
+                    "q": query,
+                    "country": country_code,
+                    "ui_lang": ui_lang,
+                    "count": str(no_search_result),
+                    "extra_snippets": "true",
+                },
+            )
+        elif web_search_settings.name == "Kagi":
+            response = requests.get(
+                web_search_settings.end_point,
+                headers=web_search_settings.secret_tokens,
+                params={
+                    "q": query,
+                    "limit": str(no_search_result),
+                },
+            )
+        else:
+            log.exception(f"Web search api call to {web_search_settings.name} not currently supported.")
         if response.status_code == 429:
             if attempt < max_retries - 1:
                 # Exponential backoff with jitter
@@ -430,35 +447,74 @@ def web_search_with_retry(query: str, no_search_result: int = 20, max_retries: i
             return response
 
 
-def kagi_search_call(query: str, no_search_result: int = 20) -> tool:
+def kagi_response_to_documents(response: requests.Response) -> list[Document]:
     tokeniser = bedrock_tokeniser
-
-    response = web_search_with_retry(query=query, no_search_result=no_search_result)
-    if response.status_code == 200:
-        mapped_documents = []
-        results = response.json().get("data", [])
-        for i, doc in enumerate(results):
-            # extract only search results asper kagi documentation
-            if doc["t"] == 0:
-                page_content = "".join(doc.get("snippet", []))
-                token_count = tokeniser(page_content)
-                print(f"Document {i} token count: {token_count}")
-                mapped_documents.append(
-                    Document(
-                        page_content=page_content,
-                        metadata=ChunkMetadata(
-                            index=i,
-                            uri=doc.get("url", ""),
-                            token_count=token_count,
-                            creator_type=ChunkCreatorType.web_search,
-                        ).model_dump(),
-                    )
+    mapped_documents = []
+    results = response.json().get("data", [])
+    for i, doc in enumerate(results):
+        # extract only search results asper kagi documentation
+        if doc["t"] == 0:
+            page_content = "".join(doc.get("snippet", []))
+            token_count = tokeniser(page_content)
+            print(f"Document {i} token count: {token_count}")
+            mapped_documents.append(
+                Document(
+                    page_content=page_content,
+                    metadata=ChunkMetadata(
+                        index=i,
+                        uri=doc.get("url", ""),
+                        token_count=token_count,
+                        creator_type=ChunkCreatorType.web_search,
+                    ).model_dump(),
                 )
-            docs = mapped_documents
-        return format_documents(docs), docs
-    else:
-        log.exception(f"Web search api call failed. Status: {response.status_code}")
-        return "", []
+            )
+        docs = mapped_documents
+    return docs
+
+
+def brave_response_to_documents(response: requests.Response) -> list[Document]:
+    tokeniser = bedrock_tokeniser
+    mapped_documents = []
+    results = response.json().get("web", []).get("results")
+    for i, doc in enumerate(results):
+        page_content = "".join(doc.get("extra_snippets", []))
+        token_count = tokeniser(page_content)
+        print(f"Document {i} token count: {token_count}")
+        mapped_documents.append(
+            Document(
+                page_content=page_content,
+                metadata=ChunkMetadata(
+                    index=i,
+                    uri=doc.get("url", ""),
+                    token_count=token_count,
+                    creator_type=ChunkCreatorType.web_search,
+                ).model_dump(),
+            )
+        )
+        docs = mapped_documents
+    return docs
+
+
+def web_search_call(query: str, no_search_result: int = 20, country_code: str = "GB", ui_lang: str = "en-GB") -> tool:
+    web_search_settings = get_settings().web_search_settings()
+
+    response = web_search_with_retry(
+        query=query,
+        no_search_result=no_search_result,
+        country_code=country_code,
+        ui_lang=ui_lang,
+    )
+
+    if response.status_code == 200:
+        if web_search_settings.name == "Brave":
+            docs = brave_response_to_documents(response)
+            return format_documents(docs), docs
+        elif web_search_settings.name == "Kagi":
+            docs = kagi_response_to_documents(response)
+            return format_documents(docs), docs
+        else:
+            log.exception(f"Web search api call failed. Status: {response.status_code}")
+            return "", []
 
 
 def build_web_search_tool():
@@ -477,9 +533,9 @@ def build_web_search_tool():
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
         if site == "":
-            return kagi_search_call(query=query)
+            return web_search_call(query=query)
         else:
-            return kagi_search_call(query=query + " site:" + site)
+            return web_search_call(query=query + " site:" + site)
 
     return _search_web
 
@@ -498,7 +554,7 @@ def build_legislation_search_tool():
         Returns:
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
-        return kagi_search_call(query=query + " site:legislation.gov.uk")
+        return web_search_call(query=query + " site:legislation.gov.uk")
 
     return _search_legislation
 
