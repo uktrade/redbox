@@ -801,7 +801,10 @@ def get_tabular_agent(
                 log.info("no sql query input to tool")
 
             num_iter += 1
-
+            if isinstance(ai_msg["messages"][-1].content, str):
+                tabular_context = ai_msg["messages"][-1].content
+            else:
+                tabular_context = ""
             tool_output = run_tools_parallel(ai_msg["messages"][-1], tools, state)
 
             results = tool_output[-1].content  # this is a tuple
@@ -809,7 +812,6 @@ def get_tabular_agent(
             # Truncate to max_tokens. only using one tool here.
             # retrieve result from database or sql error
             result = results[0][:max_tokens]  # saving this as a new variable as tuples are immutable.
-
             success = results[1]
 
             is_intermediate_step = eval(results[2])
@@ -828,9 +830,9 @@ def get_tabular_agent(
 
         if success == "pass":
             if not is_intermediate_step:  # if this is the final step
-                formatted_result = f"<Tabular_Agent_Result>{result}</Tabular_Agent_Result>"
+                formatted_result = f"<Tabular_Agent_Result>{tabular_context}\n The results of my query are: {result}</Tabular_Agent_Result>"
             else:
-                formatted_result = f"<Tabular_Agent_Result>Iteration limit of {num_iter} is reached by the tabular agent</Tabular_Agent_Result>"
+                formatted_result = f"<Tabular_Agent_Result>Iteration limit of {num_iter} is reached by the tabular agent. This is the tabular agent's reasoning at the last iteration: {tabular_context}</Tabular_Agent_Result>"
 
         else:
             formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the error from the executed SQL query: {result} </Tabular_Agent_Result>"
