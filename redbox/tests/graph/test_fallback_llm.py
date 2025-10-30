@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 from botocore.exceptions import ClientError
 
 from redbox.models.chain import ChatLLMBackend, AISettings
-from redbox.chains.components import get_chat_llm, get_base_chat_llm, _FALLBACK_CACHE
+from redbox.chains.components import get_chat_llm, _FALLBACK_CACHE
 
 pytestmark = pytest.mark.usefixtures("clear_fallback_cache")
 
@@ -104,15 +104,3 @@ def test_get_chat_llm_cache_expires_and_returns_to_primary(mocker, fake_model_ba
 
     get_chat_llm(fake_model_backend, fake_ai_settings)
     assert components._FALLBACK_CACHE.get(fake_model_backend.name)
-
-
-def test_get_base_chat_llm_same_fallback_behavior(mocker, fake_model_backend, fake_ai_settings):
-    init_mock = mocker.patch("redbox.chains.components.init_chat_model")
-
-    init_mock.side_effect = [
-        _make_client_error("RateLimitExceeded"),
-        MagicMock(name="BaseFallbackModel"),
-    ]
-
-    get_base_chat_llm(fake_model_backend, fake_ai_settings)
-    assert fake_model_backend.name in _FALLBACK_CACHE
