@@ -229,13 +229,28 @@ def test_gov_filter_AI(is_filter, relevant_return, query, keyword):
 @requests_mock.Mocker(kw="mock")
 def test_web_search_rate_limit(**kwargs):
     env = get_settings()
-    kwargs["mock"].get(
-        env.web_search_settings().end_point,
-        [
-            {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "1"}},
-            {"status_code": 200, "json": {"data": [{"t": 0, "snippet": "fake doc", "url": "http://fake.com"}]}},
-        ],
-    )
+    if env.web_search == "Brave":
+        kwargs["mock"].get(
+            env.web_search_settings().end_point,
+            [
+                {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "1"}},
+                {
+                    "status_code": 200,
+                    "json": {"web": {"results": [{"extra_snippets": ["fake_doc"], "url": "http://fake.com"}]}},
+                },
+            ],
+        )
+
+    elif env.web_search == "Kagi":
+        kwargs["mock"].get(
+            env.web_search_settings().end_point,
+            [
+                {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "1"}},
+                {"status_code": 200, "json": {"data": [{"t": 0, "snippet": "fake doc", "url": "http://fake.com"}]}},
+            ],
+        )
+    else:
+        print(f"No test designed for web search provider {env.web_search}")
 
     response = web_search_call(query="hello")
 
