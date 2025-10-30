@@ -42,7 +42,7 @@
                                     <span class="govuk-captionx-xs">This action will remove <span class="govuk-!-font-weight-bold text-emphasis">{{ file.file_name }}</span> from Redbox and cannot be reversed.</span>
                                 </div>
                                 <div>
-                                    <button class="govuk-buttonx govuk-!-margin-right-4 govuk-!-margin-bottom-0 govuk-!-margin-top-4 govuk-button--warningx modal-close"
+                                    <button class="govuk-button govuk-!-margin-right-4 govuk-!-margin-bottom-0 govuk-!-margin-top-4 govuk-button--warning modal-close"
                                             hx-post="/documents/{{ file.id }}/delete-document/"
                                             hx-vals='{
                                                 "active_chat_id": "{{ chat_id }}",
@@ -53,7 +53,7 @@
                                         Yes delete
                                         <span class="govuk-visually-hidden"> delete document: {{ file.file_name }}</span>
                                     </button>
-                                    <button class="govuk-buttonx govuk-!-margin-right-4 govuk-!-margin-bottom-0 govuk-!-margin-top-4 govuk-button--secondaryx modal-close" data-module="govuk-button">
+                                    <button class="govuk-button govuk-!-margin-right-4 govuk-!-margin-bottom-0 govuk-!-margin-top-4 govuk-button--secondary modal-close" data-module="govuk-button">
                                         No cancel
                                     </button>
                                 </div>

@@ -1,16 +1,16 @@
 {% macro govukButton(text=None, visually_hidden_text=None, href=None, classes=None, download=False, prevent_double_click=False, dont_submit=False, id=None) %}
 
 {% if href %}
-  <a href="{{ href }}" role="button" draggable="false" class="govuk-buttonx {{ classes }}" data-module="govuk-button"
+  <a href="{{ href }}" role="button" draggable="false" class="govuk-button {{ classes }}" data-module="govuk-button"
     {% if download %}download{% endif %} {% if id %}id="{{ id }}"{% endif %}>
     {{ text | safe }}
   </a>
 {% elif dont_submit %}
-  <button type="button" class="govuk-buttonx {{ classes }}" data-module="govuk-button" {% if prevent_double_click %}data-prevent-double-click="true"{% endif %} {% if id %}id="{{ id }}"{% endif %}>
+  <button type="button" class="govuk-button {{ classes }}" data-module="govuk-button" {% if prevent_double_click %}data-prevent-double-click="true"{% endif %} {% if id %}id="{{ id }}"{% endif %}>
     {{ text | safe }}
   </button>
 {% else %}
-  <button type="submit" class="govuk-buttonx {{ classes }}" data-module="govuk-button" {% if prevent_double_click %}data-prevent-double-click="true"{% endif %} {% if id %}id="{{ id }}"{% endif %}>
+  <button type="submit" class="govuk-button {{ classes }}" data-module="govuk-button" {% if prevent_double_click %}data-prevent-double-click="true"{% endif %} {% if id %}id="{{ id }}"{% endif %}>
     {{ text | safe }}
   </button>
 {% endif %}

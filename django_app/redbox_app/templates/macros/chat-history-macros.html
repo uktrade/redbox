@@ -35,7 +35,7 @@
                                 <span class="govuk-captionx-xs">This action will remove <span id="delete-chat-confirm-title" class="govuk-!-font-weight-bold text-emphasis">{{ chat.name }}</span> from Redbox and cannot be reversed.</span>
                             </div>
                             <div>
-                                <button class="govuk-buttonx govuk-!-margin-right-4 govuk-!-margin-bottom-0 govuk-!-margin-top-4 govuk-button--warningx modal-close"
+                                <button class="govuk-button govuk-!-margin-right-4 govuk-!-margin-bottom-0 govuk-!-margin-top-4 govuk-button--warning modal-close"
                                         id="delete-chat-confirm-button"
                                         hx-post="/chats/{{ chat.id }}/delete-chat/"
                                         hx-vals='{"active_chat_id": "{{ active_chat_id }}"}'
@@ -45,7 +45,7 @@
                                     <span class="govuk-visually-hidden">Yes, delete chat: {{ chat.name }}</span>
 
                                 </button>
-                                <button class="govuk-buttonx govuk-!-margin-right-4 govuk-!-margin-bottom-0 govuk-!-margin-top-4 govuk-button--secondaryx modal-close" data-module="govuk-button">
+                                <button class="govuk-button govuk-!-margin-right-4 govuk-!-margin-bottom-0 govuk-!-margin-top-4 govuk-button--secondary modal-close" data-module="govuk-button">
                                     No cancel
                                     <span class="govuk-visually-hidden">No, cancel delete chat: {{ chat.name }}</span>
                                 </button>

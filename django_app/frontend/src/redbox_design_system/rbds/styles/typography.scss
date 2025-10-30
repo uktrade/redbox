@@ -24,3 +24,24 @@ span,
 {
   font-family:  var(--font-family-primary) !important;
 }
+
+.text-emphasis {
+    color: var(--color-text);
+    font-weight: bold;
+}
+
+.text-xs {
+  font-size: var(--font-size-xs) !important;
+}
+
+.text-s {
+  font-size: var(--font-size-s) !important;
+}
+
+.text-m {
+  font-size: var(--font-size-m) !important;
+}
+
+.text-l {
+  font-size: var(--font-size-l) !important;
+}
