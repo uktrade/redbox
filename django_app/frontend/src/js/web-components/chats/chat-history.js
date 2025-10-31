@@ -47,7 +47,7 @@ export class ChatHistory extends HTMLElement {
     chatHistoryItem?.setAttribute("data-chatid", chatId);
 
     let editButton = /** @type {HTMLButtonElement} */ (
-      chatListItem.querySelector(".edit-button")
+      chatListItem.querySelector(".rbds-edit-button")
     );
 
     let deleteButton = /** @type {HTMLButtonElement} */ (

@@ -30,12 +30,12 @@
                         <input class="edit-input" type="text" id="item-title-text-input-{{ file.id }}" />
                     </div>
                     <div class="side-panel-item-actions">
-                        <button class="edit-button edit-trigger" type="button" data-action="rename">
+                        <button class="rbds-edit-button edit-trigger" type="button" data-action="rename">
                             {% include 'rbds/icons/edit.html' %}
                             <span class="govuk-visually-hidden"> edit document: {{ file.file_name }}</span>
                         </button>
                         {% call modal() %}
-                            <button class="delete-button modal-open">{% include 'rbds/icons/delete.html' %}</button>
+                            <button class="rbds-delete-button modal-open">{% include 'rbds/icons/delete.html' %}</button>
                             <dialog>
                                 <div>
                                     <h2 class="govuk-heading-m">Are you sure you want to delete this file?</h2>
