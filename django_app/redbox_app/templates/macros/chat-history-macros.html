@@ -1,11 +1,6 @@
 {% from "rbds/components/editable-text.html" import editable_text %}
 {% from "rbds/components/modal.html" import modal %}
 
-{% macro chat_history_heading(text) %}
-    <h3 class="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-1 side-panel-subheading {% if text|lower == 'previous' or text|lower == 'today' %}no-border{% endif %}">{{ text }}</h3>
-    {{ caller() }}
-{% endmacro %}
-
 
 {% macro chat_history_item (chat, link, active_chat_id) %}
     <li class="side-panel-item-container govuk-!-display-none" id="chat-{{ chat.id }}">

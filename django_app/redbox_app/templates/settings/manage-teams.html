@@ -23,7 +23,7 @@
   {% endfor %}
 {% endset %}
 
-<div class="govuk-width-container">
+<div class="govuk-width-container width-container">
 
   <h1 class="govuk-heading-l">Manage Teams</h1>
   {% include "document-help-text.html" %}
@@ -51,9 +51,11 @@
     <form method='post'>
       <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
       <div class="govuk-form-group">
-        <label class="govuk-label" for="team-name">Name</label>
+        <label class="govuk-label govuk-!-font-weight-bold text-xs" for="team-name">Name</label>
         <input class="govuk-input govuk-!-width-two-thirds" type="text" name="name" id="team-name" value="">
-        <label class="govuk-label" for="team-directorate">Directorate</label>
+      </div>
+      <div class="govuk-form-group">
+        <label class="govuk-label govuk-!-font-weight-bold text-xs" for="team-directorate">Directorate</label>
         <input class="govuk-input govuk-!-width-two-thirds" type="text" name="directorate" id="team-directorate" value="">
       </div>
       {{ govukButton(text="Create Team") }}
