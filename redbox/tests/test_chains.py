@@ -1,11 +1,15 @@
 from typing import Any, Dict, List
 from unittest.mock import patch
 
-from langchain_core.outputs import Generation
+import pytest
 from langchain_core.messages import AIMessage, BaseMessageChunk
+from langchain_core.outputs import Generation
 from pydantic import BaseModel
 
 from redbox.chains.parser import ClaudeParser, StreamingJsonOutputParser, StreamingPlanner
+from redbox.chains.runnables import prompt_budget_calculation, truncate_chat_history
+from redbox.models.errors import QuestionLengthError
+from redbox.transform import bedrock_tokeniser
 
 
 class TestResponseModel(BaseModel):
@@ -152,3 +156,21 @@ class TestStreamingJsonOutputParser:
         invalid_json = "not a json"
         parsed = parser.parse_partial_json(invalid_json)
         assert parsed is None
+
+
+@pytest.mark.parametrize("exceeding_budget, prompts_budget", [(True, 1000000), (False, 1000)])
+def test_prompt_budget_calculation(fake_state, exceeding_budget, prompts_budget):
+    if not exceeding_budget:
+        response = prompt_budget_calculation(state=fake_state, prompts_budget=prompts_budget)
+        assert isinstance(response, int)
+    else:
+        with pytest.raises(QuestionLengthError):
+            prompt_budget_calculation(state=fake_state, prompts_budget=prompts_budget)
+
+
+def test_truncate_chat_history(fake_state):
+    # check we got chat history back
+    tokeniser = bedrock_tokeniser
+    prompts_budget = tokeniser("This is a fake system prompt")
+    chat_history = truncate_chat_history(state=fake_state, prompts_budget=prompts_budget, tokeniser=tokeniser)
+    assert len(chat_history) > 0

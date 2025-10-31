@@ -23,6 +23,28 @@ log = logging.getLogger()
 re_string_pattern = re.compile(r"(\S+)")
 
 
+def prompt_budget_calculation(state: RedboxState, prompts_budget: int):
+    ai_settings = state.request.ai_settings
+    chat_history_budget = ai_settings.context_window_size - ai_settings.llm_max_tokens - prompts_budget
+    if chat_history_budget <= 0:
+        raise QuestionLengthError
+    return chat_history_budget
+
+
+def truncate_chat_history(state: RedboxState, prompts_budget: int, tokeniser: callable = bedrock_tokeniser):
+    _tokeniser = tokeniser or get_tokeniser()
+    chat_history_budget = prompt_budget_calculation(state, prompts_budget)
+    truncated_history: list[ChainChatMessage] = []
+    for msg in state.request.chat_history[::-1]:
+        chat_history_budget -= _tokeniser(msg["text"])
+        if chat_history_budget <= 0:
+            break
+        else:
+            truncated_history.insert(0, msg)
+
+    return truncated_history
+
+
 def build_chat_prompt_from_messages_runnable(
     prompt_set: PromptSet,
     tokeniser: callable = bedrock_tokeniser,
@@ -51,18 +73,8 @@ def build_chat_prompt_from_messages_runnable(
             {ai_settings.answer_instruction_prompt}
             """
         prompts_budget = bedrock_tokeniser(task_system_prompt) + bedrock_tokeniser(task_question_prompt)
-        chat_history_budget = ai_settings.context_window_size - ai_settings.llm_max_tokens - prompts_budget
 
-        if chat_history_budget <= 0:
-            raise QuestionLengthError
-
-        truncated_history: list[ChainChatMessage] = []
-        for msg in state.request.chat_history[::-1]:
-            chat_history_budget -= _tokeniser(msg["text"])
-            if chat_history_budget <= 0:
-                break
-            else:
-                truncated_history.insert(0, msg)
+        truncated_history = truncate_chat_history(state=state, prompts_budget=prompts_budget, tokeniser=_tokeniser)
 
         prompt_template_context = (
             state.request.model_dump()
@@ -274,7 +286,12 @@ class CannedChatLLM(BaseChatModel):
 
 
 def basic_chat_chain(
-    system_prompt, tools=None, _additional_variables: dict = {}, parser=None, using_only_structure=False
+    system_prompt,
+    tools=None,
+    _additional_variables: dict = {},
+    parser=None,
+    using_only_structure: bool = False,
+    using_chat_history: bool = False,
 ):
     @chain
     def _basic_chat_chain(state: RedboxState):
@@ -283,8 +300,16 @@ def basic_chat_chain(
             llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
         else:
             llm = get_chat_llm(state.request.ai_settings.chat_backend)
+
+        # chat history
+        if using_chat_history:
+            _tokeniser = get_tokeniser()
+            prompts_budget = _tokeniser(system_prompt)
+            truncated_history = truncate_chat_history(state=state, prompts_budget=prompts_budget, tokeniser=_tokeniser)
+
         context = {
             "question": state.request.question,
+            "chat_history": truncated_history if using_chat_history else "",
         } | _additional_variables
         if parser:
             if isinstance(parser, StrOutputParser):
@@ -307,7 +332,12 @@ def basic_chat_chain(
 
 
 def chain_use_metadata(
-    system_prompt: str, parser=None, tools=None, _additional_variables: dict = {}, using_only_structure=False
+    system_prompt: str,
+    parser=None,
+    tools=None,
+    _additional_variables: dict = {},
+    using_only_structure=False,
+    using_chat_history=False,
 ):
     metadata = None
 
@@ -330,6 +360,7 @@ def chain_use_metadata(
             parser=parser,
             _additional_variables=additional_variables,
             using_only_structure=using_only_structure,
+            using_chat_history=using_chat_history,
         )
         return chain.invoke(state)
 
@@ -343,6 +374,7 @@ def create_chain_agent(
     parser=None,
     _additional_variables: dict = {},
     using_only_structure=False,
+    using_chat_history=False,
 ):
     if use_metadata:
         return chain_use_metadata(
@@ -351,6 +383,7 @@ def create_chain_agent(
             parser=parser,
             _additional_variables=_additional_variables,
             using_only_structure=using_only_structure,
+            using_chat_history=using_chat_history,
         )
     else:
         return basic_chat_chain(
@@ -359,4 +392,5 @@ def create_chain_agent(
             parser=parser,
             _additional_variables=_additional_variables,
             using_only_structure=using_only_structure,
+            using_chat_history=using_chat_history,
         )
