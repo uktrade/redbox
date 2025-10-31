@@ -10,7 +10,9 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.template.response import TemplateResponse
 from django_q.tasks import async_task
+from waffle import flag_is_active
 
+from redbox_app.redbox_core import flags
 from redbox_app.redbox_core.models import File, UserTeamMembership
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.types import APPROVED_FILE_EXTENSIONS
@@ -33,9 +35,17 @@ def get_file_context(request):
         .exclude(user=request.user)
         .distinct()
     )
+
+    completed_files = list(completed_files)
+    processing_files = list(processing_files)
+
+    if flag_is_active(request, flags.ENABLE_TEAMS):
+        completed_files = completed_files + list(team_files.filter(status="complete"))
+        processing_files = processing_files + list(team_files.filter(status="processing"))
+
     return {
-        "completed_files": list(completed_files) + list(team_files.filter(status="complete")),
-        "processing_files": list(processing_files) + list(team_files.filter(status="processing")),
+        "completed_files": completed_files,
+        "processing_files": processing_files,
     }
 
 

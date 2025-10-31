@@ -11,18 +11,21 @@ from opensearchpy import OpenSearch
 
 from redbox.api.format import reduce_chunks_by_tokens
 from redbox.graph.nodes.tools import (
+    brave_response_to_documents,
     build_govuk_search_tool,
     build_legislation_search_tool,
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
-    kagi_search_call,
+    kagi_response_to_documents,
+    web_search_call,
+    web_search_with_retry,
 )
 from redbox.models.chain import AISettings, RedboxQuery, RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
-from redbox.models.settings import Settings, get_settings
+from redbox.models.settings import Settings
 from redbox.test.data import RedboxChatTestCase
-from redbox.transform import combine_documents, flatten_document_state
+from redbox.transform import bedrock_tokeniser, combine_documents, flatten_document_state
 from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
 
 
@@ -226,18 +229,40 @@ def test_gov_filter_AI(is_filter, relevant_return, query, keyword):
     assert any(keyword in document.page_content for document in documents) == relevant_return
 
 
+@pytest.mark.parametrize(
+    "provider, web_results",
+    [
+        (
+            "Brave",
+            [
+                {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "1"}},
+                {
+                    "status_code": 200,
+                    "json": {"web": {"results": [{"extra_snippets": ["fake_doc"], "url": "http://fake.com"}]}},
+                },
+            ],
+        ),
+        (
+            "Kagi",
+            [
+                {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "1"}},
+                {"status_code": 200, "json": {"data": [{"t": 0, "snippet": "fake doc", "url": "http://fake.com"}]}},
+            ],
+        ),
+    ],
+)
 @requests_mock.Mocker(kw="mock")
-def test_web_search_rate_limit(**kwargs):
-    env = get_settings()
+def test_web_search_rate_limit(provider, web_results, mocker, **kwargs):
+    # mock setting
+    env = Settings(web_search=provider)
+    mocker.patch("redbox.graph.nodes.tools.get_settings", return_value=env)
+
     kwargs["mock"].get(
         env.web_search_settings().end_point,
-        [
-            {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "1"}},
-            {"status_code": 200, "json": {"data": [{"t": 0, "snippet": "fake doc", "url": "http://fake.com"}]}},
-        ],
+        web_results,
     )
 
-    response = kagi_search_call(query="hello")
+    response = web_search_call(query="hello")
 
     assert kwargs["mock"].call_count == 2
     assert kwargs["mock"].called
@@ -281,6 +306,82 @@ def test_gov_tool_params():
 
     # call gov tool without additional filter
     assert len(documents) == ai_setting.tool_govuk_returned_results
+
+
+@requests_mock.Mocker(kw="mock")
+def test_kagi_response_to_document(mocker, **kwargs):
+    env = Settings(web_search="Kagi")
+    mocker.patch("redbox.graph.nodes.tools.get_settings", return_value=env)
+    kwargs["mock"].get(
+        env.web_search_settings().end_point,
+        [
+            {
+                "status_code": 200,
+                "json": {
+                    "data": [
+                        {"t": 0, "snippet": "fake doc number 1", "url": "http://fake.com/page=1"},
+                        {"t": 0, "snippet": "fake doc number 2", "url": "http://fake.com/page=2"},
+                    ]
+                },
+            },
+        ],
+    )
+
+    response = web_search_with_retry(
+        query="hello",
+        no_search_result=2,
+        country_code="All",
+        ui_lang="en-GB",
+    )
+    tokeniser = bedrock_tokeniser
+    mapped_documents = []
+    docs = kagi_response_to_documents(tokeniser, response, mapped_documents)
+
+    assert len(docs) == 2
+    for doc in docs:
+        assert isinstance(doc, Document)
+
+
+@requests_mock.Mocker(kw="mock")
+def test_brave_response_to_document(mocker, **kwargs):
+    env = Settings(web_search="Brave")
+    mocker.patch("redbox.graph.nodes.tools.get_settings", return_value=env)
+    kwargs["mock"].get(
+        env.web_search_settings().end_point,
+        [
+            {
+                "status_code": 200,
+                "json": {
+                    "web": {
+                        "results": [
+                            {
+                                "extra_snippets": ["fake_doc_1_snippet_1", "fake_doc_1_snippet_2"],
+                                "url": "http://fake.com/page=1",
+                            },
+                            {
+                                "extra_snippets": ["fake_doc_2_snippet_1", "fake_doc_2_snippet_2"],
+                                "url": "http://fake.com/page=2",
+                            },
+                        ]
+                    }
+                },
+            },
+        ],
+    )
+
+    response = web_search_with_retry(
+        query="hello",
+        no_search_result=2,
+        country_code="All",
+        ui_lang="en-GB",
+    )
+    tokeniser = bedrock_tokeniser
+    mapped_documents = []
+    docs = brave_response_to_documents(tokeniser, response, mapped_documents)
+
+    assert len(docs) == 2
+    for doc in docs:
+        assert isinstance(doc, Document)
 
 
 @pytest.mark.parametrize(
