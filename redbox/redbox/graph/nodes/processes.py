@@ -413,6 +413,7 @@ def create_planner(is_streamed=False):
             tools=None,
             parser=ClaudeParser(pydantic_object=MultiAgentPlan),
             using_only_structure=False,
+            using_chat_history=True,
             _additional_variables={"document_filenames": document_filenames},
         )
         return orchestration_agent
@@ -452,6 +453,7 @@ def my_planner(
                     "user_feedback": user_input,
                     "document_filenames": document_filenames,
                 },
+                using_chat_history=True,
             )
             res = orchestration_agent.invoke(state)
             state.agent_plans = res

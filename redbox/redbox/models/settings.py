@@ -175,7 +175,7 @@ class Settings(BaseSettings):
     )
 
     # web search
-    web_search: Literal["Google", "Brave", "Kagi"] = "Kagi"
+    web_search: Literal["Google", "Brave", "Kagi"] = "Brave"
 
     ## Prompts
     metadata_prompt: tuple = (
