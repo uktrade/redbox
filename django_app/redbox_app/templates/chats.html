@@ -13,7 +13,7 @@
 
 <div>
   <form id="chats-form" class="govuk-width-container width-container govuk-grid-row js-message-input" action="/submit" method="post">
-    <div class="govuk-grid-column-one-quarter side-panel">
+    <div class="govuk-grid-column-one-quarter rbds-side-panel">
       <div class="rb-left-column-container">
         <a role="button"
           href="{{ url('chats') }}"
@@ -21,11 +21,11 @@
           class="govuk-heading-s side-panel-heading side-panel-heading-button govuk-!-margin-bottom-4 govuk-!-margin-top-4">
           New chat
         </a>
-        <div class="divider"></div>
+        <div class="rbds-divider"></div>
         <h2 class="govuk-heading-s side-panel-heading govuk-!-margin-top-4">Recent chats</h2>
         {% include "side_panel/recent_chats_list.html" %}
         <div class="govuk-form-group govuk-!-margin-top-5" {% if request.user.is_superuser %}hidden{% endif %}>
-          <div class="divider"></div>
+          <div class="rbds-divider"></div>
           <label class="govuk-heading-s side-panel-heading govuk-!-margin-top-4" for="llm-selector">Model</label>
           <select id="llm-selector" name="llm" class="govuk-select govuk-!-margin-top-1" {% if environment | lower == 'prod' %} disabled {% endif %}>
             {% for option in llm_options %}

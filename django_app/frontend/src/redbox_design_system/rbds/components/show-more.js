@@ -209,7 +209,7 @@ export class ShowMore extends HTMLElement {
         let clickElement = document.createElement("a");
         clickElement.textContent = labelText;
         clickElement.classList.add(
-            "action-link",
+            "rbds-action-link",
             "govuk-link",
             "govuk-link--no-visited-state",
             "govuk-link--no-underline",
@@ -240,4 +240,4 @@ export class ShowMore extends HTMLElement {
         }
     }
 }
-customElements.define("show-more", ShowMore);
+customElements.define("rbds-show-more", ShowMore);

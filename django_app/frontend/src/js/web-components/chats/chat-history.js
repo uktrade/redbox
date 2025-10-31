@@ -27,7 +27,7 @@ export class ChatHistory extends HTMLElement {
       "chat-history-item"
     );
     let editableText = /** @type {HTMLElement} */ (
-      chatHistoryItem?.querySelector("editable-text")
+      chatHistoryItem?.querySelector("rbds-editable-text")
     );
 
     editableText?.setAttribute("post-url", `/chat/${chatId}/title/`);

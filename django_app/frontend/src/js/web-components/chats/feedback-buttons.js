@@ -109,10 +109,10 @@ export class FeedbackButtons extends HTMLElement {
     this.closest(".chat-actions-container").insertAdjacentHTML("afterend",`
       <div class="govuk-form-group feedback-container feedback-container--2" tabindex="-1">
         <fieldset class="govuk-fieldset feedback__chips-container feedback__chips-container-${this.dataset.id} feedback__negative">
-          <legend class="govuk-fieldset__legend govuk-fieldset__legend--s">Select all that apply about the response</legend>
-          <div class="radio-groups-container">
+          <legend class="govuk-fieldset__legend govuk-fieldset__legend--s text-s">Select all that apply about the response</legend>
+          <div class="rbds-radio-groups-container text-xs">
             <!-- Factuality Group -->
-            <div class="govuk-radios radio-flex-container feedback__chip-group">
+            <div class="govuk-radios govuk-radios--small rbds-radio-flex-container feedback__chip-group">
               <div class="govuk-radios__item">
                 <input type="radio" class="feedback__chip govuk-radios__input" id="radio1-mostlycorrect-${this.dataset.id}" data-testid="Mostly Correct" name="correctness" />
                 <label class="feedback__chip-label govuk-radios__label" for="radio1-mostlycorrect-${this.dataset.id}">Mostly Correct</label>
@@ -123,7 +123,7 @@ export class FeedbackButtons extends HTMLElement {
               </div>
             </div>
             <!-- Completeness Group -->
-            <div class="govuk-radios radio-flex-container feedback__chip-group">
+            <div class="govuk-radios govuk-radios--small rbds-radio-flex-container feedback__chip-group">
               <div class="govuk-radios__item">
                 <input type="radio" class="feedback__chip govuk-radios__input" id="radio3-complete-${this.dataset.id}" data-testid="Complete" name="completeness" />
                 <label class="feedback__chip-label govuk-radios__label" for="radio3-complete-${this.dataset.id}">Complete</label>
@@ -134,7 +134,7 @@ export class FeedbackButtons extends HTMLElement {
               </div>
             </div>
             <!-- Structure Group -->
-            <div class="govuk-radios radio-flex-container feedback__chip-group">
+            <div class="govuk-radios govuk-radios--small rbds-radio-flex-container feedback__chip-group">
               <div class="govuk-radios__item">
                 <input type="radio" class="feedback__chip govuk-radios__input" id="radio5-structured-${this.dataset.id}" data-testid="Well-organised" name="structured" />
                 <label class="feedback__chip-label govuk-radios__label" for="radio5-structured-${this.dataset.id}">Well-organised</label>

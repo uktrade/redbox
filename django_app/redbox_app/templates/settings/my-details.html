@@ -22,27 +22,30 @@
             {{ form.ai_experience.label }}
             </h1>
           </legend>
-          <div id="ai_experience-hint" class="govuk-hintx govuk-!-margin-bottom-4 govuk-body">
+          <div id="ai_experience-hint" class="govuk-hint govuk-!-margin-bottom-4 text-xs">
             Select what best describes your level of experience using AI tools. This will help us tailor your experience. You can always update this page anytime.
           </div>
-          <div class="govuk-radios" data-module="govuk-radios">
-            {% for value, label in form.ai_experience.field.choices %}
-              {% if value %}
-                <div class="govuk-radios__item">
-                  <input class="govuk-radios__input" type="radio"
-                        id="ai_experience_{{ loop.index0 }}"
-                        name="{{ form.ai_experience.name }}"
-                        value="{{ value }}"
-                        {% if value|string == form.ai_experience.value()|string %}checked{% endif %}
-                        data-testid="{{ value }}">
-                  <label class="govuk-radios__labelx" for="ai_experience_{{ loop.index0 }}">
-                    {{ value }}
-                  </label>
-                  <div class="govuk-hint govuk-radios__hintx">{{ label }}</div>
-                </div>
-              {% endif %}
-            {% endfor %}
+          <div class="rbds-radio-groups-container">
+            <div class="govuk-radios govuk-radios--small rbds-radio-flex-container" data-module="govuk-radios">
+              {% for value, label in form.ai_experience.field.choices %}
+                {% if value %}
+                  <div class="govuk-radios__item">
+                    <input class="govuk-radios__input" type="radio"
+                          id="ai_experience_{{ loop.index0 }}"
+                          name="{{ form.ai_experience.name }}"
+                          value="{{ value }}"
+                          {% if value|string == form.ai_experience.value()|string %}checked{% endif %}
+                          data-testid="{{ value }}">
+                    <label class="govuk-radios__label text-xs" for="ai_experience_{{ loop.index0 }}">
+                      {{ value }}
+                      <div class="govuk-hint govuk-radios__hint govuk-!-padding-left-0 govuk-!-padding-top-1 text-xs">{{ label }}</div>
+                    </label>
+                  </div>
+                {% endif %}
+              {% endfor %}
+            </div>
           </div>
+
         </fieldset>
       </div>
 

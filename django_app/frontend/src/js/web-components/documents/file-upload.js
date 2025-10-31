@@ -41,7 +41,7 @@ class FileUpload extends HTMLElement {
      * Container for file upload textbox UI elements
     */
     get uploadedFiles() {
-        return /** @type {UploadedFiles} */ (this.textarea?.querySelector("uploaded-files"));
+        return /** @type {UploadedFiles} */ (this.textarea?.querySelector("rbds-uploaded-files"));
     }
 
 
@@ -51,7 +51,7 @@ class FileUpload extends HTMLElement {
     get messageInput() {
         if (!this._messageInput || !document.body.contains(this._messageInput)) {
             this._messageInput = /** @type {MessageInput} */ (
-                document.querySelector('message-input')
+                document.querySelector('rbds-message-input')
             );
         }
         return this._messageInput;
@@ -203,7 +203,7 @@ class FileUpload extends HTMLElement {
     #createFile(name) {
         if (!this.uploadedFiles) {
             const uploadedFiles = /** @type {UploadedFiles} */ (
-                document.createElement("uploaded-files")
+                document.createElement("rbds-uploaded-files")
             );
             this.textarea.prepend(uploadedFiles);
 

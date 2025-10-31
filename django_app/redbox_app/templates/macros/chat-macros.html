@@ -36,7 +36,7 @@
   class="redbox-message-container govuk-inset-text {% if message.role == "user" %} govuk-inset-text-right {% endif %} govuk-body"
   data-role="{{ message.role }}" tabindex="-1" id="chat-message-{{ message.id }}">
 
-  <markdown-converter class="chat-message__text">{{ message.text }}</markdown-converter>
+  <markdown-converter class="rbds-chat-message__text">{{ message.text }}</markdown-converter>
   {% if message.unique_citation_uris() %}
   <h3 class="iai-chat-bubble__sources-heading govuk-heading-s govuk-!-margin-bottom-1">Sources</h3>
   <div class="iai-display-flex-from-desktop">

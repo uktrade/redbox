@@ -106,4 +106,4 @@ export class AccessibleAutocomplete extends HTMLElement {
   }
 
 }
-customElements.define("accessible-autocomplete", AccessibleAutocomplete);
+customElements.define("rbds-accessible-autocomplete", AccessibleAutocomplete);

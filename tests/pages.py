@@ -303,8 +303,6 @@ class DocumentDeletePage(SignedInBasePage):
 @dataclass
 class ChatMessage:
     status: str | None
-    role: str
-    route: str | None
     text: str
     sources: Sequence[str]
     element: Locator = field(repr=False)
@@ -317,18 +315,16 @@ class ChatMessage:
     @classmethod
     def from_element(cls, element: Locator, page: "ChatsPage") -> "ChatMessage":
         status = element.get_attribute("data-status")
-        role = element.locator(".iai-chat-bubble__role").inner_text()
-        route = element.locator(".iai-chat-bubble__route-text").inner_text() or None
-        text = element.locator(".chat-message__text").inner_text()
+        text = element.locator(".rbds-chat-message__text").inner_text()
         sources = element.locator("sources-list").get_by_role("listitem").all_inner_texts()
-        return cls(status=status, role=role, route=route, text=text, sources=sources, element=element, chats_page=page)
+        return cls(status=status, text=text, sources=sources, element=element, chats_page=page)
 
 
 class ChatsPage(SignedInBasePage):
     @override
     def check_a11y(self, **kwargs):
         # Exclude AI generated content, since we can't control it.
-        return super().check_a11y(exclude=[".chat-message__text"])
+        return super().check_a11y(exclude=[".rbds-chat-message__text"])
 
     @property
     def expected_page_title(self) -> str:
@@ -384,7 +380,7 @@ class ChatsPage(SignedInBasePage):
 
     @property
     def chat_title(self) -> str:
-        return self.page.locator(".chat-title__heading").inner_text()
+        return self.page.locator(".rbds-chat-title__heading").inner_text()
 
     @chat_title.setter
     def chat_title(self, title: str):
@@ -449,7 +445,7 @@ class CitationsPage(SignedInBasePage):
     @override
     def check_a11y(self, **kwargs):
         # Exclude AI generated content, since we can't control it.
-        return super().check_a11y(exclude=[".chat-message__text"])
+        return super().check_a11y(exclude=[".rbds-chat-message__text"])
 
     @property
     def expected_page_title(self) -> str:

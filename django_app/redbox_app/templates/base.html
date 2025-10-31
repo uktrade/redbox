@@ -52,7 +52,7 @@
 
 
   {% if environment | lower != "prod" %}
-    <div class="rb-classification-banner govuk-warning-text rb-environment-warning iai-environment-warning">
+    <div class="govuk-warning-text rbds-environment-banner">
       {{environment|upper}} - This is not a live service
     </div>
   {% endif %}

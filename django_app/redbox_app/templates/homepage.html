@@ -4,7 +4,7 @@
 
 {% block content %}
 
-<div class="rb-banner">
+<div class="rbds-banner">
     <div class="govuk-width-container width-container">
         <div class="govuk-grid-row">
             <div class="govuk-grid-column-two-thirds">
@@ -15,7 +15,7 @@
                     Ask questions, create summaries, or chat with Artificial Intelligence (AI)
                     about single or multiple documents to support your work.
                 </p>
-                <div class="rb-banner__links">
+                <div class="rbds-banner__links">
                     {% if not request.user.is_authenticated %}
                         {{ govukButton(
                             text="Sign in",
@@ -26,7 +26,7 @@
                         {{ govukButton(
                             text = "Start a chat",
                             href=url('chats'),
-                            classes="govuk-button--secondary govuk-!-margin-bottom-0 rb-banner__button"
+                            classes="govuk-button--secondary govuk-!-margin-bottom-0 rbds-banner__button"
                             ) }}
                         {% endif %}
                 </div>

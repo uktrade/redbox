@@ -6,6 +6,6 @@ test(`Clicking canned prompts updates the text input`, async ({ page }) => {
 
   await page.goto("/chats");
 
-  const textInput = page.locator(".message-input");
+  const textInput = page.locator(".rbds-message-input");
   await expect(textInput).toHaveValue("");
 });

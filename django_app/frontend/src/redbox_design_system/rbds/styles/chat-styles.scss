@@ -40,83 +40,6 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   .rb-chats-section {
     flex-grow: 1;
   }
-  .govuk-grid-row:has(.iai-chat-input) {
-    display: flex;
-    .govuk-grid-column-one-third,
-    .govuk-grid-column-two-thirds {
-      float: none;
-      min-height: calc(100vh - 17.25rem);
-    }
-    .govuk-grid-column-two-thirds {
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-    .iai-panel {
-      height: auto;
-    }
-  }
-}
-@media (min-width: 1020px) {
-  .govuk-grid-row:has(.iai-chat-input) {
-    .govuk-grid-column-one-third,
-    .govuk-grid-column-two-thirds {
-      min-height: calc(100vh - 10.25rem);
-    }
-  }
-}
-@media (min-width: 1020px) and (min-height: 600px) {
-  body:has(.iai-chat-input) .iai-environment-warning {
-    position: fixed;
-    width: 100%;
-    z-index: 10;
-  }
-  body:has(.iai-chat-input) .iai-top-nav {
-    position: fixed;
-    width: 100%;
-    z-index: 10;
-  }
-  body:has(.iai-environment-warning) .iai-top-nav {
-    top: 24px;
-  }
-  .iai-panel__scrollable {
-    max-height: calc(50vh - 12rem);
-    color: var(--color-background-white);
-  }
-  main:has(#llm-selector) .iai-panel__scrollable {
-    max-height: calc(50vh - 15rem);
-  }
-}
-
-.rb-activity {
-  border-left: 1px solid var(--color-border-dark);
-  display: flex;
-  margin: 0;
-  margin-left: 0.5rem;
-  padding-bottom: 0.75rem;
-}
-.rb-activity::before {
-  align-items: center;
-  border-radius: 100%;
-  content: '';
-  display: flex;
-  height: 1rem;
-  justify-content: center;
-  left: -0.5rem;
-  position: relative;
-  top: -2px;
-  width: 1rem;
-}
-.rb-activity--user::before {
-  background-color: #0b8478;
-  content: url("/static/icons/activity-user.svg")
-}
-.rb-activity--info::before {
-  background-color: #0779c4;
-}
-.rb-activity--ai::before {
-  background-color: var(--color-background);
-  content: url("/static/icons/activity-redbox.svg")
 }
 
 .rb-loading-ellipsis {
@@ -169,26 +92,6 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   75% {
     opacity: 1;
   }
-}
-
-.rb-streaming-response-loading {
-  align-items: center;
-  display: flex;
-  padding: 0.5rem 0;
-  gap: 0.25rem;
-}
-.rb-response-loading {
-  align-items: center;
-  display: flex;
-  padding: 0.5rem 0;
-  visibility: hidden;
-}
-.rb-response-loading:focus-visible {
-  outline: 1px solid;
-}
-.rb-response-loading__spinner,
-.rb-streaming-response-loading__spinner {
-  width: 1.5rem;
 }
 
 /* Footnotes */

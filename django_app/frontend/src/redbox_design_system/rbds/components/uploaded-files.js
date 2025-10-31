@@ -6,7 +6,7 @@ export class UploadedFiles extends HTMLElement {
     constructor() {
         super();
 
-        this.templateId = 'uploaded-files-template';
+        this.templateId = 'rbds-uploaded-files-template';
         this.template = /** @type {HTMLTemplateElement} */ (document.getElementById(this.templateId));
 
         /** @type {UploadedFile[]} */
@@ -37,7 +37,7 @@ export class UploadedFiles extends HTMLElement {
      * @returns {UploadedFile} UploadedFile element
      */
     addFile(name) {
-        const uploadedFile = /** @type {UploadedFile} */ (document.createElement("uploaded-file"));
+        const uploadedFile = /** @type {UploadedFile} */ (document.createElement("rbds-uploaded-file"));
         this.container.appendChild(uploadedFile);
         uploadedFile.fileName = name;
         this.files.push(uploadedFile);
@@ -131,4 +131,4 @@ export class UploadedFiles extends HTMLElement {
         });
     }
 }
-customElements.define("uploaded-files", UploadedFiles);
+customElements.define("rbds-uploaded-files", UploadedFiles);

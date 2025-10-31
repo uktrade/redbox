@@ -63,6 +63,7 @@ $govuk-brand-colour: #1d70b8;
   --color-border-dark: var(--dbt-black);
   --color-button-primary: var(--redbox-blue);/* old:#1759BC */
   --color-text: var(--dbt-black);
+  --color-text-secondary: var(--dbt-white);
   --color-link-text: var(--redbox-blue);
   --color-link-text-hover: var(--gds-dark-blue);
 
@@ -85,4 +86,5 @@ $govuk-brand-colour: #1d70b8;
 
   // Misc
   --header-height: 161px;
+  --border-radius: .25rem;
 }

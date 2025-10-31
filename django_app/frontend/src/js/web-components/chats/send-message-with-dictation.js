@@ -24,7 +24,7 @@ export class SendMessageWithDictation extends HTMLElement {
 
     if (!this.buttonRecord || !this.buttonRecordStop || !this.buttonSend || !this.buttonSendStop || !this.messageInput) return;
 
-    customElements.whenDefined("message-input").then(() => this.#bindEvents())
+    customElements.whenDefined("rbds-message-input").then(() => this.#bindEvents())
   }
 
   #bindEvents() {
@@ -78,7 +78,7 @@ export class SendMessageWithDictation extends HTMLElement {
   }
 
   get messageInput() {
-    return /** @type {MessageInput} */ (document.querySelector('message-input'));
+    return /** @type {MessageInput} */ (document.querySelector('rbds-message-input'));
   }
 
   async startRecording() {

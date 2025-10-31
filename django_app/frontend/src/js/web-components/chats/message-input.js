@@ -124,7 +124,7 @@ export class MessageInput extends HTMLElement {
    */
   getValue = (trim=true) => {
     const clone = /** @type {HTMLElement} */ (this.textarea.cloneNode(true));
-    clone.querySelector("uploaded-files")?.remove();
+    clone.querySelector("rbds-uploaded-files")?.remove();
     if (trim) return clone?.textContent?.trim() || "";
     return clone?.textContent || "";
   };
@@ -161,4 +161,4 @@ export class MessageInput extends HTMLElement {
   };
 }
 
-customElements.define("message-input", MessageInput);
+customElements.define("rbds-message-input", MessageInput);

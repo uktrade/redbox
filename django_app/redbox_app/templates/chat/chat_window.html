@@ -11,7 +11,7 @@
         {% include "chat/chat_title.html" %}
         <chat-controller class="iai-chat-container" data-stream-url="{{ streaming.endpoint if streaming else '' }}"
             data-session-id="{{ chat_id or '' }}">
-            <div class="rb-chat-message__container js-message-container">
+            <div class="rbds-chat-message__container js-message-container">
 
                 <template id="template-route-display">
                     {{ route_display() }}
@@ -37,10 +37,10 @@
         <div id="message-hint" class="govuk-hint text-s govuk-body">
             Need help? View <a href="{{ url('faq') }}" class="govuk-link" target="_blank">Advanced Prompt FAQ.</a>
         </div>
-        <message-input>
-            <div class="govuk-textareax message-input drop-zone" id="message" name="message" contenteditable="true" role="textbox"
+        <rbds-message-input>
+            <div class="govuk-textarea rbds-message-input drop-zone" id="message" name="message" contenteditable="true" role="textbox"
                 aria-multiline="true" data-text="Type here..."></div>
-        </message-input>
+        </rbds-message-input>
         <file-upload upload-url="/documents/upload/">
             <input class="govuk-file-upload govuk-!-display-none" multiple id="upload-docs" name="uploadDocs" type="file" aria-describedby="upload-docs-notification upload-docs-filetypes">
             {{ govukButton(

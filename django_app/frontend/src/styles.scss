@@ -1,6 +1,5 @@
 @use "../node_modules/govuk-frontend/dist/govuk/index" as govuk;
 @use "./variables.scss" as *;
-// @use "../node_modules/i.ai-design-system/dist/styles.scss" as iai;
 @use "./redbox_design_system" as redbox_design_system;
 @use "../node_modules/accessible-autocomplete/dist/accessible-autocomplete.min.css" as accessible-autocomplete;
 
@@ -17,20 +16,13 @@ main {
   padding: 0px !important;
 }
 
-/* All pages */
-.rb-classification-banner {
-  background-color: #2b71c7;
-  color: white;
-  font-size: 0.875rem;
-  padding: 0.25rem 1rem;
-  text-align: center;
+input,
+select {
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--border-radius) !important;
 }
 
-.rb-environment-warning {
-  background-color: #ffbf47;
-  color: black;
-  margin-bottom: 0;
-}
+/* All pages */
 
 .govuk-phase-banner__content__tag {
   background-color: $govuk-brand-colour !important;
@@ -166,18 +158,6 @@ only screen and (min-resolution:192dpi) {
 
 /* Chats Page - to come after i.AI Design System */
 
-.radio-groups-container {
-  display: flex;
-  flex-direction: row;
-  gap: 5px;
-}
-
-.radio-flex-container {
-  display: flex;
-  flex-direction: column;
-  min-width: 200px;
-}
-
 .header-wrapper {
   position: sticky;
   top: 0;
@@ -306,14 +286,4 @@ only screen and (min-resolution:192dpi) {
 
 .govuk-notification-banner__contentx>:last-child {
   margin-bottom: 0
-}
-
-.govuk-grid-column-one-quarterx {
-  @extend .govuk-grid-column-one-quarter;
-  background-color: var(--color-background);
-  position: sticky;
-  top: 111px;
-  bottom: 0;
-  z-index: 100;
-  overflow-y: clip;
 }
