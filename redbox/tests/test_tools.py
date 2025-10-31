@@ -229,12 +229,11 @@ def test_gov_filter_AI(is_filter, relevant_return, query, keyword):
     assert any(keyword in document.page_content for document in documents) == relevant_return
 
 
-@requests_mock.Mocker(kw="mock")
-def test_web_search_rate_limit(**kwargs):
-    env = get_settings()
-    if env.web_search == "Brave":
-        kwargs["mock"].get(
-            env.web_search_settings().end_point,
+@pytest.mark.parametrize(
+    "provider, web_results",
+    [
+        (
+            "Brave",
             [
                 {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "1"}},
                 {
@@ -242,18 +241,26 @@ def test_web_search_rate_limit(**kwargs):
                     "json": {"web": {"results": [{"extra_snippets": ["fake_doc"], "url": "http://fake.com"}]}},
                 },
             ],
-        )
-
-    elif env.web_search == "Kagi":
-        kwargs["mock"].get(
-            env.web_search_settings().end_point,
+        ),
+        (
+            "Kagi",
             [
                 {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "1"}},
                 {"status_code": 200, "json": {"data": [{"t": 0, "snippet": "fake doc", "url": "http://fake.com"}]}},
             ],
-        )
-    else:
-        print(f"No test designed for web search api provider {env.web_search}")
+        ),
+    ],
+)
+@requests_mock.Mocker(kw="mock")
+def test_web_search_rate_limit(provider, web_results, mocker, **kwargs):
+    # mock setting
+    env = Settings(web_search=provider)
+    mocker.patch("redbox.graph.nodes.tools.get_settings", return_value=env)
+
+    kwargs["mock"].get(
+        env.web_search_settings().end_point,
+        web_results,
+    )
 
     response = web_search_call(query="hello")
 
