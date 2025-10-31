@@ -23,7 +23,7 @@ from redbox.graph.nodes.tools import (
 )
 from redbox.models.chain import AISettings, RedboxQuery, RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
-from redbox.models.settings import Settings, get_settings
+from redbox.models.settings import Settings
 from redbox.test.data import RedboxChatTestCase
 from redbox.transform import bedrock_tokeniser, combine_documents, flatten_document_state
 from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
@@ -309,8 +309,9 @@ def test_gov_tool_params():
 
 
 @requests_mock.Mocker(kw="mock")
-def test_kagi_response_to_document(**kwargs):
-    env = get_settings()
+def test_kagi_response_to_document(mocker, **kwargs):
+    env = Settings(web_search="Kagi")
+    mocker.patch("redbox.graph.nodes.tools.get_settings", return_value=env)
     kwargs["mock"].get(
         env.web_search_settings().end_point,
         [
@@ -342,8 +343,9 @@ def test_kagi_response_to_document(**kwargs):
 
 
 @requests_mock.Mocker(kw="mock")
-def test_brave_response_to_document(**kwargs):
-    env = get_settings()
+def test_brave_response_to_document(mocker, **kwargs):
+    env = Settings(web_search="Brave")
+    mocker.patch("redbox.graph.nodes.tools.get_settings", return_value=env)
     kwargs["mock"].get(
         env.web_search_settings().end_point,
         [
