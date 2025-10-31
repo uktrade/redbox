@@ -109,8 +109,8 @@ export class FeedbackButtons extends HTMLElement {
     this.closest(".chat-actions-container").insertAdjacentHTML("afterend",`
       <div class="govuk-form-group feedback-container feedback-container--2" tabindex="-1">
         <fieldset class="govuk-fieldset feedback__chips-container feedback__chips-container-${this.dataset.id} feedback__negative">
-          <legend class="govuk-fieldset__legend govuk-fieldset__legend--s text-s">Select all that apply about the response</legend>
-          <div class="rbds-radio-groups-container text-xs">
+          <legend class="govuk-fieldset__legend govuk-fieldset__legend--s rbds-text-s">Select all that apply about the response</legend>
+          <div class="rbds-radio-groups-container rbds-text-xs">
             <!-- Factuality Group -->
             <div class="govuk-radios govuk-radios--small rbds-radio-flex-container feedback__chip-group">
               <div class="govuk-radios__item">

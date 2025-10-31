@@ -93,11 +93,11 @@ export class MessageInput extends HTMLElement {
     this.submitDisabled = true;
     if (this.sendButton) {
       this.sendButton.disabled = true;
-      this.sendButton.classList.add("no-hover");
+      this.sendButton.classList.add("rbds-no-hover");
     }
     if (this.dictateButton) {
       this.dictateButton.disabled = true;
-      this.dictateButton.classList.add("no-hover");
+      this.dictateButton.classList.add("rbds-no-hover");
     }
   };
 
@@ -109,11 +109,11 @@ export class MessageInput extends HTMLElement {
     this.submitDisabled = false;
     if (this.sendButton) {
       this.sendButton.disabled = false;
-      this.sendButton.classList.remove("no-hover");
+      this.sendButton.classList.remove("rbds-no-hover");
     }
     if (this.dictateButton) {
       this.dictateButton.disabled = false;
-      this.dictateButton.classList.remove("no-hover");
+      this.dictateButton.classList.remove("rbds-no-hover");
     }
   };
 

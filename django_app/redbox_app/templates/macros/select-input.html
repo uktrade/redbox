@@ -1,6 +1,6 @@
 {% macro select_input(name, id=None, multiple=False, label="", options="", aria_labelledby="", classes="") %}
     {% if id and label %}
-        <label class="govuk-label govuk-!-font-weight-bold text-xs" for="{{ id }}">{{ label }}</label>
+        <label class="govuk-label govuk-!-font-weight-bold rbds-text-xs" for="{{ id }}">{{ label }}</label>
     {% endif %}
 
     <select class="govuk-select {{ classes }}"

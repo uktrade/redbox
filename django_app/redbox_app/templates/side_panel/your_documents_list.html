@@ -8,7 +8,7 @@
             <div class="rbds-divider"></div>
             <h3 class="govuk-heading-s side-panel-heading govuk-!-margin-top-4">Your documents</h3>
         </legend>
-        <div id="your-documents" class="your-documents scrollable govuk-checkboxes govuk-checkboxes--small"
+        <div id="your-documents" class="your-documents rbds-scrollable govuk-checkboxes govuk-checkboxes--small"
             data-module="govuk-checkboxes">
             {% for file in completed_files %}
             <div class="side-panel-item-container govuk-!-display-none">
@@ -39,7 +39,7 @@
                             <dialog>
                                 <div>
                                     <h2 class="govuk-heading-m">Are you sure you want to delete this file?</h2>
-                                    <span class="govuk-captionx-xs">This action will remove <span class="govuk-!-font-weight-bold text-emphasis">{{ file.file_name }}</span> from Redbox and cannot be reversed.</span>
+                                    <span class="govuk-captionx-xs">This action will remove <span class="govuk-!-font-weight-bold rbds-text-emphasis">{{ file.file_name }}</span> from Redbox and cannot be reversed.</span>
                                 </div>
                                 <div>
                                     <button class="govuk-button govuk-!-margin-right-4 govuk-!-margin-bottom-0 govuk-!-margin-top-4 govuk-button--warning modal-close"

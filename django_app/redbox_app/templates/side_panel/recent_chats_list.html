@@ -2,7 +2,7 @@
 {% from "rbds/components/show-more.html" import show_more %}
 
 <chat-history {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
-    <div id="recent-chats" class="recent-chats scrollable">
+    <div id="recent-chats" class="recent-chats rbds-scrollable">
         <ul class="chat-list">
             {% for chat in chats %}
             {{ chat_history_item(chat, url('chats', chat.id), chat_id) }}

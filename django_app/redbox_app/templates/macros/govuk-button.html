@@ -1,7 +1,7 @@
 {% macro govukButton(text=None, visually_hidden_text=None, href=None, classes=None, download=False, prevent_double_click=False, dont_submit=False, id=None) %}
 
 {% if href %}
-  <a href="{{ href }}" role="button" draggable="false" class="govuk-button text-xs {{ classes }}" data-module="govuk-button"
+  <a href="{{ href }}" role="button" draggable="false" class="govuk-button rbds-text-xs {{ classes }}" data-module="govuk-button"
     {% if download %}download{% endif %} {% if id %}id="{{ id }}"{% endif %}>
     {{ text | safe }}
   </a>

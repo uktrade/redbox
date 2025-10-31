@@ -10,9 +10,9 @@
 
 <tr id="member-row-{{ member.id }}" class="govuk-table__row">
     <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-    <th scope="row" class="govuk-table__header align-middle">{{ member.user.name }}</th>
-    <td class="govuk-table__cell align-middle">{{ member.user.email }}</td>
-    <td class="govuk-table__cell align-middle">
+    <th scope="row" class="govuk-table__header rbds-align-middle">{{ member.user.name }}</th>
+    <td class="govuk-table__cell rbds-align-middle">{{ member.user.email }}</td>
+    <td class="govuk-table__cell rbds-align-middle">
         {% if not editing %}
             {{ member.get_role_type_display() }}
         {% else %}
@@ -20,7 +20,7 @@
         {% endif %}
     </td>
     <td class="govuk-table__cell">
-        <div class="flex-row">
+        <div class="rbds-flex-row">
             {% if editing %}
                 <button class="rbds-icon-button"
                         hx-post="{{ url('edit-member', member.id) }}"

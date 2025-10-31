@@ -114,7 +114,7 @@ class FileUpload extends HTMLElement {
         if (!this.textarea) return;
 
         // Attach drag/drop upload functionality to textbox
-        if (this.textarea.classList.contains("drop-zone")) {
+        if (this.textarea.classList.contains("rbds-drop-zone")) {
             this.textarea.addEventListener("dragover", (evt) => {
                 evt.preventDefault();
                 this.textarea?.classList.add("drag-over");
