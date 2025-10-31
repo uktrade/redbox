@@ -545,7 +545,3 @@ def test_reduce_chunks_by_tokens_multiple_operations(monkeypatch):
     assert chunks[0].page_content == "Chunk 1Chunk 2"
     assert chunks[1].page_content == "Chunk 3Chunk 4"
     assert chunks[1].metadata["token_count"] == 90
-    assert chunks[0].page_content == "Chunk 1Chunk 2"
-    assert chunks[1].page_content == "Chunk 3Chunk 4"
-    assert chunks[1].metadata["token_count"] == 90
-    assert chunks[1].metadata["token_count"] == 90
