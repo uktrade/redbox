@@ -11,18 +11,21 @@ from opensearchpy import OpenSearch
 
 from redbox.api.format import reduce_chunks_by_tokens
 from redbox.graph.nodes.tools import (
+    brave_response_to_documents,
     build_govuk_search_tool,
     build_legislation_search_tool,
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
+    kagi_response_to_documents,
     web_search_call,
+    web_search_with_retry,
 )
 from redbox.models.chain import AISettings, RedboxQuery, RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
 from redbox.models.settings import Settings, get_settings
 from redbox.test.data import RedboxChatTestCase
-from redbox.transform import combine_documents, flatten_document_state
+from redbox.transform import bedrock_tokeniser, combine_documents, flatten_document_state
 from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
 
 
@@ -250,7 +253,7 @@ def test_web_search_rate_limit(**kwargs):
             ],
         )
     else:
-        print(f"No test designed for web search provider {env.web_search}")
+        print(f"No test designed for web search api provider {env.web_search}")
 
     response = web_search_call(query="hello")
 
@@ -296,6 +299,80 @@ def test_gov_tool_params():
 
     # call gov tool without additional filter
     assert len(documents) == ai_setting.tool_govuk_returned_results
+
+
+@requests_mock.Mocker(kw="mock")
+def test_kagi_response_to_document(**kwargs):
+    env = get_settings()
+    kwargs["mock"].get(
+        env.web_search_settings().end_point,
+        [
+            {
+                "status_code": 200,
+                "json": {
+                    "data": [
+                        {"t": 0, "snippet": "fake doc number 1", "url": "http://fake.com/page=1"},
+                        {"t": 0, "snippet": "fake doc number 2", "url": "http://fake.com/page=2"},
+                    ]
+                },
+            },
+        ],
+    )
+
+    response = web_search_with_retry(
+        query="hello",
+        no_search_result=2,
+        country_code="All",
+        ui_lang="en-GB",
+    )
+    tokeniser = bedrock_tokeniser
+    mapped_documents = []
+    docs = kagi_response_to_documents(tokeniser, response, mapped_documents)
+
+    assert len(docs) == 2
+    for doc in docs:
+        assert isinstance(doc, Document)
+
+
+@requests_mock.Mocker(kw="mock")
+def test_brave_response_to_document(**kwargs):
+    env = get_settings()
+    kwargs["mock"].get(
+        env.web_search_settings().end_point,
+        [
+            {
+                "status_code": 200,
+                "json": {
+                    "web": {
+                        "results": [
+                            {
+                                "extra_snippets": ["fake_doc_1_snippet_1", "fake_doc_1_snippet_2"],
+                                "url": "http://fake.com/page=1",
+                            },
+                            {
+                                "extra_snippets": ["fake_doc_2_snippet_1", "fake_doc_2_snippet_2"],
+                                "url": "http://fake.com/page=2",
+                            },
+                        ]
+                    }
+                },
+            },
+        ],
+    )
+
+    response = web_search_with_retry(
+        query="hello",
+        no_search_result=2,
+        country_code="All",
+        ui_lang="en-GB",
+    )
+    tokeniser = bedrock_tokeniser
+    mapped_documents = []
+    docs = brave_response_to_documents(tokeniser, response, mapped_documents)
+
+    assert len(docs) == 2
+    for doc in docs:
+        assert isinstance(doc, Document)
 
 
 @pytest.mark.parametrize(
@@ -467,4 +544,8 @@ def test_reduce_chunks_by_tokens_multiple_operations(monkeypatch):
     assert len(chunks) == 2
     assert chunks[0].page_content == "Chunk 1Chunk 2"
     assert chunks[1].page_content == "Chunk 3Chunk 4"
+    assert chunks[1].metadata["token_count"] == 90
+    assert chunks[0].page_content == "Chunk 1Chunk 2"
+    assert chunks[1].page_content == "Chunk 3Chunk 4"
+    assert chunks[1].metadata["token_count"] == 90
     assert chunks[1].metadata["token_count"] == 90

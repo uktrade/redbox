@@ -3,7 +3,7 @@ import logging
 import random
 import sqlite3
 import time
-from typing import Annotated, Iterable, Union
+from typing import Annotated, Callable, Iterable, Union
 
 import boto3
 import numpy as np
@@ -28,8 +28,6 @@ from redbox.models.settings import get_settings
 from redbox.retriever.queries import add_document_filter_scores_to_query, build_document_query
 from redbox.retriever.retrievers import query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
-
-log = logging.getLogger(__name__)
 
 log = logging.getLogger(__name__)
 
@@ -411,7 +409,7 @@ def get_log_formatter_for_retrieval_tool(t: ToolCall) -> BaseRetrievalToolLogFor
 
 
 def web_search_with_retry(
-    query: str, no_search_result: int = 20, max_retries: int = 3, country_code: str = "GB", ui_lang: str = "en-GB"
+    query: str, no_search_result: int = 20, max_retries: int = 3, country_code: str = "All", ui_lang: str = "en-GB"
 ) -> requests.Response:
     web_search_settings = get_settings().web_search_settings()
     for attempt in range(max_retries):
@@ -447,70 +445,62 @@ def web_search_with_retry(
             return response
 
 
-def kagi_response_to_documents(response: requests.Response) -> list[Document]:
-    tokeniser = bedrock_tokeniser
-    mapped_documents = []
+def kagi_response_to_documents(
+    tokeniser: Callable, response: requests.Response, mapped_documents: list
+) -> list[Document]:
     results = response.json().get("data", [])
     for i, doc in enumerate(results):
         # extract only search results asper kagi documentation
         if doc["t"] == 0:
-            page_content = "".join(doc.get("snippet", []))
-            token_count = tokeniser(page_content)
-            print(f"Document {i} token count: {token_count}")
-            mapped_documents.append(
-                Document(
-                    page_content=page_content,
-                    metadata=ChunkMetadata(
-                        index=i,
-                        uri=doc.get("url", ""),
-                        token_count=token_count,
-                        creator_type=ChunkCreatorType.web_search,
-                    ).model_dump(),
-                )
-            )
-        docs = mapped_documents
-    return docs
+            mapped_documents = map_documents(tokeniser, i, doc, "snippet", mapped_documents)
+    return mapped_documents
 
 
-def brave_response_to_documents(response: requests.Response) -> list[Document]:
-    tokeniser = bedrock_tokeniser
-    mapped_documents = []
+def brave_response_to_documents(
+    tokeniser: Callable, response: requests.Response, mapped_documents: list
+) -> list[Document]:
     results = response.json().get("web", []).get("results")
     for i, doc in enumerate(results):
-        page_content = "".join(doc.get("extra_snippets", []))
-        token_count = tokeniser(page_content)
-        print(f"Document {i} token count: {token_count}")
-        mapped_documents.append(
-            Document(
-                page_content=page_content,
-                metadata=ChunkMetadata(
-                    index=i,
-                    uri=doc.get("url", ""),
-                    token_count=token_count,
-                    creator_type=ChunkCreatorType.web_search,
-                ).model_dump(),
-            )
+        mapped_documents = map_documents(tokeniser, i, doc, "extra_snippets", mapped_documents)
+    return mapped_documents
+
+
+def map_documents(
+    tokeniser: Callable, index: int, doc: str, content_column: str, mapped_documents: list
+) -> list[Document]:
+    page_content = "".join(doc.get(content_column, []))
+    token_count = tokeniser(page_content)
+    print(f"Document {index} token count: {token_count}")
+    mapped_documents.append(
+        Document(
+            page_content=page_content,
+            metadata=ChunkMetadata(
+                index=index,
+                uri=doc.get("url", ""),
+                token_count=token_count,
+                creator_type=ChunkCreatorType.web_search,
+            ).model_dump(),
         )
-        docs = mapped_documents
-    return docs
+    )
+    return mapped_documents
 
 
-def web_search_call(query: str, no_search_result: int = 20, country_code: str = "GB", ui_lang: str = "en-GB") -> tool:
+def web_search_call(query: str, no_search_result: int = 20, country_code: str = "All", ui_lang: str = "en-GB") -> tool:
     web_search_settings = get_settings().web_search_settings()
-
     response = web_search_with_retry(
         query=query,
         no_search_result=no_search_result,
         country_code=country_code,
         ui_lang=ui_lang,
     )
-
+    tokeniser = bedrock_tokeniser
+    mapped_documents = []
     if response.status_code == 200:
         if web_search_settings.name == "Brave":
-            docs = brave_response_to_documents(response)
+            docs = brave_response_to_documents(tokeniser, response, mapped_documents)
             return format_documents(docs), docs
         elif web_search_settings.name == "Kagi":
-            docs = kagi_response_to_documents(response)
+            docs = kagi_response_to_documents(tokeniser, response, mapped_documents)
             return format_documents(docs), docs
         else:
             log.exception(f"Web search api call failed. Status: {response.status_code}")
