@@ -116,9 +116,9 @@ def test_build_llm_chain(test_case: RedboxChatTestCase):
     test_case_content = test_case.test_data.llm_responses[-1].content
     test_case_tool_calls = test_case.test_data.llm_responses[-1].tool_calls
 
-    assert (
-        final_state["messages"][-1].content == test_case_content
-    ), f"Expected LLM response: '{test_case_content}'. Received '{final_state["messages"][-1].content}'"
+    assert final_state["messages"][-1].content == test_case_content, (
+        f"Expected LLM response: '{test_case_content}'. Received '{final_state['messages'][-1].content}'"
+    )
     assert final_state["messages"][-1].tool_calls == test_case_tool_calls
     assert sum(final_state["metadata"].input_tokens.values())
     assert sum(final_state["metadata"].output_tokens.values())
@@ -152,9 +152,9 @@ def test_build_chat_pattern(test_case: RedboxChatTestCase, mocker: MockerFixture
 
     test_case_content = test_case.test_data.llm_responses[-1].content
 
-    assert (
-        final_state["messages"][-1].content == test_case_content
-    ), f"Expected LLM response: '{test_case_content}'. Received '{final_state['messages'][-1].content}'"
+    assert final_state["messages"][-1].content == test_case_content, (
+        f"Expected LLM response: '{test_case_content}'. Received '{final_state['messages'][-1].content}'"
+    )
 
 
 SET_ROUTE_TEST_CASES = generate_test_cases(
@@ -186,9 +186,9 @@ def test_build_set_route_pattern(test_case: RedboxChatTestCase):
     response = set_route.invoke(state)
     final_state = RedboxState(**response, request=test_case.query)
 
-    assert (
-        final_state.route_name == test_case.test_data.expected_route.value
-    ), f"Expected Route: '{ test_case.test_data.expected_route.value}'. Received '{final_state.route_name}'"
+    assert final_state.route_name == test_case.test_data.expected_route.value, (
+        f"Expected Route: '{test_case.test_data.expected_route.value}'. Received '{final_state.route_name}'"
+    )
 
 
 RETRIEVER_TEST_CASES = generate_test_cases(
@@ -288,9 +288,9 @@ def test_build_merge_pattern(test_case: RedboxChatTestCase, mocker: MockerFixtur
 
     assert len(response_documents) == 1
     assert noned_documents == len(test_case.docs) - 1
-    assert (
-        response_documents[0].page_content == test_case_content
-    ), f"Expected document content: '{test_case_content}'. Received '{response_documents[0].page_content}'"
+    assert response_documents[0].page_content == test_case_content, (
+        f"Expected document content: '{test_case_content}'. Received '{response_documents[0].page_content}'"
+    )
 
 
 STUFF_TEST_CASES = generate_test_cases(
@@ -334,9 +334,9 @@ def test_build_stuff_pattern(test_case: RedboxChatTestCase, mocker: MockerFixtur
 
     test_case_content = test_case.test_data.llm_responses[-1].content
 
-    assert (
-        final_state.last_message.content == test_case_content
-    ), f"Expected LLM response: '{test_case_content}'. Received '{final_state.last_message.content}'"
+    assert final_state.last_message.content == test_case_content, (
+        f"Expected LLM response: '{test_case_content}'. Received '{final_state.last_message.content}'"
+    )
 
 
 TOOL_TEST_CASES = generate_test_cases(

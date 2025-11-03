@@ -414,16 +414,16 @@ async def test_streaming(test: RedboxChatTestCase, env: Settings, mocker: Mocker
 
     # Bit of a bodge to retain the ability to check that the LLM streaming is working in most cases
     if not route_name.startswith("error"):
-        assert (
-            len(token_events) > 1
-        ), f"Expected tokens as a stream. Received: {token_events}"  # Temporarily turning off streaming check
-        assert len(metadata_events) == len(
-            test_case.test_data.llm_responses
-        ), f"Expected {len(test_case.test_data.llm_responses)} metadata events. Received {len(metadata_events)}"
+        assert len(token_events) > 1, (
+            f"Expected tokens as a stream. Received: {token_events}"
+        )  # Temporarily turning off streaming check
+        assert len(metadata_events) == len(test_case.test_data.llm_responses), (
+            f"Expected {len(test_case.test_data.llm_responses)} metadata events. Received {len(metadata_events)}"
+        )
 
-    assert test_case.test_data.expected_activity_events(
-        activity_events
-    ), f"Activity events not as expected. Received: {activity_events}"
+    assert test_case.test_data.expected_activity_events(activity_events), (
+        f"Activity events not as expected. Received: {activity_events}"
+    )
 
     llm_response = "".join(token_events)
     number_of_selected_files = len(test_case.query.s3_keys)
@@ -442,16 +442,16 @@ async def test_streaming(test: RedboxChatTestCase, env: Settings, mocker: Mocker
     )
     expected_text = expected_text.content if isinstance(expected_text, AIMessage) else expected_text
 
-    assert (
-        final_state.last_message.content == llm_response
-    ), f"Text response from streaming: '{llm_response}' did not match final state text '{final_state.last_message.content}'"
-    assert (
-        final_state.last_message.content == expected_text
-    ), f"Expected text: '{expected_text}' did not match received text '{final_state.last_message.content}'"
+    assert final_state.last_message.content == llm_response, (
+        f"Text response from streaming: '{llm_response}' did not match final state text '{final_state.last_message.content}'"
+    )
+    assert final_state.last_message.content == expected_text, (
+        f"Expected text: '{expected_text}' did not match received text '{final_state.last_message.content}'"
+    )
 
-    assert (
-        final_state.route_name == test_case.test_data.expected_route
-    ), f"Expected Route: '{ test_case.test_data.expected_route}'. Received '{final_state.route_name}'"
+    assert final_state.route_name == test_case.test_data.expected_route, (
+        f"Expected Route: '{test_case.test_data.expected_route}'. Received '{final_state.route_name}'"
+    )
     if metadata := final_state.metadata:
         assert metadata == metadata_response, f"Expected metadata: '{metadata_response}'. Received '{metadata}'"
     for document_list in document_events:

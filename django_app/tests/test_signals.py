@@ -8,7 +8,7 @@ from redbox_app.redbox_core.models import ChatMessage, MonitorWebSearchResults
 
 class TestWebSearchLimit:
     @pytest.mark.parametrize(("no_of_api_calls", "is_email_sent"), [(1, False), (3, True)])
-    @pytest.mark.django_db()
+    @pytest.mark.django_db
     def test_no_email_when_under_limit(
         self, no_of_api_calls, is_email_sent, chat_message: ChatMessage, mocker: MockerFixture
     ):
@@ -33,7 +33,7 @@ class TestWebSearchLimit:
         if is_email_sent:
             mock_send_email.assert_called_once()
 
-    @pytest.mark.django_db()
+    @pytest.mark.django_db
     def test_only_counts_today(self, chat_message: ChatMessage, mocker: MockerFixture):
         """Test that only today's records are counted toward the limit."""
         mock_send_email = mocker.patch(

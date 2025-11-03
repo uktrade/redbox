@@ -167,9 +167,9 @@ class SSOLoadTestUser(HttpUser):
 
 @events.test_start.add_listener
 def on_test_start():
-    logging.info("starting")
+    logger.info("starting")
 
 
 @events.test_stop.add_listener
 def on_test_stop(environment):
-    logging.info("this is finished now and failed by %s", environment.runner.stats.total.fail_ratio)
+    logger.info("this is finished now and failed by %s", environment.runner.stats.total.fail_ratio)
