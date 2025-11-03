@@ -12,6 +12,7 @@ from django.template.response import TemplateResponse
 from waffle import flag_is_active
 from yarl import URL
 
+from redbox_app.redbox_core import flags
 from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage
 from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.services import message as message_service
@@ -111,7 +112,7 @@ def get_context(request: HttpRequest, chat_id: uuid.UUID | None = None) -> dict:
             for chat_llm_backend in ChatLLMBackend.objects.filter(enabled=True)
         ],
         "redbox_api_key": settings.REDBOX_API_KEY,
-        "enable_dictation_flag_is_active": flag_is_active(request, "enable_dictation"),
+        "enable_dictation_flag_is_active": flag_is_active(request, flags.ENABLE_DICTATION),
         **file_context,
     }
 
