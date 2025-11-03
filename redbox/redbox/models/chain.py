@@ -112,8 +112,8 @@ class AISettings(BaseModel):
         "External_Retrieval_Agent": 5000,
         "Summarisation_Agent": 20000,
         "Tabular_Agent": 10000,
-        "Web_Search_Agent": 5000,
-        "Legislation_Search_Agent": 5000,
+        "Web_Search_Agent": 10000,
+        "Legislation_Search_Agent": 10000,
     }
 
 
