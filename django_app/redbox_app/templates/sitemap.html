@@ -3,7 +3,7 @@
 
 {% block content %}
 
-<div class="govuk-width-container">
+<div class="govuk-width-container rbds-width-container">
     <div class="govuk-grid-row">
         <div class="govuk-grid-column-two-thirds">
 
@@ -14,7 +14,7 @@
                 <li><a class="govuk-link" href="{{ url('accessibility-statement') }}">Accessibility</a></li>
                 <li><a class="govuk-link" href="{{ url('homepage') }}">Home page</a></li>
                 {% if request.user.is_authenticated %}
-                    <li><a class="govuk-link" href="{{ url('settings') }}">Settings</a></li>
+                    <li><a class="govuk-link" href="{{ url('settings') }}">Profile</a></li>
                 {% endif %}
                 <li><a class="govuk-link" href="{{ url('privacy-notice') }}">Privacy</a></li>
                 {% if not request.user.is_authenticated %}

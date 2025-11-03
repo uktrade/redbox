@@ -31,8 +31,7 @@ def build_query_filter(
 
     if not selected_files <= permitted_files:
         log.warning(
-            "User has selected files they aren't permitted to access: \n"
-            f"{", ".join(selected_files - permitted_files)}"
+            f"User has selected files they aren't permitted to access: \n{', '.join(selected_files - permitted_files)}"
         )
 
     file_names = list(selected_files & permitted_files)

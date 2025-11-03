@@ -12,7 +12,7 @@
     edit_selector='.edit-trigger',
     delete_selector='.delete-trigger'
 ) %}
-    <editable-text
+    <rbds-editable-text
         post-url="{{ post_url }}"
         edit-event="{{ edit_event }}"
         sender-id="{{ sender_id }}"
@@ -27,5 +27,5 @@
         edit-selector="{{ edit_selector }}"
         delete-selector="{{ delete_selector }}">
         {{ caller() }}
-    </editable-text>
+    </rbds-editable-text>
 {% endmacro %}

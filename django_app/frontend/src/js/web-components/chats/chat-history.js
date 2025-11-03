@@ -27,7 +27,7 @@ export class ChatHistory extends HTMLElement {
       "chat-history-item"
     );
     let editableText = /** @type {HTMLElement} */ (
-      chatHistoryItem?.querySelector("editable-text")
+      chatHistoryItem?.querySelector("rbds-editable-text")
     );
 
     editableText?.setAttribute("post-url", `/chat/${chatId}/title/`);
@@ -47,7 +47,7 @@ export class ChatHistory extends HTMLElement {
     chatHistoryItem?.setAttribute("data-chatid", chatId);
 
     let editButton = /** @type {HTMLButtonElement} */ (
-      chatListItem.querySelector(".edit-button")
+      chatListItem.querySelector(".rbds-edit-button")
     );
 
     let deleteButton = /** @type {HTMLButtonElement} */ (

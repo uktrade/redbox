@@ -11,14 +11,6 @@
   ],
   "staticFiles": [
     {
-      "distDir": "./dist/fonts",
-      "staticPath": "./node_modules/i.ai-design-system/dist/fonts"
-    },
-    {
-      "distDir": "./dist/icons",
-      "staticPath": "./node_modules/i.ai-design-system/dist/icons"
-    },
-    {
       "distDir": "./dist/animations",
       "staticPath": "./src/animations"
     },
@@ -54,7 +46,6 @@
     "aws-sdk": "^2.1692.0",
     "govuk-frontend": "5.10.2",
     "htmx.org": "^2.0.6",
-    "i.ai-design-system": "^0.4.8",
     "readable-stream": "^4.7.0"
   },
   "devDependencies": {

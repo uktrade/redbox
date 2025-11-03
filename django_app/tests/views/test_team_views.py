@@ -16,7 +16,7 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_user_can_edit_their_own_team_members(redbox_team: Team, alice: User, bob: User, client: Client):
     # Given
     client.force_login(alice)
@@ -39,7 +39,7 @@ def test_user_can_edit_their_own_team_members(redbox_team: Team, alice: User, bo
     assert redbox_team.is_admin(bob)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_user_cannot_edit_other_teams_members(redbox_team: Team, alice: User, bob: User, client: Client):
     # Given
     client.force_login(bob)
@@ -52,7 +52,7 @@ def test_user_cannot_edit_other_teams_members(redbox_team: Team, alice: User, bo
     assert response.status_code == HTTPStatus.FORBIDDEN
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_user_cannot_edit_nonexistent_members(bob: User, client: Client):
     # Given
     client.force_login(bob)
@@ -64,7 +64,7 @@ def test_user_cannot_edit_nonexistent_members(bob: User, client: Client):
     assert response.status_code == HTTPStatus.NOT_FOUND
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_user_can_delete_their_own_team_members(redbox_team: Team, alice: User, bob: User, client: Client):
     # Given
     client.force_login(alice)
@@ -78,7 +78,7 @@ def test_user_can_delete_their_own_team_members(redbox_team: Team, alice: User, 
     assert response.status_code == HTTPStatus.OK
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_user_cannot_delete_other_teams_members(redbox_team: Team, alice: User, bob: User, client: Client):
     # Given
     client.force_login(alice)
@@ -91,7 +91,7 @@ def test_user_cannot_delete_other_teams_members(redbox_team: Team, alice: User, 
     assert response.status_code == HTTPStatus.FORBIDDEN
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_user_cannot_delete_nonexistent_team_members(alice: User, client: Client):
     # Given
     client.force_login(alice)
