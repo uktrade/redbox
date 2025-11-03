@@ -57,7 +57,7 @@ export class SourcesList extends HTMLElement {
     }
     });
     html += `</div></ol>`;
-    this.innerHTML = html;
+    this.textContent = html;
   };
 
   }
