@@ -56,7 +56,7 @@ from redbox.models.prompts import (
     USER_FEEDBACK_EVAL_PROMPT,
 )
 from redbox.models.settings import get_settings
-from redbox.transform import combine_agents_state, combine_documents, flatten_document_state
+from redbox.transform import bedrock_tokeniser, combine_agents_state, combine_documents, flatten_document_state
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
@@ -507,11 +507,16 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
         if type(result) is str:
             result_content = result
         elif type(result) is list:
-            result_content = "".join([res.content for res in result])
+            result_content = []
+            current_token_counts = 0
+            for res in result:
+                current_token_counts += bedrock_tokeniser(res.content)
+                if current_token_counts <= max_tokens:
+                    result_content.append(res.content)
+            result_content = " ".join(result_content)
+            result = f"<{agent_name}_Result>{result_content}</{agent_name}_Result>"
         else:
             log.error(f"Worker agent return incompatible data type {type(result)}")
-        # truncate results to max_token
-        result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
         return {"agents_results": result, "tasks_evaluator": task.task + "\n" + task.expected_output}
 
     return _build_agent.with_retry(stop_after_attempt=3)
