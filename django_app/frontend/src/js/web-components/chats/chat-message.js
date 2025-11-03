@@ -317,4 +317,4 @@ export class ChatMessage extends HTMLElement {
     };
   };
 }
-customElements.define("chat-message", ChatMessage);
+customElements.define("rbds-chat-message", ChatMessage);
