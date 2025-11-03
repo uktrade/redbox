@@ -1,0 +1,15 @@
+.rbds-radio-groups-container {
+  display: flex;
+  flex-direction: row;
+  gap: 5px;
+}
+
+.rbds-radio-flex-container {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+
+  & label {
+    max-width: fit-content;
+  }
+}

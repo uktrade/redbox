@@ -1,0 +1,55 @@
+body,
+button,
+textarea,
+input,
+a,
+div,
+span,
+.govuk-body-l,
+.govuk-body,
+.govuk-body-s,
+.govuk-heading-xl,
+.govuk-heading-l,
+.govuk-heading-m,
+.govuk-heading-s,
+.govuk-fieldset__heading,
+.govuk-label,
+.govuk-link,
+.govuk-button,
+.govuk-table,
+.govuk-details,
+.govuk-notification-banner,
+.govuk-footer,
+.govuk-footer__link
+{
+  font-family:  var(--font-family-primary) !important;
+}
+
+body {
+  font-size: var(--font-size-s) !important;
+}
+
+button {
+  font-size: var(--font-size-xs) !important;
+}
+
+.rbds-text-emphasis {
+    color: var(--color-text);
+    font-weight: bold;
+}
+
+.rbds-text-xs {
+  font-size: var(--font-size-xs) !important;
+}
+
+.rbds-text-s {
+  font-size: var(--font-size-s) !important;
+}
+
+.rbds-text-m {
+  font-size: var(--font-size-m) !important;
+}
+
+.rbds-text-l {
+  font-size: var(--font-size-l) !important;
+}

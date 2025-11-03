@@ -26,14 +26,14 @@ class ChatController extends HTMLElement {
         chatController.querySelector("feedback-buttons")
       );
       const messageInput = /** @type {import("./message-input").MessageInput} */ (
-          document.querySelector("message-input")
+          document.querySelector("rbds-message-input")
       );
       const userText = messageInput?.getValue();
 
       if (!messageInput || !userText) return;
 
       let userMessage = /** @type {ChatMessage} */ (
-        document.createElement("chat-message")
+        document.createElement("rbds-chat-message")
       );
       userMessage.setAttribute("data-text", userText);
       userMessage.setAttribute("data-role", "user");
@@ -49,7 +49,7 @@ class ChatController extends HTMLElement {
       });
 
       let aiMessage = /** @type {import("./chat-message").ChatMessage} */ (
-        document.createElement("chat-message")
+        document.createElement("rbds-chat-message")
       );
       aiMessage.setAttribute("data-role", "ai");
       messageContainer?.insertBefore(aiMessage, insertPosition);

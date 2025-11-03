@@ -10,7 +10,7 @@
         {% endfor %}
     {% endset %}
 
-    {% if use_autocomplete %}<accessible-autocomplete>{% endif %}
+    {% if use_autocomplete %}<rbds-accessible-autocomplete>{% endif %}
         {{ select_input(name, id=id, multiple=multiple, label=label, options=options, aria_labelledby=aria_labelledby, classes=classes) }}
-    {% if use_autocomplete %}</accessible-autocomplete>{% endif %}
+    {% if use_autocomplete %}</rbds-accessible-autocomplete>{% endif %}
 {% endmacro %}

@@ -9,9 +9,9 @@ test(`Content can be copied to clipboard`, async ({ page }) => {
   await sendMessage(page);
 
   await page.getByText("Copy information").click();
-  const response = page.locator(".chat-message__text").nth(1);
+  const response = page.locator(".rbds-chat-message__text").nth(1);
 
-  const messageInput = page.locator(".message-input");
+  const messageInput = page.locator(".rbds-message-input");
   await messageInput.focus();
   await page.keyboard.press("Meta+V");
   expect(await response.textContent()).toEqual(await messageInput.inputValue());
