@@ -11,9 +11,6 @@ htmx.config.includeIndicatorStyles = false;
 import { initAll } from "govuk-frontend";
 initAll();
 
-// I.AI DESIGN SYSTEM
-import "../../node_modules/i.ai-design-system/dist/iai-design-system.js";
-
 // REDBOX DESIGN SYSTEM
 import "../redbox_design_system/rbds";
 
