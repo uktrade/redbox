@@ -242,7 +242,7 @@ export class ChatMessage extends HTMLElement {
       if (!this.responseContainer) {
         return;
       }
-      this.responseContainer.innerHTML =
+      this.responseContainer.textContent =
         "There was a problem. Please try sending this message again.";
       this.dataset.status = "error";
     };
@@ -272,7 +272,7 @@ export class ChatMessage extends HTMLElement {
         this.streamedContent += sanitiseText(response.data);
         this.responseContainer?.update(this.streamedContent);
       } else if (response.type === "session-id") {
-        chatControllerRef.dataset.sessionId = sanitiseText(response.data);
+        chatControllerRef.dataset.sessionId = sanitiseId(response.data);
       } else if (response.type === "source") {
         sourcesContainer.add(
           sanitiseText(response.data.file_name),
