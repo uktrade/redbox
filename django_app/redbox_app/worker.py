@@ -13,6 +13,8 @@ from redbox.models.settings import get_settings
 
 env = get_settings()
 
+logger = logging.getLogger(__name__)
+
 
 def get_file_name(uploaded_file) -> str:
     """Return the correct name field for both model and file objects."""
@@ -21,7 +23,7 @@ def get_file_name(uploaded_file) -> str:
 
 def is_utf8_compatible(uploaded_file) -> bool:
     if not Path(get_file_name(uploaded_file)).suffix.lower().endswith((".doc", ".txt")):
-        logging.info("File does not require utf8 compatibility check")
+        logger.info("File does not require utf8 compatibility check")
         return True
 
     # Determine the file-like object to read from
@@ -32,11 +34,11 @@ def is_utf8_compatible(uploaded_file) -> bool:
         content.decode("utf-8")
         file_obj.seek(0)
     except UnicodeDecodeError:
-        logging.info("File is incompatible with utf-8. Converting...")
+        logger.info("File is incompatible with utf-8. Converting...")
         file_obj.seek(0)
         return False
     else:
-        logging.info("File is compatible with utf-8 - ready for processing")
+        logger.info("File is compatible with utf-8 - ready for processing")
         return True
 
 
@@ -57,11 +59,11 @@ def convert_to_utf8(uploaded_file: UploadedFile) -> UploadedFile:
             charset="utf-8",
         )
     except Exception as e:
-        logging.exception("Error converting file %s to UTF-8.", uploaded_file, exc_info=e)
+        logger.exception("Error converting file %s to UTF-8.", uploaded_file, exc_info=e)
         file_obj.seek(0)
         return uploaded_file
     else:
-        logging.info("Conversion to UTF-8 successful")
+        logger.info("Conversion to UTF-8 successful")
         return new_uploaded_file
 
 
@@ -104,21 +106,21 @@ def convert_doc_to_docx(uploaded_file: UploadedFile) -> UploadedFile:
                 capture_output=True,
                 cwd=output_dir,
             )
-            logging.info("LibreOffice output: %s", result.stdout.decode())
-            logging.info("LibreOffice errors: %s", result.stderr.decode())
+            logger.info("LibreOffice output: %s", result.stdout.decode())
+            logger.info("LibreOffice errors: %s", result.stderr.decode())
 
             if not temp_output_path.exists():
-                logging.error("Output file not found: %s", temp_output_path)
+                logger.error("Output file not found: %s", temp_output_path)
                 return uploaded_file
 
-            logging.info("Output path: %s", temp_output_path)
+            logger.info("Output path: %s", temp_output_path)
 
             time.sleep(1)
             with temp_output_path.open("rb") as f:
                 converted_content = f.read()
-                logging.info("Converted file size: %d bytes", len(converted_content))
+                logger.info("Converted file size: %d bytes", len(converted_content))
                 if len(converted_content) == 0:
-                    logging.error("Converted file is empty - this won't get converted")
+                    logger.error("Converted file is empty - this won't get converted")
                     return uploaded_file
 
                 output_filename = Path(get_file_name(uploaded_file)).with_suffix(".docx").name
@@ -130,23 +132,23 @@ def convert_doc_to_docx(uploaded_file: UploadedFile) -> UploadedFile:
                     size=len(converted_content),
                     charset="utf-8",
                 )
-                logging.info("doc file conversion to docx successful for %s", get_file_name(uploaded_file))
+                logger.info("doc file conversion to docx successful for %s", get_file_name(uploaded_file))
         except Exception as e:
-            logging.exception("Error converting doc file %s to docx", get_file_name(uploaded_file), exc_info=e)
+            logger.exception("Error converting doc file %s to docx", get_file_name(uploaded_file), exc_info=e)
         finally:
             try:
                 input_path.unlink()
                 if temp_output_path.exists():
                     temp_output_path.unlink()
             except Exception as cleanup_error:  # noqa: BLE001
-                logging.warning("Error cleaning up temporary files: %s", cleanup_error)
+                logger.warning("Error cleaning up temporary files: %s", cleanup_error)
 
     return new_file
 
 
 def ingest(file_id: UUID, es_index: str | None = None) -> None:
     # These models need to be loaded at runtime otherwise they can be loaded before they exist
-    from redbox_app.redbox_core.models import File
+    from redbox_app.redbox_core.models import File  # noqa: PLC0415
 
     if not es_index:
         es_index = env.elastic_chunk_alias
@@ -162,7 +164,7 @@ def ingest(file_id: UUID, es_index: str | None = None) -> None:
         file.original_file = convert_to_utf8(file)
         file.save()
 
-    logging.info("Ingesting file: %s", file)
+    logger.info("Ingesting file: %s", file)
 
     if error := ingest_file(file.unique_name, es_index):
         file.status = File.Status.errored

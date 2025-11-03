@@ -13,7 +13,7 @@ from redbox_app.redbox_core.models import (
 )
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_file_model_last_referenced(peter_rabbit, s3_client):  # noqa: ARG001
     mock_file = SimpleUploadedFile("test.txt", b"these are the file contents")
 
@@ -44,7 +44,7 @@ def test_file_model_last_referenced(peter_rabbit, s3_client):  # noqa: ARG001
         File.Status.processing,
     ],
 )
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_file_model_unique_name(status: str, peter_rabbit: User, s3_client):  # noqa: ARG001
     mock_file = SimpleUploadedFile("test.txt", b"these are the file contents")
 
@@ -64,7 +64,7 @@ def test_file_model_unique_name(status: str, peter_rabbit: User, s3_client):  # 
         File.Status.errored,
     ],
 )
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_file_model_unique_name_error_states(status: str, peter_rabbit: User, s3_client):  # noqa: ARG001
     mock_file = SimpleUploadedFile("test.txt", b"these are the file contents")
 
@@ -78,7 +78,7 @@ def test_file_model_unique_name_error_states(status: str, peter_rabbit: User, s3
         assert new_file.unique_name
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     ("source", "error_msg"),
     [
@@ -93,7 +93,7 @@ def test_citation_save_fail_file_url_not_set(chat_message: ChatMessage, source, 
         citation.save()
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     ("source", "error_msg"),
     [
