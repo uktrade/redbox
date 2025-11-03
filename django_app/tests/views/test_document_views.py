@@ -19,7 +19,7 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_view(alice, client, file_pdf_path: Path, s3_client):
     """
     Given that the object store does not have a file with our test file in it
@@ -37,7 +37,7 @@ def test_upload_view(alice, client, file_pdf_path: Path, s3_client):
                 if delete_objects:
                     s3_client.delete_objects(Bucket=settings.BUCKET_NAME, Delete={"Objects": delete_objects})
     except Exception:
-        logging.exception("Error cleaning up S3 objects before test")
+        logger.exception("Error cleaning up S3 objects before test")
         # Ignore errors during cleanup
 
     assert not file_exists(s3_client, file_name)
@@ -52,7 +52,7 @@ def test_upload_view(alice, client, file_pdf_path: Path, s3_client):
         assert response.url == "/documents/"
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_document_upload_status(client, alice, file_pdf_path: Path, s3_client):
     file_name = f"{alice}/{file_pdf_path.name}"
 
@@ -65,7 +65,7 @@ def test_document_upload_status(client, alice, file_pdf_path: Path, s3_client):
                 if delete_objects:
                     s3_client.delete_objects(Bucket=settings.BUCKET_NAME, Delete={"Objects": delete_objects})
     except Exception:
-        logging.exception("Error cleaning up S3 objects before test")
+        logger.exception("Error cleaning up S3 objects before test")
         # Ignore errors during cleanup
 
     assert not file_exists(s3_client, file_name)
@@ -82,7 +82,7 @@ def test_document_upload_status(client, alice, file_pdf_path: Path, s3_client):
         assert uploaded_file.status == File.Status.processing
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_view_bad_data(alice, client, file_py_path: Path, s3_client):
     previous_count = count_s3_objects(s3_client)
     client.force_login(alice)
@@ -95,7 +95,7 @@ def test_upload_view_bad_data(alice, client, file_py_path: Path, s3_client):
         assert count_s3_objects(s3_client) == previous_count
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_view_no_file(alice, client):
     client.force_login(alice)
 
@@ -105,7 +105,7 @@ def test_upload_view_no_file(alice, client):
     assert "No document selected" in str(response.content)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_remove_doc_view(client: Client, alice: User, file_pdf_path: Path, s3_client: Client):
     file_name = f"{alice.email}/{file_pdf_path.name.rstrip(file_pdf_path.name[-4:])}"
     prefix = file_name.replace(" ", "_")
@@ -120,7 +120,7 @@ def test_remove_doc_view(client: Client, alice: User, file_pdf_path: Path, s3_cl
                 if delete_objects:
                     s3_client.delete_objects(Bucket=settings.BUCKET_NAME, Delete={"Objects": delete_objects})
     except Exception:
-        logging.exception("Error cleaning up S3 objects before test")
+        logger.exception("Error cleaning up S3 objects before test")
         # Ignore errors during cleanup
 
     previous_count = count_s3_objects(s3_client)
@@ -139,7 +139,7 @@ def test_remove_doc_view(client: Client, alice: User, file_pdf_path: Path, s3_cl
         assert File.objects.get(id=str(new_file.id)).status == File.Status.deleted
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_remove_nonexistent_doc(alice: User, client: Client):
     # Given
     client.force_login(alice)
@@ -153,7 +153,7 @@ def test_remove_nonexistent_doc(alice: User, client: Client):
     assert response.status_code == HTTPStatus.NOT_FOUND
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_file_status_api_view_nonexistent_file(alice: User, client: Client):
     # Given
     client.force_login(alice)
@@ -187,7 +187,7 @@ def file_exists(s3_client, file_name) -> bool:
         return bool(response.get("Contents", []))
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_document_endpoint_invalid_file(alice, client, file_py_path: Path):
     """
     Test document upload with an invalid file type.
@@ -201,7 +201,7 @@ def test_upload_document_endpoint_invalid_file(alice, client, file_py_path: Path
     assert "File type .py not supported" in str(response.content)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_document_endpoint_multiple_files(alice, client, file_pdf_path: Path, file_py_path: Path):
     """
     Test the document upload with multiple files, one valid and one invalid.
@@ -215,7 +215,7 @@ def test_upload_document_endpoint_multiple_files(alice, client, file_pdf_path: P
     assert "File type .py not supported" in str(response.content)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_document_endpoint_unauthenticated(client, file_pdf_path: Path):
     """
     Test the document upload when user is not authenticated.
@@ -227,7 +227,7 @@ def test_upload_document_endpoint_unauthenticated(client, file_pdf_path: Path):
     assert response.status_code in (HTTPStatus.FOUND, HTTPStatus.FORBIDDEN)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_document_endpoint_empty_file(alice, client, tmp_path):
     """
     Test the document upload with an empty file.
@@ -242,7 +242,7 @@ def test_upload_document_endpoint_empty_file(alice, client, tmp_path):
     assert response.status_code == HTTPStatus.FOUND
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 @patch("redbox_app.redbox_core.views.document_views")
 def test_upload_document_ingest_errors(mock_service, alice, client, tmp_path):
     """
@@ -264,7 +264,7 @@ def test_upload_document_ingest_errors(mock_service, alice, client, tmp_path):
     mock_service.ingest_file.return_value = (["Error processing document"], mock_file)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_remove_doc_view_get(alice, client):
     """
     Test the remove document view GET request.
@@ -281,7 +281,7 @@ def test_remove_doc_view_get(alice, client):
     assert str(file.id) in str(response.content)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_remove_doc_view_post(alice, client, mocker):
     """
     Test the remove document view POST request for document deletion.
@@ -306,7 +306,7 @@ def test_remove_doc_view_post(alice, client, mocker):
     File.delete_from_s3.assert_called_once()
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_remove_doc_view_error_handling(alice, client, mocker):
     """
     Test error handling in the remove document view.
@@ -327,7 +327,7 @@ def test_remove_doc_view_error_handling(alice, client, mocker):
     assert file.status == File.Status.errored
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_remove_all_docs_view_get(alice, client):
     """
     Test the remove all documents view GET request.
@@ -339,7 +339,7 @@ def test_remove_all_docs_view_get(alice, client):
     assert response.status_code == HTTPStatus.OK
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_remove_all_docs_view_post(alice, client, mocker):
     """
     Test the remove all documents view POST request for bulk deletion.
@@ -367,7 +367,7 @@ def test_remove_all_docs_view_post(alice, client, mocker):
 
 
 # new tests
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_document_view_get(alice, client):
     """
     Test the DocumentView GET request.
@@ -395,7 +395,7 @@ def test_document_view_get(alice, client):
     assert client.session.get("ingest_errors") == []
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_documents_title_view(alice, client):
     """
     Test updating a document title via DocumentsTitleView.
@@ -415,7 +415,7 @@ def test_documents_title_view(alice, client):
     assert file.original_file_name == "updated.pdf"
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_your_documents_view(alice, client):
     """
     Test the YourDocuments view functionality.
@@ -433,7 +433,7 @@ def test_your_documents_view(alice, client):
     assert file.original_file_name in str(response.content)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_file_status_api_view(alice, client):
     """
     Test the file status API view.
@@ -452,7 +452,7 @@ def test_file_status_api_view(alice, client):
     assert data["status"] == File.Status.processing.capitalize()
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_delete_document_endpoint(alice, client, mocker):
     """
     Test the delete_document endpoint.
@@ -475,7 +475,7 @@ def test_delete_document_endpoint(alice, client, mocker):
     assert File.delete_from_s3.called
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_delete_document_with_chat(alice, client, mocker):
     """
     Test the delete_document endpoint with active chat session.
@@ -539,7 +539,7 @@ def test_delete_document_with_chat(alice, client, mocker):
     assert response.status_code == HTTPStatus.OK
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_delete_document_error_handling(alice, client, mocker):
     """
     Test error handling in the delete_document endpoint.
@@ -559,7 +559,7 @@ def test_delete_document_error_handling(alice, client, mocker):
     assert file.status == File.Status.errored
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_delete_document_invalid_doc_id(alice, mocker):
     """
     Test the delete_document endpoint with an invalid document ID.
@@ -578,7 +578,7 @@ def test_delete_document_invalid_doc_id(alice, mocker):
     logger_spy.assert_called_once_with("Invalid document ID: %s", "invalid-uuid")
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_delete_document_invalid_active_chat_id(alice, client, mocker):
     """
     Test the delete_document endpoint with an invalid active chat ID.
@@ -610,7 +610,7 @@ def test_delete_document_invalid_active_chat_id(alice, client, mocker):
     logger_spy.assert_called_once_with("Invalid active chat ID: %s", invalid_chat_id)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_document_api_endpoint(alice, client, file_pdf_path, s3_client):
     """
     Test the API endpoint for uploading a document.
@@ -625,7 +625,7 @@ def test_upload_document_api_endpoint(alice, client, file_pdf_path, s3_client):
                 if delete_objects:
                     s3_client.delete_objects(Bucket=settings.BUCKET_NAME, Delete={"Objects": delete_objects})
     except Exception:
-        logging.exception("Error cleaning up S3 objects before test")
+        logger.exception("Error cleaning up S3 objects before test")
         # Ignore errors during cleanup
     assert not file_exists(s3_client, file_name)
 
@@ -645,7 +645,7 @@ def test_upload_document_api_endpoint(alice, client, file_pdf_path, s3_client):
     assert uploaded_file.file_name.startswith(file_pdf_path.name.rstrip(file_pdf_path.name[-4:]).replace(" ", "_"))
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_document_api_invalid_file(alice, client, file_py_path):
     """
     Test the API endpoint with invalid file type.

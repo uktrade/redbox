@@ -1,9 +1,15 @@
-{% macro govuk_warning(text) %}
-    <div class="govuk-warning-text govuk-body govuk-!-margin-bottom-1 govuk-!-padding-bottom-0">
-        <span class="govuk-warning-text__icon small-warning" aria-hidden="true">!</span>
-        <strong class="govuk-warning-text__text govuk-!-padding-left-7">
-            <span class="govuk-visually-hidden">Warning</span>
-            {{ text }}
-        </strong>
+{% macro govuk_warning(messages) %}
+    {% if messages is string %}
+        {% set messages = [messages] %}
+    {% endif %}
+
+    <div class="govuk-warning-text govuk-warning-text--small">
+        {% for message in messages %}
+            <span class="govuk-warning-text__icon" aria-hidden="true">!</span>
+            <strong class="govuk-warning-text__text govuk-!-padding-bottom-4">
+                <span class="govuk-visually-hidden">Warning</span>
+                {{ message }}
+            </strong>
+        {% endfor %}
     </div>
 {% endmacro %}

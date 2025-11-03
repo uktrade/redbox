@@ -559,7 +559,7 @@ def invoke_custom_state(
 
         # set activity log
         activity_node = build_activity_log_node(
-            RedboxActivityEvent(message=f"{agent_name} is completing task: {agent_task["task"]}")
+            RedboxActivityEvent(message=f"{agent_name} is completing task: {agent_task['task']}")
         )
         activity_node.invoke(state)
         ## invoke the subgraph
@@ -604,7 +604,7 @@ def stream_plan():
         prefix_texts, suffix_texts = get_plan_fix_prompts()
         dispatch_custom_event(RedboxEventType.response_tokens, data=f"{random.choice(prefix_texts)}\n\n")
         for i, t in enumerate(state.agent_plans.tasks):
-            dispatch_custom_event(RedboxEventType.response_tokens, data=f"{i+1}. {t.task}\n\n")
+            dispatch_custom_event(RedboxEventType.response_tokens, data=f"{i + 1}. {t.task}\n\n")
         dispatch_custom_event(RedboxEventType.response_tokens, data=f"\n\n{random.choice(suffix_texts)}")
         return state
 
@@ -709,7 +709,7 @@ def load_texts_to_db(doc_texts: list[str], doc_names: list[str], conn: sqlite3.C
         try:
             clean_doc_name = sanitise_file_name(doc_name)
             sheet_name, doc_text = extract_table_names_and_text(doc_text)
-            table_name = f"{clean_doc_name}_table_{idx+1}" if not sheet_name else f"{clean_doc_name}_{sheet_name}"
+            table_name = f"{clean_doc_name}_table_{idx + 1}" if not sheet_name else f"{clean_doc_name}_{sheet_name}"
             parse_doc_text_as_db_table(doc_text, table_name, conn=conn)
             table_names.append(table_name)
         except Exception as e:
@@ -806,7 +806,7 @@ def get_tabular_agent(
             messages.append(AIMessage(ai_msg["messages"][-1].content))
             try:
                 messages.append(
-                    AIMessage(f"Here is the SQL query: {ai_msg["messages"][-1].tool_calls[-1]['args']['sql_query']}")
+                    AIMessage(f"Here is the SQL query: {ai_msg['messages'][-1].tool_calls[-1]['args']['sql_query']}")
                 )
             except Exception:
                 log.info("no sql query input to tool")

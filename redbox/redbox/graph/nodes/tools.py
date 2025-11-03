@@ -354,36 +354,36 @@ class BaseRetrievalToolLogFormatter:
         self.tool_call = t
 
     def log_call(self, tool_call: ToolCall):
-        return f"Used {tool_call["name"]} to get more information"
+        return f"Used {tool_call['name']} to get more information"
 
     def log_result(self, documents: Iterable[Document]):
         if len(documents) == 0:
-            return f"{self.tool_call["name"]} returned no documents"
-        return f"Reading {documents[1].get("creator_type")} document{"s" if len(documents)>1 else ""} {','.join(set([d.metadata["uri"].split("/")[-1] for d in documents]))}"
+            return f"{self.tool_call['name']} returned no documents"
+        return f"Reading {documents[1].get('creator_type')} document{'s' if len(documents) > 1 else ''} {','.join(set([d.metadata['uri'].split('/')[-1] for d in documents]))}"
 
 
 class SearchWikipediaLogFormatter(BaseRetrievalToolLogFormatter):
     def log_call(self):
-        return f"Searching Wikipedia for '{self.tool_call["args"]["query"]}'"
+        return f"Searching Wikipedia for '{self.tool_call['args']['query']}'"
 
     def log_result(self, documents: Iterable[Document]):
-        return f"Reading Wikipedia page{"s" if len(documents)>1 else ""} {','.join(set([d.metadata["uri"].split("/")[-1] for d in documents]))}"
+        return f"Reading Wikipedia page{'s' if len(documents) > 1 else ''} {','.join(set([d.metadata['uri'].split('/')[-1] for d in documents]))}"
 
 
 class SearchDocumentsLogFormatter(BaseRetrievalToolLogFormatter):
     def log_call(self):
-        return f"Searching your documents for '{self.tool_call["args"]["query"]}'"
+        return f"Searching your documents for '{self.tool_call['args']['query']}'"
 
     def log_result(self, documents: Iterable[Document]):
-        return f"Reading {len(documents)} snippets from your documents {','.join(set([d.metadata.get("name", "") for d in documents]))}"
+        return f"Reading {len(documents)} snippets from your documents {','.join(set([d.metadata.get('name', '') for d in documents]))}"
 
 
 class SearchGovUKLogFormatter(BaseRetrievalToolLogFormatter):
     def log_call(self):
-        return f"Searching .gov.uk pages for '{self.tool_call["args"]["query"]}'"
+        return f"Searching .gov.uk pages for '{self.tool_call['args']['query']}'"
 
     def log_result(self, documents: Iterable[Document]):
-        return f"Reading pages from .gov.uk, {','.join(set([d.metadata["uri"].split("/")[-1] for d in documents]))}"
+        return f"Reading pages from .gov.uk, {','.join(set([d.metadata['uri'].split('/')[-1] for d in documents]))}"
 
 
 @waffle_flag("DATA_HUB_API_ROUTE_ON")

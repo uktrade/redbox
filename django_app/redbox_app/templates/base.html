@@ -52,7 +52,7 @@
 
 
   {% if environment | lower != "prod" %}
-    <div class="rb-classification-banner govuk-warning-text rb-environment-warning iai-environment-warning">
+    <div class="govuk-warning-text rbds-environment-banner">
       {{environment|upper}} - This is not a live service
     </div>
   {% endif %}
@@ -64,7 +64,7 @@
       menu_items = [
       {"text": "Documents", "href": url('documents')},
       {"text": "Chat", "href": url('chats')},
-      {"text": "Settings", "href": url('settings')},
+      {"text": "Profile", "href": url('settings')},
       {"text": "Log out", "href": url('signed-out')},
       ],
       phase = "Beta"
@@ -92,8 +92,8 @@
     {'text': 'Sitemap', 'url': 'sitemap' }
   ] %}
 
-  <footer class="govuk-footerx">
-    <div class="govuk-width-container">
+  <footer class="govuk-footer govuk-footer--min-width-border">
+    <div class="govuk-width-container rbds-width-container">
       <div class="govuk-footer__meta">
         <div class="govuk-footer__meta-item govuk-footer__meta-item--grow">
           <h2 class="govuk-visually-hidden">Support links</h2>
