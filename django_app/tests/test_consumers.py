@@ -45,7 +45,7 @@ def get_token_use_count(use_type: str) -> int:
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_with_new_session(alice: User, uploaded_file: File, mocked_connect: Connect):
     # Given
 
@@ -80,7 +80,7 @@ async def test_chat_consumer_with_new_session(alice: User, uploaded_file: File, 
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_staff_user(staff_user: User, mocked_connect: Connect):
     # Given
 
@@ -113,7 +113,7 @@ async def test_chat_consumer_staff_user(staff_user: User, mocked_connect: Connec
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_with_existing_session(alice: User, chat: Chat, mocked_connect: Connect):
     # Given
 
@@ -139,7 +139,7 @@ async def test_chat_consumer_with_existing_session(alice: User, chat: Chat, mock
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_with_naughty_question(alice: User, uploaded_file: File, mocked_connect: Connect):
     # Given
 
@@ -174,7 +174,7 @@ async def test_chat_consumer_with_naughty_question(alice: User, uploaded_file: F
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_with_naughty_citation(
     alice: User, uploaded_file: File, mocked_connect_with_naughty_citation: Connect
 ):
@@ -208,7 +208,7 @@ async def test_chat_consumer_with_naughty_citation(
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_agentic(alice: User, uploaded_file: File, mocked_connect_agentic_search: Connect):
     # Given
 
@@ -264,9 +264,9 @@ def get_chat_message_route(user: User, role: ChatMessage.Role) -> Sequence[str]:
     return [m.route for m in ChatMessage.objects.filter(chat__user=user, role=role)]
 
 
-@pytest.mark.xfail()
+@pytest.mark.xfail
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_with_selected_files(
     alice: User,
     several_files: Sequence[File],
@@ -330,7 +330,7 @@ async def test_chat_consumer_with_selected_files(
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_with_connection_error(alice: User, mocked_breaking_connect: Connect):
     # Given
 
@@ -350,7 +350,7 @@ async def test_chat_consumer_with_connection_error(alice: User, mocked_breaking_
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_with_explicit_unhandled_error(
     alice: User, mocked_connect_with_explicit_unhandled_error: Connect
 ):
@@ -381,7 +381,7 @@ async def test_chat_consumer_with_explicit_unhandled_error(
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_with_rate_limited_error(alice: User, mocked_connect_with_rate_limited_error: Connect):
     # Given
 
@@ -410,7 +410,7 @@ async def test_chat_consumer_with_rate_limited_error(alice: User, mocked_connect
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_with_explicit_no_document_selected_error(
     alice: User, mocked_connect_with_explicit_no_document_selected_error: Connect
 ):
@@ -438,8 +438,8 @@ async def test_chat_consumer_with_explicit_no_document_selected_error(
         await communicator.disconnect()
 
 
-@pytest.mark.django_db()
-@pytest.mark.asyncio()
+@pytest.mark.django_db
+@pytest.mark.asyncio
 async def test_chat_consumer_get_ai_settings(
     chat_with_alice: Chat, mocked_connect_with_explicit_no_document_selected_error: Connect
 ):
@@ -464,7 +464,7 @@ async def test_chat_consumer_get_ai_settings(
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_with_american_to_british_conversion(
     alice: User, mocked_connect_with_american_to_british_conversion: Connect
 ):
@@ -493,7 +493,7 @@ async def test_chat_consumer_with_american_to_british_conversion(
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_redbox_state(
     alice: User,
     several_files: Sequence[File],
@@ -549,9 +549,18 @@ async def test_chat_consumer_redbox_state(
         )
         redbox_state = mock_run.call_args.args[0]  # pulls out the args that redbox.run was called with
 
-        assert (
-            redbox_state.request == expected_request
-        ), f"Expected {expected_request}. Received: {redbox_state.request}"
+        assert redbox_state.request.question == expected_request.question, "Question mismatch"
+        assert redbox_state.request.user_uuid == expected_request.user_uuid, "UUID mismatch"
+        assert redbox_state.request.chat_history == expected_request.chat_history, "Chat history mismatch"
+        assert redbox_state.request.ai_settings == expected_request.ai_settings, "AI settings mismatch"
+
+        assert set(redbox_state.request.s3_keys) == set(expected_request.s3_keys), "s3_keys content mismatch"
+        assert set(redbox_state.request.permitted_s3_keys) == set(expected_request.permitted_s3_keys), (
+            "permitted_s3_keys content mismatch"
+        )
+
+        assert redbox_state.request.previous_s3_keys == expected_request.previous_s3_keys, "previous_s3_keys mismatch"
+        assert redbox_state.request.db_location == expected_request.db_location, "db_location mismatch"
 
 
 @database_sync_to_async
@@ -589,7 +598,7 @@ class CannedGraphLLM(BaseChatModel):
             yield response
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_connect() -> Connect:
     responses = [
         {
@@ -624,7 +633,7 @@ def mocked_connect() -> Connect:
     return CannedGraphLLM(responses=responses)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_connect_with_naughty_citation() -> CannedGraphLLM:
     responses = [
         {
@@ -638,14 +647,14 @@ def mocked_connect_with_naughty_citation() -> CannedGraphLLM:
     return CannedGraphLLM(responses=responses)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_breaking_connect() -> Connect:
     mocked_graph = MagicMock(name="mocked_graph")
     mocked_graph.astream_events.side_effect = CancelledError()
     return mocked_graph
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_connect_with_explicit_unhandled_error() -> CannedGraphLLM:
     responses = [
         {
@@ -663,7 +672,7 @@ def mocked_connect_with_explicit_unhandled_error() -> CannedGraphLLM:
     return CannedGraphLLM(responses=responses)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_connect_with_rate_limited_error() -> CannedGraphLLM:
     responses = [
         {
@@ -681,7 +690,7 @@ def mocked_connect_with_rate_limited_error() -> CannedGraphLLM:
     return CannedGraphLLM(responses=responses)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_connect_with_explicit_no_document_selected_error() -> CannedGraphLLM:
     responses = [
         {
@@ -694,7 +703,7 @@ def mocked_connect_with_explicit_no_document_selected_error() -> CannedGraphLLM:
     return CannedGraphLLM(responses=responses)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_connect_agentic_search(uploaded_file: File) -> Connect:
     responses = [
         {
@@ -738,7 +747,7 @@ def mocked_connect_agentic_search(uploaded_file: File) -> Connect:
     return CannedGraphLLM(responses=responses)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_connect_with_several_files(several_files: Sequence[File]) -> Connect:
     mocked_websocket = AsyncMock(spec=WebSocketClientProtocol, name="mocked_websocket")
     mocked_connect = MagicMock(spec=Connect, name="mocked_connect")
@@ -757,7 +766,7 @@ def mocked_connect_with_several_files(several_files: Sequence[File]) -> Connect:
     return mocked_connect
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_connect_with_american_to_british_conversion() -> Connect:
     responses = [
         {

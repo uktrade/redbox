@@ -47,28 +47,12 @@ logger.setLevel(logging.INFO)
 LANGGRAPH_DEBUG = True
 
 
-SELF_ROUTE_TO_CHAT = ["Condense self route question", "unanswerable"]
-# OUTPUT_WITH_CITATIONS = AIMessage(
-# content=StructuredResponseWithCitations(answer="AI is a lie", citations=[]) #.model_dump_json()
-# )
-
 OUTPUT_WITH_CITATIONS = AIMessage(
     content=StructuredResponseWithCitations(answer="AI is a lie", citations=[]).model_dump_json()
 )
 
-SELF_ROUTE_TO_SEARCH = ["Condense self route question", OUTPUT_WITH_CITATIONS]
-
-
 NEW_ROUTE_NO_FEEDBACK = [OUTPUT_WITH_CITATIONS]  # only streaming tokens through evaluator
-TASK_INTERNAL_AGENT = MultiAgentPlan(
-    tasks=[
-        AgentTask(
-            task="Task to be completed by the agent",
-            agent="Internal_Retrieval_Agent",
-            expected_output="What this agent should produce",
-        )
-    ]
-)
+
 TASK_SUMMARISE_AGENT = MultiAgentPlan(
     tasks=[
         AgentTask(
@@ -92,10 +76,6 @@ def mock_planner_agent(mocker, planner_output):
     mocked_agent = MockedAgent(planner_output)
     mocker.patch("redbox.graph.nodes.processes.create_planner", return_value=mocked_agent)
     return mocked_agent
-
-
-def assert_number_of_events(num_of_events: int):
-    return lambda events_list: len(events_list) == num_of_events
 
 
 TEST_CASES = [
@@ -237,7 +217,7 @@ TEST_CASES = [
                                 ]
                             },
                         ),
-                        StructuredResponseWithCitations(answer="AI is a lie", citations=[]).model_dump_json(),
+                        OUTPUT_WITH_CITATIONS,
                     ],
                     expected_text="AI is a lie",
                     expected_route=ChatRoute.gadget,
@@ -307,7 +287,7 @@ TEST_CASES = [
                                 ]
                             },
                         ),
-                        StructuredResponseWithCitations(answer="AI is a lie", citations=[]).model_dump_json(),
+                        OUTPUT_WITH_CITATIONS,
                     ],
                     expected_text="AI is a lie",
                     expected_route=ChatRoute.gadget,
@@ -344,7 +324,7 @@ TEST_CASES = [
                                 ]
                             },
                         ),
-                        StructuredResponseWithCitations(answer="AI is a lie", citations=[]).model_dump_json(),
+                        OUTPUT_WITH_CITATIONS,
                     ],
                     expected_text="AI is a lie",
                     expected_route=ChatRoute.gadget,
@@ -379,15 +359,11 @@ async def test_streaming(test: RedboxChatTestCase, env: Settings, mocker: Mocker
 
     if test_case.test_id == "Document too big for system-0":
         mock_planner_agent(mocker, planner_output=TASK_SUMMARISE_AGENT)
-        llm = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
-        llm._default_config = {"model": "bedrock"}
-        mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=llm)
 
-    else:
-        # Mock the LLM and relevant tools
-        llm = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
-        llm._default_config = {"model": "bedrock"}
-        mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=llm)
+    # Mock the LLM and relevant tools
+    llm = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
+    llm._default_config = {"model": "bedrock"}
+    mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=llm)
 
     # Instantiate app
     app = Redbox(
@@ -438,16 +414,16 @@ async def test_streaming(test: RedboxChatTestCase, env: Settings, mocker: Mocker
 
     # Bit of a bodge to retain the ability to check that the LLM streaming is working in most cases
     if not route_name.startswith("error"):
-        assert (
-            len(token_events) > 1
-        ), f"Expected tokens as a stream. Received: {token_events}"  # Temporarily turning off streaming check
-        assert len(metadata_events) == len(
-            test_case.test_data.llm_responses
-        ), f"Expected {len(test_case.test_data.llm_responses)} metadata events. Received {len(metadata_events)}"
+        assert len(token_events) > 1, (
+            f"Expected tokens as a stream. Received: {token_events}"
+        )  # Temporarily turning off streaming check
+        assert len(metadata_events) == len(test_case.test_data.llm_responses), (
+            f"Expected {len(test_case.test_data.llm_responses)} metadata events. Received {len(metadata_events)}"
+        )
 
-    assert test_case.test_data.expected_activity_events(
-        activity_events
-    ), f"Activity events not as expected. Received: {activity_events}"
+    assert test_case.test_data.expected_activity_events(activity_events), (
+        f"Activity events not as expected. Received: {activity_events}"
+    )
 
     llm_response = "".join(token_events)
     number_of_selected_files = len(test_case.query.s3_keys)
@@ -466,16 +442,16 @@ async def test_streaming(test: RedboxChatTestCase, env: Settings, mocker: Mocker
     )
     expected_text = expected_text.content if isinstance(expected_text, AIMessage) else expected_text
 
-    assert (
-        final_state.last_message.content == llm_response
-    ), f"Text response from streaming: '{llm_response}' did not match final state text '{final_state.last_message.content}'"
-    assert (
-        final_state.last_message.content == expected_text
-    ), f"Expected text: '{expected_text}' did not match received text '{final_state.last_message.content}'"
+    assert final_state.last_message.content == llm_response, (
+        f"Text response from streaming: '{llm_response}' did not match final state text '{final_state.last_message.content}'"
+    )
+    assert final_state.last_message.content == expected_text, (
+        f"Expected text: '{expected_text}' did not match received text '{final_state.last_message.content}'"
+    )
 
-    assert (
-        final_state.route_name == test_case.test_data.expected_route
-    ), f"Expected Route: '{ test_case.test_data.expected_route}'. Received '{final_state.route_name}'"
+    assert final_state.route_name == test_case.test_data.expected_route, (
+        f"Expected Route: '{test_case.test_data.expected_route}'. Received '{final_state.route_name}'"
+    )
     if metadata := final_state.metadata:
         assert metadata == metadata_response, f"Expected metadata: '{metadata_response}'. Received '{metadata}'"
     for document_list in document_events:

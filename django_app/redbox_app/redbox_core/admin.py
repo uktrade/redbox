@@ -176,6 +176,27 @@ class UserAdmin(ImportExportMixin, admin.ModelAdmin):
         import_id_fields = ["email"]
 
 
+class TeamAdmin(admin.ModelAdmin):
+    list_display = ("team_name", "directorate", "created_at", "updated_at")
+    list_filter = ("directorate",)
+    search_fields = ("team_name", "directorate")
+    ordering = ("team_name",)
+
+    class Meta:
+        model = models.Team
+
+
+class UserTeamMembershipAdmin(admin.ModelAdmin):
+    list_display = ("user", "team", "role_type", "created_at", "updated_at")
+    list_filter = ("role_type", "team__directorate")
+    search_fields = ("user__email", "team__team_name")
+    ordering = ("user__email",)
+    raw_id_fields = ("user", "team")
+
+    class Meta:
+        model = models.UserTeamMembership
+
+
 class FileAdmin(ExportMixin, admin.ModelAdmin):
     def reupload(self, _request, queryset):
         for file in queryset:
@@ -188,6 +209,23 @@ class FileAdmin(ExportMixin, admin.ModelAdmin):
     date_hierarchy = "created_at"
     actions = ["reupload"]
     search_fields = ["user__email"]
+
+
+class FileTeamMembershipAdmin(admin.ModelAdmin):
+    list_display = ("file", "team", "visibility", "created_at")
+    list_filter = ("visibility", "team")
+    search_fields = ("file__file_name", "team__team_name")
+    raw_id_fields = ("file", "team")
+    ordering = ("-created_at",)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        # You only have team choices if you are a superuser or a team lead
+        if not request.user.is_superuser:
+            form.base_fields["team"].queryset = models.Team.objects.filter(
+                members__user=request.user, members__role_type="ADMIN"
+            )
+        return form
 
 
 class CitationInline(admin.StackedInline):
@@ -313,6 +351,7 @@ class MonitorWebSearchResultsAdmin(admin.ModelAdmin):
         "chat_message",
         "user_text",
         "web_search_urls",
+        "web_search_api_count",
         "created_at",
     ]
     readonly_fields = [
@@ -320,6 +359,7 @@ class MonitorWebSearchResultsAdmin(admin.ModelAdmin):
         "user_text",
         "selected_files",
         "web_search_urls",
+        "web_search_api_count",
         "created_at",
     ]
     ordering = ["-created_at"]
@@ -353,4 +393,7 @@ admin.site.register(models.ChatLLMBackend, ChatLLMBackendAdmin)
 admin.site.register(models.MonitorSearchRoute, MonitorSearchRouteAdmin)
 admin.site.register(models.MonitorWebSearchResults, MonitorWebSearchResultsAdmin)
 admin.site.register(models.AgentPlan, AgentPlanAdmin)
+admin.site.register(models.Team, TeamAdmin)
+admin.site.register(models.UserTeamMembership, UserTeamMembershipAdmin)
+admin.site.register(models.FileTeamMembership, FileTeamMembershipAdmin)
 admin.site.register_view("report/", view=reporting_dashboard, name="Site report")

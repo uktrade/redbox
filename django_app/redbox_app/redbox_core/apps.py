@@ -14,7 +14,7 @@ class RedboxCoreConfig(AppConfig):
 
     def ready(self):
         try:
-            from django.contrib.sites.models import Site
+            from django.contrib.sites.models import Site  # noqa: PLC0415
 
             site = Site.objects.get_current()
 

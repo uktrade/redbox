@@ -13,53 +13,75 @@ from redbox.models.settings import get_settings
 
 env = get_settings()
 
+logger = logging.getLogger(__name__)
 
-def is_utf8_compatible(uploaded_file: UploadedFile) -> bool:
-    if not Path(uploaded_file.unique_name).suffix.lower().endswith((".doc", ".txt")):
-        logging.info("File does not require utf8 compatibility check")
+
+def get_file_name(uploaded_file) -> str:
+    """Return the correct name field for both model and file objects."""
+    return getattr(uploaded_file, "unique_name", getattr(uploaded_file, "name", ""))
+
+
+def is_utf8_compatible(uploaded_file) -> bool:
+    if not Path(get_file_name(uploaded_file)).suffix.lower().endswith((".doc", ".txt")):
+        logger.info("File does not require utf8 compatibility check")
         return True
+
+    # Determine the file-like object to read from
+    file_obj = uploaded_file.original_file if hasattr(uploaded_file, "unique_name") else uploaded_file
+
     try:
-        uploaded_file.original_file.read().decode("utf-8")
-        uploaded_file.original_file.seek(0)
+        content = file_obj.read()
+        content.decode("utf-8")
+        file_obj.seek(0)
     except UnicodeDecodeError:
-        logging.info("File is incompatible with utf-8. Converting...")
+        logger.info("File is incompatible with utf-8. Converting...")
+        file_obj.seek(0)
         return False
     else:
-        logging.info("File is compatible with utf-8 - ready for processing")
+        logger.info("File is compatible with utf-8 - ready for processing")
         return True
 
 
 def convert_to_utf8(uploaded_file: UploadedFile) -> UploadedFile:
+    # Determine the file-like object to read from
+    file_obj = uploaded_file.original_file if hasattr(uploaded_file, "unique_name") else uploaded_file
+
     try:
-        content = uploaded_file.original_file.read().decode("ISO-8859-1")
-
-        # Detect and replace non-UTF-8 characters
+        content = file_obj.read().decode("ISO-8859-1")
         new_bytes = content.encode("utf-8")
-
         # Creating a new InMemoryUploadedFile object with the converted content
         new_uploaded_file = InMemoryUploadedFile(
             file=BytesIO(new_bytes),
-            field_name=uploaded_file.unique_name,
-            name=uploaded_file.unique_name,
+            field_name=get_file_name(uploaded_file),
+            name=get_file_name(uploaded_file),
             content_type="application/octet-stream",
             size=len(new_bytes),
             charset="utf-8",
         )
     except Exception as e:
-        logging.exception("Error converting file %s to UTF-8.", uploaded_file, exc_info=e)
+        logger.exception("Error converting file %s to UTF-8.", uploaded_file, exc_info=e)
+        file_obj.seek(0)
         return uploaded_file
     else:
-        logging.info("Conversion to UTF-8 successful")
+        logger.info("Conversion to UTF-8 successful")
         return new_uploaded_file
 
 
 def is_doc_file(uploaded_file: UploadedFile) -> bool:
-    return Path(uploaded_file.unique_name).suffix.lower() == ".doc"
+    return Path(get_file_name(uploaded_file)).suffix.lower() == ".doc"
 
 
 def convert_doc_to_docx(uploaded_file: UploadedFile) -> UploadedFile:
+    # Determine the file-like object to read from
+    file_obj = uploaded_file.original_file if hasattr(uploaded_file, "unique_name") else uploaded_file
+
+    content = file_obj.read()
+    file_obj.seek(0)
+
+    new_file = uploaded_file  # Default to original
+
     with tempfile.NamedTemporaryFile(delete=False, suffix=".doc") as tmp_input:
-        tmp_input.write(uploaded_file.original_file.read())
+        tmp_input.write(content)
         tmp_input.flush()
         input_path = Path(tmp_input.name)
         output_dir = input_path.parent
@@ -84,49 +106,49 @@ def convert_doc_to_docx(uploaded_file: UploadedFile) -> UploadedFile:
                 capture_output=True,
                 cwd=output_dir,
             )
-            logging.info("LibreOffice output: %s", result.stdout.decode())
-            logging.info("LibreOffice errors: %s", result.stderr.decode())
+            logger.info("LibreOffice output: %s", result.stdout.decode())
+            logger.info("LibreOffice errors: %s", result.stderr.decode())
 
             if not temp_output_path.exists():
-                logging.error("Output file not found: %s", temp_output_path)
+                logger.error("Output file not found: %s", temp_output_path)
                 return uploaded_file
 
-            logging.info("Output path: %s", temp_output_path)
+            logger.info("Output path: %s", temp_output_path)
 
             time.sleep(1)
             with temp_output_path.open("rb") as f:
                 converted_content = f.read()
-                logging.info("Converted file size: %d bytes", len(converted_content))
+                logger.info("Converted file size: %d bytes", len(converted_content))
                 if len(converted_content) == 0:
-                    logging.error("Converted file is empty - this won't get converted")
+                    logger.error("Converted file is empty - this won't get converted")
+                    return uploaded_file
 
-                output_filename = Path(uploaded_file.unique_name).with_suffix(".docx").name
+                output_filename = Path(get_file_name(uploaded_file)).with_suffix(".docx").name
                 new_file = InMemoryUploadedFile(
                     file=BytesIO(converted_content),
-                    field_name=uploaded_file.unique_name,
+                    field_name=get_file_name(uploaded_file),
                     name=output_filename,
                     content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     size=len(converted_content),
                     charset="utf-8",
                 )
-                logging.info("doc file conversion to docx successful for %s", uploaded_file.unique_name)
+                logger.info("doc file conversion to docx successful for %s", get_file_name(uploaded_file))
         except Exception as e:
-            logging.exception("Error converting doc file %s to docx", uploaded_file.unique_name, exc_info=e)
-            new_file = uploaded_file
+            logger.exception("Error converting doc file %s to docx", get_file_name(uploaded_file), exc_info=e)
         finally:
             try:
                 input_path.unlink()
                 if temp_output_path.exists():
                     temp_output_path.unlink()
             except Exception as cleanup_error:  # noqa: BLE001
-                logging.warning("Error cleaning up temporary files: %s", cleanup_error)
+                logger.warning("Error cleaning up temporary files: %s", cleanup_error)
 
-        return new_file
+    return new_file
 
 
 def ingest(file_id: UUID, es_index: str | None = None) -> None:
     # These models need to be loaded at runtime otherwise they can be loaded before they exist
-    from redbox_app.redbox_core.models import File
+    from redbox_app.redbox_core.models import File  # noqa: PLC0415
 
     if not es_index:
         es_index = env.elastic_chunk_alias
@@ -135,14 +157,14 @@ def ingest(file_id: UUID, es_index: str | None = None) -> None:
 
     # handling doc -> docx conversion
     if is_doc_file(file):
-        file = convert_doc_to_docx(file)
+        file.original_file = convert_doc_to_docx(file)
+        file.save()
     # handling utf8 compatibility
     if not is_utf8_compatible(file):
-        file = convert_to_utf8(file)
+        file.original_file = convert_to_utf8(file)
+        file.save()
 
-    file.save()
-
-    logging.info("Ingesting file: %s", file)
+    logger.info("Ingesting file: %s", file)
 
     if error := ingest_file(file.unique_name, es_index):
         file.status = File.Status.errored

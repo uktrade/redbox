@@ -37,6 +37,9 @@
 <body class="govuk-template__body">
 
   {% if environment | lower == "prod" %}
+  <!-- CSRF Token -->
+  <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
   <!-- Google Tag Manager (noscript) -->
   <noscript><iframe src="{{ google_analytics_iframe_src }}"
   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
@@ -44,16 +47,12 @@
   {% endif %}
 
   <script hash="sha256-GUQ5ad8JK5KmEWmROf3LZd9ge94daqNvd8xy9YS1iDw=">document.body.className += ' js-enabled' + ('noModule' in HTMLScriptElement.prototype ? ' govuk-frontend-supported' : '');</script> <!-- pragma: allowlist secret -->
-  <script type="module" src="{{static('js/libs/govuk-frontend.min.js')}}" nonce="{{ request.csp_nonce }}"></script>
-  <script hash="sha256-qmCu1kQifDfCnUd+L49nusp7+PeRl23639pzN5QF2WA=" type="module" nonce="{{ request.csp_nonce }}">
-    import { initAll } from '../static/js/libs/govuk-frontend.min.js'
-    initAll()
-  </script>
+
   <a href="#main-content" class="govuk-skip-link" data-module="govuk-skip-link">Skip to main content</a>
 
 
   {% if environment | lower != "prod" %}
-    <div class="rb-classification-banner govuk-warning-text rb-environment-warning iai-environment-warning">
+    <div class="govuk-warning-text rbds-environment-banner">
       {{environment|upper}} - This is not a live service
     </div>
   {% endif %}
@@ -65,7 +64,7 @@
       menu_items = [
       {"text": "Documents", "href": url('documents')},
       {"text": "Chat", "href": url('chats')},
-      {"text": "Settings", "href": url('settings')},
+      {"text": "Profile", "href": url('settings')},
       {"text": "Log out", "href": url('signed-out')},
       ],
       phase = "Beta"
@@ -93,8 +92,8 @@
     {'text': 'Sitemap', 'url': 'sitemap' }
   ] %}
 
-  <footer class="govuk-footerx">
-    <div class="govuk-width-container">
+  <footer class="govuk-footer govuk-footer--min-width-border">
+    <div class="govuk-width-container rbds-width-container">
       <div class="govuk-footer__meta">
         <div class="govuk-footer__meta-item govuk-footer__meta-item--grow">
           <h2 class="govuk-visually-hidden">Support links</h2>

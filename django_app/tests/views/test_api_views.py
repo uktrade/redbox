@@ -11,7 +11,7 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_api_view(client: Client, api_key: str):
     # Given
     headers = {"HTTP_X_API_KEY": api_key}
@@ -25,7 +25,7 @@ def test_api_view(client: Client, api_key: str):
 
 
 @pytest.mark.parametrize("path_name", ["user-view", "message-view"])
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_api_view_fail(path_name, client: Client):
     # Given that the user does not pass an API key
 
@@ -38,7 +38,7 @@ def test_api_view_fail(path_name, client: Client):
     assert response.json() == {"detail": "No API key provided"}
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_superuser_client_querying_v0_messages_returns_200(
     user_with_chats_with_messages_over_time: User, client: Client, api_key
 ):

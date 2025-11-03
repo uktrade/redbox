@@ -14,6 +14,7 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 from django.forms.models import model_to_dict
 from django.utils import timezone
 from langchain_core.documents import Document
@@ -45,8 +46,10 @@ from redbox_app.redbox_core.models import (
     ChatMessageTokenUse,
     Citation,
     File,
+    FileTeamMembership,
     MonitorSearchRoute,
     MonitorWebSearchResults,
+    UserTeamMembership,
 )
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
 
@@ -109,6 +112,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         user: User = self.scope.get("user")
 
         user_ai_settings = await AISettingsModel.objects.aget(label=user.ai_settings_id if user else "Claude 3.7")
+        user_team_ids = UserTeamMembership.objects.filter(user=user).values_list("team_id", flat=True)
 
         chat_backend = await ChatLLMBackend.objects.aget(id=data.get("llm", user_ai_settings.chat_backend_id))
         temperature = data.get("temperature", user_ai_settings.temperature)
@@ -129,7 +133,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
 
         # save user message
-        permitted_files = File.objects.filter(user=user, status=File.Status.complete)
+        permitted_files = (
+            File.objects.filter(
+                Q(user=user, status=File.Status.complete)
+                | Q(
+                    team_associations__team_id__in=user_team_ids,
+                    team_associations__visibility=FileTeamMembership.Visibility.TEAM,
+                    status=File.Status.complete,
+                )
+            )
+            .distinct()
+            .order_by("original_file_name")
+        )
+
         selected_files = permitted_files.filter(id__in=selected_file_uuids)
         user_chat_message = await self.save_user_message(
             session, user_message_text, selected_files=selected_files, activities=activities
@@ -148,16 +164,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         # save web search query and all web results from web search related agents
         if (self.final_state) and (self.final_state.agents_results):
+            user_question = self.final_state.request.question
             web_search_results_urls = []
+            web_search_api_counter = 0
             for agent_res in self.final_state.agents_results:
                 source_type = re.search("<SourceType>(.*?)</SourceType>", agent_res.content)
                 if source_type:  # noqa: SIM102
                     if source_type.group(1) == Citation.Origin.WEB_SEARCH:
                         web_search_results_urls += re.findall("<Source>(.*?)</Source>", agent_res.content)
+                        web_search_api_counter += 1
 
-            await self.monitor_web_search_results(
-                user_chat_message, user_message_text, web_search_results_urls, selected_files=selected_files
-            )
+            if len(web_search_results_urls) > 0:
+                await self.monitor_web_search_results(
+                    user_chat_message,
+                    user_question,
+                    web_search_results_urls,
+                    web_search_api_counter,
+                    selected_files=selected_files,
+                )
 
         await self.close()
 
@@ -402,6 +426,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         message: ChatMessage,
         user_message_text: str,
         web_search_urls: list,
+        web_search_api_count: int,
         selected_files: Sequence[File] | None = None,
     ) -> MonitorWebSearchResults:
         logger.info("Saving web search urls")
@@ -409,6 +434,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             chat_message=message,
             user_text=user_message_text,
             web_search_urls=str(web_search_urls),
+            web_search_api_count=web_search_api_count,
         )
         monitor_web_search.save()
         if selected_files:

@@ -5,10 +5,14 @@ import humanize
 import jinja2
 import pytz
 from django.conf import settings
+from django.contrib import messages
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.timezone import template_localtime
 from markdown_it import MarkdownIt
+from waffle import flag_is_active
+
+from redbox_app.redbox_core import flags
 
 # `js-default` setting required to sanitize inputs
 # https://markdown-it-py.readthedocs.io/en/latest/security.html
@@ -107,6 +111,9 @@ def environment(**options):
             "google_analytics_tag": settings.GOOGLE_ANALYTICS_TAG,
             "google_analytics_link": settings.GOOGLE_ANALYTICS_LINK,
             "google_analytics_iframe_src": settings.GOOGLE_ANALYTICS_IFRAME_SRC,
+            "get_messages": messages.get_messages,
+            "flag_is_active": flag_is_active,
+            "flags": flags,
         }
     )
     return env

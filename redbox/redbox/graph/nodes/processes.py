@@ -16,8 +16,6 @@ from uuid import uuid4
 import pandas as pd
 from botocore.exceptions import EventStreamError
 from langchain.schema import StrOutputParser
-from langchain_community.agent_toolkits.sql.base import create_sql_agent
-from langchain_community.utilities import SQLDatabase
 from langchain_core.callbacks.manager import dispatch_custom_event
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
@@ -28,7 +26,6 @@ from langgraph.types import Command
 
 from redbox.chains.activity import log_activity
 from redbox.chains.components import (
-    get_base_chat_llm,
     get_basic_metadata_retriever,
     get_chat_llm,
     get_structured_response_with_citations_parser,
@@ -56,7 +53,6 @@ from redbox.models.prompts import (
     PLANNER_PROMPT,
     PLANNER_QUESTION_PROMPT,
     REPLAN_PROMPT,
-    TABULAR_FORMAT_PROMPT,
     USER_FEEDBACK_EVAL_PROMPT,
 )
 from redbox.models.settings import get_settings
@@ -381,6 +377,7 @@ def lm_choose_route(state: RedboxState, parser: ClaudeParser):
 
 def create_planner(is_streamed=False):
     metadata = None
+    document_filenames = []
 
     @RunnableLambda
     def _get_metadata(state: RedboxState):
@@ -391,6 +388,12 @@ def create_planner(is_streamed=False):
         return state
 
     @RunnableLambda
+    def _document_filenames(state: RedboxState):
+        nonlocal document_filenames
+        document_filenames = [doc.split("/")[1] if "/" in doc else doc for doc in state.request.s3_keys]
+        return state
+
+    @RunnableLambda
     def _stream_planner_agent(state: RedboxState):
         planner_output_parser, format_instructions = get_structured_response_with_planner_parser()
         agent = build_stuff_pattern(
@@ -398,7 +401,7 @@ def create_planner(is_streamed=False):
             output_parser=planner_output_parser,
             format_instructions=format_instructions,
             final_response_chain=False,
-            additional_variables={"metadata": metadata},
+            additional_variables={"metadata": metadata, "document_filenames": document_filenames},
         )
         return agent
 
@@ -410,13 +413,15 @@ def create_planner(is_streamed=False):
             tools=None,
             parser=ClaudeParser(pydantic_object=MultiAgentPlan),
             using_only_structure=False,
+            using_chat_history=True,
+            _additional_variables={"document_filenames": document_filenames},
         )
         return orchestration_agent
 
     if is_streamed:
-        return _get_metadata | _stream_planner_agent
+        return _get_metadata | _document_filenames | _stream_planner_agent
     else:
-        return _create_planner
+        return _document_filenames | _create_planner
 
 
 def my_planner(
@@ -436,13 +441,19 @@ def my_planner(
             # if we save plans we can use this
             # plan = state.agent_plans[-1].model_dump_json()
             user_input = state.user_feedback.replace("@newroute ", "")
+            document_filenames = [doc.split("/")[1] if "/" in doc else doc for doc in state.request.s3_keys]
             orchestration_agent = create_chain_agent(
                 system_prompt=plan_prompt,
                 use_metadata=True,
                 tools=None,
                 parser=ClaudeParser(pydantic_object=MultiAgentPlan),
                 using_only_structure=False,
-                _additional_variables={"previous_plan": plan, "user_feedback": user_input},
+                _additional_variables={
+                    "previous_plan": plan,
+                    "user_feedback": user_input,
+                    "document_filenames": document_filenames,
+                },
+                using_chat_history=True,
             )
             res = orchestration_agent.invoke(state)
             state.agent_plans = res
@@ -543,7 +554,7 @@ def invoke_custom_state(
 
         # set activity log
         activity_node = build_activity_log_node(
-            RedboxActivityEvent(message=f"{agent_name} is completing task: {agent_task["task"]}")
+            RedboxActivityEvent(message=f"{agent_name} is completing task: {agent_task['task']}")
         )
         activity_node.invoke(state)
         ## invoke the subgraph
@@ -588,7 +599,7 @@ def stream_plan():
         prefix_texts, suffix_texts = get_plan_fix_prompts()
         dispatch_custom_event(RedboxEventType.response_tokens, data=f"{random.choice(prefix_texts)}\n\n")
         for i, t in enumerate(state.agent_plans.tasks):
-            dispatch_custom_event(RedboxEventType.response_tokens, data=f"{i+1}. {t.task}\n\n")
+            dispatch_custom_event(RedboxEventType.response_tokens, data=f"{i + 1}. {t.task}\n\n")
         dispatch_custom_event(RedboxEventType.response_tokens, data=f"\n\n{random.choice(suffix_texts)}")
         return state
 
@@ -603,60 +614,6 @@ def stream_suggestion():
         return state
 
     return _stream_suggestion
-
-
-def extract_response(answer: str) -> tuple[list[str], str]:
-    """Extracts the response from a the tabular agent using the 'html'-like Tabular_Agent_Result tags."""
-    match = re.search(r"<Tabular_Agent_Result>(.*?)</Tabular_Agent_Result>", answer, re.DOTALL)
-    out = match.group(1) if match else "I was unable to parse the result. Please try again."
-
-    def stream_chars(text):
-        return split_into_random_chunks(text)
-
-    return stream_chars(out), out
-
-
-def split_into_random_chunks(text, min_len=20, max_len=50):
-    """Splits response into chunks of random character size."""
-    chunks = []
-    i = 0
-    while i < len(text):
-        chunk_len = random.randint(min_len, max_len)
-        chunks.append(text[i : i + chunk_len])
-        i += chunk_len
-    return chunks
-
-
-def stream_tabular_failure():
-    """Stream the failure of the tabular agent and fallback to newroute"""
-
-    @RunnableLambda
-    def _stream_tabular_failure(state: RedboxState):
-        stream = split_into_random_chunks(
-            "Unfortunately, I am unable to output a response using the Tabular Agent. I will try a different approach.\n\n",
-            5,
-            20,
-        )
-        for char in stream:
-            dispatch_custom_event(RedboxEventType.response_tokens, data=char)
-        state.request.question = state.request.question.lstrip("@tabular")
-        return state
-
-    return _stream_tabular_failure
-
-
-def stream_tabular_response():
-    """Stream the tabular analysis response and save the analysis in messages"""
-
-    @RunnableLambda
-    def _stream_tabular_response(state: RedboxState):
-        stream, answer = extract_response(state.agents_results[-1].content)
-        for char in stream:
-            dispatch_custom_event(RedboxEventType.response_tokens, data=char)
-        state.messages.append(AIMessage(content=answer))
-        return state
-
-    return _stream_tabular_response
 
 
 def combine_question_evaluator() -> Runnable[RedboxState, dict[str, Any]]:
@@ -728,18 +685,6 @@ def get_all_tabular_docs(state: RedboxState) -> tuple[list[str], list[str]]:
     return all_texts, all_names
 
 
-def detect_tabular_docs(state: RedboxState) -> bool:
-    """Returns True if a tabular document is selected"""
-    for doc_state in state.documents:
-        for group in doc_state[1].values():
-            if group:
-                for doc in group.values():
-                    uri = doc.metadata.get("uri", "")
-                    if uri.endswith((".csv", ".xlsx", ".xls")):
-                        return True
-    return False
-
-
 def extract_table_names_and_text(doc_text: str) -> tuple[str, str]:
     """Excel Files start with Sheet Names stored alongside text so we extract this if so."""
     if doc_text.startswith("<table_name>"):
@@ -759,7 +704,7 @@ def load_texts_to_db(doc_texts: list[str], doc_names: list[str], conn: sqlite3.C
         try:
             clean_doc_name = sanitise_file_name(doc_name)
             sheet_name, doc_text = extract_table_names_and_text(doc_text)
-            table_name = f"{clean_doc_name}_table_{idx+1}" if not sheet_name else f"{clean_doc_name}_{sheet_name}"
+            table_name = f"{clean_doc_name}_table_{idx + 1}" if not sheet_name else f"{clean_doc_name}_{sheet_name}"
             parse_doc_text_as_db_table(doc_text, table_name, conn=conn)
             table_names.append(table_name)
         except Exception as e:
@@ -767,12 +712,45 @@ def load_texts_to_db(doc_texts: list[str], doc_names: list[str], conn: sqlite3.C
     return table_names
 
 
+def detect_header(doc_text: str):
+    # split the content into lines
+    lines = doc_text.splitlines()
+    # find the first line that look like an actual header
+    header_row = None
+    for i, line in enumerate(lines):
+        values = [value.strip() for value in line.split(",")]
+        # if there are more than 1 columns and first few columns are not empty
+        trimmed_values = values[:10]
+        if (
+            len(values) > 1
+            and all(not value.lower().startswith("unnamed") for value in trimmed_values)
+            and "".join(trimmed_values)
+            and sum([1 if not val else 0 for val in trimmed_values]) < 2
+        ):
+            header_row = i
+            break
+
+    if header_row is None:  # in case there is only one column
+        header_row = 0
+    text_from_header = "\n".join(lines[header_row:])
+    return text_from_header
+
+
+def delete_null_values(df: pd.DataFrame):
+    # delete rows where all values are null
+    df.dropna(axis=0, how="all", inplace=True)
+    # delete columns where all values are null
+    df.dropna(axis=1, how="all", inplace=True)
+    return df
+
+
 def parse_doc_text_as_db_table(doc_text: str, table_name: str, conn: sqlite3.Connection):
     """Convert document text to SQL"""
     try:
-        df = pd.read_csv(StringIO(doc_text), sep=",")
-
-        df.to_sql(table_name, conn, if_exists="replace", index=False)
+        text_from_header = detect_header(doc_text)
+        df = pd.read_csv(StringIO(text_from_header), sep=",")
+        df_cleaned = delete_null_values(df)
+        df_cleaned.to_sql(table_name, conn, if_exists="replace", index=False)
     except Exception as e:
         log.exception(f"Failed to load table '{table_name}': {e}")
 
@@ -782,58 +760,130 @@ def sanitise_file_name(file_name: str) -> str:
     return re.sub(r"\W+", "", file_name.replace(" ", ""))
 
 
-def build_tabular_agent(agent_name: str = "Tabular Agent", max_tokens: int = 5000):
+def get_tabular_agent(
+    agent_name: str = "Tabular Agent", max_tokens: int = 5000, tools=list[StructuredTool], max_attempt=int
+):
     @RunnableLambda
     def _build_tabular_agent(state: RedboxState):
-        state = create_or_update_db_from_tabulars(state=state)
-        parser = ClaudeParser(pydantic_object=AgentTask)
-
+        # update activity
         try:
-            task = parser.parse(state.last_message.content)
-            # Log activity
-            activity_node = build_activity_log_node(
-                RedboxActivityEvent(message=f"{agent_name} is completing task: {task.task}")
-            )
-            activity_node.invoke(state)
+            # retrieve tabular agent task
+            tasks = state.agent_plans.tasks
+            for task_level in tasks:
+                if task_level.agent.value == "Tabular_Agent":
+                    task = task_level.task
+                    expected_output = task_level.expected_output
         except Exception as e:
             log.error(f"Cannot parse in {agent_name}: {e}")
-            task = AgentTask(task=state.request.question, expected_output="Analysis of tabular data")
+            task = state.request.question
 
-        # Get the structured response parser
-        # steps_taken_parser, _ = get_structured_response_with_steps_taken_parser()
+        # Log activity
+        activity_node = build_activity_log_node(RedboxActivityEvent(message=f"{agent_name} is completing task: {task}"))
+        activity_node.invoke(state)
 
-        try:
-            # Create SQL database agent with structured output format
-            db = SQLDatabase.from_uri(f"sqlite:///{state.request.db_location}")
-            llm = get_base_chat_llm(model=state.request.ai_settings.chat_backend)
-
-            # Customise the agent to return structured responses
-            agent = create_sql_agent(
-                llm=llm,
-                db=db,
-                verbose=False,
-                agent_executor_kwargs={
-                    "handle_parsing_errors": True,
-                },
+        # Create SQL database agent with structured output format
+        # db = SQLDatabase.from_uri(f"sqlite:///{state.request.db_location}")
+        # call tabular agent
+        success = "fail"
+        num_iter = 0
+        sql_error = ""
+        is_intermediate_step = False
+        messages = []
+        while (success == "fail" or is_intermediate_step) and num_iter < max_attempt:
+            worker_agent = build_stuff_pattern(
+                prompt_set=PromptSet.Tabular,
+                tools=tools,
+                final_response_chain=False,
+                additional_variables={"sql_error": sql_error, "db_schema": state.tabular_schema},
             )
+            ai_msg = worker_agent.invoke(state)
 
-            agent_result = agent.invoke(
-                {"input": TABULAR_FORMAT_PROMPT.format(question=task.task.replace("@tabular ", ""))}
-            )
+            messages.append(AIMessage(ai_msg["messages"][-1].content))
+            try:
+                messages.append(
+                    AIMessage(f"Here is the SQL query: {ai_msg['messages'][-1].tool_calls[-1]['args']['sql_query']}")
+                )
+            except Exception:
+                log.info("no sql query input to tool")
 
-            output = agent_result["output"]
-            result = output
+            num_iter += 1
 
-            # Truncate to max_tokens
-            result_content = result[:max_tokens]
+            tool_output = run_tools_parallel(ai_msg["messages"][-1], tools, state)
 
-            formatted_result = f"<Tabular_Agent_Result>{result_content}</Tabular_Agent_Result>"
-            return {"agents_results": formatted_result, "tasks_evaluator": task.task + "\n" + task.expected_output}
+            results = tool_output[-1].content  # this is a tuple
 
-        except Exception as e:
-            log.error(f"Error generating agent output: {e}")
+            # Truncate to max_tokens. only using one tool here.
+            # retrieve result from database or sql error
+            result = results[0][:max_tokens]  # saving this as a new variable as tuples are immutable.
 
-            formatted_result = "<Tabular_Agent_Result>Error analysing tabular data</Tabular_Agent_Result>"
-            return {"agents_results": formatted_result, "tasks_evaluator": task.task + "\n" + task.expected_output}
+            success = results[1]
+
+            is_intermediate_step = eval(results[2])
+
+            if success == "fail":
+                sql_error = result  # capture sql error
+                messages.append(
+                    AIMessage(f"The SQL query failed to execute correctly. Here is the error message: {sql_error}")
+                )
+            else:
+                if is_intermediate_step:
+                    sql_error = ""
+                    messages.append(AIMessage(f"Here are the results from the query: {result}"))
+            # update state messages
+            state.messages = messages
+
+        if success == "pass":
+            if not is_intermediate_step:  # if this is the final step
+                formatted_result = f"<Tabular_Agent_Result>{result}</Tabular_Agent_Result>"
+            else:
+                formatted_result = f"<Tabular_Agent_Result>Iteration limit of {num_iter} is reached by the tabular agent</Tabular_Agent_Result>"
+
+        else:
+            formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the error from the executed SQL query: {result} </Tabular_Agent_Result>"
+
+        return {
+            "agents_results": [formatted_result],
+            "tasks_evaluator": task + "\n" + expected_output,
+        }
 
     return _build_tabular_agent
+
+
+def get_tabular_schema():
+    def _get_tabular_schema(state: RedboxState):
+        # create db
+        state = create_or_update_db_from_tabulars(state=state)
+        db_path = state.request.db_location
+        # get schema
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        # get tables
+        tables = cursor.execute(
+            "SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite_%';"
+        ).fetchall()
+        schema = {"tables": []}
+        for (table_name,) in tables:
+            cols = cursor.execute(f'PRAGMA table_info("{table_name}");').fetchall()
+            # convert to JSON
+            schema["tables"].append(
+                {
+                    "name": table_name,
+                    "columns": [
+                        {
+                            "name": col[1],
+                            "type": col[2],
+                            "notnull": bool(col[3]),
+                            "default": col[4],
+                            "primary_key": bool(col[5]),
+                        }
+                        for col in cols
+                    ],
+                }
+            )
+
+        conn.close()
+        db_schema = json.dumps(schema, indent=2)
+
+        return {"tabular_schema": db_schema}
+
+    return _get_tabular_schema

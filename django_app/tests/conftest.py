@@ -23,6 +23,7 @@ from redbox_app.redbox_core.models import (
     ChatMessageTokenUse,
     Citation,
     File,
+    Team,
 )
 
 User = get_user_model()
@@ -32,7 +33,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_AISETTINGS_ID = UUID("00000000-0000-0000-0000-000000000000")
 
 
-@pytest.fixture()
+@pytest.fixture
 def s3_client():
     if settings.OBJECT_STORE == "s3":
         client = boto3.client(
@@ -60,7 +61,7 @@ def s3_client():
     return client
 
 
-@pytest.fixture()
+@pytest.fixture
 def api_key():
     return settings.REDBOX_API_KEY
 
@@ -79,7 +80,7 @@ def default_ai_settings(db):  # noqa: ARG001
     return ai_settings
 
 
-@pytest.fixture()
+@pytest.fixture
 def create_user():
     def _create_user(
         username,
@@ -109,27 +110,27 @@ def create_user():
     return _create_user
 
 
-@pytest.fixture()
+@pytest.fixture
 def alice(create_user):
     return create_user(username="alice@cabinetoffice.gov.uk")
 
 
-@pytest.fixture()
+@pytest.fixture
 def chat_with_alice(alice):
     return Chat.objects.create(name="a chat", user=alice)
 
 
-@pytest.fixture()
+@pytest.fixture
 def bob(create_user):
     return create_user(username="bob@example.com")
 
 
-@pytest.fixture()
+@pytest.fixture
 def peter_rabbit():
     return User.objects.create_user(password="P455W0rd", username="peter.rabbit@example.com")
 
 
-@pytest.fixture()
+@pytest.fixture
 def user_with_demographic_data() -> User:
     return User.objects.create_user(
         name="Sir Gregory Pitkin",
@@ -142,39 +143,39 @@ def user_with_demographic_data() -> User:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def staff_user(create_user):
     return create_user(is_staff=True, username="staff@example.com")
 
 
-@pytest.fixture()
+@pytest.fixture
 def superuser() -> User:
     return User.objects.create_superuser(username="super@example.com")
 
 
-@pytest.fixture()
+@pytest.fixture
 def file_pdf_path() -> Path:
     return Path(__file__).parent / "data" / "pdf" / "Cabinet Office - Wikipedia.pdf"
 
 
-@pytest.fixture()
+@pytest.fixture
 def file_py_path() -> Path:
     return Path(__file__).parent / "data" / "py" / "test_data.py"
 
 
-@pytest.fixture()
+@pytest.fixture
 def chat(alice: User) -> Chat:
     session_id = uuid.uuid4()
     return Chat.objects.create(id=session_id, user=alice, name="A chat")
 
 
-@pytest.fixture()
+@pytest.fixture
 def chat_with_message(chat: Chat) -> Chat:
     ChatMessage.objects.create(chat=chat, text="today", role=ChatMessage.Role.user)
     return chat
 
 
-@pytest.fixture()
+@pytest.fixture
 def chat_message(chat: Chat, uploaded_file: File) -> ChatMessage:
     chat_message = ChatMessage.objects.create(
         chat=chat, text="A question?", role=ChatMessage.Role.user, route="A route"
@@ -183,7 +184,7 @@ def chat_message(chat: Chat, uploaded_file: File) -> ChatMessage:
     return chat_message
 
 
-@pytest.fixture()
+@pytest.fixture
 def chat_message_with_citation(chat: Chat, uploaded_file: File) -> ChatMessage:
     chat_message = ChatMessage.objects.create(
         chat=chat,
@@ -198,7 +199,7 @@ def chat_message_with_citation(chat: Chat, uploaded_file: File) -> ChatMessage:
     return chat_message
 
 
-@pytest.fixture()
+@pytest.fixture
 def chat_message_with_citation_and_tokens(chat_message_with_citation: ChatMessage) -> ChatMessage:
     chat_message = chat_message_with_citation
     ChatMessageTokenUse.objects.create(
@@ -216,7 +217,7 @@ def chat_message_with_citation_and_tokens(chat_message_with_citation: ChatMessag
     return chat_message
 
 
-@pytest.fixture()
+@pytest.fixture
 def uploaded_file(alice: User, original_file: UploadedFile, s3_client) -> File:  # noqa: ARG001
     file = File.objects.create(
         user=alice,
@@ -230,12 +231,12 @@ def uploaded_file(alice: User, original_file: UploadedFile, s3_client) -> File: 
     file.delete()
 
 
-@pytest.fixture()
+@pytest.fixture
 def original_file() -> UploadedFile:
     return SimpleUploadedFile("original_file.txt", b"Lorem Ipsum.")
 
 
-@pytest.fixture()
+@pytest.fixture
 def chat_with_files(chat: Chat, several_files: Sequence[File]) -> Chat:
     ChatMessage.objects.create(
         chat=chat,
@@ -265,7 +266,7 @@ def chat_with_files(chat: Chat, several_files: Sequence[File]) -> Chat:
     return chat
 
 
-@pytest.fixture()
+@pytest.fixture
 def user_with_chats_with_messages_over_time(alice: User) -> User:
     now = timezone.now()
     with freeze_time(now - timedelta(days=40)):
@@ -304,7 +305,7 @@ def user_with_chats_with_messages_over_time(alice: User) -> User:
     return alice
 
 
-@pytest.fixture()
+@pytest.fixture
 def several_files(alice: User, number_to_create: int = 4) -> Sequence[File]:
     files = []
     for i in range(number_to_create):
@@ -319,7 +320,7 @@ def several_files(alice: User, number_to_create: int = 4) -> Sequence[File]:
     return files
 
 
-@pytest.fixture()
+@pytest.fixture
 def chat_message_with_rating(chat_message: ChatMessage) -> ChatMessage:
     chat_message.rating = 3
     chat_message.rating_text = "Ipsum Lorem."
@@ -333,10 +334,14 @@ def _ensure_default_ai_settings(db):  # noqa: ARG001
     backend, _ = ChatLLMBackend.objects.get_or_create(
         name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock", is_default=True
     )
-    from redbox_app.redbox_core.models import AISettings
 
     AISettings.objects.filter(label="default").exclude(id=DEFAULT_AISETTINGS_ID).delete()
     AISettings.objects.get_or_create(
         id=DEFAULT_AISETTINGS_ID,
         defaults={"label": "default", "chat_backend": backend},
     )
+
+
+@pytest.fixture
+def redbox_team() -> Team:
+    return Team.objects.create(team_name="Redbox Team", directorate="DDaT")

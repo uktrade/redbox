@@ -1,0 +1,18 @@
+.rbds-no-hover {
+    pointer-events: none;
+}
+
+// Can be moved to its own component if drag/drop functionality gets reused
+.rbds-drop-zone.drag-over {
+  border-color: var(--redbox-blue);
+  border-width: 3px;
+}
+
+.rbds-align-middle {
+    vertical-align: middle;
+}
+
+// Leave a gap for the header when navigating to page sections
+[id] {
+  scroll-margin-top: var(--header-height);
+}
