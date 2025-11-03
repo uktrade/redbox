@@ -94,7 +94,7 @@ def read_excel_file(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
                     logger.info(f"Skipping Sheet {name}")
                     continue
                 # Include the table name in the text that is stored. This will be extracted by the retriever
-                csv_text = f"<table_name>{name.lower().replace(" ","_")}</table_name>" + str(df.to_csv(index=False))
+                csv_text = f"<table_name>{name.lower().replace(' ', '_')}</table_name>" + str(df.to_csv(index=False))
                 elements.append({"text": csv_text, "metadata": {}})
             except Exception as e:
                 logger.info(f"Skipping Sheet {name} due to error: {e}")
@@ -160,7 +160,7 @@ class UnstructuredChunkLoader:
                 response = self.post_files(url, files)
 
                 if response.status_code != 200:
-                    msg = f"Chunk {idx+1} failed: {response.text}"
+                    msg = f"Chunk {idx + 1} failed: {response.text}"
                     print(response)
                     raise ValueError(msg)
                 elements.extend(response.json())

@@ -2,23 +2,38 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="govuk-width-container">
+<div class="govuk-width-container rbds-width-container">
   <div class="govuk-tabs" data-module="govuk-tabs">
 
     <ul class="govuk-tabs__list">
       {% for tab in tabs %}
+        {% if tab.id == "manage-teams" %}
+          {% if flag_is_active(request, flags.ENABLE_TEAMS) %}
+            <li class="govuk-tabs__list-item">
+              <a class="govuk-tabs__tab" href="#{{ tab.id }}">{{ tab.title }}</a>
+            </li>
+          {% endif %}
+        {% else %}
         <li class="govuk-tabs__list-item">
-          <a class="govuk-tabs__tab" href="#{{ tab.id }}">{{ tab.title }}</a>
-        </li>
+            <a class="govuk-tabs__tab" href="#{{ tab.id }}">{{ tab.title }}</a>
+          </li>
+        {% endif %}
       {% endfor %}
     </ul>
 
     {% for tab in tabs %}
-      <div class="govuk-tabs__panel {% if not loop.first %}govuk-tabs__panel--hidden{% endif %}" id="{{ tab.id }}">
-        {% include tab.template %}
-      </div>
+      {% if tab.id == "manage-teams" %}
+        {% if flag_is_active(request, flags.ENABLE_TEAMS) %}
+          <div class="govuk-tabs__panel {% if not loop.first %}govuk-tabs__panel--hidden{% endif %}" id="{{ tab.id }}">
+            {% include tab.template %}
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="govuk-tabs__panel {% if not loop.first %}govuk-tabs__panel--hidden{% endif %}" id="{{ tab.id }}">
+          {% include tab.template %}
+        </div>
+      {% endif %}
     {% endfor %}
-
   </div>
 </div>
 {% endblock %}

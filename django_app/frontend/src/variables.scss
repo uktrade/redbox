@@ -63,6 +63,7 @@ $govuk-brand-colour: #1d70b8;
   --color-border-dark: var(--dbt-black);
   --color-button-primary: var(--redbox-blue);/* old:#1759BC */
   --color-text: var(--dbt-black);
+  --color-text-secondary: var(--dbt-white);
   --color-link-text: var(--redbox-blue);
   --color-link-text-hover: var(--gds-dark-blue);
 
@@ -75,12 +76,15 @@ $govuk-brand-colour: #1d70b8;
 
   // Typography
   --font-family-primary: Arial;
-  --font-size-s: 16px;
-  --font-size-xs: 14px;
+  --font-size-xs: 0.875rem; // 14px
+  --font-size-s: 1rem; // 16px
+  --font-size-m: 1.1875rem; // 19px
+  --font-size-l: 1.875rem; // 30px
 
   // Button
   --color-button-warning-background: var(--gds-red);
 
   // Misc
   --header-height: 161px;
+  --border-radius: .25rem;
 }

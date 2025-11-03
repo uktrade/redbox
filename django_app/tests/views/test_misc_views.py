@@ -13,7 +13,7 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_declaration_view_get(peter_rabbit: User, client: Client):
     client.force_login(peter_rabbit)
     response = client.get("/")
@@ -22,7 +22,7 @@ def test_declaration_view_get(peter_rabbit: User, client: Client):
     assert "Report-To" not in response.headers
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_declaration_view_get_with_sentry_security_header_endpoint(
     peter_rabbit: User, client: Client, settings: Settings
 ):

@@ -93,11 +93,11 @@ export class MessageInput extends HTMLElement {
     this.submitDisabled = true;
     if (this.sendButton) {
       this.sendButton.disabled = true;
-      this.sendButton.classList.add("no-hover");
+      this.sendButton.classList.add("rbds-no-hover");
     }
     if (this.dictateButton) {
       this.dictateButton.disabled = true;
-      this.dictateButton.classList.add("no-hover");
+      this.dictateButton.classList.add("rbds-no-hover");
     }
   };
 
@@ -109,11 +109,11 @@ export class MessageInput extends HTMLElement {
     this.submitDisabled = false;
     if (this.sendButton) {
       this.sendButton.disabled = false;
-      this.sendButton.classList.remove("no-hover");
+      this.sendButton.classList.remove("rbds-no-hover");
     }
     if (this.dictateButton) {
       this.dictateButton.disabled = false;
-      this.dictateButton.classList.remove("no-hover");
+      this.dictateButton.classList.remove("rbds-no-hover");
     }
   };
 
@@ -124,7 +124,7 @@ export class MessageInput extends HTMLElement {
    */
   getValue = (trim=true) => {
     const clone = /** @type {HTMLElement} */ (this.textarea.cloneNode(true));
-    clone.querySelector("uploaded-files")?.remove();
+    clone.querySelector("rbds-uploaded-files")?.remove();
     if (trim) return clone?.textContent?.trim() || "";
     return clone?.textContent || "";
   };
@@ -161,4 +161,4 @@ export class MessageInput extends HTMLElement {
   };
 }
 
-customElements.define("message-input", MessageInput);
+customElements.define("rbds-message-input", MessageInput);
