@@ -1,5 +1,5 @@
 @use "../node_modules/govuk-frontend/dist/govuk" as govuk;
-@use "./variables.scss" as variables;
+@use "./variables.scss" as *;
 @use "./redbox_design_system" as redbox_design_system;
 @use "../node_modules/accessible-autocomplete/dist/accessible-autocomplete.min.css" as accessible-autocomplete;
 
