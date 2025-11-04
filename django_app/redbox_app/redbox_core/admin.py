@@ -59,8 +59,6 @@ class AgentAdmin(admin.ModelAdmin):
         "description",
     ]
 
-    # form = AgentAdminForm
-
     search_fields = ["name"]
     readonly_fields = ["modified_at", "created_at"]
 

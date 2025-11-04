@@ -201,4 +201,3 @@ class DemographicsForm(forms.ModelForm):
                 attrs={"class": "govuk-textarea govuk-!-width-one-half", "rows": "5"}
             ),
         }
-
