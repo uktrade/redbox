@@ -29,6 +29,42 @@ class ChatLLMBackendAdmin(admin.ModelAdmin):
     class Meta:
         model = models.ChatLLMBackend
 
+class SkillAdmin(admin.ModelAdmin):
+    list_display = [
+        "name",
+        "description",
+    ]
+
+    search_fields = ["name"]
+    readonly_fields = ["modified_at", "created_at"]
+
+    class Meta:
+        model = models.Skill
+
+class AgentSkillAdmin(admin.ModelAdmin):
+    list_display = [
+        "agent__name",
+        "skill__name",
+    ]
+
+    search_fields = ["agent__name", "skill__name"]
+    readonly_fields = ["modified_at", "created_at"]
+
+    class Meta:
+        model = models.AgentSkill
+
+class AgentAdmin(admin.ModelAdmin):
+    list_display = [
+        "name",
+        "description",
+        "prompt",
+    ]
+
+    search_fields = ["name"]
+    readonly_fields = ["modified_at", "created_at"]
+
+    class Meta:
+        model = models.Agent
 
 class UserAdmin(ImportExportMixin, admin.ModelAdmin):
     def export_as_json(self, request, queryset: QuerySet):  # noqa:ARG002
@@ -396,4 +432,7 @@ admin.site.register(models.AgentPlan, AgentPlanAdmin)
 admin.site.register(models.Team, TeamAdmin)
 admin.site.register(models.UserTeamMembership, UserTeamMembershipAdmin)
 admin.site.register(models.FileTeamMembership, FileTeamMembershipAdmin)
+admin.site.register(models.Agent, AgentAdmin)
+admin.site.register(models.Skill, SkillAdmin)
+admin.site.register(models.AgentSkill, AgentSkillAdmin)
 admin.site.register_view("report/", view=reporting_dashboard, name="Site report")
