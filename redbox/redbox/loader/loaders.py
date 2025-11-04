@@ -160,7 +160,7 @@ class UnstructuredChunkLoader:
         metadata: GeneratedMetadata | None = None,
         overlap_chars: int = 0,
         overlap_all_chunks: bool = True,
-        request_timeout: int = 60,
+        request_timeout: int = 480,
         max_retries: int = 3,
         pages_per_pdf_chunk: int = 75,
     ):
