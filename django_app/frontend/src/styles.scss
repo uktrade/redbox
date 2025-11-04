@@ -1,10 +1,10 @@
-@use "../node_modules/govuk-frontend/dist/govuk/index" as govuk;
-@use "./variables.scss" as *;
+@use "../node_modules/govuk-frontend/dist/govuk" as govuk;
+@use "./variables.scss" as variables;
 @use "./redbox_design_system" as redbox_design_system;
 @use "../node_modules/accessible-autocomplete/dist/accessible-autocomplete.min.css" as accessible-autocomplete;
 
 html.no-scroll {
-    overflow: hidden;
+  overflow: hidden;
 }
 
 body {
@@ -98,12 +98,12 @@ upload-button {
 
 /* Citations Page */
 .rb-back-link {
-  color: var(--iai-colour-text-primary);
+  color: var(--colour-text);
   text-decoration: none;
 }
 
 .iai-chat-bubbles__sources-link:visited {
-  color: $govuk-brand-colour, var(--iai-colour-brand);
+  color: $govuk-brand-colour, var(--redbox-pink);
 }
 .iai-chat-bubbles__sources-link:target {
   outline: 3px solid rgba(0, 0, 0, 0);
