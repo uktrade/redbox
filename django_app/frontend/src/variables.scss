@@ -43,6 +43,9 @@ $govuk-brand-colour: #1d70b8;
   --redbox-grey: var(--gds-mid-grey);
   --redbox-light-grey: var(--gds-light-grey);
   --redbox-green: var(--gds-green);
+  --redbox-orange: #ffbf47;
+  --redbox-teal: #0b8478;
+  --redbox-pink: #c50878;
 
   // GDS Sass custom variables
   --govuk-brand-colour: var(--gds-blue);
@@ -79,7 +82,8 @@ $govuk-brand-colour: #1d70b8;
   --font-size-xs: 0.875rem; // 14px
   --font-size-s: 1rem; // 16px
   --font-size-m: 1.1875rem; // 19px
-  --font-size-l: 1.875rem; // 30px
+  --font-size-l: 1.5rem; // 24px
+  --font-size-xl: 1.875rem; // 30px
 
   // Button
   --color-button-warning-background: var(--gds-red);
@@ -87,4 +91,7 @@ $govuk-brand-colour: #1d70b8;
   // Misc
   --header-height: 161px;
   --border-radius: .25rem;
+
+  // Layout
+  --desktop-width: 1020px;
 }

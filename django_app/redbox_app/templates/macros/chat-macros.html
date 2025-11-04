@@ -39,7 +39,7 @@
   <markdown-converter class="rbds-chat-message__text">{{ message.text }}</markdown-converter>
   {% if message.unique_citation_uris() %}
   <h3 class="iai-chat-bubble__sources-heading govuk-heading-s govuk-!-margin-bottom-1">Sources</h3>
-  <div class="iai-display-flex-from-desktop">
+  <div class="rbds-display-flex-from-desktop">
     <ol class="rb-footnote-list govuk-!-margin-bottom-0">
       {% set seen_docs = [] %}
       {% for display, href, cit_id, text_in_answer, citation_name in message.unique_citation_uris() %}
