@@ -3,7 +3,6 @@ from typing import ClassVar
 
 from django import forms
 from django.contrib.auth import get_user_model
-from redbox_app.redbox_core.models import Agent
 
 User = get_user_model()
 

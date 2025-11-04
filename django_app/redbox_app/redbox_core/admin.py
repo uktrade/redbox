@@ -69,7 +69,7 @@ class AgentAdmin(admin.ModelAdmin):
         model = models.Agent
 
     def get_form(self, request, obj=None, **kwargs):
-        form = super(AgentAdmin, self).get_form(request, obj, **kwargs)
+        form = super().get_form(request, obj, **kwargs)
         form.base_fields["prompt"].widget.attrs["rows"] = "40"
         form.base_fields["description"].widget.attrs["rows"] = "5"
         return form
