@@ -7,6 +7,7 @@ from langchain_core.outputs import Generation
 from pydantic import BaseModel
 
 from redbox.chains.parser import ClaudeParser, StreamingJsonOutputParser, StreamingPlanner
+from langchain_core.runnables import RunnableLambda
 from redbox.chains.runnables import prompt_budget_calculation, truncate_chat_history
 from redbox.models.errors import QuestionLengthError
 from redbox.transform import bedrock_tokeniser
@@ -91,29 +92,33 @@ class TestClaudeParser:
 
 # StreamingJsonOutputParser Tests
 class TestStreamingJsonOutputParser:
-    @patch("langchain_core.callbacks.manager.dispatch_custom_event")
-    @patch("langchain_core.callbacks.manager.CallbackManager")
-    def test_transform_valid_json(self, mock_callback_manager, mock_dispatch):
-        mock_callback_manager.return_value.get_current_run.return_value = "mock_parent_run_id"
-
+    def test_transform_valid_json(self):
         parser = StreamingJsonOutputParser(pydantic_schema_object=TestResponseModel)
-        chunks = ['{"answer": "test', '", "citations": []}']
-        result = list(parser._transform(chunks))
+
+        def chunk_generator(input_data):
+            yield '{"answer": "test'
+            yield '", "citations": []}'
+
+        chain = RunnableLambda(chunk_generator) | parser
+
+        result = list(chain.stream(None))
 
         assert len(result) > 0
         assert isinstance(result[0], TestResponseModel)
 
-    @patch("langchain_core.callbacks.manager.dispatch_custom_event")
-    @patch("langchain_core.callbacks.manager.CallbackManager")
-    def test_transform_non_json(self, mock_callback_manager, mock_dispatch):
-        mock_callback_manager.return_value.get_current_run.return_value = "mock_parent_run_id"
+    def test_transform_non_json(self):
         parser = StreamingJsonOutputParser(pydantic_schema_object=TestResponseModel)
-        chunks = ["This is just a plain text response without JSON"]
-        result = list(parser._transform(chunks))
+
+        def chunk_generator(input_data):
+            yield "This is just a plain text response without JSON"
+
+        chain = RunnableLambda(chunk_generator) | parser
+        result = list(chain.stream(None))
 
         assert len(result) > 0
         assert isinstance(result[0], TestResponseModel)
-        mock_dispatch.assert_called
+        assert result[0].answer == "This is just a plain text response without JSON"
+        assert result[0].citations == []
 
     @patch("langchain_core.callbacks.manager.dispatch_custom_event")
     def test_parse_partial_json(self, mock_dispatch):
