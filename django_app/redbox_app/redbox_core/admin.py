@@ -57,14 +57,21 @@ class AgentAdmin(admin.ModelAdmin):
     list_display = [
         "name",
         "description",
-        "prompt",
     ]
+
+    # form = AgentAdminForm
 
     search_fields = ["name"]
     readonly_fields = ["modified_at", "created_at"]
 
     class Meta:
         model = models.Agent
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super(AgentAdmin, self).get_form(request, obj, **kwargs)
+        form.base_fields['prompt'].widget.attrs['rows'] = '40'
+        form.base_fields['description'].widget.attrs['rows'] = '5'
+        return form
 
 class UserAdmin(ImportExportMixin, admin.ModelAdmin):
     def export_as_json(self, request, queryset: QuerySet):  # noqa:ARG002

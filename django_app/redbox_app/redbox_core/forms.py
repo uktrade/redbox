@@ -3,13 +3,13 @@ from typing import ClassVar
 
 from django import forms
 from django.contrib.auth import get_user_model
+from redbox_app.redbox_core.models import Agent
 
 User = get_user_model()
 
 
 class SignInForm(forms.Form):
     email = forms.EmailField(max_length=100)
-
 
 class SignUpForm(forms.ModelForm):
     class Meta:
@@ -201,3 +201,4 @@ class DemographicsForm(forms.ModelForm):
                 attrs={"class": "govuk-textarea govuk-!-width-one-half", "rows": "5"}
             ),
         }
+
