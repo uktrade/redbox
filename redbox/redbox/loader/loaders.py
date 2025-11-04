@@ -61,7 +61,7 @@ def split_pdf(filebytes: BytesIO, pages_per_chunk: int = 75) -> List[BytesIO]:
     for start in range(0, total_pages, pages_per_chunk):
         sub_doc = fitz.open()
         end = min(start + pages_per_chunk, total_pages)
-        sub_doc.insert_pdf(doc, from_page=start, to_page=end - 1)
+        sub_doc.insert_pdf(doc, from_page=start, to_page=end)
         if len(sub_doc) == 0:
             continue  # Skip empty chunks
         chunk_bytes = BytesIO(sub_doc.tobytes())
@@ -127,8 +127,7 @@ def read_excel_file(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
                 continue
         return elements if len(elements) else None
     except Exception as e:
-        print(e)
-        logger.info(f"Excel Read Error: {e}")
+        logger.error(f"Excel Read Error: {e}")
         return None
 
 
@@ -185,7 +184,6 @@ class UnstructuredChunkLoader:
 
         is_large, page_count = is_large_pdf(file_name=file_name, filebytes=file_bytes)
         is_tabular = file_name.endswith((".csv", ".xls", ".xlsx"))
-        file_bytes.seek(0)
 
         if is_large and page_count > 0:
             logger.info(
@@ -205,11 +203,14 @@ class UnstructuredChunkLoader:
                     logger.exception(msg)
                     raise ValueError(msg)
                 elements.extend(chunk_elements)
+            logger.debug("Unstructured returned %d elements", len(elements))
             return elements
 
         elif is_tabular and self.chunk_resolution == ChunkResolution.tabular:
             # Carry out the special ingest process for tabular files - will be carried out in addition to
-            return load_tabular_file(file_name=file_name, file_bytes=file_bytes)
+            elements = load_tabular_file(file_name=file_name, file_bytes=file_bytes)
+            logger.debug("Unstructured returned %d elements", len(elements))
+            return elements
 
         file_bytes.seek(0)
         files = {"files": (file_name, file_bytes)}
@@ -261,6 +262,7 @@ class UnstructuredChunkLoader:
         for attempt, data in enumerate(candidate_data_payloads, start=1):
             for retry in range(self.max_retries):
                 try:
+                    file_bytes.seek(0)
                     logger.info(
                         "calling Unstructured API - attempt %d.%d for %s with payload keys=%s",
                         attempt,
