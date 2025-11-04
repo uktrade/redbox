@@ -23,7 +23,7 @@ class CannedPrompts extends HTMLElement {
     /** @type HTMLInputElement | null */
     let chatInput = document.querySelector(".rbds-message-input");
     if (chatInput) {
-      chatInput.innerHTML = prompt;
+      chatInput.textContent = prompt;
       chatInput.focus();
       chatInput.selectionStart = chatInput.value.length;
     }
