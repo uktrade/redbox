@@ -11,6 +11,7 @@ User = get_user_model()
 class SignInForm(forms.Form):
     email = forms.EmailField(max_length=100)
 
+
 class SignUpForm(forms.ModelForm):
     class Meta:
         model = User

@@ -29,6 +29,7 @@ class ChatLLMBackendAdmin(admin.ModelAdmin):
     class Meta:
         model = models.ChatLLMBackend
 
+
 class SkillAdmin(admin.ModelAdmin):
     list_display = [
         "name",
@@ -41,6 +42,7 @@ class SkillAdmin(admin.ModelAdmin):
     class Meta:
         model = models.Skill
 
+
 class AgentSkillAdmin(admin.ModelAdmin):
     list_display = [
         "agent__name",
@@ -52,6 +54,7 @@ class AgentSkillAdmin(admin.ModelAdmin):
 
     class Meta:
         model = models.AgentSkill
+
 
 class AgentAdmin(admin.ModelAdmin):
     list_display = [
@@ -67,9 +70,10 @@ class AgentAdmin(admin.ModelAdmin):
 
     def get_form(self, request, obj=None, **kwargs):
         form = super(AgentAdmin, self).get_form(request, obj, **kwargs)
-        form.base_fields['prompt'].widget.attrs['rows'] = '40'
-        form.base_fields['description'].widget.attrs['rows'] = '5'
+        form.base_fields["prompt"].widget.attrs["rows"] = "40"
+        form.base_fields["description"].widget.attrs["rows"] = "5"
         return form
+
 
 class UserAdmin(ImportExportMixin, admin.ModelAdmin):
     def export_as_json(self, request, queryset: QuerySet):  # noqa:ARG002
