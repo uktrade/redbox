@@ -1,6 +1,7 @@
 from collections.abc import Generator
 from typing import TYPE_CHECKING
 from uuid import uuid4
+from unittest.mock import MagicMock
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -9,7 +10,7 @@ from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.embeddings.fake import FakeEmbeddings
 from opensearchpy import OpenSearch
 
-from redbox.models.chain import AISettings, RedboxQuery, RedboxState
+from redbox.models.chain import AISettings, RedboxQuery, RedboxState, GeneratedMetadata
 from redbox.models.settings import Settings
 from redbox.retriever import (
     AllElasticsearchRetriever,
@@ -178,3 +179,19 @@ def stored_file_metadata(
     doc_ids = es_vector_store.add_documents(test_case.docs)
     yield test_case
     es_vector_store.delete(doc_ids)
+
+
+@pytest.fixture
+def mock_env():
+    mock_env = MagicMock(spec=Settings)
+    mock_env.unstructured_host = "localhost"
+    mock_env.worker_ingest_min_chunk_size = 100
+    mock_env.worker_ingest_max_chunk_size = 1000
+    mock_env.bucket_name = "test-bucket"
+    mock_env.max_retries = 3
+    return mock_env
+
+
+@pytest.fixture
+def mock_metadata():
+    return GeneratedMetadata(name="test", description="test desc", keywords=["test"])

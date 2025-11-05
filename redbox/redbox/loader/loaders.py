@@ -287,9 +287,9 @@ class UnstructuredChunkLoader:
                                 )
                                 raise ValueError("Unexpected payload from Unstructured")
                             return elements
-                        except ValueError as e:
+                        except Exception as e:
                             logger.exception("Failed parsing Unstructured JSON - %s", e)
-                            raise
+                            raise ValueError("Failed to parse Unstructured JSON response") from e
 
                     detail_msg = ""
                     if isinstance(json_body, dict):
