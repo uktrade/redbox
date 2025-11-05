@@ -660,8 +660,11 @@ def create_or_update_db_from_tabulars(state: RedboxState) -> RedboxState:
         conn = sqlite3.connect(db_path)
         doc_texts, doc_names = get_all_tabular_docs(state)
         _ = load_texts_to_db(doc_texts, doc_names=doc_names, conn=conn)
-        conn.commit
-        conn.close
+        conn.commit()
+        conn.close()
+
+    state.request.previous_s3_keys = sorted(state.request.s3_keys)
+
     return state
 
 
@@ -751,6 +754,11 @@ def parse_doc_text_as_db_table(doc_text: str, table_name: str, conn: sqlite3.Con
         text_from_header = detect_header(doc_text)
         df = pd.read_csv(StringIO(text_from_header), sep=",")
         df_cleaned = delete_null_values(df)
+
+        if df_cleaned.empty or len(df_cleaned.columns) == 0:
+            log.warning(f"skipping table '{table_name}' as there are no valid columns after cleaning {len(doc_text)}")
+            return
+
         df_cleaned.to_sql(table_name, conn, if_exists="replace", index=False)
     except Exception as e:
         log.exception(f"Failed to load table '{table_name}': {e}")

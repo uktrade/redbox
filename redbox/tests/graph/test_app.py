@@ -1,10 +1,12 @@
 import copy
 import logging
+import sqlite3
 
 # from enum import Enum
 from typing import Any
 from unittest.mock import MagicMock
 from uuid import uuid4
+from pathlib import Path
 
 import pytest
 from langchain_core.documents import Document
@@ -18,6 +20,7 @@ from redbox.models.chain import (
     AgentTask,
     AISettings,
     Citation,
+    DocumentState,
     MultiAgentPlan,
     RedboxQuery,
     RedboxState,
@@ -40,7 +43,7 @@ from redbox.test.data import (
 )
 from redbox.transform import structure_documents_by_group_and_indices
 import os
-import redbox.graph.nodes.processes
+from redbox.graph.nodes.processes import create_or_update_db_from_tabulars
 
 
 # create logger
@@ -586,7 +589,7 @@ TASK_TABULAR_AGENT = MultiAgentPlan(
 
 
 @pytest.mark.parametrize(("test"), TABULAR_TEST_CASES, ids=[t.test_id for t in TABULAR_TEST_CASES])
-def test_tabular_file_handling(test, env: Settings, mocker: MockerFixture):
+def test_tabular_file_handling(test, tmp_path: Path, mocker: MockerFixture):
     """
     This unit test is testing the database handling inside the tabular schema retrieval. It invokes the relevant part of the graph.
     - Test case 1: File selected and no previous files selected: check that the database is created
@@ -594,37 +597,96 @@ def test_tabular_file_handling(test, env: Settings, mocker: MockerFixture):
     - Test case 3: Previous File de-selected, a new file is selected: check that the existing database is deleted and a new database is created
     """
     test_case = copy.deepcopy(test)
-    # mock planner agent to direct request to tabular
-    mock_planner_agent(mocker, planner_output=TASK_TABULAR_AGENT)
 
-    # Instantiate app
-    app = Redbox(
-        all_chunks_retriever=mock_all_chunks_retriever(test_case.docs),
-        parameterised_retriever=mock_parameterised_retriever(test_case.docs),
-        metadata_retriever=mock_metadata_retriever(
-            [d for d in test_case.docs if d.metadata["uri"] in test_case.query.s3_keys]
-        ),
-        env=env,
-        debug=LANGGRAPH_DEBUG,
-        test_interrupt_before=["call_tabular_agent"],
-        test_interrupt_after=["retrieve_tabular_schema"],
-    )
+    request: RedboxQuery = test_case.query
+    request.previous_s3_keys = []
+    request.db_location = None
 
-    spy_remove_call = mocker.spy(redbox.graph.nodes.processes.os, "remove")
-    interim_state = app.run_sync(input=RedboxState(request=test_case.query))
-    # check if database file exists
-    db_path = interim_state["request"].db_location
-    assert os.path.exists(db_path)
-    # check that the database path follow expected format
-    assert db_path == f"generated_db_{test_case.query.user_uuid}.db"
-
-    # Additional checks
     if test_case.test_id.startswith("asking follow-up question to tabular with same file selected"):
-        # check if database file was not deleted before creation
-        spy_remove_call.assert_not_called()
+        request.previous_s3_keys = sorted(request.s3_keys)
 
     elif test_case.test_id.startswith("de-selecting old file, selecting a new file and asking another question"):
-        # check if database file was not deleted before creation
-        spy_remove_call.assert_called_once_with(db_path)
-        # database cleanup
-        os.remove(db_path)
+        request.previous_s3_keys = ["old_file.csv"]
+
+    group_uuid = str(uuid4())
+    doc_uuids = {str(uuid4()): doc for doc in test_case.docs}
+    mock_documents = DocumentState(groups={group_uuid: doc_uuids})
+
+    state = RedboxState(
+        request=request,
+        documents=mock_documents,
+    )
+
+    spy_remove_call = mocker.spy(os, "remove")
+
+    original_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        prior_db_exists = False
+        if test_case.test_id.startswith("asking follow-up") or test_case.test_id.startswith("de-selecting"):
+            prior_request = copy.deepcopy(request)
+            prior_request.s3_keys = sorted(request.previous_s3_keys)
+            prior_request.previous_s3_keys = []
+            prior_request.db_location = None
+
+            if test_case.test_id.startswith("asking follow-up"):
+                prior_doc_uuids = doc_uuids
+                prior_mock_documents = mock_documents
+            else:
+                old_doc = Document(page_content="col1,col2\nval1,val2", metadata={"uri": "old_file.csv"})
+                prior_doc_uuids = {str(uuid4()): old_doc}
+                prior_mock_documents = DocumentState(groups={group_uuid: prior_doc_uuids})
+
+            prior_state = RedboxState(
+                request=prior_request,
+                documents=prior_mock_documents,
+            )
+            _ = create_or_update_db_from_tabulars(prior_state)
+            prior_db_exists = True
+
+        initial_changed = state.documents_changed()
+
+        updated_state = create_or_update_db_from_tabulars(state)
+
+        # check if database file exists
+        db_path = updated_state.request.db_location
+        assert os.path.exists(db_path)
+
+        # check that the database path follow expected format
+        assert db_path == f"generated_db_{request.user_uuid}.db"
+
+        # Additional checks
+        with sqlite3.connect(db_path) as conn:
+            tables = [
+                row[0]
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"
+                ).fetchall()
+            ]
+        expected_table_count = len(test_case.docs)
+        assert len(tables) == expected_table_count
+        sample_key = request.s3_keys[0].split("/")[-1].split(".")[0]
+        assert any(sample_key in table for table in tables)
+
+        if test_case.test_id.startswith("asking follow-up question to tabular with same file selected"):
+            assert prior_db_exists
+            # check if database file was not deleted before creation
+            spy_remove_call.assert_not_called()
+            assert not initial_changed
+
+        elif test_case.test_id.startswith("de-selecting old file, selecting a new file and asking another question"):
+            assert prior_db_exists
+            # check if database file was not deleted before creation
+            spy_remove_call.assert_called_once_with(db_path)
+            assert initial_changed
+            assert all("old_file" not in table for table in tables)
+
+        else:
+            assert not prior_db_exists
+            spy_remove_call.assert_not_called()
+            assert initial_changed
+
+        assert sorted(request.s3_keys) == sorted(updated_state.request.previous_s3_keys)
+
+    finally:
+        os.chdir(original_cwd)
