@@ -1,4 +1,4 @@
-.side-panel {
+.rbds-side-panel {
   --color-side-panel-text: var(--color-text);
   --color-side-panel-link-text: var(--color-link-text);
   --divider-container-padding: 15px;
@@ -53,13 +53,9 @@
     max-height: 334px;
     margin: 0;
     color: var(--color-side-panel-link-text);
-
-    .no-border {
-      padding-left: 8px;
-    }
   }
 
-  .document-add-icon {
+  .rbds-document-add-icon {
     --document-add-icon-foreground-color: var(--color-side-panel-text);
     --document-add-icon-foreground-hover-color: var(--color-side-panel-link-text);
   }

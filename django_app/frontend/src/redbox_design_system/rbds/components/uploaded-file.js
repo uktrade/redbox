@@ -6,7 +6,7 @@ export class UploadedFile extends HTMLElement {
     constructor() {
         super();
 
-        this.templateId = 'uploaded-file-template';
+        this.templateId = 'rbds-uploaded-file-template';
         this.template = /** @type {HTMLTemplateElement} */ (document.getElementById(this.templateId));
     }
 
@@ -171,4 +171,4 @@ export class UploadedFile extends HTMLElement {
         document.body.dispatchEvent(new CustomEvent("file-upload-processed", {detail: this}));
     }
 }
-customElements.define("uploaded-file", UploadedFile);
+customElements.define("rbds-uploaded-file", UploadedFile);

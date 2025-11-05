@@ -177,7 +177,7 @@ def get_magic_link(email_address: str) -> URL:
     return BASE_URL / magic_link
 
 
-@pytest.fixture()
+@pytest.fixture
 def email_address() -> str:
     username = "".join(choice(string.ascii_lowercase) for _ in range(20))
     return f"{username}@cabinetoffice.gov.uk"

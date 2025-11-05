@@ -56,7 +56,7 @@ from redbox.models.prompts import (
     USER_FEEDBACK_EVAL_PROMPT,
 )
 from redbox.models.settings import get_settings
-from redbox.transform import combine_agents_state, combine_documents, flatten_document_state
+from redbox.transform import bedrock_tokeniser, combine_agents_state, combine_documents, flatten_document_state
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
@@ -413,6 +413,7 @@ def create_planner(is_streamed=False):
             tools=None,
             parser=ClaudeParser(pydantic_object=MultiAgentPlan),
             using_only_structure=False,
+            using_chat_history=True,
             _additional_variables={"document_filenames": document_filenames},
         )
         return orchestration_agent
@@ -452,6 +453,7 @@ def my_planner(
                     "user_feedback": user_input,
                     "document_filenames": document_filenames,
                 },
+                using_chat_history=True,
             )
             res = orchestration_agent.invoke(state)
             state.agent_plans = res
@@ -505,11 +507,16 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
         if type(result) is str:
             result_content = result
         elif type(result) is list:
-            result_content = "".join([res.content for res in result])
+            result_content = []
+            current_token_counts = 0
+            for res in result:
+                current_token_counts += bedrock_tokeniser(res.content)
+                if current_token_counts <= max_tokens:
+                    result_content.append(res.content)
+            result_content = " ".join(result_content)
+            result = f"<{agent_name}_Result>{result_content}</{agent_name}_Result>"
         else:
             log.error(f"Worker agent return incompatible data type {type(result)}")
-        # truncate results to max_token
-        result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
         return {"agents_results": result, "tasks_evaluator": task.task + "\n" + task.expected_output}
 
     return _build_agent.with_retry(stop_after_attempt=3)
@@ -552,7 +559,7 @@ def invoke_custom_state(
 
         # set activity log
         activity_node = build_activity_log_node(
-            RedboxActivityEvent(message=f"{agent_name} is completing task: {agent_task["task"]}")
+            RedboxActivityEvent(message=f"{agent_name} is completing task: {agent_task['task']}")
         )
         activity_node.invoke(state)
         ## invoke the subgraph
@@ -597,7 +604,7 @@ def stream_plan():
         prefix_texts, suffix_texts = get_plan_fix_prompts()
         dispatch_custom_event(RedboxEventType.response_tokens, data=f"{random.choice(prefix_texts)}\n\n")
         for i, t in enumerate(state.agent_plans.tasks):
-            dispatch_custom_event(RedboxEventType.response_tokens, data=f"{i+1}. {t.task}\n\n")
+            dispatch_custom_event(RedboxEventType.response_tokens, data=f"{i + 1}. {t.task}\n\n")
         dispatch_custom_event(RedboxEventType.response_tokens, data=f"\n\n{random.choice(suffix_texts)}")
         return state
 
@@ -698,7 +705,7 @@ def load_texts_to_db(doc_texts: list[str], doc_names: list[str], conn: sqlite3.C
         try:
             clean_doc_name = sanitise_file_name(doc_name)
             sheet_name, doc_text = extract_table_names_and_text(doc_text)
-            table_name = f"{clean_doc_name}_table_{idx+1}" if not sheet_name else f"{clean_doc_name}_{sheet_name}"
+            table_name = f"{clean_doc_name}_table_{idx + 1}" if not sheet_name else f"{clean_doc_name}_{sheet_name}"
             parse_doc_text_as_db_table(doc_text, table_name, conn=conn)
             table_names.append(table_name)
         except Exception as e:
@@ -795,7 +802,7 @@ def get_tabular_agent(
             messages.append(AIMessage(ai_msg["messages"][-1].content))
             try:
                 messages.append(
-                    AIMessage(f"Here is the SQL query: {ai_msg["messages"][-1].tool_calls[-1]['args']['sql_query']}")
+                    AIMessage(f"Here is the SQL query: {ai_msg['messages'][-1].tool_calls[-1]['args']['sql_query']}")
                 )
             except Exception:
                 log.info("no sql query input to tool")

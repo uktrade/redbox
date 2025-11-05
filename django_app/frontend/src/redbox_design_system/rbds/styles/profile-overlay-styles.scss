@@ -91,7 +91,7 @@
   width: 100%;
 }
 .experience-cards input:checked + label {
-  border-color: var(--iai-colour-text-primary);
+  border-color: var(--colour-text);
 }
 .experience-cards label:hover::before,
 .experience-cards input:checked + label::before {
@@ -102,7 +102,7 @@
   border-width: 0;
 }
 .experience-cards .govuk-hint {
-  color: var(--iai-colour-text-primary);
+  color: var(--colour-text);
   font-size: 0.75rem;
   margin-bottom: 0;
   margin-top: 0.5rem;

@@ -211,4 +211,4 @@ class EditableText extends HTMLElement {
         return this._csrfToken;
     }
 }
-customElements.define("editable-text", EditableText);
+customElements.define("rbds-editable-text", EditableText);

@@ -40,7 +40,7 @@ export class SourcesList extends HTMLElement {
 
     let html = `
             <h3 class="iai-chat-bubble__sources-heading govuk-heading-s govuk-!-margin-bottom-1">Sources</h3>
-            <div class="iai-display-flex-from-desktop">
+            <div class="rbds-display-flex-from-desktop">
             <ol class="rb-footnote-list govuk-!-margin-bottom-0">
         `;
     this.sources.forEach((source) => {
@@ -57,7 +57,7 @@ export class SourcesList extends HTMLElement {
     }
     });
     html += `</div></ol>`;
-    this.innerHTML = html;
+    this.textContent = html;
   };
 
   }

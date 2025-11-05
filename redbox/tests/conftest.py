@@ -1,23 +1,25 @@
 from collections.abc import Generator
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import pytest
 from _pytest.fixtures import FixtureRequest
 from botocore.exceptions import ClientError
-from opensearchpy import OpenSearch
-from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_community.vectorstores import OpenSearchVectorSearch
+from langchain_core.embeddings.fake import FakeEmbeddings
+from opensearchpy import OpenSearch
 
+from redbox.models.chain import AISettings, RedboxQuery, RedboxState
 from redbox.models.settings import Settings
 from redbox.retriever import (
     AllElasticsearchRetriever,
     MetadataRetriever,
-    ParameterisedElasticsearchRetriever,
     OpenSearchRetriever,
+    ParameterisedElasticsearchRetriever,
 )
 from redbox.test.data import RedboxChatTestCase
-from tests.retriever.data import ALL_CHUNKS_RETRIEVER_CASES, METADATA_RETRIEVER_CASES, PARAMETERISED_RETRIEVER_CASES
 from redbox.transform import bedrock_tokeniser
+from tests.retriever.data import ALL_CHUNKS_RETRIEVER_CASES, METADATA_RETRIEVER_CASES, PARAMETERISED_RETRIEVER_CASES
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -125,6 +127,22 @@ def parameterised_retriever(
 @pytest.fixture(scope="session")
 def metadata_retriever(env: Settings) -> OpenSearchRetriever:
     return MetadataRetriever(es_client=env.elasticsearch_client(), index_name=env.elastic_chunk_alias)
+
+
+@pytest.fixture(scope="session")
+def fake_state() -> RedboxState:
+    q = RedboxQuery(
+        question="But seriously what is AI?",
+        s3_keys=[],
+        user_uuid=uuid4(),
+        chat_history=[{"role": "user", "text": "what is AI?"}, {"role": "ai", "text": "AI is a lie."}],
+        ai_settings=AISettings(),
+        permitted_s3_keys=[],
+    )
+
+    return RedboxState(
+        request=q,
+    )
 
 
 # -----#

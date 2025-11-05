@@ -30,7 +30,7 @@ def test_date_group_calculation(given: date, expected: str):
     assert actual == expected
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_render_with_oob_single_template(monkeypatch):
     # Given
     mock_render_to_string = MagicMock(return_value="<div>Rendered Template</div>")
@@ -48,7 +48,7 @@ def test_render_with_oob_single_template(monkeypatch):
     mock_render_to_string.assert_called_once_with("test_template.html", {"key": "value"}, mock_request, using="jinja2")
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_render_with_oob_multiple_templates(monkeypatch):
     # Given
     mock_render_to_string = MagicMock(side_effect=["<div>First Template</div>", "<div>Second Template</div>"])
@@ -76,7 +76,7 @@ def test_render_with_oob_multiple_templates(monkeypatch):
     assert calls[1][1] == {"using": "django"}
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_render_with_oob_empty_list(monkeypatch):
     # Given
     mock_render_to_string = MagicMock()
