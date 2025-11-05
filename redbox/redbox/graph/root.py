@@ -73,6 +73,8 @@ def build_root_graph(
     tools,
     multi_agent_tools,
     debug,
+    test_interrupt_before,
+    test_interrupt_after
 ):
     agent_parser = ClaudeParser(pydantic_object=AgentDecision)
 
@@ -91,7 +93,8 @@ def build_root_graph(
     )
     builder.add_node(
         "new_route_graph",
-        build_new_route_graph(all_chunks_retriever, tabular_retriever, multi_agent_tools, debug),
+        build_new_route_graph(all_chunks_retriever, tabular_retriever, multi_agent_tools, test_interrupt_before,
+    test_interrupt_after, debug),
     )
     builder.add_node(
         "retrieve_metadata", get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
@@ -618,7 +621,9 @@ def build_new_route_graph(
     all_chunks_retriever: VectorStoreRetriever,
     tabular_retriever: VectorStoreRetriever,
     multi_agent_tools: dict,
-    debug: bool = False,
+    test_interrupt_before,
+    test_interrupt_after,
+    debug: bool = False
 ) -> CompiledGraph:
     agents_max_tokens = AISettings().agents_max_tokens
     allow_plan_feedback = get_settings().allow_plan_feedback
@@ -758,4 +763,4 @@ def build_new_route_graph(
     builder.add_edge("stream_plan", END)
     builder.add_edge("stream_suggestion", END)
 
-    return builder.compile(debug=debug)
+    return builder.compile(debug=debug, interrupt_before=test_interrupt_before,interrupt_after=test_interrupt_after) 
