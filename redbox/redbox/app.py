@@ -36,7 +36,6 @@ from redbox.models.settings import Settings, get_settings
 from langgraph.types import All
 
 
-
 async def _default_callback(*args, **kwargs):
     return None
 
@@ -102,8 +101,8 @@ class Redbox:
             tools=self.tools,
             multi_agent_tools=self.multi_agent_tools,
             debug=debug,
-            test_interrupt_before = self.test_interrupt_before,
-            test_interrupt_after=self.test_interrupt_after
+            test_interrupt_before=self.test_interrupt_before,
+            test_interrupt_after=self.test_interrupt_after,
         )
 
     def run_sync(self, input: RedboxState):

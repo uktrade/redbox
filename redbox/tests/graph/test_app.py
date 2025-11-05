@@ -1,5 +1,4 @@
 import copy
-from doctest import debug
 import logging
 
 # from enum import Enum
@@ -42,9 +41,7 @@ from redbox.test.data import (
 from redbox.transform import structure_documents_by_group_and_indices
 import os
 import redbox.graph.nodes.processes
-import sys
 
-from sqlalchemy import false
 
 # create logger
 logger = logging.getLogger("simple_example")
@@ -75,7 +72,7 @@ class MockedAgent:
         self.return_value = return_value
 
     def invoke(self, state):
-       return self.return_value
+        return self.return_value
 
 
 def mock_planner_agent(mocker, planner_output):
@@ -512,44 +509,69 @@ def test_draw_method(env: Settings, mocker: MockerFixture):
     )
     assert result_root == "mermaid_png_output"
 
-TABULAR_TEST_CASES = [test_case
-    for generated_cases in [generate_test_cases(
+
+TABULAR_TEST_CASES = [
+    test_case
+    for generated_cases in [
+        generate_test_cases(
             query=RedboxQuery(
-                question="What is AI?", s3_keys=['example.csv'], user_uuid='22345678-1234-5678-1234-567812345678', chat_history=[], permitted_s3_keys=['example.csv'], previous_s3_keys=[])
-            ,
+                question="What is AI?",
+                s3_keys=["example.csv"],
+                user_uuid="22345678-1234-5678-1234-567812345678",
+                chat_history=[],
+                permitted_s3_keys=["example.csv"],
+                previous_s3_keys=[],
+            ),
             test_data=[
                 RedboxTestData(
                     number_of_docs=1,
                     tokens_in_all_docs=10000,
                     llm_responses=["AI is a lie"],
                     expected_route=ChatRoute.newroute,
-                )],
-                test_id="asking first question to tabular with a new selected file"),
-                generate_test_cases(
+                )
+            ],
+            test_id="asking first question to tabular with a new selected file",
+        ),
+        generate_test_cases(
             query=RedboxQuery(
-                question="What is AI?", s3_keys=['example.csv'], user_uuid='22345678-1234-5678-1234-567812345678', chat_history=[], permitted_s3_keys=['example.csv'], previous_s3_keys=['example.csv'])
-            ,
+                question="What is AI?",
+                s3_keys=["example.csv"],
+                user_uuid="22345678-1234-5678-1234-567812345678",
+                chat_history=[],
+                permitted_s3_keys=["example.csv"],
+                previous_s3_keys=["example.csv"],
+            ),
             test_data=[
                 RedboxTestData(
                     number_of_docs=1,
                     tokens_in_all_docs=10000,
                     llm_responses=["AI is a lie"],
                     expected_route=ChatRoute.newroute,
-                )],
-                test_id="asking follow-up question to tabular with same file selected"),
-                generate_test_cases(
+                )
+            ],
+            test_id="asking follow-up question to tabular with same file selected",
+        ),
+        generate_test_cases(
             query=RedboxQuery(
-                question="What is AI?", s3_keys=['account.csv'], user_uuid='22345678-1234-5678-1234-567812345678', chat_history=[], permitted_s3_keys=['account.csv','example.csv'], previous_s3_keys=['example.csv'])
-            ,
+                question="What is AI?",
+                s3_keys=["account.csv"],
+                user_uuid="22345678-1234-5678-1234-567812345678",
+                chat_history=[],
+                permitted_s3_keys=["account.csv", "example.csv"],
+                previous_s3_keys=["example.csv"],
+            ),
             test_data=[
                 RedboxTestData(
                     number_of_docs=1,
                     tokens_in_all_docs=10000,
                     llm_responses=["AI is a lie"],
                     expected_route=ChatRoute.newroute,
-                )],
-                test_id="de-selecting old file, selecting a new file and asking another question")] 
-                for test_case in generated_cases
+                )
+            ],
+            test_id="de-selecting old file, selecting a new file and asking another question",
+        ),
+    ]
+    for test_case in generated_cases
 ]
 
 TASK_TABULAR_AGENT = MultiAgentPlan(
@@ -562,7 +584,7 @@ TASK_TABULAR_AGENT = MultiAgentPlan(
     ]
 )
 
-    
+
 @pytest.mark.parametrize(("test"), TABULAR_TEST_CASES, ids=[t.test_id for t in TABULAR_TEST_CASES])
 def test_tabular_file_handling(test, env: Settings, mocker: MockerFixture):
     """
@@ -572,7 +594,7 @@ def test_tabular_file_handling(test, env: Settings, mocker: MockerFixture):
     - Test case 3: Previous File de-selected, a new file is selected: check that the existing database is deleted and a new database is created
     """
     test_case = copy.deepcopy(test)
-    #mock planner agent to direct request to tabular
+    # mock planner agent to direct request to tabular
     mock_planner_agent(mocker, planner_output=TASK_TABULAR_AGENT)
 
     # Instantiate app
@@ -583,39 +605,26 @@ def test_tabular_file_handling(test, env: Settings, mocker: MockerFixture):
             [d for d in test_case.docs if d.metadata["uri"] in test_case.query.s3_keys]
         ),
         env=env,
-        debug=LANGGRAPH_DEBUG, 
-        test_interrupt_before= ['call_tabular_agent'],
-        test_interrupt_after= ['retrieve_tabular_schema']
+        debug=LANGGRAPH_DEBUG,
+        test_interrupt_before=["call_tabular_agent"],
+        test_interrupt_after=["retrieve_tabular_schema"],
     )
-   
 
-    spy_remove_call = mocker.spy(redbox.graph.nodes.processes.os,"remove")
+    spy_remove_call = mocker.spy(redbox.graph.nodes.processes.os, "remove")
     interim_state = app.run_sync(input=RedboxState(request=test_case.query))
-    #check if database file exists
-    db_path = interim_state['request'].db_location
+    # check if database file exists
+    db_path = interim_state["request"].db_location
     assert os.path.exists(db_path)
-    #check that the database path follow expected format
-    assert  db_path == f"generated_db_{test_case.query.user_uuid}.db"
-    
-    #Additional checks
+    # check that the database path follow expected format
+    assert db_path == f"generated_db_{test_case.query.user_uuid}.db"
+
+    # Additional checks
     if test_case.test_id.startswith("asking follow-up question to tabular with same file selected"):
-        #check if database file was not deleted before creation
+        # check if database file was not deleted before creation
         spy_remove_call.assert_not_called()
 
     elif test_case.test_id.startswith("de-selecting old file, selecting a new file and asking another question"):
-        #check if database file was not deleted before creation
+        # check if database file was not deleted before creation
         spy_remove_call.assert_called_once_with(db_path)
-        #database cleanup
+        # database cleanup
         os.remove(db_path)
-    
-
-
-    
-
-
-    
-    
-    
-    
-
-
