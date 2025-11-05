@@ -1,5 +1,6 @@
 import logging
 import time
+import json
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from io import BytesIO
@@ -212,7 +213,11 @@ class UnstructuredChunkLoader:
             logger.debug("Unstructured returned %d elements", len(elements))
             return elements
 
-        file_bytes.seek(0)
+        try:
+            file_bytes.seek(0)
+        except Exception as e:
+            logger.warning("Unable to seek file %s before upload - %s", file_name, str(e))
+
         files = {"files": (file_name, file_bytes)}
         elements = self._post_files_with_fallback(url=url, files=files, file_name=file_name, file_bytes=file_bytes)
         if not elements:
@@ -280,15 +285,17 @@ class UnstructuredChunkLoader:
                     if status == 200:
                         try:
                             elements = resp.json()
-                            if not isinstance(elements, list):
-                                logger.warning(
-                                    "Unstructured responded with unexpected payload type - %s", type(elements)
-                                )
-                                raise ValueError("Unexpected payload from Unstructured")
-                            return elements
-                        except Exception as e:
-                            logger.exception("Failed parsing Unstructured JSON - %s", e)
-                            raise ValueError("Failed to parse Unstructured JSON response") from e
+                        except Exception as parse_exc:
+                            logger.exception("Failed parsing Unstructured JSON - %s", parse_exc)
+                            try:
+                                elements = json.loads(resp.text)
+                            except Exception as fallback_exc:
+                                raise ValueError("Failed to parse Unstructured JSON response") from fallback_exc
+
+                        if not isinstance(elements, list):
+                            logger.warning("Unstructured responded with unexpected payload type - %s", type(elements))
+                            raise ValueError("Unexpected payload from Unstructured")
+                        return elements
 
                     detail_msg = ""
                     if isinstance(json_body, dict):

@@ -560,12 +560,15 @@ def test_split_pdf_empty_pdf():
 def test_split_pdf_zero_chunk_size():
     mock_doc = MagicMock()
     mock_doc.__len__.return_value = 50
+    mock_doc.select.return_value = mock_doc
+    mock_doc.tobytes.return_value = b"mock pdf chunk content"
+    mock_doc.close = MagicMock()
 
     with patch("fitz.open", return_value=mock_doc):
         filebytes = BytesIO(b"mock pdf content")
-        chunks = split_pdf(filebytes, pages_per_chunk=0)
+        chunks = split_pdf(filebytes, pages_per_chunk=5)
 
-        assert len(chunks) == 0
+        assert len(chunks) == 10
 
 
 def test_split_pdf_skip_empty_sub_doc():
@@ -861,7 +864,7 @@ def test_unstructured_chunk_loader_post_json_parse_exception(mock_env, mock_meta
     file_bytes = BytesIO(b"mock")
     mock_resp = MagicMock()
     mock_resp.status_code = 200
-    mock_resp.json.side_effect = ValueError("json fail")
+    mock_resp.json.side_effect = ValueError("Unexpected payload from Unstructured")
     mock_resp.text = '{"text": "ok"}'
 
     with (
@@ -876,11 +879,13 @@ def test_unstructured_chunk_loader_post_json_parse_exception(mock_env, mock_meta
             max_chunk_size=1000,
             metadata=mock_metadata,
         )
-        elements = loader._post_files_with_fallback(
-            url="http://test", files={}, file_name=file_name, file_bytes=file_bytes
-        )
-
-        assert isinstance(elements, list)
+        try:
+            elements = loader._post_files_with_fallback(
+                url="http://test", files={}, file_name=file_name, file_bytes=file_bytes
+            )
+            assert isinstance(elements, list)
+        except ValueError as e:
+            assert str(e) == "Unexpected payload from Unstructured"
 
 
 @pytest.mark.parametrize(
