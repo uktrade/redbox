@@ -563,9 +563,9 @@ async def test_chat_consumer_redbox_state(
             "permitted_s3_keys content mismatch"
         )
 
-        assert set(redbox_state.request.previous_s3_keys) == set(
-            expected_request.previous_s3_keys
-        ), "previous_s3_keys mismatch"
+        assert set(redbox_state.request.previous_s3_keys) == set(expected_request.previous_s3_keys), (
+            "previous_s3_keys mismatch"
+        )
         assert redbox_state.request.db_location == expected_request.db_location, "db_location mismatch"
 
 

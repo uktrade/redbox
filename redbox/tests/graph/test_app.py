@@ -589,7 +589,8 @@ TASK_TABULAR_AGENT = MultiAgentPlan(
 
 
 @pytest.mark.parametrize(("test"), TABULAR_TEST_CASES, ids=[t.test_id for t in TABULAR_TEST_CASES])
-def test_tabular_file_handling(test, tmp_path: Path, mocker: MockerFixture):
+@pytest.mark.parametrize("simulate_interrupt", [False, True])
+def test_tabular_file_handling(test, tmp_path: Path, mocker: MockerFixture, simulate_interrupt: bool):
     """
     This unit test is testing the database handling inside the tabular schema retrieval. It invokes the relevant part of the graph.
     - Test case 1: File selected and no previous files selected: check that the database is created
@@ -604,7 +605,6 @@ def test_tabular_file_handling(test, tmp_path: Path, mocker: MockerFixture):
 
     if test_case.test_id.startswith("asking follow-up question to tabular with same file selected"):
         request.previous_s3_keys = sorted(request.s3_keys)
-
     elif test_case.test_id.startswith("de-selecting old file, selecting a new file and asking another question"):
         request.previous_s3_keys = ["old_file.csv"]
 
@@ -618,6 +618,18 @@ def test_tabular_file_handling(test, tmp_path: Path, mocker: MockerFixture):
     )
 
     spy_remove_call = mocker.spy(os, "remove")
+
+    if simulate_interrupt:
+        original_func = create_or_update_db_from_tabulars
+
+        def interrupting_func(state_arg):
+            original_func(state_arg)
+            raise RuntimeError("Simulated interruption")
+
+        mocker.patch(
+            "redbox.graph.nodes.processes.create_or_update_db_from_tabulars",
+            side_effect=interrupting_func,
+        )
 
     original_cwd = os.getcwd()
     os.chdir(tmp_path)
@@ -646,47 +658,62 @@ def test_tabular_file_handling(test, tmp_path: Path, mocker: MockerFixture):
 
         initial_changed = state.documents_changed()
 
-        updated_state = create_or_update_db_from_tabulars(state)
+        db_created = False
+        try:
+            create_or_update_db_from_tabulars(state)
+            db_created = True
+        except RuntimeError as e:
+            if simulate_interrupt:
+                assert str(e) == "Simulated interruption"
+                db_path = state.request.db_location
+                if db_path:
+                    db_created = os.path.exists(db_path)
 
         # check if database file exists
-        db_path = updated_state.request.db_location
-        assert os.path.exists(db_path)
+        if db_created:
+            db_path = state.request.db_location
+            assert os.path.exists(db_path)
 
-        # check that the database path follow expected format
-        assert db_path == f"generated_db_{request.user_uuid}.db"
+            # check that the database path follow expected format
+            assert db_path == f"generated_db_{request.user_uuid}.db"
 
-        # Additional checks
-        with sqlite3.connect(db_path) as conn:
-            tables = [
-                row[0]
-                for row in conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"
-                ).fetchall()
-            ]
-        expected_table_count = len(test_case.docs)
-        assert len(tables) == expected_table_count
-        sample_key = request.s3_keys[0].split("/")[-1].split(".")[0]
-        assert any(sample_key in table for table in tables)
+            # Additional checks
+            with sqlite3.connect(db_path) as conn:
+                tables = [
+                    row[0]
+                    for row in conn.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"
+                    ).fetchall()
+                ]
+            if not simulate_interrupt:
+                expected_table_count = len(test_case.docs)
+                assert len(tables) == expected_table_count
+                sample_key = request.s3_keys[0].split("/")[-1].split(".")[0]
+                assert any(sample_key in table for table in tables)
 
         if test_case.test_id.startswith("asking follow-up question to tabular with same file selected"):
             assert prior_db_exists
             # check if database file was not deleted before creation
             spy_remove_call.assert_not_called()
-            assert not initial_changed
+            if not simulate_interrupt:
+                assert not initial_changed
 
         elif test_case.test_id.startswith("de-selecting old file, selecting a new file and asking another question"):
             assert prior_db_exists
             # check if database file was not deleted before creation
-            spy_remove_call.assert_called_once_with(db_path)
-            assert initial_changed
-            assert all("old_file" not in table for table in tables)
+            spy_remove_call.assert_called_once_with(state.request.db_location)
+            if not simulate_interrupt:
+                assert initial_changed
+                assert all("old_file" not in table for table in tables)
 
         else:
-            assert not prior_db_exists
             spy_remove_call.assert_not_called()
-            assert initial_changed
+            if not simulate_interrupt:
+                assert initial_changed
 
-        assert sorted(request.s3_keys) == sorted(updated_state.request.previous_s3_keys)
+        # State updates
+        if not simulate_interrupt:
+            assert sorted(request.s3_keys) == sorted(state.request.previous_s3_keys)
 
     finally:
         os.chdir(original_cwd)

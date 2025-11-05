@@ -33,7 +33,6 @@ from redbox.models.graph import (
     RedboxEventType,
 )
 from redbox.models.settings import Settings, get_settings
-from langgraph.types import All
 
 
 async def _default_callback(*args, **kwargs):
@@ -53,8 +52,6 @@ class Redbox:
         embedding_model: Embeddings | None = None,
         env: Settings | None = None,
         debug: bool = False,
-        test_interrupt_before: All | list[str] = None,
-        test_interrupt_after: All | list[str] = None,
     ):
         _env = env or get_settings()
 
@@ -65,8 +62,6 @@ class Redbox:
         self.tabular_retriever = tabular_retriever or get_tabular_chunks_retriever(_env)
         self.metadata_retriever = metadata_retriever or get_metadata_retriever(_env)
         self.embedding_model = embedding_model or get_embeddings(_env)
-        self.test_interrupt_before = test_interrupt_before
-        self.test_interrupt_after = test_interrupt_after
 
         # Tools
 
@@ -101,8 +96,6 @@ class Redbox:
             tools=self.tools,
             multi_agent_tools=self.multi_agent_tools,
             debug=debug,
-            test_interrupt_before=self.test_interrupt_before,
-            test_interrupt_after=self.test_interrupt_after,
         )
 
     def run_sync(self, input: RedboxState):
