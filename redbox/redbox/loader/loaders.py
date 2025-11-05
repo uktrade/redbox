@@ -238,7 +238,6 @@ class UnstructuredChunkLoader:
 
         # detect if file is an image-heavy pdf
         lower_name = file_name.lower()
-        is_image_file = any(lower_name.endswith(ext) for ext in (".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".gif"))
         is_pdf_image_heavy = False
         if lower_name.endswith(".pdf"):
             try:
@@ -246,12 +245,12 @@ class UnstructuredChunkLoader:
             except Exception:
                 is_pdf_image_heavy = False
 
-        logger.debug("file %s is_image_file=%s pdf_image_heavy=%s", file_name, is_image_file, is_pdf_image_heavy)
+        logger.debug("file %s pdf_image_heavy=%s", file_name, is_pdf_image_heavy)
 
         candidate_data_payloads = []
 
         # try fast strategy first
-        if not is_image_file and not is_pdf_image_heavy:
+        if not is_pdf_image_heavy:
             candidate_data_payloads.append({**base_data, "strategy": "fast"})
         # then fallback 1 let unstructured pick the strategy
         candidate_data_payloads.append({**base_data})
