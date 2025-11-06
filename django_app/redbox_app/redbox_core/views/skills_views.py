@@ -36,7 +36,7 @@ class SkillChatsView(View):
         skill = get_object_or_404(Skill, slug=skill_slug)
 
         context = chat_service.get_context(request, chat_id)
-        context["skill"] = skill
+        context["active_skill"] = skill
 
         if chat_id != context["chat_id"]:
             return redirect(reverse("skill-chats", args=(skill_slug)))
