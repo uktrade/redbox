@@ -19,27 +19,10 @@ from django.forms.models import model_to_dict
 from django.utils import timezone
 from langchain_core.documents import Document
 from pydantic import ValidationError
-from websockets import ConnectionClosedError, WebSocketClientProtocol
-
-from redbox import Redbox
-from redbox.models.chain import (
-    AISettings,
-    ChainChatMessage,
-    MultiAgentPlan,
-    RedboxQuery,
-    RedboxState,
-    RequestMetadata,
-    Source,
-    get_plan_fix_prompts,
-    metadata_reducer,
-)
-from redbox.models.chain import Citation as AICitation
-from redbox.models.graph import RedboxActivityEvent
-from redbox.models.settings import get_settings
 from redbox_app.redbox_core import error_messages
+from redbox_app.redbox_core.models import ActivityEvent, Agent, AgentPlan, AgentSkill
+from redbox_app.redbox_core.models import AISettings as AISettingsModel
 from redbox_app.redbox_core.models import (
-    ActivityEvent,
-    AgentPlan,
     Chat,
     ChatLLMBackend,
     ChatMessage,
@@ -49,9 +32,25 @@ from redbox_app.redbox_core.models import (
     FileTeamMembership,
     MonitorSearchRoute,
     MonitorWebSearchResults,
+    Skill,
     UserTeamMembership,
 )
-from redbox_app.redbox_core.models import AISettings as AISettingsModel
+from websockets import ConnectionClosedError, WebSocketClientProtocol
+
+from redbox import Redbox
+from redbox.models.chain import AISettings, ChainChatMessage
+from redbox.models.chain import Citation as AICitation
+from redbox.models.chain import (
+    MultiAgentPlan,
+    RedboxQuery,
+    RedboxState,
+    RequestMetadata,
+    Source,
+    get_plan_fix_prompts,
+    metadata_reducer,
+)
+from redbox.models.graph import RedboxActivityEvent
+from redbox.models.settings import get_settings
 
 # Temporary condition before next uwotm8 release: monkey patch CONVERSION_IGNORE_LIST
 uwm8.CONVERSION_IGNORE_LIST = uwm8.CONVERSION_IGNORE_LIST | {"filters": "philtres", "connection": "connexion"}
@@ -89,7 +88,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
     activities: ClassVar[list[RedboxActivityEvent]] = []
     route = None
     metadata: RequestMetadata = RequestMetadata()
-    redbox = Redbox(env=get_settings(), debug=True)
+
+    # skill is selected by user.
+    selected_skill = "Test_Skill"
+    worker_agents = Agent.objects.filter(agent_skills__skill__name=selected_skill)
+
+    redbox = Redbox(env=get_settings(), worker_agents=worker_agents, debug=True)
     chat_message = None  # incrementally updating the chat stream
 
     async def receive(self, text_data=None, bytes_data=None):

@@ -1,7 +1,7 @@
 import os
 from asyncio import CancelledError
 from logging import getLogger
-from typing import Literal
+from typing import List, Literal
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
@@ -19,8 +19,8 @@ from redbox.graph.nodes.tools import (
     build_legislation_search_tool,
     build_search_documents_tool,
     build_search_wikipedia_tool,
-    execute_sql_query,
     build_web_search_tool,
+    execute_sql_query,
 )
 from redbox.graph.root import build_root_graph, get_agentic_search_graph, get_summarise_graph
 from redbox.models.chain import RedboxState
@@ -51,6 +51,7 @@ class Redbox:
         tabular_retriever: VectorStoreRetriever | None = None,
         metadata_retriever: VectorStoreRetriever | None = None,
         embedding_model: Embeddings | None = None,
+        worker_agents: List = [],
         env: Settings | None = None,
         debug: bool = False,
     ):
@@ -85,6 +86,9 @@ class Redbox:
 
         self.tools = [search_documents, search_wikipedia, search_govuk, web_search, legislation_search]
 
+        # worker agents
+        self.worker_agents = worker_agents
+
         self.multi_agent_tools = {
             "Internal_Retrieval_Agent": [search_documents],
             "External_Retrieval_Agent": [search_wikipedia, search_govuk],
@@ -100,6 +104,7 @@ class Redbox:
             metadata_retriever=self.metadata_retriever,
             tools=self.tools,
             multi_agent_tools=self.multi_agent_tools,
+            worker_agents=self.worker_agents,
             debug=debug,
         )
 
