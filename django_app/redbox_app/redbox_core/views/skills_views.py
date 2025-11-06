@@ -23,12 +23,10 @@ logger = logging.getLogger(__name__)
 class SkillsView(View):
     @method_decorator(login_required)
     def get(self, request: HttpRequest) -> HttpResponse:
-        context = None
-
         return render(
             request,
             template_name="skills/skills.html",
-            context=context,
+            context={"skills": Skill.objects.all()},
         )
 
 

@@ -1,4 +1,15 @@
 .rbds-card {
-    border: 1px solid var(--colour-border);
-    padding: 15px;
+    box-sizing: border-box;
+    border: 1px solid var(--color-border);
+    max-width: calc(33.333% - var(--card-gap));
+
+    &.rbds-card--no-border {
+        border: none;
+    }
+}
+
+.rbds-card-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--card-gap);
 }

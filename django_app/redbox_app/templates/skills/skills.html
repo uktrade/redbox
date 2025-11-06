@@ -24,9 +24,9 @@
 
 <div class="govuk-width-container rbds-width-container">
     <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">Available skills</h2>
-    <div class="govuk-grid-row rbds-flex-row">
+    <div class="govuk-grid-row rbds-card-grid govuk-!-margin-bottom-7">
 
-        <div class="govuk-grid-column-one-third rbds-flex-column rbds-border govuk-!-padding-3 govuk-!-margin-3">
+        <div class="govuk-grid-column-one-third govuk-!-padding-3 rbds-flex-column rbds-card">
             <h3 class="govuk-heading-s govuk-!-margin-top-5">Redbox default</h3>
             <p class="govuk-body-s">
                 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
@@ -41,49 +41,11 @@
             ) }}
         </div>
 
-        <div class="govuk-grid-column-one-third rbds-flex-column rbds-border govuk-!-padding-3 govuk-!-margin-3">
-            <h3 class="govuk-heading-s govuk-!-margin-top-5">Submissions checker</h3>
-            <p class="govuk-body-s">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
-                ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco
-                laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in
-                voluptate velit esse cillum dolore eu fugiat nulla pariatur.
-            </p>
-            <p class="govuk-body-s">
-                <a href="{{ url('skill-info', 'submissions-checker') }}"
-                   class="govuk-link">
-                    View more about submissions checker
-                </a>
-            </p>
-            {{ govukButton(
-                text = "Use submissions checker",
-                href=url('skill-chats', 'submissions-checker'),
-                classes="push-bottom rbds-w-fit govuk-!-margin-bottom-0"
-            ) }}
-        </div>
-
-        <div class="govuk-grid-column-one-third rbds-flex-column rbds-border govuk-!-padding-3 govuk-!-margin-3">
-            <h3 class="govuk-heading-s govuk-!-margin-top-5">Correspondence drafter</h3>
-            <p class="govuk-body-s">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
-                ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco
-                laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in
-                voluptate velit esse cillum dolore eu fugiat nulla pariatur.
-            </p>
-            <p class="govuk-body-s">
-                <a href="{{ url('skill-info', 'correspondence-drafter') }}"
-                   class="govuk-link">
-                    View more about correspondence drafter
-                </a>
-            </p>
-            {{ govukButton(
-                text = "Use correspondence drafter",
-                href=url('skill-chats', 'correspondence-drafter'),
-                classes="push-bottom rbds-w-fit govuk-!-margin-bottom-0"
-            ) }}
-        </div>
+        {% for skill in skills %}
+            {% include "skills/skill-card.html" %}
+        {% endfor %}
 
     </div>
 </div>
 
-    {% endblock %}
+{% endblock %}

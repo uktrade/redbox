@@ -18,7 +18,11 @@ from django.contrib.postgres.fields import ArrayField
 from django.core import validators
 from django.db import models
 from django.db.models import Max, Min, Prefetch, UniqueConstraint
+from django.template import TemplateDoesNotExist
+from django.template.loader import get_template
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from slugify import slugify
 from yarl import URL
@@ -94,6 +98,19 @@ class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
+
+    @cached_property
+    def has_info_page(self) -> bool:
+        """Check to see if an info page has been created for skill"""
+        try:
+            get_template(f"skills/info/{self.slug}.html")
+        except TemplateDoesNotExist:
+            return False
+        else:
+            return True
+
+    def get_info_page_url(self):
+        return reverse("skill-info", kwargs={"page": self.slug})
 
 
 class UserSkill(UUIDPrimaryKeyBase, TimeStampedModel):
