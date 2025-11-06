@@ -41,11 +41,7 @@ class SkillChatsView(View):
         if chat_id != context["chat_id"]:
             return redirect(reverse("skill-chats", args=(skill_slug)))
 
-        return render(
-            request,
-            template_name="chats.html",
-            context=context,
-        )
+        return chat_service.render_chats(request, context)
 
 
 @require_http_methods(["GET"])

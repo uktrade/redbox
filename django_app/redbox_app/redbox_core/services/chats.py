@@ -6,8 +6,8 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 from django.conf import settings
-from django.http import HttpRequest
-from django.shortcuts import get_object_or_404
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import get_object_or_404, render
 from django.template.response import TemplateResponse
 from waffle import flag_is_active
 from yarl import URL
@@ -117,7 +117,15 @@ def get_context(request: HttpRequest, chat_id: uuid.UUID | None = None) -> dict:
     }
 
 
-def render_recent_chats(request, active_chat_id) -> TemplateResponse:
+def render_chats(request: HttpRequest, context: dict) -> HttpResponse:
+    return render(
+        request,
+        template_name="chats.html",
+        context=context,
+    )
+
+
+def render_recent_chats(request: HttpRequest, active_chat_id: uuid.UUID | None = None) -> TemplateResponse:
     context = get_context(request, active_chat_id)
 
     return TemplateResponse(
@@ -127,7 +135,7 @@ def render_recent_chats(request, active_chat_id) -> TemplateResponse:
     )
 
 
-def render_chat_window(request, active_chat_id) -> TemplateResponse:
+def render_chat_window(request: HttpRequest, active_chat_id: uuid.UUID | None = None) -> TemplateResponse:
     context = get_context(request, active_chat_id)
 
     return TemplateResponse(
