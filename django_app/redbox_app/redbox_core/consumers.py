@@ -19,10 +19,28 @@ from django.forms.models import model_to_dict
 from django.utils import timezone
 from langchain_core.documents import Document
 from pydantic import ValidationError
+from websockets import ConnectionClosedError, WebSocketClientProtocol
+
+from redbox import Redbox
+from redbox.models.chain import (
+    AISettings,
+    ChainChatMessage,
+    MultiAgentPlan,
+    RedboxQuery,
+    RedboxState,
+    RequestMetadata,
+    Source,
+    get_plan_fix_prompts,
+    metadata_reducer,
+)
+from redbox.models.chain import Citation as AICitation
+from redbox.models.graph import RedboxActivityEvent
+from redbox.models.settings import get_settings
 from redbox_app.redbox_core import error_messages
-from redbox_app.redbox_core.models import ActivityEvent, Agent, AgentPlan, AgentSkill
-from redbox_app.redbox_core.models import AISettings as AISettingsModel
 from redbox_app.redbox_core.models import (
+    ActivityEvent,
+    Agent,
+    AgentPlan,
     Chat,
     ChatLLMBackend,
     ChatMessage,
@@ -32,25 +50,9 @@ from redbox_app.redbox_core.models import (
     FileTeamMembership,
     MonitorSearchRoute,
     MonitorWebSearchResults,
-    Skill,
     UserTeamMembership,
 )
-from websockets import ConnectionClosedError, WebSocketClientProtocol
-
-from redbox import Redbox
-from redbox.models.chain import AISettings, ChainChatMessage
-from redbox.models.chain import Citation as AICitation
-from redbox.models.chain import (
-    MultiAgentPlan,
-    RedboxQuery,
-    RedboxState,
-    RequestMetadata,
-    Source,
-    get_plan_fix_prompts,
-    metadata_reducer,
-)
-from redbox.models.graph import RedboxActivityEvent
-from redbox.models.settings import get_settings
+from redbox_app.redbox_core.models import AISettings as AISettingsModel
 
 # Temporary condition before next uwotm8 release: monkey patch CONVERSION_IGNORE_LIST
 uwm8.CONVERSION_IGNORE_LIST = uwm8.CONVERSION_IGNORE_LIST | {"filters": "philtres", "connection": "connexion"}

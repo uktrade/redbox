@@ -52,15 +52,9 @@ from redbox.graph.nodes.sends import (
     sending_task_to_agent,
 )
 from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
-from redbox.models.chain import AgentDecision, AISettings, PromptSet, RedboxState
+from redbox.models.chain import AgentDecision, PromptSet, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
-from redbox.models.prompts import (
-    EXTERNAL_RETRIEVAL_AGENT_PROMPT,
-    INTERNAL_RETRIEVAL_AGENT_PROMPT,
-    LEGISLATION_SEARCH_AGENT_PROMPT,
-    WEB_SEARCH_AGENT_PROMPT,
-)
 from redbox.models.settings import get_settings
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
@@ -643,6 +637,7 @@ def build_new_route_graph(
     )
 
     def add_agent_to_node(agent, **kwargs):
+        # add agent
         return build_agent(
             agent_name=agent.get("name"),
             system_prompt=agent.get("prompt"),
