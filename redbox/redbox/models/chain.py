@@ -117,12 +117,6 @@ class AISettings(BaseModel):
     }
 
 
-class Agent(BaseModel):
-    name: str
-    agents_max_tokens: int
-    prompt: str
-
-
 class Source(BaseModel):
     source: str = Field(description="URL or reference to the source", default="")
     source_type: str = Field(description="creator_type of tool", default="Unknown")
