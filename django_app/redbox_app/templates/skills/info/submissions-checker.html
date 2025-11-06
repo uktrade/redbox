@@ -1,0 +1,40 @@
+{% set pageTitle = "Submissions Checker" %}
+{% extends "base.html" %}
+{% from "macros/govuk-button.html" import govukButton %}
+
+{% block content %}
+
+    <div class="govuk-width-container rbds-width-container">
+        <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">Submissions Checker</h2>
+
+        <p class="govuk-body">
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
+            ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco
+            laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in
+            voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+        </p>
+
+        <div class="rbds-divider"></div>
+
+            <h3 class="govuk-heading-s govuk-!-margin-top-5">What this skill is best for</h3>
+            <ul class="govuk-list govuk-list--bullet govuk-body-s">
+                <li>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. </li>
+                <li>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. </li>
+                <li>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</li>
+            </ul>
+
+            <h3 class="govuk-heading-s govuk-!-margin-top-5">How to use this skill</h3>
+            <ul class="govuk-list govuk-list--bullet govuk-body-s">
+                <li>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. </li>
+                <li>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. </li>
+                <li>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</li>
+            </ul>
+
+            {{ govukButton(
+                text = "Use submissions checker",
+                href=url('skill-chats', 'submissions-checker'),
+                classes="push-bottom rbds-w-fit"
+            ) }}
+    </div>
+
+{% endblock %}

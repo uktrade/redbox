@@ -81,6 +81,13 @@ team_urlpatterns = [
     path("team/create-team/", views.create_team_view, name="create-team"),
 ]
 
+skills_urlpatterns = [
+    path("skills/", views.SkillsView.as_view(), name="skills"),
+    path("skills/<slug:page>/", views.skill_info_page_view, name="skill-info"),
+    path("skills/<slug:skill_slug>/chats/", views.SkillChatsView.as_view(), name="skill-chats"),
+    path("skills/<slug:skill_slug>/chats/<uuid:chat_id>/", views.SkillChatsView.as_view(), name="skill-chats"),
+]
+
 admin_urlpatterns = [
     path("admin/report/", include("django_plotly_dash.urls")),
     path("admin/", admin.site.urls),
@@ -119,6 +126,7 @@ urlpatterns = (
     + document_urlpatterns
     + notification_urlpatterns
     + team_urlpatterns
+    + skills_urlpatterns
     + admin_urlpatterns
     + api_url_patterns
 )

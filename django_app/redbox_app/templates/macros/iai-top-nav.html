@@ -1,4 +1,4 @@
-{% macro iaiTopNav(product_name, menu_items, phase, home_path="/") %}
+{% macro iaiTopNav(product_name, menu_items, phase, page_title, skill, home_path="/") %}
 
 <div class="header-wrapper">
 <header class="govuk-header" role="banner" data-module="govuk-header" id="top">
@@ -26,6 +26,9 @@
     </div>
 </header>
 
+{% if flag_is_active(request, flags.ENABLE_SKILLS) and page_title == "Chats" and skill %}
+    {% include "skills/skill-banner.html" %}
+{% endif %}
 
 <div class="govuk-phase-banner govuk-width-container rbds-width-container">
     <p class="govuk-phase-banner__content">

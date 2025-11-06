@@ -59,26 +59,33 @@
 
 
   {% if request.user.is_authenticated %}
-    {{ iaiTopNav(
-      product_name = "Redbox at DBT",
-      menu_items = [
-      {"text": "Documents", "href": url('documents')},
-      {"text": "Chat", "href": url('chats')},
-      {"text": "Profile", "href": url('settings')},
-      {"text": "Log out", "href": url('signed-out')},
-      ],
-      phase = "Beta"
-    ) }}
+    {% if flag_is_active(request, flags.ENABLE_SKILLS) %}
+      {% set menu_items = [
+        {"text": "Documents", "href": url('documents')},
+        {"text": "Skills", "href": url('skills')},
+        {"text": "Chat", "href": url('chats')},
+        {"text": "Profile", "href": url('settings')},
+        {"text": "Log out", "href": url('signed-out')},
+      ] %}
+    {% else %}
+      {% set menu_items = [
+        {"text": "Documents", "href": url('documents')},
+        {"text": "Chat", "href": url('chats')},
+        {"text": "Profile", "href": url('settings')},
+        {"text": "Log out", "href": url('signed-out')},
+      ] %}
+    {% endif %}
   {% else %}
-    {{ iaiTopNav(
-      product_name = "Redbox at DBT",
-      menu_items = [
-        {"text": "Sign in", "href": url('sign-in')}
-      ],
-      phase = "Beta"
-    ) }}
+    {% set menu_items = [{"text": "Sign in", "href": url('sign-in')}] %}
   {% endif %}
 
+  {{ iaiTopNav(
+    product_name = "Redbox at DBT",
+    menu_items = menu_items,
+    phase = "Beta",
+    page_title = pageTitle,
+    skill = skill
+  ) }}
 
   <main id="main-content" role="main" class="govuk-main-wrapper govuk-main-wrapper--auto-spacing">
     {% block content %}
