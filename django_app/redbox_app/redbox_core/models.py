@@ -100,17 +100,25 @@ class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
         super().save(*args, **kwargs)
 
     @cached_property
+    def info_template(self) -> str | None:
+        """Returns the template path if it exists, else None."""
+        template_path = f"skills/info/{self.slug}.html"
+        try:
+            get_template(template_path)
+        except TemplateDoesNotExist:
+            return None
+        return template_path
+
+    @property
     def has_info_page(self) -> bool:
         """Check to see if an info page has been created for skill"""
-        try:
-            get_template(f"skills/info/{self.slug}.html")
-        except TemplateDoesNotExist:
-            return False
-        else:
-            return True
+        return self.info_template is not None
 
     def get_info_page_url(self):
-        return reverse("skill-info", kwargs={"page": self.slug})
+        return reverse("skill-info", kwargs={"skill_slug": self.slug})
+
+    def get_files(self):
+        return File.objects.filter(file_skills__skill=self)
 
 
 class UserSkill(UUIDPrimaryKeyBase, TimeStampedModel):

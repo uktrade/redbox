@@ -3,9 +3,13 @@ from unittest import mock
 
 import pytest
 import pytz
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
+from django.test import Client
 
 from redbox_app.jinja2 import (
     environment,
+    get_menu_items,
     humanise_expiry,
     humanize_short_timedelta,
     humanize_timedelta,
@@ -14,6 +18,8 @@ from redbox_app.jinja2 import (
     to_user_timezone,
     url,
 )
+
+User = get_user_model()
 
 
 class TestMarkdown:
@@ -176,6 +182,10 @@ class TestEnvironment:
         assert "google_analytics_tag" in env.globals
         assert "google_analytics_link" in env.globals
         assert "google_analytics_iframe_src" in env.globals
+        assert "get_messages" in env.globals
+        assert "flag_is_active" in env.globals
+        assert "flags" in env.globals
+        assert "get_menu_items" in env.globals
 
     def test_passes_options(self):
         # Given, When
@@ -183,3 +193,20 @@ class TestEnvironment:
 
         # Then
         assert env.trim_blocks is True
+
+
+def test_get_menu_items(alice: User, client: Client):
+    # Given
+    client.force_login(alice)
+
+    # When
+    menu_items_authenticated = get_menu_items(alice)
+    menu_items_not_authenticated = get_menu_items(AnonymousUser())
+
+    # Then
+    assert len(menu_items_authenticated) > 1
+    assert any(item["text"] == "Chat" and item["href"] == url("chats") for item in menu_items_authenticated)
+
+    assert len(menu_items_not_authenticated) == 1
+    assert menu_items_not_authenticated[0]["text"] == "Sign in"
+    assert menu_items_not_authenticated[0]["href"] == url("sign-in")

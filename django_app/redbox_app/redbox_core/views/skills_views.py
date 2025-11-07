@@ -1,9 +1,7 @@
 import logging
 import uuid
 from http import HTTPStatus
-from pathlib import Path
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
@@ -45,13 +43,13 @@ class SkillChatsView(View):
 
 
 @require_http_methods(["GET"])
-def skill_info_page_view(request: HttpRequest, page):
-    safe_path = Path(settings.BASE_DIR, "redbox_app/templates/skills/info", f"{page}.html")
+def skill_info_page_view(request: HttpRequest, skill_slug: str):
+    skill = get_object_or_404(Skill, slug=skill_slug)
 
-    if not Path.exists(safe_path):
+    if not skill.has_info_page:
         return HttpResponse(
-            f"Skills page not found: {page}",
+            f"Skill info page not found: {skill_slug}",
             status=HTTPStatus.NOT_FOUND,
         )
 
-    return render(request, f"skills/info/{page}.html")
+    return render(request, skill.info_template, context={"skill": skill})

@@ -83,7 +83,7 @@ team_urlpatterns = [
 
 skills_urlpatterns = [
     path("skills/", views.SkillsView.as_view(), name="skills"),
-    path("skills/<slug:page>/", views.skill_info_page_view, name="skill-info"),
+    path("skills/<slug:skill_slug>/", views.skill_info_page_view, name="skill-info"),
     path("skills/<slug:skill_slug>/chats/", views.SkillChatsView.as_view(), name="skill-chats"),
     path("skills/<slug:skill_slug>/chats/<uuid:chat_id>/", views.SkillChatsView.as_view(), name="skill-chats"),
 ]

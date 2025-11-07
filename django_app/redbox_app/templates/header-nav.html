@@ -24,7 +24,7 @@
         </div>
     </header>
 
-    {% if flag_is_active(request, flags.ENABLE_SKILLS) and pageTitle == "Chats" and active_skill %}
+    {% if pageTitle == "Chats" and active_skill %}
         {% include "skills/skill-banner.html" %}
     {% endif %}
 
