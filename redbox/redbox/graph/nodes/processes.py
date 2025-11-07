@@ -25,13 +25,7 @@ from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.types import Command
 
 from redbox.chains.activity import log_activity
-from redbox.chains.components import (
-    get_basic_metadata_retriever,
-    get_chat_llm,
-    get_structured_response_with_citations_parser,
-    get_structured_response_with_planner_parser,
-    get_tokeniser,
-)
+from redbox.chains.components import get_chat_llm, get_structured_response_with_citations_parser, get_tokeniser
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_metadata, create_chain_agent
 from redbox.graph.nodes.sends import run_tools_parallel
@@ -48,14 +42,7 @@ from redbox.models.chain import (
     get_plan_fix_suggestion_prompts,
 )
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
-from redbox.models.prompts import (
-    PLANNER_FORMAT_PROMPT,
-    PLANNER_PROMPT,
-    PLANNER_QUESTION_PROMPT,
-    REPLAN_PROMPT,
-    USER_FEEDBACK_EVAL_PROMPT,
-)
-from redbox.models.settings import get_settings
+from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
 from redbox.transform import bedrock_tokeniser, combine_agents_state, combine_documents, flatten_document_state
 
 log = logging.getLogger(__name__)
@@ -376,16 +363,16 @@ def lm_choose_route(state: RedboxState, parser: ClaudeParser):
 
 
 def create_planner(is_streamed=False):
-    metadata = None
+    # metadata = None
     document_filenames = []
 
-    @RunnableLambda
-    def _get_metadata(state: RedboxState):
-        nonlocal metadata
-        env = get_settings()
-        retriever = get_basic_metadata_retriever(env)
-        metadata = retriever.invoke(state)
-        return state
+    # @RunnableLambda
+    # def _get_metadata(state: RedboxState):
+    #     nonlocal metadata
+    #     env = get_settings()
+    #     retriever = get_basic_metadata_retriever(env)
+    #     metadata = retriever.invoke(state)
+    #     return state
 
     @RunnableLambda
     def _document_filenames(state: RedboxState):
@@ -393,22 +380,23 @@ def create_planner(is_streamed=False):
         document_filenames = [doc.split("/")[1] if "/" in doc else doc for doc in state.request.s3_keys]
         return state
 
-    @RunnableLambda
-    def _stream_planner_agent(state: RedboxState):
-        planner_output_parser, format_instructions = get_structured_response_with_planner_parser()
-        agent = build_stuff_pattern(
-            prompt_set=PromptSet.Planner,
-            output_parser=planner_output_parser,
-            format_instructions=format_instructions,
-            final_response_chain=False,
-            additional_variables={"metadata": metadata, "document_filenames": document_filenames},
-        )
-        return agent
+    # @RunnableLambda
+    # def _stream_planner_agent(state: RedboxState):
+    #     planner_output_parser, format_instructions = get_structured_response_with_planner_parser()
+    #     agent = build_stuff_pattern(
+    #         prompt_set=PromptSet.Planner,
+    #         output_parser=planner_output_parser,
+    #         format_instructions=format_instructions,
+    #         final_response_chain=False,
+    #         additional_variables={"metadata": metadata, "document_filenames": document_filenames},
+    #     )
+    #     return agent
 
     @RunnableLambda
     def _create_planner(state: RedboxState):
+        planner_prompt = state.request.ai_settings.planner_prompt_with_format
         orchestration_agent = create_chain_agent(
-            system_prompt=PLANNER_PROMPT + "\n" + PLANNER_QUESTION_PROMPT + "\n" + PLANNER_FORMAT_PROMPT,
+            system_prompt=planner_prompt,
             use_metadata=True,
             tools=None,
             parser=ClaudeParser(pydantic_object=MultiAgentPlan),
@@ -418,10 +406,10 @@ def create_planner(is_streamed=False):
         )
         return orchestration_agent
 
-    if is_streamed:
-        return _get_metadata | _document_filenames | _stream_planner_agent
-    else:
-        return _document_filenames | _create_planner
+    # if is_streamed:
+    #     return _get_metadata | _document_filenames | _stream_planner_agent
+    # else:
+    return _document_filenames | _create_planner
 
 
 def my_planner(
@@ -436,7 +424,7 @@ def my_planner(
 
         if state.user_feedback:
             # replanning
-            plan_prompt = REPLAN_PROMPT
+            plan_prompt = state.request.ai_settings.replanner_prompt
             plan = state.request.chat_history[-1].get("text")
             # if we save plans we can use this
             # plan = state.agent_plans[-1].model_dump_json()

@@ -52,9 +52,15 @@ from redbox.graph.nodes.sends import (
     sending_task_to_agent,
 )
 from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
-from redbox.models.chain import AgentDecision, PromptSet, RedboxState
+from redbox.models.chain import AgentDecision, AISettings, PromptSet, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
+from redbox.models.prompts import (
+    EXTERNAL_RETRIEVAL_AGENT_PROMPT,
+    INTERNAL_RETRIEVAL_AGENT_PROMPT,
+    LEGISLATION_SEARCH_AGENT_PROMPT,
+    WEB_SEARCH_AGENT_PROMPT,
+)
 from redbox.models.settings import get_settings
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
@@ -66,7 +72,6 @@ def build_root_graph(
     tabular_retriever,
     tools,
     multi_agent_tools,
-    worker_agents,
     debug,
 ):
     agent_parser = ClaudeParser(pydantic_object=AgentDecision)
@@ -86,7 +91,7 @@ def build_root_graph(
     )
     builder.add_node(
         "new_route_graph",
-        build_new_route_graph(all_chunks_retriever, tabular_retriever, multi_agent_tools, worker_agents, debug),
+        build_new_route_graph(all_chunks_retriever, tabular_retriever, multi_agent_tools, debug),
     )
     builder.add_node(
         "retrieve_metadata", get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
@@ -613,9 +618,9 @@ def build_new_route_graph(
     all_chunks_retriever: VectorStoreRetriever,
     tabular_retriever: VectorStoreRetriever,
     multi_agent_tools: dict,
-    worker_agents: List,
     debug: bool = False,
 ) -> CompiledGraph:
+    agents_max_tokens = {agent.name: agent.agents_max_tokens for agent in AISettings().worker_agents}
     allow_plan_feedback = get_settings().allow_plan_feedback
 
     builder = StateGraph(RedboxState)
@@ -635,21 +640,16 @@ def build_new_route_graph(
             node_for_no_task="Evaluator_Agent",
         ),
     )
-
-    def add_agent_to_node(agent, **kwargs):
-        # add agent
-        return build_agent(
-            agent_name=agent.get("name"),
-            system_prompt=agent.get("prompt"),
-            tools=multi_agent_tools[agent.get("name")],
-            max_tokens=agent.get("agents_max_tokens"),
-            **kwargs,
-        )
-
-    for agent in worker_agents:
-        kwargs = {"use_metadata": True} if "Internal_Retrieval_Agent" else {}
-        builder.add_node(agent.get("name"), add_agent_to_node(agent=agent, **kwargs))
-        builder.add_edge(agent.get("name"), "combine_question_evaluator")
+    builder.add_node(
+        "Internal_Retrieval_Agent",
+        build_agent(
+            agent_name="INTERNAL_RETRIEVAL_AGENT_PROMPT",
+            system_prompt=INTERNAL_RETRIEVAL_AGENT_PROMPT,
+            tools=multi_agent_tools["Internal_Retrieval_Agent"],
+            use_metadata=True,
+            max_tokens=agents_max_tokens["Internal_Retrieval_Agent"],
+        ),
+    )
 
     builder.add_node(
         "Tabular_Agent",
@@ -673,7 +673,16 @@ def build_new_route_graph(
     )
 
     builder.add_node("send", empty_process)
-
+    builder.add_node(
+        "External_Retrieval_Agent",
+        build_agent(
+            agent_name="External_Retrieval_Agent",
+            system_prompt=EXTERNAL_RETRIEVAL_AGENT_PROMPT,
+            tools=multi_agent_tools["External_Retrieval_Agent"],
+            use_metadata=False,
+            max_tokens=agents_max_tokens["External_Retrieval_Agent"],
+        ),
+    )
     builder.add_node(
         "Summarisation_Agent",
         invoke_custom_state(
@@ -682,6 +691,28 @@ def build_new_route_graph(
             all_chunks_retriever=all_chunks_retriever,
             use_as_agent=True,
             debug=debug,
+        ),
+    )
+
+    builder.add_node(
+        "Web_Search_Agent",
+        build_agent(
+            agent_name="Web_Search_Agent",
+            system_prompt=WEB_SEARCH_AGENT_PROMPT,
+            tools=multi_agent_tools["Web_Search_Agent"],
+            use_metadata=False,
+            max_tokens=agents_max_tokens["Web_Search_Agent"],
+        ),
+    )
+
+    builder.add_node(
+        "Legislation_Search_Agent",
+        build_agent(
+            agent_name="Legislation_Search_Agent",
+            system_prompt=LEGISLATION_SEARCH_AGENT_PROMPT,
+            tools=multi_agent_tools["Legislation_Search_Agent"],
+            use_metadata=False,
+            max_tokens=agents_max_tokens["Legislation_Search_Agent"],
         ),
     )
 
@@ -717,6 +748,10 @@ def build_new_route_graph(
     builder.add_edge("retrieve_tabular_documents", "retrieve_tabular_schema")
     builder.add_edge("retrieve_tabular_schema", "call_tabular_agent")
     builder.add_edge("call_tabular_agent", "combine_question_evaluator")
+    builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
+    builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
+    builder.add_edge("Web_Search_Agent", "combine_question_evaluator")
+    builder.add_edge("Legislation_Search_Agent", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)

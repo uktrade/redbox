@@ -95,7 +95,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     selected_skill = "Test_Skill"
     worker_agents = Agent.objects.filter(agent_skills__skill__name=selected_skill)
 
-    redbox = Redbox(env=get_settings(), worker_agents=worker_agents, debug=True)
+    redbox = Redbox(env=get_settings(), debug=True)
     chat_message = None  # incrementally updating the chat stream
 
     async def receive(self, text_data=None, bytes_data=None):

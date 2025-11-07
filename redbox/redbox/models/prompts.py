@@ -295,13 +295,8 @@ When a user specifies the legislation.gov.uk website, or when you determine that
 Always prioritize official, authoritative sources within the specified domain
 """
 
-
-WORKER_AGENTS_PROMPT = """
-## Available agents and their responsibilities
-
-When creating your execution plan, you have access to the following specialised agents:
-
-1. **Internal_Retrieval_Agent**:
+INTERNAL_RETRIEVAL_AGENT_DESC = """
+**Internal_Retrieval_Agent**:
 Purpose: Information retrieval and question answering
 Use when the selected documents are NOT tabular data such as PDF files or Word documents
 Use when the user wants to:
@@ -311,27 +306,18 @@ Use when the user wants to:
 - Search for particular details within documents
 - Compare information across multiple documents
 - Get explanations about content within documents
+"""
 
-2. **External_Retrieval_Agent**:
+EXTERNAL_RETRIEVAL_AGENT_DESC = """
+**External_Retrieval_Agent**:
 Purpose: Retrieving information from specific external data sources
 Use when the user wants to:
 - Find information from Wikipedia
 - Find information from gov.uk
+"""
 
-3. **Summarisation_Agent**:
-Purpose: Document summarization only
-Use when the user wants to:
-- Get a summary of an entire document
-- Create an executive summary
-- Generate a brief overview of document contents
-- Produce condensed versions of lengthy documents
-- Create abstracts or overviews
-
-4. **Tabular_Agent**:
-Purpose: Retrieves information from database tables. Only retrieves what the user asks for.
-Use instead of the Internal_Retrieval_Agent when the selected documents are tabular data such as CSV files or Excel spreadsheets.
-
-5. **Web_Search_Agent***:
+WEB_SEARCH_AGENT_DESC = """
+**Web_Search_Agent***:
 Purpose: Perform searches across web sites or on specific domains
 Use when the user wants to:
 - Search for information across web sites
@@ -339,8 +325,10 @@ Use when the user wants to:
 - ALWAYS use this agent when a user explicitly mentions searching a specific website domain
 - ALWAYS use this agent when a user requests information from a specific website that isn't covered by other agents
 - Use this agent even if the search involves future dates or hypothetical scenarios, as the agent will handle these appropriately
+"""
 
-6. **Legislation_Search_Agent**:
+LEGISLATION_SEARCH_AGENT_DESC = """
+**Legislation_Search_Agent**:
 Purpose: Perform searches across the legislation.gov.uk website domain only
 Use when the user wants to:
 - Search for information only from the legislation.gov.uk website
@@ -348,8 +336,31 @@ Use when the user wants to:
 - Use this agent even if the search involves future dates or hypothetical scenarios, as the agent will handle these appropriately
 """
 
-PLANNER_PROMPT = (
-    """
+TABULAR_AGENT_DESC = """
+**Tabular_Agent**:
+Purpose: Retrieves information from database tables. Only retrieves what the user asks for.
+Use instead of the Internal_Retrieval_Agent when the selected documents are tabular data such as CSV files or Excel spreadsheets.
+"""
+
+SUMMARISATION_AGENT_DESC = """
+**Summarisation_Agent**:
+Purpose: Document summarization only
+Use when the user wants to:
+- Get a summary of an entire document
+- Create an executive summary
+- Generate a brief overview of document contents
+- Produce condensed versions of lengthy documents
+- Create abstracts or overviews
+"""
+
+WORKER_AGENTS_PROMPT = """
+## Available agents and their responsibilities
+
+When creating your execution plan, you have access to the following specialised agents:
+"""
+
+
+PLANNER_PROMPT_TOP = """
 You are an advanced orchestration agent designed to decompose complex user goals into logical sub-tasks and coordinate specialised agents to accomplish them. Your primary responsibility is to create and manage execution plans that achieve the user's objectives by determining which agents to call, in what order, and how to integrate their outputs.
 
 Operational Framework
@@ -369,8 +380,8 @@ Operational Framework
 - Create a structured execution plan with clear success criteria for each step
 
 """
-    + WORKER_AGENTS_PROMPT
-    + """
+
+PLANNER_PROMPT_BOTTOM = """
 ## helpful instructions for calling agent
 
 When a user query involves finding information within selected documents (not summarising the documents), ALWAYS route to the Internal_Retrieval_Agent. Only use External_Retrieval_Agent if the query specifically requests external data sources.
@@ -392,7 +403,6 @@ Remember that your primary value is in effective coordination and integration - 
 <previous_chat_history>{chat_history}</previous_chat_history>
 
 """
-)
 
 PLANNER_QUESTION_PROMPT = """User question: <Question>{question}</Question>.
 User selected documents: {document_filenames}
@@ -401,8 +411,8 @@ User uploaded documents metadata:<Document_Metadata>{metadata}</Document_Metadat
 PLANNER_FORMAT_PROMPT = """## Output Format
 For each user request, provide your response in the following format: {format_instructions}. Do not give explanation, only return a list."""
 
-REPLAN_PROMPT = (
-    """You are given "Previous Plan" which is the plan that the previous agent created along with feedback from the user. You MUST use these information to modify the previous plan. Don't add new task in the plan.
+
+REPLAN_PROMPT = """You are given "Previous Plan" which is the plan that the previous agent created along with feedback from the user. You MUST use these information to modify the previous plan. Don't add new task in the plan.
 
     CRITICAL RULES:
     1. NEVER add new tasks that weren't in the original plan, unless the user asks you to
@@ -412,10 +422,6 @@ REPLAN_PROMPT = (
 
     <User_feedback>{user_feedback}</User_feedback>
 """
-    + WORKER_AGENTS_PROMPT
-    + PLANNER_FORMAT_PROMPT
-    + PLANNER_QUESTION_PROMPT
-)
 
 USER_FEEDBACK_EVAL_PROMPT = """Given a plan and user feedback,
 Interpret user feedback into one of the following categories:
