@@ -43,7 +43,7 @@ class SkillChatsView(View):
 
 
 @require_http_methods(["GET"])
-def skill_info_page_view(request: HttpRequest, skill_slug: str):
+def skill_info_page_view(request: HttpRequest, skill_slug: str) -> HttpResponse:
     skill = get_object_or_404(Skill, slug=skill_slug)
 
     if not skill.has_info_page:
