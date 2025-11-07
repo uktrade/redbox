@@ -256,6 +256,13 @@ class FileAdmin(ExportMixin, admin.ModelAdmin):
     search_fields = ["user__email"]
 
 
+class FileSkillAdmin(ExportMixin, admin.ModelAdmin):
+    list_display = ["file", "skill", "created_at"]
+    list_filter = ["skill"]
+    date_hierarchy = "created_at"
+    search_fields = ("file__file_name", "skill__name")
+
+
 class FileTeamMembershipAdmin(admin.ModelAdmin):
     list_display = ("file", "team", "visibility", "created_at")
     list_filter = ("visibility", "team")
@@ -444,4 +451,5 @@ admin.site.register(models.FileTeamMembership, FileTeamMembershipAdmin)
 admin.site.register(models.Agent, AgentAdmin)
 admin.site.register(models.Skill, SkillAdmin)
 admin.site.register(models.AgentSkill, AgentSkillAdmin)
+admin.site.register(models.FileSkill, FileSkillAdmin)
 admin.site.register_view("report/", view=reporting_dashboard, name="Site report")

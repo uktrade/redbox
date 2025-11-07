@@ -18,8 +18,13 @@ from django.contrib.postgres.fields import ArrayField
 from django.core import validators
 from django.db import models
 from django.db.models import Max, Min, Prefetch, UniqueConstraint
+from django.template import TemplateDoesNotExist
+from django.template.loader import get_template
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
+from slugify import slugify
 from yarl import URL
 
 from redbox.models.settings import get_settings
@@ -80,6 +85,7 @@ class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
 
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
+    slug = models.SlugField(max_length=100, unique=True, blank=True)
 
     class Meta:
         verbose_name_plural = "skills"
@@ -87,6 +93,32 @@ class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    @cached_property
+    def info_template(self) -> str | None:
+        """Returns the template path if it exists, else None."""
+        template_path = f"skills/info/{self.slug}.html"
+        try:
+            get_template(template_path)
+        except TemplateDoesNotExist:
+            return None
+        return template_path
+
+    @property
+    def has_info_page(self) -> bool:
+        """Check to see if an info page has been created for skill"""
+        return self.info_template is not None
+
+    def get_info_page_url(self):
+        return reverse("skill-info", kwargs={"skill_slug": self.slug})
+
+    def get_files(self):
+        return File.objects.filter(file_skills__skill=self)
 
 
 class UserSkill(UUIDPrimaryKeyBase, TimeStampedModel):

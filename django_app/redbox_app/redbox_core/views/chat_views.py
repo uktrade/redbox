@@ -6,7 +6,7 @@ from http import HTTPStatus
 from dataclasses_json import Undefined, dataclass_json
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -26,11 +26,7 @@ class ChatsView(View):
         if chat_id != context["chat_id"]:
             return redirect(reverse("chats"))
 
-        return render(
-            request,
-            template_name="chats.html",
-            context=context,
-        )
+        return chat_service.render_chats(request, context)
 
 
 class ChatsTitleView(View):

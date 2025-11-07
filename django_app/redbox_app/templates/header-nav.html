@@ -1,0 +1,42 @@
+<div class="header-wrapper">
+    <header class="govuk-header" role="banner" data-module="govuk-header" id="top">
+        <div class="govuk-header__container govuk-width-container rbds-header-container">
+            <div class="govuk-header__logo app-header-logo govuk-!-width-one-half">
+                <a class="govuk-header__link govuk-header__link--homepage" href="/">
+                    <span class="govuk-header__product-name govuk-!-font-weight-bold rbds-text-xl">{{ productName }}</span>
+                </a>
+            </div>
+            <div class="govuk-header__content govuk-!-width-one-half">
+                <button type="button" class=" collapsible-menu-button govuk-header__menu-button"
+                aria-controls="navigation" aria-label="Show or hide menu">Menu</button>
+                <nav aria-label="Menu" class="govuk-header__navigation collapsible-menu">
+
+                    <ul id="navigation" class="govuk-header__navigation-list header-list">
+                        {% for menu_item in get_menu_items(request.user) %}
+                        <li class="govuk-header__navigation-item{% if menu_item.active %}--active{% endif %} govuk-!-padding-2">
+                            <a class="govuk-header__link" href="{{ menu_item.href }}" {% if menu_item.active
+                                %}aria-current="page" {% endif %}>{{ menu_item.text }}</a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    {% if pageTitle == "Chats" and active_skill %}
+        {% include "skills/skill-banner.html" %}
+    {% endif %}
+
+    <div class="govuk-phase-banner govuk-width-container rbds-width-container">
+        <p class="govuk-phase-banner__content">
+            <strong class="govuk-tag govuk-phase-banner__content__tag rbds-phase-tag">
+                {{ phase }}
+            </strong>
+            <span class="govuk-phase-banner__text">
+                Please give us <a class="govuk-link" href="{{ feedbackLink }}">feedback</a>
+                so we can continue to improve the service
+            </span>
+        </p>
+    </div>
+</div>

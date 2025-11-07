@@ -1,0 +1,39 @@
+{% set pageTitle = skill.name %}
+{% extends "base.html" %}
+{% from "macros/govuk-button.html" import govukButton %}
+
+{% block content %}
+
+    <div class="govuk-width-container rbds-width-container">
+        <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">{{ skill.name }}</h2>
+
+        <p class="govuk-body">
+            {% block skill_description %}
+            {% endblock %}
+        </p>
+
+        <div class="rbds-divider govuk-!-margin-top-7 govuk-!-margin-bottom-6"></div>
+
+        <div class="govuk-grid-row">
+            <div class="govuk-grid-column-two-thirds">
+                <h3 class="govuk-heading-s">What this skill is best for</h3>
+                {% block skill_best_for %}
+                {% endblock %}
+
+                <h3 class="govuk-heading-s govuk-!-margin-top-5">How to use this skill</h3>
+                {% block skill_how_to_use %}
+                {% endblock %}
+
+                {{ govukButton(
+                    text = "Use " ~ skill.name | lower,
+                    href=url('skill-chats', skill.slug),
+                    classes="push-bottom rbds-w-fit"
+                ) }}
+            </div>
+            <div class="govuk-grid-column-one-third">
+                {% include "skills/skill-files.html" %}
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
