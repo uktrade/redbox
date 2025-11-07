@@ -9,6 +9,7 @@ from django.test import Client
 from django.urls import reverse
 
 from redbox_app.redbox_core.models import (
+    Chat,
     Skill,
 )
 
@@ -74,3 +75,32 @@ def test_skill_info_page_not_found(alice: User, client: Client, default_skill: S
 
     # Then
     assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_user_can_see_skill_chats(alice: User, client: Client, default_skill: Skill, chat: Chat):
+    # Given
+    client.force_login(alice)
+
+    # When
+    response = client.get(reverse("skill-chats", kwargs={"skill_slug": default_skill.slug, "chat_id": chat.id}))
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert default_skill.name in response.content.decode()
+    assert chat.name in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_user_cannot_see_other_user_skill_chats(bob: User, client: Client, default_skill: Skill, chat_with_alice: Chat):
+    # Given
+    client.force_login(bob)
+    url = reverse("skill-chats", kwargs={"skill_slug": default_skill.slug, "chat_id": chat_with_alice.id})
+
+    # When
+    response = client.get(url, follow=True)
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert default_skill.name in response.content.decode()
+    assert chat_with_alice.name not in response.content.decode()

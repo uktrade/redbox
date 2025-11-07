@@ -37,7 +37,7 @@ class SkillChatsView(View):
         context["active_skill"] = skill
 
         if chat_id != context["chat_id"]:
-            return redirect(reverse("skill-chats", args=(skill_slug)))
+            return redirect(reverse("skill-chats", kwargs={"skill_slug": skill_slug}))
 
         return chat_service.render_chats(request, context)
 

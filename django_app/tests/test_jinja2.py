@@ -6,6 +6,7 @@ import pytz
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.test import Client
+from waffle.testutils import override_flag
 
 from redbox_app.jinja2 import (
     environment,
@@ -18,6 +19,7 @@ from redbox_app.jinja2 import (
     to_user_timezone,
     url,
 )
+from redbox_app.redbox_core import flags
 
 User = get_user_model()
 
@@ -203,6 +205,10 @@ def test_get_menu_items(alice: User, client: Client):
     menu_items_authenticated = get_menu_items(alice)
     menu_items_not_authenticated = get_menu_items(AnonymousUser())
 
+    # Can be removed once feature is launched and flag removed
+    with override_flag(flags.ENABLE_SKILLS, active=True):
+        flagged_menu_items = get_menu_items(alice)
+
     # Then
     assert len(menu_items_authenticated) > 1
     assert any(item["text"] == "Chat" and item["href"] == url("chats") for item in menu_items_authenticated)
@@ -210,3 +216,5 @@ def test_get_menu_items(alice: User, client: Client):
     assert len(menu_items_not_authenticated) == 1
     assert menu_items_not_authenticated[0]["text"] == "Sign in"
     assert menu_items_not_authenticated[0]["href"] == url("sign-in")
+
+    assert any(item["text"] == "Skills" and item["href"] == url("skills") for item in flagged_menu_items)
