@@ -643,7 +643,7 @@ def build_new_route_graph(
     builder.add_node(
         "Internal_Retrieval_Agent",
         build_agent(
-            agent_name="INTERNAL_RETRIEVAL_AGENT_PROMPT",
+            agent_name="Internal_Retrieval_Agent",
             system_prompt=INTERNAL_RETRIEVAL_AGENT_PROMPT,
             tools=multi_agent_tools["Internal_Retrieval_Agent"],
             use_metadata=True,
