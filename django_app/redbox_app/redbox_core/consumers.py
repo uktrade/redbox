@@ -242,7 +242,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 except ValidationError as e:
                     logger.debug("cannot parse into plan object %s", plan[0])
                     logger.exception("Error from converting plan.", exc_info=e)
-        return None, message_history[-2].text, ""
+        return None, message_history[-2].text, ""  # message_history[-2].text extracts the current user query
 
     async def llm_conversation(
         self,
