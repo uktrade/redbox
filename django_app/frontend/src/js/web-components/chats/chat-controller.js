@@ -61,7 +61,7 @@ class ChatController extends HTMLElement {
         /** @type {HTMLInputElement | null}*/ (
           document.querySelector("#llm-selector")
         )?.value || "";
-      console.log("selected skill: ", selectedSkill);
+
       aiMessage.stream(
         userText,
         selectedDocuments.map(doc => doc.id),
