@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
@@ -482,7 +482,7 @@ def test_split_pdf_single_chunk():
         chunks = split_pdf(filebytes)
 
         assert len(chunks) == 1
-        mock_sub_doc.insert_pdf.assert_has_calls([call(mock_doc, from_page=i, to_page=i) for i in range(50)])
+        mock_sub_doc.insert_pdf.assert_called_once_with(mock_doc, from_page=0, to_page=50)
 
 
 def test_split_pdf_multiple_chunks():
@@ -494,7 +494,7 @@ def test_split_pdf_multiple_chunks():
     mock_sub_docs = [MagicMock(), MagicMock()]
     for doc in mock_sub_docs:
         doc.tobytes.return_value = b"chunk content"
-        doc.__len__.return_value = 100
+        doc.__len__.return_value = 50
 
     with patch("fitz.open", side_effect=[mock_doc] + mock_sub_docs):
         filebytes = BytesIO(b"mock pdf content")
@@ -502,9 +502,9 @@ def test_split_pdf_multiple_chunks():
 
         assert len(chunks) == 2
         # First chunk should have pages 0-49
-        mock_sub_docs[0].insert_pdf.assert_has_calls([call(mock_doc, from_page=i, to_page=i) for i in range(50)])
+        mock_sub_docs[0].insert_pdf.assert_called_once_with(mock_doc, from_page=0, to_page=50)
         # Second chunk should have pages 50-99
-        mock_sub_docs[1].insert_pdf.assert_has_calls([call(mock_doc, from_page=i, to_page=i) for i in range(50, 100)])
+        mock_sub_docs[1].insert_pdf.assert_called_once_with(mock_doc, from_page=50, to_page=100)
 
 
 def test_split_pdf_uneven_chunks():
@@ -514,9 +514,10 @@ def test_split_pdf_uneven_chunks():
 
     # Mock the sub documents
     mock_sub_docs = [MagicMock(), MagicMock()]
+    mock_sub_docs[0].__len__.return_value = 50
+    mock_sub_docs[1].__len__.return_value = 30
     for doc in mock_sub_docs:
         doc.tobytes.return_value = b"chunk content"
-        doc.__len__.return_value = 80
 
     with patch("fitz.open", side_effect=[mock_doc] + mock_sub_docs):
         filebytes = BytesIO(b"mock pdf content")
@@ -524,9 +525,9 @@ def test_split_pdf_uneven_chunks():
 
         assert len(chunks) == 2
         # First chunk should have pages 0-49
-        mock_sub_docs[0].insert_pdf.assert_has_calls([call(mock_doc, from_page=i, to_page=i) for i in range(50)])
+        mock_sub_docs[0].insert_pdf.assert_called_once_with(mock_doc, from_page=0, to_page=50)
         # Second chunk should have pages 50-79
-        mock_sub_docs[1].insert_pdf.assert_has_calls([call(mock_doc, from_page=i, to_page=i) for i in range(50, 80)])
+        mock_sub_docs[1].insert_pdf.assert_called_once_with(mock_doc, from_page=50, to_page=80)
 
 
 def test_read_csv_text_valid_file():
