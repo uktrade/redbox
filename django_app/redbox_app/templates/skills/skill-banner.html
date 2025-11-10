@@ -1,14 +1,9 @@
-<section aria-label="Service information" class="govuk-service-navigation rbds-skills-banner"
-    data-module="govuk-service-navigation">
-    <div class="govuk-width-container rbds-width-container">
-        <div class="govuk-service-navigation__container">
-            <span class="govuk-service-navigation__service-name">
-                {{ active_skill.name }}
-                <a href="{{ url('skills') }}"
-                    class="govuk-link govuk-!-margin-left-5 govuk-!-font-weight-regular govuk-link--no-visited-state">
-                    Change skill
-                </a>
-            </span>
-        </div>
-    </div>
-</section>
+<div class="govuk-body govuk-!-padding-top-2 govuk-!-padding-bottom-2" data-skill-id="{{ active_skill.id }}">
+    <strong class="govuk-tag govuk-tag--red rbds-w-fit">
+        {{ active_skill.name }}
+    </strong>
+    <a href="{{ url('skills') }}"
+       class="govuk-link govuk-!-font-weight-regular govuk-link--no-visited-state govuk-!-margin-left-4">
+        Change skill
+    </a>
+</div>
