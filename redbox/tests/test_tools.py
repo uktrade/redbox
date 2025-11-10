@@ -14,6 +14,7 @@ from redbox.graph.nodes.tools import (
     brave_response_to_documents,
     build_govuk_search_tool,
     build_legislation_search_tool,
+    build_retrieve_document_full_text,
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
@@ -27,6 +28,42 @@ from redbox.models.settings import Settings
 from redbox.test.data import RedboxChatTestCase
 from redbox.transform import bedrock_tokeniser, combine_documents, flatten_document_state
 from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
+
+
+def test_retrieve_document_full_text_tool(
+    es_client: OpenSearch, es_index: str, stored_file_all_chunks: RedboxChatTestCase
+):
+    """
+    Test that the tool is able to return a document's full text given file name
+    """
+    # build the tool
+    ft_tool = build_retrieve_document_full_text(es_client, es_index)
+
+    tool_node = ToolNode(tools=[ft_tool])
+    result_state = tool_node.invoke(
+        RedboxState(
+            request=stored_file_all_chunks.query,
+            messages=[
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "name": "_retrieve_document_full_text",
+                            "args": {},
+                            "id": "1",
+                        }
+                    ],
+                )
+            ],
+        )
+    )
+
+    if stored_file_all_chunks.test_id == "Successful Path":
+        assert len(result_state["messages"][0].content) > 0
+    elif stored_file_all_chunks.test_id == "No permitted S3 keys":
+        assert len(result_state["messages"][0].content) == 0
+    elif stored_file_all_chunks.test_id == "Empty keys but permitted":
+        assert len(result_state["messages"][0].content) > 0
 
 
 @pytest.mark.parametrize("chain_params", TEST_CHAIN_PARAMETERS)

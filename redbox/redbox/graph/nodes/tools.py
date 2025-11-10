@@ -25,11 +25,29 @@ from redbox.chains.components import get_embeddings
 from redbox.models.chain import RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
 from redbox.models.settings import get_settings
-from redbox.retriever.queries import add_document_filter_scores_to_query, build_document_query
+from redbox.retriever.queries import add_document_filter_scores_to_query, build_document_query, get_all
 from redbox.retriever.retrievers import query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
 
 log = logging.getLogger(__name__)
+
+
+def build_retrieve_document_full_text(es_client: Union[Elasticsearch, OpenSearch], index_name: str):
+    def _retrieve_document_full_text(state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
+        """
+        Retrieve selected documents full texts. This tool should be used when a full text from a document is required.
+
+        Return:
+            dict[str, Any]: Collection of matching document snippets with metadata
+        """
+
+        el_query = get_all(chunk_resolution=ChunkResolution.largest, state=state)
+
+        results = query_to_documents(es_client=es_client, index_name=index_name, query=el_query)
+
+        return sorted(results, key=lambda result: result.metadata["index"])
+
+    return _retrieve_document_full_text
 
 
 def build_search_documents_tool(

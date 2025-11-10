@@ -327,6 +327,7 @@ class MultiAgentPlan(BaseModel):
 
 
 class RedboxState(BaseModel):
+    knowledge_files: Annotated[DocumentState, document_reducer] = DocumentState()
     request: RedboxQuery
     user_feedback: str = ""
     documents: Annotated[DocumentState, document_reducer] = DocumentState()
