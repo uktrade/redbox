@@ -117,8 +117,9 @@ class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
     def get_info_page_url(self):
         return reverse("skill-info", kwargs={"skill_slug": self.slug})
 
-    def get_files(self):
-        return File.objects.filter(file_skills__skill=self)
+    def get_files(self, file_type: Optional["FileSkill.FileType"] = None):
+        file_type = file_type or FileSkill.FileType.MEMBER
+        return File.objects.filter(file_skills__skill=self, file_skills__file_type=file_type)
 
 
 class UserSkill(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -158,8 +159,13 @@ class FileSkill(UUIDPrimaryKeyBase, TimeStampedModel):
     Junction model for file/skill many-to-many relationship to tag files with relevant skill for contextual retrieval
     """
 
+    class FileType(models.TextChoices):
+        ADMIN = "ADMIN", _("Admin")
+        MEMBER = "MEMBER", _("Member")
+
     file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="file_skills")
     skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="file_skills")
+    file_type = models.CharField(max_length=20, choices=FileType.choices, default=FileType.MEMBER)
 
     class Meta:
         unique_together = ("file", "skill")

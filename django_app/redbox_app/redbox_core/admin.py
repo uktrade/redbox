@@ -257,8 +257,8 @@ class FileAdmin(ExportMixin, admin.ModelAdmin):
 
 
 class FileSkillAdmin(ExportMixin, admin.ModelAdmin):
-    list_display = ["file", "skill", "created_at"]
-    list_filter = ["skill"]
+    list_display = ["file", "skill", "file_type", "created_at"]
+    list_filter = ["skill", "file_type"]
     date_hierarchy = "created_at"
     search_fields = ("file__file_name", "skill__name")
 
