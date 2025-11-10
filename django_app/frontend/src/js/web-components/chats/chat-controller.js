@@ -11,6 +11,9 @@ class ChatController extends HTMLElement {
   #bindEvents = () => {
     const chatsForm = document.querySelector("#chats-form");
     let selectedDocuments = [];
+    const selectedSkill = /** @type {HTMLElement} */ (
+      document.querySelector('[data-skill-id]')
+    )?.dataset.skillId;
 
     chatsForm?.addEventListener("submit", (evt) => {
       evt.preventDefault();
@@ -58,7 +61,7 @@ class ChatController extends HTMLElement {
         /** @type {HTMLInputElement | null}*/ (
           document.querySelector("#llm-selector")
         )?.value || "";
-
+      console.log("selected skill: ", selectedSkill);
       aiMessage.stream(
         userText,
         selectedDocuments.map(doc => doc.id),
@@ -66,7 +69,8 @@ class ChatController extends HTMLElement {
         llm,
         chatController.dataset.sessionId,
         chatController.dataset.streamUrl || "",
-        chatController
+        chatController,
+        selectedSkill
       );
       /** @type {HTMLElement | null} */ (
         aiMessage.querySelector(".govuk-inset-text")
