@@ -39,7 +39,6 @@ from redbox.models.settings import get_settings
 from redbox_app.redbox_core import error_messages
 from redbox_app.redbox_core.models import (
     ActivityEvent,
-    Agent,
     AgentPlan,
     AgentSkill,
     Chat,
@@ -96,6 +95,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
     redbox = Redbox(env=get_settings(), debug=True)
     chat_message = None  # incrementally updating the chat stream
 
+    async def _init_session(self, data, user, user_message_text, chat_backend, temperature):
+        """Create or update a chat session."""
+        if session_id := data.get("sessionId"):
+            session = await Chat.objects.aget(id=session_id)
+            session.chat_backend = chat_backend
+            session.temperature = temperature
+            logger.info("updating session: chat_backend=%s temperature=%s", chat_backend, temperature)
+            await session.asave()
+        else:
+            logger.info("creating session: chat_backend=%s temperature=%s", chat_backend, temperature)
+            session = await Chat.objects.acreate(
+                name=user_message_text[: settings.CHAT_TITLE_LENGTH],
+                user=user,
+                chat_backend=chat_backend,
+                temperature=temperature,
+            )
+        return session
+
     async def receive(self, text_data=None, bytes_data=None):
         """Receive & respond to message from browser websocket."""
         self.full_reply = []
@@ -122,20 +139,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         chat_backend = await ChatLLMBackend.objects.aget(id=data.get("llm", user_ai_settings.chat_backend_id))
         temperature = data.get("temperature", user_ai_settings.temperature)
 
-        if session_id := data.get("sessionId"):
-            session = await Chat.objects.aget(id=session_id)
-            session.chat_backend = chat_backend
-            session.temperature = temperature
-            logger.info("updating session: chat_backend=%s temperature=%s", chat_backend, temperature)
-            await session.asave()
-        else:
-            logger.info("creating session: chat_backend=%s temperature=%s", chat_backend, temperature)
-            session = await Chat.objects.acreate(
-                name=user_message_text[: settings.CHAT_TITLE_LENGTH],
-                user=user,
-                chat_backend=chat_backend,
-                temperature=temperature,
-            )
+        session = await self._init_session(data, user, user_message_text, chat_backend, temperature)
 
         # save user message
         permitted_files = (
@@ -188,12 +192,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             web_search_api_counter = 0
             for agent_res in self.final_state.agents_results:
                 source_type = re.search("<SourceType>(.*?)</SourceType>", agent_res.content)
-                if source_type:  # noqa: SIM102
-                    if source_type.group(1) == Citation.Origin.WEB_SEARCH:
-                        web_search_results_urls += re.findall("<Source>(.*?)</Source>", agent_res.content)
-                        web_search_api_counter += 1
+                if source_type and source_type.group(1) == Citation.Origin.WEB_SEARCH:
+                    web_search_results_urls += re.findall("<Source>(.*?)</Source>", agent_res.content)
+                    web_search_api_counter += 1
 
-            if len(web_search_results_urls) > 0:
+            if web_search_results_urls:
                 await self.monitor_web_search_results(
                     user_chat_message,
                     user_question,
@@ -204,26 +207,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         await self.close()
 
-    async def llm_conversation(
-        self,
-        selected_files: Sequence[File],
-        session: Chat,
-        user: User,
-        title: str,
-        permitted_files: Sequence[File],
-        selected_agent_names: list[str] | None = None,
-    ) -> None:
-        """Initiate & close websocket conversation with the core-api message endpoint."""
-        await self.send_to_client("session-id", session.id)
-
-        session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
-        message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
-        question = message_history[-2].text
-        user_feedback = ""
+    async def _load_agent_plan(self, session: Chat, message_history: Sequence[Mapping[str, str]]):
+        """Try to load and parse an existing agent plan if present."""
         plan_message_size = 3
-        agent_plans = None
-
         plan_prefix, _ = get_plan_fix_prompts()
+
         if (len(message_history) > plan_message_size) and (
             any(n in message_history[-plan_message_size].text for n in plan_prefix)
         ):
@@ -241,6 +229,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 plan = await get_agent_plan(session)
             except AgentPlan.DoesNotExist as e:
                 logger.debug("Cannot find object in db %s", e)
+                return None, "", message_history[-2].text
+
             if plan:
                 try:
                     agent_plans = MultiAgentPlan.model_validate_json(plan[0])
@@ -248,9 +238,31 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     user_feedback = message_history[-2].text
                     logger.debug("here is the plan: %s", plan[0])
                     logger.debug("here is user feedback %s", user_feedback)
+                    return agent_plans, question, user_feedback  # noqa: TRY300
                 except ValidationError as e:
                     logger.debug("cannot parse into plan object %s", plan[0])
                     logger.exception("Error from converting plan.", exc_info=e)
+        return None, message_history[-2].text, ""
+
+    async def llm_conversation(
+        self,
+        selected_files: Sequence[File],
+        session: Chat,
+        user: User,
+        title: str,
+        permitted_files: Sequence[File],
+        selected_agent_names: list[str] | None = None,
+    ) -> None:
+        """Initiate & close websocket conversation with the core-api message endpoint."""
+        await self.send_to_client("session-id", session.id)
+
+        session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
+        message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
+        question = message_history[-2].text
+        user_feedback = ""
+        agent_plans = None
+
+        agent_plans, question, user_feedback = await self._load_agent_plan(session, message_history)
 
         ai_settings = await self.get_ai_settings(session)
         if selected_agent_names:
@@ -262,12 +274,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 s3_keys=[f.unique_name for f in selected_files],
                 user_uuid=user.id,
                 chat_history=[
-                    ChainChatMessage(
-                        role=message.role,
-                        text=escape_curly_brackets(message.text),
-                    )
-                    for message in message_history[:-2]
-                    if message.text
+                    ChainChatMessage(role=m.role, text=escape_curly_brackets(m.text))
+                    for m in message_history[:-2]
+                    if m.text
                 ],
                 ai_settings=ai_settings,
                 permitted_s3_keys=[f.unique_name async for f in permitted_files],
