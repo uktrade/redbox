@@ -1,12 +1,14 @@
-{% from "macros/iai-top-nav.html" import iaiTopNav %}
-{% set cspNonce=request.csp_nonce %}
+{% set cspNonce = request.csp_nonce %}
+{% set productName = "Redbox at DBT" %}
+{% set phase = "Beta" %}
+{% set feedbackLink = "https://teams.microsoft.com/l/channel/19%3A9ae6b3b539724595a3139c2b16dc56ef%40thread.tacv2/Redbox%20trial%20participants%20Chat%20Channel?groupId=7a71ce78-fe77-4185-825c-ae40cb07d614&tenantId=8fa217ec-33aa-46fb-ad96-dfe68006bb86" %}
 
 <!DOCTYPE html>
 <html lang="en" class="govuk-template">
 
 <head>
   <meta charset="utf-8">
-  <title>{% if pageTitle %} {{ pageTitle }} - {% endif %}Redbox at DBT</title>
+  <title>{% if pageTitle %} {{ pageTitle }} - {% endif %}{{ productName }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b0c0c">
 
@@ -57,28 +59,7 @@
     </div>
   {% endif %}
 
-
-  {% if request.user.is_authenticated %}
-    {{ iaiTopNav(
-      product_name = "Redbox at DBT",
-      menu_items = [
-      {"text": "Documents", "href": url('documents')},
-      {"text": "Chat", "href": url('chats')},
-      {"text": "Profile", "href": url('settings')},
-      {"text": "Log out", "href": url('signed-out')},
-      ],
-      phase = "Beta"
-    ) }}
-  {% else %}
-    {{ iaiTopNav(
-      product_name = "Redbox at DBT",
-      menu_items = [
-        {"text": "Sign in", "href": url('sign-in')}
-      ],
-      phase = "Beta"
-    ) }}
-  {% endif %}
-
+  {% include "header-nav.html" %}
 
   <main id="main-content" role="main" class="govuk-main-wrapper govuk-main-wrapper--auto-spacing">
     {% block content %}
