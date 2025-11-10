@@ -17,10 +17,12 @@ from redbox.chains.components import (
 from redbox.graph.nodes.tools import (
     build_govuk_search_tool,
     build_legislation_search_tool,
+    build_retrieve_document_full_text,
+    build_retrieve_knowledge_base,
     build_search_documents_tool,
     build_search_wikipedia_tool,
-    execute_sql_query,
     build_web_search_tool,
+    execute_sql_query,
 )
 from redbox.graph.root import build_root_graph, get_agentic_search_graph, get_summarise_graph
 from redbox.models.chain import RedboxState
@@ -77,11 +79,16 @@ class Redbox:
             embedding_field_name=_env.embedding_document_field_name,
             chunk_resolution=ChunkResolution.normal,
         )
+        retrieve_full_text = build_retrieve_document_full_text(
+            es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias
+        )
+
         search_wikipedia = build_search_wikipedia_tool()
         search_govuk = build_govuk_search_tool()
         execute_sql = execute_sql_query()
         web_search = build_web_search_tool()
         legislation_search = build_legislation_search_tool()
+        retrieve_knowledge_base = build_retrieve_knowledge_base()
 
         self.tools = [search_documents, search_wikipedia, search_govuk, web_search, legislation_search]
 
@@ -91,6 +98,7 @@ class Redbox:
             "Tabular_Agent": [execute_sql],
             "Web_Search_Agent": [web_search],
             "Legislation_Search_Agent": [legislation_search],
+            "Submission_Checker_Agent": [retrieve_full_text, retrieve_knowledge_base],
         }
 
         self.graph = build_root_graph(

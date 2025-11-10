@@ -36,14 +36,14 @@ from redbox.graph.nodes.processes import (
     combine_question_evaluator,
     create_evaluator,
     empty_process,
+    get_tabular_agent,
+    get_tabular_schema,
     invoke_custom_state,
     lm_choose_route,
     my_planner,
     report_sources_process,
     stream_plan,
     stream_suggestion,
-    get_tabular_agent,
-    get_tabular_schema,
 )
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -716,6 +716,17 @@ def build_new_route_graph(
         ),
     )
 
+    builder.add_node(
+        "Submission_Checker_Agent",
+        build_agent(
+            agent_name="Submission_Checker_Agent",
+            system_prompt=LEGISLATION_SEARCH_AGENT_PROMPT,
+            tools=multi_agent_tools["Submission_Checker_Agent"],
+            use_metadata=False,
+            max_tokens=agents_max_tokens["Submission_Checker_Agent"],
+        ),
+    )
+
     builder.add_node("user_feedback_evaluation", empty_process)
 
     builder.add_node("Evaluator_Agent", create_evaluator())
@@ -752,6 +763,7 @@ def build_new_route_graph(
     builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
     builder.add_edge("Web_Search_Agent", "combine_question_evaluator")
     builder.add_edge("Legislation_Search_Agent", "combine_question_evaluator")
+    builder.add_edge("Submission_Checker_Agent", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)

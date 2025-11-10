@@ -50,6 +50,10 @@ def build_retrieve_document_full_text(es_client: Union[Elasticsearch, OpenSearch
     return _retrieve_document_full_text
 
 
+def build_retrieve_knowledge_base():
+    return True
+
+
 def build_search_documents_tool(
     es_client: Union[Elasticsearch, OpenSearch],
     index_name: str,
