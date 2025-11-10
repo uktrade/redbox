@@ -130,7 +130,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         user_message_text: str = data.get("message", "")
         selected_file_uuids: Sequence[UUID] = [UUID(u) for u in data.get("selectedFiles", [])]
         activities: Sequence[str] = data.get("activities", [])
-        selected_skill_name: str | None = data.get("selectedSkill")
+        selected_skill_id: str | None = data.get("selectedSkill")
         user: User = self.scope.get("user")
 
         user_ai_settings = await AISettingsModel.objects.aget(label=user.ai_settings_id if user else "Claude 3.7")
@@ -159,14 +159,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         skill_obj = None
         selected_agent_names = []
-        if selected_skill_name:
+        if selected_skill_id:
             try:
-                skill_obj = await sync_to_async(Skill.objects.get)(name=selected_skill_name)
+                skill_obj = await sync_to_async(Skill.objects.get)(id=selected_skill_id)
                 selected_agent_names = await sync_to_async(
                     lambda: list(AgentSkill.objects.filter(skill=skill_obj).values_list("agent__name", flat=True))
                 )()
             except Skill.DoesNotExist:
-                logger.warning("Selected skill '%s' not found", selected_skill_name)
+                logger.warning("Selected skill '%s' not found", selected_skill_id)
 
         user_chat_message = await self.save_user_message(
             session, user_message_text, selected_files=selected_files, activities=activities, skill=skill_obj
