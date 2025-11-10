@@ -41,6 +41,7 @@ from redbox_app.redbox_core.models import (
     ActivityEvent,
     Agent,
     AgentPlan,
+    AgentSkill,
     Chat,
     ChatLLMBackend,
     ChatMessage,
@@ -50,6 +51,7 @@ from redbox_app.redbox_core.models import (
     FileTeamMembership,
     MonitorSearchRoute,
     MonitorWebSearchResults,
+    Skill,
     UserTeamMembership,
 )
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
@@ -91,10 +93,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
     route = None
     metadata: RequestMetadata = RequestMetadata()
 
-    # skill is selected by user.
-    selected_skill = "Test_Skill"
-    worker_agents = Agent.objects.filter(agent_skills__skill__name=selected_skill)
-
     redbox = Redbox(env=get_settings(), debug=True)
     chat_message = None  # incrementally updating the chat stream
 
@@ -115,6 +113,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         user_message_text: str = data.get("message", "")
         selected_file_uuids: Sequence[UUID] = [UUID(u) for u in data.get("selectedFiles", [])]
         activities: Sequence[str] = data.get("activities", [])
+        selected_skill_name: str | None = data.get("selectedSkill")
         user: User = self.scope.get("user")
 
         user_ai_settings = await AISettingsModel.objects.aget(label=user.ai_settings_id if user else "Claude 3.7")
@@ -153,13 +152,27 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
         selected_files = permitted_files.filter(id__in=selected_file_uuids)
+
+        skill_obj = None
+        selected_agent_names = []
+        if selected_skill_name:
+            try:
+                skill_obj = await sync_to_async(Skill.objects.get)(name=selected_skill_name)
+                selected_agent_names = await sync_to_async(
+                    lambda: list(AgentSkill.objects.filter(skill=skill_obj).values_list("agent__name", flat=True))
+                )()
+            except Skill.DoesNotExist:
+                logger.warning("Selected skill '%s' not found", selected_skill_name)
+
         user_chat_message = await self.save_user_message(
-            session, user_message_text, selected_files=selected_files, activities=activities
+            session, user_message_text, selected_files=selected_files, activities=activities, skill=skill_obj
         )
 
         self.chat_message = await self.create_ai_message(session)
 
-        await self.llm_conversation(selected_files, session, user, user_message_text, permitted_files)
+        await self.llm_conversation(
+            selected_files, session, user, user_message_text, permitted_files, selected_agent_names=selected_agent_names
+        )
 
         if (self.final_state) and (self.final_state.agent_plans):
             await self.agent_plan_save(session)
@@ -192,7 +205,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.close()
 
     async def llm_conversation(
-        self, selected_files: Sequence[File], session: Chat, user: User, title: str, permitted_files: Sequence[File]
+        self,
+        selected_files: Sequence[File],
+        session: Chat,
+        user: User,
+        title: str,
+        permitted_files: Sequence[File],
+        selected_agent_names: list[str] | None = None,
     ) -> None:
         """Initiate & close websocket conversation with the core-api message endpoint."""
         await self.send_to_client("session-id", session.id)
@@ -234,6 +253,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     logger.exception("Error from converting plan.", exc_info=e)
 
         ai_settings = await self.get_ai_settings(session)
+        if selected_agent_names:
+            ai_settings = ai_settings.model_copy(update={"worker_agents": selected_agent_names})
+
         state = RedboxState(
             request=RedboxQuery(
                 question=question,
@@ -298,6 +320,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         user_message_text: str,
         selected_files: Sequence[File] | None = None,
         activities: Sequence[str] | None = None,
+        skill: Skill | None = None,
     ) -> ChatMessage:
         chat_message = ChatMessage(
             chat=session,
@@ -305,6 +328,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             role=ChatMessage.Role.user,
             route=self.route,
         )
+        chat_message.skill = skill
         chat_message.save()
         if selected_files:
             chat_message.selected_files.set(selected_files)
