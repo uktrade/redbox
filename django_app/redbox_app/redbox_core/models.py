@@ -158,8 +158,13 @@ class FileSkill(UUIDPrimaryKeyBase, TimeStampedModel):
     Junction model for file/skill many-to-many relationship to tag files with relevant skill for contextual retrieval
     """
 
+    class FileType(models.TextChoices):
+        ADMIN = "ADMIN", _("Admin")
+        MEMBER = "MEMBER", _("Member")
+
     file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="file_skills")
     skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="file_skills")
+    file_type = models.CharField(max_length=20, choices=FileType.choices, default=FileType.MEMBER)
 
     class Meta:
         unique_together = ("file", "skill")
