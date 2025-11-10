@@ -46,6 +46,7 @@ from redbox_app.redbox_core.models import (
     ChatMessageTokenUse,
     Citation,
     File,
+    FileSkill,
     FileTeamMembership,
     MonitorSearchRoute,
     MonitorWebSearchResults,
@@ -228,8 +229,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     logger.exception("Error from converting plan.", exc_info=e)
 
         ai_settings = await self.get_ai_settings(session)
+        skill_obj = []  # temporary
         state = RedboxState(
             request=RedboxQuery(
+                knowledge_files=[f.unique_name for f in skill_obj.get_files(FileSkill.FileType.ADMIN)],
                 question=question,
                 s3_keys=[f.unique_name for f in selected_files],
                 user_uuid=user.id,
