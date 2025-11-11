@@ -13,7 +13,7 @@ from django_q.tasks import async_task
 from waffle import flag_is_active
 
 from redbox_app.redbox_core import flags
-from redbox_app.redbox_core.models import File, Skill, UserTeamMembership
+from redbox_app.redbox_core.models import File, FileSkill, Skill, UserTeamMembership
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.types import APPROVED_FILE_EXTENSIONS
 from redbox_app.worker import ingest
@@ -88,7 +88,9 @@ def validate_uploaded_file(uploaded_file: UploadedFile) -> Sequence[str]:
     return errors
 
 
-def ingest_file(uploaded_file: UploadedFile, user: User) -> tuple[Sequence[str], File | None]:
+def ingest_file(
+    uploaded_file: UploadedFile, user: User, skill: Skill | None = None
+) -> tuple[Sequence[str], File | None]:
     try:
         logger.info("getting file from s3")
         file = File.objects.create(
@@ -96,6 +98,8 @@ def ingest_file(uploaded_file: UploadedFile, user: User) -> tuple[Sequence[str],
             user=user,
             original_file=uploaded_file,
         )
+        if skill:
+            FileSkill.objects.create(file=file, skill=skill)
     except (ValueError, FieldError, ValidationError) as e:
         logger.exception("Error creating File model object for %s.", uploaded_file, exc_info=e)
         return e.args, None

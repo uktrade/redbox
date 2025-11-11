@@ -86,6 +86,7 @@ skills_urlpatterns = [
     path("skills/<slug:skill_slug>/", views.skill_info_page_view, name="skill-info"),
     path("skills/<slug:skill_slug>/chats/", views.ChatsView.as_view(), name="skill-chats"),
     path("skills/<slug:skill_slug>/chats/<uuid:chat_id>/", views.ChatsView.as_view(), name="skill-chats"),
+    path("skills/<slug:skill_slug>/documents/upload/", views.upload_document, name="skill-document-upload"),
 ]
 
 admin_urlpatterns = [
