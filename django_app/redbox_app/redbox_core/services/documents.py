@@ -13,7 +13,7 @@ from django_q.tasks import async_task
 from waffle import flag_is_active
 
 from redbox_app.redbox_core import flags
-from redbox_app.redbox_core.models import File, UserTeamMembership
+from redbox_app.redbox_core.models import File, Skill, UserTeamMembership
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.types import APPROVED_FILE_EXTENSIONS
 from redbox_app.worker import ingest
@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 MAX_FILE_SIZE = 209715200  # 200 MB or 200 * 1024 * 1024
 
 
-def get_file_context(request):
-    completed_files, processing_files = File.get_completed_and_processing_files(request.user)
+def get_file_context(request, skill: Skill | None = None):
+    completed_files, processing_files = File.get_completed_and_processing_files(request.user, skill)
     team_files = (
         File.objects.filter(
             Q(team_associations__team__members__user=request.user, team_associations__visibility="TEAM")

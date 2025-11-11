@@ -5,7 +5,13 @@
     <div id="recent-chats" class="recent-chats rbds-scrollable">
         <ul class="chat-list">
             {% for chat in chats %}
-            {{ chat_history_item(chat, url('chats', chat.id), chat_id) }}
+                {% if skill %}
+                    {% set chatUrl = url('skill-chats', skill.slug, chat.id) %}
+                {% else %}
+                    {% set chatUrl = url('chats', chat.id) %}
+                {% endif %}
+
+                {{ chat_history_item(chat, chatUrl, chat_id) }}
             {% endfor %}
         </ul>
         {{ show_more('.chat-list', 'li', 3) }}
