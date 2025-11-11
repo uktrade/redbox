@@ -349,14 +349,10 @@ class RedboxState(BaseModel):
             raise ValueError("No messages in the state")
         return self.messages[-1]
 
-    def store_document_state(self):
-        """Stores s3_keys (which are the names of the documents) as previous-s3_keys. This will allow for review down the line"""
-        self.request.previous_s3_keys = self.request.s3_keys.copy()
-
     def documents_changed(self) -> bool:
         """This checks if documents have changed between questions asked. Returns True if so."""
         if not self.request.previous_s3_keys:
-            return False
+            return True
         return sorted(self.request.previous_s3_keys) != sorted(self.request.s3_keys)
 
 
