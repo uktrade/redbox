@@ -501,6 +501,7 @@ async def test_chat_consumer_redbox_state(
 ):
     # Given
     selected_files: Sequence[File] = several_files[2:]
+    previous_selected_files: Sequence[File] = several_files[:2]
 
     # When
     with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.run") as mock_run:
@@ -515,6 +516,7 @@ async def test_chat_consumer_redbox_state(
         permitted_file_keys: Sequence[str] = [
             f.unique_name async for f in File.objects.filter(user=alice, status=File.Status.complete)
         ]
+        previous_file_keys: Sequence[str] = [f.unique_name for f in previous_selected_files]
         assert selected_file_keys != permitted_file_keys
 
         await communicator.send_json_to(
@@ -546,6 +548,8 @@ async def test_chat_consumer_redbox_state(
             ],
             ai_settings=ai_settings,
             permitted_s3_keys=permitted_file_keys,
+            previous_s3_keys=previous_file_keys,
+            db_location=None,
         )
         redbox_state = mock_run.call_args.args[0]  # pulls out the args that redbox.run was called with
 
@@ -559,7 +563,9 @@ async def test_chat_consumer_redbox_state(
             "permitted_s3_keys content mismatch"
         )
 
-        assert redbox_state.request.previous_s3_keys == expected_request.previous_s3_keys, "previous_s3_keys mismatch"
+        assert set(redbox_state.request.previous_s3_keys) == set(expected_request.previous_s3_keys), (
+            "previous_s3_keys mismatch"
+        )
         assert redbox_state.request.db_location == expected_request.db_location, "db_location mismatch"
 
 

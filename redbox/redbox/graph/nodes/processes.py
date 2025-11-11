@@ -629,31 +629,30 @@ def create_or_update_db_from_tabulars(state: RedboxState) -> RedboxState:
     Only regenerates the database if the file doesn't exist or documents have changed.
     """
     should_create_db = True
-    db_path = state.request.db_location
+    user_uuid = str(state.request.user_uuid) if state.request.user_uuid else uuid4()
+    db_path = f"generated_db_{user_uuid}.db"  # Initialise the database at a location that uses the user's UUID or a random one if it's not available
+    state.request.db_location = db_path
 
     # Check if we have an existing db_path
-    if db_path:
-        # Check if the file exists
-        if os.path.exists(db_path) and not state.documents_changed():
-            # If the file exists and documents haven't changed, no need to recreate
-            should_create_db = False
-    else:
-        # Generate a new db path if self.db_location is none
-        user_uuid = str(state.request.user_uuid) if state.request.user_uuid else uuid4()
-        db_path = f"generated_db_{user_uuid}.db"  # Initialise the database at a location that uses the user's UUID or a random one if it's not available
+    # Check if the file exists
+    if os.path.exists(db_path) and not state.documents_changed():
+        # If the file exists and documents haven't changed, no need to recreate
+        should_create_db = False
 
     # Create or update database if needed
     if should_create_db:
+        # delete existing database
+        if os.path.exists(db_path):
+            os.remove(db_path)
         # Creating/updating database at db_path
         conn = sqlite3.connect(db_path)
         doc_texts, doc_names = get_all_tabular_docs(state)
         _ = load_texts_to_db(doc_texts, doc_names=doc_names, conn=conn)
-        conn.commit
-        conn.close
+        conn.commit()
+        conn.close()
 
-        # Store the current_documents to reflect current state
-        state.store_document_state()
-        state.request.db_location = db_path
+    state.request.previous_s3_keys = sorted(state.request.s3_keys)
+
     return state
 
 
@@ -743,6 +742,11 @@ def parse_doc_text_as_db_table(doc_text: str, table_name: str, conn: sqlite3.Con
         text_from_header = detect_header(doc_text)
         df = pd.read_csv(StringIO(text_from_header), sep=",")
         df_cleaned = delete_null_values(df)
+
+        if df_cleaned.empty or len(df_cleaned.columns) == 0:
+            log.warning(f"skipping table '{table_name}' as there are no valid columns after cleaning {len(doc_text)}")
+            return
+
         df_cleaned.to_sql(table_name, conn, if_exists="replace", index=False)
     except Exception as e:
         log.exception(f"Failed to load table '{table_name}': {e}")
@@ -800,7 +804,10 @@ def get_tabular_agent(
                 log.info("no sql query input to tool")
 
             num_iter += 1
-
+            if isinstance(ai_msg["messages"][-1].content, str):
+                tabular_context = ai_msg["messages"][-1].content
+            else:
+                tabular_context = ""
             tool_output = run_tools_parallel(ai_msg["messages"][-1], tools, state)
 
             results = tool_output[-1].content  # this is a tuple
@@ -808,7 +815,6 @@ def get_tabular_agent(
             # Truncate to max_tokens. only using one tool here.
             # retrieve result from database or sql error
             result = results[0][:max_tokens]  # saving this as a new variable as tuples are immutable.
-
             success = results[1]
 
             is_intermediate_step = eval(results[2])
@@ -827,9 +833,9 @@ def get_tabular_agent(
 
         if success == "pass":
             if not is_intermediate_step:  # if this is the final step
-                formatted_result = f"<Tabular_Agent_Result>{result}</Tabular_Agent_Result>"
+                formatted_result = f"<Tabular_Agent_Result>{tabular_context}\n The results of my query are: {result}</Tabular_Agent_Result>"
             else:
-                formatted_result = f"<Tabular_Agent_Result>Iteration limit of {num_iter} is reached by the tabular agent</Tabular_Agent_Result>"
+                formatted_result = f"<Tabular_Agent_Result>Iteration limit of {num_iter} is reached by the tabular agent. This is the tabular agent's reasoning at the last iteration: {tabular_context}</Tabular_Agent_Result>"
 
         else:
             formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the error from the executed SQL query: {result} </Tabular_Agent_Result>"

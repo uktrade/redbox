@@ -103,15 +103,27 @@ class ChatConsumer(AsyncWebsocketConsumer):
             session.temperature = temperature
             logger.info("updating session: chat_backend=%s temperature=%s", chat_backend, temperature)
             await session.asave()
+            if data.get("selectedFiles", []):
+                # get previous selected files from db
+                latest_message = (
+                await ChatMessage.objects.filter(chat=session, role="user").order_by("-created_at").afirst()
+                )
+                if latest_message:
+                    latest_files = latest_message.selected_files.all()
+                    previous_selected_files = [file async for file in latest_files]
+
+            else:
+                previous_selected_files = []
         else:
-            logger.info("creating session: chat_backend=%s temperature=%s", chat_backend, temperature)
-            session = await Chat.objects.acreate(
+                logger.info("creating session: chat_backend=%s temperature=%s", chat_backend, temperature)
+                session = await Chat.objects.acreate(
                 name=user_message_text[: settings.CHAT_TITLE_LENGTH],
                 user=user,
                 chat_backend=chat_backend,
                 temperature=temperature,
             )
-        return session
+                previous_selected_files = []
+        return session, previous_selected_files
 
     async def receive(self, text_data=None, bytes_data=None):
         """Receive & respond to message from browser websocket."""
@@ -139,7 +151,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         chat_backend = await ChatLLMBackend.objects.aget(id=data.get("llm", user_ai_settings.chat_backend_id))
         temperature = data.get("temperature", user_ai_settings.temperature)
 
-        session = await self._init_session(data, user, user_message_text, chat_backend, temperature)
+        session, previous_selected_files = await self._init_session(data, user, user_message_text, chat_backend, temperature)
 
         # save user message
         permitted_files = (
@@ -175,7 +187,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.chat_message = await self.create_ai_message(session)
 
         await self.llm_conversation(
-            selected_files, session, user, user_message_text, permitted_files, selected_agent_names=selected_agent_names
+            selected_files, session, user, user_message_text, permitted_files, previous_selected_files, selected_agent_names=selected_agent_names
         )
 
         if (self.final_state) and (self.final_state.agent_plans):
@@ -251,6 +263,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         user: User,
         title: str,
         permitted_files: Sequence[File],
+        previous_selected_files: Sequence[File],
         selected_agent_names: list[str] | None = None,
     ) -> None:
         """Initiate & close websocket conversation with the core-api message endpoint."""
@@ -286,6 +299,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 ],
                 ai_settings=ai_settings,
                 permitted_s3_keys=[f.unique_name async for f in permitted_files],
+                previous_s3_keys=[f.unique_name for f in previous_selected_files],
             ),
             user_feedback=user_feedback,
             agent_plans=agent_plans,
