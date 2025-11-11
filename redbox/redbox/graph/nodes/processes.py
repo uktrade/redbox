@@ -309,7 +309,7 @@ def report_sources_process(state: RedboxState) -> None:
     """A Runnable which reports the documents in the state as sources."""
     if citations_state := state.citations:
         dispatch_custom_event(RedboxEventType.on_citations_report, citations_state)
-    elif document_state := state.documents:
+    if document_state := state.documents:
         dispatch_custom_event(RedboxEventType.on_source_report, flatten_document_state(document_state))
 
 
@@ -803,6 +803,8 @@ def get_tabular_agent(
             )
             ai_msg = worker_agent.invoke(state)
 
+            num_iter += 1
+
             messages.append(AIMessage(ai_msg["messages"][-1].content))
             try:
                 messages.append(
@@ -810,8 +812,8 @@ def get_tabular_agent(
                 )
             except Exception:
                 log.info("no sql query input to tool")
-
-            num_iter += 1
+                sql_error = ai_msg["messages"][-1].content
+                continue
 
             tool_output = run_tools_parallel(ai_msg["messages"][-1], tools, state)
 
