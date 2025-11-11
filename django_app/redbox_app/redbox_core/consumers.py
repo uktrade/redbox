@@ -266,7 +266,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         ai_settings = await self.get_ai_settings(session)
         if selected_agent_names:
-            ai_settings = ai_settings.model_copy(update={"worker_agents": selected_agent_names})
+            ai_settings = ai_settings.model_copy(
+                update={
+                    "worker_agents": [
+                        agent for agent in AISettings().worker_agents if agent.name in selected_agent_names
+                    ]
+                }
+            )
 
         state = RedboxState(
             request=RedboxQuery(
