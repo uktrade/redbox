@@ -124,14 +124,17 @@ def convert_doc_to_docx(uploaded_file: UploadedFile) -> UploadedFile:
                     return uploaded_file
 
                 output_filename = Path(get_file_name(uploaded_file)).with_suffix(".docx").name
+                bytes_io = BytesIO(converted_content)
+                bytes_io.seek(0)
                 new_file = InMemoryUploadedFile(
-                    file=BytesIO(converted_content),
+                    file=bytes_io,
                     field_name=get_file_name(uploaded_file),
                     name=output_filename,
                     content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                     size=len(converted_content),
                     charset="utf-8",
                 )
+
                 logger.info("doc file conversion to docx successful for %s", get_file_name(uploaded_file))
         except Exception as e:
             logger.exception("Error converting doc file %s to docx", get_file_name(uploaded_file), exc_info=e)
@@ -158,10 +161,12 @@ def ingest(file_id: UUID, es_index: str | None = None) -> None:
     # handling doc -> docx conversion
     if is_doc_file(file):
         file.original_file = convert_doc_to_docx(file)
+        file.original_file.file.seek(0)
         file.save()
     # handling utf8 compatibility
     if not is_utf8_compatible(file):
         file.original_file = convert_to_utf8(file)
+        file.original_file.file.seek(0)
         file.save()
 
     logger.info("Ingesting file: %s", file)
