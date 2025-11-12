@@ -735,6 +735,7 @@ def build_new_route_graph(
             use_metadata=True,
             max_tokens=agents_max_tokens["Submission_Checker_Agent"],
             loop_condition=lambda: success == "fail" or is_intermediate_step,
+            max_attempt=2,
         ),
     )
 

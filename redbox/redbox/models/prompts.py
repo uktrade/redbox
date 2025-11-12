@@ -483,6 +483,8 @@ Existing information:
 """
 
 EVAL_SUBMISSION = """
+<user_question>{question}</user_question>
+
 After evaluating all seven criteria, provide the following:
 - AVERAGE SCORE: A simple mean of the score across all 7 criteria.
 - ASSESSMENT SUMMARY: A brief statement of the overall quality of the submission. Be critical but constructive in your feedback.

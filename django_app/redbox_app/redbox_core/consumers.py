@@ -179,7 +179,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             try:
                 skill_obj = await sync_to_async(Skill.objects.get)(id=selected_skill_id)
                 session.skill = skill_obj
-                session.save()
+                await session.asave()
                 selected_agent_names = await sync_to_async(
                     lambda: list(AgentSkill.objects.filter(skill=skill_obj).values_list("agent__name", flat=True))
                 )()
@@ -279,7 +279,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         permitted_files: Sequence[File],
         previous_selected_files: Sequence[File],
         knowledge_files: Sequence[File],
-        selected_agent_names: list[str] | None = None,
     ) -> None:
         """Initiate & close websocket conversation with the core-api message endpoint."""
         await self.send_to_client("session-id", session.id)
@@ -293,14 +292,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         agent_plans, question, user_feedback = await self._load_agent_plan(session, message_history)
 
         ai_settings = await self.get_ai_settings(session)
-        if selected_agent_names:
-            ai_settings = ai_settings.model_copy(
-                update={
-                    "worker_agents": [
-                        agent for agent in AISettings().worker_agents if agent.name in selected_agent_names
-                    ]
-                }
-            )
 
         state = RedboxState(
             request=RedboxQuery(
@@ -315,7 +306,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 ai_settings=ai_settings,
                 permitted_s3_keys=[f.unique_name async for f in permitted_files],
                 previous_s3_keys=[f.unique_name for f in previous_selected_files],
-                knowledge_base_s3_keys=[f.unique_name for f in knowledge_files],
+                knowledge_base_s3_keys=[f.unique_name async for f in knowledge_files],
             ),
             user_feedback=user_feedback,
             agent_plans=agent_plans,
