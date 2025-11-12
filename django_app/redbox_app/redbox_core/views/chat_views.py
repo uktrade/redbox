@@ -20,8 +20,10 @@ logger = logging.getLogger(__name__)
 
 class ChatsView(View):
     @method_decorator(login_required)
-    def get(self, request: HttpRequest, chat_id: uuid.UUID | None = None) -> HttpResponse:
-        context = chat_service.get_context(request, chat_id)
+    def get(
+        self, request: HttpRequest, chat_id: uuid.UUID | None = None, skill_slug: str | None = None
+    ) -> HttpResponse:
+        context = chat_service.get_context(request, chat_id, skill_slug)
 
         if chat_id != context["chat_id"]:
             return redirect(reverse("chats"))

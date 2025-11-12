@@ -3,7 +3,7 @@
 {% from "macros/govuk-warning.html" import govuk_warning %}
 
 <div id="chat-window" name="swapped" class="govuk-grid-column-three-quarters" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
-    {% if active_skill %}
+    {% if skill %}
         {% include "skills/skill-banner.html" %}
     {% endif %}
 
@@ -45,7 +45,7 @@
             <div class="govuk-textarea rbds-message-input rbds-drop-zone" id="message" name="message" contenteditable="true" role="textbox"
                 aria-multiline="true" data-text="Type here..."></div>
         </rbds-message-input>
-        <file-upload upload-url="/documents/upload/">
+        <file-upload upload-url="{% if skill %}/skills/{{ skill.slug }}{% endif %}/documents/upload/">
             <input class="govuk-file-upload govuk-!-display-none" multiple id="upload-docs" name="uploadDocs" type="file" aria-describedby="upload-docs-notification upload-docs-filetypes">
             {{ govukButton(
                 text="Add document",
