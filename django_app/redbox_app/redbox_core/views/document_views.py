@@ -19,7 +19,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.http import require_http_methods
 
-from redbox_app.redbox_core.models import File, FileTeamMembership, InactiveFileError, Team, UserTeamMembership
+from redbox_app.redbox_core.models import File, FileTeamMembership, InactiveFileError, Skill, Team, UserTeamMembership
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.utils import render_with_oob
@@ -94,7 +94,7 @@ class UploadView(View):
 
 @require_http_methods(["POST"])
 @login_required
-def upload_document(request):
+def upload_document(request, skill_slug: str | None = None):
     errors: MutableSequence[str] = []
 
     uploaded_file: UploadedFile = request.FILES.get("file")
@@ -109,8 +109,10 @@ def upload_document(request):
         response["errors"] = errors
         return JsonResponse(response)
 
+    skill = Skill.objects.get(slug=skill_slug) if skill_slug else None
+
     # ingest errors are handled differently, as the other documents have started uploading by this point
-    ingest_errors, file = documents_service.ingest_file(uploaded_file, request.user)
+    ingest_errors, file = documents_service.ingest_file(uploaded_file, request.user, skill)
     request.session["ingest_errors"] = ingest_errors
 
     if ingest_errors:

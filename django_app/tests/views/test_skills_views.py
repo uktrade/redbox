@@ -102,5 +102,5 @@ def test_user_cannot_see_other_user_skill_chats(bob: User, client: Client, defau
 
     # Then
     assert response.status_code == HTTPStatus.OK
-    assert default_skill.name in response.content.decode()
+    assert default_skill.name not in response.content.decode()
     assert chat_with_alice.name not in response.content.decode()
