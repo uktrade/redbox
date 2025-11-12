@@ -25,33 +25,103 @@ from redbox.chains.components import get_embeddings
 from redbox.models.chain import RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
 from redbox.models.settings import get_settings
-from redbox.retriever.queries import add_document_filter_scores_to_query, build_document_query, get_all
+from redbox.retriever.queries import (
+    add_document_filter_scores_to_query,
+    build_document_query,
+    get_all,
+    get_knowledge_base,
+)
 from redbox.retriever.retrievers import query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
 
 log = logging.getLogger(__name__)
 
 
-def build_retrieve_document_full_text(es_client: Union[Elasticsearch, OpenSearch], index_name: str):
-    def _retrieve_document_full_text(state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
+def format_result(loop, content, artifact, status, is_intermediate_step):
+    if loop:
+        return ((content, status, str(is_intermediate_step)), content)
+    else:
+        return (content, artifact)
+
+
+def build_retrieve_document_full_text(es_client: Union[Elasticsearch, OpenSearch], index_name: str, loop: bool = False):
+    @tool(response_format="content_and_artifact")
+    def _retrieve_document_full_text(
+        state: Annotated[RedboxState, InjectedState], is_intermediate_step: bool = False
+    ) -> tuple:
         """
-        Retrieve selected documents full texts. This tool should be used when a full text from a document is required.
+        Retrieve full texts from state.documents. This tool should be used when a full text from a document is required.
+        This tool does not retrieve documents in knowledge base.
+
+        Arg:
+        - is_intermediate_step (bool): True if this tool call is an intermediate step to allow you to gather information about the document. False if this is your final step.
 
         Return:
-            dict[str, Any]: Collection of matching document snippets with metadata
+            Tuple: Collection of matching document full texts with metadata
         """
 
         el_query = get_all(chunk_resolution=ChunkResolution.largest, state=state)
 
         results = query_to_documents(es_client=es_client, index_name=index_name, query=el_query)
+        if not results:
+            return format_result(
+                loop=loop,
+                content="Tool returns empty result set.",
+                artifact=[],
+                status="fail",
+                is_intermediate_step=is_intermediate_step,
+            )
 
-        return sorted(results, key=lambda result: result.metadata["index"])
+        # Return as state update
+        sorted_documents = sorted(results, key=lambda result: result.metadata["index"])
+        return format_result(
+            loop=loop,
+            content="<context>This is user full text documents.</context>" + format_documents(sorted_documents),
+            artifact=sorted_documents,
+            status="pass",
+            is_intermediate_step=is_intermediate_step,
+        )
 
     return _retrieve_document_full_text
 
 
-def build_retrieve_knowledge_base():
-    return True
+def build_retrieve_knowledge_base(es_client: Union[Elasticsearch, OpenSearch], index_name: str, loop: bool = False):
+    @tool(response_format="content_and_artifact")
+    def _retrieve_knowledge_base(
+        state: Annotated[RedboxState, InjectedState], is_intermediate_step: bool = False
+    ) -> tuple[str, list[Document]]:
+        """
+        Retrieve knowledge base data, information for this agent.
+
+        Arg:
+        - is_intermediate_step (bool): True if this tool call is an intermediate step to allow you to gather knowledge base. False if this is your final step.
+
+        Return:
+            Tuple: Collection of knowledge base documents with metadata
+        """
+        el_query = get_knowledge_base(chunk_resolution=ChunkResolution.largest, state=state)
+        results = query_to_documents(es_client=es_client, index_name=index_name, query=el_query)
+
+        if not results:
+            return format_result(
+                loop=loop,
+                content="Tool returns empty result set.",
+                artifact=[],
+                status="fail",
+                is_intermediate_step=is_intermediate_step,
+            )
+
+        # Return as state update
+        sorted_documents = sorted(results, key=lambda result: result.metadata["index"])
+        return format_result(
+            loop=loop,
+            content="<context>This is your knowledgebase result.</context>" + format_documents(sorted_documents),
+            artifact=sorted_documents,
+            status="pass",
+            is_intermediate_step=is_intermediate_step,
+        )
+
+    return _retrieve_knowledge_base
 
 
 def build_search_documents_tool(

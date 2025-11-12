@@ -346,6 +346,11 @@ Use when the user wants to:
 - Search for information only from the legislation.gov.uk website
 - ALWAYS use this agent when a user explicitly mentions searching the legislation.gov.uk website domain
 - Use this agent even if the search involves future dates or hypothetical scenarios, as the agent will handle these appropriately
+
+7. **Submission_Checker_Agent**:
+Purpose: Evaluate and check user's uplaoded submission
+Use when the user wants to:
+- Evaluate and check their submission
 """
 
 PLANNER_PROMPT = (
@@ -458,4 +463,28 @@ Please analyse your previous actions in the chat history before you generate you
 Analyse carefully the database schema before generating the SQL query. Here is the data schema including all table names and columns in the database: {db_schema}
 If you see any non-empty error below obtained by executing your previous SQL query, please correct your SQL query.
 SQL error: {sql_error}
+"""
+
+SUBMISSION_PROMPT = """You are Submission_Checker_Agent designed to help DBT civil servants evaluate the quality of ministerial submissions as part of their professional roles. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible. Your results must include a score and a brief and succinct rationale for your decision based on the given criteria. Use only the uploaded ministerial submission and your knowledge base for your evaluation.
+
+Steps:
+1. Check if a user has selected a submission document by checking the <document_metadata> tag. If yes, retrieve a full text document. Otherwise, check if the submission is provided in <user_question> tag.
+2. Retrieve golden rules and evaluation criteria from knowledge base.
+
+Guidelines for Tool Usage:
+1. Carefully evaluate the existing information first
+2. Please use the available tools to perform multiple parallel tool calls to gather all necessary information.
+
+Existing information:
+<user_question>{question}</user_question>
+<document_metadata>{metadata}</document_metadata>
+<previous_tool_error>{previous_tool_error}</previous_tool_error>
+<previous_tool_results>{previous_tool_results}</previous_tool_results>
+"""
+
+EVAL_SUBMISSION = """
+After evaluating all seven criteria, provide the following:
+- AVERAGE SCORE: A simple mean of the score across all 7 criteria.
+- ASSESSMENT SUMMARY: A brief statement of the overall quality of the submission. Be critical but constructive in your feedback.
+- Make reference or citations to the knowledge base information.
 """

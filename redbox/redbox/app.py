@@ -75,7 +75,10 @@ class Redbox:
             chunk_resolution=ChunkResolution.normal,
         )
         retrieve_full_text = build_retrieve_document_full_text(
-            es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias
+            es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias, loop=True
+        )
+        retrieve_knowledge_base = build_retrieve_knowledge_base(
+            es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias, loop=True
         )
 
         search_wikipedia = build_search_wikipedia_tool()
@@ -83,7 +86,6 @@ class Redbox:
         execute_sql = execute_sql_query()
         web_search = build_web_search_tool()
         legislation_search = build_legislation_search_tool()
-        retrieve_knowledge_base = build_retrieve_knowledge_base()
 
         self.tools = [search_documents, search_wikipedia, search_govuk, web_search, legislation_search]
 

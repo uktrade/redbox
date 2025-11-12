@@ -247,6 +247,7 @@ class RedboxQuery(BaseModel):
         None  # Adding previous_s3_keys (which are the previous documents to the state request)
     )
     db_location: str | None = None  # Adding db_location to state request
+    knowledge_base_s3_keys: list[str] = Field(description="List of knowledge base files", default_factory=list)
 
 
 class LLMCallMetadata(BaseModel):
