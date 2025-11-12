@@ -861,13 +861,10 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
             if skill
             else Q(file_skills__isnull=True)
         )
+        filters = base_filter & skill_filter
 
-        completed_files = cls.objects.filter(base_filter, skill_filter, status=File.Status.complete).order_by(
-            "-created_at"
-        )
-        processing_files = cls.objects.filter(base_filter, skill_filter, status=File.Status.processing).order_by(
-            "-created_at"
-        )
+        completed_files = cls.objects.filter(filters, status=File.Status.complete).order_by("-created_at")
+        processing_files = cls.objects.filter(filters, status=File.Status.processing).order_by("-created_at")
 
         return completed_files, processing_files
 
