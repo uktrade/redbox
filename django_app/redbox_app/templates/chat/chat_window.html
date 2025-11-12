@@ -3,7 +3,7 @@
 {% from "macros/govuk-warning.html" import govuk_warning %}
 
 <div id="chat-window" name="swapped" class="govuk-grid-column-three-quarters" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
-    {% if active_skill %}
+    {% if skill %}
         {% include "skills/skill-banner.html" %}
     {% endif %}
 

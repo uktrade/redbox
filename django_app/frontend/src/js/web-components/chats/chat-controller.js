@@ -12,9 +12,7 @@ class ChatController extends HTMLElement {
   #bindEvents = () => {
     const chatsForm = document.querySelector("#chats-form");
     let selectedDocuments = [];
-    const selectedSkill = /** @type {HTMLElement} */ (
-      document.querySelector('[data-skill-id]')
-    )?.dataset.skillId;
+    const selectedSkill = getActiveSkillId();
 
     chatsForm?.addEventListener("submit", (evt) => {
       evt.preventDefault();
