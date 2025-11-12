@@ -91,7 +91,12 @@ def build_root_graph(
     )
     builder.add_node(
         "new_route_graph",
-        build_new_route_graph(all_chunks_retriever, tabular_retriever, multi_agent_tools, debug),
+        build_new_route_graph(
+            all_chunks_retriever,
+            tabular_retriever,
+            multi_agent_tools,
+            debug,
+        ),
     )
     builder.add_node(
         "retrieve_metadata", get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)

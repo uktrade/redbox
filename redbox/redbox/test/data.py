@@ -59,6 +59,59 @@ def generate_docs(
         )
 
 
+def generate_tabular_docs(
+    s3_key: str = "example.csv",
+    page_numbers: list[int] = [1],
+    total_tokens: int = 6000,
+    number_of_docs: int = 1,
+    chunk_resolution: ChunkResolution = ChunkResolution.normal,
+    score: int = 1,
+    index_start: int = 0,
+    columns: list[str] = ["id", "name", "value"],
+    rows_per_doc: int = 5,
+) -> Generator[Document, None, None]:
+    """
+    Variant of generate_docs for tabular files
+    """
+    header = ",".join(columns) + "\n"
+    rows_per_chunk = max(1, rows_per_doc)
+
+    for i in range(number_of_docs):
+        core_metadata = UploadedFileMetadata(
+            index=index_start + i,
+            uri=s3_key,
+            page_number=page_numbers[min(i, len(page_numbers) - 1)],
+            created_datetime=datetime.datetime.now(datetime.UTC),
+            token_count=int(total_tokens / number_of_docs),
+            chunk_resolution=chunk_resolution,
+            name=Path(s3_key).stem,
+            description=f"Tabular data from {Path(s3_key).stem}",
+            keywords=[col.lower() for col in columns],
+        ).model_dump()
+
+        extra_metadata = {
+            "score": score,
+            "uuid": str(uuid4()),
+        }
+
+        csv_content = header
+        start_row = i * rows_per_chunk + 1
+        for row_idx in range(rows_per_chunk):
+            row_data = [
+                str(start_row + row_idx),
+                f"User{row_idx + i}",
+                f"{100 + row_idx * 10 + i * 50}.{row_idx}",
+            ]
+            if len(row_data) != len(columns):
+                row_data = [str(start_row + row_idx)] * len(columns)
+            csv_content += ",".join(row_data) + "\n"
+
+        yield Document(
+            page_content=csv_content.rstrip(),
+            metadata=core_metadata | extra_metadata,
+        )
+
+
 class RedboxTestData(BaseModel):
     class Config:
         arbitrary_types_allowed = True
@@ -101,8 +154,11 @@ class RedboxChatTestCase:
                 "Number of configured LLM responses might be less than number of docs. For Map-Reduce actions this will give a Generator Error!"
             )
 
+        is_tabular = any(key.lower().endswith((".csv", ".xlsx")) for key in all_s3_keys)
+        generator_func = generate_tabular_docs if is_tabular else generate_docs
+
         file_generators = [
-            generate_docs(
+            generator_func(
                 s3_key=s3_key,
                 total_tokens=int(test_data.tokens_in_all_docs / len(all_s3_keys)),
                 number_of_docs=int(test_data.number_of_docs / len(all_s3_keys)),
