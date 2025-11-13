@@ -14,6 +14,7 @@ from redbox.chains.components import (
     get_tabular_chunks_retriever,
 )
 from redbox.graph.nodes.tools import (
+    build_document_from_prompt_tool,
     build_govuk_search_tool,
     build_legislation_search_tool,
     build_retrieve_document_full_text,
@@ -86,7 +87,7 @@ class Redbox:
         execute_sql = execute_sql_query()
         web_search = build_web_search_tool()
         legislation_search = build_legislation_search_tool()
-
+        doc_from_prompt = build_document_from_prompt_tool(loop=True)
         self.tools = [search_documents, search_wikipedia, search_govuk, web_search, legislation_search]
 
         self.multi_agent_tools = {
@@ -95,7 +96,7 @@ class Redbox:
             "Tabular_Agent": [execute_sql],
             "Web_Search_Agent": [web_search],
             "Legislation_Search_Agent": [legislation_search],
-            "Submission_Checker_Agent": [retrieve_full_text, retrieve_knowledge_base],
+            "Submission_Checker_Agent": [retrieve_full_text, retrieve_knowledge_base, doc_from_prompt],
         }
 
         self.graph = build_root_graph(

@@ -44,6 +44,31 @@ def format_result(loop, content, artifact, status, is_intermediate_step):
         return (content, artifact)
 
 
+def build_document_from_prompt_tool(loop: bool = False):
+    @tool(response_format="content_and_artifact")
+    def _retrieve_document_from_prompt(
+        state: Annotated[RedboxState, InjectedState], is_intermediate_step: bool = False
+    ) -> tuple:
+        """
+        Retrieve document from user prompt
+
+        Arg:
+        - is_intermediate_step (bool): True if this tool call is an intermediate step to allow you to gather information from user prompt. False if this is your final step.
+
+        Return:
+            Tuple: document
+        """
+        return format_result(
+            loop=loop,
+            content="<context>This is user prompt that containing documents.</context>" + state.request.question,
+            artifact=[],
+            status="pass",
+            is_intermediate_step=is_intermediate_step,
+        )
+
+    return _retrieve_document_from_prompt
+
+
 def build_retrieve_document_full_text(es_client: Union[Elasticsearch, OpenSearch], index_name: str, loop: bool = False):
     @tool(response_format="content_and_artifact")
     def _retrieve_document_full_text(
