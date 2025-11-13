@@ -117,7 +117,7 @@ class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
     def get_info_page_url(self):
         return reverse("skill-info", kwargs={"skill_slug": self.slug})
 
-    def get_files(self, file_type: Optional["FileSkill.FileType"] = None):
+    def get_files(self, file_type: Optional["FileSkill.FileType"] = None) -> Sequence["File"]:
         file_type = file_type or FileSkill.FileType.MEMBER
         return File.objects.filter(file_skills__skill=self, file_skills__file_type=file_type)
 
