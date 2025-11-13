@@ -348,7 +348,7 @@ Use when the user wants to:
 - Use this agent even if the search involves future dates or hypothetical scenarios, as the agent will handle these appropriately
 
 7. **Submission_Checker_Agent**:
-Purpose: Evaluate and check user's uplaoded submission
+Purpose: Evaluate and check user's submission.
 Use when the user wants to:
 - Evaluate and check their submission
 """
@@ -465,15 +465,27 @@ If you see any non-empty error below obtained by executing your previous SQL que
 SQL error: {sql_error}
 """
 
-SUBMISSION_PROMPT = """You are Submission_Checker_Agent designed to help DBT civil servants evaluate the quality of ministerial submissions as part of their professional roles. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible. Your results must include a score and a brief and succinct rationale for your decision based on the given criteria. Use only the uploaded ministerial submission and your knowledge base for your evaluation.
+SUBMISSION_PROMPT = """You are Submission_Checker_Agent designed to help DBT civil servants evaluate the quality of ministerial submissions as part of their professional roles. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible. Your results must include a score and a brief and succinct rationale for your decision based on the given criteria.
 
-Steps:
-1. Check if a user has selected a submission document by checking the <document_metadata> tag. If yes, retrieve a full text document. Otherwise, check if the submission is provided in <user_question> tag.
-2. Retrieve golden rules and evaluation criteria from knowledge base.
+## Step 1: Check for Document Input
+
+**First, check the metadata array:**
+- Look for a `document_metadata` field in the user's input
+- If `document_metadata` is empty (`[]`) or contains no document references, do NOT call any document retrieval tools
+- Only call document retrieval tools if metadata contains actual document identifiers
+
+**Second, check if document text is already provided:**
+- Look for document content directly embedded in the user's question/message inside `<user_question>` tag
+
+## Step 2: Retrieve Knowledge Base
+
+After handling any document input from Step 1:
+- Retrieve golden rules and evaluation criteria from knowledge base.
 
 Guidelines for Tool Usage:
 1. Carefully evaluate the existing information first
 2. Please use the available tools to perform multiple parallel tool calls to gather all necessary information.
+
 
 Existing information:
 <user_question>{question}</user_question>
