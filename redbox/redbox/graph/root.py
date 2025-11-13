@@ -36,14 +36,14 @@ from redbox.graph.nodes.processes import (
     combine_question_evaluator,
     create_evaluator,
     empty_process,
+    get_tabular_agent,
+    get_tabular_schema,
     invoke_custom_state,
     lm_choose_route,
     my_planner,
     report_sources_process,
     stream_plan,
     stream_suggestion,
-    get_tabular_agent,
-    get_tabular_schema,
 )
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -625,7 +625,7 @@ def build_new_route_graph(
     multi_agent_tools: dict,
     debug: bool = False,
 ) -> CompiledGraph:
-    agents_max_tokens = AISettings().agents_max_tokens
+    agents_max_tokens = {agent.name: agent.agents_max_tokens for agent in AISettings().worker_agents}
     allow_plan_feedback = get_settings().allow_plan_feedback
 
     builder = StateGraph(RedboxState)

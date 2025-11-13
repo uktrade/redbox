@@ -17,11 +17,10 @@ from pytest_mock import MockerFixture
 
 from redbox import Redbox
 from redbox.models.chain import (
-    AgentTask,
+    configure_agent_task_plan,
     AISettings,
     Citation,
     DocumentState,
-    MultiAgentPlan,
     RedboxQuery,
     RedboxState,
     RequestMetadata,
@@ -59,15 +58,8 @@ OUTPUT_WITH_CITATIONS = AIMessage(
 
 NEW_ROUTE_NO_FEEDBACK = [OUTPUT_WITH_CITATIONS]  # only streaming tokens through evaluator
 
-TASK_SUMMARISE_AGENT = MultiAgentPlan(
-    tasks=[
-        AgentTask(
-            task="Task to be completed by the agent",
-            agent="Summarisation_Agent",
-            expected_output="What this agent should produce",
-        )
-    ]
-)
+summarise_agent_options = {"Summarisation_Agent": "Summarisation_Agent"}
+_, TASK_SUMMARISE_AGENT = configure_agent_task_plan(summarise_agent_options)
 
 
 class MockedAgent:
@@ -80,6 +72,9 @@ class MockedAgent:
 
 def mock_planner_agent(mocker, planner_output):
     mocked_agent = MockedAgent(planner_output)
+    print("my-planner_output")
+    print(planner_output)
+    print(type(planner_output))
     mocker.patch("redbox.graph.nodes.processes.create_planner", return_value=mocked_agent)
     return mocked_agent
 
@@ -364,7 +359,7 @@ async def test_streaming(test: RedboxChatTestCase, env: Settings, mocker: Mocker
     mocker.patch("redbox.app.build_govuk_search_tool", return_value=_search_govuk)
 
     if test_case.test_id == "Document too big for system-0":
-        mock_planner_agent(mocker, planner_output=TASK_SUMMARISE_AGENT)
+        mock_planner_agent(mocker, planner_output=TASK_SUMMARISE_AGENT())
 
     # Mock the LLM and relevant tools
     llm = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
@@ -576,16 +571,6 @@ TABULAR_TEST_CASES = [
     ]
     for test_case in generated_cases
 ]
-
-TASK_TABULAR_AGENT = MultiAgentPlan(
-    tasks=[
-        AgentTask(
-            task="Task to be completed by the agent",
-            agent="Tabular_Agent",
-            expected_output="What this agent should produce",
-        )
-    ]
-)
 
 
 @pytest.mark.parametrize(("test"), TABULAR_TEST_CASES, ids=[t.test_id for t in TABULAR_TEST_CASES])

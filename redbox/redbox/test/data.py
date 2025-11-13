@@ -16,7 +16,7 @@ from redbox.models.chain import RedboxQuery
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.file import ChunkResolution, UploadedFileMetadata
 from redbox.models.graph import RedboxActivityEvent
-from redbox.models.chain import MultiAgentPlan
+from redbox.models.chain import MultiAgentPlanBase
 
 log = logging.getLogger()
 
@@ -119,7 +119,7 @@ class RedboxTestData(BaseModel):
     number_of_docs: int
     tokens_in_all_docs: int
     chunk_resolution: ChunkResolution = ChunkResolution.largest
-    llm_responses: list[str | AIMessage | MultiAgentPlan] = Field(default_factory=list)
+    llm_responses: list[str | AIMessage | MultiAgentPlanBase] = Field(default_factory=list)
     expected_text: str | None = None
     expected_route: ChatRoute | ErrorRoute | None = None
     expected_activity_events: Callable[[list[RedboxActivityEvent]], bool] = Field(
