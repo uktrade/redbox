@@ -394,7 +394,7 @@ def create_planner(is_streamed=False):
     @RunnableLambda
     def _create_planner(state: RedboxState):
         planner_prompt = state.request.ai_settings.planner_prompt_with_format
-        #dynamically generate agent plan based on state 
+        # dynamically generate agent plan based on state
         agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
         _, ConfiguredAgentPlan = configure_agent_task_plan(agent_options)
         orchestration_agent = create_chain_agent(
@@ -432,7 +432,7 @@ def my_planner(
             # plan = state.agent_plans[-1].model_dump_json()
             user_input = state.user_feedback.replace("@newroute ", "")
             document_filenames = [doc.split("/")[1] if "/" in doc else doc for doc in state.request.s3_keys]
-            #dynamically generate agent plan based on state 
+            # dynamically generate agent plan based on state
             agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
             _, ConfiguredAgentPlan = configure_agent_task_plan(agent_options)
             orchestration_agent = create_chain_agent(
@@ -478,7 +478,7 @@ def my_planner(
 def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: bool = False, max_tokens: int = 5000):
     @RunnableLambda
     def _build_agent(state: RedboxState):
-        #dynamically generate agent task based on state 
+        # dynamically generate agent task based on state
         agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
         ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
         parser = ClaudeParser(pydantic_object=ConfiguredAgentTask)

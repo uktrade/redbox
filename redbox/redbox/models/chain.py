@@ -345,40 +345,36 @@ def metadata_reducer(
     )
 
 
-
 # Base class definition for agent task
 class AgentTaskBase(BaseModel):
     task: str = Field(description="Task to be completed by the agent", default="")
     expected_output: str = Field(description="What this agent should produce", default="")
 
+
 # Base class definition for multi agent plan
 class MultiAgentPlanBase(BaseModel):
     model_config = {"extra": "forbid"}
 
-def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskBase, MultiAgentPlanBase]:
 
+def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskBase, MultiAgentPlanBase]:
     AgentEnum = Enum("AgentEnum", agent_options)
-    
+
     default_agent = list(AgentEnum)[0] if agent_options else None
-    
+
     # create agent task pydantic model dynamically
     ConfiguredAgentTask = create_model(
-        'ConfiguredAgentTask',
+        "ConfiguredAgentTask",
         __base__=AgentTaskBase,
-        agent=(AgentEnum, Field(
-            description="Name of the agent to complete the task",
-            default=default_agent
-        ))
+        agent=(AgentEnum, Field(description="Name of the agent to complete the task", default=default_agent)),
     )
 
     # create agent plan pydantic model dynamically
     ConfiguredAgentPlan = create_model(
-        'ConfiguredAgentPlan',
-        __base__= MultiAgentPlanBase,
-        tasks=(List[ConfiguredAgentTask], Field(description="A list of tasks to be carried out by agents", default=[]
-        ))
+        "ConfiguredAgentPlan",
+        __base__=MultiAgentPlanBase,
+        tasks=(List[ConfiguredAgentTask], Field(description="A list of tasks to be carried out by agents", default=[])),
     )
-    
+
     return ConfiguredAgentTask, ConfiguredAgentPlan
 
 
