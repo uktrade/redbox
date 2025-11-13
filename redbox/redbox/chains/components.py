@@ -14,7 +14,7 @@ from langchain_core.tools import StructuredTool
 from redbox.chains.parser import StreamingJsonOutputParser, StreamingPlanner
 from redbox.models.chain import (
     AISettings,
-    MultiAgentPlan,
+    MultiAgentPlanBase,
     StructuredResponseWithCitations,
     StructuredResponseWithStepsTaken,
 )
@@ -195,7 +195,7 @@ def get_structured_response_with_citations_parser() -> tuple[Runnable, str]:
 def get_structured_response_with_planner_parser() -> tuple[Runnable, str]:
     parser = StreamingPlanner(
         name_of_streamed_field="tasks",
-        pydantic_schema_object=MultiAgentPlan,
+        pydantic_schema_object=MultiAgentPlanBase,
         sub_streamed_field="task",
         suffix_texts=[
             "\n\n" + item

@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from enum import Enum, StrEnum
 from functools import reduce
 from types import UnionType
-from typing import Annotated, List, Literal, NotRequired, Required, TypedDict, get_args, get_origin
+from typing import Annotated, List, Literal, NotRequired, Required, TypedDict, get_args, get_origin, Tuple, Dict
 from uuid import UUID, uuid4
 
 import environ
@@ -11,7 +11,7 @@ from langchain_core.documents import Document
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
 from langgraph.managed.is_last_step import RemainingStepsManager
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, create_model
 
 from redbox.models import prompts
 from redbox.models.chat import DecisionEnum, ToolEnum
@@ -345,21 +345,41 @@ def metadata_reducer(
     )
 
 
-agent_options = {agent.name: agent.name for agent in AISettings().worker_agents}
-AgentEnum = Enum("AgentEnum", agent_options)
 
-
-class AgentTask(BaseModel):
+# Base class definition for agent task
+class AgentTaskBase(BaseModel):
     task: str = Field(description="Task to be completed by the agent", default="")
-    agent: AgentEnum = Field(
-        description="Name of the agent to complete the task", default=AgentEnum.Internal_Retrieval_Agent
-    )
     expected_output: str = Field(description="What this agent should produce", default="")
 
-
-class MultiAgentPlan(BaseModel):
-    tasks: List[AgentTask] = Field(description="A list of tasks to be carried out by agents", default=[])
+# Base class definition for multi agent plan
+class MultiAgentPlanBase(BaseModel):
     model_config = {"extra": "forbid"}
+
+def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskBase, MultiAgentPlanBase]:
+
+    AgentEnum = Enum("AgentEnum", agent_options)
+    
+    default_agent = list(AgentEnum)[0] if agent_options else None
+    
+    # create agent task pydantic model dynamically
+    ConfiguredAgentTask = create_model(
+        'ConfiguredAgentTask',
+        __base__=AgentTaskBase,
+        agent=(AgentEnum, Field(
+            description="Name of the agent to complete the task",
+            default=default_agent
+        ))
+    )
+
+    # create agent plan pydantic model dynamically
+    ConfiguredAgentPlan = create_model(
+        'ConfiguredAgentPlan',
+        __base__= MultiAgentPlanBase,
+        tasks=(List[ConfiguredAgentTask], Field(description="A list of tasks to be carried out by agents", default=[]
+        ))
+    )
+    
+    return ConfiguredAgentTask, ConfiguredAgentPlan
 
 
 class RedboxState(BaseModel):
@@ -372,7 +392,7 @@ class RedboxState(BaseModel):
     steps_left: Annotated[int | None, RemainingStepsManager] = None
     messages: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     agents_results: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
-    agent_plans: MultiAgentPlan | None = None
+    agent_plans: MultiAgentPlanBase | None = None
     tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     tabular_schema: str = ""
 

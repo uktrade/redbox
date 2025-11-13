@@ -25,11 +25,11 @@ from redbox import Redbox
 from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
-    MultiAgentPlan,
     RedboxQuery,
     RedboxState,
     RequestMetadata,
     Source,
+    configure_agent_task_plan,
     get_plan_fix_prompts,
     metadata_reducer,
 )
@@ -151,7 +151,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         chat_backend = await ChatLLMBackend.objects.aget(id=data.get("llm", user_ai_settings.chat_backend_id))
         temperature = data.get("temperature", user_ai_settings.temperature)
 
-        session, previous_selected_files = await self._init_session(data, user, user_message_text, chat_backend, temperature)
+        session, previous_selected_files = await self._init_session(data, user, user_message_text, chat_backend,
+                                                                    temperature)
 
         # save user message
         permitted_files = (
@@ -187,7 +188,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.chat_message = await self.create_ai_message(session)
 
         await self.llm_conversation(
-            selected_files, session, user, user_message_text, permitted_files, previous_selected_files, selected_agent_names=selected_agent_names
+            selected_files, session, user, user_message_text, permitted_files,
+            previous_selected_files, selected_agent_names=selected_agent_names
         )
 
         if (self.final_state) and (self.final_state.agent_plans):
@@ -245,7 +247,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             if plan:
                 try:
-                    agent_plans = MultiAgentPlan.model_validate_json(plan[0])
+                    agent_options = {}
+                    _, ConfiguredAgentPlan = configure_agent_task_plan(agent_options)
+                    agent_plans = ConfiguredAgentPlan.model_validate_json(plan[0])
                     question = message_history[-4].text
                     user_feedback = message_history[-2].text
                     logger.debug("here is the plan: %s", plan[0])

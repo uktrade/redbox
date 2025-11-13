@@ -31,10 +31,9 @@ from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_me
 from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models import ChatRoute
 from redbox.models.chain import (
-    AgentTask,
+    configure_agent_task_plan,
     DocumentState,
     FeedbackEvalDecision,
-    MultiAgentPlan,
     PromptSet,
     RedboxState,
     RequestMetadata,
@@ -395,11 +394,14 @@ def create_planner(is_streamed=False):
     @RunnableLambda
     def _create_planner(state: RedboxState):
         planner_prompt = state.request.ai_settings.planner_prompt_with_format
+        #dynamically generate agent plan based on state 
+        agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
+        _, ConfiguredAgentPlan = configure_agent_task_plan(agent_options)
         orchestration_agent = create_chain_agent(
             system_prompt=planner_prompt,
             use_metadata=True,
             tools=None,
-            parser=ClaudeParser(pydantic_object=MultiAgentPlan),
+            parser=ClaudeParser(pydantic_object=ConfiguredAgentPlan),
             using_only_structure=False,
             using_chat_history=True,
             _additional_variables={"document_filenames": document_filenames},
@@ -430,11 +432,14 @@ def my_planner(
             # plan = state.agent_plans[-1].model_dump_json()
             user_input = state.user_feedback.replace("@newroute ", "")
             document_filenames = [doc.split("/")[1] if "/" in doc else doc for doc in state.request.s3_keys]
+            #dynamically generate agent plan based on state 
+            agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
+            _, ConfiguredAgentPlan = configure_agent_task_plan(agent_options)
             orchestration_agent = create_chain_agent(
                 system_prompt=plan_prompt,
                 use_metadata=True,
                 tools=None,
-                parser=ClaudeParser(pydantic_object=MultiAgentPlan),
+                parser=ClaudeParser(pydantic_object=ConfiguredAgentPlan),
                 using_only_structure=False,
                 _additional_variables={
                     "previous_plan": plan,
@@ -473,7 +478,10 @@ def my_planner(
 def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: bool = False, max_tokens: int = 5000):
     @RunnableLambda
     def _build_agent(state: RedboxState):
-        parser = ClaudeParser(pydantic_object=AgentTask)
+        #dynamically generate agent task based on state 
+        agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
+        ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
+        parser = ClaudeParser(pydantic_object=ConfiguredAgentTask)
         try:
             task = parser.parse(state.last_message.content)
         except Exception as e:
