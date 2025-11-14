@@ -1037,6 +1037,15 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
             return URL(self.url or self.file.url)
         return None
 
+    @cached_property
+    def internal_url(self) -> URL:
+        """returns the internal page url of the message citations anchored to the selected citation"""
+        chat_message = self.chat_message
+        chat = chat_message.chat
+        skill_slug = chat.skill.slug if chat.skill else None
+
+        return url_service.get_citation_url(chat_message.id, self.id, skill_slug, chat.id)
+
 
 class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
     class Role(models.TextChoices):

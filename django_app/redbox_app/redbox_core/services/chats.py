@@ -65,14 +65,12 @@ def get_context(request: HttpRequest, chat_id: uuid.UUID | None = None, skill_sl
                 message.text = message_service.replace_ref(
                     message_text=message.text,
                     ref_name=citation_name,
-                    message_id=message.id,
                     cit_id=cit_id,
                     footnote_counter=footnote_counter,
                 )
 
                 if message_service.citation_not_inserted(
                     message_text=message.text,
-                    message_id=message.id,
                     cit_id=cit_id,
                     footnote_counter=footnote_counter,
                 ):
@@ -83,21 +81,22 @@ def get_context(request: HttpRequest, chat_id: uuid.UUID | None = None, skill_sl
                 message.text = message_service.replace_text_in_answer(
                     message_text=message.text,
                     text_in_answer=text_in_answer,
-                    message_id=message.id,
                     cit_id=cit_id,
                     footnote_counter=footnote_counter,
                 )
                 footnote_counter = footnote_counter + 1
                 if message_service.citation_not_inserted(
                     message_text=message.text,
-                    message_id=message.id,
                     cit_id=cit_id,
                     footnote_counter=footnote_counter,
                 ):
                     logger.info("Citation Numbering Missed")
         message.text = message_service.remove_dangling_citation(message_text=message.text)
 
-    urls = {"chat_url": url_service.get_chat_url(chat_id, skill_slug)}
+    urls = {
+        "chat_url": url_service.get_chat_url(chat_id, skill_slug),
+        "new_chat_url": url_service.get_chat_url(None, skill_slug),
+    }
 
     return {
         "skill": skill,
