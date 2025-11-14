@@ -106,6 +106,7 @@ class AISettings(BaseModel):
         "Tabular_Agent",
         "Web_Search_Agent",
         "Legislation_Search_Agent",
+        "Submission_Checker_Agent",
     ]
     agents_max_tokens: dict = {
         "Internal_Retrieval_Agent": 10000,
@@ -114,6 +115,7 @@ class AISettings(BaseModel):
         "Tabular_Agent": 10000,
         "Web_Search_Agent": 10000,
         "Legislation_Search_Agent": 10000,
+        "Submission_Checker_Agent": 10000,
     }
 
 
@@ -245,6 +247,7 @@ class RedboxQuery(BaseModel):
         None  # Adding previous_s3_keys (which are the previous documents to the state request)
     )
     db_location: str | None = None  # Adding db_location to state request
+    knowledge_base_s3_keys: list[str] = Field(description="List of knowledge base files", default_factory=list)
 
 
 class LLMCallMetadata(BaseModel):
@@ -327,6 +330,7 @@ class MultiAgentPlan(BaseModel):
 
 
 class RedboxState(BaseModel):
+    knowledge_files: Annotated[DocumentState, document_reducer] = DocumentState()
     request: RedboxQuery
     user_feedback: str = ""
     documents: Annotated[DocumentState, document_reducer] = DocumentState()

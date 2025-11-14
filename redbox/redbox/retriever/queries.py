@@ -73,6 +73,27 @@ def get_all(
     }
 
 
+def get_knowledge_base(
+    chunk_resolution: ChunkResolution | None,
+    state: RedboxState,
+) -> dict[str, Any]:
+    """
+    Returns a parameterised elastic query that will return everything it matches.
+
+    Query against knowledge base
+    """
+    query_filter = build_query_filter(
+        selected_files=state.request.knowledge_base_s3_keys,
+        permitted_files=state.request.knowledge_base_s3_keys,
+        chunk_resolution=chunk_resolution,
+    )
+
+    return {
+        "_source": {"excludes": ["vector_field"]},
+        "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
+    }
+
+
 def get_metadata(
     chunk_resolution: ChunkResolution | None,
     state: RedboxState,
