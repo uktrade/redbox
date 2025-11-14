@@ -166,6 +166,10 @@ services:
       - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
     networks:
       - redbox-app-network
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    restart: unless-stopped
 
 networks:
   redbox-app-network:
