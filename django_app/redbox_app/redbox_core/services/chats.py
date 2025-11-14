@@ -16,6 +16,7 @@ from redbox_app.redbox_core import flags
 from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, Skill
 from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.services import message as message_service
+from redbox_app.redbox_core.services import url as url_service
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,8 @@ def get_context(request: HttpRequest, chat_id: uuid.UUID | None = None, skill_sl
                     logger.info("Citation Numbering Missed")
         message.text = message_service.remove_dangling_citation(message_text=message.text)
 
+    urls = {"chat_url": url_service.get_chat_url(chat_id, skill_slug)}
+
     return {
         "skill": skill,
         "chat_id": chat_id,
@@ -117,6 +120,7 @@ def get_context(request: HttpRequest, chat_id: uuid.UUID | None = None, skill_sl
         "redbox_api_key": settings.REDBOX_API_KEY,
         "enable_dictation_flag_is_active": flag_is_active(request, flags.ENABLE_DICTATION),
         **file_context,
+        "urls": urls,
     }
 
 
@@ -128,8 +132,10 @@ def render_chats(request: HttpRequest, context: dict) -> HttpResponse:
     )
 
 
-def render_recent_chats(request: HttpRequest, active_chat_id: uuid.UUID | None = None) -> TemplateResponse:
-    context = get_context(request, active_chat_id)
+def render_recent_chats(
+    request: HttpRequest, active_chat_id: uuid.UUID | None = None, skill_slug: str | None = None
+) -> TemplateResponse:
+    context = get_context(request, active_chat_id, skill_slug)
 
     return TemplateResponse(
         request,
@@ -138,8 +144,10 @@ def render_recent_chats(request: HttpRequest, active_chat_id: uuid.UUID | None =
     )
 
 
-def render_chat_window(request: HttpRequest, active_chat_id: uuid.UUID | None = None) -> TemplateResponse:
-    context = get_context(request, active_chat_id)
+def render_chat_window(
+    request: HttpRequest, active_chat_id: uuid.UUID | None = None, skill_slug: str | None = None
+) -> TemplateResponse:
+    context = get_context(request, active_chat_id, skill_slug)
 
     return TemplateResponse(
         request,

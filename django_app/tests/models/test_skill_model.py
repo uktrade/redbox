@@ -86,7 +86,7 @@ def test_get_info_page_url(client: Client, alice: User, default_skill: Skill):
     client.force_login(alice)
 
     # When
-    url = default_skill.get_info_page_url()
+    url = default_skill.info_page_url
 
     # Then
     assert url == f"/skills/{default_skill.slug}/"
