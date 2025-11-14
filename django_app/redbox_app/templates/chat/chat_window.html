@@ -2,7 +2,7 @@
 {% from "macros/govuk-button.html" import govukButton %}
 {% from "macros/govuk-warning.html" import govuk_warning %}
 
-<div id="chat-window" name="swapped" class="govuk-grid-column-three-quarters" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+<div id="chat-window" name="swapped" class="govuk-grid-column-three-quarters rbds-chat-window rbds-flex-column" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
     {% if skill %}
         {% include "skills/skill-banner.html" %}
     {% endif %}
