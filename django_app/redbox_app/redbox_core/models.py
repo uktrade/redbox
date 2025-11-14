@@ -28,6 +28,7 @@ from slugify import slugify
 from yarl import URL
 
 from redbox.models.settings import get_settings
+from redbox_app.redbox_core.services import url as url_service
 from redbox_app.redbox_core.utils import get_date_group
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
@@ -114,8 +115,13 @@ class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
         """Check to see if an info page has been created for skill"""
         return self.info_template is not None
 
-    def get_info_page_url(self):
+    @cached_property
+    def info_page_url(self):
         return reverse("skill-info", kwargs={"skill_slug": self.slug})
+
+    @cached_property
+    def chat_url(self) -> str:
+        return url_service.get_chat_url(skill_slug=self.slug)
 
     def get_files(self, file_type: Optional["FileSkill.FileType"] = None) -> Sequence["File"]:
         file_type = file_type or FileSkill.FileType.MEMBER
@@ -937,6 +943,14 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
     @property
     def date_group(self):
         return get_date_group(self.newest_message_date)
+
+    @cached_property
+    def url(self) -> str | None:
+        """Returns the url for this chat."""
+        return url_service.get_chat_url(
+            chat_id=self.id,
+            skill_slug=self.skill.slug if self.skill else None,
+        )
 
 
 class Citation(UUIDPrimaryKeyBase, TimeStampedModel):

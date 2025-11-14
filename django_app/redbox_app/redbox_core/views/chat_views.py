@@ -101,11 +101,15 @@ class DeleteChat(View):
 
 class RecentChats(View):
     @method_decorator(login_required)
-    def get(self, request: HttpRequest, active_chat_id: uuid.UUID | None = None) -> HttpResponse:
-        return chat_service.render_recent_chats(request, active_chat_id)
+    def get(
+        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, skill_slug: str | None = None
+    ) -> HttpResponse:
+        return chat_service.render_recent_chats(request, active_chat_id, skill_slug)
 
 
 class ChatWindow(View):
     @method_decorator(login_required)
-    def get(self, request: HttpRequest, active_chat_id: uuid.UUID) -> HttpResponse:
-        return chat_service.render_chat_window(request, active_chat_id)
+    def get(
+        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, skill_slug: str | None = None
+    ) -> HttpResponse:
+        return chat_service.render_chat_window(request, active_chat_id, skill_slug)

@@ -3,10 +3,10 @@
         <h3 class="govuk-heading-s govuk-!-margin-top-5">{{ skill.name }}</h3>
         <p class="govuk-body-s">{{ skill.description }}</p>
 
-        <div class="cta-navigation push-bottom">
+        <div class="cta-navigation rbds-push-bottom">
             {% if skill.has_info_page %}
                 <p class="govuk-body-s">
-                    <a href="{{ skill.get_info_page_url() }}"
+                    <a href="{{ skill.info_page_url }}"
                         class="govuk-link">
                         Learn more here
                     </a>
@@ -15,7 +15,7 @@
 
             {{ govukButton(
                 text = "Use Skill",
-                href=url('skill-chats', skill.slug),
+                href=skill.chat_url,
                 classes="rbds-w-fit govuk-!-margin-bottom-0"
             ) }}
         </div>

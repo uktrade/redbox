@@ -22,6 +22,22 @@
 <div class="govuk-width-container rbds-width-container">
     <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">Available skills</h2>
     <div class="govuk-grid-row rbds-card-grid govuk-!-margin-bottom-7">
+
+        <div class="govuk-grid-column-one-third govuk-!-padding-3 rbds-flex-column rbds-card">
+            <h3 class="govuk-heading-s govuk-!-margin-top-5">Redbox default</h3>
+            <p class="govuk-body-s">
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt
+                ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco
+                laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in
+                voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+            </p>
+            {{ govukButton(
+                text = "Use Redbox default",
+                href=url('chats'),
+                classes="rbds-push-bottom rbds-w-fit govuk-!-margin-bottom-0"
+            ) }}
+        </div>
+
         {% for skill in skills %}
             {% include "skills/skill-card.html" %}
         {% endfor %}

@@ -186,7 +186,7 @@ def remove_all_docs_view(request):
 
 @require_http_methods(["POST"])
 @login_required
-def delete_document(request, doc_id: uuid.UUID):
+def delete_document(request, doc_id: uuid.UUID, skill_slug: str | None = None):
     try:
         doc_uuid = uuid.UUID(str(doc_id))
     except ValueError:
@@ -238,13 +238,15 @@ def delete_document(request, doc_id: uuid.UUID):
             ]
         )
 
-    return documents_service.render_your_documents(request, active_chat_id)
+    return documents_service.render_your_documents(request, active_chat_id, skill_slug)
 
 
 class YourDocuments(View):
     @method_decorator(login_required)
-    def get(self, request: HttpRequest, active_chat_id: uuid.UUID | None = None) -> HttpResponse:
-        return documents_service.render_your_documents(request, active_chat_id)
+    def get(
+        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, skill_slug: str | None = None
+    ) -> HttpResponse:
+        return documents_service.render_your_documents(request, active_chat_id, skill_slug)
 
 
 class DocumentsTitleView(View):
