@@ -106,7 +106,11 @@ skills_urlpatterns = [
     path(
         f"{skills_route_prefix}chats/<uuid:active_chat_id>/chat-window/", views.ChatWindow.as_view(), name="chat-window"
     ),
-    path(f"{skills_route_prefix}citations/<uuid:message_id>/", views.CitationsView.as_view(), name="citations"),
+    path(
+        f"{skills_route_prefix}chats/<uuid:chat_id>/citations/<uuid:message_id>/",
+        views.CitationsView.as_view(),
+        name="citations",
+    ),
 ]
 
 admin_urlpatterns = [
