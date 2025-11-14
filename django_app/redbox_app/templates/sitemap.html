@@ -38,7 +38,7 @@
                 <ul class="govuk-list">
                     <li><a class="govuk-link" href="{{ url('chats') }}">New chat</a></li>
                     {% for chat in chat_history %}
-                        <li><a class="govuk-link" href="{{ url('chats', chat.id) }}">Existing chat: {{ chat.name }}</a></li>
+                        <li><a class="govuk-link" href="{{ chat.url) }}">Existing chat: {{ chat.name }}</a></li>
                     {% endfor %}
                 </ul>
             {% else %}

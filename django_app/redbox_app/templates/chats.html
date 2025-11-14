@@ -16,7 +16,7 @@
     <div class="govuk-grid-column-one-quarter rbds-side-panel">
       <div class="rb-left-column-container">
         <a role="button"
-          href="{% if skill %}{{ url('skill-chats', skill.slug) }}{% else %}{{ url('chats') }}{% endif %}"
+          href="{{ urls.chat_url }}"
           id="new-chat-button"
           class="govuk-heading-s side-panel-heading side-panel-heading-button govuk-!-margin-bottom-4 govuk-!-margin-top-4">
           New chat
