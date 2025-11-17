@@ -3,7 +3,8 @@ import logging
 import random
 import sqlite3
 import time
-from typing import Annotated, Callable, Iterable, Union
+from collections.abc import Callable, Iterable
+from typing import Annotated
 
 import boto3
 import numpy as np
@@ -33,7 +34,7 @@ log = logging.getLogger(__name__)
 
 
 def build_search_documents_tool(
-    es_client: Union[Elasticsearch, OpenSearch],
+    es_client: Elasticsearch | OpenSearch,
     index_name: str,
     embedding_model: Embeddings,
     embedding_field_name: str,
@@ -202,13 +203,11 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
         """
         response = _wikipedia_wrapper.load(query)
         if not response:
-            print("No Wikipedia response found.")
             return "", []
 
         mapped_documents = []
         for i, doc in enumerate(response):
             token_count = tokeniser(doc.page_content)
-            print(f"Document {i} token count: {token_count}")
 
             mapped_documents.append(
                 Document(
@@ -287,9 +286,8 @@ def filter_results(results, filters):
             elif isinstance(record_value, bool):
                 if str(record_value).lower() != str(value).lower():
                     return False
-            else:
-                if value != record_value:
-                    return False
+            elif value != record_value:
+                return False
         return True
 
     return [r for r in results if matches(r)]
@@ -308,7 +306,8 @@ def build_search_data_hub_api_tool() -> tool:
         access_key_id = settings.datahub_redbox_access_key_id
 
         if not base_url or not secret_key or not access_key_id:
-            raise ValueError("Data Hub API credentials missing.")
+            msg = "Data Hub API credentials missing."
+            raise ValueError(msg)
 
         credentials = {
             "id": access_key_id,
@@ -323,8 +322,6 @@ def build_search_data_hub_api_tool() -> tool:
 
         if not results or "results" not in results:
             return "No data available for the query.", []
-
-        print(f"Parsed filters: {filters}")
 
         matches = filter_results(results["results"], filters)
 
@@ -359,7 +356,7 @@ class BaseRetrievalToolLogFormatter:
     def log_result(self, documents: Iterable[Document]):
         if len(documents) == 0:
             return f"{self.tool_call['name']} returned no documents"
-        return f"Reading {documents[1].get('creator_type')} document{'s' if len(documents) > 1 else ''} {','.join(set([d.metadata['uri'].split('/')[-1] for d in documents]))}"
+        return f"Reading {documents[1].get('creator_type')} document{'s' if len(documents) > 1 else ''} {','.join({d.metadata['uri'].split('/')[-1] for d in documents})}"
 
 
 class SearchWikipediaLogFormatter(BaseRetrievalToolLogFormatter):
@@ -367,7 +364,7 @@ class SearchWikipediaLogFormatter(BaseRetrievalToolLogFormatter):
         return f"Searching Wikipedia for '{self.tool_call['args']['query']}'"
 
     def log_result(self, documents: Iterable[Document]):
-        return f"Reading Wikipedia page{'s' if len(documents) > 1 else ''} {','.join(set([d.metadata['uri'].split('/')[-1] for d in documents]))}"
+        return f"Reading Wikipedia page{'s' if len(documents) > 1 else ''} {','.join({d.metadata['uri'].split('/')[-1] for d in documents})}"
 
 
 class SearchDocumentsLogFormatter(BaseRetrievalToolLogFormatter):
@@ -375,7 +372,7 @@ class SearchDocumentsLogFormatter(BaseRetrievalToolLogFormatter):
         return f"Searching your documents for '{self.tool_call['args']['query']}'"
 
     def log_result(self, documents: Iterable[Document]):
-        return f"Reading {len(documents)} snippets from your documents {','.join(set([d.metadata.get('name', '') for d in documents]))}"
+        return f"Reading {len(documents)} snippets from your documents {','.join({d.metadata.get('name', '') for d in documents})}"
 
 
 class SearchGovUKLogFormatter(BaseRetrievalToolLogFormatter):
@@ -383,7 +380,7 @@ class SearchGovUKLogFormatter(BaseRetrievalToolLogFormatter):
         return f"Searching .gov.uk pages for '{self.tool_call['args']['query']}'"
 
     def log_result(self, documents: Iterable[Document]):
-        return f"Reading pages from .gov.uk, {','.join(set([d.metadata['uri'].split('/')[-1] for d in documents]))}"
+        return f"Reading pages from .gov.uk, {','.join({d.metadata['uri'].split('/')[-1] for d in documents})}"
 
 
 @waffle_flag("DATA_HUB_API_ROUTE_ON")
@@ -394,7 +391,7 @@ class SearchDataHubLogFormatter(BaseRetrievalToolLogFormatter):
     def log_result(self, documents: Iterable[Document]):
         if len(documents) == 0:
             return f"{self.tool_call['name']} returned no documents"
-        return f"Reading Data Hub dataset document{'s' if len(documents) > 1 else ''} {','.join(set([d.metadata['uri'].split('/')[-1] for d in documents]))}"
+        return f"Reading Data Hub dataset document{'s' if len(documents) > 1 else ''} {','.join({d.metadata['uri'].split('/')[-1] for d in documents})}"
 
 
 __RETRIEVEAL_TOOL_MESSAGE_FORMATTERS = {
@@ -443,6 +440,7 @@ def web_search_with_retry(
                 time.sleep(delay)
         else:
             return response
+    return None
 
 
 def kagi_response_to_documents(
@@ -470,7 +468,6 @@ def map_documents(
 ) -> list[Document]:
     page_content = "".join(doc.get(content_column, []))
     token_count = tokeniser(page_content)
-    print(f"Document {index} token count: {token_count}")
     mapped_documents.append(
         Document(
             page_content=page_content,
@@ -505,6 +502,7 @@ def web_search_call(query: str, no_search_result: int = 20, country_code: str = 
         else:
             log.exception(f"Web search api call failed. Status: {response.status_code}")
             return "", []
+    return None
 
 
 def build_web_search_tool():

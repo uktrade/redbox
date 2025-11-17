@@ -395,7 +395,7 @@ def test_empty_process():
         request=RedboxQuery(
             question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
         ),
-        documents=structure_documents_by_file_name([doc for doc in generate_docs(s3_key="s3_key")]),
+        documents=structure_documents_by_file_name(list(generate_docs(s3_key="s3_key"))),
         messages=[HumanMessage(content="Foo")],
         route_name=ChatRoute.chat_with_docs_map_reduce,
     )
@@ -417,7 +417,7 @@ CLEAR_DOC_TEST_CASES = [
         request=RedboxQuery(
             question="What is AI?", file_uuids=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
         ),
-        documents=structure_documents_by_file_name([doc for doc in generate_docs(s3_key="s3_key")]),
+        documents=structure_documents_by_file_name(list(generate_docs(s3_key="s3_key"))),
         messages=[HumanMessage(content="Foo")],
         route_name=ChatRoute.chat_with_docs_map_reduce,
     ),
@@ -494,7 +494,7 @@ LLM_ROUTE_TEST_CASE = generate_test_cases(
 
 
 @pytest.mark.parametrize(
-    "test_case, basic_metadata",
+    ("test_case", "basic_metadata"),
     [
         (LLM_ROUTE_TEST_CASE[0], mock_basic_metadata_retriever),
     ],

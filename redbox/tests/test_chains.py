@@ -1,13 +1,13 @@
-from typing import Any, Dict, List
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 from langchain_core.messages import AIMessage, BaseMessageChunk
 from langchain_core.outputs import Generation
+from langchain_core.runnables import RunnableLambda
 from pydantic import BaseModel
 
 from redbox.chains.parser import ClaudeParser, StreamingJsonOutputParser, StreamingPlanner
-from langchain_core.runnables import RunnableLambda
 from redbox.chains.runnables import prompt_budget_calculation, truncate_chat_history
 from redbox.models.errors import QuestionLengthError
 from redbox.transform import bedrock_tokeniser
@@ -15,15 +15,15 @@ from redbox.transform import bedrock_tokeniser
 
 class TestResponseModel(BaseModel):
     answer: str
-    citations: List[Dict[str, Any]] = {}
+    citations: list[dict[str, Any]] = {}
 
 
 class TestPlannerModel(BaseModel):
-    steps: List[Dict[str, str]]
+    steps: list[dict[str, str]]
 
 
 # Helper functions for tests
-def create_generation(text: str) -> List[Generation]:
+def create_generation(text: str) -> list[Generation]:
     return [Generation(text=text)]
 
 
@@ -61,7 +61,7 @@ class TestClaudeParser:
 
     def test_parse_result_with_correction(self):
         class ListModel(BaseModel):
-            items: List[str] = []
+            items: list[str] = []
 
         parser = ClaudeParser(pydantic_object=ListModel)
         result = create_generation('["item1", "item2"]')
@@ -79,8 +79,6 @@ class TestClaudeParser:
     def test_parse_method(self):
         parser = ClaudeParser(pydantic_object=TestResponseModel)
         parsed = parser.parse('{"answer": "test answer", "citations": []}')
-        print("very obvious")
-        print(parsed)
         assert isinstance(parsed, TestResponseModel)
         assert parsed.answer == "test answer"
 
@@ -163,7 +161,7 @@ class TestStreamingJsonOutputParser:
         assert parsed is None
 
 
-@pytest.mark.parametrize("exceeding_budget, prompts_budget", [(True, 1000000), (False, 1000)])
+@pytest.mark.parametrize(("exceeding_budget", "prompts_budget"), [(True, 1000000), (False, 1000)])
 def test_prompt_budget_calculation(fake_state, exceeding_budget, prompts_budget):
     if not exceeding_budget:
         response = prompt_budget_calculation(state=fake_state, prompts_budget=prompts_budget)

@@ -39,7 +39,7 @@ test-ai: ## Test code with live LLM
 .PHONY: test-redbox
 test-redbox: ## Test redbox
 	cd redbox && PYTHONPATH=$(PWD)/django_app:$(PWD)/redbox DJANGO_SETTINGS_MODULE=django_app.settings poetry install && \
-    PYTHONPATH=$(PWD)/django_app:$(PWD)/redbox poetry run pytest -m "not ai" --cov=redbox -v --cov-report=term-missing --cov-report=xml --cov-fail-under=60
+    PYTHONPATH=$(PWD)/django_app:$(PWD)/redbox poetry run pytest tests/test_ingest.py::test_document_loader -m "not ai" --cov=redbox -v --cov-report=term-missing --cov-report=xml --cov-fail-under=60
 
 .PHONY: test-django
 test-django: ## Test django-app

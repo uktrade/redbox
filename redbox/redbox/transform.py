@@ -1,6 +1,6 @@
 import itertools
 import re
-from typing import Iterable
+from collections.abc import Iterable
 from uuid import NAMESPACE_DNS, UUID, uuid5
 
 from langchain_core.callbacks.manager import dispatch_custom_event
@@ -88,7 +88,8 @@ def create_group_uuid(file_name: str, indices: list[int]) -> UUID:
 def create_group_uuid_for_group(documents: list[Document]) -> UUID:
     """create a uuid for a DocumentGroup"""
     if not documents:
-        raise ValueError("at least one document is required")
+        msg = "at least one document is required"
+        raise ValueError(msg)
 
     file_name = documents[0].metadata["uri"]
     group_indices = [d.metadata["index"] for d in documents]
@@ -130,9 +131,7 @@ def group_and_sort_documents(group: list[Document]) -> list[list[Document]]:
     consecutive_blocks.append(temp_block)
 
     # Sort each block by index
-    sorted_blocks = [sorted(block, key=lambda d: d.metadata["index"]) for block in consecutive_blocks]
-
-    return sorted_blocks
+    return [sorted(block, key=lambda d: d.metadata["index"]) for block in consecutive_blocks]
 
 
 def structure_documents_by_group_and_indices(docs: list[Document]) -> DocumentState:
@@ -214,13 +213,12 @@ def get_all_metadata(obj: dict):
         text = text_and_tools["raw_response"].content
         citations = []
 
-    out = {
+    return {
         "messages": [AIMessage(content=text, tool_calls=text_and_tools["raw_response"].tool_calls)],
         "metadata": to_request_metadata(obj),
         "citations": citations,
         "final_chain": obj["final_chain"],
     }
-    return out
 
 
 def merge_documents(initial: list[Document], adjacent: list[Document]) -> list[Document]:
@@ -231,7 +229,7 @@ def merge_documents(initial: list[Document], adjacent: list[Document]) -> list[D
     # Keep initial scores
     merged_dict = to_document_mapping(adjacent) | to_document_mapping(initial)
 
-    return sorted(list(merged_dict.values()), key=lambda d: -d.metadata["score"])[: len(initial)]
+    return sorted(merged_dict.values(), key=lambda d: -d.metadata["score"])[: len(initial)]
 
 
 def sort_documents(documents: list[Document]) -> list[Document]:
@@ -283,7 +281,4 @@ def combine_agents_state(agents_results: list[AnyMessage]):
     """Combine a list of agent results into a string."""
     if not agents_results:
         return []
-    print("agents_results")
-    print(agents_results)
-    flatten_agent_results = "\n\n".join([msg.content for msg in agents_results])
-    return flatten_agent_results
+    return "\n\n".join([msg.content for msg in agents_results])

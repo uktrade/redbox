@@ -1,20 +1,21 @@
-import logging
-import time
 import json
+import logging
+import math
+import time
+import time as _time
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from io import BytesIO
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING
 
 import environ
 import fitz
+import pandas as pd
 import requests
-from requests.exceptions import RequestException
-
 from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
 from pydantic import ValidationError
-from redbox_app.setting_enums import Environment
+from requests.exceptions import RequestException
 
 from redbox.chains.components import get_chat_llm
 from redbox.chains.parser import ClaudeParser
@@ -22,9 +23,7 @@ from redbox.models.chain import GeneratedMetadata
 from redbox.models.file import ChunkResolution, UploadedFileMetadata
 from redbox.models.settings import Settings
 from redbox.transform import bedrock_tokeniser
-import pandas as pd
-import math
-import time as _time
+from redbox_app.setting_enums import Environment
 
 env = environ.Env()
 ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
@@ -40,7 +39,7 @@ else:
     S3Client = object
 
 
-def is_large_pdf(file_name: str, filebytes: BytesIO, page_threshold: int = 150) -> Tuple[bool, int]:
+def is_large_pdf(file_name: str, filebytes: BytesIO, page_threshold: int = 150) -> tuple[bool, int]:
     if not file_name.lower().endswith(".pdf"):
         return False, 0
     try:
@@ -52,9 +51,9 @@ def is_large_pdf(file_name: str, filebytes: BytesIO, page_threshold: int = 150) 
         return False, 0
 
 
-def split_pdf(filebytes: BytesIO, pages_per_chunk: int = 75) -> List[BytesIO]:
+def split_pdf(filebytes: BytesIO, pages_per_chunk: int = 75) -> list[BytesIO]:
     doc = fitz.open(stream=filebytes.getvalue(), filetype="pdf")
-    chunks: List[BytesIO] = []
+    chunks: list[BytesIO] = []
     total_pages = len(doc)
     if total_pages == 0:
         return chunks
@@ -95,7 +94,8 @@ def read_csv_text(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
         df = pd.read_csv(file_bytes)
         if df.empty:
             logger.error("Empty File Uploaded")
-            raise ValidationError("Empty File Uploaded")
+            msg = "Empty File Uploaded"
+            raise ValidationError(msg)
         return [
             {
                 "text": str(df.to_csv(index=False)),  # Convert bytes to string
@@ -105,7 +105,7 @@ def read_csv_text(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
     except Exception as e:
         if isinstance(e, ValidationError):
             raise
-        logger.error(f"Error while trying to upload csv file {e}")
+        logger.exception(f"Error while trying to upload csv file {e}")
         return None
 
 
@@ -126,9 +126,9 @@ def read_excel_file(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
             except Exception as e:
                 logger.info(f"Skipping Sheet {name} due to error: {e}")
                 continue
-        return elements if len(elements) else None
+        return elements if elements else None
     except Exception as e:
-        logger.error(f"Excel Read Error: {e}")
+        logger.exception(f"Excel Read Error: {e}")
         return None
 
 
@@ -176,7 +176,7 @@ class UnstructuredChunkLoader:
         self.max_retries = max_retries
         self.pages_per_pdf_chunk = pages_per_pdf_chunk
 
-    def _get_chunks(self, file_name: str, file_bytes: BytesIO) -> List[dict]:
+    def _get_chunks(self, file_name: str, file_bytes: BytesIO) -> list[dict]:
         """Helper method to perform chunking via the unstructured API with robust fallback behaviour."""
         if ENVIRONMENT.is_local:
             url = f"http://{self.env.unstructured_host}:8000/general/v0/general"
@@ -190,7 +190,7 @@ class UnstructuredChunkLoader:
             logger.info(
                 "Large PDF with (%d pages) - splitting into chunks with %d pages", page_count, self.pages_per_pdf_chunk
             )
-            elements: List[dict] = []
+            elements: list[dict] = []
             pdf_chunks = split_pdf(filebytes=file_bytes, pages_per_chunk=self.pages_per_pdf_chunk)
             for idx, chunk in enumerate(pdf_chunks):
                 chunk.seek(0)
@@ -221,11 +221,12 @@ class UnstructuredChunkLoader:
         files = {"files": (file_name, file_bytes)}
         elements = self._post_files_with_fallback(url=url, files=files, file_name=file_name, file_bytes=file_bytes)
         if not elements:
-            raise ValueError("Unstructured failed to extract text for this file")
+            msg = "Unstructured failed to extract text for this file"
+            raise ValueError(msg)
         logger.debug("Unstructured returned %d elements", len(elements))
         return elements
 
-    def _post_files_with_fallback(self, url: str, files: dict, file_name: str, file_bytes: BytesIO) -> List[dict]:
+    def _post_files_with_fallback(self, url: str, files: dict, file_name: str, file_bytes: BytesIO) -> list[dict]:
         try:
             file_bytes.seek(0)
         except Exception as e:
@@ -290,11 +291,13 @@ class UnstructuredChunkLoader:
                             try:
                                 elements = json.loads(resp.text)
                             except Exception as fallback_exc:
-                                raise ValueError("Failed to parse Unstructured JSON response") from fallback_exc
+                                msg = "Failed to parse Unstructured JSON response"
+                                raise ValueError(msg) from fallback_exc
 
                         if not isinstance(elements, list):
                             logger.warning("Unstructured responded with unexpected payload type - %s", type(elements))
-                            raise ValueError("Unexpected payload from Unstructured")
+                            msg = "Unexpected payload from Unstructured"
+                            raise ValueError(msg)
                         return elements
 
                     detail_msg = ""

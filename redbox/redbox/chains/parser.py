@@ -5,8 +5,8 @@ import json
 import logging
 import random
 import re
-from collections.abc import AsyncIterator
-from typing import Any, Iterator, List, Optional, Type, Union
+from collections.abc import AsyncIterator, Iterator
+from typing import Any
 
 import jsonpatch  # type: ignore[import]
 import pydantic  # pydantic: ignore
@@ -35,14 +35,14 @@ class ClaudeParser(BaseCumulativeTransformOutputParser[Any]):
     describing the difference between the previous and the current object.
     """
 
-    pydantic_object: Optional[Type] = None  # type: ignore
+    pydantic_object: type | None = None  # type: ignore
     """The Pydantic object to use for validation.
     If None, no validation is performed."""
 
-    def _diff(self, prev: Optional[Any], next: Any) -> Any:
+    def _diff(self, prev: Any | None, next: Any) -> Any:
         return jsonpatch.make_patch(prev, next).patch
 
-    def _get_schema(self, pydantic_object: Type) -> dict[str, Any]:
+    def _get_schema(self, pydantic_object: type) -> dict[str, Any]:
         if PYDANTIC_MAJOR_VERSION == 2:
             if issubclass(pydantic_object, pydantic.BaseModel):
                 return pydantic_object.model_json_schema()
@@ -62,7 +62,7 @@ class ClaudeParser(BaseCumulativeTransformOutputParser[Any]):
         else:
             return text
 
-    def parse_result(self, result: List[Generation], *, partial: bool = False) -> Any:
+    def parse_result(self, result: list[Generation], *, partial: bool = False) -> Any:
         """Parse the result of an LLM call to a pydantic object.
 
         Args:
@@ -91,7 +91,6 @@ class ClaudeParser(BaseCumulativeTransformOutputParser[Any]):
                 return self.pydantic_object.model_validate(parse_json_markdown(text_json))
             except ValidationError as e:
                 if partial:
-                    print(e)
                     return None
                 else:
                     msg = f"Invalid json output: {text}"
@@ -107,12 +106,9 @@ class ClaudeParser(BaseCumulativeTransformOutputParser[Any]):
             if not match:
                 return text
 
-            json_str = match.group(1)
+            return match.group(1)
 
-            return json_str
-
-        except Exception as e:
-            print(f"Error processing JSON: {e}")
+        except Exception:
             return text
 
     def parse(self, text: str) -> Any:
@@ -127,8 +123,7 @@ class ClaudeParser(BaseCumulativeTransformOutputParser[Any]):
         try:
             return self.parse_result([Generation(text=text)])
 
-        except Exception as e:
-            print(e)
+        except Exception:
             return None
 
     def get_format_instructions(self) -> str:
@@ -141,7 +136,7 @@ class ClaudeParser(BaseCumulativeTransformOutputParser[Any]):
             return "Return a JSON object."
         else:
             # Copy schema to avoid altering original Pydantic schema.
-            schema = {k: v for k, v in self._get_schema(self.pydantic_object).items()}
+            schema = dict(self._get_schema(self.pydantic_object).items())
 
             # Remove extraneous fields.
             reduced_schema = schema
@@ -180,32 +175,27 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
             if not match:
                 return text
 
-            json_str = match.group(1)
+            return match.group(1)
 
-            return json_str
-
-        except Exception as e:
-            print(f"Error processing JSON: {e}")
+        except Exception:
             return text
 
     def answer_str_to_json(self, text: str):
-        text_json = json.dumps({"answer": text, "citations": []})
-        return text_json
+        return json.dumps({"answer": text, "citations": []})
 
     def parse_partial_json(self, text: str):
         try:
             json_text = self.extract_json(text)
             return parse_json_markdown(json_text)
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError:
             if ": None" in json_text:
                 json_text = json_text.replace(": None", ": null")
                 return parse_json_markdown(json_text)
             else:
-                print(e)
                 return None
 
-    def _to_generation_chunk(self, chunk: Union[str, BaseMessage]):
-        chunk_gen: Union[GenerationChunk, ChatGenerationChunk]
+    def _to_generation_chunk(self, chunk: str | BaseMessage):
+        chunk_gen: GenerationChunk | ChatGenerationChunk
         if isinstance(chunk, BaseMessageChunk):
             chunk_gen = ChatGenerationChunk(message=chunk)
         elif isinstance(chunk, BaseMessage):
@@ -214,8 +204,8 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
             chunk_gen = GenerationChunk(text=chunk)
         return chunk_gen
 
-    def _transform(self, input: Iterator[Union[str, BaseMessage]]) -> Iterator[Any]:
-        acc_gen: Union[GenerationChunk, ChatGenerationChunk, None] = None
+    def _transform(self, input: Iterator[str | BaseMessage]) -> Iterator[Any]:
+        acc_gen: GenerationChunk | ChatGenerationChunk | None = None
         field_length_at_last_run: int = 0
         parsed = None
         is_parsed = False
@@ -225,11 +215,10 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
             if parsed := self.parse_partial_json(acc_gen.text):
                 is_parsed = True
                 field_content = parsed.get(self.name_of_streamed_field)
-                if field_content:
-                    if new_tokens := field_content[field_length_at_last_run:]:
-                        dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
-                        field_length_at_last_run = len(field_content)
-                        yield self.pydantic_schema_object.model_validate(parsed)
+                if field_content and (new_tokens := field_content[field_length_at_last_run:]):
+                    dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
+                    field_length_at_last_run = len(field_content)
+                    yield self.pydantic_schema_object.model_validate(parsed)
         if not is_parsed:  # if no tokens were parsed, parse last chunk
             match = re.search(r"(\{)", acc_gen.text, re.DOTALL)
             if not match:  # stream only when text does not contain json brackets to ensure quality of output
@@ -243,8 +232,8 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
         if parsed:
             yield self.pydantic_schema_object.model_validate(parsed)
 
-    async def _atransform(self, input: AsyncIterator[Union[str, BaseMessage]]) -> AsyncIterator[Any]:
-        acc_gen: Union[GenerationChunk, ChatGenerationChunk, None] = None
+    async def _atransform(self, input: AsyncIterator[str | BaseMessage]) -> AsyncIterator[Any]:
+        acc_gen: GenerationChunk | ChatGenerationChunk | None = None
         field_length_at_last_run: int = 0
         parsed = None
         is_parsed = False
@@ -254,11 +243,10 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
             if parsed := self.parse_partial_json(acc_gen.text):
                 is_parsed = True
                 field_content = parsed.get(self.name_of_streamed_field)
-                if field_content:
-                    if new_tokens := field_content[field_length_at_last_run:]:
-                        dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
-                        field_length_at_last_run = len(field_content)
-                        yield self.pydantic_schema_object.model_validate(parsed)
+                if field_content and (new_tokens := field_content[field_length_at_last_run:]):
+                    dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
+                    field_length_at_last_run = len(field_content)
+                    yield self.pydantic_schema_object.model_validate(parsed)
 
         if not is_parsed:  # if no tokens were parsed, parse last chunk
             match = re.search(r"(\{)", acc_gen.text, re.DOTALL)
@@ -315,8 +303,8 @@ class StreamingPlanner(StreamingJsonOutputParser):
         except json.JSONDecodeError:
             return None
 
-    def _transform(self, input: Iterator[Union[str, BaseMessage]]) -> Iterator[Any]:
-        acc_gen: Union[GenerationChunk, ChatGenerationChunk, None] = None
+    def _transform(self, input: Iterator[str | BaseMessage]) -> Iterator[Any]:
+        acc_gen: GenerationChunk | ChatGenerationChunk | None = None
         field_length_at_last_run: int = 0
         item_count: int = 0
         parsed = None
@@ -347,19 +335,17 @@ class StreamingPlanner(StreamingJsonOutputParser):
 
                     except (IndexError, TypeError):
                         item = []
-                else:
-                    if field_content := parsed.get(self.name_of_streamed_field):
-                        if new_tokens := field_content[field_length_at_last_run:]:
-                            dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
-                            field_length_at_last_run = len(field_content)
-                            yield self.pydantic_schema_object.model_validate(parsed)
+                elif field_content := parsed.get(self.name_of_streamed_field):
+                    if new_tokens := field_content[field_length_at_last_run:]:
+                        dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
+                        field_length_at_last_run = len(field_content)
+                        yield self.pydantic_schema_object.model_validate(parsed)
 
-        if not (self.sub_streamed_field):
-            if parsed:
-                yield self.pydantic_schema_object.model_validate(parsed)
+        if not (self.sub_streamed_field) and parsed:
+            yield self.pydantic_schema_object.model_validate(parsed)
 
         # adding suffix here
         dispatch_custom_event(RedboxEventType.response_tokens, data=random.choice(self.suffix_texts))
 
-    async def _atransform(self, input: AsyncIterator[Union[str, BaseMessage]]) -> AsyncIterator[Any]:
+    async def _atransform(self, input: AsyncIterator[str | BaseMessage]) -> AsyncIterator[Any]:
         self._transform(input)

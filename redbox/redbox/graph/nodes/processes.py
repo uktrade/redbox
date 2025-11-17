@@ -1,3 +1,4 @@
+import contextlib
 import json
 import logging
 import os
@@ -6,11 +7,11 @@ import re
 import sqlite3
 import textwrap
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from functools import reduce
 from io import StringIO
 from random import uniform
-from typing import Any, Iterable
+from typing import Any
 from uuid import uuid4
 
 import pandas as pd
@@ -146,10 +147,10 @@ def build_merge_pattern(
                 # if reaches a successful citation, exit the loop
                 break
 
-            except EventStreamError as e:
+            except EventStreamError:
                 retries += 1
                 if retries >= MAX_RETRIES:
-                    raise e
+                    raise
                 wait_time = BACKOFF_FACTOR**retries + uniform(0, 1)
                 time.sleep(wait_time)
 
@@ -180,7 +181,7 @@ def build_stuff_pattern(
     format_instructions: str = "",
     tools: list[StructuredTool] | None = None,
     final_response_chain: bool = False,
-    additional_variables: dict = {},
+    additional_variables: dict | None = None,
     summary_multiagent_flag: bool = False,
 ) -> Runnable[RedboxState, dict[str, Any]]:
     """Returns a Runnable that uses state.request and state.documents to set state.messages.
@@ -188,13 +189,15 @@ def build_stuff_pattern(
     If tools are supplied, can also set state.tool_calls.
     """
 
+    if additional_variables is None:
+        additional_variables = {}
+
     @RunnableLambda
     def _stuff(state: RedboxState) -> dict[str, Any]:
         llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
 
-        events = [
-            event
-            for event in build_llm_chain(
+        events = list(
+            build_llm_chain(
                 prompt_set=prompt_set,
                 llm=llm,
                 output_parser=output_parser,
@@ -203,7 +206,7 @@ def build_stuff_pattern(
                 additional_variables=additional_variables,
                 summary_multiagent_flag=summary_multiagent_flag,
             ).stream(state)
-        ]
+        )
         return sum(events, {})
 
     return _stuff
@@ -264,7 +267,7 @@ def build_set_text_pattern(text: str, final_response_chain: bool = False) -> Run
     def _set_text(state: RedboxState) -> dict[str, Any]:
         set_text_chain = _llm | StrOutputParser()
 
-        return {"messages": state.messages + [HumanMessage(content=set_text_chain.invoke(text))]}
+        return {"messages": [*state.messages, HumanMessage(content=set_text_chain.invoke(text))]}
 
     return _set_text
 
@@ -277,7 +280,7 @@ def build_set_metadata_pattern() -> Runnable[RedboxState, dict[str, Any]]:
         flat_docs = flatten_document_state(state.documents)
         return {
             "metadata": RequestMetadata(
-                selected_files_total_tokens=sum(map(lambda d: d.metadata.get("token_count", 0), flat_docs)),
+                selected_files_total_tokens=sum(d.metadata.get("token_count", 0) for d in flat_docs),
                 number_of_selected_files=len(state.request.s3_keys),
             )
         }
@@ -302,7 +305,8 @@ def build_error_pattern(text: str, route_name: str | None) -> Runnable[RedboxSta
 
 def clear_documents_process(state: RedboxState) -> dict[str, Any]:
     if documents := state.documents:
-        return {"documents": DocumentState(groups={group_id: None for group_id in documents.groups})}
+        return {"documents": DocumentState(groups=dict.fromkeys(documents.groups))}
+    return None
 
 
 def report_sources_process(state: RedboxState) -> None:
@@ -336,15 +340,12 @@ def build_log_node(message: str) -> Runnable[RedboxState, dict[str, Any]]:
                 }
             )
         )
-        return None
 
     return _log_node
 
 
 def build_activity_log_node(
-    log_message: RedboxActivityEvent
-    | Callable[[RedboxState], Iterable[RedboxActivityEvent]]
-    | Callable[[RedboxState], Iterable[RedboxActivityEvent]],
+    log_message: RedboxActivityEvent | Callable[[RedboxState], Iterable[RedboxActivityEvent]],
 ):
     """
     A Runnable which emits activity events based on the state. The message should either be a static message to log, or a function which returns an activity event or an iterator of them
@@ -361,7 +362,6 @@ def build_activity_log_node(
             else:
                 for message in response:
                     log_activity(message)
-        return None
 
     return _activity_log_node
 
@@ -396,18 +396,17 @@ def create_planner(is_streamed=False):
     @RunnableLambda
     def _stream_planner_agent(state: RedboxState):
         planner_output_parser, format_instructions = get_structured_response_with_planner_parser()
-        agent = build_stuff_pattern(
+        return build_stuff_pattern(
             prompt_set=PromptSet.Planner,
             output_parser=planner_output_parser,
             format_instructions=format_instructions,
             final_response_chain=False,
             additional_variables={"metadata": metadata, "document_filenames": document_filenames},
         )
-        return agent
 
     @RunnableLambda
     def _create_planner(state: RedboxState):
-        orchestration_agent = create_chain_agent(
+        return create_chain_agent(
             system_prompt=PLANNER_PROMPT + "\n" + PLANNER_QUESTION_PROMPT + "\n" + PLANNER_FORMAT_PROMPT,
             use_metadata=True,
             tools=None,
@@ -416,7 +415,6 @@ def create_planner(is_streamed=False):
             using_chat_history=True,
             _additional_variables={"document_filenames": document_filenames},
         )
-        return orchestration_agent
 
     if is_streamed:
         return _get_metadata | _document_filenames | _stream_planner_agent
@@ -486,10 +484,8 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
     @RunnableLambda
     def _build_agent(state: RedboxState):
         parser = ClaudeParser(pydantic_object=AgentTask)
-        try:
+        with contextlib.suppress(Exception):
             task = parser.parse(state.last_message.content)
-        except Exception as e:
-            print(f"Cannot parse in {agent_name}: {e}")
         activity_node = build_activity_log_node(
             RedboxActivityEvent(message=f"{agent_name} is completing task: {task.task}")
         )
@@ -526,7 +522,7 @@ def create_evaluator():
     def _create_evaluator(state: RedboxState):
         _additional_variables = {"agents_results": combine_agents_state(state.agents_results)}
         citation_parser, format_instructions = get_structured_response_with_citations_parser()
-        evaluator_agent = build_stuff_pattern(
+        return build_stuff_pattern(
             prompt_set=PromptSet.NewRoute,
             tools=None,
             output_parser=citation_parser,
@@ -534,7 +530,6 @@ def create_evaluator():
             final_response_chain=False,
             additional_variables=_additional_variables,
         )
-        return evaluator_agent
 
     return _create_evaluator
 
@@ -563,11 +558,9 @@ def invoke_custom_state(
         )
         activity_node.invoke(state)
         ## invoke the subgraph
-        response = subgraph.invoke(subgraph_state)  # the LLM response is streamed
+        return subgraph.invoke(subgraph_state)  # the LLM response is streamed
 
         # invoking this subgraph will change original state.question - we correct the state question in subsequent nodes
-
-        return response
 
     return _invoke_custom_state
 
@@ -704,7 +697,7 @@ def extract_table_names_and_text(doc_text: str) -> tuple[str, str]:
 def load_texts_to_db(doc_texts: list[str], doc_names: list[str], conn: sqlite3.Connection) -> list[str]:
     """Load document texts as tables in a database"""
     table_names = []
-    for idx, (doc_text, doc_name) in enumerate(zip(doc_texts, doc_names)):
+    for idx, (doc_text, doc_name) in enumerate(zip(doc_texts, doc_names, strict=False)):
         try:
             clean_doc_name = sanitise_file_name(doc_name)
             sheet_name, doc_text = extract_table_names_and_text(doc_text)
@@ -736,16 +729,14 @@ def detect_header(doc_text: str):
 
     if header_row is None:  # in case there is only one column
         header_row = 0
-    text_from_header = "\n".join(lines[header_row:])
-    return text_from_header
+    return "\n".join(lines[header_row:])
 
 
 def delete_null_values(df: pd.DataFrame):
     # delete rows where all values are null
-    df.dropna(axis=0, how="all", inplace=True)
+    df = df.dropna(axis=0, how="all")
     # delete columns where all values are null
-    df.dropna(axis=1, how="all", inplace=True)
-    return df
+    return df.dropna(axis=1, how="all")
 
 
 def parse_doc_text_as_db_table(doc_text: str, table_name: str, conn: sqlite3.Connection):
@@ -783,7 +774,7 @@ def get_tabular_agent(
                     task = task_level.task
                     expected_output = task_level.expected_output
         except Exception as e:
-            log.error(f"Cannot parse in {agent_name}: {e}")
+            log.exception(f"Cannot parse in {agent_name}: {e}")
             task = state.request.question
 
         # Log activity
@@ -816,10 +807,7 @@ def get_tabular_agent(
                 log.info("no sql query input to tool")
 
             num_iter += 1
-            if isinstance(ai_msg["messages"][-1].content, str):
-                tabular_context = ai_msg["messages"][-1].content
-            else:
-                tabular_context = ""
+            tabular_context = ai_msg["messages"][-1].content if isinstance(ai_msg["messages"][-1].content, str) else ""
             tool_output = run_tools_parallel(ai_msg["messages"][-1], tools, state)
 
             results = tool_output[-1].content  # this is a tuple
@@ -836,10 +824,9 @@ def get_tabular_agent(
                 messages.append(
                     AIMessage(f"The SQL query failed to execute correctly. Here is the error message: {sql_error}")
                 )
-            else:
-                if is_intermediate_step:
-                    sql_error = ""
-                    messages.append(AIMessage(f"Here are the results from the query: {result}"))
+            elif is_intermediate_step:
+                sql_error = ""
+                messages.append(AIMessage(f"Here are the results from the query: {result}"))
             # update state messages
             state.messages = messages
 

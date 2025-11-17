@@ -1,7 +1,7 @@
 import logging
 import os
 from functools import cache
-from typing import Dict, Literal, Optional, Union
+from typing import Literal
 from urllib.parse import urlparse
 
 import boto3
@@ -12,6 +12,7 @@ from langchain.globals import set_debug
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from pydantic import AnyUrl, BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 from redbox_app.setting_enums import Environment
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
@@ -37,11 +38,11 @@ class OpenSearchSettings(BaseModel):
 
     logger.info(f"the parsed url is {parsed_url}")
 
-    collection_endpoint__username: Optional[str] = parsed_url.username
-    collection_endpoint__password: Optional[str] = parsed_url.password
-    collection_endpoint__host: Optional[str] = parsed_url.hostname
-    collection_endpoint__port: Optional[str] = "443"
-    collection_endpoint__port_local: Optional[str] = "9200"  # locally, the port number is 9200
+    collection_endpoint__username: str | None = parsed_url.username
+    collection_endpoint__password: str | None = parsed_url.password
+    collection_endpoint__host: str | None = parsed_url.hostname
+    collection_endpoint__port: str | None = "443"
+    collection_endpoint__port_local: str | None = "9200"  # locally, the port number is 9200
 
 
 class ElasticLocalSettings(BaseModel):
@@ -155,7 +156,7 @@ class Settings(BaseSettings):
     datahub_redbox_secret_key: str = env.str("DATAHUB_REDBOX_SECRET_KEY", "")
     datahub_redbox_access_key_id: str = env.str("DATAHUB_REDBOX_ACCESS_KEY_ID", "")
 
-    default_model_id: Optional[str] = env.str("DEFAULT_MODEL_ID", None)
+    default_model_id: str | None = env.str("DEFAULT_MODEL_ID", None)
 
     allow_plan_feedback: bool = env.bool("ALLOW_PLAN_FEEDBACK", True)
 
@@ -195,7 +196,7 @@ class Settings(BaseSettings):
     )
 
     # Define index mapping for Opensearch - this is important so that KNN search works
-    index_mapping: Dict = {
+    index_mapping: dict = {
         "settings": {"index.knn": True},
         "mappings": {
             "properties": {
@@ -242,7 +243,7 @@ class Settings(BaseSettings):
         return self.elastic_root_index + "-chunk-current"
 
     # @lru_cache(1) #removing cache because pydantic object (index mapping) is not hashable
-    def elasticsearch_client(self) -> Union[Elasticsearch, OpenSearch]:
+    def elasticsearch_client(self) -> Elasticsearch | OpenSearch:
         logger.info("Testing OpenSearch is definitely being used")
 
         if ENVIRONMENT.is_local:
@@ -281,12 +282,12 @@ class Settings(BaseSettings):
                     index=chunk_index, body=self.index_mapping, ignore=400
                 )  # 400 is ignored to avoid index-already-exists errors
             except Exception as e:
-                logger.error(f"Failed to create index {chunk_index}: {e}")
+                logger.exception(f"Failed to create index {chunk_index}: {e}")
 
             try:
                 client.indices.put_alias(index=chunk_index, name=f"{self.elastic_root_index}-chunk-current")
             except Exception as e:
-                logger.error(f"Failed to set alias {self.elastic_root_index}-chunk-current: {e}")
+                logger.exception(f"Failed to set alias {self.elastic_root_index}-chunk-current: {e}")
 
         if not client.indices.exists(index=self.elastic_chat_mesage_index):
             try:
@@ -294,7 +295,7 @@ class Settings(BaseSettings):
                     index=self.elastic_chat_mesage_index, ignore=400
                 )  # 400 is ignored to avoid index-already-exists errors
             except Exception as e:
-                logger.error(f"Failed to create index {self.elastic_chat_mesage_index}: {e}")
+                logger.exception(f"Failed to create index {self.elastic_chat_mesage_index}: {e}")
             # client.indices.create(index=self.elastic_chat_mesage_index)
 
         return client

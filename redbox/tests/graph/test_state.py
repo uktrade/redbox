@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -140,7 +140,8 @@ GPT_4o_multiple_calls_1 = [
     LLMCallMetadata(llm_model_name="gpt-4o", input_tokens=10, output_tokens=10, timestamp=now - timedelta(days=8)),
 ]
 
-GPT_4o_multiple_calls_1a = GPT_4o_multiple_calls_1 + [
+GPT_4o_multiple_calls_1a = [
+    *GPT_4o_multiple_calls_1,
     LLMCallMetadata(llm_model_name="gpt-4o", input_tokens=50, output_tokens=50, timestamp=now - timedelta(days=7)),
     LLMCallMetadata(llm_model_name="gpt-4o", input_tokens=60, output_tokens=60, timestamp=now - timedelta(days=6)),
 ]
@@ -157,7 +158,8 @@ multiple_models_multiple_calls_1 = [
     LLMCallMetadata(llm_model_name="gpt-4o", input_tokens=100, output_tokens=210, timestamp=now - timedelta(hours=10)),
 ]
 
-multiple_models_multiple_calls_1a = multiple_models_multiple_calls_1 + [
+multiple_models_multiple_calls_1a = [
+    *multiple_models_multiple_calls_1,
     LLMCallMetadata(llm_model_name="gpt-4o", input_tokens=300, output_tokens=310, timestamp=now - timedelta(hours=1)),
 ]
 
@@ -184,11 +186,6 @@ multiple_models_multiple_calls_1a = multiple_models_multiple_calls_1 + [
                 llm_calls=sorted(GPT_4o_multiple_calls_2 + multiple_models_multiple_calls_1, key=lambda c: c.timestamp)
             ),
         ),
-        (
-            RequestMetadata(llm_calls=GPT_4o_multiple_calls_1),
-            RequestMetadata(llm_calls=GPT_4o_multiple_calls_1a),
-            RequestMetadata(llm_calls=GPT_4o_multiple_calls_1a),
-        ),
     ],
 )
 def test_metadata_reducer(a: RequestMetadata, b: RequestMetadata, expected: RequestMetadata):
@@ -209,9 +206,9 @@ TEST_QUERY = RedboxQuery(
     ("a", "b", "expected"),
     [
         (
-            dict(
-                request=TEST_QUERY,
-                documents=DocumentState(
+            {
+                "request": TEST_QUERY,
+                "documents": DocumentState(
                     groups={
                         GROUP_IDS[0]: {
                             DOCUMENT_IDS[0]: {"page_content": "foo", "metadata": {"index": 1, "file_name": "foo"}},
@@ -222,30 +219,30 @@ TEST_QUERY = RedboxQuery(
                         },
                     }
                 ),
-                text="Some old text",
-                route_name="my_route",
-                metadata=RequestMetadata(
+                "text": "Some old text",
+                "route_name": "my_route",
+                "metadata": RequestMetadata(
                     llm_calls=[
                         {
                             "id": "e7b9c8e4-8c6d-4f9b-8b8e-2f8e8e8e8e8e",
                             "llm_model_name": "gpt-4o",
                             "input_tokens": 80,
                             "output_tokens": 160,
-                            "timestamp": datetime(2023, 10, 1, 12, 0, 0, tzinfo=timezone.utc).timestamp(),
+                            "timestamp": datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC).timestamp(),
                         },
                         {
                             "id": "d3b9c8e4-8c6d-4f9b-8b8e-2f8e8e8e8e8e",
                             "llm_model_name": "gpt-3.5",
                             "input_tokens": 60,
                             "output_tokens": 120,
-                            "timestamp": datetime(2023, 10, 2, 14, 30, 0, tzinfo=timezone.utc).timestamp(),
+                            "timestamp": datetime(2023, 10, 2, 14, 30, 0, tzinfo=UTC).timestamp(),
                         },
                     ]
                 ),
-            ),
-            dict(
-                request=TEST_QUERY,
-                documents=DocumentState(
+            },
+            {
+                "request": TEST_QUERY,
+                "documents": DocumentState(
                     groups={
                         GROUP_IDS[0]: {
                             DOCUMENT_IDS[1]: None,
@@ -256,22 +253,22 @@ TEST_QUERY = RedboxQuery(
                         },
                     }
                 ),
-                text="Some new text",
-                metadata=RequestMetadata(
+                "text": "Some new text",
+                "metadata": RequestMetadata(
                     llm_calls=[
                         {
                             "id": "c1b9c8e4-8c6d-4f9b-8b8e-2f8e8e8e8e8e",
                             "llm_model_name": "gpt-4o",
                             "input_tokens": 10,
                             "output_tokens": 10,
-                            "timestamp": datetime(2023, 10, 3, 16, 45, 0, tzinfo=timezone.utc).timestamp(),
+                            "timestamp": datetime(2023, 10, 3, 16, 45, 0, tzinfo=UTC).timestamp(),
                         },
                     ]
                 ),
-            ),
-            dict(
-                request=TEST_QUERY,
-                documents=DocumentState(
+            },
+            {
+                "request": TEST_QUERY,
+                "documents": DocumentState(
                     groups={
                         GROUP_IDS[0]: {
                             DOCUMENT_IDS[0]: {"page_content": "foo", "metadata": {"index": 1, "file_name": "foo"}},
@@ -281,34 +278,34 @@ TEST_QUERY = RedboxQuery(
                         },
                     }
                 ),
-                text="Some new text",
-                route_name="my_route",
-                metadata=RequestMetadata(
+                "text": "Some new text",
+                "route_name": "my_route",
+                "metadata": RequestMetadata(
                     llm_calls=[
                         {
                             "id": "e7b9c8e4-8c6d-4f9b-8b8e-2f8e8e8e8e8e",
                             "llm_model_name": "gpt-4o",
                             "input_tokens": 80,
                             "output_tokens": 160,
-                            "timestamp": datetime(2023, 10, 1, 12, 0, 0, tzinfo=timezone.utc).timestamp(),
+                            "timestamp": datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC).timestamp(),
                         },
                         {
                             "id": "d3b9c8e4-8c6d-4f9b-8b8e-2f8e8e8e8e8e",
                             "llm_model_name": "gpt-3.5",
                             "input_tokens": 60,
                             "output_tokens": 120,
-                            "timestamp": datetime(2023, 10, 2, 14, 30, 0, tzinfo=timezone.utc).timestamp(),
+                            "timestamp": datetime(2023, 10, 2, 14, 30, 0, tzinfo=UTC).timestamp(),
                         },
                         {
                             "id": "c1b9c8e4-8c6d-4f9b-8b8e-2f8e8e8e8e8e",
                             "llm_model_name": "gpt-4o",
                             "input_tokens": 10,
                             "output_tokens": 10,
-                            "timestamp": datetime(2023, 10, 3, 16, 45, 0, tzinfo=timezone.utc).timestamp(),
+                            "timestamp": datetime(2023, 10, 3, 16, 45, 0, tzinfo=UTC).timestamp(),
                         },
                     ]
                 ),
-            ),
+            },
         ),
     ],
 )

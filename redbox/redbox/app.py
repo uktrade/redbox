@@ -18,8 +18,8 @@ from redbox.graph.nodes.tools import (
     build_legislation_search_tool,
     build_search_documents_tool,
     build_search_wikipedia_tool,
-    execute_sql_query,
     build_web_search_tool,
+    execute_sql_query,
 )
 from redbox.graph.root import build_root_graph, get_agentic_search_graph, get_summarise_graph
 from redbox.models.chain import RedboxState
@@ -182,7 +182,7 @@ class Redbox:
                     elif kind == "on_chain_end" and event["name"] == "LangGraph":
                         final_state = RedboxState(**event["data"]["output"])
                 except Exception as e:
-                    logger.error(f"Error processing {kind} - {str(e)}")
+                    logger.exception(f"Error processing {kind} - {e!s}")
                     raise
 
         try:
@@ -195,11 +195,11 @@ class Redbox:
             except Exception as _:
                 logger.exception("LLM Error - Blank Response")
         except CancelledError:
-            logger.error("All retries exhausted for CancelledError in the astream_events function")
+            logger.exception("All retries exhausted for CancelledError in the astream_events function")
             raise
 
         except Exception:
-            logger.error("Generic error in run - {str(e)}")
+            logger.exception("Generic error in run - {str(e)}")
             raise
 
         return final_state
@@ -217,6 +217,7 @@ class Redbox:
         elif graph_to_draw == "summarise":
             graph = get_summarise_graph(self.all_chunks_retriever, self.parameterised_retriever).get_graph()
         else:
-            raise Exception("Invalid graph_to_draw")
+            msg = "Invalid graph_to_draw"
+            raise Exception(msg)
 
         return graph.draw_mermaid_png(draw_method=MermaidDrawMethod.PYPPETEER, output_file_path=output_path)

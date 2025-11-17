@@ -1,6 +1,6 @@
 import logging
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
-from typing import Callable
 
 from langchain_core.messages import AIMessage
 from langgraph.constants import Send
@@ -11,8 +11,7 @@ log = logging.getLogger(__name__)
 
 
 def _copy_state(state: RedboxState, **updates) -> RedboxState:
-    updated_model = state.model_copy(update=updates, deep=True)
-    return updated_model
+    return state.model_copy(update=updates, deep=True)
 
 
 def build_document_group_send(target: str) -> Callable[[RedboxState], list[Send]]:
@@ -95,16 +94,16 @@ def run_tools_parallel(ai_msg, tools, state, timeout=30):
                     try:
                         response = future.result()
                         responses.append(AIMessage(response))
-                    except Exception as e:
-                        print(f"Tool invocation error: {e}")
+                    except Exception:
+                        pass
 
                 return responses
         except TimeoutError:
             log.warning(f"Tool execution timed out after {timeout} seconds")
             responses.append(AIMessage("Some tools timed out during execution"))
         except Exception as e:
-            log.warning(f"Unexpected error in tool execution: {str(e)}", exc_info=True)
-            responses.append(AIMessage(f"Execution error: {str(e)}"))
+            log.warning(f"Unexpected error in tool execution: {e!s}", exc_info=True)
+            responses.append(AIMessage(f"Execution error: {e!s}"))
 
 
 def sending_task_to_agent(state: RedboxState):
@@ -115,3 +114,4 @@ def sending_task_to_agent(state: RedboxState):
             for task in plan.tasks
         ]
         return [Send(node=target, arg=state) for target, state in task_send_states]
+    return None

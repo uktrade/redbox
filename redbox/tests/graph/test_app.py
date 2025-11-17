@@ -1,12 +1,13 @@
 import copy
 import logging
+import os
 import sqlite3
+from pathlib import Path
 
 # from enum import Enum
 from typing import Any
 from unittest.mock import MagicMock
 from uuid import uuid4
-from pathlib import Path
 
 import pytest
 from langchain_core.documents import Document
@@ -16,6 +17,7 @@ from langchain_core.tools import tool
 from pytest_mock import MockerFixture
 
 from redbox import Redbox
+from redbox.graph.nodes.processes import create_or_update_db_from_tabulars
 from redbox.models.chain import (
     AgentTask,
     AISettings,
@@ -42,9 +44,6 @@ from redbox.test.data import (
     mock_parameterised_retriever,
 )
 from redbox.transform import structure_documents_by_group_and_indices
-import os
-from redbox.graph.nodes.processes import create_or_update_db_from_tabulars
-
 
 # create logger
 logger = logging.getLogger("simple_example")
@@ -624,7 +623,8 @@ def test_tabular_file_handling(test, tmp_path: Path, mocker: MockerFixture, simu
 
         def interrupting_func(state_arg):
             original_func(state_arg)
-            raise RuntimeError("Simulated interruption")
+            msg = "Simulated interruption"
+            raise RuntimeError(msg)
 
         mocker.patch(
             "redbox.graph.nodes.processes.create_or_update_db_from_tabulars",

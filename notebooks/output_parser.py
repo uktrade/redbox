@@ -1,6 +1,7 @@
 import ast
 import re
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union
+from collections.abc import Iterator, Sequence
+from typing import Any
 
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import BaseMessage
@@ -27,7 +28,7 @@ def _ast_parse(arg: str) -> Any:
         return arg
 
 
-def _parse_llm_compiler_action_args(args: str, tool: Union[str, BaseTool]) -> list[Any]:
+def _parse_llm_compiler_action_args(args: str, tool: str | BaseTool) -> list[Any]:
     """Parse arguments from a string."""
     if args == "":
         return ()
@@ -36,7 +37,7 @@ def _parse_llm_compiler_action_args(args: str, tool: Union[str, BaseTool]) -> li
     extracted_args = {}
     tool_key = None
     prev_idx = None
-    for key in tool.args.keys():
+    for key in tool.args:
         # Split if present
         if f"{key}=" in args:
             idx = args.index(f"{key}=")
@@ -56,7 +57,7 @@ def default_dependency_rule(idx, args: str):
     return idx in numbers
 
 
-def _get_dependencies_from_graph(idx: int, tool_name: str, args: Dict[str, Any]) -> dict[str, list[str]]:
+def _get_dependencies_from_graph(idx: int, tool_name: str, args: dict[str, Any]) -> dict[str, list[str]]:
     """Get dependencies from a graph."""
     if tool_name == "join":
         return list(range(1, idx))
@@ -67,16 +68,16 @@ class Task(TypedDict):
     idx: int
     tool: BaseTool
     args: list
-    dependencies: Dict[str, list]
-    thought: Optional[str]
+    dependencies: dict[str, list]
+    thought: str | None
 
 
 def instantiate_task(
     tools: Sequence[BaseTool],
     idx: int,
     tool_name: str,
-    args: Union[str, Any],
-    thought: Optional[str] = None,
+    args: str | Any,
+    thought: str | None = None,
 ) -> Task:
     if tool_name == "join":
         tool = "join"
@@ -84,7 +85,8 @@ def instantiate_task(
         try:
             tool = tools[[tool.name for tool in tools].index(tool_name)]
         except ValueError as e:
-            raise OutputParserException(f"Tool {tool_name} not found.") from e
+            msg = f"Tool {tool_name} not found."
+            raise OutputParserException(msg) from e
     tool_args = _parse_llm_compiler_action_args(args, tool)
     dependencies = _get_dependencies_from_graph(idx, tool_name, tool_args)
 
@@ -100,9 +102,9 @@ def instantiate_task(
 class LLMCompilerPlanParser(BaseTransformOutputParser[dict], extra="allow"):
     """Planning output parser."""
 
-    tools: List[BaseTool]
+    tools: list[BaseTool]
 
-    def _transform(self, input: Iterator[Union[str, BaseMessage]]) -> Iterator[Task]:
+    def _transform(self, input: Iterator[str | BaseMessage]) -> Iterator[Task]:
         texts = []
         # TODO: Cleanup tuple state tracking here.
         thought = None
@@ -117,7 +119,7 @@ class LLMCompilerPlanParser(BaseTransformOutputParser[dict], extra="allow"):
             if task:
                 yield task
 
-    def parse(self, text: str) -> List[Task]:
+    def parse(self, text: str) -> list[Task]:
         return list(self._transform([text]))
 
     def stream(
@@ -128,9 +130,7 @@ class LLMCompilerPlanParser(BaseTransformOutputParser[dict], extra="allow"):
     ) -> Iterator[Task]:
         yield from self.transform([input], config, **kwargs)
 
-    def ingest_token(
-        self, token: str, buffer: List[str], thought: Optional[str]
-    ) -> Iterator[Tuple[Optional[Task], str]]:
+    def ingest_token(self, token: str, buffer: list[str], thought: str | None) -> Iterator[tuple[Task | None, str]]:
         buffer.append(token)
         if "\n" in token:
             buffer_ = "".join(buffer).split("\n")
@@ -142,7 +142,7 @@ class LLMCompilerPlanParser(BaseTransformOutputParser[dict], extra="allow"):
             buffer.clear()
             buffer.append(suffix)
 
-    def _parse_task(self, line: str, thought: Optional[str] = None):
+    def _parse_task(self, line: str, thought: str | None = None):
         task = None
         if match := re.match(THOUGHT_PATTERN, line):
             # Optionally, action can be preceded by a thought

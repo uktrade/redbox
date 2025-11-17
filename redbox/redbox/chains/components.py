@@ -2,11 +2,10 @@ import logging
 import time
 from functools import cache
 
+from botocore.exceptions import ClientError, ConnectTimeoutError, EndpointConnectionError, ReadTimeoutError
 from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langchain_community.embeddings import BedrockEmbeddings
-from botocore.exceptions import ClientError, EndpointConnectionError, ConnectTimeoutError, ReadTimeoutError
-
 from langchain_core.embeddings import Embeddings, FakeEmbeddings
 from langchain_core.runnables import Runnable
 from langchain_core.tools import StructuredTool
@@ -52,10 +51,11 @@ def get_chat_llm(
         kwargs = {}
         if backend.name.startswith("arn"):
             if not backend.provider:
-                raise ValueError(
+                msg = (
                     "When using a model ARN you must set model.provider "
                     "to the foundation-model provider (e.g., 'anthropic')."
                 )
+                raise ValueError(msg)
             kwargs["provider"] = "anthropic"
 
         chat_model = init_chat_model(
@@ -101,7 +101,7 @@ def get_chat_llm(
             }
             return _init_model(fallback_backend)
         else:
-            raise e
+            raise
 
     except (TimeoutError, ConnectionError, EndpointConnectionError, ConnectTimeoutError, ReadTimeoutError) as e:
         logger.warning(
@@ -133,7 +133,8 @@ def get_embeddings(env: Settings) -> Embeddings:
         return FakeEmbeddings(
             size=1024
         )  # set embedding size to 1024 to match bedrock model amazon.titan-embed-text-v2:0 default embedding size
-    raise Exception("No configured embedding model")
+    msg = "No configured embedding model"
+    raise Exception(msg)
 
 
 def get_all_chunks_retriever(env: Settings) -> OpenSearchRetriever:

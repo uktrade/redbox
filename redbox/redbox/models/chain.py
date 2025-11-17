@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from enum import Enum, StrEnum
 from functools import reduce
 from types import UnionType
-from typing import Annotated, List, Literal, NotRequired, Required, TypedDict, get_args, get_origin
+from typing import Annotated, Literal, NotRequired, Required, TypedDict, get_args, get_origin
 from uuid import UUID, uuid4
 
 import environ
@@ -131,18 +131,21 @@ class Source(BaseModel):
     )
 
     @field_validator("document_name", mode="before")
+    @classmethod
     def validate_document_name(cls, value):
         if not value:
             return cls.model_fields["document_name"].default
         return value
 
     @field_validator("source_type", mode="before")
+    @classmethod
     def validate_source_type(cls, value):
         if not value:
             return cls.model_fields["source_type"].default
         return value
 
     @field_validator("page_numbers", mode="before")
+    @classmethod
     def validate_page_numbers(cls, value):
         if not value:
             return cls.model_fields["page_numbers"].default
@@ -199,8 +202,7 @@ def document_reducer(current: DocumentState | None, update: DocumentState | list
     """
     # If update is actually a list of state updates, run them one by one
     if isinstance(update, list):
-        reduced = reduce(lambda current, update: document_reducer(current, update), update, current)
-        return reduced
+        return reduce(lambda current, update: document_reducer(current, update), update, current)
 
     # If state is empty, return update
     if current is None:
@@ -267,7 +269,7 @@ class RequestMetadata(BaseModel):
         """
         Creates a dictionary of model names to number of input tokens used
         """
-        tokens_by_model = dict()
+        tokens_by_model = {}
         for call_metadata in self.llm_calls:
             tokens_by_model[call_metadata.llm_model_name] = (
                 tokens_by_model.get(call_metadata.llm_model_name, 0) + call_metadata.input_tokens
@@ -279,7 +281,7 @@ class RequestMetadata(BaseModel):
         """
         Creates a dictionary of model names to number of output tokens used
         """
-        tokens_by_model = dict()
+        tokens_by_model = {}
         for call_metadata in self.llm_calls:
             tokens_by_model[call_metadata.llm_model_name] = (
                 tokens_by_model.get(call_metadata.llm_model_name, 0) + call_metadata.output_tokens
@@ -294,8 +296,7 @@ def metadata_reducer(
     """Merges two metadata states."""
     # If update is actually a list of state updates, run them one by one
     if isinstance(update, list):
-        reduced = reduce(lambda current, update: metadata_reducer(current, update), update, current)
-        return reduced
+        return reduce(lambda current, update: metadata_reducer(current, update), update, current)
 
     if current is None:
         return update
@@ -322,7 +323,7 @@ class AgentTask(BaseModel):
 
 
 class MultiAgentPlan(BaseModel):
-    tasks: List[AgentTask] = Field(description="A list of tasks to be carried out by agents", default=[])
+    tasks: list[AgentTask] = Field(description="A list of tasks to be carried out by agents", default=[])
     model_config = {"extra": "forbid"}
 
 
@@ -343,7 +344,8 @@ class RedboxState(BaseModel):
     @property
     def last_message(self) -> AnyMessage:
         if not self.messages:
-            raise ValueError("No messages in the state")
+            msg = "No messages in the state"
+            raise ValueError(msg)
         return self.messages[-1]
 
     def documents_changed(self) -> bool:
@@ -412,10 +414,7 @@ def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str, st
 
 def is_dict_type[T](annotated_type: T) -> bool:
     """Unwraps an annotated type to work out if it's a subclass of dict."""
-    if get_origin(annotated_type) is Annotated:
-        base_type = get_args(annotated_type)[0]
-    else:
-        base_type = annotated_type
+    base_type = get_args(annotated_type)[0] if get_origin(annotated_type) is Annotated else annotated_type
 
     origin = get_origin(base_type)
     if origin in {Required, NotRequired}:
@@ -478,12 +477,11 @@ def merge_redbox_state_updates(current: RedboxState, update: RedboxState) -> Red
                 # If it's annotated and not a dict, apply its reducer function
                 _, reducer_func = get_args(annotation)
                 merged_state[update_key] = reducer_func(current_value, update_value)
+        # If not annotated, replace but don't overwrite an existing value with None
+        elif update_value is not None:
+            merged_state[update_key] = update_value
         else:
-            # If not annotated, replace but don't overwrite an existing value with None
-            if update_value is not None:
-                merged_state[update_key] = update_value
-            else:
-                merged_state[update_key] = current_value
+            merged_state[update_key] = current_value
 
     return merged_state
 

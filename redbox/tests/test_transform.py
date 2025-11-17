@@ -140,7 +140,7 @@ def test_combine_documents(a: Document, b: Document, combined: Document):
     ("scores", "target_len"),
     [
         ([2.2, 2, 1.8, 0.2, 0.2, 0.2], 3),
-        # ([2.2, 2.1, 2.1, 2, 2, 1.5, 1.3, 0.9, 0.5], 5), # This test case shows our knee detection doesn't work properly?
+        # ([2.2, 2.1, 2.1, 2, 2, 1.5, 1.3, 0.9, 0.5], 5),
         ([1, 1, 1, 1, 1, 1], 6),
         ([], 0),
     ],
@@ -303,9 +303,18 @@ def test_merge_documents():
     # Initial list score prioritised over adjacent
     assert merged_1 == docs_1
 
-    docs_3 = list(
-        generate_docs(s3_key="test_key_2", total_tokens=1000, number_of_docs=3, chunk_resolution="normal", score=3)
-    ) + [docs_1[0]]
+    docs_3 = [
+        *list(
+            generate_docs(
+                s3_key="test_key_2",
+                total_tokens=1000,
+                number_of_docs=3,
+                chunk_resolution="normal",
+                score=3,
+            )
+        ),
+        docs_1[0],
+    ]
 
     merged_2 = merge_documents(initial=docs_1, adjacent=docs_3)
 
@@ -347,7 +356,7 @@ def test_sort_documents():
 
     sorted_docs = sort_documents(docs)
 
-    for doc, (expected_score, expected_file_name, expected_index) in zip(sorted_docs, expected_order):
+    for doc, (expected_score, expected_file_name, expected_index) in zip(sorted_docs, expected_order, strict=False):
         assert doc.metadata["score"] == expected_score
         assert doc.metadata["uri"] == expected_file_name
         assert doc.metadata["index"] == expected_index

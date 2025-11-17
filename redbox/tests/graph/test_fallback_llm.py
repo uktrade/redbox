@@ -1,17 +1,18 @@
 import time
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 from botocore.exceptions import ClientError
 
-from redbox.models.chain import ChatLLMBackend, AISettings
-from redbox.chains.components import get_chat_llm, _FALLBACK_CACHE
+from redbox.chains.components import _FALLBACK_CACHE, get_chat_llm
+from redbox.models.chain import AISettings, ChatLLMBackend
 
 pytestmark = pytest.mark.usefixtures("clear_fallback_cache")
 
 
 @pytest.fixture(autouse=True)
 def clear_fallback_cache():
-    import redbox.chains.components as components
+    from redbox.chains import components
 
     if hasattr(components, "_FALLBACK_CACHE"):
         components._FALLBACK_CACHE.clear()
@@ -72,7 +73,7 @@ def test_get_chat_llm_fallback_on_timeout(mocker, fake_model_backend, fake_ai_se
 
 
 def test_get_chat_llm_uses_cached_fallback(mocker, fake_model_backend, fake_ai_settings):
-    import redbox.chains.components as components
+    from redbox.chains import components
 
     fallback_backend = ChatLLMBackend(name="anthropic.fallback", provider="bedrock")
     components._FALLBACK_CACHE[fake_model_backend.name] = {
@@ -93,7 +94,7 @@ def test_get_chat_llm_uses_cached_fallback(mocker, fake_model_backend, fake_ai_s
 
 
 def test_get_chat_llm_cache_expires_and_returns_to_primary(mocker, fake_model_backend, fake_ai_settings):
-    import redbox.chains.components as components
+    from redbox.chains import components
 
     components._FALLBACK_CACHE[fake_model_backend.name] = {
         "until": time.time() - 1,  # expired

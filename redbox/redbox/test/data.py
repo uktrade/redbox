@@ -1,8 +1,8 @@
 import datetime
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Generator, Sequence
 from pathlib import Path
-from typing import Any, Generator, Sequence
+from typing import Any
 from uuid import uuid4
 
 from langchain_core.documents import Document
@@ -12,18 +12,17 @@ from langchain_core.retrievers import BaseRetriever
 from langchain_core.tools import BaseTool
 from pydantic.v1 import BaseModel, Field, validator
 
-from redbox.models.chain import RedboxQuery
+from redbox.models.chain import MultiAgentPlan, RedboxQuery
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.file import ChunkResolution, UploadedFileMetadata
 from redbox.models.graph import RedboxActivityEvent
-from redbox.models.chain import MultiAgentPlan
 
 log = logging.getLogger()
 
 
 def generate_docs(
     s3_key: str = "test_data.pdf",
-    page_numbers: list[int] = [1, 2, 3, 4],
+    page_numbers: list[int] | None = None,
     total_tokens: int = 6000,
     number_of_docs: int = 10,
     chunk_resolution: ChunkResolution = ChunkResolution.normal,
@@ -35,6 +34,8 @@ def generate_docs(
     For this reason, adds extra data beyond ChunkMetadata, mimicing
     redbox.retriever.retrievers.hit_to_doc().
     """
+    if page_numbers is None:
+        page_numbers = [1, 2, 3, 4]
     for i in range(number_of_docs):
         core_metadata = UploadedFileMetadata(
             index=index_start + i,
@@ -61,18 +62,22 @@ def generate_docs(
 
 def generate_tabular_docs(
     s3_key: str = "example.csv",
-    page_numbers: list[int] = [1],
+    page_numbers: list[int] | None = None,
     total_tokens: int = 6000,
     number_of_docs: int = 1,
     chunk_resolution: ChunkResolution = ChunkResolution.normal,
     score: int = 1,
     index_start: int = 0,
-    columns: list[str] = ["id", "name", "value"],
+    columns: list[str] | None = None,
     rows_per_doc: int = 5,
 ) -> Generator[Document, None, None]:
     """
     Variant of generate_docs for tabular files
     """
+    if columns is None:
+        columns = ["id", "name", "value"]
+    if page_numbers is None:
+        page_numbers = [1]
     header = ",".join(columns) + "\n"
     rows_per_chunk = max(1, rows_per_doc)
 

@@ -1,37 +1,35 @@
 import json
+from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch, call, ANY
+from unittest.mock import ANY, MagicMock, call, patch
 
+import pandas as pd
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
-from opensearchpy import OpenSearch
-from opensearchpy.helpers import scan
+from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
-from langchain_community.vectorstores import OpenSearchVectorSearch
+from opensearchpy import OpenSearch
+from opensearchpy.helpers import scan
 from requests.exceptions import RequestException
 
 from redbox.chains.ingest import document_loader, ingest_from_loader
 from redbox.loader import ingester
 from redbox.loader.ingester import ingest_file
-from redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader
-from redbox.models.chain import GeneratedMetadata
-
-
 from redbox.loader.loaders import (
+    MetadataLoader,
+    UnstructuredChunkLoader,
+    _pdf_is_image_heavy,
     is_large_pdf,
-    split_pdf,
     read_csv_text,
     read_excel_file,
-    _pdf_is_image_heavy,
+    split_pdf,
 )
+from redbox.models.chain import GeneratedMetadata
 from redbox.models.file import ChunkResolution
 from redbox.models.settings import Settings
 from redbox.retriever.queries import build_query_filter
-from io import BytesIO
-import pandas as pd
-
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -65,9 +63,7 @@ def make_file_query(file_name: str, resolution: ChunkResolution | None = None) -
         permitted_files=[file_name],
         chunk_resolution=resolution,
     )
-    query = {"query": {"bool": {"must": [{"match_all": {}}], "filter": query_filter}}}
-    print("Constructed Query:", query)  # Debugging: Print the query
-    return query
+    return {"query": {"bool": {"must": [{"match_all": {}}], "filter": query_filter}}}
 
 
 def fake_llm_response():
@@ -167,7 +163,7 @@ def test_document_loader(
             "text": "Routing enables us to create bespoke responses according to user intent. Examples include:\n\n* RAG\n* Summarization\n* Plain chat",
             "metadata": {
                 "languages": ["eng"],
-                "orig_elements": "eJwVjsFOwzAQRH9l5SMiCEVtSXrjxI0D4lZVaGNPgtV4HdlrVKj679iXXe3szOidbgYrAkS/vDNHMnY89NPezd2Be9ft+mHfjfM4dOwwvDg4O++ezSOZAGXHyjVzMyvLUnhBrtfJQBZzvleP4qqtM8WiXhaC8LQiU8mkkWwCK2hC3uIFlNqWXN9sbUyuBaqrZCTyopXwiXDlsLUGL3YtDkd6oI/XtzpzCYET+z9WH6UK28peyH6zNlr93dBI3jml6vjBZ0O7n/8BhxNVfA==",
+                "orig_elements": "123",
                 "filename": "example.html",
                 "filetype": "text/html",
             },
@@ -209,7 +205,7 @@ def test_document_loader(
 @patch("redbox.loader.loaders.get_chat_llm")
 @patch("redbox.loader.loaders.requests.post")
 @pytest.mark.parametrize(
-    "resolution, has_embeddings",
+    ("resolution", "has_embeddings"),
     [
         (ChunkResolution.largest, False),
         (ChunkResolution.normal, True),
@@ -292,7 +288,7 @@ def test_ingest_from_loader(
 
     # Debugging: Print chunks to inspect the output
     for chunk in chunks:
-        print(chunk)
+        pass
 
     def get_metadata(chunk: dict) -> dict:
         return chunk["_source"]["metadata"]
@@ -307,7 +303,6 @@ def test_ingest_from_loader(
 
     if has_embeddings:
         embeddings = chunks[0]["_source"].get("vector_field")
-        print("Embeddings:", embeddings)  # Debugging: Print embeddings to inspect the output
         assert embeddings is not None
         assert len(embeddings) > 0
 
@@ -375,11 +370,7 @@ def test_ingest_file(
     mock_llm_response.status_code = 200
     mock_llm_response.return_value = GenericFakeChatModel(messages=iter([json.dumps(fake_llm_response())]))
 
-    try:
-        res = ingest_file(filename)
-    except Exception as e:
-        print(f"Exception occurred: {e}")
-        raise
+    res = ingest_file(filename)
 
     if not is_complete:
         assert isinstance(res, str)
@@ -389,11 +380,7 @@ def test_ingest_file(
         # Test it's written to Elastic
         file_query = make_file_query(file_name=filename)
 
-        try:
-            chunks = list(scan(client=es_client, index=f"{es_index}-current", query=file_query, _source=True))
-        except Exception as e:
-            print(f"Exception during scanning: {e}")
-            raise
+        chunks = list(scan(client=es_client, index=f"{es_index}-current", query=file_query, _source=True))
 
         assert len(chunks) > 0
 
@@ -512,7 +499,7 @@ def test_split_pdf_multiple_chunks():
         doc.tobytes.return_value = b"chunk content"
         doc.__len__.return_value = 50
 
-    with patch("fitz.open", side_effect=[mock_doc] + mock_sub_docs):
+    with patch("fitz.open", side_effect=[mock_doc, *mock_sub_docs]):
         filebytes = BytesIO(b"mock pdf content")
         chunks = split_pdf(filebytes, pages_per_chunk=50)
 
@@ -535,7 +522,7 @@ def test_split_pdf_uneven_chunks():
     for doc in mock_sub_docs:
         doc.tobytes.return_value = b"chunk content"
 
-    with patch("fitz.open", side_effect=[mock_doc] + mock_sub_docs):
+    with patch("fitz.open", side_effect=[mock_doc, *mock_sub_docs]):
         filebytes = BytesIO(b"mock pdf content")
         chunks = split_pdf(filebytes, pages_per_chunk=50)
 
@@ -717,7 +704,7 @@ def test_unstructured_chunk_loader_large_pdf_path(mock_env, mock_metadata):
             metadata=mock_metadata,
             pages_per_pdf_chunk=75,
         )
-        elements = list(loader._get_chunks(file_name, file_bytes))
+        elements = list(loader._get_chunks(file_name, file_bytes))  # noqa: SLF001
 
         assert len(elements) == 2
         assert elements[0]["text"] == "chunk1"
@@ -768,7 +755,7 @@ def test_unstructured_chunk_loader_large_pdf_chunk_failure(mock_env, mock_metada
         )
 
         with pytest.raises(ValueError, match="Chunk 2 failed: chunk fail"):
-            list(loader._get_chunks(file_name, file_bytes))
+            list(loader._get_chunks(file_name, file_bytes))  # noqa: SLF001
 
         mock_logger.exception.assert_called_once_with("Chunk 2 failed: chunk fail")
 
@@ -789,7 +776,7 @@ def test_unstructured_chunk_loader_tabular_path(mock_env, mock_metadata):
             max_chunk_size=1000,
             metadata=mock_metadata,
         )
-        elements = list(loader._get_chunks(file_name, file_bytes))
+        elements = list(loader._get_chunks(file_name, file_bytes))  # noqa: SLF001
 
         assert elements == mock_elements
         mock_logger.debug.assert_called_once_with("Unstructured returned %d elements", 1)
@@ -809,7 +796,7 @@ def test_unstructured_chunk_loader_empty_elements_raise(mock_env, mock_metadata)
         )
 
         with pytest.raises(ValueError, match="Unstructured failed to extract text for this file"):
-            list(loader._get_chunks(file_name, file_bytes))
+            list(loader._get_chunks(file_name, file_bytes))  # noqa: SLF001
 
 
 def test_unstructured_chunk_loader_post_seek_warning(mock_env, mock_metadata):
@@ -832,7 +819,7 @@ def test_unstructured_chunk_loader_post_seek_warning(mock_env, mock_metadata):
             max_chunk_size=1000,
             metadata=mock_metadata,
         )
-        elements = list(loader._get_chunks(file_name, file_bytes))
+        elements = list(loader._get_chunks(file_name, file_bytes))  # noqa: SLF001
 
         assert len(elements) == 1
         mock_logger.warning.assert_called_once_with("Unable to seek file %s before upload - %s", file_name, "seek fail")
@@ -854,7 +841,7 @@ def test_unstructured_chunk_loader_pdf_image_heavy_exception(mock_env, mock_meta
             max_chunk_size=1000,
             metadata=mock_metadata,
         )
-        elements = list(loader._get_chunks(file_name, file_bytes))
+        elements = list(loader._get_chunks(file_name, file_bytes))  # noqa: SLF001
 
         assert len(elements) == 1
 
@@ -867,29 +854,27 @@ def test_unstructured_chunk_loader_post_json_parse_exception(mock_env, mock_meta
     mock_resp.json.side_effect = ValueError("Unexpected payload from Unstructured")
     mock_resp.text = '{"text": "ok"}'
 
+    loader = UnstructuredChunkLoader(
+        chunk_resolution=ChunkResolution.normal,
+        env=mock_env,
+        min_chunk_size=100,
+        max_chunk_size=1000,
+        metadata=mock_metadata,
+    )
+
     with (
         patch("redbox.loader.loaders.requests.post", return_value=mock_resp),
         patch("redbox.loader.loaders.is_large_pdf", return_value=(False, 0)),
         patch("redbox.loader.loaders._pdf_is_image_heavy", return_value=False),
+        pytest.raises(ValueError, match="Unexpected payload from Unstructured"),
     ):
-        loader = UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
-            env=mock_env,
-            min_chunk_size=100,
-            max_chunk_size=1000,
-            metadata=mock_metadata,
+        loader._post_files_with_fallback(  # noqa: SLF001
+            url="http://test", files={}, file_name=file_name, file_bytes=file_bytes
         )
-        try:
-            elements = loader._post_files_with_fallback(
-                url="http://test", files={}, file_name=file_name, file_bytes=file_bytes
-            )
-            assert isinstance(elements, list)
-        except ValueError as e:
-            assert str(e) == "Unexpected payload from Unstructured"
 
 
 @pytest.mark.parametrize(
-    "error_type, status, text_contains, expected_exc_type",
+    ("error_type", "status", "text_contains", "expected_exc_type"),
     [
         ("server_error", 500, "server error", RequestException),
     ],
@@ -909,10 +894,7 @@ def test_unstructured_chunk_loader_post_errors(
     mock_request_exc = RequestException("request fail")
 
     side_effects = []
-    if error_type == "server_error":
-        side_effects = [mock_resp] * (mock_env.max_retries + 1)
-    else:
-        side_effects = [mock_resp]
+    side_effects = [mock_resp] * (mock_env.max_retries + 1) if error_type == "server_error" else [mock_resp]
 
     with (
         patch("redbox.loader.loaders.requests.post", side_effect=side_effects),
@@ -933,11 +915,13 @@ def test_unstructured_chunk_loader_post_errors(
         )
 
         if error_type == "request_exception":
-            with patch("redbox.loader.loaders.requests.post", side_effect=mock_request_exc):
-                with pytest.raises(RequestException, match="request fail"):
-                    loader._post_files_with_fallback(
-                        url="http://test", files={}, file_name=file_name, file_bytes=file_bytes
-                    )
+            with (
+                patch("redbox.loader.loaders.requests.post", side_effect=mock_request_exc),
+                pytest.raises(RequestException, match="request fail"),
+            ):
+                loader._post_files_with_fallback(  # noqa: SLF001
+                    url="http://test", files={}, file_name=file_name, file_bytes=file_bytes
+                )
             mock_logger.warning.assert_called_with(
                 "RequestException communicating with Unstructured - %s", mock_request_exc
             )
@@ -945,7 +929,7 @@ def test_unstructured_chunk_loader_post_errors(
             return
 
         with pytest.raises(expected_exc_type):
-            loader._post_files_with_fallback(url="http://test", files={}, file_name=file_name, file_bytes=file_bytes)
+            loader._post_files_with_fallback(url="http://test", files={}, file_name=file_name, file_bytes=file_bytes)  # noqa: SLF001
 
         if error_type == "fast_strategy":
             mock_logger.warning.assert_called_with(

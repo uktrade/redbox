@@ -1,7 +1,7 @@
 from collections.abc import Generator
 from typing import TYPE_CHECKING
-from uuid import uuid4
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -10,7 +10,7 @@ from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.embeddings.fake import FakeEmbeddings
 from opensearchpy import OpenSearch
 
-from redbox.models.chain import AISettings, RedboxQuery, RedboxState, GeneratedMetadata
+from redbox.models.chain import AISettings, GeneratedMetadata, RedboxQuery, RedboxState
 from redbox.models.settings import Settings
 from redbox.retriever import (
     AllElasticsearchRetriever,

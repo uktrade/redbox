@@ -43,13 +43,11 @@ def build_query_filter(
     if chunk_resolution:
         list_filters.append(build_resolution_filter(chunk_resolution=chunk_resolution))
 
-    query_filter = {
+    return {
         "bool": {
             "must": list_filters
         }  # filter returns the results that matches all the listed filter. This is a logical AND operator. The results must match all queries in this clause.
     }
-
-    return query_filter
 
 
 def get_all(

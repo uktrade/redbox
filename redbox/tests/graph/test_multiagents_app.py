@@ -1,12 +1,13 @@
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from unittest.mock import Mock
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage
 from pytest_mock import MockerFixture
 
 from redbox import Redbox
+from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models.chain import (
     AgentEnum,
     AgentTask,
@@ -20,7 +21,6 @@ from redbox.models.chain import (
     StructuredResponseWithCitations,
     metadata_reducer,
 )
-from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models.chat import ChatRoute
 from redbox.models.graph import RedboxActivityEvent
 from redbox.models.settings import Settings
@@ -199,8 +199,10 @@ TABULAR_TOOL_RESPONSE = AIMessage(content=["this work is done by worker", "pass"
 
 class TestNewRoutes:
     def create_new_route_test(
-        self, question: str, number_of_docs: int = 0, tokens_in_all_docs: int = 0, chat_history: list = []
+        self, question: str, number_of_docs: int = 0, tokens_in_all_docs: int = 0, chat_history: list | None = None
     ):
+        if chat_history is None:
+            chat_history = []
         return generate_test_cases(
             query=RedboxQuery(
                 question=question, s3_keys=[], user_uuid=uuid4(), chat_history=chat_history, permitted_s3_keys=[]
@@ -218,7 +220,7 @@ class TestNewRoutes:
         )[0]
 
     @pytest.mark.parametrize(
-        "test_name, user_prompt, documents, has_task, agent, evaluator",
+        ("test_name", "user_prompt", "documents", "has_task", "agent", "evaluator"),
         [
             ("no document no task", "What is AI", [0, 0], False, None, ANSWER_NO_CITATION),
             (
@@ -347,7 +349,7 @@ class TestNewRoutes:
             assert mock_chat_chain.call_count == 2
 
     @pytest.mark.parametrize(
-        "test_name, user_feedback, agents, evaluator",
+        ("test_name", "user_feedback", "agents", "evaluator"),
         [
             (
                 "approve plan",

@@ -1,6 +1,7 @@
 import logging
 import re
-from typing import Any, Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
+from typing import Any
 
 from langchain_core.callbacks.manager import CallbackManagerForLLMRun, dispatch_custom_event
 from langchain_core.language_models import BaseChatModel
@@ -59,7 +60,7 @@ def build_chat_prompt_from_messages_runnable(
         """
         ai_settings = state.request.ai_settings
         _tokeniser = tokeniser or get_tokeniser()
-        _additional_variables = additional_variables or dict()
+        _additional_variables = additional_variables or {}
         task_system_prompt, task_question_prompt, format_prompt = get_prompts(state, prompt_set)
 
         log.debug("Setting chat prompt")
@@ -85,7 +86,7 @@ def build_chat_prompt_from_messages_runnable(
             | _additional_variables
         )
 
-        chatprompt = ChatPromptTemplate(
+        return ChatPromptTemplate(
             messages=(
                 [("system", system_prompt_message)]
                 + [(msg["role"], msg["text"]) for msg in truncated_history]
@@ -96,8 +97,6 @@ def build_chat_prompt_from_messages_runnable(
             partial_variables={"format_instructions": format_instructions},
         ).invoke(prompt_template_context)
 
-        return chatprompt
-
     return _chat_prompt_from_messages
 
 
@@ -105,13 +104,7 @@ def build_chat_prompt_from_messages_runnable(
 def final_response_if_needed(input_: dict) -> Runnable:
     model_name = input_.get("metadata").llm_calls[0].llm_model_name
     need_log = None
-    if not input_["final_chain"]:
-        need_log = False
-    else:
-        if input_.get("messages")[-1].tool_calls:
-            need_log = False
-        else:
-            need_log = True
+    need_log = not (not input_["final_chain"] or input_.get("messages")[-1].tool_calls)
 
     return RunnablePassthrough.assign(
         _log=RunnableLambda(lambda _: (log_activity(f"Generating response with {model_name}...") if need_log else None))
@@ -124,13 +117,15 @@ def build_llm_chain(
     output_parser: Runnable | Callable = None,
     format_instructions: str = "",
     final_response_chain: bool = False,
-    additional_variables: dict = {},
+    additional_variables: dict | None = None,
     summary_multiagent_flag: bool = False,
 ) -> Runnable:
     """Builds a chain that correctly forms a text and metadata state update.
 
     Permits both invoke and astream_events.
     """
+    if additional_variables is None:
+        additional_variables = {}
     model_name = llm._default_config.get("model", "unknown")
     _llm = llm.with_config(tags=["response_flag"]) if final_response_chain else llm
     _llm = (
@@ -288,11 +283,14 @@ class CannedChatLLM(BaseChatModel):
 def basic_chat_chain(
     system_prompt,
     tools=None,
-    _additional_variables: dict = {},
+    _additional_variables: dict | None = None,
     parser=None,
     using_only_structure: bool = False,
     using_chat_history: bool = False,
 ):
+    if _additional_variables is None:
+        _additional_variables = {}
+
     @chain
     def _basic_chat_chain(state: RedboxState):
         nonlocal parser
@@ -319,10 +317,7 @@ def basic_chat_chain(
                 prompt = ChatPromptTemplate(
                     [(system_prompt)], partial_variables={"format_instructions": format_instructions}
                 )
-            if using_only_structure:
-                chain = prompt | llm
-            else:
-                chain = prompt | llm | parser
+            chain = prompt | llm if using_only_structure else prompt | llm | parser
         else:
             prompt = ChatPromptTemplate([(system_prompt)])
             chain = prompt | llm
@@ -335,10 +330,12 @@ def chain_use_metadata(
     system_prompt: str,
     parser=None,
     tools=None,
-    _additional_variables: dict = {},
+    _additional_variables: dict | None = None,
     using_only_structure=False,
     using_chat_history=False,
 ):
+    if _additional_variables is None:
+        _additional_variables = {}
     metadata = None
 
     @chain
@@ -372,10 +369,12 @@ def create_chain_agent(
     use_metadata=False,
     tools=None,
     parser=None,
-    _additional_variables: dict = {},
+    _additional_variables: dict | None = None,
     using_only_structure=False,
     using_chat_history=False,
 ):
+    if _additional_variables is None:
+        _additional_variables = {}
     if use_metadata:
         return chain_use_metadata(
             system_prompt=system_prompt,

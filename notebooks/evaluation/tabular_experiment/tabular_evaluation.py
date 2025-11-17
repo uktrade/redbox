@@ -1,19 +1,21 @@
-from redbox.app import Redbox
-from redbox.models.settings import get_settings
-from redbox.models.chain import RedboxQuery, RedboxState, AISettings, ChatLLMBackend
+import json
+import logging
+import os
+import re
+import sqlite3
+import subprocess
+import time
 
 # from langfuse.callback import CallbackHandler
 from uuid import uuid4
-import langchain
-import re
-import json
-import time
-from dotenv import load_dotenv
-import os
-import logging
-import subprocess
+
 import boto3
-import sqlite3
+import langchain
+from dotenv import load_dotenv
+
+from redbox.app import Redbox
+from redbox.models.chain import AISettings, ChatLLMBackend, RedboxQuery, RedboxState
+from redbox.models.settings import get_settings
 
 # just logging stuff like we have in redbox
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -72,15 +74,15 @@ def get_tabular_db():
 
     Returns: full path of tabular database
     """
-    result = subprocess.run(["find", ".", "-name", "*.db"], stdout=subprocess.PIPE)
+    result = subprocess.run(["find", ".", "-name", "*.db"], check=False, stdout=subprocess.PIPE)
     logger.info("Result: %s", result.stdout.decode("utf-8"))
     # Decode the output from bytes to string
     str_result = result.stdout.decode("utf-8").strip().split("\n")
     if len(str_result) == 1:
-        tabular_db = str_result[0]
-        return tabular_db
+        return str_result[0]
     else:
-        raise Exception("there is more than 1 db")
+        msg = "there is more than 1 db"
+        raise Exception(msg)
 
 
 def delete_tabular_db(tabular_db):

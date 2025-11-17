@@ -1,5 +1,3 @@
-from typing import List
-
 from langchain_core.messages import AIMessage
 from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
@@ -36,14 +34,14 @@ from redbox.graph.nodes.processes import (
     combine_question_evaluator,
     create_evaluator,
     empty_process,
+    get_tabular_agent,
+    get_tabular_schema,
     invoke_custom_state,
     lm_choose_route,
     my_planner,
     report_sources_process,
     stream_plan,
     stream_suggestion,
-    get_tabular_agent,
-    get_tabular_schema,
 )
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -340,8 +338,8 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent
         "summarise_document",
         build_stuff_pattern(
             prompt_set=PromptSet.ChatwithDocs,
-            final_response_chain=False if use_as_agent else True,
-            summary_multiagent_flag=True if use_as_agent else False,
+            final_response_chain=not use_as_agent,
+            summary_multiagent_flag=bool(use_as_agent),
         ),
         retry=RetryPolicy(max_attempts=3),
     )
@@ -488,7 +486,7 @@ def get_chat_graph(
     return builder.compile(debug=debug)
 
 
-def get_agentic_search_graph(tools: List[StructuredTool], debug: bool = False) -> CompiledGraph:
+def get_agentic_search_graph(tools: list[StructuredTool], debug: bool = False) -> CompiledGraph:
     """Creates a subgraph for agentic RAG."""
 
     citations_output_parser, format_instructions = get_structured_response_with_citations_parser()
@@ -510,7 +508,7 @@ def get_agentic_search_graph(tools: List[StructuredTool], debug: bool = False) -
             output_parser=citations_output_parser,
             format_instructions=format_instructions,
             final_response_chain=False,  # Output parser handles streaming
-            additional_variables={"has_selected_files": True if state.request.s3_keys else False},
+            additional_variables={"has_selected_files": bool(state.request.s3_keys)},
         )
 
     builder.add_node(

@@ -105,17 +105,11 @@ def test_search_documents_tool(
         )
     )
 
-    if not permission:
-        assert result_state["messages"][0].content == ""
-        assert result_state["messages"][0].artifact == []
-    elif not selected:
+    if not permission or not selected:
         assert result_state["messages"][0].content == ""
         assert result_state["messages"][0].artifact == []
     else:
-        print(result_state["messages"][0])
-        print("goodbye")
         result_flat = result_state["messages"][0].artifact
-        print(f"DEBUG: result_flat = {result_flat}")  # Debugging
 
         assert result_flat is not None, "Error: result_flat is None"
         assert isinstance(result_state, dict)
@@ -195,7 +189,7 @@ def test_wikipedia_tool():
 
 
 @pytest.mark.parametrize(
-    "is_filter, relevant_return, query, keyword",
+    ("is_filter", "relevant_return", "query", "keyword"),
     [
         (False, False, "UK government use of AI", "artificial intelligence"),
         (True, True, "UK government use of AI", "artificial intelligence"),
@@ -203,7 +197,7 @@ def test_wikipedia_tool():
 )
 @pytest.mark.vcr
 @pytest.mark.xfail(reason="calls api")
-def test_gov_filter_AI(is_filter, relevant_return, query, keyword):
+def test_gov_filter_ai(is_filter, relevant_return, query, keyword):
     def run_tool(is_filter):
         tool = build_govuk_search_tool(filter=is_filter)
         state_update = tool.invoke(
@@ -230,7 +224,7 @@ def test_gov_filter_AI(is_filter, relevant_return, query, keyword):
 
 
 @pytest.mark.parametrize(
-    "provider, web_results",
+    ("provider", "web_results"),
     [
         (
             "Brave",
@@ -385,7 +379,7 @@ def test_brave_response_to_document(mocker, **kwargs):
 
 
 @pytest.mark.parametrize(
-    "query, site, no_search_results",
+    ("query", "site", "no_search_results"),
     [
         ("What is AI?", "", 20),
         ("What is Dict in Python?", "stackoverflow.com", 20),
@@ -404,7 +398,7 @@ def test_web_search_tool(query, site, no_search_results):
 
 
 @pytest.mark.parametrize(
-    "query, no_search_results",
+    ("query", "no_search_results"),
     [
         ("tell me about AI legislation", 20),
         ("What is the new upcoming temporary piece of legislation regarding road traffic in Scotland", 20),
@@ -429,7 +423,7 @@ def test_legislation_search_tool(query, no_search_results):
     assert len(response["messages"][0].artifact) <= no_search_results
     for res in response["messages"][0].artifact:
         netloc = urlparse(res.metadata["uri"]).netloc
-        assert "www.legislation.gov.uk" == netloc
+        assert netloc == "www.legislation.gov.uk"
 
 
 def test_reduce_chunks_by_tokens_empty_chunks():

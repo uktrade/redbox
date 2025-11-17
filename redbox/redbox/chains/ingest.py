@@ -1,7 +1,8 @@
 import logging
+from collections.abc import Iterator
 from functools import partial
 from io import BytesIO
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING
 
 from langchain.vectorstores import VectorStore
 from langchain_core.documents.base import Document

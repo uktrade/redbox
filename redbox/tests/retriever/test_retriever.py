@@ -73,9 +73,7 @@ def test_parameterised_retriever(
     selected = bool(stored_file_parameterised.query.s3_keys)
     permission = bool(stored_file_parameterised.query.permitted_s3_keys)
 
-    if not permission:
-        assert len(result) == 0
-    elif not selected:
+    if not permission or not selected:
         assert len(result) == 0
     else:
         assert len(result) == chain_params["rag_k"]

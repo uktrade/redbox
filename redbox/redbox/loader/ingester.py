@@ -62,7 +62,6 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
 
     if es_index_name == alias:
         if not es.indices.exists_alias(name=alias):
-            print("The alias does not exist")
             create_alias(alias)
     else:
         es.indices.create(index=es_index_name, body=env.index_mapping, ignore=400)
