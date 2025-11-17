@@ -1044,7 +1044,12 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         chat = chat_message.chat
         skill_slug = chat.skill.slug if chat.skill else None
 
-        return url_service.get_citation_url(chat_message.id, self.id, skill_slug, chat.id)
+        return url_service.get_citation_url(
+            message_id=chat_message.id,
+            citation_id=self.id,
+            chat_id=chat.id,
+            skill_slug=skill_slug,
+        )
 
 
 class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
