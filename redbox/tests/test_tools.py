@@ -414,44 +414,50 @@ def test_kagi_response_to_document(mocker, **kwargs):
         assert isinstance(doc, Document)
 
 
+@pytest.mark.parametrize(
+    "json_data, expected_docs_len",
+    [
+        (
+            {"web": {"results": [{"extra_snippets": ["snippet1"], "url": "http://example.com/1"}]}},
+            1,
+        ),
+        (
+            {},
+            0,
+        ),
+        (
+            {"web": []},
+            0,
+        ),
+        (
+            {"web": ["not a dict"]},
+            0,
+        ),
+        (
+            {"web": {"results": []}},
+            0,
+        ),
+    ],
+)
 @requests_mock.Mocker(kw="mock")
-def test_brave_response_to_document(mocker, **kwargs):
+def test_brave_results_to_documents(json_data, expected_docs_len, mocker, **kwargs):
     env = Settings(web_search="Brave")
     mocker.patch("redbox.graph.nodes.tools.get_settings", return_value=env)
     kwargs["mock"].get(
         env.web_search_settings().end_point,
-        [
-            {
-                "status_code": 200,
-                "json": {
-                    "web": {
-                        "results": [
-                            {
-                                "extra_snippets": ["fake_doc_1_snippet_1", "fake_doc_1_snippet_2"],
-                                "url": "http://fake.com/page=1",
-                            },
-                            {
-                                "extra_snippets": ["fake_doc_2_snippet_1", "fake_doc_2_snippet_2"],
-                                "url": "http://fake.com/page=2",
-                            },
-                        ]
-                    }
-                },
-            },
-        ],
+        [{"status_code": 200, "json": json_data}],
     )
 
     response = web_search_with_retry(
-        query="hello",
-        no_search_result=2,
+        query="test query",
+        no_search_result=expected_docs_len or 1,
         country_code="All",
         ui_lang="en-GB",
     )
-    tokeniser = bedrock_tokeniser
     mapped_documents = []
-    docs = brave_response_to_documents(tokeniser, response, mapped_documents)
+    docs = brave_response_to_documents(bedrock_tokeniser, response, mapped_documents)
 
-    assert len(docs) == 2
+    assert len(docs) == expected_docs_len
     for doc in docs:
         assert isinstance(doc, Document)
 
