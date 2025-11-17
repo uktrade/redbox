@@ -37,7 +37,7 @@ def test_user_can_see_active_skill(alice: User, client: Client, default_skill: S
     client.force_login(alice)
 
     # When
-    response = client.get(reverse("skill-chats", kwargs={"skill_slug": default_skill.slug}))
+    response = client.get(reverse("chats", kwargs={"skill_slug": default_skill.slug}))
 
     # Then
     assert response.status_code == HTTPStatus.OK
@@ -83,7 +83,7 @@ def test_user_can_see_skill_chats(alice: User, client: Client, default_skill: Sk
     client.force_login(alice)
 
     # When
-    response = client.get(reverse("skill-chats", kwargs={"skill_slug": default_skill.slug, "chat_id": chat.id}))
+    response = client.get(reverse("chats", kwargs={"skill_slug": default_skill.slug, "chat_id": chat.id}))
 
     # Then
     assert response.status_code == HTTPStatus.OK
@@ -95,12 +95,12 @@ def test_user_can_see_skill_chats(alice: User, client: Client, default_skill: Sk
 def test_user_cannot_see_other_user_skill_chats(bob: User, client: Client, default_skill: Skill, chat_with_alice: Chat):
     # Given
     client.force_login(bob)
-    url = reverse("skill-chats", kwargs={"skill_slug": default_skill.slug, "chat_id": chat_with_alice.id})
+    url = reverse("chats", kwargs={"skill_slug": default_skill.slug, "chat_id": chat_with_alice.id})
 
     # When
     response = client.get(url, follow=True)
 
     # Then
     assert response.status_code == HTTPStatus.OK
-    assert default_skill.name in response.content.decode()
+    assert default_skill.name not in response.content.decode()
     assert chat_with_alice.name not in response.content.decode()

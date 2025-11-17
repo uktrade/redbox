@@ -1,11 +1,12 @@
 services:
   unstructured:
     image: quay.io/unstructured-io/unstructured-api:latest
+    container_name: unstructured
     ports:
       - 8000:8000
     networks:
       - redbox-app-network
-    mem_limit: 6g        
+    mem_limit: 6g
     cpus: 2
     environment:
       - UNSTRUCTURED_MAX_WORKERS=2
@@ -14,6 +15,7 @@ services:
       - ./unstructured_temp:/tmp/unstructured_temp
   django-app:
     image: django-app:latest
+    container_name: django_app
     build:
       context: .
       dockerfile: ./django_app/Dockerfile
@@ -50,6 +52,7 @@ services:
 
   db:
     image: postgres:14
+    container_name: db
     env_file:
       - path: tests/.env.integration
         required: false
@@ -75,6 +78,7 @@ services:
       - ./:/app/:z
   worker:
     image: redbox-worker:latest
+    container_name: worker
     build:
       context: .
       dockerfile: django_app/Dockerfile
@@ -102,6 +106,7 @@ services:
     restart: unless-stopped
   minio:
     image: minio/minio
+    container_name: minio
     expose:
       - "9000"
       - "9001"
@@ -126,6 +131,7 @@ services:
 
   opensearch:
     image: opensearchproject/opensearch:3
+    container_name: opensearch
     environment:
       - discovery.type=single-node
       - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
@@ -145,11 +151,19 @@ services:
       start_period: 60s
     restart: unless-stopped
   opensearch-dashboards:
-    image: opensearchproject/opensearch-dashboards:2.17.0
-    environment:
-      - OPENSEARCH_HOSTS=https://opensearch:9200
+    # Make sure the version of opensearch-dashboards matches the version of opensearch installed on other nodes
+    image: opensearchproject/opensearch-dashboards:3
+    container_name: opensearch_dashboards
     ports:
-      - "5601:5601"
+      # Map host port 5601 to container port 5601
+      - 5601:5601
+    expose:
+      # Expose port 5601 for web access to OpenSearch Dashboards
+      - "5601"
+    environment:
+      # Define the OpenSearch nodes that OpenSearch Dashboards will query
+      - 'OPENSEARCH_HOSTS=["http://opensearch:9200"]'
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
     networks:
       - redbox-app-network
     depends_on:

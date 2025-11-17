@@ -26,8 +26,8 @@
 
                 {{ govukButton(
                     text = "Use " ~ skill.name | lower,
-                    href=url('skill-chats', skill.slug),
-                    classes="push-bottom rbds-w-fit"
+                    href=skill.chat_url,
+                    classes="rbds-push-bottom rbds-w-fit"
                 ) }}
             </div>
             <div class="govuk-grid-column-one-third">

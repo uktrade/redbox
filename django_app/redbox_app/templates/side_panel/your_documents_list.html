@@ -16,7 +16,7 @@
                 {% call editable_text(document_edit_url, 'document-title-change', 'your-documents', file.id) %}
                     <div class="govuk-checkboxes__item item-checkbox-container display">
                         <input class="govuk-checkboxes__input" id="file-{{ file.id }}" name="file-{{ file.id }}" type="checkbox"
-                            value="{{ file.id }}" {% if file.selected %}checked{% endif %}>
+                            value="{{ file.id }}" title="{{ file.file_name }}" {% if file.selected %}checked{% endif %}>
                         <label class="item-checkbox-label govuk-checkboxes__label title-text" for="file-{{ file.id }}"
                             title="{{ file.file_name }}">
                             {{ file.file_name }}
@@ -48,8 +48,8 @@
                                                 "active_chat_id": "{{ chat_id }}",
                                                 "file_selected": "{{ file.selected }}"
                                             }'
-                                            hx-target="#document-selector"
-                                            hx-swap="outerHTML">
+                                            hx-target="closest .side-panel-item-container"
+                                            hx-swap="delete">
                                         Yes delete
                                         <span class="govuk-visually-hidden"> delete document: {{ file.file_name }}</span>
                                     </button>

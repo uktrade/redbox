@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch, call, ANY
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
@@ -10,6 +10,7 @@ from opensearchpy.helpers import scan
 from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_community.vectorstores import OpenSearchVectorSearch
+from requests.exceptions import RequestException
 
 from redbox.chains.ingest import document_loader, ingest_from_loader
 from redbox.loader import ingester
@@ -23,6 +24,7 @@ from redbox.loader.loaders import (
     split_pdf,
     read_csv_text,
     read_excel_file,
+    _pdf_is_image_heavy,
 )
 from redbox.models.file import ChunkResolution
 from redbox.models.settings import Settings
@@ -458,6 +460,20 @@ def test_is_large_pdf_custom_threshold():
         assert page_count == 75
 
 
+def test_is_large_pdf_exception():
+    mock_exception = Exception("PDF open error")
+
+    with patch("fitz.open") as mock_open:
+        mock_open.side_effect = mock_exception
+
+        filebytes = BytesIO(b"mock pdf content")
+        is_large, page_count = is_large_pdf("test.pdf", filebytes)
+
+        assert is_large is False
+        assert page_count == 0
+        mock_open.assert_called_once_with(stream=b"mock pdf content", filetype="pdf")
+
+
 def test_is_large_pdf_non_pdf_file():
     # Test with a non-PDF file
     filebytes = BytesIO(b"mock content")
@@ -482,7 +498,7 @@ def test_split_pdf_single_chunk():
         chunks = split_pdf(filebytes)
 
         assert len(chunks) == 1
-        mock_sub_doc.insert_pdf.assert_has_calls([call(mock_doc, from_page=i, to_page=i) for i in range(50)])
+        mock_sub_doc.insert_pdf.assert_called_once_with(mock_doc, from_page=0, to_page=50)
 
 
 def test_split_pdf_multiple_chunks():
@@ -494,7 +510,7 @@ def test_split_pdf_multiple_chunks():
     mock_sub_docs = [MagicMock(), MagicMock()]
     for doc in mock_sub_docs:
         doc.tobytes.return_value = b"chunk content"
-        doc.__len__.return_value = 100
+        doc.__len__.return_value = 50
 
     with patch("fitz.open", side_effect=[mock_doc] + mock_sub_docs):
         filebytes = BytesIO(b"mock pdf content")
@@ -502,9 +518,9 @@ def test_split_pdf_multiple_chunks():
 
         assert len(chunks) == 2
         # First chunk should have pages 0-49
-        mock_sub_docs[0].insert_pdf.assert_has_calls([call(mock_doc, from_page=i, to_page=i) for i in range(50)])
+        mock_sub_docs[0].insert_pdf.assert_called_once_with(mock_doc, from_page=0, to_page=50)
         # Second chunk should have pages 50-99
-        mock_sub_docs[1].insert_pdf.assert_has_calls([call(mock_doc, from_page=i, to_page=i) for i in range(50, 100)])
+        mock_sub_docs[1].insert_pdf.assert_called_once_with(mock_doc, from_page=50, to_page=100)
 
 
 def test_split_pdf_uneven_chunks():
@@ -514,9 +530,10 @@ def test_split_pdf_uneven_chunks():
 
     # Mock the sub documents
     mock_sub_docs = [MagicMock(), MagicMock()]
+    mock_sub_docs[0].__len__.return_value = 50
+    mock_sub_docs[1].__len__.return_value = 30
     for doc in mock_sub_docs:
         doc.tobytes.return_value = b"chunk content"
-        doc.__len__.return_value = 80
 
     with patch("fitz.open", side_effect=[mock_doc] + mock_sub_docs):
         filebytes = BytesIO(b"mock pdf content")
@@ -524,9 +541,70 @@ def test_split_pdf_uneven_chunks():
 
         assert len(chunks) == 2
         # First chunk should have pages 0-49
-        mock_sub_docs[0].insert_pdf.assert_has_calls([call(mock_doc, from_page=i, to_page=i) for i in range(50)])
+        mock_sub_docs[0].insert_pdf.assert_called_once_with(mock_doc, from_page=0, to_page=50)
         # Second chunk should have pages 50-79
-        mock_sub_docs[1].insert_pdf.assert_has_calls([call(mock_doc, from_page=i, to_page=i) for i in range(50, 80)])
+        mock_sub_docs[1].insert_pdf.assert_called_once_with(mock_doc, from_page=50, to_page=80)
+
+
+def test_split_pdf_empty_pdf():
+    mock_doc = MagicMock()
+    mock_doc.__len__.return_value = 0
+
+    with patch("fitz.open", return_value=mock_doc):
+        filebytes = BytesIO(b"mock pdf content")
+        chunks = split_pdf(filebytes)
+
+        assert len(chunks) == 0
+
+
+def test_split_pdf_zero_chunk_size():
+    mock_doc = MagicMock()
+    mock_doc.__len__.return_value = 50
+    mock_doc.select.return_value = mock_doc
+    mock_doc.tobytes.return_value = b"mock pdf chunk content"
+    mock_doc.close = MagicMock()
+
+    with patch("fitz.open", return_value=mock_doc):
+        filebytes = BytesIO(b"mock pdf content")
+        chunks = split_pdf(filebytes, pages_per_chunk=5)
+
+        assert len(chunks) == 10
+
+
+def test_split_pdf_skip_empty_sub_doc():
+    mock_doc = MagicMock()
+    mock_doc.__len__.return_value = 50
+
+    mock_sub_doc = MagicMock()
+    mock_sub_doc.tobytes.return_value = b"chunk content"
+    mock_sub_doc.__len__.return_value = 0
+
+    with patch("fitz.open", side_effect=[mock_doc, mock_sub_doc]):
+        filebytes = BytesIO(b"mock pdf content")
+        chunks = split_pdf(filebytes)
+
+        assert len(chunks) == 0
+        mock_sub_doc.insert_pdf.assert_called_once_with(mock_doc, from_page=0, to_page=50)
+
+
+def test_pdf_is_image_heavy_image_heavy():
+    mock_doc = MagicMock()
+    mock_doc.__len__.return_value = 3
+    mock_pages = [MagicMock() for _ in range(3)]
+    mock_pages[0].get_images.return_value = [{"image": "mock1"}]
+    mock_pages[1].get_images.return_value = [{"image": "mock2"}]
+    mock_pages[2].get_images.return_value = []
+    mock_doc.__getitem__.side_effect = mock_pages
+
+    with patch("fitz.open", return_value=mock_doc):
+        filebytes = BytesIO(b"mock pdf content")
+        is_image_heavy = _pdf_is_image_heavy(filebytes, sample_pages=3)
+
+        assert is_image_heavy is True
+        mock_doc.__getitem__.assert_has_calls([((0,),), ((1,),), ((2,),)])
+        mock_pages[0].get_images.assert_called_once_with(full=True)
+        mock_pages[1].get_images.assert_called_once_with(full=True)
+        mock_pages[2].get_images.assert_called_once_with(full=True)
 
 
 def test_read_csv_text_valid_file():
@@ -614,3 +692,275 @@ def test_read_excel_file_pandas_error():
         result = read_excel_file(file_bytes)
 
         assert result is None
+
+
+def test_unstructured_chunk_loader_large_pdf_path(mock_env, mock_metadata):
+    file_name = "large_test.pdf"
+    file_bytes = BytesIO(b"mock pdf content")
+    mock_elements_chunk1 = [{"text": "chunk1"}]
+    mock_elements_chunk2 = [{"text": "chunk2"}]
+    mock_pdf_chunks = [BytesIO(b"chunk1"), BytesIO(b"chunk2")]
+
+    with (
+        patch("redbox.loader.loaders.is_large_pdf", return_value=(True, 200)),
+        patch("redbox.loader.loaders.split_pdf", return_value=mock_pdf_chunks),
+        patch("redbox.loader.loaders.UnstructuredChunkLoader._post_files_with_fallback") as mock_post,
+        patch("redbox.loader.loaders.logger") as mock_logger,
+    ):
+        mock_post.side_effect = [mock_elements_chunk1, mock_elements_chunk2]
+
+        loader = UnstructuredChunkLoader(
+            chunk_resolution=ChunkResolution.normal,
+            env=mock_env,
+            min_chunk_size=100,
+            max_chunk_size=1000,
+            metadata=mock_metadata,
+            pages_per_pdf_chunk=75,
+        )
+        elements = list(loader._get_chunks(file_name, file_bytes))
+
+        assert len(elements) == 2
+        assert elements[0]["text"] == "chunk1"
+        assert elements[1]["text"] == "chunk2"
+        mock_logger.info.assert_called_once_with(
+            "Large PDF with (%d pages) - splitting into chunks with %d pages", 200, 75
+        )
+        mock_post.assert_has_calls(
+            [
+                call(
+                    url=ANY,
+                    files={"files": (file_name, mock_pdf_chunks[0])},
+                    file_name=file_name,
+                    file_bytes=mock_pdf_chunks[0],
+                ),
+                call(
+                    url=ANY,
+                    files={"files": (file_name, mock_pdf_chunks[1])},
+                    file_name=file_name,
+                    file_bytes=mock_pdf_chunks[1],
+                ),
+            ]
+        )
+        mock_logger.debug.assert_called_once_with("Unstructured returned %d elements", 2)
+
+
+def test_unstructured_chunk_loader_large_pdf_chunk_failure(mock_env, mock_metadata):
+    file_name = "large_test.pdf"
+    file_bytes = BytesIO(b"mock pdf content")
+    mock_pdf_chunks = [BytesIO(b"chunk1"), BytesIO(b"chunk2")]
+
+    with (
+        patch("redbox.loader.loaders.is_large_pdf", return_value=(True, 200)),
+        patch("redbox.loader.loaders.split_pdf", return_value=mock_pdf_chunks),
+        patch(
+            "redbox.loader.loaders.UnstructuredChunkLoader._post_files_with_fallback",
+            side_effect=[{"text": "chunk1"}, Exception("chunk fail")],
+        ),
+        patch("redbox.loader.loaders.logger") as mock_logger,
+    ):
+        loader = UnstructuredChunkLoader(
+            chunk_resolution=ChunkResolution.normal,
+            env=mock_env,
+            min_chunk_size=100,
+            max_chunk_size=1000,
+            metadata=mock_metadata,
+            pages_per_pdf_chunk=75,
+        )
+
+        with pytest.raises(ValueError, match="Chunk 2 failed: chunk fail"):
+            list(loader._get_chunks(file_name, file_bytes))
+
+        mock_logger.exception.assert_called_once_with("Chunk 2 failed: chunk fail")
+
+
+def test_unstructured_chunk_loader_tabular_path(mock_env, mock_metadata):
+    file_name = "test.csv"
+    file_bytes = BytesIO(b"mock csv")
+    mock_elements = [{"text": "tabular chunk"}]
+
+    with (
+        patch("redbox.loader.loaders.load_tabular_file", return_value=mock_elements),
+        patch("redbox.loader.loaders.logger") as mock_logger,
+    ):
+        loader = UnstructuredChunkLoader(
+            chunk_resolution=ChunkResolution.tabular,
+            env=mock_env,
+            min_chunk_size=100,
+            max_chunk_size=1000,
+            metadata=mock_metadata,
+        )
+        elements = list(loader._get_chunks(file_name, file_bytes))
+
+        assert elements == mock_elements
+        mock_logger.debug.assert_called_once_with("Unstructured returned %d elements", 1)
+
+
+def test_unstructured_chunk_loader_empty_elements_raise(mock_env, mock_metadata):
+    file_name = "test.txt"
+    file_bytes = BytesIO(b"mock")
+
+    with patch("redbox.loader.loaders.UnstructuredChunkLoader._post_files_with_fallback", return_value=[]):
+        loader = UnstructuredChunkLoader(
+            chunk_resolution=ChunkResolution.normal,
+            env=mock_env,
+            min_chunk_size=100,
+            max_chunk_size=1000,
+            metadata=mock_metadata,
+        )
+
+        with pytest.raises(ValueError, match="Unstructured failed to extract text for this file"):
+            list(loader._get_chunks(file_name, file_bytes))
+
+
+def test_unstructured_chunk_loader_post_seek_warning(mock_env, mock_metadata):
+    file_name = "test.pdf"
+    file_bytes = MagicMock(spec=BytesIO)
+    file_bytes.seek.side_effect = Exception("seek fail")
+
+    with (
+        patch("redbox.loader.loaders.UnstructuredChunkLoader._post_files_with_fallback") as mock_post,
+        patch("redbox.loader.loaders.logger") as mock_logger,
+        patch("redbox.loader.loaders.is_large_pdf", return_value=(False, 0)),
+        patch("redbox.loader.loaders._pdf_is_image_heavy", return_value=False),
+    ):
+        mock_post.return_value = [{"text": "ok"}]
+
+        loader = UnstructuredChunkLoader(
+            chunk_resolution=ChunkResolution.normal,
+            env=mock_env,
+            min_chunk_size=100,
+            max_chunk_size=1000,
+            metadata=mock_metadata,
+        )
+        elements = list(loader._get_chunks(file_name, file_bytes))
+
+        assert len(elements) == 1
+        mock_logger.warning.assert_called_once_with("Unable to seek file %s before upload - %s", file_name, "seek fail")
+
+
+def test_unstructured_chunk_loader_pdf_image_heavy_exception(mock_env, mock_metadata):
+    file_name = "test.pdf"
+    file_bytes = BytesIO(b"mock")
+
+    with (
+        patch("redbox.loader.loaders._pdf_is_image_heavy", side_effect=Exception("image detect fail")),
+        patch("redbox.loader.loaders.UnstructuredChunkLoader._post_files_with_fallback", return_value=[{"text": "ok"}]),
+        patch("redbox.loader.loaders.is_large_pdf", return_value=(False, 0)),
+    ):
+        loader = UnstructuredChunkLoader(
+            chunk_resolution=ChunkResolution.normal,
+            env=mock_env,
+            min_chunk_size=100,
+            max_chunk_size=1000,
+            metadata=mock_metadata,
+        )
+        elements = list(loader._get_chunks(file_name, file_bytes))
+
+        assert len(elements) == 1
+
+
+def test_unstructured_chunk_loader_post_json_parse_exception(mock_env, mock_metadata):
+    file_name = "test.txt"
+    file_bytes = BytesIO(b"mock")
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.side_effect = ValueError("Unexpected payload from Unstructured")
+    mock_resp.text = '{"text": "ok"}'
+
+    with (
+        patch("redbox.loader.loaders.requests.post", return_value=mock_resp),
+        patch("redbox.loader.loaders.is_large_pdf", return_value=(False, 0)),
+        patch("redbox.loader.loaders._pdf_is_image_heavy", return_value=False),
+    ):
+        loader = UnstructuredChunkLoader(
+            chunk_resolution=ChunkResolution.normal,
+            env=mock_env,
+            min_chunk_size=100,
+            max_chunk_size=1000,
+            metadata=mock_metadata,
+        )
+        try:
+            elements = loader._post_files_with_fallback(
+                url="http://test", files={}, file_name=file_name, file_bytes=file_bytes
+            )
+            assert isinstance(elements, list)
+        except ValueError as e:
+            assert str(e) == "Unexpected payload from Unstructured"
+
+
+@pytest.mark.parametrize(
+    "error_type, status, text_contains, expected_exc_type",
+    [
+        ("server_error", 500, "server error", RequestException),
+    ],
+)
+def test_unstructured_chunk_loader_post_errors(
+    mock_env, mock_metadata, error_type, status, text_contains, expected_exc_type
+):
+    file_name = "test.txt"
+    file_bytes = BytesIO(b"mock")
+    mock_resp = MagicMock()
+    mock_resp.status_code = status
+    mock_resp.text = text_contains
+    mock_resp.json.return_value = (
+        {"detail": text_contains} if error_type != "fast_strategy" else {"error": text_contains}
+    )
+
+    mock_request_exc = RequestException("request fail")
+
+    side_effects = []
+    if error_type == "server_error":
+        side_effects = [mock_resp] * (mock_env.max_retries + 1)
+    else:
+        side_effects = [mock_resp]
+
+    with (
+        patch("redbox.loader.loaders.requests.post", side_effect=side_effects),
+        patch("redbox.loader.loaders._time") as mock_time,
+        patch("redbox.loader.loaders.is_large_pdf", return_value=(False, 0)),
+        patch("redbox.loader.loaders._pdf_is_image_heavy", return_value=False),
+        patch("redbox.loader.loaders.logger") as mock_logger,
+    ):
+        mock_time.sleep = MagicMock()
+
+        loader = UnstructuredChunkLoader(
+            chunk_resolution=ChunkResolution.normal,
+            env=mock_env,
+            min_chunk_size=100,
+            max_chunk_size=1000,
+            metadata=mock_metadata,
+            max_retries=1,
+        )
+
+        if error_type == "request_exception":
+            with patch("redbox.loader.loaders.requests.post", side_effect=mock_request_exc):
+                with pytest.raises(RequestException, match="request fail"):
+                    loader._post_files_with_fallback(
+                        url="http://test", files={}, file_name=file_name, file_bytes=file_bytes
+                    )
+            mock_logger.warning.assert_called_with(
+                "RequestException communicating with Unstructured - %s", mock_request_exc
+            )
+            mock_time.sleep.assert_called_once_with(0.5)  # 2**0 * 0.5
+            return
+
+        with pytest.raises(expected_exc_type):
+            loader._post_files_with_fallback(url="http://test", files={}, file_name=file_name, file_bytes=file_bytes)
+
+        if error_type == "fast_strategy":
+            mock_logger.warning.assert_called_with(
+                "Unstructured server reported fast strategy unavailable so trying fallback payloads"
+            )
+        if error_type == "client_error":
+            mock_logger.error.assert_called_once_with(
+                "Unstructured returned client error %d - %s", status, text_contains
+            )
+        if error_type == "server_error":
+            mock_logger.warning.assert_called_with(
+                "Server error %d from Unstructured, will retry - response was: %s", status, text_contains[:200]
+            )
+            assert mock_time.sleep.call_count >= 1  # Retries with exponential backoff
+        mock_logger.debug.assert_called_with("Exhausted retries for payload moving to next approach")
+        mock_logger.exception.assert_called_with(
+            "All Unstructured requests failed for file %s. Last exception: %s", file_name, ANY
+        )

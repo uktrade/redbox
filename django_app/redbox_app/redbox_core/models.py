@@ -17,7 +17,7 @@ from django.contrib.auth.models import AbstractBaseUser, Group, PermissionsMixin
 from django.contrib.postgres.fields import ArrayField
 from django.core import validators
 from django.db import models
-from django.db.models import Max, Min, Prefetch, UniqueConstraint
+from django.db.models import Max, Min, Prefetch, Q, UniqueConstraint
 from django.template import TemplateDoesNotExist
 from django.template.loader import get_template
 from django.urls import reverse
@@ -28,6 +28,7 @@ from slugify import slugify
 from yarl import URL
 
 from redbox.models.settings import get_settings
+from redbox_app.redbox_core.services import url as url_service
 from redbox_app.redbox_core.utils import get_date_group
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
@@ -114,10 +115,15 @@ class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
         """Check to see if an info page has been created for skill"""
         return self.info_template is not None
 
-    def get_info_page_url(self):
+    @cached_property
+    def info_page_url(self):
         return reverse("skill-info", kwargs={"skill_slug": self.slug})
 
-    def get_files(self, file_type: Optional["FileSkill.FileType"] = None):
+    @cached_property
+    def chat_url(self) -> str:
+        return url_service.get_chat_url(skill_slug=self.slug)
+
+    def get_files(self, file_type: Optional["FileSkill.FileType"] = None) -> Sequence["File"]:
         file_type = file_type or FileSkill.FileType.MEMBER
         return File.objects.filter(file_skills__skill=self, file_skills__file_type=file_type)
 
@@ -851,11 +857,21 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         return self.expires_at - datetime.now(tz=UTC)
 
     @classmethod
-    def get_completed_and_processing_files(cls, user: User) -> tuple[Sequence["File"], Sequence["File"]]:
+    def get_completed_and_processing_files(
+        cls, user: User, skill: Skill | None = None
+    ) -> tuple[Sequence["File"], Sequence["File"]]:
         """Returns all files that are completed and processing for a given user."""
+        base_filter = Q(user=user)
+        skill_filter = (
+            Q(file_skills__skill=skill, file_skills__file_type=FileSkill.FileType.MEMBER)
+            if skill
+            else Q(file_skills__isnull=True)
+        )
+        filters = base_filter & skill_filter
 
-        completed_files = cls.objects.filter(user=user, status=File.Status.complete).order_by("-created_at")
-        processing_files = cls.objects.filter(user=user, status=File.Status.processing).order_by("-created_at")
+        completed_files = cls.objects.filter(filters, status=File.Status.complete).order_by("-created_at")
+        processing_files = cls.objects.filter(filters, status=File.Status.processing).order_by("-created_at")
+
         return completed_files, processing_files
 
     @classmethod
@@ -878,6 +894,7 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
     name = models.TextField(max_length=1024, null=False, blank=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     archived = models.BooleanField(default=False, null=True, blank=True)
+    skill = models.ForeignKey(Skill, on_delete=models.SET_NULL, null=True, blank=True, related_name="chats")
 
     # Exit feedback - this is separate to the ratings for individual ChatMessages
     feedback_achieved = models.BooleanField(
@@ -908,12 +925,12 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
 
     @classmethod
     def get_ordered_by_last_message_date(
-        cls, user: User, exclude_chat_ids: Collection[uuid.UUID] | None = None
+        cls, user: User, skill: Skill | None = None, exclude_chat_ids: Collection[uuid.UUID] | None = None
     ) -> Sequence["Chat"]:
         """Returns all chat histories for a given user, ordered by the date of the latest message."""
         exclude_chat_ids = exclude_chat_ids or []
         return (
-            cls.objects.filter(user=user, archived=False)
+            cls.objects.filter(user=user, archived=False, skill=skill)
             .exclude(id__in=exclude_chat_ids)
             .annotate(latest_message_date=Max("chatmessage__created_at"))
             .order_by("-latest_message_date")
@@ -926,6 +943,14 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
     @property
     def date_group(self):
         return get_date_group(self.newest_message_date)
+
+    @cached_property
+    def url(self) -> str | None:
+        """Returns the url for this chat."""
+        return url_service.get_chat_url(
+            chat_id=self.id,
+            skill_slug=self.skill.slug if self.skill else None,
+        )
 
 
 class Citation(UUIDPrimaryKeyBase, TimeStampedModel):

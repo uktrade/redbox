@@ -351,3 +351,21 @@ def redbox_team() -> Team:
 @pytest.fixture
 def default_skill() -> Skill:
     return Skill.objects.create(name="Default Skill")
+
+
+@pytest.fixture
+def remove_file_from_bucket(s3_client):
+    def _remove(file_name: str):
+        # we begin by removing any file in minio that starts with this key prefix
+        try:
+            paginator = s3_client.get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=settings.BUCKET_NAME, Prefix=file_name.replace(" ", "_")):
+                if "Contents" in page:
+                    delete_objects = [{"Key": obj["Key"]} for obj in page["Contents"]]
+                    if delete_objects:
+                        s3_client.delete_objects(Bucket=settings.BUCKET_NAME, Delete={"Objects": delete_objects})
+        except Exception:
+            logger.exception("Error cleaning up S3 objects before test")
+            # Ignore errors during cleanup
+
+    return _remove
