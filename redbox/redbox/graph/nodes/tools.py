@@ -459,7 +459,11 @@ def kagi_response_to_documents(
 def brave_response_to_documents(
     tokeniser: Callable, response: requests.Response, mapped_documents: list
 ) -> list[Document]:
-    results = response.json().get("web", []).get("results")
+    results = response.json().get("web", [])
+    if type(results) is dict:
+        results = results.get("results")
+    else:
+        results = []
     for i, doc in enumerate(results):
         mapped_documents = map_documents(tokeniser, i, doc, "extra_snippets", mapped_documents)
     return mapped_documents
