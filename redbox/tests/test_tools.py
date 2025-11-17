@@ -16,9 +16,11 @@ from redbox.graph.nodes.tools import (
     build_govuk_search_tool,
     build_legislation_search_tool,
     build_retrieve_document_full_text,
+    build_retrieve_knowledge_base,
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
+    format_result,
     kagi_response_to_documents,
     web_search_call,
     web_search_with_retry,
@@ -29,6 +31,21 @@ from redbox.models.settings import Settings
 from redbox.test.data import RedboxChatTestCase
 from redbox.transform import bedrock_tokeniser, combine_documents, flatten_document_state
 from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
+
+
+@pytest.mark.parametrize(
+    "loop, content, artifact, status, is_intermediate_step",
+    [(True, "test", "test", "pass", True), (False, "test", "test", None, None)],
+)
+def test_format_result(loop, content, artifact, status, is_intermediate_step):
+    formatted_result = format_result(loop, content, artifact, status, is_intermediate_step)
+
+    assert type(formatted_result) is tuple
+    if loop:
+        assert type(formatted_result[0]) is tuple
+        assert len(formatted_result[0]) == 3
+    else:
+        assert type(formatted_result[0]) is str
 
 
 def test_document_from_prompt_tool():
@@ -63,6 +80,32 @@ def test_document_from_prompt_tool():
         result_state["messages"][0].content
         == "<context>This is user prompt that containing documents.</context>Can you test this doc: some texts"
     )
+
+
+def test_retrieve_knowledge_base(es_client: OpenSearch, es_index: str, stored_file_knowledge_base: RedboxChatTestCase):
+    kb_tool = build_retrieve_knowledge_base(es_client, es_index)
+    tool_node = ToolNode(tools=[kb_tool])
+    result_state = tool_node.invoke(
+        RedboxState(
+            request=stored_file_knowledge_base.query,
+            messages=[
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "name": "_retrieve_knowledge_base",
+                            "args": {},
+                            "id": "1",
+                        }
+                    ],
+                )
+            ],
+        )
+    )
+    if stored_file_knowledge_base.test_id == "Successful Path-0":
+        assert "<context>This is your knowledgebase result.</context>" in result_state["messages"][0].content
+    elif stored_file_knowledge_base.test_id == "Empty knowledge base-0":
+        assert result_state["messages"][0].content == "Tool returns empty result set."
 
 
 def test_retrieve_document_full_text_tool(

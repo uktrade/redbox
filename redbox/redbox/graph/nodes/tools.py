@@ -39,7 +39,7 @@ log = logging.getLogger(__name__)
 
 def format_result(loop, content, artifact, status, is_intermediate_step):
     if loop:
-        return ((content, status, str(is_intermediate_step)), content)
+        return ((content, status, str(is_intermediate_step)), artifact)
     else:
         return (content, artifact)
 
