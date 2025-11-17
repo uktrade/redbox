@@ -12,6 +12,7 @@ from opensearchpy import OpenSearch
 from redbox.api.format import reduce_chunks_by_tokens
 from redbox.graph.nodes.tools import (
     brave_response_to_documents,
+    build_document_from_prompt_tool,
     build_govuk_search_tool,
     build_legislation_search_tool,
     build_retrieve_document_full_text,
@@ -28,6 +29,40 @@ from redbox.models.settings import Settings
 from redbox.test.data import RedboxChatTestCase
 from redbox.transform import bedrock_tokeniser, combine_documents, flatten_document_state
 from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
+
+
+def test_document_from_prompt_tool():
+    doc_to_prompt_tool = build_document_from_prompt_tool()
+    tool_node = ToolNode(tools=[doc_to_prompt_tool])
+    result_state = tool_node.invoke(
+        RedboxState(
+            request=RedboxQuery(
+                question="Can you test this doc: some texts",
+                s3_keys=[],
+                user_uuid=uuid4(),
+                chat_history=[],
+                ai_settings=AISettings(),
+                permitted_s3_keys=[],
+            ),
+            messages=[
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "name": "_retrieve_document_from_prompt",
+                            "args": {},
+                            "id": "1",
+                        }
+                    ],
+                )
+            ],
+        )
+    )
+
+    assert (
+        result_state["messages"][0].content
+        == "<context>This is user prompt that containing documents.</context>Can you test this doc: some texts"
+    )
 
 
 def test_retrieve_document_full_text_tool(
