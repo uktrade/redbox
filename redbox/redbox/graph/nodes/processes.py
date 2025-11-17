@@ -540,8 +540,7 @@ def build_agent_with_loop(
             task = parser.parse(state.last_message.content)
         except Exception as e:
             print(f"Cannot parse in {agent_name}: {e}")
-
-        # check if dependencies are met before running task
+            return None
 
         activity_node = build_activity_log_node(
             RedboxActivityEvent(message=f"{agent_name} is completing task: {task.task}")
@@ -607,22 +606,22 @@ def build_agent_with_loop(
                     if is_intermediate_step:
                         additional_variables.update({"previous_tool_error": "", "previous_tool_results": all_results})
                 result = result_content
-            try:
-                if type(result) is str:
-                    result_content = result
-                elif type(result) is list and type(result[0]) is dict:
-                    result_content = result[0].get("text", "")
-                elif type(result) is list:
-                    result_content = []
-                    current_token_counts = 0
-                    for res in result:
-                        current_token_counts += bedrock_tokeniser(res.content)
-                        if current_token_counts <= max_tokens:
-                            result_content.append(res.content)
-                    result_content = " ".join(result_content)
-            except Exception:
+            if type(result) is str:
+                result_content = result
+            elif type(result) is list and type(result[0]) is dict:
+                result_content = result[0].get("text", "")
+            elif type(result) is list:
+                result_content = []
+                current_token_counts = 0
+                for res in result:
+                    current_token_counts += bedrock_tokeniser(res.content)
+                    if current_token_counts <= max_tokens:
+                        result_content.append(res.content)
+                result_content = " ".join(result_content)
+            else:
                 log.error(f"Worker agent return incompatible data type {type(result)}")
                 log.info(result)
+                return None
             all_results.append(result_content)
         all_results = " ".join(all_results)
         return {
