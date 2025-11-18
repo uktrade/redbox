@@ -1,7 +1,7 @@
 from collections.abc import Generator
 from typing import TYPE_CHECKING
-from uuid import uuid4
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -10,7 +10,7 @@ from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.embeddings.fake import FakeEmbeddings
 from opensearchpy import OpenSearch
 
-from redbox.models.chain import AISettings, RedboxQuery, RedboxState, GeneratedMetadata
+from redbox.models.chain import AISettings, GeneratedMetadata, RedboxQuery, RedboxState
 from redbox.models.settings import Settings
 from redbox.retriever import (
     AllElasticsearchRetriever,
@@ -20,7 +20,12 @@ from redbox.retriever import (
 )
 from redbox.test.data import RedboxChatTestCase
 from redbox.transform import bedrock_tokeniser
-from tests.retriever.data import ALL_CHUNKS_RETRIEVER_CASES, METADATA_RETRIEVER_CASES, PARAMETERISED_RETRIEVER_CASES
+from tests.retriever.data import (
+    ALL_CHUNKS_RETRIEVER_CASES,
+    KNOWLEDGE_BASE_CASES,
+    METADATA_RETRIEVER_CASES,
+    PARAMETERISED_RETRIEVER_CASES,
+)
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -149,6 +154,16 @@ def fake_state() -> RedboxState:
 # -----#
 # Data #
 # -----#
+
+
+@pytest.fixture(params=KNOWLEDGE_BASE_CASES)
+def stored_file_knowledge_base(
+    request: FixtureRequest, es_vector_store: OpenSearchVectorSearch
+) -> Generator[RedboxChatTestCase, None, None]:
+    test_case: RedboxChatTestCase = request.param
+    doc_ids = es_vector_store.add_documents(test_case.docs)
+    yield test_case
+    es_vector_store.delete(doc_ids)
 
 
 @pytest.fixture(params=ALL_CHUNKS_RETRIEVER_CASES)
