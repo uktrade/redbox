@@ -45,7 +45,7 @@
       {% for display, href, cit_id, text_in_answer, citation_name in message.unique_citation_uris() %}
         {% if display not in seen_docs %}
         <li class="govuk-!-margin-bottom-0">
-          <a class="iai-chat-bubbles__sources-link govuk-link" id="footnote-{{ message.id }}-{{ loop.index }}" href="/citations/{{message.id}}">{{ display }}</a>
+          <a class="iai-chat-bubbles__sources-link govuk-link" id="footnote-{{ message.id }}-{{ loop.index }}" href="{{ href }}">{{ display }}</a>
         </li>
         {% set _ = seen_docs.append(display) %}
         {% endif %}
