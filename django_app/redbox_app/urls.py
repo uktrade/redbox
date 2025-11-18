@@ -57,7 +57,7 @@ chat_urlpatterns = [
     path("chats/<uuid:chat_id>/", views.ChatsView.as_view(), name="chats"),
     path("chats/", views.ChatsView.as_view(), name="chats"),
     path("chat/<uuid:chat_id>/title/", views.ChatsTitleView.as_view(), name="chat-titles"),
-    path("citations/<uuid:message_id>/", views.CitationsView.as_view(), name="citations"),
+    path("chats/<uuid:chat_id>/citations/<uuid:message_id>/", views.CitationsView.as_view(), name="citations"),
     path("ratings/<uuid:message_id>/", views.RatingsView.as_view(), name="ratings"),
     path("chats/<uuid:chat_id>/update-chat-feedback", views.UpdateChatFeedback.as_view(), name="chat-feedback"),
     path("chats/<uuid:chat_id>/delete-chat/", views.DeleteChat.as_view(), name="delete-chat"),
@@ -106,7 +106,11 @@ skills_urlpatterns = [
     path(
         f"{skills_route_prefix}chats/<uuid:active_chat_id>/chat-window/", views.ChatWindow.as_view(), name="chat-window"
     ),
-    path(f"{skills_route_prefix}citations/<uuid:message_id>/", views.CitationsView.as_view(), name="citations"),
+    path(
+        f"{skills_route_prefix}chats/<uuid:chat_id>/citations/<uuid:message_id>/",
+        views.CitationsView.as_view(),
+        name="citations",
+    ),
 ]
 
 admin_urlpatterns = [

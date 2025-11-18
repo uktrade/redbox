@@ -2,7 +2,7 @@ import logging
 import re
 from collections.abc import Sequence
 
-from redbox_app.redbox_core.models import ChatMessage, File
+from redbox_app.redbox_core.models import ChatMessage, Citation, File
 
 logger = logging.getLogger(__name__)
 
@@ -10,14 +10,14 @@ logger = logging.getLogger(__name__)
 def replace_ref(
     message_text: str,
     ref_name: str,
-    message_id: str,
     cit_id: str,
     footnote_counter: int,
 ) -> str:
     pattern = rf"[\[\(\{{<]{ref_name}[\]\)\}}>]|\b{ref_name}\b"
+    citation = Citation.objects.get(id=cit_id)
     message_text = re.sub(
         pattern,
-        f'<a class="rb-footnote-link" href="/citations/{message_id}/#{cit_id}">{footnote_counter}</a>',
+        f'<a class="rb-footnote-link" href="{citation.internal_url}">{footnote_counter}</a>',
         message_text,
         # count=1,
     )
@@ -27,13 +27,13 @@ def replace_ref(
 def replace_text_in_answer(
     message_text: str,
     text_in_answer: str,
-    message_id: str,
     cit_id: str,
     footnote_counter: int,
 ) -> str:
+    citation = Citation.objects.get(id=cit_id)
     return message_text.replace(
         text_in_answer,
-        f'{text_in_answer}<a class="rb-footnote-link" href="/citations/{message_id}/#{cit_id}">{footnote_counter}</a>',
+        f'{text_in_answer}<a class="rb-footnote-link" href="{citation.internal_url}">{footnote_counter}</a>',
     )
 
 
@@ -48,11 +48,9 @@ def remove_dangling_citation(message_text: str) -> str:
     return re.sub(right_pattern, r"\1", text)
 
 
-def citation_not_inserted(message_text, message_id, cit_id, footnote_counter) -> bool:
-    return (
-        f'<a class="rb-footnote-link" href="/citations/{message_id}/#{cit_id}">{footnote_counter}</a>'
-        not in message_text
-    )
+def citation_not_inserted(message_text, cit_id, footnote_counter) -> bool:
+    citation = Citation.objects.get(id=cit_id)
+    return f'<a class="rb-footnote-link" href="{citation.internal_url}">{footnote_counter}</a>' not in message_text
 
 
 def check_ref_ids_unique(message) -> bool:
