@@ -86,7 +86,9 @@ class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
 
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
-    slug = models.SlugField(max_length=100, unique=True, blank=True)
+    slug = models.SlugField(
+        max_length=100, unique=True, blank=True, help_text="Used for url routing and info page linking"
+    )
 
     class Meta:
         verbose_name_plural = "skills"
@@ -1037,6 +1039,20 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
             return URL(self.url or self.file.url)
         return None
 
+    @cached_property
+    def internal_url(self) -> URL:
+        """returns the internal page url of the message citations anchored to the selected citation"""
+        chat_message = self.chat_message
+        chat = chat_message.chat
+        skill_slug = chat.skill.slug if chat.skill else None
+
+        return url_service.get_citation_url(
+            message_id=chat_message.id,
+            citation_id=self.id,
+            chat_id=chat.id,
+            skill_slug=skill_slug,
+        )
+
 
 class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
     class Role(models.TextChoices):
@@ -1130,6 +1146,11 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
                     for citation in self.citation_set.all()
                 }
             )
+
+    @cached_property
+    def citations_url(self) -> str:
+        skill_slug = self.chat.skill.slug if self.chat.skill else None
+        return url_service.get_citation_url(message_id=self.id, chat_id=self.chat.id, skill_slug=skill_slug)
 
 
 class ChatMessageTokenUse(UUIDPrimaryKeyBase, TimeStampedModel):

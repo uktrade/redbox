@@ -34,7 +34,7 @@ def test_citations_shown(client: Client, alice: User, chat: Chat, several_files:
     )
 
     # When
-    response = client.get(f"/citations/{chat_message.id}/")
+    response = client.get(reverse("citations", kwargs={"chat_id": chat.id, "message_id": chat_message.id}))
 
     # Then
     assert response.status_code == HTTPStatus.OK
@@ -62,19 +62,23 @@ def test_user_can_see_their_own_citations(chat_message_with_citation: ChatMessag
     client.force_login(alice)
 
     # When
-    response = client.get(f"/citations/{chat_message_with_citation.id}/")
+    chat_id = chat_message_with_citation.chat.id
+    message_id = chat_message_with_citation.id
+    response = client.get(reverse("citations", kwargs={"chat_id": chat_id, "message_id": message_id}))
 
     # Then
     assert response.status_code == HTTPStatus.OK
 
 
 @pytest.mark.django_db
-def test_user_cannot_see_other_users_citations(chat_message_with_citation: Chat, bob: User, client: Client):
+def test_user_cannot_see_other_users_citations(chat_message_with_citation: ChatMessage, bob: User, client: Client):
     # Given
     client.force_login(bob)
 
     # When
-    response = client.get(f"/citations/{chat_message_with_citation.id}/")
+    chat_id = chat_message_with_citation.chat.id
+    message_id = chat_message_with_citation.id
+    response = client.get(reverse("citations", kwargs={"chat_id": chat_id, "message_id": message_id}))
 
     # Then
     assert response.status_code == HTTPStatus.FOUND
@@ -88,7 +92,7 @@ def test_nonexistent_citations(alice: User, client: Client):
     nonexistent_uuid = uuid.uuid4()
 
     # When
-    url = reverse("citations", kwargs={"message_id": nonexistent_uuid})
+    url = reverse("citations", kwargs={"chat_id": nonexistent_uuid, "message_id": nonexistent_uuid})
     response = client.get(url)
 
     # Then

@@ -34,6 +34,7 @@ class SkillAdmin(admin.ModelAdmin):
     list_display = [
         "name",
         "description",
+        "slug",
     ]
 
     search_fields = ["name"]
