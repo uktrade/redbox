@@ -1166,7 +1166,7 @@ class AgentPlan(UUIDPrimaryKeyBase, TimeStampedModel):
 
 
 class Agent(UUIDPrimaryKeyBase, TimeStampedModel):
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100, unique=True, choices=env.get_agent_names())
     description = models.TextField(blank=True, null=True)
     agents_max_tokens = models.PositiveIntegerField(blank=True, null=True)
     prompt = models.TextField(blank=True, null=True)
