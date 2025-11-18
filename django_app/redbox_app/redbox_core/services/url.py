@@ -15,11 +15,12 @@ def get_chat_url(chat_id: uuid.UUID | None = None, skill_slug: str | None = None
 
 
 def get_citation_url(
-    message_id: uuid.UUID, citation_id: uuid.UUID, chat_id: uuid.UUID, skill_slug: str | None = None
+    message_id: uuid.UUID, chat_id: uuid.UUID, citation_id: uuid.UUID | None = None, skill_slug: str | None = None
 ) -> str:
     kwargs = {"message_id": message_id, "chat_id": chat_id}
+    fragment = str(citation_id) if citation_id else None
 
     if skill_slug:
         kwargs["skill_slug"] = skill_slug
 
-    return reverse("citations", kwargs=kwargs, fragment=str(citation_id))
+    return reverse("citations", kwargs=kwargs, fragment=fragment)

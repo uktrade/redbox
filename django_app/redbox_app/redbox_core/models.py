@@ -1147,6 +1147,11 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
                 }
             )
 
+    @cached_property
+    def citations_url(self) -> str:
+        skill_slug = self.chat.skill.slug if self.chat.skill else None
+        return url_service.get_citation_url(message_id=self.id, chat_id=self.chat.id, skill_slug=skill_slug)
+
 
 class ChatMessageTokenUse(UUIDPrimaryKeyBase, TimeStampedModel):
     class UseType(models.TextChoices):
