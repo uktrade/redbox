@@ -10,7 +10,7 @@
   bottom: 0;
   z-index: 100;
   overflow-y: clip;
-  min-height: 100vh;
+  min-height: calc(100vh - var(--header-height));
 
   .side-panel-heading {
     color: var(--color-side-panel-text);
