@@ -9,6 +9,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 
 from redbox_app.redbox_core.models import Chat, ChatMessage, File, Skill
+from redbox_app.redbox_core.services import url as url_service
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +31,15 @@ class CitationsView(View):
             return redirect(reverse("chats"))
 
         source_files = File.get_ordered_by_citation_priority(message_id)
+        citations_url = url_service.get_citation_url(message_id=message.id, chat_id=chat.id, skill_slug=skill_slug)
 
-        context = {"message": message, "source_files": source_files, "skill": skill, "chat": chat}
+        context = {
+            "message": message,
+            "source_files": source_files,
+            "skill": skill,
+            "chat": chat,
+            "citations_url": citations_url,
+        }
 
         return render(
             request,
