@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from enum import Enum, StrEnum
 from functools import reduce
 from types import UnionType
-from typing import Annotated, List, Literal, NotRequired, Required, TypedDict, get_args, get_origin, Tuple, Dict
+from typing import Annotated, Dict, List, Literal, NotRequired, Required, Tuple, TypedDict, get_args, get_origin
 from uuid import UUID, uuid4
 
 import environ
@@ -11,7 +11,7 @@ from langchain_core.documents import Document
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
 from langgraph.managed.is_last_step import RemainingStepsManager
-from pydantic import BaseModel, Field, field_validator, create_model
+from pydantic import BaseModel, Field, create_model, field_validator
 
 from redbox.models import prompts
 from redbox.models.chat import DecisionEnum, ToolEnum
@@ -130,6 +130,12 @@ class AISettings(BaseModel):
         ),
         Agent(name="Summarisation_Agent", description=prompts.SUMMARISATION_AGENT_DESC, agents_max_tokens=20000),
         Agent(name="Tabular_Agent", description=prompts.TABULAR_AGENT_DESC, agents_max_tokens=10000),
+        Agent(
+            name="Submission_Checker_Agent",
+            description=prompts.SUBMISSION_AGENT_DESC,
+            prompt=prompts.SUBMISSION_PROMPT,
+            agents_max_tokens=10000,
+        ),
     ]
 
     @property
@@ -281,6 +287,7 @@ class RedboxQuery(BaseModel):
         None  # Adding previous_s3_keys (which are the previous documents to the state request)
     )
     db_location: str | None = None  # Adding db_location to state request
+    knowledge_base_s3_keys: list[str] = Field(description="List of knowledge base files", default_factory=list)
 
 
 class LLMCallMetadata(BaseModel):
@@ -389,6 +396,7 @@ def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskB
 
 
 class RedboxState(BaseModel):
+    knowledge_files: Annotated[DocumentState, document_reducer] = DocumentState()
     request: RedboxQuery
     user_feedback: str = ""
     documents: Annotated[DocumentState, document_reducer] = DocumentState()

@@ -4,6 +4,7 @@ import pytest
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, HumanMessage, ToolCall
 from langchain_core.retrievers import BaseRetriever
+from langchain_core.runnables import RunnableLambda
 from langgraph.graph import END, START, StateGraph
 from pytest_mock import MockerFixture
 
@@ -11,6 +12,7 @@ from redbox.chains.components import get_structured_response_with_citations_pars
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, build_chat_prompt_from_messages_runnable, build_llm_chain
 from redbox.graph.nodes.processes import (
+    build_agent_with_loop,
     build_chat_pattern,
     build_merge_pattern,
     build_passthrough_pattern,
@@ -24,9 +26,11 @@ from redbox.graph.nodes.processes import (
 )
 from redbox.models.chain import (
     AgentDecision,
+    AgentTask,
     AISettings,
     Citation,
     DocumentState,
+    MultiAgentPlan,
     PromptSet,
     RedboxQuery,
     RedboxState,
@@ -587,3 +591,110 @@ def test_citation_structured_output(test_case: RedboxChatTestCase, mocker: Mocke
             ],
         ),
     ]
+
+
+class TestBuildAgentLoop:
+    def test_fail_parser_agent_task(self, fake_state):
+        fake_agent = build_agent_with_loop(
+            agent_name="Internal_Retrieval_Agent",
+            system_prompt="Fake prompt",
+            tools=[],
+        )
+
+        response = fake_agent.invoke(fake_state)
+        assert response is None
+
+    @pytest.mark.parametrize(
+        "test_name, pre_process, loop_condition, no_calls, tool_call_results",
+        [
+            ("no-preprocess-no-loop", None, None, 1, [AIMessage(content="no-preprocess-no-loop")]),
+            (
+                "no-preprocess-no-loop list",
+                None,
+                None,
+                1,
+                [AIMessage(content="no-preprocess-no-loop"), AIMessage(content="list")],
+            ),
+            ("no-preprocess-no-loop dict", None, None, 1, [{"type": "text", "text": "no-preprocess-no-loop dict"}]),
+            ("no-preprocess-loop", None, True, 2, (AIMessage(content="no-preprocess-loop"), "pass", "False")),
+            ("preprocess-no-loop", True, None, 1, [AIMessage(content="preprocess-no-loop")]),
+            ("preprocess-loop-pass", True, True, 2, (AIMessage(content="preprocess-loop-pass"), "pass", "False")),
+            ("preprocess-loop-fail", True, True, 2, (AIMessage(content="preprocess-loop-fail"), "fail", "True")),
+            ("tool_incorrect_type", None, None, 1, None),
+        ],
+    )
+    def test_preprocess_loop(
+        self, test_name, pre_process, loop_condition, no_calls, tool_call_results, fake_state, mocker: MockerFixture
+    ):
+        # patch
+        res = AIMessage(
+            content="test",
+            additional_kwargs={"tool_calls": [{"name": "test_tool", "args": {"is_intermediate_step": True}}]},
+        )
+        llm = GenericFakeChatModel(messages=iter([res]))
+        mock_llm = mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
+
+        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel")
+        mock_tool_calls.return_value = tool_call_results
+
+        mock_preprocess = None
+        if pre_process is not None:
+            mock_preprocess = mocker.Mock()
+            mock_preprocess.invoke.return_value = {"processed": True}
+
+            @RunnableLambda
+            def fake_preprocess(state: RedboxState):
+                return {"processed": True}
+
+            pre_process = fake_preprocess
+
+        if loop_condition is not None:
+            success = "fail"
+            is_intermediate_step = False
+            return lambda: success == "fail" or is_intermediate_step
+
+        # fake state
+        plan = MultiAgentPlan(
+            tasks=[
+                AgentTask(
+                    task="Fake task",
+                    agent="Internal_Retrieval_Agent",
+                    expected_output="Fake output",
+                )
+            ]
+        )
+
+        fake_state.user_feedback = "proceed"
+        fake_state.agent_plans = plan
+        fake_state.tasks_evaluator = ""
+        fake_state.messages = [AIMessage(content=plan.tasks[0].model_dump_json())]
+
+        fake_agent = build_agent_with_loop(
+            agent_name="Internal_Retrieval_Agent",
+            system_prompt="Fake prompt",
+            tools=[],
+            use_metadata=False,
+            max_tokens=10000,
+            pre_process=pre_process,
+            loop_condition=loop_condition,
+            max_attempt=2,
+        )
+
+        response = fake_agent.invoke(fake_state)
+
+        assert mock_llm.call_count == no_calls
+
+        if pre_process:
+            mock_preprocess.assert_called_once
+        else:
+            assert mock_preprocess is None
+
+        if tool_call_results is None:
+            assert response is None
+        else:
+            assert (
+                response.get("agents_results")
+                == f"<Internal_Retrieval_Agent_Result>{test_name}</Internal_Retrieval_Agent_Result>"
+            )
+            assert len(response) == 2
+            assert mock_tool_calls.call_count == no_calls

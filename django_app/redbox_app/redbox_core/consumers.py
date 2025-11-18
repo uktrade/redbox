@@ -47,6 +47,7 @@ from redbox_app.redbox_core.models import (
     ChatMessageTokenUse,
     Citation,
     File,
+    FileSkill,
     FileTeamMembership,
     MonitorSearchRoute,
     MonitorWebSearchResults,
@@ -125,7 +126,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             previous_selected_files = []
         return session, previous_selected_files
 
-    async def receive(self, text_data=None, bytes_data=None):
+    async def receive(self, text_data=None, bytes_data=None):  # noqa: PLR0915
         """Receive & respond to message from browser websocket."""
         self.full_reply = []
         self.converted_reply = []
@@ -173,12 +174,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         skill_obj = None
         selected_agent_names = []
+        knowledge_files = []
         if selected_skill_id:
             try:
                 skill_obj = await sync_to_async(Skill.objects.get)(id=selected_skill_id)
+                session.skill = skill_obj
+                await session.asave()
                 selected_agent_names = await sync_to_async(
                     lambda: list(AgentSkill.objects.filter(skill=skill_obj).values_list("agent__name", flat=True))
                 )()
+                knowledge_files = skill_obj.get_files(FileSkill.FileType.ADMIN)
             except Skill.DoesNotExist:
                 logger.warning("Selected skill '%s' not found", selected_skill_id)
 
@@ -196,6 +201,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             permitted_files,
             previous_selected_files,
             selected_agent_names=selected_agent_names,
+            knowledge_files=knowledge_files,
         )
 
         if (self.final_state) and (self.final_state.agent_plans):
@@ -274,6 +280,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         title: str,
         permitted_files: Sequence[File],
         previous_selected_files: Sequence[File],
+        knowledge_files: Sequence[File],
         selected_agent_names: list[str] | None = None,
     ) -> None:
         """Initiate & close websocket conversation with the core-api message endpoint."""
@@ -310,6 +317,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 ai_settings=ai_settings,
                 permitted_s3_keys=[f.unique_name async for f in permitted_files],
                 previous_s3_keys=[f.unique_name for f in previous_selected_files],
+                knowledge_base_s3_keys=[f.unique_name for f in knowledge_files]
+                if type(knowledge_files) is list
+                else [f.unique_name async for f in knowledge_files],
             ),
             user_feedback=user_feedback,
             agent_plans=agent_plans,
