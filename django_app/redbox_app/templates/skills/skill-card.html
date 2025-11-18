@@ -8,13 +8,13 @@
                 <p class="govuk-body-s">
                     <a href="{{ skill.info_page_url }}"
                         class="govuk-link">
-                        View more about {{ skill.name | lower }}
+                        Learn more here
                     </a>
                 </p>
             {% endif %}
 
             {{ govukButton(
-                text = "Use " ~ skill.name | lower,
+                text = "Use Skill",
                 href=skill.chat_url,
                 classes="rbds-w-fit govuk-!-margin-bottom-0"
             ) }}
