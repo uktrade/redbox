@@ -34,6 +34,7 @@ class SkillAdmin(admin.ModelAdmin):
     list_display = [
         "name",
         "description",
+        "slug",
     ]
 
     search_fields = ["name"]
@@ -361,7 +362,7 @@ class ChatAdmin(ExportMixin, admin.ModelAdmin):
         (
             None,
             {
-                "fields": ["name", "user"],
+                "fields": ["name", "user", "skill"],
             },
         ),
         (
@@ -380,8 +381,8 @@ class ChatAdmin(ExportMixin, admin.ModelAdmin):
         ),
     ]
     inlines = [ChatMessageInline]
-    list_display = ["name", "user", "created_at"]
-    list_filter = ["user"]
+    list_display = ["name", "user", "skill", "created_at"]
+    list_filter = ["user", "skill"]
     date_hierarchy = "created_at"
     actions = ["export_as_csv"]
     search_fields = ["user__email"]

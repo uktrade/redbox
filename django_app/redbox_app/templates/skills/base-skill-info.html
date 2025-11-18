@@ -16,8 +16,8 @@
 
         <div class="govuk-grid-row">
             <div class="govuk-grid-column-two-thirds">
-                <h3 class="govuk-heading-s">What this skill is best for</h3>
-                {% block skill_best_for %}
+                <h3 class="govuk-heading-s">When to use this skill</h3>
+                {% block skill_when_to_use %}
                 {% endblock %}
 
                 <h3 class="govuk-heading-s govuk-!-margin-top-5">How to use this skill</h3>
@@ -26,12 +26,15 @@
 
                 {{ govukButton(
                     text = "Use " ~ skill.name | lower,
-                    href=url('skill-chats', skill.slug),
-                    classes="push-bottom rbds-w-fit"
+                    href=skill.chat_url,
+                    classes="rbds-push-bottom rbds-w-fit"
                 ) }}
             </div>
             <div class="govuk-grid-column-one-third">
                 {% include "skills/skill-files.html" %}
+
+                {% block skill_document_guidance %}
+                {% endblock %}
             </div>
         </div>
     </div>

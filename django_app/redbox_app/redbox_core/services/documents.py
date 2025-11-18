@@ -13,7 +13,7 @@ from django_q.tasks import async_task
 from waffle import flag_is_active
 
 from redbox_app.redbox_core import flags
-from redbox_app.redbox_core.models import File, UserTeamMembership
+from redbox_app.redbox_core.models import File, FileSkill, Skill, UserTeamMembership
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.types import APPROVED_FILE_EXTENSIONS
 from redbox_app.worker import ingest
@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 MAX_FILE_SIZE = 209715200  # 200 MB or 200 * 1024 * 1024
 
 
-def get_file_context(request):
-    completed_files, processing_files = File.get_completed_and_processing_files(request.user)
+def get_file_context(request, skill: Skill | None = None):
+    completed_files, processing_files = File.get_completed_and_processing_files(request.user, skill)
     team_files = (
         File.objects.filter(
             Q(team_associations__team__members__user=request.user, team_associations__visibility="TEAM")
@@ -49,8 +49,8 @@ def get_file_context(request):
     }
 
 
-def render_your_documents(request, active_chat_id) -> TemplateResponse:
-    context = chat_service.get_context(request, active_chat_id)
+def render_your_documents(request, active_chat_id, skill_slug: str | None = None) -> TemplateResponse:
+    context = chat_service.get_context(request, active_chat_id, skill_slug)
 
     return TemplateResponse(
         request,
@@ -88,7 +88,9 @@ def validate_uploaded_file(uploaded_file: UploadedFile) -> Sequence[str]:
     return errors
 
 
-def ingest_file(uploaded_file: UploadedFile, user: User) -> tuple[Sequence[str], File | None]:
+def ingest_file(
+    uploaded_file: UploadedFile, user: User, skill: Skill | None = None
+) -> tuple[Sequence[str], File | None]:
     try:
         logger.info("getting file from s3")
         file = File.objects.create(
@@ -96,6 +98,8 @@ def ingest_file(uploaded_file: UploadedFile, user: User) -> tuple[Sequence[str],
             user=user,
             original_file=uploaded_file,
         )
+        if skill:
+            FileSkill.objects.create(file=file, skill=skill)
     except (ValueError, FieldError, ValidationError) as e:
         logger.exception("Error creating File model object for %s.", uploaded_file, exc_info=e)
         return e.args, None

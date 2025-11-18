@@ -57,7 +57,7 @@ chat_urlpatterns = [
     path("chats/<uuid:chat_id>/", views.ChatsView.as_view(), name="chats"),
     path("chats/", views.ChatsView.as_view(), name="chats"),
     path("chat/<uuid:chat_id>/title/", views.ChatsTitleView.as_view(), name="chat-titles"),
-    path("citations/<uuid:message_id>/", views.CitationsView.as_view(), name="citations"),
+    path("chats/<uuid:chat_id>/citations/<uuid:message_id>/", views.CitationsView.as_view(), name="citations"),
     path("ratings/<uuid:message_id>/", views.RatingsView.as_view(), name="ratings"),
     path("chats/<uuid:chat_id>/update-chat-feedback", views.UpdateChatFeedback.as_view(), name="chat-feedback"),
     path("chats/<uuid:chat_id>/delete-chat/", views.DeleteChat.as_view(), name="delete-chat"),
@@ -81,11 +81,36 @@ team_urlpatterns = [
     path("team/create-team/", views.create_team_view, name="create-team"),
 ]
 
+skills_route_prefix = "skills/<slug:skill_slug>/"
 skills_urlpatterns = [
     path("skills/", views.SkillsView.as_view(), name="skills"),
-    path("skills/<slug:skill_slug>/", views.skill_info_page_view, name="skill-info"),
-    path("skills/<slug:skill_slug>/chats/", views.SkillChatsView.as_view(), name="skill-chats"),
-    path("skills/<slug:skill_slug>/chats/<uuid:chat_id>/", views.SkillChatsView.as_view(), name="skill-chats"),
+    path(skills_route_prefix, views.skill_info_page_view, name="skill-info"),
+    path(f"{skills_route_prefix}chats/", views.ChatsView.as_view(), name="chats"),
+    path(f"{skills_route_prefix}chats/<uuid:chat_id>/", views.ChatsView.as_view(), name="chats"),
+    path(f"{skills_route_prefix}documents/upload/", views.upload_document, name="skill-document-upload"),
+    path(
+        f"{skills_route_prefix}documents/your-documents/", views.YourDocuments.as_view(), name="your-documents-initial"
+    ),
+    path(
+        f"{skills_route_prefix}documents/your-documents/<uuid:active_chat_id>/",
+        views.YourDocuments.as_view(),
+        name="your-documents",
+    ),
+    path(f"{skills_route_prefix}chats/recent-chats/", views.RecentChats.as_view(), name="recent-chats-initial"),
+    path(
+        f"{skills_route_prefix}chats/<uuid:active_chat_id>/recent-chats/",
+        views.RecentChats.as_view(),
+        name="recent-chats",
+    ),
+    path(f"{skills_route_prefix}chats/chat-window/", views.ChatWindow.as_view(), name="chat-window-initial"),
+    path(
+        f"{skills_route_prefix}chats/<uuid:active_chat_id>/chat-window/", views.ChatWindow.as_view(), name="chat-window"
+    ),
+    path(
+        f"{skills_route_prefix}chats/<uuid:chat_id>/citations/<uuid:message_id>/",
+        views.CitationsView.as_view(),
+        name="citations",
+    ),
 ]
 
 admin_urlpatterns = [

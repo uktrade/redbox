@@ -1,6 +1,8 @@
 <h3 class="govuk-heading-s govuk-!-margin-bottom-4">Documents used in this skill</h3>
 
 {% for file in skill.get_files("ADMIN") %}
-    <p class="govuk-body-s govuk-!-margin-top-2 govuk-!-margin-bottom-2">{{ file.file_name }}</p>
+    <p class="govuk-body-s govuk-!-margin-top-2 govuk-!-margin-bottom-2 rbds-text-ellipses rbds-action-link" title="{{ file.file_name }}">
+        <a class="govuk-link govuk-link--no-underline" href="{{ file.url }}">{{ file.file_name }}</a>
+    </p>
     <div class="rbds-divider"></div>
 {% endfor %}
