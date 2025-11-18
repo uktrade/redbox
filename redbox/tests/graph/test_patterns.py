@@ -30,7 +30,7 @@ from redbox.models.chain import (
     AISettings,
     Citation,
     DocumentState,
-    MultiAgentPlan,
+    MultiAgentPlanBase,
     PromptSet,
     RedboxQuery,
     RedboxState,
@@ -654,7 +654,7 @@ class TestBuildAgentLoop:
             return lambda: success == "fail" or is_intermediate_step
 
         # fake state
-        plan = MultiAgentPlan(
+        plan = MultiAgentPlanBase(
             tasks=[
                 AgentTaskBase(
                     task="Fake task",
