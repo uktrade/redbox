@@ -365,31 +365,11 @@ def create_planner(is_streamed=False):
     # metadata = None
     document_filenames = []
 
-    # @RunnableLambda
-    # def _get_metadata(state: RedboxState):
-    #     nonlocal metadata
-    #     env = get_settings()
-    #     retriever = get_basic_metadata_retriever(env)
-    #     metadata = retriever.invoke(state)
-    #     return state
-
     @RunnableLambda
     def _document_filenames(state: RedboxState):
         nonlocal document_filenames
         document_filenames = [doc.split("/")[1] if "/" in doc else doc for doc in state.request.s3_keys]
         return state
-
-    # @RunnableLambda
-    # def _stream_planner_agent(state: RedboxState):
-    #     planner_output_parser, format_instructions = get_structured_response_with_planner_parser()
-    #     agent = build_stuff_pattern(
-    #         prompt_set=PromptSet.Planner,
-    #         output_parser=planner_output_parser,
-    #         format_instructions=format_instructions,
-    #         final_response_chain=False,
-    #         additional_variables={"metadata": metadata, "document_filenames": document_filenames},
-    #     )
-    #     return agent
 
     @RunnableLambda
     def _create_planner(state: RedboxState):
@@ -408,9 +388,6 @@ def create_planner(is_streamed=False):
         )
         return orchestration_agent
 
-    # if is_streamed:
-    #     return _get_metadata | _document_filenames | _stream_planner_agent
-    # else:
     return _document_filenames | _create_planner
 
 

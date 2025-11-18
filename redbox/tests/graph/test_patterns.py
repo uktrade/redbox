@@ -26,7 +26,7 @@ from redbox.graph.nodes.processes import (
 )
 from redbox.models.chain import (
     AgentDecision,
-    AgentTask,
+    AgentTaskBase,
     AISettings,
     Citation,
     DocumentState,
@@ -656,7 +656,7 @@ class TestBuildAgentLoop:
         # fake state
         plan = MultiAgentPlan(
             tasks=[
-                AgentTask(
+                AgentTaskBase(
                     task="Fake task",
                     agent="Internal_Retrieval_Agent",
                     expected_output="Fake output",
