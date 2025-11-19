@@ -31,6 +31,7 @@ class Agent(BaseModel):
     description: str = Field(description="Name of the agent", default="")
     agents_max_tokens: int = Field(description="Maximum tokens limit for the agent", default=5000)
     prompt: str = Field(description="System prompt for the agent", default="")
+    default_agent: bool = Field(description="Is this the default agent", default=True)
 
 
 class AISettings(BaseModel):
@@ -135,6 +136,7 @@ class AISettings(BaseModel):
             description=prompts.SUBMISSION_AGENT_DESC,
             prompt=prompts.SUBMISSION_PROMPT,
             agents_max_tokens=10000,
+            default_agent=False,
         ),
     ]
 
