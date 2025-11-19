@@ -25,11 +25,11 @@ from redbox import Redbox
 from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
-    MultiAgentPlan,
     RedboxQuery,
     RedboxState,
     RequestMetadata,
     Source,
+    configure_agent_task_plan,
     get_plan_fix_prompts,
     metadata_reducer,
 )
@@ -259,7 +259,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             if plan:
                 try:
-                    agent_plans = MultiAgentPlan.model_validate_json(plan[0])
+                    agent_options = {}
+                    _, configured_agent_plan = configure_agent_task_plan(agent_options)
+                    agent_plans = configured_agent_plan.model_validate_json(plan[0])
                     question = message_history[-4].text
                     user_feedback = message_history[-2].text
                     logger.debug("here is the plan: %s", plan[0])
@@ -294,7 +296,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         ai_settings = await self.get_ai_settings(session)
         if selected_agent_names:
-            logger.info("Update agent")
+            ai_settings = ai_settings.model_copy(
+                update={
+                    "worker_agents": [
+                        agent for agent in AISettings().worker_agents if agent.name in selected_agent_names
+                    ]
+                }
+            )
 
         state = RedboxState(
             request=RedboxQuery(

@@ -26,15 +26,14 @@ from redbox.graph.nodes.processes import (
 )
 from redbox.models.chain import (
     AgentDecision,
-    AgentTask,
     AISettings,
     Citation,
     DocumentState,
-    MultiAgentPlan,
     PromptSet,
     RedboxQuery,
     RedboxState,
     Source,
+    configure_agent_task_plan,
 )
 from redbox.models.chat import ChatRoute
 from redbox.test.data import (
@@ -654,15 +653,10 @@ class TestBuildAgentLoop:
             return lambda: success == "fail" or is_intermediate_step
 
         # fake state
-        plan = MultiAgentPlan(
-            tasks=[
-                AgentTask(
-                    task="Fake task",
-                    agent="Internal_Retrieval_Agent",
-                    expected_output="Fake output",
-                )
-            ]
-        )
+        agent = "Internal_Retrieval_Agent"
+        agent_task, multi_agent_plan = configure_agent_task_plan({agent: agent})
+        tasks = [agent_task(task="Fake Task", expected_output="Fake output")]
+        plan = multi_agent_plan().model_copy(update={"tasks": tasks})
 
         fake_state.user_feedback = "proceed"
         fake_state.agent_plans = plan
