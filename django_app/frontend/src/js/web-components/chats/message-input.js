@@ -53,8 +53,6 @@ export class MessageInput extends HTMLElement {
         if (textContent === "") evt.preventDefault();
       }
     });
-
-    if (!getActiveChatId()) textarea.classList.add(this.expandedClass);
   }
 
 

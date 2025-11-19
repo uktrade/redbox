@@ -38,7 +38,7 @@
     </div>
     <div class="chat-input__input-container">
         <rbds-message-input>
-            <div class="govuk-textarea rbds-message-input rbds-drop-zone" id="message" name="message" contenteditable="true" role="textbox"
+            <div class="govuk-textarea rbds-message-input {% if not messages %}rbds-message-input__expanded {% endif %}rbds-drop-zone" id="message" name="message" contenteditable="true" role="textbox"
                 aria-multiline="true" data-text="Type here..."></div>
         </rbds-message-input>
         <file-upload upload-url="{% if skill %}/skills/{{ skill.slug }}{% endif %}/documents/upload/">
