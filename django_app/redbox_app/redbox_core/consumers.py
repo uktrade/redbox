@@ -303,6 +303,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     ]
                 }
             )
+        else:
+            ai_settings = ai_settings.model_copy(
+                update={"worker_agents": [agent for agent in AISettings().worker_agents if agent.default_agent]}
+            )
 
         state = RedboxState(
             request=RedboxQuery(
