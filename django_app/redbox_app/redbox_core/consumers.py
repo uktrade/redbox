@@ -303,10 +303,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     ]
                 }
             )
-        else:
-            ai_settings = ai_settings.model_copy(
-                update={"worker_agents": [agent for agent in AISettings().worker_agents if agent.default_agent]}
-            )
 
         state = RedboxState(
             request=RedboxQuery(
@@ -531,7 +527,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         # we remove null values so that AISettings can populate them with defaults
         ai_settings = {k: v for k, v in ai_settings.items() if v not in (None, "")}
-        return AISettings.model_validate(ai_settings)
+        ai_settings = AISettings.model_validate(ai_settings)
+        return ai_settings.model_copy(
+            update={"worker_agents": [agent for agent in AISettings().worker_agents if agent.default_agent]}
+        )
 
     async def handle_text(self, response: str) -> str:
         """Handle text chunks and British spelling conversion before sending to client."""
