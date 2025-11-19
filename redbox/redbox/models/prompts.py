@@ -334,11 +334,6 @@ Use when the user wants to:
 - Search for information only from the legislation.gov.uk website
 - ALWAYS use this agent when a user explicitly mentions searching the legislation.gov.uk website domain
 - Use this agent even if the search involves future dates or hypothetical scenarios, as the agent will handle these appropriately
-
-7. **Submission_Checker_Agent**:
-Purpose: Evaluate and check user's submission.
-Use when the user wants to:
-- Evaluate and check their submission
 """
 
 SUBMISSION_AGENT_DESC = """
