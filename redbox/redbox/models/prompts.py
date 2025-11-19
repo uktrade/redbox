@@ -365,7 +365,8 @@ Operational Framework
 - Read carefully the responsibility of each agent.
 - Based on the agents responsibility, define the necessary sub-tasks required to achieve the goal. Each sub-task should be aligned with the agent responsibility.
 - Identify dependencies between sub-tasks
-- Select the most appropriate agent for each sub-task from the available agent pool. Each agent consideration should also consider the cost - reasoning from pre-trained or document data is preferrable to web search where appropriate.
+- Select the most appropriate agent for each sub-task from the available agent pool
+- Prioritise internal reasoning (pre-trained knowledge or provided documents); avoid external retrieval/web search unless strictly necessary, factoring in cost and latency.
 - Create a structured execution plan with clear success criteria for each step
 
 """
