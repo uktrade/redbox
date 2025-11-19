@@ -47,6 +47,7 @@ $govuk-brand-colour: #1d70b8;
   --redbox-teal: #0b8478;
   --redbox-pink: #c50878;
   --redbox-light-red: #FBEEEB;
+  --redbox-black: var(--dbt-black);
 
   // GDS Sass custom variables
   --govuk-brand-colour: var(--gds-blue);
@@ -76,7 +77,7 @@ $govuk-brand-colour: #1d70b8;
   --color-icon-light-foreground-hover: var(--dbt-black);
   --color-icon-dark-foreground: var(--redbox-white);
   --color-icon-light-foreground-secondary: var(--dbt-black);
-  --color-file-icon: var(--dbt-black);
+  --color-file-icon: var(--redbox-black);
 
   // Typography
   --font-family-primary: Arial;

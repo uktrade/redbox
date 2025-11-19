@@ -1,7 +1,7 @@
 // @ts-check
 
 import { UploadedFiles } from "../../../redbox_design_system/rbds/components";
-import { hideElement } from "../../utils";
+import { getActiveChatId, hideElement } from "../../utils";
 import { SendMessage } from "./send-message";
 import { SendMessageWithDictation } from "./send-message-with-dictation";
 
@@ -9,6 +9,7 @@ export class MessageInput extends HTMLElement {
   constructor() {
     super();
     this.submitDisabled = false;
+    this.expandedClass = "rbds-message-input__expanded";
   }
 
   connectedCallback() {
@@ -39,7 +40,11 @@ export class MessageInput extends HTMLElement {
       // Submit form on enter-key press (providing shift isn't being pressed)
       if (evt.key === "Enter" && !evt.shiftKey) {
         evt.preventDefault();
-        if (!this.submitDisabled) this.#sendMessage();
+
+        if (!this.submitDisabled) {
+          this.#sendMessage();
+          textarea.classList.remove(this.expandedClass);
+        }
       }
 
       // Prevent deletion of uploaded-files component if present
@@ -48,6 +53,8 @@ export class MessageInput extends HTMLElement {
         if (textContent === "") evt.preventDefault();
       }
     });
+
+    if (!getActiveChatId()) textarea.classList.add(this.expandedClass);
   }
 
 
