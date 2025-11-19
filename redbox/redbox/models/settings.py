@@ -241,6 +241,13 @@ class Settings(BaseSettings):
     def elastic_alias(self):
         return self.elastic_root_index + "-chunk-current"
 
+    def get_agent_names(self):
+        # get list of available agents
+        from redbox.models.chain import AISettings
+
+        agent_names: list[str] = [(agent.name, agent.name) for agent in AISettings().worker_agents]
+        return agent_names
+
     # @lru_cache(1) #removing cache because pydantic object (index mapping) is not hashable
     def elasticsearch_client(self) -> Union[Elasticsearch, OpenSearch]:
         logger.info("Testing OpenSearch is definitely being used")
