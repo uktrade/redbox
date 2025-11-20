@@ -415,43 +415,77 @@ class TestWebSearchCall:
         assert len(response[0]) > 0
 
 
-@pytest.mark.vcr
-@pytest.mark.xfail(reason="calls api")
-def test_gov_tool_params():
-    query = "driving in the UK"
-    tool = build_govuk_search_tool(filter=True)
-    ai_setting = AISettings()
+class TestGovTool:
+    def test_gov_tool_fail(self, mocker: MockerFixture):
+        query = ""
+        tool = build_govuk_search_tool(filter=True)
+        ai_setting = AISettings()
 
-    tool_node = ToolNode(tools=[tool])
-    response = tool_node.invoke(
-        {
-            "request": RedboxQuery(
-                question=query,
-                s3_keys=[],
-                user_uuid=uuid4(),
-                chat_history=[],
-                ai_settings=ai_setting,
-                permitted_s3_keys=[],
-            ),
-            "messages": [
-                AIMessage(
-                    content="",
-                    tool_calls=[
-                        {
-                            "name": "_search_govuk",
-                            "args": {"query": query},
-                            "id": "1",
-                        }
-                    ],
-                )
-            ],
-        }
-    )
+        tool_node = ToolNode(tools=[tool])
+        response = tool_node.invoke(
+            {
+                "request": RedboxQuery(
+                    question=query,
+                    s3_keys=[],
+                    user_uuid=uuid4(),
+                    chat_history=[],
+                    ai_settings=ai_setting,
+                    permitted_s3_keys=[],
+                ),
+                "messages": [
+                    AIMessage(
+                        content="",
+                        tool_calls=[
+                            {
+                                "name": "_search_govuk",
+                                "args": {"query": query},
+                                "id": "1",
+                            }
+                        ],
+                    )
+                ],
+            }
+        )
 
-    documents = response["messages"][-1].artifact
+        assert response["messages"][-1].content == ""
 
-    # call gov tool without additional filter
-    assert len(documents) == ai_setting.tool_govuk_returned_results
+    @pytest.mark.vcr
+    @pytest.mark.xfail(reason="calls api")
+    def test_gov_tool_params(self):
+        query = "driving in the UK"
+        tool = build_govuk_search_tool(filter=True)
+        ai_setting = AISettings()
+
+        tool_node = ToolNode(tools=[tool])
+        response = tool_node.invoke(
+            {
+                "request": RedboxQuery(
+                    question=query,
+                    s3_keys=[],
+                    user_uuid=uuid4(),
+                    chat_history=[],
+                    ai_settings=ai_setting,
+                    permitted_s3_keys=[],
+                ),
+                "messages": [
+                    AIMessage(
+                        content="",
+                        tool_calls=[
+                            {
+                                "name": "_search_govuk",
+                                "args": {"query": query},
+                                "id": "1",
+                            }
+                        ],
+                    )
+                ],
+            }
+        )
+
+        documents = response["messages"][-1].artifact
+
+        # call gov tool without additional filter
+        assert len(documents) == ai_setting.tool_govuk_returned_results
 
 
 @requests_mock.Mocker(kw="mock")
