@@ -21,7 +21,6 @@ from redbox.graph.edges import (
 )
 from redbox.graph.nodes.processes import (
     build_activity_log_node,
-    build_agent,
     build_agent_with_loop,
     build_chat_pattern,
     build_error_pattern,
@@ -650,12 +649,13 @@ def build_new_route_graph(
     )
     builder.add_node(
         "Internal_Retrieval_Agent",
-        build_agent(
+        build_agent_with_loop(
             agent_name="Internal_Retrieval_Agent",
             system_prompt=INTERNAL_RETRIEVAL_AGENT_PROMPT,
             tools=multi_agent_tools["Internal_Retrieval_Agent"],
             use_metadata=True,
             max_tokens=agents_max_tokens["Internal_Retrieval_Agent"],
+            max_attempt=1,
         ),
     )
 
@@ -683,12 +683,13 @@ def build_new_route_graph(
     builder.add_node("send", empty_process)
     builder.add_node(
         "External_Retrieval_Agent",
-        build_agent(
+        build_agent_with_loop(
             agent_name="External_Retrieval_Agent",
             system_prompt=EXTERNAL_RETRIEVAL_AGENT_PROMPT,
             tools=multi_agent_tools["External_Retrieval_Agent"],
             use_metadata=False,
             max_tokens=agents_max_tokens["External_Retrieval_Agent"],
+            max_attempt=1,
         ),
     )
     builder.add_node(
@@ -704,23 +705,25 @@ def build_new_route_graph(
 
     builder.add_node(
         "Web_Search_Agent",
-        build_agent(
+        build_agent_with_loop(
             agent_name="Web_Search_Agent",
             system_prompt=WEB_SEARCH_AGENT_PROMPT,
             tools=multi_agent_tools["Web_Search_Agent"],
             use_metadata=False,
             max_tokens=agents_max_tokens["Web_Search_Agent"],
+            max_attempt=1,
         ),
     )
 
     builder.add_node(
         "Legislation_Search_Agent",
-        build_agent(
+        build_agent_with_loop(
             agent_name="Legislation_Search_Agent",
             system_prompt=LEGISLATION_SEARCH_AGENT_PROMPT,
             tools=multi_agent_tools["Legislation_Search_Agent"],
             use_metadata=False,
             max_tokens=agents_max_tokens["Legislation_Search_Agent"],
+            max_attempt=1,
         ),
     )
 
