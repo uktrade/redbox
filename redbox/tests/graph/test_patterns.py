@@ -619,7 +619,7 @@ class TestBuildAgentLoop:
             ("preprocess-no-loop", True, None, 1, [AIMessage(content="preprocess-no-loop")]),
             ("preprocess-loop-pass", True, True, 2, (AIMessage(content="preprocess-loop-pass"), "pass", "False")),
             ("preprocess-loop-fail", True, True, 2, (AIMessage(content="preprocess-loop-fail"), "fail", "True")),
-            ("tool_incorrect_type", None, None, 1, None),
+            ("There is an issue with tool call. No results returned.", None, None, 1, None),
         ],
     )
     def test_preprocess_loop(
@@ -683,12 +683,9 @@ class TestBuildAgentLoop:
         else:
             assert mock_preprocess is None
 
-        if tool_call_results is None:
-            assert response is None
-        else:
-            assert (
-                response.get("agents_results")
-                == f"<Internal_Retrieval_Agent_Result>{test_name}</Internal_Retrieval_Agent_Result>"
-            )
-            assert len(response) == 2
-            assert mock_tool_calls.call_count == no_calls
+        assert (
+            response.get("agents_results")
+            == f"<Internal_Retrieval_Agent_Result>{test_name}</Internal_Retrieval_Agent_Result>"
+        )
+        assert len(response) == 2
+        assert mock_tool_calls.call_count == no_calls

@@ -514,7 +514,7 @@ def build_agent_with_loop(
         try:
             task = parser.parse(state.last_message.content)
         except Exception as e:
-            print(f"Cannot parse in {agent_name}: {e}")
+            log.warning(f"Issue at build_agent_with_loop. Cannot parse in {agent_name}: {e}")
             return None
 
         activity_node = build_activity_log_node(
@@ -596,7 +596,7 @@ def build_agent_with_loop(
             else:
                 log.error(f"Worker agent return incompatible data type {type(result)}")
                 log.info(result)
-                return None
+                result_content = "There is an issue with tool call. No results returned."
             all_results.append(result_content)
         all_results = " ".join(all_results)
         return {

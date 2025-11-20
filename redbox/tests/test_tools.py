@@ -8,6 +8,8 @@ from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.messages import AIMessage
 from langgraph.prebuilt import ToolNode
 from opensearchpy import OpenSearch
+from pytest_mock import MockerFixture
+from requests import Response
 
 from redbox.api.format import reduce_chunks_by_tokens
 from redbox.graph.nodes.tools import (
@@ -358,6 +360,15 @@ def test_gov_filter_AI(is_filter, relevant_return, query, keyword):
             ],
         ),
         (
+            "Brave",
+            [
+                {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "1"}},
+                {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "2"}},
+                {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "3"}},
+                {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "4"}},
+            ],
+        ),
+        (
             "Kagi",
             [
                 {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "1"}},
@@ -377,11 +388,31 @@ def test_web_search_rate_limit(provider, web_results, mocker, **kwargs):
         web_results,
     )
 
-    response = web_search_call(query="hello")
+    response = web_search_with_retry(query="hello")
 
-    assert kwargs["mock"].call_count == 2
+    assert kwargs["mock"].call_count <= 3
     assert kwargs["mock"].called
-    assert len(response[1]) > 0
+    assert isinstance(response, Response)
+
+
+class TestWebSearchCall:
+    def test_web_search_fail(self, mocker: MockerFixture):
+        mock_response = Response()
+        mock_response.status_code = 429
+        mock_response._content = "Rate limit".encode("utf-8")
+        mocker.patch("redbox.graph.nodes.tools.web_search_with_retry", return_value=mock_response)
+        response = web_search_call(query="hello")
+        assert response[0] == ""
+
+    def test_brave_success(self, mocker: MockerFixture):
+        mock_response = Response()
+        mock_response.status_code = 200
+        mock_response._content = (
+            '{"web": {"results": [{"extra_snippets": ["fake_doc"], "url": "http://fake.com"}]}}'.encode("utf-8")
+        )
+        mocker.patch("redbox.graph.nodes.tools.web_search_with_retry", return_value=mock_response)
+        response = web_search_call(query="hello")
+        assert len(response[0]) > 0
 
 
 @pytest.mark.vcr
