@@ -507,7 +507,7 @@ def build_agent_with_loop(
 ):
     @RunnableLambda
     def _build_agent_with_loop(state: RedboxState):
-        nonlocal loop_condition
+        local_loop_condition = loop_condition
         agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
         ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
         parser = ClaudeParser(pydantic_object=ConfiguredAgentTask)
@@ -541,18 +541,18 @@ def build_agent_with_loop(
         success = "fail"
         num_iter = 0
         is_intermediate_step = False
-        has_loop = loop_condition is not None
+        has_loop = local_loop_condition is not None
         all_results = []
-        if loop_condition is None:
+        if local_loop_condition is None:
             # if there is no loop condition, we will run things once
             # loop condition must use only success and/or intermediate step
-            def loop_condition():
+            def local_loop_condition():
                 return True
 
             # loop_condition = lambda: True
             num_iter = max_attempt - 1
 
-        while loop_condition() and num_iter < max_attempt:
+        while local_loop_condition() and num_iter < max_attempt:
             num_iter += 1
             worker_agent = create_chain_agent(
                 system_prompt=system_prompt,
