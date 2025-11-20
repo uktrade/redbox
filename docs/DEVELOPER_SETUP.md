@@ -1,8 +1,32 @@
 # Developer Setup Guide
+The developer setup guide for developing Redbox on your own machine.
 
-## Requirements
+## Table of Contents
+1. [Install Python](#python-version-management-setup-guide-required)
+   1. [Option 1 - asdf](#option-1-using-asdf-recommended-if-youre-using-other-languages-too)
+   2. [Option 2 - pyenv](#option-2-using-pyenv-recommended-for-python-only-projects)
+2. [Install Poetry](#install-poetry-required)
+3. [Install Project Dependencies with Poetry](#install-project-dependencies-with-poetry-required)
+4. [Setup VSCode](#setup-vscode)
+5. [Setup Environment Variables](#setting-environment-variables)
+6. [Running the Project Locally](#running-the-project-locally)
+   1. [Building & Running the Project](#building-and-running-the-project)
+   2. [How to Run Tests](#how-to-run-tests)
+   3. [Logging into Redbox Locally](#logging-in-to-redbox-locally)
+   4. [Setting up the Chat LLM Backend](#setting-up-the-chat-llm-backend)
+   5. [Setting up AWS Credentials](#setting-up-aws-credentials)
+   6. [Running Redbox in a Notebook](#running-redbox-in-a-notebook)
+7. [Git Workflows](#git)
+   1. [Setup Pre-commit Hooks](#pre-commit-hooks)
+8. [LLM Evaluation](#llm-evaluation)
+9. [Iconography](#iconography)
+<!-- 6. [Running Locally]()
+   1. [Option 1 - Docker Compose]()
+   2. [Option 2 - Notebooks]() -->
 
-## Python Version Management Setup Guide
+<hr>
+
+## Python Version Management Setup Guide [*Required]
 
 To ensure everyone uses the same Python version, follow one of the two options below depending on your preference or existing setup
 
@@ -60,9 +84,27 @@ This sets the local version in the project repository
 
 Poetry will automatically detect the pyenv-managed Python version.
 
-### Install project dependencies with Poetry
+## Install Poetry [*Required]
+Poetry is not installed automatically when installing Python with `asdf` or `pyenv`, so you must install once on your host machine.
 
-Once Python has been configured and installed using either pyenv or asdf, from each applications root directory (django_app, redbox, notebooks), run the following:
+1. We recommend using Poetry's official installer:
+```
+curl -sSL https://install.python-poetry.org | python3 -
+```
+2. After installation, ensure the Poetry binary is on your PATH. You may want to add the following to the end of your `~/.zshrc` or `~/.bashrc` (dependent on which shell you use). This means the binary will be loaded whenever you open a new terminal.
+```
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+## Install Project Dependencies with Poetry [*Required]
+Currently, we use [poetry](https://python-poetry.org/) to manage our python packages. There are 4 `pyproject.toml`s
+- [redbox](https://github.com/i-dot-ai/redbox/blob/main/redbox/pyproject.toml) - core AI package
+- [django-app](https://github.com/i-dot-ai/redbox/blob/main/django_app/pyproject.toml) - django webserver and background worker
+- [root](https://github.com/i-dot-ai/redbox/blob/main/pyproject.toml) - Integration tests, QA, and docs
+- [notebooks](https://github.com/uktrade/redbox/blob/main/notebooks/pyproject.toml) - Jupyter notebooks
+
+### Local Install
+Once Python has been configured and installed using either `pyenv` or `asdf`, and Poetry installed - from each applications root directory (`django_app`, `redbox`, `notebooks`), run the following:
 
 ```bash
 poetry install
@@ -83,20 +125,24 @@ poetry env info
 # Should show correct path to virtualenv using that Python version
 ```
 
-## Installing packages
+## Setup VSCode
+VSCode is the IDE of choice. The `.vscode/` directory is used for defining project-wide VSCode IDE settings.
 
-Currently, we use [poetry](https://python-poetry.org/) to manage our python packages. There are 4 `pyproject.toml`s
-- [redbox](https://github.com/i-dot-ai/redbox/blob/main/redbox/pyproject.toml) - core AI package
-- [django-app](https://github.com/i-dot-ai/redbox/blob/main/django_app/pyproject.toml) - django webserver and background worker
-- [root](https://github.com/i-dot-ai/redbox/blob/main/pyproject.toml) - Integration tests, QA, and docs
-- [notebooks](https://github.com/uktrade/redbox/blob/main/notebooks/pyproject.toml) - Jupyter notebooks
+### Python Interpreter [*Required]
+Ensure your python interpreter is set to the root venv Python binary (should be `./venv/bin/python` or `./.venv/bin/python`).
 
-## VSCode
-To make use of the VSCode setup open the workspace file .vscode/redbox.code-workspace. This will open the relevant services as roots in a single workspace. The recommended way to use this is:
-* Create a venv in each of the main service directories (redbox, django-app) this should be in a directory called _venv_
-* Configure each workspace directory to use it's own venv python interpreter. NB You may need to enter these manually when prompted as _./venv/bin/python_
+#### Verify Setup
+Once the correct interpreter is selected it should display the `pyproject.toml` name `ie. Python 3.12.7 (redbox-root-py3.12)`. Also, opening any new terminals in VSCode will automatically activate that environment (ie. `source venv/bin/activate` or `source .venv/bin/activate`).
+
+### Code Workspaces [Optional]
+To make use of the VSCode Workspaces setup open the workspace file `.vscode/redbox.code-workspace`. This will open the relevant services as roots in a single workspace. The recommended way to use this is:
+* Create a venv in each of the main service directories (redbox, django-app) this should be in a directory called `venv`
+* Configure each workspace directory to use it's own venv python interpreter. NB You may need to enter these manually when prompted as `./venv/bin/python`
 
 The tests should then all load separately and use their own env.
+
+### Devcontainer [Optional]
+The devcontainer currently is not supported for project-wide dependency setup so it is generally recommended to do development on your host machine.
 
 ## Setting environment variables
 
@@ -126,8 +172,10 @@ The relevant env vars for overriding to use bedrock's titan model for embeddings
 **`.env` and `.aws/credentials` are in `.gitignore` and should not be committed to git**
 
 
+## Running the Project Locally
+How to run the project locally. This includes setting up AWS credentials.
 
-## Building and running the project
+### Building and running the project
 
 To view all the build commands, check the `Makefile` that can be found [here](https://github.com/i-dot-ai/redbox/blob/main/Makefile).
 
@@ -197,7 +245,7 @@ plugins=(git direnv)
 
 For any other commands available, check the `Makefile` [here](https://github.com/i-dot-ai/redbox/blob/main/Makefile).
 
-## How to run tests
+### How to run tests
 
 Tests are split into different commands based on the application the tests are for. For each application there is a separate `make` command to run those tests, these are:
 
@@ -219,7 +267,7 @@ For integration tests:
 make test-integration
 ```
 
-## Logging in to Redbox Locally
+### Logging in to Redbox Locally
 
 We'll need to create a superuser to log in to the Django app, to do this run the following steps:
 
@@ -231,7 +279,7 @@ We'll need to create a superuser to log in to the Django app, to do this run the
 6. Now go to your terminal and run `make magic-link` or `docker compose logs django-app | grep 8080/magic_link`
 7. Click that link and you should be logged in.
 
-## Setting up the chat llm backend
+### Setting up the chat llm backend
 
 Once the app is up and running, head to http://localhost:8080/admin/redbox_core/chatllmbackend/
 
@@ -269,7 +317,7 @@ Ensure the default settings uses the chat backend you just created and hit save 
 
 Chat and document uploads should now work as expected.
 
-## Setting up AWS credentials
+### Setting up AWS credentials
 
 To recieve responses from the LLM you will need to have access to redboc aws account (See another member of the team about requesting access).
 
@@ -291,12 +339,12 @@ Once authenticated you should have a `.aws` directory within the project root an
 
 *Note: This script should be run periodically (daily) as the credentials will expire relatively soon.*
 
-## Running Redbox in a notebook
+### Running Redbox in a notebook
 
 There are a number of notebooks available, in various states of working! The Redbox core app is able to be created in a notebook and run to allow easy experiementation without the django side.
 agent_experiments.ipynb shows this best currently.
 
-### Configuring the notebooks kernel in vscode
+#### Configuring the notebooks kernel in vscode
 
 In order to run notebooks in vscode, you will need to use the virtualenv created by poetry within the notebooks directory. If this does not appear as an option, you may need to add the notebooks directory path to your vscode python settings:
 
@@ -306,7 +354,7 @@ In order to run notebooks in vscode, you will need to use the virtualenv created
 
 You may also want to add the path for the other apps in order to select the correct interpreter during development.
 
-### Configuring notebook environment variables
+#### Configuring notebook environment variables
 
 Some notebooks may require specific environment variables to run. For non-sensetive variables that apply to all notebooks, add them to `.env.notebook` and override the root `.env` at the top of your notebook like so:
 
@@ -323,7 +371,9 @@ dotenv -o ./.env.notebook
 dotenv -o ./.env
 ```
 
-## Pre-commit hooks
+## Git
+
+### Pre-commit hooks
 
 - Download and install [pre-commit](https://pre-commit.com) to benefit from pre-commit hooks
   - `pip install pre-commit`
