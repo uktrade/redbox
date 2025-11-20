@@ -372,6 +372,16 @@ dotenv -o ./.env
 ```
 
 ## Git
+The workflows for using Git.
+
+### Branch Naming
+Consistent branch names help maintain a clean and predictable workflow. CI will fail if your branch does not follow conventions. Use the following prefixes:
+- `feature/<name>` — New features or enhancements
+- `chore/<name>` — Maintenance tasks that don’t affect functionality
+- `bugfix/<name>` — Non-critical bug fixes
+- `hotfix/<name>` — Urgent fixes for production issues
+- `dependabot/<name>` — Automated dependency updates
+- `security/<name>` — Security-related changes
 
 ### Pre-commit hooks
 
