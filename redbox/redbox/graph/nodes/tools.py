@@ -574,6 +574,9 @@ def web_search_with_retry(
                 # Exponential backoff with jitter
                 delay = (2**attempt) + random.uniform(0, 1)
                 time.sleep(delay)
+            else:
+                log.info("Web search api reach max retry.")
+                return response
         else:
             return response
 
@@ -639,9 +642,9 @@ def web_search_call(query: str, no_search_result: int = 20, country_code: str = 
         elif web_search_settings.name == "Kagi":
             docs = kagi_response_to_documents(tokeniser, response, mapped_documents)
             return format_documents(docs), docs
-        else:
-            log.exception(f"Web search api call failed. Status: {response.status_code}")
-            return "", []
+    else:
+        log.exception(f"Web search api call failed. Status: {response.status_code}")
+        return "", []
 
 
 def build_web_search_tool():
