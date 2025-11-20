@@ -46,7 +46,7 @@ export function updateYourDocuments(chatId = getActiveChatId(), skill_slug = get
 
     return htmx.ajax('get', url, {
       target: 'document-selector',
-      swap: 'outerHTML',
+      swap: 'outerHTML settle:0ms',
     });
 }
 
