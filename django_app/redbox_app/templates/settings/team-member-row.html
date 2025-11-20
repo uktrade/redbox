@@ -1,4 +1,5 @@
 {% from "macros/select-input.html" import select_input %}
+{% from "macros/icon.html" import rbds_icon %}
 
 {% set role_type_options %}
     {% for value, label in role_choices %}
@@ -37,9 +38,9 @@
                     hx-target="closest tr"
                     hx-swap="outerHTML">
                 {% if editing %}
-                    {% include 'rbds/icons/close.svg' %}
+                    {{ rbds_icon(icon_name="close.svg") }}
                 {% else %}
-                    {% include 'rbds/icons/edit.html' %}
+                    {{ rbds_icon(icon_name="edit.html") }}
                 {% endif %}
             </button>
             {% if not editing %}
@@ -48,7 +49,7 @@
                         hx-delete="{{ url('delete-member', member.id) }}"
                         hx-target="closest tr"
                         hx-swap="delete">
-                    {% include 'rbds/icons/delete.html' %}
+                    {{ rbds_icon(icon_name="delete.html") }}
                 </button>
             {% endif %}
         </div>
