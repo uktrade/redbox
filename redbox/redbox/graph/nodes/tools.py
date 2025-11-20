@@ -218,19 +218,16 @@ def build_govuk_search_tool(filter=True) -> Tool:
     tokeniser = bedrock_tokeniser
 
     def recalculate_similarity(response, query, num_results):
-        if len(query) == 0:
-            embedding_model = get_embeddings(get_settings())
-            em_query = embedding_model.embed_query(query)
-            for r in response.get("results"):
-                description = r.get("description")
-                em_des = embedding_model.embed_query(description)
-                r["similarity"] = cosine_similarity(np.array(em_query).reshape(1, -1), np.array(em_des).reshape(1, -1))[
-                    0
-                ][0]
-            response["results"] = sorted(response.get("results"), key=lambda x: x["similarity"], reverse=True)[
-                :num_results
+        embedding_model = get_embeddings(get_settings())
+        em_query = embedding_model.embed_query(query)
+        for r in response.get("results"):
+            description = r.get("description")
+            em_des = embedding_model.embed_query(description)
+            r["similarity"] = cosine_similarity(np.array(em_query).reshape(1, -1), np.array(em_des).reshape(1, -1))[0][
+                0
             ]
-            return response
+        response["results"] = sorted(response.get("results"), key=lambda x: x["similarity"], reverse=True)[:num_results]
+        return response
 
     @tool(response_format="content_and_artifact")
     def _search_govuk(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
