@@ -101,10 +101,10 @@ def run_tools_parallel(ai_msg, tools, state, timeout=30):
                 return responses
         except TimeoutError:
             log.warning(f"Tool execution timed out after {timeout} seconds")
-            responses.append(AIMessage("Some tools timed out during execution"))
+            return None
         except Exception as e:
             log.warning(f"Unexpected error in tool execution: {str(e)}", exc_info=True)
-            responses.append(AIMessage(f"Execution error: {str(e)}"))
+            return None
 
 
 def sending_task_to_agent(state: RedboxState):

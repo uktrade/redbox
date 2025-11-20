@@ -1,3 +1,4 @@
+from concurrent.futures import TimeoutError
 from uuid import uuid4
 
 from langchain_core.documents import Document
@@ -156,3 +157,31 @@ class TestRunToolsParallel:
 
         assert isinstance(response, list)
         assert len(response[0].content) > 0
+
+    def test_tool_time_out(self, mocker: MockerFixture):
+        mock_tool = mocker.patch("langchain_community.utilities.WikipediaAPIWrapper.load")
+        mock_tool.side_effect = TimeoutError("Tool time out")
+
+        search_wikipedia = build_search_wikipedia_tool()
+        ai_msg = AIMessage(
+            content="I am calling a tool",
+            tool_calls=[{"name": "_search_wikipedia", "args": {"query": "fake query"}, "id": "1"}],
+        )
+
+        response = run_tools_parallel(ai_msg=ai_msg, tools=[search_wikipedia], state=fake_state)
+
+        assert response == []
+
+    def test_threadpool_time_out(self, mocker: MockerFixture):
+        mock_tool = mocker.patch("concurrent.futures.ThreadPoolExecutor.submit")
+        mock_tool.side_effect = TimeoutError("Thread time out")
+
+        search_wikipedia = build_search_wikipedia_tool()
+        ai_msg = AIMessage(
+            content="I am calling a tool",
+            tool_calls=[{"name": "_search_wikipedia", "args": {"query": "fake query"}, "id": "1"}],
+        )
+
+        response = run_tools_parallel(ai_msg=ai_msg, tools=[search_wikipedia], state=fake_state)
+
+        assert response is None
