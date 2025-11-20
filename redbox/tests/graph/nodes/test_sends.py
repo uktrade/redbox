@@ -1,6 +1,7 @@
 from concurrent.futures import TimeoutError
 from uuid import uuid4
 
+import pytest
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, ToolCall
 from langgraph.constants import Send
@@ -172,9 +173,10 @@ class TestRunToolsParallel:
 
         assert response == []
 
-    def test_threadpool_time_out(self, mocker: MockerFixture):
+    @pytest.mark.parametrize("side_effect", [(TimeoutError("Thread time out")), (Exception("Thread error"))])
+    def test_threadpool_time_out(self, side_effect, mocker: MockerFixture):
         mock_tool = mocker.patch("concurrent.futures.ThreadPoolExecutor.submit")
-        mock_tool.side_effect = TimeoutError("Thread time out")
+        mock_tool.side_effect = side_effect
 
         search_wikipedia = build_search_wikipedia_tool()
         ai_msg = AIMessage(
