@@ -1129,7 +1129,7 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
             body=elastic_log_msg,
         )
 
-    def get_citations(self) -> Sequence[Citation]:
+    def get_citations(self) -> list[Citation]:
         citations = list(self.citation_set.all())
 
         try:
