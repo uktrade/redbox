@@ -138,33 +138,6 @@ def test_external_citation_uri(
     assert citation.uri == URL("http://example.com")
 
 
-def test_unique_citation_uris(chat_message: ChatMessage, uploaded_file: File):
-    external_citation = Citation(
-        chat_message=chat_message,
-        text="hello",
-        source=Citation.Origin.WIKIPEDIA,
-        url="http://example.com",
-    )
-    external_citation.save()
-
-    internal_citation = Citation(
-        chat_message=chat_message,
-        text="hello",
-        source=Citation.Origin.USER_UPLOADED_DOCUMENT,
-        file=uploaded_file,
-    )
-    internal_citation.save()
-
-    chat_message.refresh_from_db()
-
-    urls = chat_message.unique_citation_uris()
-
-    assert urls[0][0] == "http://example.com"
-    assert urls[0][1] == URL("http://example.com")
-    assert urls[1][0].startswith("original_file")
-    assert urls[1][1].parts[-1].startswith("original_file")
-
-
 @pytest.mark.parametrize(("value", "expected"), [("invalid origin", None), ("Wikipedia", "Wikipedia")])
 def test_try_parse_origin(value, expected):
     assert Citation.Origin.try_parse(value) == expected

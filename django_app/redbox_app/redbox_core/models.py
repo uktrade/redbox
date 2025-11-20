@@ -61,19 +61,6 @@ def sanitise_string(string: str | None) -> str | None:
     return string.replace("\x00", "\ufffd") if string else string
 
 
-def get_id_digits(citation_items) -> int:
-    """Extracts the digits from the citation_name."""
-    string = citation_items[-1]
-    if not string:
-        msg = "None Value"
-        raise TypeError(msg)
-    match = re.search(pattern=r"\d+", string=string)
-    if not match:
-        msg = f"No numeric value present in {string}"
-        raise TypeError(msg)
-    return int(match.group())
-
-
 class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
     """
     Skills feature model. To be used against:
@@ -1032,7 +1019,7 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
 
         super().save(*args, force_insert, force_update, using, update_fields)
 
-    @property
+    @cached_property
     def uri(self) -> URL:
         """returns the url of either the external citation or the user-uploaded document"""
         if self.file or self.url:
@@ -1052,6 +1039,25 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
             chat_id=chat.id,
             skill_slug=skill_slug,
         )
+
+    @cached_property
+    def display_name(self) -> str:
+        return str(self.uri) if not self.file else self.file.file_name
+
+    @cached_property
+    def ref_id(self) -> int:
+        """Extract the numeric portion of citation_name. Used for sorting and display ordering."""
+        name = self.citation_name
+        if not name:
+            msg = "No citation_name available"
+            raise TypeError(msg)
+
+        match = re.search(pattern=r"\d+", string=name)
+        if not match:
+            msg = f"No numeric value present in {name}"
+            raise TypeError(msg)
+
+        return int(match.group())
 
 
 class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -1123,29 +1129,13 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
             body=elastic_log_msg,
         )
 
-    def unique_citation_uris(self) -> list[tuple[str, str, str, str]]:
-        """a unique set of names, hrefs, ids and relevant texts for all citations"""
-
-        def get_display(citation):
-            if not citation.file:
-                return str(citation.uri)
-            return citation.file.file_name
+    def get_citations(self) -> Sequence[Citation]:
+        citations = list(self.citation_set.all())
 
         try:
-            return sorted(
-                {
-                    (get_display(citation), citation.uri, citation.id, citation.text_in_answer, citation.citation_name)
-                    for citation in self.citation_set.all()
-                },
-                key=get_id_digits,
-            )
+            return sorted(citations, key=lambda citation: citation.ref_id)
         except TypeError:
-            return sorted(
-                {
-                    (get_display(citation), citation.uri, citation.id, citation.text_in_answer, citation.citation_name)
-                    for citation in self.citation_set.all()
-                }
-            )
+            return sorted(citations, key=lambda citation: citation.display_name)
 
     @cached_property
     def citations_url(self) -> str:

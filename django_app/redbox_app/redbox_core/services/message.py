@@ -7,14 +7,8 @@ from redbox_app.redbox_core.models import ChatMessage, Citation, File
 logger = logging.getLogger(__name__)
 
 
-def replace_ref(
-    message_text: str,
-    ref_name: str,
-    cit_id: str,
-    footnote_counter: int,
-) -> str:
-    pattern = rf"[\[\(\{{<]{ref_name}[\]\)\}}>]|\b{ref_name}\b"
-    citation = Citation.objects.get(id=cit_id)
+def replace_ref(message_text: str, citation: Citation, footnote_counter: int) -> str:
+    pattern = rf"[\[\(\{{<]{citation.citation_name}[\]\)\}}>]|\b{citation.citation_name}\b"
     message_text = re.sub(
         pattern,
         f'<a class="rb-footnote-link" href="{citation.internal_url}">{footnote_counter}</a>',
@@ -24,16 +18,10 @@ def replace_ref(
     return re.sub(pattern, "", message_text)
 
 
-def replace_text_in_answer(
-    message_text: str,
-    text_in_answer: str,
-    cit_id: str,
-    footnote_counter: int,
-) -> str:
-    citation = Citation.objects.get(id=cit_id)
+def replace_text_in_answer(message_text: str, citation: Citation, footnote_counter: int) -> str:
     return message_text.replace(
-        text_in_answer,
-        f'{text_in_answer}<a class="rb-footnote-link" href="{citation.internal_url}">{footnote_counter}</a>',
+        citation.text_in_answer,
+        f'{citation.text_in_answer}<a class="rb-footnote-link" href="{citation.internal_url}">{footnote_counter}</a>',
     )
 
 
@@ -48,13 +36,12 @@ def remove_dangling_citation(message_text: str) -> str:
     return re.sub(right_pattern, r"\1", text)
 
 
-def citation_not_inserted(message_text, cit_id, footnote_counter) -> bool:
-    citation = Citation.objects.get(id=cit_id)
+def citation_not_inserted(message_text: str, citation: Citation, footnote_counter: int) -> bool:
     return f'<a class="rb-footnote-link" href="{citation.internal_url}">{footnote_counter}</a>' not in message_text
 
 
-def check_ref_ids_unique(message) -> bool:
-    ref_names = [citation_tup[-1] for citation_tup in message.unique_citation_uris()]
+def check_ref_ids_unique(message: ChatMessage) -> bool:
+    ref_names = [citation.citation_name for citation in message.get_citations()]
     return len(ref_names) == len(set(ref_names))
 
 

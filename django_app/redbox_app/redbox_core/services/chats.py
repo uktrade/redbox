@@ -53,41 +53,33 @@ def get_context(request: HttpRequest, chat_id: uuid.UUID | None = None, skill_sl
     # Add footnotes to messages
     for message in messages:
         footnote_counter = 1
-        for (
-            _display,
-            _href,
-            cit_id,
-            text_in_answer,
-            citation_name,
-        ) in message.unique_citation_uris():
+        for citation in message.get_citations():
             citation_names_unique = message_service.check_ref_ids_unique(message)
-            if citation_name and citation_names_unique:
+            if citation.citation_name and citation_names_unique:
                 message.text = message_service.replace_ref(
                     message_text=message.text,
-                    ref_name=citation_name,
-                    cit_id=cit_id,
+                    citation=citation,
                     footnote_counter=footnote_counter,
                 )
 
                 if message_service.citation_not_inserted(
                     message_text=message.text,
-                    cit_id=cit_id,
+                    citation=citation,
                     footnote_counter=footnote_counter,
                 ):
                     logger.info("Citation Numbering Missed")
                 else:
                     footnote_counter = footnote_counter + 1
-            elif text_in_answer:
+            elif citation.text_in_answer:
                 message.text = message_service.replace_text_in_answer(
                     message_text=message.text,
-                    text_in_answer=text_in_answer,
-                    cit_id=cit_id,
+                    citation=citation,
                     footnote_counter=footnote_counter,
                 )
                 footnote_counter = footnote_counter + 1
                 if message_service.citation_not_inserted(
                     message_text=message.text,
-                    cit_id=cit_id,
+                    citation=citation,
                     footnote_counter=footnote_counter,
                 ):
                     logger.info("Citation Numbering Missed")
