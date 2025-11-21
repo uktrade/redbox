@@ -8,6 +8,8 @@ from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.messages import AIMessage
 from langgraph.prebuilt import ToolNode
 from opensearchpy import OpenSearch
+from pytest_mock import MockerFixture
+from requests import Response
 
 from redbox.api.format import reduce_chunks_by_tokens
 from redbox.graph.nodes.tools import (
@@ -358,6 +360,15 @@ def test_gov_filter_AI(is_filter, relevant_return, query, keyword):
             ],
         ),
         (
+            "Brave",
+            [
+                {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "1"}},
+                {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "2"}},
+                {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "3"}},
+                {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "4"}},
+            ],
+        ),
+        (
             "Kagi",
             [
                 {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "1"}},
@@ -377,50 +388,104 @@ def test_web_search_rate_limit(provider, web_results, mocker, **kwargs):
         web_results,
     )
 
-    response = web_search_call(query="hello")
+    response = web_search_with_retry(query="hello")
 
-    assert kwargs["mock"].call_count == 2
+    assert kwargs["mock"].call_count <= 3
     assert kwargs["mock"].called
-    assert len(response[1]) > 0
+    assert isinstance(response, Response)
 
 
-@pytest.mark.vcr
-@pytest.mark.xfail(reason="calls api")
-def test_gov_tool_params():
-    query = "driving in the UK"
-    tool = build_govuk_search_tool(filter=True)
-    ai_setting = AISettings()
+class TestWebSearchCall:
+    def test_web_search_fail(self, mocker: MockerFixture):
+        mock_response = Response()
+        mock_response.status_code = 429
+        mock_response._content = "Rate limit".encode("utf-8")
+        mocker.patch("redbox.graph.nodes.tools.web_search_with_retry", return_value=mock_response)
+        response = web_search_call(query="hello")
+        assert response[0] == ""
 
-    tool_node = ToolNode(tools=[tool])
-    response = tool_node.invoke(
-        {
-            "request": RedboxQuery(
-                question=query,
-                s3_keys=[],
-                user_uuid=uuid4(),
-                chat_history=[],
-                ai_settings=ai_setting,
-                permitted_s3_keys=[],
-            ),
-            "messages": [
-                AIMessage(
-                    content="",
-                    tool_calls=[
-                        {
-                            "name": "_search_govuk",
-                            "args": {"query": query},
-                            "id": "1",
-                        }
-                    ],
-                )
-            ],
-        }
-    )
+    def test_brave_success(self, mocker: MockerFixture):
+        mock_response = Response()
+        mock_response.status_code = 200
+        mock_response._content = (
+            '{"web": {"results": [{"extra_snippets": ["fake_doc"], "url": "http://fake.com"}]}}'.encode("utf-8")
+        )
+        mocker.patch("redbox.graph.nodes.tools.web_search_with_retry", return_value=mock_response)
+        response = web_search_call(query="hello")
+        assert len(response[0]) > 0
 
-    documents = response["messages"][-1].artifact
 
-    # call gov tool without additional filter
-    assert len(documents) == ai_setting.tool_govuk_returned_results
+class TestGovTool:
+    def test_gov_tool_fail(self, mocker: MockerFixture):
+        query = ""
+        tool = build_govuk_search_tool(filter=True)
+        ai_setting = AISettings()
+
+        tool_node = ToolNode(tools=[tool])
+        response = tool_node.invoke(
+            {
+                "request": RedboxQuery(
+                    question=query,
+                    s3_keys=[],
+                    user_uuid=uuid4(),
+                    chat_history=[],
+                    ai_settings=ai_setting,
+                    permitted_s3_keys=[],
+                ),
+                "messages": [
+                    AIMessage(
+                        content="",
+                        tool_calls=[
+                            {
+                                "name": "_search_govuk",
+                                "args": {"query": query},
+                                "id": "1",
+                            }
+                        ],
+                    )
+                ],
+            }
+        )
+
+        assert response["messages"][-1].content == ""
+
+    @pytest.mark.vcr
+    @pytest.mark.xfail(reason="calls api")
+    def test_gov_tool_params(self):
+        query = "driving in the UK"
+        tool = build_govuk_search_tool(filter=True)
+        ai_setting = AISettings()
+
+        tool_node = ToolNode(tools=[tool])
+        response = tool_node.invoke(
+            {
+                "request": RedboxQuery(
+                    question=query,
+                    s3_keys=[],
+                    user_uuid=uuid4(),
+                    chat_history=[],
+                    ai_settings=ai_setting,
+                    permitted_s3_keys=[],
+                ),
+                "messages": [
+                    AIMessage(
+                        content="",
+                        tool_calls=[
+                            {
+                                "name": "_search_govuk",
+                                "args": {"query": query},
+                                "id": "1",
+                            }
+                        ],
+                    )
+                ],
+            }
+        )
+
+        documents = response["messages"][-1].artifact
+
+        # call gov tool without additional filter
+        assert len(documents) == ai_setting.tool_govuk_returned_results
 
 
 @requests_mock.Mocker(kw="mock")

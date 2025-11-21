@@ -507,14 +507,14 @@ def build_agent_with_loop(
 ):
     @RunnableLambda
     def _build_agent_with_loop(state: RedboxState):
-        nonlocal loop_condition
+        local_loop_condition = loop_condition
         agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
         ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
         parser = ClaudeParser(pydantic_object=ConfiguredAgentTask)
         try:
             task = parser.parse(state.last_message.content)
         except Exception as e:
-            print(f"Cannot parse in {agent_name}: {e}")
+            log.warning(f"Issue at build_agent_with_loop. Cannot parse in {agent_name}: {e}")
             return None
 
         activity_node = build_activity_log_node(
@@ -541,18 +541,18 @@ def build_agent_with_loop(
         success = "fail"
         num_iter = 0
         is_intermediate_step = False
-        has_loop = loop_condition is not None
+        has_loop = local_loop_condition is not None
         all_results = []
-        if loop_condition is None:
+        if local_loop_condition is None:
             # if there is no loop condition, we will run things once
             # loop condition must use only success and/or intermediate step
-            def loop_condition():
+            def local_loop_condition():
                 return True
 
             # loop_condition = lambda: True
             num_iter = max_attempt - 1
 
-        while loop_condition() and num_iter < max_attempt:
+        while local_loop_condition() and num_iter < max_attempt:
             num_iter += 1
             worker_agent = create_chain_agent(
                 system_prompt=system_prompt,
@@ -596,7 +596,7 @@ def build_agent_with_loop(
             else:
                 log.error(f"Worker agent return incompatible data type {type(result)}")
                 log.info(result)
-                return None
+                result_content = "There is an issue with tool call. No results returned."
             all_results.append(result_content)
         all_results = " ".join(all_results)
         return {
