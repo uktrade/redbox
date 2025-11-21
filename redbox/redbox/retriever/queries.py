@@ -147,27 +147,25 @@ def build_document_query(
         permitted_files=permitted_files,
         chunk_resolution=chunk_resolution,
     )
-
+    k_value = (
+        max(ai_settings.rag_num_candidates, len(selected_files) * 10)
+        if len(selected_files) < 10
+        else ai_settings.rag_num_candidates
+    )
     return {
         "size": ai_settings.rag_k,
         "min_score": 0.6,
         "query": {
-            "bool": {
-                "must": [
-                    {
-                        "knn": {
-                            "vector_field": {
-                                "vector": query_vector,
-                                "k": ai_settings.rag_num_candidates,
-                                # "boost": ai_settings.knn_boost,
-                                "filter": query_filter,
-                            }
-                        }
-                    },
-                ],
-                "filter": query_filter,
+            "knn": {
+                "vector_field": {
+                    "vector": query_vector,
+                    "k": k_value,
+                    # "boost": ai_settings.knn_boost,
+                    "filter": query_filter,
+                }
             }
         },
+        "_source": {"excludes": ["vector_field"]},
     }
 
 
