@@ -193,7 +193,7 @@ def build_search_documents_tool(
         # Handle nothing found (as when no files are permitted)
         if not initial_documents:
             return "", []
-
+        start_time = time.time()
         # Adjacent documents
         with_adjacent_query = add_document_filter_scores_to_query(
             elasticsearch_query=initial_query,
@@ -205,6 +205,9 @@ def build_search_documents_tool(
         # Merge and sort
         merged_documents = merge_documents(initial=initial_documents, adjacent=adjacent_boosted)
         sorted_documents = sort_documents(documents=merged_documents)
+
+        elapsed_time = time.time() - start_time
+        log.info("Time used to search document query: %s", elapsed_time)
 
         # Return as state update
         return format_documents(sorted_documents), sorted_documents
