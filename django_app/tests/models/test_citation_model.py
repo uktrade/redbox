@@ -59,7 +59,13 @@ def test_display_name(client: Client, alice: User, external_citation: Citation, 
 
 
 @pytest.mark.django_db(transaction=True)
-def test_ref_id(client: Client, alice: User, chat_message_with_citation: ChatMessage, external_citation: Citation):
+def test_ref_id(
+    client: Client,
+    alice: User,
+    chat_message_with_citation: ChatMessage,
+    external_citation: Citation,
+    internal_citation: Citation,
+):
     # Given
     client.force_login(alice)
     citation = Citation.objects.get(chat_message=chat_message_with_citation)
@@ -67,8 +73,11 @@ def test_ref_id(client: Client, alice: User, chat_message_with_citation: ChatMes
     # When
     citation.citation_name = "ref_2"
     citation.save()
+    internal_citation.citation_name = "ref_x"
 
     # Then
     assert citation.ref_id == 2
     with pytest.raises(TypeError):
         assert external_citation.ref_id
+    with pytest.raises(TypeError):
+        assert internal_citation.ref_id
