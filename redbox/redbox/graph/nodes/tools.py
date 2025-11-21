@@ -20,19 +20,19 @@ from opensearchpy import OpenSearch
 from sklearn.metrics.pairwise import cosine_similarity
 from waffle.decorators import waffle_flag
 
-from redbox.api.format import format_documents
-from redbox.chains.components import get_embeddings
-from redbox.models.chain import RedboxState
-from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
-from redbox.models.settings import get_settings
-from redbox.retriever.queries import (
+from redbox.redbox.api.format import format_documents
+from redbox.redbox.chains.components import get_embeddings
+from redbox.redbox.models.chain import RedboxState
+from redbox.redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
+from redbox.redbox.models.settings import get_settings
+from redbox.redbox.retriever.queries import (
     add_document_filter_scores_to_query,
     build_document_query,
     get_all,
     get_knowledge_base,
 )
-from redbox.retriever.retrievers import query_to_documents
-from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
+from redbox.redbox.retriever.retrievers import query_to_documents
+from redbox.redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
 
 log = logging.getLogger(__name__)
 

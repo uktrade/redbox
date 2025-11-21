@@ -11,15 +11,15 @@ from langchain_core.embeddings import Embeddings, FakeEmbeddings
 from langchain_core.runnables import Runnable
 from langchain_core.tools import StructuredTool
 
-from redbox.chains.parser import StreamingJsonOutputParser, StreamingPlanner
-from redbox.models.chain import (
+from redbox.redbox.chains.parser import StreamingJsonOutputParser, StreamingPlanner
+from redbox.redbox.models.chain import (
     AISettings,
     MultiAgentPlanBase,
     StructuredResponseWithCitations,
     StructuredResponseWithStepsTaken,
 )
-from redbox.models.settings import ChatLLMBackend, Settings
-from redbox.retriever import (
+from redbox.redbox.models.settings import ChatLLMBackend, Settings
+from redbox.redbox.retriever import (
     AllElasticsearchRetriever,
     BasicMetadataRetriever,
     MetadataRetriever,
@@ -27,7 +27,7 @@ from redbox.retriever import (
     ParameterisedElasticsearchRetriever,
     TabularElasticsearchRetriever,
 )
-from redbox.transform import bedrock_tokeniser
+from redbox.redbox.transform import bedrock_tokeniser
 
 logger = logging.getLogger(__name__)
 load_dotenv()

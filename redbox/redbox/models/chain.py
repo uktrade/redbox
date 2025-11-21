@@ -13,9 +13,9 @@ from langgraph.graph.message import add_messages
 from langgraph.managed.is_last_step import RemainingStepsManager
 from pydantic import BaseModel, Field, create_model, field_validator
 
-from redbox.models import prompts
-from redbox.models.chat import DecisionEnum, ToolEnum
-from redbox.models.settings import ChatLLMBackend
+from redbox.redbox.models import prompts
+from redbox.redbox.models.chat import DecisionEnum, ToolEnum
+from redbox.redbox.models.settings import ChatLLMBackend
 
 load_dotenv()
 env = environ.Env()

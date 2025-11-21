@@ -6,12 +6,12 @@ from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.embeddings import FakeEmbeddings
 from langchain_core.runnables import RunnableParallel
 
-from redbox.chains.components import get_embeddings
-from redbox.chains.ingest import ingest_from_loader
-from redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader
-from redbox.models.chain import GeneratedMetadata
-from redbox.models.file import ChunkResolution
-from redbox.models.settings import get_settings
+from redbox.redbox.chains.components import get_embeddings
+from redbox.redbox.chains.ingest import ingest_from_loader
+from redbox.redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader
+from redbox.redbox.models.chain import GeneratedMetadata
+from redbox.redbox.models.file import ChunkResolution
+from redbox.redbox.models.settings import get_settings
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client

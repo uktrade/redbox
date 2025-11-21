@@ -20,7 +20,7 @@ from langchain_core.utils.json import parse_json_markdown
 from langchain_core.utils.pydantic import PYDANTIC_MAJOR_VERSION
 from pydantic import BaseModel, ValidationError
 
-from redbox.models.graph import RedboxEventType
+from redbox.redbox.models.graph import RedboxEventType
 
 log = logging.getLogger(__name__)
 

@@ -6,8 +6,8 @@ from langchain_core.documents import Document
 from langchain_core.messages import AIMessage
 from pytest_mock import MockerFixture
 
-from redbox import Redbox
-from redbox.models.chain import (
+from redbox.redbox import Redbox
+from redbox.redbox.models.chain import (
     configure_agent_task_plan,
     ChainChatMessage,
     Citation,
@@ -19,11 +19,11 @@ from redbox.models.chain import (
     StructuredResponseWithCitations,
     metadata_reducer,
 )
-from redbox.graph.nodes.sends import run_tools_parallel
-from redbox.models.chat import ChatRoute
-from redbox.models.graph import RedboxActivityEvent
-from redbox.models.settings import Settings
-from redbox.test.data import (
+from redbox.redbox.graph.nodes.sends import run_tools_parallel
+from redbox.redbox.models.chat import ChatRoute
+from redbox.redbox.models.graph import RedboxActivityEvent
+from redbox.redbox.models.settings import Settings
+from redbox.redbox.test.data import (
     GenericFakeChatModelWithTools,
     RedboxChatTestCase,
     RedboxTestData,

@@ -2,7 +2,7 @@ import logging
 
 from django.core.management import BaseCommand
 
-from redbox.models.settings import get_settings
+from redbox.redbox.models.settings import get_settings
 
 logger = logging.getLogger(__name__)
 

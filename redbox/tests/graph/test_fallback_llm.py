@@ -3,8 +3,8 @@ import pytest
 from unittest.mock import MagicMock
 from botocore.exceptions import ClientError
 
-from redbox.models.chain import ChatLLMBackend, AISettings
-from redbox.chains.components import get_chat_llm, _FALLBACK_CACHE
+from redbox.redbox.models.chain import ChatLLMBackend, AISettings
+from redbox.redbox.chains.components import get_chat_llm, _FALLBACK_CACHE
 
 pytestmark = pytest.mark.usefixtures("clear_fallback_cache")
 

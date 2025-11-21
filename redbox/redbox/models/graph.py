@@ -2,7 +2,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel
 
-from redbox.models.chat import ChatRoute
+from redbox.redbox.models.chat import ChatRoute
 
 
 class RedboxEventType(StrEnum):

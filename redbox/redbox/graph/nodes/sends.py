@@ -5,7 +5,7 @@ from typing import Callable
 from langchain_core.messages import AIMessage
 from langgraph.constants import Send
 
-from redbox.models.chain import DocumentState, RedboxState
+from redbox.redbox.models.chain import DocumentState, RedboxState
 
 log = logging.getLogger(__name__)
 

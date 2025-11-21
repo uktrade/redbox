@@ -4,7 +4,7 @@ from uuid import uuid4
 import pytest
 from langchain_core.documents import Document
 
-from redbox.models.chain import (
+from redbox.redbox.models.chain import (
     AISettings,
     DocumentState,
     LLMCallMetadata,

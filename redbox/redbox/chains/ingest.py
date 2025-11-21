@@ -7,8 +7,8 @@ from langchain.vectorstores import VectorStore
 from langchain_core.documents.base import Document
 from langchain_core.runnables import Runnable, RunnableLambda, chain
 
-from redbox.loader.loaders import UnstructuredChunkLoader
-from redbox.models.settings import Settings
+from redbox.redbox.loader.loaders import UnstructuredChunkLoader
+from redbox.redbox.models.settings import Settings
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client

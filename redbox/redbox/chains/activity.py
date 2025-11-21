@@ -4,7 +4,7 @@ Activity Log methods and classes
 
 from langchain_core.callbacks.manager import dispatch_custom_event
 
-from redbox.models.graph import RedboxActivityEvent, RedboxEventType
+from redbox.redbox.models.graph import RedboxActivityEvent, RedboxEventType
 
 
 def log_activity(activity_event: str | RedboxActivityEvent):

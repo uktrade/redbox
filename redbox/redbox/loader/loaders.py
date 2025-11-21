@@ -16,12 +16,12 @@ from langchain_core.prompts import PromptTemplate
 from pydantic import ValidationError
 from redbox_app.setting_enums import Environment
 
-from redbox.chains.components import get_chat_llm
-from redbox.chains.parser import ClaudeParser
-from redbox.models.chain import GeneratedMetadata
-from redbox.models.file import ChunkResolution, UploadedFileMetadata
-from redbox.models.settings import Settings
-from redbox.transform import bedrock_tokeniser
+from redbox.redbox.chains.components import get_chat_llm
+from redbox.redbox.chains.parser import ClaudeParser
+from redbox.redbox.models.chain import GeneratedMetadata
+from redbox.redbox.models.file import ChunkResolution, UploadedFileMetadata
+from redbox.redbox.models.settings import Settings
+from redbox.redbox.transform import bedrock_tokeniser
 import pandas as pd
 import math
 import time as _time

@@ -11,8 +11,8 @@ from opensearchpy import OpenSearch
 from pytest_mock import MockerFixture
 from requests import Response
 
-from redbox.api.format import reduce_chunks_by_tokens
-from redbox.graph.nodes.tools import (
+from redbox.redbox.api.format import reduce_chunks_by_tokens
+from redbox.redbox.graph.nodes.tools import (
     brave_response_to_documents,
     build_document_from_prompt_tool,
     build_govuk_search_tool,
@@ -27,11 +27,11 @@ from redbox.graph.nodes.tools import (
     web_search_call,
     web_search_with_retry,
 )
-from redbox.models.chain import AISettings, RedboxQuery, RedboxState
-from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
-from redbox.models.settings import Settings
-from redbox.test.data import RedboxChatTestCase
-from redbox.transform import bedrock_tokeniser, combine_documents, flatten_document_state
+from redbox.redbox.models.chain import AISettings, RedboxQuery, RedboxState
+from redbox.redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
+from redbox.redbox.models.settings import Settings
+from redbox.redbox.test.data import RedboxChatTestCase
+from redbox.redbox.transform import bedrock_tokeniser, combine_documents, flatten_document_state
 from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
 
 
