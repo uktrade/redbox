@@ -207,7 +207,7 @@ def build_search_documents_tool(
         sorted_documents = sort_documents(documents=merged_documents)
 
         elapsed_time = time.time() - start_time
-        log.info("Time used to search document query: %s", elapsed_time)
+        log.debug("Time used to search document query: %s", elapsed_time)
 
         # Return as state update
         return format_documents(sorted_documents), sorted_documents

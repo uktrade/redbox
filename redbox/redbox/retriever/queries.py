@@ -45,7 +45,7 @@ def build_query_filter(
 
     query_filter = {
         "bool": {
-            "must": list_filters
+            "filter": list_filters
         }  # filter returns the results that matches all the listed filter. This is a logical AND operator. The results must match all queries in this clause.
     }
 
