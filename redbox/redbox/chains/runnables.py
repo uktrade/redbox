@@ -62,16 +62,18 @@ def build_chat_prompt_from_messages_runnable(
         _additional_variables = additional_variables or dict()
         task_system_prompt, task_question_prompt, format_prompt = get_prompts(state, prompt_set)
 
-        skillmode = None
-        if skill_agent := next(iter(ai_settings.worker_agents), None):
-            skillmode = f"\nYou are in skill mode using '{skill_agent.name}' make sure to tell the user when stating your capabilities or responding to a greeting.\n"  # Skill description: {skill_agent.description}"
+        system_info_prompt = ai_settings.system_info_prompt
+        if skill_agent := next(iter([agent for agent in ai_settings.worker_agents if not agent.default_agent]), None):
+            skill_name, skill_description = skill_agent.name.removesuffix("_Agent"), skill_agent.description
+            system_info_prompt = ai_settings.system_info_skill_prompt.replace("{skill_agent_name}", skill_name).replace(
+                "{skill_agent_description}", skill_description
+            )
 
         log.debug("Setting chat prompt")
         # Set the system prompt to be our composed structure
         # We preserve the format instructions
         system_prompt_message = f"""
-            {ai_settings.system_info_prompt}
-            {skillmode}
+            {system_info_prompt}
             {task_system_prompt}
             {ai_settings.persona_info_prompt}
             {ai_settings.caller_info_prompt}
@@ -94,7 +96,7 @@ def build_chat_prompt_from_messages_runnable(
             messages=(
                 [("system", system_prompt_message)]
                 + [(msg["role"], msg["text"]) for msg in truncated_history]
-                + [MessagesPlaceholder("messages")]  # + ([("human", skillmode)] if skillmode is not None else [])
+                + [MessagesPlaceholder("messages")]
                 + [("human", task_question_prompt)]
                 + ([("human", format_prompt)] if len(format_instructions) > 0 else [])
             ),
