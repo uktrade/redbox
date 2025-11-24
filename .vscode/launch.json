@@ -14,7 +14,8 @@
             "justMyCode": true,
             "envFile": "${workspaceFolder}/.env",
             "env": {
-                "PYTHONUNBUFFERED": "1"
+                "PYTHONUNBUFFERED": "1",
+                "USE_LOCAL_ENV": "true"
             },
             "serverReadyAction": {
                 "pattern": "Starting development server",
