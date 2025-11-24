@@ -1,0 +1,39 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Django: Runserver",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/django_app/manage.py",
+            "args": [
+                "runserver",
+                "0.0.0.0:8080"
+            ],
+            "django": true,
+            "justMyCode": true,
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "PYTHONUNBUFFERED": "1",
+                "USE_LOCAL_ENV": "true"
+            },
+            "serverReadyAction": {
+                "pattern": "Starting development server",
+                "action": "openExternally",
+                "uriFormat": "http://localhost:8080"
+            },
+            "postDebugTask": "docker-compose down deps"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Full Stack Dev (Frontend + Django)",
+            "type": "compound",
+            "configurations": [
+                "Django: Runserver"
+            ],
+            "preLaunchTask": "docker-compose up deps",
+            "postDebugTask": "docker-compose down deps"
+        }
+    ]
+}
