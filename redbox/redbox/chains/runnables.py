@@ -62,11 +62,16 @@ def build_chat_prompt_from_messages_runnable(
         _additional_variables = additional_variables or dict()
         task_system_prompt, task_question_prompt, format_prompt = get_prompts(state, prompt_set)
 
+        skillmode = ""
+        if skill_agent := next(iter(ai_settings.worker_agents), None):
+            skillmode = f"You are in skill mode using '{skill_agent.name}' ensure this is clear to the user. Skill description: {skill_agent.description}"
+
         log.debug("Setting chat prompt")
         # Set the system prompt to be our composed structure
         # We preserve the format instructions
         system_prompt_message = f"""
             {ai_settings.system_info_prompt}
+            {skillmode}
             {task_system_prompt}
             {ai_settings.persona_info_prompt}
             {ai_settings.caller_info_prompt}
