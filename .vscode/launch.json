@@ -11,6 +11,7 @@
                 "0.0.0.0:8080"
             ],
             "django": true,
+            "console": "integratedTerminal",
             "justMyCode": true,
             "envFile": "${workspaceFolder}/.env",
             "env": {
@@ -22,15 +23,45 @@
                 "action": "openExternally",
                 "uriFormat": "http://localhost:8080"
             },
+            "preLaunchTask": "docker-compose up deps",
             "postDebugTask": "docker-compose down deps"
+        },
+
+        {
+            "name": "Django: QCluster (no debug)",
+            "type": "python",
+            "request": "launch",
+
+            "program": "${workspaceFolder}/django_app/manage.py",
+            "args": ["qcluster"],
+
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "PYTHONUNBUFFERED": "1",
+                "USE_LOCAL_ENV": "true"
+            },
+
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+
+            "preLaunchTask": "docker-compose up deps",
+
+            "presentation": {
+                "panel": "dedicated",
+                "reveal": "always",
+                "group": "qcluster",
+                "showReuseMessage": false
+            }
         }
+
     ],
     "compounds": [
         {
             "name": "Full Stack Dev (Frontend + Django)",
             "type": "compound",
             "configurations": [
-                "Django: Runserver"
+                "Django: Runserver",
+                "Django: QCluster (no debug)"
             ],
             "preLaunchTask": "docker-compose up deps",
             "postDebugTask": "docker-compose down deps"

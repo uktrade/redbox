@@ -23,6 +23,28 @@
                 }
             },
             "problemMatcher": []
+        },
+
+        {
+            "label": "Django: QCluster",
+            "type": "shell",
+            "command": "${command:python.interpreterPath} django_app/manage.py qcluster",
+            "dependsOn": ["docker-compose up deps"],
+            "options": {
+                "env": {
+                "PYTHONUNBUFFERED": "1",
+                "USE_LOCAL_ENV": "true"
+                },
+                "cwd": "${workspaceFolder}"
+            },
+            "isBackground": false,
+            "presentation": {
+                "panel": "dedicated",
+                "reveal": "always",
+                "group": "qcluster",
+                "showReuseMessage": false
+            },
+            "problemMatcher": []
         }
     ]
 }
