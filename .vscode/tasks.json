@@ -23,6 +23,30 @@
                 }
             },
             "problemMatcher": []
+        },
+        {
+            "label": "run-migrations",
+            "type": "shell",
+            "command": "poetry run python manage.py migrate",
+            "options": {
+                "cwd": "${workspaceFolder}/django_app",
+                "env": {
+                    "DOCKER_DEFAULT_PLATFORM": "linux/amd64",
+                    "USE_LOCAL_ENV": "true"
+                }
+            }
+        },
+        {
+            "label": "make-migrations",
+            "type": "shell",
+            "command": "poetry run python manage.py makemigrations",
+            "options": {
+                "cwd": "${workspaceFolder}/django_app",
+                "env": {
+                    "DOCKER_DEFAULT_PLATFORM": "linux/amd64",
+                    "USE_LOCAL_ENV": "true"
+                }
+            }
         }
     ]
 }
