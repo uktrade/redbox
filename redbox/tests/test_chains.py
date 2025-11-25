@@ -6,11 +6,11 @@ from langchain_core.messages import AIMessage, BaseMessageChunk
 from langchain_core.outputs import Generation
 from pydantic import BaseModel
 
-from redbox.redbox.chains.parser import ClaudeParser, StreamingJsonOutputParser, StreamingPlanner
+from redbox.chains.parser import ClaudeParser, StreamingJsonOutputParser, StreamingPlanner
 from langchain_core.runnables import RunnableLambda
-from redbox.redbox.chains.runnables import prompt_budget_calculation, truncate_chat_history
-from redbox.redbox.models.errors import QuestionLengthError
-from redbox.redbox.transform import bedrock_tokeniser
+from redbox.chains.runnables import prompt_budget_calculation, truncate_chat_history
+from redbox.models.errors import QuestionLengthError
+from redbox.transform import bedrock_tokeniser
 
 
 class TestResponseModel(BaseModel):

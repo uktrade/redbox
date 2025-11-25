@@ -1,6 +1,6 @@
 from django.core.management import BaseCommand
 
-from redbox.redbox.models.settings import get_settings
+from redbox.models.settings import get_settings
 
 env = get_settings()
 

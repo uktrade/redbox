@@ -1,9 +1,9 @@
 import pytest
 from langchain_core.messages import HumanMessage
 
-from redbox.redbox.models.chain import RedboxState
-from redbox.redbox.retriever import AllElasticsearchRetriever, MetadataRetriever, ParameterisedElasticsearchRetriever
-from redbox.redbox.test.data import RedboxChatTestCase
+from redbox.models.chain import RedboxState
+from redbox.retriever import AllElasticsearchRetriever, MetadataRetriever, ParameterisedElasticsearchRetriever
+from redbox.test.data import RedboxChatTestCase
 
 TEST_CHAIN_PARAMETERS = (
     {

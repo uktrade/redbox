@@ -6,14 +6,14 @@ from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from redbox.redbox.chains.components import (
+from redbox.chains.components import (
     get_all_chunks_retriever,
     get_embeddings,
     get_metadata_retriever,
     get_parameterised_retriever,
     get_tabular_chunks_retriever,
 )
-from redbox.redbox.graph.nodes.tools import (
+from redbox.graph.nodes.tools import (
     build_document_from_prompt_tool,
     build_govuk_search_tool,
     build_legislation_search_tool,
@@ -24,18 +24,18 @@ from redbox.redbox.graph.nodes.tools import (
     build_web_search_tool,
     execute_sql_query,
 )
-from redbox.redbox.graph.root import build_root_graph, get_agentic_search_graph, get_summarise_graph
-from redbox.redbox.models.chain import RedboxState
-from redbox.redbox.models.chat import ChatRoute
-from redbox.redbox.models.file import ChunkResolution
-from redbox.redbox.models.graph import (
+from redbox.graph.root import build_root_graph, get_agentic_search_graph, get_summarise_graph
+from redbox.models.chain import RedboxState
+from redbox.models.chat import ChatRoute
+from redbox.models.file import ChunkResolution
+from redbox.models.graph import (
     FINAL_RESPONSE_TAG,
     ROUTABLE_KEYWORDS,
     ROUTE_NAME_TAG,
     SUMMARY_MULTIAGENT_TAG,
     RedboxEventType,
 )
-from redbox.redbox.models.settings import Settings, get_settings
+from redbox.models.settings import Settings, get_settings
 
 
 async def _default_callback(*args, **kwargs):

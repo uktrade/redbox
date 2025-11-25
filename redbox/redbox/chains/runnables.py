@@ -10,14 +10,14 @@ from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResu
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import Runnable, RunnableLambda, RunnablePassthrough, chain
 
-from redbox.redbox.api.format import format_documents
-from redbox.redbox.chains.activity import log_activity
-from redbox.redbox.chains.components import get_basic_metadata_retriever, get_chat_llm, get_tokeniser
-from redbox.redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_prompts
-from redbox.redbox.models.errors import QuestionLengthError
-from redbox.redbox.models.graph import RedboxEventType
-from redbox.redbox.models.settings import get_settings
-from redbox.redbox.transform import bedrock_tokeniser, flatten_document_state, get_all_metadata
+from redbox.api.format import format_documents
+from redbox.chains.activity import log_activity
+from redbox.chains.components import get_basic_metadata_retriever, get_chat_llm, get_tokeniser
+from redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_prompts
+from redbox.models.errors import QuestionLengthError
+from redbox.models.graph import RedboxEventType
+from redbox.models.settings import get_settings
+from redbox.transform import bedrock_tokeniser, flatten_document_state, get_all_metadata
 
 log = logging.getLogger()
 re_string_pattern = re.compile(r"(\S+)")

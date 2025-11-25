@@ -12,23 +12,23 @@ from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_community.vectorstores import OpenSearchVectorSearch
 from requests.exceptions import RequestException
 
-from redbox.redbox.chains.ingest import document_loader, ingest_from_loader
-from redbox.redbox.loader import ingester
-from redbox.redbox.loader.ingester import ingest_file
-from redbox.redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader
-from redbox.redbox.models.chain import GeneratedMetadata
+from redbox.chains.ingest import document_loader, ingest_from_loader
+from redbox.loader import ingester
+from redbox.loader.ingester import ingest_file
+from redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader
+from redbox.models.chain import GeneratedMetadata
 
 
-from redbox.redbox.loader.loaders import (
+from redbox.loader.loaders import (
     is_large_pdf,
     split_pdf,
     read_csv_text,
     read_excel_file,
     _pdf_is_image_heavy,
 )
-from redbox.redbox.models.file import ChunkResolution
-from redbox.redbox.models.settings import Settings
-from redbox.redbox.retriever.queries import build_query_filter
+from redbox.models.file import ChunkResolution
+from redbox.models.settings import Settings
+from redbox.retriever.queries import build_query_filter
 from io import BytesIO
 import pandas as pd
 

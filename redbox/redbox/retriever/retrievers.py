@@ -14,16 +14,16 @@ from opensearchpy import OpenSearch
 # from elasticsearch.helpers import scan
 from opensearchpy.helpers import scan
 
-from redbox.redbox.models.chain import RedboxState
-from redbox.redbox.models.file import ChunkResolution
-from redbox.redbox.retriever.queries import (
+from redbox.models.chain import RedboxState
+from redbox.models.file import ChunkResolution
+from redbox.retriever.queries import (
     add_document_filter_scores_to_query,
     build_document_query,
     get_all,
     get_metadata,
     get_minimum_metadata,
 )
-from redbox.redbox.transform import merge_documents, sort_documents
+from redbox.transform import merge_documents, sort_documents
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger()

@@ -243,7 +243,7 @@ class Settings(BaseSettings):
 
     def get_agent_names(self):
         # get list of available agents
-        from redbox.redbox.models.chain import AISettings
+        from redbox.models.chain import AISettings
 
         agent_names: list[str] = [(agent.name, agent.name) for agent in AISettings().worker_agents]
         return agent_names

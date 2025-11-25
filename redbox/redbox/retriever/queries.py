@@ -3,8 +3,8 @@ from typing import Any
 
 from langchain_core.documents import Document
 
-from redbox.redbox.models.chain import AISettings, RedboxState
-from redbox.redbox.models.file import ChunkResolution
+from redbox.models.chain import AISettings, RedboxState
+from redbox.models.file import ChunkResolution
 
 log = logging.getLogger()
 

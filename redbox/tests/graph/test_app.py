@@ -15,8 +15,8 @@ from langchain_core.runnables.graph import MermaidDrawMethod
 from langchain_core.tools import tool
 from pytest_mock import MockerFixture
 
-from redbox.redbox import Redbox
-from redbox.redbox.models.chain import (
+from redbox import Redbox
+from redbox.models.chain import (
     configure_agent_task_plan,
     AISettings,
     Citation,
@@ -28,10 +28,10 @@ from redbox.redbox.models.chain import (
     StructuredResponseWithCitations,
     metadata_reducer,
 )
-from redbox.redbox.models.chat import ChatRoute, ErrorRoute
-from redbox.redbox.models.graph import RedboxActivityEvent
-from redbox.redbox.models.settings import Settings
-from redbox.redbox.test.data import (
+from redbox.models.chat import ChatRoute, ErrorRoute
+from redbox.models.graph import RedboxActivityEvent
+from redbox.models.settings import Settings
+from redbox.test.data import (
     GenericFakeChatModelWithTools,
     RedboxChatTestCase,
     RedboxTestData,
@@ -40,9 +40,9 @@ from redbox.redbox.test.data import (
     mock_metadata_retriever,
     mock_parameterised_retriever,
 )
-from redbox.redbox.transform import structure_documents_by_group_and_indices
+from redbox.transform import structure_documents_by_group_and_indices
 import os
-from redbox.redbox.graph.nodes.processes import create_or_update_db_from_tabulars
+from redbox.graph.nodes.processes import create_or_update_db_from_tabulars
 
 
 # create logger

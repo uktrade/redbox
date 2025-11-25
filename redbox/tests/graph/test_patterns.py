@@ -8,10 +8,10 @@ from langchain_core.runnables import RunnableLambda
 from langgraph.graph import END, START, StateGraph
 from pytest_mock import MockerFixture
 
-from redbox.redbox.chains.components import get_structured_response_with_citations_parser
-from redbox.redbox.chains.parser import ClaudeParser
-from redbox.redbox.chains.runnables import CannedChatLLM, build_chat_prompt_from_messages_runnable, build_llm_chain
-from redbox.redbox.graph.nodes.processes import (
+from redbox.chains.components import get_structured_response_with_citations_parser
+from redbox.chains.parser import ClaudeParser
+from redbox.chains.runnables import CannedChatLLM, build_chat_prompt_from_messages_runnable, build_llm_chain
+from redbox.graph.nodes.processes import (
     build_agent_with_loop,
     build_chat_pattern,
     build_merge_pattern,
@@ -24,7 +24,7 @@ from redbox.redbox.graph.nodes.processes import (
     empty_process,
     lm_choose_route,
 )
-from redbox.redbox.models.chain import (
+from redbox.models.chain import (
     AgentDecision,
     AISettings,
     Citation,
@@ -35,8 +35,8 @@ from redbox.redbox.models.chain import (
     Source,
     configure_agent_task_plan,
 )
-from redbox.redbox.models.chat import ChatRoute
-from redbox.redbox.test.data import (
+from redbox.models.chat import ChatRoute
+from redbox.test.data import (
     RedboxChatTestCase,
     RedboxTestData,
     generate_docs,
@@ -45,7 +45,7 @@ from redbox.redbox.test.data import (
     mock_basic_metadata_retriever,
     mock_parameterised_retriever,
 )
-from redbox.redbox.transform import flatten_document_state, structure_documents_by_file_name
+from redbox.transform import flatten_document_state, structure_documents_by_file_name
 
 LANGGRAPH_DEBUG = True
 

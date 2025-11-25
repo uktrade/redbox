@@ -16,9 +16,9 @@ from pydantic import BaseModel
 from websockets import WebSocketClientProtocol
 from websockets.legacy.client import Connect
 
-from redbox.redbox.models.chain import LLMCallMetadata, RedboxQuery, RequestMetadata
-from redbox.redbox.models.graph import FINAL_RESPONSE_TAG, ROUTE_NAME_TAG, RedboxActivityEvent
-from redbox.redbox.models.prompts import CHAT_MAP_QUESTION_PROMPT
+from redbox.models.chain import LLMCallMetadata, RedboxQuery, RequestMetadata
+from redbox.models.graph import FINAL_RESPONSE_TAG, ROUTE_NAME_TAG, RedboxActivityEvent
+from redbox.models.prompts import CHAT_MAP_QUESTION_PROMPT
 from redbox_app.redbox_core import error_messages
 from redbox_app.redbox_core.consumers import ChatConsumer
 from redbox_app.redbox_core.models import ActivityEvent, Chat, ChatMessage, ChatMessageTokenUse, File

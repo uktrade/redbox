@@ -8,8 +8,8 @@ from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, AnyMessage
 from langchain_core.runnables import RunnableLambda
 
-from redbox.redbox.models.chain import DocumentMapping, DocumentState, LLMCallMetadata, RedboxState, RequestMetadata
-from redbox.redbox.models.graph import RedboxEventType
+from redbox.models.chain import DocumentMapping, DocumentState, LLMCallMetadata, RedboxState, RequestMetadata
+from redbox.models.graph import RedboxEventType
 
 
 def bedrock_tokeniser(text: str) -> int:

@@ -24,13 +24,13 @@ from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.types import Command
 
-from redbox.redbox.chains.activity import log_activity
-from redbox.redbox.chains.components import get_chat_llm, get_structured_response_with_citations_parser, get_tokeniser
-from redbox.redbox.chains.parser import ClaudeParser
-from redbox.redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_metadata, create_chain_agent
-from redbox.redbox.graph.nodes.sends import run_tools_parallel
-from redbox.redbox.models import ChatRoute
-from redbox.redbox.models.chain import (
+from redbox.chains.activity import log_activity
+from redbox.chains.components import get_chat_llm, get_structured_response_with_citations_parser, get_tokeniser
+from redbox.chains.parser import ClaudeParser
+from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_metadata, create_chain_agent
+from redbox.graph.nodes.sends import run_tools_parallel
+from redbox.models import ChatRoute
+from redbox.models.chain import (
     DocumentState,
     FeedbackEvalDecision,
     PromptSet,
@@ -40,9 +40,9 @@ from redbox.redbox.models.chain import (
     get_plan_fix_prompts,
     get_plan_fix_suggestion_prompts,
 )
-from redbox.redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
-from redbox.redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
-from redbox.redbox.transform import bedrock_tokeniser, combine_agents_state, combine_documents, flatten_document_state
+from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
+from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
+from redbox.transform import bedrock_tokeniser, combine_agents_state, combine_documents, flatten_document_state
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")

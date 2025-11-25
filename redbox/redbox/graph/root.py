@@ -8,10 +8,10 @@ from langgraph.graph.graph import CompiledGraph
 from langgraph.prebuilt import ToolNode
 from langgraph.pregel import RetryPolicy
 
-from redbox.redbox.chains.components import get_structured_response_with_citations_parser
-from redbox.redbox.chains.parser import ClaudeParser
-from redbox.redbox.chains.runnables import build_self_route_output_parser
-from redbox.redbox.graph.edges import (
+from redbox.chains.components import get_structured_response_with_citations_parser
+from redbox.chains.parser import ClaudeParser
+from redbox.chains.runnables import build_self_route_output_parser
+from redbox.graph.edges import (
     build_documents_bigger_than_context_conditional,
     build_keyword_detection_conditional,
     build_total_tokens_request_handler_conditional,
@@ -19,7 +19,7 @@ from redbox.redbox.graph.edges import (
     multiple_docs_in_group_conditional,
     remove_gadget_keyword,
 )
-from redbox.redbox.graph.nodes.processes import (
+from redbox.graph.nodes.processes import (
     build_activity_log_node,
     build_agent,
     build_agent_with_loop,
@@ -46,17 +46,17 @@ from redbox.redbox.graph.nodes.processes import (
     stream_plan,
     stream_suggestion,
 )
-from redbox.redbox.graph.nodes.sends import (
+from redbox.graph.nodes.sends import (
     build_document_chunk_send,
     build_document_group_send,
     build_tool_send,
     sending_task_to_agent,
 )
-from redbox.redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
-from redbox.redbox.models.chain import AgentDecision, AISettings, PromptSet, RedboxState
-from redbox.redbox.models.chat import ChatRoute, ErrorRoute
-from redbox.redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
-from redbox.redbox.models.prompts import (
+from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
+from redbox.models.chain import AgentDecision, AISettings, PromptSet, RedboxState
+from redbox.models.chat import ChatRoute, ErrorRoute
+from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
+from redbox.models.prompts import (
     EVAL_SUBMISSION,
     EXTERNAL_RETRIEVAL_AGENT_PROMPT,
     INTERNAL_RETRIEVAL_AGENT_PROMPT,
@@ -64,8 +64,8 @@ from redbox.redbox.models.prompts import (
     SUBMISSION_PROMPT,
     WEB_SEARCH_AGENT_PROMPT,
 )
-from redbox.redbox.models.settings import get_settings
-from redbox.redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
+from redbox.models.settings import get_settings
+from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
 
 def build_root_graph(

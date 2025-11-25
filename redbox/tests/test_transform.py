@@ -8,10 +8,10 @@ from langchain_core.documents.base import Document
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 
-from redbox.redbox.models.chain import DocumentState, LLMCallMetadata, RequestMetadata
-from redbox.redbox.retriever.retrievers import filter_by_elbow
-from redbox.redbox.test.data import generate_docs
-from redbox.redbox.transform import (
+from redbox.models.chain import DocumentState, LLMCallMetadata, RequestMetadata
+from redbox.retriever.retrievers import filter_by_elbow
+from redbox.test.data import generate_docs
+from redbox.transform import (
     combine_documents,
     merge_documents,
     sort_documents,

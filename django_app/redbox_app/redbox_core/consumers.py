@@ -21,8 +21,8 @@ from langchain_core.documents import Document
 from pydantic import ValidationError
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
-from redbox.redbox import Redbox
-from redbox.redbox.models.chain import (
+from redbox import Redbox
+from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
     RedboxQuery,
@@ -33,9 +33,9 @@ from redbox.redbox.models.chain import (
     get_plan_fix_prompts,
     metadata_reducer,
 )
-from redbox.redbox.models.chain import Citation as AICitation
-from redbox.redbox.models.graph import RedboxActivityEvent
-from redbox.redbox.models.settings import get_settings
+from redbox.models.chain import Citation as AICitation
+from redbox.models.graph import RedboxActivityEvent
+from redbox.models.settings import get_settings
 from redbox_app.redbox_core import error_messages
 from redbox_app.redbox_core.models import (
     ActivityEvent,

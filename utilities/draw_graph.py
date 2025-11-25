@@ -1,4 +1,4 @@
-from redbox.redbox.app import Redbox
+from redbox.app import Redbox
 
 app = Redbox()
 

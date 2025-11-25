@@ -10,16 +10,16 @@ from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.embeddings.fake import FakeEmbeddings
 from opensearchpy import OpenSearch
 
-from redbox.redbox.models.chain import AISettings, GeneratedMetadata, RedboxQuery, RedboxState
-from redbox.redbox.models.settings import Settings
-from redbox.redbox.retriever import (
+from redbox.models.chain import AISettings, GeneratedMetadata, RedboxQuery, RedboxState
+from redbox.models.settings import Settings
+from redbox.retriever import (
     AllElasticsearchRetriever,
     MetadataRetriever,
     OpenSearchRetriever,
     ParameterisedElasticsearchRetriever,
 )
-from redbox.redbox.test.data import RedboxChatTestCase
-from redbox.redbox.transform import bedrock_tokeniser
+from redbox.test.data import RedboxChatTestCase
+from redbox.transform import bedrock_tokeniser
 from tests.retriever.data import (
     ALL_CHUNKS_RETRIEVER_CASES,
     KNOWLEDGE_BASE_CASES,

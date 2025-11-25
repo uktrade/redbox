@@ -7,14 +7,14 @@ from langchain_core.messages import AIMessage, ToolCall
 from langgraph.constants import Send
 from pytest_mock import MockerFixture
 
-from redbox.redbox.graph.nodes.sends import (
+from redbox.graph.nodes.sends import (
     build_document_chunk_send,
     build_document_group_send,
     build_tool_send,
     run_tools_parallel,
 )
-from redbox.redbox.graph.nodes.tools import build_search_wikipedia_tool
-from redbox.redbox.models.chain import DocumentState, RedboxQuery, RedboxState
+from redbox.graph.nodes.tools import build_search_wikipedia_tool
+from redbox.models.chain import DocumentState, RedboxQuery, RedboxState
 from tests.conftest import fake_state
 
 

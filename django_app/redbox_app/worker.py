@@ -8,8 +8,8 @@ from uuid import UUID
 
 from django.core.files.uploadedfile import InMemoryUploadedFile, UploadedFile
 
-from redbox.redbox.loader.ingester import ingest_file
-from redbox.redbox.models.settings import get_settings
+from redbox.loader.ingester import ingest_file
+from redbox.models.settings import get_settings
 
 env = get_settings()
 

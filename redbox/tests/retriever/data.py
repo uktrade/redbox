@@ -1,8 +1,8 @@
 from uuid import uuid4
 
-from redbox.redbox.models.chain import RedboxQuery
-from redbox.redbox.models.file import ChunkResolution
-from redbox.redbox.test.data import RedboxTestData, generate_test_cases
+from redbox.models.chain import RedboxQuery
+from redbox.models.file import ChunkResolution
+from redbox.test.data import RedboxTestData, generate_test_cases
 
 KNOWLEDGE_BASE_CASES = [
     test_case

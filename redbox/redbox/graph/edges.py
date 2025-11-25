@@ -4,11 +4,11 @@ from typing import Literal
 
 from langchain_core.runnables import Runnable
 
-from redbox.redbox.chains.components import get_tokeniser
-from redbox.redbox.graph.nodes.processes import PromptSet
-from redbox.redbox.models import ChatRoute
-from redbox.redbox.models.chain import RedboxState, get_prompts
-from redbox.redbox.transform import get_document_token_count
+from redbox.chains.components import get_tokeniser
+from redbox.graph.nodes.processes import PromptSet
+from redbox.models import ChatRoute
+from redbox.models.chain import RedboxState, get_prompts
+from redbox.transform import get_document_token_count
 
 log = logging.getLogger()
 

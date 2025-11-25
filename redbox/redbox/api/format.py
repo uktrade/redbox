@@ -1,6 +1,6 @@
 from langchain_core.documents.base import Document
 
-from redbox.redbox.transform import combine_documents
+from redbox.transform import combine_documents
 
 
 def format_documents(documents: list[Document]) -> str:

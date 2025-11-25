@@ -12,11 +12,11 @@ from langchain_core.retrievers import BaseRetriever
 from langchain_core.tools import BaseTool
 from pydantic.v1 import BaseModel, Field, validator
 
-from redbox.redbox.models.chain import RedboxQuery
-from redbox.redbox.models.chat import ChatRoute, ErrorRoute
-from redbox.redbox.models.file import ChunkResolution, UploadedFileMetadata
-from redbox.redbox.models.graph import RedboxActivityEvent
-from redbox.redbox.models.chain import MultiAgentPlanBase
+from redbox.models.chain import RedboxQuery
+from redbox.models.chat import ChatRoute, ErrorRoute
+from redbox.models.file import ChunkResolution, UploadedFileMetadata
+from redbox.models.graph import RedboxActivityEvent
+from redbox.models.chain import MultiAgentPlanBase
 
 log = logging.getLogger()
 
