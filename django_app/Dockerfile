@@ -29,11 +29,11 @@ RUN pip install poetry poetry-plugin-bundle==1.3.0
 WORKDIR /src
 COPY README.md ../.
 COPY redbox/ ../redbox/
-COPY django_app/pyproject.toml .
-COPY django_app/poetry.lock .
+COPY pyproject.toml .
+COPY poetry.lock .
 
 # do this so that poetry bundle can run without the project - can't pass --no-root to bundle
-#RUN touch README.md
+RUN touch README.md
 RUN poetry install
 RUN poetry bundle venv ./venv
 
@@ -51,7 +51,6 @@ RUN apt-get update && apt-get install --yes libpq-dev curl > /dev/null
 
 WORKDIR /usr/src/app
 
-COPY README.md .
 COPY redbox/ .
 COPY django_app/ .
 
@@ -60,7 +59,7 @@ COPY --from=npm-packages /src/dist/ frontend/dist/
 COPY --from=poetry-packages /src/venv ./venv
 
 ENV DJANGO_SETTINGS_MODULE='redbox_app.settings'
-ENV PYTHONPATH "${PYTHONPATH}:/."
+ENV PYTHONPATH=/usr/src/app
 
 EXPOSE 8080
 

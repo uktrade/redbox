@@ -75,7 +75,6 @@ lint:  ## Check code formatting & linting
 .PHONY: format
 format:  ## Format and fix code
 	poetry run ruff format .
-	poetry run ruff check . --fix
 
 .PHONY: safe
 safe:  ##
