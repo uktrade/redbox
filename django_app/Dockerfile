@@ -59,7 +59,7 @@ COPY --from=npm-packages /src/dist/ frontend/dist/
 COPY --from=poetry-packages /src/venv ./venv
 
 ENV DJANGO_SETTINGS_MODULE='redbox_app.settings'
-ENV PYTHONPATH "${PYTHONPATH}:/."
+ENV PYTHONPATH=/usr/src/app
 
 EXPOSE 8080
 
