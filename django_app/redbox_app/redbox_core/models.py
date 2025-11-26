@@ -776,20 +776,18 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
     @override
     def delete(self, using=None, keep_parents=False):
         #  Needed to make sure no orphaned files remain in the storage
-        self.delete_from_s3()
+        self.delete_from_elastic_and_s3()
         super().delete()
-
-    def delete_from_s3(self):
-        """Manually deletes the file from S3 storage."""
-        self.original_file.delete(save=False)
-
-    def delete_from_elastic(self):
+    
+    def delete_from_elastic_and_s3(self):
+        """Deletes the file from both Elasticsearch and S3 storage."""
         index = env.elastic_chunk_alias
         if es_client.indices.exists(index=index):
             es_client.delete_by_query(
                 index=index,
                 body={"query": {"term": {"metadata.file_name.keyword": self.unique_name}}},
             )
+        self.original_file.delete(save=False)
 
     @property
     def file_type(self) -> str:
