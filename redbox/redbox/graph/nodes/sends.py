@@ -64,7 +64,7 @@ def build_tool_send(target: str) -> Callable[[RedboxState], list[Send]]:
     return _tool_send
 
 
-def run_tools_parallel(ai_msg, tools, state, timeout=30):
+def run_tools_parallel(ai_msg, tools, state, timeout=60):
     # Create a list to store futures
     futures = []
     if len(ai_msg.tool_calls) == 0:
@@ -100,7 +100,7 @@ def run_tools_parallel(ai_msg, tools, state, timeout=30):
 
                 return responses
         except TimeoutError:
-            log.warning(f"Tool execution timed out after {timeout} seconds")
+            log.warning(f"Tool execution on {selected_tool} timed out after {timeout} seconds")
             return None
         except Exception as e:
             log.warning(f"Unexpected error in tool execution: {str(e)}", exc_info=True)

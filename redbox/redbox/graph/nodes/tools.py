@@ -173,6 +173,7 @@ def build_search_documents_tool(
         Returns:
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
+        start_time = time.time()
         query_vector = embedding_model.embed_query(query)
         selected_files = state.request.s3_keys
         permitted_files = state.request.permitted_s3_keys
@@ -189,6 +190,7 @@ def build_search_documents_tool(
             ai_settings=ai_settings,
         )
         initial_documents = query_to_documents(es_client=es_client, index_name=index_name, query=initial_query)
+        log.debug("Initial query using %s seconds", time.time() - start_time)
 
         # Handle nothing found (as when no files are permitted)
         if not initial_documents:
@@ -201,10 +203,12 @@ def build_search_documents_tool(
             centres=initial_documents,
         )
         adjacent_boosted = query_to_documents(es_client=es_client, index_name=index_name, query=with_adjacent_query)
+        log.debug("Adjacent boosted query using %s seconds", time.time() - start_time)
 
         # Merge and sort
         merged_documents = merge_documents(initial=initial_documents, adjacent=adjacent_boosted)
         sorted_documents = sort_documents(documents=merged_documents)
+        log.debug("Merage and sort documents using %s seconds", time.time() - start_time)
 
         # Return as state update
         return format_documents(sorted_documents), sorted_documents
