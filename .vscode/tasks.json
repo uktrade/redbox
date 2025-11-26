@@ -1,0 +1,52 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "docker-compose up deps",
+            "type": "shell",
+            "command": "docker compose up -d unstructured db minio opensearch opensearch-dashboards",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "DOCKER_DEFAULT_PLATFORM": "linux/amd64"
+                }
+            }
+        },
+        {
+            "label": "docker-compose down deps",
+            "type": "shell",
+            "command": "docker compose down unstructured db minio opensearch opensearch-dashboards",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "DOCKER_DEFAULT_PLATFORM": "linux/amd64"
+                }
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "run-migrations",
+            "type": "shell",
+            "command": "poetry run python manage.py migrate",
+            "options": {
+                "cwd": "${workspaceFolder}/django_app",
+                "env": {
+                    "DOCKER_DEFAULT_PLATFORM": "linux/amd64",
+                    "USE_LOCAL_ENV": "true"
+                }
+            }
+        },
+        {
+            "label": "make-migrations",
+            "type": "shell",
+            "command": "poetry run python manage.py makemigrations",
+            "options": {
+                "cwd": "${workspaceFolder}/django_app",
+                "env": {
+                    "DOCKER_DEFAULT_PLATFORM": "linux/amd64",
+                    "USE_LOCAL_ENV": "true"
+                }
+            }
+        }
+    ]
+}
