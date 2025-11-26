@@ -778,7 +778,7 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         #  Needed to make sure no orphaned files remain in the storage
         self.delete_from_elastic_and_s3()
         super().delete()
-    
+
     def delete_from_elastic_and_s3(self):
         """Deletes the file from both Elasticsearch and S3 storage."""
         index = env.elastic_chunk_alias
