@@ -208,7 +208,7 @@ def build_search_documents_tool(
         # Merge and sort
         merged_documents = merge_documents(initial=initial_documents, adjacent=adjacent_boosted)
         sorted_documents = sort_documents(documents=merged_documents)
-        log.debug("Merage and sort documents using %s seconds", time.time() - start_time)
+        log.debug("Merge and sort documents using %s seconds", time.time() - start_time)
 
         # Return as state update
         return format_documents(sorted_documents), sorted_documents
