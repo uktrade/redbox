@@ -438,7 +438,7 @@ class TestGovTool:
                 "test query",
                 [
                     {"description": "", "indexable_content": "AI", "link": "test", "format": "html", "title": "fake"},
-                    {"description": "", "title": "fake", "indexable_content": "AI"},
+                    {"description": "foo", "title": "fake", "indexable_content": "foo"},
                 ],
                 1,
             ),
@@ -447,7 +447,7 @@ class TestGovTool:
     @requests_mock.Mocker(kw="mock")
     def test_gov_uk_tool(self, test_name, query, web_response, no_of_artifact, **kwargs):
         tool = build_govuk_search_tool(filter=True)
-        ai_setting = AISettings(tool_govuk_returned_results=1)
+        ai_setting = AISettings(tool_govuk_returned_results=2)
 
         tool_node = ToolNode(tools=[tool])
 
@@ -488,7 +488,7 @@ class TestGovTool:
 
         if no_of_artifact != 0:
             documents = response["messages"][-1].artifact
-            # call gov tool without additional filter
+            assert documents[0].page_content == "AI"
             assert len(documents) == no_of_artifact
         else:
             assert response["messages"][-1].artifact == []
