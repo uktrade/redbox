@@ -67,7 +67,7 @@ class QueryParams:
                 "knn": {
                     "vector_field": {
                         "vector": vec,
-                        "k": self.k,  # get_k_value(self.files, self.k),
+                        "k": self.k,
                         "filter": {"bool": {"filter": {"terms": {"metadata.uri.keyword": self.files}}}},
                     }
                 }
@@ -91,16 +91,7 @@ class QueryParams:
                             "knn": {
                                 "vector_field": {
                                     "vector": vec,
-                                    "k": self.k,  # get_k_value(self.files, self.k),
-                                    # "filter": {
-                                    #     "bool": {
-                                    #         "filter": {
-                                    #             "terms": {
-                                    #                 "metadata.uri.keyword": self.files
-                                    #             }
-                                    #         }
-                                    #     }
-                                    # }
+                                    "k": self.k,
                                 }
                             }
                         }
@@ -126,8 +117,7 @@ def query_ms(
             test_scores.append(score)
 
     avg = sum(test_scores) / len(test_scores)
-    # std_dev = stdev(test_scores)
-    return avg  # f"{avg} +- {std_dev}"
+    return avg
 
 
 ks = [5, 10, 30, 50]
@@ -210,70 +200,3 @@ for i in range(len(files)):
 # plt.legend()
 # plt.tight_layout()
 # plt.show()
-
-# k = 10
-# size = 30
-# min_score = 0.6
-# for i in range(len(files)):
-#     file_list = files[: i + 1]
-#     print("-" * 40)
-#     print(f"{len(file_list)} files...")
-#     params = QueryParams(k=k, size=size, min_score=min_score, files=file_list)
-#     perf_dev = query_ms(client_rhc, params.dev_body(query_vec))
-#     perf_v1 = query_ms(client_rhc, params.v1_body(query_vec))
-#     perf_v2 = query_ms(client_rhc, params.v2_body(query_vec))
-
-#     print(f"dev: {perf_dev}")
-#     print(f"v1: {perf_v1}")
-#     print(f"v2: {perf_v2}")
-#     print()
-
-#     perf_dev = query_ms(client_ul3, params.dev_body(query_vec))
-#     perf_v1 = query_ms(client_ul3, params.v1_body(query_vec))
-#     perf_v2 = query_ms(client_ul3, params.v2_body(query_vec))
-
-#     print(f"dev: {perf_dev}")
-#     print(f"v1: {perf_v1}")
-#     print(f"v2: {perf_v2}")
-#     print()
-#     print()
-
-# for i in range(len(files)):
-#     file_list = files[: i + 1]
-#     print("-" * 40)
-#     print(f"{len(file_list)} files...")
-#     params = QueryParams(k=k, size=size, min_score=min_score, files=file_list)
-#     perf_dev = query_ms(params.dev_body(query_vec))
-#     perf_v1 = query_ms(params.v1_body(query_vec))
-#     perf_v2 = query_ms(params.v2_body(query_vec))
-
-#     print(f"No k tuning - '{k}'...")
-#     print(f"dev: {perf_dev}")
-#     print(f"v1: {perf_v1}")
-#     print(f"v2: {perf_v2}")
-
-#     tuned_k_res = get_k_value(file_list, k)
-#     params = QueryParams(k=tuned_k_res, size=size, min_score=min_score, files=file_list)
-#     perf_dev = query_ms(params.dev_body(query_vec))
-#     perf_v1 = query_ms(params.v1_body(query_vec))
-#     perf_v2 = query_ms(params.v2_body(query_vec))
-
-#     print()
-#     print(f"K tuning get_k_value - '{tuned_k_res}'...")
-#     print(f"dev: {perf_dev}")
-#     print(f"v1: {perf_v1}")
-#     print(f"v2: {perf_v2}")
-#     print()
-
-#     tuned_k_res = tuned_k(len(file_list), k)
-#     params = QueryParams(k=tuned_k_res, size=size, min_score=min_score, files=file_list)
-#     perf_dev = query_ms(params.dev_body(query_vec))
-#     perf_v1 = query_ms(params.v1_body(query_vec))
-#     perf_v2 = query_ms(params.v2_body(query_vec))
-
-#     print(f"K tuning tuned_k - '{tuned_k_res}'...")
-#     print(f"dev: {perf_dev}")
-#     print(f"v1: {perf_v1}")
-#     print(f"v2: {perf_v2}")
-#     print()
-#     print()
