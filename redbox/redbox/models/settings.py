@@ -263,6 +263,7 @@ class Settings(BaseSettings):
                 http_auth=(self.elastic.collection_endpoint__username, self.elastic.collection_endpoint__password),
                 use_ssl=False,
                 connection_class=Urllib3HttpConnection,
+                compression=True,
             )
 
         else:
@@ -277,6 +278,7 @@ class Settings(BaseSettings):
                 retry_on_timeout=True,
                 pool_maxsize=100,
                 timeout=120,
+                compression=True,
             )
 
         if not client.indices.exists_alias(name=self.elastic_alias):
