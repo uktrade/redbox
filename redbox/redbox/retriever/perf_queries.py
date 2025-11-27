@@ -30,11 +30,6 @@ def get_k_value(file_list, desired_size=30):
         return desired_size  # k=30 for many files
 
 
-def tuned_k(num_files, base_k=50):
-    # scale k but capped
-    return min(base_k + num_files * 5, 200)
-
-
 @dataclass
 class QueryParams:
     k: int
