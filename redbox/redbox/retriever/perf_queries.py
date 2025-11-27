@@ -113,18 +113,22 @@ def query_ms(
     client: OpenSearch,
     body: dict,
     num_tests: int = 50,
+    warmup: int = 5,
 ):
-    test_scores = []
-    for test in range(num_tests):
-        start = time.perf_counter()
+    scores = []
+
+    # Warmup runs (ignored)
+    for _ in range(warmup):
         client.search(index=INDEX, body=body)
 
-        if test < 10:
-            score = (time.perf_counter() - start) * 1000  # ms
-            test_scores.append(score)
+    # Timed runs
+    for _ in range(num_tests):
+        start = time.perf_counter()
+        resp = client.search(index=INDEX, body=body)
+        _ = resp.get("hits", {}).get("total")  # force materialization
+        scores.append((time.perf_counter() - start) * 1000)
 
-    avg = sum(test_scores) / len(test_scores)
-    return avg
+    return sum(scores) / len(scores)
 
 
 ks = [5, 10, 30, 50]
