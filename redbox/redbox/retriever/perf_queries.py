@@ -8,8 +8,15 @@ np.random.seed(42)
 
 INDEX = "redbox-data-chunk"
 
-client_rhc = OpenSearch("http://localhost:9200", connection_class=RequestsHttpConnection)
-client_ul3 = OpenSearch([{"host": "localhost", "port": 9200}], connection_class=Urllib3HttpConnection)
+client_rhc = OpenSearch("http://localhost:9200", connection_class=RequestsHttpConnection, compression=False)
+client_rhc_cmpr = OpenSearch("http://localhost:9200", connection_class=RequestsHttpConnection, compression=True)
+client_ul3 = OpenSearch(
+    [{"host": "localhost", "port": 9200}], connection_class=Urllib3HttpConnection, compression=False
+)
+client_ul3_cmpr = OpenSearch(
+    [{"host": "localhost", "port": 9200}], connection_class=Urllib3HttpConnection, compression=True
+)
+
 fake = FakeEmbeddings(size=1024)
 query_vec = fake.embed_query("fixed query")
 
@@ -132,21 +139,17 @@ files = [
 
 files = files + files
 
-# import matplotlib.pyplot as plt
-
-results = {
-    "num_files": [],
-    "rhc_dev": [],
-    "rhc_v1": [],
-    "rhc_v2": [],
-    "ul3_dev": [],
-    "ul3_v1": [],
-    "ul3_v2": [],
-}
-
 k = 10
 size = 30
 min_score = 0.6
+clients = {
+    "RHC": client_rhc,
+    "RHC [Compression=True]": client_rhc_cmpr,
+    "UL3": client_ul3,
+    "UL3 [Compression=True]": client_ul3_cmpr,
+}
+
+
 for i in range(len(files)):
     file_list = files[: i + 1]
     print("-" * 40)
@@ -154,49 +157,13 @@ for i in range(len(files)):
 
     params = QueryParams(k=k, size=size, min_score=min_score, files=file_list)
 
-    # ---- RHC client ----
-    perf_dev_rhc = query_ms(client_rhc, params.dev_body(query_vec))
-    perf_v1_rhc = query_ms(client_rhc, params.v1_body(query_vec))
-    perf_v2_rhc = query_ms(client_rhc, params.v2_body(query_vec))
+    for name, client in clients.items():
+        perf_dev = query_ms(client, params.dev_body(query_vec))
+        perf_v1 = query_ms(client, params.v1_body(query_vec))
+        perf_v2 = query_ms(client, params.v2_body(query_vec))
 
-    print(f"RHC dev: {perf_dev_rhc}")
-    print(f"RHC v1:  {perf_v1_rhc}")
-    print(f"RHC v2:  {perf_v2_rhc}")
+        print(f"{name} dev: {perf_dev}")
+        print(f"{name} v1:  {perf_v1}")
+        print(f"{name} v2:  {perf_v2}")
+        print()
     print()
-
-    # ---- UL3 client ----
-    perf_dev_ul3 = query_ms(client_ul3, params.dev_body(query_vec))
-    perf_v1_ul3 = query_ms(client_ul3, params.v1_body(query_vec))
-    perf_v2_ul3 = query_ms(client_ul3, params.v2_body(query_vec))
-
-    print(f"UL3 dev: {perf_dev_ul3}")
-    print(f"UL3 v1:  {perf_v1_ul3}")
-    print(f"UL3 v2:  {perf_v2_ul3}")
-    print("\n")
-
-    # ---- Save results ----
-    results["num_files"].append(len(file_list))
-    results["rhc_dev"].append(perf_dev_rhc)
-    results["rhc_v1"].append(perf_v1_rhc)
-    results["rhc_v2"].append(perf_v2_rhc)
-    results["ul3_dev"].append(perf_dev_ul3)
-    results["ul3_v1"].append(perf_v1_ul3)
-    results["ul3_v2"].append(perf_v2_ul3)
-
-# plt.figure(figsize=(12, 6))
-# x = results["num_files"]
-
-# plt.plot(x, results["rhc_dev"], marker="o", label="RHC - dev")
-# plt.plot(x, results["rhc_v1"], marker="o", label="RHC - v1")
-# plt.plot(x, results["rhc_v2"], marker="o", label="RHC - v2")
-# plt.plot(x, results["ul3_dev"], marker="s", label="UL3 - dev")
-# plt.plot(x, results["ul3_v1"], marker="s", label="UL3 - v1")
-# plt.plot(x, results["ul3_v2"], marker="s", label="UL3 - v2")
-
-# plt.title("OpenSearch Query Performance by Number of Files")
-# plt.xlabel("Number of Files")
-# plt.ylabel("Latency (ms)")
-# plt.grid(True, linestyle="--", alpha=0.5)
-# plt.legend()
-# plt.tight_layout()
-# plt.show()
