@@ -13,7 +13,6 @@ from pytest_mock import MockerFixture
 from requests import Response
 
 from redbox.api.format import reduce_chunks_by_tokens
-from redbox.chains.components import get_embeddings
 from redbox.graph.nodes.tools import (
     brave_response_to_documents,
     build_document_from_prompt_tool,
@@ -453,8 +452,8 @@ class TestGovTool:
         tool_node = ToolNode(tools=[tool])
 
         # mock embedding
-        mock_embedding = mocker.patch("redbox.chains.components.get_embeddings")
-        mock_embedding.return_value = get_embeddings(Settings(embedding_backend="fake"))
+        mock_embedding = mocker.patch("redbox.graph.nodes.tools.get_embeddings")
+        mock_embedding.return_value = FakeEmbeddings(size=1024)
 
         kwargs["mock"].get(
             re.compile(r".*gov\.uk.*"),
