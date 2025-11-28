@@ -94,6 +94,7 @@ def run_tools_parallel(ai_msg, tools, state, timeout=60):
                 for future in as_completed(futures, timeout=timeout):
                     try:
                         response = future.result()
+                        log.warning(f"This is what I got from tool {response}")
                         responses.append(AIMessage(response))
                     except Exception as e:
                         log.warning(f"Tool invocation error: {e}")

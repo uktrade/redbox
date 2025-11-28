@@ -86,11 +86,14 @@ class OpenSearchRetriever(BaseRetriever):
             raise ValueError("OpenSearch client or document mapper is not initialized")
 
         body = self.body_func(query)
-        logger.info("query to opensearch: from get_relevant_documents")
-        logger.info(str(body))
-        response = self.es_client.search(index=self.index_name, body=body)
-        logger.info("response from opensearch: from get_relevant_documents")
-        logger.info(str([self.document_mapper(hit) for hit in response["hits"]["hits"]]))
+        logger.warning("query to opensearch: from get_relevant_documents")
+        logger.warning(str(body))
+        try:
+            response = self.es_client.search(index=self.index_name, body=body)
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+        logger.warning("response from opensearch: from get_relevant_documents")
+        logger.warning(str([self.document_mapper(hit) for hit in response["hits"]["hits"]]))
         return [self.document_mapper(hit) for hit in response["hits"]["hits"]]
 
     def _single_field_mapper(self, hit: Mapping[str, Any]) -> Document:
@@ -129,12 +132,15 @@ def query_to_documents(
     es_client: Union[Elasticsearch, OpenSearch], index_name: str, query: dict[str, Any]
 ) -> list[Document]:
     """Runs an Elasticsearch query and returns Documents."""
-    logger.info("query to opensearch: from query_to_documents")
-    logger.info(str(query))
-    response = es_client.search(index=index_name, body=query)
-    logger.info("response from opensearch: from query_to_documents")
-    logger.info(str([hit_to_doc(hit) for hit in response["hits"]["hits"]]))
-    return [hit_to_doc(hit) for hit in response["hits"]["hits"]]
+    logger.warning("query to opensearch: from query_to_documents")
+    logger.warning(str(query))
+    try:
+        response = es_client.search(index=index_name, body=query)
+        logger.warning("response from opensearch: from query_to_documents")
+        logger.warning(str([hit_to_doc(hit) for hit in response["hits"]["hits"]]))
+        return [hit_to_doc(hit) for hit in response["hits"]["hits"]]
+    except Exception as e:
+        print(f"Unexpected error: {e}")
 
 
 def filter_by_elbow(

@@ -190,7 +190,7 @@ def build_search_documents_tool(
             ai_settings=ai_settings,
         )
         initial_documents = query_to_documents(es_client=es_client, index_name=index_name, query=initial_query)
-        log.debug("Initial query using %s seconds", time.time() - start_time)
+        log.warning("Initial query using %s seconds", time.time() - start_time)
 
         # Handle nothing found (as when no files are permitted)
         if not initial_documents:
@@ -203,12 +203,13 @@ def build_search_documents_tool(
             centres=initial_documents,
         )
         adjacent_boosted = query_to_documents(es_client=es_client, index_name=index_name, query=with_adjacent_query)
-        log.debug("Adjacent boosted query using %s seconds", time.time() - start_time)
+        log.warning("Adjacent boosted query using %s seconds", time.time() - start_time)
 
         # Merge and sort
         merged_documents = merge_documents(initial=initial_documents, adjacent=adjacent_boosted)
         sorted_documents = sort_documents(documents=merged_documents)
-        log.debug("Merge and sort documents using %s seconds", time.time() - start_time)
+        log.warning("Merge and sort documents using %s seconds", time.time() - start_time)
+        log.warning("Returning %s documents", len(sorted_documents))
 
         # Return as state update
         return format_documents(sorted_documents), sorted_documents
