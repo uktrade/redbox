@@ -196,22 +196,22 @@ class Redbox:
                     logger.error(f"Error processing {kind} - {str(e)}")
                     raise
 
+        # try:
+        await stream_events_with_retry(
+            is_summary_multiagent_streamed=is_summary_multiagent_streamed,
+            is_evaluator_output_streamed=is_evaluator_output_streamed,
+        )
         try:
-            await stream_events_with_retry(
-                is_summary_multiagent_streamed=is_summary_multiagent_streamed,
-                is_evaluator_output_streamed=is_evaluator_output_streamed,
-            )
-            try:
-                _ = final_state.messages[-1].content
-            except Exception as _:
-                logger.exception("LLM Error - Blank Response")
-        except CancelledError:
-            logger.error("All retries exhausted for CancelledError in the astream_events function")
-            raise
+            _ = final_state.messages[-1].content
+        except Exception as _:
+            logger.exception("LLM Error - Blank Response")
+        # except CancelledError:
+        #     logger.error("All retries exhausted for CancelledError in the astream_events function")
+        #     raise
 
-        except Exception:
-            logger.error("Generic error in run - {str(e)}")
-            raise
+        # except Exception:
+        #     logger.error("Generic error in run - {str(e)}")
+        #     raise
 
         return final_state
 
