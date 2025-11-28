@@ -32,7 +32,7 @@
             "configurations": [
                 "Django: Runserver"
             ],
-            "preLaunchTask": "docker-compose up deps",
+            "preLaunchTask": "start-dev",
             "postDebugTask": "docker-compose down deps"
         }
     ]
