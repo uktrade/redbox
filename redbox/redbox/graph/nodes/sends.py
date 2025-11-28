@@ -65,15 +65,26 @@ def build_tool_send(target: str) -> Callable[[RedboxState], list[Send]]:
 
 
 def run_tools_parallel(ai_msg, tools, state, timeout=60):
+    log.warning("[run_tools_parallel] Starting tool execution.")
+
     # Create a list to store futures
     futures = []
     if len(ai_msg.tool_calls) == 0:
         # No tool calls
+        log.warning("[run_tools_parallel] No tool calls detected. Returning agent content.")
         return ai_msg.content
     else:
         try:
+            log.warning(
+                f"[run_tools_parallel] {len(ai_msg.tool_calls)} tool call(s) detected: "
+                f"{[tc.get('name') for tc in ai_msg.tool_calls]}"
+            )
+
+            max_workers = min(10, len(ai_msg.tool_calls))
+            log.warning(f"[run_tools_parallel] Creating ThreadPoolExecutor(max_workers={max_workers})")
+
             # Use ThreadPoolExecutor for parallel execution
-            with ThreadPoolExecutor(max_workers=min(10, len(ai_msg.tool_calls))) as executor:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 # Submit tool invocations to the executor
                 for tool_call in ai_msg.tool_calls:
                     # Find the matching tool by name
@@ -99,6 +110,9 @@ def run_tools_parallel(ai_msg, tools, state, timeout=60):
                     except Exception as e:
                         log.warning(f"Tool invocation error: {e}")
 
+                log.warning(
+                    f"[run_tools_parallel] Completed. Successful tool responses: {len(responses)}. Responses: {responses}"
+                )
                 return responses
         except TimeoutError:
             log.warning(f"Tool execution on {selected_tool} timed out after {timeout} seconds")
