@@ -413,6 +413,8 @@ LOGGING = {
             "level": "ERROR",
             "propagate": False,
         },
+        "langchain.tools": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "opensearchpy": {"handlers": ["console"], "level": "INFO", "propagate": False},
     },
 }
 
