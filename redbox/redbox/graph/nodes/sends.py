@@ -1,5 +1,5 @@
+import asyncio
 import logging
-from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from typing import Callable
 
 from langchain_core.messages import AIMessage
@@ -64,47 +64,39 @@ def build_tool_send(target: str) -> Callable[[RedboxState], list[Send]]:
     return _tool_send
 
 
-def run_tools_parallel(ai_msg, tools, state, timeout=60):
-    # Create a list to store futures
-    futures = []
-    if len(ai_msg.tool_calls) == 0:
-        # No tool calls
+async def run_tools_parallel(ai_msg, tools, state, timeout=60):
+    if not ai_msg.tool_calls:
         return ai_msg.content
-    else:
-        try:
-            # Use ThreadPoolExecutor for parallel execution
-            with ThreadPoolExecutor(max_workers=min(10, len(ai_msg.tool_calls))) as executor:
-                # Submit tool invocations to the executor
-                for tool_call in ai_msg.tool_calls:
-                    # Find the matching tool by name
-                    selected_tool = next((tool for tool in tools if tool.name == tool_call.get("name")), None)
 
-                    if selected_tool is None:
-                        log.warning(f"Warning: No tool found for {tool_call.get('name')}")
-                        continue
+    async def run_tool(tool, args):
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, tool.invoke, args)
 
-                    # Get arguments and submit the tool invocation
-                    args = tool_call.get("args", {})
-                    args["state"] = state
-                    future = executor.submit(selected_tool.invoke, args)
-                    futures.append(future)
+    tasks = []
 
-                # Collect responses as tools complete
-                responses = []
-                for future in as_completed(futures, timeout=timeout):
-                    try:
-                        response = future.result()
-                        responses.append(AIMessage(response))
-                    except Exception as e:
-                        log.warning(f"Tool invocation error: {e}")
+    for tc in ai_msg.tool_calls:
+        name = tc.get("name")
+        tool = next((t for t in tools if t.name == name), None)
+        if not tool:
+            log.warning(f"No tool found: {name}")
+            continue
 
-                return responses
-        except TimeoutError:
-            log.warning(f"Tool execution on {selected_tool} timed out after {timeout} seconds")
-            return None
-        except Exception as e:
-            log.warning(f"Unexpected error in tool execution: {str(e)}", exc_info=True)
-            return None
+        args = tc.get("args", {})
+        args["state"] = state
+
+        tasks.append(run_tool(tool, args))
+
+    try:
+        results = await asyncio.wait_for(asyncio.gather(*tasks), timeout)
+        return [AIMessage(r) for r in results]
+
+    except asyncio.TimeoutError:
+        log.warning("Tool execution timed out")
+        return []
+
+    except Exception as e:
+        log.warning(f"Tool execution error: {e}")
+        return []
 
 
 def sending_task_to_agent(state: RedboxState):

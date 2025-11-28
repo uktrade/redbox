@@ -454,7 +454,7 @@ def my_planner(
 
 def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: bool = False, max_tokens: int = 5000):
     @RunnableLambda
-    def _build_agent(state: RedboxState):
+    async def _build_agent(state: RedboxState):
         # dynamically generate agent task based on state
         agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
         ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
@@ -476,7 +476,7 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
             _additional_variables={"task": task.task, "expected_output": task.expected_output},
         )
         ai_msg = worker_agent.invoke(state)
-        result = run_tools_parallel(ai_msg, tools, state)
+        result = await run_tools_parallel(ai_msg, tools, state)
         if type(result) is str:
             result_content = result
         elif type(result) is list:
@@ -506,7 +506,7 @@ def build_agent_with_loop(
     max_attempt=3,
 ):
     @RunnableLambda
-    def _build_agent_with_loop(state: RedboxState):
+    async def _build_agent_with_loop(state: RedboxState):
         local_loop_condition = loop_condition
         agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
         ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
@@ -563,7 +563,7 @@ def build_agent_with_loop(
             )
             ai_msg = worker_agent.invoke(state)
 
-            result = run_tools_parallel(ai_msg, tools, state)
+            result = await run_tools_parallel(ai_msg, tools, state)
 
             if has_loop and len(ai_msg.tool_calls) > 0:  # if loop, we need to transform results
                 result = result[-1].content  # this is a tuple
@@ -858,7 +858,7 @@ def get_tabular_agent(
     agent_name: str = "Tabular Agent", max_tokens: int = 5000, tools=list[StructuredTool], max_attempt=int
 ):
     @RunnableLambda
-    def _build_tabular_agent(state: RedboxState):
+    async def _build_tabular_agent(state: RedboxState):
         # update activity
         try:
             # retrieve tabular agent task
@@ -905,7 +905,7 @@ def get_tabular_agent(
                 tabular_context = ai_msg["messages"][-1].content
             else:
                 tabular_context = ""
-            tool_output = run_tools_parallel(ai_msg["messages"][-1], tools, state)
+            tool_output = await run_tools_parallel(ai_msg["messages"][-1], tools, state)
 
             results = tool_output[-1].content  # this is a tuple
 
