@@ -152,7 +152,7 @@ def query_to_documents(
         hits = response.get("hits", {}).get("hits", [])
         documents = [hit_to_doc(hit) for hit in hits]
         logger.warning("[query_to_documents] Query returned %d documents", len(documents))
-        logger.warning("Documents: %s", documents)
+        logger.warning("[query_to_documents] Documents: %s", documents)
         return documents
 
     except OpenSearchException as e:
