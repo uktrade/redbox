@@ -42,7 +42,13 @@ from redbox.models.chain import (
 )
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
-from redbox.transform import bedrock_tokeniser, combine_agents_state, combine_documents, flatten_document_state
+from redbox.transform import (
+    bedrock_tokeniser,
+    combine_agents_state,
+    combine_documents,
+    flatten_document_state,
+    truncate_to_tokens,
+)
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
@@ -455,6 +461,8 @@ def my_planner(
 def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: bool = False, max_tokens: int = 5000):
     @RunnableLambda
     def _build_agent(state: RedboxState):
+        log.warning(f"[{agent_name}] Starting agent run. Tools: {[t.name for t in tools]}")
+
         # dynamically generate agent task based on state
         agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
         ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
@@ -468,6 +476,7 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
         )
         activity_node.invoke(state)
 
+        log.warning(f"[{agent_name}] Creating chain agent (use_metadata={use_metadata})")
         worker_agent = create_chain_agent(
             system_prompt=system_prompt,
             use_metadata=use_metadata,
@@ -475,21 +484,55 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
             tools=tools,
             _additional_variables={"task": task.task, "expected_output": task.expected_output},
         )
+
+        log.warning(f"[{agent_name}] Invoking worker agent...")
         ai_msg = worker_agent.invoke(state)
+
+        log.warning(f"[{agent_name}] Worker agent output:\n{ai_msg}")
+
+        # --- RUN TOOLS IN PARALLEL ---
+        log.warning(f"[{agent_name}] Running tools via run_tools_parallel...")
+
         result = run_tools_parallel(ai_msg, tools, state)
-        if type(result) is str:
+        if isinstance(result, str):
+            log.warning(f"[{agent_name}] Using raw string result.")
             result_content = result
-        elif type(result) is list:
+
+        elif isinstance(result, list):
+            log.warning(f"[{agent_name}] Aggregating list of tool results...")
             result_content = []
             current_token_counts = 0
+
             for res in result:
-                current_token_counts += bedrock_tokeniser(res.content)
-                if current_token_counts <= max_tokens:
+                token_count = bedrock_tokeniser(res.content)
+                log.warning(f"[{agent_name}] Tool response token count: {token_count}")
+
+                # If adding this whole piece still fits, append normally
+                if current_token_counts + token_count <= max_tokens:
                     result_content.append(res.content)
+                    current_token_counts += token_count
+                else:
+                    # If no room, add only what fits
+                    remaining_tokens = max_tokens - current_token_counts
+                    if remaining_tokens > 0:
+                        log.warning(
+                            f"[{agent_name}] Truncating tool output to fit remaining token budget ({remaining_tokens})."
+                        )
+                        truncated = truncate_to_tokens(res.content, remaining_tokens)
+                        result_content.append(truncated)
+                        current_token_counts += bedrock_tokeniser(truncated)
+                    else:
+                        log.warning(f"[{agent_name}] No remaining token budget ({max_tokens}). Skipping.")
+                    break  # Max reached — stop processing further results
+
             result_content = " ".join(result_content)
             result = f"<{agent_name}_Result>{result_content}</{agent_name}_Result>"
         else:
-            log.error(f"Worker agent return incompatible data type {type(result)}")
+            log.error(f"[{agent_name}] Worker agent return incompatible data type {type(result)}")
+            raise TypeError("Invalid tool result type")
+
+        log.warning(f"[{agent_name}] Completed agent run.")
+
         return {"agents_results": result, "tasks_evaluator": task.task + "\n" + task.expected_output}
 
     return _build_agent.with_retry(stop_after_attempt=3)
