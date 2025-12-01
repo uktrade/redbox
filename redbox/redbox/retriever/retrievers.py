@@ -100,10 +100,10 @@ class OpenSearchRetriever(BaseRetriever):
             return documents
 
         except OpenSearchException as e:
-            logger.error("[query_to_documents] OpenSearch error for index '%s': %s", self.index_name, e)
+            logger.error("[get_relevant_documents] OpenSearch error for index '%s': %s", self.index_name, e)
             raise
         except TransportError as e:
-            logger.error("[query_to_documents] ElasticSearch error for index '%s': %s", self.index_name, e)
+            logger.error("[get_relevant_documents] ElasticSearch error for index '%s': %s", self.index_name, e)
             raise
         except Exception:
             logger.exception("[get_relevant_documents] Unexpected error while querying index '%s'", self.index_name)
