@@ -62,9 +62,11 @@ def build_chat_prompt_from_messages_runnable(
         _additional_variables = additional_variables or dict()
         task_system_prompt, task_question_prompt, format_prompt = get_prompts(state, prompt_set)
 
-        system_info_prompt = ai_settings.system_info_prompt
-        agent_skills = "\n".join(
-            [f"- {agent.name.removesuffix('_Agent')}: {agent.description}" for agent in ai_settings.worker_agents]
+        system_info_prompt = ai_settings.system_info_prompt.replace(
+            "{built_in_skills}",
+            "\n".join(
+                [f"- {agent.name.removesuffix('_Agent')}: {agent.description}" for agent in ai_settings.worker_agents]
+            ),
         )
 
         in_default_mode = all(agent.default_agent for agent in ai_settings.worker_agents)
@@ -78,8 +80,6 @@ def build_chat_prompt_from_messages_runnable(
         else:
             # -- Default --
             system_info_prompt = system_info_prompt.replace("{knowledge_mode}", "")
-
-        system_info_prompt = system_info_prompt.replace("{built_in_skills}", agent_skills)
 
         log.debug("Setting chat prompt")
         # Set the system prompt to be our composed structure
