@@ -42,7 +42,13 @@ from redbox.models.chain import (
 )
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
-from redbox.transform import bedrock_tokeniser, combine_agents_state, combine_documents, flatten_document_state
+from redbox.transform import (
+    bedrock_tokeniser,
+    combine_agents_state,
+    combine_documents,
+    flatten_document_state,
+    truncate_to_tokens,
+)
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
@@ -501,13 +507,23 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
                 token_count = bedrock_tokeniser(res.content)
                 log.warning(f"[{agent_name}] Tool response token count: {token_count}")
 
-                current_token_counts += token_count
-                if current_token_counts <= max_tokens:
+                # If adding this whole piece still fits, append normally
+                if current_token_counts + token_count <= max_tokens:
                     result_content.append(res.content)
+                    current_token_counts += token_count
                 else:
-                    log.warning(
-                        f"[{agent_name}] Max token limit reached ({max_tokens}). Skipping remaining tool outputs."
-                    )
+                    # If no room, add only what fits
+                    remaining_tokens = max_tokens - current_token_counts
+                    if remaining_tokens > 0:
+                        log.warning(
+                            f"[{agent_name}] Truncating tool output to fit remaining token budget ({remaining_tokens})."
+                        )
+                        truncated = truncate_to_tokens(res.content, remaining_tokens)
+                        result_content.append(truncated)
+                        current_token_counts += bedrock_tokeniser(truncated)
+                    else:
+                        log.warning(f"[{agent_name}] No remaining token budget ({max_tokens}). Skipping.")
+                    break  # Max reached — stop processing further results
 
             result_content = " ".join(result_content)
             result = f"<{agent_name}_Result>{result_content}</{agent_name}_Result>"
