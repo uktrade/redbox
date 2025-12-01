@@ -91,7 +91,7 @@ def run_tools_parallel(ai_msg, tools, state, timeout=60):
                     selected_tool = next((tool for tool in tools if tool.name == tool_call.get("name")), None)
 
                     if selected_tool is None:
-                        log.warning(f"Warning: No tool found for {tool_call.get('name')}")
+                        log.warning(f"[run_tools_parallel] Warning: No tool found for {tool_call.get('name')}")
                         continue
 
                     # Get arguments and submit the tool invocation
@@ -105,20 +105,25 @@ def run_tools_parallel(ai_msg, tools, state, timeout=60):
                 for future in as_completed(futures, timeout=timeout):
                     try:
                         response = future.result()
-                        log.warning(f"This is what I got from tool {response}")
+                        log.warning(f"[run_tools_parallel] This is what I got from tool: {response}")
                         responses.append(AIMessage(response))
+
+                        if not response or not response.strip():
+                            log.warning(
+                                f"[run_tools_parallel] Tool returned empty/whitespace response: {repr(response)}"
+                            )
                     except Exception as e:
-                        log.warning(f"Tool invocation error: {e}")
+                        log.warning(f"[run_tools_parallel] Tool invocation error: {e}")
 
                 log.warning(
                     f"[run_tools_parallel] Completed. Successful tool responses: {len(responses)}. Responses: {responses}"
                 )
                 return responses
         except TimeoutError:
-            log.warning(f"Tool execution on {selected_tool} timed out after {timeout} seconds")
+            log.warning(f"[run_tools_parallel] Tool execution on {selected_tool} timed out after {timeout} seconds")
             return None
         except Exception as e:
-            log.warning(f"Unexpected error in tool execution: {str(e)}", exc_info=True)
+            log.warning(f"[run_tools_parallel] Unexpected error in tool execution: {str(e)}", exc_info=True)
             return None
 
 
