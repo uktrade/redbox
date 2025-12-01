@@ -51,7 +51,6 @@ class AISettings(BaseModel):
     # Common Prompt Fragments
 
     system_info_prompt: str = prompts.SYSTEM_INFO
-    system_info_skill_prompt: str = prompts.SYSTEM_INFO_SKILLMODE
     persona_info_prompt: str = prompts.PERSONA_INFO
     caller_info_prompt: str = prompts.CALLER_INFO
 

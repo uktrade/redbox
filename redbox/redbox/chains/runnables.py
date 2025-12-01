@@ -63,19 +63,23 @@ def build_chat_prompt_from_messages_runnable(
         task_system_prompt, task_question_prompt, format_prompt = get_prompts(state, prompt_set)
 
         system_info_prompt = ai_settings.system_info_prompt
-        in_skill_mode = False
-        if skill_agent := next(iter([agent for agent in ai_settings.worker_agents if not agent.default_agent]), None):
-            # In skill mode - use skill agent to update the system prompt
-            system_info_prompt = ai_settings.system_info_skill_prompt.replace(
-                "{skill_agent_name}", skill_agent.name.removesuffix("_Agent")
-            ).replace("{skill_agent_description}", skill_agent.description)
-            in_skill_mode = True
-        else:
-            # Not in skill mode - list all agent skills in system prompt
-            agent_skills = "\n".join(
-                [f"- {agent.name.removesuffix('_Agent')}: {agent.description}" for agent in ai_settings.worker_agents]
+        agent_skills = "\n".join(
+            [f"- {agent.name.removesuffix('_Agent')}: {agent.description}" for agent in ai_settings.worker_agents]
+        )
+
+        in_default_mode = all(agent.default_agent for agent in ai_settings.worker_agents)
+        if not in_default_mode:
+            # -- In Skill Mode --
+            agent_names = ",".join([f"'{agent.name.removesuffix('_Agent')}'" for agent in ai_settings.worker_agents])
+            system_info_prompt = system_info_prompt.replace(
+                "{knowledge_mode}",
+                f"You are in skill mode using: {agent_names}. Make sure to tell the user when stating your capabilities or responding to a greeting, do not mention capabilities outside the scope of this skill. ",
             )
-            system_info_prompt = system_info_prompt.replace("{built_in_skills}", agent_skills)
+        else:
+            # -- Default --
+            system_info_prompt = system_info_prompt.replace("{knowledge_mode}", "")
+
+        system_info_prompt = system_info_prompt.replace("{built_in_skills}", agent_skills)
 
         log.debug("Setting chat prompt")
         # Set the system prompt to be our composed structure
@@ -83,7 +87,7 @@ def build_chat_prompt_from_messages_runnable(
         system_prompt_message = f"""
             {system_info_prompt}
             {task_system_prompt}
-            {ai_settings.persona_info_prompt if not in_skill_mode else ""}
+            {ai_settings.persona_info_prompt if not in_default_mode else ""}
             {ai_settings.caller_info_prompt}
             {ai_settings.answer_instruction_prompt}
             """
