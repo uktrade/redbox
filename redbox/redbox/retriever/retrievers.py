@@ -86,15 +86,28 @@ class OpenSearchRetriever(BaseRetriever):
             raise ValueError("OpenSearch client or document mapper is not initialized")
 
         body = self.body_func(query)
-        logger.warning("query to opensearch: from get_relevant_documents")
-        logger.warning(str(body))
+        logger.warning("[get_relevant_documents] Query to opensearch")
+        logger.warning(f"[get_relevant_documents] Query Body: {str(body)}")
+
         try:
             response = self.es_client.search(index=self.index_name, body=body)
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-        logger.warning("response from opensearch: from get_relevant_documents")
-        logger.warning(str([self.document_mapper(hit) for hit in response["hits"]["hits"]]))
-        return [self.document_mapper(hit) for hit in response["hits"]["hits"]]
+            hits = response.get("hits", {}).get("hits", [])
+            documents = [self.document_mapper(hit) for hit in hits]
+
+            logger.warning("[get_relevant_documents] Retrieved %d documents", len(documents))
+            logger.warning("[get_relevant_documents] Documents: %s", documents)
+
+            return documents
+
+        except OpenSearchException as e:
+            logger.error("[query_to_documents] OpenSearch error for index '%s': %s", self.index_name, e)
+            raise
+        except TransportError as e:
+            logger.error("[query_to_documents] ElasticSearch error for index '%s': %s", self.index_name, e)
+            raise
+        except Exception:
+            logger.exception("[get_relevant_documents] Unexpected error while querying index '%s'", self.index_name)
+            raise
 
     def _single_field_mapper(self, hit: Mapping[str, Any]) -> Document:
         content = hit["_source"].pop(self.content_field)
@@ -145,11 +158,9 @@ def query_to_documents(
     except OpenSearchException as e:
         logger.error("[query_to_documents] OpenSearch error for index '%s': %s", index_name, e)
         raise
-
     except TransportError as e:
         logger.error("[query_to_documents] ElasticSearch error for index '%s': %s", index_name, e)
         raise
-
     except Exception:
         logger.exception("[query_to_documents] Unexpected error while querying index '%s'", index_name)
         raise
