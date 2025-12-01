@@ -3,13 +3,13 @@ import os
 from functools import partial
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union, cast
 
-from elasticsearch import Elasticsearch
+from elasticsearch import Elasticsearch, TransportError
 from kneed import KneeLocator
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.retrievers import BaseRetriever
-from opensearchpy import OpenSearch
+from opensearchpy import OpenSearch, OpenSearchException
 
 # from elasticsearch.helpers import scan
 from opensearchpy.helpers import scan
@@ -132,15 +132,27 @@ def query_to_documents(
     es_client: Union[Elasticsearch, OpenSearch], index_name: str, query: dict[str, Any]
 ) -> list[Document]:
     """Runs an Elasticsearch query and returns Documents."""
-    logger.warning("query to opensearch: from query_to_documents")
+    logger.warning("[query_to_documents] Query to opensearch")
     logger.warning(str(query))
     try:
         response = es_client.search(index=index_name, body=query)
-        logger.warning("response from opensearch: from query_to_documents")
-        logger.warning(str([hit_to_doc(hit) for hit in response["hits"]["hits"]]))
-        return [hit_to_doc(hit) for hit in response["hits"]["hits"]]
-    except Exception as e:
-        print(f"Unexpected error: {e}")
+        hits = response.get("hits", {}).get("hits", [])
+        documents = [hit_to_doc(hit) for hit in hits]
+        logger.warning("[query_to_documents] Query returned %d documents", len(documents))
+        logger.warning("Documents: %s", documents)
+        return documents
+
+    except OpenSearchException as e:
+        logger.error("[query_to_documents] OpenSearch error for index '%s': %s", index_name, e)
+        raise
+
+    except TransportError as e:
+        logger.error("[query_to_documents] ElasticSearch error for index '%s': %s", index_name, e)
+        raise
+
+    except Exception:
+        logger.exception("[query_to_documents] Unexpected error while querying index '%s'", index_name)
+        raise
 
 
 def filter_by_elbow(
