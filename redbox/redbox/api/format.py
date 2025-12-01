@@ -8,7 +8,7 @@ log = logging.getLogger(__name__)
 
 
 def format_documents(documents: list[Document]) -> str:
-    log.warning("Received %s documents for formatting", len(documents))
+    log.warning("[format_documents] Received %s documents for formatting", len(documents))
     formatted: list[str] = []
     for d in documents:
         doc_xml = (
