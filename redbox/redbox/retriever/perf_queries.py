@@ -131,9 +131,6 @@ def query_ms(
     return sum(scores) / len(scores)
 
 
-ks = [5, 10, 30, 50]
-sizes = [5, 30, 100]
-min_scores = [0.0, 0.4, 0.6, 0.8]
 files = [
     "harry.wixley@digital.trade.gov.uk/2025-06-12_SUBMISSION_MADDERS_NMW_Coverage_Transparenc_0y9UYks.pdf",
     "harry.wixley@digital.trade.gov.uk/2025-06-12_SUBMISSION_MADDERS_NMW_Coverage_Transparenc_vtxKxl6.pdf",
