@@ -1,3 +1,4 @@
+import re
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -416,12 +417,54 @@ class TestWebSearchCall:
 
 
 class TestGovTool:
-    def test_gov_tool_fail(self, mocker: MockerFixture):
-        query = ""
+    @pytest.mark.parametrize(
+        "test_name, query, web_response, no_of_artifact",
+        [
+            ("empty query", "", [], 0),
+            (
+                "success path",
+                "test query",
+                [{"description": "fake", "indexable_content": "AI", "link": "test", "format": "html", "title": "fake"}],
+                1,
+            ),
+            (
+                "empty description",
+                "test query",
+                [{"description": "", "indexable_content": "AI", "link": "test", "format": "html", "title": "fake"}],
+                1,
+            ),
+            (
+                "missing field",
+                "test query",
+                [
+                    {"description": "", "indexable_content": "AI", "link": "test", "format": "html", "title": "fake"},
+                    {"description": "foo", "title": "fake", "indexable_content": "foo"},
+                ],
+                1,
+            ),
+        ],
+    )
+    @requests_mock.Mocker(kw="mock")
+    def test_gov_uk_tool(self, test_name, query, web_response, no_of_artifact, mocker: MockerFixture, **kwargs):
         tool = build_govuk_search_tool(filter=True)
-        ai_setting = AISettings()
+        ai_setting = AISettings(tool_govuk_returned_results=2)
 
         tool_node = ToolNode(tools=[tool])
+
+        # mock embedding
+        mock_embedding = mocker.patch("redbox.graph.nodes.tools.get_embeddings")
+        mock_embedding.return_value = FakeEmbeddings(size=1024)
+
+        kwargs["mock"].get(
+            re.compile(r".*gov\.uk.*"),
+            [
+                {
+                    "status_code": 200,
+                    "json": {"results": web_response},
+                },
+            ],
+        )
+
         response = tool_node.invoke(
             {
                 "request": RedboxQuery(
@@ -434,7 +477,7 @@ class TestGovTool:
                 ),
                 "messages": [
                     AIMessage(
-                        content="",
+                        content=test_name,
                         tool_calls=[
                             {
                                 "name": "_search_govuk",
@@ -447,45 +490,12 @@ class TestGovTool:
             }
         )
 
-        assert response["messages"][-1].content == ""
-
-    @pytest.mark.vcr
-    @pytest.mark.xfail(reason="calls api")
-    def test_gov_tool_params(self):
-        query = "driving in the UK"
-        tool = build_govuk_search_tool(filter=True)
-        ai_setting = AISettings()
-
-        tool_node = ToolNode(tools=[tool])
-        response = tool_node.invoke(
-            {
-                "request": RedboxQuery(
-                    question=query,
-                    s3_keys=[],
-                    user_uuid=uuid4(),
-                    chat_history=[],
-                    ai_settings=ai_setting,
-                    permitted_s3_keys=[],
-                ),
-                "messages": [
-                    AIMessage(
-                        content="",
-                        tool_calls=[
-                            {
-                                "name": "_search_govuk",
-                                "args": {"query": query},
-                                "id": "1",
-                            }
-                        ],
-                    )
-                ],
-            }
-        )
-
-        documents = response["messages"][-1].artifact
-
-        # call gov tool without additional filter
-        assert len(documents) == ai_setting.tool_govuk_returned_results
+        if no_of_artifact != 0:
+            documents = response["messages"][-1].artifact
+            assert documents[0].page_content == "AI"
+            assert len(documents) == no_of_artifact
+        else:
+            assert response["messages"][-1].artifact == []
 
 
 @requests_mock.Mocker(kw="mock")
