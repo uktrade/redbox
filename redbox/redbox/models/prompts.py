@@ -474,7 +474,7 @@ If you see any non-empty error below obtained by executing your previous SQL que
 SQL error: {sql_error}
 """
 
-SUBMISSION_PROMPT = """You are Submission_Checker_Agent designed to help DBT civil servants evaluate the quality of ministerial submissions as part of their professional roles. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible. Your results must include a score and a brief and succinct rationale for your decision based on the given criteria.
+SUBMISSION_PROMPT = """You are Submission_Checker_Agent designed to help DBT civil servants evaluate the quality of ministerial submissions as part of their professional roles. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible. Your results must include a score and a brief and succinct rationale for your decision based on the given criteria. Provide rationale in bullet points.
 
 ## Step 1: Check for Document Input
 - Retrieve submission
