@@ -17,14 +17,7 @@ from redbox_app.setting_enums import Environment
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger()
 
-load_dotenv()
-
-if os.getenv("USE_LOCAL_ENV", "False").lower() == "true":
-    load_dotenv(find_dotenv(".env.local"), override=True)
-
-env = environ.Env()
-
-ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
+ENVIRONMENT = Environment[os.environ.get("ENVIRONMENT", "LOCAL").upper()]
 
 
 class OpenSearchSettings(BaseModel):
@@ -32,7 +25,7 @@ class OpenSearchSettings(BaseModel):
 
     model_config = SettingsConfigDict(frozen=True)
 
-    collection_endpoint: str = env.str("COLLECTION_ENDPOINT")
+    collection_endpoint: str = os.environ.get("COLLECTION_ENDPOINT", "")
     parsed_url: AnyUrl = urlparse(collection_endpoint)
 
     logger.info(f"the parsed url is {parsed_url}")
@@ -41,7 +34,9 @@ class OpenSearchSettings(BaseModel):
     collection_endpoint__password: Optional[str] = parsed_url.password
     collection_endpoint__host: Optional[str] = parsed_url.hostname
     collection_endpoint__port: Optional[str] = "443"
-    collection_endpoint__port_local: Optional[str] = "9200"  # locally, the port number is 9200
+    collection_endpoint__port_local: Optional[str] = (
+        "9200"  # locally, the port number is 9200
+    )
 
 
 class ElasticLocalSettings(BaseModel):
@@ -97,7 +92,9 @@ class Settings(BaseSettings):
         name="anthropic.claude-3-sonnet-20240229-v1:0", provider="bedrock"
     )
 
-    embedding_backend: str = env.str("EMBEDDING_BACKEND", "amazon.titan-embed-text-v2:0")
+    embedding_backend: str = os.environ.get(
+        "EMBEDDING_BACKEND", "amazon.titan-embed-text-v2:0"
+    )
 
     embedding_backend_vector_size: int = 1024
 
@@ -137,8 +134,12 @@ class Settings(BaseSettings):
     worker_ingest_largest_chunk_size: int = 300_000
     worker_ingest_largest_chunk_overlap: int = 0
 
-    response_no_doc_available: str = "No available data for selected files. They may need to be removed and added again"
-    response_max_content_exceeded: str = "Max content exceeded. Try smaller or fewer documents"
+    response_no_doc_available: str = (
+        "No available data for selected files. They may need to be removed and added again"
+    )
+    response_max_content_exceeded: str = (
+        "Max content exceeded. Try smaller or fewer documents"
+    )
 
     object_store: str = "minio"
 
@@ -147,31 +148,39 @@ class Settings(BaseSettings):
 
     unstructured_host: str = "unstructured"
 
-    model_config = SettingsConfigDict(env_file=".env", env_nested_delimiter="__", extra="allow", frozen=True)
+    model_config = SettingsConfigDict(
+        env_file=".env", env_nested_delimiter="__", extra="allow", frozen=True
+    )
 
-    enable_metadata_extraction: bool = env.bool("ENABLE_METADATA_EXTRACTION", default=True)
+    enable_metadata_extraction: bool = os.environ.get("ENABLE_METADATA_EXTRACTION")
 
-    datahub_redbox_url: str = env.str("DATAHUB_REDBOX_URL", "")
-    datahub_redbox_secret_key: str = env.str("DATAHUB_REDBOX_SECRET_KEY", "")
-    datahub_redbox_access_key_id: str = env.str("DATAHUB_REDBOX_ACCESS_KEY_ID", "")
+    datahub_redbox_url: str = os.environ.get("DATAHUB_REDBOX_URL", "")
+    datahub_redbox_secret_key: str = os.environ.get("DATAHUB_REDBOX_SECRET_KEY", "")
+    datahub_redbox_access_key_id: str = os.environ.get(
+        "DATAHUB_REDBOX_ACCESS_KEY_ID", ""
+    )
 
-    default_model_id: Optional[str] = env.str("DEFAULT_MODEL_ID", None)
+    default_model_id: Optional[str] = os.environ.get("DEFAULT_MODEL_ID")
 
-    allow_plan_feedback: bool = env.bool("ALLOW_PLAN_FEEDBACK", True)
+    allow_plan_feedback: bool = os.environ.get("ALLOW_PLAN_FEEDBACK")
 
     is_local: bool = ENVIRONMENT.is_local
 
     # mcp
     caddy_mcp: MCPServerSettings = MCPServerSettings(
         name="caddy_mcp",
-        url=env.str("MCP_CADDY_URL", ""),
-        secret_tokens={env.str("MCP_HEADERS", ""): env.str("MCP_CADDY_TOKEN", "")},
+        url=os.environ.get("MCP_CADDY_URL", ""),
+        secret_tokens={
+            os.environ.get("MCP_HEADERS", ""): os.environ.get("MCP_CADDY_TOKEN", "")
+        },
     )
 
     parlex_mcp: MCPServerSettings = MCPServerSettings(
         name="parlex_mcp",
-        url=env.str("MCP_PARLEX_URL", ""),
-        secret_tokens={env.str("MCP_HEADERS", ""): env.str("MCP_PARLEX_TOKEN", "")},
+        url=os.environ.get("MCP_PARLEX_URL", ""),
+        secret_tokens={
+            os.environ.get("MCP_HEADERS", ""): os.environ.get("MCP_PARLEX_TOKEN", "")
+        },
     )
 
     # web search
@@ -203,31 +212,64 @@ class Settings(BaseSettings):
                     "properties": {
                         "chunk_resolution": {
                             "type": "text",
-                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                            "fields": {
+                                "keyword": {"type": "keyword", "ignore_above": 256}
+                            },
                         },
                         "created_datetime": {"type": "date"},
                         "creator_type": {
                             "type": "text",
-                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                            "fields": {
+                                "keyword": {"type": "keyword", "ignore_above": 256}
+                            },
                         },
                         "description": {
                             "type": "text",
-                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                            "fields": {
+                                "keyword": {"type": "keyword", "ignore_above": 256}
+                            },
                         },
                         "index": {"type": "long"},
-                        "keywords": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}},
-                        "name": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}},
+                        "keywords": {
+                            "type": "text",
+                            "fields": {
+                                "keyword": {"type": "keyword", "ignore_above": 256}
+                            },
+                        },
+                        "name": {
+                            "type": "text",
+                            "fields": {
+                                "keyword": {"type": "keyword", "ignore_above": 256}
+                            },
+                        },
                         "page_number": {"type": "long"},
                         "token_count": {"type": "long"},
-                        "uri": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}},
-                        "uuid": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}},
+                        "uri": {
+                            "type": "text",
+                            "fields": {
+                                "keyword": {"type": "keyword", "ignore_above": 256}
+                            },
+                        },
+                        "uuid": {
+                            "type": "text",
+                            "fields": {
+                                "keyword": {"type": "keyword", "ignore_above": 256}
+                            },
+                        },
                     }
                 },
-                "text": {"type": "text", "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}},
+                "text": {
+                    "type": "text",
+                    "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                },
                 "vector_field": {
                     "type": "knn_vector",
                     "dimension": embedding_backend_vector_size,
-                    "method": {"name": "hnsw", "space_type": "cosinesimil", "engine": "lucene"},
+                    "method": {
+                        "name": "hnsw",
+                        "space_type": "cosinesimil",
+                        "engine": "lucene",
+                    },
                 },
             }
         },
@@ -245,7 +287,9 @@ class Settings(BaseSettings):
         # get list of available agents
         from redbox.models.chain import AISettings
 
-        agent_names: list[str] = [(agent.name, agent.name) for agent in AISettings().worker_agents]
+        agent_names: list[str] = [
+            (agent.name, agent.name) for agent in AISettings().worker_agents
+        ]
         return agent_names
 
     # @lru_cache(1) #removing cache because pydantic object (index mapping) is not hashable
@@ -260,7 +304,10 @@ class Settings(BaseSettings):
                         "port": self.elastic.collection_endpoint__port_local,
                     }
                 ],
-                http_auth=(self.elastic.collection_endpoint__username, self.elastic.collection_endpoint__password),
+                http_auth=(
+                    self.elastic.collection_endpoint__username,
+                    self.elastic.collection_endpoint__password,
+                ),
                 use_ssl=False,
                 connection_class=RequestsHttpConnection,
             )
@@ -268,9 +315,15 @@ class Settings(BaseSettings):
         else:
             client = OpenSearch(
                 hosts=[
-                    {"host": self.elastic.collection_endpoint__host, "port": self.elastic.collection_endpoint__port}
+                    {
+                        "host": self.elastic.collection_endpoint__host,
+                        "port": self.elastic.collection_endpoint__port,
+                    }
                 ],
-                http_auth=(self.elastic.collection_endpoint__username, self.elastic.collection_endpoint__password),
+                http_auth=(
+                    self.elastic.collection_endpoint__username,
+                    self.elastic.collection_endpoint__password,
+                ),
                 use_ssl=True,
                 verify_certs=True,
                 connection_class=RequestsHttpConnection,
@@ -291,9 +344,13 @@ class Settings(BaseSettings):
                 logger.error(f"Failed to create index {chunk_index}: {e}")
 
             try:
-                client.indices.put_alias(index=chunk_index, name=f"{self.elastic_root_index}-chunk-current")
+                client.indices.put_alias(
+                    index=chunk_index, name=f"{self.elastic_root_index}-chunk-current"
+                )
             except Exception as e:
-                logger.error(f"Failed to set alias {self.elastic_root_index}-chunk-current: {e}")
+                logger.error(
+                    f"Failed to set alias {self.elastic_root_index}-chunk-current: {e}"
+                )
 
         if not client.indices.exists(index=self.elastic_chat_mesage_index):
             try:
@@ -301,7 +358,9 @@ class Settings(BaseSettings):
                     index=self.elastic_chat_mesage_index, ignore=400
                 )  # 400 is ignored to avoid index-already-exists errors
             except Exception as e:
-                logger.error(f"Failed to create index {self.elastic_chat_mesage_index}: {e}")
+                logger.error(
+                    f"Failed to create index {self.elastic_chat_mesage_index}: {e}"
+                )
             # client.indices.create(index=self.elastic_chat_mesage_index)
 
         return client
@@ -345,7 +404,10 @@ class Settings(BaseSettings):
                 return WebSearchSettings(
                     name="Google",
                     end_point="https://customsearch.googleapis.com/customsearch/v1",
-                    secret_tokens={"key": env.str("GOOGLE_SEARCH_API", ""), "cx": env.str("GOOGLE_SEARCH_ENGINE", "")},
+                    secret_tokens={
+                        "key": os.environ.get("GOOGLE_SEARCH_API", ""),
+                        "cx": os.environ.get("GOOGLE_SEARCH_ENGINE", ""),
+                    },
                 )
             case "brave":
                 return WebSearchSettings(
@@ -354,14 +416,18 @@ class Settings(BaseSettings):
                     secret_tokens={
                         "Accept": "application/json",
                         "Accept-Encoding": "gzip",
-                        "x-subscription-token": env.str("BRAVE_API_KEY", ""),
+                        "x-subscription-token": os.environ.get("BRAVE_API_KEY", ""),
                     },
                 )
             case "kagi":
                 return WebSearchSettings(
                     name="Kagi",
                     end_point="https://kagi.com/api/v0/search",
-                    secret_tokens={"Authorization": " ".join(["Bot", env.str("KAGI_API_KEY", "")])},
+                    secret_tokens={
+                        "Authorization": " ".join(
+                            ["Bot", os.environ.get("KAGI_API_KEY", "")]
+                        )
+                    },
                 )
 
 
