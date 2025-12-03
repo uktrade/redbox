@@ -23,6 +23,61 @@
                 }
             },
             "problemMatcher": []
+        },
+        {
+            "label": "run-migrations",
+            "type": "shell",
+            "command": "poetry run python manage.py migrate",
+            "options": {
+                "cwd": "${workspaceFolder}/django_app",
+                "env": {
+                    "DOCKER_DEFAULT_PLATFORM": "linux/amd64",
+                    "USE_LOCAL_ENV": "true"
+                }
+            }
+        },
+        {
+            "label": "make-migrations",
+            "type": "shell",
+            "command": "poetry run python manage.py makemigrations",
+            "options": {
+                "cwd": "${workspaceFolder}/django_app",
+                "env": {
+                    "DOCKER_DEFAULT_PLATFORM": "linux/amd64",
+                    "USE_LOCAL_ENV": "true"
+                }
+            }
+        },
+        {
+            "label": "Django: QCluster",
+            "type": "shell",
+            "command": "${command:python.interpreterPath} django_app/manage.py qcluster",
+            "options": {
+                "env": {
+                    "PYTHONUNBUFFERED": "1",
+                    "USE_LOCAL_ENV": "true",
+                    "DJANGO_LOG_FORMAT": "verbose"
+                },
+                "cwd": "${workspaceFolder}"
+            },
+            "isBackground": true,
+            "problemMatcher": [
+                {
+                    "pattern": [
+                        {
+                        "regexp": ".",
+                        "file": 1,
+                        "location": 2,
+                        "message": 3
+                        }
+                    ],
+                    "background": {
+                        "activeOnStart": true,
+                        "beginsPattern": ".",
+                        "endsPattern": "."
+                    }
+                }
+            ]
         }
     ]
 }

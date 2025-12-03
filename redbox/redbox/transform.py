@@ -23,6 +23,37 @@ def bedrock_tokeniser(text: str) -> int:
     return len(tokens)
 
 
+def truncate_to_tokens(text: str, max_tokens: int) -> str:
+    # Use the same tokenization logic as bedrock_tokeniser
+    tokens = re.findall(r"\w+|[^\w\s]", text)
+
+    if text.endswith(" "):
+        tokens.append("<space>")  # Keep consistent with bedrock_tokeniser
+
+    # If it's already small enough, return unchanged
+    if len(tokens) <= max_tokens:
+        return text
+
+    # Otherwise cut to max_tokens
+    truncated_tokens = tokens[:max_tokens]
+
+    # Reconstruct text – simple join rules
+    result = ""
+    for t in truncated_tokens:
+        if t == "<space>":
+            result += " "
+        elif re.match(r"\w+", t):
+            # Token is a word → add space before it unless at start
+            if result and not result.endswith(" "):
+                result += " "
+            result += t
+        else:
+            # punctuation — attach directly
+            result += t
+
+    return result.strip()
+
+
 # This should be unnecessary and indicates we're not chunking correctly
 def combine_documents(a: Document, b: Document):
     def listify(metadata: dict, field_name: str) -> list:

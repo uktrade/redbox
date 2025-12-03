@@ -369,3 +369,29 @@ def remove_file_from_bucket(s3_client):
             # Ignore errors during cleanup
 
     return _remove
+
+
+@pytest.fixture
+def external_citation(chat_message) -> Citation:
+    external_citation = Citation(
+        chat_message=chat_message,
+        text="hello",
+        source=Citation.Origin.WIKIPEDIA,
+        url="http://example.com",
+    )
+    external_citation.save()
+    chat_message.refresh_from_db()
+    return external_citation
+
+
+@pytest.fixture
+def internal_citation(chat_message, uploaded_file) -> Citation:
+    internal_citation = Citation(
+        chat_message=chat_message,
+        text="hello",
+        source=Citation.Origin.USER_UPLOADED_DOCUMENT,
+        file=uploaded_file,
+    )
+    internal_citation.save()
+    chat_message.refresh_from_db()
+    return internal_citation
