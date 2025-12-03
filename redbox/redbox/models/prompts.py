@@ -501,5 +501,5 @@ After evaluating all seven criteria, provide the following:
 - AVERAGE SCORE: A simple mean of the score across all 7 criteria.
 - ASSESSMENT SUMMARY: A brief statement of the overall quality of the submission. Be critical but constructive in your feedback.
 - Make reference or citations to the knowledge base information.
-    - when referenceing to template guidance, references should consistently use ‘Ministerial Submission Template Guidance’
+    - when referencing to template guidance, references should consistently use ‘Ministerial Submission Template Guidance’
 """
