@@ -74,12 +74,6 @@ def run_tools_parallel(ai_msg, tools, state, timeout=60):
         log.warning("[run_tools_parallel] No tool calls detected. Returning agent content.")
         return ai_msg.content
     else:
-        # check if functions called by tools exist
-        tool_names = [tool.name for tool in tools]
-        for tool_call in ai_msg.tool_calls:
-            tool_name = tool_call["name"]
-            if tool_name not in tool_names:
-                log.warning(f"Function name {tool_name} in tool call does not exist")
         try:
             log.warning(
                 f"[run_tools_parallel] {len(ai_msg.tool_calls)} tool call(s) detected: "
