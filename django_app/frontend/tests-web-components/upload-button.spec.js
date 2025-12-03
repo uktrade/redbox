@@ -15,5 +15,5 @@ test(`A message is shown when a document is uploading`, async ({ page }) => {
 
   await page.locator('button[type="submit"]').click();
   await expect(page.getByText("Uploading")).toBeVisible();
-  
+
 });

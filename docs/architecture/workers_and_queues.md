@@ -15,7 +15,7 @@ When running locally in docker compose, there is only one replica of each Worker
 
 ## FastStream
 
-We are using [FastStream](https://faststream.airt.ai/latest/faststream/) to handle our streaming between Microservices. It handles the connection to Redis (and other Queues) with a high-performance Python client based on FastAPI and Pydantic. It has support for multiple brokers, automatic documentation, and tests. 
+We are using [FastStream](https://faststream.airt.ai/latest/faststream/) to handle our streaming between Microservices. It handles the connection to Redis (and other Queues) with a high-performance Python client based on FastAPI and Pydantic. It has support for multiple brokers, automatic documentation, and tests.
 
 ## Worker
 

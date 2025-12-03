@@ -1,7 +1,7 @@
 # Transactions and Schema
 ## Transaction Sequences
 
-Below are the transaction sequences for the APIs. The transaction sequences are generated using the [mermaid](https://mermaid-js.github.io/mermaid/#/) library. 
+Below are the transaction sequences for the APIs. The transaction sequences are generated using the [mermaid](https://mermaid-js.github.io/mermaid/#/) library.
 ### File APIs
 
 See below for some of the main [`File`](../code_reference/models/file.md) routes.
@@ -71,19 +71,19 @@ erDiagram
         string name
         UUID[] users
     }
-    
+
     FileRecord }|--|| "UserGroup(django.models.Group)": "FileRecord.owner"
     FileRecord {
         UUID uuid
         UUID owner
-        string key 
+        string key
     }
 
     ChatMessage {
         UUID uuid
         UUID chat_history
         string text
-        string role 
+        string role
     }
 
     ChatMessage }|--|| ChatHistory: "ChatMessage.chat_history"
