@@ -499,6 +499,7 @@ Existing information:
 EVAL_SUBMISSION = """
 After evaluating all seven criteria, provide the following:
 - AVERAGE SCORE: A simple mean of the score across all 7 criteria.
-- ASSESSMENT SUMMARY: A brief statement of the overall quality of the submission. Be critical but constructive in your feedback.
+- ASSESSMENT SUMMARY: A brief bullet point summary of the overall quality of the submission. Be critical but constructive in your feedback.
+- PRIORITY RECOMMENDATIONS: A short numbered list of top priority recommendations to improve the quality of the submission.
 - Make reference or citations to the knowledge base information.
 """
