@@ -892,7 +892,9 @@ def get_tabular_agent(
             )
             ai_msg = worker_agent.invoke(state)
 
-            messages.append(AIMessage(ai_msg["messages"][-1].content))
+            if isinstance(ai_msg["messages"][-1].content, str):
+                messages.append(AIMessage(ai_msg["messages"][-1].content))
+
             try:
                 messages.append(
                     AIMessage(f"Here is the SQL query: {ai_msg['messages'][-1].tool_calls[-1]['args']['sql_query']}")
@@ -906,6 +908,10 @@ def get_tabular_agent(
             else:
                 tabular_context = ""
             tool_output = run_tools_parallel(ai_msg["messages"][-1], tools, state)
+
+            if not tool_output:
+                success = "fail"
+                continue
 
             results = tool_output[-1].content  # this is a tuple
 
@@ -921,6 +927,7 @@ def get_tabular_agent(
                 messages.append(
                     AIMessage(f"The SQL query failed to execute correctly. Here is the error message: {sql_error}")
                 )
+
             else:
                 if is_intermediate_step:
                     sql_error = ""

@@ -71,6 +71,12 @@ def run_tools_parallel(ai_msg, tools, state, timeout=60):
         # No tool calls
         return ai_msg.content
     else:
+        # check if functions called by tools exist
+        tool_names = [tool.name for tool in tools]
+        for tool_call in ai_msg.tool_calls:
+            tool_name = tool_call["name"]
+            if tool_name not in tool_names:
+                log.warning(f"Function name {tool_name} in tool call does not exist")
         try:
             # Use ThreadPoolExecutor for parallel execution
             with ThreadPoolExecutor(max_workers=min(10, len(ai_msg.tool_calls))) as executor:
