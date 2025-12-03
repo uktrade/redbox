@@ -2,7 +2,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-added-large-files
         name: Check for files larger than 5 MB
@@ -33,7 +33,7 @@ repos:
       - id: check-case-conflict
 
   - repo: https://github.com/kynan/nbstripout
-    rev: 0.8.1
+    rev: 0.8.2
     hooks:
       - id: nbstripout
 
@@ -69,10 +69,16 @@ repos:
         entry: '\.(docx|doc|pdf|xlsx|csv|txt|log)$'
         language: fail
         description: Prevent committing data files (.docx, .pdf, .xlsx, .csv, .txt, .log)
-        exclude: '\.(yml|yaml|baseline|lock|toml|py|js|md|css|scss|html|sh|ipynb|svg|env\.example)$|^Makefile$|^\.vscode/'
+#         exclude: |
+#             (?x)^(
+#                 \.py|
+#                 tests/*|
+#                 \.html
+#             )$
+        exclude: '\.(txt|yml|png|gif|woff|woff2|ico|yaml|baseline|lock|toml|py|js|md|css|scss|html|sh|ipynb|svg|env|example|gitkeep|env\.notebook|jsonl)$|^(Make|Proc)file$|^\.vscode/|^(unstructured|django_app)/Dockerfile$|^tests/|^django_app/tests/|^(redbox|django_app)/.vscode/|^django_app/(frontend|static|files)/.*\.(json|lottie|parcelrc|pdf)$|devcontainer.json$|^notebooks/evaluation/data_results/.*\.json$|^\.editorconfig$|^\.gitattributes$|^\.gitignore$|^\.tool-versions$|^LICENCE$'
 
   - repo: https://github.com/awslabs/git-secrets
-    rev: master
+    rev: 'master'
     hooks:
       - id: git-secrets
         name: Scan for AWS secrets and other sensitive patterns

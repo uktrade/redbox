@@ -72,7 +72,7 @@ Outline:
 
 ## Considerations
 
-Document alternatives, concerns, ancillary or related issues, questions that arose in debate of the ADR. 
+Document alternatives, concerns, ancillary or related issues, questions that arose in debate of the ADR.
 
 Indicate if/how they were resolved or mollified.
 
@@ -86,7 +86,7 @@ Document any part of the requirements not satisfied by the proposed design.
 
 ## Other Related ADRs
 
-List any relevant ADRs - such as a design decision for a sub-component of a feature, a design deprecated as a result of this design, etc.. 
+List any relevant ADRs - such as a design decision for a sub-component of a feature, a design deprecated as a result of this design, etc..
 
 Format:
 

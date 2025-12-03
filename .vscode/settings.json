@@ -20,6 +20,6 @@
         "activityBar.background": "#911212",
         "activityBar.foreground": "#fbfbec",
         "titleBar.activeBackground": "#911212",
-        "titleBar.activeForeground": "#fbfbec",
+        "titleBar.activeForeground": "#fbfbec"
     }
 }
