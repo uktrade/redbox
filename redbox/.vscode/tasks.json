@@ -11,7 +11,7 @@
                     "MINIO_HOST": "localhost",
                     "POSTGRES_HOST": "localhost",
                     "UNSTRUCTURED_HOST": "localhost",
-                    "ELASTIC__HOST": "localhost",
+                    "ELASTIC__HOST": "localhost"
                 }
             },
             "presentation": {
@@ -19,6 +19,6 @@
                 "panel": "new"
             },
             "problemMatcher": []
-        }        
+        }
     ]
   }
