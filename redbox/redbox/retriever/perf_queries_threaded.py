@@ -3,9 +3,12 @@ import time
 import statistics
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
+from collections import defaultdict
 
 from langchain.embeddings import FakeEmbeddings
 from opensearchpy import OpenSearch, RequestsHttpConnection, Urllib3HttpConnection
+
+import matplotlib.pyplot as plt
 
 # -----------------------------------------------------
 # Setup
@@ -19,21 +22,33 @@ client_rhc = OpenSearch(
     "http://localhost:9200",
     connection_class=RequestsHttpConnection,
     compression=False,
+    timeout=120,  # seconds
+    max_retries=3,
+    retry_on_timeout=True,
 )
 client_rhc_cmpr = OpenSearch(
     "http://localhost:9200",
     connection_class=RequestsHttpConnection,
     compression=True,
+    timeout=120,  # seconds
+    max_retries=3,
+    retry_on_timeout=True,
 )
 client_ul3 = OpenSearch(
     [{"host": "localhost", "port": 9200}],
     connection_class=Urllib3HttpConnection,
     compression=False,
+    timeout=120,  # seconds
+    max_retries=3,
+    retry_on_timeout=True,
 )
 client_ul3_cmpr = OpenSearch(
     [{"host": "localhost", "port": 9200}],
     connection_class=Urllib3HttpConnection,
     compression=True,
+    timeout=120,  # seconds
+    max_retries=3,
+    retry_on_timeout=True,
 )
 
 fake = FakeEmbeddings(size=1024)
@@ -122,8 +137,9 @@ def query_ms_parallel(
     client: OpenSearch,
     body: dict,
     num_threads: int = 20,
-    num_requests_per_thread: int = 10,
-    warmup: int = 2,
+    num_requests_per_thread: int = 1000,
+    warmup: int = 20,
+    sleep_between_requests: float = 0.01,
 ):
     """
     Run OpenSearch queries in parallel to simulate prod-level load.
@@ -140,6 +156,8 @@ def query_ms_parallel(
         for _ in range(num_requests_per_thread):
             start = time.perf_counter()
             resp = client.search(index=INDEX, body=body)
+            if sleep_between_requests > 0:
+                time.sleep(sleep_between_requests)
             _ = resp.get("hits", {}).get("total")  # force access
             results.append((time.perf_counter() - start) * 1000)
         return results
@@ -187,23 +205,21 @@ size = 30
 min_score = 0.6
 
 files = [
-    "harry.wixley@digital.trade.gov.uk/2025-06-12_SUBMISSION_MADDERS_NMW_Coverage_Transparenc_0y9UYks.pdf",
-    "harry.wixley@digital.trade.gov.uk/2025-06-12_SUBMISSION_MADDERS_NMW_Coverage_Transparenc_vtxKxl6.pdf",
-    "harry.wixley@digital.trade.gov.uk/20250303_OFFSEN_Submission_For_Decision_-_Capping_Pape_A1HaAmt.pdf",
-    "harry.wixley@digital.trade.gov.uk/DCE_and_TRQ_Review_2025_Final_Recommendation_Submissio_yL899Qv.pdf",
+    "harry.wixley@digital.trade.gov.uk/2025-05-30_Submission_-_OBR_Scoring_Process_for_ERB_20_X0kFtvO.pdf",
+    "harry.wixley@digital.trade.gov.uk/DCE_and_TRQ_Review_2025_Final_Recommendation_Submissio_8oS5b2u.pdf",
+    "harry.wixley@digital.trade.gov.uk/OBR_Economic_and_fiscal_outlook_November_2025_2-cd34fb_KpYbGtN.pdf",
+    "harry.wixley@digital.trade.gov.uk/Annex_2A_part_1_20251202092721880.pdf",
+    "harry.wixley@digital.trade.gov.uk/Annex_2A_part_2_20251202110301695.pdf",
+    "harry.wixley@digital.trade.gov.uk/Annex_2A_part_3_20251202110302044.pdf",
 ]
-files = files + files  # duplicate for more combinations
+# files = files + files  # duplicate for more combinations
+files = files * 3
 
-clients = {
-    "RHC": client_rhc,
-    "RHC [Compression=True]": client_rhc_cmpr,
-    "UL3": client_ul3,
-    "UL3 [Compression=True]": client_ul3_cmpr,
-}
+clients = {"RHC": {False: client_rhc, True: client_rhc_cmpr}, "UL3": {False: client_ul3, True: client_ul3_cmpr}}
 
 # Load parameters
-CONCURRENCY = 20
-REQUESTS_PER_THREAD = 10
+CONCURRENCY = 5
+REQUESTS_PER_THREAD = 100
 
 
 # -----------------------------------------------------
@@ -211,8 +227,17 @@ REQUESTS_PER_THREAD = 10
 # -----------------------------------------------------
 
 if __name__ == "__main__":
-    for i in range(len(files)):
+    results = {
+        "compressed": defaultdict(lambda: defaultdict(lambda: {"x": [], "y": []})),
+        "uncompressed": defaultdict(lambda: defaultdict(lambda: {"x": [], "y": []})),
+    }
+
+    N = len(files)
+    client_names = list(clients.keys())
+
+    for i in range(N):
         file_list = files[: i + 1]
+
         print("-" * 40)
         print(f"{len(file_list)} files under parallel load...")
         print(f"Threads = {CONCURRENCY}, Requests per thread = {REQUESTS_PER_THREAD}\n")
@@ -224,26 +249,100 @@ if __name__ == "__main__":
             files=file_list,
         )
 
-        for client_name, client in clients.items():
+        for client_name, client_cfg in clients.items():
             print(f"=== {client_name} ===")
-            for label, body in [
-                ("dev", params.dev_body(query_vec)),
-                ("v1", params.v1_body(query_vec)),
-                ("v2", params.v2_body(query_vec)),
-            ]:
-                stats = query_ms_parallel(
-                    client=client,
-                    body=body,
-                    num_threads=CONCURRENCY,
-                    num_requests_per_thread=REQUESTS_PER_THREAD,
-                    warmup=2,
-                )
 
-                print(
-                    f"{label}: avg={stats['avg']:.2f}ms, "
-                    f"p95={stats['p95']:.2f}ms, p99={stats['p99']:.2f}ms, "
-                    f"min={stats['min']:.2f}ms, max={stats['max']:.2f}ms "
-                    f"(n={stats['count']})"
-                )
+            for compressed, client in client_cfg.items():
+                for label, body in [
+                    # ("dev", params.dev_body(query_vec)),
+                    ("v1", params.v1_body(query_vec)),
+                    # ("v2", params.v2_body(query_vec)),
+                ]:
+                    stats = query_ms_parallel(
+                        client=client,
+                        body=body,
+                        num_threads=CONCURRENCY,
+                        num_requests_per_thread=REQUESTS_PER_THREAD,
+                    )
+
+                    avg_lat = stats["avg"]
+
+                    print(
+                        f"{label}: avg={avg_lat:.2f}ms, "
+                        f"p95={stats['p95']:.2f}ms, p99={stats['p99']:.2f}ms, "
+                        f"min={stats['min']:.2f}ms, max={stats['max']:.2f}ms "
+                        f"(n={stats['count']})"
+                    )
+
+                    compression_flag = "compressed" if compressed else "uncompressed"
+                    key = (client_name, label)
+                    results[compression_flag][client_name][key]["x"].append(len(file_list))
+                    results[compression_flag][client_name][key]["y"].append(stats["p95"])
+
+                client.close()
+
             print()
         print()
+
+    # -------------------------
+    # PLOT RESULTS (single plot, all lines)
+    # -------------------------
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    for comp_key in ["uncompressed", "compressed"]:
+        for client_name, series_dict in results[comp_key].items():
+            # Only one label now: (client_name, "")
+            series = list(series_dict.values())[0]
+
+            ax.plot(
+                series["x"],
+                series["y"],
+                marker="o",
+                label=f"{client_name} - {comp_key}",
+            )
+
+    ax.set_title("Latency vs Number of Files (v1 only)")
+    ax.set_xlabel("Number of Files")
+    ax.set_ylabel("Latency (p95, ms)")
+    ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=9)
+
+    plt.tight_layout()
+    plt.show()
+
+    # # -------------------------
+    # # PLOT RESULTS (generic)
+    # # -------------------------
+    # n_clients = len(client_names)
+    # fig, axes = plt.subplots(n_clients, 2, sharey=True)
+
+    # # If only one client, axes will not be 2D array
+    # if n_clients == 1:
+    #     axes = axes.reshape(1, 2)
+
+    # compression_cols = ["uncompressed", "compressed"]
+    # compression_titles = ["Without Compression", "With Compression"]
+
+    # for row_idx, client_name in enumerate(client_names):
+    #     for col_idx, comp_key in enumerate(compression_cols):
+
+    #         ax = axes[row_idx][col_idx]
+
+    #         for query_label, series in results[comp_key][client_name].items():
+    #             ax.plot(
+    #                 series["x"],
+    #                 series["y"],
+    #                 marker="o",
+    #                 label=query_label,
+    #             )
+
+    #         ax.set_title(f"{client_name}\n{compression_titles[col_idx]}")
+    #         ax.set_xlabel("Number of Files")
+    #         if col_idx == 0:
+    #             ax.set_ylabel("Latency (ms)")
+
+    #         ax.grid(True, alpha=0.3)
+    #         ax.legend(fontsize=8)
+
+    # plt.tight_layout()
+    # plt.show()
