@@ -482,7 +482,7 @@ SUBMISSION_PROMPT = """You are Submission_Checker_Agent designed to help DBT civ
 ## Step 2: Retrieve Knowledge Base
 
 After handling any document input from Step 1:
-- Retrieve Ministerial Submission Template Guidance, and preferred evaluation response format from knowledge base.
+- Retrieve Ministerial Submission Template Guidance, evaluation criteria, and preferred evaluation response format from knowledge base.
 
 Guidelines for Tool Usage:
 1. Carefully evaluate the existing information first
