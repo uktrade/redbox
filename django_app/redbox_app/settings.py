@@ -354,6 +354,7 @@ else:
         }
     }
 
+USE_LOCAL_ENV = env.str("USE_LOCAL_ENV", "false") == "true"
 LOG_LEVEL = env.str("DJANGO_LOG_LEVEL", "WARNING")
 LOG_FORMAT = env.str("DJANGO_LOG_FORMAT", "asim_formatter")
 LOGGING = {
@@ -409,7 +410,7 @@ LOGGING = {
             "level": "WARNING",
         },
         "ddtrace": {
-            "handlers": ["asim"],
+            "handlers": ["asim", "console"] if USE_LOCAL_ENV else ["asim"],
             "level": "ERROR",
             "propagate": False,
         },
