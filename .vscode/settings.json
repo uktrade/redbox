@@ -12,7 +12,8 @@
         "pythonTerminalEnvVarActivation"
     ],
     "python.testing.pytestArgs": [
-        "redbox"
+        "redbox",
+        "django_app"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
