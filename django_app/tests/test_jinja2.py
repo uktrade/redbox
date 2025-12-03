@@ -217,4 +217,4 @@ def test_get_menu_items(alice: User, client: Client):
     assert menu_items_not_authenticated[0]["text"] == "Sign in"
     assert menu_items_not_authenticated[0]["href"] == url("sign-in")
 
-    assert any(item["text"] == "Skills" and item["href"] == url("skills") for item in flagged_menu_items)
+    assert any(item["text"] == "Tools" and item["href"] == url("skills") for item in flagged_menu_items)
