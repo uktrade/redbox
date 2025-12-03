@@ -17,6 +17,7 @@ from sentry_sdk.integrations.django import DjangoIntegration
 from storages.backends import s3boto3
 from yarl import URL
 
+from redbox_app.logging import ColorFormatter
 from redbox_app.setting_enums import Classification, Environment
 
 logger = logging.getLogger(__name__)
@@ -354,14 +355,14 @@ else:
         }
     }
 
-USE_LOCAL_ENV = env.str("USE_LOCAL_ENV", "false") == "true"
+RUNNING_IN_VSCODE = env.str("RUNNING_IN_VSCODE", "false") == "true"
 LOG_LEVEL = env.str("DJANGO_LOG_LEVEL", "WARNING")
 LOG_FORMAT = env.str("DJANGO_LOG_FORMAT", "asim_formatter")
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "verbose": {"format": "%(asctime)s %(levelname)s %(module)s: %(message)s"},
+        "verbose": {"()": ColorFormatter, "format": "%(asctime)s %(levelname)s %(module)s: %(message)s"},
         "asim_formatter": {
             "()": ASIMFormatter,
         },
@@ -410,7 +411,7 @@ LOGGING = {
             "level": "WARNING",
         },
         "ddtrace": {
-            "handlers": ["asim", "console"] if USE_LOCAL_ENV else ["asim"],
+            "handlers": ["asim", "console"] if RUNNING_IN_VSCODE else ["asim"],
             "level": "ERROR",
             "propagate": False,
         },
