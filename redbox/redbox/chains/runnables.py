@@ -75,11 +75,14 @@ def build_chat_prompt_from_messages_runnable(
             agent_names = ",".join([f"'{agent.name.removesuffix('_Agent')}'" for agent in ai_settings.worker_agents])
             system_info_prompt = system_info_prompt.replace(
                 "{knowledge_mode}",
-                f"You are in skill mode using: {agent_names}. Make sure to tell the user when stating your capabilities or responding to a greeting, do not mention capabilities outside the scope of this skill. ",
+                f"You are in skill mode using: {agent_names}. Make sure to tell the user when stating your capabilities or responding to a greeting, do not mention capabilities outside the scope of this skill. If a user requests you to perform a capability outside of this skill advise them to use normal chat. ",
             )
         else:
             # -- Default --
-            system_info_prompt = system_info_prompt.replace("{knowledge_mode}", "")
+            system_info_prompt = system_info_prompt.replace(
+                "{knowledge_mode}",
+                "Your default capability is to act as a multi-agent planner to detect the user's intent and find relevant information in parallel using agents for search, summarisation, and searching Welcome to GOV.UK  and/or wikipedia, and you will provide a plan to the user when you invoke 2 or more tools to generate a response to a query. ",
+            )
 
         log.debug("Setting chat prompt")
         # Set the system prompt to be our composed structure
@@ -87,7 +90,7 @@ def build_chat_prompt_from_messages_runnable(
         system_prompt_message = f"""
             {system_info_prompt}
             {task_system_prompt}
-            {ai_settings.persona_info_prompt if not in_default_mode else ""}
+            {ai_settings.persona_info_prompt if in_default_mode else ""}
             {ai_settings.caller_info_prompt}
             {ai_settings.answer_instruction_prompt}
             """
