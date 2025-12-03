@@ -355,7 +355,6 @@ else:
         }
     }
 
-RUNNING_IN_VSCODE = env.str("RUNNING_IN_VSCODE", "false") == "true"
 LOG_LEVEL = env.str("DJANGO_LOG_LEVEL", "WARNING")
 LOG_FORMAT = env.str("DJANGO_LOG_FORMAT", "asim_formatter")
 LOGGING = {
@@ -411,7 +410,7 @@ LOGGING = {
             "level": "WARNING",
         },
         "ddtrace": {
-            "handlers": ["asim", "console"] if RUNNING_IN_VSCODE else ["asim"],
+            "handlers": ["asim"],
             "level": "ERROR",
             "propagate": False,
         },

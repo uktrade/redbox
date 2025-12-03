@@ -16,8 +16,7 @@
             "env": {
                 "PYTHONUNBUFFERED": "1",
                 "USE_LOCAL_ENV": "true",
-                "DJANGO_LOG_FORMAT": "verbose",
-                "RUNNING_IN_VSCODE": "true"
+                "DJANGO_LOG_FORMAT": "verbose"
             },
             "serverReadyAction": {
                 "pattern": "Starting development server",
