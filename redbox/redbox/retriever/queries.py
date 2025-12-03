@@ -16,7 +16,7 @@ def build_file_filter(file_names: list[str]) -> dict[str, Any]:
 
 def build_resolution_filter(chunk_resolution: ChunkResolution) -> dict[str, Any]:
     """Creates an Elasticsearch filter for chunk resolutions."""
-    return {"term": {"metadata.chunk_resolution.keyword": chunk_resolution}}
+    return {"term": {"metadata.chunk_resolution.keyword": chunk_resolution.value}}
 
 
 def build_query_filter(

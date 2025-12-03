@@ -482,7 +482,7 @@ SUBMISSION_PROMPT = """You are Submission_Checker_Agent designed to help DBT civ
 ## Step 2: Retrieve Knowledge Base
 
 After handling any document input from Step 1:
-- Retrieve golden rules and evaluation criteria from knowledge base.
+- Retrieve Ministerial Submission Template Guidance and evaluation criteria from knowledge base.
 
 Guidelines for Tool Usage:
 1. Carefully evaluate the existing information first
@@ -501,4 +501,5 @@ After evaluating all seven criteria, provide the following:
 - AVERAGE SCORE: A simple mean of the score across all 7 criteria.
 - ASSESSMENT SUMMARY: A brief statement of the overall quality of the submission. Be critical but constructive in your feedback.
 - Make reference or citations to the knowledge base information.
+    - when referencing to template guidance, references should consistently use ‘Ministerial Submission Template Guidance’
 """
