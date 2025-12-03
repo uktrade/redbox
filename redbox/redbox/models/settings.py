@@ -162,7 +162,7 @@ class Settings(BaseSettings):
 
     default_model_id: Optional[str] = os.environ.get("DEFAULT_MODEL_ID")
 
-    allow_plan_feedback: bool = os.environ.get("ALLOW_PLAN_FEEDBACK")
+    allow_plan_feedback: bool = os.environ.get("ALLOW_PLAN_FEEDBACK", True)
 
     is_local: bool = ENVIRONMENT.is_local
 
