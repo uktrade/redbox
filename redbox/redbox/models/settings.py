@@ -32,9 +32,7 @@ class OpenSearchSettings(BaseModel):
     collection_endpoint__password: Optional[str] = parsed_url.password
     collection_endpoint__host: Optional[str] = parsed_url.hostname
     collection_endpoint__port: Optional[str] = "443"
-    collection_endpoint__port_local: Optional[str] = (
-        "9200"  # locally, the port number is 9200
-    )
+    collection_endpoint__port_local: Optional[str] = "9200"  # locally, the port number is 9200
 
 
 class ElasticLocalSettings(BaseModel):
@@ -90,9 +88,7 @@ class Settings(BaseSettings):
         name="anthropic.claude-3-sonnet-20240229-v1:0", provider="bedrock"
     )
 
-    embedding_backend: str = os.environ.get(
-        "EMBEDDING_BACKEND", "amazon.titan-embed-text-v2:0"
-    )
+    embedding_backend: str = os.environ.get("EMBEDDING_BACKEND", "amazon.titan-embed-text-v2:0")
 
     embedding_backend_vector_size: int = 1024
 
@@ -132,12 +128,8 @@ class Settings(BaseSettings):
     worker_ingest_largest_chunk_size: int = 300_000
     worker_ingest_largest_chunk_overlap: int = 0
 
-    response_no_doc_available: str = (
-        "No available data for selected files. They may need to be removed and added again"
-    )
-    response_max_content_exceeded: str = (
-        "Max content exceeded. Try smaller or fewer documents"
-    )
+    response_no_doc_available: str = "No available data for selected files. They may need to be removed and added again"
+    response_max_content_exceeded: str = "Max content exceeded. Try smaller or fewer documents"
 
     object_store: str = "minio"
 
@@ -146,17 +138,13 @@ class Settings(BaseSettings):
 
     unstructured_host: str = "unstructured"
 
-    model_config = SettingsConfigDict(
-        env_file=".env", env_nested_delimiter="__", extra="allow", frozen=True
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_nested_delimiter="__", extra="allow", frozen=True)
 
     enable_metadata_extraction: bool = os.environ.get("ENABLE_METADATA_EXTRACTION")
 
     datahub_redbox_url: str = os.environ.get("DATAHUB_REDBOX_URL", "")
     datahub_redbox_secret_key: str = os.environ.get("DATAHUB_REDBOX_SECRET_KEY", "")
-    datahub_redbox_access_key_id: str = os.environ.get(
-        "DATAHUB_REDBOX_ACCESS_KEY_ID", ""
-    )
+    datahub_redbox_access_key_id: str = os.environ.get("DATAHUB_REDBOX_ACCESS_KEY_ID", "")
 
     default_model_id: Optional[str] = os.environ.get("DEFAULT_MODEL_ID")
 
@@ -168,17 +156,13 @@ class Settings(BaseSettings):
     caddy_mcp: MCPServerSettings = MCPServerSettings(
         name="caddy_mcp",
         url=os.environ.get("MCP_CADDY_URL", ""),
-        secret_tokens={
-            os.environ.get("MCP_HEADERS", ""): os.environ.get("MCP_CADDY_TOKEN", "")
-        },
+        secret_tokens={os.environ.get("MCP_HEADERS", ""): os.environ.get("MCP_CADDY_TOKEN", "")},
     )
 
     parlex_mcp: MCPServerSettings = MCPServerSettings(
         name="parlex_mcp",
         url=os.environ.get("MCP_PARLEX_URL", ""),
-        secret_tokens={
-            os.environ.get("MCP_HEADERS", ""): os.environ.get("MCP_PARLEX_TOKEN", "")
-        },
+        secret_tokens={os.environ.get("MCP_HEADERS", ""): os.environ.get("MCP_PARLEX_TOKEN", "")},
     )
 
     # web search
@@ -210,49 +194,35 @@ class Settings(BaseSettings):
                     "properties": {
                         "chunk_resolution": {
                             "type": "text",
-                            "fields": {
-                                "keyword": {"type": "keyword", "ignore_above": 256}
-                            },
+                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
                         },
                         "created_datetime": {"type": "date"},
                         "creator_type": {
                             "type": "text",
-                            "fields": {
-                                "keyword": {"type": "keyword", "ignore_above": 256}
-                            },
+                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
                         },
                         "description": {
                             "type": "text",
-                            "fields": {
-                                "keyword": {"type": "keyword", "ignore_above": 256}
-                            },
+                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
                         },
                         "index": {"type": "long"},
                         "keywords": {
                             "type": "text",
-                            "fields": {
-                                "keyword": {"type": "keyword", "ignore_above": 256}
-                            },
+                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
                         },
                         "name": {
                             "type": "text",
-                            "fields": {
-                                "keyword": {"type": "keyword", "ignore_above": 256}
-                            },
+                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
                         },
                         "page_number": {"type": "long"},
                         "token_count": {"type": "long"},
                         "uri": {
                             "type": "text",
-                            "fields": {
-                                "keyword": {"type": "keyword", "ignore_above": 256}
-                            },
+                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
                         },
                         "uuid": {
                             "type": "text",
-                            "fields": {
-                                "keyword": {"type": "keyword", "ignore_above": 256}
-                            },
+                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
                         },
                     }
                 },
@@ -285,9 +255,7 @@ class Settings(BaseSettings):
         # get list of available agents
         from redbox.models.chain import AISettings
 
-        agent_names: list[str] = [
-            (agent.name, agent.name) for agent in AISettings().worker_agents
-        ]
+        agent_names: list[str] = [(agent.name, agent.name) for agent in AISettings().worker_agents]
         return agent_names
 
     # @lru_cache(1) #removing cache because pydantic object (index mapping) is not hashable
@@ -342,13 +310,9 @@ class Settings(BaseSettings):
                 logger.error(f"Failed to create index {chunk_index}: {e}")
 
             try:
-                client.indices.put_alias(
-                    index=chunk_index, name=f"{self.elastic_root_index}-chunk-current"
-                )
+                client.indices.put_alias(index=chunk_index, name=f"{self.elastic_root_index}-chunk-current")
             except Exception as e:
-                logger.error(
-                    f"Failed to set alias {self.elastic_root_index}-chunk-current: {e}"
-                )
+                logger.error(f"Failed to set alias {self.elastic_root_index}-chunk-current: {e}")
 
         if not client.indices.exists(index=self.elastic_chat_mesage_index):
             try:
@@ -356,9 +320,7 @@ class Settings(BaseSettings):
                     index=self.elastic_chat_mesage_index, ignore=400
                 )  # 400 is ignored to avoid index-already-exists errors
             except Exception as e:
-                logger.error(
-                    f"Failed to create index {self.elastic_chat_mesage_index}: {e}"
-                )
+                logger.error(f"Failed to create index {self.elastic_chat_mesage_index}: {e}")
             # client.indices.create(index=self.elastic_chat_mesage_index)
 
         return client
@@ -421,11 +383,7 @@ class Settings(BaseSettings):
                 return WebSearchSettings(
                     name="Kagi",
                     end_point="https://kagi.com/api/v0/search",
-                    secret_tokens={
-                        "Authorization": " ".join(
-                            ["Bot", os.environ.get("KAGI_API_KEY", "")]
-                        )
-                    },
+                    secret_tokens={"Authorization": " ".join(["Bot", os.environ.get("KAGI_API_KEY", "")])},
                 )
 
 
