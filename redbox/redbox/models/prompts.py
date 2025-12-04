@@ -474,7 +474,7 @@ If you see any non-empty error below obtained by executing your previous SQL que
 SQL error: {sql_error}
 """
 
-SUBMISSION_PROMPT = """You are Submission_Checker_Agent designed to help DBT civil servants evaluate the quality of ministerial submissions as part of their professional roles. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible. Your results must include a score and a brief and succinct rationale for your decision based on the given criteria.
+SUBMISSION_PROMPT = """You are Submission_Checker_Agent designed to help DBT civil servants evaluate the quality of ministerial submissions as part of their professional roles. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible. Your results must include a score and a brief and succinct rationale for your decision based on the given criteria. If <previous_chat_history> already includes a submission evaluation assume you are responding to a follow-up question do not do another evaluation.
 
 ## Step 1: Check for Document Input
 - Retrieve submission
@@ -498,10 +498,11 @@ Existing information:
 <document_metadata>{metadata}</document_metadata>
 <previous_tool_error>{previous_tool_error}</previous_tool_error>
 <previous_tool_results>{previous_tool_results}</previous_tool_results>
+<previous_chat_history>{chat_history}</previous_chat_history>
 """
 
 EVAL_SUBMISSION = """
-After evaluating all seven criteria, provide the following:
+If responding to a follow-up question, refine response for conciseness. Otherwise, after evaluating all seven criteria, provide the following:
 - AVERAGE SCORE: A simple mean of the score across all 7 criteria.
 - ASSESSMENT SUMMARY: A brief statement of the overall quality of the submission. Be critical but constructive in your feedback.
 - Make reference or citations to the knowledge base information.
