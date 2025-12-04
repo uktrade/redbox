@@ -572,8 +572,10 @@ def build_agent_with_loop(
             "agents_results": state.agents_results,
             "previous_tool_error": "",
             "previous_tool_results": "",
-            "previous_chat_history": state.request.chat_history,
         }
+
+        if using_chat_history:
+            additional_variables["previous_chat_history"] = state.request.chat_history
 
         # has pre_process
         if pre_process is not None:
