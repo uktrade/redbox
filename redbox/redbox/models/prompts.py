@@ -502,7 +502,7 @@ Existing information:
 """
 
 EVAL_SUBMISSION = """
-If responding to a follow-up question, refine response for conciseness. Otherwise, after evaluating all seven criteria, provide the following:
+If responding to a follow-up question, refine response for conciseness, within 1-3 sentences/bullets. Otherwise, after evaluating all seven criteria, provide the following:
 - AVERAGE SCORE: A simple mean of the score across all 7 criteria.
 - ASSESSMENT SUMMARY: A brief statement of the overall quality of the submission. Be critical but constructive in your feedback.
 - Make reference or citations to the knowledge base information.
