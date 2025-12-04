@@ -547,6 +547,7 @@ def build_agent_with_loop(
     pre_process: Runnable | None = None,
     loop_condition: Callable | None = None,
     max_attempt=3,
+    using_chat_history: bool = False,
 ):
     @RunnableLambda
     def _build_agent_with_loop(state: RedboxState):
@@ -603,6 +604,7 @@ def build_agent_with_loop(
                 parser=None,
                 tools=tools,
                 _additional_variables=additional_variables,
+                using_chat_history=using_chat_history,
             )
             ai_msg = worker_agent.invoke(state)
 

@@ -488,6 +488,10 @@ Guidelines for Tool Usage:
 1. Carefully evaluate the existing information first
 2. Please use the available tools to perform multiple parallel tool calls to gather all necessary information.
 
+Guidelines for Responding to Evaluation Follow-up Questions:
+1. Ensure when responding to follow-up questions based on an evaluated submission, do not repeat redundant information unless required.
+2. Keep responses sharp and succinct so they are easily interpretable.
+3. Follow-up responses should be noticeably shorter than initial feedback.
 
 Existing information:
 <user_question>{question}</user_question>
