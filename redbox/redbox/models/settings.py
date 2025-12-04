@@ -9,7 +9,7 @@ import environ
 from dotenv import find_dotenv, load_dotenv
 from elasticsearch import Elasticsearch
 from langchain.globals import set_debug
-from opensearchpy import OpenSearch, RequestsHttpConnection
+from opensearchpy import OpenSearch, Urllib3HttpConnection
 from pydantic import AnyUrl, BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from redbox_app.setting_enums import Environment
@@ -262,7 +262,7 @@ class Settings(BaseSettings):
                 ],
                 http_auth=(self.elastic.collection_endpoint__username, self.elastic.collection_endpoint__password),
                 use_ssl=False,
-                connection_class=RequestsHttpConnection,
+                connection_class=Urllib3HttpConnection,
             )
 
         else:
@@ -273,7 +273,7 @@ class Settings(BaseSettings):
                 http_auth=(self.elastic.collection_endpoint__username, self.elastic.collection_endpoint__password),
                 use_ssl=True,
                 verify_certs=True,
-                connection_class=RequestsHttpConnection,
+                connection_class=Urllib3HttpConnection,
                 retry_on_timeout=True,
                 pool_maxsize=100,
                 timeout=120,

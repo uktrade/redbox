@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 const { signIn, uploadDocument } = require("./utils.js");
 
 test(`File statuses get updated automatically`, async ({ page }) => {
-  
+
   await signIn(page);
   await uploadDocument(page);
 
@@ -23,5 +23,5 @@ test(`File statuses get updated automatically`, async ({ page }) => {
 
   expect(await page.locator("file-status").count()).toEqual(1);
   await expect(page.locator("file-status")).toHaveText("Complete");
-  
+
 });
