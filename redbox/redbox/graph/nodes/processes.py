@@ -494,10 +494,13 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
         log.warning(f"[{agent_name}] Running tools via run_tools_parallel...")
 
         result = run_tools_parallel(ai_msg, tools, state)
+
         if isinstance(result, str):
             log.warning(f"[{agent_name}] Using raw string result.")
             result_content = result
-
+        elif isinstance(result, list) and isinstance(result[0], dict):
+            log.warning(f"[{agent_name}] Using raw string in a list as result.")
+            result_content = result[0].get("text", "")
         elif isinstance(result, list):
             log.warning(f"[{agent_name}] Aggregating list of tool results...")
             result_content = []
@@ -524,16 +527,15 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
                     else:
                         log.warning(f"[{agent_name}] No remaining token budget ({max_tokens}). Skipping.")
                     break  # Max reached — stop processing further results
-
             result_content = " ".join(result_content)
-            result = f"<{agent_name}_Result>{result_content}</{agent_name}_Result>"
         else:
             log.error(f"[{agent_name}] Worker agent return incompatible data type {type(result)}")
             raise TypeError("Invalid tool result type")
-
         log.warning(f"[{agent_name}] Completed agent run.")
-
-        return {"agents_results": result, "tasks_evaluator": task.task + "\n" + task.expected_output}
+        return {
+            "agents_results": f"<{agent_name}_Result>{result_content}</{agent_name}_Result>",
+            "tasks_evaluator": task.task + "\n" + task.expected_output,
+        }
 
     return _build_agent.with_retry(stop_after_attempt=3)
 
