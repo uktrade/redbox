@@ -4,7 +4,7 @@ site_author: Incubator for AI
 repo_url: https://github.com/uktrade/redbox
 
 theme:
-  
+
   logo: assets/briefcase_white.svg
   favicon: assets/i-dot-ai.svg
 
@@ -41,7 +41,7 @@ theme:
     - content.code.copy
     - content.code.select
     - navigation.tabs
-  
+
 
 nav:
   - Home: index.md
@@ -56,9 +56,9 @@ nav:
     - Docker and Dependencies: architecture/docker_and_dependencies.md
   - Frontends:
     - Overview: frontends/index.md
-  - Code Reference: 
+  - Code Reference:
     - Home: code_reference/index.md
-    - Models: 
+    - Models:
       - Overview: code_reference/models/index.md
       - File: code_reference/models/file.md
       - Embedding: code_reference/models/embedding.md
@@ -114,12 +114,12 @@ markdown_extensions:
       guess_lang: true
       use_pygments: true
   - pymdownx.tabbed:
-      alternate_style: true 
+      alternate_style: true
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
           class: mermaid
-          format: !!python/name:pymdownx.superfences.fence_code_format
+          format: '!!python/name:pymdownx.superfences.fence_code_format'
   - pymdownx.snippets:
       auto_append:
         - docs/abbreviations.md
@@ -138,4 +138,3 @@ extra:
 
 extra_css:
   - stylesheets/extra.css
-        
