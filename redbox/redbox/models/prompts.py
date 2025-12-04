@@ -490,8 +490,8 @@ Guidelines for Tool Usage:
 
 Guidelines for Responding to Evaluation Follow-up Questions:
 1. Ensure when responding to follow-up questions based on an evaluated submission, do not repeat redundant information unless required.
-2. Keep responses sharp and succinct so they are easily interpretable.
-3. Follow-up responses should be noticeably shorter than initial feedback.
+2. Keep responses sharp and succinct.
+3. Responses should be easily and quickly interpretable/understood.
 
 Existing information:
 <user_question>{question}</user_question>
@@ -502,7 +502,7 @@ Existing information:
 """
 
 EVAL_SUBMISSION = """
-If responding to a follow-up question, refine response for conciseness, within 1-3 sentences/bullets. Otherwise, after evaluating all seven criteria, provide the following:
+If responding to a follow-up question, refine response for conciseness. Otherwise, after evaluating all seven criteria, provide the following:
 - AVERAGE SCORE: A simple mean of the score across all 7 criteria.
 - ASSESSMENT SUMMARY: A brief statement of the overall quality of the submission. Be critical but constructive in your feedback.
 - Make reference or citations to the knowledge base information.
