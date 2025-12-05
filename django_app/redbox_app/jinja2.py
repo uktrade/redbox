@@ -85,9 +85,8 @@ def get_menu_items(user):
     items.append({"text": "Documents", "href": url("documents")})
 
     if flag_is_active(user, flags.ENABLE_SKILLS):
-        items.append({"text": "Skills", "href": url("skills")})
+        items.append({"text": "Tools", "href": url("skills")})
 
-    items.append({"text": "Chat", "href": url("chats")})
     items.append({"text": "Profile", "href": url("settings")})
     items.append({"text": "Log out", "href": url("signed-out")})
 

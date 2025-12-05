@@ -19,7 +19,7 @@ The document processing pipeline is the core of the Redbox system. It is respons
 
 ## RAG Architecture
 
-The Retrieval Augmented Generation (RAG) architecture grounds our Large Language Model in the context of uploaded documents. 
+The Retrieval Augmented Generation (RAG) architecture grounds our Large Language Model in the context of uploaded documents.
 
 ![RAG Architecture](../assets/rag_architecture.png)
 
