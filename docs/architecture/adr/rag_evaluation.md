@@ -101,7 +101,7 @@ Document any part of the requirements not satisfied by the proposed design. -->
 
 ## Other Related ADRs
 
-<!-- List any relevant ADRs - such as a design decision for a sub-component of a feature, a design deprecated as a result of this design, etc.. 
+<!-- List any relevant ADRs - such as a design decision for a sub-component of a feature, a design deprecated as a result of this design, etc..
 
 Format:
 
@@ -114,5 +114,5 @@ Format:
 
 Format:
 
-- \[Title\]\(URL\) --> 
+- \[Title\]\(URL\) -->
 [Link to Redbox RAG evaluation notebook for this spike](../../../notebooks/evaluation/redbox_rag_evaluation.ipynb)
