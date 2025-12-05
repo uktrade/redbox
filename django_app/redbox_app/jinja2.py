@@ -5,10 +5,14 @@ import humanize
 import jinja2
 import pytz
 from django.conf import settings
+from django.contrib import messages
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.timezone import template_localtime
 from markdown_it import MarkdownIt
+from waffle import flag_is_active
+
+from redbox_app.redbox_core import flags
 
 # `js-default` setting required to sanitize inputs
 # https://markdown-it-py.readthedocs.io/en/latest/security.html
@@ -72,6 +76,24 @@ def remove_refs(text):
     return re.sub(pattern, "", text).strip()
 
 
+def get_menu_items(user):
+    if not user.is_authenticated:
+        return [{"text": "Sign in", "href": url("sign-in")}]
+
+    items = []
+
+    items.append({"text": "Documents", "href": url("documents")})
+
+    if flag_is_active(user, flags.ENABLE_SKILLS):
+        items.append({"text": "Tools", "href": url("skills")})
+
+    items.append({"text": "Chat", "href": url("chats")})
+    items.append({"text": "Profile", "href": url("settings")})
+    items.append({"text": "Log out", "href": url("signed-out")})
+
+    return items
+
+
 def environment(**options):
     extra_options = {}
 
@@ -107,6 +129,10 @@ def environment(**options):
             "google_analytics_tag": settings.GOOGLE_ANALYTICS_TAG,
             "google_analytics_link": settings.GOOGLE_ANALYTICS_LINK,
             "google_analytics_iframe_src": settings.GOOGLE_ANALYTICS_IFRAME_SRC,
+            "get_messages": messages.get_messages,
+            "flag_is_active": flag_is_active,
+            "flags": flags,
+            "get_menu_items": get_menu_items,
         }
     )
     return env

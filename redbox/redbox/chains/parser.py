@@ -336,7 +336,7 @@ class StreamingPlanner(StreamingJsonOutputParser):
                                         data=f"{random.choice(self.prefix_texts)}\n\n1. ",
                                     )
                                 elif (item_count > 0) and (field_length_at_last_run == 0):
-                                    dispatch_custom_event(RedboxEventType.response_tokens, data=f"{item_count+1}. ")
+                                    dispatch_custom_event(RedboxEventType.response_tokens, data=f"{item_count + 1}. ")
                                 dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
                                 field_length_at_last_run = len(field_content)
                                 yield self.pydantic_schema_object.model_validate(parsed)

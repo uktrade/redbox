@@ -1,0 +1,4 @@
+{% macro rbds_icon(icon_name, icon_classes="") %}
+    {% set icon_classes = "rbds-icon " + icon_classes %}
+    {% include "rbds/icons/" ~ icon_name %}
+{% endmacro %}

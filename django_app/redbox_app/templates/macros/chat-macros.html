@@ -1,11 +1,11 @@
 {% macro route_display(route=None) %}
 <details class="govuk-details redbox-message-route" {% if not route %} hidden {% endif %}>
   <summary class="govuk-details__summary">
-    <span class="govuk-details__summary-text font-size-14">
+    <span class="govuk-details__summary-text rbds-text-xs">
       How Redbox generated this response</span>
     </span>
   </summary>
-  <div class="govuk-details__text font-size-14">
+  <div class="govuk-details__text rbds-text-xs">
     <span>Redbox automatically determines what the best ‘tools' are to answer your prompts/queries:</span>
     <ul>
       <li>If no document(s) selected, Redbox@DBT defaults to using ‘chat’, which gets answers from the model's training data</li>
@@ -36,23 +36,24 @@
   class="redbox-message-container govuk-inset-text {% if message.role == "user" %} govuk-inset-text-right {% endif %} govuk-body"
   data-role="{{ message.role }}" tabindex="-1" id="chat-message-{{ message.id }}">
 
-  <markdown-converter class="chat-message__text">{{ message.text }}</markdown-converter>
-  {% if message.unique_citation_uris() %}
-  <h3 class="iai-chat-bubble__sources-heading govuk-heading-s govuk-!-margin-bottom-1">Sources</h3>
-  <div class="iai-display-flex-from-desktop">
-    <ol class="rb-footnote-list govuk-!-margin-bottom-0">
-      {% set seen_docs = [] %}
-      {% for display, href, cit_id, text_in_answer, citation_name in message.unique_citation_uris() %}
-        {% if display not in seen_docs %}
-        <li class="govuk-!-margin-bottom-0">
-          <a class="iai-chat-bubbles__sources-link govuk-link" id="footnote-{{ message.id }}-{{ loop.index }}" href="/citations/{{message.id}}">{{ display }}</a>
-        </li>
-        {% set _ = seen_docs.append(display) %}
-        {% endif %}
-      {% endfor %}
-    </ol>
-  </div>
-  <br />
+  <markdown-converter class="rbds-chat-message__text">{{ message.text }}</markdown-converter>
+  {% set citations = message.get_citations() %}
+  {% if citations %}
+    <h3 class="iai-chat-bubble__sources-heading govuk-heading-s govuk-!-margin-bottom-1">Sources</h3>
+    <div class="rbds-display-flex-from-desktop">
+      <ol class="rb-footnote-list govuk-!-margin-bottom-0">
+        {% set seen_docs = [] %}
+        {% for citation in citations %}
+          {% if citation.display_name not in seen_docs %}
+            <li class="govuk-!-margin-bottom-0">
+              <a class="iai-chat-bubbles__sources-link govuk-link" id="footnote-{{ message.id }}-{{ loop.index }}" href="{{ citation.internal_url }}">{{ citation.display_name }}</a>
+            </li>
+            {% set _ = seen_docs.append(citation.display_name) %}
+          {% endif %}
+        {% endfor %}
+      </ol>
+    </div>
+    <br/>
   {% endif %}
 </div>
 {% set seen_files = [] %}

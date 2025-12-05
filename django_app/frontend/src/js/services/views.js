@@ -1,14 +1,17 @@
 // @ts-check
 
 import htmx from "htmx.org";
-import { getActiveChatId } from "../utils";
+import { getActiveChatId, getActiveSkillSlug } from "../utils";
 
 /**
  * Reloads chat window component
  * @param {string | null} chatId - Active chat ID
 */
-export function updateChatWindow(chatId = getActiveChatId()) {;
-    const url = chatId ? `/chats/${chatId}/chat-window/` : "/chats/chat-window/";
+export function updateChatWindow(chatId = getActiveChatId(), skill_slug = getActiveSkillSlug()) {;
+    const skill_url_fragment = skill_slug ? `/skills/${skill_slug}` : "";
+    const chat_url_fragment = chatId ? `/${chatId}` : "";
+    const url = `${skill_url_fragment}/chats${chat_url_fragment}/chat-window/`;
+
     return htmx.ajax('get', url, {
     target: '#chat-window',
     swap: 'outerHTML',
@@ -20,8 +23,11 @@ export function updateChatWindow(chatId = getActiveChatId()) {;
  * Reloads recent chats side-panel template
  * @param {string | null} chatId - Active chat ID
 */
-export function updateRecentChatHistory(chatId = getActiveChatId()) {;
-    const url = chatId ? `/chats/${chatId}/recent-chats/` : "/chats/recent-chats/";
+export function updateRecentChatHistory(chatId = getActiveChatId(), skill_slug = getActiveSkillSlug()) {;
+    const skill_url_fragment = skill_slug ? `/skills/${skill_slug}` : "";
+    const chat_url_fragment = chatId ? `/${chatId}` : "";
+    const url = `${skill_url_fragment}/chats${chat_url_fragment}/recent-chats/`;
+
     return htmx.ajax('get', url, {
       target: 'chat-history',
       swap: 'outerHTML',
@@ -33,11 +39,14 @@ export function updateRecentChatHistory(chatId = getActiveChatId()) {;
  * Reloads Your documents side-panel template
  * @param {string | null} chatId - Active chat ID
 */
-export function updateYourDocuments(chatId = getActiveChatId()) {;
-    const url = chatId ? `/documents/your-documents/${chatId}/` : "/documents/your-documents/";
+export function updateYourDocuments(chatId = getActiveChatId(), skill_slug = getActiveSkillSlug()) {;
+    const skill_url_fragment = skill_slug ? `/skills/${skill_slug}` : "";
+    const chat_url_fragment = chatId ? `/${chatId}` : "";
+    const url = `${skill_url_fragment}/documents/your-documents${chat_url_fragment}/`;
+
     return htmx.ajax('get', url, {
       target: 'document-selector',
-      swap: 'outerHTML',
+      swap: 'outerHTML settle:0ms',
     });
 }
 

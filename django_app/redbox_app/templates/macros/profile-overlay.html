@@ -7,7 +7,7 @@
       <form>
 
         <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}"/>
-      
+
         <div class="profile__page">
           <h2 id="profile-overlay-title">Redbox can give better responses if you tell it about yourself.</h2>
           <button class="profile__button-next govuk-button govuk-button--secondary" data-action="skip" type="button" autofocus>
@@ -15,7 +15,7 @@
             <span>1 of 3 Name</span>
           </button>
         </div>
-        
+
         <div class="profile__page">
           <label class="profile-label" for="profile-name">Full name</h2>
           <input id="profile-name" name="name" type="text" required value="{{ user.name if user.name }}" />
@@ -28,7 +28,7 @@
             <button class="profile__button-skip  govuk-button govuk-button--secondary" data-action="skip" type="button">Skip</button>
           </div>
         </div>
-        
+
         <div class="profile__page">
           <fieldset class="govuk-fieldset">
             <legend class="govuk-fieldset__legend">Which level best describes your experience with Generative AI tools?</legend>
@@ -40,12 +40,12 @@
                         id="ai_experience_{{ loop.index0 }}"
                         name="ai_experience"
                         value="{{ level }}"
-                        required 
+                        required
                         {% if level == selected_level %}checked{% endif %}>
                   <label class="govuk-label" for="ai_experience_{{ loop.index0 }}">
                     {{ level }}
                     <span class="govuk-hint govuk-radios__hint">{{ level.label }}</span>
-                  </label>         
+                  </label>
                 </div>
               {% endfor %}
             </div>

@@ -1,0 +1,112 @@
+{% from "macros/govuk-button.html" import govukButton %}
+
+<div class="govuk-width-container rbds-width-container">
+
+  <h1 class="govuk-heading-l">My Details</h1>
+
+  <form method='post'>
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
+    {% with form=tab.context.form %}
+      <div class="govuk-form-group">
+        <label class="govuk-label govuk-!-font-weight-bold rbds-text-xs" for="{{ form.name.id_for_label }}">
+          {{ form.name.label }}
+        </label>
+        {{ form.name }}
+      </div>
+
+      <div class="govuk-form-group  govuk-!-width-two-thirds">
+        <fieldset class="govuk-fieldset">
+          <legend class="govuk-label govuk-!-font-weight-bold rbds-text-xs">
+            <h1 class="govuk-fieldset__heading govuk-!-margin-bottom-1">
+            {{ form.ai_experience.label }}
+            </h1>
+          </legend>
+          <div id="ai_experience-hint" class="govuk-hint govuk-!-margin-bottom-4 rbds-text-xs">
+            Select what best describes your level of experience using AI tools. This will help us tailor your experience. You can always update this page anytime.
+          </div>
+          <div class="rbds-radio-groups-container">
+            <div class="govuk-radios govuk-radios--small rbds-radio-flex-container" data-module="govuk-radios">
+              {% for value, label in form.ai_experience.field.choices %}
+                {% if value %}
+                  <div class="govuk-radios__item">
+                    <input class="govuk-radios__input" type="radio"
+                          id="ai_experience_{{ loop.index0 }}"
+                          name="{{ form.ai_experience.name }}"
+                          value="{{ value }}"
+                          {% if value|string == form.ai_experience.value()|string %}checked{% endif %}
+                          data-testid="{{ value }}">
+                    <label class="govuk-radios__label rbds-text-xs" for="ai_experience_{{ loop.index0 }}">
+                      {{ value }}
+                      <div class="govuk-hint govuk-radios__hint govuk-!-padding-left-0 govuk-!-padding-top-1 rbds-text-xs">{{ label }}</div>
+                    </label>
+                  </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+
+        </fieldset>
+      </div>
+
+      <div class="govuk-form-group">
+        <label class="govuk-label govuk-!-font-weight-bold rbds-text-xs" for="{{ form.business_unit.id_for_label }}">
+          {{ form.business_unit.label }}
+        </label>
+        {{ form.business_unit }}
+      </div>
+      <div class="govuk-form-group">
+        <label class="govuk-label govuk-!-font-weight-bold rbds-text-xs" for="{{ form.profession.id_for_label }}">
+          {{ form.profession.label }}
+        </label>
+        {{ form.profession }}
+      </div>
+
+      <div class="govuk-form-group">
+        <label class="govuk-label govuk-!-font-weight-bold rbds-text-xs" for="{{ form.role.id_for_label }}">
+          {{ form.role.label }}
+        </label>
+        {{ form.role }}
+      </div>
+
+      <div class="govuk-form-group">
+        <label class="govuk-label govuk-!-font-weight-bold rbds-text-xs" for="{{ form.grade.id_for_label }}">
+          {{ form.grade.label }}
+        </label>
+        {{ form.grade }}
+      </div>
+
+      <div class="govuk-form-group">
+        <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+          <div class="govuk-checkboxes__item">
+            {{ form.uk_or_us_english }}
+            <label class="govuk-checkboxes__label govuk-label govuk-!-font-weight-bold rbds-text-xs" for="{{ form.uk_or_us_english.id_for_label }}">
+              {{ form.uk_or_us_english.label }}
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <input type="hidden" name="active_tab" value="{{ tab.id }}">
+
+      <div class="govuk-button-group">
+        {{ govukButton(text="Update") }}
+        {# {{ govukButton(text="Skip", href=url('chats'), classes="govuk-button--secondary") }} #}
+      </div>
+    </form>
+
+    {% if form.errors %}
+      <div class="govuk-error-summary" data-module="govuk-error-summary">
+        <div role="alert">
+          <div class="govuk-error-summary__body">
+            <ul class="govuk-list govuk-error-summary__list">
+              {% for error in form.errors %}
+                <li>{{ error }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  {% endwith %}
+</div>

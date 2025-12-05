@@ -18,7 +18,7 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_user_can_see_their_own_chats(chat_with_message: Chat, alice: User, client: Client):
     # Given
     client.force_login(alice)
@@ -30,7 +30,7 @@ def test_user_can_see_their_own_chats(chat_with_message: Chat, alice: User, clie
     assert response.status_code == HTTPStatus.OK
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_user_cannot_see_other_users_chats(chat: Chat, bob: User, client: Client):
     # Given
     client.force_login(bob)
@@ -43,7 +43,7 @@ def test_user_cannot_see_other_users_chats(chat: Chat, bob: User, client: Client
     assert response.headers.get("Location") == "/chats/"
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_view_session_with_documents(chat_message: ChatMessage, client: Client):
     # Given
     client.force_login(chat_message.chat.user)
@@ -54,10 +54,10 @@ def test_view_session_with_documents(chat_message: ChatMessage, client: Client):
 
     # Then
     assert response.status_code == HTTPStatus.OK
-    assert b"original_file.txt" in response.content
+    assert b"original_file" in response.content
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_chat_grouped_by_age(user_with_chats_with_messages_over_time: User, client: Client):
     # Given
     client.force_login(user_with_chats_with_messages_over_time)
@@ -69,7 +69,7 @@ def test_chat_grouped_by_age(user_with_chats_with_messages_over_time: User, clie
     assert response.status_code == HTTPStatus.OK
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_nonexistent_chats(alice: User, client: Client):
     # Given
     client.force_login(alice)
@@ -83,7 +83,7 @@ def test_nonexistent_chats(alice: User, client: Client):
     assert response.status_code == HTTPStatus.NOT_FOUND
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_post_chat_title(alice: User, chat: Chat, client: Client):
     # Given
     client.force_login(alice)
@@ -99,7 +99,7 @@ def test_post_chat_title(alice: User, chat: Chat, client: Client):
     assert chat.name == "New chat name"
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_post_chat_title_with_naughty_string(alice: User, chat: Chat, client: Client):
     # Given
     client.force_login(alice)
@@ -115,7 +115,7 @@ def test_post_chat_title_with_naughty_string(alice: User, chat: Chat, client: Cl
     assert chat.name == "New chat name \ufffd"
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_staff_user_can_see_route(chat_with_files: Chat, client: Client):
     # Given
     chat_with_files.user.is_staff = True

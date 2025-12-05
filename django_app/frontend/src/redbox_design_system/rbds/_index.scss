@@ -1,11 +1,6 @@
 // RBDS
 @forward './components';
 @forward './elements';
-@forward './layouts';
 @forward './icons';
-@forward './utils.scss';
-
-// TODO: needs further organising
-@forward './chat-styles.scss';
-@forward './iai-overrides.scss';
-@forward "./profile-overlay-styles.scss";
+@forward './layouts';
+@forward './styles';

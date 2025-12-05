@@ -1,11 +1,6 @@
 {% from "rbds/components/editable-text.html" import editable_text %}
 {% from "rbds/components/modal.html" import modal %}
-
-{% macro chat_history_heading(text) %}
-    <h3 class="govuk-body govuk-!-font-weight-bold govuk-!-margin-bottom-1 side-panel-subheading {% if text|lower == 'previous' or text|lower == 'today' %}no-border{% endif %}">{{ text }}</h3>
-    {{ caller() }}
-{% endmacro %}
-
+{% from "macros/icon.html" import rbds_icon %}
 
 {% macro chat_history_item (chat, link, active_chat_id) %}
     <li class="side-panel-item-container govuk-!-display-none" id="chat-{{ chat.id }}">
@@ -23,30 +18,29 @@
                     </div>
                 </span>
                 <div class="side-panel-item-actions">
-                    <button class="edit-button edit-trigger" type="button" data-action="rename">
-                        {% include 'rbds/icons/edit.html' %}
+                    <button class="rbds-edit-button edit-trigger" type="button" data-action="rename">
+                        {{ rbds_icon(icon_name="edit.html") }}
                         <span class="govuk-visually-hidden"> edit chat: {{ chat.name }}</span>
                     </button>
                     {% call modal() %}
-                        <button class="delete-button modal-open">{% include 'rbds/icons/delete.html' %}</button>
+                        <button class="rbds-delete-button modal-open">{{ rbds_icon(icon_name="delete.html") }}</button>
                         <dialog>
                             <div>
                                 <h2 class="govuk-heading-m">Are you sure you want to delete this chat?</h2>
-                                <span class="govuk-captionx-xs">This action will remove <span id="delete-chat-confirm-title" class="govuk-!-font-weight-bold text-emphasis">{{ chat.name }}</span> from Redbox and cannot be reversed.</span>
+                                <span class="govuk-captionx-xs">This action will remove <span id="delete-chat-confirm-title" class="govuk-!-font-weight-bold rbds-text-emphasis">{{ chat.name }}</span> from Redbox and cannot be reversed.</span>
                             </div>
                             <div>
-                                <button class="govuk-buttonx govuk-!-margin-right-4 govuk-!-margin-bottom-0 govuk-!-margin-top-4 govuk-button--warningx modal-close"
+                                <button class="govuk-button govuk-!-margin-right-4 govuk-!-margin-bottom-0 govuk-!-margin-top-4 govuk-button--warning modal-close"
                                         id="delete-chat-confirm-button"
                                         hx-post="/chats/{{ chat.id }}/delete-chat/"
                                         hx-vals='{"active_chat_id": "{{ active_chat_id }}"}'
-                                        hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
                                         hx-target="#chat-{{ chat.id }}"
                                         hx-swap="delete">
                                     Yes delete
                                     <span class="govuk-visually-hidden">Yes, delete chat: {{ chat.name }}</span>
 
                                 </button>
-                                <button class="govuk-buttonx govuk-!-margin-right-4 govuk-!-margin-bottom-0 govuk-!-margin-top-4 govuk-button--secondaryx modal-close" data-module="govuk-button">
+                                <button class="govuk-button govuk-!-margin-right-4 govuk-!-margin-bottom-0 govuk-!-margin-top-4 govuk-button--secondary modal-close" data-module="govuk-button">
                                     No cancel
                                     <span class="govuk-visually-hidden">No, cancel delete chat: {{ chat.name }}</span>
                                 </button>

@@ -30,6 +30,52 @@ class ChatLLMBackendAdmin(admin.ModelAdmin):
         model = models.ChatLLMBackend
 
 
+class SkillAdmin(admin.ModelAdmin):
+    list_display = [
+        "name",
+        "description",
+        "slug",
+    ]
+
+    search_fields = ["name"]
+    readonly_fields = ["modified_at", "created_at"]
+
+    class Meta:
+        model = models.Skill
+
+
+class AgentSkillAdmin(admin.ModelAdmin):
+    list_display = [
+        "agent__name",
+        "skill__name",
+    ]
+
+    search_fields = ["agent__name", "skill__name"]
+    readonly_fields = ["modified_at", "created_at"]
+
+    class Meta:
+        model = models.AgentSkill
+
+
+class AgentAdmin(admin.ModelAdmin):
+    list_display = [
+        "name",
+        "description",
+    ]
+
+    search_fields = ["name"]
+    readonly_fields = ["modified_at", "created_at"]
+
+    class Meta:
+        model = models.Agent
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.base_fields["prompt"].widget.attrs["rows"] = "40"
+        form.base_fields["description"].widget.attrs["rows"] = "5"
+        return form
+
+
 class UserAdmin(ImportExportMixin, admin.ModelAdmin):
     def export_as_json(self, request, queryset: QuerySet):  # noqa:ARG002
         user_data = UserSerializer(many=True).to_representation(queryset)
@@ -176,6 +222,27 @@ class UserAdmin(ImportExportMixin, admin.ModelAdmin):
         import_id_fields = ["email"]
 
 
+class TeamAdmin(admin.ModelAdmin):
+    list_display = ("team_name", "directorate", "created_at", "updated_at")
+    list_filter = ("directorate",)
+    search_fields = ("team_name", "directorate")
+    ordering = ("team_name",)
+
+    class Meta:
+        model = models.Team
+
+
+class UserTeamMembershipAdmin(admin.ModelAdmin):
+    list_display = ("user", "team", "role_type", "created_at", "updated_at")
+    list_filter = ("role_type", "team__directorate")
+    search_fields = ("user__email", "team__team_name")
+    ordering = ("user__email",)
+    raw_id_fields = ("user", "team")
+
+    class Meta:
+        model = models.UserTeamMembership
+
+
 class FileAdmin(ExportMixin, admin.ModelAdmin):
     def reupload(self, _request, queryset):
         for file in queryset:
@@ -188,6 +255,30 @@ class FileAdmin(ExportMixin, admin.ModelAdmin):
     date_hierarchy = "created_at"
     actions = ["reupload"]
     search_fields = ["user__email"]
+
+
+class FileSkillAdmin(ExportMixin, admin.ModelAdmin):
+    list_display = ["file", "skill", "file_type", "created_at"]
+    list_filter = ["skill", "file_type"]
+    date_hierarchy = "created_at"
+    search_fields = ("file__file_name", "skill__name")
+
+
+class FileTeamMembershipAdmin(admin.ModelAdmin):
+    list_display = ("file", "team", "visibility", "created_at")
+    list_filter = ("visibility", "team")
+    search_fields = ("file__file_name", "team__team_name")
+    raw_id_fields = ("file", "team")
+    ordering = ("-created_at",)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        # You only have team choices if you are a superuser or a team lead
+        if not request.user.is_superuser:
+            form.base_fields["team"].queryset = models.Team.objects.filter(
+                members__user=request.user, members__role_type="ADMIN"
+            )
+        return form
 
 
 class CitationInline(admin.StackedInline):
@@ -271,7 +362,7 @@ class ChatAdmin(ExportMixin, admin.ModelAdmin):
         (
             None,
             {
-                "fields": ["name", "user"],
+                "fields": ["name", "user", "skill"],
             },
         ),
         (
@@ -290,8 +381,8 @@ class ChatAdmin(ExportMixin, admin.ModelAdmin):
         ),
     ]
     inlines = [ChatMessageInline]
-    list_display = ["name", "user", "created_at"]
-    list_filter = ["user"]
+    list_display = ["name", "user", "skill", "created_at"]
+    list_filter = ["user", "skill"]
     date_hierarchy = "created_at"
     actions = ["export_as_csv"]
     search_fields = ["user__email"]
@@ -308,8 +399,41 @@ class MonitorSearchRouteAdmin(admin.ModelAdmin):
     ]
 
 
+class MonitorWebSearchResultsAdmin(admin.ModelAdmin):
+    list_display = [
+        "chat_message",
+        "user_text",
+        "web_search_urls",
+        "web_search_api_count",
+        "created_at",
+    ]
+    readonly_fields = [
+        "chat_message",
+        "user_text",
+        "selected_files",
+        "web_search_urls",
+        "web_search_api_count",
+        "created_at",
+    ]
+    ordering = ["-created_at"]
+
+
 def reporting_dashboard(request):
     return render(request, "report.html", {}, using="django")
+
+
+class AgentPlanAdmin(admin.ModelAdmin):
+    list_display = [
+        "chat",
+        "agent_plans",
+        "created_at",
+    ]
+    readonly_fields = [
+        "chat",
+        "agent_plans",
+        "created_at",
+    ]
+    ordering = ["-created_at"]
 
 
 admin.site.register(User, UserAdmin)
@@ -320,4 +444,13 @@ admin.site.register(models.AISettings)
 admin.site.register(models.ChatMessageTokenUse, ChatMessageTokenUseAdmin)
 admin.site.register(models.ChatLLMBackend, ChatLLMBackendAdmin)
 admin.site.register(models.MonitorSearchRoute, MonitorSearchRouteAdmin)
+admin.site.register(models.MonitorWebSearchResults, MonitorWebSearchResultsAdmin)
+admin.site.register(models.AgentPlan, AgentPlanAdmin)
+admin.site.register(models.Team, TeamAdmin)
+admin.site.register(models.UserTeamMembership, UserTeamMembershipAdmin)
+admin.site.register(models.FileTeamMembership, FileTeamMembershipAdmin)
+admin.site.register(models.Agent, AgentAdmin)
+admin.site.register(models.Skill, SkillAdmin)
+admin.site.register(models.AgentSkill, AgentSkillAdmin)
+admin.site.register(models.FileSkill, FileSkillAdmin)
 admin.site.register_view("report/", view=reporting_dashboard, name="Site report")

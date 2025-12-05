@@ -18,6 +18,7 @@ from redbox.transform import (
     structure_documents_by_file_name,
     structure_documents_by_group_and_indices,
     to_request_metadata,
+    truncate_to_tokens,
 )
 
 document_created = datetime.now(UTC)
@@ -153,9 +154,9 @@ def test_elbow_filter(scores: list[float], target_len: int):
 
     documents_filtered = elbow_filter(documents)
 
-    assert (
-        len(documents_filtered) == target_len
-    ), f"Expected {target_len} documents to pass. Received: {len(documents_filtered)}"
+    assert len(documents_filtered) == target_len, (
+        f"Expected {target_len} documents to pass. Received: {len(documents_filtered)}"
+    )
 
 
 @pytest.mark.parametrize(
@@ -206,12 +207,12 @@ def test_elbow_filter(scores: list[float], target_len: int):
 def test_to_request_metadata(output: dict, expected: RequestMetadata):
     result = RunnableLambda(to_request_metadata).invoke(output)
     # We assert on token counts here as the id generation causes the LLMCallMetadata objects not to match
-    assert (
-        result.input_tokens == expected.input_tokens
-    ), f"Expected: {expected.input_tokens} Result: {result.input_tokens}"
-    assert (
-        result.output_tokens == expected.output_tokens
-    ), f"Expected: {expected.output_tokens} Result: {result.output_tokens}"
+    assert result.input_tokens == expected.input_tokens, (
+        f"Expected: {expected.input_tokens} Result: {result.input_tokens}"
+    )
+    assert result.output_tokens == expected.output_tokens, (
+        f"Expected: {expected.output_tokens} Result: {result.output_tokens}"
+    )
 
 
 def test_structure_documents_by_file_name():
@@ -351,3 +352,45 @@ def test_sort_documents():
         assert doc.metadata["score"] == expected_score
         assert doc.metadata["uri"] == expected_file_name
         assert doc.metadata["index"] == expected_index
+
+
+@pytest.mark.parametrize(
+    ("text", "max_tokens", "expected"),
+    [
+        # --- WORD SPLITTING ---
+        (
+            "Hello world this is a test",
+            3,
+            "Hello world this",
+        ),
+        # --- PUNCTUATION ATTACHES DIRECTLY ---
+        # Tokens: ["Hello", ",", "world", "!"]
+        (
+            "Hello, world!",
+            2,
+            "Hello,",
+        ),
+        # --- WORD AFTER PUNCTUATION GETS SPACE ---
+        (
+            "Hello, world!",
+            3,
+            "Hello, world",
+        ),
+        # --- TRAILING SPACE TOKEN HANDLED ---
+        # bedrock_tokeniser("Hello world ") = ["Hello","world","<space>"]
+        (
+            "Hello world ",
+            2,
+            "Hello world",
+        ),
+        # --- MID-SENTENCE TRUNCATION ---
+        (
+            "One two three four five six seven eight nine",
+            5,
+            "One two three four five",
+        ),
+    ],
+)
+def test_truncate_to_tokens(text: str, max_tokens: int, expected: str):
+    result = truncate_to_tokens(text, max_tokens)
+    assert result == expected, f"Expected: {expected!r}, Got: {result!r}"

@@ -11,7 +11,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, RequestFactory
 from django.urls import reverse
 
-from redbox_app.redbox_core.models import ChatLLMBackend, File
+from redbox_app.redbox_core.models import ChatLLMBackend, File, FileSkill
 from redbox_app.redbox_core.views.document_views import delete_document
 
 User = get_user_model()
@@ -19,17 +19,15 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.django_db()
-def test_upload_view(alice, client, file_pdf_path: Path, s3_client):
+@pytest.mark.django_db
+def test_upload_view(alice, client, file_pdf_path: Path, s3_client, remove_file_from_bucket):
     """
     Given that the object store does not have a file with our test file in it
     When we POST our test file to /upload/
     We Expect to see this file in the object store
     """
-    file_name = f"{alice.email}/{file_pdf_path.name}"
-
-    # we begin by removing any file in minio that has this key
-    s3_client.delete_object(Bucket=settings.BUCKET_NAME, Key=file_name.replace(" ", "_"))
+    file_name = f"{alice.email}/{file_pdf_path.name.rstrip(file_pdf_path.name[-4:])}"
+    remove_file_from_bucket(file_name)
 
     assert not file_exists(s3_client, file_name)
 
@@ -43,12 +41,10 @@ def test_upload_view(alice, client, file_pdf_path: Path, s3_client):
         assert response.url == "/documents/"
 
 
-@pytest.mark.django_db()
-def test_document_upload_status(client, alice, file_pdf_path: Path, s3_client):
+@pytest.mark.django_db
+def test_document_upload_status(client, alice, file_pdf_path: Path, s3_client, remove_file_from_bucket):
     file_name = f"{alice}/{file_pdf_path.name}"
-
-    # we begin by removing any file in minio that has this key
-    s3_client.delete_object(Bucket=settings.BUCKET_NAME, Key=file_name.replace(" ", "_"))
+    remove_file_from_bucket(file_name)
 
     assert not file_exists(s3_client, file_name)
     client.force_login(alice)
@@ -64,47 +60,7 @@ def test_document_upload_status(client, alice, file_pdf_path: Path, s3_client):
         assert uploaded_file.status == File.Status.processing
 
 
-@pytest.mark.django_db()
-def test_upload_view_duplicate_files(alice, bob, client, file_pdf_path: Path, s3_client):
-    # delete all alice's files
-    for key in s3_client.list_objects(Bucket=settings.BUCKET_NAME, Prefix=alice.email).get("Contents", []):
-        s3_client.delete_object(Bucket=settings.BUCKET_NAME, Key=key["Key"])
-
-    # delete all bob's files
-    for key in s3_client.list_objects(Bucket=settings.BUCKET_NAME, Prefix=bob.email).get("Contents", []):
-        s3_client.delete_object(Bucket=settings.BUCKET_NAME, Key=key["Key"])
-
-    previous_count = count_s3_objects(s3_client)
-
-    def upload_file():
-        with file_pdf_path.open("rb") as f:
-            client.post("/upload/", {"uploadDocs": f})
-            response = client.post("/upload/", {"uploadDocs": f})
-
-            assert response.status_code == HTTPStatus.FOUND
-            assert response.url == "/documents/"
-
-            return File.objects.order_by("-created_at")[0]
-
-    client.force_login(alice)
-    alices_file = upload_file()
-
-    assert count_s3_objects(s3_client) == previous_count + 1  # new file added
-    assert alices_file.unique_name.startswith(alice.email)
-
-    client.force_login(bob)
-    bobs_file = upload_file()
-
-    assert count_s3_objects(s3_client) == previous_count + 2  # new file added
-    assert bobs_file.unique_name.startswith(bob.email)
-
-    bobs_new_file = upload_file()
-
-    assert count_s3_objects(s3_client) == previous_count + 2  # no change, duplicate file
-    assert bobs_new_file.unique_name == bobs_file.unique_name
-
-
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_view_bad_data(alice, client, file_py_path: Path, s3_client):
     previous_count = count_s3_objects(s3_client)
     client.force_login(alice)
@@ -117,7 +73,7 @@ def test_upload_view_bad_data(alice, client, file_py_path: Path, s3_client):
         assert count_s3_objects(s3_client) == previous_count
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_view_no_file(alice, client):
     client.force_login(alice)
 
@@ -127,13 +83,12 @@ def test_upload_view_no_file(alice, client):
     assert "No document selected" in str(response.content)
 
 
-@pytest.mark.django_db()
-def test_remove_doc_view(client: Client, alice: User, file_pdf_path: Path, s3_client: Client):
-    file_name = f"{alice.email}/{file_pdf_path.name}"
+@pytest.mark.django_db
+def test_remove_doc_view(client: Client, alice: User, file_pdf_path: Path, s3_client: Client, remove_file_from_bucket):
+    file_name = f"{alice.email}/{file_pdf_path.name.rstrip(file_pdf_path.name[-4:])}"
 
     client.force_login(alice)
-    # we begin by removing any file in minio that has this key
-    s3_client.delete_object(Bucket=settings.BUCKET_NAME, Key=file_name.replace(" ", "_"))
+    remove_file_from_bucket(file_name)
 
     previous_count = count_s3_objects(s3_client)
 
@@ -151,7 +106,7 @@ def test_remove_doc_view(client: Client, alice: User, file_pdf_path: Path, s3_cl
         assert File.objects.get(id=str(new_file.id)).status == File.Status.deleted
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_remove_nonexistent_doc(alice: User, client: Client):
     # Given
     client.force_login(alice)
@@ -165,7 +120,7 @@ def test_remove_nonexistent_doc(alice: User, client: Client):
     assert response.status_code == HTTPStatus.NOT_FOUND
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_file_status_api_view_nonexistent_file(alice: User, client: Client):
     # Given
     client.force_login(alice)
@@ -185,19 +140,21 @@ def count_s3_objects(s3_client) -> int:
 
 def file_exists(s3_client, file_name) -> bool:
     """
-    if the file key exists return True otherwise False
+    If any file key starts with the given file_name prefix, return True, otherwise False
     """
+    prefix = file_name.replace(" ", "_")
     try:
-        s3_client.get_object(Bucket=settings.BUCKET_NAME, Key=file_name.replace(" ", "_"))
+        response = s3_client.list_objects_v2(Bucket=settings.BUCKET_NAME, Prefix=prefix)
     except ClientError as client_error:
-        if client_error.response["Error"]["Code"] == "NoSuchKey":
+        if client_error.response["Error"]["Code"] in ["NoSuchBucket", "AccessDenied"]:
             return False
         raise
     else:
-        return True
+        # Check for actual objects (handles empty responses correctly)
+        return bool(response.get("Contents", []))
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_document_endpoint_invalid_file(alice, client, file_py_path: Path):
     """
     Test document upload with an invalid file type.
@@ -211,7 +168,7 @@ def test_upload_document_endpoint_invalid_file(alice, client, file_py_path: Path
     assert "File type .py not supported" in str(response.content)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_document_endpoint_multiple_files(alice, client, file_pdf_path: Path, file_py_path: Path):
     """
     Test the document upload with multiple files, one valid and one invalid.
@@ -225,7 +182,7 @@ def test_upload_document_endpoint_multiple_files(alice, client, file_pdf_path: P
     assert "File type .py not supported" in str(response.content)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_document_endpoint_unauthenticated(client, file_pdf_path: Path):
     """
     Test the document upload when user is not authenticated.
@@ -237,7 +194,7 @@ def test_upload_document_endpoint_unauthenticated(client, file_pdf_path: Path):
     assert response.status_code in (HTTPStatus.FOUND, HTTPStatus.FORBIDDEN)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_document_endpoint_empty_file(alice, client, tmp_path):
     """
     Test the document upload with an empty file.
@@ -252,7 +209,7 @@ def test_upload_document_endpoint_empty_file(alice, client, tmp_path):
     assert response.status_code == HTTPStatus.FOUND
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 @patch("redbox_app.redbox_core.views.document_views")
 def test_upload_document_ingest_errors(mock_service, alice, client, tmp_path):
     """
@@ -274,7 +231,7 @@ def test_upload_document_ingest_errors(mock_service, alice, client, tmp_path):
     mock_service.ingest_file.return_value = (["Error processing document"], mock_file)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_remove_doc_view_get(alice, client):
     """
     Test the remove document view GET request.
@@ -291,7 +248,7 @@ def test_remove_doc_view_get(alice, client):
     assert str(file.id) in str(response.content)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_remove_doc_view_post(alice, client, mocker):
     """
     Test the remove document view POST request for document deletion.
@@ -316,7 +273,7 @@ def test_remove_doc_view_post(alice, client, mocker):
     File.delete_from_s3.assert_called_once()
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_remove_doc_view_error_handling(alice, client, mocker):
     """
     Test error handling in the remove document view.
@@ -337,7 +294,7 @@ def test_remove_doc_view_error_handling(alice, client, mocker):
     assert file.status == File.Status.errored
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_remove_all_docs_view_get(alice, client):
     """
     Test the remove all documents view GET request.
@@ -349,7 +306,7 @@ def test_remove_all_docs_view_get(alice, client):
     assert response.status_code == HTTPStatus.OK
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_remove_all_docs_view_post(alice, client, mocker):
     """
     Test the remove all documents view POST request for bulk deletion.
@@ -377,7 +334,7 @@ def test_remove_all_docs_view_post(alice, client, mocker):
 
 
 # new tests
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_document_view_get(alice, client):
     """
     Test the DocumentView GET request.
@@ -405,7 +362,7 @@ def test_document_view_get(alice, client):
     assert client.session.get("ingest_errors") == []
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_documents_title_view(alice, client):
     """
     Test updating a document title via DocumentsTitleView.
@@ -425,7 +382,7 @@ def test_documents_title_view(alice, client):
     assert file.original_file_name == "updated.pdf"
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_your_documents_view(alice, client):
     """
     Test the YourDocuments view functionality.
@@ -443,7 +400,7 @@ def test_your_documents_view(alice, client):
     assert file.original_file_name in str(response.content)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_file_status_api_view(alice, client):
     """
     Test the file status API view.
@@ -462,7 +419,7 @@ def test_file_status_api_view(alice, client):
     assert data["status"] == File.Status.processing.capitalize()
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_delete_document_endpoint(alice, client, mocker):
     """
     Test the delete_document endpoint.
@@ -485,7 +442,7 @@ def test_delete_document_endpoint(alice, client, mocker):
     assert File.delete_from_s3.called
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_delete_document_with_chat(alice, client, mocker):
     """
     Test the delete_document endpoint with active chat session.
@@ -521,7 +478,7 @@ def test_delete_document_with_chat(alice, client, mocker):
                 "id": chat_llm_backend.id,
             }
         ],
-        "redbox_api_key": "mock-api-key",
+        "redbox_api_key": "mock-api-key",  # pragma: allowlist secret
         "enable_dictation_flag_is_active": False,
         "csrf_token": "mock-csrf-token",
         "request": mocker.MagicMock(),
@@ -549,7 +506,7 @@ def test_delete_document_with_chat(alice, client, mocker):
     assert response.status_code == HTTPStatus.OK
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_delete_document_error_handling(alice, client, mocker):
     """
     Test error handling in the delete_document endpoint.
@@ -569,7 +526,7 @@ def test_delete_document_error_handling(alice, client, mocker):
     assert file.status == File.Status.errored
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_delete_document_invalid_doc_id(alice, mocker):
     """
     Test the delete_document endpoint with an invalid document ID.
@@ -588,7 +545,7 @@ def test_delete_document_invalid_doc_id(alice, mocker):
     logger_spy.assert_called_once_with("Invalid document ID: %s", "invalid-uuid")
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_delete_document_invalid_active_chat_id(alice, client, mocker):
     """
     Test the delete_document endpoint with an invalid active chat ID.
@@ -620,14 +577,13 @@ def test_delete_document_invalid_active_chat_id(alice, client, mocker):
     logger_spy.assert_called_once_with("Invalid active chat ID: %s", invalid_chat_id)
 
 
-@pytest.mark.django_db()
-def test_upload_document_api_endpoint(alice, client, file_pdf_path, s3_client):
+@pytest.mark.django_db
+def test_upload_document_api_endpoint(alice, client, file_pdf_path, s3_client, remove_file_from_bucket):
     """
     Test the API endpoint for uploading a document.
     """
     file_name = f"{alice.email}/{file_pdf_path.name}"
-    # Remove any existing file
-    s3_client.delete_object(Bucket=settings.BUCKET_NAME, Key=file_name.replace(" ", "_"))
+    remove_file_from_bucket(file_name)
     assert not file_exists(s3_client, file_name)
 
     client.force_login(alice)
@@ -643,10 +599,10 @@ def test_upload_document_api_endpoint(alice, client, file_pdf_path, s3_client):
 
     # Verify a file was created in the database
     uploaded_file = File.objects.filter(user=alice).order_by("-created_at")[0]
-    assert uploaded_file.file_name == file_pdf_path.name.replace(" ", "_")
+    assert uploaded_file.file_name.startswith(file_pdf_path.name.rstrip(file_pdf_path.name[-4:]).replace(" ", "_"))
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_upload_document_api_invalid_file(alice, client, file_py_path):
     """
     Test the API endpoint with invalid file type.
@@ -659,3 +615,29 @@ def test_upload_document_api_invalid_file(alice, client, file_py_path):
     assert response.status_code == HTTPStatus.OK
     content = str(response.content)
     assert "File type .py not supported" in content
+
+
+@pytest.mark.django_db
+def test_upload_document_to_skill(alice, client, original_file, default_skill, s3_client, remove_file_from_bucket):
+    """
+    Test the API endpoint with valid file and skill slug.
+    """
+    # Given
+    client.force_login(alice)
+    url = reverse("skill-document-upload", kwargs={"skill_slug": default_skill.slug})
+    file_name = f"{alice.email}/{original_file.name.rstrip(original_file.name[-4:])}"
+    remove_file_from_bucket(file_name)
+
+    # When
+    assert not file_exists(s3_client, file_name)
+    previous_count = count_s3_objects(s3_client)
+    response = client.post(url, {"file": original_file})
+    uploaded_file = File.objects.filter(user=alice).order_by("-created_at")[0]
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert count_s3_objects(s3_client) == previous_count + 1
+    assert uploaded_file.status == File.Status.processing
+    assert FileSkill.objects.filter(
+        file=uploaded_file, skill=default_skill, file_type=FileSkill.FileType.MEMBER
+    ).exists()

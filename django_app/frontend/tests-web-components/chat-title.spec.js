@@ -7,7 +7,7 @@ test(`Chat title functionality works as expected`, async ({ page }) => {
   await page.goto("/chats");
 
   // There is a hidden chat title for new chats
-  const chatTitle = page.locator(".chat-title__heading");
+  const chatTitle = page.locator(".rbds-chat-title__heading");
   await expect(chatTitle).toContainText("Current chat");
   await expect(chatTitle).toHaveClass(/govuk-visually-hidden/);
 
@@ -18,7 +18,7 @@ test(`Chat title functionality works as expected`, async ({ page }) => {
 
   // The title can be edited
   await page.locator(".chat-title-edit-button").click();
-  let textInput = page.locator(".chat-title__input");
+  let textInput = page.locator(".rbds-chat-title__input");
   await expect(textInput).toBeFocused();
   await textInput.fill("Updated chat title");
   await textInput.press("Enter");

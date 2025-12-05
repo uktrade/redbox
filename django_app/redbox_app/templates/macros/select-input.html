@@ -1,0 +1,13 @@
+{% macro select_input(name, id=None, multiple=False, label="", options="", aria_labelledby="", classes="") %}
+    {% if id and label %}
+        <label class="govuk-label govuk-!-font-weight-bold rbds-text-xs" for="{{ id }}">{{ label }}</label>
+    {% endif %}
+
+    <select class="govuk-select {{ classes }}"
+            name="{{ name }}"
+            {% if id %}id="{{ id }}"{% endif %}
+            {% if multiple %}multiple{% endif %}
+            {% if aria_labelledby %}aria-labelledby="{{ aria_labelledby }}"{% endif %}>
+        {{ options | safe }}
+    </select>
+{% endmacro %}

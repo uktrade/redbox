@@ -1,0 +1,13 @@
+.rbds-person-add-icon {
+  --person-add-icon-foreground-color: var(--color-icon-light-foreground);
+
+  &.hover {
+    &:hover {
+      --person-add-icon-foreground-color: var(--color-icon-light-foreground-hover);
+    }
+  }
+
+  &.foreground {
+    fill: var(--person-add-icon-foreground-color);
+  }
+}
