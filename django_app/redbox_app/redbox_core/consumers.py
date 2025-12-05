@@ -172,6 +172,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         selected_files = permitted_files.filter(id__in=selected_file_uuids)
 
+        if not session.name:
+            first_selected_file = await sync_to_async(selected_files.first)()
+            session.name = first_selected_file.file_name[: settings.CHAT_TITLE_LENGTH]
+            await session.asave()
+
         skill_obj = None
         selected_agent_names = []
         knowledge_files = []
