@@ -1,0 +1,17 @@
+.rbds-icon {
+  --icon-foreground-color: var(--color-icon-light-foreground);
+
+  &.hover {
+    &:hover {
+      --icon-foreground-color: var(--color-icon-light-foreground-hover);
+    }
+  }
+
+  .foreground {
+    fill: var(--icon-foreground-color);
+  }
+}
+
+.rbds-file-icon {
+    fill: var(--color-file-icon);
+}

@@ -41,6 +41,7 @@ from redbox_app.redbox_core.views.notification_views import send_team_addition_e
 from redbox_app.redbox_core.views.ratings_views import RatingsView
 from redbox_app.redbox_core.views.settings_views import SettingsView
 from redbox_app.redbox_core.views.signup_views import Signup1, Signup2, Signup3, Signup4, Signup5, Signup6, Signup7
+from redbox_app.redbox_core.views.skills_views import SkillsView, skill_info_page_view
 from redbox_app.redbox_core.views.team_views import (
     add_team_member_row_view,
     add_team_member_view,
@@ -72,6 +73,7 @@ __all__ = [
     "Signup5",
     "Signup6",
     "Signup7",
+    "SkillsView",
     "UpdateChatFeedback",
     "UpdateDemographicsView",
     "UploadView",
@@ -101,6 +103,7 @@ __all__ = [
     "sign_in_link_sent_view",
     "sign_in_view",
     "signed_out_view",
+    "skill_info_page_view",
     "support_view",
     "upload_document",
     "user_view_pre_alpha",

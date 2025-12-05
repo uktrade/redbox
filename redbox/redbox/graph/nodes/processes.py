@@ -25,38 +25,30 @@ from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.types import Command
 
 from redbox.chains.activity import log_activity
-from redbox.chains.components import (
-    get_basic_metadata_retriever,
-    get_chat_llm,
-    get_structured_response_with_citations_parser,
-    get_structured_response_with_planner_parser,
-    get_tokeniser,
-)
+from redbox.chains.components import get_chat_llm, get_structured_response_with_citations_parser, get_tokeniser
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_metadata, create_chain_agent
 from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models import ChatRoute
 from redbox.models.chain import (
-    AgentTask,
     DocumentState,
     FeedbackEvalDecision,
-    MultiAgentPlan,
     PromptSet,
     RedboxState,
     RequestMetadata,
+    configure_agent_task_plan,
     get_plan_fix_prompts,
     get_plan_fix_suggestion_prompts,
 )
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
-from redbox.models.prompts import (
-    PLANNER_FORMAT_PROMPT,
-    PLANNER_PROMPT,
-    PLANNER_QUESTION_PROMPT,
-    REPLAN_PROMPT,
-    USER_FEEDBACK_EVAL_PROMPT,
+from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
+from redbox.transform import (
+    bedrock_tokeniser,
+    combine_agents_state,
+    combine_documents,
+    flatten_document_state,
+    truncate_to_tokens,
 )
-from redbox.models.settings import get_settings
-from redbox.transform import combine_agents_state, combine_documents, flatten_document_state
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
@@ -376,16 +368,8 @@ def lm_choose_route(state: RedboxState, parser: ClaudeParser):
 
 
 def create_planner(is_streamed=False):
-    metadata = None
+    # metadata = None
     document_filenames = []
-
-    @RunnableLambda
-    def _get_metadata(state: RedboxState):
-        nonlocal metadata
-        env = get_settings()
-        retriever = get_basic_metadata_retriever(env)
-        metadata = retriever.invoke(state)
-        return state
 
     @RunnableLambda
     def _document_filenames(state: RedboxState):
@@ -394,34 +378,23 @@ def create_planner(is_streamed=False):
         return state
 
     @RunnableLambda
-    def _stream_planner_agent(state: RedboxState):
-        planner_output_parser, format_instructions = get_structured_response_with_planner_parser()
-        agent = build_stuff_pattern(
-            prompt_set=PromptSet.Planner,
-            output_parser=planner_output_parser,
-            format_instructions=format_instructions,
-            final_response_chain=False,
-            additional_variables={"metadata": metadata, "document_filenames": document_filenames},
-        )
-        return agent
-
-    @RunnableLambda
     def _create_planner(state: RedboxState):
+        planner_prompt = state.request.ai_settings.planner_prompt_with_format
+        # dynamically generate agent plan based on state
+        agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
+        _, ConfiguredAgentPlan = configure_agent_task_plan(agent_options)
         orchestration_agent = create_chain_agent(
-            system_prompt=PLANNER_PROMPT + "\n" + PLANNER_QUESTION_PROMPT + "\n" + PLANNER_FORMAT_PROMPT,
+            system_prompt=planner_prompt,
             use_metadata=True,
             tools=None,
-            parser=ClaudeParser(pydantic_object=MultiAgentPlan),
+            parser=ClaudeParser(pydantic_object=ConfiguredAgentPlan),
             using_only_structure=False,
             using_chat_history=True,
             _additional_variables={"document_filenames": document_filenames},
         )
         return orchestration_agent
 
-    if is_streamed:
-        return _get_metadata | _document_filenames | _stream_planner_agent
-    else:
-        return _document_filenames | _create_planner
+    return _document_filenames | _create_planner
 
 
 def my_planner(
@@ -436,17 +409,20 @@ def my_planner(
 
         if state.user_feedback:
             # replanning
-            plan_prompt = REPLAN_PROMPT
+            plan_prompt = state.request.ai_settings.replanner_prompt
             plan = state.request.chat_history[-1].get("text")
             # if we save plans we can use this
             # plan = state.agent_plans[-1].model_dump_json()
             user_input = state.user_feedback.replace("@newroute ", "")
             document_filenames = [doc.split("/")[1] if "/" in doc else doc for doc in state.request.s3_keys]
+            # dynamically generate agent plan based on state
+            agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
+            _, ConfiguredAgentPlan = configure_agent_task_plan(agent_options)
             orchestration_agent = create_chain_agent(
                 system_prompt=plan_prompt,
                 use_metadata=True,
                 tools=None,
-                parser=ClaudeParser(pydantic_object=MultiAgentPlan),
+                parser=ClaudeParser(pydantic_object=ConfiguredAgentPlan),
                 using_only_structure=False,
                 _additional_variables={
                     "previous_plan": plan,
@@ -485,7 +461,12 @@ def my_planner(
 def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: bool = False, max_tokens: int = 5000):
     @RunnableLambda
     def _build_agent(state: RedboxState):
-        parser = ClaudeParser(pydantic_object=AgentTask)
+        log.warning(f"[{agent_name}] Starting agent run. Tools: {[t.name for t in tools]}")
+
+        # dynamically generate agent task based on state
+        agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
+        ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
+        parser = ClaudeParser(pydantic_object=ConfiguredAgentTask)
         try:
             task = parser.parse(state.last_message.content)
         except Exception as e:
@@ -495,6 +476,7 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
         )
         activity_node.invoke(state)
 
+        log.warning(f"[{agent_name}] Creating chain agent (use_metadata={use_metadata})")
         worker_agent = create_chain_agent(
             system_prompt=system_prompt,
             use_metadata=use_metadata,
@@ -502,19 +484,172 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
             tools=tools,
             _additional_variables={"task": task.task, "expected_output": task.expected_output},
         )
+
+        log.warning(f"[{agent_name}] Invoking worker agent...")
         ai_msg = worker_agent.invoke(state)
+
+        log.warning(f"[{agent_name}] Worker agent output:\n{ai_msg}")
+
+        # --- RUN TOOLS IN PARALLEL ---
+        log.warning(f"[{agent_name}] Running tools via run_tools_parallel...")
+
         result = run_tools_parallel(ai_msg, tools, state)
-        if type(result) is str:
+
+        if isinstance(result, str):
+            log.warning(f"[{agent_name}] Using raw string result.")
             result_content = result
-        elif type(result) is list:
-            result_content = "".join([res.content for res in result])
+        elif isinstance(result, list) and isinstance(result[0], dict):
+            log.warning(f"[{agent_name}] Using raw string in a list as result.")
+            result_content = result[0].get("text", "")
+        elif isinstance(result, list):
+            log.warning(f"[{agent_name}] Aggregating list of tool results...")
+            result_content = []
+            current_token_counts = 0
+
+            for res in result:
+                token_count = bedrock_tokeniser(res.content)
+                log.warning(f"[{agent_name}] Tool response token count: {token_count}")
+
+                # If adding this whole piece still fits, append normally
+                if current_token_counts + token_count <= max_tokens:
+                    result_content.append(res.content)
+                    current_token_counts += token_count
+                else:
+                    # If no room, add only what fits
+                    remaining_tokens = max_tokens - current_token_counts
+                    if remaining_tokens > 0:
+                        log.warning(
+                            f"[{agent_name}] Truncating tool output to fit remaining token budget ({remaining_tokens})."
+                        )
+                        truncated = truncate_to_tokens(res.content, remaining_tokens)
+                        result_content.append(truncated)
+                        current_token_counts += bedrock_tokeniser(truncated)
+                    else:
+                        log.warning(f"[{agent_name}] No remaining token budget ({max_tokens}). Skipping.")
+                    break  # Max reached — stop processing further results
+            result_content = " ".join(result_content)
         else:
-            log.error(f"Worker agent return incompatible data type {type(result)}")
-        # truncate results to max_token
-        result = f"<{agent_name}_Result>{result_content[:max_tokens]}</{agent_name}_Result>"
-        return {"agents_results": result, "tasks_evaluator": task.task + "\n" + task.expected_output}
+            log.error(f"[{agent_name}] Worker agent return incompatible data type {type(result)}")
+            raise TypeError("Invalid tool result type")
+        log.warning(f"[{agent_name}] Completed agent run.")
+        return {
+            "agents_results": f"<{agent_name}_Result>{result_content}</{agent_name}_Result>",
+            "tasks_evaluator": task.task + "\n" + task.expected_output,
+        }
 
     return _build_agent.with_retry(stop_after_attempt=3)
+
+
+def build_agent_with_loop(
+    agent_name: str,
+    system_prompt: str,
+    tools: list,
+    use_metadata: bool = False,
+    max_tokens: int = 5000,
+    pre_process: Runnable | None = None,
+    loop_condition: Callable | None = None,
+    max_attempt=3,
+):
+    @RunnableLambda
+    def _build_agent_with_loop(state: RedboxState):
+        local_loop_condition = loop_condition
+        agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
+        ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
+        parser = ClaudeParser(pydantic_object=ConfiguredAgentTask)
+        try:
+            task = parser.parse(state.last_message.content)
+        except Exception as e:
+            log.warning(f"Issue at build_agent_with_loop. Cannot parse in {agent_name}: {e}")
+            return None
+
+        activity_node = build_activity_log_node(
+            RedboxActivityEvent(message=f"{agent_name} is completing task: {task.task}")
+        )
+        activity_node.invoke(state)
+
+        additional_variables = {
+            "task": task.task,
+            "expected_output": task.expected_output,
+            "agents_results": state.agents_results,
+            "previous_tool_error": "",
+            "previous_tool_results": "",
+        }
+
+        # has pre_process
+        if pre_process is not None:
+            # if the agent has preprocess steps, this will be run here
+            # must be runnable lambda
+            pre_process_vars = pre_process.invoke(state)
+            additional_variables.update(pre_process_vars)
+
+        # local vars
+        success = "fail"
+        num_iter = 0
+        is_intermediate_step = False
+        has_loop = local_loop_condition is not None
+        all_results = []
+        if local_loop_condition is None:
+            # if there is no loop condition, we will run things once
+            # loop condition must use only success and/or intermediate step
+            def local_loop_condition():
+                return True
+
+            # loop_condition = lambda: True
+            num_iter = max_attempt - 1
+
+        while local_loop_condition() and num_iter < max_attempt:
+            num_iter += 1
+            worker_agent = create_chain_agent(
+                system_prompt=system_prompt,
+                use_metadata=use_metadata,
+                parser=None,
+                tools=tools,
+                _additional_variables=additional_variables,
+            )
+            ai_msg = worker_agent.invoke(state)
+
+            result = run_tools_parallel(ai_msg, tools, state)
+
+            if has_loop and len(ai_msg.tool_calls) > 0:  # if loop, we need to transform results
+                result = result[-1].content  # this is a tuple
+                # format of result: (result, success, is_intermediate_step)
+
+                result_content = result[0]
+                success = result[1]
+                is_intermediate_step = eval(result[2])
+
+                if success == "fail":
+                    # pass error back if any
+                    additional_variables.update({"previous_tool_error": result_content})
+                else:
+                    # if success tool invocation, and intermediate steps then pass info back
+                    if is_intermediate_step:
+                        additional_variables.update({"previous_tool_error": "", "previous_tool_results": all_results})
+                result = result_content
+            if type(result) is str:
+                result_content = result
+            elif type(result) is list and type(result[0]) is dict:
+                result_content = result[0].get("text", "")
+            elif type(result) is list:
+                result_content = []
+                current_token_counts = 0
+                for res in result:
+                    current_token_counts += bedrock_tokeniser(res.content)
+                    if current_token_counts <= max_tokens:
+                        result_content.append(res.content)
+                result_content = " ".join(result_content)
+            else:
+                log.error(f"Worker agent return incompatible data type {type(result)}")
+                log.info(result)
+                result_content = "There is an issue with tool call. No results returned."
+            all_results.append(result_content)
+        all_results = " ".join(all_results)
+        return {
+            "agents_results": f"<{agent_name}_Result>{all_results}</{agent_name}_Result>",
+            "tasks_evaluator": task.task + "\n" + task.expected_output,
+        }
+
+    return _build_agent_with_loop.with_retry(stop_after_attempt=3)
 
 
 def create_evaluator():
@@ -636,31 +771,30 @@ def create_or_update_db_from_tabulars(state: RedboxState) -> RedboxState:
     Only regenerates the database if the file doesn't exist or documents have changed.
     """
     should_create_db = True
-    db_path = state.request.db_location
+    user_uuid = str(state.request.user_uuid) if state.request.user_uuid else uuid4()
+    db_path = f"generated_db_{user_uuid}.db"  # Initialise the database at a location that uses the user's UUID or a random one if it's not available
+    state.request.db_location = db_path
 
     # Check if we have an existing db_path
-    if db_path:
-        # Check if the file exists
-        if os.path.exists(db_path) and not state.documents_changed():
-            # If the file exists and documents haven't changed, no need to recreate
-            should_create_db = False
-    else:
-        # Generate a new db path if self.db_location is none
-        user_uuid = str(state.request.user_uuid) if state.request.user_uuid else uuid4()
-        db_path = f"generated_db_{user_uuid}.db"  # Initialise the database at a location that uses the user's UUID or a random one if it's not available
+    # Check if the file exists
+    if os.path.exists(db_path) and not state.documents_changed():
+        # If the file exists and documents haven't changed, no need to recreate
+        should_create_db = False
 
     # Create or update database if needed
     if should_create_db:
+        # delete existing database
+        if os.path.exists(db_path):
+            os.remove(db_path)
         # Creating/updating database at db_path
         conn = sqlite3.connect(db_path)
         doc_texts, doc_names = get_all_tabular_docs(state)
         _ = load_texts_to_db(doc_texts, doc_names=doc_names, conn=conn)
-        conn.commit
-        conn.close
+        conn.commit()
+        conn.close()
 
-        # Store the current_documents to reflect current state
-        state.store_document_state()
-        state.request.db_location = db_path
+    state.request.previous_s3_keys = sorted(state.request.s3_keys)
+
     return state
 
 
@@ -750,6 +884,11 @@ def parse_doc_text_as_db_table(doc_text: str, table_name: str, conn: sqlite3.Con
         text_from_header = detect_header(doc_text)
         df = pd.read_csv(StringIO(text_from_header), sep=",")
         df_cleaned = delete_null_values(df)
+
+        if df_cleaned.empty or len(df_cleaned.columns) == 0:
+            log.warning(f"skipping table '{table_name}' as there are no valid columns after cleaning {len(doc_text)}")
+            return
+
         df_cleaned.to_sql(table_name, conn, if_exists="replace", index=False)
     except Exception as e:
         log.exception(f"Failed to load table '{table_name}': {e}")
@@ -798,7 +937,9 @@ def get_tabular_agent(
             )
             ai_msg = worker_agent.invoke(state)
 
-            messages.append(AIMessage(ai_msg["messages"][-1].content))
+            if isinstance(ai_msg["messages"][-1].content, str):
+                messages.append(AIMessage(ai_msg["messages"][-1].content))
+
             try:
                 messages.append(
                     AIMessage(f"Here is the SQL query: {ai_msg['messages'][-1].tool_calls[-1]['args']['sql_query']}")
@@ -807,15 +948,21 @@ def get_tabular_agent(
                 log.info("no sql query input to tool")
 
             num_iter += 1
-
+            if isinstance(ai_msg["messages"][-1].content, str):
+                tabular_context = ai_msg["messages"][-1].content
+            else:
+                tabular_context = ""
             tool_output = run_tools_parallel(ai_msg["messages"][-1], tools, state)
+
+            if not tool_output:
+                success = "fail"
+                continue
 
             results = tool_output[-1].content  # this is a tuple
 
             # Truncate to max_tokens. only using one tool here.
             # retrieve result from database or sql error
             result = results[0][:max_tokens]  # saving this as a new variable as tuples are immutable.
-
             success = results[1]
 
             is_intermediate_step = eval(results[2])
@@ -825,6 +972,7 @@ def get_tabular_agent(
                 messages.append(
                     AIMessage(f"The SQL query failed to execute correctly. Here is the error message: {sql_error}")
                 )
+
             else:
                 if is_intermediate_step:
                     sql_error = ""
@@ -834,9 +982,9 @@ def get_tabular_agent(
 
         if success == "pass":
             if not is_intermediate_step:  # if this is the final step
-                formatted_result = f"<Tabular_Agent_Result>{result}</Tabular_Agent_Result>"
+                formatted_result = f"<Tabular_Agent_Result>{tabular_context}\n The results of my query are: {result}</Tabular_Agent_Result>"
             else:
-                formatted_result = f"<Tabular_Agent_Result>Iteration limit of {num_iter} is reached by the tabular agent</Tabular_Agent_Result>"
+                formatted_result = f"<Tabular_Agent_Result>Iteration limit of {num_iter} is reached by the tabular agent. This is the tabular agent's reasoning at the last iteration: {tabular_context}</Tabular_Agent_Result>"
 
         else:
             formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the error from the executed SQL query: {result} </Tabular_Agent_Result>"

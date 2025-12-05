@@ -1,21 +1,35 @@
 .rbds-banner {
-  background-color: var(--color-background);
-  color: var(--color-text-secondary);
+  --banner-text-color: var(--color-text-secondary);
+  --banner-background-color: var(--color-background);
+
+  background-color: var(--banner-background-color);
+  color: var(--banner-text-color);
   padding-bottom: 3rem;
   padding-top: 2.75rem;
 
   & * {
-    color: var(--color-text-secondary);
+    color: var(--banner-text-color);
   }
 
   & .govuk-link:any-link {
-    color: var(--color-text-secondary);
+    color: var(--banner-text-color);
   }
 
   & .govuk-link:focus {
-    background-color: var(--color-background);
-    color: var(--color-text);
+    background-color: var(--banner-background-color);
+    color: var(--banner-text-color);
   }
+}
+
+.rbds-banner--brand {
+  --banner-text-color: var(--color-text-secondary);
+  --banner-background-color: var(---color-background);
+}
+
+
+.rbds-banner--neutral {
+  --banner-text-color: color: var(--color-text);
+  --banner-background-color: var(--redbox-light-grey);
 }
 
 .rbds-banner__links {
@@ -24,20 +38,16 @@
   gap: 0.75rem;
 }
 
-.rbds-banner__button {
-  background-color: var(--color-background) !important;
-
-  &:hover {
-    color: var(--color-text-secondary) !important;
-    filter: brightness(0.9);
-  }
-}
-
 .rbds-environment-banner {
-  background-color: #ffbf47;
+  background-color: var(--redbox-orange);
   color: var(--color-text);
-  font-size: 0.875rem;
+  font-size: var(--font-size-xs);
   padding: 0.25rem 1rem;
   text-align: center;
   margin-bottom: 0;
+}
+
+.rbds-skills-banner {
+  background-color: var(--redbox-light-red);
+  color: var(--color-text);
 }

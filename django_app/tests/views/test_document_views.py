@@ -11,7 +11,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, RequestFactory
 from django.urls import reverse
 
-from redbox_app.redbox_core.models import ChatLLMBackend, File
+from redbox_app.redbox_core.models import ChatLLMBackend, File, FileSkill
 from redbox_app.redbox_core.views.document_views import delete_document
 
 User = get_user_model()
@@ -20,25 +20,14 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.django_db
-def test_upload_view(alice, client, file_pdf_path: Path, s3_client):
+def test_upload_view(alice, client, file_pdf_path: Path, s3_client, remove_file_from_bucket):
     """
     Given that the object store does not have a file with our test file in it
     When we POST our test file to /upload/
     We Expect to see this file in the object store
     """
     file_name = f"{alice.email}/{file_pdf_path.name.rstrip(file_pdf_path.name[-4:])}"
-
-    # we begin by removing any file in minio that starts with this key prefix
-    try:
-        paginator = s3_client.get_paginator("list_objects_v2")
-        for page in paginator.paginate(Bucket=settings.BUCKET_NAME, Prefix=file_name.replace(" ", "_")):
-            if "Contents" in page:
-                delete_objects = [{"Key": obj["Key"]} for obj in page["Contents"]]
-                if delete_objects:
-                    s3_client.delete_objects(Bucket=settings.BUCKET_NAME, Delete={"Objects": delete_objects})
-    except Exception:
-        logger.exception("Error cleaning up S3 objects before test")
-        # Ignore errors during cleanup
+    remove_file_from_bucket(file_name)
 
     assert not file_exists(s3_client, file_name)
 
@@ -53,20 +42,9 @@ def test_upload_view(alice, client, file_pdf_path: Path, s3_client):
 
 
 @pytest.mark.django_db
-def test_document_upload_status(client, alice, file_pdf_path: Path, s3_client):
+def test_document_upload_status(client, alice, file_pdf_path: Path, s3_client, remove_file_from_bucket):
     file_name = f"{alice}/{file_pdf_path.name}"
-
-    # we begin by removing any file in minio that starts with this key prefix
-    try:
-        paginator = s3_client.get_paginator("list_objects_v2")
-        for page in paginator.paginate(Bucket=settings.BUCKET_NAME, Prefix=file_name.replace(" ", "_")):
-            if "Contents" in page:
-                delete_objects = [{"Key": obj["Key"]} for obj in page["Contents"]]
-                if delete_objects:
-                    s3_client.delete_objects(Bucket=settings.BUCKET_NAME, Delete={"Objects": delete_objects})
-    except Exception:
-        logger.exception("Error cleaning up S3 objects before test")
-        # Ignore errors during cleanup
+    remove_file_from_bucket(file_name)
 
     assert not file_exists(s3_client, file_name)
     client.force_login(alice)
@@ -106,22 +84,11 @@ def test_upload_view_no_file(alice, client):
 
 
 @pytest.mark.django_db
-def test_remove_doc_view(client: Client, alice: User, file_pdf_path: Path, s3_client: Client):
+def test_remove_doc_view(client: Client, alice: User, file_pdf_path: Path, s3_client: Client, remove_file_from_bucket):
     file_name = f"{alice.email}/{file_pdf_path.name.rstrip(file_pdf_path.name[-4:])}"
-    prefix = file_name.replace(" ", "_")
 
     client.force_login(alice)
-    # we begin by removing any file in minio that starts with this key prefix
-    try:
-        paginator = s3_client.get_paginator("list_objects_v2")
-        for page in paginator.paginate(Bucket=settings.BUCKET_NAME, Prefix=prefix):
-            if "Contents" in page:
-                delete_objects = [{"Key": obj["Key"]} for obj in page["Contents"]]
-                if delete_objects:
-                    s3_client.delete_objects(Bucket=settings.BUCKET_NAME, Delete={"Objects": delete_objects})
-    except Exception:
-        logger.exception("Error cleaning up S3 objects before test")
-        # Ignore errors during cleanup
+    remove_file_from_bucket(file_name)
 
     previous_count = count_s3_objects(s3_client)
 
@@ -511,7 +478,7 @@ def test_delete_document_with_chat(alice, client, mocker):
                 "id": chat_llm_backend.id,
             }
         ],
-        "redbox_api_key": "mock-api-key",
+        "redbox_api_key": "mock-api-key",  # pragma: allowlist secret
         "enable_dictation_flag_is_active": False,
         "csrf_token": "mock-csrf-token",
         "request": mocker.MagicMock(),
@@ -611,22 +578,12 @@ def test_delete_document_invalid_active_chat_id(alice, client, mocker):
 
 
 @pytest.mark.django_db
-def test_upload_document_api_endpoint(alice, client, file_pdf_path, s3_client):
+def test_upload_document_api_endpoint(alice, client, file_pdf_path, s3_client, remove_file_from_bucket):
     """
     Test the API endpoint for uploading a document.
     """
     file_name = f"{alice.email}/{file_pdf_path.name}"
-    # we begin by removing any file in minio that starts with this key prefix
-    try:
-        paginator = s3_client.get_paginator("list_objects_v2")
-        for page in paginator.paginate(Bucket=settings.BUCKET_NAME, Prefix=file_name.replace(" ", "_")):
-            if "Contents" in page:
-                delete_objects = [{"Key": obj["Key"]} for obj in page["Contents"]]
-                if delete_objects:
-                    s3_client.delete_objects(Bucket=settings.BUCKET_NAME, Delete={"Objects": delete_objects})
-    except Exception:
-        logger.exception("Error cleaning up S3 objects before test")
-        # Ignore errors during cleanup
+    remove_file_from_bucket(file_name)
     assert not file_exists(s3_client, file_name)
 
     client.force_login(alice)
@@ -658,3 +615,29 @@ def test_upload_document_api_invalid_file(alice, client, file_py_path):
     assert response.status_code == HTTPStatus.OK
     content = str(response.content)
     assert "File type .py not supported" in content
+
+
+@pytest.mark.django_db
+def test_upload_document_to_skill(alice, client, original_file, default_skill, s3_client, remove_file_from_bucket):
+    """
+    Test the API endpoint with valid file and skill slug.
+    """
+    # Given
+    client.force_login(alice)
+    url = reverse("skill-document-upload", kwargs={"skill_slug": default_skill.slug})
+    file_name = f"{alice.email}/{original_file.name.rstrip(original_file.name[-4:])}"
+    remove_file_from_bucket(file_name)
+
+    # When
+    assert not file_exists(s3_client, file_name)
+    previous_count = count_s3_objects(s3_client)
+    response = client.post(url, {"file": original_file})
+    uploaded_file = File.objects.filter(user=alice).order_by("-created_at")[0]
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert count_s3_objects(s3_client) == previous_count + 1
+    assert uploaded_file.status == File.Status.processing
+    assert FileSkill.objects.filter(
+        file=uploaded_file, skill=default_skill, file_type=FileSkill.FileType.MEMBER
+    ).exists()

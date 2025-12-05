@@ -16,13 +16,13 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   display: flex;
 }
 .rb-chat-history__actions-button span {
-  border: 1px solid var(--iai-colour-text-primary);
+  border: 1px solid var(--colour-text);
   border-radius: 100%;
   height: 4px;
   width: 4px;
 }
 .rb-chat-history__actions-button:hover span {
-  background-color: var(--iai-colour-text-primary);
+  background-color: var(--colour-text);
 }
 
 
@@ -86,7 +86,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
 
 /* Footnotes */
 .rb-footnote-link {
-  background-color: var(--iai-colour-secondary-teal);
+  background-color: var(--redbox-teal);
   color: var(--color-background-white);
   padding: 2px 4px;
   text-decoration: none;
@@ -95,6 +95,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
 }
 .rb-footnote-list {
   padding-left: 1rem;
+  font-size: var(--font-size-s);
 }
 
 /* Response feedback - general styles */
@@ -210,7 +211,7 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 }
 .exit-feedback__thumb-icon--up:hover,
 .exit-feedback input:checked + label .exit-feedback__thumb-icon--up {
-  color: var(--iai-colour-secondary-teal);
+  color: var(--redbox-teal);
 }
 .exit-feedback__thumb-icon--down:hover,
 .exit-feedback input:checked + label .exit-feedback__thumb-icon--down {
@@ -378,4 +379,8 @@ margin-bottom: 16px;
 
 .redbox-message-route {
   margin-bottom: 16px;
+}
+
+.rbds-chat-window {
+  min-height: calc(100vh - var(--header-height));
 }

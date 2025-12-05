@@ -25,11 +25,11 @@ from redbox import Redbox
 from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
-    MultiAgentPlan,
     RedboxQuery,
     RedboxState,
     RequestMetadata,
     Source,
+    configure_agent_task_plan,
     get_plan_fix_prompts,
     metadata_reducer,
 )
@@ -40,15 +40,18 @@ from redbox_app.redbox_core import error_messages
 from redbox_app.redbox_core.models import (
     ActivityEvent,
     AgentPlan,
+    AgentSkill,
     Chat,
     ChatLLMBackend,
     ChatMessage,
     ChatMessageTokenUse,
     Citation,
     File,
+    FileSkill,
     FileTeamMembership,
     MonitorSearchRoute,
     MonitorWebSearchResults,
+    Skill,
     UserTeamMembership,
 )
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
@@ -89,10 +92,41 @@ class ChatConsumer(AsyncWebsocketConsumer):
     activities: ClassVar[list[RedboxActivityEvent]] = []
     route = None
     metadata: RequestMetadata = RequestMetadata()
+
     redbox = Redbox(env=get_settings(), debug=True)
     chat_message = None  # incrementally updating the chat stream
 
-    async def receive(self, text_data=None, bytes_data=None):
+    async def _init_session(self, data, user, user_message_text, chat_backend, temperature):
+        """Create or update a chat session."""
+        if session_id := data.get("sessionId"):
+            session = await Chat.objects.aget(id=session_id)
+            session.chat_backend = chat_backend
+            session.temperature = temperature
+            logger.info("updating session: chat_backend=%s temperature=%s", chat_backend, temperature)
+            await session.asave()
+            if data.get("selectedFiles", []):
+                # get previous selected files from db
+                latest_message = (
+                    await ChatMessage.objects.filter(chat=session, role="user").order_by("-created_at").afirst()
+                )
+                if latest_message:
+                    latest_files = latest_message.selected_files.all()
+                    previous_selected_files = [file async for file in latest_files]
+
+            else:
+                previous_selected_files = []
+        else:
+            logger.info("creating session: chat_backend=%s temperature=%s", chat_backend, temperature)
+            session = await Chat.objects.acreate(
+                name=user_message_text[: settings.CHAT_TITLE_LENGTH],
+                user=user,
+                chat_backend=chat_backend,
+                temperature=temperature,
+            )
+            previous_selected_files = []
+        return session, previous_selected_files
+
+    async def receive(self, text_data=None, bytes_data=None):  # noqa: PLR0915
         """Receive & respond to message from browser websocket."""
         self.full_reply = []
         self.converted_reply = []
@@ -109,6 +143,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         user_message_text: str = data.get("message", "")
         selected_file_uuids: Sequence[UUID] = [UUID(u) for u in data.get("selectedFiles", [])]
         activities: Sequence[str] = data.get("activities", [])
+        selected_skill_id: str | None = data.get("selectedSkill")
         user: User = self.scope.get("user")
 
         user_ai_settings = await AISettingsModel.objects.aget(label=user.ai_settings_id if user else "Claude 3.7")
@@ -117,20 +152,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         chat_backend = await ChatLLMBackend.objects.aget(id=data.get("llm", user_ai_settings.chat_backend_id))
         temperature = data.get("temperature", user_ai_settings.temperature)
 
-        if session_id := data.get("sessionId"):
-            session = await Chat.objects.aget(id=session_id)
-            session.chat_backend = chat_backend
-            session.temperature = temperature
-            logger.info("updating session: chat_backend=%s temperature=%s", chat_backend, temperature)
-            await session.asave()
-        else:
-            logger.info("creating session: chat_backend=%s temperature=%s", chat_backend, temperature)
-            session = await Chat.objects.acreate(
-                name=user_message_text[: settings.CHAT_TITLE_LENGTH],
-                user=user,
-                chat_backend=chat_backend,
-                temperature=temperature,
-            )
+        session, previous_selected_files = await self._init_session(
+            data, user, user_message_text, chat_backend, temperature
+        )
 
         # save user message
         permitted_files = (
@@ -147,13 +171,43 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
         selected_files = permitted_files.filter(id__in=selected_file_uuids)
+
+        if not session.name:
+            first_selected_file = await sync_to_async(selected_files.first)()
+            session.name = first_selected_file.file_name[: settings.CHAT_TITLE_LENGTH]
+            await session.asave()
+
+        skill_obj = None
+        selected_agent_names = []
+        knowledge_files = []
+        if selected_skill_id:
+            try:
+                skill_obj = await sync_to_async(Skill.objects.get)(id=selected_skill_id)
+                session.skill = skill_obj
+                await session.asave()
+                selected_agent_names = await sync_to_async(
+                    lambda: list(AgentSkill.objects.filter(skill=skill_obj).values_list("agent__name", flat=True))
+                )()
+                knowledge_files = skill_obj.get_files(FileSkill.FileType.ADMIN)
+            except Skill.DoesNotExist:
+                logger.warning("Selected skill '%s' not found", selected_skill_id)
+
         user_chat_message = await self.save_user_message(
-            session, user_message_text, selected_files=selected_files, activities=activities
+            session, user_message_text, selected_files=selected_files, activities=activities, skill=skill_obj
         )
 
         self.chat_message = await self.create_ai_message(session)
 
-        await self.llm_conversation(selected_files, session, user, user_message_text, permitted_files)
+        await self.llm_conversation(
+            selected_files,
+            session,
+            user,
+            user_message_text,
+            permitted_files,
+            previous_selected_files,
+            selected_agent_names=selected_agent_names,
+            knowledge_files=knowledge_files,
+        )
 
         if (self.final_state) and (self.final_state.agent_plans):
             await self.agent_plan_save(session)
@@ -169,12 +223,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             web_search_api_counter = 0
             for agent_res in self.final_state.agents_results:
                 source_type = re.search("<SourceType>(.*?)</SourceType>", agent_res.content)
-                if source_type:  # noqa: SIM102
-                    if source_type.group(1) == Citation.Origin.WEB_SEARCH:
-                        web_search_results_urls += re.findall("<Source>(.*?)</Source>", agent_res.content)
-                        web_search_api_counter += 1
+                if source_type and source_type.group(1) == Citation.Origin.WEB_SEARCH:
+                    web_search_results_urls += re.findall("<Source>(.*?)</Source>", agent_res.content)
+                    web_search_api_counter += 1
 
-            if len(web_search_results_urls) > 0:
+            if web_search_results_urls:
                 await self.monitor_web_search_results(
                     user_chat_message,
                     user_question,
@@ -185,20 +238,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         await self.close()
 
-    async def llm_conversation(
-        self, selected_files: Sequence[File], session: Chat, user: User, title: str, permitted_files: Sequence[File]
-    ) -> None:
-        """Initiate & close websocket conversation with the core-api message endpoint."""
-        await self.send_to_client("session-id", session.id)
-
-        session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
-        message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
-        question = message_history[-2].text
-        user_feedback = ""
+    async def _load_agent_plan(self, session: Chat, message_history: Sequence[Mapping[str, str]]):
+        """Try to load and parse an existing agent plan if present."""
         plan_message_size = 3
-        agent_plans = None
-
         plan_prefix, _ = get_plan_fix_prompts()
+
         if (len(message_history) > plan_message_size) and (
             any(n in message_history[-plan_message_size].text for n in plan_prefix)
         ):
@@ -216,33 +260,71 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 plan = await get_agent_plan(session)
             except AgentPlan.DoesNotExist as e:
                 logger.debug("Cannot find object in db %s", e)
+                return None, "", message_history[-2].text
+
             if plan:
                 try:
-                    agent_plans = MultiAgentPlan.model_validate_json(plan[0])
+                    agent_options = {agent.name: agent.name for agent in AISettings().worker_agents}
+                    _, configured_agent_plan = configure_agent_task_plan(agent_options)
+                    agent_plans = configured_agent_plan.model_validate_json(plan[0])
                     question = message_history[-4].text
                     user_feedback = message_history[-2].text
                     logger.debug("here is the plan: %s", plan[0])
                     logger.debug("here is user feedback %s", user_feedback)
+                    return agent_plans, question, user_feedback  # noqa: TRY300
                 except ValidationError as e:
                     logger.debug("cannot parse into plan object %s", plan[0])
                     logger.exception("Error from converting plan.", exc_info=e)
+        return None, message_history[-2].text, ""  # message_history[-2].text extracts the current user query
+
+    async def llm_conversation(
+        self,
+        selected_files: Sequence[File],
+        session: Chat,
+        user: User,
+        title: str,
+        permitted_files: Sequence[File],
+        previous_selected_files: Sequence[File],
+        knowledge_files: Sequence[File],
+        selected_agent_names: list[str] | None = None,
+    ) -> None:
+        """Initiate & close websocket conversation with the core-api message endpoint."""
+        await self.send_to_client("session-id", session.id)
+
+        session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
+        message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
+        question = message_history[-2].text
+        user_feedback = ""
+        agent_plans = None
+
+        agent_plans, question, user_feedback = await self._load_agent_plan(session, message_history)
 
         ai_settings = await self.get_ai_settings(session)
+        if selected_agent_names:
+            ai_settings = ai_settings.model_copy(
+                update={
+                    "worker_agents": [
+                        agent for agent in AISettings().worker_agents if agent.name in selected_agent_names
+                    ]
+                }
+            )
+
         state = RedboxState(
             request=RedboxQuery(
                 question=question,
                 s3_keys=[f.unique_name for f in selected_files],
                 user_uuid=user.id,
                 chat_history=[
-                    ChainChatMessage(
-                        role=message.role,
-                        text=escape_curly_brackets(message.text),
-                    )
-                    for message in message_history[:-2]
-                    if message.text
+                    ChainChatMessage(role=m.role, text=escape_curly_brackets(m.text))
+                    for m in message_history[:-2]
+                    if m.text
                 ],
                 ai_settings=ai_settings,
                 permitted_s3_keys=[f.unique_name async for f in permitted_files],
+                previous_s3_keys=[f.unique_name for f in previous_selected_files],
+                knowledge_base_s3_keys=[f.unique_name for f in knowledge_files]
+                if type(knowledge_files) is list
+                else [f.unique_name async for f in knowledge_files],
             ),
             user_feedback=user_feedback,
             agent_plans=agent_plans,
@@ -292,6 +374,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         user_message_text: str,
         selected_files: Sequence[File] | None = None,
         activities: Sequence[str] | None = None,
+        skill: Skill | None = None,
     ) -> ChatMessage:
         chat_message = ChatMessage(
             chat=session,
@@ -299,6 +382,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             role=ChatMessage.Role.user,
             route=self.route,
         )
+        chat_message.skill = skill
         chat_message.save()
         if selected_files:
             chat_message.selected_files.set(selected_files)
@@ -448,7 +532,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         # we remove null values so that AISettings can populate them with defaults
         ai_settings = {k: v for k, v in ai_settings.items() if v not in (None, "")}
-        return AISettings.model_validate(ai_settings)
+        ai_settings = AISettings.model_validate(ai_settings)
+        return ai_settings.model_copy(
+            update={"worker_agents": [agent for agent in AISettings().worker_agents if agent.default_agent]}
+        )
 
     async def handle_text(self, response: str) -> str:
         """Handle text chunks and British spelling conversion before sending to client."""

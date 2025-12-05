@@ -13,4 +13,3 @@ To save all all these models we created a `PersistableModel` class that all mode
                 - created_datetime
                 - creator_user_uuid
                 - model_type
-    

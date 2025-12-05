@@ -142,7 +142,8 @@ export class ChatMessage extends HTMLElement {
     llm,
     sessionId,
     endPoint,
-    chatControllerRef
+    chatControllerRef,
+    selectedSkill
   ) => {
     // Scroll behaviour - depending on whether user has overridden this or not
     let scrollOverride = false;
@@ -151,6 +152,33 @@ export class ChatMessage extends HTMLElement {
     function reloadAtCurrentPosition() {
       sessionStorage.setItem('scrollPosition', window.scrollY.toString());
       location.reload();
+    }
+
+    function sanitiseText(text) {
+      if (typeof text !== 'string') return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML; // to escape html entities
+    }
+
+    function sanitiseUrl(url) {
+      if (typeof url !== 'string') return '';
+      try {
+        const urlObj = new URL(url);
+        // permit http and https protocols
+        if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') {
+          return urlObj.href;
+        }
+      } catch (e) {
+        console.error('Invalid URL:', url);
+      }
+      return '';
+    }
+
+    function sanitiseId(id) {
+      if (typeof id !== 'string') return '';
+      // remove any characters that aren't alphanumeric, hyphen, or underscore
+      return id.replace(/[^a-zA-Z0-9_-]/g, '');
     }
 
     window.addEventListener("scroll", (evt) => {
@@ -204,6 +232,7 @@ export class ChatMessage extends HTMLElement {
           selectedFiles: selectedDocuments,
           activities: activities,
           llm: llm,
+          selectedSkill: selectedSkill,
         })
       );
       this.dataset.status = "streaming";
@@ -215,7 +244,7 @@ export class ChatMessage extends HTMLElement {
       if (!this.responseContainer) {
         return;
       }
-      this.responseContainer.innerHTML =
+      this.responseContainer.textContent =
         "There was a problem. Please try sending this message again.";
       this.dataset.status = "error";
     };
@@ -238,38 +267,39 @@ export class ChatMessage extends HTMLElement {
         response = JSON.parse(event.data);
       } catch (err) {
         console.log("Error getting JSON response", err);
+        return;
       }
 
       if (response.type === "text") {
-        this.streamedContent += response.data;
+        this.streamedContent += sanitiseText(response.data);
         this.responseContainer?.update(this.streamedContent);
       } else if (response.type === "session-id") {
-        chatControllerRef.dataset.sessionId = response.data;
+        chatControllerRef.dataset.sessionId = sanitiseId(response.data);
       } else if (response.type === "source") {
         sourcesContainer.add(
-          response.data.file_name,
-          response.data.url,
-          response.data.text_in_answer || ""
+          sanitiseText(response.data.file_name),
+          sanitiseUrl(response.data.url),
+          sanitiseText(response.data.text_in_answer || "")
         );
       } else if (response.type === "route") {
         // Update the route text on the page now the selected route is known
         let route = this?.querySelector(".redbox-message-route");
         let routeText = route?.querySelector(".route-text");
         if (route && routeText) {
-          routeText.textContent = response.data;
+          routeText.textContent = sanitiseText(response.data);
           route.removeAttribute("hidden");
         }
       } else if (response.type === "end") {
         // Assign the new message its ID straight away
         const chatMessage = this.querySelector('.govuk-inset-text');
-        if (chatMessage) {chatMessage.id = `chat-message-${response.data.message_id}`}
+        if (chatMessage) {chatMessage.id = `chat-message-${sanitiseId(response.data.message_id)}`}
         // Add in feedback and copy buttons dynamically
         if (actionsContainer) {
           const feedbackButtons = document.createElement('feedback-buttons')
-          feedbackButtons.dataset.id = response.data.message_id
+          feedbackButtons.dataset.id = sanitiseId(response.data.message_id)
 
           const copyText = document.createElement('copy-text')
-          copyText.dataset.id = response.data.message_id
+          copyText.dataset.id = sanitiseId(response.data.message_id)
 
           actionsContainer.appendChild(feedbackButtons)
           actionsContainer.appendChild(copyText)
@@ -278,8 +308,8 @@ export class ChatMessage extends HTMLElement {
         // this.#addFootnotes(this.streamedContent, response.data.message_id);
         const chatResponseEndEvent = new CustomEvent("chat-response-end", {
           detail: {
-            title: response.data.title,
-            session_id: response.data.session_id,
+            title: sanitiseText(response.data.title),
+            session_id: sanitiseId(response.data.session_id),
             is_new_chat,
           },
         });
@@ -292,7 +322,7 @@ export class ChatMessage extends HTMLElement {
           ".govuk-error-summary__title"
         );
         if (errorContentContainer) {
-          errorContentContainer.innerHTML = response.data;
+          errorContentContainer.textContent = sanitiseText(response.data);
         }
       }
 
@@ -317,4 +347,5 @@ export class ChatMessage extends HTMLElement {
     };
   };
 }
-customElements.define("chat-message", ChatMessage);
+
+customElements.define("rbds-chat-message", ChatMessage);

@@ -3,6 +3,7 @@
 {% from "macros/govuk-notification-banner.html" import govukNotificationBanner %}
 {% from "macros/adaptive-select.html" import adaptive_select %}
 {% from "macros/select-input.html" import select_input %}
+{% from "macros/icon.html" import rbds_icon %}
 
 {% set messages = get_messages(request) %}
 
@@ -84,7 +85,7 @@
                       hx-delete="{{ url('delete-team', team.team.id) }}"
                       hx-target="#team-section-{{ team.team.id }}"
                       hx-swap="delete">
-              {% include 'rbds/icons/delete.html' %}
+              {{ rbds_icon(icon_name="delete.html") }}
           </button>
             </caption>
             <thead class="govuk-table__head">

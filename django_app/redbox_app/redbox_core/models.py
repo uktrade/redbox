@@ -17,12 +17,18 @@ from django.contrib.auth.models import AbstractBaseUser, Group, PermissionsMixin
 from django.contrib.postgres.fields import ArrayField
 from django.core import validators
 from django.db import models
-from django.db.models import Max, Min, Prefetch, UniqueConstraint
+from django.db.models import Max, Min, Prefetch, Q, UniqueConstraint
+from django.template import TemplateDoesNotExist
+from django.template.loader import get_template
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
+from slugify import slugify
 from yarl import URL
 
 from redbox.models.settings import get_settings
+from redbox_app.redbox_core.services import url as url_service
 from redbox_app.redbox_core.utils import get_date_group
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
@@ -55,19 +61,6 @@ def sanitise_string(string: str | None) -> str | None:
     return string.replace("\x00", "\ufffd") if string else string
 
 
-def get_id_digits(citation_items) -> int:
-    """Extracts the digits from the citation_name."""
-    string = citation_items[-1]
-    if not string:
-        msg = "None Value"
-        raise TypeError(msg)
-    match = re.search(pattern=r"\d+", string=string)
-    if not match:
-        msg = f"No numeric value present in {string}"
-        raise TypeError(msg)
-    return int(match.group())
-
-
 class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
     """
     Skills feature model. To be used against:
@@ -80,6 +73,9 @@ class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
 
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True, null=True)
+    slug = models.SlugField(
+        max_length=100, unique=True, blank=True, help_text="Used for url routing and info page linking"
+    )
 
     class Meta:
         verbose_name_plural = "skills"
@@ -87,6 +83,38 @@ class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    @cached_property
+    def info_template(self) -> str | None:
+        """Returns the template path if it exists, else None."""
+        template_path = f"skills/info/{self.slug}.html"
+        try:
+            get_template(template_path)
+        except TemplateDoesNotExist:
+            return None
+        return template_path
+
+    @property
+    def has_info_page(self) -> bool:
+        """Check to see if an info page has been created for skill"""
+        return self.info_template is not None
+
+    @cached_property
+    def info_page_url(self):
+        return reverse("skill-info", kwargs={"skill_slug": self.slug})
+
+    @cached_property
+    def chat_url(self) -> str:
+        return url_service.get_chat_url(skill_slug=self.slug)
+
+    def get_files(self, file_type: Optional["FileSkill.FileType"] = None) -> Sequence["File"]:
+        file_type = file_type or FileSkill.FileType.MEMBER
+        return File.objects.filter(file_skills__skill=self, file_skills__file_type=file_type)
 
 
 class UserSkill(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -126,8 +154,13 @@ class FileSkill(UUIDPrimaryKeyBase, TimeStampedModel):
     Junction model for file/skill many-to-many relationship to tag files with relevant skill for contextual retrieval
     """
 
+    class FileType(models.TextChoices):
+        ADMIN = "ADMIN", _("Admin")
+        MEMBER = "MEMBER", _("Member")
+
     file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="file_skills")
     skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="file_skills")
+    file_type = models.CharField(max_length=20, choices=FileType.choices, default=FileType.MEMBER)
 
     class Meta:
         unique_together = ("file", "skill")
@@ -813,11 +846,21 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         return self.expires_at - datetime.now(tz=UTC)
 
     @classmethod
-    def get_completed_and_processing_files(cls, user: User) -> tuple[Sequence["File"], Sequence["File"]]:
+    def get_completed_and_processing_files(
+        cls, user: User, skill: Skill | None = None
+    ) -> tuple[Sequence["File"], Sequence["File"]]:
         """Returns all files that are completed and processing for a given user."""
+        base_filter = Q(user=user)
+        skill_filter = (
+            Q(file_skills__skill=skill, file_skills__file_type=FileSkill.FileType.MEMBER)
+            if skill
+            else Q(file_skills__isnull=True)
+        )
+        filters = base_filter & skill_filter
 
-        completed_files = cls.objects.filter(user=user, status=File.Status.complete).order_by("-created_at")
-        processing_files = cls.objects.filter(user=user, status=File.Status.processing).order_by("-created_at")
+        completed_files = cls.objects.filter(filters, status=File.Status.complete).order_by("-created_at")
+        processing_files = cls.objects.filter(filters, status=File.Status.processing).order_by("-created_at")
+
         return completed_files, processing_files
 
     @classmethod
@@ -840,6 +883,7 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
     name = models.TextField(max_length=1024, null=False, blank=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     archived = models.BooleanField(default=False, null=True, blank=True)
+    skill = models.ForeignKey(Skill, on_delete=models.SET_NULL, null=True, blank=True, related_name="chats")
 
     # Exit feedback - this is separate to the ratings for individual ChatMessages
     feedback_achieved = models.BooleanField(
@@ -870,12 +914,12 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
 
     @classmethod
     def get_ordered_by_last_message_date(
-        cls, user: User, exclude_chat_ids: Collection[uuid.UUID] | None = None
+        cls, user: User, skill: Skill | None = None, exclude_chat_ids: Collection[uuid.UUID] | None = None
     ) -> Sequence["Chat"]:
         """Returns all chat histories for a given user, ordered by the date of the latest message."""
         exclude_chat_ids = exclude_chat_ids or []
         return (
-            cls.objects.filter(user=user, archived=False)
+            cls.objects.filter(user=user, archived=False, skill=skill)
             .exclude(id__in=exclude_chat_ids)
             .annotate(latest_message_date=Max("chatmessage__created_at"))
             .order_by("-latest_message_date")
@@ -888,6 +932,14 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
     @property
     def date_group(self):
         return get_date_group(self.newest_message_date)
+
+    @cached_property
+    def url(self) -> str | None:
+        """Returns the url for this chat."""
+        return url_service.get_chat_url(
+            chat_id=self.id,
+            skill_slug=self.skill.slug if self.skill else None,
+        )
 
 
 class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -967,12 +1019,45 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
 
         super().save(*args, force_insert, force_update, using, update_fields)
 
-    @property
+    @cached_property
     def uri(self) -> URL:
         """returns the url of either the external citation or the user-uploaded document"""
         if self.file or self.url:
             return URL(self.url or self.file.url)
         return None
+
+    @cached_property
+    def internal_url(self) -> URL:
+        """returns the internal page url of the message citations anchored to the selected citation"""
+        chat_message = self.chat_message
+        chat = chat_message.chat
+        skill_slug = chat.skill.slug if chat.skill else None
+
+        return url_service.get_citation_url(
+            message_id=chat_message.id,
+            citation_id=self.id,
+            chat_id=chat.id,
+            skill_slug=skill_slug,
+        )
+
+    @cached_property
+    def display_name(self) -> str:
+        return str(self.uri) if not self.file else self.file.file_name
+
+    @cached_property
+    def ref_id(self) -> int:
+        """Extract the numeric portion of citation_name. Used for sorting and display ordering."""
+        name = self.citation_name
+        if not name:
+            msg = "No citation_name available"
+            raise TypeError(msg)
+
+        match = re.search(pattern=r"\d+", string=name)
+        if not match:
+            msg = f"No numeric value present in {name}"
+            raise TypeError(msg)
+
+        return int(match.group())
 
 
 class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -1044,29 +1129,18 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
             body=elastic_log_msg,
         )
 
-    def unique_citation_uris(self) -> list[tuple[str, str, str, str]]:
-        """a unique set of names, hrefs, ids and relevant texts for all citations"""
-
-        def get_display(citation):
-            if not citation.file:
-                return str(citation.uri)
-            return citation.file.file_name
+    def get_citations(self) -> list[Citation]:
+        citations = list(self.citation_set.all())
 
         try:
-            return sorted(
-                {
-                    (get_display(citation), citation.uri, citation.id, citation.text_in_answer, citation.citation_name)
-                    for citation in self.citation_set.all()
-                },
-                key=get_id_digits,
-            )
+            return sorted(citations, key=lambda citation: citation.ref_id)
         except TypeError:
-            return sorted(
-                {
-                    (get_display(citation), citation.uri, citation.id, citation.text_in_answer, citation.citation_name)
-                    for citation in self.citation_set.all()
-                }
-            )
+            return sorted(citations, key=lambda citation: citation.display_name)
+
+    @cached_property
+    def citations_url(self) -> str:
+        skill_slug = self.chat.skill.slug if self.chat.skill else None
+        return url_service.get_citation_url(message_id=self.id, chat_id=self.chat.id, skill_slug=skill_slug)
 
 
 class ChatMessageTokenUse(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -1128,9 +1202,10 @@ class AgentPlan(UUIDPrimaryKeyBase, TimeStampedModel):
 
 
 class Agent(UUIDPrimaryKeyBase, TimeStampedModel):
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100, unique=True, choices=env.get_agent_names())
     description = models.TextField(blank=True, null=True)
     agents_max_tokens = models.PositiveIntegerField(blank=True, null=True)
+    prompt = models.TextField(blank=True, null=True)
 
     llm_backend = models.ForeignKey(
         ChatLLMBackend,

@@ -1,3 +1,4 @@
+import re
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -8,15 +9,21 @@ from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.messages import AIMessage
 from langgraph.prebuilt import ToolNode
 from opensearchpy import OpenSearch
+from pytest_mock import MockerFixture
+from requests import Response
 
 from redbox.api.format import reduce_chunks_by_tokens
 from redbox.graph.nodes.tools import (
     brave_response_to_documents,
+    build_document_from_prompt_tool,
     build_govuk_search_tool,
     build_legislation_search_tool,
+    build_retrieve_document_full_text,
+    build_retrieve_knowledge_base,
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
+    format_result,
     kagi_response_to_documents,
     web_search_call,
     web_search_with_retry,
@@ -27,6 +34,117 @@ from redbox.models.settings import Settings
 from redbox.test.data import RedboxChatTestCase
 from redbox.transform import bedrock_tokeniser, combine_documents, flatten_document_state
 from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
+
+
+@pytest.mark.parametrize(
+    "loop, content, artifact, status, is_intermediate_step",
+    [(True, "test", "test", "pass", True), (False, "test", "test", None, None)],
+)
+def test_format_result(loop, content, artifact, status, is_intermediate_step):
+    formatted_result = format_result(loop, content, artifact, status, is_intermediate_step)
+
+    assert type(formatted_result) is tuple
+    if loop:
+        assert type(formatted_result[0]) is tuple
+        assert len(formatted_result[0]) == 3
+    else:
+        assert type(formatted_result[0]) is str
+
+
+def test_document_from_prompt_tool():
+    doc_to_prompt_tool = build_document_from_prompt_tool()
+    tool_node = ToolNode(tools=[doc_to_prompt_tool])
+    result_state = tool_node.invoke(
+        RedboxState(
+            request=RedboxQuery(
+                question="Can you test this doc: some texts",
+                s3_keys=[],
+                user_uuid=uuid4(),
+                chat_history=[],
+                ai_settings=AISettings(),
+                permitted_s3_keys=[],
+            ),
+            messages=[
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "name": "_retrieve_document_from_prompt",
+                            "args": {},
+                            "id": "1",
+                        }
+                    ],
+                )
+            ],
+        )
+    )
+
+    assert (
+        result_state["messages"][0].content
+        == "<context>This is user prompt that containing documents.</context>Can you test this doc: some texts"
+    )
+
+
+def test_retrieve_knowledge_base(es_client: OpenSearch, es_index: str, stored_file_knowledge_base: RedboxChatTestCase):
+    kb_tool = build_retrieve_knowledge_base(es_client, es_index)
+    tool_node = ToolNode(tools=[kb_tool])
+    result_state = tool_node.invoke(
+        RedboxState(
+            request=stored_file_knowledge_base.query,
+            messages=[
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "name": "_retrieve_knowledge_base",
+                            "args": {},
+                            "id": "1",
+                        }
+                    ],
+                )
+            ],
+        )
+    )
+    if stored_file_knowledge_base.test_id == "Successful Path-0":
+        assert "<context>This is your knowledgebase result.</context>" in result_state["messages"][0].content
+    elif stored_file_knowledge_base.test_id == "Empty knowledge base-0":
+        assert result_state["messages"][0].content == "Tool returns empty result set."
+
+
+def test_retrieve_document_full_text_tool(
+    es_client: OpenSearch, es_index: str, stored_file_all_chunks: RedboxChatTestCase
+):
+    """
+    Test that the tool is able to return a document's full text given file name
+    """
+    # build the tool
+    ft_tool = build_retrieve_document_full_text(es_client, es_index)
+
+    tool_node = ToolNode(tools=[ft_tool])
+    result_state = tool_node.invoke(
+        RedboxState(
+            request=stored_file_all_chunks.query,
+            messages=[
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "name": "_retrieve_document_full_text",
+                            "args": {},
+                            "id": "1",
+                        }
+                    ],
+                )
+            ],
+        )
+    )
+
+    if stored_file_all_chunks.test_id == "Successful Path":
+        assert len(result_state["messages"][0].content) > 0
+    elif stored_file_all_chunks.test_id == "No permitted S3 keys":
+        assert len(result_state["messages"][0].content) == 0
+    elif stored_file_all_chunks.test_id == "Empty keys but permitted":
+        assert len(result_state["messages"][0].content) > 0
 
 
 @pytest.mark.parametrize("chain_params", TEST_CHAIN_PARAMETERS)
@@ -243,6 +361,15 @@ def test_gov_filter_AI(is_filter, relevant_return, query, keyword):
             ],
         ),
         (
+            "Brave",
+            [
+                {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "1"}},
+                {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "2"}},
+                {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "3"}},
+                {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "4"}},
+            ],
+        ),
+        (
             "Kagi",
             [
                 {"status_code": 429, "text": "Too many requests", "headers": {"Retry-After": "1"}},
@@ -262,50 +389,113 @@ def test_web_search_rate_limit(provider, web_results, mocker, **kwargs):
         web_results,
     )
 
-    response = web_search_call(query="hello")
+    response = web_search_with_retry(query="hello")
 
-    assert kwargs["mock"].call_count == 2
+    assert kwargs["mock"].call_count <= 3
     assert kwargs["mock"].called
-    assert len(response[1]) > 0
+    assert isinstance(response, Response)
 
 
-@pytest.mark.vcr
-@pytest.mark.xfail(reason="calls api")
-def test_gov_tool_params():
-    query = "driving in the UK"
-    tool = build_govuk_search_tool(filter=True)
-    ai_setting = AISettings()
+class TestWebSearchCall:
+    def test_web_search_fail(self, mocker: MockerFixture):
+        mock_response = Response()
+        mock_response.status_code = 429
+        mock_response._content = "Rate limit".encode("utf-8")
+        mocker.patch("redbox.graph.nodes.tools.web_search_with_retry", return_value=mock_response)
+        response = web_search_call(query="hello")
+        assert response[0] == ""
 
-    tool_node = ToolNode(tools=[tool])
-    response = tool_node.invoke(
-        {
-            "request": RedboxQuery(
-                question=query,
-                s3_keys=[],
-                user_uuid=uuid4(),
-                chat_history=[],
-                ai_settings=ai_setting,
-                permitted_s3_keys=[],
+    def test_brave_success(self, mocker: MockerFixture):
+        mock_response = Response()
+        mock_response.status_code = 200
+        mock_response._content = (
+            '{"web": {"results": [{"extra_snippets": ["fake_doc"], "url": "http://fake.com"}]}}'.encode("utf-8")
+        )
+        mocker.patch("redbox.graph.nodes.tools.web_search_with_retry", return_value=mock_response)
+        response = web_search_call(query="hello")
+        assert len(response[0]) > 0
+
+
+class TestGovTool:
+    @pytest.mark.parametrize(
+        "test_name, query, web_response, no_of_artifact",
+        [
+            ("empty query", "", [], 0),
+            (
+                "success path",
+                "test query",
+                [{"description": "fake", "indexable_content": "AI", "link": "test", "format": "html", "title": "fake"}],
+                1,
             ),
-            "messages": [
-                AIMessage(
-                    content="",
-                    tool_calls=[
-                        {
-                            "name": "_search_govuk",
-                            "args": {"query": query},
-                            "id": "1",
-                        }
-                    ],
-                )
-            ],
-        }
+            (
+                "empty description",
+                "test query",
+                [{"description": "", "indexable_content": "AI", "link": "test", "format": "html", "title": "fake"}],
+                1,
+            ),
+            (
+                "missing field",
+                "test query",
+                [
+                    {"description": "", "indexable_content": "AI", "link": "test", "format": "html", "title": "fake"},
+                    {"description": "foo", "title": "fake", "indexable_content": "foo"},
+                ],
+                1,
+            ),
+        ],
     )
+    @requests_mock.Mocker(kw="mock")
+    def test_gov_uk_tool(self, test_name, query, web_response, no_of_artifact, mocker: MockerFixture, **kwargs):
+        tool = build_govuk_search_tool(filter=True)
+        ai_setting = AISettings(tool_govuk_returned_results=2)
 
-    documents = response["messages"][-1].artifact
+        tool_node = ToolNode(tools=[tool])
 
-    # call gov tool without additional filter
-    assert len(documents) == ai_setting.tool_govuk_returned_results
+        # mock embedding
+        mock_embedding = mocker.patch("redbox.graph.nodes.tools.get_embeddings")
+        mock_embedding.return_value = FakeEmbeddings(size=1024)
+
+        kwargs["mock"].get(
+            re.compile(r".*gov\.uk.*"),
+            [
+                {
+                    "status_code": 200,
+                    "json": {"results": web_response},
+                },
+            ],
+        )
+
+        response = tool_node.invoke(
+            {
+                "request": RedboxQuery(
+                    question=query,
+                    s3_keys=[],
+                    user_uuid=uuid4(),
+                    chat_history=[],
+                    ai_settings=ai_setting,
+                    permitted_s3_keys=[],
+                ),
+                "messages": [
+                    AIMessage(
+                        content=test_name,
+                        tool_calls=[
+                            {
+                                "name": "_search_govuk",
+                                "args": {"query": query},
+                                "id": "1",
+                            }
+                        ],
+                    )
+                ],
+            }
+        )
+
+        if no_of_artifact != 0:
+            documents = response["messages"][-1].artifact
+            assert documents[0].page_content == "AI"
+            assert len(documents) == no_of_artifact
+        else:
+            assert response["messages"][-1].artifact == []
 
 
 @requests_mock.Mocker(kw="mock")
@@ -342,44 +532,50 @@ def test_kagi_response_to_document(mocker, **kwargs):
         assert isinstance(doc, Document)
 
 
+@pytest.mark.parametrize(
+    "json_data, expected_docs_len",
+    [
+        (
+            {"web": {"results": [{"extra_snippets": ["snippet1"], "url": "http://example.com/1"}]}},
+            1,
+        ),
+        (
+            {},
+            0,
+        ),
+        (
+            {"web": []},
+            0,
+        ),
+        (
+            {"web": ["not a dict"]},
+            0,
+        ),
+        (
+            {"web": {"results": []}},
+            0,
+        ),
+    ],
+)
 @requests_mock.Mocker(kw="mock")
-def test_brave_response_to_document(mocker, **kwargs):
+def test_brave_results_to_documents(json_data, expected_docs_len, mocker, **kwargs):
     env = Settings(web_search="Brave")
     mocker.patch("redbox.graph.nodes.tools.get_settings", return_value=env)
     kwargs["mock"].get(
         env.web_search_settings().end_point,
-        [
-            {
-                "status_code": 200,
-                "json": {
-                    "web": {
-                        "results": [
-                            {
-                                "extra_snippets": ["fake_doc_1_snippet_1", "fake_doc_1_snippet_2"],
-                                "url": "http://fake.com/page=1",
-                            },
-                            {
-                                "extra_snippets": ["fake_doc_2_snippet_1", "fake_doc_2_snippet_2"],
-                                "url": "http://fake.com/page=2",
-                            },
-                        ]
-                    }
-                },
-            },
-        ],
+        [{"status_code": 200, "json": json_data}],
     )
 
     response = web_search_with_retry(
-        query="hello",
-        no_search_result=2,
+        query="test query",
+        no_search_result=expected_docs_len or 1,
         country_code="All",
         ui_lang="en-GB",
     )
-    tokeniser = bedrock_tokeniser
     mapped_documents = []
-    docs = brave_response_to_documents(tokeniser, response, mapped_documents)
+    docs = brave_response_to_documents(bedrock_tokeniser, response, mapped_documents)
 
-    assert len(docs) == 2
+    assert len(docs) == expected_docs_len
     for doc in docs:
         assert isinstance(doc, Document)
 

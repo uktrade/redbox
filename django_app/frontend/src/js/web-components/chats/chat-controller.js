@@ -1,5 +1,6 @@
 // @ts-check
 
+import { getActiveSkillId } from "../../utils";
 import { ChatMessage } from "./chat-message";
 
 class ChatController extends HTMLElement {
@@ -11,6 +12,7 @@ class ChatController extends HTMLElement {
   #bindEvents = () => {
     const chatsForm = document.querySelector("#chats-form");
     let selectedDocuments = [];
+    const selectedSkill = getActiveSkillId();
 
     chatsForm?.addEventListener("submit", (evt) => {
       evt.preventDefault();
@@ -29,8 +31,9 @@ class ChatController extends HTMLElement {
           document.querySelector("rbds-message-input")
       );
       const userText = messageInput?.getValue();
+      const hasContent = Boolean(userText || messageInput?.hasUploadedFiles());
 
-      if (!messageInput || !userText) return;
+      if (!messageInput || !hasContent) return;
 
       let userMessage = /** @type {ChatMessage} */ (
         document.createElement("rbds-chat-message")
@@ -66,7 +69,8 @@ class ChatController extends HTMLElement {
         llm,
         chatController.dataset.sessionId,
         chatController.dataset.streamUrl || "",
-        chatController
+        chatController,
+        selectedSkill
       );
       /** @type {HTMLElement | null} */ (
         aiMessage.querySelector(".govuk-inset-text")
@@ -74,7 +78,7 @@ class ChatController extends HTMLElement {
 
       // reset UI
       if (feedbackButtons) feedbackButtons.dataset.status = "";
-      messageInput.reset();
+      messageInput.reset(true);
     });
 
     document.body.addEventListener("selected-docs-change", (evt) => {

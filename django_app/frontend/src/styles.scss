@@ -1,10 +1,10 @@
-@use "../node_modules/govuk-frontend/dist/govuk/index" as govuk;
+@use "../node_modules/govuk-frontend/dist/govuk" as govuk;
 @use "./variables.scss" as *;
 @use "./redbox_design_system" as redbox_design_system;
 @use "../node_modules/accessible-autocomplete/dist/accessible-autocomplete.min.css" as accessible-autocomplete;
 
 html.no-scroll {
-    overflow: hidden;
+  overflow: hidden;
 }
 
 body {
@@ -98,12 +98,12 @@ upload-button {
 
 /* Citations Page */
 .rb-back-link {
-  color: var(--iai-colour-text-primary);
+  color: var(--colour-text);
   text-decoration: none;
 }
 
 .iai-chat-bubbles__sources-link:visited {
-  color: $govuk-brand-colour, var(--iai-colour-brand);
+  color: $govuk-brand-colour, var(--redbox-pink);
 }
 .iai-chat-bubbles__sources-link:target {
   outline: 3px solid rgba(0, 0, 0, 0);
@@ -130,17 +130,4 @@ only screen and (min-resolution:192dpi) {
   .govuk-footer__copyright-logo {
     background-image: url(/static/govuk-frontend/assets/images/govuk-crest-2x.png)
   }
-}
-
-/* Chats Page - to come after i.AI Design System */
-
-.header-wrapper {
-  position: sticky;
-  top: 0;
-  bottom: 0;
-  z-index: 200;
-}
-
-.govuk-phase-banner{
-  background-color: white;
 }

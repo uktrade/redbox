@@ -2,7 +2,11 @@
 {% from "macros/govuk-button.html" import govukButton %}
 {% from "macros/govuk-warning.html" import govuk_warning %}
 
-<div id="chat-window" name="swapped" class="govuk-grid-column-three-quarters" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+<div id="chat-window" name="swapped" class="govuk-grid-column-three-quarters rbds-chat-window rbds-flex-column" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+    {% if skill %}
+        {% include "skills/skill-banner.html" %}
+    {% endif %}
+
     {% if not messages %}
     <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1"
         security-classification="{{ security }}"></canned-prompts>
@@ -33,15 +37,11 @@
         </chat-controller>
     </div>
     <div class="chat-input__input-container">
-        <label class="govuk-label govuk-!-padding-top-1" for="message"></label>
-        <div id="message-hint" class="govuk-hint rbds-text-s govuk-body">
-            Need help? View <a href="{{ url('faq') }}" class="govuk-link" target="_blank">Advanced Prompt FAQ.</a>
-        </div>
         <rbds-message-input>
-            <div class="govuk-textarea rbds-message-input rbds-drop-zone" id="message" name="message" contenteditable="true" role="textbox"
+            <div class="govuk-textarea rbds-message-input {% if not messages %}rbds-message-input__expanded {% endif %}rbds-drop-zone" id="message" name="message" contenteditable="true" role="textbox"
                 aria-multiline="true" data-text="Type here..."></div>
         </rbds-message-input>
-        <file-upload upload-url="/documents/upload/">
+        <file-upload upload-url="{% if skill %}/skills/{{ skill.slug }}{% endif %}/documents/upload/">
             <input class="govuk-file-upload govuk-!-display-none" multiple id="upload-docs" name="uploadDocs" type="file" aria-describedby="upload-docs-notification upload-docs-filetypes">
             {{ govukButton(
                 text="Add document",
@@ -58,7 +58,7 @@
                 </button>
                 {{ govukButton(
                 text="Stop",
-                classes="govuk-!-margin-top-5 govuk-button--secondary govuk-!-margin-right-4",
+                classes="govuk-!-margin-top-5 govuk-button--secondary govuk-!-margin-right-4 govuk-!-display-none",
                 dont_submit=True
                 ) }}
                 {{ govukButton(
@@ -67,7 +67,7 @@
                 ) }}
                 {{ govukButton(
                 text="Stop",
-                classes="govuk-!-margin-top-5"
+                classes="govuk-!-margin-top-5 govuk-!-display-none"
                 ) }}
             </send-message-with-dictation>
         {% else %}
@@ -81,16 +81,6 @@
                 classes="govuk-!-margin-top-5 govuk-!-display-none"
                 ) }}
             </send-message>
-        {% endif %}
-        {% if not messages %}
-        <div class="chat-warnings">
-            {{ govuk_warning(
-                [
-                    "You can use up to, and including, official sensitive documents. Personal data can also be processed.",
-                    "Redbox can make mistakes. You must check for accuracy before using the output.",
-                ]
-            ) }}
-        </div>
         {% endif %}
     </div>
 </div>

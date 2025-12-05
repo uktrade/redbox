@@ -1,10 +1,12 @@
 import copy
 import logging
+import sqlite3
 
 # from enum import Enum
 from typing import Any
 from unittest.mock import MagicMock
 from uuid import uuid4
+from pathlib import Path
 
 import pytest
 from langchain_core.documents import Document
@@ -15,10 +17,10 @@ from pytest_mock import MockerFixture
 
 from redbox import Redbox
 from redbox.models.chain import (
-    AgentTask,
+    configure_agent_task_plan,
     AISettings,
     Citation,
-    MultiAgentPlan,
+    DocumentState,
     RedboxQuery,
     RedboxState,
     RequestMetadata,
@@ -39,6 +41,9 @@ from redbox.test.data import (
     mock_parameterised_retriever,
 )
 from redbox.transform import structure_documents_by_group_and_indices
+import os
+from redbox.graph.nodes.processes import create_or_update_db_from_tabulars
+
 
 # create logger
 logger = logging.getLogger("simple_example")
@@ -53,15 +58,8 @@ OUTPUT_WITH_CITATIONS = AIMessage(
 
 NEW_ROUTE_NO_FEEDBACK = [OUTPUT_WITH_CITATIONS]  # only streaming tokens through evaluator
 
-TASK_SUMMARISE_AGENT = MultiAgentPlan(
-    tasks=[
-        AgentTask(
-            task="Task to be completed by the agent",
-            agent="Summarisation_Agent",
-            expected_output="What this agent should produce",
-        )
-    ]
-)
+summarise_agent_options = {"Summarisation_Agent": "Summarisation_Agent"}
+_, TASK_SUMMARISE_AGENT = configure_agent_task_plan(summarise_agent_options)
 
 
 class MockedAgent:
@@ -74,6 +72,9 @@ class MockedAgent:
 
 def mock_planner_agent(mocker, planner_output):
     mocked_agent = MockedAgent(planner_output)
+    print("my-planner_output")
+    print(planner_output)
+    print(type(planner_output))
     mocker.patch("redbox.graph.nodes.processes.create_planner", return_value=mocked_agent)
     return mocked_agent
 
@@ -358,7 +359,7 @@ async def test_streaming(test: RedboxChatTestCase, env: Settings, mocker: Mocker
     mocker.patch("redbox.app.build_govuk_search_tool", return_value=_search_govuk)
 
     if test_case.test_id == "Document too big for system-0":
-        mock_planner_agent(mocker, planner_output=TASK_SUMMARISE_AGENT)
+        mock_planner_agent(mocker, planner_output=TASK_SUMMARISE_AGENT())
 
     # Mock the LLM and relevant tools
     llm = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
@@ -507,129 +508,197 @@ def test_draw_method(env: Settings, mocker: MockerFixture):
     assert result_root == "mermaid_png_output"
 
 
-def test_handle_db_file_operations(env: Settings, mocker: MockerFixture):
-    app = Redbox(
-        all_chunks_retriever=mock_all_chunks_retriever([]),
-        parameterised_retriever=mock_parameterised_retriever([]),
-        metadata_retriever=mock_metadata_retriever([]),
-        env=env,
-    )
-
-    mock_remove = mocker.patch("os.remove")
-    mock_exists = mocker.patch("os.path.exists", return_value=True)
-
-    app.previous_db_location = "/path/to/old_db.sqlite"
-    app.previous_s3_keys = ["key1", "key2"]
-    app.handle_db_file(None)
-
-    mock_exists.assert_called_once_with("/path/to/old_db.sqlite")
-    mock_remove.assert_called_once_with("/path/to/old_db.sqlite")
-    assert app.previous_db_location is None
-    assert app.previous_s3_keys is None
-
-    mock_remove.reset_mock()
-    mock_exists.reset_mock()
-
-    app.previous_db_location = "/path/to/old_db.sqlite"
-
-    final_state = RedboxState(
-        request=RedboxQuery(
-            question="What is the meaning of life?",
-            s3_keys=[],
-            user_uuid=uuid4(),
-            chat_history=[],
-            permitted_s3_keys=[],
-            db_location="/path/to/new_db.sqlite",
+TABULAR_TEST_CASES = [
+    test_case
+    for generated_cases in [
+        generate_test_cases(
+            query=RedboxQuery(
+                question="What is AI?",
+                s3_keys=["example.csv"],
+                user_uuid="22345678-1234-5678-1234-567812345678",
+                chat_history=[],
+                permitted_s3_keys=["example.csv"],
+                previous_s3_keys=[],
+            ),
+            test_data=[
+                RedboxTestData(
+                    number_of_docs=1,
+                    tokens_in_all_docs=10000,
+                    llm_responses=["AI is a lie"],
+                    expected_route=ChatRoute.newroute,
+                )
+            ],
+            test_id="asking first question to tabular with a new selected file",
         ),
-        db_location=None,
+        generate_test_cases(
+            query=RedboxQuery(
+                question="What is AI?",
+                s3_keys=["example.csv"],
+                user_uuid="22345678-1234-5678-1234-567812345678",
+                chat_history=[],
+                permitted_s3_keys=["example.csv"],
+                previous_s3_keys=["example.csv"],
+            ),
+            test_data=[
+                RedboxTestData(
+                    number_of_docs=1,
+                    tokens_in_all_docs=10000,
+                    llm_responses=["AI is a lie"],
+                    expected_route=ChatRoute.newroute,
+                )
+            ],
+            test_id="asking follow-up question to tabular with same file selected",
+        ),
+        generate_test_cases(
+            query=RedboxQuery(
+                question="What is AI?",
+                s3_keys=["account.csv"],
+                user_uuid="22345678-1234-5678-1234-567812345678",
+                chat_history=[],
+                permitted_s3_keys=["account.csv", "example.csv"],
+                previous_s3_keys=["example.csv"],
+            ),
+            test_data=[
+                RedboxTestData(
+                    number_of_docs=1,
+                    tokens_in_all_docs=10000,
+                    llm_responses=["AI is a lie"],
+                    expected_route=ChatRoute.newroute,
+                )
+            ],
+            test_id="de-selecting old file, selecting a new file and asking another question",
+        ),
+    ]
+    for test_case in generated_cases
+]
+
+
+@pytest.mark.parametrize(("test"), TABULAR_TEST_CASES, ids=[t.test_id for t in TABULAR_TEST_CASES])
+@pytest.mark.parametrize("simulate_interrupt", [False, True])
+def test_tabular_file_handling(test, tmp_path: Path, mocker: MockerFixture, simulate_interrupt: bool):
+    """
+    This unit test is testing the database handling inside the tabular schema retrieval. It invokes the relevant part of the graph.
+    - Test case 1: File selected and no previous files selected: check that the database is created
+    - Test case 2: Same file still selected (same as test case 1), asking a follow-up question: check that the same database still exist, and was not deleted
+    - Test case 3: Previous File de-selected, a new file is selected: check that the existing database is deleted and a new database is created
+    """
+    test_case = copy.deepcopy(test)
+
+    request: RedboxQuery = test_case.query
+    request.previous_s3_keys = []
+    request.db_location = None
+
+    if test_case.test_id.startswith("asking follow-up question to tabular with same file selected"):
+        request.previous_s3_keys = sorted(request.s3_keys)
+    elif test_case.test_id.startswith("de-selecting old file, selecting a new file and asking another question"):
+        request.previous_s3_keys = ["old_file.csv"]
+
+    group_uuid = str(uuid4())
+    doc_uuids = {str(uuid4()): doc for doc in test_case.docs}
+    mock_documents = DocumentState(groups={group_uuid: doc_uuids})
+
+    state = RedboxState(
+        request=request,
+        documents=mock_documents,
     )
-    app.handle_db_file(final_state)
 
-    mock_exists.assert_called_once_with("/path/to/old_db.sqlite")
-    mock_remove.assert_called_once_with("/path/to/old_db.sqlite")
-    assert app.previous_db_location == "/path/to/new_db.sqlite"
+    spy_remove_call = mocker.spy(os, "remove")
 
-    mock_remove.reset_mock()
-    mock_exists.reset_mock()
+    if simulate_interrupt:
+        original_func = create_or_update_db_from_tabulars
 
-    app.previous_db_location = "/path/to/same_db.sqlite"
-    final_state = RedboxState(
-        request=RedboxQuery(
-            question="Why do dogs bark?",
-            s3_keys=["key1"],
-            user_uuid=uuid4(),
-            chat_history=[],
-            permitted_s3_keys=["key1"],
-            db_location="/path/to/same_db.sqlite",
+        def interrupting_func(state_arg):
+            original_func(state_arg)
+            raise RuntimeError("Simulated interruption")
+
+        mocker.patch(
+            "redbox.graph.nodes.processes.create_or_update_db_from_tabulars",
+            side_effect=interrupting_func,
         )
-    )
-    app.handle_db_file(final_state)
 
-    mock_exists.assert_not_called()
-    mock_remove.assert_not_called()
-    assert app.previous_db_location == "/path/to/same_db.sqlite"
-    assert app.previous_s3_keys == ["key1"]
+    original_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        prior_db_exists = False
+        if test_case.test_id.startswith("asking follow-up") or test_case.test_id.startswith("de-selecting"):
+            prior_request = copy.deepcopy(request)
+            prior_request.s3_keys = sorted(request.previous_s3_keys)
+            prior_request.previous_s3_keys = []
+            prior_request.db_location = None
 
+            if test_case.test_id.startswith("asking follow-up"):
+                prior_doc_uuids = doc_uuids
+                prior_mock_documents = mock_documents
+            else:
+                old_doc = Document(page_content="col1,col2\nval1,val2", metadata={"uri": "old_file.csv"})
+                prior_doc_uuids = {str(uuid4()): old_doc}
+                prior_mock_documents = DocumentState(groups={group_uuid: prior_doc_uuids})
 
-def test_remove_db_file_if_exists_error_handling(env: Settings, mocker: MockerFixture):
-    app = Redbox(
-        all_chunks_retriever=mock_all_chunks_retriever([]),
-        parameterised_retriever=mock_parameterised_retriever([]),
-        metadata_retriever=mock_metadata_retriever([]),
-        env=env,
-    )
+            prior_state = RedboxState(
+                request=prior_request,
+                documents=prior_mock_documents,
+            )
+            _ = create_or_update_db_from_tabulars(prior_state)
+            prior_db_exists = True
 
-    mock_logger = mocker.patch("redbox.app.logger")
-    app.remove_db_file_if_exists(None)
-    mock_logger.error.assert_not_called()
+        initial_changed = state.documents_changed()
 
-    mock_exists = mocker.patch("os.path.exists", return_value=False)
-    app.remove_db_file_if_exists("/path/to/nonexistent.db")
-    mock_exists.assert_called_once_with("/path/to/nonexistent.db")
-    mock_logger.error.assert_not_called()
+        db_created = False
+        try:
+            create_or_update_db_from_tabulars(state)
+            db_created = True
+        except RuntimeError as e:
+            if simulate_interrupt:
+                assert str(e) == "Simulated interruption"
+                db_path = state.request.db_location
+                if db_path:
+                    db_created = os.path.exists(db_path)
 
-    mock_exists = mocker.patch("os.path.exists", return_value=True)
-    app.remove_db_file_if_exists("/path/to/protected.db")
-    mock_logger.error.assert_called_once()
-    assert "Error encountered when deleting the db file" in mock_logger.error.call_args[0][0]
+        # check if database file exists
+        if db_created:
+            db_path = state.request.db_location
+            assert os.path.exists(db_path)
 
+            # check that the database path follow expected format
+            assert db_path == f"generated_db_{request.user_uuid}.db"
 
-def test_add_docs_and_db_to_input_state(env: Settings, mocker: MockerFixture):
-    app = Redbox(
-        all_chunks_retriever=mock_all_chunks_retriever([]),
-        parameterised_retriever=mock_parameterised_retriever([]),
-        metadata_retriever=mock_metadata_retriever([]),
-        env=env,
-    )
+            # Additional checks
+            with sqlite3.connect(db_path) as conn:
+                tables = [
+                    row[0]
+                    for row in conn.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"
+                    ).fetchall()
+                ]
+            if not simulate_interrupt:
+                expected_table_count = len(test_case.docs)
+                assert len(tables) == expected_table_count
+                sample_key = request.s3_keys[0].split("/")[-1].split(".")[0]
+                assert any(sample_key in table for table in tables)
 
-    app.previous_db_location = "/path/to/db.sqlite"
-    app.previous_s3_keys = ["key1", "key2"]
+        if test_case.test_id.startswith("asking follow-up question to tabular with same file selected"):
+            assert prior_db_exists
+            # check if database file was not deleted before creation
+            spy_remove_call.assert_not_called()
+            if not simulate_interrupt:
+                assert not initial_changed
 
-    input_state = RedboxState(
-        request=RedboxQuery(
-            question="@tabular How many rows in this table?",
-            s3_keys=["new_key"],
-            user_uuid=uuid4(),
-            chat_history=[],
-            permitted_s3_keys=["new_key"],
-        )
-    )
+        elif test_case.test_id.startswith("de-selecting old file, selecting a new file and asking another question"):
+            assert prior_db_exists
+            # check if database file was not deleted before creation
+            spy_remove_call.assert_called_once_with(state.request.db_location)
+            if not simulate_interrupt:
+                assert initial_changed
+                assert all("old_file" not in table for table in tables)
 
-    result = app.add_docs_and_db_to_input_state(input_state)
+        else:
+            spy_remove_call.assert_not_called()
+            if not simulate_interrupt:
+                assert initial_changed
 
-    assert result.request.previous_s3_keys == ["key1", "key2"]
-    assert result.request.db_location == "/path/to/db.sqlite"
+        # State updates
+        if not simulate_interrupt:
+            assert sorted(request.s3_keys) == sorted(state.request.previous_s3_keys)
 
-    input_state = RedboxState(
-        request=RedboxQuery(
-            question="What is the purpose of AI long term?",
-            s3_keys=["new_key"],
-            user_uuid=uuid4(),
-            chat_history=[],
-        )
-    )
-
-    result = app.add_docs_and_db_to_input_state(input_state)
-
-    assert not hasattr(result.request, "previous_s3_keys") or result.request.previous_s3_keys is None
-    assert not hasattr(result.request, "db_location") or result.request.db_location is None
+    finally:
+        os.chdir(original_cwd)

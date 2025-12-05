@@ -37,22 +37,23 @@
   data-role="{{ message.role }}" tabindex="-1" id="chat-message-{{ message.id }}">
 
   <markdown-converter class="rbds-chat-message__text">{{ message.text }}</markdown-converter>
-  {% if message.unique_citation_uris() %}
-  <h3 class="iai-chat-bubble__sources-heading govuk-heading-s govuk-!-margin-bottom-1">Sources</h3>
-  <div class="iai-display-flex-from-desktop">
-    <ol class="rb-footnote-list govuk-!-margin-bottom-0">
-      {% set seen_docs = [] %}
-      {% for display, href, cit_id, text_in_answer, citation_name in message.unique_citation_uris() %}
-        {% if display not in seen_docs %}
-        <li class="govuk-!-margin-bottom-0">
-          <a class="iai-chat-bubbles__sources-link govuk-link" id="footnote-{{ message.id }}-{{ loop.index }}" href="/citations/{{message.id}}">{{ display }}</a>
-        </li>
-        {% set _ = seen_docs.append(display) %}
-        {% endif %}
-      {% endfor %}
-    </ol>
-  </div>
-  <br />
+  {% set citations = message.get_citations() %}
+  {% if citations %}
+    <h3 class="iai-chat-bubble__sources-heading govuk-heading-s govuk-!-margin-bottom-1">Sources</h3>
+    <div class="rbds-display-flex-from-desktop">
+      <ol class="rb-footnote-list govuk-!-margin-bottom-0">
+        {% set seen_docs = [] %}
+        {% for citation in citations %}
+          {% if citation.display_name not in seen_docs %}
+            <li class="govuk-!-margin-bottom-0">
+              <a class="iai-chat-bubbles__sources-link govuk-link" id="footnote-{{ message.id }}-{{ loop.index }}" href="{{ citation.internal_url }}">{{ citation.display_name }}</a>
+            </li>
+            {% set _ = seen_docs.append(citation.display_name) %}
+          {% endif %}
+        {% endfor %}
+      </ol>
+    </div>
+    <br/>
   {% endif %}
 </div>
 {% set seen_files = [] %}

@@ -1,7 +1,7 @@
 // @ts-check
 
 import { UploadedFiles } from "../../../redbox_design_system/rbds/components";
-import { hideElement } from "../../utils";
+import { getActiveChatId, hideElement } from "../../utils";
 import { SendMessage } from "./send-message";
 import { SendMessageWithDictation } from "./send-message-with-dictation";
 
@@ -9,6 +9,7 @@ export class MessageInput extends HTMLElement {
   constructor() {
     super();
     this.submitDisabled = false;
+    this.expandedClass = "rbds-message-input__expanded";
   }
 
   connectedCallback() {
@@ -17,7 +18,7 @@ export class MessageInput extends HTMLElement {
 
 
   #sendMessage() {
-    if (this.getValue()) {
+    if (this.getValue() || this.hasUploadedFiles()) {
       this.#hideWarnings();
       this.closest("form")?.requestSubmit();
     }
@@ -39,7 +40,11 @@ export class MessageInput extends HTMLElement {
       // Submit form on enter-key press (providing shift isn't being pressed)
       if (evt.key === "Enter" && !evt.shiftKey) {
         evt.preventDefault();
-        if (!this.submitDisabled) this.#sendMessage();
+
+        if (!this.submitDisabled) {
+          this.#sendMessage();
+          textarea.classList.remove(this.expandedClass);
+        }
       }
 
       // Prevent deletion of uploaded-files component if present
@@ -120,7 +125,7 @@ export class MessageInput extends HTMLElement {
 
   /**
    * Returns the current message, without any uploaded files
-   * @returns string
+   * @returns {string}
    */
   getValue = (trim=true) => {
     const clone = /** @type {HTMLElement} */ (this.textarea.cloneNode(true));
@@ -132,14 +137,21 @@ export class MessageInput extends HTMLElement {
 
   /**
    * Clears the message
+   * @param {boolean} clearFiles - Clears UploadedFiles from the message input
    */
-  reset = () => {
+  reset = (clearFiles=false) => {
     if (!this.textarea) return;
     let hasUploadedFiles = false;
     for (const node of Array.from(this.textarea.childNodes)) {
       switch(node.nodeType) {
         case Node.ELEMENT_NODE:
-          if (node instanceof UploadedFiles) hasUploadedFiles = true;
+          if (node instanceof UploadedFiles) {
+            if (clearFiles) {
+              this.textarea.removeChild(node);
+            } else {
+              hasUploadedFiles = true;
+            }
+          }
           if (!(node instanceof UploadedFiles)) this.textarea.removeChild(node);
           break;
         default:
@@ -147,6 +159,24 @@ export class MessageInput extends HTMLElement {
       }
     }
     if (hasUploadedFiles) this.textarea.appendChild(document.createElement("br"));
+  };
+
+
+  /**
+   * Returns uploaded files element if present
+   * @returns {UploadedFiles | null}
+   */
+  getUploadedFilesEl = () => {
+    return  /** @type {UploadedFiles} */ (this.textarea?.querySelector("rbds-uploaded-files"));
+  };
+
+
+  /**
+   * Checks if uploaded-files is present
+   * @returns {boolean}
+   */
+  hasUploadedFiles = () => {
+    return  Boolean(this.getUploadedFilesEl());
   };
 
 

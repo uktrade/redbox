@@ -30,6 +30,52 @@ class ChatLLMBackendAdmin(admin.ModelAdmin):
         model = models.ChatLLMBackend
 
 
+class SkillAdmin(admin.ModelAdmin):
+    list_display = [
+        "name",
+        "description",
+        "slug",
+    ]
+
+    search_fields = ["name"]
+    readonly_fields = ["modified_at", "created_at"]
+
+    class Meta:
+        model = models.Skill
+
+
+class AgentSkillAdmin(admin.ModelAdmin):
+    list_display = [
+        "agent__name",
+        "skill__name",
+    ]
+
+    search_fields = ["agent__name", "skill__name"]
+    readonly_fields = ["modified_at", "created_at"]
+
+    class Meta:
+        model = models.AgentSkill
+
+
+class AgentAdmin(admin.ModelAdmin):
+    list_display = [
+        "name",
+        "description",
+    ]
+
+    search_fields = ["name"]
+    readonly_fields = ["modified_at", "created_at"]
+
+    class Meta:
+        model = models.Agent
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.base_fields["prompt"].widget.attrs["rows"] = "40"
+        form.base_fields["description"].widget.attrs["rows"] = "5"
+        return form
+
+
 class UserAdmin(ImportExportMixin, admin.ModelAdmin):
     def export_as_json(self, request, queryset: QuerySet):  # noqa:ARG002
         user_data = UserSerializer(many=True).to_representation(queryset)
@@ -211,6 +257,13 @@ class FileAdmin(ExportMixin, admin.ModelAdmin):
     search_fields = ["user__email"]
 
 
+class FileSkillAdmin(ExportMixin, admin.ModelAdmin):
+    list_display = ["file", "skill", "file_type", "created_at"]
+    list_filter = ["skill", "file_type"]
+    date_hierarchy = "created_at"
+    search_fields = ("file__file_name", "skill__name")
+
+
 class FileTeamMembershipAdmin(admin.ModelAdmin):
     list_display = ("file", "team", "visibility", "created_at")
     list_filter = ("visibility", "team")
@@ -309,7 +362,7 @@ class ChatAdmin(ExportMixin, admin.ModelAdmin):
         (
             None,
             {
-                "fields": ["name", "user"],
+                "fields": ["name", "user", "skill"],
             },
         ),
         (
@@ -328,8 +381,8 @@ class ChatAdmin(ExportMixin, admin.ModelAdmin):
         ),
     ]
     inlines = [ChatMessageInline]
-    list_display = ["name", "user", "created_at"]
-    list_filter = ["user"]
+    list_display = ["name", "user", "skill", "created_at"]
+    list_filter = ["user", "skill"]
     date_hierarchy = "created_at"
     actions = ["export_as_csv"]
     search_fields = ["user__email"]
@@ -396,4 +449,8 @@ admin.site.register(models.AgentPlan, AgentPlanAdmin)
 admin.site.register(models.Team, TeamAdmin)
 admin.site.register(models.UserTeamMembership, UserTeamMembershipAdmin)
 admin.site.register(models.FileTeamMembership, FileTeamMembershipAdmin)
+admin.site.register(models.Agent, AgentAdmin)
+admin.site.register(models.Skill, SkillAdmin)
+admin.site.register(models.AgentSkill, AgentSkillAdmin)
+admin.site.register(models.FileSkill, FileSkillAdmin)
 admin.site.register_view("report/", view=reporting_dashboard, name="Site report")

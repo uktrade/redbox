@@ -10,6 +10,7 @@
   bottom: 0;
   z-index: 100;
   overflow-y: clip;
+  min-height: calc(100vh - var(--header-height));
 
   .side-panel-heading {
     color: var(--color-side-panel-text);
@@ -66,6 +67,7 @@
     display: flex;
     padding: 8px;
     width: 100%;
+    box-sizing: border-box;
 
     .side-panel-item-actions {
       display: flex;

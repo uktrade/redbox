@@ -1,5 +1,6 @@
 from collections.abc import Generator
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
@@ -9,7 +10,7 @@ from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.embeddings.fake import FakeEmbeddings
 from opensearchpy import OpenSearch
 
-from redbox.models.chain import AISettings, RedboxQuery, RedboxState
+from redbox.models.chain import AISettings, GeneratedMetadata, RedboxQuery, RedboxState
 from redbox.models.settings import Settings
 from redbox.retriever import (
     AllElasticsearchRetriever,
@@ -19,7 +20,12 @@ from redbox.retriever import (
 )
 from redbox.test.data import RedboxChatTestCase
 from redbox.transform import bedrock_tokeniser
-from tests.retriever.data import ALL_CHUNKS_RETRIEVER_CASES, METADATA_RETRIEVER_CASES, PARAMETERISED_RETRIEVER_CASES
+from tests.retriever.data import (
+    ALL_CHUNKS_RETRIEVER_CASES,
+    KNOWLEDGE_BASE_CASES,
+    METADATA_RETRIEVER_CASES,
+    PARAMETERISED_RETRIEVER_CASES,
+)
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -150,6 +156,16 @@ def fake_state() -> RedboxState:
 # -----#
 
 
+@pytest.fixture(params=KNOWLEDGE_BASE_CASES)
+def stored_file_knowledge_base(
+    request: FixtureRequest, es_vector_store: OpenSearchVectorSearch
+) -> Generator[RedboxChatTestCase, None, None]:
+    test_case: RedboxChatTestCase = request.param
+    doc_ids = es_vector_store.add_documents(test_case.docs)
+    yield test_case
+    es_vector_store.delete(doc_ids)
+
+
 @pytest.fixture(params=ALL_CHUNKS_RETRIEVER_CASES)
 def stored_file_all_chunks(
     request: FixtureRequest, es_vector_store: OpenSearchVectorSearch
@@ -178,3 +194,19 @@ def stored_file_metadata(
     doc_ids = es_vector_store.add_documents(test_case.docs)
     yield test_case
     es_vector_store.delete(doc_ids)
+
+
+@pytest.fixture
+def mock_env():
+    mock_env = MagicMock(spec=Settings)
+    mock_env.unstructured_host = "localhost"
+    mock_env.worker_ingest_min_chunk_size = 100
+    mock_env.worker_ingest_max_chunk_size = 1000
+    mock_env.bucket_name = "test-bucket"
+    mock_env.max_retries = 3
+    return mock_env
+
+
+@pytest.fixture
+def mock_metadata():
+    return GeneratedMetadata(name="test", description="test desc", keywords=["test"])

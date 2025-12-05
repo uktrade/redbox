@@ -23,6 +23,7 @@ from redbox_app.redbox_core.models import (
     ChatMessageTokenUse,
     Citation,
     File,
+    Skill,
     Team,
 )
 
@@ -345,3 +346,52 @@ def _ensure_default_ai_settings(db):  # noqa: ARG001
 @pytest.fixture
 def redbox_team() -> Team:
     return Team.objects.create(team_name="Redbox Team", directorate="DDaT")
+
+
+@pytest.fixture
+def default_skill() -> Skill:
+    return Skill.objects.create(name="Default Skill")
+
+
+@pytest.fixture
+def remove_file_from_bucket(s3_client):
+    def _remove(file_name: str):
+        # we begin by removing any file in minio that starts with this key prefix
+        try:
+            paginator = s3_client.get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=settings.BUCKET_NAME, Prefix=file_name.replace(" ", "_")):
+                if "Contents" in page:
+                    delete_objects = [{"Key": obj["Key"]} for obj in page["Contents"]]
+                    if delete_objects:
+                        s3_client.delete_objects(Bucket=settings.BUCKET_NAME, Delete={"Objects": delete_objects})
+        except Exception:
+            logger.exception("Error cleaning up S3 objects before test")
+            # Ignore errors during cleanup
+
+    return _remove
+
+
+@pytest.fixture
+def external_citation(chat_message) -> Citation:
+    external_citation = Citation(
+        chat_message=chat_message,
+        text="hello",
+        source=Citation.Origin.WIKIPEDIA,
+        url="http://example.com",
+    )
+    external_citation.save()
+    chat_message.refresh_from_db()
+    return external_citation
+
+
+@pytest.fixture
+def internal_citation(chat_message, uploaded_file) -> Citation:
+    internal_citation = Citation(
+        chat_message=chat_message,
+        text="hello",
+        source=Citation.Origin.USER_UPLOADED_DOCUMENT,
+        file=uploaded_file,
+    )
+    internal_citation.save()
+    chat_message.refresh_from_db()
+    return internal_citation

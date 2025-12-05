@@ -43,6 +43,11 @@ $govuk-brand-colour: #1d70b8;
   --redbox-grey: var(--gds-mid-grey);
   --redbox-light-grey: var(--gds-light-grey);
   --redbox-green: var(--gds-green);
+  --redbox-orange: #ffbf47;
+  --redbox-teal: #0b8478;
+  --redbox-pink: #c50878;
+  --redbox-light-red: #FBEEEB;
+  --redbox-black: var(--dbt-black);
 
   // GDS Sass custom variables
   --govuk-brand-colour: var(--gds-blue);
@@ -72,19 +77,24 @@ $govuk-brand-colour: #1d70b8;
   --color-icon-light-foreground-hover: var(--dbt-black);
   --color-icon-dark-foreground: var(--redbox-white);
   --color-icon-light-foreground-secondary: var(--dbt-black);
-  --color-file-icon: var(--dbt-black);
+  --color-file-icon: var(--redbox-black);
 
   // Typography
   --font-family-primary: Arial;
   --font-size-xs: 0.875rem; // 14px
   --font-size-s: 1rem; // 16px
   --font-size-m: 1.1875rem; // 19px
-  --font-size-l: 1.875rem; // 30px
+  --font-size-l: 1.5rem; // 24px
+  --font-size-xl: 1.875rem; // 30px
 
   // Button
   --color-button-warning-background: var(--gds-red);
 
   // Misc
-  --header-height: 161px;
+  --header-height: 111px;
   --border-radius: .25rem;
+
+  // Layout
+  --desktop-width: 1020px;
+  --card-gap: 15px; // Need to get govuk-spacing() working...
 }
