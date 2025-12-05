@@ -127,6 +127,22 @@ def get_minimum_metadata(
     }
 
 
+def get_k_value(file_list, desired_size=30):
+    """
+    Simple rule: more files filtered = lower k needed
+    """
+    num_files = len(file_list)
+
+    if num_files <= 3:
+        return desired_size * 3  # k=90 for very restrictive
+    elif num_files <= 10:
+        return desired_size * 2  # k=60 for restrictive
+    elif num_files <= 30:
+        return int(desired_size * 1.5)  # k=45 for moderate
+    else:
+        return desired_size  # k=30 for many files
+
+
 def build_document_query(
     query: str,
     query_vector: list[float],
@@ -148,26 +164,21 @@ def build_document_query(
         chunk_resolution=chunk_resolution,
     )
 
+    k_value = get_k_value(selected_files, desired_size=ai_settings.rag_num_candidates)
     return {
         "size": ai_settings.rag_k,
         "min_score": 0.6,
         "query": {
-            "bool": {
-                "must": [
-                    {
-                        "knn": {
-                            "vector_field": {
-                                "vector": query_vector,
-                                "k": ai_settings.rag_num_candidates,
-                                # "boost": ai_settings.knn_boost,
-                                "filter": query_filter,
-                            }
-                        }
-                    },
-                ],
-                "filter": query_filter,
+            "knn": {
+                "vector_field": {
+                    "vector": query_vector,
+                    "k": k_value,
+                    # "boost": ai_settings.knn_boost,
+                    "filter": query_filter,
+                }
             }
         },
+        "_source": {"excludes": ["vector_field"]},
     }
 
 

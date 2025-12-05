@@ -105,7 +105,7 @@
     "question": "How many clients who were born in 1920 stay in east Bohemia?",
     "evidence": "East Bohemia appears in the column A3, which refers to the region.",
     "SQL": "SELECT COUNT(T1.client_id) FROM client AS T1 INNER JOIN district AS T2 ON T1.district_id = T2.district_id WHERE STRFTIME('%Y', T1.birth_date) = '1920' AND T2.A3 = 'east Bohemia'",
-    "answer": 6, 
+    "answer": 6,
     "difficulty": "simple",
     "SQL_redbox_without_evidence": "SELECT COUNT(*) FROM client_table_3 c JOIN district_table_5 d ON c.district_id = d.district_id WHERE c.birth_date LIKE '1920%' AND d.A3 = 'east Bohemia';",
     "SQL_redbox_with_evidence": "SELECT COUNT(*) as count FROM client_table_3 c JOIN district_table_5 d ON c.district_id = d.district_id WHERE c.birth_date LIKE '1920%'  AND d.A3 = 'east Bohemia'",
@@ -113,7 +113,7 @@
     "redbox_answer_with_evidence": 6,
     "is_accurate_without_evidence": 1,
     "is_accurate_with_evidence": 1
-    
+
   },
   {
     "question_id": 191,
@@ -121,7 +121,7 @@
     "question": "How many loan accounts are for pre-payment of duration of 24 months with weekly issuance of statement.",
     "evidence": "Frequency = 'POPLATEK TYDNE' referes to weekly statement",
     "SQL": "SELECT COUNT(T2.account_id) FROM account AS T1 INNER JOIN loan AS T2 ON T1.account_id = T2.account_id WHERE T2.duration = 24 AND T1.frequency = 'POPLATEK TYDNE'",
-    "answer": 15, 
+    "answer": 15,
     "difficulty": "simple",
     "SQL_redbox_without_evidence": "SELECT COUNT(*) FROM loan_table_6 l JOIN account_table_1 a ON l.account_id = a.account_id WHERE l.duration = 24 AND a.frequency = 'POPLATEK TYDNE';",
     "SQL_redbox_with_evidence": "SELECT COUNT(*) AS count_of_loans FROM loan_table_6 l JOIN account_table_1 a ON l.account_id = a.account_id WHERE l.duration = 24 AND a.frequency = 'POPLATEK TYDNE'",
@@ -136,7 +136,7 @@
     "question": "How many clients who choose statement of weekly issuance are Owner?",
     "evidence": "Frequency = 'POPLATEK TYDNE' refers to weekly issuance",
     "SQL": "SELECT COUNT(T2.account_id) FROM account AS T1 INNER JOIN disp AS T2 ON T2.account_id = T1.account_id WHERE T1.frequency = 'POPLATEK TYDNE' AND T2.type = 'OWNER'",
-    "answer": 240, 
+    "answer": 240,
     "difficulty": "simple",
     "SQL_redbox_without_evidence": "SELECT COUNT(DISTINCT d.client_id) as owner_count FROM disp_table_4 d JOIN account_table_1 a ON d.account_id = a.account_id WHERE d.type = 'OWNER' AND a.frequency = 'POPLATEK TYDNE'",
     "SQL_redbox_with_evidence": "SELECT COUNT(DISTINCT d.client_id) AS owner_count_with_weekly_statements FROM disp_table_4 d JOIN account_table_1 a ON d.account_id = a.account_id WHERE d.type = 'OWNER' AND a.frequency = 'POPLATEK TYDNE'",
@@ -151,7 +151,7 @@
         "question": "How many accounts who choose issuance after transaction are staying in East Bohemia region?",
         "evidence": "A3 contains the data of region; 'POPLATEK PO OBRATU' represents for 'issuance after transaction'.",
         "SQL": "SELECT COUNT(T2.account_id) FROM district AS T1 INNER JOIN account AS T2 ON T1.district_id = T2.district_id WHERE T1.A3 = 'east Bohemia' AND T2.frequency = 'POPLATEK PO OBRATU'",
-        "answer": 13, 
+        "answer": 13,
         "difficulty": "moderate",
         "SQL_redbox_without_evidence": "SELECT COUNT(DISTINCT a.account_id) FROM account_table_1 a JOIN order_table_7 o ON a.account_id = o.account_id JOIN district_table_5 d ON a.district_id = d.district_id WHERE o.k_symbol = 'UVER' AND d.A3 = 'east Bohemia'",
         "SQL_redbox_with_evidence": "SELECT COUNT(*) AS count FROM account_table_1 a JOIN district_table_5 d ON a.district_id = d.district_id WHERE a.frequency = 'POPLATEK PO OBRATU' AND d.A3 = 'east Bohemia'",
@@ -437,11 +437,11 @@
         "question": "How often does account number 3 request an account statement to be released? What was the aim of debiting 3539 in total?",
         "evidence": "k_symbol refers to the purpose of payments",
         "SQL": "SELECT T1.frequency, T2.k_symbol FROM account AS T1 INNER JOIN (SELECT account_id, k_symbol, SUM(amount) AS total_amount FROM `order` GROUP BY account_id, k_symbol) AS T2 ON T1.account_id = T2.account_id WHERE T1.account_id = 3 AND T2.total_amount = 3539",
-        "answer": "[('POPLATEK MESICNE', 'POJISTNE')]. POPLATEK MESICNE means monthly statements.", 
+        "answer": "[('POPLATEK MESICNE', 'POJISTNE')]. POPLATEK MESICNE means monthly statements.",
         "difficulty": "challenging",
         "SQL_redbox_without_evidence": "SELECT k_symbol, COUNT(*) as count, SUM(amount) as total_amount FROM order_table_7 WHERE account_id = 3 GROUP BY k_symbol",
         "SQL_redbox_with_evidence": "None",
-        "redbox_answer_without_evidence":"For the first question about how often account number 3 requests an account statement, there is no explicit data in the database tables that tracks statement requests..the aim of debiting 3539 in total appears to be for an insurance payment made from account number 3.", 
+        "redbox_answer_without_evidence":"For the first question about how often account number 3 requests an account statement, there is no explicit data in the database tables that tracks statement requests..the aim of debiting 3539 in total appears to be for an insurance payment made from account number 3.",
         "redbox_answer_with_evidence":"Agent stopped due to iteration limit or time limit. 3 attempts",
         "is_accurate_without_evidence": 0,
         "is_accurate_with_evidence": 0

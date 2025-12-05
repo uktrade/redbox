@@ -213,6 +213,8 @@ django_app/frontend/test-results
 # Django app tests staticfiles
 django_app/tests/staticfiles
 
+# Redbox backend
+staticfiles
 
 # Other
 .DS_Store
