@@ -77,7 +77,7 @@ class ChatController extends HTMLElement {
 
       // reset UI
       if (feedbackButtons) feedbackButtons.dataset.status = "";
-      messageInput.reset();
+      messageInput.reset(true);
     });
 
     document.body.addEventListener("selected-docs-change", (evt) => {

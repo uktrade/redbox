@@ -16,7 +16,7 @@ In this section we will cover some of the key dependencies for all of the deploy
 
 ### Brew
 
-If you're on a Mac, you can install the above dependencies using [brew](https://brew.sh/). 
+If you're on a Mac, you can install the above dependencies using [brew](https://brew.sh/).
 
 ```bash
 brew install docker docker-compose make poppler tesseract
@@ -51,14 +51,14 @@ To build the project, you can use the following command:
 make build
 ```
 
-or 
+or
 
 ```bash
 docker compose build
 ```
 
 At the end of the you can view all of the built images with this command:
-    
+
 ```bash
 docker images | grep redbox
 ```
