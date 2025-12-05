@@ -3,13 +3,13 @@ import os
 from functools import partial
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union, cast
 
-from elasticsearch import Elasticsearch
+from elasticsearch import Elasticsearch, TransportError
 from kneed import KneeLocator
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.retrievers import BaseRetriever
-from opensearchpy import OpenSearch
+from opensearchpy import OpenSearch, OpenSearchException
 
 # from elasticsearch.helpers import scan
 from opensearchpy.helpers import scan
@@ -86,12 +86,28 @@ class OpenSearchRetriever(BaseRetriever):
             raise ValueError("OpenSearch client or document mapper is not initialized")
 
         body = self.body_func(query)
-        logger.info("query to opensearch: from get_relevant_documents")
-        logger.info(str(body))
-        response = self.es_client.search(index=self.index_name, body=body)
-        logger.info("response from opensearch: from get_relevant_documents")
-        logger.info(str([self.document_mapper(hit) for hit in response["hits"]["hits"]]))
-        return [self.document_mapper(hit) for hit in response["hits"]["hits"]]
+        logger.warning("[get_relevant_documents] Query to opensearch")
+        logger.warning(f"[get_relevant_documents] Query Body: {str(body)}")
+
+        try:
+            response = self.es_client.search(index=self.index_name, body=body)
+            hits = response.get("hits", {}).get("hits", [])
+            documents = [self.document_mapper(hit) for hit in hits]
+
+            logger.warning("[get_relevant_documents] Retrieved %d documents", len(documents))
+            logger.warning("[get_relevant_documents] Documents: %s", documents)
+
+            return documents
+
+        except OpenSearchException as e:
+            logger.error("[get_relevant_documents] OpenSearch error for index '%s': %s", self.index_name, e)
+            raise
+        except TransportError as e:
+            logger.error("[get_relevant_documents] ElasticSearch error for index '%s': %s", self.index_name, e)
+            raise
+        except Exception:
+            logger.exception("[get_relevant_documents] Unexpected error while querying index '%s'", self.index_name)
+            raise
 
     def _single_field_mapper(self, hit: Mapping[str, Any]) -> Document:
         content = hit["_source"].pop(self.content_field)
@@ -129,12 +145,25 @@ def query_to_documents(
     es_client: Union[Elasticsearch, OpenSearch], index_name: str, query: dict[str, Any]
 ) -> list[Document]:
     """Runs an Elasticsearch query and returns Documents."""
-    logger.info("query to opensearch: from query_to_documents")
-    logger.info(str(query))
-    response = es_client.search(index=index_name, body=query)
-    logger.info("response from opensearch: from query_to_documents")
-    logger.info(str([hit_to_doc(hit) for hit in response["hits"]["hits"]]))
-    return [hit_to_doc(hit) for hit in response["hits"]["hits"]]
+    logger.warning("[query_to_documents] Query to opensearch")
+    logger.warning(str(query))
+    try:
+        response = es_client.search(index=index_name, body=query)
+        hits = response.get("hits", {}).get("hits", [])
+        documents = [hit_to_doc(hit) for hit in hits]
+        logger.warning("[query_to_documents] Query returned %d documents", len(documents))
+        logger.warning("[query_to_documents] Documents: %s", documents)
+        return documents
+
+    except OpenSearchException as e:
+        logger.error("[query_to_documents] OpenSearch error for index '%s': %s", index_name, e)
+        raise
+    except TransportError as e:
+        logger.error("[query_to_documents] ElasticSearch error for index '%s': %s", index_name, e)
+        raise
+    except Exception:
+        logger.exception("[query_to_documents] Unexpected error while querying index '%s'", index_name)
+        raise
 
 
 def filter_by_elbow(

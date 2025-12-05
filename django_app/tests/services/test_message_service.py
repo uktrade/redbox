@@ -14,13 +14,13 @@ def test_replace_ref(client: Client, alice: User, chat_message_with_citation: Ch
     client.force_login(alice)
     citation = Citation.objects.get(chat_message=chat_message_with_citation)
     footnote_counter = 1
-    citation_name = "ref_1"
+    citation.citation_name = "ref_1"
+    citation.save()
 
     # When
     message_text = message_service.replace_ref(
         message_text=f"{citation.text} [ref_1]",
-        ref_name=citation_name,
-        cit_id=citation.id,
+        citation=citation,
         footnote_counter=footnote_counter,
     )
     expceted_result = (
@@ -37,12 +37,13 @@ def test_replace_text_in_answer(client: Client, alice: User, chat_message_with_c
     client.force_login(alice)
     citation = Citation.objects.get(chat_message=chat_message_with_citation)
     footnote_counter = 1
+    citation.text_in_answer = citation.text
+    citation.save()
 
     # When
     message_text = message_service.replace_text_in_answer(
         message_text=citation.text,
-        text_in_answer=citation.text,
-        cit_id=citation.id,
+        citation=citation,
         footnote_counter=footnote_counter,
     )
     expceted_result = (
@@ -68,11 +69,11 @@ def test_citation_not_inserted(client: Client, alice: User, chat_message_with_ci
     # Then
     assert not message_service.citation_not_inserted(
         message_text=message_with_citation,
-        cit_id=citation.id,
+        citation=citation,
         footnote_counter=footnote_counter,
     )
     assert message_service.citation_not_inserted(
         message_text=citation.text,
-        cit_id=citation.id,
+        citation=citation,
         footnote_counter=footnote_counter,
     )

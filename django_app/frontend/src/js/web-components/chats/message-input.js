@@ -137,14 +137,21 @@ export class MessageInput extends HTMLElement {
 
   /**
    * Clears the message
+   * @param {boolean} clearFiles - Clears UploadedFiles from the message input
    */
-  reset = () => {
+  reset = (clearFiles=false) => {
     if (!this.textarea) return;
     let hasUploadedFiles = false;
     for (const node of Array.from(this.textarea.childNodes)) {
       switch(node.nodeType) {
         case Node.ELEMENT_NODE:
-          if (node instanceof UploadedFiles) hasUploadedFiles = true;
+          if (node instanceof UploadedFiles) {
+            if (clearFiles) {
+              this.textarea.removeChild(node);
+            } else {
+              hasUploadedFiles = true;
+            }
+          }
           if (!(node instanceof UploadedFiles)) this.textarea.removeChild(node);
           break;
         default:
