@@ -83,7 +83,7 @@ class AISettings(BaseModel):
 
     # Elasticsearch RAG and boost values
     rag_k: int = 30
-    rag_num_candidates: int = 10
+    rag_num_candidates: int = 30
     rag_gauss_scale_size: int = 3
     rag_gauss_scale_decay: float = 0.5
     rag_gauss_scale_min: float = 1.1

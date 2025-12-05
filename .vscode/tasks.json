@@ -49,13 +49,47 @@
             }
         },
         {
+            "label": "npm-run-dev",
+            "type": "shell",
+            "command": "npm run dev",
+            "options": {
+                "cwd": "${workspaceFolder}/django_app/frontend"
+            },
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "custom",
+                "pattern": [
+                    {
+                        "kind": "file",
+                        "regexp": "^(.*)$",
+                        "file": 1,
+                        "message": 0
+                    }
+                ],
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": ".*",
+                    "endsPattern": "Built in \\d+(\\.\\d+)?(ms|s)"
+                }
+            }
+        },
+        {
+            "label": "start-dev",
+            "dependsOn": [
+                "docker-compose up deps",
+                "npm-run-dev"
+            ],
+            "dependsOrder": "sequence"
+        },
+        {
             "label": "Django: QCluster",
             "type": "shell",
             "command": "${command:python.interpreterPath} django_app/manage.py qcluster",
             "options": {
                 "env": {
                     "PYTHONUNBUFFERED": "1",
-                    "USE_LOCAL_ENV": "true"
+                    "USE_LOCAL_ENV": "true",
+                    "DJANGO_LOG_FORMAT": "verbose"
                 },
                 "cwd": "${workspaceFolder}"
             },
