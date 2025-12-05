@@ -18,7 +18,7 @@ export class MessageInput extends HTMLElement {
 
 
   #sendMessage() {
-    if (this.getValue()) {
+    if (this.getValue() || this.hasUploadedFiles()) {
       this.#hideWarnings();
       this.closest("form")?.requestSubmit();
     }
@@ -125,7 +125,7 @@ export class MessageInput extends HTMLElement {
 
   /**
    * Returns the current message, without any uploaded files
-   * @returns string
+   * @returns {string}
    */
   getValue = (trim=true) => {
     const clone = /** @type {HTMLElement} */ (this.textarea.cloneNode(true));
@@ -159,6 +159,24 @@ export class MessageInput extends HTMLElement {
       }
     }
     if (hasUploadedFiles) this.textarea.appendChild(document.createElement("br"));
+  };
+
+
+  /**
+   * Returns uploaded files element if present
+   * @returns {UploadedFiles | null}
+   */
+  getUploadedFilesEl = () => {
+    return  /** @type {UploadedFiles} */ (this.textarea?.querySelector("rbds-uploaded-files"));
+  };
+
+
+  /**
+   * Checks if uploaded-files is present
+   * @returns {boolean}
+   */
+  hasUploadedFiles = () => {
+    return  Boolean(this.getUploadedFilesEl());
   };
 
 
