@@ -509,16 +509,14 @@ If a user asks follow-up questions:
 """
 
 EVAL_SUBMISSION = """
-If a user asks for an evaluation:
-    - After evaluate all seven criteria, provide the following:
-        - AVERAGE SCORE: A simple mean of the score across all 7 criteria.
-        - ASSESSMENT SUMMARY: A brief statement of the overall quality of the submission. Be critical but constructive in your feedback.
-        - when referencing to template guidance, references should consistently use ‘Ministerial Submission Template Guidance’
+After evaluating all seven criteria, provide the following:
+- AVERAGE SCORE: A simple mean of the score across all 7 criteria.
+- ASSESSMENT SUMMARY: A brief statement of the overall quality of the submission. Be critical but constructive in your feedback.
+- when referencing to template guidance, references should consistently use ‘Ministerial Submission Template Guidance’
 """
 
 FOLLOW_UP_Q_SUBMISSION = """
-If a user asks follow-up questions:
- - Be extremely concise. 1-2 sentences max unless user asks for detail.
+Make the response be extremely concise. 1-2 sentences max unless user asks for detail.
 """
 
 EVAL_IF_FOLLOW_UP_Q_PROMPT = """Given the user's new question, the attached documents, and the chat history, determine if the user is asking a follow-up question to the submission evaluation or to the previous response.
