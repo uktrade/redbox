@@ -108,9 +108,13 @@ def run_tools_parallel(ai_msg, tools, state, timeout=60):
                         log.warning(f"[run_tools_parallel] This is what I got from tool: {response}")
                         responses.append(AIMessage(response))
 
-                        if not response or not response.strip():
+                        raw_res = response
+                        if isinstance(raw_res, tuple):
+                            raw_res = raw_res[0]
+
+                        if not raw_res or not raw_res.strip():
                             log.warning(
-                                f"[run_tools_parallel] Tool returned empty/whitespace response: {repr(response)}"
+                                f"[run_tools_parallel] Tool returned empty/whitespace response: {repr(raw_res)}"
                             )
                     except Exception as e:
                         log.warning(f"[run_tools_parallel] Tool invocation error: {e}")
