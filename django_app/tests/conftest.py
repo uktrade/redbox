@@ -177,6 +177,11 @@ def chat_with_message(chat: Chat) -> Chat:
 
 
 @pytest.fixture
+def skill() -> Skill:
+    return Skill.objects.create(name="Test Skill")
+
+
+@pytest.fixture
 def chat_message(chat: Chat, uploaded_file: File) -> ChatMessage:
     chat_message = ChatMessage.objects.create(
         chat=chat, text="A question?", role=ChatMessage.Role.user, route="A route"
@@ -186,10 +191,13 @@ def chat_message(chat: Chat, uploaded_file: File) -> ChatMessage:
 
 
 @pytest.fixture
-def chat_message_with_citation(chat: Chat, uploaded_file: File) -> ChatMessage:
+def chat_message_with_citation(chat: Chat, uploaded_file: File, skill: Skill) -> ChatMessage:
+    chat.skill = skill
+    chat.save()
+
     chat_message = ChatMessage.objects.create(
         chat=chat,
-        text="An answer.",
+        text="An answer with citation.",
         role=ChatMessage.Role.ai,
         rating=3,
         rating_chips=["apple", "pear"],
