@@ -72,6 +72,7 @@ def test_message_serializer(chat_message_with_citation_and_tokens: ChatMessage):
         "route": "chat",
         "selected_files": [],
         "text": "An answer.",
+        "skill_name": "Test Skill",
     }
 
     expected_token_usage = [
