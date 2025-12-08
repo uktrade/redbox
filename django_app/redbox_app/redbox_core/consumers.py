@@ -92,8 +92,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
     activities: ClassVar[list[RedboxActivityEvent]] = []
     route = None
     metadata: RequestMetadata = RequestMetadata()
+    env = get_settings()
+    debug = not env.is_prod
 
-    redbox = Redbox(env=get_settings(), debug=True)
+    redbox = Redbox(env=env, debug=debug)
     chat_message = None  # incrementally updating the chat stream
 
     async def _init_session(self, data, user, user_message_text, chat_backend, temperature):
