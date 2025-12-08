@@ -32,6 +32,7 @@ from redbox.graph.nodes.processes import (
     build_set_route_pattern,
     build_set_self_route_from_llm_answer,
     build_stuff_pattern,
+    build_submission_follow_up_q_evaluation,
     build_user_feedback_evaluation,
     clear_documents_process,
     combine_question_evaluator,
@@ -58,6 +59,7 @@ from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.models.prompts import (
     EVAL_SUBMISSION,
+    FOLLOW_UP_Q_SUBMISSION,
     EXTERNAL_RETRIEVAL_AGENT_PROMPT,
     INTERNAL_RETRIEVAL_AGENT_PROMPT,
     LEGISLATION_SEARCH_AGENT_PROMPT,
@@ -793,6 +795,13 @@ def build_new_route_graph(
         return state
 
     builder.add_node("update_submission_eval", update_submission_eval)
+
+    def update_submission_follow_up_q(state: RedboxState):
+        state.tasks_evaluator = FOLLOW_UP_Q_SUBMISSION
+        return state
+
+    builder.add_node("update_submission_follow_up_q", update_submission_follow_up_q)
+
     builder.add_node("user_feedback_evaluation", empty_process)
 
     builder.add_node("Evaluator_Agent", create_evaluator())
@@ -829,7 +838,13 @@ def build_new_route_graph(
     builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
     builder.add_edge("Web_Search_Agent", "combine_question_evaluator")
     builder.add_edge("Legislation_Search_Agent", "combine_question_evaluator")
-    builder.add_edge("Submission_Checker_Agent", "update_submission_eval")
+    # builder.add_edge("Submission_Checker_Agent", "update_submission_eval")
+    builder.add_conditional_edges(
+        "Submission_Checker_Agent",
+        build_submission_follow_up_q_evaluation(),
+        {True: "update_submission_follow_up_q", False: "update_submission_eval"},
+    )
+    builder.add_edge("update_submission_follow_up_q", "combine_question_evaluator")
     builder.add_edge("update_submission_eval", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")

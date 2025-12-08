@@ -33,6 +33,7 @@ from redbox.models import ChatRoute
 from redbox.models.chain import (
     DocumentState,
     FeedbackEvalDecision,
+    FollowUpQEvalDecision,
     PromptSet,
     RedboxState,
     RequestMetadata,
@@ -41,7 +42,7 @@ from redbox.models.chain import (
     get_plan_fix_suggestion_prompts,
 )
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
-from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
+from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT, EVAL_IF_FOLLOW_UP_Q_PROMPT
 from redbox.transform import (
     bedrock_tokeniser,
     combine_agents_state,
@@ -726,6 +727,22 @@ def build_user_feedback_evaluation():
         return res.next.value
 
     return _build_user_feedback_evaluation
+
+
+def build_submission_follow_up_q_evaluation():
+    @RunnableLambda
+    def _build_submission_follow_up_q_evaluation(state: RedboxState):
+        decision_agent = create_chain_agent(
+            system_prompt=EVAL_IF_FOLLOW_UP_Q_PROMPT,
+            parser=ClaudeParser(pydantic_object=FollowUpQEvalDecision),
+            _additional_variables={},  # "existing_submission": state.documents }, #"feedback": state.user_feedback},
+            use_metadata=True,
+            using_chat_history=True,
+        )
+        res = decision_agent.invoke(state)
+        return res.answer
+
+    return _build_submission_follow_up_q_evaluation
 
 
 def stream_plan():
