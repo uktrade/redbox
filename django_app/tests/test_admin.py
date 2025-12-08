@@ -71,7 +71,7 @@ def test_message_serializer(chat_message_with_citation_and_tokens: ChatMessage):
         "role": "ai",
         "route": "chat",
         "selected_files": [],
-        "text": "An answer.",
+        "text": "An answer with citation.",
         "skill_name": "Test Skill",
     }
 
