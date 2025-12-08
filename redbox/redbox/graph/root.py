@@ -838,7 +838,6 @@ def build_new_route_graph(
     builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
     builder.add_edge("Web_Search_Agent", "combine_question_evaluator")
     builder.add_edge("Legislation_Search_Agent", "combine_question_evaluator")
-    # builder.add_edge("Submission_Checker_Agent", "update_submission_eval")
     builder.add_conditional_edges(
         "Submission_Checker_Agent",
         build_submission_follow_up_q_evaluation(),

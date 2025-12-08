@@ -735,7 +735,7 @@ def build_submission_follow_up_q_evaluation():
         decision_agent = create_chain_agent(
             system_prompt=EVAL_IF_FOLLOW_UP_Q_PROMPT,
             parser=ClaudeParser(pydantic_object=FollowUpQEvalDecision),
-            _additional_variables={},  # "existing_submission": state.documents }, #"feedback": state.user_feedback},
+            _additional_variables={},
             use_metadata=True,
             using_chat_history=True,
         )
