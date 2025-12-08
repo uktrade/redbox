@@ -22,7 +22,7 @@ def test_internal_url(client: Client, alice: User, chat_message_with_citation: C
     citation = Citation.objects.get(chat_message=chat_message_with_citation)
 
     # Then
-    assert citation.internal_url == f"/chats/{chat_id}/citations/{message_id}/#{citation.id}"
+    assert citation.internal_url == f"/skills/test-skill/chats/{chat_id}/citations/{message_id}/#{citation.id}"
 
 
 @pytest.mark.django_db(transaction=True)
