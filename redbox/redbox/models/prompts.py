@@ -499,8 +499,9 @@ Existing information:
 EVAL_SUBMISSION = """
 After evaluating all seven criteria, provide the following:
 - AVERAGE SCORE: A simple mean of the score across all 7 criteria.
-- ASSESSMENT SUMMARY: A brief statement of the overall quality of the submission. Please give the user honest, constructive feedback. Your insights on what's strong and where user can improve. Your coaching perspective will really help the user develop.
+- ASSESSMENT SUMMARY: A brief statement of the overall quality of the submission. Please give the user honest, constructive feedback. Your insights on what's strong and where user can improve. Your coaching perspective will really help the user develop. It is important that you do not use adjectives when providing constructive feedback. For example: The submission completely lacks explicit recommendations...' in this case, you would instead simply say: 'The submission lacks explicit recommendations...' Adjectivising guidance leads to emotional judgement being inferred, do not do this.
+
 - Make reference or citations to the knowledge base information.
     - when referencing to template guidance, references should consistently use ‘Ministerial Submission Template Guidance’
-- Evaluation must be in reported according to the preferred evaluation response format.
+- Evaluation must be reported according to the preferred evaluation response format.
 """
