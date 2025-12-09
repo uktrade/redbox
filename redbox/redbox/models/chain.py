@@ -138,6 +138,13 @@ class AISettings(BaseModel):
             agents_max_tokens=10000,
             default_agent=False,
         ),
+        Agent(
+            name="Submission_Question_Answer_Agent",
+            description=prompts.SUBMISSION_QA_AGENT_DESC,
+            prompt=prompts.SUBMISSION_QA_PROMPT,
+            agents_max_tokens=10000,
+            default_agent=False,
+        ),
     ]
 
     @property
