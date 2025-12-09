@@ -58,6 +58,7 @@ from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.models.prompts import (
     EVAL_SUBMISSION,
+    EVAL_SUBMISSION_QA,
     EXTERNAL_RETRIEVAL_AGENT_PROMPT,
     INTERNAL_RETRIEVAL_AGENT_PROMPT,
     LEGISLATION_SEARCH_AGENT_PROMPT,
@@ -809,6 +810,12 @@ def build_new_route_graph(
 
     builder.add_node("update_submission_eval", update_submission_eval)
 
+    def update_submission_qa(state: RedboxState):
+        state.tasks_evaluator = EVAL_SUBMISSION_QA
+        return state
+
+    builder.add_node("update_submission_qa", update_submission_qa)
+
     builder.add_node("user_feedback_evaluation", empty_process)
 
     builder.add_node("Evaluator_Agent", create_evaluator())
@@ -846,8 +853,9 @@ def build_new_route_graph(
     builder.add_edge("Web_Search_Agent", "combine_question_evaluator")
     builder.add_edge("Legislation_Search_Agent", "combine_question_evaluator")
     builder.add_edge("Submission_Checker_Agent", "update_submission_eval")
-    builder.add_edge("Submission_Question_Answer_Agent", "combine_question_evaluator")
+    builder.add_edge("Submission_Question_Answer_Agent", "update_submission_qa")
     builder.add_edge("update_submission_eval", "combine_question_evaluator")
+    builder.add_edge("update_submission_qa", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)

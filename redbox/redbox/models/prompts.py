@@ -547,3 +547,7 @@ After evaluating all seven criteria, provide the following:
     - when referencing to template guidance, references should consistently use ‘Ministerial Submission Template Guidance’
 - Evaluation must be reported according to the preferred evaluation response format.
 """
+
+EVAL_SUBMISSION_QA = """
+Make the response be extremely concise. 200 words max unless user asks for detail.
+"""
