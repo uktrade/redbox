@@ -337,9 +337,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 ai_settings=ai_settings,
                 permitted_s3_keys=[f.unique_name for f in permitted_files],
                 previous_s3_keys=[f.unique_name for f in previous_selected_files],
-                knowledge_base_s3_keys=[f.unique_name for f in knowledge_files]
-                if type(knowledge_files) is list
-                else [f.unique_name for f in knowledge_files],
+                knowledge_base_s3_keys=[f.unique_name for f in knowledge_files] if knowledge_files else [],
             ),
             user_feedback=user_feedback,
             agent_plans=agent_plans,
