@@ -789,18 +789,18 @@ def build_new_route_graph(
         ),
     )
 
-    # success = "fail"
-    # is_intermediate_step = False
+    success = "fail"
+    is_intermediate_step = False
     builder.add_node(
         "Submission_Question_Answer_Agent",
-        build_agent(
+        build_agent_with_loop(
             agent_name="Submission_Question_Answer_Agent",
             system_prompt=SUBMISSION_QA_PROMPT,
             tools=multi_agent_tools["Submission_Question_Answer_Agent"],
             use_metadata=True,
             max_tokens=agents_max_tokens["Submission_Question_Answer_Agent"],
-            # loop_condition=lambda: success == "fail" or is_intermediate_step,
-            # max_attempt=2,
+            loop_condition=lambda: success == "fail" or is_intermediate_step,
+            max_attempt=2,
             using_chat_history=True,
         ),
     )
@@ -810,12 +810,6 @@ def build_new_route_graph(
         return state
 
     builder.add_node("update_submission_eval", update_submission_eval)
-
-    # def update_submission_follow_up_q(state: RedboxState):
-    #     state.tasks_evaluator = FOLLOW_UP_Q_SUBMISSION
-    #     return state
-
-    # builder.add_node("update_submission_follow_up_q", update_submission_follow_up_q)
 
     builder.add_node("user_feedback_evaluation", empty_process)
 
@@ -853,16 +847,8 @@ def build_new_route_graph(
     builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
     builder.add_edge("Web_Search_Agent", "combine_question_evaluator")
     builder.add_edge("Legislation_Search_Agent", "combine_question_evaluator")
-    # builder.add_conditional_edges(
-    #     "Submission_Checker_Agent",
-    #     build_submission_follow_up_q_evaluation(),
-    #     {True: "update_submission_follow_up_q", False: "update_submission_eval"},
-    # )
     builder.add_edge("Submission_Checker_Agent", "update_submission_eval")
-    builder.add_edge(
-        "Submission_Question_Answer_Agent", "combine_question_evaluator"
-    )  # "update_submission_follow_up_q")
-    # builder.add_edge("update_submission_follow_up_q", "combine_question_evaluator")
+    builder.add_edge("Submission_Question_Answer_Agent", "combine_question_evaluator")
     builder.add_edge("update_submission_eval", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
