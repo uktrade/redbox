@@ -4,7 +4,6 @@ import re
 from asyncio import CancelledError
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
-from functools import partial
 from typing import Any
 from uuid import UUID
 
@@ -203,9 +202,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 selected_agent_names = await sync_to_async(
                     lambda: list(AgentSkill.objects.filter(skill=skill_obj).values_list("agent__name", flat=True))
                 )()
-                knowledge_files = await database_sync_to_async(
-                    skill_obj.get_files
-                )(FileSkill.FileType.ADMIN)
+                knowledge_files = await database_sync_to_async(skill_obj.get_files)(FileSkill.FileType.ADMIN)
             except Skill.DoesNotExist:
                 logger.warning("Selected skill '%s' not found", selected_skill_id)
 
@@ -567,13 +564,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         return ai_settings.model_copy(
             update={"worker_agents": [agent for agent in AISettings().worker_agents if agent.default_agent]}
         )
-        
+
     async def connect(self):
         self.user = self.scope["user"]
         if self.user.is_authenticated:
-            self.uk_english = await database_sync_to_async(
-                lambda: getattr(self.user, "uk_or_us_english", False)
-            )()
+            self.uk_english = await database_sync_to_async(lambda: getattr(self.user, "uk_or_us_english", False))()
         else:
             self.uk_english = False
         await self.accept()
@@ -582,10 +577,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """Handle text chunks and British spelling conversion before sending to client."""
         logger.debug("Received text chunk: %s", response)
         if getattr(self, "uk_english", False):
-            converted_chunk = await sync_to_async(
-                uwm8.convert_american_to_british_spelling,
-                thread_sensitive=False
-            )(response)
+            converted_chunk = await sync_to_async(uwm8.convert_american_to_british_spelling, thread_sensitive=False)(
+                response
+            )
         else:
             converted_chunk = response
 
