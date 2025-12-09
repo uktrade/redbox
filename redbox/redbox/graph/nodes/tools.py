@@ -3,6 +3,7 @@ import logging
 import random
 import sqlite3
 import time
+from functools import lru_cache
 from typing import Annotated, Callable, Iterable, Union
 
 import boto3
@@ -69,7 +70,26 @@ def build_document_from_prompt_tool(loop: bool = False):
     return _retrieve_document_from_prompt
 
 
+def build_cacheable_query_function(es_client, index_name):
+    @lru_cache(maxsize=512)
+    def cached_query(state_json: str, chunk_resolution_value: ChunkResolution):
+        """
+        state_json: JSON string of RedboxState
+        chunk_resolution_value: string name of ChunkResolution enum
+        """
+        state_dict = json.loads(state_json)
+        resolution = ChunkResolution[chunk_resolution_value]
+
+        el_query = get_all(chunk_resolution=resolution, state=RedboxState(**state_dict))
+
+        return query_to_documents(es_client=es_client, index_name=index_name, query=el_query)
+
+    return cached_query
+
+
 def build_retrieve_document_full_text(es_client: Union[Elasticsearch, OpenSearch], index_name: str, loop: bool = False):
+    cached_query = build_cacheable_query_function(es_client, index_name)
+
     @tool(response_format="content_and_artifact")
     def _retrieve_document_full_text(
         state: Annotated[RedboxState, InjectedState], is_intermediate_step: bool = False
@@ -84,10 +104,12 @@ def build_retrieve_document_full_text(es_client: Union[Elasticsearch, OpenSearch
         Return:
             Tuple: Collection of matching document full texts with metadata
         """
+        state_json = state.model_dump_json()
 
-        el_query = get_all(chunk_resolution=ChunkResolution.largest, state=state)
+        # el_query = get_all(chunk_resolution=ChunkResolution.largest, state=state)
 
-        results = query_to_documents(es_client=es_client, index_name=index_name, query=el_query)
+        # results = query_to_documents(es_client=es_client, index_name=index_name, query=el_query)
+        results = cached_query(state_json, ChunkResolution.largest)
         if not results:
             return format_result(
                 loop=loop,
