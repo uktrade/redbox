@@ -168,7 +168,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         permitted_files = await cache.aget(cache_key)
         if permitted_files is None:
-            permitted_files = list(
+            qs = (
                 File.objects.filter(
                     Q(user=user, status=File.Status.complete)
                     | Q(
@@ -178,15 +178,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     )
                 )
                 .distinct()
-                .only("id", "status", "original_file", "original_file_name")
+                .only("id", "original_file", "original_file_name", "status")
             )
+            permitted_files = await sync_to_async(list)(qs)
+
             await cache.aset(cache_key, permitted_files, 30)
 
-        selected_files = permitted_files.filter(id__in=selected_file_uuids)
+        selected_files = [f for f in permitted_files if f.id in selected_file_uuids]
 
-        if not session.name:
-            first_selected_file = await sync_to_async(selected_files.first)()
-            session.name = first_selected_file.file_name[: settings.CHAT_TITLE_LENGTH]
+        if not session.name and selected_files:
+            first_file = selected_files[0]
+            session_name = await sync_to_async(lambda: first_file.file_name[: settings.CHAT_TITLE_LENGTH])()
+            session.name = session_name
             await session.asave()
 
         skill_obj = None
