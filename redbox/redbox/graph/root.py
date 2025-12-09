@@ -789,8 +789,6 @@ def build_new_route_graph(
         ),
     )
 
-    success = "fail"
-    is_intermediate_step = False
     builder.add_node(
         "Submission_Question_Answer_Agent",
         build_agent_with_loop(

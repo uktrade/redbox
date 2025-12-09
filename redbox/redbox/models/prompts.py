@@ -531,6 +531,8 @@ Existing information:
 <previous_chat_history>{chat_history}</previous_chat_history>
 <user_question>{question}</user_question>
 <document_metadata>{metadata}</document_metadata>
+<previous_tool_error>{previous_tool_error}</previous_tool_error>
+<previous_tool_results>{previous_tool_results}</previous_tool_results>
 
 ## Response format:
 Do not do an evaluation, and keep responses concise
