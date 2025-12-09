@@ -178,7 +178,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     )
                 )
                 .distinct()
-                .only("id", "unique_name", "file_name")
+                .only("id", "status", "original_file", "original_file_name")
             )
             await cache.aset(cache_key, permitted_files, 30)
 
