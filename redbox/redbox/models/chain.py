@@ -583,10 +583,6 @@ class FeedbackEvalDecision(BaseModel):
     next: DecisionEnum = DecisionEnum.approve
 
 
-class FollowUpQEvalDecision(BaseModel):
-    answer: bool = False
-
-
 def get_plan_fix_prompts():
     suffix_texts = [
         "Please let me know if you want me to go ahead with the plan, or make any changes.",

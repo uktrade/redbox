@@ -793,14 +793,12 @@ def build_new_route_graph(
     is_intermediate_step = False
     builder.add_node(
         "Submission_Question_Answer_Agent",
-        build_agent_with_loop(
+        build_agent(
             agent_name="Submission_Question_Answer_Agent",
             system_prompt=SUBMISSION_QA_PROMPT,
             tools=multi_agent_tools["Submission_Question_Answer_Agent"],
             use_metadata=True,
             max_tokens=agents_max_tokens["Submission_Question_Answer_Agent"],
-            loop_condition=lambda: success == "fail" or is_intermediate_step,
-            max_attempt=2,
             using_chat_history=True,
         ),
     )

@@ -531,8 +531,6 @@ Existing information:
 <previous_chat_history>{chat_history}</previous_chat_history>
 <user_question>{question}</user_question>
 <document_metadata>{metadata}</document_metadata>
-<previous_tool_error>{previous_tool_error}</previous_tool_error>
-<previous_tool_results>{previous_tool_results}</previous_tool_results>
 
 ## Response format:
 Do not do an evaluation, and keep responses concise
@@ -545,8 +543,4 @@ After evaluating all seven criteria, provide the following:
 - Make reference or citations to the knowledge base information.
     - when referencing to template guidance, references should consistently use ‘Ministerial Submission Template Guidance’
 - Evaluation must be in reported according to the preferred evaluation response format.
-"""
-
-FOLLOW_UP_Q_SUBMISSION = """
-Make the response be extremely concise. 1-2 sentences max unless user asks for detail.
 """
