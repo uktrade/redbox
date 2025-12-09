@@ -149,7 +149,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         selected_file_uuids: Sequence[UUID] = [UUID(u) for u in data.get("selectedFiles", [])]
         activities: Sequence[str] = data.get("activities", [])
         selected_skill_id: str | None = data.get("selectedSkill")
-        user: User = self.scope.get("user")
+        user: User = self.scope["user"]
 
         user_ai_settings = await AISettingsModel.objects.aget(label=user.ai_settings_id if user else "Claude 3.7")
         user_team_ids = await sync_to_async(
@@ -203,7 +203,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 selected_agent_names = await sync_to_async(
                     lambda: list(AgentSkill.objects.filter(skill=skill_obj).values_list("agent__name", flat=True))
                 )()
-                knowledge_files = skill_obj.get_files(FileSkill.FileType.ADMIN)
+                knowledge_files = await database_sync_to_async(
+                    skill_obj.get_files
+                )(FileSkill.FileType.ADMIN)
             except Skill.DoesNotExist:
                 logger.warning("Selected skill '%s' not found", selected_skill_id)
 
@@ -565,22 +567,27 @@ class ChatConsumer(AsyncWebsocketConsumer):
         return ai_settings.model_copy(
             update={"worker_agents": [agent for agent in AISettings().worker_agents if agent.default_agent]}
         )
+        
+    async def connect(self):
+        self.user = self.scope["user"]
+        if self.user.is_authenticated:
+            self.uk_english = await database_sync_to_async(
+                lambda: getattr(self.user, "uk_or_us_english", False)
+            )()
+        else:
+            self.uk_english = False
+        await self.accept()
 
     async def handle_text(self, response: str) -> str:
         """Handle text chunks and British spelling conversion before sending to client."""
         logger.debug("Received text chunk: %s", response)
-        try:
-            converted_chunk = (
-                await sync_to_async(
-                    partial(uwm8.convert_american_to_british_spelling, response), thread_sensitive=False
-                )
-                if self.scope.get("user").uk_or_us_english
-                else response
-            )
-            logger.debug("converted text chunk: %s -> %s", response[:50], converted_chunk[:50])
-        except Exception as e:
-            logger.exception("conversion failed on converting text chunk: %s", response[:50], exc_info=e)
-            converted_chunk = response  # use unconverted text
+        if getattr(self, "uk_english", False):
+            converted_chunk = await sync_to_async(
+                uwm8.convert_american_to_british_spelling,
+                thread_sensitive=False
+            )(response)
+        else:
+            converted_chunk = response
 
         # store both original and converted chunks
         self.full_reply.append(response)
@@ -656,7 +663,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         for c in citations:
             for s in c.sources:
                 text_in_answer = c.text_in_answer or ""
-                if self.scope["user"].uk_or_us_english:
+                if getattr(self, "uk_english", False):
                     text_in_answer = await sync_to_async(uwm8.convert_american_to_british_spelling)(text_in_answer)
 
                 try:
