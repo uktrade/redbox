@@ -981,11 +981,11 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         null=True,
         blank=True,
     )
-    # text_in_answer = models.TextField(
-    #     null=True,
-    #     blank=True,
-    #     help_text="the part of the answer the citation refers too - useful for adding in footnotes",
-    # )
+    text_in_answer = models.TextField(
+        null=True,
+        blank=True,
+        help_text="the part of the answer the citation refers too - useful for adding in footnotes",
+    )
     citation_name = models.TextField(
         null=True,
         blank=True,
