@@ -458,7 +458,14 @@ def my_planner(
     return _create_planner
 
 
-def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: bool = False, max_tokens: int = 5000):
+def build_agent(
+    agent_name: str,
+    system_prompt: str,
+    tools: list,
+    use_metadata: bool = False,
+    max_tokens: int = 5000,
+    using_chat_history: bool = False,
+):
     @RunnableLambda
     def _build_agent(state: RedboxState):
         log.warning(f"[{agent_name}] Starting agent run. Tools: {[t.name for t in tools]}")
@@ -483,6 +490,7 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
             parser=None,
             tools=tools,
             _additional_variables={"task": task.task, "expected_output": task.expected_output},
+            using_chat_history=using_chat_history,
         )
 
         log.warning(f"[{agent_name}] Invoking worker agent...")
@@ -549,6 +557,7 @@ def build_agent_with_loop(
     pre_process: Runnable | None = None,
     loop_condition: Callable | None = None,
     max_attempt=3,
+    using_chat_history: bool = False,
 ):
     @RunnableLambda
     def _build_agent_with_loop(state: RedboxState):
@@ -605,6 +614,7 @@ def build_agent_with_loop(
                 parser=None,
                 tools=tools,
                 _additional_variables=additional_variables,
+                using_chat_history=using_chat_history,
             )
             ai_msg = worker_agent.invoke(state)
 
