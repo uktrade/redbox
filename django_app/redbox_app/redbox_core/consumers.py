@@ -81,9 +81,16 @@ def escape_curly_brackets(text: str):
     return text.replace("{", "{{").replace("}", "}}")
 
 
-@sync_to_async
+@database_sync_to_async
 def get_latest_complete_file(ref: str) -> File:
-    return File.objects.filter(original_file=ref, status=File.Status.complete).order_by("-created_at").first()
+    return (
+        File.objects.filter(
+            original_file__endswith=ref,
+            status=File.Status.complete
+        )
+        .order_by("-created_at")
+        .first()
+    )
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -151,7 +158,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         user: User = self.scope["user"]
 
         user_ai_settings = await AISettingsModel.objects.aget(label=user.ai_settings_id if user else "Claude 3.7")
-        user_team_ids = await sync_to_async(
+        user_team_ids = await database_sync_to_async(
             lambda: list(UserTeamMembership.objects.filter(user=user).values_list("team_id", flat=True))
         )()
 
@@ -179,16 +186,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 .distinct()
                 .only("id", "original_file", "original_file_name", "status")
             )
-            permitted_files = await sync_to_async(list)(qs)
-
+            permitted_files = await database_sync_to_async(list)(qs)
             await cache.aset(cache_key, permitted_files, 30)
 
         selected_files = [f for f in permitted_files if f.id in selected_file_uuids]
 
         if not session.name and selected_files:
             first_file = selected_files[0]
-            session_name = await sync_to_async(lambda: first_file.file_name[: settings.CHAT_TITLE_LENGTH])()
-            session.name = session_name
+            session_name = await database_sync_to_async(
+                lambda fid: File.objects.filter(id=fid).values_list("file_name", flat=True).first()
+            )(first_file.id)
+            session.name = (session_name or "")[: settings.CHAT_TITLE_LENGTH]
             await session.asave()
 
         skill_obj = None
@@ -196,13 +204,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         knowledge_files = []
         if selected_skill_id:
             try:
-                skill_obj = await sync_to_async(Skill.objects.get)(id=selected_skill_id)
+                skill_obj = await database_sync_to_async(Skill.objects.get)(id=selected_skill_id)
                 session.skill = skill_obj
                 await session.asave()
-                selected_agent_names = await sync_to_async(
-                    lambda: list(AgentSkill.objects.filter(skill=skill_obj).values_list("agent__name", flat=True))
-                )()
-                knowledge_files = await database_sync_to_async(skill_obj.get_files)(FileSkill.FileType.ADMIN)
+                selected_agent_names = await database_sync_to_async(
+                    lambda s: list(AgentSkill.objects.filter(skill=s).values_list("agent__name", flat=True))
+                )(skill_obj)
+                knowledge_files = await database_sync_to_async(lambda s: list(s.get_files(FileSkill.FileType.ADMIN)))(skill_obj)
             except Skill.DoesNotExist:
                 logger.warning("Selected skill '%s' not found", selected_skill_id)
 
@@ -261,7 +269,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             any(n in message_history[-plan_message_size].text for n in plan_prefix)
         ):
 
-            @sync_to_async
+            @database_sync_to_async
             def get_agent_plan(session: Chat):
                 return (
                     AgentPlan.objects.filter(chat__id=session.id)
@@ -290,10 +298,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     logger.debug("cannot parse into plan object %s", plan[0])
                     logger.exception("Error from converting plan.", exc_info=e)
         return None, message_history[-2].text, ""  # message_history[-2].text extracts the current user query
-    
+
     @database_sync_to_async
     def _files_to_s3_keys(self, files: Sequence[File]) -> list[str]:
-        return [f.unique_name for f in files if f.unique_name]
+        if not files:
+            return []
+        ids = [f.id for f in files]
+        return list(
+            File.objects.filter(id__in=ids).values_list("original_file", flat=True)
+        )
+
 
     async def llm_conversation(
         self,
@@ -572,7 +586,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.user = self.scope["user"]
         if self.user.is_authenticated:
-            self.uk_english = await database_sync_to_async(lambda: getattr(self.user, "uk_or_us_english", False))()
+            self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
         else:
             self.uk_english = False
         await self.accept()
