@@ -290,6 +290,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     logger.debug("cannot parse into plan object %s", plan[0])
                     logger.exception("Error from converting plan.", exc_info=e)
         return None, message_history[-2].text, ""  # message_history[-2].text extracts the current user query
+    
+    @database_sync_to_async
+    def _files_to_s3_keys(self, files: Sequence[File]) -> list[str]:
+        return [f.unique_name for f in files if f.unique_name]
 
     async def llm_conversation(
         self,
@@ -326,7 +330,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         state = RedboxState(
             request=RedboxQuery(
                 question=question,
-                s3_keys=[f.unique_name for f in selected_files],
+                s3_keys=await self._files_to_s3_keys(selected_files),
                 user_uuid=user.id,
                 chat_history=[
                     ChainChatMessage(role=m.role, text=escape_curly_brackets(m.text))
@@ -334,9 +338,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     if m.text
                 ],
                 ai_settings=ai_settings,
-                permitted_s3_keys=[f.unique_name for f in permitted_files],
-                previous_s3_keys=[f.unique_name for f in previous_selected_files],
-                knowledge_base_s3_keys=[f.unique_name for f in knowledge_files] if knowledge_files else [],
+                permitted_s3_keys=await self._files_to_s3_keys(permitted_files),
+                previous_s3_keys=await self._files_to_s3_keys(previous_selected_files),
+                knowledge_base_s3_keys=await self._files_to_s3_keys(knowledge_files) if knowledge_files else [],
             ),
             user_feedback=user_feedback,
             agent_plans=agent_plans,
