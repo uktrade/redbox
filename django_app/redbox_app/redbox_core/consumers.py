@@ -432,7 +432,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     file.save()
                     Citation.objects.create(
                         chat_message=self.chat_message,
-                        # text_in_answer=ai_citation.text_in_answer,
                         file=file,
                         text=citation_source.highlighted_text_in_source,
                         page_numbers=citation_source.page_numbers,
@@ -442,7 +441,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 else:
                     Citation.objects.create(
                         chat_message=self.chat_message,
-                        # text_in_answer=ai_citation.text_in_answer,
                         url=citation_source.source,
                         text=citation_source.highlighted_text_in_source,
                         page_numbers=citation_source.page_numbers,
