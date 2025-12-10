@@ -70,19 +70,19 @@ def get_context(request: HttpRequest, chat_id: uuid.UUID | None = None, skill_sl
                     logger.info("Citation Numbering Missed")
                 else:
                     footnote_counter = footnote_counter + 1
-            # elif citation.text_in_answer:
-            #     message.text = message_service.replace_text_in_answer(
-            #         message_text=message.text,
-            #         citation=citation,
-            #         footnote_counter=footnote_counter,
-            #     )
-            #     footnote_counter = footnote_counter + 1
-            #     if message_service.citation_not_inserted(
-            #         message_text=message.text,
-            #         citation=citation,
-            #         footnote_counter=footnote_counter,
-            #     ):
-            #         logger.info("Citation Numbering Missed")
+            elif citation.text_in_answer:
+                message.text = message_service.replace_text_in_answer(
+                    message_text=message.text,
+                    citation=citation,
+                    footnote_counter=footnote_counter,
+                )
+                footnote_counter = footnote_counter + 1
+                if message_service.citation_not_inserted(
+                    message_text=message.text,
+                    citation=citation,
+                    footnote_counter=footnote_counter,
+                ):
+                    logger.info("Citation Numbering Missed")
         message.text = message_service.remove_dangling_citation(message_text=message.text)
 
     urls = {
