@@ -96,6 +96,7 @@ class Redbox:
             "Tabular_Agent": [execute_sql],
             "Web_Search_Agent": [web_search],
             "Legislation_Search_Agent": [legislation_search],
+            "Submission_Question_Answer_Agent": [retrieve_full_text, retrieve_knowledge_base, doc_from_prompt],
             "Submission_Checker_Agent": [retrieve_full_text, retrieve_knowledge_base, doc_from_prompt],
         }
 
