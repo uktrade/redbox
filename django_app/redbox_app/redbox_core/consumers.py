@@ -83,14 +83,7 @@ def escape_curly_brackets(text: str):
 
 @database_sync_to_async
 def get_latest_complete_file(ref: str) -> File:
-    return (
-        File.objects.filter(
-            original_file__endswith=ref,
-            status=File.Status.complete
-        )
-        .order_by("-created_at")
-        .first()
-    )
+    return File.objects.filter(original_file__endswith=ref, status=File.Status.complete).order_by("-created_at").first()
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -210,7 +203,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 selected_agent_names = await database_sync_to_async(
                     lambda s: list(AgentSkill.objects.filter(skill=s).values_list("agent__name", flat=True))
                 )(skill_obj)
-                knowledge_files = await database_sync_to_async(lambda s: list(s.get_files(FileSkill.FileType.ADMIN)))(skill_obj)
+                knowledge_files = await database_sync_to_async(lambda s: list(s.get_files(FileSkill.FileType.ADMIN)))(
+                    skill_obj
+                )
             except Skill.DoesNotExist:
                 logger.warning("Selected skill '%s' not found", selected_skill_id)
 
@@ -304,10 +299,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if not files:
             return []
         ids = [f.id for f in files]
-        return list(
-            File.objects.filter(id__in=ids).values_list("original_file", flat=True)
-        )
-
+        return list(File.objects.filter(id__in=ids).values_list("original_file", flat=True))
 
     async def llm_conversation(
         self,
