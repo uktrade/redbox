@@ -191,10 +191,7 @@ def chat_message(chat: Chat, uploaded_file: File) -> ChatMessage:
 
 
 @pytest.fixture
-def chat_message_with_citation(chat: Chat, uploaded_file: File, skill: Skill) -> ChatMessage:
-    chat.skill = skill
-    chat.save()
-
+def chat_message_with_citation(chat: Chat, uploaded_file: File) -> ChatMessage:
     chat_message = ChatMessage.objects.create(
         chat=chat,
         text="An answer with citation.",

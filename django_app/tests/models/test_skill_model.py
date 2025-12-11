@@ -89,7 +89,7 @@ def test_get_info_page_url(client: Client, alice: User, default_skill: Skill):
     url = default_skill.info_page_url
 
     # Then
-    assert url == f"/skills/{default_skill.slug}/"
+    assert url == f"/tools/{default_skill.slug}/"
 
 
 @pytest.mark.django_db(transaction=True)

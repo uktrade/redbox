@@ -24,7 +24,7 @@ def test_user_can_see_skills(alice: User, client: Client, default_skill: Skill):
     client.force_login(alice)
 
     # When
-    response = client.get(reverse("skills"))
+    response = client.get(reverse("tools"))
 
     # Then
     assert response.status_code == HTTPStatus.OK
@@ -37,7 +37,7 @@ def test_user_can_see_active_skill(alice: User, client: Client, default_skill: S
     client.force_login(alice)
 
     # When
-    response = client.get(reverse("chats", kwargs={"skill_slug": default_skill.slug}))
+    response = client.get(reverse("chats", kwargs={"slug": default_skill.slug}))
 
     # Then
     assert response.status_code == HTTPStatus.OK
@@ -48,7 +48,7 @@ def test_user_can_see_active_skill(alice: User, client: Client, default_skill: S
 def test_skill_info_page_exists(alice: User, client: Client, default_skill: Skill):
     # Given
     client.force_login(alice)
-    expected_template_path = f"skills/info/{default_skill.slug}.html"
+    expected_template_path = f"tools/info/{default_skill.slug}.html"
     # When
     with (
         patch("redbox_app.redbox_core.models.get_template") as mock_get_template,
@@ -56,7 +56,7 @@ def test_skill_info_page_exists(alice: User, client: Client, default_skill: Skil
     ):
         mock_get_template.return_value = True
         mock_render.return_value = HttpResponse(f"mocked {default_skill.name}")
-        response = client.get(reverse("skill-info", kwargs={"skill_slug": default_skill.slug}))
+        response = client.get(reverse("tool-info", kwargs={"slug": default_skill.slug}))
 
     # Then
     assert response.status_code == HTTPStatus.OK
@@ -71,7 +71,7 @@ def test_skill_info_page_not_found(alice: User, client: Client, default_skill: S
     client.force_login(alice)
 
     # When
-    response = client.get(reverse("skill-info", kwargs={"skill_slug": default_skill.slug}))
+    response = client.get(reverse("tool-info", kwargs={"slug": default_skill.slug}))
 
     # Then
     assert response.status_code == HTTPStatus.NOT_FOUND
@@ -83,7 +83,7 @@ def test_user_can_see_skill_chats(alice: User, client: Client, default_skill: Sk
     client.force_login(alice)
 
     # When
-    response = client.get(reverse("chats", kwargs={"skill_slug": default_skill.slug, "chat_id": chat.id}))
+    response = client.get(reverse("chats", kwargs={"slug": default_skill.slug, "chat_id": chat.id}))
 
     # Then
     assert response.status_code == HTTPStatus.OK
@@ -95,7 +95,7 @@ def test_user_can_see_skill_chats(alice: User, client: Client, default_skill: Sk
 def test_user_cannot_see_other_user_skill_chats(bob: User, client: Client, default_skill: Skill, chat_with_alice: Chat):
     # Given
     client.force_login(bob)
-    url = reverse("chats", kwargs={"skill_slug": default_skill.slug, "chat_id": chat_with_alice.id})
+    url = reverse("chats", kwargs={"slug": default_skill.slug, "chat_id": chat_with_alice.id})
 
     # When
     response = client.get(url, follow=True)

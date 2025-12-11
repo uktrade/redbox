@@ -624,7 +624,7 @@ def test_upload_document_to_skill(alice, client, original_file, default_skill, s
     """
     # Given
     client.force_login(alice)
-    url = reverse("skill-document-upload", kwargs={"skill_slug": default_skill.slug})
+    url = reverse("document-upload", kwargs={"slug": default_skill.slug})
     file_name = f"{alice.email}/{original_file.name.rstrip(original_file.name[-4:])}"
     remove_file_from_bucket(file_name)
 
