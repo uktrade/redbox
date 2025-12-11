@@ -12,6 +12,7 @@ from django.test import Client, RequestFactory
 from django.urls import reverse
 
 from redbox_app.redbox_core.models import ChatLLMBackend, File, FileSkill
+from redbox_app.redbox_core.services import url as url_service
 from redbox_app.redbox_core.views.document_views import delete_document
 
 User = get_user_model()
@@ -456,7 +457,10 @@ def test_delete_document_with_chat(alice, client, mocker):
     mocker.patch.object(File, "delete_from_s3")
 
     # Mock chat_service.get_context to return simple context
-    mocker.patch("redbox_app.redbox_core.services.chats.get_context", return_value={"files": []})
+    mocker.patch(
+        "redbox_app.redbox_core.services.chats.get_context",
+        return_value={"files": [], "urls": {"upload_url": url_service.get_upload_url()}},
+    )
 
     chat_llm_backend = ChatLLMBackend.objects.get(name="anthropic.claude-3-7-sonnet-20250219-v1:0")
 
