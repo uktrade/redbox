@@ -1,9 +1,14 @@
+import logging
+
 from langchain_core.documents.base import Document
 
 from redbox.transform import combine_documents
 
+log = logging.getLogger(__name__)
+
 
 def format_documents(documents: list[Document]) -> str:
+    log.warning("[format_documents] Received %s documents for formatting", len(documents))
     formatted: list[str] = []
     for d in documents:
         doc_xml = (

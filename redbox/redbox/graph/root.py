@@ -21,6 +21,7 @@ from redbox.graph.edges import (
 )
 from redbox.graph.nodes.processes import (
     build_activity_log_node,
+    build_agent,
     build_agent_with_loop,
     build_chat_pattern,
     build_error_pattern,
@@ -57,10 +58,12 @@ from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.models.prompts import (
     EVAL_SUBMISSION,
+    EVAL_SUBMISSION_QA,
     EXTERNAL_RETRIEVAL_AGENT_PROMPT,
     INTERNAL_RETRIEVAL_AGENT_PROMPT,
     LEGISLATION_SEARCH_AGENT_PROMPT,
     SUBMISSION_PROMPT,
+    SUBMISSION_QA_PROMPT,
     WEB_SEARCH_AGENT_PROMPT,
 )
 from redbox.models.settings import get_settings
@@ -647,15 +650,26 @@ def build_new_route_graph(
             node_for_no_task="Evaluator_Agent",
         ),
     )
+    # builder.add_node(
+    #     "Internal_Retrieval_Agent",
+    #     build_agent_with_loop(
+    #         agent_name="Internal_Retrieval_Agent",
+    #         system_prompt=INTERNAL_RETRIEVAL_AGENT_PROMPT,
+    #         tools=multi_agent_tools["Internal_Retrieval_Agent"],
+    #         use_metadata=True,
+    #         max_tokens=agents_max_tokens["Internal_Retrieval_Agent"],
+    #         max_attempt=1,
+    #     ),
+    # )
+
     builder.add_node(
         "Internal_Retrieval_Agent",
-        build_agent_with_loop(
+        build_agent(
             agent_name="Internal_Retrieval_Agent",
             system_prompt=INTERNAL_RETRIEVAL_AGENT_PROMPT,
             tools=multi_agent_tools["Internal_Retrieval_Agent"],
             use_metadata=True,
             max_tokens=agents_max_tokens["Internal_Retrieval_Agent"],
-            max_attempt=1,
         ),
     )
 
@@ -683,15 +697,27 @@ def build_new_route_graph(
     builder.add_node("send", empty_process)
     builder.add_node(
         "External_Retrieval_Agent",
-        build_agent_with_loop(
+        build_agent(
             agent_name="External_Retrieval_Agent",
             system_prompt=EXTERNAL_RETRIEVAL_AGENT_PROMPT,
             tools=multi_agent_tools["External_Retrieval_Agent"],
             use_metadata=False,
             max_tokens=agents_max_tokens["External_Retrieval_Agent"],
-            max_attempt=1,
         ),
     )
+
+    # builder.add_node(
+    #     "External_Retrieval_Agent",
+    #     build_agent_with_loop(
+    #         agent_name="External_Retrieval_Agent",
+    #         system_prompt=EXTERNAL_RETRIEVAL_AGENT_PROMPT,
+    #         tools=multi_agent_tools["External_Retrieval_Agent"],
+    #         use_metadata=False,
+    #         max_tokens=agents_max_tokens["External_Retrieval_Agent"],
+    #         max_attempt=1,
+    #     ),
+    # )
+
     builder.add_node(
         "Summarisation_Agent",
         invoke_custom_state(
@@ -705,25 +731,46 @@ def build_new_route_graph(
 
     builder.add_node(
         "Web_Search_Agent",
-        build_agent_with_loop(
+        build_agent(
             agent_name="Web_Search_Agent",
             system_prompt=WEB_SEARCH_AGENT_PROMPT,
             tools=multi_agent_tools["Web_Search_Agent"],
             use_metadata=False,
             max_tokens=agents_max_tokens["Web_Search_Agent"],
-            max_attempt=1,
         ),
     )
 
+    # builder.add_node(
+    #     "Web_Search_Agent",
+    #     build_agent_with_loop(
+    #         agent_name="Web_Search_Agent",
+    #         system_prompt=WEB_SEARCH_AGENT_PROMPT,
+    #         tools=multi_agent_tools["Web_Search_Agent"],
+    #         use_metadata=False,
+    #         max_tokens=agents_max_tokens["Web_Search_Agent"],
+    #         max_attempt=1,
+    #     ),
+    # )
+
+    # builder.add_node(
+    #     "Legislation_Search_Agent",
+    #     build_agent_with_loop(
+    #         agent_name="Legislation_Search_Agent",
+    #         system_prompt=LEGISLATION_SEARCH_AGENT_PROMPT,
+    #         tools=multi_agent_tools["Legislation_Search_Agent"],
+    #         use_metadata=False,
+    #         max_tokens=agents_max_tokens["Legislation_Search_Agent"],
+    #         max_attempt=1,
+    #     ),
+    # )
     builder.add_node(
         "Legislation_Search_Agent",
-        build_agent_with_loop(
+        build_agent(
             agent_name="Legislation_Search_Agent",
             system_prompt=LEGISLATION_SEARCH_AGENT_PROMPT,
             tools=multi_agent_tools["Legislation_Search_Agent"],
             use_metadata=False,
             max_tokens=agents_max_tokens["Legislation_Search_Agent"],
-            max_attempt=1,
         ),
     )
 
@@ -739,6 +786,21 @@ def build_new_route_graph(
             max_tokens=agents_max_tokens["Submission_Checker_Agent"],
             loop_condition=lambda: success == "fail" or is_intermediate_step,
             max_attempt=2,
+            using_chat_history=True,
+        ),
+    )
+
+    builder.add_node(
+        "Submission_Question_Answer_Agent",
+        build_agent_with_loop(
+            agent_name="Submission_Question_Answer_Agent",
+            system_prompt=SUBMISSION_QA_PROMPT,
+            tools=multi_agent_tools["Submission_Question_Answer_Agent"],
+            use_metadata=True,
+            max_tokens=agents_max_tokens["Submission_Question_Answer_Agent"],
+            loop_condition=lambda: success == "fail" or is_intermediate_step,
+            max_attempt=2,
+            using_chat_history=True,
         ),
     )
 
@@ -747,6 +809,13 @@ def build_new_route_graph(
         return state
 
     builder.add_node("update_submission_eval", update_submission_eval)
+
+    def update_submission_qa(state: RedboxState):
+        state.tasks_evaluator = EVAL_SUBMISSION_QA
+        return state
+
+    builder.add_node("update_submission_qa", update_submission_qa)
+
     builder.add_node("user_feedback_evaluation", empty_process)
 
     builder.add_node("Evaluator_Agent", create_evaluator())
@@ -784,7 +853,9 @@ def build_new_route_graph(
     builder.add_edge("Web_Search_Agent", "combine_question_evaluator")
     builder.add_edge("Legislation_Search_Agent", "combine_question_evaluator")
     builder.add_edge("Submission_Checker_Agent", "update_submission_eval")
+    builder.add_edge("Submission_Question_Answer_Agent", "update_submission_qa")
     builder.add_edge("update_submission_eval", "combine_question_evaluator")
+    builder.add_edge("update_submission_qa", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)

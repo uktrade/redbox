@@ -173,6 +173,7 @@ def build_search_documents_tool(
         Returns:
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
+        start_time = time.time()
         query_vector = embedding_model.embed_query(query)
         selected_files = state.request.s3_keys
         permitted_files = state.request.permitted_s3_keys
@@ -189,6 +190,7 @@ def build_search_documents_tool(
             ai_settings=ai_settings,
         )
         initial_documents = query_to_documents(es_client=es_client, index_name=index_name, query=initial_query)
+        log.warning("[_search_documents] Initial query using %s seconds", time.time() - start_time)
 
         # Handle nothing found (as when no files are permitted)
         if not initial_documents:
@@ -201,10 +203,13 @@ def build_search_documents_tool(
             centres=initial_documents,
         )
         adjacent_boosted = query_to_documents(es_client=es_client, index_name=index_name, query=with_adjacent_query)
+        log.warning("[_search_documents] Adjacent boosted query using %s seconds", time.time() - start_time)
 
         # Merge and sort
         merged_documents = merge_documents(initial=initial_documents, adjacent=adjacent_boosted)
         sorted_documents = sort_documents(documents=merged_documents)
+        log.warning("[_search_documents] Merge and sort documents using %s seconds", time.time() - start_time)
+        log.warning("[_search_documents] Returning %s documents", len(sorted_documents))
 
         # Return as state update
         return format_documents(sorted_documents), sorted_documents
@@ -221,8 +226,8 @@ def build_govuk_search_tool(filter=True) -> Tool:
         embedding_model = get_embeddings(get_settings())
         em_query = embedding_model.embed_query(query)
         for r in response.get("results"):
-            description = r.get("description")
-            em_des = embedding_model.embed_query(description)
+            text_compare = r.get("description") if r.get("description") else r.get("indexable_content")[:500]
+            em_des = embedding_model.embed_query(text_compare)
             r["similarity"] = cosine_similarity(np.array(em_query).reshape(1, -1), np.array(em_des).reshape(1, -1))[0][
                 0
             ]
@@ -244,53 +249,66 @@ def build_govuk_search_tool(filter=True) -> Tool:
         - statistics
         - consultations
         - appeals
+
+        Args:
+            query (str): The query for searching on GOV.UK web site.
+            - Can be natural language, keywords, or phrases
+            - More specific queries yield more precise results
+            - Query length should be 1-500 characters
+        Returns:
+            dict[str, Any]: Collection of matching document snippets with metadata:
+
         """
-        max_content_tokens = 1000
-        url_base = "https://www.gov.uk"
-        required_fields = [
-            "format",
-            "title",
-            "description",
-            "indexable_content",
-            "link",
-        ]
-        ai_settings = state.request.ai_settings
-        response = requests.get(
-            f"{url_base}/api/search.json",
-            params={
-                "q": query,
-                "count": (
-                    ai_settings.tool_govuk_retrieved_results if filter else ai_settings.tool_govuk_returned_results
-                ),
-                "fields": required_fields,
-            },
-            headers={"Accept": "application/json"},
-        )
-        response.raise_for_status()
-        response = response.json()
-
-        if filter:
-            response = recalculate_similarity(response, query, ai_settings.tool_govuk_returned_results)
-
-        mapped_documents = []
-        for i, doc in enumerate(response["results"]):
-            if any(field not in doc for field in required_fields):
-                continue
-            # truncate content
-            content = doc["indexable_content"][:max_content_tokens]
-            mapped_documents.append(
-                Document(
-                    page_content=content,
-                    metadata=ChunkMetadata(
-                        index=i,
-                        uri=f"{url_base}{doc['link']}",
-                        token_count=tokeniser(content),
-                        creator_type=ChunkCreatorType.gov_uk,
-                    ).model_dump(),
-                )
+        if len(query) > 0:
+            max_content_tokens = 1000
+            url_base = "https://www.gov.uk"
+            required_fields = [
+                "format",
+                "title",
+                "description",
+                "indexable_content",
+                "link",
+            ]
+            ai_settings = state.request.ai_settings
+            response = requests.get(
+                f"{url_base}/api/search.json",
+                params={
+                    "q": query,
+                    "count": (
+                        ai_settings.tool_govuk_retrieved_results if filter else ai_settings.tool_govuk_returned_results
+                    ),
+                    "fields": required_fields,
+                },
+                headers={"Accept": "application/json"},
             )
+            response.raise_for_status()
+            response = response.json()
 
-        return format_documents(mapped_documents), mapped_documents
+            if filter:
+                response = recalculate_similarity(response, query, ai_settings.tool_govuk_returned_results)
+
+            mapped_documents = []
+            for i, doc in enumerate(response["results"]):
+                if any(field not in doc for field in required_fields):
+                    continue
+                # truncate content
+                content = doc["indexable_content"][:max_content_tokens]
+                mapped_documents.append(
+                    Document(
+                        page_content=content,
+                        metadata=ChunkMetadata(
+                            index=i,
+                            uri=f"{url_base}{doc['link']}",
+                            token_count=tokeniser(content),
+                            creator_type=ChunkCreatorType.gov_uk,
+                        ).model_dump(),
+                    )
+                )
+
+            return format_documents(mapped_documents), mapped_documents
+        else:
+            # no query for search
+            return "", []
 
     return _search_govuk
 

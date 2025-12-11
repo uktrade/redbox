@@ -31,8 +31,9 @@ class ChatController extends HTMLElement {
           document.querySelector("rbds-message-input")
       );
       const userText = messageInput?.getValue();
+      const hasContent = Boolean(userText || messageInput?.hasUploadedFiles());
 
-      if (!messageInput || !userText) return;
+      if (!messageInput || !hasContent) return;
 
       let userMessage = /** @type {ChatMessage} */ (
         document.createElement("rbds-chat-message")
@@ -77,7 +78,7 @@ class ChatController extends HTMLElement {
 
       // reset UI
       if (feedbackButtons) feedbackButtons.dataset.status = "";
-      messageInput.reset();
+      messageInput.reset(true);
     });
 
     document.body.addEventListener("selected-docs-change", (evt) => {

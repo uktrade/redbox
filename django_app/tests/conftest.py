@@ -177,6 +177,11 @@ def chat_with_message(chat: Chat) -> Chat:
 
 
 @pytest.fixture
+def skill() -> Skill:
+    return Skill.objects.create(name="Test Skill")
+
+
+@pytest.fixture
 def chat_message(chat: Chat, uploaded_file: File) -> ChatMessage:
     chat_message = ChatMessage.objects.create(
         chat=chat, text="A question?", role=ChatMessage.Role.user, route="A route"
@@ -186,10 +191,13 @@ def chat_message(chat: Chat, uploaded_file: File) -> ChatMessage:
 
 
 @pytest.fixture
-def chat_message_with_citation(chat: Chat, uploaded_file: File) -> ChatMessage:
+def chat_message_with_citation(chat: Chat, uploaded_file: File, skill: Skill) -> ChatMessage:
+    chat.skill = skill
+    chat.save()
+
     chat_message = ChatMessage.objects.create(
         chat=chat,
-        text="An answer.",
+        text="An answer with citation.",
         role=ChatMessage.Role.ai,
         rating=3,
         rating_chips=["apple", "pear"],
@@ -369,3 +377,29 @@ def remove_file_from_bucket(s3_client):
             # Ignore errors during cleanup
 
     return _remove
+
+
+@pytest.fixture
+def external_citation(chat_message) -> Citation:
+    external_citation = Citation(
+        chat_message=chat_message,
+        text="hello",
+        source=Citation.Origin.WIKIPEDIA,
+        url="http://example.com",
+    )
+    external_citation.save()
+    chat_message.refresh_from_db()
+    return external_citation
+
+
+@pytest.fixture
+def internal_citation(chat_message, uploaded_file) -> Citation:
+    internal_citation = Citation(
+        chat_message=chat_message,
+        text="hello",
+        source=Citation.Origin.USER_UPLOADED_DOCUMENT,
+        file=uploaded_file,
+    )
+    internal_citation.save()
+    chat_message.refresh_from_db()
+    return internal_citation
