@@ -1,3 +1,4 @@
+from uuid import uuid4
 import logging
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from typing import Callable
@@ -65,20 +66,21 @@ def build_tool_send(target: str) -> Callable[[RedboxState], list[Send]]:
 
 
 def run_tools_parallel(ai_msg, tools, state, timeout=60, per_tool_timeout=30):
-    log.warning("[run_tools_parallel] Starting tool execution.")
+    run_id = str(uuid4())[:8]
+    log_stub = f"[run_tools_parallel run_id='{run_id}']"
+    log.warning(f"{log_stub} Starting tool execution.")
 
     if not ai_msg.tool_calls:
         # No tool calls
-        log.warning("[run_tools_parallel] No tool calls detected. Returning agent content.")
+        log.warning(f"{log_stub} No tool calls detected. Returning agent content.")
         return ai_msg.content
 
     log.warning(
-        f"[run_tools_parallel] {len(ai_msg.tool_calls)} tool call(s) detected: "
-        f"{[tc.get('name') for tc in ai_msg.tool_calls]}"
+        f"{log_stub} {len(ai_msg.tool_calls)} tool call(s) detected: {[tc.get('name') for tc in ai_msg.tool_calls]}"
     )
 
     max_workers = min(10, len(ai_msg.tool_calls))
-    log.warning(f"[run_tools_parallel] Creating ThreadPoolExecutor(max_workers={max_workers})")
+    log.warning(f"{log_stub} Creating ThreadPoolExecutor(max_workers={max_workers})")
 
     # Dict to store futures and related metadata
     futures = {}
@@ -93,7 +95,7 @@ def run_tools_parallel(ai_msg, tools, state, timeout=60, per_tool_timeout=30):
                 selected_tool = next((tool for tool in tools if tool.name == tool_name), None)
 
                 if selected_tool is None:
-                    log.warning(f"[run_tools_parallel] Warning: No tool found for {tool_name}")
+                    log.warning(f"{log_stub} Warning: No tool found for {tool_name}")
                     continue
 
                 # Get arguments and submit the tool invocation
@@ -110,7 +112,7 @@ def run_tools_parallel(ai_msg, tools, state, timeout=60, per_tool_timeout=30):
 
                 try:
                     response = future.result(timeout=per_tool_timeout)
-                    log.warning(f"[run_tools_parallel] This is what I got from tool '{future_tool_name}': {response}")
+                    log.warning(f"{log_stub} This is what I got from tool '{future_tool_name}': {response}")
                     responses.append(AIMessage(response))
 
                     raw_res = response
@@ -119,27 +121,25 @@ def run_tools_parallel(ai_msg, tools, state, timeout=60, per_tool_timeout=30):
 
                     if not raw_res or not raw_res.strip():
                         log.warning(
-                            f"[run_tools_parallel] '{future_tool_name}' Tool returned empty/whitespace response: {repr(raw_res)}"
+                            f"{log_stub} '{future_tool_name}' Tool returned empty/whitespace response: {repr(raw_res)}"
                         )
 
                 except TimeoutError:
-                    log.warning(
-                        f"[run_tools_parallel] '{future_tool_name}' Tool timed out after {per_tool_timeout} seconds."
-                    )
+                    log.warning(f"{log_stub} '{future_tool_name}' Tool timed out after {per_tool_timeout} seconds.")
 
                 except Exception as e:
-                    log.warning(f"[run_tools_parallel] '{future_tool_name}' Tool invocation error: {e}")
+                    log.warning(f"{log_stub} '{future_tool_name}' Tool invocation error: {e}")
 
             log.warning(
-                f"[run_tools_parallel] Completed. Successful parallel tool responses: {len(responses)}. Responses: {responses}"
+                f"{log_stub} Completed. Successful parallel tool responses: {len(responses)}. Responses: {responses}"
             )
             return responses
 
     except TimeoutError:
-        log.warning(f"[run_tools_parallel] Parallel tool execution timed out after {timeout} seconds.")
+        log.warning(f"{log_stub} Parallel tool execution timed out after {timeout} seconds.")
         return None
     except Exception as e:
-        log.warning(f"[run_tools_parallel] Unexpected error in parallel tool execution: {str(e)}", exc_info=True)
+        log.warning(f"{log_stub} Unexpected error in parallel tool execution: {str(e)}", exc_info=True)
         return None
 
 
