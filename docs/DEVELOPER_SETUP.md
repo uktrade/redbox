@@ -10,7 +10,8 @@ The developer setup guide for developing Redbox on your own machine.
 4. [Setup VSCode](#setup-vscode)
 5. [Setup Environment Variables](#setting-environment-variables)
 6. [Running the Project Locally](#running-the-project-locally)
-   1. [Building & Running the Project](#building-and-running-the-project)
+   1. [Building & Running the Project - Docker & Make](#building-and-running-the-project---docker--make)
+   2. [Building & Running the Project - VSCode Debugger](#building-and-running-the-project---vscode-debugger)
    2. [How to Run Tests](#how-to-run-tests)
    3. [Logging into Redbox Locally](#logging-in-to-redbox-locally)
    4. [Setting up the Chat LLM Backend](#setting-up-the-chat-llm-backend)
@@ -250,10 +251,13 @@ For any other commands available, check the `Makefile` [here](https://github.com
 ### Building and running the project - VSCode Debugger
 You can also choose to run the project with the VSCode Python Debugger, allowing you to create breakpoints in the code for programmatic inspection.
 
+> [!WARNING]
+> Please be aware this debugging implementation is relatively new and has some nuances due to deviations from the docker build configuration. It has known issues with LLM tool calls so it is recommended this is used to _support_ development alongside docker build processes.
+
 #### 1. Run the main app
 1. Go to `Run and Debug` tab on left side of VSCode window
 2. Go to green play button dropdown and select `Full Stack Dev (Frontend + Django)`
-3. Click play button - should spin up dependency containers and build frontend
+3. Click play button - should spin up dependency containers, build frontend, and then run main app with python debugger
 
 #### 2. Run the worker
 1. Open command palette - CMD + Shift + P
