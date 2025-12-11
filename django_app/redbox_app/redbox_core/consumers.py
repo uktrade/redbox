@@ -457,7 +457,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 citation_objects.append(
                     Citation(
                         chat_message=self.chat_message,
-                        text_in_answer=ai_citation.text_in_answer,
                         file=file,
                         url=None if file else src.source,
                         text=src.highlighted_text_in_source,
@@ -627,10 +626,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 # Use the async database query function
                 file = await self.get_file_cached(ref)
                 if file:
-                    payload = {"url": str(file.url), "file_name": file.file_name, "text_in_answer": ""}
+                    payload = {"url": str(file.url), "file_name": file.file_name}
                 else:
                     # If no file with Status.complete is found, handle it as None
-                    payload = {"url": ref, "file_name": None, "text_in_answer": ""}
+                    payload = {"url": ref, "file_name": None}
 
                 response_sources = [
                     Source(
@@ -644,7 +643,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 ]
             except File.DoesNotExist:
                 file = None
-                payload = {"url": ref, "file_name": None, "text_in_answer": ""}
+                payload = {"url": ref, "file_name": None}
                 response_sources = [
                     Source(
                         source=cited_chunk.metadata["uri"],
@@ -666,10 +665,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """
         for c in citations:
             for s in c.sources:
-                text_in_answer = c.text_in_answer or ""
-                if getattr(self, "uk_english", False):
-                    text_in_answer = await sync_to_async(uwm8.convert_american_to_british_spelling)(text_in_answer)
-
                 try:
                     # Use the async database query function
                     file = await self.get_file_cached(s.source)
@@ -677,7 +672,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         payload = {
                             "url": str(file.url),
                             "file_name": file.file_name,
-                            "text_in_answer": text_in_answer,
                             "citation_name": s.ref_id,
                         }
                     else:
@@ -687,7 +681,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             payload = {
                                 "url": str(file.url),
                                 "file_name": file.file_name,
-                                "text_in_answer": text_in_answer,
                                 "citation_name": s.ref_id,
                             }
                         else:
@@ -695,16 +688,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             payload = {
                                 "url": s.source,
                                 "file_name": s.source,
-                                "text_in_answer": text_in_answer,
                                 "citation_name": s.ref_id,
                             }
                 except File.DoesNotExist:
                     file = None
-                    text_in_answer = c.text_in_answer or ""
                     payload = {
                         "url": s.source,
                         "file_name": s.source,
-                        "text_in_answer": text_in_answer,
                         "citation_name": s.ref_id,
                     }
 
@@ -714,7 +704,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     (
                         file,
                         AICitation(
-                            text_in_answer=text_in_answer,
                             sources=[s],
                         ),
                     )
