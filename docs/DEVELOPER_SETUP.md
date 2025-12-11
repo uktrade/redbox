@@ -20,10 +20,10 @@ The developer setup guide for developing Redbox on your own machine.
 7. [Git Workflows](#git)
    1. [Setup Pre-commit Hooks](#pre-commit-hooks)
 8. [LLM Evaluation](#llm-evaluation)
+   1. [Installing Node and elasticsearch-dump](#installing-node-and-elasticsearch-dump)
+   2. [Dumping data from elasticsearch](#dumping-data-from-elasticsearch)
+   3. [Loading data to elasticsearch](#loading-data-to-elasticsearch)
 9. [Iconography](#iconography)
-<!-- 6. [Running Locally]()
-   1. [Option 1 - Docker Compose]()
-   2. [Option 2 - Notebooks]() -->
 
 <hr>
 
