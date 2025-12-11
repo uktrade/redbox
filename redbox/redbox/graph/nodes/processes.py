@@ -636,17 +636,37 @@ def build_agent_with_loop(
                     if is_intermediate_step:
                         additional_variables.update({"previous_tool_error": "", "previous_tool_results": all_results})
                 result = result_content
-            if type(result) is str:
+
+            if isinstance(result, str):
                 result_content = result
-            elif type(result) is list and type(result[0]) is dict:
+            elif isinstance(result, list) and isinstance(result[0], dict):
                 result_content = result[0].get("text", "")
-            elif type(result) is list:
+            elif isinstance(result, list):
+                log.warning(f"[{agent_name}] Aggregating list of tool results...")
                 result_content = []
                 current_token_counts = 0
+
                 for res in result:
-                    current_token_counts += bedrock_tokeniser(res.content)
-                    if current_token_counts <= max_tokens:
+                    token_count = bedrock_tokeniser(res.content)
+                    log.warning(f"[{agent_name}] Tool response token count: {token_count}")
+
+                    # If adding this whole piece still fits, append normally
+                    if current_token_counts + token_count <= max_tokens:
                         result_content.append(res.content)
+                        current_token_counts += token_count
+                    else:
+                        # If no room, add only what fits
+                        remaining_tokens = max_tokens - current_token_counts
+                        if remaining_tokens > 0:
+                            log.warning(
+                                f"[{agent_name}] Truncating tool output to fit remaining token budget ({remaining_tokens})."
+                            )
+                            truncated = truncate_to_tokens(res.content, remaining_tokens)
+                            result_content.append(truncated)
+                            current_token_counts += bedrock_tokeniser(truncated)
+                        else:
+                            log.warning(f"[{agent_name}] No remaining token budget ({max_tokens}). Skipping.")
+                        break  # Max reached — stop processing further results
                 result_content = " ".join(result_content)
             else:
                 log.error(f"Worker agent return incompatible data type {type(result)}")
