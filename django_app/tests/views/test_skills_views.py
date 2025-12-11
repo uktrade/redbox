@@ -48,7 +48,7 @@ def test_user_can_see_active_skill(alice: User, client: Client, default_skill: S
 def test_skill_info_page_exists(alice: User, client: Client, default_skill: Skill):
     # Given
     client.force_login(alice)
-    expected_template_path = f"tools/info/{default_skill.slug}.html"
+    expected_template_path = f"skills/info/{default_skill.slug}.html"
     # When
     with (
         patch("redbox_app.redbox_core.models.get_template") as mock_get_template,
@@ -81,9 +81,12 @@ def test_skill_info_page_not_found(alice: User, client: Client, default_skill: S
 def test_user_can_see_skill_chats(alice: User, client: Client, default_skill: Skill, chat: Chat):
     # Given
     client.force_login(alice)
+    chat.skill = default_skill
+    chat.save()
 
     # When
-    response = client.get(reverse("chats", kwargs={"slug": default_skill.slug, "chat_id": chat.id}))
+    url = reverse("chats", kwargs={"slug": default_skill.slug, "chat_id": chat.id})
+    response = client.get(url)
 
     # Then
     assert response.status_code == HTTPStatus.OK
