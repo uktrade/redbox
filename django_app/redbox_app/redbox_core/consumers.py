@@ -187,7 +187,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if not session.name and selected_files:
             first_file = selected_files[0]
             session_name = await database_sync_to_async(
-                lambda fid: File.objects.filter(id=fid).values_list("file_name", flat=True).first()
+                lambda fid: File.objects.filter(id=fid).values_list("original_file_name", flat=True).first()
             )(first_file.id)
             session.name = (session_name or "")[: settings.CHAT_TITLE_LENGTH]
             await session.asave()
