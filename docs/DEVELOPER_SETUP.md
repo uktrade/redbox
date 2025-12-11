@@ -177,7 +177,7 @@ The relevant env vars for overriding to use bedrock's titan model for embeddings
 ## Running the Project Locally
 How to run the project locally. This includes setting up AWS credentials.
 
-### Building and running the project
+### Building and running the project - Docker & Make
 
 To view all the build commands, check the `Makefile` that can be found [here](https://github.com/i-dot-ai/redbox/blob/main/Makefile).
 
@@ -246,6 +246,19 @@ plugins=(git direnv)
 ```
 
 For any other commands available, check the `Makefile` [here](https://github.com/i-dot-ai/redbox/blob/main/Makefile).
+
+### Building and running the project - VSCode Debugger
+You can also choose to run the project with the VSCode Python Debugger, allowing you to create breakpoints in the code for programmatic inspection.
+
+#### 1. Run the main app
+1. Go to `Run and Debug` tab on left side of VSCode window
+2. Go to green play button dropdown and select `Full Stack Dev (Frontend + Django)`
+3. Click play button - should spin up dependency containers and build frontend
+
+#### 2. Run the worker
+1. Open command palette - CMD + Shift + P
+2. Select `Tasks: Run Task`
+3. Run `Django: QCluster`
 
 ### How to run tests
 
