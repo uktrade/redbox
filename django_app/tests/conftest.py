@@ -16,6 +16,7 @@ from django.utils import timezone
 from freezegun import freeze_time
 
 from redbox_app.redbox_core.models import (
+    Agent,
     AISettings,
     Chat,
     ChatLLMBackend,
@@ -400,3 +401,16 @@ def internal_citation(chat_message, uploaded_file) -> Citation:
     internal_citation.save()
     chat_message.refresh_from_db()
     return internal_citation
+
+
+@pytest.fixture
+def default_agent() -> Agent:
+    agent = Agent(
+        name="Default Agent",
+        description="A default agent",
+        agents_max_tokens=5000,
+        prompt="This is an agent prompt",
+        llm_backend=ChatLLMBackend.objects.filter().first(),
+    )
+    agent.save()
+    return agent
