@@ -42,6 +42,7 @@ from redbox.models.chain import (
 )
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
+from redbox.models.settings import ChatLLMBackend
 from redbox.transform import (
     bedrock_tokeniser,
     combine_agents_state,
@@ -174,6 +175,7 @@ def build_stuff_pattern(
     final_response_chain: bool = False,
     additional_variables: dict = {},
     summary_multiagent_flag: bool = False,
+    model: ChatLLMBackend | None = None,
 ) -> Runnable[RedboxState, dict[str, Any]]:
     """Returns a Runnable that uses state.request and state.documents to set state.messages.
 
@@ -182,7 +184,10 @@ def build_stuff_pattern(
 
     @RunnableLambda
     def _stuff(state: RedboxState) -> dict[str, Any]:
-        llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
+        if model is not None:
+            llm = get_chat_llm(model, tools=tools)
+        else:
+            llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
 
         events = [
             event
@@ -465,6 +470,7 @@ def build_agent(
     use_metadata: bool = False,
     max_tokens: int = 5000,
     using_chat_history: bool = False,
+    model: ChatLLMBackend | None = None,
 ):
     @RunnableLambda
     def _build_agent(state: RedboxState):
@@ -491,6 +497,7 @@ def build_agent(
             tools=tools,
             _additional_variables={"task": task.task, "expected_output": task.expected_output},
             using_chat_history=using_chat_history,
+            model=model,
         )
 
         log.warning(f"[{agent_name}] Invoking worker agent...")
@@ -558,6 +565,7 @@ def build_agent_with_loop(
     loop_condition: Callable | None = None,
     max_attempt=3,
     using_chat_history: bool = False,
+    model: ChatLLMBackend | None = None,
 ):
     @RunnableLambda
     def _build_agent_with_loop(state: RedboxState):
@@ -615,6 +623,7 @@ def build_agent_with_loop(
                 tools=tools,
                 _additional_variables=additional_variables,
                 using_chat_history=using_chat_history,
+                model=model,
             )
             ai_msg = worker_agent.invoke(state)
 
@@ -944,6 +953,7 @@ def get_tabular_agent(
                 tools=tools,
                 final_response_chain=False,
                 additional_variables={"sql_error": sql_error, "db_schema": state.tabular_schema},
+                model=ChatLLMBackend(name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock"),
             )
             ai_msg = worker_agent.invoke(state)
 

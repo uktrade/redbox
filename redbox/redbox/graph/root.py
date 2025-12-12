@@ -66,7 +66,7 @@ from redbox.models.prompts import (
     SUBMISSION_QA_PROMPT,
     WEB_SEARCH_AGENT_PROMPT,
 )
-from redbox.models.settings import get_settings
+from redbox.models.settings import ChatLLMBackend, get_settings
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
 
 
@@ -347,6 +347,7 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent
             prompt_set=PromptSet.ChatwithDocs,
             final_response_chain=False if use_as_agent else True,
             summary_multiagent_flag=True if use_as_agent else False,
+            model=ChatLLMBackend(name="anthropic.claude-opus-4-5-20251101-v1:0", provider="bedrock"),
         ),
         retry=RetryPolicy(max_attempts=3),
     )
@@ -670,6 +671,7 @@ def build_new_route_graph(
             tools=multi_agent_tools["Internal_Retrieval_Agent"],
             use_metadata=True,
             max_tokens=agents_max_tokens["Internal_Retrieval_Agent"],
+            model=ChatLLMBackend(name="anthropic.claude-haiku-4-5-20251001-v1:0", provider="bedrock"),
         ),
     )
 
@@ -703,6 +705,7 @@ def build_new_route_graph(
             tools=multi_agent_tools["External_Retrieval_Agent"],
             use_metadata=False,
             max_tokens=agents_max_tokens["External_Retrieval_Agent"],
+            model=ChatLLMBackend(name="anthropic.claude-haiku-4-5-20251001-v1:0", provider="bedrock"),
         ),
     )
 
@@ -737,6 +740,7 @@ def build_new_route_graph(
             tools=multi_agent_tools["Web_Search_Agent"],
             use_metadata=False,
             max_tokens=agents_max_tokens["Web_Search_Agent"],
+            model=ChatLLMBackend(name="anthropic.claude-haiku-4-5-20251001-v1:0", provider="bedrock"),
         ),
     )
 
@@ -771,6 +775,7 @@ def build_new_route_graph(
             tools=multi_agent_tools["Legislation_Search_Agent"],
             use_metadata=False,
             max_tokens=agents_max_tokens["Legislation_Search_Agent"],
+            model=ChatLLMBackend(name="anthropic.claude-haiku-4-5-20251001-v1:0", provider="bedrock"),
         ),
     )
 
@@ -787,6 +792,7 @@ def build_new_route_graph(
             loop_condition=lambda: success == "fail" or is_intermediate_step,
             max_attempt=2,
             using_chat_history=True,
+            model=ChatLLMBackend(name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock"),
         ),
     )
 
@@ -801,6 +807,7 @@ def build_new_route_graph(
             loop_condition=lambda: success == "fail" or is_intermediate_step,
             max_attempt=2,
             using_chat_history=True,
+            model=ChatLLMBackend(name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock"),
         ),
     )
 
