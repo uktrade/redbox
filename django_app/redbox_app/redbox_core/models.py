@@ -965,6 +965,16 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
             slug=self.skill.slug if self.skill else None,
         )
 
+    @property
+    def last_user_message(self):
+        messages = ChatMessage.get_messages_ordered_by_citation_priority(self.id)
+        return [m for m in messages if m.role == ChatMessage.Role.user][-1]
+
+    def clear_selected_files(self):
+        last_user_message = self.last_user_message
+        if last_user_message:
+            last_user_message.selected_files.clear()
+
 
 class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
     class Origin(models.TextChoices):

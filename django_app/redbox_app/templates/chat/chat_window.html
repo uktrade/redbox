@@ -42,7 +42,7 @@
                 aria-multiline="true" data-text="Type here..."></div>
         </rbds-message-input>
         <file-upload upload-url="{{ urls.upload_url }}">
-            <input class="govuk-file-upload govuk-!-display-none" id="upload-docs" name="uploadDocs" type="file" aria-describedby="upload-docs-notification upload-docs-filetypes">
+            <input class="govuk-file-upload govuk-!-display-none" multiple id="upload-docs" name="uploadDocs" type="file" aria-describedby="upload-docs-notification upload-docs-filetypes">
             {{ govukButton(
                 text="Add document",
                 classes="upload-button govuk-!-margin-top-5 govuk-button--secondary govuk-!-margin-right-4",

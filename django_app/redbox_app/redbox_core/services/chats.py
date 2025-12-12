@@ -29,7 +29,7 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
     )
 
     if skill and current_chat and skill.settings.deselect_documents_on_load:
-        clear_selected_files(current_chat)
+        current_chat.clear_selected_files()
 
     messages = ChatMessage.get_messages_ordered_by_citation_priority(chat_id) if current_chat else []
     endpoint = _build_ws_endpoint(request)
@@ -158,11 +158,3 @@ def render_chat_window(
         "chat/chat_window.html",
         context,
     )
-
-
-def clear_selected_files(chat: Chat | UUID):
-    chat = resolve_instance(value=chat, model=Chat)
-
-    messages = ChatMessage.get_messages_ordered_by_citation_priority(chat.id)
-    last_user_message = [m for m in messages if m.role == ChatMessage.Role.user][-1]
-    last_user_message.selected_files.clear()

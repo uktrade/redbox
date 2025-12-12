@@ -107,3 +107,27 @@ def test_user_cannot_see_other_user_skill_chats(bob: User, client: Client, defau
     assert response.status_code == HTTPStatus.OK
     assert default_skill.name not in response.content.decode()
     assert chat_with_alice.name not in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_deselect_document_on_load_skill_setting(
+    alice: User, client: Client, default_skill: Skill, chat_with_files: Chat
+):
+    # Given
+    client.force_login(alice)
+    chat_with_files.skill = default_skill
+    chat_with_files.save()
+    settings = default_skill.settings
+
+    # When
+    settings.deselect_documents_on_load = True
+    settings.save()
+    initial_selected_files_count = chat_with_files.last_user_message.selected_files.count()
+    url = reverse("chats", kwargs={"slug": default_skill.slug, "chat_id": chat_with_files.id})
+    response = client.get(url)
+    chat_with_files.last_user_message.refresh_from_db()
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert initial_selected_files_count > 0
+    assert chat_with_files.last_user_message.selected_files.count() == 0
