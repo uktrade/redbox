@@ -20,18 +20,18 @@ class CitationsView(View):
         self,
         request: HttpRequest,
         message_id: uuid.UUID | None = None,
-        skill_slug: str | None = None,
+        slug: str | None = None,
         chat_id: uuid.UUID | None = None,
     ) -> HttpResponse:
         message = get_object_or_404(ChatMessage, id=message_id)
-        skill = get_object_or_404(Skill, slug=skill_slug) if skill_slug else None
+        skill = get_object_or_404(Skill, slug=slug) if slug else None
         chat = get_object_or_404(Chat, id=chat_id) if chat_id else None
 
         if message.chat.user != request.user:
             return redirect(reverse("chats"))
 
         source_files = File.get_ordered_by_citation_priority(message_id)
-        citations_url = url_service.get_citation_url(message_id=message.id, chat_id=chat.id, skill_slug=skill_slug)
+        citations_url = url_service.get_citation_url(message_id=message.id, chat_id=chat.id, slug=slug)
 
         context = {
             "message": message,

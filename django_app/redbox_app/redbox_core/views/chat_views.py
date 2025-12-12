@@ -20,10 +20,8 @@ logger = logging.getLogger(__name__)
 
 class ChatsView(View):
     @method_decorator(login_required)
-    def get(
-        self, request: HttpRequest, chat_id: uuid.UUID | None = None, skill_slug: str | None = None
-    ) -> HttpResponse:
-        context = chat_service.get_context(request, chat_id, skill_slug)
+    def get(self, request: HttpRequest, chat_id: uuid.UUID | None = None, slug: str | None = None) -> HttpResponse:
+        context = chat_service.get_context(request, chat_id, slug)
 
         if chat_id != context["chat_id"]:
             return redirect(reverse("chats"))
@@ -102,14 +100,14 @@ class DeleteChat(View):
 class RecentChats(View):
     @method_decorator(login_required)
     def get(
-        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, skill_slug: str | None = None
+        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, slug: str | None = None
     ) -> HttpResponse:
-        return chat_service.render_recent_chats(request, active_chat_id, skill_slug)
+        return chat_service.render_recent_chats(request, active_chat_id, slug)
 
 
 class ChatWindow(View):
     @method_decorator(login_required)
     def get(
-        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, skill_slug: str | None = None
+        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, slug: str | None = None
     ) -> HttpResponse:
-        return chat_service.render_chat_window(request, active_chat_id, skill_slug)
+        return chat_service.render_chat_window(request, active_chat_id, slug)

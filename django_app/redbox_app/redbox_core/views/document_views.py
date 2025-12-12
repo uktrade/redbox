@@ -94,7 +94,7 @@ class UploadView(View):
 
 @require_http_methods(["POST"])
 @login_required
-def upload_document(request, skill_slug: str | None = None):
+def upload_document(request, slug: str | None = None):
     errors: MutableSequence[str] = []
 
     uploaded_file: UploadedFile = request.FILES.get("file")
@@ -109,7 +109,7 @@ def upload_document(request, skill_slug: str | None = None):
         response["errors"] = errors
         return JsonResponse(response)
 
-    skill = Skill.objects.get(slug=skill_slug) if skill_slug else None
+    skill = Skill.objects.get(slug=slug) if slug else None
 
     # ingest errors are handled differently, as the other documents have started uploading by this point
     ingest_errors, file = documents_service.ingest_file(uploaded_file, request.user, skill)
@@ -186,7 +186,7 @@ def remove_all_docs_view(request):
 
 @require_http_methods(["POST"])
 @login_required
-def delete_document(request, doc_id: uuid.UUID, skill_slug: str | None = None):
+def delete_document(request, doc_id: uuid.UUID, slug: str | None = None):
     try:
         doc_uuid = uuid.UUID(str(doc_id))
     except ValueError:
@@ -238,15 +238,15 @@ def delete_document(request, doc_id: uuid.UUID, skill_slug: str | None = None):
             ]
         )
 
-    return documents_service.render_your_documents(request, active_chat_id, skill_slug)
+    return documents_service.render_your_documents(request, active_chat_id, slug)
 
 
 class YourDocuments(View):
     @method_decorator(login_required)
     def get(
-        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, skill_slug: str | None = None
+        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, slug: str | None = None
     ) -> HttpResponse:
-        return documents_service.render_your_documents(request, active_chat_id, skill_slug)
+        return documents_service.render_your_documents(request, active_chat_id, slug)
 
 
 class DocumentsTitleView(View):

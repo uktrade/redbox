@@ -1,7 +1,8 @@
 from datetime import date
 
 from django import forms
-from django.http import HttpResponse
+from django.core.exceptions import FieldError
+from django.http import Http404, HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
 
@@ -57,3 +58,19 @@ def save_forms(form_dict: forms.BaseForm | dict[str, forms.BaseForm]):
                 form.save()
 
     return results
+
+
+def resolve_instance(value, model, lookup="pk", raise_404=False):
+    if value is None:
+        return None
+    if isinstance(value, model):
+        return value
+
+    try:
+        return model.objects.get(**{lookup: value})
+    except (ValueError, FieldError, model.DoesNotExist) as err:
+        if raise_404:
+            msg = f"{model.__name__} not found"
+            raise Http404(msg) from err
+        msg = f"Cannot resolve {model.__name__} from value: {lookup}='{value}'"
+        raise ValueError(msg) from err

@@ -15,19 +15,19 @@ def test_get_chat_url(client: Client, chat_with_alice: Chat, default_skill):
     # Given
     client.force_login(chat_with_alice.user)
     chat_id = chat_with_alice.id
-    skill_slug = default_skill.slug
+    slug = default_skill.slug
 
     # When
     new_chat_link = url_service.get_chat_url()
-    new_skill_chat_link = url_service.get_chat_url(skill_slug=skill_slug)
+    new_tool_chat_link = url_service.get_chat_url(slug=slug)
     chat_link = url_service.get_chat_url(chat_id=chat_id)
-    skill_chat_link = url_service.get_chat_url(chat_id=chat_id, skill_slug=skill_slug)
+    tool_chat_link = url_service.get_chat_url(chat_id=chat_id, slug=slug)
 
     # Then
     assert new_chat_link == "/chats/"
-    assert new_skill_chat_link == f"/skills/{skill_slug}/chats/"
+    assert new_tool_chat_link == f"/tools/{slug}/chats/"
     assert chat_link == f"/chats/{chat_id}/"
-    assert skill_chat_link == f"/skills/{skill_slug}/chats/{chat_id}/"
+    assert tool_chat_link == f"/tools/{slug}/chats/{chat_id}/"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -37,7 +37,7 @@ def test_get_citation_url(client: Client, alice: User, default_skill):
     message_id = uuid.uuid4()
     citation_id = uuid.uuid4()
     chat_id = uuid.uuid4()
-    skill_slug = default_skill.slug
+    slug = default_skill.slug
 
     # When
     citation_link = url_service.get_citation_url(
@@ -45,13 +45,13 @@ def test_get_citation_url(client: Client, alice: User, default_skill):
         citation_id=citation_id,
         chat_id=chat_id,
     )
-    skill_citation_link = url_service.get_citation_url(
+    tool_citation_link = url_service.get_citation_url(
         message_id=message_id,
         citation_id=citation_id,
         chat_id=chat_id,
-        skill_slug=skill_slug,
+        slug=slug,
     )
 
     # Then
     assert citation_link == f"/chats/{chat_id}/citations/{message_id}/#{citation_id}"
-    assert skill_citation_link == f"/skills/{skill_slug}/chats/{chat_id}/citations/{message_id}/#{citation_id}"
+    assert tool_citation_link == f"/tools/{slug}/chats/{chat_id}/citations/{message_id}/#{citation_id}"

@@ -89,7 +89,7 @@ def test_get_info_page_url(client: Client, alice: User, default_skill: Skill):
     url = default_skill.info_page_url
 
     # Then
-    assert url == f"/skills/{default_skill.slug}/"
+    assert url == f"/tools/{default_skill.slug}/"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -104,3 +104,17 @@ def test_get_files(client: Client, alice: User, default_skill: Skill, several_fi
 
     # Then
     assert len(default_skill.get_files()) == len(several_files)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_get_settings(client: Client, alice: User, default_skill: Skill):
+    # Given
+    client.force_login(alice)
+
+    # When
+    settings = default_skill.settings
+
+    # Then
+    assert settings.__str__() == "Default Skill Settings"
+    assert settings.skill == default_skill
+    assert settings.deselect_documents_on_load is False

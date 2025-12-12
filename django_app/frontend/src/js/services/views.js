@@ -7,10 +7,10 @@ import { getActiveChatId, getActiveSkillSlug } from "../utils";
  * Reloads chat window component
  * @param {string | null} chatId - Active chat ID
 */
-export function updateChatWindow(chatId = getActiveChatId(), skill_slug = getActiveSkillSlug()) {;
-    const skill_url_fragment = skill_slug ? `/skills/${skill_slug}` : "";
+export function updateChatWindow(chatId = getActiveChatId(), slug = getActiveSkillSlug()) {;
+    const tool_url_fragment = slug ? `/tools/${slug}` : "";
     const chat_url_fragment = chatId ? `/${chatId}` : "";
-    const url = `${skill_url_fragment}/chats${chat_url_fragment}/chat-window/`;
+    const url = `${tool_url_fragment}/chats${chat_url_fragment}/chat-window/`;
 
     return htmx.ajax('get', url, {
     target: '#chat-window',
@@ -23,10 +23,10 @@ export function updateChatWindow(chatId = getActiveChatId(), skill_slug = getAct
  * Reloads recent chats side-panel template
  * @param {string | null} chatId - Active chat ID
 */
-export function updateRecentChatHistory(chatId = getActiveChatId(), skill_slug = getActiveSkillSlug()) {;
-    const skill_url_fragment = skill_slug ? `/skills/${skill_slug}` : "";
+export function updateRecentChatHistory(chatId = getActiveChatId(), slug = getActiveSkillSlug()) {;
+    const tool_url_fragment = slug ? `/tools/${slug}` : "";
     const chat_url_fragment = chatId ? `/${chatId}` : "";
-    const url = `${skill_url_fragment}/chats${chat_url_fragment}/recent-chats/`;
+    const url = `${tool_url_fragment}/chats${chat_url_fragment}/recent-chats/`;
 
     return htmx.ajax('get', url, {
       target: 'chat-history',
@@ -39,10 +39,10 @@ export function updateRecentChatHistory(chatId = getActiveChatId(), skill_slug =
  * Reloads Your documents side-panel template
  * @param {string | null} chatId - Active chat ID
 */
-export function updateYourDocuments(chatId = getActiveChatId(), skill_slug = getActiveSkillSlug()) {;
-    const skill_url_fragment = skill_slug ? `/skills/${skill_slug}` : "";
+export function updateYourDocuments(chatId = getActiveChatId(), slug = getActiveSkillSlug()) {;
+    const tool_url_fragment = slug ? `/tools/${slug}` : "";
     const chat_url_fragment = chatId ? `/${chatId}` : "";
-    const url = `${skill_url_fragment}/documents/your-documents${chat_url_fragment}/`;
+    const url = `${tool_url_fragment}/documents/your-documents${chat_url_fragment}/`;
 
     return htmx.ajax('get', url, {
       target: 'document-selector',

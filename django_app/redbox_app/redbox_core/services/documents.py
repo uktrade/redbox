@@ -49,8 +49,8 @@ def get_file_context(request, skill: Skill | None = None):
     }
 
 
-def render_your_documents(request, active_chat_id, skill_slug: str | None = None) -> TemplateResponse:
-    context = chat_service.get_context(request, active_chat_id, skill_slug)
+def render_your_documents(request, active_chat_id, slug: str | None = None) -> TemplateResponse:
+    context = chat_service.get_context(request, active_chat_id, slug)
 
     return TemplateResponse(
         request,

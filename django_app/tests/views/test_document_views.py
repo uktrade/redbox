@@ -12,6 +12,7 @@ from django.test import Client, RequestFactory
 from django.urls import reverse
 
 from redbox_app.redbox_core.models import ChatLLMBackend, File, FileSkill
+from redbox_app.redbox_core.services import url as url_service
 from redbox_app.redbox_core.views.document_views import delete_document
 
 User = get_user_model()
@@ -456,7 +457,10 @@ def test_delete_document_with_chat(alice, client, mocker):
     mocker.patch.object(File, "delete_from_s3")
 
     # Mock chat_service.get_context to return simple context
-    mocker.patch("redbox_app.redbox_core.services.chats.get_context", return_value={"files": []})
+    mocker.patch(
+        "redbox_app.redbox_core.services.chats.get_context",
+        return_value={"files": [], "urls": {"upload_url": url_service.get_upload_url()}},
+    )
 
     chat_llm_backend = ChatLLMBackend.objects.get(name="anthropic.claude-3-7-sonnet-20250219-v1:0")
 
@@ -624,7 +628,7 @@ def test_upload_document_to_skill(alice, client, original_file, default_skill, s
     """
     # Given
     client.force_login(alice)
-    url = reverse("skill-document-upload", kwargs={"skill_slug": default_skill.slug})
+    url = reverse("document-upload", kwargs={"slug": default_skill.slug})
     file_name = f"{alice.email}/{original_file.name.rstrip(original_file.name[-4:])}"
     remove_file_from_bucket(file_name)
 
@@ -641,3 +645,22 @@ def test_upload_document_to_skill(alice, client, original_file, default_skill, s
     assert FileSkill.objects.filter(
         file=uploaded_file, skill=default_skill, file_type=FileSkill.FileType.MEMBER
     ).exists()
+
+
+@pytest.mark.django_db
+def test_upload_invalid_document(alice, client, original_file, default_skill):
+    """
+    Test the API endpoint with invalid file.
+    """
+    # Given
+    client.force_login(alice)
+    url = reverse("document-upload", kwargs={"slug": default_skill.slug})
+
+    original_file.name = "invalid"
+    # When
+    response = client.post(url, {"file": original_file})
+    response_content = response.content.decode()
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert f"Error with {original_file.name}: File type  not supported" in response_content
