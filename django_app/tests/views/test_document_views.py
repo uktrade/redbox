@@ -645,3 +645,22 @@ def test_upload_document_to_skill(alice, client, original_file, default_skill, s
     assert FileSkill.objects.filter(
         file=uploaded_file, skill=default_skill, file_type=FileSkill.FileType.MEMBER
     ).exists()
+
+
+@pytest.mark.django_db
+def test_upload_invalid_document(alice, client, original_file, default_skill):
+    """
+    Test the API endpoint with invalid file.
+    """
+    # Given
+    client.force_login(alice)
+    url = reverse("document-upload", kwargs={"slug": default_skill.slug})
+
+    original_file.name = "invalid"
+    # When
+    response = client.post(url, {"file": original_file})
+    response_content = response.content.decode()
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert f"Error with {original_file.name}: File type  not supported" in response_content
