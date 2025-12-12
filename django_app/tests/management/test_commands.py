@@ -107,7 +107,7 @@ def test_delete_expired_files(uploaded_file: File, last_referenced: datetime, sh
     assert is_deleted == should_delete
 
 
-@patch("redbox_app.redbox_core.models.File.delete_from_elastic")
+@patch("redbox_app.redbox_core.models.File.delete_from_elastic_and_s3")
 @pytest.mark.django_db
 def test_delete_expired_files_with_elastic_error(deletion_mock: MagicMock, uploaded_file: File):
     deletion_mock.side_effect = elasticsearch.BadRequestError(message="i am am error", meta=None, body=None)
@@ -124,7 +124,7 @@ def test_delete_expired_files_with_elastic_error(deletion_mock: MagicMock, uploa
     assert File.objects.get(id=mock_file.id).status == File.Status.errored
 
 
-@patch("redbox_app.redbox_core.models.File.delete_from_s3")
+@patch("redbox_app.redbox_core.models.File.delete_from_elastic_and_s3")
 @pytest.mark.django_db
 def test_delete_expired_files_with_s3_error(deletion_mock: MagicMock, uploaded_file: File):
     deletion_mock.side_effect = UnknownClientMethodError(method_name="")
