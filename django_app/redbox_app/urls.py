@@ -61,9 +61,9 @@ chat_urlpatterns = [
     path("ratings/<uuid:message_id>/", views.RatingsView.as_view(), name="ratings"),
     path("chats/<uuid:chat_id>/update-chat-feedback", views.UpdateChatFeedback.as_view(), name="chat-feedback"),
     path("chats/<uuid:chat_id>/delete-chat/", views.DeleteChat.as_view(), name="delete-chat"),
-    path("chats/recent-chats/", views.RecentChats.as_view(), name="recent-chats-initial"),
+    path("chats/recent-chats/", views.RecentChats.as_view(), name="recent-chats"),
     path("chats/<uuid:active_chat_id>/recent-chats/", views.RecentChats.as_view(), name="recent-chats"),
-    path("chats/chat-window/", views.ChatWindow.as_view(), name="chat-window-initial"),
+    path("chats/chat-window/", views.ChatWindow.as_view(), name="chat-window"),
     path("chats/<uuid:active_chat_id>/chat-window/", views.ChatWindow.as_view(), name="chat-window"),
 ]
 
@@ -96,13 +96,13 @@ tools_urlpatterns = [
         views.YourDocuments.as_view(),
         name="your-documents",
     ),
-    path(f"{tools_route_prefix}chats/recent-chats/", views.RecentChats.as_view(), name="recent-chats-initial"),
+    path(f"{tools_route_prefix}chats/recent-chats/", views.RecentChats.as_view(), name="recent-chats"),
     path(
         f"{tools_route_prefix}chats/<uuid:active_chat_id>/recent-chats/",
         views.RecentChats.as_view(),
         name="recent-chats",
     ),
-    path(f"{tools_route_prefix}chats/chat-window/", views.ChatWindow.as_view(), name="chat-window-initial"),
+    path(f"{tools_route_prefix}chats/chat-window/", views.ChatWindow.as_view(), name="chat-window"),
     path(
         f"{tools_route_prefix}chats/<uuid:active_chat_id>/chat-window/", views.ChatWindow.as_view(), name="chat-window"
     ),
