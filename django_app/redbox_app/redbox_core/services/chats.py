@@ -33,7 +33,7 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
 
     messages = ChatMessage.get_messages_ordered_by_citation_priority(chat_id) if current_chat else []
     endpoint = _build_ws_endpoint(request)
-    file_context = _get_file_context(request, skill, messages)
+    file_context = documents_service.decorate_file_context(request, skill, messages)
     chat_backend = current_chat.chat_backend if current_chat else ChatLLMBackend.objects.get(is_default=True)
     messages = _decorate_messages(messages)
 
@@ -120,12 +120,6 @@ def _build_ws_endpoint(request: HttpRequest):
         port=(int(request.META["SERVER_PORT"]) if settings.ENVIRONMENT.is_test else None),
         path=r"/ws/chat/",
     )
-
-
-def _get_file_context(request: HttpRequest, skill: Skill, messages: Sequence[ChatMessage]):
-    context = documents_service.get_file_context(request, skill)
-    context["completed_files"] = message_service.decorate_selected_files(context["completed_files"], messages)
-    return context
 
 
 def render_chats(request: HttpRequest, context: dict) -> HttpResponse:

@@ -13,8 +13,9 @@ from django_q.tasks import async_task
 from waffle import flag_is_active
 
 from redbox_app.redbox_core import flags
-from redbox_app.redbox_core.models import File, FileSkill, Skill, UserTeamMembership
+from redbox_app.redbox_core.models import ChatMessage, File, FileSkill, Skill, UserTeamMembership
 from redbox_app.redbox_core.services import chats as chat_service
+from redbox_app.redbox_core.services import message as message_service
 from redbox_app.redbox_core.types import APPROVED_FILE_EXTENSIONS
 from redbox_app.worker import ingest
 
@@ -47,6 +48,12 @@ def get_file_context(request, skill: Skill | None = None):
         "completed_files": completed_files,
         "processing_files": processing_files,
     }
+
+
+def decorate_file_context(request: HttpRequest, skill: Skill, messages: Sequence[ChatMessage]):
+    context = get_file_context(request, skill)
+    context["completed_files"] = message_service.decorate_selected_files(context["completed_files"], messages)
+    return context
 
 
 def render_your_documents(request, active_chat_id, slug: str | None = None) -> TemplateResponse:

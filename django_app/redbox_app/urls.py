@@ -49,7 +49,7 @@ document_urlpatterns = [
     path("upload/", views.UploadView.as_view(), name="upload"),
     path("remove-doc/<uuid:doc_id>", views.remove_doc_view, name="remove-doc"),
     path("remove-all-docs", views.remove_all_docs_view, name="remove-all-docs"),
-    path("documents/your-documents/", views.YourDocuments.as_view(), name="your-documents-initial"),
+    path("documents/your-documents/", views.YourDocuments.as_view(), name="your-documents"),
     path("documents/your-documents/<uuid:active_chat_id>/", views.YourDocuments.as_view(), name="your-documents"),
 ]
 
@@ -88,9 +88,7 @@ tools_urlpatterns = [
     path(f"{tools_route_prefix}chats/", views.ChatsView.as_view(), name="chats"),
     path(f"{tools_route_prefix}chats/<uuid:chat_id>/", views.ChatsView.as_view(), name="chats"),
     path(f"{tools_route_prefix}documents/upload/", views.upload_document, name="document-upload"),
-    path(
-        f"{tools_route_prefix}documents/your-documents/", views.YourDocuments.as_view(), name="your-documents-initial"
-    ),
+    path(f"{tools_route_prefix}documents/your-documents/", views.YourDocuments.as_view(), name="your-documents"),
     path(
         f"{tools_route_prefix}documents/your-documents/<uuid:active_chat_id>/",
         views.YourDocuments.as_view(),

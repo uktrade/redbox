@@ -6,12 +6,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from botocore.exceptions import ClientError
+from bs4 import BeautifulSoup
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client, RequestFactory
 from django.urls import reverse
 
-from redbox_app.redbox_core.models import ChatLLMBackend, File, FileSkill
+from redbox_app.redbox_core.models import Chat, ChatLLMBackend, File, FileSkill
+from redbox_app.redbox_core.services import documents as document_service
 from redbox_app.redbox_core.services import url as url_service
 from redbox_app.redbox_core.views.document_views import delete_document
 
@@ -664,3 +666,58 @@ def test_upload_invalid_document(alice, client, original_file, default_skill):
     # Then
     assert response.status_code == HTTPStatus.OK
     assert f"Error with {original_file.name}: File type  not supported" in response_content
+
+
+@pytest.mark.django_db
+def test_your_documents_with_chat(chat_with_files: User, client: Client):
+    # Given
+    user = chat_with_files.user
+    client.force_login(user)
+    factory = RequestFactory()
+    request = factory.post(reverse("your-documents"))
+    request.user = user
+    file_context = document_service.decorate_file_context(request=request, skill=None, messages=[])
+    completed_files = file_context["completed_files"]
+
+    # When
+    response = client.get(reverse("your-documents", kwargs={"active_chat_id": str(chat_with_files.id)}))
+    soup = BeautifulSoup(response.content)
+    doc_items = soup.find_all(
+        "input",
+        class_="govuk-checkboxes__input",
+    )
+    rendered_ids = [item["id"] for item in doc_items]
+    checked_items = soup.find_all("input", class_="govuk-checkboxes__input", attrs=["checked"])
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert list(response.context_data["completed_files"]) == list(completed_files)
+    for file in completed_files:
+        assert f"file-{file.id}" in rendered_ids
+    assert checked_items is not None
+
+
+@pytest.mark.django_db
+def test_your_documents_without_chat(chat_with_files: Chat, client: Client):
+    # Given
+    user = chat_with_files.user
+    client.force_login(user)
+    factory = RequestFactory()
+    request = factory.post(reverse("your-documents"))
+    request.user = user
+    file_context = document_service.decorate_file_context(request=request, skill=None, messages=[])
+    completed_files = file_context["completed_files"]
+
+    # When
+    response = client.get(reverse("your-documents"))
+    soup = BeautifulSoup(response.content)
+    doc_items = soup.find_all("input", class_="govuk-checkboxes__input")
+    rendered_ids = [item["id"] for item in doc_items]
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert list(response.context_data["completed_files"]) == list(completed_files)
+    for file in completed_files:
+        assert f"file-{file.id}" in rendered_ids
+    for doc_item in doc_items:
+        assert not doc_item.has_attr("checked")
