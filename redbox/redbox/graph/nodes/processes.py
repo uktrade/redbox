@@ -695,11 +695,14 @@ def invoke_custom_state(
     use_as_agent: bool,
     debug: bool = False,
     max_tokens: int = 5000,
+    model: ChatLLMBackend | None = None,
 ):
     @RunnableLambda
     def _invoke_custom_state(state: RedboxState):
         # transform the state to the subgraph state
-        subgraph = custom_graph(all_chunks_retriever=all_chunks_retriever, use_as_agent=use_as_agent, debug=debug)
+        subgraph = custom_graph(
+            all_chunks_retriever=all_chunks_retriever, use_as_agent=use_as_agent, debug=debug, model=model
+        )
         subgraph_state = state.model_copy()
         agent_task = json.loads(subgraph_state.last_message.content)
         subgraph_state.request.question = (

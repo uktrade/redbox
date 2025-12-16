@@ -269,7 +269,9 @@ def get_search_graph(
     return builder.compile(debug=debug)
 
 
-def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent=False, model=None, debug=True):
+def get_summarise_graph(
+    all_chunks_retriever: VectorStoreRetriever, use_as_agent=False, model: ChatLLMBackend | None = None, debug=True
+):
     builder = StateGraph(RedboxState)
     builder.add_node("choose_route_based_on_request_token", empty_process)
     builder.add_node("set_route_to_summarise_large_doc", build_set_route_pattern(ChatRoute.chat_with_docs_map_reduce))
@@ -656,34 +658,54 @@ def build_new_route_graph(
             # can't find agent
             log.error(f"Can't find agent: {agent_name}")
 
-        success = "fail"
-        is_intermediate_step = False
-        builder.add_node(
-            agent.name,
-            build_agent(
-                agent_name=agent.name,
-                system_prompt=agent.prompt,
-                tools=multi_agent_tools[agent.name],
-                use_metadata=kwargs.get("use_metadata", False),
-                using_chat_history=kwargs.get("using_chat_history", False),
-                max_tokens=agent.agents_max_tokens,
-                model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider),
-            )
-            if not with_loop
-            else build_agent_with_loop(
-                agent_name=agent.name,
-                system_prompt=agent.prompt,
-                tools=multi_agent_tools[agent.name],
-                max_tokens=agent.agents_max_tokens,
-                loop_condition=lambda: success == "fail" or is_intermediate_step,
-                max_attempt=kwargs.get("max_attempt", 2),
-                use_metadata=kwargs.get("use_metadata", False),
-                using_chat_history=kwargs.get("using_chat_history", False),
-                model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider),
-            ),
-        )
-        # add edge
+        match agent.name:
+            case "Summarisation_Agent":
+                builder.add_node(
+                    agent.name,
+                    invoke_custom_state(
+                        custom_graph=get_summarise_graph,
+                        agent_name=agent.name,
+                        all_chunks_retriever=all_chunks_retriever,
+                        use_as_agent=True,
+                        model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
+                        if agent.llm_backend is not None
+                        else None,
+                        debug=debug,
+                    ),
+                )
+            case _:
+                success = "fail"
+                is_intermediate_step = False
+                builder.add_node(
+                    agent.name,
+                    build_agent(
+                        agent_name=agent.name,
+                        system_prompt=agent.prompt,
+                        tools=multi_agent_tools[agent.name],
+                        use_metadata=kwargs.get("use_metadata", False),
+                        using_chat_history=kwargs.get("using_chat_history", False),
+                        max_tokens=agent.agents_max_tokens,
+                        model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
+                        if agent.llm_backend is not None
+                        else None,
+                    )
+                    if not with_loop
+                    else build_agent_with_loop(
+                        agent_name=agent.name,
+                        system_prompt=agent.prompt,
+                        tools=multi_agent_tools[agent.name],
+                        max_tokens=agent.agents_max_tokens,
+                        loop_condition=lambda: success == "fail" or is_intermediate_step,
+                        max_attempt=kwargs.get("max_attempt", 2),
+                        use_metadata=kwargs.get("use_metadata", False),
+                        using_chat_history=kwargs.get("using_chat_history", False),
+                        model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
+                        if agent.llm_backend is not None
+                        else None,
+                    ),
+                )
 
+        # add edge
         _edge_nodes = edge_nodes.copy()
         _edge_nodes.insert(0, agent.name)
         for i in range(len(_edge_nodes) - 1):
@@ -691,9 +713,9 @@ def build_new_route_graph(
 
     add_agent(builder, agents, "Internal_Retrieval_Agent", use_metadata=True)
     add_agent(builder, agents, "External_Retrieval_Agent")
+    add_agent(builder, agents, "Summarisation_Agent", edge_nodes=[])
     add_agent(builder, agents, "Web_Search_Agent")
     add_agent(builder, agents, "Legislation_Search_Agent")
-
     add_agent(
         builder,
         agents,
@@ -735,17 +757,6 @@ def build_new_route_graph(
     )
 
     builder.add_node("send", empty_process)
-
-    builder.add_node(
-        "Summarisation_Agent",
-        invoke_custom_state(
-            custom_graph=get_summarise_graph,
-            agent_name="Summarisation_Agent",
-            all_chunks_retriever=all_chunks_retriever,
-            use_as_agent=True,
-            debug=debug,
-        ),
-    )
 
     def update_submission_eval(state: RedboxState):
         state.tasks_evaluator = EVAL_SUBMISSION

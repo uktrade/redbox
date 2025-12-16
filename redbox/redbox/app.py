@@ -7,6 +7,7 @@ from langchain_core.vectorstores import VectorStoreRetriever
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from redbox.chains.components import (
+    AISettings,
     get_all_chunks_retriever,
     get_embeddings,
     get_metadata_retriever,
@@ -48,7 +49,7 @@ logger = getLogger(__name__)
 class Redbox:
     def __init__(
         self,
-        agents: list[Agent],
+        agents: list[Agent] | None = None,
         all_chunks_retriever: VectorStoreRetriever | None = None,
         parameterised_retriever: VectorStoreRetriever | None = None,
         tabular_retriever: VectorStoreRetriever | None = None,
@@ -60,7 +61,7 @@ class Redbox:
         _env = env or get_settings()
 
         # agents
-        self.agents = agents
+        self.agents = agents or AISettings().worker_agents
 
         # Retrievers
 
