@@ -55,6 +55,7 @@ from redbox_app.redbox_core.models import (
     Skill,
     UserTeamMembership,
 )
+from redbox_app.redbox_core.models import Agent as AgentModel
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
 
 # Temporary condition before next uwotm8 release: monkey patch CONVERSION_IGNORE_LIST
@@ -92,7 +93,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
     env = get_settings()
     debug = not env.is_prod
 
-    redbox = Redbox(env=env, debug=debug)
+    agents = tuple(AgentModel.objects.all())
+    redbox = Redbox(agents=agents, env=env, debug=debug)
+
     chat_message = None  # incrementally updating the chat stream
 
     async def get_file_cached(self, ref):
@@ -324,6 +327,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         agent_plans, question, user_feedback = await self._load_agent_plan(session, message_history)
 
         ai_settings = await self.get_ai_settings(session)
+
         if selected_agent_names:
             ai_settings = ai_settings.model_copy(
                 update={

@@ -1,3 +1,4 @@
+import logging
 from typing import List
 
 from langchain_core.messages import AIMessage
@@ -53,21 +54,14 @@ from redbox.graph.nodes.sends import (
     sending_task_to_agent,
 )
 from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
-from redbox.models.chain import AgentDecision, AISettings, PromptSet, RedboxState
+from redbox.models.chain import Agent, AgentDecision, PromptSet, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
-from redbox.models.prompts import (
-    EVAL_SUBMISSION,
-    EVAL_SUBMISSION_QA,
-    EXTERNAL_RETRIEVAL_AGENT_PROMPT,
-    INTERNAL_RETRIEVAL_AGENT_PROMPT,
-    LEGISLATION_SEARCH_AGENT_PROMPT,
-    SUBMISSION_PROMPT,
-    SUBMISSION_QA_PROMPT,
-    WEB_SEARCH_AGENT_PROMPT,
-)
+from redbox.models.prompts import EVAL_SUBMISSION, EVAL_SUBMISSION_QA
 from redbox.models.settings import ChatLLMBackend, get_settings
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
+
+log = logging.getLogger(__name__)
 
 
 def build_root_graph(
@@ -77,6 +71,7 @@ def build_root_graph(
     tabular_retriever,
     tools,
     multi_agent_tools,
+    agents,
     debug,
 ):
     agent_parser = ClaudeParser(pydantic_object=AgentDecision)
@@ -97,10 +92,11 @@ def build_root_graph(
     builder.add_node(
         "new_route_graph",
         build_new_route_graph(
-            all_chunks_retriever,
-            tabular_retriever,
-            multi_agent_tools,
-            debug,
+            all_chunks_retriever=all_chunks_retriever,
+            tabular_retriever=tabular_retriever,
+            multi_agent_tools=multi_agent_tools,
+            agents=agents,
+            debug=debug,
         ),
     )
     builder.add_node(
@@ -273,7 +269,7 @@ def get_search_graph(
     return builder.compile(debug=debug)
 
 
-def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent=False, debug=True):
+def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent=False, model=None, debug=True):
     builder = StateGraph(RedboxState)
     builder.add_node("choose_route_based_on_request_token", empty_process)
     builder.add_node("set_route_to_summarise_large_doc", build_set_route_pattern(ChatRoute.chat_with_docs_map_reduce))
@@ -347,6 +343,7 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent
             prompt_set=PromptSet.ChatwithDocs,
             final_response_chain=False if use_as_agent else True,
             summary_multiagent_flag=True if use_as_agent else False,
+            model=model,
         ),
         retry=RetryPolicy(max_attempts=3),
     )
@@ -628,9 +625,9 @@ def build_new_route_graph(
     all_chunks_retriever: VectorStoreRetriever,
     tabular_retriever: VectorStoreRetriever,
     multi_agent_tools: dict,
+    agents: list[Agent],
     debug: bool = False,
 ) -> CompiledGraph:
-    agents_max_tokens = {agent.name: agent.agents_max_tokens for agent in AISettings().worker_agents}
     allow_plan_feedback = get_settings().allow_plan_feedback
 
     builder = StateGraph(RedboxState)
@@ -650,28 +647,70 @@ def build_new_route_graph(
             node_for_no_task="Evaluator_Agent",
         ),
     )
-    # builder.add_node(
-    #     "Internal_Retrieval_Agent",
-    #     build_agent_with_loop(
-    #         agent_name="Internal_Retrieval_Agent",
-    #         system_prompt=INTERNAL_RETRIEVAL_AGENT_PROMPT,
-    #         tools=multi_agent_tools["Internal_Retrieval_Agent"],
-    #         use_metadata=True,
-    #         max_tokens=agents_max_tokens["Internal_Retrieval_Agent"],
-    #         max_attempt=1,
-    #     ),
-    # )
 
-    builder.add_node(
-        "Internal_Retrieval_Agent",
-        build_agent(
-            agent_name="Internal_Retrieval_Agent",
-            system_prompt=INTERNAL_RETRIEVAL_AGENT_PROMPT,
-            tools=multi_agent_tools["Internal_Retrieval_Agent"],
-            use_metadata=True,
-            max_tokens=agents_max_tokens["Internal_Retrieval_Agent"],
-            model=ChatLLMBackend(name="anthropic.claude-3-haiku-20240307-v1:0", provider="bedrock"),
-        ),
+    def add_agent(builder, agents, agent_name, edge_nodes=["combine_question_evaluator"], with_loop=False, **kwargs):
+        agent = [agent for agent in agents if agent.name == agent_name]
+        try:
+            agent = agent[0]
+        except Exception:
+            # can't find agent
+            log.error(f"Can't find agent: {agent_name}")
+
+        success = "fail"
+        is_intermediate_step = False
+        builder.add_node(
+            agent.name,
+            build_agent(
+                agent_name=agent.name,
+                system_prompt=agent.prompt,
+                tools=multi_agent_tools[agent.name],
+                use_metadata=kwargs.get("use_metadata", False),
+                using_chat_history=kwargs.get("using_chat_history", False),
+                max_tokens=agent.agents_max_tokens,
+                model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider),
+            )
+            if not with_loop
+            else build_agent_with_loop(
+                agent_name=agent.name,
+                system_prompt=agent.prompt,
+                tools=multi_agent_tools[agent.name],
+                max_tokens=agent.agents_max_tokens,
+                loop_condition=lambda: success == "fail" or is_intermediate_step,
+                max_attempt=kwargs.get("max_attempt", 2),
+                use_metadata=kwargs.get("use_metadata", False),
+                using_chat_history=kwargs.get("using_chat_history", False),
+                model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider),
+            ),
+        )
+        # add edge
+
+        _edge_nodes = edge_nodes.copy()
+        _edge_nodes.insert(0, agent.name)
+        for i in range(len(_edge_nodes) - 1):
+            builder.add_edge(_edge_nodes[i], _edge_nodes[i + 1])
+
+    add_agent(builder, agents, "Internal_Retrieval_Agent", use_metadata=True)
+    add_agent(builder, agents, "External_Retrieval_Agent")
+    add_agent(builder, agents, "Web_Search_Agent")
+    add_agent(builder, agents, "Legislation_Search_Agent")
+
+    add_agent(
+        builder,
+        agents,
+        "Submission_Checker_Agent",
+        with_loop=True,
+        use_metadata=True,
+        using_chat_history=True,
+        edge_nodes=["update_submission_eval", "combine_question_evaluator"],
+    )
+    add_agent(
+        builder,
+        agents,
+        "Submission_Question_Answer_Agent",
+        with_loop=True,
+        use_metadata=True,
+        using_chat_history=True,
+        edge_nodes=["update_submission_qa", "combine_question_evaluator"],
     )
 
     builder.add_node(
@@ -696,29 +735,6 @@ def build_new_route_graph(
     )
 
     builder.add_node("send", empty_process)
-    builder.add_node(
-        "External_Retrieval_Agent",
-        build_agent(
-            agent_name="External_Retrieval_Agent",
-            system_prompt=EXTERNAL_RETRIEVAL_AGENT_PROMPT,
-            tools=multi_agent_tools["External_Retrieval_Agent"],
-            use_metadata=False,
-            max_tokens=agents_max_tokens["External_Retrieval_Agent"],
-            model=ChatLLMBackend(name="anthropic.claude-3-haiku-20240307-v1:0", provider="bedrock"),
-        ),
-    )
-
-    # builder.add_node(
-    #     "External_Retrieval_Agent",
-    #     build_agent_with_loop(
-    #         agent_name="External_Retrieval_Agent",
-    #         system_prompt=EXTERNAL_RETRIEVAL_AGENT_PROMPT,
-    #         tools=multi_agent_tools["External_Retrieval_Agent"],
-    #         use_metadata=False,
-    #         max_tokens=agents_max_tokens["External_Retrieval_Agent"],
-    #         max_attempt=1,
-    #     ),
-    # )
 
     builder.add_node(
         "Summarisation_Agent",
@@ -728,85 +744,6 @@ def build_new_route_graph(
             all_chunks_retriever=all_chunks_retriever,
             use_as_agent=True,
             debug=debug,
-        ),
-    )
-
-    builder.add_node(
-        "Web_Search_Agent",
-        build_agent(
-            agent_name="Web_Search_Agent",
-            system_prompt=WEB_SEARCH_AGENT_PROMPT,
-            tools=multi_agent_tools["Web_Search_Agent"],
-            use_metadata=False,
-            max_tokens=agents_max_tokens["Web_Search_Agent"],
-            model=ChatLLMBackend(name="anthropic.claude-3-haiku-20240307-v1:0", provider="bedrock"),
-        ),
-    )
-
-    # builder.add_node(
-    #     "Web_Search_Agent",
-    #     build_agent_with_loop(
-    #         agent_name="Web_Search_Agent",
-    #         system_prompt=WEB_SEARCH_AGENT_PROMPT,
-    #         tools=multi_agent_tools["Web_Search_Agent"],
-    #         use_metadata=False,
-    #         max_tokens=agents_max_tokens["Web_Search_Agent"],
-    #         max_attempt=1,
-    #     ),
-    # )
-
-    # builder.add_node(
-    #     "Legislation_Search_Agent",
-    #     build_agent_with_loop(
-    #         agent_name="Legislation_Search_Agent",
-    #         system_prompt=LEGISLATION_SEARCH_AGENT_PROMPT,
-    #         tools=multi_agent_tools["Legislation_Search_Agent"],
-    #         use_metadata=False,
-    #         max_tokens=agents_max_tokens["Legislation_Search_Agent"],
-    #         max_attempt=1,
-    #     ),
-    # )
-    builder.add_node(
-        "Legislation_Search_Agent",
-        build_agent(
-            agent_name="Legislation_Search_Agent",
-            system_prompt=LEGISLATION_SEARCH_AGENT_PROMPT,
-            tools=multi_agent_tools["Legislation_Search_Agent"],
-            use_metadata=False,
-            max_tokens=agents_max_tokens["Legislation_Search_Agent"],
-            model=ChatLLMBackend(name="anthropic.claude-3-haiku-20240307-v1:0", provider="bedrock"),
-        ),
-    )
-
-    success = "fail"
-    is_intermediate_step = False
-    builder.add_node(
-        "Submission_Checker_Agent",
-        build_agent_with_loop(
-            agent_name="Submission_Checker_Agent",
-            system_prompt=SUBMISSION_PROMPT,
-            tools=multi_agent_tools["Submission_Checker_Agent"],
-            use_metadata=True,
-            max_tokens=agents_max_tokens["Submission_Checker_Agent"],
-            loop_condition=lambda: success == "fail" or is_intermediate_step,
-            max_attempt=2,
-            using_chat_history=True,
-            model=ChatLLMBackend(name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock"),
-        ),
-    )
-
-    builder.add_node(
-        "Submission_Question_Answer_Agent",
-        build_agent_with_loop(
-            agent_name="Submission_Question_Answer_Agent",
-            system_prompt=SUBMISSION_QA_PROMPT,
-            tools=multi_agent_tools["Submission_Question_Answer_Agent"],
-            use_metadata=True,
-            max_tokens=agents_max_tokens["Submission_Question_Answer_Agent"],
-            loop_condition=lambda: success == "fail" or is_intermediate_step,
-            max_attempt=2,
-            using_chat_history=True,
-            model=ChatLLMBackend(name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock"),
         ),
     )
 
@@ -854,14 +791,6 @@ def build_new_route_graph(
     builder.add_edge("retrieve_tabular_documents", "retrieve_tabular_schema")
     builder.add_edge("retrieve_tabular_schema", "call_tabular_agent")
     builder.add_edge("call_tabular_agent", "combine_question_evaluator")
-    builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
-    builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
-    builder.add_edge("Web_Search_Agent", "combine_question_evaluator")
-    builder.add_edge("Legislation_Search_Agent", "combine_question_evaluator")
-    builder.add_edge("Submission_Checker_Agent", "update_submission_eval")
-    builder.add_edge("Submission_Question_Answer_Agent", "update_submission_qa")
-    builder.add_edge("update_submission_eval", "combine_question_evaluator")
-    builder.add_edge("update_submission_qa", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
