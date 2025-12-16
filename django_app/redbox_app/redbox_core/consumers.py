@@ -100,7 +100,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     env = get_settings()
     debug = not env.is_prod
     agent = None
-    Redbox = None
+    redbox = Redbox(env=env, debug=debug)
     chat_message = None  # incrementally updating the chat stream
 
     async def get_file_cached(self, ref):
@@ -592,10 +592,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         # Load once on first connection
         if cached_agents is None:
-            agents = await get_all_agents()
+            self.agents = await get_all_agents()
 
-        agents = cached_agents
-        self.redbox = Redbox(agents=agents, env=self.env, debug=self.debug)
+        self.agents = cached_agents
+        self.redbox = Redbox(agents=self.agents, env=self.env, debug=self.debug)
         await self.accept()
 
     async def handle_text(self, response: str) -> str:
