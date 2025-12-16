@@ -61,6 +61,8 @@ from redbox_app.redbox_core.models import AISettings as AISettingsModel
 # Temporary condition before next uwotm8 release: monkey patch CONVERSION_IGNORE_LIST
 uwm8.CONVERSION_IGNORE_LIST = uwm8.CONVERSION_IGNORE_LIST | {"filters": "philtres", "connection": "connexion"}
 
+cached_agents = None
+
 User = get_user_model()
 OptFileSeq = Sequence[File] | None
 logger = logging.getLogger(__name__)
@@ -87,15 +89,18 @@ def get_latest_complete_file(ref: str) -> File:
     return File.objects.filter(original_file__endswith=ref, status=File.Status.complete).order_by("-created_at").first()
 
 
+@database_sync_to_async
+def get_all_agents():
+    return tuple(AgentModel.objects.all())
+
+
 class ChatConsumer(AsyncWebsocketConsumer):
     route = None
     metadata: RequestMetadata = RequestMetadata()
     env = get_settings()
     debug = not env.is_prod
-
-    agents = tuple(AgentModel.objects.all())
-    redbox = Redbox(agents=agents, env=env, debug=debug)
-
+    agent = None
+    Redbox = None
     chat_message = None  # incrementally updating the chat stream
 
     async def get_file_cached(self, ref):
@@ -584,6 +589,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
         else:
             self.uk_english = False
+
+        # Load once on first connection
+        if cached_agents is None:
+            agents = await get_all_agents()
+
+        agents = cached_agents
+        self.redbox = Redbox(agents=agents, env=self.env, debug=self.debug)
         await self.accept()
 
     async def handle_text(self, response: str) -> str:
