@@ -666,6 +666,7 @@ def build_new_route_graph(
                         custom_graph=get_summarise_graph,
                         agent_name=agent.name,
                         all_chunks_retriever=all_chunks_retriever,
+                        max_tokens=agent.agents_max_tokens,
                         use_as_agent=True,
                         model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
                         if agent.llm_backend is not None
@@ -673,6 +674,39 @@ def build_new_route_graph(
                         debug=debug,
                     ),
                 )
+            case "Tabular_Agent":
+                builder.add_node(
+                    "Tabular_Agent",
+                    empty_process,
+                )
+
+                builder.add_node(
+                    "retrieve_tabular_documents",
+                    build_retrieve_pattern(
+                        retriever=tabular_retriever,
+                        structure_func=structure_documents_by_file_name,
+                        final_source_chain=False,
+                    ),
+                )
+
+                builder.add_node("retrieve_tabular_schema", get_tabular_schema())
+
+                builder.add_node(
+                    "call_tabular_agent",
+                    get_tabular_agent(
+                        tools=multi_agent_tools["Tabular_Agent"],
+                        max_attempt=10,
+                        max_tokens=agent.agents_max_tokens,
+                        model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
+                        if agent.llm_backend is not None
+                        else None,
+                    ),
+                )
+                builder.add_edge("Tabular_Agent", "retrieve_tabular_documents")
+                builder.add_edge("retrieve_tabular_documents", "retrieve_tabular_schema")
+                builder.add_edge("retrieve_tabular_schema", "call_tabular_agent")
+                builder.add_edge("call_tabular_agent", "combine_question_evaluator")
+
             case _:
                 success = "fail"
                 is_intermediate_step = False
@@ -714,6 +748,7 @@ def build_new_route_graph(
     add_agent(builder, agents, "Internal_Retrieval_Agent", use_metadata=True)
     add_agent(builder, agents, "External_Retrieval_Agent")
     add_agent(builder, agents, "Summarisation_Agent", edge_nodes=[])
+    add_agent(builder, agents, "Tabular_Agent", edge_nodes=[])
     add_agent(builder, agents, "Web_Search_Agent")
     add_agent(builder, agents, "Legislation_Search_Agent")
     add_agent(
@@ -733,27 +768,6 @@ def build_new_route_graph(
         use_metadata=True,
         using_chat_history=True,
         edge_nodes=["update_submission_qa", "combine_question_evaluator"],
-    )
-
-    builder.add_node(
-        "Tabular_Agent",
-        empty_process,
-    )
-
-    builder.add_node(
-        "retrieve_tabular_documents",
-        build_retrieve_pattern(
-            retriever=tabular_retriever,
-            structure_func=structure_documents_by_file_name,
-            final_source_chain=False,
-        ),
-    )
-
-    builder.add_node("retrieve_tabular_schema", get_tabular_schema())
-
-    builder.add_node(
-        "call_tabular_agent",
-        get_tabular_agent(tools=multi_agent_tools["Tabular_Agent"], max_attempt=10),
     )
 
     builder.add_node("send", empty_process)
@@ -798,10 +812,6 @@ def build_new_route_graph(
         },
     )
     builder.add_conditional_edges("sending_task", sending_task_to_agent)
-    builder.add_edge("Tabular_Agent", "retrieve_tabular_documents")
-    builder.add_edge("retrieve_tabular_documents", "retrieve_tabular_schema")
-    builder.add_edge("retrieve_tabular_schema", "call_tabular_agent")
-    builder.add_edge("call_tabular_agent", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)

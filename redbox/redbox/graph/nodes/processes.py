@@ -922,7 +922,11 @@ def sanitise_file_name(file_name: str) -> str:
 
 
 def get_tabular_agent(
-    agent_name: str = "Tabular Agent", max_tokens: int = 5000, tools=list[StructuredTool], max_attempt=int
+    agent_name: str = "Tabular Agent",
+    max_tokens: int = 5000,
+    tools=list[StructuredTool],
+    max_attempt=int,
+    model: ChatLLMBackend | None = None,
 ):
     @RunnableLambda
     def _build_tabular_agent(state: RedboxState):
@@ -956,7 +960,7 @@ def get_tabular_agent(
                 tools=tools,
                 final_response_chain=False,
                 additional_variables={"sql_error": sql_error, "db_schema": state.tabular_schema},
-                model=ChatLLMBackend(name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock"),
+                model=model,
             )
             ai_msg = worker_agent.invoke(state)
 
