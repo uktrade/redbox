@@ -60,9 +60,6 @@ from redbox_app.redbox_core.models import AISettings as AISettingsModel
 
 # Temporary condition before next uwotm8 release: monkey patch CONVERSION_IGNORE_LIST
 uwm8.CONVERSION_IGNORE_LIST = uwm8.CONVERSION_IGNORE_LIST | {"filters": "philtres", "connection": "connexion"}
-
-cached_agents = None
-
 User = get_user_model()
 OptFileSeq = Sequence[File] | None
 logger = logging.getLogger(__name__)
@@ -99,8 +96,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
     metadata: RequestMetadata = RequestMetadata()
     env = get_settings()
     debug = not env.is_prod
-    agent = None
-    redbox = Redbox(env=env, debug=debug)
+    agents = None
+    redbox = None
     chat_message = None  # incrementally updating the chat stream
 
     async def get_file_cached(self, ref):
@@ -322,7 +319,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
     ) -> None:
         """Initiate & close websocket conversation with the core-api message endpoint."""
         await self.send_to_client("session-id", session.id)
-
         session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
         message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
         question = message_history[-2].text
@@ -341,7 +337,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     ]
                 }
             )
-
         state = RedboxState(
             request=RedboxQuery(
                 question=question,
@@ -584,18 +579,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def connect(self):
+        if ChatConsumer.redbox is None:
+            agents = await get_all_agents()
+            ChatConsumer.redbox = Redbox(agents=agents, env=ChatConsumer.env, debug=ChatConsumer.debug)
+
         self.user = self.scope["user"]
         if self.user.is_authenticated:
             self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
         else:
             self.uk_english = False
-
-        # Load once on first connection
-        if cached_agents is None:
-            self.agents = await get_all_agents()
-
-        self.agents = cached_agents
-        self.redbox = Redbox(agents=self.agents, env=self.env, debug=self.debug)
         await self.accept()
 
     async def handle_text(self, response: str) -> str:

@@ -654,96 +654,95 @@ def build_new_route_graph(
         agent = [agent for agent in agents if agent.name == agent_name]
         try:
             agent = agent[0]
+            match agent.name:
+                case "Summarisation_Agent":
+                    builder.add_node(
+                        agent.name,
+                        invoke_custom_state(
+                            custom_graph=get_summarise_graph,
+                            agent_name=agent.name,
+                            all_chunks_retriever=all_chunks_retriever,
+                            max_tokens=agent.agents_max_tokens,
+                            use_as_agent=True,
+                            model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
+                            if agent.llm_backend is not None
+                            else None,
+                            debug=debug,
+                        ),
+                    )
+                case "Tabular_Agent":
+                    builder.add_node(
+                        "Tabular_Agent",
+                        empty_process,
+                    )
+
+                    builder.add_node(
+                        "retrieve_tabular_documents",
+                        build_retrieve_pattern(
+                            retriever=tabular_retriever,
+                            structure_func=structure_documents_by_file_name,
+                            final_source_chain=False,
+                        ),
+                    )
+
+                    builder.add_node("retrieve_tabular_schema", get_tabular_schema())
+
+                    builder.add_node(
+                        "call_tabular_agent",
+                        get_tabular_agent(
+                            tools=multi_agent_tools["Tabular_Agent"],
+                            max_attempt=10,
+                            max_tokens=agent.agents_max_tokens,
+                            model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
+                            if agent.llm_backend is not None
+                            else None,
+                        ),
+                    )
+                    builder.add_edge("Tabular_Agent", "retrieve_tabular_documents")
+                    builder.add_edge("retrieve_tabular_documents", "retrieve_tabular_schema")
+                    builder.add_edge("retrieve_tabular_schema", "call_tabular_agent")
+                    builder.add_edge("call_tabular_agent", "combine_question_evaluator")
+
+                case _:
+                    success = "fail"
+                    is_intermediate_step = False
+                    builder.add_node(
+                        agent.name,
+                        build_agent(
+                            agent_name=agent.name,
+                            system_prompt=agent.prompt,
+                            tools=multi_agent_tools[agent.name],
+                            use_metadata=kwargs.get("use_metadata", False),
+                            using_chat_history=kwargs.get("using_chat_history", False),
+                            max_tokens=agent.agents_max_tokens,
+                            model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
+                            if agent.llm_backend is not None
+                            else None,
+                        )
+                        if not with_loop
+                        else build_agent_with_loop(
+                            agent_name=agent.name,
+                            system_prompt=agent.prompt,
+                            tools=multi_agent_tools[agent.name],
+                            max_tokens=agent.agents_max_tokens,
+                            loop_condition=lambda: success == "fail" or is_intermediate_step,
+                            max_attempt=kwargs.get("max_attempt", 2),
+                            use_metadata=kwargs.get("use_metadata", False),
+                            using_chat_history=kwargs.get("using_chat_history", False),
+                            model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
+                            if agent.llm_backend is not None
+                            else None,
+                        ),
+                    )
+
+            # add edge
+            _edge_nodes = edge_nodes.copy()
+            _edge_nodes.insert(0, agent.name)
+            for i in range(len(_edge_nodes) - 1):
+                builder.add_edge(_edge_nodes[i], _edge_nodes[i + 1])
         except Exception:
             # can't find agent
             log.error(f"Can't find agent: {agent_name}")
-
-        match agent.name:
-            case "Summarisation_Agent":
-                builder.add_node(
-                    agent.name,
-                    invoke_custom_state(
-                        custom_graph=get_summarise_graph,
-                        agent_name=agent.name,
-                        all_chunks_retriever=all_chunks_retriever,
-                        max_tokens=agent.agents_max_tokens,
-                        use_as_agent=True,
-                        model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
-                        if agent.llm_backend is not None
-                        else None,
-                        debug=debug,
-                    ),
-                )
-            case "Tabular_Agent":
-                builder.add_node(
-                    "Tabular_Agent",
-                    empty_process,
-                )
-
-                builder.add_node(
-                    "retrieve_tabular_documents",
-                    build_retrieve_pattern(
-                        retriever=tabular_retriever,
-                        structure_func=structure_documents_by_file_name,
-                        final_source_chain=False,
-                    ),
-                )
-
-                builder.add_node("retrieve_tabular_schema", get_tabular_schema())
-
-                builder.add_node(
-                    "call_tabular_agent",
-                    get_tabular_agent(
-                        tools=multi_agent_tools["Tabular_Agent"],
-                        max_attempt=10,
-                        max_tokens=agent.agents_max_tokens,
-                        model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
-                        if agent.llm_backend is not None
-                        else None,
-                    ),
-                )
-                builder.add_edge("Tabular_Agent", "retrieve_tabular_documents")
-                builder.add_edge("retrieve_tabular_documents", "retrieve_tabular_schema")
-                builder.add_edge("retrieve_tabular_schema", "call_tabular_agent")
-                builder.add_edge("call_tabular_agent", "combine_question_evaluator")
-
-            case _:
-                success = "fail"
-                is_intermediate_step = False
-                builder.add_node(
-                    agent.name,
-                    build_agent(
-                        agent_name=agent.name,
-                        system_prompt=agent.prompt,
-                        tools=multi_agent_tools[agent.name],
-                        use_metadata=kwargs.get("use_metadata", False),
-                        using_chat_history=kwargs.get("using_chat_history", False),
-                        max_tokens=agent.agents_max_tokens,
-                        model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
-                        if agent.llm_backend is not None
-                        else None,
-                    )
-                    if not with_loop
-                    else build_agent_with_loop(
-                        agent_name=agent.name,
-                        system_prompt=agent.prompt,
-                        tools=multi_agent_tools[agent.name],
-                        max_tokens=agent.agents_max_tokens,
-                        loop_condition=lambda: success == "fail" or is_intermediate_step,
-                        max_attempt=kwargs.get("max_attempt", 2),
-                        use_metadata=kwargs.get("use_metadata", False),
-                        using_chat_history=kwargs.get("using_chat_history", False),
-                        model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
-                        if agent.llm_backend is not None
-                        else None,
-                    ),
-                )
-
-        # add edge
-        _edge_nodes = edge_nodes.copy()
-        _edge_nodes.insert(0, agent.name)
-        for i in range(len(_edge_nodes) - 1):
-            builder.add_edge(_edge_nodes[i], _edge_nodes[i + 1])
 
     add_agent(builder, agents, "Internal_Retrieval_Agent", use_metadata=True)
     add_agent(builder, agents, "External_Retrieval_Agent")
