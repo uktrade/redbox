@@ -88,7 +88,12 @@ def get_latest_complete_file(ref: str) -> File:
 
 @database_sync_to_async
 def get_all_agents():
-    return tuple(AgentModel.objects.all())
+    return tuple(
+        # AgentModel.objects.select_related("llm_backend").values(
+        #     "name", "description", "prompt", "agents_max_tokens", "llm_backend__name", "llm_backend__provider"
+        # )
+        AgentModel.objects.select_related("llm_backend").all()
+    )
 
 
 class ChatConsumer(AsyncWebsocketConsumer):

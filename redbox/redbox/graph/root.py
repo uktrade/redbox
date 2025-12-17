@@ -742,6 +742,7 @@ def build_new_route_graph(
                 builder.add_edge(_edge_nodes[i], _edge_nodes[i + 1])
         except Exception:
             # can't find agent
+            log.error(f"Here is the list of agents: {agents}")
             log.error(f"Can't find agent: {agent_name}")
 
     add_agent(builder, agents, "Internal_Retrieval_Agent", use_metadata=True)
