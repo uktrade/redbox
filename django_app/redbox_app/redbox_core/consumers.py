@@ -55,11 +55,11 @@ from redbox_app.redbox_core.models import (
     Skill,
     UserTeamMembership,
 )
+from redbox_app.redbox_core.models import Agent as AgentModel
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
 
 # Temporary condition before next uwotm8 release: monkey patch CONVERSION_IGNORE_LIST
 uwm8.CONVERSION_IGNORE_LIST = uwm8.CONVERSION_IGNORE_LIST | {"filters": "philtres", "connection": "connexion"}
-
 User = get_user_model()
 OptFileSeq = Sequence[File] | None
 logger = logging.getLogger(__name__)
@@ -86,13 +86,17 @@ def get_latest_complete_file(ref: str) -> File:
     return File.objects.filter(original_file__endswith=ref, status=File.Status.complete).order_by("-created_at").first()
 
 
+@database_sync_to_async
+def get_all_agents():
+    return tuple(AgentModel.objects.select_related("llm_backend").all())
+
+
 class ChatConsumer(AsyncWebsocketConsumer):
     route = None
     metadata: RequestMetadata = RequestMetadata()
     env = get_settings()
     debug = not env.is_prod
-
-    redbox = Redbox(env=env, debug=debug)
+    redbox = None
     chat_message = None  # incrementally updating the chat stream
 
     async def get_file_cached(self, ref):
@@ -187,7 +191,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if not session.name and selected_files:
             first_file = selected_files[0]
             session_name = await database_sync_to_async(
-                lambda fid: File.objects.filter(id=fid).values_list("file_name", flat=True).first()
+                lambda fid: File.objects.filter(id=fid).values_list("original_file_name", flat=True).first()
             )(first_file.id)
             session.name = (session_name or "")[: settings.CHAT_TITLE_LENGTH]
             await session.asave()
@@ -314,7 +318,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
     ) -> None:
         """Initiate & close websocket conversation with the core-api message endpoint."""
         await self.send_to_client("session-id", session.id)
-
         session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
         message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
         question = message_history[-2].text
@@ -324,6 +327,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         agent_plans, question, user_feedback = await self._load_agent_plan(session, message_history)
 
         ai_settings = await self.get_ai_settings(session)
+
         if selected_agent_names:
             ai_settings = ai_settings.model_copy(
                 update={
@@ -332,7 +336,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     ]
                 }
             )
-
         state = RedboxState(
             request=RedboxQuery(
                 question=question,
@@ -457,7 +460,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 citation_objects.append(
                     Citation(
                         chat_message=self.chat_message,
-                        text_in_answer=ai_citation.text_in_answer,
                         file=file,
                         url=None if file else src.source,
                         text=src.highlighted_text_in_source,
@@ -576,6 +578,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def connect(self):
+        if ChatConsumer.redbox is None:
+            agents = await get_all_agents()
+            ChatConsumer.redbox = Redbox(agents=agents, env=ChatConsumer.env, debug=ChatConsumer.debug)
+
         self.user = self.scope["user"]
         if self.user.is_authenticated:
             self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
@@ -627,10 +633,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 # Use the async database query function
                 file = await self.get_file_cached(ref)
                 if file:
-                    payload = {"url": str(file.url), "file_name": file.file_name, "text_in_answer": ""}
+                    payload = {"url": str(file.url), "file_name": file.file_name}
                 else:
                     # If no file with Status.complete is found, handle it as None
-                    payload = {"url": ref, "file_name": None, "text_in_answer": ""}
+                    payload = {"url": ref, "file_name": None}
 
                 response_sources = [
                     Source(
@@ -644,7 +650,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 ]
             except File.DoesNotExist:
                 file = None
-                payload = {"url": ref, "file_name": None, "text_in_answer": ""}
+                payload = {"url": ref, "file_name": None}
                 response_sources = [
                     Source(
                         source=cited_chunk.metadata["uri"],
@@ -666,10 +672,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """
         for c in citations:
             for s in c.sources:
-                text_in_answer = c.text_in_answer or ""
-                if getattr(self, "uk_english", False):
-                    text_in_answer = await sync_to_async(uwm8.convert_american_to_british_spelling)(text_in_answer)
-
                 try:
                     # Use the async database query function
                     file = await self.get_file_cached(s.source)
@@ -677,7 +679,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         payload = {
                             "url": str(file.url),
                             "file_name": file.file_name,
-                            "text_in_answer": text_in_answer,
                             "citation_name": s.ref_id,
                         }
                     else:
@@ -687,7 +688,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             payload = {
                                 "url": str(file.url),
                                 "file_name": file.file_name,
-                                "text_in_answer": text_in_answer,
                                 "citation_name": s.ref_id,
                             }
                         else:
@@ -695,16 +695,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             payload = {
                                 "url": s.source,
                                 "file_name": s.source,
-                                "text_in_answer": text_in_answer,
                                 "citation_name": s.ref_id,
                             }
                 except File.DoesNotExist:
                     file = None
-                    text_in_answer = c.text_in_answer or ""
                     payload = {
                         "url": s.source,
                         "file_name": s.source,
-                        "text_in_answer": text_in_answer,
                         "citation_name": s.ref_id,
                     }
 
@@ -714,7 +711,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     (
                         file,
                         AICitation(
-                            text_in_answer=text_in_answer,
                             sources=[s],
                         ),
                     )
