@@ -728,10 +728,10 @@ def build_new_route_graph(
             _edge_nodes.insert(0, agent.name)
             for i in range(len(_edge_nodes) - 1):
                 builder.add_edge(_edge_nodes[i], _edge_nodes[i + 1])
-        except Exception:
+        except IndexError:
             # can't find agent
             log.error(f"Here is the list of agents: {agents}")
-            log.error(f"Can't find agent: {agent_name}")
+            raise ValueError(f"No agent found with name {agent_name}")
 
     allow_plan_feedback = get_settings().allow_plan_feedback
 

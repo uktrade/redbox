@@ -9,10 +9,11 @@ from redbox.chains.components import (
     get_tabular_chunks_retriever,
 )
 from redbox.graph.root import build_new_route_graph
+from redbox.models.chain import Agent
 from redbox.models.settings import Settings
 
 
-class TestGraphs:
+class TestNewRouteGraphs:
     _env = Settings()
     agents = AISettings().worker_agents
     all_chunks_retriever = get_all_chunks_retriever(_env)
@@ -43,7 +44,6 @@ class TestGraphs:
             multi_agent_tools=self.multi_agent_tools,
             agents=self.agents,
         ).get_graph()
-
         # check if we have this agent node in the graph
         assert agent_name in graph.nodes
 
@@ -54,3 +54,14 @@ class TestGraphs:
             edge_list = [agent_name] + edges
             for i in range(len(edge_list) - 1):
                 assert edge_list[i + 1] in [edge.target for edge in graph.edges if edge.source == edge_list[i]]
+
+    def test_non_existent_node(self):
+        with pytest.raises(ValueError):
+            graph = build_new_route_graph(
+                all_chunks_retriever=self.all_chunks_retriever,
+                tabular_retriever=self.tabular_retriever,
+                multi_agent_tools=self.multi_agent_tools,
+                agents=[Agent(name="Fake_Agent")],
+            ).get_graph()
+
+            assert "Fake_Agent" not in graph.nodes
