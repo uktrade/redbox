@@ -304,7 +304,7 @@ class CitationInline(admin.StackedInline):
 class ChatMessageActivityEventInline(admin.StackedInline):
     model = models.ActivityEvent
     ordering = ("modified_at",)
-
+    readonly_fields = ["created_at"]
     extra = 0
 
 
