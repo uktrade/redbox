@@ -55,11 +55,11 @@ from redbox_app.redbox_core.models import (
     Skill,
     UserTeamMembership,
 )
+from redbox_app.redbox_core.models import Agent as AgentModel
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
 
 # Temporary condition before next uwotm8 release: monkey patch CONVERSION_IGNORE_LIST
 uwm8.CONVERSION_IGNORE_LIST = uwm8.CONVERSION_IGNORE_LIST | {"filters": "philtres", "connection": "connexion"}
-
 User = get_user_model()
 OptFileSeq = Sequence[File] | None
 logger = logging.getLogger(__name__)
@@ -86,13 +86,17 @@ def get_latest_complete_file(ref: str) -> File:
     return File.objects.filter(original_file__endswith=ref, status=File.Status.complete).order_by("-created_at").first()
 
 
+@database_sync_to_async
+def get_all_agents():
+    return tuple(AgentModel.objects.select_related("llm_backend").all())
+
+
 class ChatConsumer(AsyncWebsocketConsumer):
     route = None
     metadata: RequestMetadata = RequestMetadata()
     env = get_settings()
     debug = not env.is_prod
-
-    redbox = Redbox(env=env, debug=debug)
+    redbox = None
     chat_message = None  # incrementally updating the chat stream
 
     async def get_file_cached(self, ref):
@@ -314,7 +318,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
     ) -> None:
         """Initiate & close websocket conversation with the core-api message endpoint."""
         await self.send_to_client("session-id", session.id)
-
         session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
         message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
         question = message_history[-2].text
@@ -324,6 +327,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         agent_plans, question, user_feedback = await self._load_agent_plan(session, message_history)
 
         ai_settings = await self.get_ai_settings(session)
+
         if selected_agent_names:
             ai_settings = ai_settings.model_copy(
                 update={
@@ -332,7 +336,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     ]
                 }
             )
-
         state = RedboxState(
             request=RedboxQuery(
                 question=question,
@@ -575,6 +578,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def connect(self):
+        if ChatConsumer.redbox is None:
+            agents = await get_all_agents()
+            ChatConsumer.redbox = Redbox(agents=agents, env=ChatConsumer.env, debug=ChatConsumer.debug)
+
         self.user = self.scope["user"]
         if self.user.is_authenticated:
             self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
