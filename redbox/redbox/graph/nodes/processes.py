@@ -695,11 +695,14 @@ def invoke_custom_state(
     use_as_agent: bool,
     debug: bool = False,
     max_tokens: int = 5000,
+    model: ChatLLMBackend | None = None,
 ):
     @RunnableLambda
     def _invoke_custom_state(state: RedboxState):
         # transform the state to the subgraph state
-        subgraph = custom_graph(all_chunks_retriever=all_chunks_retriever, use_as_agent=use_as_agent, debug=debug)
+        subgraph = custom_graph(
+            all_chunks_retriever=all_chunks_retriever, use_as_agent=use_as_agent, debug=debug, model=model
+        )
         subgraph_state = state.model_copy()
         agent_task = json.loads(subgraph_state.last_message.content)
         subgraph_state.request.question = (
@@ -919,7 +922,11 @@ def sanitise_file_name(file_name: str) -> str:
 
 
 def get_tabular_agent(
-    agent_name: str = "Tabular Agent", max_tokens: int = 5000, tools=list[StructuredTool], max_attempt=int
+    agent_name: str = "Tabular Agent",
+    max_tokens: int = 5000,
+    tools=list[StructuredTool],
+    max_attempt=int,
+    model: ChatLLMBackend | None = None,
 ):
     @RunnableLambda
     def _build_tabular_agent(state: RedboxState):
@@ -953,7 +960,7 @@ def get_tabular_agent(
                 tools=tools,
                 final_response_chain=False,
                 additional_variables={"sql_error": sql_error, "db_schema": state.tabular_schema},
-                model=ChatLLMBackend(name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock"),
+                model=model,
             )
             ai_msg = worker_agent.invoke(state)
 
