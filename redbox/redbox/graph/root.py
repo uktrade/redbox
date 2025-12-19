@@ -630,25 +630,13 @@ def build_new_route_graph(
     agents: list[Agent],
     debug: bool = False,
 ) -> CompiledGraph:
-    allow_plan_feedback = get_settings().allow_plan_feedback
+    def update_submission_eval(state: RedboxState):
+        state.tasks_evaluator = EVAL_SUBMISSION
+        return state
 
-    builder = StateGraph(RedboxState)
-    builder.add_node(
-        "set_route_to_newroute",
-        build_set_route_pattern(route=ChatRoute.newroute),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node("remove_keyword", strip_route)
-    builder.add_node("stream_plan", stream_plan())
-    builder.add_node(
-        "planner",
-        my_planner(
-            allow_plan_feedback=allow_plan_feedback,
-            node_after_streamed="stream_plan",
-            node_afer_replan="sending_task",
-            node_for_no_task="Evaluator_Agent",
-        ),
-    )
+    def update_submission_qa(state: RedboxState):
+        state.tasks_evaluator = EVAL_SUBMISSION_QA
+        return state
 
     def add_agent(builder, agents, agent_name, edge_nodes=["combine_question_evaluator"], with_loop=False, **kwargs):
         agent = [agent for agent in agents if agent.name == agent_name]
@@ -745,10 +733,46 @@ def build_new_route_graph(
             log.error(f"Here is the list of agents: {agents}")
             log.error(f"Can't find agent: {agent_name}")
 
+    allow_plan_feedback = get_settings().allow_plan_feedback
+
+    builder = StateGraph(RedboxState)
+
+    # add nodes
+    builder.add_node(
+        "set_route_to_newroute",
+        build_set_route_pattern(route=ChatRoute.newroute),
+        retry=RetryPolicy(max_attempts=3),
+    )
+    builder.add_node("remove_keyword", strip_route)
+    builder.add_node("stream_plan", stream_plan())
+    builder.add_node(
+        "planner",
+        my_planner(
+            allow_plan_feedback=allow_plan_feedback,
+            node_after_streamed="stream_plan",
+            node_afer_replan="sending_task",
+            node_for_no_task="Evaluator_Agent",
+        ),
+    )
+    builder.add_node("update_submission_eval", update_submission_eval)
+    builder.add_node("update_submission_qa", update_submission_qa)
+    builder.add_node("send", empty_process)
+    builder.add_node("user_feedback_evaluation", empty_process)
+    builder.add_node("Evaluator_Agent", create_evaluator())
+    builder.add_node("combine_question_evaluator", combine_question_evaluator())
+    builder.add_node(
+        "report_citations",
+        report_sources_process,
+        retry=RetryPolicy(max_attempts=3),
+    )
+    builder.add_node("stream_suggestion", stream_suggestion())
+    builder.add_node("sending_task", empty_process)
+
+    # add all agents here
     add_agent(builder, agents, "Internal_Retrieval_Agent", use_metadata=True)
     add_agent(builder, agents, "External_Retrieval_Agent")
-    add_agent(builder, agents, "Summarisation_Agent", edge_nodes=[])
-    add_agent(builder, agents, "Tabular_Agent", edge_nodes=[])
+    add_agent(builder, agents, "Summarisation_Agent", edge_nodes=[])  # streaming response directly
+    add_agent(builder, agents, "Tabular_Agent", edge_nodes=[])  # go to other nodes/subgraphs
     add_agent(builder, agents, "Web_Search_Agent")
     add_agent(builder, agents, "Legislation_Search_Agent")
     add_agent(
@@ -770,32 +794,9 @@ def build_new_route_graph(
         edge_nodes=["update_submission_qa", "combine_question_evaluator"],
     )
 
-    builder.add_node("send", empty_process)
+    builder.add_node("fake_node", empty_process)
 
-    def update_submission_eval(state: RedboxState):
-        state.tasks_evaluator = EVAL_SUBMISSION
-        return state
-
-    builder.add_node("update_submission_eval", update_submission_eval)
-
-    def update_submission_qa(state: RedboxState):
-        state.tasks_evaluator = EVAL_SUBMISSION_QA
-        return state
-
-    builder.add_node("update_submission_qa", update_submission_qa)
-
-    builder.add_node("user_feedback_evaluation", empty_process)
-
-    builder.add_node("Evaluator_Agent", create_evaluator())
-    builder.add_node("combine_question_evaluator", combine_question_evaluator())
-    builder.add_node(
-        "report_citations",
-        report_sources_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node("stream_suggestion", stream_suggestion())
-    builder.add_node("sending_task", empty_process)
-
+    # add edges
     builder.add_edge(START, "set_route_to_newroute")
     builder.add_edge("set_route_to_newroute", "remove_keyword")
     builder.add_conditional_edges(

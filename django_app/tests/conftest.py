@@ -118,11 +118,6 @@ def alice(create_user):
 
 
 @pytest.fixture
-def tom(create_user):
-    return create_user(username="tom@cabinetoffice.gov.uk")
-
-
-@pytest.fixture
 def agents_list() -> list[Agent]:
     agents = []
     for agent_name in [
