@@ -209,10 +209,7 @@ def chat_message(chat: Chat, uploaded_file: File) -> ChatMessage:
 
 
 @pytest.fixture
-def chat_message_with_citation(chat: Chat, uploaded_file: File, skill: Skill) -> ChatMessage:
-    chat.skill = skill
-    chat.save()
-
+def chat_message_with_citation(chat: Chat, uploaded_file: File) -> ChatMessage:
     chat_message = ChatMessage.objects.create(
         chat=chat,
         text="An answer with citation.",
@@ -421,3 +418,16 @@ def internal_citation(chat_message, uploaded_file) -> Citation:
     internal_citation.save()
     chat_message.refresh_from_db()
     return internal_citation
+
+
+@pytest.fixture
+def default_agent() -> Agent:
+    agent = Agent(
+        name="Default Agent",
+        description="A default agent",
+        agents_max_tokens=5000,
+        prompt="This is an agent prompt",
+        llm_backend=ChatLLMBackend.objects.filter().first(),
+    )
+    agent.save()
+    return agent
