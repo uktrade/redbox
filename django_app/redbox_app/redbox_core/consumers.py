@@ -20,6 +20,7 @@ from django.forms.models import model_to_dict
 from django.utils import timezone
 from langchain_core.documents import Document
 from pydantic import ValidationError
+from waffle import flag_is_active
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
@@ -37,7 +38,7 @@ from redbox.models.chain import (
 from redbox.models.chain import Citation as AICitation
 from redbox.models.graph import RedboxActivityEvent
 from redbox.models.settings import get_settings
-from redbox_app.redbox_core import error_messages
+from redbox_app.redbox_core import error_messages, flags
 from redbox_app.redbox_core.models import (
     ActivityEvent,
     AgentPlan,
@@ -616,7 +617,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.metadata = metadata_reducer(self.metadata, RequestMetadata.model_validate(response))
 
     async def handle_activity(self, response: dict):
-        await self.send_to_client("activity", response.message)
+        # Feature flag activity event display till design is confirmed
+        if await sync_to_async(flag_is_active)(self.user, flags.ENABLE_ACTIVITY_EVENTS):
+            await self.send_to_client("activity", response.message)
         self.activities.append(RedboxActivityEvent.model_validate(response))
 
     async def handle_documents(self, response: list[Document]):
