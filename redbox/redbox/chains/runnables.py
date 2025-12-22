@@ -16,7 +16,7 @@ from redbox.chains.components import get_basic_metadata_retriever, get_chat_llm,
 from redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_prompts
 from redbox.models.errors import QuestionLengthError
 from redbox.models.graph import RedboxEventType
-from redbox.models.settings import get_settings
+from redbox.models.settings import ChatLLMBackend, get_settings
 from redbox.transform import bedrock_tokeniser, flatten_document_state, get_all_metadata
 
 log = logging.getLogger()
@@ -314,14 +314,18 @@ def basic_chat_chain(
     parser=None,
     using_only_structure: bool = False,
     using_chat_history: bool = False,
+    model: ChatLLMBackend | None = None,
 ):
     @chain
     def _basic_chat_chain(state: RedboxState):
         nonlocal parser
-        if tools:
-            llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
-        else:
-            llm = get_chat_llm(state.request.ai_settings.chat_backend)
+        if model is not None:
+            llm = get_chat_llm(model, tools=tools)
+        else:  # use default
+            if tools:
+                llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
+            else:
+                llm = get_chat_llm(state.request.ai_settings.chat_backend)
 
         # chat history
         if using_chat_history:
@@ -360,6 +364,7 @@ def chain_use_metadata(
     _additional_variables: dict = {},
     using_only_structure=False,
     using_chat_history=False,
+    model: ChatLLMBackend | None = None,
 ):
     metadata = None
 
@@ -383,6 +388,7 @@ def chain_use_metadata(
             _additional_variables=additional_variables,
             using_only_structure=using_only_structure,
             using_chat_history=using_chat_history,
+            model=model,
         )
         return chain.invoke(state)
 
@@ -397,6 +403,7 @@ def create_chain_agent(
     _additional_variables: dict = {},
     using_only_structure=False,
     using_chat_history=False,
+    model: ChatLLMBackend | None = None,
 ):
     if use_metadata:
         return chain_use_metadata(
@@ -406,6 +413,7 @@ def create_chain_agent(
             _additional_variables=_additional_variables,
             using_only_structure=using_only_structure,
             using_chat_history=using_chat_history,
+            model=model,
         )
     else:
         return basic_chat_chain(
@@ -415,4 +423,5 @@ def create_chain_agent(
             _additional_variables=_additional_variables,
             using_only_structure=using_only_structure,
             using_chat_history=using_chat_history,
+            model=model,
         )
