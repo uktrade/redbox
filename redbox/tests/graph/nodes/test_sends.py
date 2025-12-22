@@ -180,8 +180,10 @@ class TestRunToolsParallel:
         search_wikipedia = build_search_wikipedia_tool()
         ai_msg = AIMessage(
             content="I am calling a tool",
-            tool_calls=[{"name": "_search_wikipedia", "args": {"query": "fake query"}, "id": "1"},
-                        {"name": "_search_gov", "args": {"query": "another fake query"}, "id": "2"}],
+            tool_calls=[
+                {"name": "_search_wikipedia", "args": {"query": "fake query"}, "id": "1"},
+                {"name": "_search_gov", "args": {"query": "another fake query"}, "id": "2"},
+            ],
         )
 
         search_gov = build_govuk_search_tool()
