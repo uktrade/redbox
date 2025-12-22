@@ -26,12 +26,12 @@ class SkillsView(View):
 
 
 @require_http_methods(["GET"])
-def skill_info_page_view(request: HttpRequest, skill_slug: str) -> HttpResponse:
-    skill = get_object_or_404(Skill, slug=skill_slug)
+def skill_info_page_view(request: HttpRequest, slug: str) -> HttpResponse:
+    skill = get_object_or_404(Skill, slug=slug)
 
     if not skill.has_info_page:
         return HttpResponse(
-            f"Skill info page not found: {skill_slug}",
+            f"Skill info page not found: {slug}",
             status=HTTPStatus.NOT_FOUND,
         )
 
