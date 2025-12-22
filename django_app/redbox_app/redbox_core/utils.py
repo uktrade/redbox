@@ -1,6 +1,8 @@
 from datetime import date
 
-from django.http import HttpResponse
+from django import forms
+from django.core.exceptions import FieldError
+from django.http import Http404, HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
 
@@ -40,3 +42,35 @@ def render_with_oob(templates: list[RenderTemplateItem]) -> HttpResponse:
         html += render_to_string(template, context, request, using=engine)
 
     return HttpResponse(html)
+
+
+def save_forms(form_dict: forms.BaseForm | dict[str, forms.BaseForm]):
+    results = {}
+
+    if isinstance(form_dict, forms.BaseForm):
+        results["form"] = form_dict.is_valid()
+        if results["form"]:
+            form_dict.save()
+    else:
+        for name, form in form_dict.items():
+            results[name] = form.is_valid()
+            if results[name]:
+                form.save()
+
+    return results
+
+
+def resolve_instance(value, model, lookup="pk", raise_404=False):
+    if value is None:
+        return None
+    if isinstance(value, model):
+        return value
+
+    try:
+        return model.objects.get(**{lookup: value})
+    except (ValueError, FieldError, model.DoesNotExist) as err:
+        if raise_404:
+            msg = f"{model.__name__} not found"
+            raise Http404(msg) from err
+        msg = f"Cannot resolve {model.__name__} from value: {lookup}='{value}'"
+        raise ValueError(msg) from err

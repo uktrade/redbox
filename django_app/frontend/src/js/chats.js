@@ -2,7 +2,6 @@ import "./web-components/chats/chat-controller.js";
 import "./web-components/chats/chat-history.js";
 import "./web-components/chats/chat-history-item.js";
 import "./web-components/chats/chat-message.js";
-import "./web-components/chats/chat-title.js";
 import "./web-components/chats/copy-text.js";
 import "./web-components/chats/document-selector.js";
 import "./web-components/chats/feedback-buttons.js";
@@ -18,13 +17,9 @@ import "./web-components/chats/profile-overlay.js";
 import "./web-components/chats/exit-feedback.js";
 import "./web-components/documents/file-upload.js";
 
-// RBDS
-import "../redbox_design_system/rbds";
-
 import { updateChatWindow, syncUrlWithContent, updateRecentChatHistory } from "./services";
 import { ChatHistory } from "./web-components/chats/chat-history.js";
 import { getActiveChatId } from "./utils/active-chat.js";
-
 
 
 document.addEventListener("chat-response-end", (evt) => {

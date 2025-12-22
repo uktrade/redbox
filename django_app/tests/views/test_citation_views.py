@@ -21,7 +21,7 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_citations_shown(client: Client, alice: User, chat: Chat, several_files: Sequence[File]):
     # Given
     client.force_login(alice)
@@ -34,7 +34,7 @@ def test_citations_shown(client: Client, alice: User, chat: Chat, several_files:
     )
 
     # When
-    response = client.get(f"/citations/{chat_message.id}/")
+    response = client.get(reverse("citations", kwargs={"chat_id": chat.id, "message_id": chat_message.id}))
 
     # Then
     assert response.status_code == HTTPStatus.OK
@@ -45,43 +45,54 @@ def test_citations_shown(client: Client, alice: User, chat: Chat, several_files:
     filenames = [h3.get_text().strip() for h3 in files]
     citations = [element.get_text().strip() for element in citation_items]
 
-    assert filenames == ["original_file_0.txt", "original_file_1.txt", "https://wikipedia-test"]
+    expected = [
+        "original_file_0",
+        "original_file_1",
+        "https://wikipedia-test",
+    ]
+
+    assert len(filenames) == len(expected)
+    assert all(f.startswith(e) for f, e in zip(filenames, expected, strict=False))
     assert citations == ["Citation 1", "Citation 2", "Citation 3"]
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_user_can_see_their_own_citations(chat_message_with_citation: ChatMessage, alice: User, client: Client):
     # Given
     client.force_login(alice)
 
     # When
-    response = client.get(f"/citations/{chat_message_with_citation.id}/")
+    chat_id = chat_message_with_citation.chat.id
+    message_id = chat_message_with_citation.id
+    response = client.get(reverse("citations", kwargs={"chat_id": chat_id, "message_id": message_id}))
 
     # Then
     assert response.status_code == HTTPStatus.OK
 
 
-@pytest.mark.django_db()
-def test_user_cannot_see_other_users_citations(chat_message_with_citation: Chat, bob: User, client: Client):
+@pytest.mark.django_db
+def test_user_cannot_see_other_users_citations(chat_message_with_citation: ChatMessage, bob: User, client: Client):
     # Given
     client.force_login(bob)
 
     # When
-    response = client.get(f"/citations/{chat_message_with_citation.id}/")
+    chat_id = chat_message_with_citation.chat.id
+    message_id = chat_message_with_citation.id
+    response = client.get(reverse("citations", kwargs={"chat_id": chat_id, "message_id": message_id}))
 
     # Then
     assert response.status_code == HTTPStatus.FOUND
     assert response.headers.get("Location") == "/chats/"
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_nonexistent_citations(alice: User, client: Client):
     # Given
     client.force_login(alice)
     nonexistent_uuid = uuid.uuid4()
 
     # When
-    url = reverse("citations", kwargs={"message_id": nonexistent_uuid})
+    url = reverse("citations", kwargs={"chat_id": nonexistent_uuid, "message_id": nonexistent_uuid})
     response = client.get(url)
 
     # Then

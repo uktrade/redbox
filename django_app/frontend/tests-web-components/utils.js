@@ -28,11 +28,11 @@ const signIn = async (page) => {
   const magicLink = await getMagicLink();
 
   await page.goto(`${magicLink}`);
-  await expect(page.locator("h1")).toContainText("My details");
+  await expect(page.locator("h1")).toContainText("Settings");
 };
 
 const sendMessage = async (page) => {
-  await page.locator(".message-input").fill("Testing");
+  await page.locator(".rbds-message-input").fill("Testing");
   await page.getByRole("button", { name: "Send" }).click();
 };
 

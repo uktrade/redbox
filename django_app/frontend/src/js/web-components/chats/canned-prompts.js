@@ -21,9 +21,9 @@ class CannedPrompts extends HTMLElement {
    */
   #prepopulateMessageBox = (prompt) => {
     /** @type HTMLInputElement | null */
-    let chatInput = document.querySelector(".message-input");
+    let chatInput = document.querySelector(".rbds-message-input");
     if (chatInput) {
-      chatInput.innerHTML = prompt;
+      chatInput.textContent = prompt;
       chatInput.focus();
       chatInput.selectionStart = chatInput.value.length;
     }

@@ -48,7 +48,7 @@ def test_user_journey(page: Page, email_address: str):
     # Dismiss profile overlay
     page.press("body", "Escape")
 
-    # My details page
+    # Settings - My details page
     my_details_page = chats_page.navigate_my_details()
     my_details_page.name = "Roland Hamilton-Jones"
     my_details_page.ai_experience = "Enthusiastic Experimenter"
@@ -177,7 +177,7 @@ def get_magic_link(email_address: str) -> URL:
     return BASE_URL / magic_link
 
 
-@pytest.fixture()
+@pytest.fixture
 def email_address() -> str:
     username = "".join(choice(string.ascii_lowercase) for _ in range(20))
     return f"{username}@cabinetoffice.gov.uk"

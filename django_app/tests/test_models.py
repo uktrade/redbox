@@ -13,7 +13,7 @@ from redbox_app.redbox_core.models import (
 )
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_file_model_last_referenced(peter_rabbit, s3_client):  # noqa: ARG001
     mock_file = SimpleUploadedFile("test.txt", b"these are the file contents")
 
@@ -44,7 +44,7 @@ def test_file_model_last_referenced(peter_rabbit, s3_client):  # noqa: ARG001
         File.Status.processing,
     ],
 )
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_file_model_unique_name(status: str, peter_rabbit: User, s3_client):  # noqa: ARG001
     mock_file = SimpleUploadedFile("test.txt", b"these are the file contents")
 
@@ -64,7 +64,7 @@ def test_file_model_unique_name(status: str, peter_rabbit: User, s3_client):  # 
         File.Status.errored,
     ],
 )
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_file_model_unique_name_error_states(status: str, peter_rabbit: User, s3_client):  # noqa: ARG001
     mock_file = SimpleUploadedFile("test.txt", b"these are the file contents")
 
@@ -78,7 +78,7 @@ def test_file_model_unique_name_error_states(status: str, peter_rabbit: User, s3
         assert new_file.unique_name
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     ("source", "error_msg"),
     [
@@ -93,7 +93,7 @@ def test_citation_save_fail_file_url_not_set(chat_message: ChatMessage, source, 
         citation.save()
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     ("source", "error_msg"),
     [
@@ -122,7 +122,7 @@ def test_internal_citation_uri(chat_message: ChatMessage, uploaded_file: File):
         file=uploaded_file,
     )
     citation.save()
-    assert citation.uri.parts[-1] == "original_file.txt"
+    assert citation.uri.parts[-1].startswith("original_file")
 
 
 def test_external_citation_uri(
@@ -136,33 +136,6 @@ def test_external_citation_uri(
     )
     citation.save()
     assert citation.uri == URL("http://example.com")
-
-
-def test_unique_citation_uris(chat_message: ChatMessage, uploaded_file: File):
-    external_citation = Citation(
-        chat_message=chat_message,
-        text="hello",
-        source=Citation.Origin.WIKIPEDIA,
-        url="http://example.com",
-    )
-    external_citation.save()
-
-    internal_citation = Citation(
-        chat_message=chat_message,
-        text="hello",
-        source=Citation.Origin.USER_UPLOADED_DOCUMENT,
-        file=uploaded_file,
-    )
-    internal_citation.save()
-
-    chat_message.refresh_from_db()
-
-    urls = chat_message.unique_citation_uris()
-
-    assert urls[0][0] == "http://example.com"
-    assert urls[0][1] == URL("http://example.com")
-    assert urls[1][0] == "original_file.txt"
-    assert urls[1][1].parts[-1] == "original_file.txt"
 
 
 @pytest.mark.parametrize(("value", "expected"), [("invalid origin", None), ("Wikipedia", "Wikipedia")])

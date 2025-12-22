@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from enum import Enum, StrEnum
 from functools import reduce
 from types import UnionType
-from typing import Annotated, List, Literal, NotRequired, Required, TypedDict, get_args, get_origin
+from typing import Annotated, Dict, List, Literal, NotRequired, Required, Tuple, TypedDict, get_args, get_origin
 from uuid import UUID, uuid4
 
 import environ
@@ -11,7 +11,7 @@ from langchain_core.documents import Document
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
 from langgraph.managed.is_last_step import RemainingStepsManager
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, create_model, field_validator
 
 from redbox.models import prompts
 from redbox.models.chat import DecisionEnum, ToolEnum
@@ -24,6 +24,15 @@ env = environ.Env()
 class ChainChatMessage(TypedDict):
     role: Literal["user", "ai", "system"]
     text: str
+
+
+class Agent(BaseModel):
+    name: str = Field(description="Name of the agent")
+    description: str = Field(description="Name of the agent", default="")
+    agents_max_tokens: int = Field(description="Maximum tokens limit for the agent", default=5000)
+    prompt: str = Field(description="System prompt for the agent", default="")
+    default_agent: bool = Field(description="Is this the default agent", default=True)
+    llm_backend: ChatLLMBackend | None = Field(description="backend model for this agent", default=None)
 
 
 class AISettings(BaseModel):
@@ -69,14 +78,13 @@ class AISettings(BaseModel):
     new_route_retrieval_question_prompt: str = prompts.NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT
     llm_decide_route_prompt: str = prompts.LLM_DECIDE_ROUTE
     citation_prompt: str = prompts.CITATION_PROMPT
-    planner_system_prompt: str = prompts.PLANNER_PROMPT
-    planner_question_prompt: str = prompts.PLANNER_QUESTION_PROMPT
-    planner_format_prompt: str = prompts.PLANNER_FORMAT_PROMPT
     answer_instruction_prompt: str = prompts.ANSWER_INSTRUCTION_SYSTEM_PROMPT
+    tabular_system_prompt: str = prompts.TABULAR_PROMPT
+    tabular_question_prompt: str = prompts.TABULAR_QUESTION_PROMPT
 
     # Elasticsearch RAG and boost values
     rag_k: int = 30
-    rag_num_candidates: int = 10
+    rag_num_candidates: int = 30
     rag_gauss_scale_size: int = 3
     rag_gauss_scale_decay: float = 0.5
     rag_gauss_scale_min: float = 1.1
@@ -97,20 +105,68 @@ class AISettings(BaseModel):
     tool_govuk_returned_results: int = 5
 
     # agents reporting to planner agent
-    agents: list = [
-        "Internal_Retrieval_Agent",
-        "External_Retrieval_Agent",
-        "Summarisation_Agent",
-        "Web_Search_Agent",
-        "Legislation_Search_Agent",
+    worker_agents: List[Agent] = [
+        Agent(
+            name="Internal_Retrieval_Agent",
+            description=prompts.INTERNAL_RETRIEVAL_AGENT_DESC,
+            agents_max_tokens=10000,
+            prompt=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT,
+        ),
+        Agent(
+            name="External_Retrieval_Agent",
+            description=prompts.EXTERNAL_RETRIEVAL_AGENT_DESC,
+            agents_max_tokens=5000,
+            prompt=prompts.EXTERNAL_RETRIEVAL_AGENT_PROMPT,
+        ),
+        Agent(
+            name="Web_Search_Agent",
+            description=prompts.WEB_SEARCH_AGENT_DESC,
+            agents_max_tokens=10000,
+            prompt=prompts.WEB_SEARCH_AGENT_PROMPT,
+        ),
+        Agent(
+            name="Legislation_Search_Agent",
+            description=prompts.LEGISLATION_SEARCH_AGENT_DESC,
+            agents_max_tokens=10000,
+            prompt=prompts.LEGISLATION_SEARCH_AGENT_PROMPT,
+        ),
+        Agent(name="Summarisation_Agent", description=prompts.SUMMARISATION_AGENT_DESC, agents_max_tokens=20000),
+        Agent(name="Tabular_Agent", description=prompts.TABULAR_AGENT_DESC, agents_max_tokens=10000),
+        Agent(
+            name="Submission_Checker_Agent",
+            description=prompts.SUBMISSION_AGENT_DESC,
+            prompt=prompts.SUBMISSION_PROMPT,
+            agents_max_tokens=10000,
+            default_agent=False,
+        ),
+        Agent(
+            name="Submission_Question_Answer_Agent",
+            description=prompts.SUBMISSION_QA_AGENT_DESC,
+            prompt=prompts.SUBMISSION_QA_PROMPT,
+            agents_max_tokens=10000,
+            default_agent=False,
+        ),
     ]
-    agents_max_tokens: dict = {
-        "Internal_Retrieval_Agent": 10000,
-        "External_Retrieval_Agent": 5000,
-        "Summarisation_Agent": 20000,
-        "Web_Search_Agent": 5000,
-        "Legislation_Search_Agent": 5000,
-    }
+
+    @property
+    def get_agent_workers_prompt(self):
+        return "\n\n".join(f"{i}. {agent.description}" for i, agent in enumerate(self.worker_agents, start=1))
+
+    @property
+    def planner_prompt(self):
+        return f"{prompts.PLANNER_PROMPT_TOP}\n\n{self.get_agent_workers_prompt}\n\n{prompts.PLANNER_PROMPT_BOTTOM}"
+
+    @property
+    def planner_prompt_with_format(self):
+        return f"{prompts.PLANNER_PROMPT_TOP}\n\n{self.get_agent_workers_prompt}\n\n{prompts.PLANNER_PROMPT_BOTTOM}\n\n{prompts.PLANNER_QUESTION_PROMPT}\n\n{prompts.PLANNER_FORMAT_PROMPT}"
+
+    @property
+    def replanner_prompt(self):
+        return f"{prompts.REPLAN_PROMPT}\n\n{self.get_agent_workers_prompt}\n\n{prompts.PLANNER_FORMAT_PROMPT}\n\n{prompts.PLANNER_QUESTION_PROMPT}"
+
+    planner_system_prompt: str = planner_prompt
+    planner_question_prompt: str = prompts.PLANNER_QUESTION_PROMPT
+    planner_format_prompt: str = prompts.PLANNER_FORMAT_PROMPT
 
 
 class Source(BaseModel):
@@ -153,10 +209,6 @@ class Source(BaseModel):
 
 
 class Citation(BaseModel):
-    text_in_answer: str = Field(
-        description="Part of text from `answer` that references sources and matches exactly with the `answer`, without rephrasing or altering the meaning. Partial matches are acceptable as long as they are exact excerpts from the `answer`",
-        default="",
-    )
     sources: list[Source] = Field(default_factory=list)
 
 
@@ -241,6 +293,7 @@ class RedboxQuery(BaseModel):
         None  # Adding previous_s3_keys (which are the previous documents to the state request)
     )
     db_location: str | None = None  # Adding db_location to state request
+    knowledge_base_s3_keys: list[str] = Field(description="List of knowledge base files", default_factory=list)
 
 
 class LLMCallMetadata(BaseModel):
@@ -305,24 +358,51 @@ def metadata_reducer(
     )
 
 
-agent_options = {agent: agent for agent in AISettings().agents}
-AgentEnum = Enum("AgentEnum", agent_options)
-
-
-class AgentTask(BaseModel):
+# Base class definition for agent task
+class AgentTaskBase(BaseModel):
     task: str = Field(description="Task to be completed by the agent", default="")
-    agent: AgentEnum = Field(
-        description="Name of the agent to complete the task", default=AgentEnum.Internal_Retrieval_Agent
-    )
     expected_output: str = Field(description="What this agent should produce", default="")
 
 
-class MultiAgentPlan(BaseModel):
-    tasks: List[AgentTask] = Field(description="A list of tasks to be carried out by agents", default=[])
+# Base class definition for multi agent plan
+class MultiAgentPlanBase(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskBase, MultiAgentPlanBase]:
+    try:
+        AgentEnum = Enum("AgentEnum", agent_options)
+        default_agent = list(AgentEnum)[0] if agent_options else None
+    except (
+        Exception
+    ):  # this to handle a specific test in test_multiagents_app, as we pass agent=None for chat without documents.
+        # in reality agents won't be None for a specific skill.
+        # anyhow, this should be handled at consumers.py if there are no agents found in database.
+        AgentEnum = Enum("AgentEnum", {"None": {"None"}})
+        default_agent = "None"
+
+    # create agent task pydantic model dynamically
+    ConfiguredAgentTask = create_model(
+        "ConfiguredAgentTask",
+        __base__=AgentTaskBase,
+        agent=(AgentEnum, Field(description="Name of the agent to complete the task", default=default_agent)),
+    )
+
+    # create agent plan pydantic model dynamically
+    ConfiguredAgentPlan = create_model(
+        "ConfiguredAgentPlan",
+        __base__=MultiAgentPlanBase,
+        tasks=(
+            List[ConfiguredAgentTask],
+            Field(description="A list of tasks to be carried out by agents", default=[ConfiguredAgentTask()]),
+        ),
+    )
+
+    return ConfiguredAgentTask, ConfiguredAgentPlan
+
+
 class RedboxState(BaseModel):
+    knowledge_files: Annotated[DocumentState, document_reducer] = DocumentState()
     request: RedboxQuery
     user_feedback: str = ""
     documents: Annotated[DocumentState, document_reducer] = DocumentState()
@@ -332,8 +412,9 @@ class RedboxState(BaseModel):
     steps_left: Annotated[int | None, RemainingStepsManager] = None
     messages: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     agents_results: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
-    agent_plans: MultiAgentPlan | None = None
+    agent_plans: MultiAgentPlanBase | None = None
     tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
+    tabular_schema: str = ""
 
     @property
     def last_message(self) -> AnyMessage:
@@ -341,14 +422,10 @@ class RedboxState(BaseModel):
             raise ValueError("No messages in the state")
         return self.messages[-1]
 
-    def store_document_state(self):
-        """Stores s3_keys (which are the names of the documents) as previous-s3_keys. This will allow for review down the line"""
-        self.request.previous_s3_keys = self.request.s3_keys.copy()
-
     def documents_changed(self) -> bool:
         """This checks if documents have changed between questions asked. Returns True if so."""
         if not self.request.previous_s3_keys:
-            return False
+            return True
         return sorted(self.request.previous_s3_keys) != sorted(self.request.s3_keys)
 
 
@@ -363,6 +440,7 @@ class PromptSet(StrEnum):
     CondenseQuestion = "condense_question"
     NewRoute = "new_route"
     Planner = "planner"
+    Tabular = "tabular"
 
 
 def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str, str]:
@@ -402,6 +480,9 @@ def get_prompts(state: RedboxState, prompt_set: PromptSet) -> tuple[str, str, st
         system_prompt = state.request.ai_settings.planner_system_prompt
         question_prompt = state.request.ai_settings.planner_question_prompt
         format_prompt = state.request.ai_settings.planner_format_prompt
+    elif prompt_set == PromptSet.Tabular:
+        system_prompt = state.request.ai_settings.tabular_system_prompt
+        question_prompt = state.request.ai_settings.tabular_question_prompt
     return (system_prompt, question_prompt, format_prompt)
 
 

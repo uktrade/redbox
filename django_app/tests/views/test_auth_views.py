@@ -11,7 +11,7 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_sign_in_view_redirect_to_sign_in(alice: User, client: Client, mailoutbox):
     # Given a user that does exist in the db Alice
 
@@ -27,7 +27,7 @@ def test_sign_in_view_redirect_to_sign_in(alice: User, client: Client, mailoutbo
     assert signed_in_response.status_code == HTTPStatus.OK
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_sign_in_view_redirect_sign_up(client: Client):
     # Given a user that does not exist in the database
 

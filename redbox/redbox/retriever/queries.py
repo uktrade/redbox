@@ -16,7 +16,7 @@ def build_file_filter(file_names: list[str]) -> dict[str, Any]:
 
 def build_resolution_filter(chunk_resolution: ChunkResolution) -> dict[str, Any]:
     """Creates an Elasticsearch filter for chunk resolutions."""
-    return {"term": {"metadata.chunk_resolution.keyword": chunk_resolution}}
+    return {"term": {"metadata.chunk_resolution.keyword": chunk_resolution.value}}
 
 
 def build_query_filter(
@@ -31,8 +31,7 @@ def build_query_filter(
 
     if not selected_files <= permitted_files:
         log.warning(
-            "User has selected files they aren't permitted to access: \n"
-            f"{", ".join(selected_files - permitted_files)}"
+            f"User has selected files they aren't permitted to access: \n{', '.join(selected_files - permitted_files)}"
         )
 
     file_names = list(selected_files & permitted_files)
@@ -65,6 +64,27 @@ def get_all(
     query_filter = build_query_filter(
         selected_files=state.request.s3_keys,
         permitted_files=state.request.permitted_s3_keys,
+        chunk_resolution=chunk_resolution,
+    )
+
+    return {
+        "_source": {"excludes": ["vector_field"]},
+        "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
+    }
+
+
+def get_knowledge_base(
+    chunk_resolution: ChunkResolution | None,
+    state: RedboxState,
+) -> dict[str, Any]:
+    """
+    Returns a parameterised elastic query that will return everything it matches.
+
+    Query against knowledge base
+    """
+    query_filter = build_query_filter(
+        selected_files=state.request.knowledge_base_s3_keys,
+        permitted_files=state.request.knowledge_base_s3_keys,
         chunk_resolution=chunk_resolution,
     )
 
@@ -107,6 +127,22 @@ def get_minimum_metadata(
     }
 
 
+def get_k_value(file_list, desired_size=30):
+    """
+    Simple rule: more files filtered = lower k needed
+    """
+    num_files = len(file_list)
+
+    if num_files <= 3:
+        return desired_size * 3  # k=90 for very restrictive
+    elif num_files <= 10:
+        return desired_size * 2  # k=60 for restrictive
+    elif num_files <= 30:
+        return int(desired_size * 1.5)  # k=45 for moderate
+    else:
+        return desired_size  # k=30 for many files
+
+
 def build_document_query(
     query: str,
     query_vector: list[float],
@@ -128,26 +164,21 @@ def build_document_query(
         chunk_resolution=chunk_resolution,
     )
 
+    k_value = get_k_value(selected_files, desired_size=ai_settings.rag_num_candidates)
     return {
         "size": ai_settings.rag_k,
         "min_score": 0.6,
         "query": {
-            "bool": {
-                "must": [
-                    {
-                        "knn": {
-                            "vector_field": {
-                                "vector": query_vector,
-                                "k": ai_settings.rag_num_candidates,
-                                # "boost": ai_settings.knn_boost,
-                                "filter": query_filter,
-                            }
-                        }
-                    },
-                ],
-                "filter": query_filter,
+            "knn": {
+                "vector_field": {
+                    "vector": query_vector,
+                    "k": k_value,
+                    # "boost": ai_settings.knn_boost,
+                    "filter": query_filter,
+                }
             }
         },
+        "_source": {"excludes": ["vector_field"]},
     }
 
 

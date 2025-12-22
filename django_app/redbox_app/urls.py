@@ -49,7 +49,7 @@ document_urlpatterns = [
     path("upload/", views.UploadView.as_view(), name="upload"),
     path("remove-doc/<uuid:doc_id>", views.remove_doc_view, name="remove-doc"),
     path("remove-all-docs", views.remove_all_docs_view, name="remove-all-docs"),
-    path("documents/your-documents/", views.YourDocuments.as_view(), name="your-documents-initial"),
+    path("documents/your-documents/", views.YourDocuments.as_view(), name="your-documents"),
     path("documents/your-documents/<uuid:active_chat_id>/", views.YourDocuments.as_view(), name="your-documents"),
 ]
 
@@ -57,14 +57,58 @@ chat_urlpatterns = [
     path("chats/<uuid:chat_id>/", views.ChatsView.as_view(), name="chats"),
     path("chats/", views.ChatsView.as_view(), name="chats"),
     path("chat/<uuid:chat_id>/title/", views.ChatsTitleView.as_view(), name="chat-titles"),
-    path("citations/<uuid:message_id>/", views.CitationsView.as_view(), name="citations"),
+    path("chats/<uuid:chat_id>/citations/<uuid:message_id>/", views.CitationsView.as_view(), name="citations"),
     path("ratings/<uuid:message_id>/", views.RatingsView.as_view(), name="ratings"),
     path("chats/<uuid:chat_id>/update-chat-feedback", views.UpdateChatFeedback.as_view(), name="chat-feedback"),
     path("chats/<uuid:chat_id>/delete-chat/", views.DeleteChat.as_view(), name="delete-chat"),
-    path("chats/recent-chats/", views.RecentChats.as_view(), name="recent-chats-initial"),
+    path("chats/recent-chats/", views.RecentChats.as_view(), name="recent-chats"),
     path("chats/<uuid:active_chat_id>/recent-chats/", views.RecentChats.as_view(), name="recent-chats"),
-    path("chats/chat-window/", views.ChatWindow.as_view(), name="chat-window-initial"),
+    path("chats/chat-window/", views.ChatWindow.as_view(), name="chat-window"),
     path("chats/<uuid:active_chat_id>/chat-window/", views.ChatWindow.as_view(), name="chat-window"),
+]
+
+notification_urlpatterns = [
+    path("send-team-addition-email/", views.send_team_addition_email_view, name="send-team-addition-email"),
+]
+
+team_urlpatterns = [
+    path("team/<uuid:team_id>/add-member-row/<uuid:user_id>/", views.add_team_member_row_view, name="add-member-row"),
+    path("team/edit-member-row/<member_id>/", views.edit_team_member_row_view, name="edit-member-row"),
+    path("team/delete-member/<member_id>/", views.delete_team_member_row_view, name="delete-member"),
+    path("team/<uuid:team_id>/add-member/", views.add_team_member_view, name="add-member"),
+    path("team/edit-member/<member_id>/", views.edit_team_member_view, name="edit-member"),
+    path("team/<uuid:team_id>/delete-team/", views.delete_team_view, name="delete-team"),
+    path("team/create-team/", views.create_team_view, name="create-team"),
+]
+
+tools_route_prefix = "tools/<slug:slug>/"
+tools_urlpatterns = [
+    path("tools/", views.SkillsView.as_view(), name="tools"),
+    path(tools_route_prefix, views.skill_info_page_view, name="tool-info"),
+    path(f"{tools_route_prefix}chats/", views.ChatsView.as_view(), name="chats"),
+    path(f"{tools_route_prefix}chats/<uuid:chat_id>/", views.ChatsView.as_view(), name="chats"),
+    path(f"{tools_route_prefix}documents/upload/", views.upload_document, name="document-upload"),
+    path(f"{tools_route_prefix}documents/your-documents/", views.YourDocuments.as_view(), name="your-documents"),
+    path(
+        f"{tools_route_prefix}documents/your-documents/<uuid:active_chat_id>/",
+        views.YourDocuments.as_view(),
+        name="your-documents",
+    ),
+    path(f"{tools_route_prefix}chats/recent-chats/", views.RecentChats.as_view(), name="recent-chats"),
+    path(
+        f"{tools_route_prefix}chats/<uuid:active_chat_id>/recent-chats/",
+        views.RecentChats.as_view(),
+        name="recent-chats",
+    ),
+    path(f"{tools_route_prefix}chats/chat-window/", views.ChatWindow.as_view(), name="chat-window"),
+    path(
+        f"{tools_route_prefix}chats/<uuid:active_chat_id>/chat-window/", views.ChatWindow.as_view(), name="chat-window"
+    ),
+    path(
+        f"{tools_route_prefix}chats/<uuid:chat_id>/citations/<uuid:message_id>/",
+        views.CitationsView.as_view(),
+        name="citations",
+    ),
 ]
 
 admin_urlpatterns = [
@@ -87,6 +131,7 @@ other_urlpatterns = [
     path("sitemap/", views.misc_views.sitemap_view, name="sitemap"),
     path("faq/", views.faq_view, name="faq"),
     path("file-icon/<str:ext>/", views.file_icon_view, name="file-icon"),
+    path("settings/", views.SettingsView.as_view(), name="settings"),
 ]
 
 
@@ -102,6 +147,9 @@ urlpatterns = (
     + auth_urlpatterns
     + chat_urlpatterns
     + document_urlpatterns
+    + notification_urlpatterns
+    + team_urlpatterns
+    + tools_urlpatterns
     + admin_urlpatterns
     + api_url_patterns
 )

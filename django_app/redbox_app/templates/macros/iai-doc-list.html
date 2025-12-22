@@ -22,7 +22,7 @@
                         <file-status data-id="{{ doc.id }}" data-status="{{ doc.get_status_text() }}">{{ doc.get_status_text() }}</file-status>
                         {%endif %}
                     </td>
-                    
+
                     <td class="govuk-table__cell">
                         <a class="govuk-body govuk-link--no-visited-state" role="button" href="{{ url('remove-doc', doc.id) }}">
                             Remove

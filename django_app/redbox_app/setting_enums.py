@@ -2,7 +2,7 @@ import os
 from enum import StrEnum
 
 ADDITIONAL_HOSTS = os.environ.get("ADDITIONAL_HOSTS", "").split(";")
-LOCAL_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]  # noqa: S104: Not in prod
+LOCAL_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]  # noqa: S104
 
 
 class Environment(StrEnum):
@@ -16,6 +16,10 @@ class Environment(StrEnum):
     @property
     def is_local(self) -> bool:
         return self is Environment.LOCAL
+
+    @property
+    def is_prod(self) -> bool:
+        return self is Environment.PROD
 
     @property
     def uses_minio(self) -> bool:

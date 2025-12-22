@@ -1,7 +1,12 @@
 {% from "macros/chat-macros.html" import message_box, route_display %}
 {% from "macros/govuk-button.html" import govukButton %}
+{% from "macros/govuk-warning.html" import govuk_warning %}
 
-<div id="chat-window" name="swapped" class="govuk-grid-column-three-quarters" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+<div id="chat-window" name="swapped" class="govuk-grid-column-three-quarters rbds-chat-window rbds-flex-column" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+    {% if skill %}
+        {% include "skills/skill-banner.html" %}
+    {% endif %}
+
     {% if not messages %}
     <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1"
         security-classification="{{ security }}"></canned-prompts>
@@ -10,7 +15,7 @@
         {% include "chat/chat_title.html" %}
         <chat-controller class="iai-chat-container" data-stream-url="{{ streaming.endpoint if streaming else '' }}"
             data-session-id="{{ chat_id or '' }}">
-            <div class="rb-chat-message__container js-message-container">
+            <div class="rbds-chat-message__container js-message-container">
 
                 <template id="template-route-display">
                     {{ route_display() }}
@@ -32,32 +37,28 @@
         </chat-controller>
     </div>
     <div class="chat-input__input-container">
-        <label class="govuk-label govuk-!-padding-top-1" for="message"></label>
-        <div id="message-hint" class="govuk-hint govuk-body">
-            Need help? View <a href="{{ url('faq') }}" class="govuk-link" target="_blank">Advanced Prompt FAQ.</a>
-        </div>
-        <message-input>
-            <div class="govuk-textareax message-input drop-zone" id="message" name="message" contenteditable="true" role="textbox"
+        <rbds-message-input>
+            <div class="govuk-textarea rbds-message-input {% if not messages %}rbds-message-input__expanded {% endif %}rbds-drop-zone" id="message" name="message" contenteditable="true" role="textbox"
                 aria-multiline="true" data-text="Type here..."></div>
-        </message-input>
-        <file-upload upload-url="/documents/upload/">
+        </rbds-message-input>
+        <file-upload upload-url="{{ urls.upload_url }}">
             <input class="govuk-file-upload govuk-!-display-none" multiple id="upload-docs" name="uploadDocs" type="file" aria-describedby="upload-docs-notification upload-docs-filetypes">
             {{ govukButton(
                 text="Add document",
-                classes="upload-button govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4",
+                classes="upload-button govuk-!-margin-top-5 govuk-button--secondary govuk-!-margin-right-4",
                 id="upload-button"
             ) }}
         </file-upload>
         {% if enable_dictation_flag_is_active %}
             <send-message-with-dictation data-api-key="{{ redbox_api_key }}">
                 <button type="submit"
-                    class="govuk-buttonx govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4 dictate-button"
+                    class="govuk-button govuk-!-margin-top-5 govuk-button--secondary govuk-!-margin-right-4 dictate-button"
                     data-module="govuk-button">
                     Dictate
                 </button>
                 {{ govukButton(
                 text="Stop",
-                classes="govuk-!-margin-top-5 govuk-button--secondaryx govuk-!-margin-right-4",
+                classes="govuk-!-margin-top-5 govuk-button--secondary govuk-!-margin-right-4 govuk-!-display-none",
                 dont_submit=True
                 ) }}
                 {{ govukButton(
@@ -66,7 +67,7 @@
                 ) }}
                 {{ govukButton(
                 text="Stop",
-                classes="govuk-!-margin-top-5"
+                classes="govuk-!-margin-top-5 govuk-!-display-none"
                 ) }}
             </send-message-with-dictation>
         {% else %}
@@ -80,24 +81,6 @@
                 classes="govuk-!-margin-top-5 govuk-!-display-none"
                 ) }}
             </send-message>
-        {% endif %}
-        {% if not messages %}
-        <div class="chat-warnings">
-            <div class="govuk-warning-text govuk-body govuk-!-margin-bottom-1 govuk-!-padding-bottom-0">
-                <span class="govuk-warning-text__icon small-warning" aria-hidden="true">!</span>
-                <strong class="govuk-warning-text__text govuk-!-padding-left-7">
-                    <span class="govuk-visually-hidden">Warning</span>
-                    You can use up to, and including, official sensitive documents.
-                </strong>
-            </div>
-            <div class="govuk-warning-text govuk-body govuk-!-margin-bottom-1 govuk-!-padding-bottom-0">
-                <span class="govuk-warning-text__icon small-warning" aria-hidden="true">!</span>
-                <strong class="govuk-warning-text__text govuk-!-padding-left-7">
-                    <span class="govuk-visually-hidden">Warning</span>
-                    Redbox can make mistakes. You must check for accuracy before using the output.
-                </strong>
-            </div>
-        </div>
         {% endif %}
     </div>
 </div>

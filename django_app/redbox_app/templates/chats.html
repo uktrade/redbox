@@ -1,4 +1,5 @@
 {% set pageTitle = "Chats" %}
+{% set hideFooter = True %}
 {% extends "base.html" %}
 {% from "macros/profile-overlay.html" import profile_overlay %}
 
@@ -12,22 +13,22 @@
 #}
 
 <div>
-  <form id="chats-form" class="govuk-width-container govuk-grid-row js-message-input" action="/submit" method="post">
-    <div class="govuk-grid-column-one-quarter side-panel">
+  <form id="chats-form" class="govuk-width-container rbds-width-container govuk-grid-row js-message-input" action="/submit" method="post">
+    <div class="govuk-grid-column-one-quarter rbds-side-panel">
       <div class="rb-left-column-container">
         <a role="button"
-           href="{{ url('chats') }}"
-           id="new-chat-button"
-           class="govuk-heading-s side-panel-heading side-panel-heading-button govuk-!-margin-bottom-4 govuk-!-margin-top-4">
+          href="{{ urls.new_chat_url }}"
+          id="new-chat-button"
+          class="govuk-heading-s side-panel-heading side-panel-heading-button govuk-!-margin-bottom-4 govuk-!-margin-top-4">
           New chat
         </a>
-        <div class="divider"></div>
+        <div class="rbds-divider"></div>
         <h2 class="govuk-heading-s side-panel-heading govuk-!-margin-top-4">Recent chats</h2>
         {% include "side_panel/recent_chats_list.html" %}
-        <div class="govuk-form-group govuk-!-margin-top-5" {% if request.user.is_superuser %}hidden{% endif %}>
-          <div class="divider"></div>
+        <div class="govuk-form-group govuk-!-margin-top-5" {% if not flag_is_active(request, flags.ENABLE_MODEL_SELECTOR) %}hidden{% endif %}>
+          <div class="rbds-divider"></div>
           <label class="govuk-heading-s side-panel-heading govuk-!-margin-top-4" for="llm-selector">Model</label>
-          <select id="llm-selector" name="llm" class="govuk-select govuk-!-margin-top-1" {% if environment | lower == 'prod' %} disabled {% endif %}>
+          <select id="llm-selector" name="llm" class="govuk-select rbds-min-width-0" {% if environment | lower == 'prod' %} disabled {% endif %}>
             {% for option in llm_options %}
               <option value="{{ option.id }}" {% if option.selected %}selected{% endif %}>{{ option.name }}{% if option.default %} (default){% endif %}</option>
             {% endfor %}
@@ -38,9 +39,7 @@
     </div>
     {% include "chat/chat_window.html" %}
   </form>
-
   <exit-feedback class="exit-feedback" data-chatid="{{ current_chat.id }}" data-csrf="{{ csrf_token }}"></exit-feedback>
-
 </div>
 
 {# Templates #}

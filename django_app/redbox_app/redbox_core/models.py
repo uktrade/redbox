@@ -5,7 +5,8 @@ import textwrap
 import uuid
 from collections.abc import Collection, Sequence
 from datetime import UTC, date, datetime, timedelta
-from typing import override
+from pathlib import Path
+from typing import Optional, override
 
 import jwt
 from django.conf import settings
@@ -16,12 +17,18 @@ from django.contrib.auth.models import AbstractBaseUser, Group, PermissionsMixin
 from django.contrib.postgres.fields import ArrayField
 from django.core import validators
 from django.db import models
-from django.db.models import Max, Min, Prefetch, UniqueConstraint
+from django.db.models import Max, Min, Prefetch, Q, UniqueConstraint
+from django.template import TemplateDoesNotExist
+from django.template.loader import get_template
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
+from slugify import slugify
 from yarl import URL
 
 from redbox.models.settings import get_settings
+from redbox_app.redbox_core.services import url as url_service
 from redbox_app.redbox_core.utils import get_date_group
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
@@ -54,17 +61,153 @@ def sanitise_string(string: str | None) -> str | None:
     return string.replace("\x00", "\ufffd") if string else string
 
 
-def get_id_digits(citation_items) -> int:
-    """Extracts the digits from the citation_name."""
-    string = citation_items[-1]
-    if not string:
-        msg = "None Value"
-        raise TypeError(msg)
-    match = re.search(pattern=r"\d+", string=string)
-    if not match:
-        msg = f"No numeric value present in {string}"
-        raise TypeError(msg)
-    return int(match.group())
+class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
+    """
+    Skills feature model. To be used against:
+    - users
+    - teams
+    - documents
+    - chat messages
+    - agent backends
+    """
+
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True, null=True)
+    slug = models.SlugField(
+        max_length=100, unique=True, blank=True, help_text="Used for url routing and info page linking"
+    )
+
+    class Meta:
+        verbose_name_plural = "skills"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    @cached_property
+    def info_template(self) -> str | None:
+        """Returns the template path if it exists, else None."""
+        template_path = f"skills/info/{self.slug}.html"
+        try:
+            get_template(template_path)
+        except TemplateDoesNotExist:
+            return None
+        return template_path
+
+    @property
+    def has_info_page(self) -> bool:
+        """Check to see if an info page has been created for skill"""
+        return self.info_template is not None
+
+    @cached_property
+    def info_page_url(self):
+        return reverse("tool-info", kwargs={"slug": self.slug})
+
+    @cached_property
+    def chat_url(self) -> str:
+        return url_service.get_chat_url(slug=self.slug)
+
+    def get_files(self, file_type: Optional["FileSkill.FileType"] = None) -> Sequence["File"]:
+        file_type = file_type or FileSkill.FileType.MEMBER
+        return File.objects.filter(file_skills__skill=self, file_skills__file_type=file_type)
+
+    @property
+    def settings(self) -> "SkillSettings":
+        obj, _ = SkillSettings.objects.get_or_create(skill=self)
+        return obj
+
+
+class UserSkill(UUIDPrimaryKeyBase, TimeStampedModel):
+    """
+    Junction for user/skill many-to-many relationship
+    """
+
+    user = models.ForeignKey("User", on_delete=models.CASCADE, related_name="user_skills")
+    skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="user_skills")
+
+    class Meta:
+        unique_together = ("user", "skill")
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return self.user.email + " - " + self.skill.name
+
+
+class TeamSkill(UUIDPrimaryKeyBase, TimeStampedModel):
+    """
+    Junction model for team/skill many-to-many relationship
+    """
+
+    team = models.ForeignKey("Team", on_delete=models.CASCADE)
+    skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="team_skills")
+
+    class Meta:
+        unique_together = ("team", "skill")
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return self.team.team_name + " - " + self.skill.name
+
+
+class FileSkill(UUIDPrimaryKeyBase, TimeStampedModel):
+    """
+    Junction model for file/skill many-to-many relationship to tag files with relevant skill for contextual retrieval
+    """
+
+    class FileType(models.TextChoices):
+        ADMIN = "ADMIN", _("Admin")
+        MEMBER = "MEMBER", _("Member")
+
+    file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="file_skills")
+    skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="file_skills")
+    file_type = models.CharField(max_length=20, choices=FileType.choices, default=FileType.MEMBER)
+
+    class Meta:
+        unique_together = ("file", "skill")
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return self.file.file_name + " - " + self.skill.name
+
+
+class AgentSkill(UUIDPrimaryKeyBase, TimeStampedModel):
+    """
+    Junction model for agent/skill many-to-many relationship. Key point: agents are not exclusive to skills
+    """
+
+    agent = models.ForeignKey("Agent", on_delete=models.CASCADE, related_name="agent_skills")
+    skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="agent_skills")
+
+    class Meta:
+        unique_together = ("agent", "skill")
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return self.agent.name + " - " + self.skill.name
+
+
+class SkillSettings(UUIDPrimaryKeyBase, TimeStampedModel):
+    """
+    Settings for a skill (tool)
+    """
+
+    skill = models.OneToOneField(Skill, on_delete=models.CASCADE, related_name="skill_settings")
+
+    deselect_documents_on_load = models.BooleanField(
+        default=False, help_text="Whether to reset selected documents when the chat is loaded"
+    )
+
+    class Meta:
+        ordering = ["created_at"]
+        verbose_name_plural = "Skill Settings"
+
+    def __str__(self):
+        return self.skill.name + " Settings"
 
 
 class ChatLLMBackend(models.Model):
@@ -421,6 +564,8 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
     ai_settings = models.ForeignKey(AISettings, on_delete=models.SET_DEFAULT, default="default", to_field="label")
     is_developer = models.BooleanField(null=True, blank=True, default=False, help_text="is this user a developer?")
 
+    skills = models.ManyToManyField(Skill, through=UserSkill, related_name="users", blank=True)
+
     # Additional fields for sign-up form
     # Page 1
     role = models.TextField(null=True, blank=True)
@@ -519,6 +664,79 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
             return ""
 
 
+class Team(UUIDPrimaryKeyBase):
+    team_name = models.CharField(max_length=100, unique=True, blank=False, null=False)
+    directorate = models.CharField(max_length=100, blank=False, null=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    skills = models.ManyToManyField(Skill, through=TeamSkill, related_name="teams", blank=True)
+
+    class Meta:
+        verbose_name = "Team"
+        verbose_name_plural = "Teams"
+
+    def __str__(self):
+        return f"{self.team_name} ({self.directorate})"
+
+    def is_admin(self, user: User):
+        return UserTeamMembership.objects.filter(
+            user=user, team=self, role_type=UserTeamMembership.RoleType.ADMIN
+        ).exists()
+
+    def get_members(self):
+        return self.members.select_related("user")
+
+    def eligible_users(self):
+        member_ids = list(self.members.values_list("user_id", flat=True))
+        return User.objects.exclude(id__in=member_ids)
+
+    def add_member(self, user: User, role_type: Optional["UserTeamMembership.RoleType"] = None):
+        member = UserTeamMembership(user=user, team=self, role_type=role_type or UserTeamMembership.RoleType.MEMBER)
+        member.save()
+        return member
+
+
+class UserTeamMembership(models.Model):
+    class RoleType(models.TextChoices):
+        ADMIN = "ADMIN", _("Team Lead")
+        MEMBER = "MEMBER", _("Team Member")
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="team_memberships")
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="members")
+    role_type = models.CharField(max_length=20, choices=RoleType.choices, default=RoleType.MEMBER)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "User Team Membership"
+        verbose_name_plural = "User Team Memberships"
+        unique_together = ("user", "team")
+
+    def __str__(self):
+        return f"{self.user.email} - {self.team.team_name} ({self.role_type})"
+
+
+class FileTeamMembership(models.Model):
+    class Visibility(models.TextChoices):
+        TEAM = "TEAM", _("Team Shared")
+        PERSONAL = "PERSONAL", _("Personal")
+
+    file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="team_associations")
+    team = models.ForeignKey("Team", on_delete=models.CASCADE, related_name="files")
+    visibility = models.CharField(max_length=20, choices=Visibility.choices, default=Visibility.TEAM)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "File Team Membership"
+        verbose_name_plural = "File Team Membership"
+        unique_together = ("file", "team")
+
+    def __str__(self):
+        return f"{self.file.file_name} - {self.team.team_name} ({self.visibility})"
+
+
 class InactiveFileError(ValueError):
     def __init__(self, file):
         super().__init__(f"{file.pk} is inactive, status is {file.status}")
@@ -532,8 +750,10 @@ def build_s3_key(instance, filename: str) -> str:
 
     note: s3 key is not prefixed with the user's email address if not local as filename is unique
     """
-    filename = f"{instance.user.email}/{filename}"
-    return f"{filename}"
+    timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S%f")[:-3]
+    path = Path(filename)
+    new_filename = f"{path.stem}_{timestamp}{path.suffix}"
+    return f"{instance.user.email}/{new_filename}"
 
 
 class File(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -560,8 +780,13 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         help_text="error, if any, encountered during ingest",
     )
 
+    skills = models.ManyToManyField(Skill, through=FileSkill, related_name="files", blank=True)
+
     def __str__(self) -> str:  # pragma: no cover
         return self.file_name
+
+    def __lt__(self, other):
+        return self.id < other.id
 
     def save(self, *args, **kwargs):
         if not self.last_referenced:
@@ -644,15 +869,22 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
     def expires(self) -> timedelta:
         return self.expires_at - datetime.now(tz=UTC)
 
-    def __lt__(self, other):
-        return self.id < other.id
-
     @classmethod
-    def get_completed_and_processing_files(cls, user: User) -> tuple[Sequence["File"], Sequence["File"]]:
+    def get_completed_and_processing_files(
+        cls, user: User, skill: Skill | None = None
+    ) -> tuple[Sequence["File"], Sequence["File"]]:
         """Returns all files that are completed and processing for a given user."""
+        base_filter = Q(user=user)
+        skill_filter = (
+            Q(file_skills__skill=skill, file_skills__file_type=FileSkill.FileType.MEMBER)
+            if skill
+            else Q(file_skills__isnull=True)
+        )
+        filters = base_filter & skill_filter
 
-        completed_files = cls.objects.filter(user=user, status=File.Status.complete).order_by("-created_at")
-        processing_files = cls.objects.filter(user=user, status=File.Status.processing).order_by("-created_at")
+        completed_files = cls.objects.filter(filters, status=File.Status.complete).order_by("-created_at")
+        processing_files = cls.objects.filter(filters, status=File.Status.processing).order_by("-created_at")
+
         return completed_files, processing_files
 
     @classmethod
@@ -675,6 +907,7 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
     name = models.TextField(max_length=1024, null=False, blank=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     archived = models.BooleanField(default=False, null=True, blank=True)
+    skill = models.ForeignKey(Skill, on_delete=models.SET_NULL, null=True, blank=True, related_name="chats")
 
     # Exit feedback - this is separate to the ratings for individual ChatMessages
     feedback_achieved = models.BooleanField(
@@ -705,12 +938,12 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
 
     @classmethod
     def get_ordered_by_last_message_date(
-        cls, user: User, exclude_chat_ids: Collection[uuid.UUID] | None = None
+        cls, user: User, skill: Skill | None = None, exclude_chat_ids: Collection[uuid.UUID] | None = None
     ) -> Sequence["Chat"]:
         """Returns all chat histories for a given user, ordered by the date of the latest message."""
         exclude_chat_ids = exclude_chat_ids or []
         return (
-            cls.objects.filter(user=user, archived=False)
+            cls.objects.filter(user=user, archived=False, skill=skill)
             .exclude(id__in=exclude_chat_ids)
             .annotate(latest_message_date=Max("chatmessage__created_at"))
             .order_by("-latest_message_date")
@@ -723,6 +956,24 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
     @property
     def date_group(self):
         return get_date_group(self.newest_message_date)
+
+    @cached_property
+    def url(self) -> str | None:
+        """Returns the url for this chat."""
+        return url_service.get_chat_url(
+            chat_id=self.id,
+            slug=self.skill.slug if self.skill else None,
+        )
+
+    @property
+    def last_user_message(self):
+        messages = ChatMessage.get_messages_ordered_by_citation_priority(self.id)
+        return [m for m in messages if m.role == ChatMessage.Role.user][-1]
+
+    def clear_selected_files(self):
+        last_user_message = self.last_user_message
+        if last_user_message:
+            last_user_message.selected_files.clear()
 
 
 class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -802,12 +1053,45 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
 
         super().save(*args, force_insert, force_update, using, update_fields)
 
-    @property
+    @cached_property
     def uri(self) -> URL:
         """returns the url of either the external citation or the user-uploaded document"""
         if self.file or self.url:
             return URL(self.url or self.file.url)
         return None
+
+    @cached_property
+    def internal_url(self) -> URL:
+        """returns the internal page url of the message citations anchored to the selected citation"""
+        chat_message = self.chat_message
+        chat = chat_message.chat
+        slug = chat.skill.slug if chat.skill else None
+
+        return url_service.get_citation_url(
+            message_id=chat_message.id,
+            citation_id=self.id,
+            chat_id=chat.id,
+            slug=slug,
+        )
+
+    @cached_property
+    def display_name(self) -> str:
+        return str(self.uri) if not self.file else self.file.file_name
+
+    @cached_property
+    def ref_id(self) -> int:
+        """Extract the numeric portion of citation_name. Used for sorting and display ordering."""
+        name = self.citation_name
+        if not name:
+            msg = "No citation_name available"
+            raise TypeError(msg)
+
+        match = re.search(pattern=r"\d+", string=name)
+        if not match:
+            msg = f"No numeric value present in {name}"
+            raise TypeError(msg)
+
+        return int(match.group())
 
 
 class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -822,6 +1106,8 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
     route = models.CharField(max_length=25, null=True, blank=True)
     selected_files = models.ManyToManyField(File, related_name="+", symmetrical=False, blank=True)
     source_files = models.ManyToManyField(File, through=Citation)
+
+    skill = models.ForeignKey(Skill, on_delete=models.SET_NULL, null=True, blank=True, related_name="chat_messages")
 
     rating = models.PositiveIntegerField(
         blank=True,
@@ -877,29 +1163,18 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
             body=elastic_log_msg,
         )
 
-    def unique_citation_uris(self) -> list[tuple[str, str, str, str]]:
-        """a unique set of names, hrefs, ids and relevant texts for all citations"""
-
-        def get_display(citation):
-            if not citation.file:
-                return str(citation.uri)
-            return citation.file.file_name
+    def get_citations(self) -> list[Citation]:
+        citations = list(self.citation_set.all())
 
         try:
-            return sorted(
-                {
-                    (get_display(citation), citation.uri, citation.id, citation.text_in_answer, citation.citation_name)
-                    for citation in self.citation_set.all()
-                },
-                key=get_id_digits,
-            )
+            return sorted(citations, key=lambda citation: citation.ref_id)
         except TypeError:
-            return sorted(
-                {
-                    (get_display(citation), citation.uri, citation.id, citation.text_in_answer, citation.citation_name)
-                    for citation in self.citation_set.all()
-                }
-            )
+            return sorted(citations, key=lambda citation: citation.display_name)
+
+    @cached_property
+    def citations_url(self) -> str:
+        slug = self.chat.skill.slug if self.chat.skill else None
+        return url_service.get_citation_url(message_id=self.id, chat_id=self.chat.id, slug=slug)
 
 
 class ChatMessageTokenUse(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -914,7 +1189,7 @@ class ChatMessageTokenUse(UUIDPrimaryKeyBase, TimeStampedModel):
         help_text="input or output tokens",
         default=UseType.INPUT,
     )
-    model_name = models.CharField(max_length=50, null=True, blank=True)
+    model_name = models.CharField(max_length=150, null=True, blank=True)
     token_count = models.PositiveIntegerField(null=True, blank=True)
 
     def __str__(self) -> str:
@@ -941,9 +1216,43 @@ class MonitorSearchRoute(UUIDPrimaryKeyBase, TimeStampedModel):
         return f"{self.user_text} {self.route} {self.chunk_similarity_scores} {self.ai_text}"
 
 
+class MonitorWebSearchResults(UUIDPrimaryKeyBase, TimeStampedModel):
+    chat_message = models.ForeignKey(ChatMessage, on_delete=models.CASCADE)
+    user_text = models.TextField(max_length=32768, null=False, blank=False)
+    selected_files = models.ManyToManyField(File, related_name="+", symmetrical=False, blank=False)
+    web_search_urls = models.TextField(max_length=32768, null=False, blank=False)
+    web_search_api_count = models.PositiveIntegerField(null=False, blank=False)
+
+    def __str__(self):
+        return f"{self.user_text}"
+
+
 class AgentPlan(UUIDPrimaryKeyBase, TimeStampedModel):
     chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
     agent_plans = models.TextField(max_length=32768, null=False, blank=False)
 
     def __str__(self) -> str:
         return self.agent_plans
+
+
+class Agent(UUIDPrimaryKeyBase, TimeStampedModel):
+    name = models.CharField(max_length=100, unique=True, choices=env.get_agent_names())
+    description = models.TextField(blank=True, null=True)
+    agents_max_tokens = models.PositiveIntegerField(blank=True, null=True)
+    prompt = models.TextField(blank=True, null=True)
+
+    llm_backend = models.ForeignKey(
+        ChatLLMBackend,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="agents",
+    )
+
+    skills = models.ManyToManyField("Skill", through="AgentSkill", related_name="agents", blank=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name

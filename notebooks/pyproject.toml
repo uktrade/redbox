@@ -16,6 +16,7 @@ python = ">=3.12,<3.13"
 redbox = {path="../redbox", develop=false}
 redbox_app = {path="../django_app", develop=false}
 langchain-mcp-adapters = "^0.0.11"
+django = "5.2.9"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
@@ -26,7 +27,7 @@ moto = {extras = ["s3"], version = "^5.0.10"}
 ipykernel = "^6.29.5"
 pandas = "^2.2.2"
 dj-notebook = "^0.7.0"
-django = "^5.1.12"
+django = "^5.2.9"
 jsonlines = "^4.0.0"
 
 [build-system]

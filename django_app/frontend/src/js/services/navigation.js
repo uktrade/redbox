@@ -1,7 +1,7 @@
 // @ts-check
 
 import htmx from "htmx.org";
-import { getChatIdFromUrl, getSelectedChatId } from "../utils";
+import { getActiveSkillSlug, getChatIdFromUrl, getSelectedChatId } from "../utils";
 
 /**
  * Listens for changes to page content and updates url accordingly
@@ -21,7 +21,9 @@ export function syncUrlWithContent() {
                 const currentUUID = getChatIdFromUrl();
 
                 if (selectedUUID !== currentUUID) {
-                    const newUrl = selectedUUID ? `/chats/${selectedUUID}/` : '/chats/';
+                    const skillSlug = getActiveSkillSlug();
+                    const skillPrefix = skillSlug ? `/tools/${skillSlug}` : "";
+                    const newUrl = selectedUUID ? `${skillPrefix}/chats/${selectedUUID}/` : `${skillPrefix}/chats/`;
 
                     if (currentUUID && !selectedUUID) {
                         // Chat deleted, replace current history entry

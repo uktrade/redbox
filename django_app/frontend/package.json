@@ -11,14 +11,6 @@
   ],
   "staticFiles": [
     {
-      "distDir": "./dist/fonts",
-      "staticPath": "./node_modules/i.ai-design-system/dist/fonts"
-    },
-    {
-      "distDir": "./dist/icons",
-      "staticPath": "./node_modules/i.ai-design-system/dist/icons"
-    },
-    {
       "distDir": "./dist/animations",
       "staticPath": "./src/animations"
     },
@@ -50,10 +42,10 @@
     "@aws-sdk/client-transcribe-streaming": "^3.787.0",
     "@parcel/config-default": "^2.13.1",
     "@parcel/transformer-typescript-tsc": "^2.13.1",
+    "accessible-autocomplete": "^3.0.1",
     "aws-sdk": "^2.1692.0",
     "govuk-frontend": "5.10.2",
     "htmx.org": "^2.0.6",
-    "i.ai-design-system": "^0.4.8",
     "readable-stream": "^4.7.0"
   },
   "devDependencies": {

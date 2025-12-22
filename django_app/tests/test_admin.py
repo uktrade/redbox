@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
 
-from redbox_app.redbox_core.models import ChatMessage
+from redbox_app.redbox_core.models import ChatMessage, Skill
 from redbox_app.redbox_core.serializers import ChatMessageSerializer, UserSerializer
 
 User = get_user_model()
@@ -16,7 +16,7 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_chat_export(superuser: User, chat_message_with_rating: ChatMessage, client: Client):
     # Given
     client.force_login(superuser)
@@ -40,7 +40,7 @@ def test_chat_export(superuser: User, chat_message_with_rating: ChatMessage, cli
     assert row["message_rating_chips"] == "['speed', 'accuracy', 'blasphemy']"
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_chat_export_without_ratings(superuser: User, chat_message: ChatMessage, client: Client):
     # Given
     client.force_login(superuser)
@@ -62,8 +62,9 @@ def test_chat_export_without_ratings(superuser: User, chat_message: ChatMessage,
     assert row["message_rating_chips"] == ""
 
 
-@pytest.mark.django_db()
-def test_message_serializer(chat_message_with_citation_and_tokens: ChatMessage):
+@pytest.mark.django_db
+def test_message_serializer(chat_message_with_citation_and_tokens: ChatMessage, skill: Skill):
+    chat_message_with_citation_and_tokens.chat.skill = skill
     expected = {
         "rating": 3,
         "rating_chips": ["apple", "pear"],
@@ -71,7 +72,8 @@ def test_message_serializer(chat_message_with_citation_and_tokens: ChatMessage):
         "role": "ai",
         "route": "chat",
         "selected_files": [],
-        "text": "An answer.",
+        "text": "An answer with citation.",
+        "skill_name": skill.name,
     }
 
     expected_token_usage = [
@@ -92,7 +94,7 @@ def test_message_serializer(chat_message_with_citation_and_tokens: ChatMessage):
         assert actual["token_use"][1][k] == v, k
 
 
-@pytest.mark.django_db()
+@pytest.mark.django_db
 def test_user_serializer(chat_message_with_citation: ChatMessage):
     expected = {
         "ai_experience": "Experienced Navigator",

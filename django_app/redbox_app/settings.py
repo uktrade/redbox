@@ -1,6 +1,7 @@
 # mypy: ignore-errors
 import logging
 import os
+import re
 import socket
 from pathlib import Path
 from urllib.parse import urlparse
@@ -34,6 +35,19 @@ SECRET_KEY = env.str("DJANGO_SECRET_KEY")
 ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
 WEBSOCKET_SCHEME = "ws" if ENVIRONMENT.is_test else "wss"
 LOGIN_METHOD = env.str("LOGIN_METHOD", None)
+
+# env variables used by redbox_core
+COLLECTION_ENDPOINT = env.str("COLLECTION_ENDPOINT")
+ALLOW_PLAN_FEEDBACK = env.bool("ALLOW_PLAN_FEEDBACK", True)
+MCP_CADDY_URL = env.str("MCP_CADDY_URL", "")
+MCP_HEADERS = env.str("MCP_HEADERS", "")
+MCP_CADDY_TOKEN = env.str("MCP_CADDY_TOKEN", "")
+MCP_PARLEX_URL = env.str("MCP_PARLEX_URL", "")
+MCP_PARLEX_TOKEN = env.str("MCP_PARLEX_TOKEN", "")
+GOOGLE_SEARCH_API = env.str("GOOGLE_SEARCH_API", "")
+GOOGLE_SEARCH_ENGINE = env.str("GOOGLE_SEARCH_ENGINE", "")
+BRAVE_API_KEY = env.str("BRAVE_API_KEY", "")
+KAGI_API_KEY = env.str("KAGI_API_KEY", "")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG")
@@ -75,12 +89,7 @@ INSTALLED_APPS = [
     "django_plotly_dash.apps.DjangoPlotlyDashConfig",
     "adminplus",
     "waffle",
-    "django_chunk_upload_handlers",
 ]
-
-
-if not ENVIRONMENT.uses_minio:
-    FILE_UPLOAD_HANDLERS = ("django_chunk_upload_handlers.s3.S3FileUploadHandler",)
 
 if LOGIN_METHOD == "sso":
     INSTALLED_APPS.append("authbroker_client")
@@ -205,9 +214,11 @@ CSP_SCRIPT_SRC = (
     "'sha256-qmCu1kQifDfCnUd+L49nusp7+PeRl23639pzN5QF2WA='",
     "'sha256-1NTuHcjvzzB6D69Pb9lbxI5pMJNybP/SwBliv3OvOOE='",
     "'sha256-DrkvIvFj5cNADO03twE83GwgAKgP224E5UyyxXFfvTc='",
+    "'sha256-6BIGXagXVUHOQ8pw9flNwo/urWufeay+hbx+Q+U6/DM='",  # pragma: allowlist secret
     "https://*.googletagmanager.com",
     "https://tagmanager.google.com/",
     "https://www.googletagmanager.com/",
+    "https://www.google-analytics.com/",
     "ajax.googleapis.com/",
     "sha256-T/1K73p+yppfXXw/AfMZXDh5VRDNaoEh3enEGFmZp8M=",
 )
@@ -368,14 +379,15 @@ LOGGING = {
         },
     },
     "filters": {
-        "exclude_s3_urls": {
+        "exclude_s3_urls_and_emails": {
             "": "django.utils.log.CallbackFilter",
-            "callback": lambda record: all(
-                header not in record.getMessage()
-                for header in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Security-Token"]
+            "callback": lambda record: (
+                all(
+                    header not in record.getMessage()
+                    for header in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Security-Token"]
+                )
+                and not re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", record.getMessage())
             )
-            if hasattr(record, "getMessage")
-            else True
             if hasattr(record, "getMessage")
             else True,
         },
@@ -385,7 +397,7 @@ LOGGING = {
             "level": LOG_LEVEL,
             "class": "logging.StreamHandler",
             "formatter": LOG_FORMAT,
-            "filters": ["exclude_s3_urls"],
+            "filters": ["exclude_s3_urls_and_emails"],
         },
         "asim": {
             "level": "ERROR",
@@ -430,11 +442,15 @@ elif EMAIL_BACKEND_TYPE == "CONSOLE":
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 elif EMAIL_BACKEND_TYPE == "GOVUKNOTIFY":
     EMAIL_BACKEND = "django_gov_notify.backends.NotifyEmailBackend"
-    GOVUK_NOTIFY_API_KEY = env.str("GOVUK_NOTIFY_API_KEY")
-    GOVUK_NOTIFY_PLAIN_EMAIL_TEMPLATE_ID = env.str("GOVUK_NOTIFY_PLAIN_EMAIL_TEMPLATE_ID")
+
 else:
     message = f"Unknown EMAIL_BACKEND_TYPE of {EMAIL_BACKEND_TYPE}"
     raise ValueError(message)
+
+# Notifications
+GOVUK_NOTIFY_API_KEY = env.str("GOVUK_NOTIFY_API_KEY", None)
+GOVUK_NOTIFY_PLAIN_EMAIL_TEMPLATE_ID = env.str("GOVUK_NOTIFY_PLAIN_EMAIL_TEMPLATE_ID", None)
+GOVUK_NOTIFY_TEAM_ADDITION_EMAIL_TEMPLATE_ID = env.str("GOVUK_NOTIFY_TEAM_ADDITION_EMAIL_TEMPLATE_ID", None)
 
 # Magic link
 
@@ -491,7 +507,7 @@ REST_FRAMEWORK = {
 
 REDBOX_API_KEY = env.str("REDBOX_API_KEY")
 
-ENABLE_METADATA_EXTRACTION = env.str("ENABLE_METADATA_EXTRACTION")
+ENABLE_METADATA_EXTRACTION = env.bool("ENABLE_METADATA_EXTRACTION", default=True)
 
 CHUNK_UPLOADER_AWS_REGION = env.str("AWS_REGION", " ")
 
@@ -504,3 +520,7 @@ DATAHUB_REDBOX_ACCESS_KEY_ID = env.str("DATAHUB_REDBOX_ACCESS_KEY_ID", "")
 EMBEDDING_BACKEND = env.str("EMBEDDING_BACKEND", "amazon.titan-embed-text-v2:0")
 
 DEFAULT_MODEL_ID = env.str("DEFAULT_MODEL_ID", "anthropic.claude-3-sonnet-20240229-v1:0")
+
+WEB_SEARCH_API_LIMIT = env.int("WEB_SEARCH_API_LIMIT", 100)
+
+ADMIN_EMAIL = env.str("ADMIN_EMAIL", "")

@@ -1,3 +1,4 @@
+import logging
 from typing import List
 
 from langchain_core.messages import AIMessage
@@ -22,6 +23,7 @@ from redbox.graph.edges import (
 from redbox.graph.nodes.processes import (
     build_activity_log_node,
     build_agent,
+    build_agent_with_loop,
     build_chat_pattern,
     build_error_pattern,
     build_merge_pattern,
@@ -31,21 +33,19 @@ from redbox.graph.nodes.processes import (
     build_set_route_pattern,
     build_set_self_route_from_llm_answer,
     build_stuff_pattern,
-    build_tabular_agent,
     build_user_feedback_evaluation,
     clear_documents_process,
     combine_question_evaluator,
     create_evaluator,
-    detect_tabular_docs,
     empty_process,
+    get_tabular_agent,
+    get_tabular_schema,
     invoke_custom_state,
     lm_choose_route,
     my_planner,
     report_sources_process,
     stream_plan,
     stream_suggestion,
-    stream_tabular_failure,
-    stream_tabular_response,
 )
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -54,17 +54,14 @@ from redbox.graph.nodes.sends import (
     sending_task_to_agent,
 )
 from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
-from redbox.models.chain import AgentDecision, AISettings, PromptSet, RedboxState
+from redbox.models.chain import Agent, AgentDecision, PromptSet, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
-from redbox.models.prompts import (
-    EXTERNAL_RETRIEVAL_AGENT_PROMPT,
-    INTERNAL_RETRIEVAL_AGENT_PROMPT,
-    LEGISLATION_SEARCH_AGENT_PROMPT,
-    WEB_SEARCH_AGENT_PROMPT,
-)
-from redbox.models.settings import get_settings
+from redbox.models.prompts import EVAL_SUBMISSION, EVAL_SUBMISSION_QA
+from redbox.models.settings import ChatLLMBackend, get_settings
 from redbox.transform import structure_documents_by_file_name, structure_documents_by_group_and_indices
+
+log = logging.getLogger(__name__)
 
 
 def build_root_graph(
@@ -74,6 +71,7 @@ def build_root_graph(
     tabular_retriever,
     tools,
     multi_agent_tools,
+    agents,
     debug,
 ):
     agent_parser = ClaudeParser(pydantic_object=AgentDecision)
@@ -93,19 +91,16 @@ def build_root_graph(
     )
     builder.add_node(
         "new_route_graph",
-        build_new_route_graph(all_chunks_retriever, multi_agent_tools, debug),
+        build_new_route_graph(
+            all_chunks_retriever=all_chunks_retriever,
+            tabular_retriever=tabular_retriever,
+            multi_agent_tools=multi_agent_tools,
+            agents=agents,
+            debug=debug,
+        ),
     )
     builder.add_node(
         "retrieve_metadata", get_retrieve_metadata_graph(metadata_retriever=metadata_retriever, debug=debug)
-    )
-    builder.add_node(
-        "tabular_graph",
-        build_tabular_graph(
-            retriever=tabular_retriever,
-            fallback_retriever=all_chunks_retriever,
-            fallback_agent_tools=multi_agent_tools,
-            debug=debug,
-        ),
     )
 
     builder.add_node("is_summarise_route", empty_process)
@@ -143,7 +138,6 @@ def build_root_graph(
             ChatRoute.gadget: "gadget_graph",
             ChatRoute.newroute: "new_route_graph",
             ChatRoute.summarise: "summarise_graph",
-            ChatRoute.tabular: "tabular_graph",
             ChatRoute.chat: "chat_graph",
             "DEFAULT": "new_route_graph",
         },
@@ -157,7 +151,6 @@ def build_root_graph(
     builder.add_edge("gadget_graph", END)
     builder.add_edge("new_route_graph", END)
     builder.add_edge("summarise_graph", END)
-    builder.add_edge("tabular_graph", END)
     return builder.compile()
 
 
@@ -276,7 +269,9 @@ def get_search_graph(
     return builder.compile(debug=debug)
 
 
-def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent=False, debug=True):
+def get_summarise_graph(
+    all_chunks_retriever: VectorStoreRetriever, use_as_agent=False, model: ChatLLMBackend | None = None, debug=True
+):
     builder = StateGraph(RedboxState)
     builder.add_node("choose_route_based_on_request_token", empty_process)
     builder.add_node("set_route_to_summarise_large_doc", build_set_route_pattern(ChatRoute.chat_with_docs_map_reduce))
@@ -350,6 +345,7 @@ def get_summarise_graph(all_chunks_retriever: VectorStoreRetriever, use_as_agent
             prompt_set=PromptSet.ChatwithDocs,
             final_response_chain=False if use_as_agent else True,
             summary_multiagent_flag=True if use_as_agent else False,
+            model=model,
         ),
         retry=RetryPolicy(max_attempts=3),
     )
@@ -629,13 +625,119 @@ def strip_route(state: RedboxState):
 
 def build_new_route_graph(
     all_chunks_retriever: VectorStoreRetriever,
+    tabular_retriever: VectorStoreRetriever,
     multi_agent_tools: dict,
+    agents: list[Agent],
     debug: bool = False,
 ) -> CompiledGraph:
-    agents_max_tokens = AISettings().agents_max_tokens
+    def update_submission_eval(state: RedboxState):
+        state.tasks_evaluator = EVAL_SUBMISSION
+        return state
+
+    def update_submission_qa(state: RedboxState):
+        state.tasks_evaluator = EVAL_SUBMISSION_QA
+        return state
+
+    def add_agent(builder, agents, agent_name, edge_nodes=["combine_question_evaluator"], with_loop=False, **kwargs):
+        agent = [agent for agent in agents if agent.name == agent_name]
+        try:
+            agent = agent[0]
+            match agent.name:
+                case "Summarisation_Agent":
+                    builder.add_node(
+                        agent.name,
+                        invoke_custom_state(
+                            custom_graph=get_summarise_graph,
+                            agent_name=agent.name,
+                            all_chunks_retriever=all_chunks_retriever,
+                            max_tokens=agent.agents_max_tokens,
+                            use_as_agent=True,
+                            model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
+                            if agent.llm_backend is not None
+                            else None,
+                            debug=debug,
+                        ),
+                    )
+                case "Tabular_Agent":
+                    builder.add_node(
+                        "Tabular_Agent",
+                        empty_process,
+                    )
+
+                    builder.add_node(
+                        "retrieve_tabular_documents",
+                        build_retrieve_pattern(
+                            retriever=tabular_retriever,
+                            structure_func=structure_documents_by_file_name,
+                            final_source_chain=False,
+                        ),
+                    )
+
+                    builder.add_node("retrieve_tabular_schema", get_tabular_schema())
+
+                    builder.add_node(
+                        "call_tabular_agent",
+                        get_tabular_agent(
+                            tools=multi_agent_tools["Tabular_Agent"],
+                            max_attempt=10,
+                            max_tokens=agent.agents_max_tokens,
+                            model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
+                            if agent.llm_backend is not None
+                            else None,
+                        ),
+                    )
+                    builder.add_edge("Tabular_Agent", "retrieve_tabular_documents")
+                    builder.add_edge("retrieve_tabular_documents", "retrieve_tabular_schema")
+                    builder.add_edge("retrieve_tabular_schema", "call_tabular_agent")
+                    builder.add_edge("call_tabular_agent", "combine_question_evaluator")
+
+                case _:
+                    success = "fail"
+                    is_intermediate_step = False
+                    builder.add_node(
+                        agent.name,
+                        build_agent(
+                            agent_name=agent.name,
+                            system_prompt=agent.prompt,
+                            tools=multi_agent_tools[agent.name],
+                            use_metadata=kwargs.get("use_metadata", False),
+                            using_chat_history=kwargs.get("using_chat_history", False),
+                            max_tokens=agent.agents_max_tokens,
+                            model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
+                            if agent.llm_backend is not None
+                            else None,
+                        )
+                        if not with_loop
+                        else build_agent_with_loop(
+                            agent_name=agent.name,
+                            system_prompt=agent.prompt,
+                            tools=multi_agent_tools[agent.name],
+                            max_tokens=agent.agents_max_tokens,
+                            loop_condition=lambda: success == "fail" or is_intermediate_step,
+                            max_attempt=kwargs.get("max_attempt", 2),
+                            use_metadata=kwargs.get("use_metadata", False),
+                            using_chat_history=kwargs.get("using_chat_history", False),
+                            model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
+                            if agent.llm_backend is not None
+                            else None,
+                        ),
+                    )
+
+            # add edge
+            _edge_nodes = edge_nodes.copy()
+            _edge_nodes.insert(0, agent.name)
+            for i in range(len(_edge_nodes) - 1):
+                builder.add_edge(_edge_nodes[i], _edge_nodes[i + 1])
+        except IndexError:
+            # can't find agent
+            log.error(f"Here is the list of agents: {agents}")
+            raise ValueError(f"No agent found with name {agent_name}")
+
     allow_plan_feedback = get_settings().allow_plan_feedback
 
     builder = StateGraph(RedboxState)
+
+    # add nodes
     builder.add_node(
         "set_route_to_newroute",
         build_set_route_pattern(route=ChatRoute.newroute),
@@ -652,62 +754,10 @@ def build_new_route_graph(
             node_for_no_task="Evaluator_Agent",
         ),
     )
-    builder.add_node(
-        "Internal_Retrieval_Agent",
-        build_agent(
-            agent_name="Internal_Retrieval_Agent",
-            system_prompt=INTERNAL_RETRIEVAL_AGENT_PROMPT,
-            tools=multi_agent_tools["Internal_Retrieval_Agent"],
-            use_metadata=True,
-            max_tokens=agents_max_tokens["Internal_Retrieval_Agent"],
-        ),
-    )
+    builder.add_node("update_submission_eval", update_submission_eval)
+    builder.add_node("update_submission_qa", update_submission_qa)
     builder.add_node("send", empty_process)
-    builder.add_node(
-        "External_Retrieval_Agent",
-        build_agent(
-            agent_name="External_Retrieval_Agent",
-            system_prompt=EXTERNAL_RETRIEVAL_AGENT_PROMPT,
-            tools=multi_agent_tools["External_Retrieval_Agent"],
-            use_metadata=False,
-            max_tokens=agents_max_tokens["External_Retrieval_Agent"],
-        ),
-    )
-    builder.add_node(
-        "Summarisation_Agent",
-        invoke_custom_state(
-            custom_graph=get_summarise_graph,
-            agent_name="Summarisation_Agent",
-            all_chunks_retriever=all_chunks_retriever,
-            use_as_agent=True,
-            debug=debug,
-        ),
-    )
-
-    builder.add_node(
-        "Web_Search_Agent",
-        build_agent(
-            agent_name="Web_Search_Agent",
-            system_prompt=WEB_SEARCH_AGENT_PROMPT,
-            tools=multi_agent_tools["Web_Search_Agent"],
-            use_metadata=False,
-            max_tokens=agents_max_tokens["Web_Search_Agent"],
-        ),
-    )
-
-    builder.add_node(
-        "Legislation_Search_Agent",
-        build_agent(
-            agent_name="Legislation_Search_Agent",
-            system_prompt=LEGISLATION_SEARCH_AGENT_PROMPT,
-            tools=multi_agent_tools["Legislation_Search_Agent"],
-            use_metadata=False,
-            max_tokens=agents_max_tokens["Legislation_Search_Agent"],
-        ),
-    )
-
     builder.add_node("user_feedback_evaluation", empty_process)
-
     builder.add_node("Evaluator_Agent", create_evaluator())
     builder.add_node("combine_question_evaluator", combine_question_evaluator())
     builder.add_node(
@@ -718,6 +768,35 @@ def build_new_route_graph(
     builder.add_node("stream_suggestion", stream_suggestion())
     builder.add_node("sending_task", empty_process)
 
+    # add all agents here
+    add_agent(builder, agents, "Internal_Retrieval_Agent", use_metadata=True)
+    add_agent(builder, agents, "External_Retrieval_Agent")
+    add_agent(builder, agents, "Summarisation_Agent", edge_nodes=[])  # streaming response directly
+    add_agent(builder, agents, "Tabular_Agent", edge_nodes=[])  # go to other nodes/subgraphs
+    add_agent(builder, agents, "Web_Search_Agent")
+    add_agent(builder, agents, "Legislation_Search_Agent")
+    add_agent(
+        builder,
+        agents,
+        "Submission_Checker_Agent",
+        with_loop=True,
+        use_metadata=True,
+        using_chat_history=True,
+        edge_nodes=["update_submission_eval", "combine_question_evaluator"],
+    )
+    add_agent(
+        builder,
+        agents,
+        "Submission_Question_Answer_Agent",
+        with_loop=True,
+        use_metadata=True,
+        using_chat_history=True,
+        edge_nodes=["update_submission_qa", "combine_question_evaluator"],
+    )
+
+    builder.add_node("fake_node", empty_process)
+
+    # add edges
     builder.add_edge(START, "set_route_to_newroute")
     builder.add_edge("set_route_to_newroute", "remove_keyword")
     builder.add_conditional_edges(
@@ -734,94 +813,10 @@ def build_new_route_graph(
         },
     )
     builder.add_conditional_edges("sending_task", sending_task_to_agent)
-    builder.add_edge("Internal_Retrieval_Agent", "combine_question_evaluator")
-    builder.add_edge("External_Retrieval_Agent", "combine_question_evaluator")
-    builder.add_edge("Web_Search_Agent", "combine_question_evaluator")
-    builder.add_edge("Legislation_Search_Agent", "combine_question_evaluator")
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
     builder.add_edge("stream_plan", END)
     builder.add_edge("stream_suggestion", END)
-
-    return builder.compile(debug=debug)
-
-
-def build_tabular_graph(retriever, fallback_retriever, fallback_agent_tools, debug: bool = False) -> CompiledGraph:
-    """Creates a subgraph for processing tabular data."""
-    builder = StateGraph(RedboxState)
-
-    # # Send Prompt to Model
-    builder.add_node("pass_user_prompt_to_LLM_message", build_passthrough_pattern())
-
-    # Processes
-    builder.add_node(
-        "retrieve_documents",
-        build_retrieve_pattern(
-            retriever=retriever,
-            structure_func=structure_documents_by_file_name,
-            final_source_chain=False,
-        ),
-    )
-
-    builder.add_node(
-        "check_tabular_docs",
-        empty_process,
-    )
-
-    builder.add_node(
-        "create_tabular_agent",
-        build_tabular_agent,
-    )
-
-    builder.add_node(
-        "set_route_to_tabular",
-        build_set_route_pattern(route=ChatRoute.tabular),
-    )
-
-    builder.add_node(
-        "stream_tabular_failure",
-        stream_tabular_failure(),
-    )
-
-    builder.add_node(
-        "fallback_to_newroute",
-        build_new_route_graph(all_chunks_retriever=fallback_retriever, multi_agent_tools=fallback_agent_tools),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node("stream_tabular_response", stream_tabular_response())
-
-    builder.add_node(
-        "log_success",
-        build_activity_log_node(RedboxActivityEvent(message="Tabular analysis completed successfully")),
-    )
-
-    builder.add_node(
-        "log_error",
-        build_activity_log_node(RedboxActivityEvent(message="Tabular analysis failed, falling back to summarise")),
-    )
-
-    # Edges
-    builder.add_edge(START, "pass_user_prompt_to_LLM_message")
-    builder.add_edge("pass_user_prompt_to_LLM_message", "retrieve_documents")
-    builder.add_edge("retrieve_documents", "check_tabular_docs")
-
-    # Update conditional edge
-    builder.add_conditional_edges(
-        "check_tabular_docs", detect_tabular_docs, {True: "create_tabular_agent", False: "stream_tabular_failure"}
-    )
-
-    builder.add_conditional_edges(
-        "create_tabular_agent",
-        lambda s: "error analysing tabular data" not in s.agents_results[-1].content.lower(),
-        {True: "stream_tabular_response", False: "log_error"},
-    )
-
-    builder.add_edge("stream_tabular_response", "log_success")
-    builder.add_edge("log_success", "set_route_to_tabular")
-    builder.add_edge("log_error", "stream_tabular_failure")
-    builder.add_edge("stream_tabular_failure", "fallback_to_newroute")
-    builder.add_edge("set_route_to_tabular", END)
-    builder.add_edge("fallback_to_newroute", END)
 
     return builder.compile(debug=debug)

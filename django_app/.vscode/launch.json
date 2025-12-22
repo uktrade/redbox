@@ -7,7 +7,7 @@
             "module": "daphne",
             "args": [
                 "redbox_app.asgi:application",
-                "--port", "8080",
+                "--port", "8080"
             ],
             "envFile": "${workspaceFolder}/../.env",
             "django": true,
@@ -18,7 +18,6 @@
                 "ELASTIC__HOST": "localhost"
             }
         },
-        
         {
             "name": "Worker",
             "type": "debugpy",
@@ -26,7 +25,7 @@
             "gevent": true,
             "program": "venv/bin/django-admin",
             "args": [
-                "qcluster",
+                "qcluster"
             ],
             "envFile": "${workspaceFolder}/../.env",
             "env": {
@@ -35,6 +34,6 @@
                 "UNSTRUCTURED_HOST": "localhost",
                 "ELASTIC__HOST": "localhost"
             }
-        },
+        }
     ]
 }

@@ -16,6 +16,7 @@ from django.utils import timezone
 from freezegun import freeze_time
 
 from redbox_app.redbox_core.models import (
+    Agent,
     AISettings,
     Chat,
     ChatLLMBackend,
@@ -23,6 +24,8 @@ from redbox_app.redbox_core.models import (
     ChatMessageTokenUse,
     Citation,
     File,
+    Skill,
+    Team,
 )
 
 User = get_user_model()
@@ -32,7 +35,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_AISETTINGS_ID = UUID("00000000-0000-0000-0000-000000000000")
 
 
-@pytest.fixture()
+@pytest.fixture
 def s3_client():
     if settings.OBJECT_STORE == "s3":
         client = boto3.client(
@@ -60,7 +63,7 @@ def s3_client():
     return client
 
 
-@pytest.fixture()
+@pytest.fixture
 def api_key():
     return settings.REDBOX_API_KEY
 
@@ -79,7 +82,7 @@ def default_ai_settings(db):  # noqa: ARG001
     return ai_settings
 
 
-@pytest.fixture()
+@pytest.fixture
 def create_user():
     def _create_user(
         username,
@@ -109,27 +112,44 @@ def create_user():
     return _create_user
 
 
-@pytest.fixture()
+@pytest.fixture
 def alice(create_user):
     return create_user(username="alice@cabinetoffice.gov.uk")
 
 
-@pytest.fixture()
+@pytest.fixture
+def agents_list() -> list[Agent]:
+    agents = []
+    for agent_name in [
+        "Internal_Retrieval_Agent",
+        "External_Retrieval_Agent",
+        "Summarisation_Agent",
+        "Tabular_Agent",
+        "Web_Search_Agent",
+        "Legislation_Search_Agent",
+        "Submission_Checker_Agent",
+        "Submission_Question_Answer_Agent",
+    ]:
+        agents += [Agent.objects.create(name=agent_name, description="Fake", agents_max_tokens=100)]
+    return agents
+
+
+@pytest.fixture
 def chat_with_alice(alice):
     return Chat.objects.create(name="a chat", user=alice)
 
 
-@pytest.fixture()
+@pytest.fixture
 def bob(create_user):
     return create_user(username="bob@example.com")
 
 
-@pytest.fixture()
+@pytest.fixture
 def peter_rabbit():
     return User.objects.create_user(password="P455W0rd", username="peter.rabbit@example.com")
 
 
-@pytest.fixture()
+@pytest.fixture
 def user_with_demographic_data() -> User:
     return User.objects.create_user(
         name="Sir Gregory Pitkin",
@@ -142,39 +162,44 @@ def user_with_demographic_data() -> User:
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def staff_user(create_user):
     return create_user(is_staff=True, username="staff@example.com")
 
 
-@pytest.fixture()
+@pytest.fixture
 def superuser() -> User:
     return User.objects.create_superuser(username="super@example.com")
 
 
-@pytest.fixture()
+@pytest.fixture
 def file_pdf_path() -> Path:
     return Path(__file__).parent / "data" / "pdf" / "Cabinet Office - Wikipedia.pdf"
 
 
-@pytest.fixture()
+@pytest.fixture
 def file_py_path() -> Path:
     return Path(__file__).parent / "data" / "py" / "test_data.py"
 
 
-@pytest.fixture()
+@pytest.fixture
 def chat(alice: User) -> Chat:
     session_id = uuid.uuid4()
     return Chat.objects.create(id=session_id, user=alice, name="A chat")
 
 
-@pytest.fixture()
+@pytest.fixture
 def chat_with_message(chat: Chat) -> Chat:
     ChatMessage.objects.create(chat=chat, text="today", role=ChatMessage.Role.user)
     return chat
 
 
-@pytest.fixture()
+@pytest.fixture
+def skill() -> Skill:
+    return Skill.objects.create(name="Test Skill")
+
+
+@pytest.fixture
 def chat_message(chat: Chat, uploaded_file: File) -> ChatMessage:
     chat_message = ChatMessage.objects.create(
         chat=chat, text="A question?", role=ChatMessage.Role.user, route="A route"
@@ -183,11 +208,11 @@ def chat_message(chat: Chat, uploaded_file: File) -> ChatMessage:
     return chat_message
 
 
-@pytest.fixture()
+@pytest.fixture
 def chat_message_with_citation(chat: Chat, uploaded_file: File) -> ChatMessage:
     chat_message = ChatMessage.objects.create(
         chat=chat,
-        text="An answer.",
+        text="An answer with citation.",
         role=ChatMessage.Role.ai,
         rating=3,
         rating_chips=["apple", "pear"],
@@ -198,7 +223,7 @@ def chat_message_with_citation(chat: Chat, uploaded_file: File) -> ChatMessage:
     return chat_message
 
 
-@pytest.fixture()
+@pytest.fixture
 def chat_message_with_citation_and_tokens(chat_message_with_citation: ChatMessage) -> ChatMessage:
     chat_message = chat_message_with_citation
     ChatMessageTokenUse.objects.create(
@@ -216,7 +241,7 @@ def chat_message_with_citation_and_tokens(chat_message_with_citation: ChatMessag
     return chat_message
 
 
-@pytest.fixture()
+@pytest.fixture
 def uploaded_file(alice: User, original_file: UploadedFile, s3_client) -> File:  # noqa: ARG001
     file = File.objects.create(
         user=alice,
@@ -230,12 +255,12 @@ def uploaded_file(alice: User, original_file: UploadedFile, s3_client) -> File: 
     file.delete()
 
 
-@pytest.fixture()
+@pytest.fixture
 def original_file() -> UploadedFile:
     return SimpleUploadedFile("original_file.txt", b"Lorem Ipsum.")
 
 
-@pytest.fixture()
+@pytest.fixture
 def chat_with_files(chat: Chat, several_files: Sequence[File]) -> Chat:
     ChatMessage.objects.create(
         chat=chat,
@@ -265,7 +290,7 @@ def chat_with_files(chat: Chat, several_files: Sequence[File]) -> Chat:
     return chat
 
 
-@pytest.fixture()
+@pytest.fixture
 def user_with_chats_with_messages_over_time(alice: User) -> User:
     now = timezone.now()
     with freeze_time(now - timedelta(days=40)):
@@ -304,7 +329,7 @@ def user_with_chats_with_messages_over_time(alice: User) -> User:
     return alice
 
 
-@pytest.fixture()
+@pytest.fixture
 def several_files(alice: User, number_to_create: int = 4) -> Sequence[File]:
     files = []
     for i in range(number_to_create):
@@ -319,7 +344,7 @@ def several_files(alice: User, number_to_create: int = 4) -> Sequence[File]:
     return files
 
 
-@pytest.fixture()
+@pytest.fixture
 def chat_message_with_rating(chat_message: ChatMessage) -> ChatMessage:
     chat_message.rating = 3
     chat_message.rating_text = "Ipsum Lorem."
@@ -333,10 +358,76 @@ def _ensure_default_ai_settings(db):  # noqa: ARG001
     backend, _ = ChatLLMBackend.objects.get_or_create(
         name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock", is_default=True
     )
-    from redbox_app.redbox_core.models import AISettings
 
     AISettings.objects.filter(label="default").exclude(id=DEFAULT_AISETTINGS_ID).delete()
     AISettings.objects.get_or_create(
         id=DEFAULT_AISETTINGS_ID,
         defaults={"label": "default", "chat_backend": backend},
     )
+
+
+@pytest.fixture
+def redbox_team() -> Team:
+    return Team.objects.create(team_name="Redbox Team", directorate="DDaT")
+
+
+@pytest.fixture
+def default_skill() -> Skill:
+    return Skill.objects.create(name="Default Skill")
+
+
+@pytest.fixture
+def remove_file_from_bucket(s3_client):
+    def _remove(file_name: str):
+        # we begin by removing any file in minio that starts with this key prefix
+        try:
+            paginator = s3_client.get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=settings.BUCKET_NAME, Prefix=file_name.replace(" ", "_")):
+                if "Contents" in page:
+                    delete_objects = [{"Key": obj["Key"]} for obj in page["Contents"]]
+                    if delete_objects:
+                        s3_client.delete_objects(Bucket=settings.BUCKET_NAME, Delete={"Objects": delete_objects})
+        except Exception:
+            logger.exception("Error cleaning up S3 objects before test")
+            # Ignore errors during cleanup
+
+    return _remove
+
+
+@pytest.fixture
+def external_citation(chat_message) -> Citation:
+    external_citation = Citation(
+        chat_message=chat_message,
+        text="hello",
+        source=Citation.Origin.WIKIPEDIA,
+        url="http://example.com",
+    )
+    external_citation.save()
+    chat_message.refresh_from_db()
+    return external_citation
+
+
+@pytest.fixture
+def internal_citation(chat_message, uploaded_file) -> Citation:
+    internal_citation = Citation(
+        chat_message=chat_message,
+        text="hello",
+        source=Citation.Origin.USER_UPLOADED_DOCUMENT,
+        file=uploaded_file,
+    )
+    internal_citation.save()
+    chat_message.refresh_from_db()
+    return internal_citation
+
+
+@pytest.fixture
+def default_agent() -> Agent:
+    agent = Agent(
+        name="Default Agent",
+        description="A default agent",
+        agents_max_tokens=5000,
+        prompt="This is an agent prompt",
+        llm_backend=ChatLLMBackend.objects.filter().first(),
+    )
+    agent.save()
+    return agent

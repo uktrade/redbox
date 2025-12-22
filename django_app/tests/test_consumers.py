@@ -45,111 +45,120 @@ def get_token_use_count(use_type: str) -> int:
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
-async def test_chat_consumer_with_new_session(alice: User, uploaded_file: File, mocked_connect: Connect):
+@pytest.mark.asyncio
+async def test_chat_consumer_with_new_session(
+    agents_list: list, alice: User, uploaded_file: File, mocked_connect: Connect
+):
     # Given
 
     # When
-    with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
         connected, _ = await communicator.connect()
         assert connected
+        with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
+            await communicator.send_json_to({"message": "Hello Hal."})
+            response1 = await communicator.receive_json_from(timeout=5)
+            response2 = await communicator.receive_json_from(timeout=5)
+            response3 = await communicator.receive_json_from(timeout=5)
+            response4 = await communicator.receive_json_from(timeout=5)
 
-        await communicator.send_json_to({"message": "Hello Hal."})
-        response1 = await communicator.receive_json_from(timeout=5)
-        response2 = await communicator.receive_json_from(timeout=5)
-        response3 = await communicator.receive_json_from(timeout=5)
-        response4 = await communicator.receive_json_from(timeout=5)
+            # Then
+            assert response1["type"] == "session-id"
+            assert response2["type"] == "text"
+            assert response2["data"] == "Good afternoon, "
+            assert response3["type"] == "text"
+            assert response3["data"] == "Mr. Amor."
+            assert response4["type"] == "route"
+            assert response4["data"] == "gratitude"
+            # Close
+            await communicator.disconnect()
 
-        # Then
-        assert response1["type"] == "session-id"
-        assert response2["type"] == "text"
-        assert response2["data"] == "Good afternoon, "
-        assert response3["type"] == "text"
-        assert response3["data"] == "Mr. Amor."
-        assert response4["type"] == "route"
-        assert response4["data"] == "gratitude"
-        # Close
-        await communicator.disconnect()
+        assert await get_chat_message_text(alice, ChatMessage.Role.user) == ["Hello Hal."]
+        assert await get_chat_message_route(alice, ChatMessage.Role.ai) == ["gratitude"]
 
-    assert await get_chat_message_text(alice, ChatMessage.Role.user) == ["Hello Hal."]
-    assert await get_chat_message_route(alice, ChatMessage.Role.ai) == ["gratitude"]
-
-    await refresh_from_db(uploaded_file)
+        await refresh_from_db(uploaded_file)
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
-async def test_chat_consumer_staff_user(staff_user: User, mocked_connect: Connect):
+@pytest.mark.asyncio
+async def test_chat_consumer_staff_user(agents_list: list, staff_user: User, mocked_connect: Connect):
     # Given
 
     # When
-    with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = staff_user
         connected, _ = await communicator.connect()
         assert connected
+        with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
+            await communicator.send_json_to({"message": "Hello Hal.", "output_text": "hello"})
+            response1 = await communicator.receive_json_from(timeout=5)
+            response2 = await communicator.receive_json_from(timeout=5)
+            response3 = await communicator.receive_json_from(timeout=5)
+            response4 = await communicator.receive_json_from(timeout=5)
+            _response5 = await communicator.receive_json_from(timeout=5)
 
-        await communicator.send_json_to({"message": "Hello Hal.", "output_text": "hello"})
-        response1 = await communicator.receive_json_from(timeout=5)
-        response2 = await communicator.receive_json_from(timeout=5)
-        response3 = await communicator.receive_json_from(timeout=5)
-        response4 = await communicator.receive_json_from(timeout=5)
-        _response5 = await communicator.receive_json_from(timeout=5)
+            # Then
+            assert response1["type"] == "session-id"
+            assert response2["type"] == "text"
+            assert response2["data"] == "Good afternoon, "
+            assert response3["type"] == "text"
+            assert response3["data"] == "Mr. Amor."
+            assert response4["type"] == "route"
+            assert response4["data"] == "gratitude"
+            # Close
+            await communicator.disconnect()
 
-        # Then
-        assert response1["type"] == "session-id"
-        assert response2["type"] == "text"
-        assert response2["data"] == "Good afternoon, "
-        assert response3["type"] == "text"
-        assert response3["data"] == "Mr. Amor."
-        assert response4["type"] == "route"
-        assert response4["data"] == "gratitude"
-        # Close
-        await communicator.disconnect()
-
-    assert await get_chat_message_route(staff_user, ChatMessage.Role.ai) == ["gratitude"]
+        assert await get_chat_message_route(staff_user, ChatMessage.Role.ai) == ["gratitude"]
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
-async def test_chat_consumer_with_existing_session(alice: User, chat: Chat, mocked_connect: Connect):
+@pytest.mark.asyncio
+async def test_chat_consumer_with_existing_session(agents_list: list, alice: User, chat: Chat, mocked_connect: Connect):
     # Given
 
     # When
-    with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
+        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        communicator.scope["user"] = alice
+        connected, _ = await communicator.connect()
+        assert connected
+        with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
+            await communicator.send_json_to({"message": "Hello Hal.", "sessionId": str(chat.id)})
+            response1 = await communicator.receive_json_from(timeout=5)
+
+            # Then
+            assert response1["type"] == "session-id"
+            assert response1["data"] == str(chat.id)
+
+            # Close
+            await communicator.disconnect()
+
+        assert await get_chat_message_text(alice, ChatMessage.Role.user) == ["Hello Hal."]
+        assert await get_chat_message_text(alice, ChatMessage.Role.ai) == ["Good afternoon, Mr. Amor."]
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_chat_consumer_with_naughty_question(
+    agents_list: list, alice: User, uploaded_file: File, mocked_connect: Connect
+):
+    # Given
+
+    # When
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
         connected, _ = await communicator.connect()
         assert connected
 
-        await communicator.send_json_to({"message": "Hello Hal.", "sessionId": str(chat.id)})
-        response1 = await communicator.receive_json_from(timeout=5)
-
-        # Then
-        assert response1["type"] == "session-id"
-        assert response1["data"] == str(chat.id)
-
-        # Close
-        await communicator.disconnect()
-
-    assert await get_chat_message_text(alice, ChatMessage.Role.user) == ["Hello Hal."]
-    assert await get_chat_message_text(alice, ChatMessage.Role.ai) == ["Good afternoon, Mr. Amor."]
-
-
-@pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
-async def test_chat_consumer_with_naughty_question(alice: User, uploaded_file: File, mocked_connect: Connect):
-    # Given
-
-    # When
     with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = alice
-        connected, _ = await communicator.connect()
-        assert connected
-
         await communicator.send_json_to({"message": "Hello Hal. \x00"})
         response1 = await communicator.receive_json_from(timeout=5)
         response2 = await communicator.receive_json_from(timeout=5)
@@ -174,74 +183,82 @@ async def test_chat_consumer_with_naughty_question(alice: User, uploaded_file: F
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_with_naughty_citation(
-    alice: User, uploaded_file: File, mocked_connect_with_naughty_citation: Connect
+    agents_list: list, alice: User, uploaded_file: File, mocked_connect_with_naughty_citation: Connect
 ):
     # Given
 
     # When
-    with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_with_naughty_citation):
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
         connected, _ = await communicator.connect()
         assert connected
 
-        await communicator.send_json_to({"message": "Hello Hal."})
-        response1 = await communicator.receive_json_from(timeout=5)
-        response2 = await communicator.receive_json_from(timeout=5)
-        response3 = await communicator.receive_json_from(timeout=5)
+        with patch(
+            "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_with_naughty_citation
+        ):
+            await communicator.send_json_to({"message": "Hello Hal."})
+            response1 = await communicator.receive_json_from(timeout=5)
+            response2 = await communicator.receive_json_from(timeout=5)
+            response3 = await communicator.receive_json_from(timeout=5)
 
-        # Then
-        assert response1["type"] == "session-id"
-        assert response2["type"] == "text"
-        assert response2["data"] == "Good afternoon, Mr. Amor."
-        assert response3["type"] == "route"
-        assert response3["data"] == "gratitude"
-        # Close
-        await communicator.disconnect()
+            # Then
+            assert response1["type"] == "session-id"
+            assert response2["type"] == "text"
+            assert response2["data"] == "Good afternoon, Mr. Amor."
+            assert response3["type"] == "route"
+            assert response3["data"] == "gratitude"
+            # Close
+            await communicator.disconnect()
 
-    assert await get_chat_message_text(alice, ChatMessage.Role.user) == ["Hello Hal."]
-    assert await get_chat_message_text(alice, ChatMessage.Role.ai) == ["Good afternoon, Mr. Amor."]
-    assert await get_chat_message_route(alice, ChatMessage.Role.ai) == ["gratitude"]
-    await refresh_from_db(uploaded_file)
+        assert await get_chat_message_text(alice, ChatMessage.Role.user) == ["Hello Hal."]
+        assert await get_chat_message_text(alice, ChatMessage.Role.ai) == ["Good afternoon, Mr. Amor."]
+        assert await get_chat_message_route(alice, ChatMessage.Role.ai) == ["gratitude"]
+        await refresh_from_db(uploaded_file)
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
-async def test_chat_consumer_agentic(alice: User, uploaded_file: File, mocked_connect_agentic_search: Connect):
+@pytest.mark.asyncio
+async def test_chat_consumer_agentic(
+    agents_list: list, alice: User, uploaded_file: File, mocked_connect_agentic_search: Connect
+):
     # Given
 
     # When
-    with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_agentic_search):
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
         connected, _ = await communicator.connect()
         assert connected
 
-        await communicator.send_json_to({"message": "Hello Hal."})
-        response1 = await communicator.receive_json_from(timeout=5)
-        response2 = await communicator.receive_json_from(timeout=5)
-        response3 = await communicator.receive_json_from(timeout=5)
-        response4 = await communicator.receive_json_from(timeout=5)
-        response5 = await communicator.receive_json_from(timeout=5)
+        with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_agentic_search):
+            await communicator.send_json_to({"message": "Hello Hal."})
+            response1 = await communicator.receive_json_from(timeout=5)
+            response2 = await communicator.receive_json_from(timeout=5)
+            response3 = await communicator.receive_json_from(timeout=5)
+            response4 = await communicator.receive_json_from(timeout=5)
+            response5 = await communicator.receive_json_from(timeout=5)
 
-        # Then
-        assert response1["type"] == "session-id"
-        assert response2["type"] == "text"
-        assert response2["data"] == "Good afternoon, "
-        assert response3["type"] == "text"
-        assert response3["data"] == "Mr. Amor."
-        assert response4["type"] == "route"
-        assert response4["data"] == "search/agentic"
-        assert response5["type"] == "source"
-        # Close
-        await communicator.disconnect()
+            # Then
+            assert response1["type"] == "session-id"
+            assert response2["type"] == "text"
+            assert response2["data"] == "Good afternoon, "
+            assert response3["type"] == "text"
+            assert response3["data"] == "Mr. Amor."
+            assert response4["type"] == "route"
+            assert response4["data"] == "search/agentic"
+            assert response5["type"] == "source"
+            # Close
+            await communicator.disconnect()
 
-    assert await get_chat_message_text(alice, ChatMessage.Role.user) == ["Hello Hal."]
-    assert await get_chat_message_text(alice, ChatMessage.Role.ai) == ["Good afternoon, Mr. Amor."]
+        assert await get_chat_message_text(alice, ChatMessage.Role.user) == ["Hello Hal."]
+        assert await get_chat_message_text(alice, ChatMessage.Role.ai) == ["Good afternoon, Mr. Amor."]
 
-    await refresh_from_db(uploaded_file)
+        await refresh_from_db(uploaded_file)
 
 
 @database_sync_to_async
@@ -264,10 +281,11 @@ def get_chat_message_route(user: User, role: ChatMessage.Role) -> Sequence[str]:
     return [m.route for m in ChatMessage.objects.filter(chat__user=user, role=role)]
 
 
-@pytest.mark.xfail()
+@pytest.mark.xfail
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_with_selected_files(
+    agents_list: list,
     alice: User,
     several_files: Sequence[File],
     chat_with_files: Chat,
@@ -277,233 +295,260 @@ async def test_chat_consumer_with_selected_files(
     selected_files: Sequence[File] = several_files[2:]
 
     # When
-    with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_with_several_files):
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
         connected, _ = await communicator.connect()
         assert connected
 
-        selected_file_core_uuids: Sequence[str] = [f.unique_name for f in selected_files]
-        await communicator.send_json_to(
+        with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_with_several_files):
+            selected_file_core_uuids: Sequence[str] = [f.unique_name for f in selected_files]
+            await communicator.send_json_to(
+                {
+                    "message": "Third question, with selected files?",
+                    "sessionId": str(chat_with_files.id),
+                    "selectedFiles": selected_file_core_uuids,
+                }
+            )
+            response1 = await communicator.receive_json_from(timeout=5)
+
+            # Then
+            assert response1["type"] == "session-id"
+            assert response1["data"] == str(chat_with_files.id)
+
+            # Close
+            await communicator.disconnect()
+
+        # Then
+
+        # TODO (@brunns): Assert selected files sent to core.
+        # Requires fix for https://github.com/django/channels/issues/1091
+        # fixed now merged in https://github.com/django/channels/pull/2101, but not released
+        # Retry this when a version of Channels after 4.1.0 is released
+        mocked_websocket = mocked_connect_with_several_files.return_value.__aenter__.return_value
+        expected = json.dumps(
             {
-                "message": "Third question, with selected files?",
-                "sessionId": str(chat_with_files.id),
-                "selectedFiles": selected_file_core_uuids,
+                "message_history": [
+                    {"role": "user", "text": "A question?"},
+                    {"role": "ai", "text": "An answer."},
+                    {"role": "user", "text": "A second question?"},
+                    {"role": "ai", "text": "A second answer."},
+                    {"role": "user", "text": "Third question, with selected files?"},
+                ],
+                "selected_files": selected_file_core_uuids,
+                "ai_settings": await ChatConsumer.get_ai_settings(alice),
             }
         )
-        response1 = await communicator.receive_json_from(timeout=5)
+        mocked_websocket.send.assert_called_with(expected)
 
-        # Then
-        assert response1["type"] == "session-id"
-        assert response1["data"] == str(chat_with_files.id)
-
-        # Close
-        await communicator.disconnect()
-
-    # Then
-
-    # TODO (@brunns): Assert selected files sent to core.
-    # Requires fix for https://github.com/django/channels/issues/1091
-    # fixed now merged in https://github.com/django/channels/pull/2101, but not released
-    # Retry this when a version of Channels after 4.1.0 is released
-    mocked_websocket = mocked_connect_with_several_files.return_value.__aenter__.return_value
-    expected = json.dumps(
-        {
-            "message_history": [
-                {"role": "user", "text": "A question?"},
-                {"role": "ai", "text": "An answer."},
-                {"role": "user", "text": "A second question?"},
-                {"role": "ai", "text": "A second answer."},
-                {"role": "user", "text": "Third question, with selected files?"},
-            ],
-            "selected_files": selected_file_core_uuids,
-            "ai_settings": await ChatConsumer.get_ai_settings(alice),
-        }
-    )
-    mocked_websocket.send.assert_called_with(expected)
-
-    # TODO (@brunns): Assert selected files saved to model.
-    # Requires fix for https://github.com/django/channels/issues/1091
-    all_messages = get_chat_messages(alice)
-    last_user_message = [m for m in all_messages if m.rule == ChatMessage.Role.user][-1]
-    assert last_user_message.selected_files == selected_files
+        # TODO (@brunns): Assert selected files saved to model.
+        # Requires fix for https://github.com/django/channels/issues/1091
+        all_messages = get_chat_messages(alice)
+        last_user_message = [m for m in all_messages if m.rule == ChatMessage.Role.user][-1]
+        assert last_user_message.selected_files == selected_files
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
-async def test_chat_consumer_with_connection_error(alice: User, mocked_breaking_connect: Connect):
+@pytest.mark.asyncio
+async def test_chat_consumer_with_connection_error(agents_list: list, alice: User, mocked_breaking_connect: Connect):
     # Given
 
     # When
-    with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_breaking_connect):
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
         connected, _ = await communicator.connect()
         assert connected
 
-        await communicator.send_json_to({"message": "Hello Hal."})
-        await communicator.receive_json_from(timeout=5)
-        response2 = await communicator.receive_json_from(timeout=5)
+        with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_breaking_connect):
+            await communicator.send_json_to({"message": "Hello Hal."})
+            await communicator.receive_json_from(timeout=5)
+            response2 = await communicator.receive_json_from(timeout=5)
 
-        # Then
-        assert response2["type"] == "error"
+            # Then
+            assert response2["type"] == "error"
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_with_explicit_unhandled_error(
-    alice: User, mocked_connect_with_explicit_unhandled_error: Connect
+    agents_list: list, alice: User, mocked_connect_with_explicit_unhandled_error: Connect
 ):
     # Given
 
     # When
-    with patch(
-        "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_with_explicit_unhandled_error
-    ):
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
         connected, _ = await communicator.connect()
         assert connected
+        with patch(
+            "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph",
+            new=mocked_connect_with_explicit_unhandled_error,
+        ):
+            await communicator.send_json_to({"message": "Hello Hal."})
+            response1 = await communicator.receive_json_from(timeout=5)
+            response2 = await communicator.receive_json_from(timeout=5)
+            response3 = await communicator.receive_json_from(timeout=5)
 
-        await communicator.send_json_to({"message": "Hello Hal."})
-        response1 = await communicator.receive_json_from(timeout=5)
-        response2 = await communicator.receive_json_from(timeout=5)
-        response3 = await communicator.receive_json_from(timeout=5)
-
-        # Then
-        assert response1["type"] == "session-id"
-        assert response2["type"] == "text"
-        assert response2["data"] == "Good afternoon, "
-        assert response3["type"] == "text"
-        assert response3["data"] == error_messages.CORE_ERROR_MESSAGE
-        # Close
-        await communicator.disconnect()
+            # Then
+            assert response1["type"] == "session-id"
+            assert response2["type"] == "text"
+            assert response2["data"] == "Good afternoon, "
+            assert response3["type"] == "text"
+            assert response3["data"] == error_messages.CORE_ERROR_MESSAGE
+            # Close
+            await communicator.disconnect()
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
-async def test_chat_consumer_with_rate_limited_error(alice: User, mocked_connect_with_rate_limited_error: Connect):
+@pytest.mark.asyncio
+async def test_chat_consumer_with_rate_limited_error(
+    agents_list: list, alice: User, mocked_connect_with_rate_limited_error: Connect
+):
     # Given
 
     # When
-    with patch(
-        "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_with_rate_limited_error
-    ):
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
         connected, _ = await communicator.connect()
         assert connected
 
-        await communicator.send_json_to({"message": "Hello Hal."})
-        response1 = await communicator.receive_json_from(timeout=5)
-        response2 = await communicator.receive_json_from(timeout=5)
-        response3 = await communicator.receive_json_from(timeout=5)
+        with patch(
+            "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_with_rate_limited_error
+        ):
+            await communicator.send_json_to({"message": "Hello Hal."})
+            response1 = await communicator.receive_json_from(timeout=5)
+            response2 = await communicator.receive_json_from(timeout=5)
+            response3 = await communicator.receive_json_from(timeout=5)
 
-        # Then
-        assert response1["type"] == "session-id"
-        assert response2["type"] == "text"
-        assert response2["data"] == "Good afternoon, "
-        assert response3["type"] == "text"
-        assert response3["data"] == error_messages.RATE_LIMITED
-        # Close
-        await communicator.disconnect()
+            # Then
+            assert response1["type"] == "session-id"
+            assert response2["type"] == "text"
+            assert response2["data"] == "Good afternoon, "
+            assert response3["type"] == "text"
+            assert response3["data"] == error_messages.RATE_LIMITED
+            # Close
+            await communicator.disconnect()
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_with_explicit_no_document_selected_error(
-    alice: User, mocked_connect_with_explicit_no_document_selected_error: Connect
+    agents_list: list, alice: User, mocked_connect_with_explicit_no_document_selected_error: Connect
 ):
     # Given
 
     # When
-    with patch(
-        "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph",
-        new=mocked_connect_with_explicit_no_document_selected_error,
-    ):
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
         connected, _ = await communicator.connect()
         assert connected
 
-        await communicator.send_json_to({"message": "Hello Hal."})
-        response1 = await communicator.receive_json_from(timeout=5)
-        response2 = await communicator.receive_json_from(timeout=5)
+        with patch(
+            "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph",
+            new=mocked_connect_with_explicit_no_document_selected_error,
+        ):
+            await communicator.send_json_to({"message": "Hello Hal."})
+            response1 = await communicator.receive_json_from(timeout=5)
+            response2 = await communicator.receive_json_from(timeout=5)
 
-        # Then
-        assert response1["type"] == "session-id"
-        assert response2["type"] == "text"
-        assert response2["data"] == error_messages.SELECT_DOCUMENT
-        # Close
-        await communicator.disconnect()
+            # Then
+            assert response1["type"] == "session-id"
+            assert response2["type"] == "text"
+            assert response2["data"] == error_messages.SELECT_DOCUMENT
+            # Close
+            await communicator.disconnect()
 
 
-@pytest.mark.django_db()
-@pytest.mark.asyncio()
+@pytest.mark.django_db
+@pytest.mark.asyncio
 async def test_chat_consumer_get_ai_settings(
-    chat_with_alice: Chat, mocked_connect_with_explicit_no_document_selected_error: Connect
+    agents_list: list, chat_with_alice: Chat, mocked_connect_with_explicit_no_document_selected_error: Connect
 ):
-    with patch(
-        "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph",
-        new=mocked_connect_with_explicit_no_document_selected_error,
-    ):
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = chat_with_alice.user
         connected, _ = await communicator.connect()
         assert connected
 
-        ai_settings = await ChatConsumer.get_ai_settings(chat_with_alice)
+        with patch(
+            "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph",
+            new=mocked_connect_with_explicit_no_document_selected_error,
+        ):
+            ai_settings = await ChatConsumer.get_ai_settings(chat_with_alice)
 
-        assert ai_settings.chat_map_question_prompt == CHAT_MAP_QUESTION_PROMPT
-        assert ai_settings.chat_backend.name == chat_with_alice.chat_backend.name
-        assert ai_settings.chat_backend.provider == chat_with_alice.chat_backend.provider
-        assert not hasattr(ai_settings, "label")
+            assert ai_settings.chat_map_question_prompt == CHAT_MAP_QUESTION_PROMPT
+            assert ai_settings.chat_backend.name == chat_with_alice.chat_backend.name
+            assert ai_settings.chat_backend.provider == chat_with_alice.chat_backend.provider
+            assert not hasattr(ai_settings, "label")
 
-        # Close
-        await communicator.disconnect()
+            # Close
+            await communicator.disconnect()
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_with_american_to_british_conversion(
-    alice: User, mocked_connect_with_american_to_british_conversion: Connect
+    agents_list: list, alice: User, mocked_connect_with_american_to_british_conversion: Connect
 ):
-    with patch(
-        "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph",
-        new=mocked_connect_with_american_to_british_conversion,
-    ):
+    # # Reset cache before test
+    # ChatConsumer.cached_agents = None
+
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
         connected, _ = await communicator.connect()
         assert connected
+        with patch(
+            "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph",
+            new=mocked_connect_with_american_to_british_conversion,
+        ):
+            mock_get.return_value = agents_list
+            communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+            communicator.scope["user"] = alice
+            connected, _ = await communicator.connect()
+            assert connected
+            await communicator.send_json_to({"message": "Hello Hal."})
+            response1 = await communicator.receive_json_from(timeout=5)
+            response2 = await communicator.receive_json_from(timeout=5)
 
-        await communicator.send_json_to({"message": "Hello Hal."})
-        response1 = await communicator.receive_json_from(timeout=5)
-        response2 = await communicator.receive_json_from(timeout=5)
+            # Then
+            assert response1["type"] == "session-id"
+            assert response2["type"] == "text"
+            assert (
+                response2["data"] == "Recognise these coloured filters?"
+            )  # Converted from "Recognize these colored filters?"
 
-        # Then
-        assert response1["type"] == "session-id"
-        assert response2["type"] == "text"
-        assert (
-            response2["data"] == "Recognise these coloured filters?"
-        )  # Converted from "Recognize these colored filters?"
-
-        # Close
-        await communicator.disconnect()
+            # Close
+            await communicator.disconnect()
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio()
+@pytest.mark.asyncio
 async def test_chat_consumer_redbox_state(
+    agents_list: list,
     alice: User,
     several_files: Sequence[File],
     chat_with_files: Chat,
 ):
     # Given
     selected_files: Sequence[File] = several_files[2:]
+    previous_selected_files: Sequence[File] = several_files[:2]
+    communicator = None
 
     # When
-    with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.run") as mock_run:
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
         ai_settings = await ChatConsumer.get_ai_settings(chat_with_files)
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
@@ -515,43 +560,58 @@ async def test_chat_consumer_redbox_state(
         permitted_file_keys: Sequence[str] = [
             f.unique_name async for f in File.objects.filter(user=alice, status=File.Status.complete)
         ]
+        previous_file_keys: Sequence[str] = [f.unique_name for f in previous_selected_files]
         assert selected_file_keys != permitted_file_keys
 
-        await communicator.send_json_to(
-            {
-                "message": "Third question, with selected files?",
-                "sessionId": str(chat_with_files.id),
-                "selectedFiles": selected_file_uuids,
-            }
-        )
-        response1 = await communicator.receive_json_from(timeout=5)
+        with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.run") as mock_run:
+            await communicator.send_json_to(
+                {
+                    "message": "Third question, with selected files?",
+                    "sessionId": str(chat_with_files.id),
+                    "selectedFiles": selected_file_uuids,
+                }
+            )
+            response1 = await communicator.receive_json_from(timeout=5)
+            # Then
+            assert response1["type"] == "session-id"
+            assert response1["data"] == str(chat_with_files.id)
 
-        # Then
-        assert response1["type"] == "session-id"
-        assert response1["data"] == str(chat_with_files.id)
+            # Close
+            await communicator.disconnect()
 
-        # Close
-        await communicator.disconnect()
+            # Then
+            expected_request = RedboxQuery(
+                question="Third question, with selected files?",
+                s3_keys=selected_file_keys,
+                user_uuid=alice.id,
+                chat_history=[
+                    {"role": "user", "text": "A question?"},
+                    {"role": "ai", "text": "An answer."},
+                    {"role": "user", "text": "A second question?"},
+                    {"role": "ai", "text": "A second answer."},
+                ],
+                ai_settings=ai_settings,
+                permitted_s3_keys=permitted_file_keys,
+                previous_s3_keys=previous_file_keys,
+                db_location=None,
+            )
 
-        # Then
-        expected_request = RedboxQuery(
-            question="Third question, with selected files?",
-            s3_keys=selected_file_keys,
-            user_uuid=alice.id,
-            chat_history=[
-                {"role": "user", "text": "A question?"},
-                {"role": "ai", "text": "An answer."},
-                {"role": "user", "text": "A second question?"},
-                {"role": "ai", "text": "A second answer."},
-            ],
-            ai_settings=ai_settings,
-            permitted_s3_keys=permitted_file_keys,
-        )
-        redbox_state = mock_run.call_args.args[0]  # pulls out the args that redbox.run was called with
+            mock_run.return_value = expected_request
+            redbox_state = mock_run.call_args.args[0]  # pulls out the args that redbox.run was called with
+            assert redbox_state.request.question == expected_request.question, "Question mismatch"
+            assert redbox_state.request.user_uuid == expected_request.user_uuid, "UUID mismatch"
+            assert redbox_state.request.chat_history == expected_request.chat_history, "Chat history mismatch"
+            assert redbox_state.request.ai_settings == expected_request.ai_settings, "AI settings mismatch"
 
-        assert (
-            redbox_state.request == expected_request
-        ), f"Expected {expected_request}. Received: {redbox_state.request}"
+            assert set(redbox_state.request.s3_keys) == set(expected_request.s3_keys), "s3_keys content mismatch"
+            assert set(redbox_state.request.permitted_s3_keys) == set(expected_request.permitted_s3_keys), (
+                "permitted_s3_keys content mismatch"
+            )
+
+            assert set(redbox_state.request.previous_s3_keys) == set(expected_request.previous_s3_keys), (
+                "previous_s3_keys mismatch"
+            )
+            assert redbox_state.request.db_location == expected_request.db_location, "db_location mismatch"
 
 
 @database_sync_to_async
@@ -589,7 +649,7 @@ class CannedGraphLLM(BaseChatModel):
             yield response
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_connect() -> Connect:
     responses = [
         {
@@ -624,7 +684,7 @@ def mocked_connect() -> Connect:
     return CannedGraphLLM(responses=responses)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_connect_with_naughty_citation() -> CannedGraphLLM:
     responses = [
         {
@@ -638,14 +698,14 @@ def mocked_connect_with_naughty_citation() -> CannedGraphLLM:
     return CannedGraphLLM(responses=responses)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_breaking_connect() -> Connect:
     mocked_graph = MagicMock(name="mocked_graph")
     mocked_graph.astream_events.side_effect = CancelledError()
     return mocked_graph
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_connect_with_explicit_unhandled_error() -> CannedGraphLLM:
     responses = [
         {
@@ -663,7 +723,7 @@ def mocked_connect_with_explicit_unhandled_error() -> CannedGraphLLM:
     return CannedGraphLLM(responses=responses)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_connect_with_rate_limited_error() -> CannedGraphLLM:
     responses = [
         {
@@ -681,7 +741,7 @@ def mocked_connect_with_rate_limited_error() -> CannedGraphLLM:
     return CannedGraphLLM(responses=responses)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_connect_with_explicit_no_document_selected_error() -> CannedGraphLLM:
     responses = [
         {
@@ -694,7 +754,7 @@ def mocked_connect_with_explicit_no_document_selected_error() -> CannedGraphLLM:
     return CannedGraphLLM(responses=responses)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_connect_agentic_search(uploaded_file: File) -> Connect:
     responses = [
         {
@@ -738,7 +798,7 @@ def mocked_connect_agentic_search(uploaded_file: File) -> Connect:
     return CannedGraphLLM(responses=responses)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_connect_with_several_files(several_files: Sequence[File]) -> Connect:
     mocked_websocket = AsyncMock(spec=WebSocketClientProtocol, name="mocked_websocket")
     mocked_connect = MagicMock(spec=Connect, name="mocked_connect")
@@ -757,7 +817,7 @@ def mocked_connect_with_several_files(several_files: Sequence[File]) -> Connect:
     return mocked_connect
 
 
-@pytest.fixture()
+@pytest.fixture
 def mocked_connect_with_american_to_british_conversion() -> Connect:
     responses = [
         {
@@ -773,3 +833,25 @@ def mocked_connect_with_american_to_british_conversion() -> Connect:
 @database_sync_to_async
 def refresh_from_db(obj: Model) -> None:
     obj.refresh_from_db()
+
+
+@pytest.mark.asyncio
+async def test_connect_with_agents_cache(agents_list: list, alice: User, staff_user: User):
+    ChatConsumer.redbox = None
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
+
+        # First connection - should call get_all_agents
+        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        communicator.scope["user"] = alice
+        await communicator.connect()
+        assert mock_get.call_count == 1
+
+        # Second connection - should use cache
+        comm2 = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        comm2.scope["user"] = staff_user
+        await comm2.connect()
+        assert mock_get.call_count == 1  # Still 1, not 2!
+
+        await communicator.disconnect()
+        await comm2.disconnect()

@@ -1,4 +1,3 @@
-import os
 from asyncio import CancelledError
 from logging import getLogger
 from typing import Literal
@@ -8,6 +7,7 @@ from langchain_core.vectorstores import VectorStoreRetriever
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from redbox.chains.components import (
+    AISettings,
     get_all_chunks_retriever,
     get_embeddings,
     get_metadata_retriever,
@@ -15,14 +15,18 @@ from redbox.chains.components import (
     get_tabular_chunks_retriever,
 )
 from redbox.graph.nodes.tools import (
+    build_document_from_prompt_tool,
     build_govuk_search_tool,
     build_legislation_search_tool,
+    build_retrieve_document_full_text,
+    build_retrieve_knowledge_base,
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
+    execute_sql_query,
 )
-from redbox.graph.root import build_root_graph, get_agentic_search_graph, get_summarise_graph
-from redbox.models.chain import RedboxState
+from redbox.graph.root import build_new_route_graph, build_root_graph, get_agentic_search_graph, get_summarise_graph
+from redbox.models.chain import Agent, RedboxState
 from redbox.models.chat import ChatRoute
 from redbox.models.file import ChunkResolution
 from redbox.models.graph import (
@@ -45,6 +49,7 @@ logger = getLogger(__name__)
 class Redbox:
     def __init__(
         self,
+        agents: list[Agent] | None = None,
         all_chunks_retriever: VectorStoreRetriever | None = None,
         parameterised_retriever: VectorStoreRetriever | None = None,
         tabular_retriever: VectorStoreRetriever | None = None,
@@ -55,9 +60,8 @@ class Redbox:
     ):
         _env = env or get_settings()
 
-        # DB Loction and s3_keys from the previous request
-        self.previous_db_location: str | None = None
-        self.previous_s3_keys: list[str] | None = None
+        # agents
+        self.agents = agents or AISettings().worker_agents
 
         # Retrievers
 
@@ -76,18 +80,29 @@ class Redbox:
             embedding_field_name=_env.embedding_document_field_name,
             chunk_resolution=ChunkResolution.normal,
         )
+        retrieve_full_text = build_retrieve_document_full_text(
+            es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias, loop=True
+        )
+        retrieve_knowledge_base = build_retrieve_knowledge_base(
+            es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias, loop=True
+        )
+
         search_wikipedia = build_search_wikipedia_tool()
         search_govuk = build_govuk_search_tool()
+        execute_sql = execute_sql_query()
         web_search = build_web_search_tool()
         legislation_search = build_legislation_search_tool()
-
+        doc_from_prompt = build_document_from_prompt_tool(loop=True)
         self.tools = [search_documents, search_wikipedia, search_govuk, web_search, legislation_search]
 
         self.multi_agent_tools = {
             "Internal_Retrieval_Agent": [search_documents],
             "External_Retrieval_Agent": [search_wikipedia, search_govuk],
+            "Tabular_Agent": [execute_sql],
             "Web_Search_Agent": [web_search],
             "Legislation_Search_Agent": [legislation_search],
+            "Submission_Question_Answer_Agent": [retrieve_full_text, retrieve_knowledge_base, doc_from_prompt],
+            "Submission_Checker_Agent": [retrieve_full_text, retrieve_knowledge_base, doc_from_prompt],
         }
 
         self.graph = build_root_graph(
@@ -97,6 +112,7 @@ class Redbox:
             metadata_retriever=self.metadata_retriever,
             tools=self.tools,
             multi_agent_tools=self.multi_agent_tools,
+            agents=self.agents,
             debug=debug,
         )
 
@@ -121,8 +137,6 @@ class Redbox:
         logger.info("Request: %s", {k: request_dict[k] for k in request_dict.keys() - {"ai_settings"}})
         is_summary_multiagent_streamed = False
         is_evaluator_output_streamed = False
-
-        input = self.add_docs_and_db_to_input_state(input)
 
         @retry(
             stop=stop_after_attempt(3),
@@ -206,58 +220,14 @@ class Redbox:
             logger.error("Generic error in run - {str(e)}")
             raise
 
-        self.handle_db_file(final_state)
         return final_state
-
-    def handle_db_file(self, final_state: RedboxState):
-        """Manages database file lifecycle based on state changes.
-
-        Note:
-            - If final_state is None, all database references and S3 keys are cleared
-            - When database location changes, the previous database file is removed if it exists
-            - The method maintains previous_db_location and previous_s3_keys as instance variables"""
-        if final_state is None:
-            logger.warning("No final state")
-            self.remove_db_file_if_exists(self.previous_db_location)
-            self.previous_db_location = None
-            self.previous_s3_keys = None
-        else:
-            # Delete Previous DB File Location if it has changed and it exists in memory, update the new db location and previous documentation
-            new_db_loc, old_db_loc = final_state.request.db_location, self.previous_db_location
-            if (new_db_loc != old_db_loc) or not (new_db_loc):
-                self.remove_db_file_if_exists(old_db_loc)
-                self.previous_db_location = new_db_loc
-            self.previous_s3_keys = final_state.request.s3_keys
-
-    def add_docs_and_db_to_input_state(self, input: RedboxState):
-        """
-        Updates the input state with previous document references and database location for tabular questions.
-
-        Note:
-            - The method specifically targets questions that start with "@tabular"
-            - Previous S3 keys are only injected if they exist in the current instance
-            - Any exceptions during this process are logged but not propagated
-        """
-        old_input = input.model_copy(deep=True)  # Copy the model as is incase an error occurs while modifying it.
-        try:
-            # If the question is tabular, inject the previous docs and db_location into the request
-            # This will need to be updated if tabular goes into newroute
-            if input.request.question.startswith("@tabular"):
-                # Inject Previous s3 keys if they exist
-                if self.previous_s3_keys:
-                    input.request.previous_s3_keys = self.previous_s3_keys
-
-                # Inject previous db location
-                input.request.db_location = self.previous_db_location
-        except Exception as e:
-            logger.info(f"Exception logged while trying to access input state: \n\n{e}")
-            return old_input
-        return input
 
     def get_available_keywords(self) -> dict[ChatRoute, str]:
         return ROUTABLE_KEYWORDS
 
-    def draw(self, output_path=None, graph_to_draw: Literal["root", "agent", "chat_with_documents"] = "root"):
+    def draw(
+        self, output_path=None, graph_to_draw: Literal["root", "agent", "chat_with_documents", "new_route"] = "root"
+    ):
         from langchain_core.runnables.graph import MermaidDrawMethod
 
         if graph_to_draw == "root":
@@ -266,14 +236,14 @@ class Redbox:
             graph = get_agentic_search_graph(self.tools).get_graph()
         elif graph_to_draw == "summarise":
             graph = get_summarise_graph(self.all_chunks_retriever, self.parameterised_retriever).get_graph()
+        elif graph_to_draw == "new_route":
+            graph = build_new_route_graph(
+                all_chunks_retriever=self.all_chunks_retriever,
+                tabular_retriever=self.tabular_retriever,
+                multi_agent_tools=self.multi_agent_tools,
+                agents=self.agents,
+            ).get_graph()
         else:
             raise Exception("Invalid graph_to_draw")
 
         return graph.draw_mermaid_png(draw_method=MermaidDrawMethod.PYPPETEER, output_file_path=output_path)
-
-    def remove_db_file_if_exists(self, db_path: str):
-        try:
-            if db_path and os.path.exists(db_path):
-                os.remove(db_path)
-        except Exception as e:
-            logger.error(f"Error encountered when deleting the db file at {db_path}: {e}")

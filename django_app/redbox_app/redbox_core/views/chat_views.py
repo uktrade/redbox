@@ -6,7 +6,7 @@ from http import HTTPStatus
 from dataclasses_json import Undefined, dataclass_json
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -20,17 +20,13 @@ logger = logging.getLogger(__name__)
 
 class ChatsView(View):
     @method_decorator(login_required)
-    def get(self, request: HttpRequest, chat_id: uuid.UUID | None = None) -> HttpResponse:
-        context = chat_service.get_context(request, chat_id)
+    def get(self, request: HttpRequest, chat_id: uuid.UUID | None = None, slug: str | None = None) -> HttpResponse:
+        context = chat_service.get_context(request, chat_id, slug)
 
         if chat_id != context["chat_id"]:
             return redirect(reverse("chats"))
 
-        return render(
-            request,
-            template_name="chats.html",
-            context=context,
-        )
+        return chat_service.render_chats(request, context)
 
 
 class ChatsTitleView(View):
@@ -103,11 +99,15 @@ class DeleteChat(View):
 
 class RecentChats(View):
     @method_decorator(login_required)
-    def get(self, request: HttpRequest, active_chat_id: uuid.UUID | None = None) -> HttpResponse:
-        return chat_service.render_recent_chats(request, active_chat_id)
+    def get(
+        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, slug: str | None = None
+    ) -> HttpResponse:
+        return chat_service.render_recent_chats(request, active_chat_id, slug)
 
 
 class ChatWindow(View):
     @method_decorator(login_required)
-    def get(self, request: HttpRequest, active_chat_id: uuid.UUID) -> HttpResponse:
-        return chat_service.render_chat_window(request, active_chat_id)
+    def get(
+        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, slug: str | None = None
+    ) -> HttpResponse:
+        return chat_service.render_chat_window(request, active_chat_id, slug)

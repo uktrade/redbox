@@ -1,15 +1,16 @@
 {% from "rbds/components/editable-text.html" import editable_text %}
+{% from "macros/icon.html" import rbds_icon %}
 
-<div class="chat-title">
-    <div class="chat-title__heading-container">
+<div class="rbds-chat-title">
+    <div class="rbds-chat-title__heading-container">
         {% if current_chat %}
             {% set chat_edit_url = url('chat-titles', current_chat.id) %}
             {% call editable_text(chat_edit_url, 'chat-title-change', 'chat-title', current_chat.id) %}
-                <div class="chat-title__heading-container-inner display">
+                <div class="rbds-chat-title__heading-container-inner display">
                     {% if current_chat.name %}
-                        <h2 class="chat-title__heading govuk-heading-m title-text">{{ current_chat.name }}</h2>
-                        <button id="chat-title-edit-button" class="edit-trigger edit-button dark" type="button">
-                            {% include 'rbds/icons/edit.html' %}
+                        <h2 class="rbds-chat-title__heading govuk-heading-m title-text">{{ current_chat.name }}</h2>
+                        <button id="chat-title-edit-button" class="edit-trigger rbds-edit-button dark" type="button">
+                            {{ rbds_icon(icon_name="edit.html") }}
                             <span class="govuk-visually-hidden">Chat Title</span>
                         </button>
                     {% endif %}
@@ -17,7 +18,7 @@
                 <div class="chat-title__form-container govuk-!-display-none edit-input-wrapper">
                     <label for="chat-title" class="govuk-visually-hidden">Chat Title</label>
                     <input type="text"
-                        class="chat-title__input edit-input"
+                        class="rbds-chat-title__input edit-input"
                         id="chat-title"
                         maxlength="{{ chat_title_length }}"
                         value="{{ current_chat.name or '' }}"
@@ -25,8 +26,8 @@
                 </div>
             {% endcall %}
         {% else %}
-            <div class="chat-title__heading-container-inner">
-                <h2 class="chat-title__heading govuk-visually-hidden" hidden>Current Chat</h2>
+            <div class="rbds-chat-title__heading-container-inner">
+                <h2 class="rbds-chat-title__heading govuk-visually-hidden" hidden>Current Chat</h2>
             </div>
         {% endif %}
     </div>
