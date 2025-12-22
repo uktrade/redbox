@@ -136,7 +136,7 @@ class TestRunToolsParallel:
 
         response = run_tools_parallel(ai_msg=ai_msg, tools=[search_wikipedia], state=fake_state)
 
-        assert response == []
+        assert response is None
 
     def test_tool_found(self, mocker: MockerFixture):
         # mock tool
@@ -155,7 +155,6 @@ class TestRunToolsParallel:
         )
 
         response = run_tools_parallel(ai_msg=ai_msg, tools=[search_wikipedia], state=fake_state)
-
         assert isinstance(response, list)
         assert len(response[0].content) > 0
 
@@ -171,7 +170,7 @@ class TestRunToolsParallel:
 
         response = run_tools_parallel(ai_msg=ai_msg, tools=[search_wikipedia], state=fake_state)
 
-        assert response == []
+        assert response is None
 
     @pytest.mark.parametrize("side_effect", [(TimeoutError("Thread time out")), (Exception("Thread error"))])
     def test_threadpool_time_out(self, side_effect, mocker: MockerFixture):

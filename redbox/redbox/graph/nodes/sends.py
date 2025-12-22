@@ -1,6 +1,7 @@
 from uuid import uuid4
 import logging
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
+import threading
 from typing import Callable
 
 from langchain_core.messages import AIMessage
@@ -65,7 +66,36 @@ def build_tool_send(target: str) -> Callable[[RedboxState], list[Send]]:
     return _tool_send
 
 
-def run_tools_parallel(ai_msg, tools, state, timeout=60, per_tool_timeout=30):
+def run_with_timeout(func, args, timeout):
+    """Run a a function with a timeout and return its result or None if it times out or fails.
+    This function can be used to set a timeout for tool execution"""
+    result = [None]
+    exception = [None]
+    completed = [False]
+
+    def target():
+        try:
+            result[0] = func(args)
+        except Exception as e:
+            exception[0] = e
+        finally:
+            completed[0] = True
+
+    thread = threading.Thread(target=target)
+    thread.daemon = True  # The thread will exit when the main program exits
+    thread.start()
+    thread.join(timeout)  # applying timeout constraint
+
+    if not completed[0]:  # if it times out
+        log.warning(f"Tool execution timed out after {timeout} seconds")
+        return None
+    if exception[0]:  # if the tool fails
+        log.warning(f"Tool execution failed: {str(exception[0])}")
+        return None
+    return result[0]
+
+
+def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, per_tool_timeout=30, result_timeout=30):
     run_id = str(uuid4())[:8]
     log_stub = f"[run_tools_parallel run_id='{run_id}']"
     log.warning(f"{log_stub} Starting tool execution.")
@@ -102,18 +132,19 @@ def run_tools_parallel(ai_msg, tools, state, timeout=60, per_tool_timeout=30):
                 args = tool_call.get("args", {})
                 args["state"] = state
 
-                future = executor.submit(selected_tool.invoke, args)
+                future = executor.submit(run_with_timeout, selected_tool.invoke, args, per_tool_timeout)
                 futures[future] = {"name": tool_name}
 
             # Collect responses as tools complete
             responses = []
-            for future in as_completed(futures.keys(), timeout=timeout):
+            for future in as_completed(futures.keys(), timeout=parallel_timeout):
                 future_tool_name = futures[future]["name"]
 
                 try:
-                    response = future.result(timeout=per_tool_timeout)
+                    response = future.result(timeout=result_timeout)
                     log.warning(f"{log_stub} This is what I got from tool '{future_tool_name}': {response}")
-                    responses.append(AIMessage(response))
+                    if response:  # if response is not None, meaning tool did not fail or timeout
+                        responses.append(AIMessage(response))
 
                     raw_res = response
                     if isinstance(raw_res, tuple):
@@ -125,18 +156,26 @@ def run_tools_parallel(ai_msg, tools, state, timeout=60, per_tool_timeout=30):
                         )
 
                 except TimeoutError:
-                    log.warning(f"{log_stub} '{future_tool_name}' Tool timed out after {per_tool_timeout} seconds.")
+                    log.warning(
+                        f"{log_stub} '{future_tool_name}' Results retrieval from tool timed out after {result_timeout} seconds."
+                    )
 
                 except Exception as e:
                     log.warning(f"{log_stub} '{future_tool_name}' Tool invocation error: {e}")
 
-            log.warning(
-                f"{log_stub} Completed. Successful parallel tool responses: {len(responses)}. Responses: {responses}"
-            )
-            return responses
+            if responses:
+                log.warning(
+                    f"{log_stub} Completed. Successful parallel tool responses: {len(responses)}. Responses: {responses}"
+                )
+                return responses
+            else:
+                log.warning(
+                    f"{log_stub} Every tool execution has failed or timed out after {per_tool_timeout} seconds."
+                )
+                return None
 
     except TimeoutError:
-        log.warning(f"{log_stub} Parallel tool execution timed out after {timeout} seconds.")
+        log.warning(f"{log_stub} Global parallel tool execution timed out after {parallel_timeout} seconds.")
         return None
     except Exception as e:
         log.warning(f"{log_stub} Unexpected error in parallel tool execution: {str(e)}", exc_info=True)
