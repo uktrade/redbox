@@ -289,7 +289,10 @@ export class ChatMessage extends HTMLElement {
           routeText.textContent = sanitiseText(response.data);
           route.removeAttribute("hidden");
         }
+      } else if (response.type === "activity") {
+        this.addActivity(response.data);
       } else if (response.type === "end") {
+        this.removeActivity();
         // Assign the new message its ID straight away
         const chatMessage = this.querySelector('.govuk-inset-text');
         if (chatMessage) {chatMessage.id = `chat-message-${sanitiseId(response.data.message_id)}`}
@@ -346,6 +349,39 @@ export class ChatMessage extends HTMLElement {
       }
     };
   };
+
+
+   /**
+   * Displays response activity below the message
+   * @param {string} message
+   */
+  addActivity = (message) => {
+    this.activityElement.textContent = message;
+  };
+
+
+   /**
+   * Removes the activity event element
+   */
+  removeActivity = () => {
+    this.activityElement.remove();
+  };
+
+
+   /**
+   * Returns the activity element used for response feedback
+   * @returns {HTMLDivElement} Activity div element
+   */
+  get activityElement() {
+    let activityElement = /** @type {HTMLDivElement} */ (this.querySelector(".rbds-activity-event"));
+    if (!activityElement) {
+      activityElement = document.createElement("div");
+      activityElement.classList.add("rbds-activity-event", "govuk-hint", `rbds-text-xs`);
+      this.appendChild(activityElement);
+    }
+    return activityElement;
+  }
+
 }
 
 customElements.define("rbds-chat-message", ChatMessage);
