@@ -13,7 +13,7 @@ from redbox.graph.nodes.sends import (
     build_tool_send,
     run_tools_parallel,
 )
-from redbox.graph.nodes.tools import build_search_wikipedia_tool
+from redbox.graph.nodes.tools import build_search_wikipedia_tool, build_govuk_search_tool
 from redbox.models.chain import DocumentState, RedboxQuery, RedboxState
 from tests.conftest import fake_state
 
@@ -180,9 +180,12 @@ class TestRunToolsParallel:
         search_wikipedia = build_search_wikipedia_tool()
         ai_msg = AIMessage(
             content="I am calling a tool",
-            tool_calls=[{"name": "_search_wikipedia", "args": {"query": "fake query"}, "id": "1"}],
+            tool_calls=[{"name": "_search_wikipedia", "args": {"query": "fake query"}, "id": "1"},
+                        {"name": "_search_gov", "args": {"query": "another fake query"}, "id": "2"}],
         )
 
-        response = run_tools_parallel(ai_msg=ai_msg, tools=[search_wikipedia], state=fake_state)
+        search_gov = build_govuk_search_tool()
+
+        response = run_tools_parallel(ai_msg=ai_msg, tools=[search_wikipedia, search_gov], state=fake_state)
 
         assert response is None
