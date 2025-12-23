@@ -1627,22 +1627,23 @@ ipware = ["django-ipware"]
 
 [[package]]
 name = "django-staff-sso-client"
-version = "4.4.1"
+version = "5.1.0"
 description = "Reusable Django app to facilitate gov.uk Staff Single Sign On"
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "django_staff_sso_client-4.4.1-py3-none-any.whl", hash = "sha256:9950087cc12314fa0191884bc82a1b804a58506d8a9e237d4751dc6f4ada95c5"},
-    {file = "django_staff_sso_client-4.4.1.tar.gz", hash = "sha256:3367cde3b7e7cfc707c115b4a392c63a7f8acb95dbc3e8f7af7e44416582d56e"},
+    {file = "django_staff_sso_client-5.1.0-py3-none-any.whl", hash = "sha256:631542117c472d8056a1d3236ff155be32ffa37d0485c6c0618b9d7882cae0f2"},
+    {file = "django_staff_sso_client-5.1.0.tar.gz", hash = "sha256:6f3c3cfcac3f701ab89213e97774f5e1fadd0a9fe83a49ff6aba91fc29b5712b"},
 ]
 
 [package.dependencies]
 Django = ">=4.2.10,<6.0"
+django-log-formatter-asim = ">=1.1,<2.0"
 requests_oauthlib = "*"
 
 [package.extras]
-test = ["build", "codecov", "flake8 (==4.0.1)", "pytest (==7.1.1)", "pytest-cov", "pytest-django", "raven", "requests-mock", "requests_mock", "setuptools", "twine", "wheel"]
+test = ["build", "codecov", "flake8 (==5.0.4)", "pytest (==7.4.4)", "pytest-cov", "pytest-django", "raven", "requests-mock", "requests_mock", "setuptools", "twine", "wheel"]
 
 [[package]]
 name = "djangorestframework"
