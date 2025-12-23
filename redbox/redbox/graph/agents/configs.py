@@ -34,7 +34,7 @@ class PromptConfig(BaseModel):
     prompt_vars: PromptVariable | None = Field(description="variables that are used in the prompt", default=None)
 
 
-class PromptConfigs(BaseModel):
+class PromptConfigs:
     """
     This class is for storing prompt configs for all the agents.
     """
@@ -102,16 +102,16 @@ class AgentConfig(BaseModel):
     llm_backend: ChatLLMBackend | None = Field(
         description="The LLM backend model used by the agent. Use None for default model", default=None
     )
-    parser: BaseCumulativeTransformOutputParser
+    parser: BaseCumulativeTransformOutputParser | None = Field(description="Parser for structured output", default=None)
 
 
-class AgentConfigs(BaseModel):
+class AgentConfigs:
     planner_agent = AgentConfig(
         name="Planner_Agent",
         prompt=PromptConfigs.planner_agent,
         tools=[],
         llm_backend=ChatLLMBackend(name="sonnet-4", provider="bedrock"),
-        parser=ClaudeParser,
+        parser=ClaudeParser(),
     )
 
     internal_retrieval_agent = AgentConfig(
@@ -119,7 +119,7 @@ class AgentConfigs(BaseModel):
         prompt=PromptConfigs.internal_retrieval_agent,
         tools=[],
         llm_backend=ChatLLMBackend(name="sonnet-4", provider="bedrock"),
-        parser=ClaudeParser,
+        parser=ClaudeParser(),
     )
 
     web_search_agent = AgentConfig(
@@ -127,7 +127,7 @@ class AgentConfigs(BaseModel):
         prompt=PromptConfigs.internal_retrieval_agent,
         tools=[],
         llm_backend=ChatLLMBackend(name="sonnet-4", provider="bedrock"),
-        parser=ClaudeParser,
+        parser=ClaudeParser(),
     )
 
     summarisation_agent = AgentConfig(
@@ -135,5 +135,5 @@ class AgentConfigs(BaseModel):
         prompt=PromptConfigs.summarisation_agent,
         tools=[],
         llm_backend=ChatLLMBackend(name="sonnet-4", provider="bedrock"),
-        parser=ClaudeParser,
+        parser=ClaudeParser(),
     )
