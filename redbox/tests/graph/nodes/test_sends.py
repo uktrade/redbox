@@ -191,3 +191,42 @@ class TestRunToolsParallel:
         response = run_tools_parallel(ai_msg=ai_msg, tools=[search_wikipedia, search_gov], state=fake_state)
 
         assert response is None
+
+    @pytest.mark.parametrize("side_effect", [(TimeoutError("Thread time out"))])
+    def test_not_all_time_out(self, side_effect, mocker: MockerFixture):
+        """
+        Test where one tool timeout and the other doesn't.
+        Redbox should not return an error. It should return the response from the tool that did not timeout.
+        """
+
+        mock_tool = mocker.patch("langchain_community.utilities.WikipediaAPIWrapper.load")
+        mock_tool.return_value = [
+            Document(
+                metadata={"title": "fake title", "summary": "fake summary", "source": "https://fake.com"},
+                page_content="Fake content",
+            )
+        ]
+
+        search_wikipedia_complete = build_search_wikipedia_tool()
+
+        mock_tool = mocker.patch("requests.get")
+        mock_tool.side_effect = TimeoutError("Tool time out")
+
+        search_govuk_timeout = build_govuk_search_tool()
+
+        ai_msg = AIMessage(
+            content="I am calling a tool",
+            tool_calls=[
+                {"name": "_search_wikipedia", "args": {"query": "fake query"}, "id": "1"},
+                {"name": "_search_gov", "args": {"query": "another fake query"}, "id": "1"},
+            ],
+        )
+
+        responses = run_tools_parallel(
+            ai_msg=ai_msg, tools=[search_wikipedia_complete, search_govuk_timeout], state=fake_state
+        )
+        print("my-responses")
+        print(responses)
+        assert isinstance(responses, list)
+        assert len(responses[0].content) > 0
+        assert len(responses) == 1
