@@ -18,6 +18,10 @@ class Environment(StrEnum):
         return self is Environment.LOCAL
 
     @property
+    def is_prod(self) -> bool:
+        return self is Environment.PROD
+
+    @property
     def uses_minio(self) -> bool:
         return self.is_test
 

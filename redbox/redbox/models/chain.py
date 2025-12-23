@@ -32,6 +32,7 @@ class Agent(BaseModel):
     agents_max_tokens: int = Field(description="Maximum tokens limit for the agent", default=5000)
     prompt: str = Field(description="System prompt for the agent", default="")
     default_agent: bool = Field(description="Is this the default agent", default=True)
+    llm_backend: ChatLLMBackend | None = Field(description="backend model for this agent", default=None)
 
 
 class AISettings(BaseModel):
@@ -138,6 +139,13 @@ class AISettings(BaseModel):
             agents_max_tokens=10000,
             default_agent=False,
         ),
+        Agent(
+            name="Submission_Question_Answer_Agent",
+            description=prompts.SUBMISSION_QA_AGENT_DESC,
+            prompt=prompts.SUBMISSION_QA_PROMPT,
+            agents_max_tokens=10000,
+            default_agent=False,
+        ),
     ]
 
     @property
@@ -201,10 +209,6 @@ class Source(BaseModel):
 
 
 class Citation(BaseModel):
-    text_in_answer: str = Field(
-        description="Part of text from `answer` that references sources and matches exactly with the `answer`, without rephrasing or altering the meaning. Partial matches are acceptable as long as they are exact excerpts from the `answer`",
-        default="",
-    )
     sources: list[Source] = Field(default_factory=list)
 
 

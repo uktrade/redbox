@@ -4,7 +4,7 @@ import re
 from asyncio import CancelledError
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
-from typing import Any, ClassVar
+from typing import Any
 from uuid import UUID
 
 import uwotm8.convert as uwm8
@@ -14,11 +14,13 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.db.models import Q
 from django.forms.models import model_to_dict
 from django.utils import timezone
 from langchain_core.documents import Document
 from pydantic import ValidationError
+from waffle import flag_is_active
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
@@ -36,7 +38,7 @@ from redbox.models.chain import (
 from redbox.models.chain import Citation as AICitation
 from redbox.models.graph import RedboxActivityEvent
 from redbox.models.settings import get_settings
-from redbox_app.redbox_core import error_messages
+from redbox_app.redbox_core import error_messages, flags
 from redbox_app.redbox_core.models import (
     ActivityEvent,
     AgentPlan,
@@ -54,11 +56,11 @@ from redbox_app.redbox_core.models import (
     Skill,
     UserTeamMembership,
 )
+from redbox_app.redbox_core.models import Agent as AgentModel
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
 
 # Temporary condition before next uwotm8 release: monkey patch CONVERSION_IGNORE_LIST
 uwm8.CONVERSION_IGNORE_LIST = uwm8.CONVERSION_IGNORE_LIST | {"filters": "philtres", "connection": "connexion"}
-
 User = get_user_model()
 OptFileSeq = Sequence[File] | None
 logger = logging.getLogger(__name__)
@@ -80,21 +82,28 @@ def escape_curly_brackets(text: str):
     return text.replace("{", "{{").replace("}", "}}")
 
 
-@sync_to_async
+@database_sync_to_async
 def get_latest_complete_file(ref: str) -> File:
-    return File.objects.filter(original_file=ref, status=File.Status.complete).order_by("-created_at").first()
+    return File.objects.filter(original_file__endswith=ref, status=File.Status.complete).order_by("-created_at").first()
+
+
+@database_sync_to_async
+def get_all_agents():
+    return tuple(AgentModel.objects.select_related("llm_backend").all())
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
-    full_reply: ClassVar = []
-    converted_reply: ClassVar = []
-    citations: ClassVar[list[tuple[File, AICitation]]] = []
-    activities: ClassVar[list[RedboxActivityEvent]] = []
     route = None
     metadata: RequestMetadata = RequestMetadata()
-
-    redbox = Redbox(env=get_settings(), debug=True)
+    env = get_settings()
+    debug = not env.is_prod
+    redbox = None
     chat_message = None  # incrementally updating the chat stream
+
+    async def get_file_cached(self, ref):
+        if ref not in self._file_cache:
+            self._file_cache[ref] = await get_latest_complete_file(ref)
+        return self._file_cache[ref]
 
     async def _init_session(self, data, user, user_message_text, chat_backend, temperature):
         """Create or update a chat session."""
@@ -126,12 +135,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             previous_selected_files = []
         return session, previous_selected_files
 
-    async def receive(self, text_data=None, bytes_data=None):  # noqa: PLR0915
+    async def receive(self, text_data=None, bytes_data=None):  # noqa: C901, PLR0915
         """Receive & respond to message from browser websocket."""
+        self._file_cache = {}
         self.full_reply = []
         self.converted_reply = []
         self.citations = []
-        self.external_citations = []
         self.route = None
         self.activities = []
         self.metadata = RequestMetadata()
@@ -144,10 +153,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
         selected_file_uuids: Sequence[UUID] = [UUID(u) for u in data.get("selectedFiles", [])]
         activities: Sequence[str] = data.get("activities", [])
         selected_skill_id: str | None = data.get("selectedSkill")
-        user: User = self.scope.get("user")
+        user: User = self.scope["user"]
 
         user_ai_settings = await AISettingsModel.objects.aget(label=user.ai_settings_id if user else "Claude 3.7")
-        user_team_ids = UserTeamMembership.objects.filter(user=user).values_list("team_id", flat=True)
+        user_team_ids = await database_sync_to_async(
+            lambda: list(UserTeamMembership.objects.filter(user=user).values_list("team_id", flat=True))
+        )()
 
         chat_backend = await ChatLLMBackend.objects.aget(id=data.get("llm", user_ai_settings.chat_backend_id))
         temperature = data.get("temperature", user_ai_settings.temperature)
@@ -157,33 +168,49 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
         # save user message
-        permitted_files = (
-            File.objects.filter(
-                Q(user=user, status=File.Status.complete)
-                | Q(
-                    team_associations__team_id__in=user_team_ids,
-                    team_associations__visibility=FileTeamMembership.Visibility.TEAM,
-                    status=File.Status.complete,
-                )
-            )
-            .distinct()
-            .order_by("original_file_name")
-        )
+        cache_key = f"user:{user.id}:permitted_files"
 
-        selected_files = permitted_files.filter(id__in=selected_file_uuids)
+        permitted_files = await cache.aget(cache_key)
+        if permitted_files is None:
+            qs = (
+                File.objects.filter(
+                    Q(user=user, status=File.Status.complete)
+                    | Q(
+                        team_associations__team_id__in=user_team_ids,
+                        team_associations__visibility=FileTeamMembership.Visibility.TEAM,
+                        status=File.Status.complete,
+                    )
+                )
+                .distinct()
+                .only("id", "original_file", "original_file_name", "status")
+            )
+            permitted_files = await database_sync_to_async(list)(qs)
+            await cache.aset(cache_key, permitted_files, 30)
+
+        selected_files = [f for f in permitted_files if f.id in selected_file_uuids]
+
+        if not session.name and selected_files:
+            first_file = selected_files[0]
+            session_name = await database_sync_to_async(
+                lambda fid: File.objects.filter(id=fid).values_list("original_file_name", flat=True).first()
+            )(first_file.id)
+            session.name = (session_name or "")[: settings.CHAT_TITLE_LENGTH]
+            await session.asave()
 
         skill_obj = None
         selected_agent_names = []
         knowledge_files = []
         if selected_skill_id:
             try:
-                skill_obj = await sync_to_async(Skill.objects.get)(id=selected_skill_id)
+                skill_obj = await database_sync_to_async(Skill.objects.get)(id=selected_skill_id)
                 session.skill = skill_obj
                 await session.asave()
-                selected_agent_names = await sync_to_async(
-                    lambda: list(AgentSkill.objects.filter(skill=skill_obj).values_list("agent__name", flat=True))
-                )()
-                knowledge_files = skill_obj.get_files(FileSkill.FileType.ADMIN)
+                selected_agent_names = await database_sync_to_async(
+                    lambda s: list(AgentSkill.objects.filter(skill=s).values_list("agent__name", flat=True))
+                )(skill_obj)
+                knowledge_files = await database_sync_to_async(lambda s: list(s.get_files(FileSkill.FileType.ADMIN)))(
+                    skill_obj
+                )
             except Skill.DoesNotExist:
                 logger.warning("Selected skill '%s' not found", selected_skill_id)
 
@@ -242,7 +269,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             any(n in message_history[-plan_message_size].text for n in plan_prefix)
         ):
 
-            @sync_to_async
+            @database_sync_to_async
             def get_agent_plan(session: Chat):
                 return (
                     AgentPlan.objects.filter(chat__id=session.id)
@@ -272,6 +299,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     logger.exception("Error from converting plan.", exc_info=e)
         return None, message_history[-2].text, ""  # message_history[-2].text extracts the current user query
 
+    @database_sync_to_async
+    def _files_to_s3_keys(self, files: Sequence[File]) -> list[str]:
+        if not files:
+            return []
+        ids = [f.id for f in files]
+        return list(File.objects.filter(id__in=ids).values_list("original_file", flat=True))
+
     async def llm_conversation(
         self,
         selected_files: Sequence[File],
@@ -285,7 +319,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
     ) -> None:
         """Initiate & close websocket conversation with the core-api message endpoint."""
         await self.send_to_client("session-id", session.id)
-
         session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
         message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
         question = message_history[-2].text
@@ -295,6 +328,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         agent_plans, question, user_feedback = await self._load_agent_plan(session, message_history)
 
         ai_settings = await self.get_ai_settings(session)
+
         if selected_agent_names:
             ai_settings = ai_settings.model_copy(
                 update={
@@ -303,11 +337,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     ]
                 }
             )
-
         state = RedboxState(
             request=RedboxQuery(
                 question=question,
-                s3_keys=[f.unique_name for f in selected_files],
+                s3_keys=await self._files_to_s3_keys(selected_files),
                 user_uuid=user.id,
                 chat_history=[
                     ChainChatMessage(role=m.role, text=escape_curly_brackets(m.text))
@@ -315,11 +348,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     if m.text
                 ],
                 ai_settings=ai_settings,
-                permitted_s3_keys=[f.unique_name async for f in permitted_files],
-                previous_s3_keys=[f.unique_name for f in previous_selected_files],
-                knowledge_base_s3_keys=[f.unique_name for f in knowledge_files]
-                if type(knowledge_files) is list
-                else [f.unique_name async for f in knowledge_files],
+                permitted_s3_keys=await self._files_to_s3_keys(permitted_files),
+                previous_s3_keys=await self._files_to_s3_keys(previous_selected_files),
+                knowledge_base_s3_keys=await self._files_to_s3_keys(knowledge_files) if knowledge_files else [],
             ),
             user_feedback=user_feedback,
             agent_plans=agent_plans,
@@ -383,8 +414,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             chat_message.selected_files.set(selected_files)
 
         # Save user activities
-        for message in activities or []:
-            ActivityEvent.objects.create(chat_message=chat_message, message=message)
+        ActivityEvent.objects.bulk_create(
+            [ActivityEvent(chat_message=chat_message, message=m) for m in activities or []]
+        )
 
         chat_message.log()
         return chat_message
@@ -401,67 +433,81 @@ class ChatConsumer(AsyncWebsocketConsumer):
         return chat_message
 
     @database_sync_to_async
-    def update_ai_message(self) -> None:
+    def update_ai_message(self) -> None:  # noqa: C901
         if not self.chat_message:
             logger.error("No chat message to update")
             return
 
-        # convert text to British English
-        converted_text = "".join(self.converted_reply)
-        logger.debug("Saving converted text: %s", converted_text[:50])
-        self.chat_message.text = converted_text
+        self.chat_message.text = "".join(self.converted_reply)
         self.chat_message.route = self.route
         self.chat_message.save()
+
         # Important - clears existing citations and related objects to avoid duplicates
         Citation.objects.filter(chat_message=self.chat_message).delete()
         ChatMessageTokenUse.objects.filter(chat_message=self.chat_message).delete()
         ActivityEvent.objects.filter(chat_message=self.chat_message).delete()
 
-        # Save citations
-        for file, ai_citation in self.citations:
-            for citation_source in ai_citation.sources:
-                if file:
-                    file.last_referenced = timezone.now()
-                    file.save()
-                    Citation.objects.create(
-                        chat_message=self.chat_message,
-                        text_in_answer=ai_citation.text_in_answer,
-                        file=file,
-                        text=citation_source.highlighted_text_in_source,
-                        page_numbers=citation_source.page_numbers,
-                        source=Citation.Origin.USER_UPLOADED_DOCUMENT,
-                        citation_name=citation_source.ref_id,
-                    )
-                else:
-                    Citation.objects.create(
-                        chat_message=self.chat_message,
-                        text_in_answer=ai_citation.text_in_answer,
-                        url=citation_source.source,
-                        text=citation_source.highlighted_text_in_source,
-                        page_numbers=citation_source.page_numbers,
-                        source=Citation.Origin.try_parse(citation_source.source_type),
-                        citation_name=citation_source.ref_id,
-                    )
+        referenced_file_pks = {file.pk for file, _ in self.citations if file}
+        if referenced_file_pks:
+            File.objects.filter(pk__in=referenced_file_pks).update(last_referenced=timezone.now())
 
-        if self.metadata:
-            for model, token_count in self.metadata.input_tokens.items():
-                ChatMessageTokenUse.objects.create(
+        # Save citations
+        citation_objects = []
+        token_objects = []
+        activity_objects = []
+
+        for file, ai_citation in self.citations:
+            for src in ai_citation.sources:
+                citation_objects.append(
+                    Citation(
+                        chat_message=self.chat_message,
+                        file=file,
+                        url=None if file else src.source,
+                        text=src.highlighted_text_in_source,
+                        page_numbers=src.page_numbers,
+                        source=Citation.Origin.USER_UPLOADED_DOCUMENT
+                        if file
+                        else Citation.Origin.try_parse(src.source_type),
+                        citation_name=src.ref_id,
+                    )
+                )
+
+        for model, token_count in self.metadata.input_tokens.items():
+            token_objects.append(
+                ChatMessageTokenUse(
                     chat_message=self.chat_message,
                     use_type=ChatMessageTokenUse.UseType.INPUT,
                     model_name=model,
                     token_count=token_count,
                 )
-            for model, token_count in self.metadata.output_tokens.items():
-                ChatMessageTokenUse.objects.create(
+            )
+
+        for model, token_count in self.metadata.output_tokens.items():
+            token_objects.append(
+                ChatMessageTokenUse(
                     chat_message=self.chat_message,
                     use_type=ChatMessageTokenUse.UseType.OUTPUT,
                     model_name=model,
                     token_count=token_count,
                 )
+            )
 
-        if self.activities:
-            for activity in self.activities:
-                ActivityEvent.objects.create(chat_message=self.chat_message, message=activity.message)
+        for activity in self.activities:
+            activity_objects.append(
+                ActivityEvent(
+                    chat_message=self.chat_message,
+                    message=activity.message,
+                )
+            )
+
+        if citation_objects:
+            Citation.objects.bulk_create(citation_objects)
+
+        if token_objects:
+            ChatMessageTokenUse.objects.bulk_create(token_objects)
+
+        if activity_objects:
+            ActivityEvent.objects.bulk_create(activity_objects)
 
         self.chat_message.log()
 
@@ -532,19 +578,27 @@ class ChatConsumer(AsyncWebsocketConsumer):
             update={"worker_agents": [agent for agent in AISettings().worker_agents if agent.default_agent]}
         )
 
+    async def connect(self):
+        if ChatConsumer.redbox is None:
+            agents = await get_all_agents()
+            ChatConsumer.redbox = Redbox(agents=agents, env=ChatConsumer.env, debug=ChatConsumer.debug)
+
+        self.user = self.scope["user"]
+        if self.user.is_authenticated:
+            self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
+        else:
+            self.uk_english = False
+        await self.accept()
+
     async def handle_text(self, response: str) -> str:
         """Handle text chunks and British spelling conversion before sending to client."""
         logger.debug("Received text chunk: %s", response)
-        try:
-            converted_chunk = (
-                uwm8.convert_american_to_british_spelling(response)
-                if self.scope.get("user").uk_or_us_english
-                else response
+        if getattr(self, "uk_english", False):
+            converted_chunk = await sync_to_async(uwm8.convert_american_to_british_spelling, thread_sensitive=False)(
+                response
             )
-            logger.debug("converted text chunk: %s -> %s", response[:50], converted_chunk[:50])
-        except Exception as e:
-            logger.exception("conversion failed on converting text chunk: %s", response[:50], exc_info=e)
-            converted_chunk = response  # use unconverted text
+        else:
+            converted_chunk = response
 
         # store both original and converted chunks
         self.full_reply.append(response)
@@ -552,23 +606,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         # send converted text to client
         await self.send_to_client("text", converted_chunk)
-        await self.update_ai_message()
         return converted_chunk
 
     async def handle_route(self, response: str) -> str:
         await self.send_to_client("route", response)
         self.route = response
-        await self.update_ai_message()
         return response
 
     async def handle_metadata(self, response: dict):
         self.metadata = metadata_reducer(self.metadata, RequestMetadata.model_validate(response))
-        await self.update_ai_message()
 
     async def handle_activity(self, response: dict):
-        await self.send_to_client("activity", response.message)
+        # Feature flag activity event display till design is confirmed
+        if await sync_to_async(flag_is_active)(self.user, flags.ENABLE_ACTIVITY_EVENTS):
+            await self.send_to_client("activity", response.message)
         self.activities.append(RedboxActivityEvent.model_validate(response))
-        await self.update_ai_message()
 
     async def handle_documents(self, response: list[Document]):
         """
@@ -582,12 +634,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
         for ref, sources in sources_by_resource_ref.items():
             try:
                 # Use the async database query function
-                file = await get_latest_complete_file(ref)
+                file = await self.get_file_cached(ref)
                 if file:
-                    payload = {"url": str(file.url), "file_name": file.file_name, "text_in_answer": ""}
+                    payload = {"url": str(file.url), "file_name": file.file_name}
                 else:
                     # If no file with Status.complete is found, handle it as None
-                    payload = {"url": ref, "file_name": None, "text_in_answer": ""}
+                    payload = {"url": ref, "file_name": None}
 
                 response_sources = [
                     Source(
@@ -601,7 +653,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 ]
             except File.DoesNotExist:
                 file = None
-                payload = {"url": ref, "file_name": None, "text_in_answer": ""}
+                payload = {"url": ref, "file_name": None}
                 response_sources = [
                     Source(
                         source=cited_chunk.metadata["uri"],
@@ -615,7 +667,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             await self.send_to_client("source", payload)
             self.citations.append((file, AICitation(text_in_answer="", sources=response_sources)))
-            await self.update_ai_message()
 
     async def handle_citations(self, citations: list[AICitation]):
         """
@@ -624,31 +675,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """
         for c in citations:
             for s in c.sources:
-                text_in_answer = c.text_in_answer or ""
-                text_in_answer = (
-                    uwm8.convert_american_to_british_spelling(text_in_answer)
-                    if self.scope.get("user").uk_or_us_english
-                    else text_in_answer
-                )
-
                 try:
                     # Use the async database query function
-                    file = await get_latest_complete_file(s.source)
+                    file = await self.get_file_cached(s.source)
                     if file:
                         payload = {
                             "url": str(file.url),
                             "file_name": file.file_name,
-                            "text_in_answer": text_in_answer,
                             "citation_name": s.ref_id,
                         }
                     else:
                         # if source is empty, attempt to filter by document name
-                        file = await get_latest_complete_file(s.document_name)
+                        file = await self.get_file_cached(s.document_name)
                         if file:
                             payload = {
                                 "url": str(file.url),
                                 "file_name": file.file_name,
-                                "text_in_answer": text_in_answer,
                                 "citation_name": s.ref_id,
                             }
                         else:
@@ -656,16 +698,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             payload = {
                                 "url": s.source,
                                 "file_name": s.source,
-                                "text_in_answer": text_in_answer,
                                 "citation_name": s.ref_id,
                             }
                 except File.DoesNotExist:
                     file = None
-                    text_in_answer = c.text_in_answer or ""
                     payload = {
                         "url": s.source,
                         "file_name": s.source,
-                        "text_in_answer": text_in_answer,
                         "citation_name": s.ref_id,
                     }
 
@@ -675,12 +714,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     (
                         file,
                         AICitation(
-                            text_in_answer=text_in_answer,
                             sources=[s],
                         ),
                     )
                 )
-            await self.update_ai_message()
-
-    async def handle_activity_event(self, event: RedboxActivityEvent):
-        logger.info("ACTIVITY: %s", event.message)
