@@ -131,6 +131,18 @@ files = [
 tests = ["mypy (>=1.14.0)", "pytest", "pytest-asyncio"]
 
 [[package]]
+name = "astdoc"
+version = "1.3.2"
+description = "A lightweight Python library for parsing AST and extracting docstring information. Automatically generate documentation from Python source code by analyzing abstract syntax trees and docstrings."
+optional = false
+python-versions = ">=3.10"
+groups = ["docs"]
+files = [
+    {file = "astdoc-1.3.2-py3-none-any.whl", hash = "sha256:68d4c19fbb9e78d9acde21806d9688ec403c9a5a87f09ec4695d8ad607df2056"},
+    {file = "astdoc-1.3.2.tar.gz", hash = "sha256:adcc6a5cecdbd23ea25b095bd3ebb183c2c73fae03499c3d8e0ae932d73e8bb2"},
+]
+
+[[package]]
 name = "asttokens"
 version = "3.0.0"
 description = "Annotate AST trees with source code positions"
@@ -1950,28 +1962,6 @@ files = [
 ]
 
 [[package]]
-name = "halo"
-version = "0.0.31"
-description = "Beautiful terminal spinners in Python"
-optional = false
-python-versions = ">=3.4"
-groups = ["docs"]
-files = [
-    {file = "halo-0.0.31-py2-none-any.whl", hash = "sha256:5350488fb7d2aa7c31a1344120cee67a872901ce8858f60da7946cef96c208ab"},
-    {file = "halo-0.0.31.tar.gz", hash = "sha256:7b67a3521ee91d53b7152d4ee3452811e1d2a6321975137762eb3d70063cc9d6"},
-]
-
-[package.dependencies]
-colorama = ">=0.3.9"
-log-symbols = ">=0.0.14"
-six = ">=1.12.0"
-spinners = ">=0.0.24"
-termcolor = ">=1.1.0"
-
-[package.extras]
-ipython = ["IPython (==5.7.0)", "ipywidgets (==7.1.0)"]
-
-[[package]]
 name = "htmlmin2"
 version = "0.1.13"
 description = "An HTML Minifier"
@@ -2319,21 +2309,6 @@ yaml = ["PyYAML (>=3.10)"]
 zookeeper = ["kazoo (>=2.8.0)"]
 
 [[package]]
-name = "log-symbols"
-version = "0.0.14"
-description = "Colored symbols for various log levels for Python"
-optional = false
-python-versions = "*"
-groups = ["docs"]
-files = [
-    {file = "log_symbols-0.0.14-py3-none-any.whl", hash = "sha256:4952106ff8b605ab7d5081dd2c7e6ca7374584eff7086f499c06edd1ce56dcca"},
-    {file = "log_symbols-0.0.14.tar.gz", hash = "sha256:cf0bbc6fe1a8e53f0d174a716bc625c4f87043cc21eb55dd8a740cfe22680556"},
-]
-
-[package.dependencies]
-colorama = ">=0.3.9"
-
-[[package]]
 name = "markdown"
 version = "3.8.2"
 description = "Python implementation of John Gruber's Markdown."
@@ -2522,21 +2497,21 @@ urllib3 = "*"
 
 [[package]]
 name = "mkapi"
-version = "2.1.0"
-description = "A plugin for MkDocs to generate API documentation"
+version = "4.5.0"
+description = "MkDocs plugin for automatic API documentation generation from Python docstrings"
 optional = false
 python-versions = ">=3.10"
 groups = ["docs"]
 files = [
-    {file = "mkapi-2.1.0-py3-none-any.whl", hash = "sha256:c7a65e715fa124f031496884fdc74d90c78cec23913500f3394ecd590e87a174"},
-    {file = "mkapi-2.1.0.tar.gz", hash = "sha256:59f40f8cf91eda440d48614c2f123ac053751d306de752d17c9403789a9784ef"},
+    {file = "mkapi-4.5.0-py3-none-any.whl", hash = "sha256:2747b69a4d9bd7d46312d604f9eeb51a740db5d345cd3d37cf03f38c9cfe98fd"},
+    {file = "mkapi-4.5.0.tar.gz", hash = "sha256:214c34c223d7e33ac966175365ef672d5133154784589416960333ce48a21265"},
 ]
 
 [package.dependencies]
-halo = "*"
+astdoc = ">=1.3.0"
 jinja2 = "*"
+mkdocs = ">=1.6.0"
 mkdocs-material = "*"
-tqdm = "*"
 
 [[package]]
 name = "mkdocs"
@@ -4600,18 +4575,6 @@ files = [
 ]
 
 [[package]]
-name = "spinners"
-version = "0.0.24"
-description = "Spinners for terminals"
-optional = false
-python-versions = "*"
-groups = ["docs"]
-files = [
-    {file = "spinners-0.0.24-py3-none-any.whl", hash = "sha256:2fa30d0b72c9650ad12bbe031c9943b8d441e41b4f5602b0ec977a19f3290e98"},
-    {file = "spinners-0.0.24.tar.gz", hash = "sha256:1eb6aeb4781d72ab42ed8a01dcf20f3002bf50740d7154d12fb8c9769bf9e27f"},
-]
-
-[[package]]
 name = "sqlparse"
 version = "0.5.3"
 description = "A non-validating SQL parser."
@@ -4678,21 +4641,6 @@ files = [
 widechars = ["wcwidth"]
 
 [[package]]
-name = "termcolor"
-version = "3.1.0"
-description = "ANSI color formatting for output in terminal"
-optional = false
-python-versions = ">=3.9"
-groups = ["docs"]
-files = [
-    {file = "termcolor-3.1.0-py3-none-any.whl", hash = "sha256:591dd26b5c2ce03b9e43f391264626557873ce1d379019786f99b0c2bee140aa"},
-    {file = "termcolor-3.1.0.tar.gz", hash = "sha256:6a6dd7fbee581909eeec6a756cff1d7f7c376063b14e4a298dc4980309e55970"},
-]
-
-[package.extras]
-tests = ["pytest", "pytest-cov"]
-
-[[package]]
 name = "text-unidecode"
 version = "1.3"
 description = "The most basic Text::Unidecode port"
@@ -4725,28 +4673,6 @@ files = [
     {file = "tornado-6.5.1-cp39-abi3-win_arm64.whl", hash = "sha256:02420a0eb7bf617257b9935e2b754d1b63897525d8a289c9d65690d580b4dcf7"},
     {file = "tornado-6.5.1.tar.gz", hash = "sha256:84ceece391e8eb9b2b95578db65e920d2a61070260594819589609ba9bc6308c"},
 ]
-
-[[package]]
-name = "tqdm"
-version = "4.67.1"
-description = "Fast, Extensible Progress Meter"
-optional = false
-python-versions = ">=3.7"
-groups = ["docs"]
-files = [
-    {file = "tqdm-4.67.1-py3-none-any.whl", hash = "sha256:26445eca388f82e72884e0d580d5464cd801a3ea01e63e5601bdff9ba6a48de2"},
-    {file = "tqdm-4.67.1.tar.gz", hash = "sha256:f8aef9c52c08c13a65f30ea34f4e5aac3fd1a34959879d7e59e63027286627f2"},
-]
-
-[package.dependencies]
-colorama = {version = "*", markers = "platform_system == \"Windows\""}
-
-[package.extras]
-dev = ["nbval", "pytest (>=6)", "pytest-asyncio (>=0.24)", "pytest-cov", "pytest-timeout"]
-discord = ["requests"]
-notebook = ["ipywidgets (>=6)"]
-slack = ["slack-sdk"]
-telegram = ["requests"]
 
 [[package]]
 name = "traitlets"
@@ -5333,4 +5259,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "70ecf4fa0bacc5bfe956cbaf61c0582b19693c39b2708dab24eae0e0696ab58a"
+content-hash = "dba1ef124d66c8ceb377eb62e7321404b5b318891ef1e759cff443e6aa0e7dc9"
