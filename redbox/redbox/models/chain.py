@@ -32,6 +32,7 @@ class Agent(BaseModel):
     agents_max_tokens: int = Field(description="Maximum tokens limit for the agent", default=5000)
     prompt: str = Field(description="System prompt for the agent", default="")
     default_agent: bool = Field(description="Is this the default agent", default=True)
+    llm_backend: ChatLLMBackend | None = Field(description="backend model for this agent", default=None)
 
 
 class AISettings(BaseModel):

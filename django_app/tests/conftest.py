@@ -16,6 +16,7 @@ from django.utils import timezone
 from freezegun import freeze_time
 
 from redbox_app.redbox_core.models import (
+    Agent,
     AISettings,
     Chat,
     ChatLLMBackend,
@@ -117,6 +118,23 @@ def alice(create_user):
 
 
 @pytest.fixture
+def agents_list() -> list[Agent]:
+    agents = []
+    for agent_name in [
+        "Internal_Retrieval_Agent",
+        "External_Retrieval_Agent",
+        "Summarisation_Agent",
+        "Tabular_Agent",
+        "Web_Search_Agent",
+        "Legislation_Search_Agent",
+        "Submission_Checker_Agent",
+        "Submission_Question_Answer_Agent",
+    ]:
+        agents += [Agent.objects.create(name=agent_name, description="Fake", agents_max_tokens=100)]
+    return agents
+
+
+@pytest.fixture
 def chat_with_alice(alice):
     return Chat.objects.create(name="a chat", user=alice)
 
@@ -191,10 +209,7 @@ def chat_message(chat: Chat, uploaded_file: File) -> ChatMessage:
 
 
 @pytest.fixture
-def chat_message_with_citation(chat: Chat, uploaded_file: File, skill: Skill) -> ChatMessage:
-    chat.skill = skill
-    chat.save()
-
+def chat_message_with_citation(chat: Chat, uploaded_file: File) -> ChatMessage:
     chat_message = ChatMessage.objects.create(
         chat=chat,
         text="An answer with citation.",
@@ -403,3 +418,16 @@ def internal_citation(chat_message, uploaded_file) -> Citation:
     internal_citation.save()
     chat_message.refresh_from_db()
     return internal_citation
+
+
+@pytest.fixture
+def default_agent() -> Agent:
+    agent = Agent(
+        name="Default Agent",
+        description="A default agent",
+        agents_max_tokens=5000,
+        prompt="This is an agent prompt",
+        llm_backend=ChatLLMBackend.objects.filter().first(),
+    )
+    agent.save()
+    return agent

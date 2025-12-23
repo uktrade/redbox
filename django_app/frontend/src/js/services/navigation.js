@@ -22,7 +22,7 @@ export function syncUrlWithContent() {
 
                 if (selectedUUID !== currentUUID) {
                     const skillSlug = getActiveSkillSlug();
-                    const skillPrefix = skillSlug ? `/skills/${skillSlug}` : "";
+                    const skillPrefix = skillSlug ? `/tools/${skillSlug}` : "";
                     const newUrl = selectedUUID ? `${skillPrefix}/chats/${selectedUUID}/` : `${skillPrefix}/chats/`;
 
                     if (currentUUID && !selectedUUID) {
