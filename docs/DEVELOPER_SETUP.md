@@ -8,6 +8,8 @@ To ensure everyone uses the same Python version, follow one of the two options b
 
 ### Option 1: Using asdf (recommended if you're using other languages too)
 
+Note: If you alreday have pyenv setup and would like to switch, ensure you've commented all pyenv initialization lines in your `~/.zshrc` or `~/.bashrc`. You may also need to restart your terminal and remove any existing pyenv venvs (Check `which python` and `poetry env info`. The base should point to the asdf-installed python).
+
 #### Step 1: Install asdf
 
 Installation instructions [here](https://asdf-vm.com/guide/getting-started.html)
@@ -411,10 +413,10 @@ If you're using this index in the frontend, you may want to upload the raw files
 We currently use [Google icons](https://fonts.google.com/icons). When adding new icons, ensure the following customizations are made:
 
 ```
-Weight: 200
-Grade: 200
+Weight: 300
+Grade: 0
 Optical Size: 24px
 Style:
  - Material Symbols (new)
- - Sharp
+ - Rounded
 ```

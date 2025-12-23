@@ -42,6 +42,7 @@ from redbox.models.chain import (
 )
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
+from redbox.models.settings import ChatLLMBackend
 from redbox.transform import (
     bedrock_tokeniser,
     combine_agents_state,
@@ -174,6 +175,7 @@ def build_stuff_pattern(
     final_response_chain: bool = False,
     additional_variables: dict = {},
     summary_multiagent_flag: bool = False,
+    model: ChatLLMBackend | None = None,
 ) -> Runnable[RedboxState, dict[str, Any]]:
     """Returns a Runnable that uses state.request and state.documents to set state.messages.
 
@@ -182,7 +184,10 @@ def build_stuff_pattern(
 
     @RunnableLambda
     def _stuff(state: RedboxState) -> dict[str, Any]:
-        llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
+        if model is not None:
+            llm = get_chat_llm(model, tools=tools)
+        else:
+            llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
 
         events = [
             event
@@ -458,7 +463,15 @@ def my_planner(
     return _create_planner
 
 
-def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: bool = False, max_tokens: int = 5000):
+def build_agent(
+    agent_name: str,
+    system_prompt: str,
+    tools: list,
+    use_metadata: bool = False,
+    max_tokens: int = 5000,
+    using_chat_history: bool = False,
+    model: ChatLLMBackend | None = None,
+):
     @RunnableLambda
     def _build_agent(state: RedboxState):
         log.warning(f"[{agent_name}] Starting agent run. Tools: {[t.name for t in tools]}")
@@ -483,6 +496,8 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
             parser=None,
             tools=tools,
             _additional_variables={"task": task.task, "expected_output": task.expected_output},
+            using_chat_history=using_chat_history,
+            model=model,
         )
 
         log.warning(f"[{agent_name}] Invoking worker agent...")
@@ -494,10 +509,13 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
         log.warning(f"[{agent_name}] Running tools via run_tools_parallel...")
 
         result = run_tools_parallel(ai_msg, tools, state)
+
         if isinstance(result, str):
             log.warning(f"[{agent_name}] Using raw string result.")
             result_content = result
-
+        elif isinstance(result, list) and isinstance(result[0], dict):
+            log.warning(f"[{agent_name}] Using raw string in a list as result.")
+            result_content = result[0].get("text", "")
         elif isinstance(result, list):
             log.warning(f"[{agent_name}] Aggregating list of tool results...")
             result_content = []
@@ -524,16 +542,15 @@ def build_agent(agent_name: str, system_prompt: str, tools: list, use_metadata: 
                     else:
                         log.warning(f"[{agent_name}] No remaining token budget ({max_tokens}). Skipping.")
                     break  # Max reached — stop processing further results
-
             result_content = " ".join(result_content)
-            result = f"<{agent_name}_Result>{result_content}</{agent_name}_Result>"
         else:
             log.error(f"[{agent_name}] Worker agent return incompatible data type {type(result)}")
             raise TypeError("Invalid tool result type")
-
         log.warning(f"[{agent_name}] Completed agent run.")
-
-        return {"agents_results": result, "tasks_evaluator": task.task + "\n" + task.expected_output}
+        return {
+            "agents_results": f"<{agent_name}_Result>{result_content}</{agent_name}_Result>",
+            "tasks_evaluator": task.task + "\n" + task.expected_output,
+        }
 
     return _build_agent.with_retry(stop_after_attempt=3)
 
@@ -547,6 +564,8 @@ def build_agent_with_loop(
     pre_process: Runnable | None = None,
     loop_condition: Callable | None = None,
     max_attempt=3,
+    using_chat_history: bool = False,
+    model: ChatLLMBackend | None = None,
 ):
     @RunnableLambda
     def _build_agent_with_loop(state: RedboxState):
@@ -603,6 +622,8 @@ def build_agent_with_loop(
                 parser=None,
                 tools=tools,
                 _additional_variables=additional_variables,
+                using_chat_history=using_chat_history,
+                model=model,
             )
             ai_msg = worker_agent.invoke(state)
 
@@ -674,11 +695,14 @@ def invoke_custom_state(
     use_as_agent: bool,
     debug: bool = False,
     max_tokens: int = 5000,
+    model: ChatLLMBackend | None = None,
 ):
     @RunnableLambda
     def _invoke_custom_state(state: RedboxState):
         # transform the state to the subgraph state
-        subgraph = custom_graph(all_chunks_retriever=all_chunks_retriever, use_as_agent=use_as_agent, debug=debug)
+        subgraph = custom_graph(
+            all_chunks_retriever=all_chunks_retriever, use_as_agent=use_as_agent, debug=debug, model=model
+        )
         subgraph_state = state.model_copy()
         agent_task = json.loads(subgraph_state.last_message.content)
         subgraph_state.request.question = (
@@ -898,7 +922,11 @@ def sanitise_file_name(file_name: str) -> str:
 
 
 def get_tabular_agent(
-    agent_name: str = "Tabular Agent", max_tokens: int = 5000, tools=list[StructuredTool], max_attempt=int
+    agent_name: str = "Tabular Agent",
+    max_tokens: int = 5000,
+    tools=list[StructuredTool],
+    max_attempt=int,
+    model: ChatLLMBackend | None = None,
 ):
     @RunnableLambda
     def _build_tabular_agent(state: RedboxState):
@@ -932,10 +960,13 @@ def get_tabular_agent(
                 tools=tools,
                 final_response_chain=False,
                 additional_variables={"sql_error": sql_error, "db_schema": state.tabular_schema},
+                model=model,
             )
             ai_msg = worker_agent.invoke(state)
 
-            messages.append(AIMessage(ai_msg["messages"][-1].content))
+            if isinstance(ai_msg["messages"][-1].content, str):
+                messages.append(AIMessage(ai_msg["messages"][-1].content))
+
             try:
                 messages.append(
                     AIMessage(f"Here is the SQL query: {ai_msg['messages'][-1].tool_calls[-1]['args']['sql_query']}")
@@ -949,6 +980,10 @@ def get_tabular_agent(
             else:
                 tabular_context = ""
             tool_output = run_tools_parallel(ai_msg["messages"][-1], tools, state)
+
+            if not tool_output:
+                success = "fail"
+                continue
 
             results = tool_output[-1].content  # this is a tuple
 
@@ -964,6 +999,7 @@ def get_tabular_agent(
                 messages.append(
                     AIMessage(f"The SQL query failed to execute correctly. Here is the error message: {sql_error}")
                 )
+
             else:
                 if is_intermediate_step:
                     sql_error = ""

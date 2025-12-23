@@ -33,7 +33,9 @@ def test_internal_url_with_skill(
     client.force_login(alice)
     chat_id = chat_message_with_citation.chat.id
     message_id = chat_message_with_citation.id
-    skill_slug = default_skill.slug
+    slug = default_skill.slug
+    chat_message_with_citation.chat.skill = default_skill
+    chat_message_with_citation.chat.save()
 
     # When
     citation = Citation.objects.get(chat_message=chat_message_with_citation)
@@ -41,7 +43,7 @@ def test_internal_url_with_skill(
     chat_message_with_citation.chat.save()
 
     # Then
-    assert citation.internal_url == f"/skills/{skill_slug}/chats/{chat_id}/citations/{message_id}/#{citation.id}"
+    assert citation.internal_url == f"/tools/{slug}/chats/{chat_id}/citations/{message_id}/#{citation.id}"
 
 
 @pytest.mark.django_db(transaction=True)

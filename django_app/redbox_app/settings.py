@@ -37,6 +37,19 @@ ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
 WEBSOCKET_SCHEME = "ws" if ENVIRONMENT.is_test else "wss"
 LOGIN_METHOD = env.str("LOGIN_METHOD", None)
 
+# env variables used by redbox_core
+COLLECTION_ENDPOINT = env.str("COLLECTION_ENDPOINT")
+ALLOW_PLAN_FEEDBACK = env.bool("ALLOW_PLAN_FEEDBACK", True)
+MCP_CADDY_URL = env.str("MCP_CADDY_URL", "")
+MCP_HEADERS = env.str("MCP_HEADERS", "")
+MCP_CADDY_TOKEN = env.str("MCP_CADDY_TOKEN", "")
+MCP_PARLEX_URL = env.str("MCP_PARLEX_URL", "")
+MCP_PARLEX_TOKEN = env.str("MCP_PARLEX_TOKEN", "")
+GOOGLE_SEARCH_API = env.str("GOOGLE_SEARCH_API", "")
+GOOGLE_SEARCH_ENGINE = env.str("GOOGLE_SEARCH_ENGINE", "")
+BRAVE_API_KEY = env.str("BRAVE_API_KEY", "")
+KAGI_API_KEY = env.str("KAGI_API_KEY", "")
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG")
 
@@ -495,7 +508,7 @@ REST_FRAMEWORK = {
 
 REDBOX_API_KEY = env.str("REDBOX_API_KEY")
 
-ENABLE_METADATA_EXTRACTION = env.str("ENABLE_METADATA_EXTRACTION")
+ENABLE_METADATA_EXTRACTION = env.bool("ENABLE_METADATA_EXTRACTION", default=True)
 
 CHUNK_UPLOADER_AWS_REGION = env.str("AWS_REGION", " ")
 

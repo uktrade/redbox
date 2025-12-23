@@ -25,6 +25,8 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     chat_id = serializers.PrimaryKeyRelatedField(source="chat", read_only=True)
     user_id = serializers.PrimaryKeyRelatedField(source="chat.user", read_only=True)
 
+    skill_name = serializers.CharField(source="chat.skill.name", read_only=True, allow_null=True)
+
     class Meta:
         model = ChatMessage
         fields = (
@@ -42,6 +44,7 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             "token_use",
             "chat_id",
             "user_id",
+            "skill_name",
         )
 
 
