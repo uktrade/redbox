@@ -24,6 +24,10 @@ class PromptVariable(BaseModel):
 
 
 class PromptConfig(BaseModel):
+    """
+    This data class is for capturing prompt config
+    """
+
     system: str = Field(description="sytem prompt")
     question: str | None = Field(description="question prompt", default=None)
     format: str | None = Field(description="prompt used for format instruction", default=None)
@@ -65,6 +69,13 @@ class PromptConfigs(BaseModel):
         prompt_var=PromptVariable(task=True, expected_output=True, metadata=True),
     )
 
+    web_search_agent = PromptConfig(
+        system=prompts.WEB_SEARCH_AGENT_PROMPT,
+        question=None,
+        format=None,
+        prompt_var=PromptVariable(task=True, expected_output=True, metadata=True),
+    )
+
     summarisation_agent = PromptConfig(
         system=prompts.CHAT_WITH_DOCS_SYSTEM_PROMPT,
         question=prompts.CHAT_WITH_DOCS_QUESTION_PROMPT,
@@ -82,52 +93,47 @@ class PromptConfigs(BaseModel):
 
 class AgentConfig(BaseModel):
     name: str = Field(description="Name of agent")
+    description: str = Field(description="Agent desciption used for planning", default="")
     prompt: PromptConfig = Field(description="Prompts used for this agent")
     tools: list | None = Field(description="A set of tools available for this agent", default=None)
     max_tokens: int = Field(
         description="Maximum tokens for this agent. Response exceed this limit will be truncated.", default=5000
     )
-    llm_backend: ChatLLMBackend
-    parser: BaseCumulativeTransformOutputParser
-    use_metadata: bool
-    use_chat_history: bool
-
-
-def get_worker_agent_config(
-    name: str, prompt: PromptConfig, tools: list | None, use_metadata, use_chat_history
-) -> AgentConfig:
-    return AgentConfig(
-        name=name,
-        prompt=prompt,
-        tools=tools,
-        llm_backend=ChatLLMBackend(name="sonnet-4", provider="bedrock"),
-        parser=ClaudeParser,
-        use_metadata=use_metadata,
-        use_chat_history=use_chat_history,
+    llm_backend: ChatLLMBackend | None = Field(
+        description="The LLM backend model used by the agent. Use None for default model", default=None
     )
+    parser: BaseCumulativeTransformOutputParser
 
 
 class AgentConfigs(BaseModel):
     planner_agent = AgentConfig(
-        name="planner_agent",
+        name="Planner_Agent",
         prompt=PromptConfigs.planner_agent,
         tools=[],
         llm_backend=ChatLLMBackend(name="sonnet-4", provider="bedrock"),
         parser=ClaudeParser,
-        use_metadata=PromptConfigs.planner_agent.prompt_vars.metadata,
-        use_chat_history=PromptConfigs.planner_agent.prompt_vars.chat_history,
     )
 
-    internal_retrieval_agent = get_worker_agent_config(
-        name="internal_retrieval_agent", prompt=PromptConfigs.internal_retrieval_agent, tools=[]
+    internal_retrieval_agent = AgentConfig(
+        name="Internal_Retrieval_Agent",
+        prompt=PromptConfigs.internal_retrieval_agent,
+        tools=[],
+        llm_backend=ChatLLMBackend(name="sonnet-4", provider="bedrock"),
+        parser=ClaudeParser,
+    )
+
+    web_search_agent = AgentConfig(
+        name="Web_Search_Agent",
+        prompt=PromptConfigs.internal_retrieval_agent,
+        tools=[],
+        llm_backend=ChatLLMBackend(name="sonnet-4", provider="bedrock"),
+        parser=ClaudeParser,
     )
 
     summarisation_agent = AgentConfig(
-        name="summarisation_agent",
+        name="Summarisation_Agent",
         prompt=PromptConfigs.summarisation_agent,
         tools=[],
         llm_backend=ChatLLMBackend(name="sonnet-4", provider="bedrock"),
         parser=ClaudeParser,
-        use_metadata=PromptConfigs.summarisation_agent.prompt_vars.metadata,
-        use_chat_history=PromptConfigs.summarisation_agent.prompt_vars.chat_history,
     )

@@ -5,7 +5,9 @@ from langchain_core.runnables import RunnableLambda, RunnableParallel
 
 from redbox.agents.configs import AgentConfig
 from redbox.chains.parser import ClaudeParser
+from redbox.chains.runnables import create_chain_agent
 from redbox.graph.nodes.processes import build_activity_log_node
+from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models.chain import RedboxState, configure_agent_task_plan
 from redbox.models.graph import RedboxActivityEvent
 from redbox.transform import bedrock_tokeniser, truncate_to_tokens
@@ -28,7 +30,9 @@ class WorkerAgent(Agent):
         self.task = None
 
     def reading_task_info(self, state: RedboxState):
-        # dynamically generate agent task based on state
+        """
+        Reading in task information sent from the planner
+        """
         agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
         ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
         parser = ClaudeParser(pydantic_object=ConfiguredAgentTask)
@@ -41,12 +45,18 @@ class WorkerAgent(Agent):
         self,
         state: RedboxState,
     ):
+        """
+        log what task the agent is completing
+        """
         activity_node = build_activity_log_node(
             RedboxActivityEvent(message=f"{self.config.name} is completing task: {self.task.task}")
         )
         activity_node.invoke(state)
 
     def post_processing(self, result):
+        """
+        Processing data from the agent core function.
+        """
         if isinstance(result, str):
             log.warning(f"[{self.config.name}] Using raw string result.")
             result_content = result
@@ -90,6 +100,28 @@ class WorkerAgent(Agent):
             "agents_results": f"<{self.config.name}_Result>{result_content}</{self.config.name}_Result>",
             "tasks_evaluator": self.task.task + "\n" + self.task.expected_output,
         }
+
+    def core_task(self, state: RedboxState):
+        worker_agent = create_chain_agent(
+            system_prompt=self.config.prompt,
+            use_metadata=self.config.prompt.prompt_vars.metadata,
+            using_chat_history=self.config.prompt.prompt_vars.chat_history,
+            parser=self.config.parser,
+            tools=self.config.tools,
+            _additional_variables={"task": self.task.task, "expected_output": self.task.expected_output},
+            model=self.config.llm_backend,
+        )
+        # worker_agent = llm_call(agent_config=self.config)
+        log.warning(f"[{self.config.name}] Invoking worker agent...")
+        ai_msg = worker_agent.invoke(state)
+
+        log.warning(f"[{self.config.name}] Worker agent output:\n{ai_msg}")
+
+        # --- RUN TOOLS IN PARALLEL ---
+        log.warning(f"[{self.config.name}] Running tools via run_tools_parallel...")
+
+        result = run_tools_parallel(ai_msg, self.config.tools, state)
+        return result
 
     @RunnableLambda
     def execute(self, state: RedboxState):
