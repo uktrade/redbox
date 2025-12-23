@@ -208,7 +208,7 @@ class Redbox:
                 is_summary_multiagent_streamed=is_summary_multiagent_streamed,
                 is_evaluator_output_streamed=is_evaluator_output_streamed,
             )
-            if len(final_state.messages):
+            if not final_state.messages:
                 logger.exception("LLM Error - Blank Response")
         except CancelledError:
             logger.error("All retries exhausted for CancelledError in the astream_events function")
