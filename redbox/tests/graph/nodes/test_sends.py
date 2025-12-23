@@ -225,8 +225,6 @@ class TestRunToolsParallel:
         responses = run_tools_parallel(
             ai_msg=ai_msg, tools=[search_wikipedia_complete, search_govuk_timeout], state=fake_state
         )
-        print("my-responses")
-        print(responses)
         assert isinstance(responses, list)
         assert len(responses[0].content) > 0
         assert len(responses) == 1
