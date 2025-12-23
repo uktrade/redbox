@@ -13,7 +13,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.12,<3.13"
 django = "5.2.9"
-django-staff-sso-client = "^4.3.0"
+django-staff-sso-client = "^5.1.0"
 dbt-copilot-python = "^1.1.0"
 uwotm8 = "^0.1.6"
 detect-secrets = "^1.5.0"
