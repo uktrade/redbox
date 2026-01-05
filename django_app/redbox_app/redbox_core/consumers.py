@@ -155,26 +155,35 @@ class ChatConsumer(AsyncWebsocketConsumer):
         selected_skill_id: str | None = data.get("selectedSkill")
         user: User = self.scope["user"]
 
-        user_ai_settings = await AISettingsModel.objects.aget(label=user.ai_settings_id if user else "Claude 3.7")
+        is_anonymous_user = (not user) or getattr(user, "is_anonymous", False)
+
+        if is_anonymous_user:
+            ai_settings_label = "Claude 3.7"
+        else:
+            ai_settings_label = user.ai_settings_id
+        
+        user_ai_settings = await AISettingsModel.objects.aget(label=ai_settings_label)
+
+        auth_user = None if is_anonymous_user else user
         user_team_ids = await database_sync_to_async(
-            lambda: list(UserTeamMembership.objects.filter(user=user).values_list("team_id", flat=True))
+            lambda: list(UserTeamMembership.objects.filter(user=auth_user).values_list("team_id", flat=True))
         )()
 
         chat_backend = await ChatLLMBackend.objects.aget(id=data.get("llm", user_ai_settings.chat_backend_id))
         temperature = data.get("temperature", user_ai_settings.temperature)
 
         session, previous_selected_files = await self._init_session(
-            data, user, user_message_text, chat_backend, temperature
+            data, auth_user, user_message_text, chat_backend, temperature
         )
 
         # save user message
-        cache_key = f"user:{user.id}:permitted_files"
+        cache_key = f"user:{session.user_id}:permitted_files"
 
         permitted_files = await cache.aget(cache_key)
         if permitted_files is None:
             qs = (
                 File.objects.filter(
-                    Q(user=user, status=File.Status.complete)
+                    Q(user=auth_user, status=File.Status.complete)
                     | Q(
                         team_associations__team_id__in=user_team_ids,
                         team_associations__visibility=FileTeamMembership.Visibility.TEAM,
@@ -341,7 +350,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             request=RedboxQuery(
                 question=question,
                 s3_keys=await self._files_to_s3_keys(selected_files),
-                user_uuid=user.id,
+                user_uuid=session.user_id,
                 chat_history=[
                     ChainChatMessage(role=m.role, text=escape_curly_brackets(m.text))
                     for m in message_history[:-2]

@@ -9,6 +9,7 @@ import pytest
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.db.models import Model
 from langchain_core.documents import Document
 from langchain_core.language_models import BaseChatModel
@@ -219,6 +220,32 @@ async def test_chat_consumer_with_naughty_citation(
         assert await get_chat_message_route(alice, ChatMessage.Role.ai) == ["gratitude"]
         await refresh_from_db(uploaded_file)
 
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_chat_consumer_anonymous_user_ai_settings(chat: Chat, mocked_connect: Connect):
+    # Given
+
+    # When
+    with patch(
+        "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
+        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        communicator.scope["user"] = AnonymousUser()
+        connected, _ = await communicator.connect()
+        assert connected
+
+        await communicator.send_json_to({"message": "Hello Hal.", "sessionId": str(chat.id)})
+        response1 = await communicator.receive_json_from(timeout=5)
+        response2 = await communicator.receive_json_from(timeout=5)
+        response3 = await communicator.receive_json_from(timeout=5)
+
+        # Then
+        assert response1["type"] == "session-id"
+        assert response2["type"] == "text"
+        assert response3["type"] == "text"
+
+        # Close
+        await communicator.disconnect()
+        
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
