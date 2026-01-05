@@ -413,10 +413,10 @@ If you're using this index in the frontend, you may want to upload the raw files
 We currently use [Google icons](https://fonts.google.com/icons). When adding new icons, ensure the following customizations are made:
 
 ```
-Weight: 200
-Grade: 200
+Weight: 300
+Grade: 0
 Optical Size: 24px
 Style:
  - Material Symbols (new)
- - Sharp
+ - Rounded
 ```

@@ -7,6 +7,7 @@ from langchain_core.vectorstores import VectorStoreRetriever
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from redbox.chains.components import (
+    AISettings,
     get_all_chunks_retriever,
     get_embeddings,
     get_metadata_retriever,
@@ -24,8 +25,8 @@ from redbox.graph.nodes.tools import (
     build_web_search_tool,
     execute_sql_query,
 )
-from redbox.graph.root import build_root_graph, get_agentic_search_graph, get_summarise_graph
-from redbox.models.chain import RedboxState
+from redbox.graph.root import build_new_route_graph, build_root_graph, get_agentic_search_graph, get_summarise_graph
+from redbox.models.chain import Agent, RedboxState
 from redbox.models.chat import ChatRoute
 from redbox.models.file import ChunkResolution
 from redbox.models.graph import (
@@ -48,6 +49,7 @@ logger = getLogger(__name__)
 class Redbox:
     def __init__(
         self,
+        agents: list[Agent] | None = None,
         all_chunks_retriever: VectorStoreRetriever | None = None,
         parameterised_retriever: VectorStoreRetriever | None = None,
         tabular_retriever: VectorStoreRetriever | None = None,
@@ -57,6 +59,9 @@ class Redbox:
         debug: bool = False,
     ):
         _env = env or get_settings()
+
+        # agents
+        self.agents = agents or AISettings().worker_agents
 
         # Retrievers
 
@@ -107,6 +112,7 @@ class Redbox:
             metadata_retriever=self.metadata_retriever,
             tools=self.tools,
             multi_agent_tools=self.multi_agent_tools,
+            agents=self.agents,
             debug=debug,
         )
 
@@ -219,7 +225,9 @@ class Redbox:
     def get_available_keywords(self) -> dict[ChatRoute, str]:
         return ROUTABLE_KEYWORDS
 
-    def draw(self, output_path=None, graph_to_draw: Literal["root", "agent", "chat_with_documents"] = "root"):
+    def draw(
+        self, output_path=None, graph_to_draw: Literal["root", "agent", "chat_with_documents", "new_route"] = "root"
+    ):
         from langchain_core.runnables.graph import MermaidDrawMethod
 
         if graph_to_draw == "root":
@@ -228,6 +236,13 @@ class Redbox:
             graph = get_agentic_search_graph(self.tools).get_graph()
         elif graph_to_draw == "summarise":
             graph = get_summarise_graph(self.all_chunks_retriever, self.parameterised_retriever).get_graph()
+        elif graph_to_draw == "new_route":
+            graph = build_new_route_graph(
+                all_chunks_retriever=self.all_chunks_retriever,
+                tabular_retriever=self.tabular_retriever,
+                multi_agent_tools=self.multi_agent_tools,
+                agents=self.agents,
+            ).get_graph()
         else:
             raise Exception("Invalid graph_to_draw")
 

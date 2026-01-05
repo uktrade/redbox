@@ -41,7 +41,7 @@
             <div class="govuk-textarea rbds-message-input {% if not messages %}rbds-message-input__expanded {% endif %}rbds-drop-zone" id="message" name="message" contenteditable="true" role="textbox"
                 aria-multiline="true" data-text="Type here..."></div>
         </rbds-message-input>
-        <file-upload upload-url="{% if skill %}/skills/{{ skill.slug }}{% endif %}/documents/upload/">
+        <file-upload upload-url="{{ urls.upload_url }}">
             <input class="govuk-file-upload govuk-!-display-none" multiple id="upload-docs" name="uploadDocs" type="file" aria-describedby="upload-docs-notification upload-docs-filetypes">
             {{ govukButton(
                 text="Add document",
