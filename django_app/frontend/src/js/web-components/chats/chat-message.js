@@ -1,6 +1,7 @@
 // @ts-check
 
-import "../loading-message.js";
+import { hideElement } from "../../utils/dom-utils.js";
+import { LoadingMessage } from "../../../redbox_design_system/rbds/components/loading-message.js";
 
 window.addEventListener('load', () => {
   const scrollPosition = sessionStorage.getItem('scrollPosition');
@@ -33,7 +34,7 @@ export class ChatMessage extends HTMLElement {
                 ${
                   !this.dataset.text
                     ? `
-                      <loading-message data-aria-label="Loading message"></loading-message>
+                      <rbds-loading-message data-aria-label="Loading message"></rbds-loading-message>
                       <div class="rb-loading-complete govuk-visually-hidden" aria-live="assertive"></div>
                     `
                     : ""
@@ -205,9 +206,6 @@ export class ChatMessage extends HTMLElement {
       this.querySelector("sources-list")
     );
     /** @type {import("./feedback-buttons").FeedbackButtons | null} */
-    let responseLoading = /** @type HTMLElement */ (
-      this.querySelector(".rb-loading-ellipsis")
-    );
     let actionsContainer = this.querySelector(".chat-actions-container")
     let responseComplete = this.querySelector(".rb-loading-complete");
     let webSocket = new WebSocket(endPoint);
@@ -250,7 +248,7 @@ export class ChatMessage extends HTMLElement {
     };
 
     webSocket.onclose = (event) => {
-      responseLoading.style.display = "none";
+      hideElement(this.loadingElement);
       if (responseComplete) {
         responseComplete.textContent = "Response complete";
       }
@@ -292,7 +290,6 @@ export class ChatMessage extends HTMLElement {
       } else if (response.type === "activity") {
         this.addActivity(response.data);
       } else if (response.type === "end") {
-        this.removeActivity();
         // Assign the new message its ID straight away
         const chatMessage = this.querySelector('.govuk-inset-text');
         if (chatMessage) {chatMessage.id = `chat-message-${sanitiseId(response.data.message_id)}`}
@@ -356,30 +353,16 @@ export class ChatMessage extends HTMLElement {
    * @param {string} message
    */
   addActivity = (message) => {
-    this.activityElement.textContent = message;
-  };
-
-
-   /**
-   * Removes the activity event element
-   */
-  removeActivity = () => {
-    this.activityElement.remove();
+    this.loadingElement.loadingText.textContent = message;
   };
 
 
    /**
    * Returns the activity element used for response feedback
-   * @returns {HTMLDivElement} Activity div element
+   * @returns {LoadingMessage} Loading Message Activity element
    */
-  get activityElement() {
-    let activityElement = /** @type {HTMLDivElement} */ (this.querySelector(".rbds-activity-event"));
-    if (!activityElement) {
-      activityElement = document.createElement("div");
-      activityElement.classList.add("rbds-activity-event", "govuk-hint", `rbds-text-xs`);
-      this.appendChild(activityElement);
-    }
-    return activityElement;
+  get loadingElement() {
+    return /** @type {LoadingMessage} */ (this.querySelector("rbds-loading-message"));
   }
 
 }
