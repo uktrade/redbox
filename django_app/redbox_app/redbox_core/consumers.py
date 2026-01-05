@@ -352,7 +352,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             request=RedboxQuery(
                 question=question,
                 s3_keys=await self._files_to_s3_keys(selected_files),
-                user_uuid=session.user_id,
+                user_uuid=session.user_id if getattr(user, "is_anonymous", False) else user.id,
                 chat_history=[
                     ChainChatMessage(role=m.role, text=escape_curly_brackets(m.text))
                     for m in message_history[:-2]
