@@ -157,10 +157,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         is_anonymous_user = (not user) or getattr(user, "is_anonymous", False)
 
+        default_settings_label = "Claude 3.7"
+
         if is_anonymous_user:
-            ai_settings_label = "Claude 3.7"
+            ai_settings_label = default_settings_label
         else:
-            ai_settings_label = user.ai_settings_id
+            ai_settings_label = user.ai_settings_id if user else default_settings_label
         
         user_ai_settings = await AISettingsModel.objects.aget(label=ai_settings_label)
 
