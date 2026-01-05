@@ -14,7 +14,7 @@ readme = "README.md"
 python = ">=3.12,<3.13"
 django = "5.2.9"
 django-staff-sso-client = "^5.1.0"
-dbt-copilot-python = "^1.1.0"
+dbt-copilot-python = "^2.0.0"
 uwotm8 = "^0.1.6"
 detect-secrets = "^1.5.0"
 ddtrace = "^3.18.1"
@@ -42,7 +42,7 @@ moto = {extras = ["s3"], version = "^5.1.18"}
 playwright = "^1.57"
 pytest-playwright = "^0.7"
 axe-playwright-python = "^0.1"
-websockets = "^12.0"
+websockets = "^15.0"
 httpx = "^0.28.1"
 minio = "^7.2.20"
 yarl = "^1.22.0"
@@ -50,7 +50,7 @@ ipykernel = "^7.1.0"
 
 [tool.poetry.group.docs.dependencies]
 mkdocs = "^1.5.3"
-mkdocstrings = {extras = ["python"], version = "^0.30.1"}
+mkdocstrings = {extras = ["python"], version = "^1.0.0"}
 mkdocs-material = "^9.7.1"
 mkdocs-mermaid2-plugin = "^1.2.3"
 markdown-mdantic = "^2.1.0"
