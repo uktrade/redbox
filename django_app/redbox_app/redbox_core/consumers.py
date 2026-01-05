@@ -163,7 +163,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             ai_settings_label = default_settings_label
         else:
             ai_settings_label = user.ai_settings_id if user else default_settings_label
-        
+
         user_ai_settings = await AISettingsModel.objects.aget(label=ai_settings_label)
 
         auth_user = None if is_anonymous_user else user

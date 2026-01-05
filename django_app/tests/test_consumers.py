@@ -220,14 +220,14 @@ async def test_chat_consumer_with_naughty_citation(
         assert await get_chat_message_route(alice, ChatMessage.Role.ai) == ["gratitude"]
         await refresh_from_db(uploaded_file)
 
+
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_chat_consumer_anonymous_user_ai_settings(chat: Chat, mocked_connect: Connect):
     # Given
 
     # When
-    with patch(
-        "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
+    with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = AnonymousUser()
         connected, _ = await communicator.connect()
@@ -245,7 +245,7 @@ async def test_chat_consumer_anonymous_user_ai_settings(chat: Chat, mocked_conne
 
         # Close
         await communicator.disconnect()
-        
+
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
