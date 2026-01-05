@@ -95,7 +95,7 @@ def run_with_timeout(func, args, timeout):
     return result[0]
 
 
-def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, per_tool_timeout=30, result_timeout=30):
+def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, per_tool_timeout=60, result_timeout=60):
     run_id = str(uuid4())[:8]
     log_stub = f"[run_tools_parallel run_id='{run_id}']"
     log.warning(f"{log_stub} Starting tool execution.")
