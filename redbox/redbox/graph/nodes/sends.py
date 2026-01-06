@@ -1,5 +1,7 @@
+from uuid import uuid4
 import logging
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
+import threading
 from typing import Callable
 
 from langchain_core.messages import AIMessage
@@ -64,71 +66,123 @@ def build_tool_send(target: str) -> Callable[[RedboxState], list[Send]]:
     return _tool_send
 
 
-def run_tools_parallel(ai_msg, tools, state, timeout=60):
-    log.warning("[run_tools_parallel] Starting tool execution.")
+def run_with_timeout(func, args, timeout):
+    """Run a a function with a timeout and return its result or None if it times out or fails.
+    This function can be used to set a timeout for tool execution"""
+    result = [None]
+    exception = [None]
+    completed = [False]
 
-    # Create a list to store futures
-    futures = []
-    if len(ai_msg.tool_calls) == 0:
-        # No tool calls
-        log.warning("[run_tools_parallel] No tool calls detected. Returning agent content.")
-        return ai_msg.content
-    else:
+    def target():
         try:
-            log.warning(
-                f"[run_tools_parallel] {len(ai_msg.tool_calls)} tool call(s) detected: "
-                f"{[tc.get('name') for tc in ai_msg.tool_calls]}"
-            )
+            result[0] = func(args)
+        except Exception as e:
+            exception[0] = e
+        finally:
+            completed[0] = True
 
-            max_workers = min(10, len(ai_msg.tool_calls))
-            log.warning(f"[run_tools_parallel] Creating ThreadPoolExecutor(max_workers={max_workers})")
+    thread = threading.Thread(target=target)
+    thread.daemon = True  # The thread will exit when the main program exits
+    thread.start()
+    thread.join(timeout)  # applying timeout constraint
 
-            # Use ThreadPoolExecutor for parallel execution
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                # Submit tool invocations to the executor
-                for tool_call in ai_msg.tool_calls:
-                    # Find the matching tool by name
-                    selected_tool = next((tool for tool in tools if tool.name == tool_call.get("name")), None)
+    if not completed[0]:  # if it times out
+        log.warning(f"Tool execution timed out after {timeout} seconds")
+        return None
+    if exception[0]:  # if the tool fails
+        log.warning(f"Tool execution failed: {str(exception[0])}")
+        return None
+    return result[0]
 
-                    if selected_tool is None:
-                        log.warning(f"[run_tools_parallel] Warning: No tool found for {tool_call.get('name')}")
+
+def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, per_tool_timeout=60, result_timeout=60):
+    run_id = str(uuid4())[:8]
+    log_stub = f"[run_tools_parallel run_id='{run_id}']"
+    log.warning(f"{log_stub} Starting tool execution.")
+
+    if not ai_msg.tool_calls:
+        # No tool calls
+        log.warning(f"{log_stub} No tool calls detected. Returning agent content.")
+        return ai_msg.content
+
+    log.warning(
+        f"{log_stub} {len(ai_msg.tool_calls)} tool call(s) detected: {[tc.get('name') for tc in ai_msg.tool_calls]}"
+    )
+
+    max_workers = min(10, len(ai_msg.tool_calls))
+    log.warning(f"{log_stub} Creating ThreadPoolExecutor(max_workers={max_workers})")
+
+    # Dict to store futures and related metadata
+    futures = {}
+
+    try:
+        # Use ThreadPoolExecutor for parallel execution
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Submit tool invocations to the executor
+            for tool_call in ai_msg.tool_calls:
+                # Find the matching tool by name
+                tool_name = tool_call.get("name")
+                selected_tool = next((tool for tool in tools if tool.name == tool_name), None)
+
+                if selected_tool is None:
+                    log.warning(f"{log_stub} Warning: No tool found for {tool_name}")
+                    continue
+
+                # Get arguments and submit the tool invocation
+                args = tool_call.get("args", {})
+                args["state"] = state
+
+                future = executor.submit(run_with_timeout, selected_tool.invoke, args, per_tool_timeout)
+                futures[future] = {"name": tool_name}
+
+            # Collect responses as tools complete
+            responses = []
+            for future in as_completed(futures.keys(), timeout=parallel_timeout):
+                future_tool_name = futures[future]["name"]
+
+                try:
+                    response = future.result(timeout=result_timeout)
+                    log.warning(f"{log_stub} This is what I got from tool '{future_tool_name}': {response}")
+                    if response:  # if response is not None, meaning tool did not fail or timeout
+                        responses.append(AIMessage(response))
+                    else:
+                        log.warning(f"{future_tool_name} Tool has failed or timed out")
                         continue
 
-                    # Get arguments and submit the tool invocation
-                    args = tool_call.get("args", {})
-                    args["state"] = state
-                    future = executor.submit(selected_tool.invoke, args)
-                    futures.append(future)
+                    raw_res = response
+                    if isinstance(raw_res, tuple):
+                        raw_res = raw_res[0]
 
-                # Collect responses as tools complete
-                responses = []
-                for future in as_completed(futures, timeout=timeout):
-                    try:
-                        response = future.result()
-                        log.warning(f"[run_tools_parallel] This is what I got from tool: {response}")
-                        responses.append(AIMessage(response))
+                    if not raw_res or not raw_res.strip():
+                        log.warning(
+                            f"{log_stub} '{future_tool_name}' Tool returned empty/whitespace response: {repr(raw_res)}"
+                        )
 
-                        raw_res = response
-                        if isinstance(raw_res, tuple):
-                            raw_res = raw_res[0]
+                except TimeoutError:
+                    log.warning(
+                        f"{log_stub} '{future_tool_name}' Results retrieval from tool timed out after {result_timeout} seconds."
+                    )
 
-                        if not raw_res or not raw_res.strip():
-                            log.warning(
-                                f"[run_tools_parallel] Tool returned empty/whitespace response: {repr(raw_res)}"
-                            )
-                    except Exception as e:
-                        log.warning(f"[run_tools_parallel] Tool invocation error: {e}")
+                except Exception as e:
+                    log.warning(f"{log_stub} '{future_tool_name}' Tool invocation error: {e}")
 
+            if responses:
                 log.warning(
-                    f"[run_tools_parallel] Completed. Successful tool responses: {len(responses)}. Responses: {responses}"
+                    f"{log_stub} Completed. Successful parallel tool responses: {len(responses)}. Responses: {responses}"
                 )
                 return responses
-        except TimeoutError:
-            log.warning(f"[run_tools_parallel] Tool execution on {selected_tool} timed out after {timeout} seconds")
-            return None
-        except Exception as e:
-            log.warning(f"[run_tools_parallel] Unexpected error in tool execution: {str(e)}", exc_info=True)
-            return None
+            else:
+                log.warning(
+                    f"{log_stub} Every tool execution has failed or timed out after {per_tool_timeout} seconds."
+                )
+                return None
+
+    except TimeoutError:
+        log.warning(f"{log_stub} Global parallel tool execution timed out after {parallel_timeout} seconds.")
+        return None
+    except Exception as e:
+        log.warning(f"{log_stub} Unexpected error in parallel tool execution: {str(e)}", exc_info=True)
+        return None
 
 
 def sending_task_to_agent(state: RedboxState):
