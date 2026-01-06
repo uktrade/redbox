@@ -137,6 +137,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data=None, bytes_data=None):  # noqa: C901, PLR0915
         """Receive & respond to message from browser websocket."""
+        # if user is unauthenticated, close connection
+        user = getattr(self, "user", None) or self.scope.get("user")
+        if (not user) or (not user.is_authenticated):
+            await self.close(code=4001)
+            return
         self._file_cache = {}
         self.full_reply = []
         self.converted_reply = []
@@ -155,37 +160,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
         selected_skill_id: str | None = data.get("selectedSkill")
         user: User = self.scope["user"]
 
-        is_anonymous_user = (not user) or getattr(user, "is_anonymous", False)
-
-        default_settings_label = "Claude 3.7"
-
-        if is_anonymous_user:
-            ai_settings_label = default_settings_label
-        else:
-            ai_settings_label = user.ai_settings_id if user else default_settings_label
-
-        user_ai_settings = await AISettingsModel.objects.aget(label=ai_settings_label)
-
-        auth_user = None if is_anonymous_user else user
+        user_ai_settings = await AISettingsModel.objects.aget(label=user.ai_settings_id if user else "Claude 3.7")
         user_team_ids = await database_sync_to_async(
-            lambda: list(UserTeamMembership.objects.filter(user=auth_user).values_list("team_id", flat=True))
+            lambda: list(UserTeamMembership.objects.filter(user=user).values_list("team_id", flat=True))
         )()
 
         chat_backend = await ChatLLMBackend.objects.aget(id=data.get("llm", user_ai_settings.chat_backend_id))
         temperature = data.get("temperature", user_ai_settings.temperature)
 
         session, previous_selected_files = await self._init_session(
-            data, auth_user, user_message_text, chat_backend, temperature
+            data, user, user_message_text, chat_backend, temperature
         )
 
         # save user message
-        cache_key = f"user:{session.user_id}:permitted_files"
+        cache_key = f"user:{user.id}:permitted_files"
 
         permitted_files = await cache.aget(cache_key)
         if permitted_files is None:
             qs = (
                 File.objects.filter(
-                    Q(user=auth_user, status=File.Status.complete)
+                    Q(user=user, status=File.Status.complete)
                     | Q(
                         team_associations__team_id__in=user_team_ids,
                         team_associations__visibility=FileTeamMembership.Visibility.TEAM,
@@ -352,7 +346,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             request=RedboxQuery(
                 question=question,
                 s3_keys=await self._files_to_s3_keys(selected_files),
-                user_uuid=session.user_id if getattr(user, "is_anonymous", False) else user.id,
+                user_uuid=user.id,
                 chat_history=[
                     ChainChatMessage(role=m.role, text=escape_curly_brackets(m.text))
                     for m in message_history[:-2]
@@ -590,15 +584,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def connect(self):
+        self.user = self.scope["user"]
+        # if user is unauthenticated, send auth_required error message
+        if not self.user.is_authenticated:
+            await self.accept()
+            await self.send_to_client("error", error_messages.AUTH_REQUIRED)
+            return
+        
         if ChatConsumer.redbox is None:
             agents = await get_all_agents()
             ChatConsumer.redbox = Redbox(agents=agents, env=ChatConsumer.env, debug=ChatConsumer.debug)
 
-        self.user = self.scope["user"]
-        if self.user.is_authenticated:
-            self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
-        else:
-            self.uk_english = False
+        self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
         await self.accept()
 
     async def handle_text(self, response: str) -> str:

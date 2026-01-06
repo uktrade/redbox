@@ -10,3 +10,4 @@ RATE_LIMITED = (
     "Redbox has temporarily exceeded its usage allowance with the AI server. "
     'Please try again in a few minutes, and contact <a href="/support/">support</a> if the problem persists.'
 )
+AUTH_REQUIRED = "You need to be signed in and authenticated to use Redbox chat"

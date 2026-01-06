@@ -223,28 +223,22 @@ async def test_chat_consumer_with_naughty_citation(
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
-async def test_chat_consumer_anonymous_user_ai_settings(chat: Chat, mocked_connect: Connect):
+async def test_chat_consumer_anonymous_user_error_message():
     # Given
 
     # When
-    with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = AnonymousUser()
-        connected, _ = await communicator.connect()
-        assert connected
+    communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+    communicator.scope["user"] = AnonymousUser()
+    connected, _ = await communicator.connect()
+    assert connected
 
-        await communicator.send_json_to({"message": "Hello Hal.", "sessionId": str(chat.id)})
-        response1 = await communicator.receive_json_from(timeout=5)
-        response2 = await communicator.receive_json_from(timeout=5)
-        response3 = await communicator.receive_json_from(timeout=5)
+    # Then
+    response = await communicator.receive_json_from(timeout=5)
+    assert response["type"] == "error"
+    assert response["data"] == error_messages.AUTH_REQUIRED
 
-        # Then
-        assert response1["type"] == "session-id"
-        assert response2["type"] == "text"
-        assert response3["type"] == "text"
-
-        # Close
-        await communicator.disconnect()
+    # Close
+    await communicator.disconnect()
 
 
 @pytest.mark.django_db(transaction=True)
