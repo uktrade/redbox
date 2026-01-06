@@ -147,6 +147,7 @@ def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, per_tool_timeo
                         responses.append(AIMessage(response))
                     else:
                         log.warning(f"{future_tool_name} Tool has failed or timed out")
+                        continue
 
                     raw_res = response
                     if isinstance(raw_res, tuple):
