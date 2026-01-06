@@ -585,12 +585,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         self.user = self.scope["user"]
-        # if user is unauthenticated, send auth_required error message
+        # if user is unauthenticated, send auth_required error message
         if not self.user.is_authenticated:
             await self.accept()
             await self.send_to_client("error", error_messages.AUTH_REQUIRED)
             return
-        
+
         if ChatConsumer.redbox is None:
             agents = await get_all_agents()
             ChatConsumer.redbox = Redbox(agents=agents, env=ChatConsumer.env, debug=ChatConsumer.debug)
