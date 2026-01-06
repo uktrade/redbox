@@ -137,6 +137,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data=None, bytes_data=None):  # noqa: C901, PLR0915
         """Receive & respond to message from browser websocket."""
+        # if user is unauthenticated, close connection
+        user = getattr(self, "user", None) or self.scope.get("user")
+        if (not user) or (not user.is_authenticated):
+            await self.close(code=4001)
+            return
         self._file_cache = {}
         self.full_reply = []
         self.converted_reply = []
@@ -579,15 +584,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def connect(self):
+        self.user = self.scope["user"]
+        # if user is unauthenticated, send auth_required error message
+        if not self.user.is_authenticated:
+            await self.accept()
+            await self.send_to_client("error", error_messages.AUTH_REQUIRED)
+            return
+
         if ChatConsumer.redbox is None:
             agents = await get_all_agents()
             ChatConsumer.redbox = Redbox(agents=agents, env=ChatConsumer.env, debug=ChatConsumer.debug)
 
-        self.user = self.scope["user"]
-        if self.user.is_authenticated:
-            self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
-        else:
-            self.uk_english = False
+        self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
         await self.accept()
 
     async def handle_text(self, response: str) -> str:
