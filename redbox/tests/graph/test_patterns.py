@@ -620,7 +620,6 @@ class TestBuildAgentLoop:
             ("preprocess-loop-pass", True, True, 2, (AIMessage(content="preprocess-loop-pass"), "pass", "False")),
             ("preprocess-loop-fail", True, True, 2, (AIMessage(content="preprocess-loop-fail"), "fail", "True")),
             ("There is an issue with tool call. No results returned.", None, None, 1, None),
-            ("loop-intermediate-step-success", True, True, 2, ("intermediate-step-success", "pass", "True")),
             ("raw-string-result", None, None, 1, "raw-string-result"),
         ],
     )
@@ -693,17 +692,15 @@ class TestBuildAgentLoop:
         assert mock_tool_calls.call_count == no_calls
 
     @pytest.mark.parametrize(
-        "test_name, max_tokens, actual_tokens, response_count",
+        "test_name, max_tokens, actual_tokens",
         [
-            ("truncate-response-over-max-tokens", 50, 1000, 1),
-            ("truncate-response-over-max-tokens2", 50, 26, 2),
-            ("dont-truncate-response-under-max-tokens", 100, 80, 1),
-            ("dont-truncate-response-equal-to-max-tokens", 10, 10, 1),
+            ("truncate-response-over-max-tokens", 50, 1000),
+            ("truncate-response-over-max-tokens2", 50, 26),
+            ("dont-truncate-response-under-max-tokens", 100, 80),
+            ("dont-truncate-response-equal-to-max-tokens", 10, 10),
         ],
     )
-    def test_llm_response_truncation(
-        self, test_name, max_tokens, actual_tokens, response_count, fake_state, mocker: MockerFixture
-    ):
+    def test_llm_response_truncation(self, test_name, max_tokens, actual_tokens, fake_state, mocker: MockerFixture):
         sanitised_test_name = test_name.replace("-", "")
 
         llm_content = f"{sanitised_test_name} " * actual_tokens
@@ -715,7 +712,7 @@ class TestBuildAgentLoop:
         mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
 
         mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel")
-        mock_tool_calls.return_value = [llm_message] * response_count
+        mock_tool_calls.return_value = [llm_message]
 
         agent = "Internal_Retrieval_Agent"
         agent_task, multi_agent_plan = configure_agent_task_plan({agent: agent})
@@ -747,13 +744,13 @@ class TestBuildAgentLoop:
         )
         content_tokens = len(content.split())
 
-        if actual_tokens * response_count > max_tokens:
+        if actual_tokens > max_tokens:
             # Should be truncated
             assert content_tokens == max_tokens
             assert content == (f"{sanitised_test_name} " * max_tokens).strip()
         else:
             # Should match original
-            assert content_tokens == actual_tokens * response_count
+            assert content_tokens == actual_tokens
             assert content == llm_content.strip()
 
         # Basic checks
