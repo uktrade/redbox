@@ -259,8 +259,7 @@ def test_remove_doc_view_post(alice, client, mocker):
     file_id = uuid.uuid4()
     file = File.objects.create(id=file_id, user=alice, original_file_name="test.pdf", status=File.Status.complete)
 
-    mocker.patch.object(File, "delete_from_elastic")
-    mocker.patch.object(File, "delete_from_s3")
+    mocker.patch.object(File, "delete_from_elastic_and_s3")
 
     client.force_login(alice)
     url = reverse("remove-doc", kwargs={"doc_id": str(file.id)})
@@ -272,8 +271,7 @@ def test_remove_doc_view_post(alice, client, mocker):
     file.refresh_from_db()
     assert file.status == File.Status.deleted
 
-    File.delete_from_elastic.assert_called_once()
-    File.delete_from_s3.assert_called_once()
+    File.delete_from_elastic_and_s3.assert_called_once()
 
 
 @pytest.mark.django_db
@@ -284,8 +282,7 @@ def test_remove_doc_view_error_handling(alice, client, mocker):
     file_id = uuid.uuid4()
     file = File.objects.create(id=file_id, user=alice, original_file_name="test.pdf", status=File.Status.complete)
 
-    mocker.patch.object(File, "delete_from_elastic", side_effect=Exception("Test error"))
-    mocker.patch.object(File, "delete_from_s3")
+    mocker.patch.object(File, "delete_from_elastic_and_s3", side_effect=Exception("Test error"))
 
     client.force_login(alice)
     url = reverse("remove-doc", kwargs={"doc_id": str(file.id)})
@@ -317,8 +314,7 @@ def test_remove_all_docs_view_post(alice, client, mocker):
     file1 = File.objects.create(user=alice, original_file_name="test1.pdf", status=File.Status.complete)
     file2 = File.objects.create(user=alice, original_file_name="test2.pdf", status=File.Status.complete)
 
-    mocker.patch.object(File, "delete_from_elastic")
-    mocker.patch.object(File, "delete_from_s3")
+    mocker.patch.object(File, "delete_from_elastic_and_s3")
 
     client.force_login(alice)
     url = reverse("remove-all-docs")
@@ -332,8 +328,7 @@ def test_remove_all_docs_view_post(alice, client, mocker):
     assert file1.status == File.Status.deleted
     assert file2.status == File.Status.deleted
 
-    assert File.delete_from_elastic.call_count == 2
-    assert File.delete_from_s3.call_count == 2
+    assert File.delete_from_elastic_and_s3.call_count == 2
 
 
 # new tests
@@ -432,8 +427,7 @@ def test_delete_document_endpoint(alice, client, mocker):
 
     file = File.objects.create(id=file_id, user=alice, original_file_name="test.pdf", status=File.Status.complete)
 
-    mocker.patch.object(File, "delete_from_elastic")
-    mocker.patch.object(File, "delete_from_s3")
+    mocker.patch.object(File, "delete_from_elastic_and_s3")
 
     client.force_login(alice)
     url = reverse("delete-document", kwargs={"doc_id": str(file.id)})
@@ -441,8 +435,7 @@ def test_delete_document_endpoint(alice, client, mocker):
 
     assert response.status_code == HTTPStatus.OK
     assert File.objects.get(id=file_id).status == File.Status.deleted
-    assert File.delete_from_elastic.called
-    assert File.delete_from_s3.called
+    assert File.delete_from_elastic_and_s3.called
 
 
 @pytest.mark.django_db
@@ -455,8 +448,7 @@ def test_delete_document_with_chat(alice, client, mocker):
     file = File.objects.create(id=file_id, user=alice, original_file_name="test.pdf", status=File.Status.complete)
 
     # Mock methods
-    mocker.patch.object(File, "delete_from_elastic")
-    mocker.patch.object(File, "delete_from_s3")
+    mocker.patch.object(File, "delete_from_elastic_and_s3")
 
     # Mock chat_service.get_context to return simple context
     mocker.patch(
@@ -520,8 +512,7 @@ def test_delete_document_error_handling(alice, client, mocker):
     file_id = uuid.uuid4()
     file = File.objects.create(id=file_id, user=alice, original_file_name="test.pdf", status=File.Status.complete)
 
-    mocker.patch.object(File, "delete_from_elastic", side_effect=Exception("Test error"))
-    mocker.patch.object(File, "delete_from_s3")
+    mocker.patch.object(File, "delete_from_elastic_and_s3", side_effect=Exception("Test error"))
 
     client.force_login(alice)
     url = reverse("delete-document", kwargs={"doc_id": str(file.id)})
@@ -561,8 +552,7 @@ def test_delete_document_invalid_active_chat_id(alice, client, mocker):
 
     logger_spy = mocker.spy(logging.getLogger("redbox_app.redbox_core.views.document_views"), "exception")
 
-    mocker.patch.object(File, "delete_from_elastic")
-    mocker.patch.object(File, "delete_from_s3")
+    mocker.patch.object(File, "delete_from_elastic_and_s3")
 
     client.force_login(alice)
     url = reverse("delete-document", kwargs={"doc_id": str(file.id)})
