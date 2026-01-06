@@ -620,6 +620,8 @@ class TestBuildAgentLoop:
             ("preprocess-loop-pass", True, True, 2, (AIMessage(content="preprocess-loop-pass"), "pass", "False")),
             ("preprocess-loop-fail", True, True, 2, (AIMessage(content="preprocess-loop-fail"), "fail", "True")),
             ("There is an issue with tool call. No results returned.", None, None, 1, None),
+            ("loop-intermediate-step-success", True, True, 2, ("intermediate-step-success", "pass", "True")),
+            ("raw-string-result", None, None, 1, "raw-string-result"),
         ],
     )
     def test_preprocess_loop(
