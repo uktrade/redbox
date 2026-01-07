@@ -86,7 +86,7 @@ safe:  ##
 check-migrations: stop  ## Check types in redbox and worker
 	docker compose up -d --wait db minio opensearch
 	cd django_app && poetry run python manage.py migrate
-	cd django_app && poetry run python manage.py makemigrations --check
+	cd django_app && poetry run python manage.py makemigrations --check --noinput
 
 .PHONY: migrations
 migrations: stop  ## Create migrations
