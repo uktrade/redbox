@@ -43,11 +43,11 @@ test-redbox: ## Test redbox
 
 .PHONY: test-django
 test-django: ## Test django-app
-	cd django_app && poetry install && poetry run pytest --cov=redbox_app -v --cov-report=term-missing --cov-report=xml --cov-fail-under=60 --ds redbox_app.settings $(TEST)
+	cd django_app && poetry install && poetry run pytest --cov=redbox_app -v --cov-report=term-missing --cov-report=xml --cov-fail-under=60 --ds redbox_app.settings $(test)
 
 .PHONY: test-django-single
 test-django-single: ## Test django-app with specified test file/case
-	$(MAKE) test-django TEST=$(test)
+	$(MAKE) test-django $(test)
 
 
 .PHONY: build-django-static

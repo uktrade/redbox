@@ -208,7 +208,10 @@ class Redbox:
                 is_summary_multiagent_streamed=is_summary_multiagent_streamed,
                 is_evaluator_output_streamed=is_evaluator_output_streamed,
             )
-            if not hasattr(final_state, "messages"):
+            # if not hasattr(final_state, "messages"):
+            #     logger.exception("LLM Error - Blank Response")
+            #
+            if len(final_state.messages) == 0:
                 logger.exception("LLM Error - Blank Response")
 
         except CancelledError:

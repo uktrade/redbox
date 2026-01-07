@@ -19,6 +19,10 @@ from websockets.legacy.client import Connect
 from redbox.models.chain import LLMCallMetadata, RedboxQuery, RequestMetadata
 from redbox.models.graph import FINAL_RESPONSE_TAG, ROUTE_NAME_TAG, RedboxActivityEvent
 from redbox.models.prompts import CHAT_MAP_QUESTION_PROMPT
+
+from redbox.models.chain import RedboxState
+
+from redbox.models.chain import ChainChatMessage
 from redbox_app.redbox_core import error_messages
 from redbox_app.redbox_core.consumers import ChatConsumer
 from redbox_app.redbox_core.models import ActivityEvent, Chat, ChatMessage, ChatMessageTokenUse, File
@@ -855,3 +859,11 @@ async def test_connect_with_agents_cache(agents_list: list, alice: User, staff_u
 
         await communicator.disconnect()
         await comm2.disconnect()
+
+def test_redboxstate_default_values():
+    chat_message_1 = ChainChatMessage(role='ai', text='Welcome human')
+    chat_message_2 = ChainChatMessage(role='user', text='hi there')
+    chat_message_3 = ChainChatMessage(role='system', text='beep boop')
+    redboxquery = RedboxQuery(question='xxx', user_uuid='00000000-0000-0000-0000-000000000000', chat_history=[chat_message_1, chat_message_2, chat_message_3])
+    state = RedboxState(request=redboxquery)
+    assert state.messages == []
