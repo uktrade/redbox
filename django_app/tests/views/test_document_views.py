@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, RequestFactory
 from django.urls import reverse
 
-from redbox_app.redbox_core.models import Chat, ChatLLMBackend, File, FileSkill
+from redbox_app.redbox_core.models import Chat, ChatLLMBackend, File, FileTool
 from redbox_app.redbox_core.services import documents as document_service
 from redbox_app.redbox_core.services import url as url_service
 from redbox_app.redbox_core.views.document_views import delete_document
@@ -614,13 +614,13 @@ def test_upload_document_api_invalid_file(alice, client, file_py_path):
 
 
 @pytest.mark.django_db
-def test_upload_document_to_skill(alice, client, original_file, default_skill, s3_client, remove_file_from_bucket):
+def test_upload_document_to_tool(alice, client, original_file, default_tool, s3_client, remove_file_from_bucket):
     """
-    Test the API endpoint with valid file and skill slug.
+    Test the API endpoint with valid file and tool slug.
     """
     # Given
     client.force_login(alice)
-    url = reverse("document-upload", kwargs={"slug": default_skill.slug})
+    url = reverse("document-upload", kwargs={"slug": default_tool.slug})
     file_name = f"{alice.email}/{original_file.name.rstrip(original_file.name[-4:])}"
     remove_file_from_bucket(file_name)
 
@@ -634,19 +634,17 @@ def test_upload_document_to_skill(alice, client, original_file, default_skill, s
     assert response.status_code == HTTPStatus.OK
     assert count_s3_objects(s3_client) == previous_count + 1
     assert uploaded_file.status == File.Status.processing
-    assert FileSkill.objects.filter(
-        file=uploaded_file, skill=default_skill, file_type=FileSkill.FileType.MEMBER
-    ).exists()
+    assert FileTool.objects.filter(file=uploaded_file, tool=default_tool, file_type=FileTool.FileType.MEMBER).exists()
 
 
 @pytest.mark.django_db
-def test_upload_invalid_document(alice, client, original_file, default_skill):
+def test_upload_invalid_document(alice, client, original_file, default_tool):
     """
     Test the API endpoint with invalid file.
     """
     # Given
     client.force_login(alice)
-    url = reverse("document-upload", kwargs={"slug": default_skill.slug})
+    url = reverse("document-upload", kwargs={"slug": default_tool.slug})
 
     original_file.name = "invalid"
     # When
@@ -666,7 +664,7 @@ def test_your_documents_with_chat(chat_with_files: User, client: Client):
     factory = RequestFactory()
     request = factory.post(reverse("your-documents"))
     request.user = user
-    file_context = document_service.decorate_file_context(request=request, skill=None, messages=[])
+    file_context = document_service.decorate_file_context(request=request, tool=None, messages=[])
     completed_files = file_context["completed_files"]
 
     # When
@@ -695,7 +693,7 @@ def test_your_documents_without_chat(chat_with_files: Chat, client: Client):
     factory = RequestFactory()
     request = factory.post(reverse("your-documents"))
     request.user = user
-    file_context = document_service.decorate_file_context(request=request, skill=None, messages=[])
+    file_context = document_service.decorate_file_context(request=request, tool=None, messages=[])
     completed_files = file_context["completed_files"]
 
     # When

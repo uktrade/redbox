@@ -19,7 +19,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.http import require_http_methods
 
-from redbox_app.redbox_core.models import File, FileTeamMembership, InactiveFileError, Skill, Team, UserTeamMembership
+from redbox_app.redbox_core.models import File, FileTeamMembership, InactiveFileError, Team, Tool, UserTeamMembership
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.utils import render_with_oob
@@ -109,10 +109,10 @@ def upload_document(request, slug: str | None = None):
         response["errors"] = errors
         return JsonResponse(response)
 
-    skill = Skill.objects.get(slug=slug) if slug else None
+    tool = Tool.objects.get(slug=slug) if slug else None
 
     # ingest errors are handled differently, as the other documents have started uploading by this point
-    ingest_errors, file = documents_service.ingest_file(uploaded_file, request.user, skill)
+    ingest_errors, file = documents_service.ingest_file(uploaded_file, request.user, tool)
     request.session["ingest_errors"] = ingest_errors
 
     if ingest_errors:

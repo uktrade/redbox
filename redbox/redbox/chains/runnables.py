@@ -63,7 +63,7 @@ def build_chat_prompt_from_messages_runnable(
         task_system_prompt, task_question_prompt, format_prompt = get_prompts(state, prompt_set)
 
         system_info_prompt = ai_settings.system_info_prompt.replace(
-            "{built_in_skills}",
+            "{built_in_tools}",
             "\n".join(
                 [f"- {agent.name.removesuffix('_Agent')}: {agent.description}" for agent in ai_settings.worker_agents]
             ),
@@ -71,11 +71,11 @@ def build_chat_prompt_from_messages_runnable(
 
         in_default_mode = all(agent.default_agent for agent in ai_settings.worker_agents)
         if not in_default_mode:
-            # -- In Skill Mode --
+            # -- In Tool Mode --
             agent_names = ",".join([f"'{agent.name.removesuffix('_Agent')}'" for agent in ai_settings.worker_agents])
             system_info_prompt = system_info_prompt.replace(
                 "{knowledge_mode}",
-                f"You are in skill mode using: {agent_names}. Make sure to tell the user when stating your capabilities or responding to a greeting, do not mention capabilities outside the scope of this skill. If a user requests you to perform a capability outside of this skill advise them to use normal chat. ",
+                f"You are in tool mode using: {agent_names}. Make sure to tell the user when stating your capabilities or responding to a greeting, do not mention capabilities outside the scope of this tool. If a user requests you to perform a capability outside of this tool advise them to use normal chat. ",
             )
         else:
             # -- Default --

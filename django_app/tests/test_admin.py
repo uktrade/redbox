@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
 
-from redbox_app.redbox_core.models import ChatMessage, Skill
+from redbox_app.redbox_core.models import ChatMessage, Tool
 from redbox_app.redbox_core.serializers import ChatMessageSerializer, UserSerializer
 
 User = get_user_model()
@@ -63,8 +63,8 @@ def test_chat_export_without_ratings(superuser: User, chat_message: ChatMessage,
 
 
 @pytest.mark.django_db
-def test_message_serializer(chat_message_with_citation_and_tokens: ChatMessage, skill: Skill):
-    chat_message_with_citation_and_tokens.chat.skill = skill
+def test_message_serializer(chat_message_with_citation_and_tokens: ChatMessage, tool: Tool):
+    chat_message_with_citation_and_tokens.chat.tool = tool
     expected = {
         "rating": 3,
         "rating_chips": ["apple", "pear"],
@@ -73,7 +73,7 @@ def test_message_serializer(chat_message_with_citation_and_tokens: ChatMessage, 
         "route": "chat",
         "selected_files": [],
         "text": "An answer with citation.",
-        "skill_name": skill.name,
+        "tool_name": tool.name,
     }
 
     expected_token_usage = [

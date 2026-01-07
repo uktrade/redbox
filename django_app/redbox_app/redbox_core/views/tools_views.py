@@ -9,30 +9,30 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.http import require_http_methods
 
-from redbox_app.redbox_core.models import Skill
+from redbox_app.redbox_core.models import Tool
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
-class SkillsView(View):
+class ToolsView(View):
     @method_decorator(login_required)
     def get(self, request: HttpRequest) -> HttpResponse:
         return render(
             request,
-            template_name="skills/skills.html",
-            context={"skills": Skill.objects.all()},
+            template_name="tools/tools.html",
+            context={"tools": Tool.objects.all()},
         )
 
 
 @require_http_methods(["GET"])
-def skill_info_page_view(request: HttpRequest, slug: str) -> HttpResponse:
-    skill = get_object_or_404(Skill, slug=slug)
+def tool_info_page_view(request: HttpRequest, slug: str) -> HttpResponse:
+    tool = get_object_or_404(Tool, slug=slug)
 
-    if not skill.has_info_page:
+    if not tool.has_info_page:
         return HttpResponse(
-            f"Skill info page not found: {slug}",
+            f"Tool info page not found: {slug}",
             status=HTTPStatus.NOT_FOUND,
         )
 
-    return render(request, skill.info_template, context={"skill": skill})
+    return render(request, tool.info_template, context={"tool": tool})
