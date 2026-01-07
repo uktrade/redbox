@@ -1,6 +1,6 @@
 // @ts-check
 
-import "../loading-message.js";
+import "../../../redbox_design_system/rbds/components/loading-message.js";
 
 /** So completed docs can be added to this list */
 class UploadButton extends HTMLElement {

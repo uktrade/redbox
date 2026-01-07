@@ -94,7 +94,7 @@ class UploadView(View):
 
 @require_http_methods(["POST"])
 @login_required
-def upload_document(request, skill_slug: str | None = None):
+def upload_document(request, slug: str | None = None):
     errors: MutableSequence[str] = []
 
     uploaded_file: UploadedFile = request.FILES.get("file")
@@ -109,7 +109,7 @@ def upload_document(request, skill_slug: str | None = None):
         response["errors"] = errors
         return JsonResponse(response)
 
-    skill = Skill.objects.get(slug=skill_slug) if skill_slug else None
+    skill = Skill.objects.get(slug=slug) if slug else None
 
     # ingest errors are handled differently, as the other documents have started uploading by this point
     ingest_errors, file = documents_service.ingest_file(uploaded_file, request.user, skill)
@@ -133,8 +133,7 @@ def remove_doc_view(request, doc_id: uuid):
 
     if request.method == "POST":
         try:
-            file.delete_from_elastic()
-            file.delete_from_s3()
+            file.delete_from_elastic_and_s3()
             file.status = File.Status.deleted
             file.save()
             logger.info("Removing document: %s", request.POST["doc_id"])
@@ -161,12 +160,9 @@ def remove_all_docs_view(request):
     if request.method == "POST":
         for file in users_files:
             try:
-                file.delete_from_elastic()
+                file.delete_from_elastic_and_s3()
             except InactiveFileError:
                 logger.warning("File %s is inactive skipping delete_from_elastic", file)
-
-            try:
-                file.delete_from_s3()
             except Exception as e:
                 logger.exception("Error deleting file %s from S3", file, exc_info=e)
                 errors.append(f"Error deleting file {file.id} from S3")
@@ -186,7 +182,7 @@ def remove_all_docs_view(request):
 
 @require_http_methods(["POST"])
 @login_required
-def delete_document(request, doc_id: uuid.UUID, skill_slug: str | None = None):
+def delete_document(request, doc_id: uuid.UUID, slug: str | None = None):
     try:
         doc_uuid = uuid.UUID(str(doc_id))
     except ValueError:
@@ -197,8 +193,7 @@ def delete_document(request, doc_id: uuid.UUID, skill_slug: str | None = None):
     errors: list[str] = []
 
     try:
-        file.delete_from_elastic()
-        file.delete_from_s3()
+        file.delete_from_elastic_and_s3()
         file.status = File.Status.deleted
         file.save()
         logger.info("Removing document: %s", request.POST.get("doc_id"))
@@ -238,15 +233,15 @@ def delete_document(request, doc_id: uuid.UUID, skill_slug: str | None = None):
             ]
         )
 
-    return documents_service.render_your_documents(request, active_chat_id, skill_slug)
+    return documents_service.render_your_documents(request, active_chat_id, slug)
 
 
 class YourDocuments(View):
     @method_decorator(login_required)
     def get(
-        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, skill_slug: str | None = None
+        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, slug: str | None = None
     ) -> HttpResponse:
-        return documents_service.render_your_documents(request, active_chat_id, skill_slug)
+        return documents_service.render_your_documents(request, active_chat_id, slug)
 
 
 class DocumentsTitleView(View):

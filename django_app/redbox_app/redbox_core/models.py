@@ -106,15 +106,20 @@ class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
 
     @cached_property
     def info_page_url(self):
-        return reverse("skill-info", kwargs={"skill_slug": self.slug})
+        return reverse("tool-info", kwargs={"slug": self.slug})
 
     @cached_property
     def chat_url(self) -> str:
-        return url_service.get_chat_url(skill_slug=self.slug)
+        return url_service.get_chat_url(slug=self.slug)
 
     def get_files(self, file_type: Optional["FileSkill.FileType"] = None) -> Sequence["File"]:
         file_type = file_type or FileSkill.FileType.MEMBER
         return File.objects.filter(file_skills__skill=self, file_skills__file_type=file_type)
+
+    @property
+    def settings(self) -> "SkillSettings":
+        obj, _ = SkillSettings.objects.get_or_create(skill=self)
+        return obj
 
 
 class UserSkill(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -184,6 +189,25 @@ class AgentSkill(UUIDPrimaryKeyBase, TimeStampedModel):
 
     def __str__(self):
         return self.agent.name + " - " + self.skill.name
+
+
+class SkillSettings(UUIDPrimaryKeyBase, TimeStampedModel):
+    """
+    Settings for a skill (tool)
+    """
+
+    skill = models.OneToOneField(Skill, on_delete=models.CASCADE, related_name="skill_settings")
+
+    deselect_documents_on_load = models.BooleanField(
+        default=False, help_text="Whether to reset selected documents when the chat is loaded"
+    )
+
+    class Meta:
+        ordering = ["created_at"]
+        verbose_name_plural = "Skill Settings"
+
+    def __str__(self):
+        return self.skill.name + " Settings"
 
 
 class ChatLLMBackend(models.Model):
@@ -791,6 +815,10 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
                 body={"query": {"term": {"metadata.file_name.keyword": self.unique_name}}},
             )
 
+    def delete_from_elastic_and_s3(self):
+        self.delete_from_elastic()
+        self.delete_from_s3()
+
     @property
     def file_type(self) -> str:
         name = self.file_name
@@ -938,8 +966,18 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
         """Returns the url for this chat."""
         return url_service.get_chat_url(
             chat_id=self.id,
-            skill_slug=self.skill.slug if self.skill else None,
+            slug=self.skill.slug if self.skill else None,
         )
+
+    @property
+    def last_user_message(self):
+        messages = ChatMessage.get_messages_ordered_by_citation_priority(self.id)
+        return [m for m in messages if m.role == ChatMessage.Role.user][-1]
+
+    def clear_selected_files(self):
+        last_user_message = self.last_user_message
+        if last_user_message:
+            last_user_message.selected_files.clear()
 
 
 class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -1031,13 +1069,13 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         """returns the internal page url of the message citations anchored to the selected citation"""
         chat_message = self.chat_message
         chat = chat_message.chat
-        skill_slug = chat.skill.slug if chat.skill else None
+        slug = chat.skill.slug if chat.skill else None
 
         return url_service.get_citation_url(
             message_id=chat_message.id,
             citation_id=self.id,
             chat_id=chat.id,
-            skill_slug=skill_slug,
+            slug=slug,
         )
 
     @cached_property
@@ -1139,8 +1177,8 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
 
     @cached_property
     def citations_url(self) -> str:
-        skill_slug = self.chat.skill.slug if self.chat.skill else None
-        return url_service.get_citation_url(message_id=self.id, chat_id=self.chat.id, skill_slug=skill_slug)
+        slug = self.chat.skill.slug if self.chat.skill else None
+        return url_service.get_citation_url(message_id=self.id, chat_id=self.chat.id, slug=slug)
 
 
 class ChatMessageTokenUse(UUIDPrimaryKeyBase, TimeStampedModel):
