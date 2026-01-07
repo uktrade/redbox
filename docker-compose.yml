@@ -50,6 +50,25 @@ services:
       timeout: 30s
       retries: 24
       start_period: 60s
+  data_hub_mcp:
+    image: data_hub_mcp:latest
+    container_name: data_hub_mcp
+    build:
+      context: .
+      dockerfile: ./data_hub_mcp/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - redbox-app-network
+    ports:
+      - "${PORT:-8100}:${PORT:-8100}"
+    healthcheck:
+      test: curl --fail http://localhost:${PORT:-8100}/health/ || exit 1
+      interval: 5s
+      timeout: 30s
+      retries: 24
+      start_period: 60s
 
   db:
     image: postgres:14
