@@ -483,7 +483,7 @@ class TestNewRoutes:
         )
         state = RedboxState(request=dummy_query)
 
-        result = run_tools_parallel(ai_msg, [tool], state, timeout=1)
+        result = run_tools_parallel(ai_msg, [tool], state, parallel_timeout=1)
         assert len(result) == 4
 
     def test_run_tools_parallel_tool_exception(self):
