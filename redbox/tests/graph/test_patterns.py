@@ -599,7 +599,7 @@ class TestBuildAgentLoop:
             system_prompt="Fake prompt",
             tools=[],
         )
-
+        fake_state.messages = AIMessage(content="Incorrect task format")
         response = fake_agent.invoke(fake_state)
         assert response is None
 
