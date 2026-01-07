@@ -815,6 +815,10 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
                 body={"query": {"term": {"metadata.file_name.keyword": self.unique_name}}},
             )
 
+    def delete_from_elastic_and_s3(self):
+        self.delete_from_elastic()
+        self.delete_from_s3()
+
     @property
     def file_type(self) -> str:
         name = self.file_name
