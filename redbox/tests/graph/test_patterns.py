@@ -593,7 +593,9 @@ def test_citation_structured_output(test_case: RedboxChatTestCase, mocker: Mocke
 
 
 class TestBuildAgentLoop:
-    def test_fail_parser_agent_task(self, fake_state):
+    def test_fail_parser_agent_task(self, fake_state, mocker: MockerFixture):
+        llm = GenericFakeChatModel(messages=iter([AIMessage(content="AI is a lie")]))
+        mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
         fake_agent = build_agent_with_loop(
             agent_name="Internal_Retrieval_Agent",
             system_prompt="Fake prompt",

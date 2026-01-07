@@ -12,6 +12,8 @@ from langgraph.pregel import RetryPolicy
 from redbox.chains.components import get_structured_response_with_citations_parser
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import build_self_route_output_parser
+from redbox.graph.agents.configs import AgentConfigs
+from redbox.graph.agents.workers import WorkerAgent
 from redbox.graph.edges import (
     build_documents_bigger_than_context_conditional,
     build_keyword_detection_conditional,
@@ -690,6 +692,13 @@ def build_new_route_graph(
                     builder.add_edge("retrieve_tabular_documents", "retrieve_tabular_schema")
                     builder.add_edge("retrieve_tabular_schema", "call_tabular_agent")
                     builder.add_edge("call_tabular_agent", "combine_question_evaluator")
+
+                case "Internal_Retrieval_Agent":
+                    config = AgentConfigs.internal_retrieval_agent
+                    config.tools = multi_agent_tools[agent.name]
+                    config.max_tokens = agent.agents_max_tokens
+                    worker = WorkerAgent(config=config)
+                    builder.add_node(agent.name, worker.execute())
 
                 case _:
                     success = "fail"

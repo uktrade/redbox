@@ -1,14 +1,14 @@
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from unittest.mock import Mock
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage
 from pytest_mock import MockerFixture
 
 from redbox import Redbox
+from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models.chain import (
-    configure_agent_task_plan,
     ChainChatMessage,
     Citation,
     MultiAgentPlanBase,
@@ -17,9 +17,9 @@ from redbox.models.chain import (
     RequestMetadata,
     Source,
     StructuredResponseWithCitations,
+    configure_agent_task_plan,
     metadata_reducer,
 )
-from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models.chat import ChatRoute
 from redbox.models.graph import RedboxActivityEvent
 from redbox.models.settings import Settings
@@ -226,8 +226,6 @@ class TestNewRoutes:
                 [0, 0],
                 True,
                 "Web_Search_Agent",
-                # [agent for agent in AISettings().worker_agents if agent.name == "Web_Search_Agent"][0],
-                # AgentEnum.Web_Search_Agent,
                 ANSWER_WITH_CITATION,
             ),
             (
@@ -236,8 +234,6 @@ class TestNewRoutes:
                 [1, 1000],
                 True,
                 "Web_Search_Agent",
-                # [agent for agent in AISettings().worker_agents if agent.name == "Web_Search_Agent"][0],
-                # AgentEnum.Web_Search_Agent,
                 ANSWER_WITH_CITATION,
             ),
             (
@@ -246,8 +242,6 @@ class TestNewRoutes:
                 [0, 0],
                 True,
                 "Legislation_Search_Agent",
-                # [agent for agent in AISettings().worker_agents if agent.name == "Legislation_Search_Agent"][0],
-                # AgentEnum.Legislation_Search_Agent,
                 ANSWER_WITH_CITATION,
             ),
             (
@@ -256,8 +250,6 @@ class TestNewRoutes:
                 [1, 1000],
                 True,
                 "Legislation_Search_Agent",
-                # [agent for agent in AISettings().worker_agents if agent.name == "Legislation_Search_Agent"][0],
-                # AgentEnum.Legislation_Search_Agent,
                 ANSWER_WITH_CITATION,
             ),
             (
@@ -266,8 +258,6 @@ class TestNewRoutes:
                 [3, 10_000],
                 True,
                 "Internal_Retrieval_Agent",
-                # [agent for agent in AISettings().worker_agents if agent.name == "Internal_Retrieval_Agent"][0],
-                # AgentEnum.Internal_Retrieval_Agent,
                 ANSWER_WITH_CITATION,
             ),
             (
@@ -276,8 +266,6 @@ class TestNewRoutes:
                 [1, 1000],
                 True,
                 "Tabular_Agent",
-                # [agent for agent in AISettings().worker_agents if agent.name == "Tabular_Agent"][0],
-                # AgentEnum.Tabular_Agent,
                 ANSWER_NO_CITATION,
             ),
             (
@@ -294,8 +282,6 @@ class TestNewRoutes:
                 [0, 0],
                 True,
                 "Web_Search_Agent",
-                # [agent for agent in AISettings().worker_agents if agent.name == "Web_Search_Agent"][0],
-                # AgentEnum.Web_Search_Agent,
                 ANSWER_WITH_CITATION,
             ),
             (
@@ -304,8 +290,6 @@ class TestNewRoutes:
                 [3, 10_000],
                 True,
                 "Internal_Retrieval_Agent",
-                # [agent for agent in AISettings().worker_agents if agent.name == "Internal_Retrieval_Agent"][0],
-                # AgentEnum.Internal_Retrieval_Agent,
                 ANSWER_WITH_CITATION,
             ),
             (
@@ -314,8 +298,6 @@ class TestNewRoutes:
                 [0, 0],
                 True,
                 "Legislation_Search_Agent",
-                # [agent for agent in AISettings().worker_agents if agent.name == "Legislation_Search_Agent"][0],
-                # AgentEnum.Legislation_Search_Agent,
                 ANSWER_WITH_CITATION,
             ),
         ],
@@ -329,15 +311,9 @@ class TestNewRoutes:
         )
         # mocking planner agent
         agent_task, multi_agent_plan = configure_agent_task_plan({agent: agent})
-        tasks = (
-            [agent_task()]
-            # [AgentTask(task="This is a fake task", agent=agent, expected_output="This is a fake output")]
-            if has_task
-            else []
-        )
+        tasks = [agent_task()] if has_task else []
         configured_multi_agent_plan = multi_agent_plan().model_copy(update={"tasks": tasks})
         planner = configured_multi_agent_plan.model_dump_json()
-        # planner = (MultiAgentPlan(tasks=tasks)).model_dump_json()
         planner_response = GenericFakeChatModelWithTools(messages=iter([planner]))
         planner_response._default_config = {"model": "bedrock"}
 
@@ -352,15 +328,25 @@ class TestNewRoutes:
         mock_chat_chain.side_effect = [planner_response, worker_response]
 
         # mock tool call
-        if agent == "Tabular_Agent":
-            tool_response = TABULAR_TOOL_RESPONSE
-            mocker.patch("redbox.graph.nodes.processes.get_chat_llm", side_effect=[worker_response, evaluator_response])
-
-        else:
-            tool_response = WORKER_TOOL_RESPONSE
+        if agent == "Internal_Retrieval_Agent":
+            # This is a mocker for the new agent refactor. You will need to remove other mocking once all agents have been refactored.
+            mocker.patch(
+                "redbox.graph.agents.workers.run_tools_parallel",
+                return_value=[WORKER_TOOL_RESPONSE],
+            )
             mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=evaluator_response)
+        else:
+            if agent == "Tabular_Agent":
+                tool_response = TABULAR_TOOL_RESPONSE
+                mocker.patch(
+                    "redbox.graph.nodes.processes.get_chat_llm", side_effect=[worker_response, evaluator_response]
+                )
 
-        mocker.patch("redbox.graph.nodes.processes.run_tools_parallel", return_value=[tool_response])
+            else:
+                tool_response = WORKER_TOOL_RESPONSE
+                mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=evaluator_response)
+
+            mocker.patch("redbox.graph.nodes.processes.run_tools_parallel", return_value=[tool_response])
 
         await run_app(test_case)
 
@@ -373,15 +359,13 @@ class TestNewRoutes:
             (
                 "approve plan",
                 '{"next": "approve"}',
-                ["Internal_Retrieval_Agent", "Web_Search_Agent"],
-                # [AgentEnum.Internal_Retrieval_Agent, AgentEnum.Web_Search_Agent],
+                ["External_Retrieval_Agent", "Web_Search_Agent"],
                 ANSWER_WITH_CITATION,
             ),
             (
                 "modify plan",
                 '{"next": "modify"}',
-                ["Internal_Retrieval_Agent", "Web_Search_Agent"],
-                # [AgentEnum.Internal_Retrieval_Agent, AgentEnum.Web_Search_Agent],
+                ["External_Retrieval_Agent", "Web_Search_Agent"],
                 ANSWER_WITH_CITATION,
             ),
         ],
@@ -400,10 +384,8 @@ class TestNewRoutes:
         for i in range(len(agents)):
             agent = agents[i]
             agent_task, multi_agent_plan = configure_agent_task_plan({agent: agent})
-            # tasks += [AgentTask(task="This is a fake task", agent=agents[i], expected_output="This is a fake output")]
             tasks += [agent_task()]
         configured_multi_agent_plan = multi_agent_plan().model_copy(update={"tasks": tasks})
-        # planner = configured_multi_agent_plan()
         old_plan = []
         if "modify" in user_feedback:
             # old plan here

@@ -29,9 +29,13 @@ class PromptConfig(BaseModel):
     """
 
     system: str = Field(description="sytem prompt")
-    question: str | None = Field(description="question prompt", default=None)
-    format: str | None = Field(description="prompt used for format instruction", default=None)
-    prompt_vars: PromptVariable | None = Field(description="variables that are used in the prompt", default=None)
+    question: str = Field(description="question prompt", default="")
+    format: str = Field(description="prompt used for format instruction", default="")
+    prompt_vars: PromptVariable = Field(description="variables that are used in the prompt", default=PromptVariable())
+
+    @property
+    def get_prompt(self):
+        return self.system + "\n" + self.question + "\n" + self.format
 
 
 class PromptConfigs:
@@ -43,7 +47,7 @@ class PromptConfigs:
         system=prompts.PLANNER_PROMPT_TOP,
         question=prompts.PLANNER_QUESTION_PROMPT,
         format=prompts.PLANNER_FORMAT_PROMPT,
-        prompt_var=PromptVariable(
+        prompt_vars=PromptVariable(
             chat_history=True, question=True, document_filenames=True, metadata=True, format_instruction=True
         ),
     )
@@ -52,7 +56,7 @@ class PromptConfigs:
         system=prompts.REPLAN_PROMPT,
         question=prompts.PLANNER_QUESTION_PROMPT,
         format=prompts.PLANNER_FORMAT_PROMPT,
-        prompt_var=PromptVariable(
+        prompt_vars=PromptVariable(
             previous_plan=True,
             user_feedback=True,
             question=True,
@@ -64,30 +68,25 @@ class PromptConfigs:
 
     internal_retrieval_agent = PromptConfig(
         system=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT,
-        question=None,
-        format=None,
-        prompt_var=PromptVariable(task=True, expected_output=True, metadata=True),
+        prompt_vars=PromptVariable(task=True, expected_output=True, metadata=True),
     )
 
     web_search_agent = PromptConfig(
         system=prompts.WEB_SEARCH_AGENT_PROMPT,
-        question=None,
-        format=None,
         prompt_var=PromptVariable(task=True, expected_output=True, metadata=True),
     )
 
     summarisation_agent = PromptConfig(
         system=prompts.CHAT_WITH_DOCS_SYSTEM_PROMPT,
         question=prompts.CHAT_WITH_DOCS_QUESTION_PROMPT,
-        format=None,
-        prompt_var=PromptVariable(question=True, formatted_documents=True),
+        prompt_vars=PromptVariable(question=True, formatted_documents=True),
     )
 
     evaluator_agent = PromptConfig(
         system=prompts.NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT,
         question=prompts.NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT,
         format=prompts.CITATION_PROMPT,
-        prompt_var=PromptVariable(agents_results=True, question=True, format_instructions=True),
+        prompt_vars=PromptVariable(agents_results=True, question=True, format_instructions=True),
     )
 
 
@@ -117,9 +116,7 @@ class AgentConfigs:
     internal_retrieval_agent = AgentConfig(
         name="Internal_Retrieval_Agent",
         prompt=PromptConfigs.internal_retrieval_agent,
-        tools=[],
-        llm_backend=ChatLLMBackend(name="sonnet-4", provider="bedrock"),
-        parser=ClaudeParser(),
+        parser=None,
     )
 
     web_search_agent = AgentConfig(
