@@ -252,14 +252,19 @@ For any other commands available, check the `Makefile` [here](https://github.com
 You can also choose to run the project with the VSCode Python Debugger, allowing you to create breakpoints in the code for programmatic inspection.
 
 > [!WARNING]
-> Please be aware this debugging implementation is relatively new and has some nuances due to deviations from the docker build configuration. It has known issues with LLM tool calls so it is recommended this is used to _support_ development alongside docker build processes.
+> Please be aware this debugging implementation is relatively new and has some nuances due to deviations from the docker build configuration.
 
-#### 1. Run the main app
+#### 1. Set VSCode Python Interpreter to `django_app/`
+1. Select a python file to view selected interpreter
+2. Set to `django_app/venv/bin/python` or `django_app/.venv/bin/python`
+3. Interpeter should display as `(redbox-app-py3.12)`
+
+#### 2. Run the main app
 1. Go to `Run and Debug` tab on left side of VSCode window
 2. Go to green play button dropdown and select `Full Stack Dev (Frontend + Django)`
 3. Click play button - should spin up dependency containers, build frontend, and then run main app with python debugger
 
-#### 2. Run the worker
+#### 3. Run the worker
 1. Open command palette - CMD + Shift + P
 2. Select `Tasks: Run Task`
 3. Run `Django: QCluster`
