@@ -536,9 +536,9 @@ def build_agent(
                         log.warning(
                             f"[{agent_name}] Truncating tool output to fit remaining token budget ({remaining_tokens})."
                         )
-                        truncated = truncate_to_tokens(res.content, remaining_tokens)
+                        truncated, truncated_token_count = truncate_to_tokens(res.content, remaining_tokens)
                         result_content.append(truncated)
-                        current_token_counts += bedrock_tokeniser(truncated)
+                        current_token_counts += truncated_token_count
                     else:
                         log.warning(f"[{agent_name}] No remaining token budget ({max_tokens}). Skipping.")
                     break  # Max reached — stop processing further results
@@ -682,9 +682,9 @@ def build_agent_with_loop(
                             log.warning(
                                 f"{log_stub} Truncating tool output to fit remaining token budget ({remaining_tokens})."
                             )
-                            truncated = truncate_to_tokens(res.content, remaining_tokens)
+                            truncated, truncated_token_count = truncate_to_tokens(res.content, remaining_tokens)
                             result_content.append(truncated)
-                            current_token_counts += bedrock_tokeniser(truncated)
+                            current_token_counts += truncated_token_count
                         else:
                             log.warning(f"{log_stub} No remaining token budget ({max_tokens}). Skipping.")
                         break  # Max reached — stop processing further results
