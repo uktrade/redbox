@@ -5,7 +5,7 @@ from django.test import Client
 from redbox_app.redbox_core.models import (
     ChatMessage,
     Citation,
-    Skill,
+    Tool,
 )
 
 User = get_user_model()
@@ -26,20 +26,20 @@ def test_internal_url(client: Client, alice: User, chat_message_with_citation: C
 
 
 @pytest.mark.django_db(transaction=True)
-def test_internal_url_with_skill(
-    client: Client, alice: User, chat_message_with_citation: ChatMessage, default_skill: Skill
+def test_internal_url_with_tool(
+    client: Client, alice: User, chat_message_with_citation: ChatMessage, default_tool: Tool
 ):
     # Given
     client.force_login(alice)
     chat_id = chat_message_with_citation.chat.id
     message_id = chat_message_with_citation.id
-    slug = default_skill.slug
-    chat_message_with_citation.chat.skill = default_skill
+    slug = default_tool.slug
+    chat_message_with_citation.chat.tool = default_tool
     chat_message_with_citation.chat.save()
 
     # When
     citation = Citation.objects.get(chat_message=chat_message_with_citation)
-    chat_message_with_citation.chat.skill = default_skill
+    chat_message_with_citation.chat.tool = default_tool
     chat_message_with_citation.chat.save()
 
     # Then

@@ -19,7 +19,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.http import require_http_methods
 
-from redbox_app.redbox_core.models import File, FileTeamMembership, InactiveFileError, Skill, Team, UserTeamMembership
+from redbox_app.redbox_core.models import File, FileTeamMembership, InactiveFileError, Team, Tool, UserTeamMembership
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.utils import render_with_oob
@@ -109,10 +109,10 @@ def upload_document(request, slug: str | None = None):
         response["errors"] = errors
         return JsonResponse(response)
 
-    skill = Skill.objects.get(slug=slug) if slug else None
+    tool = Tool.objects.get(slug=slug) if slug else None
 
     # ingest errors are handled differently, as the other documents have started uploading by this point
-    ingest_errors, file = documents_service.ingest_file(uploaded_file, request.user, skill)
+    ingest_errors, file = documents_service.ingest_file(uploaded_file, request.user, tool)
     request.session["ingest_errors"] = ingest_errors
 
     if ingest_errors:
@@ -133,8 +133,7 @@ def remove_doc_view(request, doc_id: uuid):
 
     if request.method == "POST":
         try:
-            file.delete_from_elastic()
-            file.delete_from_s3()
+            file.delete_from_elastic_and_s3()
             file.status = File.Status.deleted
             file.save()
             logger.info("Removing document: %s", request.POST["doc_id"])
@@ -161,12 +160,9 @@ def remove_all_docs_view(request):
     if request.method == "POST":
         for file in users_files:
             try:
-                file.delete_from_elastic()
+                file.delete_from_elastic_and_s3()
             except InactiveFileError:
                 logger.warning("File %s is inactive skipping delete_from_elastic", file)
-
-            try:
-                file.delete_from_s3()
             except Exception as e:
                 logger.exception("Error deleting file %s from S3", file, exc_info=e)
                 errors.append(f"Error deleting file {file.id} from S3")
@@ -197,8 +193,7 @@ def delete_document(request, doc_id: uuid.UUID, slug: str | None = None):
     errors: list[str] = []
 
     try:
-        file.delete_from_elastic()
-        file.delete_from_s3()
+        file.delete_from_elastic_and_s3()
         file.status = File.Status.deleted
         file.save()
         logger.info("Removing document: %s", request.POST.get("doc_id"))

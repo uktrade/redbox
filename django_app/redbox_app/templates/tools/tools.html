@@ -1,4 +1,4 @@
-{% set pageTitle = "Skills" %}
+{% set pageTitle = "Tools" %}
 {% extends "base.html" %}
 {% from "macros/govuk-button.html" import govukButton %}
 
@@ -22,8 +22,8 @@
 <div class="govuk-width-container rbds-width-container">
     <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">Available tools</h2>
     <div class="govuk-grid-row rbds-card-grid govuk-!-margin-bottom-7">
-        {% for skill in skills %}
-            {% include "skills/skill-card.html" %}
+        {% for tool in tools %}
+            {% include "tools/tool-card.html" %}
         {% endfor %}
     </div>
 </div>
