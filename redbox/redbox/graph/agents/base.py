@@ -13,7 +13,7 @@ class Agent(ABC):
 
     def __init__(self, config):
         self.config: AgentConfig = config
-        self.logger = log.getChild(f"{self.__class__.name__}.{self.config.name}")
+        self.logger = log.getChild(f"{self.__class__.__name__}.{self.config.name}")
         self.logger.info("Agent initialised")
 
     @abstractmethod
