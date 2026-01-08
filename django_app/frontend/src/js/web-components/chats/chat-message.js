@@ -144,7 +144,7 @@ export class ChatMessage extends HTMLElement {
     sessionId,
     endPoint,
     chatControllerRef,
-    selectedSkill
+    selectedTool
   ) => {
     // Scroll behaviour - depending on whether user has overridden this or not
     let scrollOverride = false;
@@ -230,7 +230,7 @@ export class ChatMessage extends HTMLElement {
           selectedFiles: selectedDocuments,
           activities: activities,
           llm: llm,
-          selectedSkill: selectedSkill,
+          selectedTool: selectedTool,
         })
       );
       this.dataset.status = "streaming";
