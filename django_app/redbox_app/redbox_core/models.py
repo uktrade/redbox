@@ -61,9 +61,9 @@ def sanitise_string(string: str | None) -> str | None:
     return string.replace("\x00", "\ufffd") if string else string
 
 
-class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
+class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
     """
-    Skills feature model. To be used against:
+    Tools feature model. To be used against:
     - users
     - teams
     - documents
@@ -78,7 +78,7 @@ class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
     )
 
     class Meta:
-        verbose_name_plural = "skills"
+        verbose_name_plural = "tools"
         ordering = ["name"]
 
     def __str__(self):
@@ -92,7 +92,7 @@ class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
     @cached_property
     def info_template(self) -> str | None:
         """Returns the template path if it exists, else None."""
-        template_path = f"skills/info/{self.slug}.html"
+        template_path = f"tools/info/{self.slug}.html"
         try:
             get_template(template_path)
         except TemplateDoesNotExist:
@@ -101,7 +101,7 @@ class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
 
     @property
     def has_info_page(self) -> bool:
-        """Check to see if an info page has been created for skill"""
+        """Check to see if an info page has been created for tool"""
         return self.info_template is not None
 
     @cached_property
@@ -112,91 +112,91 @@ class Skill(UUIDPrimaryKeyBase, TimeStampedModel):
     def chat_url(self) -> str:
         return url_service.get_chat_url(slug=self.slug)
 
-    def get_files(self, file_type: Optional["FileSkill.FileType"] = None) -> Sequence["File"]:
-        file_type = file_type or FileSkill.FileType.MEMBER
-        return File.objects.filter(file_skills__skill=self, file_skills__file_type=file_type)
+    def get_files(self, file_type: Optional["FileTool.FileType"] = None) -> Sequence["File"]:
+        file_type = file_type or FileTool.FileType.MEMBER
+        return File.objects.filter(file_tools__tool=self, file_tools__file_type=file_type)
 
     @property
-    def settings(self) -> "SkillSettings":
-        obj, _ = SkillSettings.objects.get_or_create(skill=self)
+    def settings(self) -> "ToolSettings":
+        obj, _ = ToolSettings.objects.get_or_create(tool=self)
         return obj
 
 
-class UserSkill(UUIDPrimaryKeyBase, TimeStampedModel):
+class UserTool(UUIDPrimaryKeyBase, TimeStampedModel):
     """
-    Junction for user/skill many-to-many relationship
+    Junction for user/tool many-to-many relationship
     """
 
-    user = models.ForeignKey("User", on_delete=models.CASCADE, related_name="user_skills")
-    skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="user_skills")
+    user = models.ForeignKey("User", on_delete=models.CASCADE, related_name="user_tools")
+    tool = models.ForeignKey(Tool, on_delete=models.CASCADE, related_name="user_tools")
 
     class Meta:
-        unique_together = ("user", "skill")
+        unique_together = ("user", "tool")
         ordering = ["created_at"]
 
     def __str__(self):
-        return self.user.email + " - " + self.skill.name
+        return self.user.email + " - " + self.tool.name
 
 
-class TeamSkill(UUIDPrimaryKeyBase, TimeStampedModel):
+class TeamTool(UUIDPrimaryKeyBase, TimeStampedModel):
     """
-    Junction model for team/skill many-to-many relationship
+    Junction model for team/tool many-to-many relationship
     """
 
     team = models.ForeignKey("Team", on_delete=models.CASCADE)
-    skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="team_skills")
+    tool = models.ForeignKey(Tool, on_delete=models.CASCADE, related_name="team_tools")
 
     class Meta:
-        unique_together = ("team", "skill")
+        unique_together = ("team", "tool")
         ordering = ["created_at"]
 
     def __str__(self):
-        return self.team.team_name + " - " + self.skill.name
+        return self.team.team_name + " - " + self.tool.name
 
 
-class FileSkill(UUIDPrimaryKeyBase, TimeStampedModel):
+class FileTool(UUIDPrimaryKeyBase, TimeStampedModel):
     """
-    Junction model for file/skill many-to-many relationship to tag files with relevant skill for contextual retrieval
+    Junction model for file/tool many-to-many relationship to tag files with relevant tool for contextual retrieval
     """
 
     class FileType(models.TextChoices):
         ADMIN = "ADMIN", _("Admin")
         MEMBER = "MEMBER", _("Member")
 
-    file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="file_skills")
-    skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="file_skills")
+    file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="file_tools")
+    tool = models.ForeignKey(Tool, on_delete=models.CASCADE, related_name="file_tools")
     file_type = models.CharField(max_length=20, choices=FileType.choices, default=FileType.MEMBER)
 
     class Meta:
-        unique_together = ("file", "skill")
+        unique_together = ("file", "tool")
         ordering = ["created_at"]
 
     def __str__(self):
-        return self.file.file_name + " - " + self.skill.name
+        return self.file.file_name + " - " + self.tool.name
 
 
-class AgentSkill(UUIDPrimaryKeyBase, TimeStampedModel):
+class AgentTool(UUIDPrimaryKeyBase, TimeStampedModel):
     """
-    Junction model for agent/skill many-to-many relationship. Key point: agents are not exclusive to skills
+    Junction model for agent/tool many-to-many relationship. Key point: agents are not exclusive to tools
     """
 
-    agent = models.ForeignKey("Agent", on_delete=models.CASCADE, related_name="agent_skills")
-    skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="agent_skills")
+    agent = models.ForeignKey("Agent", on_delete=models.CASCADE, related_name="agent_tools")
+    tool = models.ForeignKey(Tool, on_delete=models.CASCADE, related_name="agent_tools")
 
     class Meta:
-        unique_together = ("agent", "skill")
+        unique_together = ("agent", "tool")
         ordering = ["created_at"]
 
     def __str__(self):
-        return self.agent.name + " - " + self.skill.name
+        return self.agent.name + " - " + self.tool.name
 
 
-class SkillSettings(UUIDPrimaryKeyBase, TimeStampedModel):
+class ToolSettings(UUIDPrimaryKeyBase, TimeStampedModel):
     """
-    Settings for a skill (tool)
+    Settings for a tool
     """
 
-    skill = models.OneToOneField(Skill, on_delete=models.CASCADE, related_name="skill_settings")
+    tool = models.OneToOneField(Tool, on_delete=models.CASCADE, related_name="tool_settings")
 
     deselect_documents_on_load = models.BooleanField(
         default=False, help_text="Whether to reset selected documents when the chat is loaded"
@@ -204,10 +204,10 @@ class SkillSettings(UUIDPrimaryKeyBase, TimeStampedModel):
 
     class Meta:
         ordering = ["created_at"]
-        verbose_name_plural = "Skill Settings"
+        verbose_name_plural = "Toool Settings"
 
     def __str__(self):
-        return self.skill.name + " Settings"
+        return self.tool.name + " Settings"
 
 
 class ChatLLMBackend(models.Model):
@@ -564,7 +564,7 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
     ai_settings = models.ForeignKey(AISettings, on_delete=models.SET_DEFAULT, default="default", to_field="label")
     is_developer = models.BooleanField(null=True, blank=True, default=False, help_text="is this user a developer?")
 
-    skills = models.ManyToManyField(Skill, through=UserSkill, related_name="users", blank=True)
+    tools = models.ManyToManyField(Tool, through=UserTool, related_name="users", blank=True)
 
     # Additional fields for sign-up form
     # Page 1
@@ -670,7 +670,7 @@ class Team(UUIDPrimaryKeyBase):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    skills = models.ManyToManyField(Skill, through=TeamSkill, related_name="teams", blank=True)
+    tools = models.ManyToManyField(Tool, through=TeamTool, related_name="teams", blank=True)
 
     class Meta:
         verbose_name = "Team"
@@ -780,7 +780,7 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         help_text="error, if any, encountered during ingest",
     )
 
-    skills = models.ManyToManyField(Skill, through=FileSkill, related_name="files", blank=True)
+    tools = models.ManyToManyField(Tool, through=FileTool, related_name="files", blank=True)
 
     def __str__(self) -> str:  # pragma: no cover
         return self.file_name
@@ -814,6 +814,10 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
                 index=index,
                 body={"query": {"term": {"metadata.file_name.keyword": self.unique_name}}},
             )
+
+    def delete_from_elastic_and_s3(self):
+        self.delete_from_elastic()
+        self.delete_from_s3()
 
     @property
     def file_type(self) -> str:
@@ -871,16 +875,16 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
 
     @classmethod
     def get_completed_and_processing_files(
-        cls, user: User, skill: Skill | None = None
+        cls, user: User, tool: Tool | None = None
     ) -> tuple[Sequence["File"], Sequence["File"]]:
         """Returns all files that are completed and processing for a given user."""
         base_filter = Q(user=user)
-        skill_filter = (
-            Q(file_skills__skill=skill, file_skills__file_type=FileSkill.FileType.MEMBER)
-            if skill
-            else Q(file_skills__isnull=True)
+        tool_filter = (
+            Q(file_tools__tool=tool, file_tools__file_type=FileTool.FileType.MEMBER)
+            if tool
+            else Q(file_tools__isnull=True)
         )
-        filters = base_filter & skill_filter
+        filters = base_filter & tool_filter
 
         completed_files = cls.objects.filter(filters, status=File.Status.complete).order_by("-created_at")
         processing_files = cls.objects.filter(filters, status=File.Status.processing).order_by("-created_at")
@@ -907,7 +911,7 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
     name = models.TextField(max_length=1024, null=False, blank=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     archived = models.BooleanField(default=False, null=True, blank=True)
-    skill = models.ForeignKey(Skill, on_delete=models.SET_NULL, null=True, blank=True, related_name="chats")
+    tool = models.ForeignKey(Tool, on_delete=models.SET_NULL, null=True, blank=True, related_name="chats")
 
     # Exit feedback - this is separate to the ratings for individual ChatMessages
     feedback_achieved = models.BooleanField(
@@ -938,12 +942,12 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
 
     @classmethod
     def get_ordered_by_last_message_date(
-        cls, user: User, skill: Skill | None = None, exclude_chat_ids: Collection[uuid.UUID] | None = None
+        cls, user: User, tool: Tool | None = None, exclude_chat_ids: Collection[uuid.UUID] | None = None
     ) -> Sequence["Chat"]:
         """Returns all chat histories for a given user, ordered by the date of the latest message."""
         exclude_chat_ids = exclude_chat_ids or []
         return (
-            cls.objects.filter(user=user, archived=False, skill=skill)
+            cls.objects.filter(user=user, archived=False, tool=tool)
             .exclude(id__in=exclude_chat_ids)
             .annotate(latest_message_date=Max("chatmessage__created_at"))
             .order_by("-latest_message_date")
@@ -962,7 +966,7 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
         """Returns the url for this chat."""
         return url_service.get_chat_url(
             chat_id=self.id,
-            slug=self.skill.slug if self.skill else None,
+            slug=self.tool.slug if self.tool else None,
         )
 
     @property
@@ -1065,7 +1069,7 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         """returns the internal page url of the message citations anchored to the selected citation"""
         chat_message = self.chat_message
         chat = chat_message.chat
-        slug = chat.skill.slug if chat.skill else None
+        slug = chat.tool.slug if chat.tool else None
 
         return url_service.get_citation_url(
             message_id=chat_message.id,
@@ -1107,7 +1111,7 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
     selected_files = models.ManyToManyField(File, related_name="+", symmetrical=False, blank=True)
     source_files = models.ManyToManyField(File, through=Citation)
 
-    skill = models.ForeignKey(Skill, on_delete=models.SET_NULL, null=True, blank=True, related_name="chat_messages")
+    tool = models.ForeignKey(Tool, on_delete=models.SET_NULL, null=True, blank=True, related_name="chat_messages")
 
     rating = models.PositiveIntegerField(
         blank=True,
@@ -1173,7 +1177,7 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
 
     @cached_property
     def citations_url(self) -> str:
-        slug = self.chat.skill.slug if self.chat.skill else None
+        slug = self.chat.tool.slug if self.chat.tool else None
         return url_service.get_citation_url(message_id=self.id, chat_id=self.chat.id, slug=slug)
 
 
@@ -1249,7 +1253,7 @@ class Agent(UUIDPrimaryKeyBase, TimeStampedModel):
         related_name="agents",
     )
 
-    skills = models.ManyToManyField("Skill", through="AgentSkill", related_name="agents", blank=True)
+    tools = models.ManyToManyField("Tool", through="AgentTool", related_name="agents", blank=True)
 
     class Meta:
         ordering = ["name"]

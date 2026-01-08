@@ -56,8 +56,7 @@ class Command(BaseCommand):
                 )
 
                 try:
-                    file.delete_from_elastic()
-                    file.delete_from_s3()
+                    file.delete_from_elastic_and_s3()
 
                 except BotoCoreError as e:
                     logger.exception("Error deleting file object %s from storage", file, exc_info=e)
