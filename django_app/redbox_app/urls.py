@@ -83,8 +83,8 @@ team_urlpatterns = [
 
 tools_route_prefix = "tools/<slug:slug>/"
 tools_urlpatterns = [
-    path("tools/", views.SkillsView.as_view(), name="tools"),
-    path(tools_route_prefix, views.skill_info_page_view, name="tool-info"),
+    path("tools/", views.ToolsView.as_view(), name="tools"),
+    path(tools_route_prefix, views.tool_info_page_view, name="tool-info"),
     path(f"{tools_route_prefix}chats/", views.ChatsView.as_view(), name="chats"),
     path(f"{tools_route_prefix}chats/<uuid:chat_id>/", views.ChatsView.as_view(), name="chats"),
     path(f"{tools_route_prefix}documents/upload/", views.upload_document, name="document-upload"),
