@@ -4,18 +4,18 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 
-from redbox_app.redbox_core.models import Chat
+from redbox_app.redbox_core.models import Chat, Tool
 from redbox_app.redbox_core.services import url as url_service
 
 User = get_user_model()
 
 
 @pytest.mark.django_db(transaction=True)
-def test_get_chat_url(client: Client, chat_with_alice: Chat, default_skill):
+def test_get_chat_url(client: Client, chat_with_alice: Chat, default_tool: Tool):
     # Given
     client.force_login(chat_with_alice.user)
     chat_id = chat_with_alice.id
-    slug = default_skill.slug
+    slug = default_tool.slug
 
     # When
     new_chat_link = url_service.get_chat_url()
@@ -31,13 +31,13 @@ def test_get_chat_url(client: Client, chat_with_alice: Chat, default_skill):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_get_citation_url(client: Client, alice: User, default_skill):
+def test_get_citation_url(client: Client, alice: User, default_tool: Tool):
     # Given
     client.force_login(alice)
     message_id = uuid.uuid4()
     citation_id = uuid.uuid4()
     chat_id = uuid.uuid4()
-    slug = default_skill.slug
+    slug = default_tool.slug
 
     # When
     citation_link = url_service.get_citation_url(

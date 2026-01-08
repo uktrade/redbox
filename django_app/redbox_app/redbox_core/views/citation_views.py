@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
 
-from redbox_app.redbox_core.models import Chat, ChatMessage, File, Skill
+from redbox_app.redbox_core.models import Chat, ChatMessage, File, Tool
 from redbox_app.redbox_core.services import url as url_service
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ class CitationsView(View):
         chat_id: uuid.UUID | None = None,
     ) -> HttpResponse:
         message = get_object_or_404(ChatMessage, id=message_id)
-        skill = get_object_or_404(Skill, slug=slug) if slug else None
+        tool = get_object_or_404(Tool, slug=slug) if slug else None
         chat = get_object_or_404(Chat, id=chat_id) if chat_id else None
 
         if message.chat.user != request.user:
@@ -36,7 +36,7 @@ class CitationsView(View):
         context = {
             "message": message,
             "source_files": source_files,
-            "skill": skill,
+            "tool": tool,
             "chat": chat,
             "citations_url": citations_url,
         }

@@ -11,7 +11,7 @@ from waffle import flag_is_active
 from yarl import URL
 
 from redbox_app.redbox_core import flags
-from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, Skill
+from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, Tool
 from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.services import message as message_service
 from redbox_app.redbox_core.services import url as url_service
@@ -24,16 +24,16 @@ User = get_user_model()
 def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | None = None) -> dict:
     current_chat = _get_valid_chat(request.user, chat_id)
     chat_id = current_chat.id if current_chat else None
-    skill = (
-        current_chat.skill if current_chat else resolve_instance(value=slug, model=Skill, lookup="slug", raise_404=True)
+    tool = (
+        current_chat.tool if current_chat else resolve_instance(value=slug, model=Tool, lookup="slug", raise_404=True)
     )
 
-    if skill and current_chat and skill.settings.deselect_documents_on_load:
+    if tool and current_chat and tool.settings.deselect_documents_on_load:
         current_chat.clear_selected_files()
 
     messages = ChatMessage.get_messages_ordered_by_citation_priority(chat_id) if current_chat else []
     endpoint = _build_ws_endpoint(request)
-    file_context = documents_service.decorate_file_context(request, skill, messages)
+    file_context = documents_service.decorate_file_context(request, tool, messages)
     chat_backend = current_chat.chat_backend if current_chat else ChatLLMBackend.objects.get(is_default=True)
     messages = _decorate_messages(messages)
 
@@ -44,10 +44,10 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
     }
 
     return {
-        "skill": skill,
+        "tool": tool,
         "chat_id": chat_id,
         "messages": messages,
-        "chats": Chat.get_ordered_by_last_message_date(request.user, skill),
+        "chats": Chat.get_ordered_by_last_message_date(request.user, tool),
         "current_chat": current_chat,
         "streaming": {"endpoint": str(endpoint)},
         "contact_email": settings.CONTACT_EMAIL,

@@ -8,8 +8,8 @@ from django.test import Client
 
 from redbox_app.redbox_core.models import (
     File,
-    FileSkill,
-    Skill,
+    FileTool,
+    Tool,
 )
 
 User = get_user_model()
@@ -21,14 +21,14 @@ def test_auto_slugify(client: Client, alice: User):
     client.force_login(alice)
 
     # When
-    skill = Skill.objects.create(name="Test Skill")
+    tool = Tool.objects.create(name="Test Tool")
 
     # Then
-    assert skill.slug == "test-skill"
+    assert tool.slug == "test-tool"
 
 
 @pytest.mark.django_db(transaction=True)
-def test_info_template_exists(client: Client, alice: User, default_skill: Skill):
+def test_info_template_exists(client: Client, alice: User, default_tool: Tool):
     # Given
     client.force_login(alice)
 
@@ -37,25 +37,25 @@ def test_info_template_exists(client: Client, alice: User, default_skill: Skill)
         mock_get_template.return_value = True
 
         # Then
-        assert default_skill.info_template == f"skills/info/{default_skill.slug}.html"
+        assert default_tool.info_template == f"tools/info/{default_tool.slug}.html"
 
 
 @pytest.mark.django_db(transaction=True)
-def test_info_template_not_found(client: Client, alice: User, default_skill: Skill):
+def test_info_template_not_found(client: Client, alice: User, default_tool: Tool):
     # Given
     client.force_login(alice)
-    expected_path = f"skills/info/{default_skill.slug}.html"
+    expected_path = f"tools/info/{default_tool.slug}.html"
 
     # When
     with patch("redbox_app.redbox_core.models.get_template") as mock_get_template:
         mock_get_template.side_effect = TemplateDoesNotExist(expected_path)
 
         # Then
-        assert default_skill.info_template is None
+        assert default_tool.info_template is None
 
 
 @pytest.mark.django_db(transaction=True)
-def test_has_info_page_true(client: Client, alice: User, default_skill: Skill):
+def test_has_info_page_true(client: Client, alice: User, default_tool: Tool):
     # Given
     client.force_login(alice)
 
@@ -64,57 +64,57 @@ def test_has_info_page_true(client: Client, alice: User, default_skill: Skill):
         mock_get_template.return_value = True
 
         # Then
-        assert default_skill.has_info_page is True
+        assert default_tool.has_info_page is True
 
 
 @pytest.mark.django_db(transaction=True)
-def test_has_info_page_false(client: Client, alice: User, default_skill: Skill):
+def test_has_info_page_false(client: Client, alice: User, default_tool: Tool):
     # Given
     client.force_login(alice)
 
     # When
     with patch("redbox_app.redbox_core.models.get_template") as mock_get_template:
-        mock_get_template.side_effect = TemplateDoesNotExist("skills/info/test-skill.html")
+        mock_get_template.side_effect = TemplateDoesNotExist("tools/info/test-tool.html")
 
         # Then
-        assert default_skill.has_info_page is False
+        assert default_tool.has_info_page is False
 
 
 @pytest.mark.django_db(transaction=True)
-def test_get_info_page_url(client: Client, alice: User, default_skill: Skill):
+def test_get_info_page_url(client: Client, alice: User, default_tool: Tool):
     # Given
     client.force_login(alice)
 
     # When
-    url = default_skill.info_page_url
+    url = default_tool.info_page_url
 
     # Then
-    assert url == f"/tools/{default_skill.slug}/"
+    assert url == f"/tools/{default_tool.slug}/"
 
 
 @pytest.mark.django_db(transaction=True)
-def test_get_files(client: Client, alice: User, default_skill: Skill, several_files: Sequence[File]):
+def test_get_files(client: Client, alice: User, default_tool: Tool, several_files: Sequence[File]):
     # Given
     client.force_login(alice)
 
     # When
     for file in several_files:
-        file_skill = FileSkill(file=file, skill=default_skill)
-        file_skill.save()
+        file_tool = FileTool(file=file, tool=default_tool)
+        file_tool.save()
 
     # Then
-    assert len(default_skill.get_files()) == len(several_files)
+    assert len(default_tool.get_files()) == len(several_files)
 
 
 @pytest.mark.django_db(transaction=True)
-def test_get_settings(client: Client, alice: User, default_skill: Skill):
+def test_get_settings(client: Client, alice: User, default_tool: Tool):
     # Given
     client.force_login(alice)
 
     # When
-    settings = default_skill.settings
+    settings = default_tool.settings
 
     # Then
-    assert settings.__str__() == "Default Skill Settings"
-    assert settings.skill == default_skill
+    assert settings.__str__() == "Default Tool Settings"
+    assert settings.tool == default_tool
     assert settings.deselect_documents_on_load is False

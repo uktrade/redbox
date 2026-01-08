@@ -1,6 +1,6 @@
 // @ts-check
 
-import { getActiveSkillId } from "../../utils";
+import { getActiveToolId } from "../../utils";
 import { ChatMessage } from "./chat-message";
 
 class ChatController extends HTMLElement {
@@ -12,7 +12,7 @@ class ChatController extends HTMLElement {
   #bindEvents = () => {
     const chatsForm = document.querySelector("#chats-form");
     let selectedDocuments = [];
-    const selectedSkill = getActiveSkillId();
+    const selectedTool = getActiveToolId();
 
     chatsForm?.addEventListener("submit", (evt) => {
       evt.preventDefault();
@@ -70,7 +70,7 @@ class ChatController extends HTMLElement {
         chatController.dataset.sessionId,
         chatController.dataset.streamUrl || "",
         chatController,
-        selectedSkill
+        selectedTool
       );
       /** @type {HTMLElement | null} */ (
         aiMessage.querySelector(".govuk-inset-text")

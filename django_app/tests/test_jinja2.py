@@ -206,7 +206,7 @@ def test_get_menu_items(alice: User, client: Client):
     menu_items_not_authenticated = get_menu_items(AnonymousUser())
 
     # Can be removed once feature is launched and flag removed
-    with override_flag(flags.ENABLE_SKILLS, active=True):
+    with override_flag(flags.ENABLE_TOOLS, active=True):
         flagged_menu_items = get_menu_items(alice)
 
     # Then
