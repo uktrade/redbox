@@ -13,7 +13,11 @@ While you strive to provide accurate and insightful information by fully utilisi
 # Used in all prompts for information about the caller and any query context. This is a placeholder for now.
 CALLER_INFO = ""
 
-ANSWER_INSTRUCTION_SYSTEM_PROMPT = """\nDo not use backticks (```) in the response.\n\n"""
+ANSWER_INSTRUCTION_SYSTEM_PROMPT = """\nInline backticks (`) are allowed only for exact, verbatim references to identifiers present in a code block in the same response, or if explicitly requested to be used.
+
+No other use of the ` character is permitted.
+
+The ``` sequence is allowed only as a code block delimiter, or if explicitly requested to be used.\n\n"""
 
 CHAT_SYSTEM_PROMPT = "You are tasked with providing information objectively and responding helpfully to users"
 
