@@ -13,7 +13,7 @@ from django_q.tasks import async_task
 from waffle import flag_is_active
 
 from redbox_app.redbox_core import flags
-from redbox_app.redbox_core.models import ChatMessage, File, FileSkill, Skill, UserTeamMembership
+from redbox_app.redbox_core.models import ChatMessage, File, FileTool, Tool, UserTeamMembership
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.services import message as message_service
 from redbox_app.redbox_core.types import APPROVED_FILE_EXTENSIONS
@@ -27,8 +27,8 @@ logger = logging.getLogger(__name__)
 MAX_FILE_SIZE = 209715200  # 200 MB or 200 * 1024 * 1024
 
 
-def get_file_context(request, skill: Skill | None = None):
-    completed_files, processing_files = File.get_completed_and_processing_files(request.user, skill)
+def get_file_context(request, tool: Tool | None = None):
+    completed_files, processing_files = File.get_completed_and_processing_files(request.user, tool)
     team_files = (
         File.objects.filter(
             Q(team_associations__team__members__user=request.user, team_associations__visibility="TEAM")
@@ -50,8 +50,8 @@ def get_file_context(request, skill: Skill | None = None):
     }
 
 
-def decorate_file_context(request: HttpRequest, skill: Skill, messages: Sequence[ChatMessage]):
-    context = get_file_context(request, skill)
+def decorate_file_context(request: HttpRequest, tool: Tool, messages: Sequence[ChatMessage]):
+    context = get_file_context(request, tool)
     context["completed_files"] = message_service.decorate_selected_files(context["completed_files"], messages)
     return context
 
@@ -95,9 +95,7 @@ def validate_uploaded_file(uploaded_file: UploadedFile) -> Sequence[str]:
     return errors
 
 
-def ingest_file(
-    uploaded_file: UploadedFile, user: User, skill: Skill | None = None
-) -> tuple[Sequence[str], File | None]:
+def ingest_file(uploaded_file: UploadedFile, user: User, tool: Tool | None = None) -> tuple[Sequence[str], File | None]:
     try:
         logger.info("getting file from s3")
         file = File.objects.create(
@@ -105,8 +103,8 @@ def ingest_file(
             user=user,
             original_file=uploaded_file,
         )
-        if skill:
-            FileSkill.objects.create(file=file, skill=skill)
+        if tool:
+            FileTool.objects.create(file=file, tool=tool)
     except (ValueError, FieldError, ValidationError) as e:
         logger.exception("Error creating File model object for %s.", uploaded_file, exc_info=e)
         return e.args, None

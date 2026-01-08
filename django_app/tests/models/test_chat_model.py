@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.test import Client
 
-from redbox_app.redbox_core.models import Chat, Skill
+from redbox_app.redbox_core.models import Chat, Tool
 
 User = get_user_model()
 
@@ -41,11 +41,11 @@ def test_url(client: Client, alice: User, chat: Chat):
     assert expected_url == url
 
 
-def test_skill_url(client: Client, alice: User, chat: Chat, default_skill: Skill):
+def test_tool_url(client: Client, alice: User, chat: Chat, default_tool: Tool):
     # Given
     client.force_login(alice)
-    chat.skill = default_skill
-    expected_url = f"/tools/{default_skill.slug}/chats/{chat.id}/"
+    chat.tool = default_tool
+    expected_url = f"/tools/{default_tool.slug}/chats/{chat.id}/"
     # When
     url = chat.url
 
