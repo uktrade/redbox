@@ -12,7 +12,7 @@ django = "5.2.9"
 django-libsass = "^0.9"
 django-magic-link = "^1.0.0"
 whitenoise = "^6.11.0"
-watchdog = {extras = ["watchmedo"], version = "^4.0.2"}
+watchdog = {extras = ["watchmedo"], version = "^6.0.0"}
 jinja2 = "3.1.6"
 django-environ = "^0.12.0"
 django-use-email-as-username = "^1.4.0"
