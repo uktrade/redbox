@@ -1,13 +1,13 @@
 // @ts-check
 
 import htmx from "htmx.org";
-import { getActiveChatId, getActiveSkillSlug } from "../utils";
+import { getActiveChatId, getActiveToolSlug } from "../utils";
 
 /**
  * Reloads chat window component
  * @param {string | null} chatId - Active chat ID
 */
-export function updateChatWindow(chatId = getActiveChatId(), slug = getActiveSkillSlug()) {;
+export function updateChatWindow(chatId = getActiveChatId(), slug = getActiveToolSlug()) {;
     const tool_url_fragment = slug ? `/tools/${slug}` : "";
     const chat_url_fragment = chatId ? `/${chatId}` : "";
     const url = `${tool_url_fragment}/chats${chat_url_fragment}/chat-window/`;
@@ -23,7 +23,7 @@ export function updateChatWindow(chatId = getActiveChatId(), slug = getActiveSki
  * Reloads recent chats side-panel template
  * @param {string | null} chatId - Active chat ID
 */
-export function updateRecentChatHistory(chatId = getActiveChatId(), slug = getActiveSkillSlug()) {;
+export function updateRecentChatHistory(chatId = getActiveChatId(), slug = getActiveToolSlug()) {;
     const tool_url_fragment = slug ? `/tools/${slug}` : "";
     const chat_url_fragment = chatId ? `/${chatId}` : "";
     const url = `${tool_url_fragment}/chats${chat_url_fragment}/recent-chats/`;
@@ -39,7 +39,7 @@ export function updateRecentChatHistory(chatId = getActiveChatId(), slug = getAc
  * Reloads Your documents side-panel template
  * @param {string | null} chatId - Active chat ID
 */
-export function updateYourDocuments(chatId = getActiveChatId(), slug = getActiveSkillSlug()) {;
+export function updateYourDocuments(chatId = getActiveChatId(), slug = getActiveToolSlug()) {;
     const tool_url_fragment = slug ? `/tools/${slug}` : "";
     const chat_url_fragment = chatId ? `/${chatId}` : "";
     const url = `${tool_url_fragment}/documents/your-documents${chat_url_fragment}/`;

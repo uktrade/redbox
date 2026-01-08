@@ -376,7 +376,7 @@ def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskB
     except (
         Exception
     ):  # this to handle a specific test in test_multiagents_app, as we pass agent=None for chat without documents.
-        # in reality agents won't be None for a specific skill.
+        # in reality agents won't be None for a specific tool.
         # anyhow, this should be handled at consumers.py if there are no agents found in database.
         AgentEnum = Enum("AgentEnum", {"None": {"None"}})
         default_agent = "None"

@@ -84,7 +84,7 @@ def get_menu_items(user):
 
     items.append({"text": "Documents", "href": url("documents")})
 
-    if flag_is_active(user, flags.ENABLE_SKILLS):
+    if flag_is_active(user, flags.ENABLE_TOOLS):
         items.append({"text": "Tools", "href": url("tools")})
 
     items.append({"text": "Profile", "href": url("settings")})

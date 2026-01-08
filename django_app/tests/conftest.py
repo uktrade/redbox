@@ -24,8 +24,8 @@ from redbox_app.redbox_core.models import (
     ChatMessageTokenUse,
     Citation,
     File,
-    Skill,
     Team,
+    Tool,
 )
 
 User = get_user_model()
@@ -195,8 +195,8 @@ def chat_with_message(chat: Chat) -> Chat:
 
 
 @pytest.fixture
-def skill() -> Skill:
-    return Skill.objects.create(name="Test Skill")
+def tool() -> Tool:
+    return Tool.objects.create(name="Test Tool")
 
 
 @pytest.fixture
@@ -372,8 +372,8 @@ def redbox_team() -> Team:
 
 
 @pytest.fixture
-def default_skill() -> Skill:
-    return Skill.objects.create(name="Default Skill")
+def default_tool() -> Tool:
+    return Tool.objects.create(name="Default Tool")
 
 
 @pytest.fixture
