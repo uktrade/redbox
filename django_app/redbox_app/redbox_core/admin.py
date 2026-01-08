@@ -276,6 +276,11 @@ class FileToolAdmin(ExportMixin, admin.ModelAdmin):
     date_hierarchy = "created_at"
     search_fields = ("file__file_name", "tool__name")
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "file":
+            kwargs["queryset"] = models.File.objects.order_by("original_file")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
 class FileTeamMembershipAdmin(admin.ModelAdmin):
     list_display = ("file", "team", "visibility", "created_at")
