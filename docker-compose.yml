@@ -59,6 +59,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    env_file:
+      - path: data_hub_mcp/.env
+        required: false
     networks:
       - redbox-app-network
     ports:
