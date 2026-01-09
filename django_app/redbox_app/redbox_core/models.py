@@ -763,6 +763,12 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         errored = "errored"
         processing = "processing"
 
+    class SecurityClassification(models.TextChoices):
+        ADMIN = "OFFICIAL", _("Official")
+        MEMBER = "OFFICIAL_SENSITIVE", _("Official Sensitive")
+        SECRET = "SECRET", _("Secret")  # pragma: allowlist secret
+        TOP_SECRET = "TOP_SECRET", _("Top Secret")  # pragma: allowlist secret
+
     INACTIVE_STATUSES = [Status.deleted, Status.errored]
 
     status = models.CharField(choices=Status.choices, null=False, blank=False)
@@ -779,8 +785,10 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         null=True,
         help_text="error, if any, encountered during ingest",
     )
-
     tools = models.ManyToManyField(Tool, through=FileTool, related_name="files", blank=True)
+    security_classification = models.CharField(
+        choices=SecurityClassification.choices, null=False, blank=True, default=""
+    )
 
     def __str__(self) -> str:  # pragma: no cover
         return self.file_name
