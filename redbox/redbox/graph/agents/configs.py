@@ -1,3 +1,5 @@
+from typing import Dict
+
 from pydantic import BaseModel, Field
 
 from redbox.chains.parser import BaseCumulativeTransformOutputParser, ClaudeParser
@@ -21,6 +23,8 @@ class PromptVariable(BaseModel):
     user_feedback: bool = Field(description="User feedback prompt", default=False)
     agents_results: bool = Field(description="Information from other agents", default=False)
     formatted_documents: bool = Field(description="Document content", default=False)
+    previous_tool_error: bool = Field(description="Message from previous tool error", default=False)
+    previous_tool_results: bool = Field(description="Results from previous tool call", default=False)
 
 
 class PromptConfig(BaseModel):
@@ -38,21 +42,17 @@ class PromptConfig(BaseModel):
         return self.system + "\n" + self.question + "\n" + self.format
 
 
-class PromptConfigs:
-    """
-    This class is for storing prompt configs for all the agents.
-    """
-
-    planner_agent = PromptConfig(
+# This dict is for storing prompt configs for all the agents.
+prompt_configs: Dict[str, PromptConfig] = {
+    "Planner_Agent": PromptConfig(
         system=prompts.PLANNER_PROMPT_TOP,
         question=prompts.PLANNER_QUESTION_PROMPT,
         format=prompts.PLANNER_FORMAT_PROMPT,
         prompt_vars=PromptVariable(
             chat_history=True, question=True, document_filenames=True, metadata=True, format_instruction=True
         ),
-    )
-
-    replanner_agent = PromptConfig(
+    ),
+    "Replanner_Agent": PromptConfig(
         system=prompts.REPLAN_PROMPT,
         question=prompts.PLANNER_QUESTION_PROMPT,
         format=prompts.PLANNER_FORMAT_PROMPT,
@@ -64,38 +64,72 @@ class PromptConfigs:
             metadata=True,
             format_instruction=True,
         ),
-    )
-
-    internal_retrieval_agent = PromptConfig(
+    ),
+    "Internal_Retrieval_Agent": PromptConfig(
         system=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT,
         prompt_vars=PromptVariable(task=True, expected_output=True, metadata=True),
-    )
-
-    web_search_agent = PromptConfig(
+    ),
+    "External_Retrieval_Agent": PromptConfig(
+        system=prompts.EXTERNAL_RETRIEVAL_AGENT_PROMPT,
+        prompt_vars=PromptVariable(task=True, expected_output=True),
+    ),
+    "Web_Search_Agent": PromptConfig(
         system=prompts.WEB_SEARCH_AGENT_PROMPT,
-        prompt_var=PromptVariable(task=True, expected_output=True, metadata=True),
-    )
-
-    summarisation_agent = PromptConfig(
+        prompt_var=PromptVariable(task=True, expected_output=True),
+    ),
+    "Legislation_Search_Agent": PromptConfig(
+        system=prompts.LEGISLATION_SEARCH_AGENT_PROMPT,
+        prompt_var=PromptVariable(task=True, expected_output=True),
+    ),
+    "Summarisation_Agent": PromptConfig(
         system=prompts.CHAT_WITH_DOCS_SYSTEM_PROMPT,
         question=prompts.CHAT_WITH_DOCS_QUESTION_PROMPT,
         prompt_vars=PromptVariable(question=True, formatted_documents=True),
-    )
-
-    evaluator_agent = PromptConfig(
+    ),
+    "Tabular_Agent": PromptConfig(
+        system=prompts.TABULAR_PROMPT,
+        question=prompts.TABULAR_QUESTION_PROMPT,
+        prompt_vars=PromptVariable(question=True, formatted_documents=True),
+    ),
+    "Evaluator_Agent": PromptConfig(
         system=prompts.NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT,
         question=prompts.NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT,
         format=prompts.CITATION_PROMPT,
         prompt_vars=PromptVariable(agents_results=True, question=True, format_instructions=True),
-    )
+    ),
+    "Submission_Checker_Agent": PromptConfig(
+        system=prompts.SUBMISSION_PROMPT,
+        prompt_vars=PromptVariable(
+            task=True,
+            expected_output=True,
+            chat_history=True,
+            question=True,
+            metadata=True,
+            previous_tool_error=True,
+            previous_tool_results=True,
+        ),
+    ),
+    "Submission_Question_Answer_Agent": PromptConfig(
+        system=prompts.SUBMISSION_PROMPT,
+        prompt_vars=PromptVariable(
+            task=True,
+            expected_output=True,
+            chat_history=True,
+            question=True,
+            metadata=True,
+            previous_tool_error=True,
+            previous_tool_results=True,
+        ),
+    ),
+}
 
 
 class AgentConfig(BaseModel):
     name: str = Field(description="Name of agent")
     description: str = Field(description="Agent desciption used for planning", default="")
     prompt: PromptConfig = Field(description="Prompts used for this agent")
-    tools: list | None = Field(description="A set of tools available for this agent", default=None)
-    max_tokens: int = Field(
+    tools: list = Field(description="A set of tools available for this agent", default_factory=list)
+    agents_max_tokens: int = Field(
         description="Maximum tokens for this agent. Response exceed this limit will be truncated.", default=5000
     )
     llm_backend: ChatLLMBackend | None = Field(
@@ -104,33 +138,51 @@ class AgentConfig(BaseModel):
     parser: BaseCumulativeTransformOutputParser | None = Field(description="Parser for structured output", default=None)
 
 
-class AgentConfigs:
-    planner_agent = AgentConfig(
+# This dict is for storing agent configs for all the agents.
+agent_configs: Dict[str, AgentConfig] = {
+    "Planner_Agent": AgentConfig(
         name="Planner_Agent",
-        prompt=PromptConfigs.planner_agent,
-        tools=[],
-        llm_backend=ChatLLMBackend(name="sonnet-4", provider="bedrock"),
+        prompt=prompt_configs["Planner_Agent"],
         parser=ClaudeParser(),
-    )
-
-    internal_retrieval_agent = AgentConfig(
+    ),
+    "Internal_Retrieval_Agent": AgentConfig(
         name="Internal_Retrieval_Agent",
-        prompt=PromptConfigs.internal_retrieval_agent,
+        prompt=prompt_configs["Internal_Retrieval_Agent"],
         parser=None,
-    )
-
-    web_search_agent = AgentConfig(
+    ),
+    "External_Retrieval_Agent": AgentConfig(
+        name="External_Retrieval_Agent",
+        prompt=prompt_configs["External_Retrieval_Agent"],
+        parser=None,
+    ),
+    "Web_Search_Agent": AgentConfig(
         name="Web_Search_Agent",
-        prompt=PromptConfigs.internal_retrieval_agent,
-        tools=[],
-        llm_backend=ChatLLMBackend(name="sonnet-4", provider="bedrock"),
-        parser=ClaudeParser(),
-    )
-
-    summarisation_agent = AgentConfig(
+        prompt=prompt_configs["Web_Search_Agent"],
+        parser=None,
+    ),
+    "Legislation_Search_Agent": AgentConfig(
+        name="Legislation_Search_Agent",
+        prompt=prompt_configs["Legislation_Search_Agent"],
+        parser=None,
+    ),
+    "Summarisation_Agent": AgentConfig(
         name="Summarisation_Agent",
-        prompt=PromptConfigs.summarisation_agent,
-        tools=[],
-        llm_backend=ChatLLMBackend(name="sonnet-4", provider="bedrock"),
+        prompt=prompt_configs["Summarisation_Agent"],
         parser=ClaudeParser(),
-    )
+    ),
+    "Submission_Checker_Agent": AgentConfig(
+        name="Submission_Checker_Agent",
+        prompt=prompt_configs["Submission_Checker_Agent"],
+        parser=None,
+    ),
+    "Submission_Question_Answer_Agent": AgentConfig(
+        name="Submission_Question_Answer_Agent",
+        prompt=prompt_configs["Submission_Question_Answer_Agent"],
+        parser=None,
+    ),
+    "Tabular_Agent": AgentConfig(
+        name="Tabular_Agent",
+        prompt=prompt_configs["Tabular_Agent"],
+        parser=None,
+    ),
+}

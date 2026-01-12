@@ -328,7 +328,12 @@ class TestNewRoutes:
         mock_chat_chain.side_effect = [planner_response, worker_response]
 
         # mock tool call
-        if agent == "Internal_Retrieval_Agent":
+        if agent in [
+            "Internal_Retrieval_Agent",
+            "External_Retrieval_Agent",
+            "Web_Search_Agent",
+            "Legislation_Search_Agent",
+        ]:
             # This is a mocker for the new agent refactor. You will need to remove other mocking once all agents have been refactored.
             mocker.patch(
                 "redbox.graph.agents.workers.run_tools_parallel",
@@ -414,7 +419,7 @@ class TestNewRoutes:
         mock_chat_chain.side_effect = side_effect
 
         # mock tool call
-        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel")
+        mock_tool_calls = mocker.patch("redbox.graph.agents.workers.run_tools_parallel")
         mock_tool_calls.side_effect = tool_call_side_effect
 
         # mock evaluator

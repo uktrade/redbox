@@ -1,13 +1,13 @@
 import pytest
 
 from redbox.chains.components import (
-    AISettings,
     get_all_chunks_retriever,
     get_embeddings,
     get_metadata_retriever,
     get_parameterised_retriever,
     get_tabular_chunks_retriever,
 )
+from redbox.graph.agents.configs import agent_configs
 from redbox.graph.root import build_new_route_graph
 from redbox.models.chain import Agent
 from redbox.models.settings import Settings
@@ -15,14 +15,12 @@ from redbox.models.settings import Settings
 
 class TestNewRouteGraphs:
     _env = Settings()
-    agents = AISettings().worker_agents
+    agent_configs = agent_configs
     all_chunks_retriever = get_all_chunks_retriever(_env)
     parameterised_retriever = get_parameterised_retriever(_env)
     tabular_retriever = get_tabular_chunks_retriever(_env)
     metadata_retriever = get_metadata_retriever(_env)
     embedding_model = get_embeddings(_env)
-
-    multi_agent_tools = {agent.name: [] for agent in agents}
 
     @pytest.mark.parametrize(
         "agent_name, edges",
@@ -41,8 +39,7 @@ class TestNewRouteGraphs:
         graph = build_new_route_graph(
             all_chunks_retriever=self.all_chunks_retriever,
             tabular_retriever=self.tabular_retriever,
-            multi_agent_tools=self.multi_agent_tools,
-            agents=self.agents,
+            agent_configs=self.agent_configs,
         ).get_graph()
         # check if we have this agent node in the graph
         assert agent_name in graph.nodes
@@ -60,8 +57,7 @@ class TestNewRouteGraphs:
             graph = build_new_route_graph(
                 all_chunks_retriever=self.all_chunks_retriever,
                 tabular_retriever=self.tabular_retriever,
-                multi_agent_tools=self.multi_agent_tools,
-                agents=[Agent(name="Fake_Agent")],
+                agent_configs={"Fake_Agent": Agent(name="Fake_Agent")},
             ).get_graph()
 
             assert "Fake_Agent" not in graph.nodes

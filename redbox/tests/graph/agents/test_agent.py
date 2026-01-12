@@ -53,12 +53,12 @@ class TestWorkerAgent:
     )
     def test_post_processing(self, result, fake_state):
         self.worker.task = self.task
-        self.worker.post_processing().invoke((fake_state, result))
+        response = self.worker.post_processing().invoke((fake_state, result))
         assert (
-            fake_state.agents_results
+            response["agents_results"]
             == f"<{self.worker.config.name}_Result>A result</{self.worker.config.name}_Result>"
         )
-        assert fake_state.tasks_evaluator == self.worker.task.task + "\n" + self.worker.task.expected_output
+        assert response["tasks_evaluator"] == self.worker.task.task + "\n" + self.worker.task.expected_output
 
     @pytest.mark.parametrize(
         "AI_response",
@@ -96,9 +96,9 @@ class TestWorkerAgent:
         self.worker.task = self.task
         fake_state.messages = [AIMessage(content=self.task.model_dump_json())]
         response = self.worker.execute().invoke(fake_state)
-
+        type(response)
         assert (
-            response.agents_results
+            response["agents_results"]
             == f"<{self.worker.config.name}_Result>Here is your fake response</{self.worker.config.name}_Result>"
         )
-        assert response.tasks_evaluator == self.worker.task.task + "\n" + self.worker.task.expected_output
+        assert response["tasks_evaluator"] == self.worker.task.task + "\n" + self.worker.task.expected_output

@@ -17,6 +17,10 @@ log = logging.getLogger(__name__)
 
 
 class WorkerAgent(Agent):
+    """
+    Worker Agent is defined as an agent that performs a given task and store its results in `agents_results` property which can be used by other agents.
+    """
+
     def __init__(self, config: AgentConfig):
         super().__init__(config)
         self.task = None
@@ -59,8 +63,7 @@ class WorkerAgent(Agent):
             """
             Processing data from the agent core function.
             """
-            state = input[0]
-            result = input[1]
+            _, result = input
             if isinstance(result, str):
                 log.warning(f"[{self.config.name}] Using raw string result.")
                 result_content = result
@@ -77,12 +80,12 @@ class WorkerAgent(Agent):
                     log.warning(f"[{self.config.name}] Tool response token count: {token_count}")
 
                     # If adding this whole piece still fits, append normally
-                    if current_token_counts + token_count <= self.config.max_tokens:
+                    if current_token_counts + token_count <= self.config.agents_max_tokens:
                         result_content.append(res.content)
                         current_token_counts += token_count
                     else:
                         # If no room, add only what fits
-                        remaining_tokens = self.config.max_tokens - current_token_counts
+                        remaining_tokens = self.config.agents_max_tokens - current_token_counts
                         if remaining_tokens > 0:
                             log.warning(
                                 f"[{self.config.name}] Truncating tool output to fit remaining token budget ({remaining_tokens})."
@@ -92,16 +95,17 @@ class WorkerAgent(Agent):
                             current_token_counts += bedrock_tokeniser(truncated)
                         else:
                             log.warning(
-                                f"[{self.config.name}] No remaining token budget ({self.config.max_tokens}). Skipping."
+                                f"[{self.config.name}] No remaining token budget ({self.config.agents_max_tokens}). Skipping."
                             )
                         break  # Max reached — stop processing further results
                 result_content = " ".join(result_content)
             else:
                 log.error(f"[{self.config.name}] Worker agent return incompatible data type {type(result)}")
                 raise TypeError("Invalid tool result type")
-            state.agents_results = f"<{self.config.name}_Result>{result_content}</{self.config.name}_Result>"
-            state.tasks_evaluator = self.task.task + "\n" + self.task.expected_output
-            return state
+            return {
+                "agents_results": f"<{self.config.name}_Result>{result_content}</{self.config.name}_Result>",
+                "tasks_evaluator": self.task.task + "\n" + self.task.expected_output,
+            }
 
         return _post_processing
 
@@ -132,6 +136,9 @@ class WorkerAgent(Agent):
         return _core_task.with_retry(stop_after_attempt=3)
 
     def execute(self):
+        """
+        Execution flow of the worker agent.
+        """
         return (
             self.reading_task_info()
             | RunnableParallel(_=self.log_agent_activity(), result=self.core_task() | self.post_processing())
