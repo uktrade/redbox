@@ -44,11 +44,10 @@ from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEvent
 from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
 from redbox.models.settings import ChatLLMBackend
 from redbox.transform import (
-    bedrock_tokeniser,
     combine_agents_state,
     combine_documents,
     flatten_document_state,
-    truncate_to_tokens,
+    join_result_with_token_limit,
 )
 
 log = logging.getLogger(__name__)
@@ -518,31 +517,9 @@ def build_agent(
             result_content = result[0].get("text", "")
         elif isinstance(result, list):
             log.warning(f"[{agent_name}] Aggregating list of tool results...")
-            result_content = []
-            current_token_counts = 0
-
-            for res in result:
-                token_count = bedrock_tokeniser(res.content)
-                log.warning(f"[{agent_name}] Tool response token count: {token_count}")
-
-                # If adding this whole piece still fits, append normally
-                if current_token_counts + token_count <= max_tokens:
-                    result_content.append(res.content)
-                    current_token_counts += token_count
-                else:
-                    # If no room, add only what fits
-                    remaining_tokens = max_tokens - current_token_counts
-                    if remaining_tokens > 0:
-                        log.warning(
-                            f"[{agent_name}] Truncating tool output to fit remaining token budget ({remaining_tokens})."
-                        )
-                        truncated, truncated_token_count = truncate_to_tokens(res.content, remaining_tokens)
-                        result_content.append(truncated)
-                        current_token_counts += truncated_token_count
-                    else:
-                        log.warning(f"[{agent_name}] No remaining token budget ({max_tokens}). Skipping.")
-                    break  # Max reached — stop processing further results
-            result_content = " ".join(result_content)
+            result_content = join_result_with_token_limit(
+                result=result, max_tokens=max_tokens, log_stub=f"[{agent_name}]"
+            )
         else:
             log.error(f"[{agent_name}] Worker agent return incompatible data type {type(result)}")
             raise TypeError("Invalid tool result type")
@@ -664,31 +641,7 @@ def build_agent_with_loop(
                 result_content = result[0].get("text", "")
             elif isinstance(result, list):
                 log.warning(f"{log_stub} Aggregating list of tool results...")
-                result_content = []
-                current_token_counts = 0
-
-                for res in result:
-                    token_count = bedrock_tokeniser(res.content)
-                    log.warning(f"{log_stub} Tool response token count: {token_count}")
-
-                    # If adding this whole piece still fits, append normally
-                    if current_token_counts + token_count <= max_tokens:
-                        result_content.append(res.content)
-                        current_token_counts += token_count
-                    else:
-                        # If no room, add only what fits
-                        remaining_tokens = max_tokens - current_token_counts
-                        if remaining_tokens > 0:
-                            log.warning(
-                                f"{log_stub} Truncating tool output to fit remaining token budget ({remaining_tokens})."
-                            )
-                            truncated, truncated_token_count = truncate_to_tokens(res.content, remaining_tokens)
-                            result_content.append(truncated)
-                            current_token_counts += truncated_token_count
-                        else:
-                            log.warning(f"{log_stub} No remaining token budget ({max_tokens}). Skipping.")
-                        break  # Max reached — stop processing further results
-                result_content = " ".join(result_content)
+                result_content = join_result_with_token_limit(result=result, max_tokens=max_tokens, log_stub=log_stub)
             else:
                 log.error(f"{log_stub} Worker agent return incompatible data type {type(result)}")
                 log.info(result)
