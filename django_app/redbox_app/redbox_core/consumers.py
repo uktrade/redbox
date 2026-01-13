@@ -292,7 +292,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             if plan:
                 try:
-                    agent_options = {agent.name: agent.name for agent in agent_configs}
+                    agent_options = {agent: agent for agent in agent_configs}
                     _, configured_agent_plan = configure_agent_task_plan(agent_options)
                     agent_plans = configured_agent_plan.model_validate_json(plan[0])
                     question = message_history[-4].text
