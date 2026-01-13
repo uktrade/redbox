@@ -386,7 +386,7 @@ def create_planner(is_streamed=False):
     def _create_planner(state: RedboxState):
         planner_prompt = state.request.ai_settings.planner_prompt_with_format
         # dynamically generate agent plan based on state
-        agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
+        agent_options = state.request.ai_settings.get_worker_agents_options
         _, ConfiguredAgentPlan = configure_agent_task_plan(agent_options)
         orchestration_agent = create_chain_agent(
             system_prompt=planner_prompt,
@@ -421,7 +421,7 @@ def my_planner(
             user_input = state.user_feedback.replace("@newroute ", "")
             document_filenames = [doc.split("/")[1] if "/" in doc else doc for doc in state.request.s3_keys]
             # dynamically generate agent plan based on state
-            agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
+            agent_options = state.request.ai_settings.get_worker_agents_options
             _, ConfiguredAgentPlan = configure_agent_task_plan(agent_options)
             orchestration_agent = create_chain_agent(
                 system_prompt=plan_prompt,
@@ -477,7 +477,7 @@ def build_agent(
         log.warning(f"[{agent_name}] Starting agent run. Tools: {[t.name for t in tools]}")
 
         # dynamically generate agent task based on state
-        agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
+        agent_options = state.request.ai_settings.get_worker_agents_options
         ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
         parser = ClaudeParser(pydantic_object=ConfiguredAgentTask)
         try:
@@ -570,7 +570,7 @@ def build_agent_with_loop(
     @RunnableLambda
     def _build_agent_with_loop(state: RedboxState):
         local_loop_condition = loop_condition
-        agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
+        agent_options = state.request.ai_settings.get_worker_agents_options
         ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
         parser = ClaudeParser(pydantic_object=ConfiguredAgentTask)
         try:

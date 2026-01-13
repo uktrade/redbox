@@ -13,6 +13,7 @@ from langgraph.graph.message import add_messages
 from langgraph.managed.is_last_step import RemainingStepsManager
 from pydantic import BaseModel, Field, create_model, field_validator
 
+from redbox.graph.agents.configs import agent_configs
 from redbox.models import prompts
 from redbox.models.chat import DecisionEnum, ToolEnum
 from redbox.models.settings import ChatLLMBackend
@@ -105,48 +106,11 @@ class AISettings(BaseModel):
     tool_govuk_returned_results: int = 5
 
     # agents reporting to planner agent
-    worker_agents: List[Agent] = [
-        Agent(
-            name="Internal_Retrieval_Agent",
-            description=prompts.INTERNAL_RETRIEVAL_AGENT_DESC,
-            agents_max_tokens=10000,
-            prompt=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT,
-        ),
-        Agent(
-            name="External_Retrieval_Agent",
-            description=prompts.EXTERNAL_RETRIEVAL_AGENT_DESC,
-            agents_max_tokens=5000,
-            prompt=prompts.EXTERNAL_RETRIEVAL_AGENT_PROMPT,
-        ),
-        Agent(
-            name="Web_Search_Agent",
-            description=prompts.WEB_SEARCH_AGENT_DESC,
-            agents_max_tokens=10000,
-            prompt=prompts.WEB_SEARCH_AGENT_PROMPT,
-        ),
-        Agent(
-            name="Legislation_Search_Agent",
-            description=prompts.LEGISLATION_SEARCH_AGENT_DESC,
-            agents_max_tokens=10000,
-            prompt=prompts.LEGISLATION_SEARCH_AGENT_PROMPT,
-        ),
-        Agent(name="Summarisation_Agent", description=prompts.SUMMARISATION_AGENT_DESC, agents_max_tokens=20000),
-        Agent(name="Tabular_Agent", description=prompts.TABULAR_AGENT_DESC, agents_max_tokens=10000),
-        Agent(
-            name="Submission_Checker_Agent",
-            description=prompts.SUBMISSION_AGENT_DESC,
-            prompt=prompts.SUBMISSION_PROMPT,
-            agents_max_tokens=10000,
-            default_agent=False,
-        ),
-        Agent(
-            name="Submission_Question_Answer_Agent",
-            description=prompts.SUBMISSION_QA_AGENT_DESC,
-            prompt=prompts.SUBMISSION_QA_PROMPT,
-            agents_max_tokens=10000,
-            default_agent=False,
-        ),
-    ]
+    worker_agents: List[Agent] = [agent for agent in agent_configs.values() if agent.default_agent]
+
+    @property
+    def get_worker_agents_options(self):
+        return {agent.name: agent.name for agent in self.worker_agents}
 
     @property
     def get_agent_workers_prompt(self):

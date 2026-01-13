@@ -24,7 +24,7 @@ from waffle import flag_is_active
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
-from redbox.graph.agents.configs import AgentConfig, prompt_configs
+from redbox.graph.agents.configs import AgentConfig, agent_configs, prompt_configs
 from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
@@ -292,7 +292,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             if plan:
                 try:
-                    agent_options = {agent.name: agent.name for agent in AISettings().worker_agents}
+                    agent_options = {agent.name: agent.name for agent in agent_configs}
                     _, configured_agent_plan = configure_agent_task_plan(agent_options)
                     agent_plans = configured_agent_plan.model_validate_json(plan[0])
                     question = message_history[-4].text
@@ -338,9 +338,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if selected_agent_names:
             ai_settings = ai_settings.model_copy(
                 update={
-                    "worker_agents": [
-                        agent for agent in AISettings().worker_agents if agent.name in selected_agent_names
-                    ]
+                    "worker_agents": [agent for agent in agent_configs.values() if agent.name in selected_agent_names]
                 }
             )
         state = RedboxState(
@@ -581,7 +579,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         ai_settings = {k: v for k, v in ai_settings.items() if v not in (None, "")}
         ai_settings = AISettings.model_validate(ai_settings)
         return ai_settings.model_copy(
-            update={"worker_agents": [agent for agent in AISettings().worker_agents if agent.default_agent]}
+            update={"worker_agents": [agent for agent in agent_configs.values() if agent.default_agent]}
         )
 
     async def connect(self):
@@ -600,7 +598,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     prompt=prompt_configs[agent.name],
                     description=agent.description,
                     agents_max_tokens=agent.agents_max_tokens,
-                    llm_backend=ChatLLMBackend.model_validate(agent.llm_backend.__dict__),
+                    llm_backend=ChatLLMBackend(
+                        name=agent.llm_backend.name,
+                        provider=agent.llm_backend.provider,
+                        description=agent.llm_backend.description,
+                    )
+                    if agent.llm_backend
+                    else None,
                 )
                 for agent in agents
             }

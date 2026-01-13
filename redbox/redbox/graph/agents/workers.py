@@ -31,7 +31,7 @@ class WorkerAgent(Agent):
             """
             Reading in task information sent from the planner
             """
-            agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
+            agent_options = state.request.ai_settings.get_worker_agents_options
             ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
             parser = ClaudeParser(pydantic_object=ConfiguredAgentTask)
             try:

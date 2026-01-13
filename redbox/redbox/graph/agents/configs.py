@@ -136,6 +136,7 @@ class AgentConfig(BaseModel):
         description="The LLM backend model used by the agent. Use None for default model", default=None
     )
     parser: BaseCumulativeTransformOutputParser | None = Field(description="Parser for structured output", default=None)
+    default_agent: bool = Field(description="Is this a default redbox worker agents", default=False)
 
 
 # This dict is for storing agent configs for all the agents.
@@ -145,30 +146,40 @@ agent_configs: Dict[str, AgentConfig] = {
         prompt=prompt_configs["Planner_Agent"],
         parser=ClaudeParser(),
     ),
+    "Replanner_Agent": AgentConfig(
+        name="Replanner_Agent",
+        prompt=prompt_configs["Replanner_Agent"],
+        parser=ClaudeParser(),
+    ),
     "Internal_Retrieval_Agent": AgentConfig(
         name="Internal_Retrieval_Agent",
         prompt=prompt_configs["Internal_Retrieval_Agent"],
         parser=None,
+        default_agent=True,
     ),
     "External_Retrieval_Agent": AgentConfig(
         name="External_Retrieval_Agent",
         prompt=prompt_configs["External_Retrieval_Agent"],
         parser=None,
+        default_agent=True,
     ),
     "Web_Search_Agent": AgentConfig(
         name="Web_Search_Agent",
         prompt=prompt_configs["Web_Search_Agent"],
         parser=None,
+        default_agent=True,
     ),
     "Legislation_Search_Agent": AgentConfig(
         name="Legislation_Search_Agent",
         prompt=prompt_configs["Legislation_Search_Agent"],
         parser=None,
+        default_agent=True,
     ),
     "Summarisation_Agent": AgentConfig(
         name="Summarisation_Agent",
         prompt=prompt_configs["Summarisation_Agent"],
         parser=ClaudeParser(),
+        default_agent=True,
     ),
     "Submission_Checker_Agent": AgentConfig(
         name="Submission_Checker_Agent",
@@ -184,5 +195,6 @@ agent_configs: Dict[str, AgentConfig] = {
         name="Tabular_Agent",
         prompt=prompt_configs["Tabular_Agent"],
         parser=None,
+        default_agent=True,
     ),
 }
