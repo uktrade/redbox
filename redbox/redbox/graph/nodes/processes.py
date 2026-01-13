@@ -536,9 +536,9 @@ def build_agent(
                         log.warning(
                             f"[{agent_name}] Truncating tool output to fit remaining token budget ({remaining_tokens})."
                         )
-                        truncated = truncate_to_tokens(res.content, remaining_tokens)
+                        truncated, truncated_token_count = truncate_to_tokens(res.content, remaining_tokens)
                         result_content.append(truncated)
-                        current_token_counts += bedrock_tokeniser(truncated)
+                        current_token_counts += truncated_token_count
                     else:
                         log.warning(f"[{agent_name}] No remaining token budget ({max_tokens}). Skipping.")
                     break  # Max reached — stop processing further results
@@ -569,6 +569,8 @@ def build_agent_with_loop(
 ):
     @RunnableLambda
     def _build_agent_with_loop(state: RedboxState):
+        log.warning(f"[{agent_name}] Starting agent_with_loop run. Tools: {[t.name for t in tools]}")
+
         local_loop_condition = loop_condition
         agent_options = state.request.ai_settings.get_worker_agents_options
         ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
@@ -616,6 +618,9 @@ def build_agent_with_loop(
 
         while local_loop_condition() and num_iter < max_attempt:
             num_iter += 1
+            log_stub = f"[{agent_name}] Loop Iteration={num_iter}/{max_attempt}."
+
+            log.warning(f"{log_stub} Creating chain agent (use_metadata={use_metadata})")
             worker_agent = create_chain_agent(
                 system_prompt=system_prompt,
                 use_metadata=use_metadata,
@@ -625,8 +630,13 @@ def build_agent_with_loop(
                 using_chat_history=using_chat_history,
                 model=model,
             )
+
+            log.warning(f"{log_stub} Invoking worker agent...")
             ai_msg = worker_agent.invoke(state)
 
+            log.warning(f"{log_stub} Worker agent output:\n{ai_msg}")
+
+            log.warning(f"{log_stub} Running tools via run_tools_parallel...")
             result = run_tools_parallel(ai_msg, tools, state)
 
             if has_loop and len(ai_msg.tool_calls) > 0:  # if loop, we need to transform results
@@ -645,23 +655,48 @@ def build_agent_with_loop(
                     if is_intermediate_step:
                         additional_variables.update({"previous_tool_error": "", "previous_tool_results": all_results})
                 result = result_content
-            if type(result) is str:
+
+            if isinstance(result, str):
+                log.warning(f"{log_stub} Using raw string result.")
                 result_content = result
-            elif type(result) is list and type(result[0]) is dict:
+            elif isinstance(result, list) and isinstance(result[0], dict):
+                log.warning(f"{log_stub} Using raw string in a list as result.")
                 result_content = result[0].get("text", "")
-            elif type(result) is list:
+            elif isinstance(result, list):
+                log.warning(f"{log_stub} Aggregating list of tool results...")
                 result_content = []
                 current_token_counts = 0
+
                 for res in result:
-                    current_token_counts += bedrock_tokeniser(res.content)
-                    if current_token_counts <= max_tokens:
+                    token_count = bedrock_tokeniser(res.content)
+                    log.warning(f"{log_stub} Tool response token count: {token_count}")
+
+                    # If adding this whole piece still fits, append normally
+                    if current_token_counts + token_count <= max_tokens:
                         result_content.append(res.content)
+                        current_token_counts += token_count
+                    else:
+                        # If no room, add only what fits
+                        remaining_tokens = max_tokens - current_token_counts
+                        if remaining_tokens > 0:
+                            log.warning(
+                                f"{log_stub} Truncating tool output to fit remaining token budget ({remaining_tokens})."
+                            )
+                            truncated, truncated_token_count = truncate_to_tokens(res.content, remaining_tokens)
+                            result_content.append(truncated)
+                            current_token_counts += truncated_token_count
+                        else:
+                            log.warning(f"{log_stub} No remaining token budget ({max_tokens}). Skipping.")
+                        break  # Max reached — stop processing further results
                 result_content = " ".join(result_content)
             else:
-                log.error(f"Worker agent return incompatible data type {type(result)}")
+                log.error(f"{log_stub} Worker agent return incompatible data type {type(result)}")
                 log.info(result)
                 result_content = "There is an issue with tool call. No results returned."
             all_results.append(result_content)
+            log.warning(f"{log_stub} Completed agent run.")
+
+        log.warning(f"[{agent_name}] Completed agent_with_loop run.")
         all_results = " ".join(all_results)
         return {
             "agents_results": f"<{agent_name}_Result>{all_results}</{agent_name}_Result>",
