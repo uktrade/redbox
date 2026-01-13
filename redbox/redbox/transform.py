@@ -12,7 +12,7 @@ from redbox.models.chain import DocumentMapping, DocumentState, LLMCallMetadata,
 from redbox.models.graph import RedboxEventType
 
 
-def bedrock_tokeniser(text: str) -> int:
+def bedrock_tokeniser_tokens(text: str) -> list[str]:
     # Simple tokeniser that counts the number of words in the text
     tokens = re.findall(r"\w+|[^\w\s]", text)
 
@@ -20,19 +20,22 @@ def bedrock_tokeniser(text: str) -> int:
     if text.endswith(" "):
         tokens.append("<space>")  # Just a placeholder, not an actual token
 
+    return tokens
+
+
+def bedrock_tokeniser(text: str) -> int:
+    tokens = bedrock_tokeniser_tokens(text=text)
     return len(tokens)
 
 
-def truncate_to_tokens(text: str, max_tokens: int) -> str:
+def truncate_to_tokens(text: str, max_tokens: int) -> tuple[str, int]:
     # Use the same tokenization logic as bedrock_tokeniser
-    tokens = re.findall(r"\w+|[^\w\s]", text)
-
-    if text.endswith(" "):
-        tokens.append("<space>")  # Keep consistent with bedrock_tokeniser
+    tokens = bedrock_tokeniser_tokens(text=text)
+    token_count = len(tokens)
 
     # If it's already small enough, return unchanged
-    if len(tokens) <= max_tokens:
-        return text
+    if token_count <= max_tokens:
+        return text, token_count
 
     # Otherwise cut to max_tokens
     truncated_tokens = tokens[:max_tokens]
@@ -51,7 +54,7 @@ def truncate_to_tokens(text: str, max_tokens: int) -> str:
             # punctuation — attach directly
             result += t
 
-    return result.strip()
+    return result.strip(), max_tokens
 
 
 # This should be unnecessary and indicates we're not chunking correctly
