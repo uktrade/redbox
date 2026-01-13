@@ -30,7 +30,7 @@ class ChatLLMBackendAdmin(admin.ModelAdmin):
         model = models.ChatLLMBackend
 
 
-class SkillAdmin(admin.ModelAdmin):
+class ToolAdmin(admin.ModelAdmin):
     list_display = [
         "name",
         "description",
@@ -41,33 +41,33 @@ class SkillAdmin(admin.ModelAdmin):
     readonly_fields = ["modified_at", "created_at"]
 
     class Meta:
-        model = models.Skill
+        model = models.Tool
 
 
-class SkillSettingsAdmin(admin.ModelAdmin):
+class ToolSettingsAdmin(admin.ModelAdmin):
     list_display = [
-        "skill",
+        "tool",
         "deselect_documents_on_load",
     ]
 
-    search_fields = ["skill__name"]
+    search_fields = ["tool__name"]
     readonly_fields = ["modified_at", "created_at"]
 
     class Meta:
-        model = models.SkillSettings
+        model = models.ToolSettings
 
 
-class AgentSkillAdmin(admin.ModelAdmin):
+class AgentToolAdmin(admin.ModelAdmin):
     list_display = [
         "agent__name",
-        "skill__name",
+        "tool__name",
     ]
 
-    search_fields = ["agent__name", "skill__name"]
+    search_fields = ["agent__name", "tool__name"]
     readonly_fields = ["modified_at", "created_at"]
 
     class Meta:
-        model = models.AgentSkill
+        model = models.AgentTool
 
 
 class AgentAdmin(admin.ModelAdmin):
@@ -270,11 +270,16 @@ class FileAdmin(ExportMixin, admin.ModelAdmin):
     search_fields = ["user__email"]
 
 
-class FileSkillAdmin(ExportMixin, admin.ModelAdmin):
-    list_display = ["file", "skill", "file_type", "created_at"]
-    list_filter = ["skill", "file_type"]
+class FileToolAdmin(ExportMixin, admin.ModelAdmin):
+    list_display = ["file", "tool", "file_type", "created_at"]
+    list_filter = ["tool", "file_type"]
     date_hierarchy = "created_at"
-    search_fields = ("file__file_name", "skill__name")
+    search_fields = ("file__file_name", "tool__name")
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "file":
+            kwargs["queryset"] = models.File.objects.order_by("original_file")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 class FileTeamMembershipAdmin(admin.ModelAdmin):
@@ -375,7 +380,7 @@ class ChatAdmin(ExportMixin, admin.ModelAdmin):
         (
             None,
             {
-                "fields": ["name", "user", "skill"],
+                "fields": ["name", "user", "tool"],
             },
         ),
         (
@@ -394,8 +399,8 @@ class ChatAdmin(ExportMixin, admin.ModelAdmin):
         ),
     ]
     inlines = [ChatMessageInline]
-    list_display = ["name", "user", "skill", "created_at"]
-    list_filter = ["user", "skill"]
+    list_display = ["name", "user", "tool", "created_at"]
+    list_filter = ["user", "tool"]
     date_hierarchy = "created_at"
     actions = ["export_as_csv"]
     search_fields = ["user__email"]
@@ -463,8 +468,8 @@ admin.site.register(models.Team, TeamAdmin)
 admin.site.register(models.UserTeamMembership, UserTeamMembershipAdmin)
 admin.site.register(models.FileTeamMembership, FileTeamMembershipAdmin)
 admin.site.register(models.Agent, AgentAdmin)
-admin.site.register(models.Skill, SkillAdmin)
-admin.site.register(models.SkillSettings, SkillSettingsAdmin)
-admin.site.register(models.AgentSkill, AgentSkillAdmin)
-admin.site.register(models.FileSkill, FileSkillAdmin)
+admin.site.register(models.Tool, ToolAdmin)
+admin.site.register(models.ToolSettings, ToolSettingsAdmin)
+admin.site.register(models.AgentTool, AgentToolAdmin)
+admin.site.register(models.FileTool, FileToolAdmin)
 admin.site.register_view("report/", view=reporting_dashboard, name="Site report")

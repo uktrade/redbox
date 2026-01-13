@@ -9,6 +9,7 @@ import pytest
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.db.models import Model
 from langchain_core.documents import Document
 from langchain_core.language_models import BaseChatModel
@@ -218,6 +219,26 @@ async def test_chat_consumer_with_naughty_citation(
         assert await get_chat_message_text(alice, ChatMessage.Role.ai) == ["Good afternoon, Mr. Amor."]
         assert await get_chat_message_route(alice, ChatMessage.Role.ai) == ["gratitude"]
         await refresh_from_db(uploaded_file)
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_chat_consumer_anonymous_user_error_message():
+    # Given
+
+    # When
+    communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+    communicator.scope["user"] = AnonymousUser()
+    connected, _ = await communicator.connect()
+    assert connected
+
+    # Then
+    response = await communicator.receive_json_from(timeout=5)
+    assert response["type"] == "error"
+    assert response["data"] == error_messages.AUTH_REQUIRED
+
+    # Close
+    await communicator.disconnect()
 
 
 @pytest.mark.django_db(transaction=True)

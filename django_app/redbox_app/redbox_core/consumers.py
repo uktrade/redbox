@@ -42,18 +42,18 @@ from redbox_app.redbox_core import error_messages, flags
 from redbox_app.redbox_core.models import (
     ActivityEvent,
     AgentPlan,
-    AgentSkill,
+    AgentTool,
     Chat,
     ChatLLMBackend,
     ChatMessage,
     ChatMessageTokenUse,
     Citation,
     File,
-    FileSkill,
     FileTeamMembership,
+    FileTool,
     MonitorSearchRoute,
     MonitorWebSearchResults,
-    Skill,
+    Tool,
     UserTeamMembership,
 )
 from redbox_app.redbox_core.models import Agent as AgentModel
@@ -137,6 +137,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data=None, bytes_data=None):  # noqa: C901, PLR0915
         """Receive & respond to message from browser websocket."""
+        # if user is unauthenticated, close connection
+        user = getattr(self, "user", None) or self.scope.get("user")
+        if (not user) or (not user.is_authenticated):
+            await self.close(code=4001)
+            return
         self._file_cache = {}
         self.full_reply = []
         self.converted_reply = []
@@ -152,7 +157,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         user_message_text: str = data.get("message", "")
         selected_file_uuids: Sequence[UUID] = [UUID(u) for u in data.get("selectedFiles", [])]
         activities: Sequence[str] = data.get("activities", [])
-        selected_skill_id: str | None = data.get("selectedSkill")
+        selected_tool_id: str | None = data.get("selectedTool")
         user: User = self.scope["user"]
 
         user_ai_settings = await AISettingsModel.objects.aget(label=user.ai_settings_id if user else "Claude 3.7")
@@ -197,25 +202,25 @@ class ChatConsumer(AsyncWebsocketConsumer):
             session.name = (session_name or "")[: settings.CHAT_TITLE_LENGTH]
             await session.asave()
 
-        skill_obj = None
+        tool_obj = None
         selected_agent_names = []
         knowledge_files = []
-        if selected_skill_id:
+        if selected_tool_id:
             try:
-                skill_obj = await database_sync_to_async(Skill.objects.get)(id=selected_skill_id)
-                session.skill = skill_obj
+                tool_obj = await database_sync_to_async(Tool.objects.get)(id=selected_tool_id)
+                session.tool = tool_obj
                 await session.asave()
                 selected_agent_names = await database_sync_to_async(
-                    lambda s: list(AgentSkill.objects.filter(skill=s).values_list("agent__name", flat=True))
-                )(skill_obj)
-                knowledge_files = await database_sync_to_async(lambda s: list(s.get_files(FileSkill.FileType.ADMIN)))(
-                    skill_obj
+                    lambda t: list(AgentTool.objects.filter(tool=t).values_list("agent__name", flat=True))
+                )(tool_obj)
+                knowledge_files = await database_sync_to_async(lambda t: list(t.get_files(FileTool.FileType.ADMIN)))(
+                    tool_obj
                 )
-            except Skill.DoesNotExist:
-                logger.warning("Selected skill '%s' not found", selected_skill_id)
+            except Tool.DoesNotExist:
+                logger.warning("Selected tool '%s' not found", selected_tool_id)
 
         user_chat_message = await self.save_user_message(
-            session, user_message_text, selected_files=selected_files, activities=activities, skill=skill_obj
+            session, user_message_text, selected_files=selected_files, activities=activities, tool=tool_obj
         )
 
         self.chat_message = await self.create_ai_message(session)
@@ -400,7 +405,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         user_message_text: str,
         selected_files: Sequence[File] | None = None,
         activities: Sequence[str] | None = None,
-        skill: Skill | None = None,
+        tool: Tool | None = None,
     ) -> ChatMessage:
         chat_message = ChatMessage(
             chat=session,
@@ -408,7 +413,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             role=ChatMessage.Role.user,
             route=self.route,
         )
-        chat_message.skill = skill
+        chat_message.tool = tool
         chat_message.save()
         if selected_files:
             chat_message.selected_files.set(selected_files)
@@ -579,15 +584,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def connect(self):
+        self.user = self.scope["user"]
+        # if user is unauthenticated, send auth_required error message
+        if not self.user.is_authenticated:
+            await self.accept()
+            await self.send_to_client("error", error_messages.AUTH_REQUIRED)
+            return
+
         if ChatConsumer.redbox is None:
             agents = await get_all_agents()
             ChatConsumer.redbox = Redbox(agents=agents, env=ChatConsumer.env, debug=ChatConsumer.debug)
 
-        self.user = self.scope["user"]
-        if self.user.is_authenticated:
-            self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
-        else:
-            self.uk_english = False
+        self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
         await self.accept()
 
     async def handle_text(self, response: str) -> str:

@@ -1,14 +1,14 @@
-{% set pageTitle = skill.name %}
+{% set pageTitle = tool.name %}
 {% extends "base.html" %}
 {% from "macros/govuk-button.html" import govukButton %}
 
 {% block content %}
 
     <div class="govuk-width-container rbds-width-container">
-        <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">{{ skill.name }}</h2>
+        <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">{{ tool.name }}</h2>
 
         <p class="govuk-body">
-            {% block skill_description %}
+            {% block tool_description %}
             {% endblock %}
         </p>
 
@@ -17,23 +17,23 @@
         <div class="govuk-grid-row">
             <div class="govuk-grid-column-two-thirds">
                 <h3 class="govuk-heading-s">When to use this tool</h3>
-                {% block skill_when_to_use %}
+                {% block tool_when_to_use %}
                 {% endblock %}
 
                 <h3 class="govuk-heading-s govuk-!-margin-top-5">How to use this tool</h3>
-                {% block skill_how_to_use %}
+                {% block tool_how_to_use %}
                 {% endblock %}
 
                 {{ govukButton(
-                    text = "Use " ~ skill.name | lower,
-                    href=skill.chat_url,
+                    text = "Use " ~ tool.name | lower,
+                    href=tool.chat_url,
                     classes="rbds-push-bottom rbds-w-fit"
                 ) }}
             </div>
             <div class="govuk-grid-column-one-third">
-                {% include "skills/skill-files.html" %}
+                {% include "tools/tool-files.html" %}
 
-                {% block skill_document_guidance %}
+                {% block tool_document_guidance %}
                 {% endblock %}
             </div>
         </div>

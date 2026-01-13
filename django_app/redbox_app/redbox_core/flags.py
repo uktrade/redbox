@@ -1,5 +1,5 @@
 ENABLE_DICTATION = "enable_dictation"
 ENABLE_TEAMS = "enable_teams"
-ENABLE_SKILLS = "enable_skills"
+ENABLE_TOOLS = "enable_tools"
 ENABLE_MODEL_SELECTOR = "enable_model_selector"
 ENABLE_ACTIVITY_EVENTS = "enable_activity_events"
