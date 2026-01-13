@@ -11,7 +11,7 @@ from redbox.graph.nodes.processes import build_activity_log_node
 from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models.chain import RedboxState, configure_agent_task_plan
 from redbox.models.graph import RedboxActivityEvent
-from redbox.transform import bedrock_tokeniser, truncate_to_tokens
+from redbox.transform import join_result_with_token_limit
 
 log = logging.getLogger(__name__)
 
@@ -64,6 +64,7 @@ class WorkerAgent(Agent):
             Processing data from the agent core function.
             """
             _, result = input
+
             if isinstance(result, str):
                 log.warning(f"[{self.config.name}] Using raw string result.")
                 result_content = result
@@ -72,36 +73,14 @@ class WorkerAgent(Agent):
                 result_content = result[0].get("text", "")
             elif isinstance(result, list):
                 log.warning(f"[{self.config.name}] Aggregating list of tool results...")
-                result_content = []
-                current_token_counts = 0
-
-                for res in result:
-                    token_count = bedrock_tokeniser(res.content)
-                    log.warning(f"[{self.config.name}] Tool response token count: {token_count}")
-
-                    # If adding this whole piece still fits, append normally
-                    if current_token_counts + token_count <= self.config.agents_max_tokens:
-                        result_content.append(res.content)
-                        current_token_counts += token_count
-                    else:
-                        # If no room, add only what fits
-                        remaining_tokens = self.config.agents_max_tokens - current_token_counts
-                        if remaining_tokens > 0:
-                            log.warning(
-                                f"[{self.config.name}] Truncating tool output to fit remaining token budget ({remaining_tokens})."
-                            )
-                            truncated = truncate_to_tokens(res.content, remaining_tokens)
-                            result_content.append(truncated)
-                            current_token_counts += bedrock_tokeniser(truncated)
-                        else:
-                            log.warning(
-                                f"[{self.config.name}] No remaining token budget ({self.config.agents_max_tokens}). Skipping."
-                            )
-                        break  # Max reached — stop processing further results
-                result_content = " ".join(result_content)
+                result_content = join_result_with_token_limit(
+                    result=result, max_tokens=self.config.agents_max_tokens, log_stub=f"[{self.config.name}]"
+                )
             else:
                 log.error(f"[{self.config.name}] Worker agent return incompatible data type {type(result)}")
                 raise TypeError("Invalid tool result type")
+            log.warning(f"[{self.config.name}] Completed agent run.")
+
             return {
                 "agents_results": f"<{self.config.name}_Result>{result_content}</{self.config.name}_Result>",
                 "tasks_evaluator": self.task.task + "\n" + self.task.expected_output,
