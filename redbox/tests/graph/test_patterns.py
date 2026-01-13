@@ -620,6 +620,7 @@ class TestBuildAgentLoop:
             ("preprocess-loop-pass", True, True, 2, (AIMessage(content="preprocess-loop-pass"), "pass", "False")),
             ("preprocess-loop-fail", True, True, 2, (AIMessage(content="preprocess-loop-fail"), "fail", "True")),
             ("There is an issue with tool call. No results returned.", None, None, 1, None),
+            ("raw-string-result", None, None, 1, "raw-string-result"),
         ],
     )
     def test_preprocess_loop(
@@ -689,3 +690,69 @@ class TestBuildAgentLoop:
         )
         assert len(response) == 2
         assert mock_tool_calls.call_count == no_calls
+
+    @pytest.mark.parametrize(
+        "test_name, max_tokens, actual_tokens",
+        [
+            ("truncate-response-over-max-tokens", 50, 1000),
+            ("truncate-response-over-max-tokens2", 50, 26),
+            ("dont-truncate-response-under-max-tokens", 100, 80),
+            ("dont-truncate-response-equal-to-max-tokens", 10, 10),
+        ],
+    )
+    def test_llm_response_truncation(self, test_name, max_tokens, actual_tokens, fake_state, mocker: MockerFixture):
+        sanitised_test_name = test_name.replace("-", "")
+
+        llm_content = f"{sanitised_test_name} " * actual_tokens
+        llm_message = AIMessage(
+            content=llm_content.strip(),
+            additional_kwargs={"tool_calls": [{"name": "test_tool", "args": {"is_intermediate_step": True}}]},
+        )
+        llm = GenericFakeChatModel(messages=iter([llm_message]))
+        mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
+
+        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel")
+        mock_tool_calls.return_value = [llm_message]
+
+        agent = "Internal_Retrieval_Agent"
+        agent_task, multi_agent_plan = configure_agent_task_plan({agent: agent})
+        tasks = [agent_task(task="Fake Task", expected_output="Fake output")]
+        plan = multi_agent_plan().model_copy(update={"tasks": tasks})
+
+        fake_state.user_feedback = "proceed"
+        fake_state.agent_plans = plan
+        fake_state.tasks_evaluator = ""
+        fake_state.messages = [AIMessage(content=plan.tasks[0].model_dump_json())]
+
+        fake_agent = build_agent_with_loop(
+            agent_name="Internal_Retrieval_Agent",
+            system_prompt="Fake prompt",
+            tools=[],
+            use_metadata=False,
+            max_tokens=max_tokens,
+            pre_process=None,
+            loop_condition=None,
+            max_attempt=2,
+        )
+
+        response = fake_agent.invoke(fake_state)
+        assert response is not None
+
+        agent_result = response.get("agents_results")
+        content = agent_result.replace("<Internal_Retrieval_Agent_Result>", "").replace(
+            "</Internal_Retrieval_Agent_Result>", ""
+        )
+        content_tokens = len(content.split())
+
+        if actual_tokens > max_tokens:
+            # Should be truncated
+            assert content_tokens == max_tokens
+            assert content == (f"{sanitised_test_name} " * max_tokens).strip()
+        else:
+            # Should match original
+            assert content_tokens == actual_tokens
+            assert content == llm_content.strip()
+
+        # Basic checks
+        assert len(response) == 2
+        assert mock_tool_calls.call_count == 1
