@@ -1,10 +1,9 @@
 # Overview
 
-Data Hub MCP
+Data Hub MCP and ETL
 
 Provides API like access to LLM agents via the MCP protocol.
-
-more details : todo
+Also provides local seed data for testing the MCP
 
 ## Quick start
 
@@ -16,7 +15,8 @@ pip install -r requirements.txt
 
 ### Database setup
 
-todo ...
+Create a database and users as per details specified in data_hub_mcp/.env.local
+
 
 ### run server locally
 
