@@ -7,6 +7,9 @@ from importers import (
     import_objectives,
     import_projects,
 )
+from dotenv import load_dotenv
+
+load_dotenv()
 
 load_dotenv()
 
