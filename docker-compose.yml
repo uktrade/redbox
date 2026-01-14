@@ -60,7 +60,7 @@ services:
       db:
         condition: service_healthy
     env_file:
-      - path: data_hub_mcp/.env
+      - path: data_hub_mcp/.env.integration
         required: false
     networks:
       - redbox-app-network
@@ -72,7 +72,6 @@ services:
       timeout: 30s
       retries: 24
       start_period: 60s
-
   db:
     image: postgres:14
     container_name: db

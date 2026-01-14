@@ -1,8 +1,10 @@
 import csv
 import re
 from datetime import datetime, timedelta
+import ast
+import log
 
-from sa_models import AccountManagementObjectives, Company, CompanyInteraction, InvestmentProjects
+from sa_models import AccountManagementObjectives, Company, Interaction, InvestmentProjects
 
 
 class ColumnNotFound(Exception):
@@ -68,20 +70,8 @@ def dict_to_db_obj(db_obj, data_dict, mapping: dict | None = None):
         if str(column.type) == "ARRAY":
             if value == "[None]" or value is None:
                 value = []
-            elif repr(column.type) == "ARRAY(String())":
-                strings = re.findall("(.*?)", value)
-                tmp_value = []
-                for s in strings:
-                    tmp_value.append(s)
-
-                value = tmp_value
-            elif repr(column.type) == "ARRAY(UUID())":
-                uuids = re.findall("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", value)
-                tmp_value = []
-                for uuid in uuids:
-                    tmp_value.append(uuid)
-
-                value = tmp_value
+            elif repr(column.type) in ["ARRAY(String())", "ARRAY(String(length=100))", "ARRAY(UUID())"]:
+                value = ast.literal_eval(value)
             else:
                 value = [value]
 
@@ -97,11 +87,8 @@ def dict_to_db_obj(db_obj, data_dict, mapping: dict | None = None):
 
 
 def import_companies(session, import_newer_than_in_days=3):
-    # get_data_from_s3
-
-    # TODO: check modified on date, only update when modified in the last week
-
-    with open("data/company_data.csv") as infile:
+    log.logger.info('Begin importing companies')
+    with open("data/companies.csv") as infile:
         csv_reader = csv.DictReader(infile)
         data = [row for row in csv_reader]
 
@@ -116,7 +103,7 @@ def import_companies(session, import_newer_than_in_days=3):
 
             process_import = False
 
-            if (company_new.modified_on is not None and company_new.modified_on > days_ago.date()) or (
+            if (company_new.modified_on is not None and company_new.modified_on.date() > days_ago.date()) or (
                 company_new.created_on is not None and company_new.created_on > days_ago.date()
             ):
                 process_import = True
@@ -126,19 +113,23 @@ def import_companies(session, import_newer_than_in_days=3):
                 if company_existing:
                     company_existing = dict_to_db_obj(company_existing, row)
                     session.add(company_existing)
+                    log.logger.info('updating company')
                 else:
                     session.add(company_new)
+                    log.logger.info('adding company')
                 counter += 1
 
             if counter % 1000 == 0 and counter > 0:
-                print(f"Committing company to DB: {counter}")
+                log.logger.info(f"Committing company to DB: {counter}")
                 session.commit()
             counter += 1
 
         session.commit()
+        log.logger.info('End importing companies')
 
 
 def import_interactions(session, import_newer_than_in_days=3):
+    log.logger.info('Begin importing interactions')
     mapping = {
         "Interaction Year": "interaction_year",
         "Interaction Financial Year": "interaction_financial_year",
@@ -153,96 +144,87 @@ def import_interactions(session, import_newer_than_in_days=3):
     }
 
     # Remove all interactions
-    session.query(CompanyInteraction).delete()
+    session.query(Interaction).delete()
     session.commit()
 
-    with open("data/company_interaction_data.csv") as infile:
+    with open("data/company_interactions.csv") as infile:
         csv_reader = csv.DictReader(infile)
         data = [row for row in csv_reader]
 
         counter = 0
-        row_counter = 0
         for row in data:
             # New object
-            company_interaction = CompanyInteraction()
+            company_interaction = Interaction()
             company_interaction = dict_to_db_obj(company_interaction, row, mapping)
-
             days_ago = datetime.now() + timedelta(days=-import_newer_than_in_days)
             if company_interaction.date_of_interaction > days_ago.date():
                 # check company exists
                 company = session.query(Company).filter(Company.id == company_interaction.company_id).first()
                 if company:
                     session.add(company_interaction)
+                    log.logger.info('adding interaction')
                     counter += 1
+                else:
+                    log.logger.info(f'No match for interaction company {company_interaction.company_id}')
 
             if counter % 1000 == 0 and counter > 0:
-                print(f"Committing interaction to DB: {counter}")
                 session.commit()
-
-            if row_counter % 1000 == 0 and row_counter > 0:
-                print(f"row counter interaction: {row_counter}")
-
-            row_counter += 1
 
         session.commit()
 
+        log.logger.info('End importing interactions')
+
 
 def import_objectives(session, import_newer_than_in_days=3):
+    log.logger.info('Begin importing objectives')
     mapping = {}
-
-    # Remove all interactions
-    session.query(CompanyInteraction).delete()
-    session.commit()
 
     with open("data/objectives.csv") as infile:
         csv_reader = csv.DictReader(infile)
         data = [row for row in csv_reader]
 
         counter = 0
-        row_counter = 0
         for row in data:
-            print(row)
-            # New object
             objective = AccountManagementObjectives()
             objective = dict_to_db_obj(objective, row, mapping)
 
+            objective_existing = session.query(AccountManagementObjectives).filter(AccountManagementObjectives.id == row["id"]).first()
+
+            if objective_existing:
+                objective = dict_to_db_obj(objective_existing, row)
+
             days_ago = datetime.now() + timedelta(days=-import_newer_than_in_days)
-            if objective.date_of_interaction > days_ago.date():
+            if objective.modified_on.date() > days_ago.date():
                 # check company exists
                 company = session.query(Company).filter(Company.id == objective.company_id).first()
                 if company:
                     session.add(objective)
+                    log.logger.info('adding / updating objective')
                     counter += 1
-
-            if counter % 1000 == 0 and counter > 0:
-                print(f"Committing interaction to DB: {counter}")
-                session.commit()
-
-            if row_counter % 1000 == 0 and row_counter > 0:
-                print(f"row counter interaction: {row_counter}")
-
-            row_counter += 1
+                else:
+                    log.logger.info(f'No match for objective company {objective.company_id}')
 
         session.commit()
+        log.logger.info('End importing objectives')
 
 
 def import_projects(session, import_newer_than_in_days=3):
+    log.logger.info('Begin importing projects')
     mapping = {}
-
-    # Remove all interactions
-    session.query(CompanyInteraction).delete()
-    session.commit()
 
     with open("data/investment_projects.csv") as infile:
         csv_reader = csv.DictReader(infile)
         data = [row for row in csv_reader]
 
-        counter = 0
-        row_counter = 0
         for index, row in enumerate(data):
             # New object
             investment_project = InvestmentProjects()
             investment_project = dict_to_db_obj(investment_project, row, mapping)
+
+            investment_project_existing = session.query(InvestmentProjects).filter(InvestmentProjects.id == row["id"]).first()
+
+            if investment_project_existing:
+                investment_project = dict_to_db_obj(investment_project_existing, row)
 
             days_ago = datetime.now() + timedelta(days=-import_newer_than_in_days)  # noqa: DTZ005
 
@@ -257,8 +239,10 @@ def import_projects(session, import_newer_than_in_days=3):
                 # check company exists
                 uk_company = session.query(Company).filter(Company.id == investment_project.uk_company_id).first()
                 if uk_company:
-                    # company = session.query(Company).filter(Company.id == investment_project.company_id).first()
                     session.add(investment_project)
+                    log.logger.info('adding / updating investment project')
                     session.commit()
+                else:
+                    log.logger.info(f'No match for project company {investment_project.uk_company_id}')
 
-        session.commit()
+    log.logger.info('End importing projects')

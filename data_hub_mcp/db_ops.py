@@ -1,5 +1,8 @@
-from data_classes import CompanyDetails, CompanySearchResult, CompanyShort
-from sa_models import Company
+import os
+
+from data_classes import CompanyDetails, CompanySearchResult, CompanyShort, CompanyInteractionSearchResult, CompanyInteraction, InvestmentProjectsSearchResult, AccountManagementObjectivesSearchResult, \
+    AccountManagementObjective, InvestmentProject
+from sa_models import Company, Interaction, AccountManagementObjectives, InvestmentProjects
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import Session
 
@@ -7,12 +10,20 @@ from sqlalchemy.orm import Session
 def object_as_dict(obj):
     return {c.key: getattr(obj, c.key) for c in inspect(obj).mapper.column_attrs}
 
+def get_engine():
+    postgres_user = os.getenv("POSTGRES_USER")
+    postgres_db =  os.getenv("POSTGRES_DB")
+    postgres_password = os.getenv("POSTGRES_PASSWORD")
+    postgres_host = os.getenv("POSTGRES_HOST")
 
-def get_session() -> Session:
     # creds need extracting to local env
-    engine = create_engine("postgresql+psycopg2://user:pass@localhost/data_hub_data")
-    return Session(engine)
+    return create_engine(f"postgresql+psycopg2://{postgres_user}:{postgres_password}@{postgres_host}/{postgres_db}")
 
+def get_session(engine = None) -> Session:
+    if engine is None:
+        engine = get_engine()
+
+    return Session(engine)
 
 def get_companies(company_name: str, page_size: int = 10, page: int = 0) -> CompanySearchResult:
     session = get_session()
@@ -34,11 +45,69 @@ def get_companies(company_name: str, page_size: int = 10, page: int = 0) -> Comp
 
 def get_company(company_id) -> CompanyDetails:
     session = get_session()
-
     company = session.query(Company).filter(Company.id == company_id).one_or_none()
-
     company_details = CompanyDetails.populate_from_record(object_as_dict(company)) if company else None
+    session.close()
+    return company_details
+
+def get_company_interactions(company_id, page_size: int = 10, page: int = 0) -> CompanyInteractionSearchResult:
+    company_interactions_search_result = CompanyInteractionSearchResult(interactions=[], total=0, page=page, page_size=page_size)
+    session = get_session()
+    company = session.query(Company).filter(Company.id == company_id).one_or_none()
+    if company:
+        company_interactions_all = session.query(Interaction).filter(Interaction.company_id == company.id).order_by(Interaction.date_of_interaction.desc())
+        total_count = len(company_interactions_all.all())
+        company_interactions = company_interactions_all.offset(page * page_size).limit(page_size).all()
+
+        company_interactions_search_result.total = total_count
+
+        for company_interaction in company_interactions:
+            company_interactions_search_result.interactions.append(CompanyInteraction.populate_from_record(object_as_dict(company_interaction)))
 
     session.close()
 
-    return company_details
+    return company_interactions_search_result
+
+
+def get_account_management_objectives(company_id, page_size: int = 10, page: int = 0) -> AccountManagementObjectivesSearchResult:
+    account_management_objectives_search_result = AccountManagementObjectivesSearchResult(account_management_objectives=[], total=0, page=page, page_size=page_size)
+    session = get_session()
+    company = session.query(Company).filter(Company.id == company_id).one_or_none()
+    if company:
+        account_management_objectives_all = session.query(AccountManagementObjectives).filter(Interaction.company_id == company.id).order_by(Interaction.date_of_interaction.desc())
+        total_count = len(account_management_objectives_all.all())
+        account_management_objectives_search_result.total = total_count
+        account_management_objectives = account_management_objectives_all.offset(page * page_size).limit(page_size).all()
+
+        for account_management_objective in account_management_objectives:
+            account_management_objectives_search_result.account_management_objectives.append(AccountManagementObjective.populate_from_record(object_as_dict(account_management_objective)))
+
+    session.close()
+
+    return account_management_objectives_search_result
+
+def get_investment_projects(company_id, page_size: int = 10, page: int = 0) -> InvestmentProjectsSearchResult:
+    investment_projects_search_result = InvestmentProjectsSearchResult(investment_projects=[], total=0, page=page, page_size=page_size)
+    session = get_session()
+    company = session.query(Company).filter(Company.id == company_id).one_or_none()
+    if company:
+        investment_projects_all = session.query(InvestmentProjects).filter(InvestmentProjects.uk_company_id == company.id).order_by(InvestmentProjects.created_on.desc())
+        total_count = len(investment_projects_all.all())
+        investment_projects = investment_projects_all.offset(page * page_size).limit(page_size).all()
+
+        investment_projects_search_result.total = total_count
+
+        for investment_project in investment_projects:
+            investment_projects_search_result.investment_projects.append(InvestmentProject.populate_from_record(object_as_dict(investment_project)))
+
+    session.close()
+
+    return investment_projects_search_result
+
+
+def db_check():
+    session = get_session()
+    # We just want to check we can query at this point
+    session.query(Company).count()
+    return True
+
