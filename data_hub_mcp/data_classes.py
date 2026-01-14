@@ -80,8 +80,6 @@ class CompanyDetails:
     @staticmethod
     def populate_from_record(record):
 
-        # trading_names_processed = ast.literal_eval(record["trading_names"])
-
         return CompanyDetails(
             address_1=record["address_1"],
             address_2=record["address_2"],
@@ -356,7 +354,7 @@ class CompanySearchResult:
 
 @dataclass
 class CompanyInteractionSearchResult:
-    """Company search result"""
+    """Company Interactions search result"""
 
     interactions: list[CompanyInteraction]
     total: int
@@ -365,7 +363,7 @@ class CompanyInteractionSearchResult:
 
 @dataclass
 class AccountManagementObjectivesSearchResult:
-    """Company search result"""
+    """Account Management Objectives search result"""
 
     account_management_objectives: list[AccountManagementObjective]
     total: int
@@ -374,7 +372,7 @@ class AccountManagementObjectivesSearchResult:
 
 @dataclass
 class InvestmentProjectsSearchResult:
-    """Company search result"""
+    """Investment Projects search result"""
 
     investment_projects: list[InvestmentProject]
     total: int

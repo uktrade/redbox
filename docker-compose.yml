@@ -92,6 +92,24 @@ services:
       timeout: 30s
       retries: 24
       start_period: 30s
+  db_data_hub:
+    image: postgres:14
+    container_name: db_data_hub
+    env_file:
+      - path: data_hub_mcp/.env.integration
+        required: false
+    volumes:
+      - local_data_hub_postgres_data:/var/lib/postgresql/data:Z
+    networks:
+      - redbox-app-network
+    ports:
+      - "5431:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready", "-U", "data_hub", "-d", "db_prod" ]
+      interval: 5s
+      timeout: 30s
+      retries: 24
+      start_period: 30s
   requirements:
     image: python:3.12
     profiles:
@@ -201,3 +219,4 @@ volumes:
   opensearch-data:
   redbox-app-data:
   local_postgres_data: {}
+  local_data_hub_postgres_data: {}

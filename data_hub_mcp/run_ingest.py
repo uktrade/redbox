@@ -4,6 +4,9 @@ from importers import (
     import_objectives,
     import_projects, import_companies, import_interactions,
 )
+from dotenv import load_dotenv
+
+load_dotenv()
 
 engine = get_engine()
 
