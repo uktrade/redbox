@@ -7,9 +7,8 @@ from redbox.chains.components import (
     get_parameterised_retriever,
     get_tabular_chunks_retriever,
 )
-from redbox.graph.agents.configs import agent_configs
+from redbox.graph.agents.configs import AgentConfig, agent_configs
 from redbox.graph.root import build_new_route_graph
-from redbox.models.chain import Agent
 from redbox.models.settings import Settings
 
 
@@ -57,7 +56,7 @@ class TestNewRouteGraphs:
             graph = build_new_route_graph(
                 all_chunks_retriever=self.all_chunks_retriever,
                 tabular_retriever=self.tabular_retriever,
-                agent_configs={"Fake_Agent": Agent(name="Fake_Agent")},
+                agent_configs={"Fake_Agent": AgentConfig(name="Fake_Agent")},
             ).get_graph()
 
             assert "Fake_Agent" not in graph.nodes
