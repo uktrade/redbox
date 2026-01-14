@@ -13,7 +13,7 @@ from langgraph.graph.message import add_messages
 from langgraph.managed.is_last_step import RemainingStepsManager
 from pydantic import BaseModel, Field, create_model, field_validator
 
-from redbox.graph.agents.configs import agent_configs
+from redbox.graph.agents.configs import AgentConfig, agent_configs
 from redbox.models import prompts
 from redbox.models.chat import DecisionEnum, ToolEnum
 from redbox.models.settings import ChatLLMBackend
@@ -25,15 +25,6 @@ env = environ.Env()
 class ChainChatMessage(TypedDict):
     role: Literal["user", "ai", "system"]
     text: str
-
-
-class Agent(BaseModel):
-    name: str = Field(description="Name of the agent")
-    description: str = Field(description="Name of the agent", default="")
-    agents_max_tokens: int = Field(description="Maximum tokens limit for the agent", default=5000)
-    prompt: str = Field(description="System prompt for the agent", default="")
-    default_agent: bool = Field(description="Is this the default agent", default=True)
-    llm_backend: ChatLLMBackend | None = Field(description="backend model for this agent", default=None)
 
 
 class AISettings(BaseModel):
@@ -106,10 +97,10 @@ class AISettings(BaseModel):
     tool_govuk_returned_results: int = 5
 
     # agents reporting to planner agent
-    worker_agents: List[Agent] = [agent for agent in agent_configs.values() if agent.default_agent]
+    worker_agents: List[AgentConfig] = [agent for agent in agent_configs.values() if agent.default_agent]
 
     @property
-    def get_worker_agents_options(self):
+    def get_worker_agents_options(self) -> Dict[str, str]:
         return {agent.name: agent.name for agent in self.worker_agents}
 
     @property

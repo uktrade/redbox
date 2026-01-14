@@ -1,4 +1,3 @@
-import logging
 from json import JSONDecodeError
 
 from langchain_core.runnables import RunnableLambda, RunnableParallel
@@ -12,8 +11,6 @@ from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models.chain import RedboxState, configure_agent_task_plan
 from redbox.models.graph import RedboxActivityEvent
 from redbox.transform import join_result_with_token_limit
-
-log = logging.getLogger(__name__)
 
 
 class WorkerAgent(Agent):
@@ -37,7 +34,7 @@ class WorkerAgent(Agent):
             try:
                 self.task = parser.parse(state.last_message.content)
             except JSONDecodeError as e:
-                log.exception(f"Cannot parse task in {self.config.name}: {e}")
+                self.logger.exception(f"Cannot parse task in {self.config.name}: {e}")
             return state
 
         return _reading_task_info
@@ -66,20 +63,20 @@ class WorkerAgent(Agent):
             _, result = input
 
             if isinstance(result, str):
-                log.warning(f"[{self.config.name}] Using raw string result.")
+                self.logger.warning(f"[{self.config.name}] Using raw string result.")
                 result_content = result
             elif isinstance(result, list) and isinstance(result[0], dict):
-                log.warning(f"[{self.config.name}] Using raw string in a list as result.")
+                self.logger.warning(f"[{self.config.name}] Using raw string in a list as result.")
                 result_content = result[0].get("text", "")
             elif isinstance(result, list):
-                log.warning(f"[{self.config.name}] Aggregating list of tool results...")
+                self.logger.warning(f"[{self.config.name}] Aggregating list of tool results...")
                 result_content = join_result_with_token_limit(
                     result=result, max_tokens=self.config.agents_max_tokens, log_stub=f"[{self.config.name}]"
                 )
             else:
-                log.error(f"[{self.config.name}] Worker agent return incompatible data type {type(result)}")
+                self.logger.error(f"[{self.config.name}] Worker agent return incompatible data type {type(result)}")
                 raise TypeError("Invalid tool result type")
-            log.warning(f"[{self.config.name}] Completed agent run.")
+            self.logger.warning(f"[{self.config.name}] Completed agent run.")
 
             return {
                 "agents_results": f"<{self.config.name}_Result>{result_content}</{self.config.name}_Result>",
@@ -101,13 +98,13 @@ class WorkerAgent(Agent):
                 model=self.config.llm_backend,
             )
             # worker_agent = llm_call(agent_config=self.config)
-            log.warning(f"[{self.config.name}] Invoking worker agent...")
+            self.logger.warning(f"[{self.config.name}] Invoking worker agent...")
             ai_msg = worker_agent.invoke(state)
 
-            log.warning(f"[{self.config.name}] Worker agent output:\n{ai_msg}")
+            self.logger.warning(f"[{self.config.name}] Worker agent output:\n{ai_msg}")
 
             # --- RUN TOOLS IN PARALLEL ---
-            log.warning(f"[{self.config.name}] Running tools via run_tools_parallel...")
+            self.logger.warning(f"[{self.config.name}] Running tools via run_tools_parallel...")
 
             result = run_tools_parallel(ai_msg, self.config.tools, state)
             return (state, result)

@@ -256,7 +256,6 @@ class Settings(BaseSettings):
         # get list of available agents
         from redbox.graph.agents.configs import agent_configs
 
-        # agent_names: list[str] = [(agent.name, agent.name) for agent in AISettings().get_agent_names
         return [(agent.name, agent.name) for agent in agent_configs.values()]
 
     # @lru_cache(1) #removing cache because pydantic object (index mapping) is not hashable
