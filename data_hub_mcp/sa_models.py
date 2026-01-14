@@ -11,18 +11,13 @@ from sqlalchemy import (
     Integer,
     String,
 )
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
 
-def get_schema():
-    return "data_hub"
-
-
 class Company(Base):
     __tablename__ = "companies"
-    __table_args__ = {"schema": get_schema()}  # noqa: RUF012
 
     address_1 = Column("address_1", String)
     address_2 = Column("address_2", String)
@@ -76,9 +71,8 @@ class Company(Base):
     source = Column("source", String(200))
 
 
-class CompanyInteraction(Base):
-    __tablename__ = "company_interactions"
-    __table_args__ = {"schema": get_schema()}  # noqa: RUF012
+class Interaction(Base):
+    __tablename__ = "interactions"
 
     id = Column("id", Integer, primary_key=True, autoincrement=True)
     team_region = Column("team_region", String(100))
@@ -87,17 +81,18 @@ class CompanyInteraction(Base):
     interaction_financial_year = Column("interaction_financial_year", String(50))
     company_name = Column("company_name", String(300))
     company_sector = Column("company_sector", String(300))
-    company_id = Column("company_id", UUID, ForeignKey(f"{get_schema()}.companies.id"))
     date_of_interaction = Column("date_of_interaction", Date)
     interaction_subject = Column("interaction_subject", String())
     interaction_theme_investment_or_export = Column("interaction_theme_investment_or_export", String)
     adviser_name = Column("adviser_name", String)
     team_name = Column("team_name", String)
 
+    company_id = Column("company_id", UUID, ForeignKey(Company.id))
+    company = relationship('Company', foreign_keys='Interaction.company_id')
+
 
 class InvestmentProjects(Base):
     __tablename__ = "investment_projects"
-    __table_args__ = {"schema": get_schema()}  # noqa: RUF012
 
     actual_land_date = Column("actual_land_date", Date, nullable=True)
     actual_uk_regions = Column("actual_uk_regions", String(100))
@@ -163,25 +158,27 @@ class InvestmentProjects(Base):
     strategic_drivers = Column("strategic_drivers", ARRAY(String(100)))
     team_member_ids = Column("team_member_ids", ARRAY(UUID))
     total_investment = Column("total_investment", BigInteger, nullable=True)
-    uk_company_id = Column("uk_company_id", UUID, ForeignKey(f"{get_schema()}.companies.id"), nullable=True)
     uk_company_sector = Column("uk_company_sector", String(100), nullable=True)
     possible_uk_regions = Column("possible_uk_regions", ARRAY(String(100)))
     eyb_lead_ids = Column("eyb_lead_ids", String(100), nullable=True)
 
+    uk_company_id = Column("uk_company_id", UUID, ForeignKey(Company.id), nullable=True)
+    company = relationship('Company', foreign_keys='InvestmentProjects.uk_company_id')
 
 class AccountManagementObjectives(Base):
     __tablename__ = "account_management_objectives"
-    __table_args__ = {"schema": get_schema()}  # noqa: RUF012
 
     id = Column("id", UUID, primary_key=True)
-    company_id = Column("company_id", UUID, ForeignKey(f"{get_schema()}.companies.id"))
     subject = Column("subject", String(200))
     detail = Column("detail", String)
     target_date = Column("target_date", Date, nullable=True)
     has_blocker = Column("has_blocker", Boolean, nullable=True)
-    blocker_description = Column("blocker_description	", String(200))
+    blocker_description = Column("blocker_description", String(200))
     progress = Column("progress", Integer, nullable=True)
     created_on = Column("created_on", DateTime, nullable=True)
     modified_on = Column("modified_on", DateTime, nullable=True)
     created_by_id = Column("created_by_id", UUID, nullable=True)
     modified_by_id = Column("modified_by_id", UUID, nullable=True)
+
+    company_id = Column("company_id", UUID, ForeignKey(Company.id))
+    company = relationship('Company', foreign_keys='AccountManagementObjectives.company_id')
