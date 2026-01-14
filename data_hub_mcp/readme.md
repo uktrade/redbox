@@ -13,32 +13,29 @@ locally you can simply install additional requirements into your existing venv b
 
 pip install -r requirements.txt
 
-### Database setup
+### database setup
 
-Create a database and users as per details specified in data_hub_mcp/.env.local
+Setup the mcp database: 
 
+docker compose up db_data_hub
+
+run basic seed data and table setup (from within {project_root}/data_hub_mcp) 
+
+python run_ingest.py 
 
 ### run server locally
 
-python run_mcp_server.py
-
-run docker server
-
-docker build --tag 'data_hub_mcp_server' .  
-
-then
-
-docker run -d -p 9000:8000 --name local_mcp data_hub_mcp_server
-
-or
-
-you can just run :
+this will run the mcp server in docker 
 
 docker compose up data_hub_mcp
 
+note: you can also run locally with 
+
+python run_mcp_server.py
+
 test in browser
 
-go to http://localhost:8000/mcp
+go to http://localhost:8100/mcp
 
 you should see an MCP response
 
