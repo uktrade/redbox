@@ -15,9 +15,10 @@ def get_engine():
     postgres_db =  os.getenv("POSTGRES_DB")
     postgres_password = os.getenv("POSTGRES_PASSWORD")
     postgres_host = os.getenv("POSTGRES_HOST")
+    postgres_port = os.getenv("POSTGRES_PORT")
 
     # creds need extracting to local env
-    return create_engine(f"postgresql+psycopg2://{postgres_user}:{postgres_password}@{postgres_host}/{postgres_db}")
+    return create_engine(f"postgresql+psycopg2://{postgres_user}:{postgres_password}@{postgres_host}:{postgres_port}/{postgres_db}")
 
 def get_session(engine = None) -> Session:
     if engine is None:
