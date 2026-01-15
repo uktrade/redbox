@@ -1,6 +1,9 @@
 import mcp_client
 from fastmcp import Client
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 if __name__ == "__main__":
     mcp_host = os.getenv("MCP_HOST")
