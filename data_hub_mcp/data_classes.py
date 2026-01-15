@@ -9,6 +9,7 @@ class CompanyShort:
     Class for representing company, the short version
     """
 
+    id: str | None
     address_1: str | None
     address_2: str | None
     address_postcode: str | None
@@ -21,6 +22,7 @@ class CompanyShort:
     @staticmethod
     def populate_from_record(record):
         return CompanyShort(
+            id=record["id"],
             address_1=record["address_1"],
             address_2=record["address_2"],
             address_postcode=record["address_postcode"],
@@ -360,6 +362,12 @@ class CompanyInteractionSearchResult:
     total: int
     page: int
     page_size: int
+
+@dataclass
+class CompaniesOrInteractionSearchResult:
+    """Company Interactions search result"""
+    companies_search_result: CompanySearchResult | None
+    interactions_search_result: CompanyInteractionSearchResult | None
 
 @dataclass
 class AccountManagementObjectivesSearchResult:

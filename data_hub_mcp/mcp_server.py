@@ -1,7 +1,7 @@
 import os
 
-from data_classes import CompanyDetails, CompanySearchResult, CompanyInteractionSearchResult, AccountManagementObjectivesSearchResult, InvestmentProjectsSearchResult
-from db_ops import get_companies, get_company, db_check, get_company_interactions, get_account_management_objectives, get_investment_projects
+from data_classes import CompanyDetails, CompanySearchResult, CompanyInteractionSearchResult, AccountManagementObjectivesSearchResult, InvestmentProjectsSearchResult, CompaniesOrInteractionSearchResult
+from db_ops import get_companies, get_company, db_check, get_company_interactions, get_account_management_objectives, get_investment_projects, get_companies_or_interactions
 from fastmcp import FastMCP
 from starlette.responses import JSONResponse
 
@@ -54,6 +54,15 @@ async def companies(company_name: str, page_size: int = 10, page: int = 0) -> Co
 )
 async def company_details(company_id: str) -> CompanyDetails | None:
     return get_company(company_id)
+
+@mcp.tool(
+    name="companies_or_interactions",
+    description="Query companies, and will return interactions on a single result, or a list of companies of there are multiple matches",
+    tags={"data_hub", "companies_or_interactions"},
+    meta={"version": "1.0", "author": "Doug Mills"},
+)
+async def companies_or_interactions(company_name: str, page_size: int = 10, page: int = 0) -> CompaniesOrInteractionSearchResult | None:
+    return get_companies_or_interactions(company_name, page_size, page)
 
 @mcp.tool(
     name="company_interactions",
