@@ -149,7 +149,7 @@ agent_configs: Dict[str, AgentConfig] = {
     ),
     "Replanner_Agent": AgentConfig(
         name="Replanner_Agent",
-        escription="Re-create a plan consisting of a list of tasks to achieve user request",
+        description="Re-create a plan consisting of a list of tasks to achieve user request",
         prompt=prompt_configs["Replanner_Agent"],
         parser=ClaudeParser(),
     ),
