@@ -1,7 +1,7 @@
 import os
 
 from data_classes import CompanyDetails, CompanySearchResult, CompanyShort, CompanyInteractionSearchResult, CompanyInteraction, InvestmentProjectsSearchResult, AccountManagementObjectivesSearchResult, \
-    AccountManagementObjective, InvestmentProject
+    AccountManagementObjective, InvestmentProject, CompaniesOrInteractionSearchResult
 from sa_models import Company, Interaction, AccountManagementObjectives, InvestmentProjects
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import Session
@@ -50,6 +50,16 @@ def get_company(company_id) -> CompanyDetails:
     company_details = CompanyDetails.populate_from_record(object_as_dict(company)) if company else None
     session.close()
     return company_details
+
+def get_companies_or_interactions(company_name, page_size: int = 10, page: int = 0) -> CompaniesOrInteractionSearchResult:
+
+    result = CompaniesOrInteractionSearchResult(companies_search_result=None, interactions_search_result=None)
+    result.companies_search_result = get_companies(company_name, page_size, page)
+
+    if len(result.companies_search_result.companies) == 1:
+        result.interactions_search_result = get_company_interactions(result.companies_search_result.companies[0].id, 100, 0)
+
+    return result
 
 def get_company_interactions(company_id, page_size: int = 10, page: int = 0) -> CompanyInteractionSearchResult:
     company_interactions_search_result = CompanyInteractionSearchResult(interactions=[], total=0, page=page, page_size=page_size)
