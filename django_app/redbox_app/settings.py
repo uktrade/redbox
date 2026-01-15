@@ -48,6 +48,7 @@ GOOGLE_SEARCH_API = env.str("GOOGLE_SEARCH_API", "")
 GOOGLE_SEARCH_ENGINE = env.str("GOOGLE_SEARCH_ENGINE", "")
 BRAVE_API_KEY = env.str("BRAVE_API_KEY", "")
 KAGI_API_KEY = env.str("KAGI_API_KEY", "")
+MAX_ATTEMPTS = env.int("max_attempts", 3)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG")
