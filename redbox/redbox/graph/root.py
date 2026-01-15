@@ -571,7 +571,7 @@ def build_new_route_graph(
                         "call_tabular_agent",
                         get_tabular_agent(
                             tools=config.tools,
-                            max_attempt=10,
+                            max_attempt=get_settings().max_attempts,
                             max_tokens=config.agents_max_tokens,
                             model=ChatLLMBackend(name=config.llm_backend.name, provider=config.llm_backend.provider)
                             if config.llm_backend is not None

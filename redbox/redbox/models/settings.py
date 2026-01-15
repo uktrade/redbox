@@ -153,6 +153,8 @@ class Settings(BaseSettings):
     is_local: bool = ENVIRONMENT.is_local
     is_prod: bool = ENVIRONMENT.is_prod
 
+    max_attempts: int = os.environ.get("MAX_ATTEMPTS", 3)
+
     # mcp
     caddy_mcp: MCPServerSettings = MCPServerSettings(
         name="caddy_mcp",
