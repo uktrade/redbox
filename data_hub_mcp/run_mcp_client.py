@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 import mcp_client
 from dotenv import load_dotenv
