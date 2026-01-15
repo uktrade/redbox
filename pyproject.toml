@@ -9,6 +9,7 @@ description = "RAG application that uses GenAI to chat with and summarise civil 
 authors = ["DBT Redbox <redbox@businessandtrade.gov.uk>", "i.AI <i-dot-ai-enquiries@cabinetoffice.gov.uk>"]
 license = "MIT"
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = ">=3.12,<3.13"
@@ -16,7 +17,6 @@ django = "5.2.10"
 django-staff-sso-client = "^5.1.0"
 dbt-copilot-python = "^2.0.0"
 uwotm8 = "^0.1.6"
-detect-secrets = "^1.5.0"
 ddtrace = "^3.19.3"
 django-log-formatter-asim = "^1.2.0"
 django-requestlogs = "^0.8"
