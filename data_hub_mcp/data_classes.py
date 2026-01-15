@@ -378,6 +378,12 @@ class CompaniesOrInteractionSearchResult:
     interactions_search_result: CompanyInteractionSearchResult | None
 
 @dataclass
+class CompaniesOrInteractionSearchResult:
+    """Company Interactions search result"""
+    companies_search_result: CompanySearchResult | None
+    interactions_search_result: CompanyInteractionSearchResult | None
+
+@dataclass
 class AccountManagementObjectivesSearchResult:
     """Account Management Objectives search result"""
 
