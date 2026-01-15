@@ -60,7 +60,7 @@ test-integration: rebuild run test-integration-without-build ## Run all integrat
 
 .PHONY: test-integration-without-build
 test-integration-without-build : ## Run all integration tests without rebuilding
-	poetry install --no-root --no-ansi --with dev --without docs
+	poetry install --no-ansi --with dev --without docs
 	poetry run pytest tests/
 
 .PHONY: collect-static
