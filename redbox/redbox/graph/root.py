@@ -592,7 +592,7 @@ def build_new_route_graph(
                         if not with_loop
                         else build_agent_with_loop(
                             agent_name=config.name,
-                            system_prompt=config.prompt,
+                            system_prompt=config.prompt.system,
                             tools=config.tools,
                             max_tokens=config.agents_max_tokens,
                             loop_condition=lambda: success == "fail" or is_intermediate_step,
