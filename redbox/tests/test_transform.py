@@ -19,6 +19,7 @@ from redbox.transform import (
     structure_documents_by_group_and_indices,
     to_request_metadata,
     truncate_to_tokens,
+    join_result_with_token_limit,
 )
 
 document_created = datetime.now(UTC)
@@ -396,3 +397,87 @@ def test_truncate_to_tokens(test_name: str, text: str, max_tokens: int, expected
     result, count = truncate_to_tokens(text, max_tokens)
     assert result == expected_text, f"{test_name} - Expected Text: {expected_text!r}, Got: {result!r}"
     assert count == expected_count, f"{test_name} - Expected Count: {expected_count}, Got: {count}"
+
+
+@pytest.mark.parametrize(
+    ("test_name", "input_result_list", "input_max_tokens", "expected_result"),
+    [
+        (
+            "empty-result--negative-max-tokens--expect-empty-string",
+            [],
+            -1,
+            "",
+        ),
+        (
+            "single-result--over-max-tokens--expect-truncation",
+            [AIMessage("Hello world this is a test")],
+            5,
+            "Hello world this is a",
+        ),
+        (
+            "double-result--over-max-tokens--expect-truncation",
+            [AIMessage("Hello world"), AIMessage("this is a test")],
+            5,
+            "Hello world this is a",
+        ),
+        (
+            "multiple-result--over-max-tokens--expect-truncation",
+            [AIMessage("Hello world"), AIMessage("this is"), AIMessage("an even"), AIMessage("longer test")],
+            5,
+            "Hello world this is an",
+        ),
+        (
+            "empty-result--equal-max-tokens--expect-empty-string",
+            [],
+            0,
+            "",
+        ),
+        (
+            "single-result--equal-max-tokens--expect-no-truncation",
+            [AIMessage("Hello world this is a test")],
+            6,
+            "Hello world this is a test",
+        ),
+        (
+            "double-result--equal-max-tokens--expect-no-truncation",
+            [AIMessage("Hello world"), AIMessage("this is a test")],
+            6,
+            "Hello world this is a test",
+        ),
+        (
+            "multiple-result--equal-max-tokens--expect-no-truncation",
+            [AIMessage("Hello world"), AIMessage("this is"), AIMessage("an even"), AIMessage("longer test")],
+            8,
+            "Hello world this is an even longer test",
+        ),
+        (
+            "empty-result--under-max-tokens--expect-empty-string",
+            [],
+            1,
+            "",
+        ),
+        (
+            "single-result--under-max-tokens--expect-no-truncation",
+            [AIMessage("Hello world this is a test")],
+            10,
+            "Hello world this is a test",
+        ),
+        (
+            "double-result--under-max-tokens--expect-no-truncation",
+            [AIMessage("Hello world"), AIMessage("this is a test")],
+            10,
+            "Hello world this is a test",
+        ),
+        (
+            "multiple-result--under-max-tokens--expect-no-truncation",
+            [AIMessage("Hello world"), AIMessage("this is"), AIMessage("an even"), AIMessage("longer test")],
+            10,
+            "Hello world this is an even longer test",
+        ),
+    ],
+)
+def test_join_result_with_token_limit(
+    test_name: str, input_result_list: list, input_max_tokens: int, expected_result: str
+):
+    result = join_result_with_token_limit(result=input_result_list, max_tokens=input_max_tokens, log_stub="")
+    assert result == expected_result, f"{test_name} - Expected Text: {expected_result!r}, Got: {result!r}"
