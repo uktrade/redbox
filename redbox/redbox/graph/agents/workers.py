@@ -96,6 +96,7 @@ class WorkerAgent(Agent):
                 tools=self.config.tools,
                 _additional_variables={"task": self.task.task, "expected_output": self.task.expected_output},
                 model=self.config.llm_backend,
+                use_knowledge_base=self.config.prompt.prompt_vars.knowledge_base_metadata,
             )
             # worker_agent = llm_call(agent_config=self.config)
             self.logger.warning(f"[{self.config.name}] Invoking worker agent...")

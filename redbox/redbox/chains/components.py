@@ -2,11 +2,10 @@ import logging
 import time
 from functools import cache
 
+from botocore.exceptions import ClientError, ConnectTimeoutError, EndpointConnectionError, ReadTimeoutError
 from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langchain_community.embeddings import BedrockEmbeddings
-from botocore.exceptions import ClientError, EndpointConnectionError, ConnectTimeoutError, ReadTimeoutError
-
 from langchain_core.embeddings import Embeddings, FakeEmbeddings
 from langchain_core.runnables import Runnable
 from langchain_core.tools import StructuredTool
@@ -27,6 +26,7 @@ from redbox.retriever import (
     ParameterisedElasticsearchRetriever,
     TabularElasticsearchRetriever,
 )
+from redbox.retriever.retrievers import KnowledgeBaseMetadataRetriever
 from redbox.transform import bedrock_tokeniser
 
 logger = logging.getLogger(__name__)
@@ -174,6 +174,13 @@ def get_metadata_retriever(env: Settings):
 
 def get_basic_metadata_retriever(env: Settings):
     return BasicMetadataRetriever(
+        es_client=env.elasticsearch_client(),
+        index_name=env.elastic_chunk_alias,
+    )
+
+
+def get_knowledge_base_metadata_retriever(env: Settings):
+    return KnowledgeBaseMetadataRetriever(
         es_client=env.elasticsearch_client(),
         index_name=env.elastic_chunk_alias,
     )

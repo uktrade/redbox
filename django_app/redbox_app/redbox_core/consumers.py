@@ -596,7 +596,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 agent.name: AgentConfig(
                     name=agent.name,
                     prompt=prompt_configs[agent.name],
-                    description=agent.description,
+                    description=agent.description if agent.description else agent_configs[agent.name].description,
                     agents_max_tokens=agent.agents_max_tokens,
                     llm_backend=ChatLLMBackend(
                         name=agent.llm_backend.name,
