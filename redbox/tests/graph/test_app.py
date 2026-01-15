@@ -20,12 +20,10 @@ from redbox import Redbox
 from redbox.graph.nodes.processes import create_or_update_db_from_tabulars
 from redbox.models.chain import (
     AISettings,
-    Citation,
     DocumentState,
     RedboxQuery,
     RedboxState,
     RequestMetadata,
-    Source,
     StructuredResponseWithCitations,
     configure_agent_task_plan,
     metadata_reducer,
@@ -192,146 +190,6 @@ TEST_CASES = [
             ],
             test_id="Using keyword @search, nothing selected",
         ),
-        generate_test_cases(
-            query=RedboxQuery(
-                question="@gadget What is AI?",
-                s3_keys=["s3_key"],
-                user_uuid=uuid4(),
-                chat_history=[],
-                permitted_s3_keys=["s3_key"],
-            ),
-            test_data=[
-                RedboxTestData(
-                    number_of_docs=1,
-                    tokens_in_all_docs=10000,
-                    llm_responses=[
-                        AIMessage(
-                            content="",
-                            additional_kwargs={
-                                "tool_calls": [
-                                    {
-                                        "id": "call_e4003b",
-                                        "function": {"arguments": '{\n  "query": "ai"\n}', "name": "_search_documents"},
-                                        "type": "function",
-                                    }
-                                ]
-                            },
-                        ),
-                        OUTPUT_WITH_CITATIONS,
-                    ],
-                    expected_text="AI is a lie",
-                    expected_route=ChatRoute.gadget,
-                ),
-                RedboxTestData(
-                    number_of_docs=1,
-                    tokens_in_all_docs=10000,
-                    llm_responses=[
-                        AIMessage(
-                            content="",
-                            additional_kwargs={
-                                "tool_calls": [
-                                    {
-                                        "id": "call_e4003b",
-                                        "function": {"arguments": '{\n  "query": "ai"\n}', "name": "_search_documents"},
-                                        "type": "function",
-                                    }
-                                ]
-                            },
-                        ),
-                        StructuredResponseWithCitations(
-                            answer="AI is a lie, here is some more blurb about why. It's hard to believe but we're mostly making this up",
-                            citations=[
-                                Citation(
-                                    text_in_answer="AI is a lie I made up",
-                                    sources=[
-                                        Source(
-                                            source="SomeAIGuy",
-                                            document_name="http://localhost/someaiguy.html",
-                                            highlighted_text_in_source="I lied about AI",
-                                            page_numbers=[1],
-                                        )
-                                    ],
-                                )
-                            ],
-                        ).model_dump_json(),
-                    ],
-                    expected_text="AI is a lie, here is some more blurb about why. It's hard to believe but we're mostly making this up",
-                    expected_citations=[],
-                    expected_route=ChatRoute.gadget,
-                ),
-            ],
-            test_id="Using keyword @gadget",
-        ),
-        generate_test_cases(
-            query=RedboxQuery(
-                question="@gadget What is AI?",
-                s3_keys=[],
-                user_uuid=uuid4(),
-                chat_history=[],
-                permitted_s3_keys=["s3_key"],
-            ),
-            test_data=[
-                RedboxTestData(
-                    number_of_docs=1,
-                    tokens_in_all_docs=10000,
-                    llm_responses=[
-                        AIMessage(
-                            content="",
-                            additional_kwargs={
-                                "tool_calls": [
-                                    {
-                                        "id": "call_e4003b",
-                                        "function": {"arguments": '{\n  "query": "ai"\n}', "name": "_search_documents"},
-                                        "type": "function",
-                                    }
-                                ]
-                            },
-                        ),
-                        OUTPUT_WITH_CITATIONS,
-                    ],
-                    expected_text="AI is a lie",
-                    expected_route=ChatRoute.gadget,
-                    s3_keys=["s3_key"],
-                ),
-            ],
-            test_id="Using keyword @gadget, nothing selected",
-        ),
-        generate_test_cases(
-            query=RedboxQuery(
-                question="@gadget Tell me about travel advice to cuba",
-                s3_keys=[],
-                user_uuid=uuid4(),
-                chat_history=[],
-                permitted_s3_keys=["s3_key"],
-            ),
-            test_data=[
-                RedboxTestData(
-                    number_of_docs=1,
-                    tokens_in_all_docs=10000,
-                    llm_responses=[
-                        AIMessage(
-                            content="",
-                            additional_kwargs={
-                                "tool_calls": [
-                                    {
-                                        "id": "call_e4003b",
-                                        "function": {
-                                            "arguments": '{\n  "query": "travel advice to cuba"\n}',
-                                            "name": "_search_govuk",
-                                        },
-                                        "type": "function",
-                                    }
-                                ]
-                            },
-                        ),
-                        OUTPUT_WITH_CITATIONS,
-                    ],
-                    expected_text="AI is a lie",
-                    expected_route=ChatRoute.gadget,
-                ),
-            ],
-            test_id="Using keyword @gadget gov search",
-        ),
     ]
     for test_case in generated_cases
 ]
@@ -470,7 +328,6 @@ def test_get_available_keywords(env: Settings):
     keywords = {
         ChatRoute.search,
         ChatRoute.newroute,
-        ChatRoute.gadget,
         ChatRoute.summarise,
         ChatRoute.tabular,
         ChatRoute.chat,
@@ -494,7 +351,6 @@ def test_draw_method(env: Settings, mocker: MockerFixture):
 
     # Mock the graph retrieval methods
     mocker.patch.object(app.graph, "get_graph", return_value=mock_graph_instance)
-    mocker.patch("redbox.graph.root.get_agentic_search_graph", return_value=MagicMock())
     mocker.patch("redbox.graph.root.get_summarise_graph", return_value=MagicMock())
 
     # Act

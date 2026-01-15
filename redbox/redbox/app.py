@@ -1,19 +1,19 @@
 from asyncio import CancelledError
 from logging import getLogger
-from typing import Literal
+from typing import Dict, Literal
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from redbox.chains.components import (
-    AISettings,
     get_all_chunks_retriever,
     get_embeddings,
     get_metadata_retriever,
     get_parameterised_retriever,
     get_tabular_chunks_retriever,
 )
+from redbox.graph.agents.configs import AgentConfig, agent_configs
 from redbox.graph.nodes.tools import (
     build_document_from_prompt_tool,
     build_govuk_search_tool,
@@ -25,8 +25,8 @@ from redbox.graph.nodes.tools import (
     build_web_search_tool,
     execute_sql_query,
 )
-from redbox.graph.root import build_new_route_graph, build_root_graph, get_agentic_search_graph, get_summarise_graph
-from redbox.models.chain import Agent, RedboxState
+from redbox.graph.root import build_new_route_graph, build_root_graph, get_summarise_graph
+from redbox.models.chain import RedboxState
 from redbox.models.chat import ChatRoute
 from redbox.models.file import ChunkResolution
 from redbox.models.graph import (
@@ -49,7 +49,7 @@ logger = getLogger(__name__)
 class Redbox:
     def __init__(
         self,
-        agents: list[Agent] | None = None,
+        agents: Dict[str, AgentConfig] | None = None,
         all_chunks_retriever: VectorStoreRetriever | None = None,
         parameterised_retriever: VectorStoreRetriever | None = None,
         tabular_retriever: VectorStoreRetriever | None = None,
@@ -60,8 +60,8 @@ class Redbox:
     ):
         _env = env or get_settings()
 
-        # agents
-        self.agents = agents or AISettings().worker_agents
+        # agents configs
+        self.agent_configs = agents or agent_configs
 
         # Retrievers
 
@@ -93,26 +93,29 @@ class Redbox:
         web_search = build_web_search_tool()
         legislation_search = build_legislation_search_tool()
         doc_from_prompt = build_document_from_prompt_tool(loop=True)
-        self.tools = [search_documents, search_wikipedia, search_govuk, web_search, legislation_search]
 
-        self.multi_agent_tools = {
-            "Internal_Retrieval_Agent": [search_documents],
-            "External_Retrieval_Agent": [search_wikipedia, search_govuk],
-            "Tabular_Agent": [execute_sql],
-            "Web_Search_Agent": [web_search],
-            "Legislation_Search_Agent": [legislation_search],
-            "Submission_Question_Answer_Agent": [retrieve_full_text, retrieve_knowledge_base, doc_from_prompt],
-            "Submission_Checker_Agent": [retrieve_full_text, retrieve_knowledge_base, doc_from_prompt],
-        }
+        self.agent_configs["Internal_Retrieval_Agent"].tools = [search_documents]
+        self.agent_configs["External_Retrieval_Agent"].tools = [search_wikipedia, search_govuk]
+        self.agent_configs["Tabular_Agent"].tools = [execute_sql]
+        self.agent_configs["Web_Search_Agent"].tools = [web_search]
+        self.agent_configs["Legislation_Search_Agent"].tools = [legislation_search]
+        self.agent_configs["Submission_Question_Answer_Agent"].tools = [
+            retrieve_full_text,
+            retrieve_knowledge_base,
+            doc_from_prompt,
+        ]
+        self.agent_configs["Submission_Checker_Agent"].tools = [
+            retrieve_full_text,
+            retrieve_knowledge_base,
+            doc_from_prompt,
+        ]
 
         self.graph = build_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,
             parameterised_retriever=self.parameterised_retriever,
             tabular_retriever=self.tabular_retriever,
             metadata_retriever=self.metadata_retriever,
-            tools=self.tools,
-            multi_agent_tools=self.multi_agent_tools,
-            agents=self.agents,
+            agent_configs=self.agent_configs,
             debug=debug,
         )
 
@@ -232,15 +235,12 @@ class Redbox:
 
         if graph_to_draw == "root":
             graph = self.graph.get_graph()
-        elif graph_to_draw == "agent":
-            graph = get_agentic_search_graph(self.tools).get_graph()
         elif graph_to_draw == "summarise":
             graph = get_summarise_graph(self.all_chunks_retriever, self.parameterised_retriever).get_graph()
         elif graph_to_draw == "new_route":
             graph = build_new_route_graph(
                 all_chunks_retriever=self.all_chunks_retriever,
                 tabular_retriever=self.tabular_retriever,
-                multi_agent_tools=self.multi_agent_tools,
                 agents=self.agents,
             ).get_graph()
         else:

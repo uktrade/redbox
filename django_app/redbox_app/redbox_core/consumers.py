@@ -24,6 +24,7 @@ from waffle import flag_is_active
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
+from redbox.graph.agents.configs import AgentConfig, agent_configs, prompt_configs
 from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
@@ -37,14 +38,13 @@ from redbox.models.chain import (
 )
 from redbox.models.chain import Citation as AICitation
 from redbox.models.graph import RedboxActivityEvent
-from redbox.models.settings import get_settings
+from redbox.models.settings import ChatLLMBackend, get_settings
 from redbox_app.redbox_core import error_messages, flags
 from redbox_app.redbox_core.models import (
     ActivityEvent,
     AgentPlan,
     AgentTool,
     Chat,
-    ChatLLMBackend,
     ChatMessage,
     ChatMessageTokenUse,
     Citation,
@@ -58,6 +58,7 @@ from redbox_app.redbox_core.models import (
 )
 from redbox_app.redbox_core.models import Agent as AgentModel
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
+from redbox_app.redbox_core.models import ChatLLMBackend as ChatLLMBackendModel
 
 # Temporary condition before next uwotm8 release: monkey patch CONVERSION_IGNORE_LIST
 uwm8.CONVERSION_IGNORE_LIST = uwm8.CONVERSION_IGNORE_LIST | {"filters": "philtres", "connection": "connexion"}
@@ -165,7 +166,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             lambda: list(UserTeamMembership.objects.filter(user=user).values_list("team_id", flat=True))
         )()
 
-        chat_backend = await ChatLLMBackend.objects.aget(id=data.get("llm", user_ai_settings.chat_backend_id))
+        chat_backend = await ChatLLMBackendModel.objects.aget(id=data.get("llm", user_ai_settings.chat_backend_id))
         temperature = data.get("temperature", user_ai_settings.temperature)
 
         session, previous_selected_files = await self._init_session(
@@ -291,7 +292,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             if plan:
                 try:
-                    agent_options = {agent.name: agent.name for agent in AISettings().worker_agents}
+                    agent_options = {agent: agent for agent in agent_configs}
                     _, configured_agent_plan = configure_agent_task_plan(agent_options)
                     agent_plans = configured_agent_plan.model_validate_json(plan[0])
                     question = message_history[-4].text
@@ -337,9 +338,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if selected_agent_names:
             ai_settings = ai_settings.model_copy(
                 update={
-                    "worker_agents": [
-                        agent for agent in AISettings().worker_agents if agent.name in selected_agent_names
-                    ]
+                    "worker_agents": [agent for agent in agent_configs.values() if agent.name in selected_agent_names]
                 }
             )
         state = RedboxState(
@@ -580,7 +579,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         ai_settings = {k: v for k, v in ai_settings.items() if v not in (None, "")}
         ai_settings = AISettings.model_validate(ai_settings)
         return ai_settings.model_copy(
-            update={"worker_agents": [agent for agent in AISettings().worker_agents if agent.default_agent]}
+            update={"worker_agents": [agent for agent in agent_configs.values() if agent.default_agent]}
         )
 
     async def connect(self):
@@ -593,7 +592,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         if ChatConsumer.redbox is None:
             agents = await get_all_agents()
-            ChatConsumer.redbox = Redbox(agents=agents, env=ChatConsumer.env, debug=ChatConsumer.debug)
+            agent_configs = {
+                agent.name: AgentConfig(
+                    name=agent.name,
+                    prompt=prompt_configs[agent.name],
+                    description=agent.description,
+                    agents_max_tokens=agent.agents_max_tokens,
+                    llm_backend=ChatLLMBackend(
+                        name=agent.llm_backend.name,
+                        provider=agent.llm_backend.provider,
+                        description=agent.llm_backend.description,
+                    )
+                    if agent.llm_backend
+                    else None,
+                )
+                for agent in agents
+            }
+            ChatConsumer.redbox = Redbox(agents=agent_configs, env=ChatConsumer.env, debug=ChatConsumer.debug)
 
         self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
         await self.accept()
