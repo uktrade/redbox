@@ -1,28 +1,26 @@
 import logging
-from typing import List
+from typing import Dict
 
 from langchain_core.messages import AIMessage
-from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.graph import CompiledGraph
-from langgraph.prebuilt import ToolNode
 from langgraph.pregel import RetryPolicy
 
 from redbox.chains.components import get_structured_response_with_citations_parser
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import build_self_route_output_parser
+from redbox.graph.agents.configs import AgentConfig
+from redbox.graph.agents.workers import WorkerAgent
 from redbox.graph.edges import (
     build_documents_bigger_than_context_conditional,
     build_keyword_detection_conditional,
     build_total_tokens_request_handler_conditional,
     is_using_search_keyword,
     multiple_docs_in_group_conditional,
-    remove_gadget_keyword,
 )
 from redbox.graph.nodes.processes import (
     build_activity_log_node,
-    build_agent,
     build_agent_with_loop,
     build_chat_pattern,
     build_error_pattern,
@@ -47,14 +45,8 @@ from redbox.graph.nodes.processes import (
     stream_plan,
     stream_suggestion,
 )
-from redbox.graph.nodes.sends import (
-    build_document_chunk_send,
-    build_document_group_send,
-    build_tool_send,
-    sending_task_to_agent,
-)
-from redbox.graph.nodes.tools import get_log_formatter_for_retrieval_tool
-from redbox.models.chain import Agent, AgentDecision, PromptSet, RedboxState
+from redbox.graph.nodes.sends import build_document_chunk_send, build_document_group_send, sending_task_to_agent
+from redbox.models.chain import AgentDecision, PromptSet, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.models.prompts import EVAL_SUBMISSION, EVAL_SUBMISSION_QA
@@ -69,9 +61,7 @@ def build_root_graph(
     parameterised_retriever,
     metadata_retriever,
     tabular_retriever,
-    tools,
-    multi_agent_tools,
-    agents,
+    agent_configs,
     debug,
 ):
     agent_parser = ClaudeParser(pydantic_object=AgentDecision)
@@ -84,7 +74,6 @@ def build_root_graph(
     # nodes
     builder.add_node("chat_graph", get_chat_graph(debug=debug))
     builder.add_node("search_graph", get_search_graph(retriever=parameterised_retriever, debug=debug))
-    builder.add_node("gadget_graph", get_agentic_search_graph(tools=tools, debug=debug))
     builder.add_node(
         "summarise_graph",
         get_summarise_graph(all_chunks_retriever=all_chunks_retriever, debug=debug),
@@ -94,8 +83,7 @@ def build_root_graph(
         build_new_route_graph(
             all_chunks_retriever=all_chunks_retriever,
             tabular_retriever=tabular_retriever,
-            multi_agent_tools=multi_agent_tools,
-            agents=agents,
+            agent_configs=agent_configs,
             debug=debug,
         ),
     )
@@ -135,7 +123,6 @@ def build_root_graph(
         build_keyword_detection_conditional(*ROUTABLE_KEYWORDS.keys()),
         {
             ChatRoute.search: "search_graph",
-            ChatRoute.gadget: "gadget_graph",
             ChatRoute.newroute: "new_route_graph",
             ChatRoute.summarise: "summarise_graph",
             ChatRoute.chat: "chat_graph",
@@ -148,7 +135,6 @@ def build_root_graph(
         "is_summarise_route", lambda s: s.route_name == ChatRoute.summarise, {True: "summarise_graph", False: END}
     )
     builder.add_edge("search_graph", END)
-    builder.add_edge("gadget_graph", END)
     builder.add_edge("new_route_graph", END)
     builder.add_edge("summarise_graph", END)
     return builder.compile()
@@ -492,100 +478,6 @@ def get_chat_graph(
     return builder.compile(debug=debug)
 
 
-def get_agentic_search_graph(tools: List[StructuredTool], debug: bool = False) -> CompiledGraph:
-    """Creates a subgraph for agentic RAG."""
-
-    citations_output_parser, format_instructions = get_structured_response_with_citations_parser()
-    builder = StateGraph(RedboxState)
-
-    # Processes
-    builder.add_node("remove_keyword", remove_gadget_keyword)
-
-    builder.add_node(
-        "set_route_to_gadget",
-        build_set_route_pattern(route=ChatRoute.gadget),
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    def build_smart_agent(state: RedboxState):
-        return build_stuff_pattern(
-            prompt_set=PromptSet.SearchAgentic,
-            tools=tools,
-            output_parser=citations_output_parser,
-            format_instructions=format_instructions,
-            final_response_chain=False,  # Output parser handles streaming
-            additional_variables={"has_selected_files": True if state.request.s3_keys else False},
-        )
-
-    builder.add_node(
-        "smart_agent",
-        build_smart_agent,
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "invoke_tool_calls",
-        ToolNode(tools=tools),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "give_up_agent",
-        build_stuff_pattern(prompt_set=PromptSet.GiveUpAgentic, final_response_chain=True),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "report_citations",
-        report_sources_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    # Log
-    builder.add_node(
-        "log_tool_call_activities",
-        build_activity_log_node(
-            lambda s: [
-                RedboxActivityEvent(message=get_log_formatter_for_retrieval_tool(tool_state_entry).log_call())
-                for tool_state_entry in s.last_message.tool_calls
-            ]
-        ),
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    # Decisions
-    builder.add_node(
-        "should_continue",
-        empty_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    # Sends
-    builder.add_node(
-        "send_tool",
-        empty_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    # Edges
-    builder.add_edge(START, "remove_keyword")
-    builder.add_edge("remove_keyword", "set_route_to_gadget")
-    builder.add_edge("set_route_to_gadget", "should_continue")
-    builder.add_conditional_edges(
-        "should_continue",
-        lambda state: state.steps_left > 8,
-        {
-            True: "smart_agent",
-            False: "give_up_agent",
-        },
-    )
-    builder.add_edge("smart_agent", "send_tool")
-    builder.add_edge("send_tool", "report_citations")
-    builder.add_edge("smart_agent", "log_tool_call_activities")
-    builder.add_conditional_edges("send_tool", build_tool_send("invoke_tool_calls"), path_map=["invoke_tool_calls"])
-    builder.add_edge("invoke_tool_calls", "should_continue")
-    builder.add_edge("report_citations", END)
-
-    return builder.compile(debug=debug)
-
-
 def get_retrieve_metadata_graph(metadata_retriever: VectorStoreRetriever, debug: bool = False):
     builder = StateGraph(RedboxState)
 
@@ -626,8 +518,7 @@ def strip_route(state: RedboxState):
 def build_new_route_graph(
     all_chunks_retriever: VectorStoreRetriever,
     tabular_retriever: VectorStoreRetriever,
-    multi_agent_tools: dict,
-    agents: list[Agent],
+    agent_configs: Dict[str, AgentConfig],
     debug: bool = False,
 ) -> CompiledGraph:
     def update_submission_eval(state: RedboxState):
@@ -638,22 +529,23 @@ def build_new_route_graph(
         state.tasks_evaluator = EVAL_SUBMISSION_QA
         return state
 
-    def add_agent(builder, agents, agent_name, edge_nodes=["combine_question_evaluator"], with_loop=False, **kwargs):
-        agent = [agent for agent in agents if agent.name == agent_name]
+    def add_agent(
+        builder, agent_configs, agent_name, edge_nodes=["combine_question_evaluator"], with_loop=False, **kwargs
+    ):
         try:
-            agent = agent[0]
-            match agent.name:
+            config = agent_configs[agent_name]
+            match config.name:
                 case "Summarisation_Agent":
                     builder.add_node(
-                        agent.name,
+                        config.name,
                         invoke_custom_state(
                             custom_graph=get_summarise_graph,
-                            agent_name=agent.name,
+                            agent_name=config.name,
                             all_chunks_retriever=all_chunks_retriever,
-                            max_tokens=agent.agents_max_tokens,
+                            max_tokens=config.agents_max_tokens,
                             use_as_agent=True,
-                            model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
-                            if agent.llm_backend is not None
+                            model=ChatLLMBackend(name=config.llm_backend.name, provider=config.llm_backend.provider)
+                            if config.llm_backend is not None
                             else None,
                             debug=debug,
                         ),
@@ -678,11 +570,11 @@ def build_new_route_graph(
                     builder.add_node(
                         "call_tabular_agent",
                         get_tabular_agent(
-                            tools=multi_agent_tools["Tabular_Agent"],
+                            tools=config.tools,
                             max_attempt=get_settings().max_attempts,
-                            max_tokens=agent.agents_max_tokens,
-                            model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
-                            if agent.llm_backend is not None
+                            max_tokens=config.agents_max_tokens,
+                            model=ChatLLMBackend(name=config.llm_backend.name, provider=config.llm_backend.provider)
+                            if config.llm_backend is not None
                             else None,
                         ),
                     )
@@ -690,47 +582,37 @@ def build_new_route_graph(
                     builder.add_edge("retrieve_tabular_documents", "retrieve_tabular_schema")
                     builder.add_edge("retrieve_tabular_schema", "call_tabular_agent")
                     builder.add_edge("call_tabular_agent", "combine_question_evaluator")
-
                 case _:
                     success = "fail"
                     is_intermediate_step = False
+                    worker = WorkerAgent(config=config)
                     builder.add_node(
-                        agent.name,
-                        build_agent(
-                            agent_name=agent.name,
-                            system_prompt=agent.prompt,
-                            tools=multi_agent_tools[agent.name],
-                            use_metadata=kwargs.get("use_metadata", False),
-                            using_chat_history=kwargs.get("using_chat_history", False),
-                            max_tokens=agent.agents_max_tokens,
-                            model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
-                            if agent.llm_backend is not None
-                            else None,
-                        )
+                        config.name,
+                        worker.execute()
                         if not with_loop
                         else build_agent_with_loop(
-                            agent_name=agent.name,
-                            system_prompt=agent.prompt,
-                            tools=multi_agent_tools[agent.name],
-                            max_tokens=agent.agents_max_tokens,
+                            agent_name=config.name,
+                            system_prompt=config.prompt.system,
+                            tools=config.tools,
+                            max_tokens=config.agents_max_tokens,
                             loop_condition=lambda: success == "fail" or is_intermediate_step,
                             max_attempt=kwargs.get("max_attempt", 2),
                             use_metadata=kwargs.get("use_metadata", False),
                             using_chat_history=kwargs.get("using_chat_history", False),
-                            model=ChatLLMBackend(name=agent.llm_backend.name, provider=agent.llm_backend.provider)
-                            if agent.llm_backend is not None
+                            model=ChatLLMBackend(name=config.llm_backend.name, provider=config.llm_backend.provider)
+                            if config.llm_backend is not None
                             else None,
                         ),
                     )
 
             # add edge
             _edge_nodes = edge_nodes.copy()
-            _edge_nodes.insert(0, agent.name)
+            _edge_nodes.insert(0, config.name)
             for i in range(len(_edge_nodes) - 1):
                 builder.add_edge(_edge_nodes[i], _edge_nodes[i + 1])
-        except IndexError:
+        except KeyError:
             # can't find agent
-            log.error(f"Here is the list of agents: {agents}")
+            log.error(f"Here is the list of agents: {agent_configs}")
             raise ValueError(f"No agent found with name {agent_name}")
 
     allow_plan_feedback = get_settings().allow_plan_feedback
@@ -769,15 +651,15 @@ def build_new_route_graph(
     builder.add_node("sending_task", empty_process)
 
     # add all agents here
-    add_agent(builder, agents, "Internal_Retrieval_Agent", use_metadata=True)
-    add_agent(builder, agents, "External_Retrieval_Agent")
-    add_agent(builder, agents, "Summarisation_Agent", edge_nodes=[])  # streaming response directly
-    add_agent(builder, agents, "Tabular_Agent", edge_nodes=[])  # go to other nodes/subgraphs
-    add_agent(builder, agents, "Web_Search_Agent")
-    add_agent(builder, agents, "Legislation_Search_Agent")
+    add_agent(builder, agent_configs, "Internal_Retrieval_Agent")
+    add_agent(builder, agent_configs, "External_Retrieval_Agent")
+    add_agent(builder, agent_configs, "Summarisation_Agent", edge_nodes=[])  # streaming response directly
+    add_agent(builder, agent_configs, "Tabular_Agent", edge_nodes=[])  # go to other nodes/subgraphs
+    add_agent(builder, agent_configs, "Web_Search_Agent")
+    add_agent(builder, agent_configs, "Legislation_Search_Agent")
     add_agent(
         builder,
-        agents,
+        agent_configs,
         "Submission_Checker_Agent",
         with_loop=True,
         use_metadata=True,
@@ -786,7 +668,7 @@ def build_new_route_graph(
     )
     add_agent(
         builder,
-        agents,
+        agent_configs,
         "Submission_Question_Answer_Agent",
         with_loop=True,
         use_metadata=True,
