@@ -24,7 +24,7 @@ from waffle import flag_is_active
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
-from redbox.graph.agents.configs import AgentConfig, agent_configs, prompt_configs
+from redbox.graph.agents.configs import agent_configs
 from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
@@ -592,22 +592,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         if ChatConsumer.redbox is None:
             agents = await get_all_agents()
-            agent_configs = {
-                agent.name: AgentConfig(
-                    name=agent.name,
-                    prompt=prompt_configs[agent.name],
-                    description=agent.description if agent.description else agent_configs[agent.name].description,
-                    agents_max_tokens=agent.agents_max_tokens,
-                    llm_backend=ChatLLMBackend(
-                        name=agent.llm_backend.name,
-                        provider=agent.llm_backend.provider,
-                        description=agent.llm_backend.description,
-                    )
-                    if agent.llm_backend
-                    else None,
-                )
-                for agent in agents
-            }
+
+            for agent in agents:
+                if agent.name in list(agent_configs.keys()):
+                    if agent.llm_backend:
+                        agent_configs[agent.name].llm_backend = ChatLLMBackend(
+                            name=agent.llm_backend.name,
+                            provider=agent.llm_backend.provider,
+                            description=agent.llm_backend.description,
+                        )
+                    if agent.agents_max_tokens:
+                        agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
             ChatConsumer.redbox = Redbox(agents=agent_configs, env=ChatConsumer.env, debug=ChatConsumer.debug)
 
         self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
