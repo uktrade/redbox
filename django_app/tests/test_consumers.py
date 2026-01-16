@@ -876,3 +876,24 @@ async def test_connect_with_agents_cache(agents_list: list, alice: User, staff_u
 
         await communicator.disconnect()
         await comm2.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_connect_with_agents_update_via_db(agents_list: list, alice: User):
+    """
+    Check when connects:
+    1. only use a list of agents from agent_configs
+    2. use max tokens from database
+    3. use llm backend from database
+    """
+    ChatConsumer.redbox = None
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
+        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        communicator.scope["user"] = alice
+        await communicator.connect()
+        assert mock_get.call_count == 1
+
+        assert "Fake_Agent" not in list(ChatConsumer.redbox.agent_configs.keys())
+        assert ChatConsumer.redbox.agent_configs["Internal_Retrieval_Agent"].agents_max_tokens == 100
+        assert ChatConsumer.redbox.agent_configs["Internal_Retrieval_Agent"].llm_backend.name == "gpt-4o"

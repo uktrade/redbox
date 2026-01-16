@@ -119,9 +119,15 @@ def alice(create_user):
 
 @pytest.fixture
 def agents_list() -> list[Agent]:
-    agents = []
+    agents = [
+        Agent.objects.create(
+            name="Internal_Retrieval_Agent",
+            description="Fake",
+            agents_max_tokens=100,
+            llm_backend=ChatLLMBackend.objects.filter().first(),
+        )
+    ]
     for agent_name in [
-        "Internal_Retrieval_Agent",
         "External_Retrieval_Agent",
         "Summarisation_Agent",
         "Tabular_Agent",
