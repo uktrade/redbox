@@ -51,7 +51,7 @@ def build_query_filter(
         suffix_filters = []
 
         for suffix in file_types:
-            suffix_filters.append({"wildcard": {"metadata.uri": f"*{suffix}"}})
+            suffix_filters.append({"wildcard": {"metadata.uri.keyword": f"*{suffix}"}})
 
         must_filters.append(
             {
@@ -205,7 +205,7 @@ def build_document_query(
     k_value = get_k_value(selected_files, desired_size=ai_settings.rag_num_candidates)
     return {
         "size": ai_settings.rag_k,
-        "min_score": 0.6,
+        "min_score": 0.0,
         "query": {
             "knn": {
                 "vector_field": {

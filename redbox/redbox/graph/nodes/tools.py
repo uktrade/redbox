@@ -1,9 +1,11 @@
+import io
+import csv
 import json
 import logging
 import random
 import sqlite3
 import time
-from typing import Annotated, Callable, Iterable, Literal, Union
+from typing import Annotated, Callable, Iterable, Literal, Union, List
 
 import boto3
 import numpy as np
@@ -244,6 +246,61 @@ def build_search_documents_tool(
     return _search_documents if repository == "user_uploaded" else _search_knowledge_base
 
 
+def execute_tabular_query(query: str, documents: List[Document]) -> str:
+    """
+    Executes a structured query against tabular documents stored as CSV-like text.
+
+    Assumes `doc.text_content` is:
+        <table_name>sheet1</table_name>
+        Term,Explanation,Category
+        Active project,...,...
+
+    Supports:
+        - Lookup of specific terms (e.g., acronyms, glossary)
+        - Simple filtering by keyword matches in any column
+
+    Returns a textual summary of matching rows.
+    """
+
+    query_lower = query.lower()
+    matched_rows = []
+
+    for doc in documents:
+        content = doc.page_content
+
+        # 1️⃣ Extract table name
+        table_name = "unknown"
+        if content.startswith("<table_name>"):
+            end_tag_idx = content.find("</table_name>")
+            if end_tag_idx != -1:
+                table_name = content[len("<table_name>") : end_tag_idx].strip()
+                content = content[end_tag_idx + len("</table_name>") :].strip()
+
+        # 2️⃣ Read CSV
+        try:
+            f = io.StringIO(content)
+            reader = csv.DictReader(f)
+            for row in reader:
+                # 3️⃣ Match row if any value contains query keywords
+                if any(query_lower in str(value).lower() for value in row.values()):
+                    matched_rows.append((table_name, row))
+        except Exception as e:
+            # Ignore malformed CSV
+            print(f"Failed to parse CSV in doc {doc.metadata.get('uri')}: {e}")
+            continue
+
+    # 4️⃣ Format results
+    if not matched_rows:
+        return "No matching tabular data found for your query."
+
+    result_lines = []
+    for table_name, row in matched_rows:
+        row_text = ", ".join(f"{k}: {v}" for k, v in row.items())
+        result_lines.append(f"[{table_name}] {row_text}")
+
+    return "\n".join(result_lines)
+
+
 def build_search_tabular_documents_tool(
     es_client: Union[Elasticsearch, OpenSearch],
     index_name: str,
@@ -318,12 +375,12 @@ def build_search_tabular_documents_tool(
         )
 
         # 3️⃣ Execute tabular query logic
-        # result_text = execute_tabular_query(
-        #     query=query,
-        #     documents=sorted_documents,
-        # )
+        result_text = execute_tabular_query(
+            query=query,
+            documents=sorted_documents,
+        )
 
-        return "", sorted_documents
+        return result_text, sorted_documents
 
     @tool(response_format="content_and_artifact")
     def _search_tabular_knowledge_base(
