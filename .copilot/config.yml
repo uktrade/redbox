@@ -1,4 +1,0 @@
-repository: redbox/application
-builder:
-  name: paketobuildpacks/builder-jammy-full
-  version: 0.3.482
