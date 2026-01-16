@@ -301,6 +301,86 @@ def execute_tabular_query(query: str, documents: List[Document]) -> str:
     return "\n".join(result_lines)
 
 
+def execute_tabular_query_sql(query: str, documents: List[Document]) -> str:
+    """
+    Executes a natural language query against tabular CSV/XLSX content using SQL.
+    Returns matching rows as text.
+    """
+    # 1️⃣ Create in-memory SQLite database
+    conn = sqlite3.connect(":memory:")
+    cur = conn.cursor()
+
+    table_counter = 0
+
+    for doc in documents:
+        content = doc.text_content.strip()
+
+        # Extract table name
+        table_name = f"table_{table_counter}"
+        table_counter += 1
+
+        if content.startswith("<table_name>"):
+            end_tag_idx = content.find("</table_name>")
+            if end_tag_idx != -1:
+                table_name = content[len("<table_name>") : end_tag_idx].strip()
+                content = content[end_tag_idx + len("</table_name>") :].strip()
+
+        # Parse CSV header
+        f = io.StringIO(content)
+        reader = csv.reader(f)
+        try:
+            header = next(reader)
+        except StopIteration:
+            continue
+
+        # Create table
+        columns = ", ".join(f'"{col}" TEXT' for col in header)
+        cur.execute(f'CREATE TABLE "{table_name}" ({columns});')
+
+        # Insert rows
+        for row in reader:
+            placeholders = ", ".join("?" for _ in row)
+            cur.execute(f'INSERT INTO "{table_name}" VALUES ({placeholders})', row)
+
+    conn.commit()
+
+    # 2️⃣ Convert natural language query → SQL
+    # Very simple heuristic: find keyword after "explain" or "definition"
+    # You could replace this with an LLM parser for more complex queries
+    import re
+
+    term_match = re.search(r"(?:explain|definition of)\s+(\w+)", query, re.IGNORECASE)
+    if term_match:
+        term_to_lookup = term_match.group(1)
+    else:
+        # fallback: use the whole query
+        term_to_lookup = query
+
+    # 3️⃣ Build SQL query
+    sql_results = []
+    for table_name in [row[0] for row in cur.execute("SELECT name FROM sqlite_master WHERE type='table';")]:
+        sql = f"""
+        SELECT Term, Explanation, Category
+        FROM "{table_name}"
+        WHERE Term LIKE ?
+        """
+        cur.execute(sql, (f"%{term_to_lookup}%",))
+        rows = cur.fetchall()
+        sql_results.extend([(table_name, r) for r in rows])
+
+    # 4️⃣ Format results
+    if not sql_results:
+        return "No matching tabular data found for your query."
+
+    result_lines = []
+    for table_name, row in sql_results:
+        term, explanation, category = row
+        result_lines.append(f"[{table_name}] Term: {term}, Explanation: {explanation}, Category: {category}")
+
+    conn.close()
+    return "\n".join(result_lines)
+
+
 def build_search_tabular_documents_tool(
     es_client: Union[Elasticsearch, OpenSearch],
     index_name: str,

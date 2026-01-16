@@ -95,7 +95,7 @@ class Redbox:
             index_name=_env.elastic_chunk_alias,
             embedding_model=self.embedding_model,
             embedding_field_name=_env.embedding_document_field_name,
-            chunk_resolution=ChunkResolution.normal,
+            chunk_resolution=ChunkResolution.tabular,
             repository="knowledge_base",
         )
         retrieve_full_text = build_retrieve_document_full_text(
