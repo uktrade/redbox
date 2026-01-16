@@ -64,7 +64,7 @@ ENV PYTHONPATH "${PYTHONPATH}:/."
 
 EXPOSE 8080
 
-RUN chmod +x start.sh
+RUN chmod +x start.sh 
 RUN chmod +x health.sh
 
 RUN libreoffice --version
