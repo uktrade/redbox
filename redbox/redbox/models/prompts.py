@@ -315,10 +315,11 @@ Use when the user wants to:
 KNOWLEDGE_BASE_RETRIEVAL_AGENT_DESC = """
 **Knowledge_Base_Retrieval_Agent**:
 Purpose: Information retrieval and question answering from knowledge base.
-Use when the selected documents are NOT tabular data such as PDF files or Word documents
+
 Use when the user wants to:
 - Ask questions about specific documents or knowledge base content
 - Retrieve specific information or facts
+- Find descriptions for acronyms
 - Get answers to queries based on existing documents
 - Search for particular details within documents
 - Compare information across multiple documents

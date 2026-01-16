@@ -156,6 +156,7 @@ def build_search_documents_tool(
     embedding_field_name: str,
     chunk_resolution: ChunkResolution | None,
     repository: Literal["user_uploaded", "knowledge_base"] = "user_uploaded",
+    file_type: list[str] | None = None,
 ) -> Tool:
     """Constructs a tool that searches the index and sets state.documents."""
 
@@ -241,6 +242,124 @@ def build_search_documents_tool(
         )
 
     return _search_documents if repository == "user_uploaded" else _search_knowledge_base
+
+
+def build_search_tabular_documents_tool(
+    es_client: Union[Elasticsearch, OpenSearch],
+    index_name: str,
+    embedding_model: Embeddings,
+    embedding_field_name: str,
+    chunk_resolution: ChunkResolution | None,
+    repository: Literal["knowledge_base"] = "knowledge_base",
+) -> Tool:
+    """
+    Constructs a tool that searches XLSX documents in OpenSearch and
+    executes structured (tabular) query logic over the results.
+    """
+
+    def search_repo(
+        query: str,
+        selected_files,
+        permitted_files,
+        ai_settings,
+        start_time=time.time(),
+    ):
+        query_vector = embedding_model.embed_query(query)
+
+        # 1️⃣ Semantic retrieval (xlsx only)
+        initial_query = build_document_query(
+            query=query,
+            query_vector=query_vector,
+            selected_files=selected_files,
+            permitted_files=permitted_files,
+            embedding_field_name=embedding_field_name,
+            chunk_resolution=chunk_resolution,
+            ai_settings=ai_settings,
+            file_types=[".xlsx"],
+        )
+
+        initial_documents = query_to_documents(
+            es_client=es_client,
+            index_name=index_name,
+            query=initial_query,
+        )
+
+        log.warning(
+            "[_search_tabular_documents] Initial query took %s seconds",
+            time.time() - start_time,
+        )
+
+        if not initial_documents:
+            return "", []
+
+        # 2️⃣ Adjacent row boosting (same logic as text docs)
+        with_adjacent_query = add_document_filter_scores_to_query(
+            elasticsearch_query=initial_query,
+            ai_settings=ai_settings,
+            centres=initial_documents,
+        )
+
+        adjacent_documents = query_to_documents(
+            es_client=es_client,
+            index_name=index_name,
+            query=with_adjacent_query,
+        )
+
+        merged = merge_documents(
+            initial=initial_documents,
+            adjacent=adjacent_documents,
+        )
+
+        sorted_documents = sort_documents(merged)
+
+        log.warning(
+            "[_search_tabular_documents] Retrieved %s rows",
+            len(sorted_documents),
+        )
+
+        # 3️⃣ Execute tabular query logic
+        # result_text = execute_tabular_query(
+        #     query=query,
+        #     documents=sorted_documents,
+        # )
+
+        return "", sorted_documents
+
+    @tool(response_format="content_and_artifact")
+    def _search_tabular_knowledge_base(
+        query: str,
+        state: Annotated[RedboxState, InjectedState],
+    ) -> tuple[str, list[Document]]:
+        """
+        Searches Excel or CSV knowledge base files to find and extract structured data.
+        This tool should be used whenever a query involves numeric data, tables, lookup tables,
+        or information organized in rows and columns, such as glossaries, acronyms, or reference tables.
+
+        The tool performs semantic search across all relevant tabular documents, retrieves
+        matching rows or chunks, and can optionally perform structured reasoning such as
+        lookups, aggregations (sum, average, max/min), or filtering based on column values.
+        Results are automatically grouped by source file and sheet, and include metadata
+        such as sheet name, row index, and column headers for context.
+
+        Args:
+            query (str): The search query to match against tabular data.
+                - Can be natural language, keywords, or aggregation/lookup requests
+                - More specific queries yield more precise results
+                - Query length should be 1-500 characters
+        Returns:
+            str: A textual summary of the relevant tabular data, including aggregation results
+                or lookup matches if applicable.
+            list[Document]: The matching documents or row chunks, including metadata.
+        """
+
+        return search_repo(
+            query=query,
+            selected_files=state.request.knowledge_base_s3_keys,
+            permitted_files=state.request.knowledge_base_s3_keys,
+            ai_settings=state.request.ai_settings,
+        )
+
+    return _search_tabular_knowledge_base
 
 
 def build_govuk_search_tool(filter=True) -> Tool:
