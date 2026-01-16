@@ -1,6 +1,6 @@
 // @ts-check
 
-import { hideElement } from "../../utils/dom-utils.js";
+import { hideElement, showElement } from "../../utils/dom-utils.js";
 import { LoadingMessage } from "../../../redbox_design_system/rbds/components/loading-message.js";
 
 window.addEventListener('load', () => {
@@ -271,6 +271,7 @@ export class ChatMessage extends HTMLElement {
       if (response.type === "text") {
         this.streamedContent += sanitiseText(response.data);
         this.responseContainer?.update(this.streamedContent);
+        hideElement(this.loadingElement);
       } else if (response.type === "session-id") {
         chatControllerRef.dataset.sessionId = sanitiseId(response.data);
       } else if (response.type === "source") {
@@ -354,6 +355,7 @@ export class ChatMessage extends HTMLElement {
    */
   addActivity = (message) => {
     this.loadingElement.loadingText.textContent = message;
+    showElement(this.loadingElement);
   };
 
 
