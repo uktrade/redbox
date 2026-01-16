@@ -386,7 +386,7 @@ def chain_use_metadata(
     def use_result(input):
         if input["metadata"] is not None:
             additional_variables = {"metadata": input["metadata"]}
-        if input["knowledge_base_metadata"] is not None:
+        if input.get("knowledge_base_metadata", None) is not None:
             additional_variables["knowledge_base_metadata"] = input["knowledge_base_metadata"]
         if _additional_variables:
             additional_variables = dict(additional_variables, **_additional_variables)
@@ -402,13 +402,12 @@ def chain_use_metadata(
         return chain.invoke(input["state"])
 
     return (
-        get_metadata | use_result
-        if not use_knowledge_base
-        else RunnableParallel(
+        RunnableParallel(
             state=RunnablePassthrough(), metadata=get_metadata, knowledge_base_metadata=get_knowledge_base_metadata
         )
-        | use_result
-    )
+        if use_knowledge_base
+        else RunnableParallel(state=RunnablePassthrough(), metadata=get_metadata)
+    ) | use_result
 
 
 def create_chain_agent(
