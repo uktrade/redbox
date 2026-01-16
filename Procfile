@@ -1,2 +1,2 @@
-redbox-django-app: bash start.sh
-redbox-worker: bash start.sh
+redbox-django-app: ./start.sh
+redbox-worker: ./start.sh
