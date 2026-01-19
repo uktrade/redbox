@@ -3,7 +3,7 @@ import logging
 import random
 import sqlite3
 import time
-from typing import Annotated, Callable, Iterable, Union
+from typing import Annotated, Callable, Iterable, Literal, Union
 
 import boto3
 import numpy as np
@@ -155,30 +155,12 @@ def build_search_documents_tool(
     embedding_model: Embeddings,
     embedding_field_name: str,
     chunk_resolution: ChunkResolution | None,
+    repository: Literal["user_uploaded", "knowledge_base"] = "user_uploaded",
 ) -> Tool:
     """Constructs a tool that searches the index and sets state.documents."""
 
-    @tool(response_format="content_and_artifact")
-    def _search_documents(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
-        """
-        "Searches through state.documents to find and extract relevant information. This tool should be used whenever a query involves finding, searching, or retrieving information from documents that have already been uploaded or provided to the system.
-
-        The tool performs semantic search across all available documents. Results are automatically grouped by source document and ranked by relevance score. Each result includes document metadata (title, page/section) for context.
-
-        Args:
-            query (str): The search query to match against document content.
-            - Can be natural language, keywords, or phrases
-            - More specific queries yield more precise results
-            - Query length should be 1-500 characters
-        Returns:
-            dict[str, Any]: Collection of matching document snippets with metadata:
-        """
-        start_time = time.time()
+    def search_repo(query, selected_files, permitted_files, ai_settings, start_time=time.time()):
         query_vector = embedding_model.embed_query(query)
-        selected_files = state.request.s3_keys
-        permitted_files = state.request.permitted_s3_keys
-        ai_settings = state.request.ai_settings
-
         # Initial pass
         initial_query = build_document_query(
             query=query,
@@ -214,7 +196,51 @@ def build_search_documents_tool(
         # Return as state update
         return format_documents(sorted_documents), sorted_documents
 
-    return _search_documents
+    @tool(response_format="content_and_artifact")
+    def _search_documents(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
+        """
+        "Searches through state.documents to find and extract relevant information. This tool should be used whenever a query involves finding, searching, or retrieving information from documents that have already been uploaded or provided to the system.
+
+        The tool performs semantic search across all available documents. Results are automatically grouped by source document and ranked by relevance score. Each result includes document metadata (title, page/section) for context.
+
+        Args:
+            query (str): The search query to match against document content.
+            - Can be natural language, keywords, or phrases
+            - More specific queries yield more precise results
+            - Query length should be 1-500 characters
+        Returns:
+            dict[str, Any]: Collection of matching document snippets with metadata:
+        """
+        return search_repo(
+            query=query,
+            selected_files=state.request.s3_keys,
+            permitted_files=state.request.permitted_s3_keys,
+            ai_settings=state.request.ai_settings,
+        )
+
+    @tool(response_format="content_and_artifact")
+    def _search_knowledge_base(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
+        """
+        "Searches through knowledge base files to find and extract relevant information. This tool should be used whenever a query involves finding, searching, or retrieving information from knowledge base.
+
+        The tool performs semantic search across all available documents. Results are automatically grouped by source document and ranked by relevance score. Each result includes document metadata (title, page/section) for context.
+
+        Args:
+            query (str): The search query to match against document content.
+            - Can be natural language, keywords, or phrases
+            - More specific queries yield more precise results
+            - Query length should be 1-500 characters
+        Returns:
+            dict[str, Any]: Collection of matching document snippets with metadata:
+        """
+        return search_repo(
+            query=query,
+            selected_files=state.request.knowledge_base_s3_keys,
+            permitted_files=state.request.knowledge_base_s3_keys,
+            ai_settings=state.request.ai_settings,
+        )
+
+    return _search_documents if repository == "user_uploaded" else _search_knowledge_base
 
 
 def build_govuk_search_tool(filter=True) -> Tool:
