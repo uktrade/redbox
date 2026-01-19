@@ -148,6 +148,47 @@ def test_retrieve_document_full_text_tool(
 
 
 @pytest.mark.parametrize("chain_params", TEST_CHAIN_PARAMETERS)
+def test_knowledge_base_search_documents_tool(
+    chain_params: dict,
+    es_client: OpenSearch,
+    es_index: str,
+    embedding_model: FakeEmbeddings,
+    env: Settings,
+    stored_file_knowledge_base: RedboxChatTestCase,
+):
+    # Build and run
+    kb_tool = build_search_documents_tool(
+        es_client=es_client,
+        index_name=es_index,
+        embedding_model=embedding_model,
+        embedding_field_name=env.embedding_document_field_name,
+        chunk_resolution=ChunkResolution.normal,
+        repository="knowledge_base",
+    )
+
+    tool_node = ToolNode(tools=[kb_tool])
+    result_state = tool_node.invoke(
+        RedboxState(
+            request=stored_file_knowledge_base.query,
+            messages=[
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "name": "_search_knowledge_base",
+                            "args": {"query": "example"},
+                            "id": "1",
+                        }
+                    ],
+                )
+            ],
+        )
+    )
+
+    print(result_state["messages"][0])
+
+
+@pytest.mark.parametrize("chain_params", TEST_CHAIN_PARAMETERS)
 def test_search_documents_tool(
     chain_params: dict,
     stored_file_parameterised: RedboxChatTestCase,

@@ -347,7 +347,10 @@ def create_planner(is_streamed=False):
             parser=ClaudeParser(pydantic_object=ConfiguredAgentPlan),
             using_only_structure=False,
             using_chat_history=True,
-            _additional_variables={"document_filenames": document_filenames},
+            use_knowledge_base=True,
+            _additional_variables={
+                "document_filenames": document_filenames,
+            },
         )
         return orchestration_agent
 
@@ -381,6 +384,7 @@ def my_planner(
                 tools=None,
                 parser=ClaudeParser(pydantic_object=ConfiguredAgentPlan),
                 using_only_structure=False,
+                use_knowledge_base=True,
                 _additional_variables={
                     "previous_plan": plan,
                     "user_feedback": user_input,

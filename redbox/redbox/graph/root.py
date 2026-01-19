@@ -579,6 +579,7 @@ def build_new_route_graph(
     add_agent(builder, agent_configs, "Tabular_Agent", edge_nodes=[])  # go to other nodes/subgraphs
     add_agent(builder, agent_configs, "Web_Search_Agent")
     add_agent(builder, agent_configs, "Legislation_Search_Agent")
+    add_agent(builder, agent_configs, "Knowledge_Base_Retrieval_Agent")
     add_agent(
         builder,
         agent_configs,
