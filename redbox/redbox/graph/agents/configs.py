@@ -130,11 +130,23 @@ prompt_configs: Dict[str, PromptConfig] = {
             previous_tool_results=True,
         ),
     ),
+    "SQL_Query_Agent": PromptConfig(
+        system=prompts.SQL_AGENT_PROMPT,
+        prompt_vars=PromptVariable(task=True, expected_output=True, knowledge_base_metadata=True),
+    ),
     "Knowledge_Base_Retrieval_Agent": PromptConfig(
         system=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT + prompts.KNOWLEDGE_BASE_METADTA,
         prompt_vars=PromptVariable(task=True, expected_output=True, knowledge_base_metadata=True),
     ),
 }
+
+# class ToolAgentConfig(BaseModel):
+#     """Represents a nested tool agent callable inside a WorkerAgent."""
+#     name: str
+#     tool_callable: Callable  # the function/pipeline to execute
+#     description: str = ""
+#     schema: dict | None = None  # optional schema for SQL/table tools
+#     max_tokens: int | None = None
 
 
 class AgentConfig(BaseModel):
@@ -142,6 +154,10 @@ class AgentConfig(BaseModel):
     description: str = Field(description="Agent desciption used for planning", default="")
     prompt: PromptConfig = Field(description="Prompts used for this agent")
     tools: list = Field(description="A set of tools available for this agent", default_factory=list)
+    # tool_agents: List[ToolAgentConfig] = Field(
+    #     description="Optional nested tool agents that can be invoked inside this agent",
+    #     default_factory=list,
+    # )
     agents_max_tokens: int = Field(
         description="Maximum tokens for this agent. Response exceed this limit will be truncated.", default=5000
     )
@@ -217,6 +233,13 @@ agent_configs: Dict[str, AgentConfig] = {
         name="Submission_Question_Answer_Agent",
         description=prompts.SUBMISSION_QA_AGENT_DESC,
         prompt=prompt_configs["Submission_Question_Answer_Agent"],
+        parser=None,
+        agents_max_tokens=10000,
+    ),
+    "SQL_Query_Agent": AgentConfig(
+        name="SQL_Query_Agent",
+        description=prompts.SQL_QUERY_AGENT_DESC,
+        prompt=prompt_configs["SQL_Query_Agent"],
         parser=None,
         agents_max_tokens=10000,
     ),

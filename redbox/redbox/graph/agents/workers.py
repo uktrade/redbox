@@ -121,3 +121,35 @@ class WorkerAgent(Agent):
             | RunnableParallel(_=self.log_agent_activity(), result=self.core_task() | self.post_processing())
             | (lambda x: x["result"])
         )
+
+    def core_only_graph(self):
+        return self.reading_task_info() | self.core_task()
+
+
+class ToolWorkerAgent(WorkerAgent):
+    def core_task(self):
+        @RunnableLambda
+        def _core_task(state: RedboxState):
+            worker_agent = create_chain_agent(
+                system_prompt=self.config.prompt.get_prompt,
+                use_metadata=self.config.prompt.prompt_vars.metadata,
+                using_chat_history=self.config.prompt.prompt_vars.chat_history,
+                parser=self.config.parser,
+                tools=self.config.tools,
+                _additional_variables={"task": self.task.task, "expected_output": self.task.expected_output},
+                model=self.config.llm_backend,
+                use_knowledge_base=self.config.prompt.prompt_vars.knowledge_base_metadata,
+            )
+            # worker_agent = llm_call(agent_config=self.config)
+            self.logger.warning(f"[{self.config.name}] Invoking worker agent...")
+            ai_msg = worker_agent.invoke(state)
+
+            self.logger.warning(f"[{self.config.name}] Worker agent output:\n{ai_msg}")
+
+            # --- RUN TOOLS IN PARALLEL ---
+            self.logger.warning(f"[{self.config.name}] Running tools via run_tools_parallel...")
+
+            result = run_tools_parallel(ai_msg, self.config.tools, state)
+            return result
+
+        return _core_task.with_retry(stop_after_attempt=3)

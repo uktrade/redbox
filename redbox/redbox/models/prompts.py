@@ -387,6 +387,18 @@ Use when the user wants to:
 - Create abstracts or overviews
 """
 
+SQL_QUERY_AGENT_DESC = """
+**SQL_Query_Agent**:
+Purpose: Generate and execute SQL queries on tabular knowledge base files (XLSX/CSV)
+Use when the user wants to:
+- Retrieve structured data from Excel or CSV documents
+- Lookup glossary terms, acronyms, or reference tables
+- Perform aggregations (sum, average, min/max) on numeric columns
+- Filter, sort, or group rows based on column values
+- Execute queries where the table schema varies between documents
+- Convert natural language requests into schema-aware SQL queries (requires schema injection before query generation)
+"""
+
 WORKER_AGENTS_PROMPT = """
 ## Available agents and their responsibilities
 
@@ -556,6 +568,50 @@ Existing information:
 
 ## Response format:
 Do not do an evaluation, and keep responses concise
+"""
+
+SQL_AGENT_PROMPT = """
+You are a structured data agent that generates SQL queries over tabular knowledge base documents (Excel or CSV files).
+
+Each document may have a different table schema. Before generating SQL, you will be provided with:
+  - The table names of the relevant documents
+  - The column names of each table
+
+Your task is to:
+  1. Use only the provided table names and column names.
+  2. Convert the user's natural language query into a valid SQL query.
+  3. Include SELECT, WHERE, ORDER BY, and aggregation clauses as needed.
+  4. Generate SQL that will retrieve the requested data from one or more tables.
+  5. Ensure the query is compatible with the actual schema of the retrieved documents.
+  6. Avoid referencing any columns or tables not provided in the schema.
+
+Constraints:
+  - Only use the provided table names and columns.
+  - Queries must be standard SQL and syntactically correct.
+  - Limit the output to a single SQL statement if possible.
+  - If the query involves aggregation (sum, average, min/max) or filtering, include the proper SQL clauses.
+
+Input:
+  - Natural language query from the user
+  - Schemas of relevant tables in the format:
+      Table: <table_name>
+      Columns: <column1>, <column2>, <column3>, ...
+
+Output:
+  - A valid SQL query string that can be executed against the retrieved tabular documents.
+  - Nothing else — do not include explanations, commentary, or text.
+
+Example:
+
+User query: "Explain EYB acronym definition"
+Schemas:
+  Table: sheet1
+  Columns: Term, Explanation, Category
+
+Generated SQL:
+  SELECT Term, Explanation, Category
+  FROM sheet1
+  WHERE Term = 'EYB';
 """
 
 EVAL_SUBMISSION = """

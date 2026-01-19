@@ -21,7 +21,7 @@ from redbox.graph.nodes.tools import (
     build_retrieve_document_full_text,
     build_retrieve_knowledge_base,
     build_search_documents_tool,
-    build_search_tabular_documents_tool,
+    build_sql_tabular_pipeline,
     build_search_wikipedia_tool,
     build_web_search_tool,
     execute_sql_query,
@@ -90,7 +90,16 @@ class Redbox:
         #     chunk_resolution=ChunkResolution.normal,
         #     repository="knowledge_base",
         # )
-        search_tabular_knowledge_base = build_search_tabular_documents_tool(
+        # search_tabular_knowledge_base = build_search_tabular_documents_tool(
+        #     es_client=_env.elasticsearch_client(),
+        #     index_name=_env.elastic_chunk_alias,
+        #     embedding_model=self.embedding_model,
+        #     embedding_field_name=_env.embedding_document_field_name,
+        #     chunk_resolution=ChunkResolution.tabular,
+        #     repository="knowledge_base",
+        # )
+        tabular_kb_tool = build_sql_tabular_pipeline(
+            # worker_config=agent_configs["SQL_Query_Agent"],
             es_client=_env.elasticsearch_client(),
             index_name=_env.elastic_chunk_alias,
             embedding_model=self.embedding_model,
@@ -129,8 +138,10 @@ class Redbox:
         ]
         self.agent_configs["Knowledge_Base_Retrieval_Agent"].tools = [
             # search_knowledge_base,
-            search_tabular_knowledge_base,
+            # search_tabular_knowledge_base,
+            tabular_kb_tool
         ]
+        self.agent_configs
 
         self.graph = build_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,

@@ -16,6 +16,7 @@ from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.messages import ToolCall
 from langchain_core.tools import Tool, tool
+from langchain.schema.runnable import RunnableSequence, RunnableLambda
 from langgraph.prebuilt import InjectedState
 from mohawk import Sender
 from opensearchpy import OpenSearch
@@ -313,7 +314,7 @@ def execute_tabular_query_sql(query: str, documents: List[Document]) -> str:
     table_counter = 0
 
     for doc in documents:
-        content = doc.text_content.strip()
+        content = doc.page_content.strip()
 
         # Extract table name
         table_name = f"table_{table_counter}"
@@ -379,6 +380,143 @@ def execute_tabular_query_sql(query: str, documents: List[Document]) -> str:
 
     conn.close()
     return "\n".join(result_lines)
+
+
+# def build_sql_query_and_execute_tool(
+#     *,
+#     # llm,
+#     schema: str,
+# ) -> Tool:
+#     """
+#     Builds a tool that generates SQL queries using a preconfigured schema
+#     and executes them against tabular documents.
+#     """
+
+#     @tool(response_format="content_and_artifact")
+#     def _sql_query_and_execute(
+#         query: str,
+#         documents: List[Document],
+#     ) -> tuple[str, List[Document]]:
+#         """
+#         Executes a SQL query over tabular CSV/XLSX data.
+
+#         This tool should be used whenever a question requires structured querying,
+#         filtering, or aggregation over tabular data.
+
+#         ===============================
+#         AVAILABLE TABLE SCHEMA
+#         ===============================
+#         {schema}
+
+#         ===============================
+#         INSTRUCTIONS
+#         ===============================
+#         - Convert the user question into a valid SQLite SELECT query
+#         - Use ONLY tables and columns defined in the schema above
+#         - Do NOT hallucinate table or column names
+#         - Prefer exact matches; otherwise use LIKE
+#         - Do NOT return explanations or markdown
+#         - Generate SQL only
+
+#         Args:
+#             query (str): Natural language question about the tabular data
+
+#         Returns:
+#             str: SQL execution results
+#             list[Document]: Tabular documents used during execution
+#         """
+
+#         # 1️⃣ Generate SQL from schema-aware prompt
+#         sql_prompt = f"""
+# You are a SQL generation agent.
+
+# Schema:
+# {schema}
+
+# User question:
+# {query}
+
+# Return ONLY a valid SQLite SELECT query.
+# """
+
+#         sql_query = llm.invoke(sql_prompt).content.strip()
+
+#         if not sql_query.lower().startswith("select"):
+#             return (
+#                 "Failed to generate a valid SELECT SQL query.",
+#                 documents,
+#             )
+
+#         # 2️⃣ Execute SQL against in-memory SQLite
+#         try:
+#             result_text = execute_tabular_query_sql(
+#                 query=sql_query,
+#                 documents=documents,
+#             )
+#         except Exception as e:
+#             return (
+#                 f"SQL execution failed: {e}",
+#                 documents,
+#             )
+
+#         return result_text, documents
+
+#     return _sql_query_and_execute
+
+
+def build_sql_execute_tool(
+    *,
+    schema: str,
+) -> Tool:
+    """
+    Builds a tool that executes a given SQL query against tabular documents
+    using a preconfigured schema.
+    """
+
+    @tool(response_format="content_and_artifact")
+    def _sql_execute(
+        sql_query: str,
+        documents: List[Document],
+    ) -> tuple[str, List[Document]]:
+        """
+        Executes a provided SQL query over CSV/XLSX tabular data.
+
+        ===============================
+        AVAILABLE TABLE SCHEMA
+        ===============================
+        {schema}
+
+        Args:
+            sql_query (str): A valid SQLite SELECT query
+            documents (list[Document]): Tabular documents to query
+
+        Returns:
+            str: SQL execution results
+            list[Document]: Tabular documents used during execution
+        """
+
+        # Basic validation
+        if not sql_query.lower().startswith("select"):
+            return (
+                "Invalid SQL query: must start with SELECT.",
+                documents,
+            )
+
+        # Execute SQL against in-memory SQLite
+        try:
+            result_text = execute_tabular_query_sql(
+                query=sql_query,
+                documents=documents,
+            )
+        except Exception as e:
+            return (
+                f"SQL execution failed: {e}",
+                documents,
+            )
+
+        return result_text, documents
+
+    return _sql_execute
 
 
 def build_search_tabular_documents_tool(
@@ -455,12 +593,12 @@ def build_search_tabular_documents_tool(
         )
 
         # 3️⃣ Execute tabular query logic
-        result_text = execute_tabular_query(
-            query=query,
-            documents=sorted_documents,
-        )
+        # result_text = execute_tabular_query_sql(
+        #     query=query,
+        #     documents=sorted_documents,
+        # )
 
-        return result_text, sorted_documents
+        return format_documents(sorted_documents), sorted_documents
 
     @tool(response_format="content_and_artifact")
     def _search_tabular_knowledge_base(
@@ -472,20 +610,22 @@ def build_search_tabular_documents_tool(
         This tool should be used whenever a query involves numeric data, tables, lookup tables,
         or information organized in rows and columns, such as glossaries, acronyms, or reference tables.
 
-        The tool performs semantic search across all relevant tabular documents, retrieves
-        matching rows or chunks, and can optionally perform structured reasoning such as
-        lookups, aggregations (sum, average, max/min), or filtering based on column values.
-        Results are automatically grouped by source file and sheet, and include metadata
-        such as sheet name, row index, and column headers for context.
+        **Important:** Queries must be valid SQL statements. Each document may have a different table schema,
+        so the SQL query should reference the correct column names for the target file. Natural language queries
+        must first be converted to SQL before using this tool.
+
+        The tool executes the SQL query across the relevant tabular documents, retrieves matching rows or chunks,
+        and can optionally perform aggregations (sum, average, max/min), filters, or lookups. Results are
+        automatically grouped by source file and sheet, and include metadata such as sheet name, row index,
+        and column headers for context.
 
         Args:
-            query (str): The search query to match against tabular data.
-                - Can be natural language, keywords, or aggregation/lookup requests
-                - More specific queries yield more precise results
+            query (str): A valid SQL query to execute against one or more tabular files.
+                - Queries must reference the correct table and column names for each file.
+                - Queries can include SELECT, WHERE, ORDER BY, and aggregation functions.
                 - Query length should be 1-500 characters
         Returns:
-            str: A textual summary of the relevant tabular data, including aggregation results
-                or lookup matches if applicable.
+            str: A textual summary of the SQL query results, including matching rows or aggregation outputs.
             list[Document]: The matching documents or row chunks, including metadata.
         """
 
@@ -497,6 +637,160 @@ def build_search_tabular_documents_tool(
         )
 
     return _search_tabular_knowledge_base
+
+
+def extract_sql_schema_from_documents(documents: list[Document]) -> str:
+    """
+    Builds a SQL-visible schema description from tabular documents.
+    """
+    schemas = []
+
+    for doc in documents:
+        content = doc.page_content.strip()
+        f = io.StringIO(content)
+        reader = csv.reader(f)
+
+        try:
+            header = next(reader)
+        except StopIteration:
+            continue
+
+        table_name = doc.metadata.get("table_name", "unknown_table")
+        columns = ", ".join(f"{col} TEXT" for col in header)
+
+        schemas.append(f"TABLE {table_name} ({columns})")
+
+    return "\n".join(schemas)
+
+
+def build_sql_worker_prompt(schema: str) -> str:
+    return f"""
+You are a SQL query agent.
+
+Available schema:
+{schema}
+
+Rules:
+- Generate ONLY valid SQLite SELECT queries
+- Use ONLY listed tables and columns
+- No explanations
+- No markdown
+"""
+
+
+def build_search_tabular_documents_raw(
+    es_client: Union[Elasticsearch, OpenSearch],
+    index_name: str,
+    embedding_model: Embeddings,
+    embedding_field_name: str,
+    chunk_resolution: ChunkResolution | None,
+    repository: Literal["knowledge_base"] = "knowledge_base",
+) -> Callable[[str, RedboxState], tuple[str, list[Document]]]:
+    """
+    Returns a plain callable (not a @tool) that searches XLSX documents
+    in OpenSearch and retrieves relevant tabular data.
+
+    This version avoids WorkerAgent post_processing, so it can be safely
+    used as an intermediate step in piped tools.
+    """
+
+    def _search_tabular(query: str, state: RedboxState) -> tuple[str, list[Document]]:
+        """
+        Performs semantic search over tabular documents and returns
+        formatted text + the underlying Document objects.
+        """
+        query_vector = embedding_model.embed_query(query)
+
+        # 1️⃣ Semantic retrieval
+        initial_query = build_document_query(
+            query=query,
+            query_vector=query_vector,
+            selected_files=state.request.knowledge_base_s3_keys,
+            permitted_files=state.request.knowledge_base_s3_keys,
+            embedding_field_name=embedding_field_name,
+            chunk_resolution=chunk_resolution,
+            ai_settings=state.request.ai_settings,
+            file_types=[".xlsx"],
+        )
+
+        initial_documents = query_to_documents(
+            es_client=es_client,
+            index_name=index_name,
+            query=initial_query,
+        )
+
+        if not initial_documents:
+            return "", []
+
+        # 2️⃣ Adjacent row boosting
+        with_adjacent_query = add_document_filter_scores_to_query(
+            elasticsearch_query=initial_query,
+            ai_settings=state.request.ai_settings,
+            centres=initial_documents,
+        )
+
+        adjacent_documents = query_to_documents(
+            es_client=es_client,
+            index_name=index_name,
+            query=with_adjacent_query,
+        )
+
+        merged_documents = merge_documents(
+            initial=initial_documents,
+            adjacent=adjacent_documents,
+        )
+
+        sorted_documents = sort_documents(merged_documents)
+
+        return format_documents(sorted_documents), sorted_documents
+
+    return _search_tabular
+
+
+def build_sql_tabular_pipeline(
+    *,
+    es_client,
+    index_name: str,
+    embedding_model,
+    embedding_field_name: str,
+    # llm,
+    chunk_resolution: Literal["tabular"] | None = None,
+    repository: Literal["knowledge_base"] = "knowledge_base",
+) -> RunnableSequence:
+    """
+    RunnableSequence:
+    1. Retrieve tabular documents
+    2. Generate SQL query using LLM and schema from documents
+    3. Execute SQL
+    """
+
+    # Step 1: Retrieval tool
+    search_runnable = RunnableLambda(
+        lambda query, state: build_search_tabular_documents_raw(
+            es_client=es_client,
+            index_name=index_name,
+            embedding_model=embedding_model,
+            embedding_field_name=embedding_field_name,
+            chunk_resolution=chunk_resolution,
+            repository=repository,
+        )(query, state)
+    )
+
+    # Step 2: SQL tool wrapped as RunnableLambda
+    sql_runnable = RunnableLambda(
+        lambda query, state, documents: build_sql_execute_tool(
+            # llm=llm,
+            schema=extract_sql_schema_from_documents(documents),
+        )(query, documents)
+    )
+
+    # Combine into RunnableSequence
+    # full_pipeline =
+    # RunnableSequence(
+    #     search_runnable, sql_runnable
+    # )
+
+    return search_runnable | sql_runnable
 
 
 def build_govuk_search_tool(filter=True) -> Tool:
