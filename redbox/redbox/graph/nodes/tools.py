@@ -563,6 +563,11 @@ def build_search_tabular_documents_tool(
     - Preserve line breaks for readability; do not add backticks or escape characters.
     - Always ensure column names match exactly those in the schema.
     - Do not include extra formatting like \n or \\n; produce normal SQL text.
+    - Make queries very dynamic: use LIKE '%term%' style for text search wherever applicable.
+    - Handle compound terms intelligently:
+        * Convert hyphens, underscores, or slashes in text to spaces using REPLACE()
+        * Optionally split user queries into individual words and match each separately
+        * Include SQL comments explaining your approach
                 """,
             ),
             (
