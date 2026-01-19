@@ -313,10 +313,22 @@ def metadata_reducer(
     )
 
 
+class TaskStatus(str, Enum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    RUNNING = "running"
+
+
 # Base class definition for agent task
 class AgentTaskBase(BaseModel):
+    id: str = Field(description="Unique identifier for the task", default="task0")
     task: str = Field(description="Task to be completed by the agent", default="")
     expected_output: str = Field(description="What this agent should produce", default="")
+    dependencies: List[str] = Field(
+        description="List of task IDs that must be complete before this task can run", default_factory=list
+    )
+    status: TaskStatus = Field(TaskStatus.PENDING, description="Current status of the task")
 
 
 # Base class definition for multi agent plan
