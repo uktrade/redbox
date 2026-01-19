@@ -315,7 +315,6 @@ Use when the user wants to:
 KNOWLEDGE_BASE_RETRIEVAL_AGENT_DESC = """
 **Knowledge_Base_Retrieval_Agent**:
 Purpose: Information retrieval and question answering from knowledge base.
-
 Use when the user wants to:
 - Ask questions about specific documents or knowledge base content
 - Retrieve specific information or facts

@@ -1,2 +1,2 @@
-web: bash start-aws.sh
-redbox-worker: bash start-aws.sh
+redbox-django-app: ./start.sh
+redbox-worker: ./start.sh
