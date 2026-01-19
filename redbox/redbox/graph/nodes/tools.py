@@ -393,42 +393,41 @@ class TabularDocumentSchema(BaseModel):
     sheets: list[Sheet]
 
 
-def extract_sql_schema_from_documents(documents: List[Document]) -> List[TabularDocumentSchema]:
+def extract_sql_schema_from_document(document: Document) -> TabularDocumentSchema:
     """
     Builds a SQL-visible schema description from tabular documents
     using <table_name> tags to identify table/sheet names.
     """
-    schemas: List[TabularDocumentSchema] = []
+    # schemas: List[TabularDocumentSchema] = []
 
-    for doc in documents:
-        content = doc.page_content.strip()
-        if not content:
-            continue
+    # for doc in documents:
+    content = document.page_content.strip()
+    if not content:
+        raise Exception("Document has no content")
 
-        # Extract table name from <table_name>...</table_name> tag
-        table_name_match = re.match(r"<table_name>(.*?)</table_name>", content)
-        if table_name_match:
-            table_name = table_name_match.group(1)
-            csv_content = content[table_name_match.end() :].lstrip()  # rest is CSV
-        else:
-            table_name = "unknown_table"
-            csv_content = content
+    # Extract table name from <table_name>...</table_name> tag
+    table_name_match = re.match(r"<table_name>(.*?)</table_name>", content)
+    if table_name_match:
+        table_name = table_name_match.group(1)
+        csv_content = content[table_name_match.end() :].lstrip()  # rest is CSV
+    else:
+        table_name = "unknown_table"
+        csv_content = content
 
-        f = io.StringIO(csv_content)
-        reader = csv.reader(f)
+    f = io.StringIO(csv_content)
+    reader = csv.reader(f)
 
-        try:
-            header = next(reader)
-        except StopIteration:
-            continue
+    try:
+        header = next(reader)
+    except StopIteration:
+        raise Exception("Document has no csv content")
 
-        # Build columns dict with default type TEXT
-        columns_dict = {col: "TEXT" for col in header}
+    # Build columns dict with default type TEXT
+    columns_dict = {col: "TEXT" for col in header}
 
-        sheet = TabularDocumentSchema.Sheet(columns=columns_dict)
-        schemas.append(TabularDocumentSchema(name=table_name, sheets=[sheet]))
+    sheet = TabularDocumentSchema.Sheet(columns=columns_dict)
 
-    return schemas
+    return TabularDocumentSchema(name=table_name, sheets=[sheet])
 
 
 def execute_sql_over_document(
@@ -447,15 +446,12 @@ def execute_sql_over_document(
     Returns:
         A string containing the query results in table format.
     """
-
-    sql = sql.strip().replace("\\n", "\n").replace("`", "")
     if not sql:
         return "No SQL query provided."
 
     conn = sqlite3.connect(":memory:")
     cursor = conn.cursor()
 
-    # 1️⃣ Create table from schema
     table_name = schema.name
     for sheet in schema.sheets:
         column_defs = []
@@ -468,9 +464,7 @@ def execute_sql_over_document(
         create_stmt = f'CREATE TABLE "{table_name}" ({", ".join(column_defs)})'
         cursor.execute(create_stmt)
 
-    # 2️⃣ Parse document page_content and insert rows
     content = document.page_content.strip()
-    # Extract table name tag if present
     table_tag_match = re.match(r"<table_name>(.*?)</table_name>", content)
     if table_tag_match:
         csv_content = content[table_tag_match.end() :].lstrip()
@@ -496,7 +490,7 @@ def execute_sql_over_document(
 
     try:
         cursor.execute(sql)
-        rows = list(cursor)  # just use rows
+        rows = list(cursor)
     except Exception as e:
         conn.close()
         return f"Error executing SQL: {e}"
@@ -506,7 +500,6 @@ def execute_sql_over_document(
     if not rows:
         return "No results found."
 
-    # 4️⃣ Build insights string using schema column names
     if schema.sheets and schema.sheets[0].columns:
         columns = list(schema.sheets[0].columns.keys())
     else:
@@ -541,7 +534,6 @@ def build_search_tabular_documents_tool(
     Constructs a tool that searches XLSX documents in OpenSearch and
     executes structured (tabular) query logic over the results.
     """
-    # 🔹 SQL generator (LLM is captured in closure)
     sql_llm = init_chat_model(
         model="anthropic.claude-3-7-sonnet-20250219-v1:0",
         model_provider="bedrock",
@@ -612,7 +604,6 @@ def build_search_tabular_documents_tool(
     ):
         query_vector = embedding_model.embed_query(query)
 
-        # 1️⃣ Semantic retrieval (xlsx only)
         initial_query = build_document_query(
             query=query,
             query_vector=query_vector,
@@ -638,7 +629,6 @@ def build_search_tabular_documents_tool(
         if not initial_documents:
             return "", []
 
-        # 2️⃣ Adjacent row boosting (same logic as text docs)
         with_adjacent_query = add_document_filter_scores_to_query(
             elasticsearch_query=initial_query,
             ai_settings=ai_settings,
@@ -663,11 +653,12 @@ def build_search_tabular_documents_tool(
             len(sorted_documents),
         )
 
-        schema = extract_sql_schema_from_documents(sorted_documents)[0]
-
-        sql = generate_sql(query=query, schema=schema)
-
-        result_text = execute_sql_over_document(schema=schema, sql=sql, document=sorted_documents[0])
+        result_text = ""
+        for doc in sorted_documents:
+            result_text += f"# Document Results: '{doc.metadata.get('name', 'unknown document name')}'\n"
+            schema = extract_sql_schema_from_document(document=doc)
+            sql = generate_sql(query=query, schema=schema)
+            result_text += execute_sql_over_document(schema=schema, sql=sql, document=doc) + "\n\n"
 
         return result_text, sorted_documents
 
