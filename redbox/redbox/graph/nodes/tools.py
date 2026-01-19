@@ -527,7 +527,6 @@ def build_search_tabular_documents_tool(
     index_name: str,
     embedding_model: Embeddings,
     embedding_field_name: str,
-    chunk_resolution: ChunkResolution | None,
     repository: Literal["knowledge_base"] = "knowledge_base",
 ) -> Tool:
     """
@@ -610,7 +609,7 @@ def build_search_tabular_documents_tool(
             selected_files=selected_files,
             permitted_files=permitted_files,
             embedding_field_name=embedding_field_name,
-            chunk_resolution=chunk_resolution,
+            chunk_resolution=ChunkResolution.tabular,
             ai_settings=ai_settings,
             file_types=[".xlsx"],
         )
