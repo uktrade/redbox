@@ -79,7 +79,7 @@ To allow tracking of repositories that have successfully completed the reopening
 ## Review the GitHub CI/CD overview
 
 Internal contributors to the repository should review the CI/CD overview below
-![CI/CD overview](assets/CI-CD%20pipeline.svg)
+![CI/CD overview](https://raw.githubusercontent.com/uktrade/.github/refs/heads/main/assets/CI-CD%20pipeline.svg)
 
 ## Review GitHub Safety Tips
 
