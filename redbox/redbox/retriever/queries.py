@@ -163,9 +163,55 @@ def get_knowledge_base_tabular_metadata(
                 "metadata.description",
                 "metadata.keywords",
                 "metadata.document_schema",
-            ]
+            ],
+            "excludes": ["text", "vector_field"],
         },
         "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
+    }
+
+
+def get_knowledge_base_tabular_text(
+    chunk_resolution: ChunkResolution | None,
+    state: RedboxState,
+    uris: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Retrieve knowledge base tabular metadata including the `.text` content.
+
+    Args:
+        chunk_resolution: Optional chunk resolution for filtering.
+        state: RedboxState containing knowledge_base_s3_keys for permission checks.
+        uris: Optional list of specific URIs to filter on (agent can select).
+
+    Returns:
+        dict: Elasticsearch query body with metadata and text for relevant tabular files.
+    """
+    # Base filter using permissions
+    query_filter = build_query_filter(
+        selected_files=state.request.knowledge_base_s3_keys,
+        permitted_files=state.request.knowledge_base_s3_keys,
+        chunk_resolution=chunk_resolution,
+    )
+
+    # Add URI filter if specified
+    if uris:
+        query_filter.append({"terms": {"metadata.uri.keyword": uris}})
+
+    return {
+        "_source": {
+            "includes": [
+                "metadata.uri",
+                "metadata.name",
+                "metadata.description",
+                "metadata.keywords",
+                "metadata.document_schema",
+                "text",  # include the actual file content
+            ],
+            "excludes": ["vector_field"],
+        },
+        "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
+        "size": 50,  # adjust if needed
+        "sort": [{"metadata.name.keyword": {"order": "asc"}}],
     }
 
 
