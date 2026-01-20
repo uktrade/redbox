@@ -96,7 +96,10 @@ class Redbox:
         retrieve_knowledge_base = build_retrieve_knowledge_base(
             es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias, loop=True
         )
-        query_knowledge_base = build_query_tabular_knowledge_base_tool()
+        query_knowledge_base = build_query_tabular_knowledge_base_tool(
+            es_client=_env.elasticsearch_client(),
+            index_name=_env.elastic_chunk_alias,
+        )
 
         search_wikipedia = build_search_wikipedia_tool()
         search_govuk = build_govuk_search_tool()
