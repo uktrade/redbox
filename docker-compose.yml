@@ -83,7 +83,7 @@ services:
     build:
       context: .
       dockerfile: django_app/Dockerfile
-    command: "venv/bin/django-admin qcluster"
+    # command: "venv/bin/django-admin qcluster"
     env_file:
       - path: tests/.env.integration
         required: false
