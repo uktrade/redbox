@@ -48,6 +48,12 @@ repos:
           - .secrets.baseline
         name: Detect sensitive data (passwords, keys, etc.)
 
+  - repo: https://github.com/uktrade/github-standards
+    rev: v1.3.0
+    hooks:
+      - id: validate-security-scan
+      - id: run-security-scan
+
   - repo: local
     hooks:
       - id: detect-ip
@@ -70,11 +76,4 @@ repos:
         entry: '\.(docx|doc|pdf|xlsx|csv|txt|log)$'
         language: fail
         description: Prevent committing data files (.docx, .pdf, .xlsx, .csv, .txt, .log)
-        exclude: '\.(txt|yml|png|gif|woff|woff2|ico|yaml|baseline|lock|toml|py|js|md|css|scss|html|sh|ipynb|svg|env|example|gitkeep|env\.notebook|jsonl)$|^(Make|Proc)file$|^\.vscode/|^(unstructured|django_app)/Dockerfile$|^tests/|^django_app/tests/|^(redbox|django_app)/.vscode/|^django_app/(frontend|static|files)/.*\.(json|lottie|parcelrc|pdf)$|devcontainer.json$|^notebooks/evaluation/data_results/.*\.json$|^\.editorconfig$|^\.gitattributes$|^\.gitignore$|^\.tool-versions$|^LICENCE$'
-
-  - repo: https://github.com/awslabs/git-secrets
-    rev: 'master'
-    hooks:
-      - id: git-secrets
-        name: Scan for AWS secrets and other sensitive patterns
-        args: ["--aws"]
+        exclude: '\.(txt|png|gif|woff|woff2|ico|baseline|lock|toml|py|js|css|scss|html|sh|ipynb|svg|env|example|yml|yaml|gitkeep|env\.notebook|jsonl)$|^(Make|Proc)file$|^\.vscode/|^(unstructured|django_app)/Dockerfile$|^tests/|^django_app/tests/|^(redbox|django_app)/.vscode/|^django_app/(frontend|static|files)/.*\.(json|lottie|parcelrc|pdf)$|devcontainer.json$|^notebooks/evaluation/data_results/.*\.json$|^\.editorconfig$|^\.gitattributes$|^\.gitignore$|^\.tool-versions$|^LICENCE$'
