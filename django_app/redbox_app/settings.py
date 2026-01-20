@@ -17,6 +17,7 @@ from sentry_sdk.integrations.django import DjangoIntegration
 from storages.backends import s3boto3
 from yarl import URL
 
+from redbox_app.logging import ColorFormatter
 from redbox_app.setting_enums import Classification, Environment
 
 logger = logging.getLogger(__name__)
@@ -374,7 +375,7 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "verbose": {"format": "%(asctime)s %(levelname)s %(module)s: %(message)s"},
+        "verbose": {"()": ColorFormatter, "format": "%(asctime)s %(levelname)s %(module)s: %(message)s"},
         "asim_formatter": {
             "()": ASIMFormatter,
         },
