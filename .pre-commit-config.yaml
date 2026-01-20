@@ -48,6 +48,12 @@ repos:
           - .secrets.baseline
         name: Detect sensitive data (passwords, keys, etc.)
 
+  - repo: https://github.com/uktrade/github-standards
+    rev: v1.3.0
+    hooks:
+      - id: validate-security-scan
+      - id: run-security-scan
+
   - repo: local
     hooks:
       - id: detect-ip
@@ -65,10 +71,3 @@ repos:
         entry: make format
         language: system
         pass_filenames: false
-
-  - repo: https://github.com/awslabs/git-secrets
-    rev: 'master'
-    hooks:
-      - id: git-secrets
-        name: Scan for AWS secrets and other sensitive patterns
-        args: ["--aws"]
