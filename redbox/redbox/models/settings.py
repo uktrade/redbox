@@ -227,6 +227,7 @@ class Settings(BaseSettings):
                             "type": "text",
                             "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
                         },
+                        "schema": {"type": "object", "enabled": True},
                     }
                 },
                 "text": {

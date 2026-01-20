@@ -4,7 +4,7 @@ import json
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from io import BytesIO
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING, List, Tuple, Optional
 
 import environ
 import fitz
@@ -19,7 +19,7 @@ from redbox_app.setting_enums import Environment
 from redbox.chains.components import get_chat_llm
 from redbox.chains.parser import ClaudeParser
 from redbox.models.chain import GeneratedMetadata
-from redbox.models.file import ChunkResolution, UploadedFileMetadata
+from redbox.models.file import ChunkResolution, UploadedFileMetadata, TabularSchema
 from redbox.models.settings import Settings
 from redbox.transform import bedrock_tokeniser
 import pandas as pd
@@ -87,6 +87,16 @@ def _pdf_is_image_heavy(file_bytes: BytesIO, sample_pages: int = 5, image_thresh
         return False
 
 
+def infer_sqlite_type(dtype) -> str:
+    if pd.api.types.is_integer_dtype(dtype):
+        return "INTEGER"
+    if pd.api.types.is_float_dtype(dtype):
+        return "REAL"
+    if pd.api.types.is_bool_dtype(dtype):
+        return "BOOLEAN"
+    return "TEXT"
+
+
 def read_csv_text(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
     """Reads in a csv file, validates it using pandas and then returns the csv as string with a null metadata dictionary"""
     try:
@@ -121,8 +131,13 @@ def read_excel_file(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
                     logger.info(f"Skipping Sheet {name}")
                     continue
                 # Include the table name in the text that is stored. This will be extracted by the retriever
-                csv_text = f"<table_name>{name.lower().replace(' ', '_')}</table_name>" + str(df.to_csv(index=False))
-                elements.append({"text": csv_text, "metadata": {}})
+                table_name = name.lower().replace(" ", "_")
+                sheet_schema = TabularSchema(
+                    name=table_name, columns={col: infer_sqlite_type(df[col].dtype) for col in df.columns}
+                )
+
+                csv_text = f"<table_name>{table_name}</table_name>" + str(df.to_csv(index=False))
+                elements.append({"text": csv_text, "metadata": {"document_schema": sheet_schema.model_dump()}})
             except Exception as e:
                 logger.info(f"Skipping Sheet {name} due to error: {e}")
                 continue
@@ -348,6 +363,12 @@ class UnstructuredChunkLoader:
         for i, raw_chunk in enumerate(elements):
             raw_metadata = raw_chunk.get("metadata") or {}
             page_number = raw_metadata.get("page_number") or 1
+
+            document_schema_dict = raw_metadata.get("document_schema")
+            document_schema: Optional[TabularSchema] = None
+            if document_schema_dict:
+                document_schema = TabularSchema.model_validate(document_schema_dict)
+
             token_count = tokeniser(raw_chunk.get("text", ""))
             uploaded_meta = UploadedFileMetadata(
                 index=i,
@@ -356,6 +377,7 @@ class UnstructuredChunkLoader:
                 created_datetime=datetime.now(UTC),
                 token_count=token_count,
                 chunk_resolution=self.chunk_resolution,
+                document_schema=document_schema,
                 name=self.metadata.name,
                 description=self.metadata.description,
                 keywords=self.metadata.keywords,
