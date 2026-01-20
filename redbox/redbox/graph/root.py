@@ -677,8 +677,6 @@ def build_new_route_graph(
         edge_nodes=["update_submission_qa", "combine_question_evaluator"],
     )
 
-    builder.add_node("fake_node", empty_process)
-
     # add edges
     builder.add_edge(START, "set_route_to_newroute")
     builder.add_edge("set_route_to_newroute", "remove_keyword")
