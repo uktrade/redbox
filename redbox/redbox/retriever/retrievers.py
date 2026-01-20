@@ -408,8 +408,14 @@ class KnowledgeBaseTabularTextRetriever(OpenSearchRetriever):
         super().__init__(**kwargs)
         self.body_func = partial(get_knowledge_base_tabular_text, self.chunk_resolution)
 
-    def _get_relevant_documents(self, query: RedboxState, *, run_manager: CallbackManagerForRetrieverRun) -> list:  # noqa:ARG002
-        body = self.body_func(query)  # type: ignore
+    def _get_relevant_documents(
+        self,
+        knowledge_base_s3_keys: list[str],
+        uris: list[str] | None = None,
+        *,
+        run_manager: CallbackManagerForRetrieverRun,
+    ) -> list:  # noqa:ARG002
+        body = self.body_func(knowledge_base_s3_keys=knowledge_base_s3_keys, uris=uris)  # type: ignore
         response = self.es_client.search(index=self.index_name, body=body)
         hits = response.get("hits", {}).get("hits", [])
         return [hit["_source"] for hit in hits]

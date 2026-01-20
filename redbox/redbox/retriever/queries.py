@@ -172,7 +172,7 @@ def get_knowledge_base_tabular_metadata(
 
 def get_knowledge_base_tabular_text(
     chunk_resolution: ChunkResolution | None,
-    state: RedboxState,
+    knowledge_base_s3_keys: list[str],
     uris: list[str] | None = None,
 ) -> dict[str, Any]:
     """
@@ -180,7 +180,7 @@ def get_knowledge_base_tabular_text(
 
     Args:
         chunk_resolution: Optional chunk resolution for filtering.
-        state: RedboxState containing knowledge_base_s3_keys for permission checks.
+        knowledge_base_s3_keys: List of allowed knowledge base file URIs.
         uris: Optional list of specific URIs to filter on (agent can select).
 
     Returns:
@@ -188,14 +188,14 @@ def get_knowledge_base_tabular_text(
     """
     # Base filter using permissions
     query_filter = build_query_filter(
-        selected_files=state.request.knowledge_base_s3_keys,
-        permitted_files=state.request.knowledge_base_s3_keys,
+        selected_files=uris,
+        permitted_files=knowledge_base_s3_keys,
         chunk_resolution=chunk_resolution,
     )
 
-    # Add URI filter if specified
-    if uris:
-        query_filter.append({"terms": {"metadata.uri.keyword": uris}})
+    # # Add URI filter if specified
+    # if uris:
+    #     query_filter.append({"terms": {"metadata.uri.keyword": uris}})
 
     return {
         "_source": {
