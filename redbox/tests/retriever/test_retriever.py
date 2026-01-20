@@ -2,7 +2,12 @@ import pytest
 from langchain_core.messages import HumanMessage
 
 from redbox.models.chain import RedboxState
-from redbox.retriever import AllElasticsearchRetriever, MetadataRetriever, ParameterisedElasticsearchRetriever
+from redbox.retriever import (
+    AllElasticsearchRetriever,
+    MetadataRetriever,
+    ParameterisedElasticsearchRetriever,
+    TabularElasticsearchRetriever,
+)
 from redbox.test.data import RedboxChatTestCase
 
 TEST_CHAIN_PARAMETERS = (
@@ -149,3 +154,49 @@ def test_metadata_retriever(metadata_retriever: MetadataRetriever, stored_file_m
         assert {c.metadata["uri"] for c in result} <= set(stored_file_metadata.query.permitted_s3_keys)
     else:
         len(result) == 0
+
+
+def test_tabular_kb_retriever(
+    tabular_kb_retriever: TabularElasticsearchRetriever,
+    stored_file_tabular: RedboxChatTestCase,
+):
+    """
+    Given a RedboxState, asserts that the tabular retriever:
+
+    * Retrieves only selected and permitted files
+    * Returns documents grouped in a DocumentState
+    * Populates state.knowledge_tabular_files
+    """
+
+    # Create a RedboxState with the test query
+    state = RedboxState(
+        request=stored_file_tabular.query,
+    )
+
+    # Invoke the retriever
+    result_docs = tabular_kb_retriever.invoke(state)
+
+    # Ensure result_docs is a list of Documents
+    assert isinstance(result_docs, list)
+    assert all(hasattr(doc, "metadata") for doc in result_docs)
+
+    # Assert only selected and permitted files are returned
+    selected = set(stored_file_tabular.query.s3_keys)
+    permitted = set(stored_file_tabular.query.permitted_s3_keys)
+
+    for doc in result_docs:
+        assert doc.metadata["uri"] in selected
+        assert doc.metadata["uri"] in permitted
+
+    # If using DocumentState in the RedboxState
+    # (e.g., state.knowledge_tabular_files), make sure it's populated
+    if hasattr(state, "knowledge_tabular_files"):
+        doc_state = state.knowledge_tabular_files
+        assert doc_state is not None
+        assert hasattr(doc_state, "groups")
+        # Check all documents in groups are correct
+        for mapping in doc_state.groups.values():
+            for doc_id, doc in mapping.items():
+                assert doc is not None
+                assert doc.metadata["uri"] in selected
+                assert doc.metadata["uri"] in permitted

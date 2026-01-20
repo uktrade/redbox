@@ -240,7 +240,7 @@ Execution Strategy:
 4. Produce the expected output with maximum accuracy and efficiency. Only use information obtained from tools.
 """
 METADATA = """<Document_Metadata>{metadata}</Document_Metadata>"""
-KNOWLEDGE_BASE_METADTA = """<Knowledge_Base_Metadata>{knowledge_base_metadata}</Knowledge_Base_Metadata>"""
+KNOWLEDGE_BASE_METADTA = """<Knowledge_Base_Metadata>{knowledge_base_metadata}</Knowledge_Base_Metadata> <Tabular_Knowledge_Base_Metadata>{tabular_knowledge_base_metadata}</Tabular_Knowledge_Base_Metadata>"""
 
 EXTERNAL_RETRIEVAL_AGENT_PROMPT = """You are an expert information analyst with the ability to critically assess when and how to retrieve information. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
 

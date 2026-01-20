@@ -191,3 +191,64 @@ METADATA_RETRIEVER_CASES = [
     ]
     for test_case in generator
 ]
+
+TABULAR_RETRIEVER_CASES = [
+    test_case
+    for generator in [
+        generate_test_cases(
+            query=RedboxQuery(
+                question="Retrieve tabular data",
+                s3_keys=["file1.csv", "file2.xlsx"],
+                user_uuid=uuid4(),
+                chat_history=[],
+                permitted_s3_keys=["file1.csv", "file2.xlsx"],
+            ),
+            test_data=[
+                RedboxTestData(
+                    number_of_docs=4,
+                    tokens_in_all_docs=1000,
+                    chunk_resolution=ChunkResolution.tabular,
+                    s3_keys=["file1.csv", "file2.xlsx"],
+                )
+            ],
+            test_id="Successful Path",
+        ),
+        generate_test_cases(
+            query=RedboxQuery(
+                question="No permission case",
+                s3_keys=["file1.csv", "file2.xlsx"],
+                user_uuid=uuid4(),
+                chat_history=[],
+                permitted_s3_keys=[],  # no permission
+            ),
+            test_data=[
+                RedboxTestData(
+                    number_of_docs=4,
+                    tokens_in_all_docs=1000,
+                    chunk_resolution=ChunkResolution.tabular,
+                    s3_keys=["file1.csv", "file2.xlsx"],
+                )
+            ],
+            test_id="No permitted S3 keys",
+        ),
+        generate_test_cases(
+            query=RedboxQuery(
+                question="Empty selection",
+                s3_keys=[],  # nothing selected
+                user_uuid=uuid4(),
+                chat_history=[],
+                permitted_s3_keys=["file1.csv", "file2.xlsx"],  # permission exists
+            ),
+            test_data=[
+                RedboxTestData(
+                    number_of_docs=4,
+                    tokens_in_all_docs=1000,
+                    chunk_resolution=ChunkResolution.tabular,
+                    s3_keys=["file1.csv", "file2.xlsx"],
+                )
+            ],
+            test_id="Empty keys but permitted",
+        ),
+    ]
+    for test_case in generator
+]

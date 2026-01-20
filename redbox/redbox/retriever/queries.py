@@ -144,6 +144,31 @@ def get_knowledge_base_metadata(
     }
 
 
+def get_knowledge_base_tabular_metadata(
+    chunk_resolution: ChunkResolution | None,
+    state: RedboxState,
+) -> dict[str, Any]:
+    """Retrive knowledge base metadata without page_content"""
+    query_filter = build_query_filter(
+        selected_files=state.request.knowledge_base_s3_keys,
+        permitted_files=state.request.knowledge_base_s3_keys,
+        chunk_resolution=chunk_resolution,
+    )
+
+    return {
+        "_source": {
+            "includes": [
+                "metadata.uri",
+                "metadata.name",
+                "metadata.description",
+                "metadata.keywords",
+                "metadata.document_schema",
+            ]
+        },
+        "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
+    }
+
+
 def get_k_value(file_list, desired_size=30):
     """
     Simple rule: more files filtered = lower k needed
