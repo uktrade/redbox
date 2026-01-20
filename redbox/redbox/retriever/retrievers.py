@@ -388,10 +388,6 @@ class KnowledgeBaseTabularMetadataRetriever(OpenSearchRetriever):
         self.body_func = partial(get_knowledge_base_tabular_metadata, self.chunk_resolution)
 
     def _get_relevant_documents(self, query: RedboxState, *, run_manager: CallbackManagerForRetrieverRun) -> list:  # noqa:ARG002
-        # if not self.es_client or not self.document_mapper:
-        #     msg = "faulty configuration"
-        #     raise ValueError(msg)  # should not happen
-
         body = self.body_func(query)  # type: ignore
         response = self.es_client.search(index=self.index_name, body=body)
         hits = response.get("hits", {}).get("hits", [])
