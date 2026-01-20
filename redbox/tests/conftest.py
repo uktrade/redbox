@@ -8,9 +8,10 @@ from _pytest.fixtures import FixtureRequest
 from botocore.exceptions import ClientError
 from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.embeddings.fake import FakeEmbeddings
+from langchain_core.messages import AIMessage
 from opensearchpy import OpenSearch
 
-from redbox.models.chain import AISettings, GeneratedMetadata, RedboxQuery, RedboxState
+from redbox.models.chain import AISettings, GeneratedMetadata, RedboxQuery, RedboxState, configure_agent_task_plan
 from redbox.models.settings import Settings
 from redbox.retriever import (
     AllElasticsearchRetriever,
@@ -135,7 +136,7 @@ def metadata_retriever(env: Settings) -> OpenSearchRetriever:
     return MetadataRetriever(es_client=env.elasticsearch_client(), index_name=env.elastic_chunk_alias)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def fake_state() -> RedboxState:
     q = RedboxQuery(
         question="But seriously what is AI?",
@@ -149,6 +150,36 @@ def fake_state() -> RedboxState:
     return RedboxState(
         request=q,
     )
+
+
+@pytest.fixture(scope="session")
+def fake_state_with_plan() -> RedboxState:
+    q = RedboxQuery(
+        question="proceed",
+        s3_keys=[],
+        user_uuid=uuid4(),
+        chat_history=[{"role": "user", "text": "what is AI policy?"}, {"role": "ai", "text": "let me generate plan"}],
+        ai_settings=AISettings(),
+        permitted_s3_keys=[],
+    )
+
+    agent = "Internal_Retrieval_Agent"
+    agent_task, multi_agent_plan = configure_agent_task_plan({agent: agent})
+    tasks = [
+        agent_task(id="task0", task="Fake Task", expected_output="Fake output"),
+        agent_task(id="task1", task="Fake Task", expected_output="Fake output", dependencies=["task0"]),
+    ]
+
+    return RedboxState(
+        request=q,
+        agent_plans=multi_agent_plan().model_copy(update={"tasks": tasks}),
+        messages=[AIMessage(content=tasks[0].model_dump_json())],
+    )
+
+
+@pytest.fixture
+def fake_state_fixture(request):
+    return request.getfixturevalue(request.param)
 
 
 # -----#

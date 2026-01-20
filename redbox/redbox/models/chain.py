@@ -328,7 +328,10 @@ class AgentTaskBase(BaseModel):
     dependencies: List[str] = Field(
         description="List of task IDs that must be complete before this task can run", default_factory=list
     )
-    status: TaskStatus = Field(TaskStatus.PENDING, description="Current status of the task")
+    status: TaskStatus = Field(
+        description="Current status of the task",
+        default=TaskStatus.PENDING,
+    )
 
 
 # Base class definition for multi agent plan

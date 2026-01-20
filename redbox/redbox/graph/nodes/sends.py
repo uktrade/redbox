@@ -1,8 +1,8 @@
-from uuid import uuid4
 import logging
-from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 import threading
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from typing import Callable
+from uuid import uuid4
 
 from langchain_core.messages import AIMessage
 from langgraph.constants import Send
@@ -188,8 +188,10 @@ def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, per_tool_timeo
 def sending_task_to_agent(state: RedboxState):
     plan = state.agent_plans
     if plan:
+        # sending tasks that have no dependencies
         task_send_states: list[RedboxState] = [
             (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
             for task in plan.tasks
+            if not task.dependencies
         ]
         return [Send(node=target, arg=state) for target, state in task_send_states]

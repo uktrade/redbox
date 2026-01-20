@@ -8,7 +8,7 @@ from redbox.graph.agents.base import Agent
 from redbox.graph.agents.configs import AgentConfig
 from redbox.graph.nodes.processes import build_activity_log_node
 from redbox.graph.nodes.sends import run_tools_parallel
-from redbox.models.chain import RedboxState, configure_agent_task_plan
+from redbox.models.chain import RedboxState, TaskStatus, configure_agent_task_plan
 from redbox.models.graph import RedboxActivityEvent
 from redbox.transform import join_result_with_token_limit
 
@@ -21,6 +21,20 @@ class WorkerAgent(Agent):
     def __init__(self, config: AgentConfig):
         super().__init__(config)
         self.task = None
+
+    def remove_task_dependencies(self):
+        """
+        Remove dependencies (from agent plan) associated with the task.
+        """
+
+        def _remove_task_dependencies(input):
+            state = input["state"]
+            for task in state.agent_plans.tasks:
+                if self.task.id in task.dependencies:
+                    self.logger.warning(f"Removing {self.task.id} from dependencies")
+                    task.dependencies.remove(self.task.id)
+
+        return _remove_task_dependencies
 
     def reading_task_info(self):
         @RunnableLambda
@@ -35,6 +49,8 @@ class WorkerAgent(Agent):
                 self.task = parser.parse(state.last_message.content)
             except JSONDecodeError as e:
                 self.logger.exception(f"Cannot parse task in {self.config.name}: {e}")
+            except ValueError as e:
+                self.logger.exception(f"There is no message in the state in {self.config.name}: {e}")
             return state
 
         return _reading_task_info
@@ -47,10 +63,12 @@ class WorkerAgent(Agent):
             """
             log what task the agent is completing
             """
+            self.task.status = TaskStatus.RUNNING
             activity_node = build_activity_log_node(
                 RedboxActivityEvent(message=f"{self.config.name} is completing task: {self.task.task}")
             )
             activity_node.invoke(state)
+            return state
 
         return _log_agent_activity
 
@@ -74,10 +92,11 @@ class WorkerAgent(Agent):
                     result=result, max_tokens=self.config.agents_max_tokens, log_stub=f"[{self.config.name}]"
                 )
             else:
+                self.task.status = TaskStatus.FAILED
                 self.logger.error(f"[{self.config.name}] Worker agent return incompatible data type {type(result)}")
                 raise TypeError("Invalid tool result type")
             self.logger.warning(f"[{self.config.name}] Completed agent run.")
-
+            self.task.status = TaskStatus.COMPLETED
             return {
                 "agents_results": f"<{self.config.name}_Result>{result_content}</{self.config.name}_Result>",
                 "tasks_evaluator": self.task.task + "\n" + self.task.expected_output,
@@ -88,6 +107,7 @@ class WorkerAgent(Agent):
     def core_task(self):
         @RunnableLambda
         def _core_task(state: RedboxState):
+            self.task.status = TaskStatus.RUNNING
             worker_agent = create_chain_agent(
                 system_prompt=self.config.prompt.get_prompt,
                 use_metadata=self.config.prompt.prompt_vars.metadata,
@@ -118,6 +138,10 @@ class WorkerAgent(Agent):
         """
         return (
             self.reading_task_info()
-            | RunnableParallel(_=self.log_agent_activity(), result=self.core_task() | self.post_processing())
-            | (lambda x: x["result"])
+            | RunnableParallel(state=self.log_agent_activity(), result=self.core_task() | self.post_processing())
+            | RunnableParallel(
+                result=RunnableLambda(lambda x: x["result"]),  # Pass through the result
+                cleanup=self.remove_task_dependencies(),  # Run cleanup in parallel
+            )
+            | (lambda x: x["result"])  # Return only the result
         )
