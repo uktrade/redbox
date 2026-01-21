@@ -200,7 +200,6 @@ TEST_CASES = [
 async def test_streaming(test: RedboxChatTestCase, env: Settings, mocker: MockerFixture):
     # Current setup modifies test data as it's not a fixture. This is a hack
     test_case = copy.deepcopy(test)
-    mocker.patch("redbox.graph.root.lm_choose_route", return_value="search")
 
     @tool
     def _search_documents(query: str) -> dict[str, Any]:
