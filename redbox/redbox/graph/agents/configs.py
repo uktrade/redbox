@@ -48,7 +48,7 @@ class PromptConfig(BaseModel):
 # This dict is for storing prompt configs for all the agents.
 prompt_configs: Dict[str, PromptConfig] = {
     "Planner_Agent": PromptConfig(
-        system=prompts.PLANNER_PROMPT_TOP,
+        system=prompts.PLANNER_PROMPT_TOP,  # the refactor will need to add PLANNER_PROMPT_BOTTOM
         question=prompts.PLANNER_QUESTION_PROMPT,
         format=prompts.PLANNER_FORMAT_PROMPT,
         prompt_vars=PromptVariable(

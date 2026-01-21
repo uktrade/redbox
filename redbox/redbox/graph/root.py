@@ -8,7 +8,6 @@ from langgraph.graph.graph import CompiledGraph
 from langgraph.pregel import RetryPolicy
 
 from redbox.chains.components import get_structured_response_with_citations_parser
-from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import build_self_route_output_parser
 from redbox.graph.agents.configs import AgentConfig
 from redbox.graph.agents.workers import WorkerAgent
@@ -29,7 +28,6 @@ from redbox.graph.nodes.processes import (
     build_retrieve_pattern,
     build_set_metadata_pattern,
     build_set_route_pattern,
-    build_set_self_route_from_llm_answer,
     build_stuff_pattern,
     build_user_feedback_evaluation,
     check_if_tasks_completed,
@@ -40,14 +38,13 @@ from redbox.graph.nodes.processes import (
     get_tabular_agent,
     get_tabular_schema,
     invoke_custom_state,
-    lm_choose_route,
     my_planner,
     report_sources_process,
     stream_plan,
     stream_suggestion,
 )
 from redbox.graph.nodes.sends import build_document_chunk_send, build_document_group_send, sending_task_to_agent
-from redbox.models.chain import AgentDecision, PromptSet, RedboxState
+from redbox.models.chain import PromptSet, RedboxState
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import ROUTABLE_KEYWORDS, RedboxActivityEvent
 from redbox.models.prompts import EVAL_SUBMISSION, EVAL_SUBMISSION_QA
@@ -65,11 +62,6 @@ def build_root_graph(
     agent_configs,
     debug,
 ):
-    agent_parser = ClaudeParser(pydantic_object=AgentDecision)
-
-    def lm_choose_route_wrapper(state: RedboxState):
-        return lm_choose_route(state, parser=agent_parser)
-
     builder = StateGraph(RedboxState)
 
     # nodes
@@ -94,9 +86,6 @@ def build_root_graph(
 
     builder.add_node("is_summarise_route", empty_process)
     builder.add_node("has_keyword", empty_process)
-    builder.add_node("is_new_route_enabled", empty_process)
-    builder.add_node("any_documents_selected", empty_process)
-    builder.add_node("llm_choose_route", empty_process)
     builder.add_node("no_user_feedback", empty_process)
 
     builder.add_node(
@@ -383,73 +372,6 @@ def get_summarise_graph(
     builder.add_edge("summarise_document", "clear_documents")
     builder.add_edge("clear_documents", END)
     builder.add_edge("files_too_large_error", END)
-    return builder.compile(debug=debug)
-
-
-def get_self_route_graph(retriever: VectorStoreRetriever, prompt_set: PromptSet, debug: bool = False):
-    builder = StateGraph(RedboxState)
-
-    def self_route_question_is_unanswerable(llm_response: str):
-        return "unanswerable" in llm_response
-
-    # Processes
-    builder.add_node(
-        "p_condense_question",
-        build_chat_pattern(prompt_set=PromptSet.CondenseQuestion),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_retrieve_docs",
-        build_retrieve_pattern(
-            retriever=retriever,
-            structure_func=structure_documents_by_file_name,
-            final_source_chain=False,
-        ),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_answer_question_or_decide_unanswerable",
-        build_stuff_pattern(
-            prompt_set=prompt_set,
-            output_parser=build_self_route_output_parser(
-                match_condition=self_route_question_is_unanswerable,
-                max_tokens_to_check=4,
-                final_response_chain=True,
-            ),
-            final_response_chain=False,
-        ),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_set_route_name_from_answer",
-        build_set_self_route_from_llm_answer(
-            self_route_question_is_unanswerable,
-            true_condition_state_update={"route_name": ChatRoute.chat_with_docs_map_reduce},
-            false_condition_state_update={"route_name": ChatRoute.search},
-        ),
-        retry=RetryPolicy(max_attempts=3),
-    )
-    builder.add_node(
-        "p_clear_documents",
-        clear_documents_process,
-        retry=RetryPolicy(max_attempts=3),
-    )
-
-    # Edges
-    builder.add_edge(START, "p_condense_question")
-    builder.add_edge("p_condense_question", "p_retrieve_docs")
-    builder.add_edge("p_retrieve_docs", "p_answer_question_or_decide_unanswerable")
-    builder.add_edge("p_answer_question_or_decide_unanswerable", "p_set_route_name_from_answer")
-    builder.add_conditional_edges(
-        "p_set_route_name_from_answer",
-        lambda state: state.route_name,
-        {
-            ChatRoute.chat_with_docs_map_reduce: "p_clear_documents",
-            ChatRoute.search: END,
-        },
-    )
-    builder.add_edge("p_clear_documents", END)
-
     return builder.compile(debug=debug)
 
 

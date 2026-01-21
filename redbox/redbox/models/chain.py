@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, create_model, field_validator
 
 from redbox.graph.agents.configs import AgentConfig, agent_configs
 from redbox.models import prompts
-from redbox.models.chat import DecisionEnum, ToolEnum
+from redbox.models.chat import DecisionEnum
 from redbox.models.settings import ChatLLMBackend
 
 load_dotenv()
@@ -540,10 +540,6 @@ class GeneratedMetadata(BaseModel):
     name: str = Field(description="document name", default="")
     description: str | None = Field(description="document description", default="")
     keywords: list[str] = Field(description="document keywords", default_factory=list)
-
-
-class AgentDecision(BaseModel):
-    next: ToolEnum = ToolEnum.search
 
 
 class FeedbackEvalDecision(BaseModel):
