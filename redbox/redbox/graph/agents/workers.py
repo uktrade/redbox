@@ -27,6 +27,7 @@ class WorkerAgent(Agent):
         Remove dependencies (from agent plan) associated with the task.
         """
 
+        @RunnableLambda
         def _remove_task_dependencies(input):
             state = input["state"]
             for task in state.agent_plans.tasks:

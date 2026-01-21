@@ -100,6 +100,6 @@ class TestWorkerAgent:
         assert response["tasks_evaluator"] == self.worker.task.task + "\n" + self.worker.task.expected_output
 
     def test_remove_task_dependencies(self, fake_state_with_plan):
-        self.worker.task = fake_state_with_plan.agent_plans.tasks[1]
-        self.worker.remove_task_dependencies.invoke(({"state": fake_state_with_plan, "result": "empty"}))
-        assert len(self.worker.task.dependencies) == 0
+        self.worker.task = fake_state_with_plan.agent_plans.tasks[0]
+        self.worker.remove_task_dependencies().invoke({"state": fake_state_with_plan, "result": "empty"})
+        assert len(fake_state_with_plan.agent_plans.tasks[1].dependencies) == 0
