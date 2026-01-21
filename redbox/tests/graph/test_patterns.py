@@ -20,6 +20,7 @@ from redbox.graph.nodes.processes import (
     build_set_route_pattern,
     build_set_text_pattern,
     build_stuff_pattern,
+    check_if_tasks_completed,
     clear_documents_process,
     empty_process,
     lm_choose_route,
@@ -33,6 +34,7 @@ from redbox.models.chain import (
     RedboxQuery,
     RedboxState,
     Source,
+    TaskStatus,
     configure_agent_task_plan,
 )
 from redbox.models.chat import ChatRoute
@@ -756,3 +758,32 @@ class TestBuildAgentLoop:
         # Basic checks
         assert len(response) == 2
         assert mock_tool_calls.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "task_idx, task_status, expected",
+    [
+        ([0], [TaskStatus.RUNNING], "no_action"),
+        ([0], [TaskStatus.COMPLETED], "task1_2_running"),
+        ([0], [TaskStatus.FAILED], "task1_2_running"),
+        ([0, 2], [TaskStatus.COMPLETED, TaskStatus.RUNNING], "task1_running"),
+        ([0, 1], [TaskStatus.COMPLETED, TaskStatus.RUNNING], "task2_running"),
+        ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.RUNNING, TaskStatus.RUNNING], "no_action"),
+        ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.COMPLETED, TaskStatus.FAILED], "go_to_evaluator"),
+        ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.COMPLETED, TaskStatus.COMPLETED], "go_to_evaluator"),
+    ],
+)
+def test_check_if_tasks_completed(task_idx, task_status, expected, fake_state_with_plan, mocker: MockerFixture):
+    mock_send = mocker.patch("redbox.graph.nodes.processes.sending_specific_task_to_agent")
+
+    for i, idx in enumerate(task_idx):
+        fake_state_with_plan.agent_plans.tasks[idx].status = task_status[i]
+    response = check_if_tasks_completed(fake_state_with_plan)
+
+    match expected:
+        case "no_action":
+            pass
+        case "go_to_evaluator":
+            assert response.goto == "Evaluator_Agent"
+        case _:
+            mock_send.call_count == len(task_idx)

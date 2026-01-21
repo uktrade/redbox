@@ -28,7 +28,7 @@ from redbox.chains.activity import log_activity
 from redbox.chains.components import get_chat_llm, get_structured_response_with_citations_parser, get_tokeniser
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_metadata, create_chain_agent
-from redbox.graph.nodes.sends import run_tools_parallel
+from redbox.graph.nodes.sends import run_tools_parallel, sending_specific_task_to_agent
 from redbox.models import ChatRoute
 from redbox.models.chain import (
     DocumentState,
@@ -36,6 +36,7 @@ from redbox.models.chain import (
     PromptSet,
     RedboxState,
     RequestMetadata,
+    TaskStatus,
     configure_agent_task_plan,
     get_plan_fix_prompts,
     get_plan_fix_suggestion_prompts,
@@ -984,3 +985,21 @@ def get_tabular_schema():
         return {"tabular_schema": db_schema}
 
     return _get_tabular_schema
+
+
+def check_if_tasks_completed(state: RedboxState):
+    """
+    Check if all tasks have been completed.
+    If a task has status pending, it should go back to send.
+    If there is no pending task, go to evaluator
+    """
+    for task in state.agent_plans.tasks:
+        if task.status == TaskStatus.PENDING:
+            sending_specific_task_to_agent(task)  # .invoke(state)
+
+    # if there is no pending task, go to evaluator
+    pending_running_tasks = [
+        task for task in state.agent_plans.tasks if task.status in [TaskStatus.PENDING, TaskStatus.RUNNING]
+    ]
+    if not pending_running_tasks:
+        return Command(update=state, goto="Evaluator_Agent")

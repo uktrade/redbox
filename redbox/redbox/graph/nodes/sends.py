@@ -5,6 +5,7 @@ from typing import Callable
 from uuid import uuid4
 
 from langchain_core.messages import AIMessage
+from langchain_core.runnables import RunnableLambda
 from langgraph.constants import Send
 
 from redbox.models.chain import DocumentState, RedboxState
@@ -195,3 +196,15 @@ def sending_task_to_agent(state: RedboxState):
             if not task.dependencies
         ]
         return [Send(node=target, arg=state) for target, state in task_send_states]
+
+
+def sending_specific_task_to_agent(task):
+    @RunnableLambda
+    def _sending_specific_task_to_agent(state: RedboxState):
+        # sending tasks that have no dependencies
+        task_send_states: list[RedboxState] = [
+            (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
+        ]
+        return [Send(node=target, arg=state) for target, state in task_send_states]
+
+    return sending_specific_task_to_agent

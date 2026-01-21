@@ -168,6 +168,7 @@ def fake_state_with_plan() -> RedboxState:
     tasks = [
         agent_task(id="task0", task="Fake Task", expected_output="Fake output"),
         agent_task(id="task1", task="Fake Task", expected_output="Fake output", dependencies=["task0"]),
+        agent_task(id="task2", task="Fake Task", expected_output="Fake output", dependencies=["task0"]),
     ]
 
     return RedboxState(

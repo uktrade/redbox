@@ -72,6 +72,7 @@ repos:
         language: system
         pass_filenames: false
       - id: no-files
+        stages: [commit]
         name: Prevent data files
         entry: '\.(docx|doc|pdf|xlsx|csv|txt|log)$'
         language: fail
