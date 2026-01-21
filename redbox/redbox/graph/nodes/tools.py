@@ -8,6 +8,8 @@ import duckdb
 from io import StringIO
 import csv
 import re
+import os
+import tempfile
 
 import boto3
 import numpy as np
@@ -299,12 +301,15 @@ def build_query_tabular_knowledge_base_tool(
 
         result_text = ""
         documents: list[Document] = []
-        db_path = f"/tmp/{uri.replace('/', '__')}.duckdb"
+        db_path = os.path.join(tempfile.gettempdir(), f"{uri.replace('/', '__')}.duckdb")
 
         for meta in docs_metadata:
-            uri = meta["metadata"]["uri"]
-            schema = meta["metadata"]["document_schema"]
+            metadata = meta.get("metadata", {})
+            schema = metadata.get("document_schema")
             text_content = meta.get("text", "")
+
+            if schema is None:
+                return "Document not supported for querying as it uses legacy schema.", []
 
             try:
                 # Parse schema to get column names and types
