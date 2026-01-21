@@ -6,6 +6,8 @@ import time
 from typing import Annotated, Callable, Iterable, Literal, Union
 import duckdb
 from io import StringIO
+import csv
+import re
 
 import boto3
 import numpy as np
@@ -293,23 +295,32 @@ def build_query_tabular_knowledge_base_tool(
                 if not text_content.strip():
                     continue
 
-                # Remove the <table_name> prefix from the first line
-                csv_file = StringIO(text_content)
-                lines = csv_file.readlines()
-                # Remove first line (table_name + header)
-                lines_to_load = lines[1:]
-
-                output_csv = StringIO("".join(lines_to_load))
-                output_csv.seek(0)
-
                 # Parse schema to get column names and types
                 schema_obj = TabularSchema.model_validate(schema)
                 columns = ", ".join(f"{colname} {coltype}" for colname, coltype in schema_obj.columns.items())
 
+                # Remove the <table_name> prefix from the first line
+                lines = StringIO(text_content).readlines()
+                header = re.sub(
+                    r"^\s*<table_name>.*?</table_name>\s*",
+                    "",
+                    lines[0],
+                    count=1,
+                    flags=re.DOTALL,
+                )
+                csv_str = "\n".join([header] + lines[1:])
+
+                # Parse CSV safely
+                reader = csv.DictReader(StringIO(csv_str))
+                rows = list(reader)
+
                 # Load into DuckDB in-memory table
                 con = duckdb.connect(database=":memory:")
                 con.execute(f"CREATE TABLE {schema_obj.name} ({columns})")
-                con.execute(f"COPY {schema_obj.name} FROM STDIN WITH (FORMAT CSV, HEADER FALSE)").append(output_csv)
+                for row in rows:
+                    col_names = ", ".join(row.keys())
+                    values = ", ".join(f"'{str(v).replace("'", "''")}'" for v in row.values())
+                    con.execute(f'INSERT INTO "{schema_obj.name}" ({col_names}) VALUES ({values})')
 
                 # Execute agent-provided SQL query
                 query_result = con.execute(sql_query).fetchall()
