@@ -265,7 +265,7 @@ def build_query_tabular_knowledge_base_tool(
     @tool(response_format="content_and_artifact")
     def _query_tabular_knowledge_base(
         sql_query: str,
-        uris: list[str],
+        uri: str,
         state: Annotated[RedboxState, InjectedState],
     ) -> tuple[str, list[Document]]:
         """
@@ -273,14 +273,14 @@ def build_query_tabular_knowledge_base_tool(
 
         Args:
             sql_query: Pre-generated SQL query by the agent.
-            uris: List of file URIs to filter which files to query.
+            uri: File URI to filter which file to query.
 
         Returns:
             Tuple[str, list[Document]]: Results string and list of Documents.
         """
         # Retrieve tabular documents
         docs_metadata = retriever._get_relevant_documents(
-            knowledge_base_s3_keys=state.request.knowledge_base_s3_keys, uris=uris, run_manager=None
+            knowledge_base_s3_keys=state.request.knowledge_base_s3_keys, uris=[uri], run_manager=None
         )
 
         result_text = ""
