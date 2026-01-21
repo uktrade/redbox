@@ -277,6 +277,20 @@ def build_query_tabular_knowledge_base_tool(
 
         Returns:
             Tuple[str, list[Document]]: Results string and list of Documents.
+
+        Notes:
+        - Supports CSV and Excel files.
+        - The agent is responsible for generating a valid SQL query based on the schema of the target table(s).
+        - Queries can include compound phrases or partial matches (e.g., "deal-making unit")
+        and should consider that such phrases may appear in different columns.
+        - Use SQL features such as `LIKE`, `ILIKE`, or full-text search functions to handle partial matches.
+        - Handles multi-line cells and escaped characters correctly.
+        - For maximum flexibility, the agent can generate queries that combine multiple columns using `OR`
+        or `CONCAT` to ensure relevant rows are captured.
+        - SQL queries should be **case-insensitive** so they capture capitalised or lowercase values (use ILIKE or equivalent).
+        - Queries should handle **compound phrases** (e.g., "deal-making unit") that may appear split across columns or contain different punctuation or spacing.
+        - When matching text, account for variations such as hyphens, spaces, and capitalization.
+        - Always include multiple columns in the WHERE clause if necessary to capture all relevant fields for the query.
         """
         # Retrieve tabular documents
         docs_metadata = retriever._get_relevant_documents(
@@ -285,6 +299,7 @@ def build_query_tabular_knowledge_base_tool(
 
         result_text = ""
         documents: list[Document] = []
+        db_path = f"/tmp/{uri.replace('/', '__')}.duckdb"
 
         for meta in docs_metadata:
             uri = meta["metadata"]["uri"]
@@ -292,43 +307,73 @@ def build_query_tabular_knowledge_base_tool(
             text_content = meta.get("text", "")
 
             try:
-                if not text_content.strip():
-                    continue
-
                 # Parse schema to get column names and types
                 schema_obj = TabularSchema.model_validate(schema)
-                columns = ", ".join(f"{colname} {coltype}" for colname, coltype in schema_obj.columns.items())
 
-                # Remove the <table_name> prefix from the first line
-                lines = StringIO(text_content).readlines()
-                header = re.sub(
-                    r"^\s*<table_name>.*?</table_name>\s*",
-                    "",
-                    lines[0],
-                    count=1,
-                    flags=re.DOTALL,
-                )
-                csv_str = "\n".join([header] + lines[1:])
+                # # Load into DuckDB in-memory table
+                # con = duckdb.connect(database=":memory:")
+                # con.execute(f"CREATE TABLE {schema_obj.name} ({columns})")
+                # for row in rows:
+                #     col_names = ", ".join(row.keys())
+                #     values = ", ".join(f"'{str(v).replace("'", "''")}'" for v in row.values())
 
-                # Parse CSV safely
-                reader = csv.DictReader(StringIO(csv_str))
-                rows = list(reader)
+                #     con.execute(f'INSERT INTO "{schema_obj.name}" ({col_names}) VALUES ({values})')
 
-                # Load into DuckDB in-memory table
-                con = duckdb.connect(database=":memory:")
-                con.execute(f"CREATE TABLE {schema_obj.name} ({columns})")
-                for row in rows:
-                    col_names = ", ".join(row.keys())
-                    values = ", ".join(f"'{str(v).replace("'", "''")}'" for v in row.values())
-                    con.execute(f'INSERT INTO "{schema_obj.name}" ({col_names}) VALUES ({values})')
+                # Determine DB path (can be per URI or a shared file)
+                # db_path = f"/tmp/{uri.replace('/', '__')}.duckdb"  # Example: per table file
+                use_persistent = True  # Toggle for persistent vs in-memory
 
+                if not use_persistent:
+                    db_path = ":memory:"
+
+                with duckdb.connect(database=db_path) as con:
+                    # Check if table exists already
+                    tables = con.execute("SHOW TABLES").fetchall()
+                    if (schema_obj.name,) not in tables:
+                        if not text_content.strip():
+                            continue
+
+                        # Remove the <table_name> prefix from the first line
+                        lines = StringIO(text_content).readlines()
+                        header = re.sub(
+                            r"^\s*<table_name>.*?</table_name>\s*",
+                            "",
+                            lines[0],
+                            count=1,
+                            flags=re.DOTALL,
+                        )
+                        csv_str = "\n".join([header] + lines[1:])
+
+                        # Parse CSV safely
+                        reader = csv.DictReader(StringIO(csv_str))
+                        rows = list(reader)
+
+                        # Create table
+                        columns_def = ", ".join(f'"{col}" {dtype}' for col, dtype in schema_obj.columns.items())
+                        con.execute(f"CREATE TABLE {schema_obj.name} ({columns_def})")
+                        for row in rows:
+                            col_names = ", ".join([f'"{key}"' for key in row.keys()])
+                            values = ", ".join(f"'{str(v).replace("'", "''")}'" for v in row.values())
+                            con.execute(f'INSERT INTO "{schema_obj.name}" ({col_names}) VALUES ({values})')
+
+            except Exception as e:
+                import logging
+
+                logging.warning("Failed to setup DB %s: %s", uri, str(e))
+                continue
+
+        try:
+            if db_path is None:
+                raise Exception("DB does not exist")
+
+            with duckdb.connect(database=db_path) as con:
                 # Execute agent-provided SQL query
                 query_result = con.execute(sql_query).fetchall()
                 col_names = [desc[0] for desc in con.description]
 
                 # Format results
                 table_text = "\n".join([str(dict(zip(col_names, row))) for row in query_result])
-                result_text += f"\nResults from {uri}:\n{table_text}\n"
+                result_text = f"\nResults from {uri}:\n{table_text}\n"
 
                 # Wrap as Documents
                 for row in query_result:
@@ -339,13 +384,10 @@ def build_query_tabular_knowledge_base_tool(
                             metadata={"uri": uri, "table_name": schema_obj.name},
                         )
                     )
+        except Exception as e:
+            import logging
 
-                con.close()
-            except Exception as e:
-                import logging
-
-                logging.warning("Failed to query %s: %s", uri, str(e))
-                continue
+            logging.warning("Failed to query %s: %s", uri, str(e))
 
         return result_text.strip(), documents
 
