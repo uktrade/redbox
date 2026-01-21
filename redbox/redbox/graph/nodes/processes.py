@@ -4,7 +4,6 @@ import os
 import random
 import re
 import sqlite3
-import textwrap
 import time
 from collections.abc import Callable
 from functools import reduce
@@ -217,28 +216,6 @@ def build_set_route_pattern(route: ChatRoute) -> Runnable[RedboxState, dict[str,
     return RunnableLambda(_set_route).with_config(tags=[ROUTE_NAME_TAG])
 
 
-def build_set_self_route_from_llm_answer(
-    conditional: Callable[[str], bool],
-    true_condition_state_update: dict,
-    false_condition_state_update: dict,
-    final_route_response: bool = True,
-) -> Runnable[RedboxState, dict[str, Any]]:
-    """A Runnable which sets the route based on a conditional on state['text']"""
-
-    @RunnableLambda
-    def _set_self_route_from_llm_answer(state: RedboxState):
-        llm_response = state.last_message.content
-        if conditional(llm_response):
-            return true_condition_state_update
-        else:
-            return false_condition_state_update
-
-    runnable = _set_self_route_from_llm_answer
-    if final_route_response:
-        runnable = _set_self_route_from_llm_answer.with_config(tags=[ROUTE_NAME_TAG])
-    return runnable
-
-
 def build_passthrough_pattern() -> Runnable[RedboxState, dict[str, Any]]:
     """Returns a Runnable that uses state["request"] to set state["text"]."""
 
@@ -311,30 +288,6 @@ def report_sources_process(state: RedboxState) -> None:
 
 def empty_process(state: RedboxState) -> None:
     return None
-
-
-def build_log_node(message: str) -> Runnable[RedboxState, dict[str, Any]]:
-    """A Runnable which logs the current state in a compact way"""
-
-    @RunnableLambda
-    def _log_node(state: RedboxState):
-        log.info(
-            json.dumps(
-                {
-                    "user_uuid": str(state.request.user_uuid),
-                    "document_metadata": {
-                        group_id: {doc_id: d.metadata for doc_id, d in group_documents.items()}
-                        for group_id, group_documents in state.documents.group
-                    },
-                    "messages": (textwrap.shorten(state.last_message.content, width=32, placeholder="...")),
-                    "route": state.route_name,
-                    "message": message,
-                }
-            )
-        )
-        return None
-
-    return _log_node
 
 
 def build_activity_log_node(
