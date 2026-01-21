@@ -193,10 +193,6 @@ def get_knowledge_base_tabular_text(
         chunk_resolution=chunk_resolution,
     )
 
-    # # Add URI filter if specified
-    # if uris:
-    #     query_filter.append({"terms": {"metadata.uri.keyword": uris}})
-
     return {
         "_source": {
             "includes": [

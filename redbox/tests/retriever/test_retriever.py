@@ -6,8 +6,8 @@ from redbox.retriever import (
     AllElasticsearchRetriever,
     MetadataRetriever,
     ParameterisedElasticsearchRetriever,
-    TabularElasticsearchRetriever,
 )
+from redbox.retriever.retrievers import KnowledgeBaseTabularMetadataRetriever
 from redbox.test.data import RedboxChatTestCase
 
 TEST_CHAIN_PARAMETERS = (
@@ -157,7 +157,7 @@ def test_metadata_retriever(metadata_retriever: MetadataRetriever, stored_file_m
 
 
 def test_tabular_kb_retriever(
-    tabular_kb_retriever: TabularElasticsearchRetriever,
+    kb_tabular_metadata_retriever: KnowledgeBaseTabularMetadataRetriever,
     stored_file_tabular: RedboxChatTestCase,
 ):
     """
@@ -174,7 +174,7 @@ def test_tabular_kb_retriever(
     )
 
     # Invoke the retriever
-    result_docs = tabular_kb_retriever.invoke(state)
+    result_docs = kb_tabular_metadata_retriever.invoke(state)
 
     # Ensure result_docs is a list of Documents
     assert isinstance(result_docs, list)

@@ -18,7 +18,7 @@ from redbox.retriever import (
     OpenSearchRetriever,
     ParameterisedElasticsearchRetriever,
 )
-from redbox.retriever.retrievers import TabularElasticsearchRetriever
+from redbox.retriever.retrievers import KnowledgeBaseTabularMetadataRetriever
 from redbox.test.data import RedboxChatTestCase
 from redbox.transform import bedrock_tokeniser
 from tests.retriever.data import (
@@ -138,9 +138,9 @@ def metadata_retriever(env: Settings) -> OpenSearchRetriever:
 
 
 @pytest.fixture(scope="session")
-def tabular_kb_retriever(env: Settings) -> TabularElasticsearchRetriever:
-    return TabularElasticsearchRetriever(
-        es_client=env.elasticsearch_client(), repo="knowledge_base", index_name=env.elastic_chunk_alias
+def kb_tabular_metadata_retriever(env: Settings) -> KnowledgeBaseTabularMetadataRetriever:
+    return KnowledgeBaseTabularMetadataRetriever(
+        es_client=env.elasticsearch_client(), index_name=env.elastic_chunk_alias
     )
 
 
