@@ -59,6 +59,7 @@ django-requestlogs = "^0.8"
 unoserver = "^3.6"
 coverage = "^7.13.1"
 python-slugify = "^8.0.4"
+duckdb = "^1.4.3"
 
 
 [tool.poetry.group.dev.dependencies]
