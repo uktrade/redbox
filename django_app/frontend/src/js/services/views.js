@@ -29,7 +29,7 @@ export function updateRecentChatHistory(chatId = getActiveChatId(), slug = getAc
     const url = `${tool_url_fragment}/chats${chat_url_fragment}/recent-chats/`;
 
     return htmx.ajax('get', url, {
-      target: 'chat-history',
+      target: '.recent-chats',
       swap: 'outerHTML',
     });
 }
