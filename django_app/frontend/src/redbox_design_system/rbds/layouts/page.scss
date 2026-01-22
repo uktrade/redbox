@@ -1,0 +1,34 @@
+.rbds-page-layout {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    min-height: 100vh;
+    min-width: var(--side-panel-collapsed-width);
+
+    &--no-sidebar {
+        grid-template-columns: 1fr;
+        min-width: 0;
+    }
+
+    &--collapsed {
+        grid-template-columns: var(--side-panel-collapsed-width, 54px) 1fr;
+    }
+}
+
+/* Main column centers content */
+.rbds-main {
+    display: flex;
+    justify-content: center;
+    margin-left: 15px;
+    margin-right: 15px;
+}
+
+.rbds-page-content {
+    &--full {
+        width: var(--screen-width-full);
+    }
+
+    &--xl {
+        width: var(--screen-width-xl);
+    }
+
+}
