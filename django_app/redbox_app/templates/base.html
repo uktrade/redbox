@@ -1,7 +1,6 @@
 {% set cspNonce = request.csp_nonce %}
-{% set productName = "Redbox at DBT" %}
+{% set productName = product_name(request) %}
 {% set phase = "Beta" %}
-{% set feedbackLink = "https://teams.microsoft.com/l/channel/19%3A9ae6b3b539724595a3139c2b16dc56ef%40thread.tacv2/Redbox%20trial%20participants%20Chat%20Channel?groupId=7a71ce78-fe77-4185-825c-ae40cb07d614&tenantId=8fa217ec-33aa-46fb-ad96-dfe68006bb86" %}
 
 <!DOCTYPE html>
 <html lang="en" class="govuk-template">
@@ -59,12 +58,20 @@
     </div>
   {% endif %}
 
-  {% include "header-nav.html" %}
+  <div class="rbds-page-layout {% if not request.user.is_authenticated %}rbds-page-layout--no-sidebar{% endif %}">
+    {% if request.user.is_authenticated %}
+      {% include "side_panel/side_panel.html" %}
+    {% else %}
+      {%  include "header-nav.html" %}
+    {% endif %}
 
-  <main id="main-content" role="main" class="govuk-main-wrapper govuk-main-wrapper--auto-spacing">
-    {% block content %}
-    {% endblock %}
-  </main>
+    <main id="main-content" role="main" class="govuk-main-wrapper govuk-main-wrapper--auto-spacing rbds-main">
+      {% block content %}
+      {% endblock %}
+    </main>
+  </div>
+
+
 
   {% set footer_links = [
     {'text': 'Privacy policy', 'url': 'privacy-notice' },
