@@ -1,4 +1,5 @@
 import json
+import hashlib
 import logging
 import random
 import sqlite3
@@ -9,7 +10,6 @@ from io import StringIO
 import csv
 import re
 import os
-import tempfile
 
 import boto3
 import numpy as np
@@ -325,7 +325,10 @@ def build_query_tabular_knowledge_base_tool(
 
         result_text = ""
         documents: list[Document] = []
-        db_path = os.path.join(tempfile.gettempdir(), f"{uri.replace('/', '__')}.duckdb")
+        uri_sha = hashlib.sha256(uri.encode("utf-8")).hexdigest()
+        db_path = (
+            f"generated_db_{uri_sha}.duckdb"  # os.path.join(tempfile.gettempdir(), f"{uri.replace('/', '__')}.duckdb")
+        )
 
         if not validate_duckdb_path(db_path=db_path):
             return "Unable to setup DB for querying no write access", []
