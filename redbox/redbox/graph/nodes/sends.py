@@ -5,10 +5,9 @@ from typing import Callable
 from uuid import uuid4
 
 from langchain_core.messages import AIMessage
-from langchain_core.runnables import RunnableLambda
 from langgraph.constants import Send
 
-from redbox.models.chain import DocumentState, RedboxState
+from redbox.models.chain import DocumentState, RedboxState, TaskStatus
 
 log = logging.getLogger(__name__)
 
@@ -193,18 +192,16 @@ def sending_task_to_agent(state: RedboxState):
         task_send_states: list[RedboxState] = [
             (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
             for task in plan.tasks
-            if not task.dependencies
+            if not task.dependencies and (task.status == TaskStatus.PENDING)
         ]
         return [Send(node=target, arg=state) for target, state in task_send_states]
 
 
-def sending_specific_task_to_agent(task):
-    @RunnableLambda
-    def _sending_specific_task_to_agent(state: RedboxState):
-        # sending tasks that have no dependencies
-        task_send_states: list[RedboxState] = [
-            (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
-        ]
-        return [Send(node=target, arg=state) for target, state in task_send_states]
-
-    return sending_specific_task_to_agent
+def sending_specific_task_to_agent(task, state: RedboxState):
+    # sending tasks that have no dependencies
+    for task in state.agent_plans.tasks:
+        if task.status == TaskStatus.PENDING:
+            task_send_states: list[RedboxState] = [
+                (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
+            ]
+            return [Send(node=target, arg=state) for target, state in task_send_states]

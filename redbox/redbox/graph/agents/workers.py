@@ -30,7 +30,7 @@ class WorkerAgent(Agent):
         @RunnableLambda
         def _remove_task_dependencies(input):
             state = input["state"]
-            for task in state.agent_plans.tasks:
+            for task in state["agent_plans"].tasks:
                 if self.task.id in task.dependencies:
                     self.logger.warning(f"Removing {self.task.id} from dependencies")
                     task.dependencies.remove(self.task.id)
@@ -64,12 +64,11 @@ class WorkerAgent(Agent):
             """
             log what task the agent is completing
             """
-            self.task.status = TaskStatus.RUNNING
             activity_node = build_activity_log_node(
                 RedboxActivityEvent(message=f"{self.config.name} is completing task: {self.task.task}")
             )
             activity_node.invoke(state)
-            return state
+            return {"agent_plans": state.agent_plans.update_task_status(self.task.id, TaskStatus.RUNNING)}
 
         return _log_agent_activity
 
@@ -79,7 +78,7 @@ class WorkerAgent(Agent):
             """
             Processing data from the agent core function.
             """
-            _, result = input
+            state, result = input
 
             if isinstance(result, str):
                 self.logger.warning(f"[{self.config.name}] Using raw string result.")
@@ -93,14 +92,13 @@ class WorkerAgent(Agent):
                     result=result, max_tokens=self.config.agents_max_tokens, log_stub=f"[{self.config.name}]"
                 )
             else:
-                self.task.status = TaskStatus.FAILED
                 self.logger.error(f"[{self.config.name}] Worker agent return incompatible data type {type(result)}")
                 raise TypeError("Invalid tool result type")
             self.logger.warning(f"[{self.config.name}] Completed agent run.")
-            self.task.status = TaskStatus.COMPLETED
             return {
                 "agents_results": f"<{self.config.name}_Result>{result_content}</{self.config.name}_Result>",
                 "tasks_evaluator": self.task.task + "\n" + self.task.expected_output,
+                "agent_plans": state.agent_plans.update_task_status(self.task.id, TaskStatus.COMPLETED),
             }
 
         return _post_processing
@@ -108,7 +106,6 @@ class WorkerAgent(Agent):
     def core_task(self):
         @RunnableLambda
         def _core_task(state: RedboxState):
-            self.task.status = TaskStatus.RUNNING
             worker_agent = create_chain_agent(
                 system_prompt=self.config.prompt.get_prompt,
                 use_metadata=self.config.prompt.prompt_vars.metadata,

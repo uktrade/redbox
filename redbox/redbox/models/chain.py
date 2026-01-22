@@ -339,6 +339,17 @@ class MultiAgentPlanBase(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+def update_task_status(self, task_id: str, status: TaskStatus):
+    """
+    Update Agent Task status, given task id
+    """
+    for task in self.tasks:
+        if task.id == task_id:
+            task.status = status
+            break
+    return self
+
+
 def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskBase, MultiAgentPlanBase]:
     try:
         AgentEnum = Enum("AgentEnum", agent_options)
@@ -367,6 +378,7 @@ def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskB
             Field(description="A list of tasks to be carried out by agents", default=[ConfiguredAgentTask()]),
         ),
     )
+    ConfiguredAgentPlan.update_task_status = update_task_status
 
     return ConfiguredAgentTask, ConfiguredAgentPlan
 
