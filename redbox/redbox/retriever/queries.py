@@ -20,7 +20,10 @@ def build_resolution_filter(chunk_resolution: ChunkResolution) -> dict[str, Any]
 
 
 def build_query_filter(
-    selected_files: list[str], permitted_files: list[str], chunk_resolution: ChunkResolution | None
+    selected_files: list[str],
+    permitted_files: list[str],
+    chunk_resolution: ChunkResolution | None,
+    file_types: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Generic filter constructor for all queries.
 
@@ -36,16 +39,32 @@ def build_query_filter(
 
     file_names = list(selected_files & permitted_files)
 
-    list_filters = []
+    must_filters: list[dict[str, Any]] = []
 
-    list_filters.append(build_file_filter(file_names=file_names))
+    if file_names:
+        must_filters.append(build_file_filter(file_names=file_names))
 
     if chunk_resolution:
-        list_filters.append(build_resolution_filter(chunk_resolution=chunk_resolution))
+        must_filters.append(build_resolution_filter(chunk_resolution=chunk_resolution))
+
+    if file_types:
+        suffix_filters = []
+
+        for suffix in file_types:
+            suffix_filters.append({"wildcard": {"metadata.uri.keyword": f"*{suffix}"}})
+
+        must_filters.append(
+            {
+                "bool": {
+                    "should": suffix_filters,
+                    "minimum_should_match": 1,
+                }
+            }
+        )
 
     query_filter = {
         "bool": {
-            "must": list_filters
+            "must": must_filters
         }  # filter returns the results that matches all the listed filter. This is a logical AND operator. The results must match all queries in this clause.
     }
 
@@ -168,6 +187,7 @@ def build_document_query(
     permitted_files: list[str],
     selected_files: list[str] | None = None,
     chunk_resolution: ChunkResolution | None = None,
+    file_types: list[str] | None = None,
 ) -> dict[str, Any]:
     """Builds a an Elasticsearch query that will return documents when called.
 
@@ -179,12 +199,13 @@ def build_document_query(
         selected_files=selected_files,
         permitted_files=permitted_files,
         chunk_resolution=chunk_resolution,
+        file_types=file_types,
     )
 
     k_value = get_k_value(selected_files, desired_size=ai_settings.rag_num_candidates)
     return {
         "size": ai_settings.rag_k,
-        "min_score": 0.6,
+        "min_score": 0.0,
         "query": {
             "knn": {
                 "vector_field": {

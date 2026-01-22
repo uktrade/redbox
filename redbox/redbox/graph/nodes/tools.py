@@ -1,19 +1,28 @@
+import io
+import csv
 import json
 import logging
 import random
 import sqlite3
 import time
-from typing import Annotated, Callable, Iterable, Literal, Union
+import re
+from typing import Annotated, Callable, Iterable, Literal, Union, List
 
 import boto3
 import numpy as np
+
+# from redbox_app.redbox_core.models import ChatLLMBackend
+from langchain.chat_models import init_chat_model
+from pydantic import BaseModel
 import requests
 from elasticsearch import Elasticsearch
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.messages import ToolCall
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import Tool, tool
+from langchain_core.output_parsers import StrOutputParser
 from langgraph.prebuilt import InjectedState
 from mohawk import Sender
 from opensearchpy import OpenSearch
@@ -156,6 +165,7 @@ def build_search_documents_tool(
     embedding_field_name: str,
     chunk_resolution: ChunkResolution | None,
     repository: Literal["user_uploaded", "knowledge_base"] = "user_uploaded",
+    file_type: list[str] | None = None,
 ) -> Tool:
     """Constructs a tool that searches the index and sets state.documents."""
 
@@ -241,6 +251,451 @@ def build_search_documents_tool(
         )
 
     return _search_documents if repository == "user_uploaded" else _search_knowledge_base
+
+
+def execute_tabular_query_sql(query: str, documents: List[Document]) -> str:
+    """
+    Executes a natural language query against tabular CSV/XLSX content using SQL.
+    Returns matching rows as text.
+    """
+    # 1️⃣ Create in-memory SQLite database
+    conn = sqlite3.connect(":memory:")
+    cur = conn.cursor()
+
+    table_counter = 0
+
+    for doc in documents:
+        content = doc.page_content.strip()
+
+        # Extract table name
+        table_name = f"table_{table_counter}"
+        table_counter += 1
+
+        if content.startswith("<table_name>"):
+            end_tag_idx = content.find("</table_name>")
+            if end_tag_idx != -1:
+                table_name = content[len("<table_name>") : end_tag_idx].strip()
+                content = content[end_tag_idx + len("</table_name>") :].strip()
+
+        # Parse CSV header
+        f = io.StringIO(content)
+        reader = csv.reader(f)
+        try:
+            header = next(reader)
+        except StopIteration:
+            continue
+
+        # Create table
+        columns = ", ".join(f'"{col}" TEXT' for col in header)
+        cur.execute(f'CREATE TABLE "{table_name}" ({columns});')
+
+        # Insert rows
+        for row in reader:
+            placeholders = ", ".join("?" for _ in row)
+            cur.execute(f'INSERT INTO "{table_name}" VALUES ({placeholders})', row)
+
+    conn.commit()
+
+    # 2️⃣ Convert natural language query → SQL
+    # Very simple heuristic: find keyword after "explain" or "definition"
+    # You could replace this with an LLM parser for more complex queries
+    import re
+
+    term_match = re.search(r"(?:explain|definition of)\s+(\w+)", query, re.IGNORECASE)
+    if term_match:
+        term_to_lookup = term_match.group(1)
+    else:
+        # fallback: use the whole query
+        term_to_lookup = query
+
+    # 3️⃣ Build SQL query
+    sql_results = []
+    for table_name in [row[0] for row in cur.execute("SELECT name FROM sqlite_master WHERE type='table';")]:
+        sql = f"""
+        SELECT Term, Explanation, Category
+        FROM "{table_name}"
+        WHERE Term LIKE ?
+        """
+        cur.execute(sql, (f"%{term_to_lookup}%",))
+        rows = cur.fetchall()
+        sql_results.extend([(table_name, r) for r in rows])
+
+    # 4️⃣ Format results
+    if not sql_results:
+        return "No matching tabular data found for your query."
+
+    result_lines = []
+    for table_name, row in sql_results:
+        term, explanation, category = row
+        result_lines.append(f"[{table_name}] Term: {term}, Explanation: {explanation}, Category: {category}")
+
+    conn.close()
+    return "\n".join(result_lines)
+
+
+def build_sql_execute_tool(
+    *,
+    schema: str,
+) -> Tool:
+    """
+    Builds a tool that executes a given SQL query against tabular documents
+    using a preconfigured schema.
+    """
+
+    @tool(response_format="content_and_artifact")
+    def _sql_execute(
+        sql_query: str,
+        documents: List[Document],
+    ) -> tuple[str, List[Document]]:
+        """
+        Executes a provided SQL query over CSV/XLSX tabular data.
+        ===============================
+        AVAILABLE TABLE SCHEMA
+        ===============================
+        {schema}
+        Args:
+            sql_query (str): A valid SQLite SELECT query
+            documents (list[Document]): Tabular documents to query
+        Returns:
+            str: SQL execution results
+            list[Document]: Tabular documents used during execution
+        """
+
+        # Basic validation
+        if not sql_query.lower().startswith("select"):
+            return (
+                "Invalid SQL query: must start with SELECT.",
+                documents,
+            )
+
+        # Execute SQL against in-memory SQLite
+        try:
+            result_text = execute_tabular_query_sql(
+                query=sql_query,
+                documents=documents,
+            )
+        except Exception as e:
+            return (
+                f"SQL execution failed: {e}",
+                documents,
+            )
+
+        return result_text, documents
+
+    return _sql_execute
+
+
+class TabularDocumentSchema(BaseModel):
+    class Sheet(BaseModel):
+        columns: dict[str, str]
+
+    name: str
+    sheets: list[Sheet]
+
+
+def extract_sql_schema_from_document(document: Document) -> TabularDocumentSchema:
+    """
+    Builds a SQL-visible schema description from tabular documents
+    using <table_name> tags to identify table/sheet names.
+    """
+    # schemas: List[TabularDocumentSchema] = []
+
+    # for doc in documents:
+    content = document.page_content.strip()
+    if not content:
+        raise Exception("Document has no content")
+
+    # Extract table name from <table_name>...</table_name> tag
+    table_name_match = re.match(r"<table_name>(.*?)</table_name>", content)
+    if table_name_match:
+        table_name = table_name_match.group(1)
+        csv_content = content[table_name_match.end() :].lstrip()  # rest is CSV
+    else:
+        table_name = "unknown_table"
+        csv_content = content
+
+    f = io.StringIO(csv_content)
+    reader = csv.reader(f)
+
+    try:
+        header = next(reader)
+    except StopIteration:
+        raise Exception("Document has no csv content")
+
+    # Build columns dict with default type TEXT
+    columns_dict = {col: "TEXT" for col in header}
+
+    sheet = TabularDocumentSchema.Sheet(columns=columns_dict)
+
+    return TabularDocumentSchema(name=table_name, sheets=[sheet])
+
+
+def execute_sql_over_document(
+    schema: TabularDocumentSchema,
+    document: Document,
+    sql: str,
+) -> str:
+    """
+    Creates an in-memory SQLite DB from a single tabular document and executes SQL.
+
+    Args:
+        schema: Extracted SQL schema for the document (TabularDocumentSchema)
+        document: LangChain Document representing rows
+        sql: SQL query to execute
+
+    Returns:
+        A string containing the query results in table format.
+    """
+    if not sql:
+        return "No SQL query provided."
+
+    conn = sqlite3.connect(":memory:")
+    cursor = conn.cursor()
+
+    table_name = schema.name
+    for sheet in schema.sheets:
+        column_defs = []
+        for col_name, col_type in sheet.columns.items():
+            col_type = col_type.upper()
+            if col_type not in {"INTEGER", "REAL", "TEXT", "BOOLEAN"}:
+                col_type = "TEXT"
+            column_defs.append(f'"{col_name}" {col_type}')
+
+        create_stmt = f'CREATE TABLE "{table_name}" ({", ".join(column_defs)})'
+        cursor.execute(create_stmt)
+
+    content = document.page_content.strip()
+    table_tag_match = re.match(r"<table_name>(.*?)</table_name>", content)
+    if table_tag_match:
+        csv_content = content[table_tag_match.end() :].lstrip()
+    else:
+        csv_content = content
+
+    f = io.StringIO(csv_content)
+    reader = csv.DictReader(f)
+
+    for row in reader:
+        if not row:
+            continue
+        columns_list = list(row.keys())
+        values = [row[col] for col in columns_list]
+
+        placeholders = ", ".join("?" for _ in values)
+        col_names = ", ".join(f'"{c}"' for c in columns_list)
+
+        insert_stmt = f'INSERT INTO "{table_name}" ({col_names}) VALUES ({placeholders})'
+        cursor.execute(insert_stmt, values)
+
+    conn.commit()
+
+    try:
+        cursor.execute(sql)
+        rows = list(cursor)
+    except Exception as e:
+        conn.close()
+        return f"Error executing SQL: {e}"
+
+    conn.close()
+
+    if not rows:
+        return "No results found."
+
+    if schema.sheets and schema.sheets[0].columns:
+        columns = list(schema.sheets[0].columns.keys())
+    else:
+        columns = [f"col{i + 1}" for i in range(len(rows[0]))]
+
+    col_widths = [len(col) for col in columns]
+    row_strings = []
+
+    for row in rows:
+        row = [str(item) if item is not None else "" for item in row]
+        row_strings.append(row)
+        for i, item in enumerate(row):
+            col_widths[i] = max(col_widths[i], len(item))
+
+    header = " | ".join(col.ljust(col_widths[i]) for i, col in enumerate(columns))
+    separator = "-+-".join("-" * col_widths[i] for i in range(len(columns)))
+    row_lines = [" | ".join(row[i].ljust(col_widths[i]) for i in range(len(columns))) for row in row_strings]
+
+    result_str = "\n".join([header, separator] + row_lines)
+    return result_str
+
+
+def build_search_tabular_documents_tool(
+    es_client: Union[Elasticsearch, OpenSearch],
+    index_name: str,
+    embedding_model: Embeddings,
+    embedding_field_name: str,
+    repository: Literal["knowledge_base"] = "knowledge_base",
+) -> Tool:
+    """
+    Constructs a tool that searches XLSX documents in OpenSearch and
+    executes structured (tabular) query logic over the results.
+    """
+    sql_llm = init_chat_model(
+        model="anthropic.claude-3-7-sonnet-20250219-v1:0",
+        model_provider="bedrock",
+    )
+
+    sql_prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                """
+    You are an expert SQL generator.
+
+    Rules:
+    - Use ONLY the tables and columns provided in the schema.
+    - Do NOT hallucinate tables, sheets, or columns.
+    - Prefer explicit column names (avoid SELECT *).
+    - Generate SQL compatible with SQLite.
+    - If the request is ambiguous, make a reasonable assumption and add a comment using '--'.
+    - Preserve line breaks for readability; do not add backticks or escape characters.
+    - Always ensure column names match exactly those in the schema.
+    - Do not include extra formatting like \n or \\n; produce normal SQL text.
+    - Make queries very dynamic: use LIKE '%term%' style for text search wherever applicable.
+    - Handle compound terms intelligently:
+        * Convert hyphens, underscores, or slashes in text to spaces using REPLACE()
+        * Optionally split user queries into individual words and match each separately
+        * Include SQL comments explaining your approach
+                """,
+            ),
+            (
+                "human",
+                """
+    User question:
+    {query}
+
+    Available schema:
+    {schema}
+
+    Generate a valid SQL query over the schema above.
+    If filtering or searching for terms, you may use WHERE clauses with LIKE or =.
+    Return only the SQL query; do not include explanations or commentary outside SQL comments.
+                """,
+            ),
+        ]
+    )
+
+    sql_chain = sql_prompt | sql_llm | StrOutputParser()
+
+    def generate_sql(query: str, schema: TabularDocumentSchema) -> str:
+        """
+        Generates SQL from a natural language query and inferred schema.
+        """
+        if not schema:
+            return ""
+
+        return sql_chain.invoke(
+            {
+                "query": query,
+                "schema": schema.model_dump(),
+            }
+        )
+
+    def search_repo(
+        query: str,
+        selected_files,
+        permitted_files,
+        ai_settings,
+        start_time=time.time(),
+    ):
+        query_vector = embedding_model.embed_query(query)
+
+        initial_query = build_document_query(
+            query=query,
+            query_vector=query_vector,
+            selected_files=selected_files,
+            permitted_files=permitted_files,
+            embedding_field_name=embedding_field_name,
+            chunk_resolution=ChunkResolution.tabular,
+            ai_settings=ai_settings,
+            file_types=[".xlsx"],
+        )
+
+        initial_documents = query_to_documents(
+            es_client=es_client,
+            index_name=index_name,
+            query=initial_query,
+        )
+
+        log.warning(
+            "[_search_tabular_documents] Initial query took %s seconds",
+            time.time() - start_time,
+        )
+
+        if not initial_documents:
+            return "", []
+
+        with_adjacent_query = add_document_filter_scores_to_query(
+            elasticsearch_query=initial_query,
+            ai_settings=ai_settings,
+            centres=initial_documents,
+        )
+
+        adjacent_documents = query_to_documents(
+            es_client=es_client,
+            index_name=index_name,
+            query=with_adjacent_query,
+        )
+
+        merged = merge_documents(
+            initial=initial_documents,
+            adjacent=adjacent_documents,
+        )
+
+        sorted_documents = sort_documents(merged)
+
+        log.warning(
+            "[_search_tabular_documents] Retrieved %s rows",
+            len(sorted_documents),
+        )
+
+        result_text = ""
+        for doc in sorted_documents:
+            result_text += f"# Document Results: '{doc.metadata.get('name', 'unknown document name')}'\n"
+            schema = extract_sql_schema_from_document(document=doc)
+            sql = generate_sql(query=query, schema=schema)
+            result_text += execute_sql_over_document(schema=schema, sql=sql, document=doc) + "\n\n"
+
+        return result_text, sorted_documents
+
+    @tool(response_format="content_and_artifact")
+    def _search_tabular_knowledge_base(
+        query: str,
+        state: Annotated[RedboxState, InjectedState],
+    ) -> tuple[str, list[Document]]:
+        """
+        Searches Excel or CSV knowledge base files to find and extract structured data.
+        This tool should be used whenever a query involves numeric data, tables, lookup tables,
+        or information organized in rows and columns, such as glossaries, acronyms, or reference tables.
+
+        The tool performs semantic search across all relevant tabular documents, retrieves
+        matching rows or chunks, and can optionally perform structured reasoning such as
+        lookups, aggregations (sum, average, max/min), or filtering based on column values.
+        Results are automatically grouped by source file and sheet, and include metadata
+        such as sheet name, row index, and column headers for context.
+
+        Args:
+            query (str): The search query to match against tabular data.
+                - Can be natural language, keywords, or aggregation/lookup requests
+                - More specific queries yield more precise results
+                - Query length should be 1-500 characters
+        Returns:
+            str: A textual summary of the relevant tabular data, including aggregation results
+                or lookup matches if applicable.
+            list[Document]: The matching documents or row chunks, including metadata.
+        """
+
+        return search_repo(
+            query=query,
+            selected_files=state.request.knowledge_base_s3_keys,
+            permitted_files=state.request.knowledge_base_s3_keys,
+            ai_settings=state.request.ai_settings,
+        )
+
+    return _search_tabular_knowledge_base
 
 
 def build_govuk_search_tool(filter=True) -> Tool:
