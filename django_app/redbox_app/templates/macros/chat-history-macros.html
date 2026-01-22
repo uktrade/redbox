@@ -3,10 +3,10 @@
 {% from "macros/icon.html" import rbds_icon %}
 
 {% macro chat_history_item (chat, link, active_chat_id) %}
-    <li class="side-panel-item-container govuk-!-display-none" id="chat-{{ chat.id }}">
+    <li class="side-panel-item-container rbds-list-row {% if chat.id == active_chat_id %}rbds-list-row--selected {% endif %}govuk-!-display-none" id="chat-{{ chat.id }}" data-chatid="{{ chat.id }}">
         {% set chat_edit_url = url('chat-titles', chat.id) %}
         {% call editable_text(chat_edit_url, 'chat-title-change', 'recent-chats', chat.id) %}
-            <div class="chat-list-item {% if chat.id == active_chat_id %}selected{% endif %}" data-chatid="{{ chat.id }}">
+            <div class="chat-list-item rbds-card__item {% if chat.id == active_chat_id %}selected{% endif %}" data-chatid="{{ chat.id }}">
                 <span class="item-text-container">
                     <a class="item-link govuk-link govuk-link--no-visited-state govuk-link--no-underline display title-text"
                     href="{{ link }}" {% if chat.id == active_chat_id %}aria-current="page"{% endif %} title="{{ chat.name }}">
@@ -18,12 +18,12 @@
                     </div>
                 </span>
                 <div class="side-panel-item-actions">
-                    <button class="rbds-edit-button edit-trigger" type="button" data-action="rename">
-                        {{ rbds_icon(icon_name="edit.html") }}
+                    <button class="rbds-icon-button edit-trigger" type="button" data-action="rename">
+                        {{ rbds_icon(icon_name="edit.html", icon_classes="link") }}
                         <span class="govuk-visually-hidden"> edit chat: {{ chat.name }}</span>
                     </button>
                     {% call modal() %}
-                        <button class="rbds-delete-button modal-open">{{ rbds_icon(icon_name="delete.html") }}</button>
+                        <button class="rbds-icon-button modal-open">{{ rbds_icon(icon_name="delete.html", icon_classes="link") }}</button>
                         <dialog>
                             <div>
                                 <h2 class="govuk-heading-m">Are you sure you want to delete this chat?</h2>
