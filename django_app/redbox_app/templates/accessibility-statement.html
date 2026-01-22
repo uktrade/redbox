@@ -11,13 +11,13 @@
 
 {% block content %}
 
-<div class="govuk-width-container rbds-width-container">
+<div class="govuk-width-container rbds-width-container rbds-page-content--xl govuk-!-margin-top-3">
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
+    <div class="govuk-grid-column-full">
 
-      <h1 class="govuk-heading-l">Accessibility statement for Redbox</h1>
+      <h1 class="govuk-heading-l">Accessibility statement for {{ productName }}</h1>
 
-      <p class="govuk-body">This accessibility statement applies to Redbox.</p>
+      <p class="govuk-body">This accessibility statement applies to {{ productName }}.</p>
       <p class="govuk-body">This website is run by the {{ departmental_owner }}. We want as many people as possible to
         be able to use this website. For example, that means you should be able to:</p>
       <ul class="govuk-list govuk-list--bullet govuk-body">
@@ -33,14 +33,14 @@
 
       <h2 class="govuk-heading-m">Feedback and contact information</h2>
       <p class="govuk-body">If you need information on this website in a different format like accessible PDF, large
-        print, easy read, audio recording or braille, email <a href="mailto:{{contact_email}}"
-          class="govuk-link">{{contact_email}}</a></p>
+        print, easy read, audio recording or braille, email <a href="mailto:{{ contact_email }}"
+          class="govuk-link">{{ contact_email }}</a></p>
       <p class="govuk-body">We'll consider your request and get back to you in 14 days.</p>
 
       <h2 class="govuk-heading-m">Reporting accessibility problems with this website</h2>
       <p class="govuk-body">We're always looking to improve the accessibility of this website. If you find any problems
         not listed on this page or think we're not meeting accessibility requirements, contact the team at <a
-          href="mailto:{{contact_email}}" class="govuk-link">{{contact_email}}</a>.</p>
+          href="mailto:{{ contact_email }}" class="govuk-link">{{ contact_email }}</a>.</p>
 
       <h2 class="govuk-heading-m">Enforcement procedure</h2>
       <p class="govuk-body">The Equality and Human Rights Commission (EHRC) is responsible for enforcing the Public

@@ -3,29 +3,31 @@
 {% from "macros/govuk-button.html" import govukButton %}
 
 {% block content %}
+<div class="rbds-flex-column">
+    <div class="rbds-banner rbds-banner--neutral">
+        <div class="govuk-width-container rbds-width-container">
+            <div class="govuk-grid-row">
+                <div class="govuk-grid-column-two-thirds">
+                    <h1 class="govuk-heading-xl govuk-!-margin-bottom-7">
+                        Use {{ productName }} tools to complete routine and repeatable tasks more efficiently
+                    </h1>
+                    <p class="govuk-body govuk-!-margin-bottom-0">
+                        Select a tool below to get started
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<div class="rbds-banner rbds-banner--neutral">
     <div class="govuk-width-container rbds-width-container">
-        <div class="govuk-grid-row">
-            <div class="govuk-grid-column-two-thirds">
-                <h1 class="govuk-heading-xl govuk-!-margin-bottom-7">
-                    Use Redbox tools to complete routine and repeatable tasks more efficiently
-                </h1>
-                <p class="govuk-body govuk-!-margin-bottom-0">
-                    Select a tool below to get started
-                </p>
+        <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">Available tools</h2>
+        <div class="rbds-justify-content-center">
+            <div class="govuk-grid-row rbds-card-grid rbds-card-grid--3-col govuk-!-margin-bottom-7">
+                {% for tool in tools %}
+                    {% include "tools/tool-card.html" %}
+                {% endfor %}
             </div>
         </div>
     </div>
 </div>
-
-<div class="govuk-width-container rbds-width-container">
-    <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">Available tools</h2>
-    <div class="govuk-grid-row rbds-card-grid govuk-!-margin-bottom-7">
-        {% for tool in tools %}
-            {% include "tools/tool-card.html" %}
-        {% endfor %}
-    </div>
-</div>
-
 {% endblock %}

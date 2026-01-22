@@ -1,0 +1,37 @@
+.rbds-chat-window {
+    width: var(--screen-size-xl);
+    max-width: 100%;
+    min-height: calc(100vh);
+    flex: 1;
+    display: flex;
+    align-items: stretch;
+    // gap: 55px;
+}
+
+.rbds-chat-cta {
+    --cta-container-height: 95px;
+
+    width: var(--screen-width-xl);
+    height: var(--cta-container-height);
+    display: grid;
+    justify-content: center;
+
+    &--active {
+        display: block;
+        justify-content: space-between;
+    }
+}
+
+.rbds-chat-interaction {
+    --interaction-container-height: 110px;
+
+
+    width: var(--screen-width-xl);
+    height: var(--interaction-container-height);
+    display: grid;
+    justify-content: center;
+
+    position: fixed;
+    bottom: 0;
+    background-color: white;
+}
