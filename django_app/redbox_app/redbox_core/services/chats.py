@@ -22,6 +22,8 @@ User = get_user_model()
 
 
 def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | None = None) -> dict:
+    if not request.user.is_authenticated:
+        return {"request": request, "contact_email": settings.CONTACT_EMAIL}
     current_chat = _get_valid_chat(request.user, chat_id)
     chat_id = current_chat.id if current_chat else None
     tool = (
@@ -69,7 +71,7 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
         "urls": urls,
         "errors": {"upload_doc": []},
         "request": request,
-        "promoted_tool": Tool.objects.get(slug="submissions-checker") or None,
+        "promoted_tool": Tool.objects.filter(slug="submissions-checker").first() or None,
         "sidepanel_collapsed": sidepanel_collapsed,
     }
 
