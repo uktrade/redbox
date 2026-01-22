@@ -526,6 +526,9 @@ WEB_SEARCH_API_LIMIT = env.int("WEB_SEARCH_API_LIMIT", 100)
 
 ADMIN_EMAIL = env.str("ADMIN_EMAIL", "")
 
-FEEDBACK_LINK = env.str("FEEDBACK_LINK")
+FEEDBACK_LINK = env.str(
+    "FEEDBACK_LINK",
+    "https://teams.microsoft.com/l/channel/19%3A9ae6b3b539724595a3139c2b16dc56ef%40thread.tacv2/Redbox%20trial%20participants%20Chat%20Channel?groupId=7a71ce78-fe77-4185-825c-ae40cb07d614&tenantId=8fa217ec-33aa-46fb-ad96-dfe68006bb86",
+)
 
 PRODUCT_NAME = env.str("PRODUCT_NAME", "Redbox at DBT")
