@@ -331,7 +331,7 @@ def build_query_tabular_knowledge_base_tool(
         )
 
         if not validate_duckdb_path(db_path=db_path):
-            return "Unable to setup DB for querying no write access", []
+            return f"Unable to setup DB for querying no write access to path {db_path}", []
 
         for meta in docs_metadata:
             metadata = meta.get("metadata", {})
