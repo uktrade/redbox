@@ -9,6 +9,11 @@ from langgraph.constants import Send
 
 from redbox.models.chain import DocumentState, RedboxState
 
+import asyncio
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+from langchain_mcp_adapters.tools import load_mcp_tools
+
 log = logging.getLogger(__name__)
 
 
@@ -95,6 +100,55 @@ def run_with_timeout(func, args, timeout):
     return result[0]
 
 
+
+def wrap_async_tool(tool, tool_name):
+    """
+    Returns a synchronous function that properly wraps an async tool
+    
+    Args:
+        tool_name: The name of the tool to invoke
+        
+    Returns:
+        A function that synchronously executes the async tool
+    """
+    def wrapper(args):
+        
+        # Create a new event loop for this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        #get mcp tool url
+        mcp_url = tool.metadata["url"]
+        
+        try:
+            # Define the async operation
+            async def run_tool():
+                #tool need to be executed within the connection context manager
+                async with streamablehttp_client(mcp_url) as (read, write, _):
+                    async with ClientSession(read, write) as session:
+                        # Initialize the connection
+                        await session.initialize()
+                        # Get tools
+                        tools = await load_mcp_tools(session)
+                        for tool in tools:
+                            if tool.name == tool_name:
+                                log.warning(f"tool found with name '{tool_name}'")
+                                log.warning(f"args '{args}'")
+                                result = await tool.ainvoke(args)
+                                log.warning('result')
+                                log.warning(result)
+                                return result
+
+            # Run the async function and return its result
+            return loop.run_until_complete(run_tool())
+        finally:
+            # Clean up resources
+            loop.close()
+    
+    return wrapper
+
+
+
 def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, per_tool_timeout=60, result_timeout=60):
     run_id = str(uuid4())[:8]
     log_stub = f"[run_tools_parallel run_id='{run_id}']"
@@ -130,9 +184,13 @@ def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, per_tool_timeo
 
                 # Get arguments and submit the tool invocation
                 args = tool_call.get("args", {})
-                args["state"] = state
-
-                future = executor.submit(run_with_timeout, selected_tool.invoke, args, per_tool_timeout)
+                log.warning(f"args: {args}")
+                #check if tool is sync (not async). the sync tool should have sync function defined and no async coroutine
+                if selected_tool.func and not selected_tool.coroutine:
+                    args["state"] = state
+                    future = executor.submit(run_with_timeout, selected_tool.invoke, args, per_tool_timeout)
+                else:
+                    future = executor.submit(run_with_timeout, wrap_async_tool(selected_tool, tool_name), args, per_tool_timeout)
                 futures[future] = {"name": tool_name}
 
             # Collect responses as tools complete
@@ -183,7 +241,6 @@ def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, per_tool_timeo
     except Exception as e:
         log.warning(f"{log_stub} Unexpected error in parallel tool execution: {str(e)}", exc_info=True)
         return None
-
 
 def sending_task_to_agent(state: RedboxState):
     plan = state.agent_plans
