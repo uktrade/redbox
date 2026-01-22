@@ -264,6 +264,30 @@ def build_query_tabular_knowledge_base_tool(
         index_name=index_name,
     )
 
+    def validate_duckdb_path(db_path: str) -> bool:
+        """
+        Returns True if DuckDB can safely create/use this path.
+        Never raises.
+        """
+        try:
+            dir_path = os.path.dirname(db_path) or "."
+            os.makedirs(dir_path, exist_ok=True)
+
+            test_path = db_path + ".write_test"
+            with open(test_path, "w"):
+                pass
+            os.remove(test_path)
+
+            return True
+
+        except Exception as e:
+            logging.warning(
+                "DuckDB path not writable (%s): %s",
+                db_path,
+                str(e),
+            )
+            return False
+
     @tool(response_format="content_and_artifact")
     def _query_tabular_knowledge_base(
         sql_query: str,
@@ -302,6 +326,9 @@ def build_query_tabular_knowledge_base_tool(
         result_text = ""
         documents: list[Document] = []
         db_path = os.path.join(tempfile.gettempdir(), f"{uri.replace('/', '__')}.duckdb")
+
+        if not validate_duckdb_path(db_path=db_path):
+            return "Unable to setup DB for querying no write access", []
 
         for meta in docs_metadata:
             metadata = meta.get("metadata", {})
