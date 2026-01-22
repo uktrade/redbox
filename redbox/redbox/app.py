@@ -98,7 +98,7 @@ class Redbox:
         )
         query_knowledge_base = build_query_tabular_knowledge_base_tool(
             es_client=_env.elasticsearch_client(),
-            index_name=_env.elastic_chunk_alias,
+            index_name=_env.elastic_schematised_chunk_index,
         )
 
         search_wikipedia = build_search_wikipedia_tool()

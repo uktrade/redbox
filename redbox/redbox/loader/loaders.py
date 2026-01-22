@@ -364,6 +364,41 @@ class UnstructuredChunkLoader:
             raw_metadata = raw_chunk.get("metadata") or {}
             page_number = raw_metadata.get("page_number") or 1
 
+            # document_schema_dict = raw_metadata.get("document_schema")
+            # document_schema: Optional[TabularSchema] = None
+            # if document_schema_dict:
+            #     document_schema = TabularSchema.model_validate(document_schema_dict)
+
+            token_count = tokeniser(raw_chunk.get("text", ""))
+            uploaded_meta = UploadedFileMetadata(
+                index=i,
+                uri=file_name,
+                page_number=page_number,
+                created_datetime=datetime.now(UTC),
+                token_count=token_count,
+                chunk_resolution=self.chunk_resolution,
+                document_schema=None,
+                name=self.metadata.name,
+                description=self.metadata.description,
+                keywords=self.metadata.keywords,
+            ).model_dump()
+
+            yield Document(page_content=raw_chunk.get("text", ""), metadata=uploaded_meta)
+
+
+class UnstructuredSchematisedChunkLoader(UnstructuredChunkLoader):
+    def lazy_load(self, file_name: str, file_bytes: BytesIO) -> Iterator[Document]:
+        """A lazy loader that reads a file line by line.
+
+        When you're implementing lazy load methods, you should use a generator
+        to yield documents one by one.
+        """
+        elements = self._get_chunks(file_name, file_bytes)
+
+        for i, raw_chunk in enumerate(elements):
+            raw_metadata = raw_chunk.get("metadata") or {}
+            page_number = raw_metadata.get("page_number") or 1
+
             document_schema_dict = raw_metadata.get("document_schema")
             document_schema: Optional[TabularSchema] = None
             if document_schema_dict:

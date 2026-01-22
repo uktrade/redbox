@@ -227,6 +227,63 @@ class Settings(BaseSettings):
                             "type": "text",
                             "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
                         },
+                    }
+                },
+                "text": {
+                    "type": "text",
+                    "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                },
+                "vector_field": {
+                    "type": "knn_vector",
+                    "dimension": embedding_backend_vector_size,
+                    "method": {
+                        "name": "hnsw",
+                        "space_type": "cosinesimil",
+                        "engine": "lucene",
+                    },
+                },
+            }
+        },
+    }
+
+    index_mapping_schematised: Dict = {
+        "settings": {"index.knn": True},
+        "mappings": {
+            "properties": {
+                "metadata": {
+                    "properties": {
+                        "chunk_resolution": {
+                            "type": "text",
+                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                        },
+                        "created_datetime": {"type": "date"},
+                        "creator_type": {
+                            "type": "text",
+                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                        },
+                        "description": {
+                            "type": "text",
+                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                        },
+                        "index": {"type": "long"},
+                        "keywords": {
+                            "type": "text",
+                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                        },
+                        "name": {
+                            "type": "text",
+                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                        },
+                        "page_number": {"type": "long"},
+                        "token_count": {"type": "long"},
+                        "uri": {
+                            "type": "text",
+                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                        },
+                        "uuid": {
+                            "type": "text",
+                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                        },
                         "document_schema": {"type": "object", "enabled": True},
                     }
                 },
@@ -254,6 +311,10 @@ class Settings(BaseSettings):
     @property
     def elastic_alias(self):
         return self.elastic_root_index + "-chunk-current"
+
+    @property
+    def elastic_schematised_chunk_index(self):
+        return self.elastic_root_index + "-schematised"
 
     def get_agent_names(self):
         # get list of available agents
@@ -325,6 +386,14 @@ class Settings(BaseSettings):
             except Exception as e:
                 logger.error(f"Failed to create index {self.elastic_chat_mesage_index}: {e}")
             # client.indices.create(index=self.elastic_chat_mesage_index)
+
+        if not client.indices.exists(index=self.elastic_schematised_chunk_index):
+            try:
+                client.indices.create(
+                    index=self.elastic_schematised_chunk_index, body=self.index_mapping_schematised, ignore=400
+                )
+            except Exception as e:
+                logger.error(f"Failed to create index {self.elastic_schematised_chunk_index}: {e}")
 
         return client
 
