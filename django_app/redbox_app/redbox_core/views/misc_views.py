@@ -7,7 +7,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 from django.views.generic.base import RedirectView
 
-from redbox_app.redbox_core.models import Chat
+from redbox_app.redbox_core.services import chats as chat_service
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +38,10 @@ class SecurityTxtRedirectView(RedirectView):
 
 @require_http_methods(["GET"])
 def sitemap_view(request):
-    chat_history = Chat.get_ordered_by_last_message_date(request.user) if request.user.is_authenticated else []
-
     return render(
         request,
         template_name="sitemap.html",
-        context={"request": request, "chat_history": chat_history},
+        context=chat_service.get_context(request),
     )
 
 
@@ -51,5 +49,5 @@ def faq_view(request):
     return render(
         request,
         template_name="faq.html",
-        context={"request": request},
+        context=chat_service.get_context(request),
     )

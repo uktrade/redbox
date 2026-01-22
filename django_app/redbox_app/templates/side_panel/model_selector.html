@@ -1,0 +1,8 @@
+<div class="govuk-form-group govuk-!-margin-top-5" {% if not flag_is_active(request, flags.ENABLE_MODEL_SELECTOR) %}hidden{% endif %}>
+    <label class="govuk-heading-s side-panel-heading govuk-!-margin-top-4" for="llm-selector">Model</label>
+    <select id="llm-selector" name="llm" class="govuk-select rbds-min-width-0" {% if environment | lower == 'prod' %} disabled {% endif %}>
+    {% for option in llm_options %}
+        <option value="{{ option.id }}" {% if option.selected %}selected{% endif %}>{{ option.name }}{% if option.default %} (default){% endif %}</option>
+    {% endfor %}
+    </select>
+</div>

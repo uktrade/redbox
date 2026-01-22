@@ -3,119 +3,119 @@
 {% from "macros/govuk-button.html" import govukButton %}
 
 {% block content %}
-
-<div class="rbds-banner">
-    <div class="govuk-width-container rbds-width-container">
-        <div class="govuk-grid-row">
-            <div class="govuk-grid-column-two-thirds">
-                <h1 class="govuk-heading-xl govuk-!-margin-bottom-7">
-                    Get AI-powered insights from your {{ security }} documents.
-                </h1>
-                <p class="govuk-body govuk-!-margin-bottom-7">
-                    Ask questions, create summaries, or chat with Artificial Intelligence (AI)
-                    about single or multiple documents to support your work.
-                </p>
-                <div class="rbds-banner__links">
-                    {% if not request.user.is_authenticated %}
-                        {{ govukButton(
-                            text="Sign in",
-                            href=url('sign-in'),
-                            classes="govuk-button--secondary govuk-!-margin-bottom-3"
-                        ) }}
-                    {% else %}
-                        {{ govukButton(
-                            text = "Start a chat",
-                            href=url('chats'),
-                            classes="govuk-button--secondary govuk-!-margin-bottom-0"
+<div class="rbds-page-content--full rbds-flex-column">
+    <div class="rbds-banner rbds-banner--full-width">
+        <div class="govuk-width-container rbds-width-container">
+            <div class="govuk-grid-row">
+                <div class="govuk-grid-column-two-thirds">
+                    <h1 class="govuk-heading-xl govuk-!-margin-bottom-7">
+                        Get AI-powered insights from your {{ security }} documents.
+                    </h1>
+                    <p class="govuk-body govuk-!-margin-bottom-7">
+                        Ask questions, create summaries, or chat with Artificial Intelligence (AI)
+                        about single or multiple documents to support your work.
+                    </p>
+                    <div class="rbds-banner__links">
+                        {% if not request.user.is_authenticated %}
+                            {{ govukButton(
+                                text="Sign in",
+                                href=url('sign-in'),
+                                classes="govuk-button--secondary govuk-!-margin-bottom-3"
+                            ) }}
+                        {% else %}
+                            {{ govukButton(
+                                text = "Start a chat",
+                                href=url('chats'),
+                                classes="govuk-button--secondary govuk-!-margin-bottom-0"
                             ) }}
                         {% endif %}
-                </div>
+                    </div>
 
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="govuk-width-container rbds-width-container">
+        <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">What you can do with {{ productName }}</h2>
+        <div class="govuk-grid-row">
+            <div class="govuk-grid-column-one-third">
+                <h3 class="govuk-heading-s govuk-!-margin-top-5">Upload</h3>
+                <p class="govuk-body-s">
+                    Easily upload a wide range of document formats into your personal {{ productName }}.
+                    Ask {{ productName }} for instant summaries of individual documents or combine multiple documents to discover connections across your content.
+                </p>
+            </div>
+            <div class="govuk-grid-column-one-third">
+
+                <h3 class="govuk-heading-s govuk-!-margin-top-5">Chat</h3>
+                <p class="govuk-body-s">
+                    Chat with {{ productName }} and ask questions about your documents to uncover insights using AI.
+                    {{ productName }} uses the latest available model which includes general knowledge up to November 2024.
+                    When needed, {{ productName }} can search gov.uk and Wikipedia to provide you with the most relevant information.
+                    It cannot access websites outside of these.
+                </p>
+            </div>
+            <div class="govuk-grid-column-one-third">
+                <h3 class="govuk-heading-s govuk-!-margin-top-5">Secure</h3>
+                <p class="govuk-body-s">{{ productName }} is built in our secure and private cloud which enables you to upload,
+                    up to, and including, {{ security }} documents in your {{ productName }}.
+                    Documents are uploaded to your personal {{ productName }} which only you can see.
+                </p>
+            </div>
+        </div>
+        <div class="govuk-grid-row">
+            <div class="govuk-grid-column-one-third">
+                <h3 class="govuk-heading-s govuk-!-margin-top-5">Summarise</h3>
+                <p class="govuk-body-s">
+                    Use {{ productName }} to summarise long reports, memos, policies and legislative material to extract key points and identify underlying themes.
+                </p>
+            </div>
+            <div class="govuk-grid-column-one-third">
+
+                <h3 class="govuk-heading-s govuk-!-margin-top-5">Analyse</h3>
+                <p class="govuk-body-s">Use {{ productName }} to analyse documents and provide different perspective on them.</p>
+            </div>
+            <div class="govuk-grid-column-one-third">
+                <h3 class="govuk-heading-s govuk-!-margin-top-5">Search</h3>
+                <p class="govuk-body-s">Use {{ productName }} to search across multiple documents and find specific information related to your query.</p>
+            </div>
+        </div>
+        <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">How your personal data is used in {{ productName }}</h2>
+        <div class="govuk-grid-row rbds-flex-row govuk-!-margin-bottom-5">
+            <div class="govuk-grid-column-one-third rbds-flex-column">
+                <h3 class="govuk-heading-s govuk-!-margin-top-5">Personal data</h3>
+                <p class="govuk-body-s">
+                    At {{ productName }}, we process your personal information securely to deliver a seamless experience that will be personalised in future iterations.
+                    This includes using your information to improve our services, communicate updates, and ensure secure access.
+                </p>
+                <a href="{{ url('privacy-notice') }}" class="govuk-link rbds-push-bottom">Personal data access policy</a>
+            </div>
+            <div class="govuk-grid-column-one-third rbds-flex-column">
+
+                <h3 class="govuk-heading-s govuk-!-margin-top-5">Data policy statement</h3>
+                <p class="govuk-body-s">
+                    We respect your privacy. Your data is securely stored, never sold, and only used to improve your experience.
+                    You can access, update, or delete your information at any time.
+                </p>
+                <a href="https://workspace.trade.gov.uk/working-at-dbt/policies-and-guidance/policies/data-protection-policy/"
+                class="govuk-link rbds-push-bottom">
+                    Data protection
+                </a>
+            </div>
+            <div class="govuk-grid-column-one-third rbds-flex-column">
+                <h3 class="govuk-heading-s govuk-!-margin-top-5">Data processing</h3>
+                <p class="govuk-body-s">
+                    We collect and process your data solely to provide and improve our services.
+                    All data is handled securely, transparently, and in compliance with applicable privacy laws.
+                    You're always in control and can manage your preferences anytime.
+                </p>
+                <a href="https://workspace.trade.gov.uk/working-at-dbt/policies-and-guidance/policies/data-processing-policy/"
+                class="govuk-link rbds-push-bottom">
+                    Data processing
+                </a>
             </div>
         </div>
     </div>
 </div>
-
-<div class="govuk-width-container rbds-width-container">
-    <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">What you can do with Redbox</h2>
-    <div class="govuk-grid-row">
-        <div class="govuk-grid-column-one-third">
-            <h3 class="govuk-heading-s govuk-!-margin-top-5">Upload</h3>
-            <p class="govuk-body-s">
-                Easily upload a wide range of document formats into your personal Redbox.
-                Ask Redbox for instant summaries of individual documents or combine multiple documents to discover connections across your content.
-            </p>
-        </div>
-        <div class="govuk-grid-column-one-third">
-
-            <h3 class="govuk-heading-s govuk-!-margin-top-5">Chat</h3>
-            <p class="govuk-body-s">
-                Chat with Redbox and ask questions about your documents to uncover insights using AI.
-                Redbox uses the latest available model which includes general knowledge up to November 2024.
-                When needed, Redbox can search gov.uk and Wikipedia to provide you with the most relevant information.
-                It cannot access websites outside of these.
-            </p>
-        </div>
-        <div class="govuk-grid-column-one-third">
-            <h3 class="govuk-heading-s govuk-!-margin-top-5">Secure</h3>
-            <p class="govuk-body-s">Redbox is built in our secure and private cloud which enables you to upload,
-                up to, and including, {{ security }} documents in your Redbox.
-                Documents are uploaded to your personal Redbox which only you can see.
-            </p>
-        </div>
-    </div>
-    <div class="govuk-grid-row">
-        <div class="govuk-grid-column-one-third">
-            <h3 class="govuk-heading-s govuk-!-margin-top-5">Summarise</h3>
-            <p class="govuk-body-s">
-                Use Redbox to summarise long reports, memos, policies and legislative material to extract key points and identify underlying themes.
-            </p>
-        </div>
-        <div class="govuk-grid-column-one-third">
-
-            <h3 class="govuk-heading-s govuk-!-margin-top-5">Analyse</h3>
-            <p class="govuk-body-s">Use Redbox to analyse documents and provide different perspective on them.</p>
-        </div>
-        <div class="govuk-grid-column-one-third">
-            <h3 class="govuk-heading-s govuk-!-margin-top-5">Search</h3>
-            <p class="govuk-body-s">Use Redbox to search across multiple documents and find specific information related to your query.</p>
-        </div>
-    </div>
-    <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">How your personal data is used in Redbox</h2>
-    <div class="govuk-grid-row rbds-flex-row govuk-!-margin-bottom-5">
-        <div class="govuk-grid-column-one-third rbds-flex-column">
-            <h3 class="govuk-heading-s govuk-!-margin-top-5">Personal data</h3>
-            <p class="govuk-body-s">
-                At Redbox, we process your personal information securely to deliver a seamless experience that will be personalised in future iterations.
-                This includes using your information to improve our services, communicate updates, and ensure secure access.
-            </p>
-            <a href="https://redbox.prod.uktrade.digital/privacy-notice/" class="govuk-link rbds-push-bottom">Personal data access policy</a>
-        </div>
-        <div class="govuk-grid-column-one-third rbds-flex-column">
-
-            <h3 class="govuk-heading-s govuk-!-margin-top-5">Data policy statement</h3>
-            <p class="govuk-body-s">
-                We respect your privacy. Your data is securely stored, never sold, and only used to improve your experience.
-                You can access, update, or delete your information at any time.
-            </p>
-            <a href="https://workspace.trade.gov.uk/working-at-dbt/policies-and-guidance/policies/data-protection-policy/"
-               class="govuk-link rbds-push-bottom">
-                Data protection
-            </a>
-        </div>
-        <div class="govuk-grid-column-one-third rbds-flex-column">
-            <h3 class="govuk-heading-s govuk-!-margin-top-5">Data processing</h3>
-            <p class="govuk-body-s">
-                We collect and process your data solely to provide and improve our services.
-                All data is handled securely, transparently, and in compliance with applicable privacy laws.
-                You're always in control and can manage your preferences anytime.
-            </p>
-            <a href="https://workspace.trade.gov.uk/working-at-dbt/policies-and-guidance/policies/data-processing-policy/"
-               class="govuk-link rbds-push-bottom">
-                Data processing
-            </a>
-        </div>
-    </div>
-</div>
-
     {% endblock %}

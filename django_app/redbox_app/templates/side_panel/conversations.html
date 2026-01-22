@@ -1,0 +1,25 @@
+{% from "macros/chat-history-macros.html" import chat_history_item %}
+{% from "rbds/components/show-more.html" import show_more %}
+{% from "macros/icon.html" import rbds_icon %}
+
+<section class="recent-chats rbds-card rbds-card--no-border rbds-card--block rbds-scrollable" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+    <div class="rbds-card__header">
+        {{ rbds_icon(icon_name="chat.svg") }}
+        <h3 class="side-panel-heading__text">Conversations</h3>
+    </div>
+
+    <div class="rbds-card__content">
+        <chat-history class="rbds-full-width">
+            <div id="recent-chats" class="recent-chats">
+                <ul class="chat-list rbds-card__list">
+                    {% for chat in chats %}
+                        {{ chat_history_item(chat, chat.url, chat_id) }}
+                    {% endfor %}
+                </ul>
+                <div class="rbds-card__item">
+                    {{ show_more('.chat-list', 'li', 5) }}
+                </div>
+            </div>
+        </chat-history>
+    </div>
+</section>

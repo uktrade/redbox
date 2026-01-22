@@ -1,0 +1,15 @@
+{% from "macros/icon.html" import rbds_icon %}
+{% from "macros/govuk-button.html" import govukButton %}
+
+<div class="rbds-chat-title__actions">
+    {{ govukButton(
+        text="Try " ~ promoted_tool.name,
+        href=promoted_tool.chat_url,
+        classes="govuk-button--secondary rbds-flex-align-center"
+        ) }}
+    {{ govukButton(
+        text=rbds_icon(icon_name='chat-add-on.svg') ~ "New conversation",
+        href=url('chats'),
+        classes="govuk-button--secondary rbds-icon-text-button"
+        ) }}
+</div>

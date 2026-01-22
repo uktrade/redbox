@@ -525,3 +525,7 @@ DEFAULT_MODEL_ID = env.str("DEFAULT_MODEL_ID", "anthropic.claude-3-sonnet-202402
 WEB_SEARCH_API_LIMIT = env.int("WEB_SEARCH_API_LIMIT", 100)
 
 ADMIN_EMAIL = env.str("ADMIN_EMAIL", "")
+
+FEEDBACK_LINK = env.str("FEEDBACK_LINK")
+
+PRODUCT_NAME = env.str("PRODUCT_NAME", "Redbox at DBT")

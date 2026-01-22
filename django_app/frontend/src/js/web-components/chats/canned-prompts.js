@@ -3,9 +3,9 @@
 class CannedPrompts extends HTMLElement {
   connectedCallback() {
     this.securityClassification = this.getAttribute("security-classification");
-    this.innerHTML = `
-      <h3 class="govuk-heading-m">How can Redbox help you today?</h3>
-  `
+  //   this.innerHTML = `
+  //     <h3 class="govuk-heading-s">Hello, <span class="rbds-text--product">Assist</span> can help you analyse your documents.</h3>
+  // `
 
     let buttons = this.querySelectorAll("button");
     buttons.forEach((button) => {
