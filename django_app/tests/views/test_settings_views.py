@@ -32,4 +32,4 @@ def test_anon_user_cannot_see_settings(client: Client):
 
     # Then
     assert response.status_code == HTTPStatus.FOUND
-    assert response.url.startswith(reverse("sign-in"))
+    assert response.url.startswith("/auth/login/")
