@@ -540,7 +540,7 @@ def build_agent_with_loop(
         log.warning(f"[{agent_name}] Completed agent_with_loop run.")
         all_results = " ".join(all_results)
         return {
-            "agents_results": f"<{agent_name}_Result>{all_results}</{agent_name}_Result>",
+            "agents_results": {task.id: f"<{agent_name}_Result>{all_results}</{agent_name}_Result>"},
             "tasks_evaluator": task.task + "\n" + task.expected_output,
         }
 
@@ -814,6 +814,7 @@ def get_tabular_agent(
                 if task_level.agent.value == "Tabular_Agent":
                     task = task_level.task
                     expected_output = task_level.expected_output
+                    break
         except Exception as e:
             log.error(f"Cannot parse in {agent_name}: {e}")
             task = state.request.question
@@ -893,7 +894,7 @@ def get_tabular_agent(
             formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the error from the executed SQL query: {result} </Tabular_Agent_Result>"
 
         return {
-            "agents_results": [formatted_result],
+            "agents_results": {task_level.id: AIMessage(content=formatted_result)},
             "tasks_evaluator": task + "\n" + expected_output,
         }
 

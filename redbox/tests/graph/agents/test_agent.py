@@ -5,7 +5,7 @@ from pytest_mock import MockerFixture
 from redbox.graph.agents.configs import AgentConfig, PromptConfig, PromptVariable
 from redbox.graph.agents.workers import WorkerAgent
 from redbox.graph.nodes.tools import build_search_wikipedia_tool
-from redbox.models.chain import RedboxState
+from redbox.models.chain import RedboxState, TaskStatus
 from redbox.test.data import GenericFakeChatModelWithTools
 
 WORKER_RESPONSE_WITH_TOOL = AIMessage(
@@ -52,10 +52,11 @@ class TestWorkerAgent:
     def test_post_processing(self, result, fake_state_with_plan):
         self.worker.task = fake_state_with_plan.agent_plans.tasks[0]
         response = self.worker.post_processing().invoke((fake_state_with_plan, result))
-        assert (
-            response["agents_results"]
-            == f"<{self.worker.config.name}_Result>A result</{self.worker.config.name}_Result>"
-        )
+        assert response["agents_results"] == {
+            self.worker.task.id: AIMessage(
+                content=f"<{self.worker.config.name}_Result>A result</{self.worker.config.name}_Result>"
+            )
+        }
         assert response["tasks_evaluator"] == self.worker.task.task + "\n" + self.worker.task.expected_output
 
     @pytest.mark.parametrize(
@@ -93,13 +94,10 @@ class TestWorkerAgent:
         )
         self.worker.task = fake_state_with_plan.agent_plans.tasks[0]
         response = self.worker.execute().invoke(fake_state_with_plan)
-        assert (
-            response["agents_results"]
-            == f"<{self.worker.config.name}_Result>Here is your fake response</{self.worker.config.name}_Result>"
-        )
+        assert response["agents_results"] == {
+            self.worker.task.id: AIMessage(
+                content=f"<{self.worker.config.name}_Result>Here is your fake response</{self.worker.config.name}_Result>"
+            )
+        }
         assert response["tasks_evaluator"] == self.worker.task.task + "\n" + self.worker.task.expected_output
-
-    def test_remove_task_dependencies(self, fake_state_with_plan):
-        self.worker.task = fake_state_with_plan.agent_plans.tasks[0]
-        self.worker.remove_task_dependencies().invoke({"state": fake_state_with_plan, "result": "empty"})
-        assert len(fake_state_with_plan.agent_plans.tasks[1].dependencies) == 0
+        assert response["agent_plans"].get_task_status(self.worker.task.id) == TaskStatus.COMPLETED

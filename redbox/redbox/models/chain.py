@@ -315,6 +315,7 @@ def metadata_reducer(
 
 class TaskStatus(str, Enum):
     PENDING = "pending"
+    SCHEDULED = "scheduled"
     COMPLETED = "completed"
     FAILED = "failed"
     RUNNING = "running"
@@ -350,6 +351,15 @@ def update_task_status(self, task_id: str, status: TaskStatus):
     return self
 
 
+def get_task_status(self, task_id: str):
+    """
+    Get Agent Task status, given task id
+    """
+    for task in self.tasks:
+        if task.id == task_id:
+            return task.status
+
+
 def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskBase, MultiAgentPlanBase]:
     try:
         AgentEnum = Enum("AgentEnum", agent_options)
@@ -379,8 +389,28 @@ def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskB
         ),
     )
     ConfiguredAgentPlan.update_task_status = update_task_status
+    ConfiguredAgentPlan.get_task_status = get_task_status
 
     return ConfiguredAgentTask, ConfiguredAgentPlan
+
+
+def add_messages_dict(left: Dict[str, AnyMessage], right: Dict[str, AnyMessage]) -> Dict[str, AnyMessage]:
+    """Reducer that merges dicts - right overwrites left."""
+    return {**left, **right}  # Right side wins on conflicts.
+
+
+def agent_plan_reducer(current: MultiAgentPlanBase | None, update: MultiAgentPlanBase | None):
+    if current is None:
+        return update
+    if update is None:
+        return current
+
+    # Update with the highest status
+    for i, (current_task, update_task) in enumerate(zip(current.tasks, update.tasks)):
+        if update_task.status > current_task.status:
+            current.tasks[i].status = update.tasks.status
+
+    return current
 
 
 class RedboxState(BaseModel):
@@ -393,8 +423,8 @@ class RedboxState(BaseModel):
     citations: list[Citation] | None = None
     steps_left: Annotated[int | None, RemainingStepsManager] = None
     messages: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
-    agents_results: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
-    agent_plans: MultiAgentPlanBase | None = None
+    agents_results: Annotated[Dict[str, AnyMessage], add_messages_dict] = Field(default_factory=dict)
+    agent_plans: Annotated[MultiAgentPlanBase | None, agent_plan_reducer] = None
     tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     tabular_schema: str = ""
 

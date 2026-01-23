@@ -1,5 +1,6 @@
 from json import JSONDecodeError
 
+from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda, RunnableParallel
 
 from redbox.chains.parser import ClaudeParser
@@ -21,21 +22,6 @@ class WorkerAgent(Agent):
     def __init__(self, config: AgentConfig):
         super().__init__(config)
         self.task = None
-
-    def remove_task_dependencies(self):
-        """
-        Remove dependencies (from agent plan) associated with the task.
-        """
-
-        @RunnableLambda
-        def _remove_task_dependencies(input):
-            state = input["state"]
-            for task in state["agent_plans"].tasks:
-                if self.task.id in task.dependencies:
-                    self.logger.warning(f"Removing {self.task.id} from dependencies")
-                    task.dependencies.remove(self.task.id)
-
-        return _remove_task_dependencies
 
     def reading_task_info(self):
         @RunnableLambda
@@ -96,7 +82,11 @@ class WorkerAgent(Agent):
                 raise TypeError("Invalid tool result type")
             self.logger.warning(f"[{self.config.name}] Completed agent run.")
             return {
-                "agents_results": f"<{self.config.name}_Result>{result_content}</{self.config.name}_Result>",
+                "agents_results": {
+                    self.task.id: AIMessage(
+                        content=f"<{self.config.name}_Result>{result_content}</{self.config.name}_Result>"
+                    )
+                },
                 "tasks_evaluator": self.task.task + "\n" + self.task.expected_output,
                 "agent_plans": state.agent_plans.update_task_status(self.task.id, TaskStatus.COMPLETED),
             }
@@ -106,13 +96,22 @@ class WorkerAgent(Agent):
     def core_task(self):
         @RunnableLambda
         def _core_task(state: RedboxState):
+            # dependencies' results
+            previous_agents_results = []
+            for dep in self.task.dependencies:
+                previous_agents_results += [state.agents_results[dep].content]
+            previous_agents_results = " ".join(previous_agents_results)
             worker_agent = create_chain_agent(
                 system_prompt=self.config.prompt.get_prompt,
                 use_metadata=self.config.prompt.prompt_vars.metadata,
                 using_chat_history=self.config.prompt.prompt_vars.chat_history,
                 parser=self.config.parser,
                 tools=self.config.tools,
-                _additional_variables={"task": self.task.task, "expected_output": self.task.expected_output},
+                _additional_variables={
+                    "task": self.task.task,
+                    "expected_output": self.task.expected_output,
+                    "previous_agents_results": previous_agents_results,
+                },
                 model=self.config.llm_backend,
                 use_knowledge_base=self.config.prompt.prompt_vars.knowledge_base_metadata,
             )
@@ -137,9 +136,5 @@ class WorkerAgent(Agent):
         return (
             self.reading_task_info()
             | RunnableParallel(state=self.log_agent_activity(), result=self.core_task() | self.post_processing())
-            | RunnableParallel(
-                result=RunnableLambda(lambda x: x["result"]),  # Pass through the result
-                cleanup=self.remove_task_dependencies(),  # Run cleanup in parallel
-            )
             | (lambda x: x["result"])  # Return only the result
         )

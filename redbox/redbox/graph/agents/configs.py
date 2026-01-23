@@ -28,6 +28,9 @@ class PromptVariable(BaseModel):
     previous_tool_error: bool = Field(description="Message from previous tool error", default=False)
     previous_tool_results: bool = Field(description="Results from previous tool call", default=False)
     knowledge_base_metadata: bool = Field(description="Knowledge base files metadata", default=False)
+    previous_agents_results: bool = Field(
+        description="Results from dependent agents required as input for this task", default=False
+    )
 
 
 class PromptConfig(BaseModel):
@@ -75,20 +78,20 @@ prompt_configs: Dict[str, PromptConfig] = {
         ),
     ),
     "Internal_Retrieval_Agent": PromptConfig(
-        system=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT + prompts.METADATA,
-        prompt_vars=PromptVariable(task=True, expected_output=True, metadata=True),
+        system=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT + prompts.METADATA + prompts.PREVIOUS_AGENT_RESULTS,
+        prompt_vars=PromptVariable(task=True, expected_output=True, metadata=True, previous_agents_results=True),
     ),
     "External_Retrieval_Agent": PromptConfig(
-        system=prompts.EXTERNAL_RETRIEVAL_AGENT_PROMPT,
-        prompt_vars=PromptVariable(task=True, expected_output=True),
+        system=prompts.EXTERNAL_RETRIEVAL_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
+        prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
     ),
     "Web_Search_Agent": PromptConfig(
-        system=prompts.WEB_SEARCH_AGENT_PROMPT,
-        prompt_var=PromptVariable(task=True, expected_output=True),
+        system=prompts.WEB_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
+        prompt_var=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
     ),
     "Legislation_Search_Agent": PromptConfig(
-        system=prompts.LEGISLATION_SEARCH_AGENT_PROMPT,
-        prompt_var=PromptVariable(task=True, expected_output=True),
+        system=prompts.LEGISLATION_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
+        prompt_var=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
     ),
     "Summarisation_Agent": PromptConfig(
         system=prompts.CHAT_WITH_DOCS_SYSTEM_PROMPT,
@@ -131,8 +134,11 @@ prompt_configs: Dict[str, PromptConfig] = {
         ),
     ),
     "Knowledge_Base_Retrieval_Agent": PromptConfig(
-        system=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT + prompts.KNOWLEDGE_BASE_METADTA,
+        system=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT
+        + prompts.KNOWLEDGE_BASE_METADTA
+        + prompts.PREVIOUS_AGENT_RESULTS,
         prompt_vars=PromptVariable(task=True, expected_output=True, knowledge_base_metadata=True),
+        previous_agents_results=True,
     ),
 }
 

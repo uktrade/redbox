@@ -185,15 +185,28 @@ def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, per_tool_timeo
         return None
 
 
+def no_dependencies(dependencies: list[str], plan) -> bool:
+    if dependencies:
+        deps = [dep for dep in dependencies if plan.get_task_status(dep) in [TaskStatus.PENDING, TaskStatus.SCHEDULED]]
+        return len(deps) == 0
+    else:
+        return True
+
+
 def sending_task_to_agent(state: RedboxState):
     plan = state.agent_plans
     if plan:
         # sending tasks that have no dependencies
-        task_send_states: list[RedboxState] = [
-            (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
-            for task in plan.tasks
-            if not task.dependencies and (task.status == TaskStatus.PENDING)
-        ]
+        task_send_states = []
+        for task in plan.tasks:
+            if no_dependencies(task.dependencies, plan) and (task.status == TaskStatus.PENDING):
+                # update status
+                task.status = TaskStatus.SCHEDULED
+                (state.agent_plans.update_task_status(task.id, TaskStatus.SCHEDULED),)
+                task_send_states += [
+                    (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
+                ]
+
         return [Send(node=target, arg=state) for target, state in task_send_states]
 
 
