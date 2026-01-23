@@ -189,7 +189,7 @@ def get_knowledge_base_metadata_retriever(env: Settings):
 def get_knowledge_base_tabular_metadata_retriever(env: Settings):
     return KnowledgeBaseTabularMetadataRetriever(
         es_client=env.elasticsearch_client(),
-        index_name=env.elastic_chunk_alias,
+        index_name=env.elastic_schematised_chunk_index,
     )
 
 
