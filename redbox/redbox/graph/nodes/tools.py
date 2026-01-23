@@ -401,7 +401,7 @@ def build_query_tabular_knowledge_base_tool(
             if db_path is None:
                 raise Exception("DB does not exist")
 
-            with duckdb.connect(database=db_path) as con:
+            with duckdb.connect(database=db_path, read_only=True) as con:
                 # Execute agent-provided SQL query
                 query_result = con.execute(sql_query).fetchall()
                 col_names = [desc[0] for desc in con.description]
