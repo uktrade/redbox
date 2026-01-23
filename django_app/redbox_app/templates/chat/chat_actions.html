@@ -11,7 +11,7 @@
     {% endif %}
     {{ govukButton(
         text=rbds_icon(icon_name='chat-add-on.svg') ~ "New conversation",
-        href=url('chats'),
+        href=urls.new_chat_url,
         classes="govuk-button--secondary rbds-icon-text-button"
         ) }}
 </div>
