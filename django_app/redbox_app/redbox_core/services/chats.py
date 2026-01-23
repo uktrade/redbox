@@ -22,6 +22,8 @@ User = get_user_model()
 
 
 def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | None = None) -> dict:
+    if not request.user.is_authenticated:
+        return {"request": request, "contact_email": settings.CONTACT_EMAIL}
     current_chat = _get_valid_chat(request.user, chat_id)
     chat_id = current_chat.id if current_chat else None
     tool = (
@@ -42,6 +44,8 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
         "new_chat_url": url_service.get_chat_url(chat_id=None, slug=slug),
         "upload_url": url_service.get_upload_url(slug=slug),
     }
+
+    sidepanel_collapsed = request.COOKIES.get("rbds-side-panel-collapsed", "false") == "true"
 
     return {
         "tool": tool,
@@ -65,6 +69,10 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
         "enable_dictation_flag_is_active": flag_is_active(request, flags.ENABLE_DICTATION),
         **file_context,
         "urls": urls,
+        "errors": {"upload_doc": []},
+        "request": request,
+        "promoted_tool": Tool.objects.filter(slug="submissions-checker").first() or None,
+        "sidepanel_collapsed": sidepanel_collapsed,
     }
 
 
@@ -137,7 +145,7 @@ def render_recent_chats(
 
     return TemplateResponse(
         request,
-        "side_panel/recent_chats_list.html",
+        "side_panel/conversations.html",
         context,
     )
 

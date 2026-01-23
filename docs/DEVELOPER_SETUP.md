@@ -291,17 +291,13 @@ For integration tests:
 make test-integration
 ```
 
-### Logging in to Redbox Locally
+### Logging in to Redbox Locally as a superuser
 
-We'll need to create a superuser to log in to the Django app, to do this run the following steps:
+We'll need to create a superuser to log in to the Django admin page, to do this run the following steps:
 
-1. Come up with an email to log in with. It doesn't need to be real.
-2. `docker compose run django-app venv/bin/django-admin createsuperuser`
-3. Use the email you came up with in step 1, and a password (the password isn't used as we use magic links).
-4. Now go to http://localhost:8080/sign-in/ enter the email you just created a super user for.
-5. Press "Continue"
-6. Now go to your terminal and run `make magic-link` or `docker compose logs django-app | grep 8080/magic_link`
-7. Click that link and you should be logged in.
+1. Log into Redbox at http://localhost:8080/sign-in
+2. Run `make superuser` in your terminal
+3. Use the email you log into DBT services with (if you're not sure navigate to http://localhost:8080/admin).
 
 ### Setting up the chat llm backend
 

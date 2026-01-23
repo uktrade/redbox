@@ -1,0 +1,24 @@
+{% from "macros/chat-history-macros.html" import chat_history_item %}
+{% from "rbds/components/show-more.html" import show_more %}
+
+<section class="recent-chats rbds-card rbds-card--no-border rbds-card--block rbds-scrollable">
+    <div class="rbds-card__header">
+        {{ rbds_icon(icon_name="menu.svg") }}
+        <h3 class="side-panel-heading__text">Menu</h3>
+    </div>
+
+    <div class="rbds-card__content">
+        <ul class="rbds-card__list">
+            {% for menu_item in get_menu_items(request.user) %}
+                <div class="rbds-list-row">
+                    <div class="rbds-card__item">
+                        <a class="govuk-link govuk-link--no-visited-state govuk-link--no-underline"
+                           href="{{ menu_item.href }}">
+                            {{ menu_item.text }}
+                        </a>
+                    </div>
+                </div>
+            {% endfor %}
+        </ul>
+    </div>
+</section>

@@ -12,34 +12,13 @@
 {% endif %}
 #}
 
-<div>
-  <form id="chats-form" class="govuk-width-container rbds-width-container govuk-grid-row js-message-input" action="/submit" method="post">
-    <div class="govuk-grid-column-one-quarter rbds-side-panel">
-      <div class="rb-left-column-container">
-        <a role="button"
-          href="{{ urls.new_chat_url }}"
-          id="new-chat-button"
-          class="govuk-heading-s side-panel-heading side-panel-heading-button govuk-!-margin-bottom-4 govuk-!-margin-top-4">
-          New chat
-        </a>
-        <div class="rbds-divider"></div>
-        <h2 class="govuk-heading-s side-panel-heading govuk-!-margin-top-4">Recent chats</h2>
-        {% include "side_panel/recent_chats_list.html" %}
-        <div class="govuk-form-group govuk-!-margin-top-5" {% if not flag_is_active(request, flags.ENABLE_MODEL_SELECTOR) %}hidden{% endif %}>
-          <div class="rbds-divider"></div>
-          <label class="govuk-heading-s side-panel-heading govuk-!-margin-top-4" for="llm-selector">Model</label>
-          <select id="llm-selector" name="llm" class="govuk-select rbds-min-width-0" {% if environment | lower == 'prod' %} disabled {% endif %}>
-            {% for option in llm_options %}
-              <option value="{{ option.id }}" {% if option.selected %}selected{% endif %}>{{ option.name }}{% if option.default %} (default){% endif %}</option>
-            {% endfor %}
-          </select>
-        </div>
-        {% include "side_panel/your_documents_list.html" %}
-      </div>
-    </div>
+<div class="rbds-page-content--xl">
+  <form id="chats-form" class="govuk-width-container rbds-width-container rbds-chat-layout js-message-input" action="/submit" method="post">
     {% include "chat/chat_window.html" %}
   </form>
   <exit-feedback class="exit-feedback" data-chatid="{{ current_chat.id }}" data-csrf="{{ csrf_token }}"></exit-feedback>
+
+  <div class="rbds-chat-interaction"></div>
 </div>
 
 {# Templates #}

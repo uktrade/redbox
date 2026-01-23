@@ -6,12 +6,17 @@ rbds-message-input {
         content: attr(data-text)
     }
 
+    position: relative;
+
     .rbds-message-input {
         font-size: 16px;
         font-size: 1rem;
         margin-bottom: 0;
         padding: 4px;
         font-family: var(--font-family-primary);
+
+        padding-right: 20px;//120px;
+        padding-bottom: 40px;
 
         &:focus {
             outline: 4px solid #fd0;
@@ -23,6 +28,14 @@ rbds-message-input {
         &.rbds-message-input__expanded {
             min-height: var(--input-min-height);
         }
+    }
+
+    .rbds-message-input__actions {
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+        display: flex;
+        gap: 10px;
     }
 
     @media (min-width:40.0625em) {
