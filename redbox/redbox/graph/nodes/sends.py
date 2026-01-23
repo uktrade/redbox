@@ -208,13 +208,3 @@ def sending_task_to_agent(state: RedboxState):
                 ]
 
         return [Send(node=target, arg=state) for target, state in task_send_states]
-
-
-def sending_specific_task_to_agent(task, state: RedboxState):
-    # sending tasks that have no dependencies
-    for task in state.agent_plans.tasks:
-        if task.status == TaskStatus.PENDING:
-            task_send_states: list[RedboxState] = [
-                (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
-            ]
-            return [Send(node=target, arg=state) for target, state in task_send_states]
