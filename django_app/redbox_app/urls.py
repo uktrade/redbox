@@ -3,7 +3,6 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
-from magic_link import urls as magic_link_urls
 
 from .redbox_core import views
 
@@ -11,7 +10,6 @@ admin.site = AdminSitePlus()
 admin.autodiscover()
 
 auth_urlpatterns = [
-    path("magic_link/", include(magic_link_urls)),
     path("sign-in/", views.sign_in_view, name="sign-in"),
     path(
         "sign-in-link-sent/",
@@ -26,10 +24,8 @@ auth_urlpatterns = [
     path("sign-up-page-5", views.Signup5.as_view(), name="sign-up-page-5"),
     path("sign-up-page-6", views.Signup6.as_view(), name="sign-up-page-6"),
     path("sign-up-page-7", views.Signup7.as_view(), name="sign-up-page-7"),
+    path("auth/", include("authbroker_client.urls")),
 ]
-
-if settings.LOGIN_METHOD == "sso":
-    auth_urlpatterns.append(path("auth/", include("authbroker_client.urls")))
 
 info_urlpatterns = [
     path("privacy-notice/", views.info_views.privacy_notice_view, name="privacy-notice"),
