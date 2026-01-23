@@ -949,7 +949,9 @@ def check_if_tasks_completed(state: RedboxState) -> bool:
     """
     # if there is no pending task, go to evaluator
     pending_running_tasks = [
-        task for task in state.agent_plans.tasks if task.status in [TaskStatus.PENDING, TaskStatus.RUNNING]
+        task
+        for task in state.agent_plans.tasks
+        if task.status in [TaskStatus.PENDING, TaskStatus.RUNNING, TaskStatus.SCHEDULED]
     ]
     if pending_running_tasks:
         return False

@@ -744,7 +744,7 @@ class TestBuildAgentLoop:
         ([0], [TaskStatus.COMPLETED], False),
         ([0], [TaskStatus.FAILED], False),
         ([0, 2], [TaskStatus.COMPLETED, TaskStatus.RUNNING], False),
-        ([0, 1], [TaskStatus.COMPLETED, TaskStatus.SCHEDULED], False),
+        ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.SCHEDULED, TaskStatus.SCHEDULED], False),
         ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.RUNNING, TaskStatus.RUNNING], False),
         ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.COMPLETED, TaskStatus.FAILED], True),
         ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.COMPLETED, TaskStatus.COMPLETED], True),
