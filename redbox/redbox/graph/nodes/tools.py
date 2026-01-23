@@ -326,9 +326,7 @@ def build_query_tabular_knowledge_base_tool(
         result_text = ""
         documents: list[Document] = []
         uri_sha = hashlib.sha256(uri.encode("utf-8")).hexdigest()
-        db_path = (
-            f"generated_db_{uri_sha}.duckdb"  # os.path.join(tempfile.gettempdir(), f"{uri.replace('/', '__')}.duckdb")
-        )
+        db_path = f"generated_db_{uri_sha}.duckdb"
 
         if not validate_duckdb_path(db_path=db_path):
             return f"Unable to setup DB for querying no write access to path {db_path}", []
@@ -344,22 +342,6 @@ def build_query_tabular_knowledge_base_tool(
             try:
                 # Parse schema to get column names and types
                 schema_obj = TabularSchema.model_validate(schema)
-
-                # # Load into DuckDB in-memory table
-                # con = duckdb.connect(database=":memory:")
-                # con.execute(f"CREATE TABLE {schema_obj.name} ({columns})")
-                # for row in rows:
-                #     col_names = ", ".join(row.keys())
-                #     values = ", ".join(f"'{str(v).replace("'", "''")}'" for v in row.values())
-
-                #     con.execute(f'INSERT INTO "{schema_obj.name}" ({col_names}) VALUES ({values})')
-
-                # Determine DB path (can be per URI or a shared file)
-                # db_path = f"/tmp/{uri.replace('/', '__')}.duckdb"  # Example: per table file
-                use_persistent = True  # Toggle for persistent vs in-memory
-
-                if not use_persistent:
-                    db_path = ":memory:"
 
                 with duckdb.connect(database=db_path) as con:
                     # Check if table exists already
