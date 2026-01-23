@@ -34,7 +34,6 @@ ALLOW_SIGN_UPS = env.bool("ALLOW_SIGN_UPS")
 SECRET_KEY = env.str("DJANGO_SECRET_KEY")
 ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
 WEBSOCKET_SCHEME = "ws" if ENVIRONMENT.is_test else "wss"
-LOGIN_METHOD = env.str("LOGIN_METHOD", None)
 
 # env variables used by redbox_core
 COLLECTION_ENDPOINT = env.str("COLLECTION_ENDPOINT")
@@ -71,6 +70,7 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Application definition
 INSTALLED_APPS = [
+    "authbroker_client",
     "daphne",
     "redbox_app.redbox_core",
     "django.contrib.admin.apps.SimpleAdminConfig",
@@ -90,9 +90,6 @@ INSTALLED_APPS = [
     "adminplus",
     "waffle",
 ]
-
-if LOGIN_METHOD == "sso":
-    INSTALLED_APPS.append("authbroker_client")
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -147,12 +144,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "redbox_app.wsgi.application"
 ASGI_APPLICATION = "redbox_app.asgi.application"
 
-AUTHENTICATION_BACKENDS = [
-    "django.contrib.auth.backends.ModelBackend",
-]
-
-if LOGIN_METHOD == "sso":
-    AUTHENTICATION_BACKENDS.append("authbroker_client.backends.AuthbrokerBackend")
+AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend", "authbroker_client.backends.AuthbrokerBackend"]
 
 AUTH_PASSWORD_VALIDATORS = [
     {
