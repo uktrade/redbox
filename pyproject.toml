@@ -22,6 +22,10 @@ django-log-formatter-asim = "^1.2.0"
 django-requestlogs = "^0.8"
 openpyxl = "^3.1.5"
 coverage = "^7.13.1"
+orjson = "3.11.5"
+werkzeug = "3.1.5"
+langgraph-checkpoint = "3.0.0"
+langgraph = "1.0.6"
 
 [tool.poetry.group.dev.dependencies]
 bumpversion = "^0.6.0"
