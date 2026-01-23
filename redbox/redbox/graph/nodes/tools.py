@@ -10,6 +10,7 @@ from io import StringIO
 import csv
 import re
 import os
+import threading
 
 import boto3
 import numpy as np
@@ -249,6 +250,9 @@ def build_search_documents_tool(
     return _search_documents if repository == "user_uploaded" else _search_knowledge_base
 
 
+DUCKDB_LOCK = threading.Lock()
+
+
 def build_query_tabular_knowledge_base_tool(
     es_client: Union[Elasticsearch, OpenSearch],
     index_name: str,
@@ -323,13 +327,11 @@ def build_query_tabular_knowledge_base_tool(
             knowledge_base_s3_keys=state.request.knowledge_base_s3_keys, uris=[uri], run_manager=None
         )
 
-        result_text = ""
+        # result_text = ""
         documents: list[Document] = []
+        formatted_documents: str = ""
         uri_sha = hashlib.sha256(uri.encode("utf-8")).hexdigest()
         db_path = f"generated_db_{uri_sha}.duckdb"
-
-        if not validate_duckdb_path(db_path=db_path):
-            return f"Unable to setup DB for querying no write access to path {db_path}", []
 
         for meta in docs_metadata:
             metadata = meta.get("metadata", {})
@@ -340,44 +342,54 @@ def build_query_tabular_knowledge_base_tool(
                 return "Document not supported for querying as it uses legacy schema.", []
 
             try:
-                # Parse schema to get column names and types
                 schema_obj = TabularSchema.model_validate(schema)
-
-                with duckdb.connect(database=db_path) as con:
-                    # Check if table exists already
-                    tables = con.execute("SHOW TABLES").fetchall()
-                    if (schema_obj.name,) not in tables:
-                        if not text_content.strip():
-                            continue
-
-                        # Remove the <table_name> prefix from the first line
-                        lines = StringIO(text_content).readlines()
-                        header = re.sub(
-                            r"^\s*<table_name>.*?</table_name>\s*",
-                            "",
-                            lines[0],
-                            count=1,
-                            flags=re.DOTALL,
-                        )
-                        csv_str = "\n".join([header] + lines[1:])
-
-                        # Parse CSV safely
-                        reader = csv.DictReader(StringIO(csv_str))
-                        rows = list(reader)
-
-                        # Create table
-                        columns_def = ", ".join(f'"{col}" {dtype}' for col, dtype in schema_obj.columns.items())
-                        con.execute(f"CREATE TABLE {schema_obj.name} ({columns_def})")
-                        for row in rows:
-                            col_names = ", ".join([f'"{key}"' for key in row.keys()])
-                            values = ", ".join(f"'{str(v).replace("'", "''")}'" for v in row.values())
-                            con.execute(f'INSERT INTO "{schema_obj.name}" ({col_names}) VALUES ({values})')
-
             except Exception as e:
                 import logging
 
-                logging.warning("Failed to setup DB %s: %s", uri, str(e))
-                continue
+                logging.warning("Invalid schema for document %s: %s", uri, str(e))
+                continue  # skip this document
+
+            if not os.path.exists(db_path):
+                if not validate_duckdb_path(db_path=db_path):
+                    return f"Unable to setup DB for querying no write access to path {db_path}", []
+
+                with DUCKDB_LOCK:
+                    try:
+                        with duckdb.connect(database=db_path) as con:
+                            # Check if table exists already
+                            tables = con.execute("SHOW TABLES").fetchall()
+                            if (schema_obj.name,) not in tables:
+                                if not text_content.strip():
+                                    continue
+
+                                # Remove the <table_name> prefix from the first line
+                                lines = StringIO(text_content).readlines()
+                                header = re.sub(
+                                    r"^\s*<table_name>.*?</table_name>\s*",
+                                    "",
+                                    lines[0],
+                                    count=1,
+                                    flags=re.DOTALL,
+                                )
+                                csv_str = "\n".join([header] + lines[1:])
+
+                                # Parse CSV safely
+                                reader = csv.DictReader(StringIO(csv_str))
+                                rows = list(reader)
+
+                                # Create table
+                                columns_def = ", ".join(f'"{col}" {dtype}' for col, dtype in schema_obj.columns.items())
+                                con.execute(f"CREATE TABLE {schema_obj.name} ({columns_def})")
+                                for row in rows:
+                                    col_names = ", ".join([f'"{key}"' for key in row.keys()])
+                                    values = ", ".join(f"'{str(v).replace("'", "''")}'" for v in row.values())
+                                    con.execute(f'INSERT INTO "{schema_obj.name}" ({col_names}) VALUES ({values})')
+
+                    except Exception as e:
+                        import logging
+
+                        logging.warning("Failed to setup DB %s: %s", uri, str(e))
+                        continue
 
         try:
             if db_path is None:
@@ -389,8 +401,8 @@ def build_query_tabular_knowledge_base_tool(
                 col_names = [desc[0] for desc in con.description]
 
                 # Format results
-                table_text = "\n".join([str(dict(zip(col_names, row))) for row in query_result])
-                result_text = f"\nResults from {uri}:\n{table_text}\n"
+                # table_text = "\n".join([str(dict(zip(col_names, row))) for row in query_result])
+                # result_text = f"\nResults from {uri}:\n{table_text}\n"
 
                 # Wrap as Documents
                 for row in query_result:
@@ -398,15 +410,18 @@ def build_query_tabular_knowledge_base_tool(
                     documents.append(
                         Document(
                             page_content=str(row_dict),
-                            metadata={"uri": uri, "table_name": schema_obj.name},
+                            metadata={"uri": uri, "page_number": schema_obj.name},
                         )
                     )
+
+                formatted_documents = format_documents(documents=documents)
+
         except Exception as e:
             import logging
 
             logging.warning("Failed to query %s: %s", uri, str(e))
 
-        return result_text.strip(), documents
+        return formatted_documents, documents
 
     return _query_tabular_knowledge_base
 
