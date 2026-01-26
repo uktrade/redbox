@@ -1,0 +1,68 @@
+{% from "macros/govuk-button.html" import govukButton %}
+{% from "macros/icon.html" import rbds_icon %}
+
+<div class="rbds-chat-interaction">
+    <div class="rbds-chat-interaction__inner">
+        <form id="chats-form" class="js-message-input" action="/submit" method="post">
+            <rbds-message-input>
+                <div class="govuk-textarea rbds-message-input rbds-border {% if not messages %}rbds-message-input__expanded {% endif %}rbds-drop-zone"
+                    id="message" name="message" contenteditable="true" role="textbox" aria-multiline="true"
+                    data-text="Type your message here..."></div>
+                <div class="rbds-message-input__actions">
+                    <!-- Upload Button -->
+                    <file-upload upload-url="{{ urls.upload_url }}">
+                        <input class="govuk-file-upload govuk-!-display-none" multiple id="upload-docs" name="uploadDocs"
+                            type="file" aria-describedby="upload-docs-notification upload-docs-filetypes">
+                        {{ govukButton(
+                        text=rbds_icon(icon_name="attach-file.svg", icon_classes=""),
+                        classes="upload-button govuk-button--secondary rbds-icon-button",
+                        id="upload-button"
+                        ) }}
+                    </file-upload>
+
+                    <!-- Dictate and Send Buttons -->
+                    {% if enable_dictation_flag_is_active %}
+                    <send-message-with-dictation class="chat-actions-container" data-api-key="{{ redbox_api_key }}">
+                        <button type="submit" class="govuk-button govuk-button--secondary rbds-icon-button dictate-button"
+                            data-module="govuk-button">
+                            {{ rbds_icon(icon_name="mic.svg", icon_classes="") }}
+                        </button>
+
+                        {{ govukButton(
+                        text=rbds_icon(icon_name="mic.svg", icon_classes=""),
+                        classes="govuk-button--secondary rbds-icon-button rbds-icon-button--active govuk-!-display-none",
+                        dont_submit=True
+                        ) }}
+
+                        {{ govukButton(
+                        text=rbds_icon(icon_name="send.svg", icon_classes="success"),
+                        classes="send-button rbds-icon-button"
+                        ) }}
+
+                        {{ govukButton(
+                        text=rbds_icon(icon_name="send.svg", icon_classes="success"),
+                        classes="rbds-icon-button rbds-icon-button--active govuk-!-display-none"
+                        ) }}
+                    </send-message-with-dictation>
+                    {% else %}
+                    <send-message>
+                        {{ govukButton(
+                        text=rbds_icon(icon_name="send.svg", icon_classes="success"),
+                        classes="send-button rbds-icon-button"
+                        ) }}
+                        <span class="govuk-visually-hidden">Send Message</span>
+
+                        {{ govukButton(
+                        text=rbds_icon(icon_name="send.svg", icon_classes="success"),
+                        classes="rbds-icon-button rbds-icon-button--active govuk-!-display-none"
+                        ) }}
+                    </send-message>
+                    {% endif %}
+                </div>
+            </rbds-message-input>
+
+            {% if chat_id %}<input type="hidden" name="session-id" value="{{ chat_id }}" />{% endif %}
+            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" />
+        </form>
+    </div>
+</div>

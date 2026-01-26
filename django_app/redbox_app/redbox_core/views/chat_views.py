@@ -90,7 +90,8 @@ class DeleteChat(View):
             return render_with_oob(
                 [
                     {"template": "side_panel/conversations.html", "context": context, "request": request},
-                    {"template": "side_panel/your_documents_list.html", "context": oob_context, "request": request},
+                    {"template": "side_panel/your_documents.html", "context": oob_context, "request": request},
+                    {"template": "chat/cta.html", "context": oob_context, "request": request},
                     {"template": "chat/chat_window.html", "context": oob_context, "request": request},
                 ]
             )
@@ -111,3 +112,11 @@ class ChatWindow(View):
         self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, slug: str | None = None
     ) -> HttpResponse:
         return chat_service.render_chat_window(request, active_chat_id, slug)
+
+
+class ChatCta(View):
+    @method_decorator(login_required)
+    def get(
+        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, slug: str | None = None
+    ) -> HttpResponse:
+        return chat_service.render_cta(request, active_chat_id, slug)

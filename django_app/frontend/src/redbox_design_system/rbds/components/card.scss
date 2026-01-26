@@ -7,11 +7,12 @@
   &--no-border {
     border: none;
   }
+  border-radius: var(--border-radius);
 }
 
 /* Card variants */
 .rbds-card--block {
-  max-height: 204px;
+  max-height: 230px;
 }
 
 // .rbds-card--conversations {

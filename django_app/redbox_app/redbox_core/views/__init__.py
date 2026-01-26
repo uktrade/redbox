@@ -32,6 +32,7 @@ from redbox_app.redbox_core.views.file_views import (
 )
 from redbox_app.redbox_core.views.info_views import accessibility_statement_view, privacy_notice_view, support_view
 from redbox_app.redbox_core.views.misc_views import (
+    RefreshFragmentsView,
     SecurityTxtRedirectView,
     faq_view,
     health,
@@ -64,6 +65,7 @@ __all__ = [
     "DocumentsTitleView",
     "RatingsView",
     "RecentChats",
+    "RefreshFragmentsView",
     "SecurityTxtRedirectView",
     "SettingsView",
     "Signup1",
