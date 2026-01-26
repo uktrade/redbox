@@ -130,14 +130,17 @@ def wrap_async_tool(tool, tool_name):
                         await session.initialize()
                         # Get tools
                         tools = await load_mcp_tools(session)
-                        for tool in tools:
-                            if tool.name == tool_name:
-                                log.warning(f"tool found with name '{tool_name}'")
-                                log.warning(f"args '{args}'")
-                                result = await tool.ainvoke(args)
-                                log.warning('result')
-                                log.warning(result)
-                                return result
+
+                        selected_tool = next((t for t in tools if t.name == tool_name), None)
+                        if not selected_tool:
+                            raise ValueError(f"tool with name '{tool_name}' not found")
+
+                        log.warning(f"tool found with name '{tool_name}'")
+                        log.warning(f"args '{args}'")
+                        result = await tool.ainvoke(args)
+                        log.warning('result')
+                        log.warning(result)
+                        return result
 
             # Run the async function and return its result
             return loop.run_until_complete(run_tool())
