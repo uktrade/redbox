@@ -4,9 +4,7 @@ from redbox_app.redbox_core.views.auth_views import sign_in_link_sent_view, sign
 from redbox_app.redbox_core.views.chat_views import (
     ChatsTitleView,
     ChatsView,
-    ChatWindow,
     DeleteChat,
-    RecentChats,
     UpdateChatFeedback,
 )
 from redbox_app.redbox_core.views.citation_views import CitationsView
@@ -54,7 +52,6 @@ from redbox_app.redbox_core.views.team_views import (
 from redbox_app.redbox_core.views.tools_views import ToolsView, tool_info_page_view
 
 __all__ = [
-    "ChatWindow",
     "ChatsTitleView",
     "ChatsView",
     "CheckDemographicsView",
@@ -64,7 +61,6 @@ __all__ = [
     "DocumentView",
     "DocumentsTitleView",
     "RatingsView",
-    "RecentChats",
     "RefreshFragmentsView",
     "SecurityTxtRedirectView",
     "SettingsView",

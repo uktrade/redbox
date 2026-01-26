@@ -2,7 +2,7 @@
 {% from "rbds/components/editable-text.html" import editable_text %}
 {% from "rbds/components/modal.html" import modal %}
 {% from "macros/icon.html" import rbds_icon %}
-<section id="your-documents" class ="documents rbds-card rbds-card--no-border rbds-card--block rbds-scrollable" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+<section id="your-documents" class ="rbds-card rbds-card--no-border rbds-card--block rbds-scrollable" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
     <div class="rbds-card__header">
         {{ rbds_icon(icon_name="file-present.svg") }}
         <h3 class="side-panel-heading__text">Documents</h3>

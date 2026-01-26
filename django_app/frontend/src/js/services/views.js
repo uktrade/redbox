@@ -25,7 +25,7 @@ export async function loadIcon(ext) {
  * @param {string | undefined} slug - Tool slug
 */
 export function refreshUI(fragments, chatId = getActiveChatId(), slug = getActiveToolSlug()) {
-    const params = new URLSearchParams()
+    const params = new URLSearchParams();
     if (chatId) params.set("chat", chatId);
     if (slug) params.set("tool", slug);
 

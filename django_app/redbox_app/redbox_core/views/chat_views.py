@@ -96,27 +96,3 @@ class DeleteChat(View):
                 ]
             )
         return chat_service.render_recent_chats(request, active_chat_id)
-
-
-class RecentChats(View):
-    @method_decorator(login_required)
-    def get(
-        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, slug: str | None = None
-    ) -> HttpResponse:
-        return chat_service.render_recent_chats(request, active_chat_id, slug)
-
-
-class ChatWindow(View):
-    @method_decorator(login_required)
-    def get(
-        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, slug: str | None = None
-    ) -> HttpResponse:
-        return chat_service.render_chat_window(request, active_chat_id, slug)
-
-
-class ChatCta(View):
-    @method_decorator(login_required)
-    def get(
-        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, slug: str | None = None
-    ) -> HttpResponse:
-        return chat_service.render_cta(request, active_chat_id, slug)

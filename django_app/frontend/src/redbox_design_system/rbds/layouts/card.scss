@@ -6,10 +6,6 @@
     margin-right: 0;
 }
 
-.rbds-card-grid--2-col > .rbds-card {
-    flex: 0 0 calc(50% - var(--card-gap));
-}
-
 .rbds-card-grid--3-col > .rbds-card {
     flex: 0 0 calc(33.333% - var(--card-gap));
 }
