@@ -44,6 +44,10 @@ from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
 log = logging.getLogger(__name__)
 
 
+def get_func_logger(func):
+    return logging.getLogger(f"{__name__}.{func.__qualname__}")
+
+
 def format_result(loop, content, artifact, status, is_intermediate_step):
     if loop:
         return ((content, status, str(is_intermediate_step)), artifact)
@@ -262,7 +266,7 @@ def build_query_tabular_knowledge_base_tool(
     retrieved from OpenSearch. The retriever is embedded inside the tool.
     """
 
-    # Instantiate the retriever
+    logger = get_func_logger(build_query_tabular_knowledge_base_tool)
     retriever = SchematisedTabularChunkRetriever(
         es_client=es_client,
         index_name=index_name,
@@ -323,7 +327,7 @@ def build_query_tabular_knowledge_base_tool(
                 try:
                     schema_obj = TabularSchema.model_validate(schema)
                 except Exception as e:
-                    logging.warning("Invalid schema for document %s: %s", uri, str(e))
+                    logger.warning("Invalid schema for document %s: %s", uri, str(e))
                     continue  # skip this document
 
                 if not text_content.strip():
@@ -368,7 +372,7 @@ def build_query_tabular_knowledge_base_tool(
                                         else:  # default to string
                                             df[col] = df[col].astype(str)
                                     except Exception as col_e:
-                                        logging.warning("Failed to cast column %s: %s", col, str(col_e))
+                                        logger.warning("Failed to cast column %s: %s", col, str(col_e))
                                         df[col] = df[col].astype(str)
 
                                 # Create table and insert data
@@ -378,7 +382,7 @@ def build_query_tabular_knowledge_base_tool(
                                     con.execute(f'INSERT INTO "{schema_obj.name}" SELECT * FROM df')
 
                 except Exception as db_e:
-                    logging.warning("Failed to setup DB %s: %s", uri, str(db_e))
+                    logger.warning("Failed to setup DB %s: %s", uri, str(db_e))
                     return f"Error preparing tabular document database: {db_e}", []
 
             try:
@@ -401,13 +405,13 @@ def build_query_tabular_knowledge_base_tool(
                         formatted_documents = format_documents(documents=documents)
 
             except Exception as query_e:
-                logging.warning("Failed to query %s: %s", uri, str(query_e))
+                logger.warning("Failed to query %s: %s", uri, str(query_e))
                 return f"SQL query failed: {query_e}", []
 
             return formatted_documents, documents
 
         except Exception as e:
-            logging.exception("Unexpected error in _query_tabular_knowledge_base")
+            logger.exception("Unexpected error in _query_tabular_knowledge_base")
             return f"Unexpected error: {e}", []
 
     return _query_tabular_knowledge_base
