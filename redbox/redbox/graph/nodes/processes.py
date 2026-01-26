@@ -820,6 +820,7 @@ def get_tabular_agent(
             task = state.request.question
 
         # Log activity
+        state.agent_plans.update_task_status(task_level.id, TaskStatus.RUNNING)
         activity_node = build_activity_log_node(RedboxActivityEvent(message=f"{agent_name} is completing task: {task}"))
         activity_node.invoke(state)
 
@@ -889,6 +890,7 @@ def get_tabular_agent(
                 formatted_result = f"<Tabular_Agent_Result>{tabular_context}\n The results of my query are: {result}</Tabular_Agent_Result>"
             else:
                 formatted_result = f"<Tabular_Agent_Result>Iteration limit of {num_iter} is reached by the tabular agent. This is the tabular agent's reasoning at the last iteration: {tabular_context}</Tabular_Agent_Result>"
+            state.agent_plans
 
         else:
             formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the error from the executed SQL query: {result} </Tabular_Agent_Result>"
@@ -896,6 +898,7 @@ def get_tabular_agent(
         return {
             "agents_results": {task_level.id: AIMessage(content=formatted_result)},
             "tasks_evaluator": task + "\n" + expected_output,
+            "agent_plans": state.agent_plans.update_task_status(task_level.id, TaskStatus.COMPLETED),
         }
 
     return _build_tabular_agent

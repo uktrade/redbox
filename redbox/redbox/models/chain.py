@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from enum import Enum, StrEnum
+from enum import Enum, IntEnum, StrEnum
 from functools import reduce
 from types import UnionType
 from typing import Annotated, Dict, List, Literal, NotRequired, Required, Tuple, TypedDict, get_args, get_origin
@@ -313,12 +313,12 @@ def metadata_reducer(
     )
 
 
-class TaskStatus(str, Enum):
-    PENDING = "pending"
-    SCHEDULED = "scheduled"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    RUNNING = "running"
+class TaskStatus(IntEnum):
+    PENDING = 1
+    SCHEDULED = 2
+    RUNNING = 3
+    COMPLETED = 4
+    FAILED = 5
 
 
 # Base class definition for agent task
@@ -407,8 +407,8 @@ def agent_plan_reducer(current: MultiAgentPlanBase | None, update: MultiAgentPla
 
     # Update with the highest status
     for i, (current_task, update_task) in enumerate(zip(current.tasks, update.tasks)):
-        if update_task.status > current_task.status:
-            current.tasks[i].status = update.tasks.status
+        if (update_task.status > current_task.status) and (update_task.id == current_task.id):
+            current.tasks[i].status = update_task.status
 
     return current
 
