@@ -54,38 +54,6 @@ def create_alias(alias: str):
     es.indices.put_alias(index=chunk_index_name, name=alias)
 
 
-# def create_new_index(
-#     index_name: str,
-#     alias_name: Optional[str] = None,
-#     ignore_if_exists: bool = True
-# ) -> None:
-
-#     env = get_settings()
-#     es = env.elasticsearch_client()
-
-#     ignore = 400 if ignore_if_exists else None
-
-#     try:
-#         es.indices.create(
-#             index=index_name,
-#             body=env.index_mapping,
-#             ignore=ignore
-#         )
-#     except Exception as e:
-#         return
-
-#     if alias_name:
-#         try:
-#             if es.indices.exists_alias(name=alias_name):
-#                 current_indices = es.indices.get_alias(name=alias_name)
-#                 for old_index in current_indices:
-#                     es.indices.delete_alias(index=old_index, name=alias_name)
-
-#             es.indices.put_alias(index=index_name, name=alias_name)
-#         except Exception as e:
-#             return
-
-
 def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_extraction=env.enable_metadata_extraction):
     logging.info("Ingesting file: %s", file_name)
     start_time = time.time()
