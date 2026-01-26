@@ -38,7 +38,7 @@ from redbox.retriever.queries import (
     get_all,
     get_knowledge_base,
 )
-from redbox.retriever.retrievers import query_to_documents, KnowledgeBaseTabularTextRetriever
+from redbox.retriever.retrievers import query_to_documents, SchematisedTabularChunkRetriever
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
 
 log = logging.getLogger(__name__)
@@ -263,7 +263,7 @@ def build_query_tabular_knowledge_base_tool(
     """
 
     # Instantiate the retriever
-    retriever = KnowledgeBaseTabularTextRetriever(
+    retriever = SchematisedTabularChunkRetriever(
         es_client=es_client,
         index_name=index_name,
     )

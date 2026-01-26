@@ -22,7 +22,7 @@ from redbox.retriever.queries import (
     get_all,
     get_knowledge_base_metadata,
     get_knowledge_base_tabular_metadata,
-    get_knowledge_base_tabular_text,
+    get_schematised_tabular_chunks,
     get_metadata,
     get_minimum_metadata,
 )
@@ -395,7 +395,7 @@ class KnowledgeBaseTabularMetadataRetriever(OpenSearchRetriever):
         return [hit["_source"] for hit in hits]
 
 
-class KnowledgeBaseTabularTextRetriever(OpenSearchRetriever):
+class SchematisedTabularChunkRetriever(OpenSearchRetriever):
     """A modified MetadataRetriever that retrieves text"""
 
     chunk_resolution: ChunkResolution = ChunkResolution.tabular
@@ -403,10 +403,10 @@ class KnowledgeBaseTabularTextRetriever(OpenSearchRetriever):
     def __init__(self, es_client: Union[Elasticsearch, OpenSearch], **kwargs: Any) -> None:
         # Hack to pass validation before overwrite
         # Partly necessary due to how .with_config() interacts with a retriever
-        kwargs["body_func"] = get_knowledge_base_tabular_text
+        kwargs["body_func"] = get_schematised_tabular_chunks
         kwargs["es_client"] = es_client
         super().__init__(**kwargs)
-        self.body_func = partial(get_knowledge_base_tabular_text, self.chunk_resolution)
+        self.body_func = partial(get_schematised_tabular_chunks, self.chunk_resolution)
 
     def _get_relevant_documents(
         self,

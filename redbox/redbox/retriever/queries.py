@@ -170,13 +170,13 @@ def get_knowledge_base_tabular_metadata(
     }
 
 
-def get_knowledge_base_tabular_text(
+def get_schematised_tabular_chunks(
     chunk_resolution: ChunkResolution | None,
     knowledge_base_s3_keys: list[str],
     uris: list[str] | None = None,
 ) -> dict[str, Any]:
     """
-    Retrieve knowledge base tabular metadata including the `.text` content.
+    Retrieve tabular metadata including the `.text` content.
 
     Args:
         chunk_resolution: Optional chunk resolution for filtering.
