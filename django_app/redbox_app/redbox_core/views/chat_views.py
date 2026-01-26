@@ -89,7 +89,7 @@ class DeleteChat(View):
 
             return render_with_oob(
                 [
-                    {"template": "side_panel/recent_chats_list.html", "context": context, "request": request},
+                    {"template": "side_panel/conversations.html", "context": context, "request": request},
                     {"template": "side_panel/your_documents_list.html", "context": oob_context, "request": request},
                     {"template": "chat/chat_window.html", "context": oob_context, "request": request},
                 ]

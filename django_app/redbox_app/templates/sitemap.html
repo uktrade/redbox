@@ -3,9 +3,9 @@
 
 {% block content %}
 
-<div class="govuk-width-container rbds-width-container">
+<div class="govuk-width-container rbds-width-container rbds-page-content--xl govuk-!-margin-top-3">
     <div class="govuk-grid-row">
-        <div class="govuk-grid-column-two-thirds">
+        <div class="govuk-grid-column-full">
 
             <h1 class="govuk-heading-l">Sitemap</h1>
 
@@ -37,8 +37,8 @@
             {% if request.user.is_authenticated %}
                 <ul class="govuk-list">
                     <li><a class="govuk-link" href="{{ url('chats') }}">New chat</a></li>
-                    {% for chat in chat_history %}
-                        <li><a class="govuk-link" href="{{ chat.url) }}">Existing chat: {{ chat.name }}</a></li>
+                    {% for chat in chats %}
+                        <li><a class="govuk-link" href="{{ chat.url }}">Existing chat: {{ chat.name }}</a></li>
                     {% endfor %}
                 </ul>
             {% else %}

@@ -91,10 +91,10 @@ def test_render_recent_chats(
 
     # Then
     assert response.status_code == HTTPStatus.OK
-    assert "chat-list-item selected" not in response.content.decode()
+    assert "rbds-list-row--selected" not in response.content.decode()
 
     assert chat_response.status_code == HTTPStatus.OK
-    assert "chat-list-item selected" in chat_response.content.decode()
+    assert "rbds-list-row--selected" in chat_response.content.decode()
 
 
 @pytest.mark.django_db(transaction=True)

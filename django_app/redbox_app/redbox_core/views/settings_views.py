@@ -12,6 +12,7 @@ from django.views import View
 
 from redbox_app.redbox_core.forms import DemographicsForm
 from redbox_app.redbox_core.models import UserTeamMembership
+from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.services import teams as teams_service
 from redbox_app.redbox_core.types import TabConfig, TabRegistry
 from redbox_app.redbox_core.utils import save_forms
@@ -60,7 +61,8 @@ class SettingsView(View):
 
     @method_decorator(login_required)
     def get(self, request: HttpRequest) -> HttpResponse:
-        context = {"request": request, "tabs": []}
+        context = chat_service.get_context(request)
+        context["tabs"] = []
 
         for tab in self.tabs:
             context["tabs"].append(
