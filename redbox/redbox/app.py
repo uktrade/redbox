@@ -82,14 +82,14 @@ class Redbox:
             chunk_resolution=ChunkResolution.normal,
             repository="user_uploaded",
         )
-        # search_knowledge_base = build_search_documents_tool(
-        #     es_client=_env.elasticsearch_client(),
-        #     index_name=_env.elastic_chunk_alias,
-        #     embedding_model=self.embedding_model,
-        #     embedding_field_name=_env.embedding_document_field_name,
-        #     chunk_resolution=ChunkResolution.normal,
-        #     repository="knowledge_base",
-        # )
+        search_knowledge_base = build_search_documents_tool(
+            es_client=_env.elasticsearch_client(),
+            index_name=_env.elastic_chunk_alias,
+            embedding_model=self.embedding_model,
+            embedding_field_name=_env.embedding_document_field_name,
+            chunk_resolution=ChunkResolution.normal,
+            repository="knowledge_base",
+        )
         retrieve_full_text = build_retrieve_document_full_text(
             es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias, loop=True
         )
@@ -123,7 +123,7 @@ class Redbox:
             retrieve_knowledge_base,
             doc_from_prompt,
         ]
-        self.agent_configs["Knowledge_Base_Retrieval_Agent"].tools = [query_knowledge_base]  # search_knowledge_base]
+        self.agent_configs["Knowledge_Base_Retrieval_Agent"].tools = [query_knowledge_base, search_knowledge_base]
 
         self.graph = build_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,
