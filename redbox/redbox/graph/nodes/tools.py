@@ -298,120 +298,117 @@ def build_query_tabular_knowledge_base_tool(
         - When matching text, account for variations such as hyphens, spaces, and capitalization.
         - Always include multiple columns in the WHERE clause if necessary to capture all relevant fields for the query.
         """
-        # Retrieve tabular documents
-        docs_metadata = retriever._get_relevant_documents(
-            knowledge_base_s3_keys=state.request.knowledge_base_s3_keys, uris=[uri], run_manager=None
-        )
-
         documents: list[Document] = []
         formatted_documents: str = ""
-        uri_sha = hashlib.sha256(uri.encode("utf-8")).hexdigest()
-        db_path = f"generated_db_{uri_sha}.duckdb"
-
-        for meta in docs_metadata:
-            metadata = meta.get("metadata", {})
-            schema = metadata.get("document_schema")
-            text_content = meta.get("text", "")
-
-            if schema is None:
-                return "Document not supported for querying as it uses legacy schema.", []
-
-            try:
-                schema_obj = TabularSchema.model_validate(schema)
-            except Exception as e:
-                import logging
-
-                logging.warning("Invalid schema for document %s: %s", uri, str(e))
-                continue  # skip this document
-
-            with DUCKDB_LOCK:
-                try:
-                    with duckdb.connect(database=db_path) as con:
-                        # Check if table exists already
-                        tables = con.execute("SHOW TABLES").fetchall()
-                        if (schema_obj.name,) not in tables:
-                            if not text_content.strip():
-                                continue
-
-                            # Remove the <table_name> prefix from the first line
-                            lines = StringIO(text_content).readlines()
-                            header = re.sub(
-                                r"^\s*<table_name>.*?</table_name>\s*",
-                                "",
-                                lines[0],
-                                count=1,
-                                flags=re.DOTALL,
-                            )
-                            csv_str = "\n".join([header] + lines[1:])
-
-                            # Parse CSV safely
-                            reader = csv.DictReader(StringIO(csv_str))
-                            rows = list(reader)
-
-                            df = pd.DataFrame(rows)
-
-                            # Ensure columns exist in schema
-                            df = df[[col for col in schema_obj.columns.keys() if col in df.columns]]
-
-                            # Cast columns to proper types based on schema_obj
-                            for col, dtype in schema_obj.columns.items():
-                                if col not in df.columns:
-                                    continue  # skip missing columns
-                                if dtype.upper() in ("INTEGER", "INT"):
-                                    df[col] = pd.to_numeric(df[col], errors="coerce").astype(
-                                        "Int64"
-                                    )  # nullable integer
-                                elif dtype.upper() in ("FLOAT", "DOUBLE", "REAL"):
-                                    df[col] = pd.to_numeric(df[col], errors="coerce")
-                                elif dtype.upper() in ("BOOLEAN", "BOOL"):
-                                    df[col] = df[col].astype(bool)
-                                elif dtype.upper() in ("DATE", "TIMESTAMP"):
-                                    df[col] = pd.to_datetime(df[col], errors="coerce")
-                                else:  # default to string
-                                    df[col] = df[col].astype(str)
-
-                            # Build CREATE TABLE statement
-                            columns_def = ", ".join(f'"{col}" {dtype}' for col, dtype in schema_obj.columns.items())
-                            con.execute(f'CREATE TABLE "{schema_obj.name}" ({columns_def})')
-
-                            # Batch insert using DuckDB's DataFrame support
-                            if not df.empty:
-                                con.execute(f'INSERT INTO "{schema_obj.name}" SELECT * FROM df')
-
-                except Exception as e:
-                    import logging
-
-                    logging.warning("Failed to setup DB %s: %s", uri, str(e))
-                    continue
 
         try:
-            if db_path is None:
-                raise Exception("DB does not exist")
+            # Retrieve tabular documents
+            docs_metadata = retriever._get_relevant_documents(
+                knowledge_base_s3_keys=state.request.knowledge_base_s3_keys, uris=[uri], run_manager=None
+            )
+            if not docs_metadata:
+                return "No documents found for URI", []
 
-            with DUCKDB_LOCK:
-                with duckdb.connect(database=db_path, read_only=True) as con:
-                    # Execute agent-provided SQL query
-                    query_result = con.execute(sql_query).fetchall()
-                    col_names = [desc[0] for desc in con.description]
+            uri_sha = hashlib.sha256(uri.encode("utf-8")).hexdigest()
+            db_path = f"generated_db_{uri_sha}.duckdb"
 
-                    # Wrap as Documents
-                    for row in query_result:
-                        row_dict = dict(zip(col_names, row))
-                        documents.append(
-                            Document(
-                                page_content=str(row_dict),
-                                metadata={"uri": uri, "page_number": schema_obj.name},
+            for meta in docs_metadata:
+                metadata = meta.get("metadata", {})
+                schema = metadata.get("document_schema")
+                text_content = meta.get("text", "")
+
+                if schema is None:
+                    return "Document not supported for querying as it uses legacy schema.", []
+
+                try:
+                    schema_obj = TabularSchema.model_validate(schema)
+                except Exception as e:
+                    logging.warning("Invalid schema for document %s: %s", uri, str(e))
+                    continue  # skip this document
+
+                if not text_content.strip():
+                    continue
+
+                try:
+                    with DUCKDB_LOCK:
+                        with duckdb.connect(database=db_path) as con:
+                            tables = [t[0] for t in con.execute("SHOW TABLES").fetchall()]
+                            if schema_obj.name not in tables:
+                                # Clean CSV content
+                                lines = StringIO(text_content).readlines()
+                                header = re.sub(
+                                    r"^\s*<table_name>.*?</table_name>\s*",
+                                    "",
+                                    lines[0],
+                                    count=1,
+                                    flags=re.DOTALL,
+                                )
+                                csv_str = "\n".join([header] + lines[1:])
+                                reader = csv.DictReader(StringIO(csv_str))
+                                df = pd.DataFrame(list(reader))
+
+                                # Keep only schema columns
+                                df = df[[col for col in schema_obj.columns.keys() if col in df.columns]]
+
+                                # Cast columns to proper types based on schema_obj
+                                for col, dtype in schema_obj.columns.items():
+                                    if col not in df.columns:
+                                        continue  # skip missing columns
+                                    try:
+                                        if dtype.upper() in ("INTEGER", "INT"):
+                                            df[col] = pd.to_numeric(df[col], errors="coerce").astype(
+                                                "Int64"
+                                            )  # nullable integer
+                                        elif dtype.upper() in ("FLOAT", "DOUBLE", "REAL"):
+                                            df[col] = pd.to_numeric(df[col], errors="coerce")
+                                        elif dtype.upper() in ("BOOLEAN", "BOOL"):
+                                            df[col] = df[col].astype(bool)
+                                        elif dtype.upper() in ("DATE", "TIMESTAMP"):
+                                            df[col] = pd.to_datetime(df[col], errors="coerce")
+                                        else:  # default to string
+                                            df[col] = df[col].astype(str)
+                                    except Exception as col_e:
+                                        logging.warning("Failed to cast column %s: %s", col, str(col_e))
+                                        df[col] = df[col].astype(str)
+
+                                # Create table and insert data
+                                columns_def = ", ".join(f'"{col}" {dtype}' for col, dtype in schema_obj.columns.items())
+                                con.execute(f'CREATE TABLE "{schema_obj.name}" ({columns_def})')
+                                if not df.empty:
+                                    con.execute(f'INSERT INTO "{schema_obj.name}" SELECT * FROM df')
+
+                except Exception as db_e:
+                    logging.warning("Failed to setup DB %s: %s", uri, str(db_e))
+                    return f"Error preparing tabular document database: {db_e}", []
+
+            try:
+                with DUCKDB_LOCK:
+                    with duckdb.connect(database=db_path, read_only=True) as con:
+                        # Execute agent-provided SQL query
+                        query_result = con.execute(sql_query).fetchall()
+                        col_names = [desc[0] for desc in con.description]
+
+                        # Wrap as Documents
+                        for row in query_result:
+                            row_dict = dict(zip(col_names, row))
+                            documents.append(
+                                Document(
+                                    page_content=str(row_dict),
+                                    metadata={"uri": uri, "page_number": schema_obj.name},
+                                )
                             )
-                        )
 
-                    formatted_documents = format_documents(documents=documents)
+                        formatted_documents = format_documents(documents=documents)
+
+            except Exception as query_e:
+                logging.warning("Failed to query %s: %s", uri, str(query_e))
+                return f"SQL query failed: {query_e}", []
+
+            return formatted_documents, documents
 
         except Exception as e:
-            import logging
-
-            logging.warning("Failed to query %s: %s", uri, str(e))
-
-        return formatted_documents, documents
+            logging.exception("Unexpected error in _query_tabular_knowledge_base")
+            return f"Unexpected error: {e}", []
 
     return _query_tabular_knowledge_base
 
