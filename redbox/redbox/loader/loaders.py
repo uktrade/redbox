@@ -364,11 +364,6 @@ class UnstructuredChunkLoader:
             raw_metadata = raw_chunk.get("metadata") or {}
             page_number = raw_metadata.get("page_number") or 1
 
-            # document_schema_dict = raw_metadata.get("document_schema")
-            # document_schema: Optional[TabularSchema] = None
-            # if document_schema_dict:
-            #     document_schema = TabularSchema.model_validate(document_schema_dict)
-
             token_count = tokeniser(raw_chunk.get("text", ""))
             uploaded_meta = UploadedFileMetadata(
                 index=i,
@@ -402,7 +397,10 @@ class UnstructuredSchematisedChunkLoader(UnstructuredChunkLoader):
             document_schema_dict = raw_metadata.get("document_schema")
             document_schema: Optional[TabularSchema] = None
             if document_schema_dict:
-                document_schema = TabularSchema.model_validate(document_schema_dict)
+                try:
+                    document_schema = TabularSchema.model_validate(document_schema_dict)
+                except ValidationError:
+                    document_schema = None
 
             token_count = tokeniser(raw_chunk.get("text", ""))
             uploaded_meta = UploadedFileMetadata(
