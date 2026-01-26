@@ -268,30 +268,6 @@ def build_query_tabular_knowledge_base_tool(
         index_name=index_name,
     )
 
-    # def validate_duckdb_path(db_path: str) -> bool:
-    #     """
-    #     Returns True if DuckDB can safely create/use this path.
-    #     Never raises.
-    #     """
-    #     try:
-    #         dir_path = os.path.dirname(db_path) or "."
-    #         os.makedirs(dir_path, exist_ok=True)
-
-    #         test_path = db_path + ".write_test"
-    #         with open(test_path, "w"):
-    #             pass
-    #         os.remove(test_path)
-
-    #         return True
-
-    #     except Exception as e:
-    #         logging.warning(
-    #             "DuckDB path not writable (%s): %s",
-    #             db_path,
-    #             str(e),
-    #         )
-    #         return False
-
     @tool(response_format="content_and_artifact")
     def _query_tabular_knowledge_base(
         sql_query: str,
@@ -327,7 +303,6 @@ def build_query_tabular_knowledge_base_tool(
             knowledge_base_s3_keys=state.request.knowledge_base_s3_keys, uris=[uri], run_manager=None
         )
 
-        # result_text = ""
         documents: list[Document] = []
         formatted_documents: str = ""
         uri_sha = hashlib.sha256(uri.encode("utf-8")).hexdigest()
@@ -348,10 +323,6 @@ def build_query_tabular_knowledge_base_tool(
 
                 logging.warning("Invalid schema for document %s: %s", uri, str(e))
                 continue  # skip this document
-
-            # if not os.path.exists(db_path):
-            # if not validate_duckdb_path(db_path=db_path):
-            #     return f"Unable to setup DB for querying no write access to path {db_path}", []
 
             with DUCKDB_LOCK:
                 try:
@@ -407,14 +378,6 @@ def build_query_tabular_knowledge_base_tool(
                             if not df.empty:
                                 con.execute(f'INSERT INTO "{schema_obj.name}" SELECT * FROM df')
 
-                            # # Create table
-                            # columns_def = ", ".join(f'"{col}" {dtype}' for col, dtype in schema_obj.columns.items())
-                            # con.execute(f"CREATE TABLE {schema_obj.name} ({columns_def})")
-                            # for row in rows:
-                            #     col_names = ", ".join([f'"{key}"' for key in row.keys()])
-                            #     values = ", ".join(f"'{str(v).replace("'", "''")}'" for v in row.values())
-                            #     con.execute(f'INSERT INTO "{schema_obj.name}" ({col_names}) VALUES ({values})')
-
                 except Exception as e:
                     import logging
 
@@ -430,10 +393,6 @@ def build_query_tabular_knowledge_base_tool(
                     # Execute agent-provided SQL query
                     query_result = con.execute(sql_query).fetchall()
                     col_names = [desc[0] for desc in con.description]
-
-                    # Format results
-                    # table_text = "\n".join([str(dict(zip(col_names, row))) for row in query_result])
-                    # result_text = f"\nResults from {uri}:\n{table_text}\n"
 
                     # Wrap as Documents
                     for row in query_result:
