@@ -133,7 +133,8 @@ prompt_configs: Dict[str, PromptConfig] = {
     "Datahub_Agent": PromptConfig(
         system=prompts.DATAHUB_PROMPT,
         question=prompts.DATAHUB_QUESTION_PROMPT,
-        prompt_vars=PromptVariable(question=True)),
+        prompt_vars=PromptVariable(question=True),
+    ),
     "Knowledge_Base_Retrieval_Agent": PromptConfig(
         system=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT + prompts.KNOWLEDGE_BASE_METADTA,
         prompt_vars=PromptVariable(task=True, expected_output=True, knowledge_base_metadata=True),
@@ -238,7 +239,8 @@ agent_configs: Dict[str, AgentConfig] = {
         prompt=prompt_configs["Datahub_Agent"],
         parser=None,
         agents_max_tokens=10000,
-        default_agent=True),
+        default_agent=True,
+    ),
     "Knowledge_Base_Retrieval_Agent": AgentConfig(
         name="Knowledge_Base_Retrieval_Agent",
         description=prompts.KNOWLEDGE_BASE_RETRIEVAL_AGENT_DESC,
