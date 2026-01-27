@@ -7,11 +7,13 @@
     {% if not messages %}
         <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1" security-classification="{{ security }}">
             <h3 class="govuk-heading-s">
-                Hello, <span class="rbds-text--product">{{ product_name(request) }}</span>
-                has capabilities such as document analysis and summarisation,
-                searching the web and government sources,
-                and Tools (hyperlink) for tasks such as drafting submissions.
-                You can always ask Assist what it can do for you, too.
+                <span class="rbds-text--product">{{ product_name(request) }}</span> can help you to:
+                <ul>
+                    <li>analyse and summarise your documents</li>
+                    <li>draft content and brainstorm ideas</li>
+                    <li>search government sources and the web</li>
+                    <li>use tools - for example, the Submission Checker tool, which reviews ministerial briefings</li>
+                </ul>
             </h3>
         </canned-prompts>
     {% endif %}
