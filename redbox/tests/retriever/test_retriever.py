@@ -170,8 +170,6 @@ def test_tabular_kb_retriever(
 
     # Invoke the retriever
     result = kb_tabular_metadata_retriever.invoke(RedboxState(request=stored_file_tabular_kb.query))
-
-    # Fetch expected documents using helper
     correct = stored_file_tabular_kb.get_kb_docs_matching_query()
 
     # Determine if any files were selected and permitted
@@ -180,7 +178,7 @@ def test_tabular_kb_retriever(
 
     if selected and permission:
         assert len(result) == len(correct)
-        assert {c.metadata["uri"] for c in result} == set(stored_file_tabular_kb.query.s3_keys)
-        assert {c.metadata["uri"] for c in result} <= set(stored_file_tabular_kb.query.permitted_s3_keys)
+        assert {c["metadata"]["uri"] for c in result} == set(stored_file_tabular_kb.query.knowledge_base_s3_keys)
+        assert {c["metadata"]["uri"] for c in result} <= set(stored_file_tabular_kb.query.permitted_s3_keys)
     else:
         len(result) == 0

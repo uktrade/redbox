@@ -140,7 +140,7 @@ def metadata_retriever(env: Settings) -> OpenSearchRetriever:
 @pytest.fixture(scope="session")
 def kb_tabular_metadata_retriever(env: Settings) -> KnowledgeBaseTabularMetadataRetriever:
     return KnowledgeBaseTabularMetadataRetriever(
-        es_client=env.elasticsearch_client(), index_name=env.elastic_schematised_chunk_index
+        es_client=env.elasticsearch_client(), index_name=env.elastic_chunk_alias
     )
 
 
