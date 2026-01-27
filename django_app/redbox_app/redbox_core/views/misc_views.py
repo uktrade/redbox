@@ -86,10 +86,6 @@ class RefreshFragmentsView(View):
 
         for fragment_id in fragments:
             fragment = FRAGMENTS.get(fragment_id)
-
-            if not fragment:
-                continue
-
             renders.append(
                 RenderTemplateItem(
                     template=fragment.template,

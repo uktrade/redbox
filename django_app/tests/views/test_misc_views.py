@@ -89,7 +89,11 @@ def test_refresh_fragments(alice: User, client: Client, chat: Chat, default_tool
     url_name = "refresh"
 
     # When
-    bad_response = client.get(reverse(url_name))
+    no_fragment_response = client.get(reverse(url_name))
+    invalid_fragment_response = client.get(
+        reverse(url_name),
+        data={"fragments": ["invalid"]},
+    )
     response = client.get(
         reverse(url_name),
         data={
@@ -100,6 +104,7 @@ def test_refresh_fragments(alice: User, client: Client, chat: Chat, default_tool
     )
 
     # Then
-    assert bad_response.status_code == HTTPStatus.BAD_REQUEST
+    assert no_fragment_response.status_code == HTTPStatus.BAD_REQUEST
+    assert invalid_fragment_response.status_code == HTTPStatus.BAD_REQUEST
     assert response.status_code == HTTPStatus.OK
     assert response.content.decode()

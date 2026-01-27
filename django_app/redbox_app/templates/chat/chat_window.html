@@ -6,7 +6,13 @@
 <div id="chat-window" class="rbds-chat-window" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
     {% if not messages %}
         <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1" security-classification="{{ security }}">
-            <h3 class="govuk-heading-s">Hello, <span class="rbds-text--product">{{ product_name(request) }}</span> can help you analyse your documents.</h3>
+            <h3 class="govuk-heading-s">
+                Hello, <span class="rbds-text--product">{{ product_name(request) }}</span>
+                has capabilities such as document analysis and summarisation,
+                searching the web and government sources,
+                and Tools (hyperlink) for tasks such as drafting submissions.
+                You can always ask Assist what it can do for you, too.
+            </h3>
         </canned-prompts>
     {% endif %}
 
