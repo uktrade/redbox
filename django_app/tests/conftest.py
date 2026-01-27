@@ -135,8 +135,7 @@ def agents_list() -> list[Agent]:
         "Legislation_Search_Agent",
         "Submission_Checker_Agent",
         "Submission_Question_Answer_Agent",
-        "Datahub_Agent"
-        "Fake_Agent",
+        "Datahub_AgentFake_Agent",
     ]:
         agents += [Agent.objects.create(name=agent_name, description="Fake", agents_max_tokens=100)]
     return agents
