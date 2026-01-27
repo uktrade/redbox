@@ -148,7 +148,7 @@ def get_knowledge_base_tabular_metadata(
     chunk_resolution: ChunkResolution | None,
     state: RedboxState,
 ) -> dict[str, Any]:
-    """Retrive knowledge base metadata without page_content"""
+    """Retrieve knowledge base metadata with schema metadata and without page_content"""
     query_filter = build_query_filter(
         selected_files=state.request.knowledge_base_s3_keys,
         permitted_files=state.request.knowledge_base_s3_keys,
@@ -206,7 +206,6 @@ def get_schematised_tabular_chunks(
             "excludes": ["vector_field"],
         },
         "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
-        "size": 50,  # adjust if needed
         "sort": [{"metadata.name.keyword": {"order": "asc"}}],
     }
 

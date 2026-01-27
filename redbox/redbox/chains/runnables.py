@@ -390,11 +390,11 @@ def chain_use_metadata(
 
     @chain
     def use_result(input):
-        if input["metadata"] is not None:
+        if input.get("metadata") is not None:
             additional_variables = {"metadata": input["metadata"]}
-        if input.get("knowledge_base_metadata", None) is not None:
+        if input.get("knowledge_base_metadata") is not None:
             additional_variables["knowledge_base_metadata"] = input["knowledge_base_metadata"]
-        if input.get("tabular_knowledge_base_metadata", None) is not None:
+        if input.get("tabular_knowledge_base_metadata") is not None:
             additional_variables["tabular_knowledge_base_metadata"] = input["tabular_knowledge_base_metadata"]
         if _additional_variables:
             additional_variables = dict(additional_variables, **_additional_variables)
