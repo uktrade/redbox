@@ -832,12 +832,23 @@ def get_tabular_agent(
         sql_error = ""
         is_intermediate_step = False
         messages = []
+
+        # dependencies' results
+        previous_agents_results = []
+        for dep in task_level.dependencies:
+            previous_agents_results += [state.agents_results[dep].content]
+        previous_agents_results = " ".join(previous_agents_results)
+
         while (success == "fail" or is_intermediate_step) and num_iter < max_attempt:
             worker_agent = build_stuff_pattern(
                 prompt_set=PromptSet.Tabular,
                 tools=tools,
                 final_response_chain=False,
-                additional_variables={"sql_error": sql_error, "db_schema": state.tabular_schema},
+                additional_variables={
+                    "sql_error": sql_error,
+                    "db_schema": state.tabular_schema,
+                    "previous_agents_results": previous_agents_results,
+                },
                 model=model,
             )
             ai_msg = worker_agent.invoke(state)

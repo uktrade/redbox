@@ -383,7 +383,7 @@ Use instead of the Internal_Retrieval_Agent when the selected documents are tabu
 
 SUMMARISATION_AGENT_DESC = """
 **Summarisation_Agent**:
-Purpose: Document summarization only
+Purpose: Document summarization only. This agent streams result directly to user, so cannot be requisition of other agents.
 Use when the user wants to:
 - Get a summary of an entire document
 - Create an executive summary

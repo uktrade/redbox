@@ -11,10 +11,11 @@ from redbox.graph.nodes.sends import (
     build_document_chunk_send,
     build_document_group_send,
     build_tool_send,
+    no_dependencies,
     run_tools_parallel,
 )
-from redbox.graph.nodes.tools import build_search_wikipedia_tool, build_govuk_search_tool
-from redbox.models.chain import DocumentState, RedboxQuery, RedboxState
+from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_wikipedia_tool
+from redbox.models.chain import DocumentState, RedboxQuery, RedboxState, TaskStatus, configure_agent_task_plan
 from tests.conftest import fake_state
 
 
@@ -228,3 +229,33 @@ class TestRunToolsParallel:
         assert isinstance(responses, list)
         assert len(responses[0].content) > 0
         assert len(responses) == 1
+
+
+@pytest.mark.parametrize("dependencies, expected", [([], True), (["task0"], False), (["task0", "task1"], False)])
+def test_no_dependencies(dependencies, expected):
+    agent = "Internal_Retrieval_Agent"
+    agent_task, multi_agent_plan = configure_agent_task_plan({agent: agent})
+    tasks = [
+        agent_task(id="task0", task="Fake Task", expected_output="Fake output", status=TaskStatus.COMPLETED),
+        agent_task(
+            id="task1",
+            task="Fake Task",
+            expected_output="Fake output",
+            dependencies=["task0"],
+            status=TaskStatus.PENDING,
+        ),
+        agent_task(
+            id="task2",
+            task="Fake Task",
+            expected_output="Fake output",
+            dependencies=["task0"],
+            status=TaskStatus.PENDING,
+        ),
+    ]
+
+    multi_agent_plan(tasks=tasks)
+
+    # test case
+    actual = no_dependencies(dependencies, plan=multi_agent_plan)
+
+    assert actual == expected

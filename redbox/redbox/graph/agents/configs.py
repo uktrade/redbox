@@ -101,7 +101,11 @@ prompt_configs: Dict[str, PromptConfig] = {
     "Tabular_Agent": PromptConfig(
         system=prompts.TABULAR_PROMPT,
         question=prompts.TABULAR_QUESTION_PROMPT,
-        prompt_vars=PromptVariable(question=True, formatted_documents=True),
+        prompt_vars=PromptVariable(
+            question=True,
+            formatted_documents=True,
+            previous_agents_results=True,
+        ),
     ),
     "Evaluator_Agent": PromptConfig(
         system=prompts.NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT,
