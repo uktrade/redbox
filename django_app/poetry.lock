@@ -5037,6 +5037,7 @@ django-environ = "^0.12.0"
 django-log-formatter-asim = "^1.0.0"
 django-requestlogs = "^0.8"
 django-waffle = "^4.2.0"
+duckdb = "^1.4.3"
 elasticsearch = "^8.15.0"
 kneed = "^0.8.5"
 langchain = "^0.3.4"
@@ -7128,4 +7129,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "628078ea55aa4c2b063229ad373aed625ef8c95dcae4e52706936bc403b0f700"
+content-hash = "8f51f38595d857231e46c7bebe1b36e6242d37f2a2d51aafa13796159bc024d0"
