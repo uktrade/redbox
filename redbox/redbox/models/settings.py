@@ -168,6 +168,11 @@ class Settings(BaseSettings):
         secret_tokens={os.environ.get("MCP_HEADERS", ""): os.environ.get("MCP_PARLEX_TOKEN", "")},
     )
 
+    datahub_mcp: MCPServerSettings = MCPServerSettings(
+        name="datahub_mcp",
+        url=os.environ.get("MCP_DATAHUB_URL", ""),
+        secret_tokens={None: None},
+    )
     # web search
     web_search: Literal["Google", "Brave", "Kagi"] = "Brave"
 
