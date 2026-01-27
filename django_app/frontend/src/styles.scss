@@ -23,7 +23,8 @@ button,
 [role="textbox"],
 [contenteditable="true"],
 .govuk-checkboxes__label::before,
-.govuk-button {
+.govuk-button,
+.uploaded-file {
   border-radius: var(--border-radius) !important;
 }
 
