@@ -66,7 +66,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             create_alias(alias)
     else:
         if es_index_name == env.elastic_schematised_chunk_index:
-            es.indices.create(index=es_index_name, body=env.elastic_schematised_chunk_index, ignore=400)
+            es.indices.create(index=env.elastic_schematised_chunk_index, body=env.index_mapping_schematised, ignore=400)
         else:
             es.indices.create(index=es_index_name, body=env.index_mapping, ignore=400)
 
