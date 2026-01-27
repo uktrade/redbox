@@ -14,7 +14,7 @@ from pydantic.v1 import BaseModel, Field, validator
 
 from redbox.models.chain import RedboxQuery
 from redbox.models.chat import ChatRoute, ErrorRoute
-from redbox.models.file import ChunkResolution, UploadedFileMetadata
+from redbox.models.file import ChunkResolution, TabularSchema, UploadedFileMetadata
 from redbox.models.graph import RedboxActivityEvent
 from redbox.models.chain import MultiAgentPlanBase
 
@@ -82,6 +82,9 @@ def generate_tabular_docs(
             uri=s3_key,
             page_number=page_numbers[min(i, len(page_numbers) - 1)],
             created_datetime=datetime.datetime.now(datetime.UTC),
+            document_schema=TabularSchema(
+                name=f"sheet{i}", columns={"id": "NUMERIC", "name": "TEXT", "value": "NUMERIC"}
+            ),
             token_count=int(total_tokens / number_of_docs),
             chunk_resolution=chunk_resolution,
             name=Path(s3_key).stem,
