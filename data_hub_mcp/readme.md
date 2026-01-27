@@ -15,21 +15,21 @@ pip install -r requirements.txt
 
 ### database setup
 
-Setup the mcp database: 
+Setup the mcp database:
 
 docker compose up db_data_hub
 
-run basic seed data and table setup (from within {project_root}/data_hub_mcp) 
+run basic seed data and table setup (from within {project_root}/data_hub_mcp)
 
-python run_ingest.py 
+python run_ingest.py
 
 ### run server locally
 
-this will run the mcp server in docker 
+this will run the mcp server in docker
 
 docker compose up data_hub_mcp
 
-note: you can also run locally with 
+note: you can also run locally with
 
 python run_mcp_server.py
 

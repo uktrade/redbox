@@ -1,19 +1,23 @@
+{% from "macros/icon.html" import rbds_icon %}
+
+{% set productName = product_name(request) %}
+
 {% macro route_display(route=None) %}
 <details class="govuk-details redbox-message-route" {% if not route %} hidden {% endif %}>
   <summary class="govuk-details__summary">
-    <span class="govuk-details__summary-text rbds-text-xs">
-      How Redbox generated this response</span>
+    <span class="govuk-details__summary-text rbds-text-xs rbds-no-underline">
+      How {{ productName }} generated this response</span>
     </span>
   </summary>
   <div class="govuk-details__text rbds-text-xs">
-    <span>Redbox automatically determines what the best ‘tools' are to answer your prompts/queries:</span>
+    <span>{{ productName }} automatically determines what the best ‘tools' are to answer your prompts/queries:</span>
     <ul>
-      <li>If no document(s) selected, Redbox@DBT defaults to using ‘chat’, which gets answers from the model's training data</li>
-      <li>When document(s) selected, Redbox@DBT will default to searching for information based on your prompt</li>
-      <li>If you request a summary of one or more documents, Redbox@DBT will do that rather than search</li>
-      <li>Redbox@DBT can use external search tools for <a href="https://www.gov.uk">GOV.UK</a> and <a href="https://www.wikipedia.org">Wikipedia</a></li>
-      <li>When your request/prompt might best be answered by using two or more tools at the same time, Redbox@DBT will provide you with its proposed plan, which you can agree to, modify or cancel</li>
-      <li>The knowledge that Redbox@DBT has access to is cut off in November 2024, so ensure that if you need up to date information you ask for Redbox@DBT to find additional online sources</li>
+      <li>If no document(s) selected, {{ productName }} defaults to using ‘chat’, which gets answers from the model's training data</li>
+      <li>When document(s) selected, {{ productName }} will default to searching for information based on your prompt</li>
+      <li>If you request a summary of one or more documents, {{ productName }} will do that rather than search</li>
+      <li>{{ productName }} can use external search tools for <a href="https://www.gov.uk">GOV.UK</a> and <a href="https://www.wikipedia.org">Wikipedia</a></li>
+      <li>When your request/prompt might best be answered by using two or more tools at the same time, {{ productName }} will provide you with its proposed plan, which you can agree to, modify or cancel</li>
+      <li>The knowledge that {{ productName }} has access to is cut off in November 2024, so ensure that if you need up to date information you ask for {{ productName }} to find additional online sources</li>
     </ul>
   </div>
 </details>
@@ -32,64 +36,50 @@
 {% endif %}
 
 
-<div
-  class="redbox-message-container govuk-inset-text {% if message.role == "user" %} govuk-inset-text-right {% endif %} govuk-body"
-  data-role="{{ message.role }}" tabindex="-1" id="chat-message-{{ message.id }}">
-
-  <markdown-converter class="rbds-chat-message__text">{{ message.text }}</markdown-converter>
-  {% set citations = message.get_citations() %}
-  {% if citations %}
-    <h3 class="iai-chat-bubble__sources-heading govuk-heading-s govuk-!-margin-bottom-1">Sources</h3>
-    <div class="rbds-display-flex-from-desktop">
-      <ol class="rb-footnote-list govuk-!-margin-bottom-0">
-        {% set seen_docs = [] %}
-        {% for citation in citations %}
-          {% if citation.display_name not in seen_docs %}
-            <li class="govuk-!-margin-bottom-0">
-              <a class="iai-chat-bubbles__sources-link govuk-link" id="footnote-{{ message.id }}-{{ loop.index }}" href="{{ citation.internal_url }}">{{ citation.display_name }}</a>
-            </li>
-            {% set _ = seen_docs.append(citation.display_name) %}
-          {% endif %}
-        {% endfor %}
-      </ol>
-    </div>
-    <br/>
-  {% endif %}
-</div>
-{% set seen_files = [] %}
-{% for file in message.selected_files.all() %}
-  {% if file.id not in seen_files %}
-  <p class="govuk-body govuk-!-text-align-right govuk-!-font-size-16">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <g clip-path="url(#clip0_771_609)">
-      <path d="M19.5 22.5H8.25C7.85232 22.4995 7.47105 22.3414 7.18984 22.0602C6.90864 21.7789 6.75046 21.3977 6.75 21V16.5H8.25V21H19.5V4.5H12.75V3H19.5C19.8977 3.00046 20.279 3.15864 20.5602 3.43984C20.8414 3.72105 20.9995 4.10232 21 4.5V21C20.9995 21.3977 20.8414 21.7789 20.5602 22.0602C20.279 22.3414 19.8977 22.4995 19.5 22.5Z" fill="black"/>
-      <path d="M18 7.5H12.75V9H18V7.5Z" fill="black"/>
-      <path d="M18 11.25H12V12.75H18V11.25Z" fill="black"/>
-      <path d="M18 15H11.25V16.5H18V15Z" fill="black"/>
-      <path d="M6.75 14.25C5.75577 14.2489 4.80258 13.8535 4.09956 13.1504C3.39653 12.4474 3.00109 11.4942 3 10.5V2.25H4.5V10.5C4.5 11.0967 4.73705 11.669 5.15901 12.091C5.58097 12.5129 6.15326 12.75 6.75 12.75C7.34674 12.75 7.91903 12.5129 8.34099 12.091C8.76295 11.669 9 11.0967 9 10.5V3.75C9 3.55109 8.92098 3.36032 8.78033 3.21967C8.63968 3.07902 8.44891 3 8.25 3C8.05109 3 7.86032 3.07902 7.71967 3.21967C7.57902 3.36032 7.5 3.55109 7.5 3.75V11.25H6V3.75C6 3.15326 6.23705 2.58097 6.65901 2.15901C7.08097 1.73705 7.65326 1.5 8.25 1.5C8.84674 1.5 9.41903 1.73705 9.84099 2.15901C10.2629 2.58097 10.5 3.15326 10.5 3.75V10.5C10.4989 11.4942 10.1035 12.4474 9.40044 13.1504C8.69742 13.8535 7.74423 14.2489 6.75 14.25Z" fill="black"/>
-      </g>
-      <defs>
-      <clipPath id="clip0_771_609">
-      <rect width="24" height="24" fill="white"/>
-      </clipPath>
-      </defs>
-      </svg>
-    {{ file }}</p>
-    {% set _ = seen_files.append(file.id) %}
+<div class="redbox-message-container govuk-body" data-role="{{ message.role }}" tabindex="-1" id="chat-message-{{ message.id }}">
+  <div class="{% if message.role == "user" %}rbds-message-container__right rbds-border{% else %}rbds-message-container__left{% endif %}">
+    <markdown-converter class="rbds-chat-message__text">{{ message.text }}</markdown-converter>
+    {% set citations = message.get_citations() %}
+    {% if citations %}
+      <h3 class="iai-chat-bubble__sources-heading govuk-heading-s govuk-!-margin-bottom-1">Sources</h3>
+      <div class="rbds-display-flex-from-desktop">
+        <ol class="rb-footnote-list govuk-!-margin-bottom-0">
+          {% set seen_docs = [] %}
+          {% for citation in citations %}
+            {% if citation.display_name not in seen_docs %}
+              <li class="govuk-!-margin-bottom-0">
+                <a class="iai-chat-bubbles__sources-link govuk-link" id="footnote-{{ message.id }}-{{ loop.index }}" href="{{ citation.internal_url }}">{{ citation.display_name }}</a>
+              </li>
+              {% set _ = seen_docs.append(citation.display_name) %}
+            {% endif %}
+          {% endfor %}
+        </ol>
+      </div>
+      <br/>
     {% endif %}
-{% endfor %}
 
-{% if message.route %}
-{{ route_display(message.route) }}
-{% endif %}
+    {% set seen_files = [] %}
+    {% for file in message.selected_files.all() %}
+      {% if file.id not in seen_files %}
+        <span class="govuk-body rbds-chat-message__document">
+          {{ rbds_icon(icon_name="attach-document.svg") }}
+          <p>{{ file }}</p>
+        </span>
+        {% set _ = seen_files.append(file.id) %}
+      {% endif %}
+    {% endfor %}
+  </div>
 
+  {% if message.route %}
+    {{ route_display(message.route) }}
+  {% endif %}
 
-{% if message.role == "ai" %}
+  {% if message.role == "ai" %}
+    <div class="chat-actions-container">
+      <feedback-buttons data-id="{{ message.id }}"></feedback-buttons>
+      <copy-text data-id="{{ message.id}}"></copy-text>
+    </div>
+  {% endif %}
 
-<div class="chat-actions-container">
-  <feedback-buttons data-id="{{ message.id }}"></feedback-buttons>
-  <copy-text data-id="{{ message.id}}"></copy-text>
 </div>
-
-{% endif %}
 {% endmacro %}

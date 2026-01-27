@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-import ast
 from datetime import date, datetime
 
 
@@ -81,7 +80,6 @@ class CompanyDetails:
 
     @staticmethod
     def populate_from_record(record):
-
         return CompanyDetails(
             address_1=record["address_1"],
             address_2=record["address_2"],
@@ -151,9 +149,8 @@ class CompanyInteraction:
             company_sector=record["company_sector"],
             date_of_interaction=record["date_of_interaction"],
             interaction_subject=record["interaction_subject"],
-            interaction_theme_investment_or_export=record["interaction_theme_investment_or_export"]
+            interaction_theme_investment_or_export=record["interaction_theme_investment_or_export"],
         )
-
 
 
 @dataclass
@@ -175,7 +172,6 @@ class AccountManagementObjective:
     modified_by_id: str | None
     company_id: str | None
 
-
     @staticmethod
     def populate_from_record(record):
         return AccountManagementObjective(
@@ -192,6 +188,7 @@ class AccountManagementObjective:
             modified_by_id=record["modified_by_id"],
             company_id=record["company_id"],
         )
+
 
 @dataclass
 class InvestmentProject:
@@ -342,8 +339,9 @@ class InvestmentProject:
             uk_company_sector=record["uk_company_sector"],
             possible_uk_regions=record["possible_uk_regions"],
             eyb_lead_ids=record["eyb_lead_ids"],
-            uk_company_id=record["uk_company_id"]
+            uk_company_id=record["uk_company_id"],
         )
+
 
 @dataclass
 class CompanySearchResult:
@@ -354,6 +352,7 @@ class CompanySearchResult:
     page: int
     page_size: int
 
+
 @dataclass
 class CompanyInteractionSearchResult:
     """Company Interactions search result"""
@@ -363,11 +362,14 @@ class CompanyInteractionSearchResult:
     page: int
     page_size: int
 
+
 @dataclass
 class CompaniesOrInteractionSearchResult:
     """Company Interactions search result"""
+
     companies_search_result: CompanySearchResult | None
     interactions_search_result: CompanyInteractionSearchResult | None
+
 
 @dataclass
 class AccountManagementObjectivesSearchResult:
@@ -377,6 +379,7 @@ class AccountManagementObjectivesSearchResult:
     total: int
     page: int
     page_size: int
+
 
 @dataclass
 class InvestmentProjectsSearchResult:

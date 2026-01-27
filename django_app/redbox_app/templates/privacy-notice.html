@@ -10,11 +10,11 @@
 
 {% block content %}
 
-<div class="govuk-width-container rbds-width-container">
+<div class="govuk-width-container rbds-width-container rbds-page-content--xl govuk-!-margin-top-3">
   <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
+    <div class="govuk-grid-column-full">
 
-      <h1 class="govuk-heading-l">Privacy notice for Redbox</h1>
+      <h1 class="govuk-heading-l">Privacy notice for {{ productName }}</h1>
       <div class="govuk-body">
         <p class="govuk-body-l">
           This notice sets out how we will use your personal data, and your rights.
@@ -55,9 +55,9 @@
 
         <h3 class="govuk-heading-s">Recipients</h3>
         <p class="govuk-body">
-          Your personal data will be made available to Redbox@DBT user researchers and
+          Your personal data will be made available to {{ productName }} user researchers and
           with analysts/researchers within the Department for Business and Trade for analysis
-          to improve the service, you can opt out of this by emailing: redbox@businessandtrade.gov.uk
+          to improve the service, you can opt out of this by emailing: {{ contact_email }}
         </p>
         <p class="govuk-body">
           As your personal data will be stored on our IT infrastructure it will also be shared with
@@ -78,13 +78,13 @@
           Any personal data you upload as part of documents or chats will be automatically deleted after 6 months.
         </p>
         <h3 class="govuk-heading-s">Personal Data Usage Guidelines</h3>
-        <p class="govuk-body">When working with personal data, the use cases which Redbox@DBT supports:</p>
+        <p class="govuk-body">When working with personal data, the use cases which {{ productName }} supports:</p>
         <ol class="govuk-list govuk-list--number govuk-body">
           <li>Consultations processing and analysis</li>
           <li>Survey response processing and analysis</li>
           <li>Correspondence drafting</li>
         </ol>
-        <p class="govuk-body">When using Redbox to process personal data as part of your work:</p>
+        <p class="govuk-body">When using {{ productName }} to process personal data as part of your work:</p>
         <ul class="govuk-list govuk-list--bullet govuk-body">
           <li>Where possible, remove or redact personal data before uploading if not essential for your work</li>
           <li><u>Do not</u> process data related to children or vulnerable individuals</li>

@@ -1,6 +1,6 @@
 // @ts-check
 
-import { hideElement } from "../../utils/dom-utils.js";
+import { hideElement, showElement } from "../../utils/dom-utils.js";
 import { LoadingMessage } from "../../../redbox_design_system/rbds/components/loading-message.js";
 
 window.addEventListener('load', () => {
@@ -25,12 +25,14 @@ export class ChatMessage extends HTMLElement {
   #loadMessage = () => {
     const uuid = crypto.randomUUID();
     this.innerHTML = `
-            <div class="redbox-message-container govuk-inset-text ${this.dataset.role == 'user' ? `govuk-inset-text-right`: ''} govuk-body" data-role="${
+            <div class="rbds-message-container ${this.dataset.role == 'user' ? `rbds-message-container__right`: ''} govuk-body" data-role="${
               this.dataset.role
             }" tabindex="-1" id="chat-message-${this.dataset.id}">
-                <markdown-converter class="rbds-chat-message__text">${
-                  this.dataset.text || ""
-                }</markdown-converter>
+                <div class="${this.dataset.role == 'user' ? `rbds-message-container__right rbds-border`: 'rbds-message-container__left'}">
+                  <markdown-converter class="rbds-chat-message__text">${
+                    this.dataset.text || ""
+                  }</markdown-converter>
+                </div>
                 ${
                   !this.dataset.text
                     ? `
@@ -271,6 +273,7 @@ export class ChatMessage extends HTMLElement {
       if (response.type === "text") {
         this.streamedContent += sanitiseText(response.data);
         this.responseContainer?.update(this.streamedContent);
+        hideElement(this.loadingElement);
       } else if (response.type === "session-id") {
         chatControllerRef.dataset.sessionId = sanitiseId(response.data);
       } else if (response.type === "source") {
@@ -354,6 +357,7 @@ export class ChatMessage extends HTMLElement {
    */
   addActivity = (message) => {
     this.loadingElement.loadingText.textContent = message;
+    showElement(this.loadingElement);
   };
 
 

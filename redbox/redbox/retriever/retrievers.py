@@ -20,6 +20,7 @@ from redbox.retriever.queries import (
     add_document_filter_scores_to_query,
     build_document_query,
     get_all,
+    get_knowledge_base_metadata,
     get_metadata,
     get_minimum_metadata,
 )
@@ -336,6 +337,30 @@ class BasicMetadataRetriever(OpenSearchRetriever):
         kwargs["es_client"] = es_client
         super().__init__(**kwargs)
         self.body_func = partial(get_minimum_metadata, self.chunk_resolution)
+
+    def _get_relevant_documents(self, query: RedboxState, *, run_manager: CallbackManagerForRetrieverRun) -> list:  # noqa:ARG002
+        # if not self.es_client or not self.document_mapper:
+        #     msg = "faulty configuration"
+        #     raise ValueError(msg)  # should not happen
+
+        body = self.body_func(query)  # type: ignore
+        response = self.es_client.search(index=self.index_name, body=body)
+        hits = response.get("hits", {}).get("hits", [])
+        return [hit["_source"] for hit in hits]
+
+
+class KnowledgeBaseMetadataRetriever(OpenSearchRetriever):
+    """A modified MetadataRetriever that retrieves only filename, keyword and description metadata"""
+
+    chunk_resolution: ChunkResolution = ChunkResolution.largest
+
+    def __init__(self, es_client: Union[Elasticsearch, OpenSearch], **kwargs: Any) -> None:
+        # Hack to pass validation before overwrite
+        # Partly necessary due to how .with_config() interacts with a retriever
+        kwargs["body_func"] = get_knowledge_base_metadata
+        kwargs["es_client"] = es_client
+        super().__init__(**kwargs)
+        self.body_func = partial(get_knowledge_base_metadata, self.chunk_resolution)
 
     def _get_relevant_documents(self, query: RedboxState, *, run_manager: CallbackManagerForRetrieverRun) -> list:  # noqa:ARG002
         # if not self.es_client or not self.document_mapper:

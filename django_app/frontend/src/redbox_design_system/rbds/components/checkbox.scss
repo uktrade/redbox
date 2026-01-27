@@ -1,0 +1,28 @@
+.rbds-checkbox {
+  --checkbox-label-color: var(--color-text);
+  --checkbox-box-color: var(--color-text);
+  --checkbox-box-checked-color: var(--color-text);
+  --checkbox-checkmark-color: var(--color-text);
+
+  .govuk-checkboxes__label {
+    color: var(--checkbox-label-color);
+  }
+
+  .govuk-checkboxes__label::before {
+    border-color: var(--checkbox-box-color);
+  }
+
+  .govuk-checkboxes__input:checked
+  + .govuk-checkboxes__label::before {
+    border-color: var(--checkbox-box-checked-color);
+  }
+
+  .govuk-checkboxes__input:checked
+  + .govuk-checkboxes__label::after {
+    border-color: var(--checkbox-checkmark-color);
+  }
+
+  &--side-panel {
+    --checkbox-label-color: var(--color-link-text);
+  }
+}

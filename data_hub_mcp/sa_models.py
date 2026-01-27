@@ -88,7 +88,7 @@ class Interaction(Base):
     team_name = Column("team_name", String)
 
     company_id = Column("company_id", UUID, ForeignKey(Company.id))
-    company = relationship('Company', foreign_keys='Interaction.company_id')
+    company = relationship("Company", foreign_keys="Interaction.company_id")
 
 
 class InvestmentProjects(Base):
@@ -163,7 +163,8 @@ class InvestmentProjects(Base):
     eyb_lead_ids = Column("eyb_lead_ids", String(100), nullable=True)
 
     uk_company_id = Column("uk_company_id", UUID, ForeignKey(Company.id), nullable=True)
-    company = relationship('Company', foreign_keys='InvestmentProjects.uk_company_id')
+    company = relationship("Company", foreign_keys="InvestmentProjects.uk_company_id")
+
 
 class AccountManagementObjectives(Base):
     __tablename__ = "account_management_objectives"
@@ -181,4 +182,4 @@ class AccountManagementObjectives(Base):
     modified_by_id = Column("modified_by_id", UUID, nullable=True)
 
     company_id = Column("company_id", UUID, ForeignKey(Company.id))
-    company = relationship('Company', foreign_keys='AccountManagementObjectives.company_id')
+    company = relationship("Company", foreign_keys="AccountManagementObjectives.company_id")
