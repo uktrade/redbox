@@ -9,6 +9,11 @@ from django.test import Client
 from django.urls import reverse
 from yarl import URL
 
+from redbox_app.redbox_core.models import (
+    Chat,
+    Tool,
+)
+
 User = get_user_model()
 
 logger = logging.getLogger(__name__)
@@ -75,3 +80,26 @@ def test_user_can_see_accessibility_statement(alice: User, client: Client):
     # Then
     assert response.status_code == HTTPStatus.OK
     assert anonymous_response.status_code == HTTPStatus.OK
+
+
+@pytest.mark.django_db
+def test_refresh_fragments(alice: User, client: Client, chat: Chat, default_tool: Tool):
+    # Given
+    client.force_login(alice)
+    url_name = "refresh"
+
+    # When
+    bad_response = client.get(reverse(url_name))
+    response = client.get(
+        reverse(url_name),
+        data={
+            "fragments": ["chat-cta", "conversations"],
+            "chat": chat.id,
+            "tool": default_tool.slug,
+        },
+    )
+
+    # Then
+    assert bad_response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.status_code == HTTPStatus.OK
+    assert response.content.decode()

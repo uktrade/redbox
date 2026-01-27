@@ -77,7 +77,9 @@ def resolve_instance(value, model, lookup="pk", raise_404=False):
         raise ValueError(msg) from err
 
 
-def parse_uuid(value: str | None) -> uuid.UUID | None:
+def parse_uuid(value: str | uuid.UUID | None) -> uuid.UUID | None:
+    if isinstance(value, uuid.UUID):
+        return value
     if not value or value == "None":
         return None
     try:

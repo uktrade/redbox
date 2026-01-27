@@ -61,9 +61,23 @@ def faq_view(request):
 class RefreshFragmentsView(View):
     @method_decorator(login_required)
     def get(self, request: HttpRequest) -> HttpResponse:
-        fragments = request.GET.getlist("fragments")
         active_chat_id = parse_uuid(request.GET.get("chat"))
         slug = request.GET.get("tool")
+
+        fragments = request.GET.getlist("fragments")
+        unknown_fragments = set(fragments) - FRAGMENTS.keys()
+
+        if not fragments:
+            return HttpResponse(
+                "No fragments specified",
+                status=HTTPStatus.BAD_REQUEST,
+            )
+
+        if unknown_fragments:
+            return HttpResponse(
+                f"Unknown fragments: {', '.join(sorted(unknown_fragments))}",
+                status=HTTPStatus.BAD_REQUEST,
+            )
 
         context = chat_service.get_context(request, active_chat_id, slug)
         context["oob"] = True
