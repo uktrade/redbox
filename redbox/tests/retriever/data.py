@@ -192,16 +192,16 @@ METADATA_RETRIEVER_CASES = [
     for test_case in generator
 ]
 
-TABULAR_RETRIEVER_CASES = [
+TABULAR_KB_RETRIEVER_CASES = [
     test_case
     for generator in [
         generate_test_cases(
             query=RedboxQuery(
                 question="Retrieve tabular data",
-                s3_keys=["file1.csv", "file2.xlsx"],
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["file1.csv", "file2.xlsx"],
+                knowledge_base_s3_keys=["file1.csv", "file2.xlsx"],
             ),
             test_data=[
                 RedboxTestData(
@@ -216,10 +216,10 @@ TABULAR_RETRIEVER_CASES = [
         generate_test_cases(
             query=RedboxQuery(
                 question="No permission case",
-                s3_keys=["file1.csv", "file2.xlsx"],
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=[],  # no permission
+                knowledge_base_s3_keys=["file1.csv", "file2.xlsx"],
             ),
             test_data=[
                 RedboxTestData(
@@ -234,10 +234,10 @@ TABULAR_RETRIEVER_CASES = [
         generate_test_cases(
             query=RedboxQuery(
                 question="Empty selection",
-                s3_keys=[],  # nothing selected
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["file1.csv", "file2.xlsx"],  # permission exists
+                knowledge_base_s3_keys=[],
             ),
             test_data=[
                 RedboxTestData(

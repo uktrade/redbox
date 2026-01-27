@@ -26,7 +26,7 @@ from tests.retriever.data import (
     KNOWLEDGE_BASE_CASES,
     METADATA_RETRIEVER_CASES,
     PARAMETERISED_RETRIEVER_CASES,
-    TABULAR_RETRIEVER_CASES,
+    TABULAR_KB_RETRIEVER_CASES,
 )
 
 if TYPE_CHECKING:
@@ -205,8 +205,8 @@ def stored_file_metadata(
     es_vector_store.delete(doc_ids)
 
 
-@pytest.fixture(params=TABULAR_RETRIEVER_CASES)
-def stored_file_tabular(request: FixtureRequest, es_vector_store: OpenSearchVectorSearch):
+@pytest.fixture(params=TABULAR_KB_RETRIEVER_CASES)
+def stored_file_tabular_kb(request: FixtureRequest, es_vector_store: OpenSearchVectorSearch):
     test_case: RedboxChatTestCase = request.param
     doc_ids = es_vector_store.add_documents(test_case.docs)
     yield test_case

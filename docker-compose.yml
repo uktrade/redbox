@@ -1,6 +1,6 @@
 services:
   redbox-unstructured:
-    image: quay.io/unstructured-io/unstructured-api:latest
+    image: quay.io/unstructured-io/unstructured-api:0.0.90
     container_name: unstructured
     platform: linux/amd64
     ports:

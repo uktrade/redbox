@@ -158,7 +158,7 @@ def test_metadata_retriever(metadata_retriever: MetadataRetriever, stored_file_m
 
 def test_tabular_kb_retriever(
     kb_tabular_metadata_retriever: KnowledgeBaseTabularMetadataRetriever,
-    stored_file_tabular: RedboxChatTestCase,
+    stored_file_tabular_kb: RedboxChatTestCase,
 ):
     """
     Given a RedboxState, asserts that the tabular retriever:
@@ -168,35 +168,19 @@ def test_tabular_kb_retriever(
     * Populates state.knowledge_tabular_files
     """
 
-    # Create a RedboxState with the test query
-    state = RedboxState(
-        request=stored_file_tabular.query,
-    )
-
     # Invoke the retriever
-    result_docs = kb_tabular_metadata_retriever.invoke(state)
+    result = kb_tabular_metadata_retriever.invoke(RedboxState(request=stored_file_tabular_kb.query))
 
-    # Ensure result_docs is a list of Documents
-    assert isinstance(result_docs, list)
-    assert all(hasattr(doc, "metadata") for doc in result_docs)
+    # Fetch expected documents using helper
+    correct = stored_file_tabular_kb.get_kb_docs_matching_query()
 
-    # Assert only selected and permitted files are returned
-    selected = set(stored_file_tabular.query.s3_keys)
-    permitted = set(stored_file_tabular.query.permitted_s3_keys)
+    # Determine if any files were selected and permitted
+    selected = bool(stored_file_tabular_kb.query.knowledge_base_s3_keys)
+    permission = bool(stored_file_tabular_kb.query.permitted_s3_keys)
 
-    for doc in result_docs:
-        assert doc.metadata["uri"] in selected
-        assert doc.metadata["uri"] in permitted
-
-    # If using DocumentState in the RedboxState
-    # (e.g., state.knowledge_tabular_files), make sure it's populated
-    if hasattr(state, "knowledge_tabular_files"):
-        doc_state = state.knowledge_tabular_files
-        assert doc_state is not None
-        assert hasattr(doc_state, "groups")
-        # Check all documents in groups are correct
-        for mapping in doc_state.groups.values():
-            for doc_id, doc in mapping.items():
-                assert doc is not None
-                assert doc.metadata["uri"] in selected
-                assert doc.metadata["uri"] in permitted
+    if selected and permission:
+        assert len(result) == len(correct)
+        assert {c.metadata["uri"] for c in result} == set(stored_file_tabular_kb.query.s3_keys)
+        assert {c.metadata["uri"] for c in result} <= set(stored_file_tabular_kb.query.permitted_s3_keys)
+    else:
+        len(result) == 0
