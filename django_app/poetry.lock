@@ -1876,21 +1876,6 @@ django = {version = ">=3,<6", markers = "python_version >= \"3.10\" and python_v
 django-ipware = ">=7.0.1,<8.0.0"
 
 [[package]]
-name = "django-magic-link"
-version = "1.2.0"
-description = "Django app for managing tokenised 'magic link' logins."
-optional = false
-python-versions = "<4.0,>=3.12"
-groups = ["main"]
-files = [
-    {file = "django_magic_link-1.2.0-py3-none-any.whl", hash = "sha256:908281dd54ca6ae46eb4d6df78fb7365abfa93c306c278b9ff0bd853dc7c2d9c"},
-    {file = "django_magic_link-1.2.0.tar.gz", hash = "sha256:a8c9307846c8a5ef46431616de9a0d42710bbc3b53610df89c90149f07e8714c"},
-]
-
-[package.dependencies]
-django = ">=5.2,<7.0"
-
-[[package]]
 name = "django-permissions-policy"
 version = "4.28.0"
 description = "Set the Permissions-Policy HTTP header on your Django app."
@@ -5071,7 +5056,7 @@ pytest = "^8.4.2"
 pytest-dotenv = "^0.5.2"
 scikit-learn = "^1.5.2"
 starlette = "0.49.1"
-urllib3 = "2.6.0"
+urllib3 = "2.6.3"
 wikipedia = "^1.4.0"
 
 [package.source]
@@ -6442,14 +6427,14 @@ devenv = ["black", "check-manifest", "flake8", "pyroma", "pytest", "pytest-cov",
 
 [[package]]
 name = "urllib3"
-version = "2.6.0"
+version = "2.6.3"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev"]
 files = [
-    {file = "urllib3-2.6.0-py3-none-any.whl", hash = "sha256:c90f7a39f716c572c4e3e58509581ebd83f9b59cced005b7db7ad2d22b0db99f"},
-    {file = "urllib3-2.6.0.tar.gz", hash = "sha256:cb9bcef5a4b345d5da5d145dc3e30834f58e8018828cbc724d30b4cb7d4d49f1"},
+    {file = "urllib3-2.6.3-py3-none-any.whl", hash = "sha256:bf272323e553dfb2e87d9bfd225ca7b0f467b919d7bbd355436d3fd37cb0acd4"},
+    {file = "urllib3-2.6.3.tar.gz", hash = "sha256:1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed"},
 ]
 
 [package.extras]
@@ -7143,4 +7128,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "a9ebce9000145130e4d71628937b3ee4b539efacfe6712171ae91d7138551268"
+content-hash = "628078ea55aa4c2b063229ad373aed625ef8c95dcae4e52706936bc403b0f700"
