@@ -30,7 +30,6 @@ from yarl import URL
 from redbox.models.settings import get_settings
 from redbox_app.redbox_core.services import url as url_service
 from redbox_app.redbox_core.utils import get_date_group
-from tests.pages import ChatMessage
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
@@ -979,7 +978,7 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
         )
 
     @property
-    def last_user_message(self) -> ChatMessage | None:
+    def last_user_message(self) -> Optional["ChatMessage"]:
         messages = ChatMessage.get_messages_ordered_by_citation_priority(self.id)
         user_message_history = [m for m in messages if m.role == ChatMessage.Role.user]
         return user_message_history[-1] if user_message_history else None
