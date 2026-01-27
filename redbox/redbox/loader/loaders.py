@@ -1,6 +1,8 @@
-import logging
-import time
 import json
+import logging
+import math
+import time
+import time as _time
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from io import BytesIO
@@ -8,13 +10,13 @@ from typing import TYPE_CHECKING, List, Tuple
 
 import environ
 import fitz
+import pandas as pd
 import requests
-from requests.exceptions import RequestException
-
 from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
 from pydantic import ValidationError
 from redbox_app.setting_enums import Environment
+from requests.exceptions import RequestException
 
 from redbox.chains.components import get_chat_llm
 from redbox.chains.parser import ClaudeParser
@@ -22,9 +24,6 @@ from redbox.models.chain import GeneratedMetadata
 from redbox.models.file import ChunkResolution, UploadedFileMetadata
 from redbox.models.settings import Settings
 from redbox.transform import bedrock_tokeniser
-import pandas as pd
-import math
-import time as _time
 
 env = environ.Env()
 ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
@@ -241,22 +240,22 @@ class UnstructuredChunkLoader:
             "infer_table_structure": "true",
         }
 
-        # detect if file is an image-heavy pdf
-        lower_name = file_name.lower()
-        is_pdf_image_heavy = False
-        if lower_name.endswith(".pdf"):
-            try:
-                is_pdf_image_heavy = _pdf_is_image_heavy(file_bytes)
-            except Exception:
-                is_pdf_image_heavy = False
+        ## detect if file is an image-heavy pdf
+        # lower_name = file_name.lower()
+        # is_pdf_image_heavy = False
+        # if lower_name.endswith(".pdf"):
+        #     try:
+        #         is_pdf_image_heavy = _pdf_is_image_heavy(file_bytes)
+        #     except Exception:
+        #         is_pdf_image_heavy = False
 
-        logger.debug("file %s pdf_image_heavy=%s", file_name, is_pdf_image_heavy)
+        # logger.debug("file %s pdf_image_heavy=%s", file_name, is_pdf_image_heavy)
 
         candidate_data_payloads = []
 
-        # try fast strategy first
-        if not is_pdf_image_heavy:
-            candidate_data_payloads.append({**base_data, "strategy": "fast"})
+        ## try fast strategy first
+        # if not is_pdf_image_heavy:
+        candidate_data_payloads.append({**base_data, "strategy": "fast"})
         # then fallback 1 let unstructured pick the strategy
         candidate_data_payloads.append({**base_data})
         # then fallback 2 conservative chunking
