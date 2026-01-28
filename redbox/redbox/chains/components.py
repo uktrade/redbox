@@ -26,7 +26,7 @@ from redbox.retriever import (
     ParameterisedElasticsearchRetriever,
     TabularElasticsearchRetriever,
 )
-from redbox.retriever.retrievers import KnowledgeBaseMetadataRetriever
+from redbox.retriever.retrievers import KnowledgeBaseMetadataRetriever, KnowledgeBaseTabularMetadataRetriever
 from redbox.transform import bedrock_tokeniser
 
 logger = logging.getLogger(__name__)
@@ -182,7 +182,14 @@ def get_basic_metadata_retriever(env: Settings):
 def get_knowledge_base_metadata_retriever(env: Settings):
     return KnowledgeBaseMetadataRetriever(
         es_client=env.elasticsearch_client(),
-        index_name=env.elastic_chunk_alias,
+        index_name=env.elastic_schematised_chunk_index,
+    )
+
+
+def get_knowledge_base_tabular_metadata_retriever(env: Settings):
+    return KnowledgeBaseTabularMetadataRetriever(
+        es_client=env.elasticsearch_client(),
+        index_name=env.elastic_schematised_chunk_index,
     )
 
 
