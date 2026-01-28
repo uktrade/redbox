@@ -3,7 +3,7 @@
 {% from "macros/govuk-warning.html" import govuk_warning %}
 {% from "macros/icon.html" import rbds_icon %}
 
-<div id="chat-window" class="rbds-chat-window" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+<div id="chat-window" class="rbds-chat-window {% if is_first_time_user %}rbds-chat-window--first-time{% endif %}" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
     {% if not messages %}
         <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1" security-classification="{{ security }}">
             <h3 class="govuk-heading-s">
@@ -17,6 +17,8 @@
             </h3>
         </canned-prompts>
     {% endif %}
+
+    {% if is_first_time_user %}{% include "upload_form.html" %}{% endif %}
 
     <div class="rb-chats-section">
         <chat-controller class="iai-chat-container" data-stream-url="{{ streaming.endpoint if streaming else '' }}"

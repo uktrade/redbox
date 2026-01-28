@@ -556,7 +556,6 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
     ai_experience = models.CharField(null=True, blank=True, max_length=25, choices=AIExperienceLevel)
     profession = models.CharField(null=True, blank=True, max_length=4, choices=Profession)
     info_about_user = models.CharField(null=True, blank=True, help_text="user entered info from profile overlay")
-    first_time_user = models.BooleanField(default=True)
     redbox_response_preferences = models.CharField(
         null=True,
         blank=True,
@@ -663,6 +662,10 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
             return first_name[0].upper() + last_name[0].upper()
         except (IndexError, AttributeError, ValueError):
             return ""
+
+    @property
+    def first_time_user(self) -> bool:
+        return not Chat.objects.filter(user=self).first()
 
 
 class Team(UUIDPrimaryKeyBase):

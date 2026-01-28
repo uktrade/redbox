@@ -5,7 +5,7 @@
     <div class="rbds-chat-interaction__inner">
         <form id="chats-form" class="js-message-input" action="/submit" method="post">
             <rbds-message-input>
-                <div class="govuk-textarea rbds-message-input rbds-border {% if not messages %}rbds-message-input__expanded {% endif %}rbds-drop-zone"
+                <div class="govuk-textarea rbds-message-input rbds-border {% if not messages and not is_first_time_user %}rbds-message-input__expanded {% endif %}rbds-drop-zone"
                     id="message" name="message" contenteditable="true" role="textbox" aria-multiline="true"
                     data-text="Type your message here..."></div>
                 <div class="rbds-message-input__actions">
