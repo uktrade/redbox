@@ -30,7 +30,7 @@ class Environment(StrEnum):
     DEV = ("DEV", False, ["dev.redbox.uktrade.digital", *ADDITIONAL_HOSTS])
     UAT = ("UAT", False, ["uat.redbox.uktrade.digital", *ADDITIONAL_HOSTS])
     LAB = ("LAB", False, ["lab.redbox.uktrade.digital", *ADDITIONAL_HOSTS])
-    PROD = ("PROD", False, ["redbox.prod.uktrade.digital", *ADDITIONAL_HOSTS])
+    PROD = ("PROD", False, [*ADDITIONAL_HOSTS])
 
 
 class Classification(StrEnum):

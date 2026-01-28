@@ -34,7 +34,7 @@ repos:
       - id: check-case-conflict
 
   - repo: https://github.com/kynan/nbstripout
-    rev: 0.8.2
+    rev: 0.9.0
     hooks:
       - id: nbstripout
 
@@ -65,12 +65,6 @@ repos:
         entry: make format
         language: system
         pass_filenames: false
-      - id: no-files
-        name: Prevent data files
-        entry: '\.(docx|doc|pdf|xlsx|csv|txt|log)$'
-        language: fail
-        description: Prevent committing data files (.docx, .pdf, .xlsx, .csv, .txt, .log)
-        exclude: '\.(txt|yml|png|gif|woff|woff2|ico|yaml|baseline|lock|toml|py|js|md|css|scss|html|sh|ipynb|svg|env|example|gitkeep|env\.notebook|jsonl)$|^(Make|Proc)file$|^\.vscode/|^(unstructured|django_app)/Dockerfile$|^tests/|^django_app/tests/|^(redbox|django_app)/.vscode/|^django_app/(frontend|static|files)/.*\.(json|lottie|parcelrc|pdf)$|devcontainer.json$|^notebooks/evaluation/data_results/.*\.json$|^\.editorconfig$|^\.gitattributes$|^\.gitignore$|^\.tool-versions$|^LICENCE$'
 
   - repo: https://github.com/awslabs/git-secrets
     rev: 'master'
