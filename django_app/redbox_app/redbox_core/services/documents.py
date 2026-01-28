@@ -61,7 +61,7 @@ def render_your_documents(request, active_chat_id, slug: str | None = None) -> T
 
     return TemplateResponse(
         request,
-        "side_panel/your_documents_list.html",
+        "side_panel/your_documents.html",
         context,
     )
 
