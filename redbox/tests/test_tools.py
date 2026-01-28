@@ -29,6 +29,7 @@ from redbox.graph.nodes.tools import (
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
+    build_query_tabular_knowledge_base_tool,
     format_result,
     kagi_response_to_documents,
     web_search_call,

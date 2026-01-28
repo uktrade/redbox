@@ -34,6 +34,11 @@ class TestWorkerAgent:
         name="Internal_Retrieval_Agent", description="Fake description", prompt=propmt_config, tools=tools
     )
     worker = WorkerAgent(config=config)
+    task = AgentTaskBase(
+        task="Fake task",
+        agent="Internal_Retrieval_Agent",
+        expected_output="A comprehensive list of fake results",
+    )
 
     @pytest.mark.parametrize(
         "success, fake_state_fixture",

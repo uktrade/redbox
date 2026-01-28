@@ -17,7 +17,7 @@ from redbox.graph.nodes.sends import (
     run_tools_parallel,
     wrap_async_tool,
 )
-from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_wikipedia_tool
+from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_wikipedia_tool, build_govuk_search_tool
 from redbox.models.chain import DocumentState, RedboxQuery, RedboxState, TaskStatus, configure_agent_task_plan
 from tests.conftest import fake_state
 

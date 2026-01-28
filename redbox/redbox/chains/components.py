@@ -30,6 +30,7 @@ from redbox.retriever.retrievers import (
     KnowledgeBaseTabularMetadataRetriever,
     TabularMetadataRetriever,
 )
+from redbox.retriever.retrievers import KnowledgeBaseMetadataRetriever, KnowledgeBaseTabularMetadataRetriever
 from redbox.transform import bedrock_tokeniser
 
 logger = logging.getLogger(__name__)

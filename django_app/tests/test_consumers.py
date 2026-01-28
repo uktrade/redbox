@@ -618,8 +618,10 @@ async def test_chat_consumer_redbox_state(
                 permitted_s3_keys=permitted_file_keys,
                 previous_s3_keys=previous_file_keys,
                 db_location=None,
-                sso_access_token=None,
+            sso_access_token=None,
             )
+
+            mock_run.return_value = expected_request
 
             mock_run.return_value = expected_request
             redbox_state = mock_run.call_args.args[0]  # pulls out the args that redbox.run was called with
