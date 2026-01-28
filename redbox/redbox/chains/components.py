@@ -182,7 +182,7 @@ def get_basic_metadata_retriever(env: Settings):
 def get_knowledge_base_metadata_retriever(env: Settings):
     return KnowledgeBaseMetadataRetriever(
         es_client=env.elasticsearch_client(),
-        index_name=env.elastic_schematised_chunk_index,
+        index_name=env.elastic_chunk_alias,
     )
 
 
