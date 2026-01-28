@@ -15,8 +15,8 @@ def test_first_time_user(client: Client, bob: User, chat_with_alice: Chat):
     client.force_login(chat_with_alice.user)
 
     # When
-    response_1 = chat_with_alice.user.first_time_user()
-    response_2 = bob.first_time_user()
+    response_1 = chat_with_alice.user.first_time_user
+    response_2 = bob.first_time_user
 
     # Then
     assert response_1 is False
