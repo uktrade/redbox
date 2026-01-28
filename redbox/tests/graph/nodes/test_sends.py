@@ -231,7 +231,7 @@ class TestRunToolsParallel:
         assert len(responses) == 1
 
 
-@pytest.mark.parametrize("dependencies, expected", [([], True), (["task0"], False), (["task0", "task1"], False)])
+@pytest.mark.parametrize("dependencies, expected", [([], True), (["task0"], True), (["task1", "task2"], False)])
 def test_no_dependencies(dependencies, expected):
     agent = "Internal_Retrieval_Agent"
     agent_task, multi_agent_plan = configure_agent_task_plan({agent: agent})
@@ -253,9 +253,9 @@ def test_no_dependencies(dependencies, expected):
         ),
     ]
 
-    multi_agent_plan(tasks=tasks)
+    plan = multi_agent_plan(tasks=tasks)
 
     # test case
-    actual = no_dependencies(dependencies, plan=multi_agent_plan)
+    actual = no_dependencies(dependencies, plan=plan)
 
     assert actual == expected

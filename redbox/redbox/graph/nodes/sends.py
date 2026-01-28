@@ -212,7 +212,7 @@ def sending_task_to_agent(state: RedboxState):
             if no_dependencies(task.dependencies, plan) and (task.status == TaskStatus.PENDING):
                 # update status
                 task.status = TaskStatus.SCHEDULED
-                (state.agent_plans.update_task_status(task.id, TaskStatus.SCHEDULED),)
+                state.agent_plans.update_task_status(task.id, TaskStatus.SCHEDULED)
                 task_send_states += [
                     (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
                 ]
