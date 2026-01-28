@@ -20,6 +20,7 @@ class WorkerAgent(Agent):
 
     def __init__(self, config: AgentConfig):
         super().__init__(config)
+        self.task = None
 
     def reading_task_info(self):
         @RunnableLambda
@@ -37,6 +38,11 @@ class WorkerAgent(Agent):
             except JSONDecodeError as e:
                 self.logger.exception(f"Cannot parse task in {self.config.name}: {e}")
             return state, task
+            try:
+                self.task = parser.parse(state.last_message.content)
+            except JSONDecodeError as e:
+                self.logger.exception(f"Cannot parse task in {self.config.name}: {e}")
+            return state
 
         return _reading_task_info
 
@@ -44,6 +50,7 @@ class WorkerAgent(Agent):
         @RunnableLambda
         def _log_agent_activity(
             input,
+            state: RedboxState,
         ):
             """
             log what task the agent is completing
@@ -52,6 +59,8 @@ class WorkerAgent(Agent):
             self.logger.warning(f"{self.config.name} is completing task: {task.task}")
             activity_node = build_activity_log_node(
                 RedboxActivityEvent(message=f"{self.config.name} is completing task: {task.task}")
+            activity_node = build_activity_log_node(
+                RedboxActivityEvent(message=f"{self.config.name} is completing task: {self.task.task}")
             )
             activity_node.invoke(state)
 

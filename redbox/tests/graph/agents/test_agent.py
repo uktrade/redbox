@@ -14,7 +14,10 @@ WORKER_RESPONSE_WITH_TOOL = AIMessage(
         "tool_calls": [
             {
                 "id": "call_e4003b",
-                "function": {"arguments": '{\n  "query": "ai"\n}', "name": "_some_tool"},
+                "function": {
+                    "arguments": '{\n  "query": "ai"\n}',
+                    "name": "_some_tool",
+                },
                 "type": "function",
             }
         ]
@@ -30,7 +33,10 @@ class TestWorkerAgent:
     )
     tools = [build_search_wikipedia_tool()]
     config = AgentConfig(
-        name="Internal_Retrieval_Agent", description="Fake description", prompt=propmt_config, tools=tools
+        name="Internal_Retrieval_Agent",
+        description="Fake description",
+        prompt=propmt_config,
+        tools=tools,
     )
     worker = WorkerAgent(config=config)
     task = AgentTaskBase(
@@ -39,7 +45,9 @@ class TestWorkerAgent:
         expected_output="A comprehensive list of fake results",
     )
 
-    @pytest.mark.parametrize("success, task", [("success", task.model_dump_json()), ("fail", "")])
+    @pytest.mark.parametrize(
+        "success, task", [("success", task.model_dump_json()), ("fail", "")]
+    )
     def test_reading_task_info(self, success, task, fake_state):
         fake_state.messages = [AIMessage(content=task)]
         _, task = self.worker.reading_task_info().invoke(fake_state)
@@ -49,7 +57,12 @@ class TestWorkerAgent:
             assert task is None
 
     @pytest.mark.parametrize(
-        "result", [("A result"), ([AIMessage("A"), AIMessage("result")]), ([{"text": "A result"}])]
+        "result",
+        [
+            ("A result"),
+            ([AIMessage("A"), AIMessage("result")]),
+            ([{"text": "A result"}]),
+        ],
     )
     def test_post_processing(self, result, fake_state):
         task = self.task
@@ -71,7 +84,9 @@ class TestWorkerAgent:
     def test_core_task(self, AI_response, fake_state, mocker: MockerFixture):
         # mock LLM call
         llm_mock = mocker.patch("redbox.chains.runnables.get_chat_llm")
-        llm_mock.return_value = GenericFakeChatModelWithTools(messages=iter([AI_response]))
+        llm_mock.return_value = GenericFakeChatModelWithTools(
+            messages=iter([AI_response])
+        )
         # mock tool response
         mocker.patch(
             "redbox.graph.agents.workers.run_tools_parallel",
@@ -87,7 +102,9 @@ class TestWorkerAgent:
     def test_execute(self, fake_state: RedboxState, mocker: MockerFixture):
         # mock LLM call
         llm_mock = mocker.patch("redbox.chains.runnables.get_chat_llm")
-        llm_mock.return_value = GenericFakeChatModelWithTools(messages=iter([WORKER_RESPONSE_WITH_TOOL]))
+        llm_mock.return_value = GenericFakeChatModelWithTools(
+            messages=iter([WORKER_RESPONSE_WITH_TOOL])
+        )
         # mock tool response
         mocker.patch(
             "redbox.graph.agents.workers.run_tools_parallel",

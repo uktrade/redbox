@@ -7129,4 +7129,8 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
+<<<<<<< HEAD
 content-hash = "2c6955ce34930a2fd563e5bf0ff77834836804c280f6206fa9c0686a7638a159"
+=======
+content-hash = "8f51f38595d857231e46c7bebe1b36e6242d37f2a2d51aafa13796159bc024d0"
+>>>>>>> 383fcb17 (Feature/dev release to prod (#775))
