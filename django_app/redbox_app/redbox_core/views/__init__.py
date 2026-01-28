@@ -4,9 +4,7 @@ from redbox_app.redbox_core.views.auth_views import sign_in_link_sent_view, sign
 from redbox_app.redbox_core.views.chat_views import (
     ChatsTitleView,
     ChatsView,
-    ChatWindow,
     DeleteChat,
-    RecentChats,
     UpdateChatFeedback,
 )
 from redbox_app.redbox_core.views.citation_views import CitationsView
@@ -32,6 +30,7 @@ from redbox_app.redbox_core.views.file_views import (
 )
 from redbox_app.redbox_core.views.info_views import accessibility_statement_view, privacy_notice_view, support_view
 from redbox_app.redbox_core.views.misc_views import (
+    RefreshFragmentsView,
     SecurityTxtRedirectView,
     faq_view,
     health,
@@ -41,7 +40,6 @@ from redbox_app.redbox_core.views.notification_views import send_team_addition_e
 from redbox_app.redbox_core.views.ratings_views import RatingsView
 from redbox_app.redbox_core.views.settings_views import SettingsView
 from redbox_app.redbox_core.views.signup_views import Signup1, Signup2, Signup3, Signup4, Signup5, Signup6, Signup7
-from redbox_app.redbox_core.views.skills_views import SkillsView, skill_info_page_view
 from redbox_app.redbox_core.views.team_views import (
     add_team_member_row_view,
     add_team_member_view,
@@ -51,9 +49,9 @@ from redbox_app.redbox_core.views.team_views import (
     edit_team_member_row_view,
     edit_team_member_view,
 )
+from redbox_app.redbox_core.views.tools_views import ToolsView, tool_info_page_view
 
 __all__ = [
-    "ChatWindow",
     "ChatsTitleView",
     "ChatsView",
     "CheckDemographicsView",
@@ -63,7 +61,7 @@ __all__ = [
     "DocumentView",
     "DocumentsTitleView",
     "RatingsView",
-    "RecentChats",
+    "RefreshFragmentsView",
     "SecurityTxtRedirectView",
     "SettingsView",
     "Signup1",
@@ -73,7 +71,7 @@ __all__ = [
     "Signup5",
     "Signup6",
     "Signup7",
-    "SkillsView",
+    "ToolsView",
     "UpdateChatFeedback",
     "UpdateDemographicsView",
     "UploadView",
@@ -103,8 +101,8 @@ __all__ = [
     "sign_in_link_sent_view",
     "sign_in_view",
     "signed_out_view",
-    "skill_info_page_view",
     "support_view",
+    "tool_info_page_view",
     "upload_document",
     "user_view_pre_alpha",
 ]

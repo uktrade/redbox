@@ -125,8 +125,3 @@ def is_using_search_keyword(state: RedboxState) -> bool:
         return True
     else:
         return False
-
-
-def remove_gadget_keyword(state: RedboxState):
-    state.request.question = state.request.question.replace("@gadget ", "")
-    return state

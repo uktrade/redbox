@@ -34,7 +34,6 @@ ALLOW_SIGN_UPS = env.bool("ALLOW_SIGN_UPS")
 SECRET_KEY = env.str("DJANGO_SECRET_KEY")
 ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
 WEBSOCKET_SCHEME = "ws" if ENVIRONMENT.is_test else "wss"
-LOGIN_METHOD = env.str("LOGIN_METHOD", None)
 
 # env variables used by redbox_core
 COLLECTION_ENDPOINT = env.str("COLLECTION_ENDPOINT")
@@ -48,6 +47,7 @@ GOOGLE_SEARCH_API = env.str("GOOGLE_SEARCH_API", "")
 GOOGLE_SEARCH_ENGINE = env.str("GOOGLE_SEARCH_ENGINE", "")
 BRAVE_API_KEY = env.str("BRAVE_API_KEY", "")
 KAGI_API_KEY = env.str("KAGI_API_KEY", "")
+MAX_ATTEMPTS = env.int("max_attempts", 3)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG")
@@ -70,6 +70,7 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Application definition
 INSTALLED_APPS = [
+    "authbroker_client",
     "daphne",
     "redbox_app.redbox_core",
     "django.contrib.admin.apps.SimpleAdminConfig",
@@ -81,7 +82,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "single_session",
     "storages",
-    "magic_link",
     "import_export",
     "django_q",
     "rest_framework",
@@ -90,9 +90,6 @@ INSTALLED_APPS = [
     "adminplus",
     "waffle",
 ]
-
-if LOGIN_METHOD == "sso":
-    INSTALLED_APPS.append("authbroker_client")
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -147,12 +144,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "redbox_app.wsgi.application"
 ASGI_APPLICATION = "redbox_app.asgi.application"
 
-AUTHENTICATION_BACKENDS = [
-    "django.contrib.auth.backends.ModelBackend",
-]
-
-if LOGIN_METHOD == "sso":
-    AUTHENTICATION_BACKENDS.append("authbroker_client.backends.AuthbrokerBackend")
+AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend", "authbroker_client.backends.AuthbrokerBackend"]
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -182,20 +174,11 @@ SITE_ID = 1
 AUTH_USER_MODEL = "redbox_core.User"
 ACCOUNT_EMAIL_VERIFICATION = "none"
 
-if LOGIN_METHOD == "sso":
-    # os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1' #TO REMOVE
-    AUTHBROKER_URL = env.str("AUTHBROKER_URL")
-    AUTHBROKER_CLIENT_ID = env.str("AUTHBROKER_CLIENT_ID")
-    AUTHBROKER_CLIENT_SECRET = env.str("AUTHBROKER_CLIENT_SECRET")
-    LOGIN_URL = reverse_lazy("authbroker_client:login")
-    LOGIN_REDIRECT_URL = reverse_lazy("homepage")
-elif LOGIN_METHOD == "magic_link":
-    SESSION_COOKIE_SAMESITE = "Strict"
-    LOGIN_REDIRECT_URL = "homepage"
-    LOGIN_URL = "sign-in"
-else:
-    LOGIN_REDIRECT_URL = "homepage"
-    LOGIN_URL = "sign-in"
+AUTHBROKER_URL = env.str("AUTHBROKER_URL", "https://example.com")
+AUTHBROKER_CLIENT_ID = env.str("AUTHBROKER_CLIENT_ID", "1234")
+AUTHBROKER_CLIENT_SECRET = env.str("AUTHBROKER_CLIENT_SECRET", "1234")
+LOGIN_URL = reverse_lazy("authbroker_client:login")
+LOGIN_REDIRECT_URL = reverse_lazy("homepage")
 
 # CSP settings https://content-security-policy.com/
 # https://django-csp.readthedocs.io/
@@ -452,20 +435,6 @@ GOVUK_NOTIFY_API_KEY = env.str("GOVUK_NOTIFY_API_KEY", None)
 GOVUK_NOTIFY_PLAIN_EMAIL_TEMPLATE_ID = env.str("GOVUK_NOTIFY_PLAIN_EMAIL_TEMPLATE_ID", None)
 GOVUK_NOTIFY_TEAM_ADDITION_EMAIL_TEMPLATE_ID = env.str("GOVUK_NOTIFY_TEAM_ADDITION_EMAIL_TEMPLATE_ID", None)
 
-# Magic link
-
-MAGIC_LINK = {
-    # link expiry, in seconds
-    "DEFAULT_EXPIRY": 300,
-    # default link redirect
-    "DEFAULT_REDIRECT": "/",
-    # the preferred authorization backend to use, in the case where you have more
-    # than one specified in the `settings.AUTHORIZATION_BACKENDS` setting.
-    "AUTHENTICATION_BACKEND": "django.contrib.auth.backends.ModelBackend",
-    # SESSION_COOKIE_AGE override for magic-link logins - in seconds (default is 1 week)
-    "SESSION_EXPIRY": 21 * 60 * 60,
-}
-
 IMPORT_FORMATS = [CSV]
 
 CHAT_TITLE_LENGTH = 30
@@ -524,3 +493,10 @@ DEFAULT_MODEL_ID = env.str("DEFAULT_MODEL_ID", "anthropic.claude-3-sonnet-202402
 WEB_SEARCH_API_LIMIT = env.int("WEB_SEARCH_API_LIMIT", 100)
 
 ADMIN_EMAIL = env.str("ADMIN_EMAIL", "")
+
+FEEDBACK_LINK = env.str(
+    "FEEDBACK_LINK",
+    "https://teams.microsoft.com/l/channel/19%3A9ae6b3b539724595a3139c2b16dc56ef%40thread.tacv2/Redbox%20trial%20participants%20Chat%20Channel?groupId=7a71ce78-fe77-4185-825c-ae40cb07d614&tenantId=8fa217ec-33aa-46fb-ad96-dfe68006bb86",
+)
+
+PRODUCT_NAME = env.str("PRODUCT_NAME", "Redbox at DBT")

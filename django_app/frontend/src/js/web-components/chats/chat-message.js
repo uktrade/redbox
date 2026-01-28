@@ -1,6 +1,7 @@
 // @ts-check
 
-import "../loading-message.js";
+import { hideElement, showElement } from "../../utils/dom-utils.js";
+import { LoadingMessage } from "../../../redbox_design_system/rbds/components/loading-message.js";
 
 window.addEventListener('load', () => {
   const scrollPosition = sessionStorage.getItem('scrollPosition');
@@ -24,16 +25,18 @@ export class ChatMessage extends HTMLElement {
   #loadMessage = () => {
     const uuid = crypto.randomUUID();
     this.innerHTML = `
-            <div class="redbox-message-container govuk-inset-text ${this.dataset.role == 'user' ? `govuk-inset-text-right`: ''} govuk-body" data-role="${
+            <div class="rbds-message-container ${this.dataset.role == 'user' ? `rbds-message-container__right`: ''} govuk-body" data-role="${
               this.dataset.role
             }" tabindex="-1" id="chat-message-${this.dataset.id}">
-                <markdown-converter class="rbds-chat-message__text">${
-                  this.dataset.text || ""
-                }</markdown-converter>
+                <div class="${this.dataset.role == 'user' ? `rbds-message-container__right rbds-border`: 'rbds-message-container__left'}">
+                  <markdown-converter class="rbds-chat-message__text">${
+                    this.dataset.text || ""
+                  }</markdown-converter>
+                </div>
                 ${
                   !this.dataset.text
                     ? `
-                      <loading-message data-aria-label="Loading message"></loading-message>
+                      <rbds-loading-message data-aria-label="Loading message"></rbds-loading-message>
                       <div class="rb-loading-complete govuk-visually-hidden" aria-live="assertive"></div>
                     `
                     : ""
@@ -143,7 +146,7 @@ export class ChatMessage extends HTMLElement {
     sessionId,
     endPoint,
     chatControllerRef,
-    selectedSkill
+    selectedTool
   ) => {
     // Scroll behaviour - depending on whether user has overridden this or not
     let scrollOverride = false;
@@ -205,9 +208,6 @@ export class ChatMessage extends HTMLElement {
       this.querySelector("sources-list")
     );
     /** @type {import("./feedback-buttons").FeedbackButtons | null} */
-    let responseLoading = /** @type HTMLElement */ (
-      this.querySelector(".rb-loading-ellipsis")
-    );
     let actionsContainer = this.querySelector(".chat-actions-container")
     let responseComplete = this.querySelector(".rb-loading-complete");
     let webSocket = new WebSocket(endPoint);
@@ -232,7 +232,7 @@ export class ChatMessage extends HTMLElement {
           selectedFiles: selectedDocuments,
           activities: activities,
           llm: llm,
-          selectedSkill: selectedSkill,
+          selectedTool: selectedTool,
         })
       );
       this.dataset.status = "streaming";
@@ -250,7 +250,7 @@ export class ChatMessage extends HTMLElement {
     };
 
     webSocket.onclose = (event) => {
-      responseLoading.style.display = "none";
+      hideElement(this.loadingElement);
       if (responseComplete) {
         responseComplete.textContent = "Response complete";
       }
@@ -273,6 +273,7 @@ export class ChatMessage extends HTMLElement {
       if (response.type === "text") {
         this.streamedContent += sanitiseText(response.data);
         this.responseContainer?.update(this.streamedContent);
+        hideElement(this.loadingElement);
       } else if (response.type === "session-id") {
         chatControllerRef.dataset.sessionId = sanitiseId(response.data);
       } else if (response.type === "source") {
@@ -289,6 +290,8 @@ export class ChatMessage extends HTMLElement {
           routeText.textContent = sanitiseText(response.data);
           route.removeAttribute("hidden");
         }
+      } else if (response.type === "activity") {
+        this.addActivity(response.data);
       } else if (response.type === "end") {
         // Assign the new message its ID straight away
         const chatMessage = this.querySelector('.govuk-inset-text');
@@ -346,6 +349,26 @@ export class ChatMessage extends HTMLElement {
       }
     };
   };
+
+
+   /**
+   * Displays response activity below the message
+   * @param {string} message
+   */
+  addActivity = (message) => {
+    this.loadingElement.loadingText.textContent = message;
+    showElement(this.loadingElement);
+  };
+
+
+   /**
+   * Returns the activity element used for response feedback
+   * @returns {LoadingMessage} Loading Message Activity element
+   */
+  get loadingElement() {
+    return /** @type {LoadingMessage} */ (this.querySelector("rbds-loading-message"));
+  }
+
 }
 
 customElements.define("rbds-chat-message", ChatMessage);

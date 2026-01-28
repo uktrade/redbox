@@ -10,7 +10,9 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
+from waffle import flag_is_active
 
+from redbox_app.redbox_core import flags
 from redbox_app.redbox_core.models import Chat
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.utils import render_with_oob
@@ -20,10 +22,15 @@ logger = logging.getLogger(__name__)
 
 class ChatsView(View):
     @method_decorator(login_required)
-    def get(
-        self, request: HttpRequest, chat_id: uuid.UUID | None = None, skill_slug: str | None = None
-    ) -> HttpResponse:
-        context = chat_service.get_context(request, chat_id, skill_slug)
+    def get(self, request: HttpRequest, chat_id: uuid.UUID | None = None, slug: str | None = None) -> HttpResponse:
+        context = chat_service.get_context(request, chat_id, slug)
+
+        # Chats page specific context - TODO: remove flag after testing and
+        # split chat context now that side-panel is persistent across all pages?
+        if flag_is_active(request, flags.ENABLE_FIRST_TIME_USER):
+            context["is_first_time_user"] = True
+        else:
+            context["is_first_time_user"] = request.user.first_time_user
 
         if chat_id != context["chat_id"]:
             return redirect(reverse("chats"))
@@ -91,25 +98,10 @@ class DeleteChat(View):
 
             return render_with_oob(
                 [
-                    {"template": "side_panel/recent_chats_list.html", "context": context, "request": request},
-                    {"template": "side_panel/your_documents_list.html", "context": oob_context, "request": request},
+                    {"template": "side_panel/conversations.html", "context": context, "request": request},
+                    {"template": "side_panel/your_documents.html", "context": oob_context, "request": request},
+                    {"template": "chat/cta.html", "context": oob_context, "request": request},
                     {"template": "chat/chat_window.html", "context": oob_context, "request": request},
                 ]
             )
         return chat_service.render_recent_chats(request, active_chat_id)
-
-
-class RecentChats(View):
-    @method_decorator(login_required)
-    def get(
-        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, skill_slug: str | None = None
-    ) -> HttpResponse:
-        return chat_service.render_recent_chats(request, active_chat_id, skill_slug)
-
-
-class ChatWindow(View):
-    @method_decorator(login_required)
-    def get(
-        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, skill_slug: str | None = None
-    ) -> HttpResponse:
-        return chat_service.render_chat_window(request, active_chat_id, skill_slug)

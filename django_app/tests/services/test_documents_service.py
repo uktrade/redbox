@@ -2,7 +2,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client, RequestFactory
 
-from redbox_app.redbox_core.models import Chat, File, FileSkill, Skill
+from redbox_app.redbox_core.models import Chat, File, FileTool, Tool
 from redbox_app.redbox_core.services import documents as documents_service
 
 User = get_user_model()
@@ -26,7 +26,7 @@ def test_get_file_context(client: Client, chat_with_files: Chat):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_get_file_context_with_skill(client: Client, chat_with_files: Chat, default_skill: Skill, uploaded_file: File):
+def test_get_file_context_with_tool(client: Client, chat_with_files: Chat, default_tool: Tool, uploaded_file: File):
     # Given
     user = chat_with_files.user
     client.force_login(user)
@@ -35,8 +35,8 @@ def test_get_file_context_with_skill(client: Client, chat_with_files: Chat, defa
     request.user = user
 
     # When
-    FileSkill.objects.create(file=uploaded_file, skill=default_skill)
-    files = documents_service.get_file_context(request, default_skill)
+    FileTool.objects.create(file=uploaded_file, tool=default_tool)
+    files = documents_service.get_file_context(request, default_tool)
 
     # Then
     assert len(files["completed_files"]) == 0

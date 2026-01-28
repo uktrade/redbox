@@ -19,6 +19,7 @@ from redbox.transform import (
     structure_documents_by_group_and_indices,
     to_request_metadata,
     truncate_to_tokens,
+    join_result_with_token_limit,
 )
 
 document_created = datetime.now(UTC)
@@ -355,42 +356,128 @@ def test_sort_documents():
 
 
 @pytest.mark.parametrize(
-    ("text", "max_tokens", "expected"),
+    ("test_name", "text", "max_tokens", "expected_text", "expected_count"),
     [
-        # --- WORD SPLITTING ---
         (
+            "over-max-tokens--expect-truncation--words",
             "Hello world this is a test",
             3,
             "Hello world this",
+            3,
         ),
-        # --- PUNCTUATION ATTACHES DIRECTLY ---
-        # Tokens: ["Hello", ",", "world", "!"]
         (
-            "Hello, world!",
-            2,
-            "Hello,",
-        ),
-        # --- WORD AFTER PUNCTUATION GETS SPACE ---
-        (
+            "over-max-tokens--expect-truncation--words-with-punctuation",
             "Hello, world!",
             3,
             "Hello, world",
+            3,
         ),
-        # --- TRAILING SPACE TOKEN HANDLED ---
-        # bedrock_tokeniser("Hello world ") = ["Hello","world","<space>"]
         (
-            "Hello world ",
-            2,
-            "Hello world",
+            "over-max-tokens--expect-truncation--trailing-space",
+            "Hello, world! ",
+            3,
+            "Hello, world",
+            3,
         ),
-        # --- MID-SENTENCE TRUNCATION ---
+        ("equal-to-max-tokens--no-truncation--words", "Hello world", 2, "Hello world", 2),
+        ("equal-to-max-tokens--no-truncation--words-with-punctuation", "Hello!", 2, "Hello!", 2),
+        ("equal-to-max-tokens--no-truncation--trailing-space", "Hello world ", 2, "Hello world", 2),
+        ("under-max-tokens--no-truncation--words", "Hello world", 5, "Hello world", 2),
+        ("under-max-tokens--no-truncation--words-with-punctuation", "Hello world!", 5, "Hello world!", 3),
         (
-            "One two three four five six seven eight nine",
+            "under-max-tokens--no-truncation--trailing-space",  # bedrock_tokeniser treats trailing space as a token, so the space is left in response unless truncated
+            "Hello world! ",
             5,
-            "One two three four five",
+            "Hello world! ",
+            4,
         ),
     ],
 )
-def test_truncate_to_tokens(text: str, max_tokens: int, expected: str):
-    result = truncate_to_tokens(text, max_tokens)
-    assert result == expected, f"Expected: {expected!r}, Got: {result!r}"
+def test_truncate_to_tokens(test_name: str, text: str, max_tokens: int, expected_text: str, expected_count):
+    result, count = truncate_to_tokens(text, max_tokens)
+    assert result == expected_text, f"{test_name} - Expected Text: {expected_text!r}, Got: {result!r}"
+    assert count == expected_count, f"{test_name} - Expected Count: {expected_count}, Got: {count}"
+
+
+@pytest.mark.parametrize(
+    ("test_name", "input_result_list", "input_max_tokens", "expected_result"),
+    [
+        (
+            "empty-result--negative-max-tokens--expect-empty-string",
+            [],
+            -1,
+            "",
+        ),
+        (
+            "single-result--over-max-tokens--expect-truncation",
+            [AIMessage("Hello world this is a test")],
+            5,
+            "Hello world this is a",
+        ),
+        (
+            "double-result--over-max-tokens--expect-truncation",
+            [AIMessage("Hello world"), AIMessage("this is a test")],
+            5,
+            "Hello world this is a",
+        ),
+        (
+            "multiple-result--over-max-tokens--expect-truncation",
+            [AIMessage("Hello world"), AIMessage("this is"), AIMessage("an even"), AIMessage("longer test")],
+            5,
+            "Hello world this is an",
+        ),
+        (
+            "empty-result--equal-max-tokens--expect-empty-string",
+            [],
+            0,
+            "",
+        ),
+        (
+            "single-result--equal-max-tokens--expect-no-truncation",
+            [AIMessage("Hello world this is a test")],
+            6,
+            "Hello world this is a test",
+        ),
+        (
+            "double-result--equal-max-tokens--expect-no-truncation",
+            [AIMessage("Hello world"), AIMessage("this is a test")],
+            6,
+            "Hello world this is a test",
+        ),
+        (
+            "multiple-result--equal-max-tokens--expect-no-truncation",
+            [AIMessage("Hello world"), AIMessage("this is"), AIMessage("an even"), AIMessage("longer test")],
+            8,
+            "Hello world this is an even longer test",
+        ),
+        (
+            "empty-result--under-max-tokens--expect-empty-string",
+            [],
+            1,
+            "",
+        ),
+        (
+            "single-result--under-max-tokens--expect-no-truncation",
+            [AIMessage("Hello world this is a test")],
+            10,
+            "Hello world this is a test",
+        ),
+        (
+            "double-result--under-max-tokens--expect-no-truncation",
+            [AIMessage("Hello world"), AIMessage("this is a test")],
+            10,
+            "Hello world this is a test",
+        ),
+        (
+            "multiple-result--under-max-tokens--expect-no-truncation",
+            [AIMessage("Hello world"), AIMessage("this is"), AIMessage("an even"), AIMessage("longer test")],
+            10,
+            "Hello world this is an even longer test",
+        ),
+    ],
+)
+def test_join_result_with_token_limit(
+    test_name: str, input_result_list: list, input_max_tokens: int, expected_result: str
+):
+    result = join_result_with_token_limit(result=input_result_list, max_tokens=input_max_tokens, log_stub="")
+    assert result == expected_result, f"{test_name} - Expected Text: {expected_result!r}, Got: {result!r}"

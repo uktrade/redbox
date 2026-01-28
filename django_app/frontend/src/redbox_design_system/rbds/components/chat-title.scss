@@ -1,7 +1,7 @@
 .rbds-chat-title {
-  margin-top: 1rem;
   display: block;
-  margin-bottom: 2rem;
+  justify-content: space-between;
+
 }
 
 .rbds-chat-title__heading-container-inner {
@@ -22,4 +22,10 @@
   max-width: 18rem;
   padding: 0.375rem;
   width: 100%;
+}
+
+.rbds-chat-title__actions {
+  display: flex;
+  gap: 15px;
+  min-width: fit-content;
 }

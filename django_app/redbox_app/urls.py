@@ -3,7 +3,6 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
-from magic_link import urls as magic_link_urls
 
 from .redbox_core import views
 
@@ -11,7 +10,6 @@ admin.site = AdminSitePlus()
 admin.autodiscover()
 
 auth_urlpatterns = [
-    path("magic_link/", include(magic_link_urls)),
     path("sign-in/", views.sign_in_view, name="sign-in"),
     path(
         "sign-in-link-sent/",
@@ -26,10 +24,8 @@ auth_urlpatterns = [
     path("sign-up-page-5", views.Signup5.as_view(), name="sign-up-page-5"),
     path("sign-up-page-6", views.Signup6.as_view(), name="sign-up-page-6"),
     path("sign-up-page-7", views.Signup7.as_view(), name="sign-up-page-7"),
+    path("auth/", include("authbroker_client.urls")),
 ]
-
-if settings.LOGIN_METHOD == "sso":
-    auth_urlpatterns.append(path("auth/", include("authbroker_client.urls")))
 
 info_urlpatterns = [
     path("privacy-notice/", views.info_views.privacy_notice_view, name="privacy-notice"),
@@ -49,7 +45,7 @@ document_urlpatterns = [
     path("upload/", views.UploadView.as_view(), name="upload"),
     path("remove-doc/<uuid:doc_id>", views.remove_doc_view, name="remove-doc"),
     path("remove-all-docs", views.remove_all_docs_view, name="remove-all-docs"),
-    path("documents/your-documents/", views.YourDocuments.as_view(), name="your-documents-initial"),
+    path("documents/your-documents/", views.YourDocuments.as_view(), name="your-documents"),
     path("documents/your-documents/<uuid:active_chat_id>/", views.YourDocuments.as_view(), name="your-documents"),
 ]
 
@@ -61,10 +57,6 @@ chat_urlpatterns = [
     path("ratings/<uuid:message_id>/", views.RatingsView.as_view(), name="ratings"),
     path("chats/<uuid:chat_id>/update-chat-feedback", views.UpdateChatFeedback.as_view(), name="chat-feedback"),
     path("chats/<uuid:chat_id>/delete-chat/", views.DeleteChat.as_view(), name="delete-chat"),
-    path("chats/recent-chats/", views.RecentChats.as_view(), name="recent-chats-initial"),
-    path("chats/<uuid:active_chat_id>/recent-chats/", views.RecentChats.as_view(), name="recent-chats"),
-    path("chats/chat-window/", views.ChatWindow.as_view(), name="chat-window-initial"),
-    path("chats/<uuid:active_chat_id>/chat-window/", views.ChatWindow.as_view(), name="chat-window"),
 ]
 
 notification_urlpatterns = [
@@ -81,33 +73,15 @@ team_urlpatterns = [
     path("team/create-team/", views.create_team_view, name="create-team"),
 ]
 
-skills_route_prefix = "skills/<slug:skill_slug>/"
-skills_urlpatterns = [
-    path("skills/", views.SkillsView.as_view(), name="skills"),
-    path(skills_route_prefix, views.skill_info_page_view, name="skill-info"),
-    path(f"{skills_route_prefix}chats/", views.ChatsView.as_view(), name="chats"),
-    path(f"{skills_route_prefix}chats/<uuid:chat_id>/", views.ChatsView.as_view(), name="chats"),
-    path(f"{skills_route_prefix}documents/upload/", views.upload_document, name="skill-document-upload"),
+tools_route_prefix = "tools/<slug:slug>/"
+tools_urlpatterns = [
+    path("tools/", views.ToolsView.as_view(), name="tools"),
+    path(tools_route_prefix, views.tool_info_page_view, name="tool-info"),
+    path(f"{tools_route_prefix}chats/", views.ChatsView.as_view(), name="chats"),
+    path(f"{tools_route_prefix}chats/<uuid:chat_id>/", views.ChatsView.as_view(), name="chats"),
+    path(f"{tools_route_prefix}documents/upload/", views.upload_document, name="document-upload"),
     path(
-        f"{skills_route_prefix}documents/your-documents/", views.YourDocuments.as_view(), name="your-documents-initial"
-    ),
-    path(
-        f"{skills_route_prefix}documents/your-documents/<uuid:active_chat_id>/",
-        views.YourDocuments.as_view(),
-        name="your-documents",
-    ),
-    path(f"{skills_route_prefix}chats/recent-chats/", views.RecentChats.as_view(), name="recent-chats-initial"),
-    path(
-        f"{skills_route_prefix}chats/<uuid:active_chat_id>/recent-chats/",
-        views.RecentChats.as_view(),
-        name="recent-chats",
-    ),
-    path(f"{skills_route_prefix}chats/chat-window/", views.ChatWindow.as_view(), name="chat-window-initial"),
-    path(
-        f"{skills_route_prefix}chats/<uuid:active_chat_id>/chat-window/", views.ChatWindow.as_view(), name="chat-window"
-    ),
-    path(
-        f"{skills_route_prefix}chats/<uuid:chat_id>/citations/<uuid:message_id>/",
+        f"{tools_route_prefix}chats/<uuid:chat_id>/citations/<uuid:message_id>/",
         views.CitationsView.as_view(),
         name="citations",
     ),
@@ -134,8 +108,8 @@ other_urlpatterns = [
     path("faq/", views.faq_view, name="faq"),
     path("file-icon/<str:ext>/", views.file_icon_view, name="file-icon"),
     path("settings/", views.SettingsView.as_view(), name="settings"),
+    path("ui/refresh/", views.RefreshFragmentsView.as_view(), name="refresh"),
 ]
-
 
 api_url_patterns = [
     path("api/v0/users/", views.user_view_pre_alpha, name="user-view"),
@@ -151,7 +125,7 @@ urlpatterns = (
     + document_urlpatterns
     + notification_urlpatterns
     + team_urlpatterns
-    + skills_urlpatterns
+    + tools_urlpatterns
     + admin_urlpatterns
     + api_url_patterns
 )

@@ -1,6 +1,6 @@
 from asyncio import CancelledError
 from logging import getLogger
-from typing import Literal
+from typing import Dict, Literal
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
@@ -13,6 +13,7 @@ from redbox.chains.components import (
     get_parameterised_retriever,
     get_tabular_chunks_retriever,
 )
+from redbox.graph.agents.configs import AgentConfig, agent_configs
 from redbox.graph.nodes.tools import (
     build_document_from_prompt_tool,
     build_govuk_search_tool,
@@ -23,8 +24,9 @@ from redbox.graph.nodes.tools import (
     build_search_wikipedia_tool,
     build_web_search_tool,
     execute_sql_query,
+    build_query_tabular_knowledge_base_tool,
 )
-from redbox.graph.root import build_root_graph, get_agentic_search_graph, get_summarise_graph
+from redbox.graph.root import build_new_route_graph, build_root_graph, get_summarise_graph
 from redbox.models.chain import RedboxState
 from redbox.models.chat import ChatRoute
 from redbox.models.file import ChunkResolution
@@ -48,6 +50,7 @@ logger = getLogger(__name__)
 class Redbox:
     def __init__(
         self,
+        agents: Dict[str, AgentConfig] | None = None,
         all_chunks_retriever: VectorStoreRetriever | None = None,
         parameterised_retriever: VectorStoreRetriever | None = None,
         tabular_retriever: VectorStoreRetriever | None = None,
@@ -57,6 +60,9 @@ class Redbox:
         debug: bool = False,
     ):
         _env = env or get_settings()
+
+        # agents configs
+        self.agent_configs = agents or agent_configs
 
         # Retrievers
 
@@ -74,12 +80,25 @@ class Redbox:
             embedding_model=self.embedding_model,
             embedding_field_name=_env.embedding_document_field_name,
             chunk_resolution=ChunkResolution.normal,
+            repository="user_uploaded",
+        )
+        search_knowledge_base = build_search_documents_tool(
+            es_client=_env.elasticsearch_client(),
+            index_name=_env.elastic_chunk_alias,
+            embedding_model=self.embedding_model,
+            embedding_field_name=_env.embedding_document_field_name,
+            chunk_resolution=ChunkResolution.normal,
+            repository="knowledge_base",
         )
         retrieve_full_text = build_retrieve_document_full_text(
             es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias, loop=True
         )
         retrieve_knowledge_base = build_retrieve_knowledge_base(
             es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias, loop=True
+        )
+        query_knowledge_base = build_query_tabular_knowledge_base_tool(
+            es_client=_env.elasticsearch_client(),
+            index_name=_env.elastic_schematised_chunk_index,
         )
 
         search_wikipedia = build_search_wikipedia_tool()
@@ -88,25 +107,30 @@ class Redbox:
         web_search = build_web_search_tool()
         legislation_search = build_legislation_search_tool()
         doc_from_prompt = build_document_from_prompt_tool(loop=True)
-        self.tools = [search_documents, search_wikipedia, search_govuk, web_search, legislation_search]
 
-        self.multi_agent_tools = {
-            "Internal_Retrieval_Agent": [search_documents],
-            "External_Retrieval_Agent": [search_wikipedia, search_govuk],
-            "Tabular_Agent": [execute_sql],
-            "Web_Search_Agent": [web_search],
-            "Legislation_Search_Agent": [legislation_search],
-            "Submission_Question_Answer_Agent": [retrieve_full_text, retrieve_knowledge_base, doc_from_prompt],
-            "Submission_Checker_Agent": [retrieve_full_text, retrieve_knowledge_base, doc_from_prompt],
-        }
+        self.agent_configs["Internal_Retrieval_Agent"].tools = [search_documents]
+        self.agent_configs["External_Retrieval_Agent"].tools = [search_wikipedia, search_govuk]
+        self.agent_configs["Tabular_Agent"].tools = [execute_sql]
+        self.agent_configs["Web_Search_Agent"].tools = [web_search]
+        self.agent_configs["Legislation_Search_Agent"].tools = [legislation_search]
+        self.agent_configs["Submission_Question_Answer_Agent"].tools = [
+            retrieve_full_text,
+            retrieve_knowledge_base,
+            doc_from_prompt,
+        ]
+        self.agent_configs["Submission_Checker_Agent"].tools = [
+            retrieve_full_text,
+            retrieve_knowledge_base,
+            doc_from_prompt,
+        ]
+        self.agent_configs["Knowledge_Base_Retrieval_Agent"].tools = [query_knowledge_base, search_knowledge_base]
 
         self.graph = build_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,
             parameterised_retriever=self.parameterised_retriever,
             tabular_retriever=self.tabular_retriever,
             metadata_retriever=self.metadata_retriever,
-            tools=self.tools,
-            multi_agent_tools=self.multi_agent_tools,
+            agent_configs=self.agent_configs,
             debug=debug,
         )
 
@@ -219,15 +243,21 @@ class Redbox:
     def get_available_keywords(self) -> dict[ChatRoute, str]:
         return ROUTABLE_KEYWORDS
 
-    def draw(self, output_path=None, graph_to_draw: Literal["root", "agent", "chat_with_documents"] = "root"):
+    def draw(
+        self, output_path=None, graph_to_draw: Literal["root", "agent", "chat_with_documents", "new_route"] = "root"
+    ):
         from langchain_core.runnables.graph import MermaidDrawMethod
 
         if graph_to_draw == "root":
             graph = self.graph.get_graph()
-        elif graph_to_draw == "agent":
-            graph = get_agentic_search_graph(self.tools).get_graph()
         elif graph_to_draw == "summarise":
             graph = get_summarise_graph(self.all_chunks_retriever, self.parameterised_retriever).get_graph()
+        elif graph_to_draw == "new_route":
+            graph = build_new_route_graph(
+                all_chunks_retriever=self.all_chunks_retriever,
+                tabular_retriever=self.tabular_retriever,
+                agents=self.agents,
+            ).get_graph()
         else:
             raise Exception("Invalid graph_to_draw")
 

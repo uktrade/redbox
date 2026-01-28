@@ -1,7 +1,9 @@
+import uuid
 from datetime import date
 
 from django import forms
-from django.http import HttpResponse
+from django.core.exceptions import FieldError
+from django.http import Http404, HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
 
@@ -21,7 +23,7 @@ def render_with_oob(templates: list[RenderTemplateItem]) -> HttpResponse:
     Using HTMX Out of bounds swap method.
 
     Args:
-        templates (List[RenderTemplateItem]): A list of dicts like:
+        templates (List[RenderTemplateItem]): A list of objects like:
             {
                 "template": str,
                 "context": dict,
@@ -57,3 +59,30 @@ def save_forms(form_dict: forms.BaseForm | dict[str, forms.BaseForm]):
                 form.save()
 
     return results
+
+
+def resolve_instance(value, model, lookup="pk", raise_404=False):
+    if value is None:
+        return None
+    if isinstance(value, model):
+        return value
+
+    try:
+        return model.objects.get(**{lookup: value})
+    except (ValueError, FieldError, model.DoesNotExist) as err:
+        if raise_404:
+            msg = f"{model.__name__} not found"
+            raise Http404(msg) from err
+        msg = f"Cannot resolve {model.__name__} from value: {lookup}='{value}'"
+        raise ValueError(msg) from err
+
+
+def parse_uuid(value: str | uuid.UUID | None) -> uuid.UUID | None:
+    if isinstance(value, uuid.UUID):
+        return value
+    if not value or value == "None":
+        return None
+    try:
+        return uuid.UUID(value)
+    except (ValueError, TypeError):
+        return None

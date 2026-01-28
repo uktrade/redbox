@@ -1,6 +1,8 @@
 .rbds-icon {
   --icon-foreground-color: var(--color-icon-light-foreground);
 
+  fill: var(--icon-foreground-color);
+
   &.hover {
     &:hover {
       --icon-foreground-color: var(--color-icon-light-foreground-hover);
@@ -9,6 +11,18 @@
 
   .foreground {
     fill: var(--icon-foreground-color);
+  }
+
+  &.dark {
+    --icon-foreground-color: var(--color-icon-dark-foreground);
+  }
+
+  &.link {
+    --icon-foreground-color: var(--color-icon-link-foreground);
+  }
+
+  &.success {
+    --icon-foreground-color: var(--color-icon-success);
   }
 }
 

@@ -1,11 +1,16 @@
+import uuid
 from datetime import date, timedelta
 from unittest.mock import MagicMock
 
 import pytest
-from django.http import HttpRequest, HttpResponse
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.http import Http404, HttpRequest, HttpResponse
 from django.utils import timezone
 
-from redbox_app.redbox_core.utils import get_date_group, render_with_oob
+from redbox_app.redbox_core.utils import get_date_group, parse_uuid, render_with_oob, resolve_instance
+
+User = get_user_model()
 
 
 @pytest.mark.parametrize(
@@ -91,3 +96,59 @@ def test_render_with_oob_empty_list(monkeypatch):
     assert isinstance(response, HttpResponse)
     assert response.content.decode() == ""
     mock_render_to_string.assert_not_called()
+
+
+def test_resolve_instance(alice: User):
+    # Given
+    user_id = alice.id
+    user_email = alice.email
+
+    invalid_uuid = uuid.uuid4()
+    invalid_email = "invalid_email@gov.uk"
+    invalid_field = "slug"
+    invalid_value = "invalid"
+
+    # When
+    response_1 = resolve_instance(value=user_id, model=User)
+    response_2 = resolve_instance(value=user_email, model=User, lookup="email")
+    response_3 = resolve_instance(value=alice, model=User)
+    response_4 = resolve_instance(value=None, model=User)
+
+    with pytest.raises(ValidationError):
+        resolve_instance(value=invalid_value, model=User)
+
+    with pytest.raises(ValueError, match=f"Cannot resolve {User.__name__} from value: pk='{invalid_uuid}'"):
+        resolve_instance(value=invalid_uuid, model=User)
+
+    with pytest.raises(ValueError, match=f"Cannot resolve {User.__name__} from value: {invalid_field}='{user_id}'"):
+        resolve_instance(value=user_id, model=User, lookup=invalid_field)
+
+    with pytest.raises(ValueError, match=f"Cannot resolve {User.__name__} from value: email='{invalid_email}'"):
+        resolve_instance(value=invalid_email, model=User, lookup="email")
+
+    with pytest.raises(Http404, match=f"{User.__name__} not found"):
+        resolve_instance(value=invalid_email, model=User, lookup="email", raise_404=True)
+
+    # Then
+    assert response_1 == alice
+    assert response_2 == alice
+    assert response_3 == alice
+    assert response_4 is None
+
+
+@pytest.mark.django_db
+def test_parse_uuid():
+    # Given
+    valid_uuid = uuid.uuid4()
+    valid_str_uuid = str(uuid.uuid4())
+    invalid_uuid = "invalid uuid"
+
+    # When
+    valid_result = parse_uuid(valid_uuid)
+    valid_str_result = parse_uuid(valid_str_uuid)
+    invalid_result = parse_uuid(invalid_uuid)
+
+    # Then
+    assert valid_result == valid_uuid
+    assert str(valid_str_result) == valid_str_uuid
+    assert invalid_result is None

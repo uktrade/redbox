@@ -4,6 +4,7 @@ import uuid
 from http import HTTPStatus
 
 import pytest
+from bs4 import BeautifulSoup
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
@@ -129,3 +130,99 @@ def test_staff_user_can_see_route(chat_with_files: Chat, client: Client):
     assert response.status_code == HTTPStatus.OK
     assert b"redbox-message-route" in response.content
     assert b"redbox-message-route govuk-!-display-none" not in response.content
+
+
+@pytest.mark.django_db
+def test_conversations_with_chat(user_with_chats_with_messages_over_time: User, client: Client):
+    # Given
+    user = user_with_chats_with_messages_over_time
+    client.force_login(user)
+    chats = Chat.get_ordered_by_last_message_date(user)
+
+    # When
+    response = client.get(
+        reverse("refresh"),
+        data={
+            "chat": chats[0].id,
+            "fragments": ["conversations"],
+        },
+    )
+    soup = BeautifulSoup(response.content)
+    selected_chat = soup.find(
+        "li",
+        class_=["rbds-list-row", "rbds-list-row--selected"],
+        attrs={"data-chatid": str(chats[0].id)},
+    )
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert response.content.decode()
+    assert selected_chat is not None
+
+
+@pytest.mark.django_db
+def test_recent_chats_without_chat(user_with_chats_with_messages_over_time: User, client: Client):
+    # Given
+    user = user_with_chats_with_messages_over_time
+    client.force_login(user)
+    chats = Chat.get_ordered_by_last_message_date(user)
+
+    # When
+    response = client.get(
+        reverse("refresh"),
+        data={
+            "fragments": ["conversations"],
+        },
+    )
+    soup = BeautifulSoup(response.content)
+    chat_items = soup.find_all("li", class_="rbds-list-row")
+    rendered_ids = [item["data-chatid"] for item in chat_items]
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    for chat in chats:
+        assert str(chat.id) in rendered_ids
+    for chat_item in chat_items:
+        assert "rbds-list-row--selected" not in chat_item.get("class", [])
+
+
+@pytest.mark.django_db
+def test_chat_window_with_chat(chat_with_message: Chat, client: Client):
+    # Given
+    user = chat_with_message.user
+    client.force_login(user)
+    message = ChatMessage.objects.filter(chat=chat_with_message).first()
+
+    # When
+    response = client.get(
+        reverse("refresh"),
+        data={
+            "chat": chat_with_message.id,
+            "fragments": ["chat-window"],
+        },
+    )
+    response_content = response.content.decode()
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert f"{message.id}" in response_content
+
+
+@pytest.mark.django_db
+def test_chat_window_without_chat(alice: User, client: Client):
+    # Given
+    client.force_login(alice)
+
+    # When
+    response = client.get(
+        reverse("refresh"),
+        data={
+            "fragments": ["chat-window"],
+        },
+    )
+    soup = BeautifulSoup(response.content)
+    canned_prompt = soup.find("canned-prompts")
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert canned_prompt is not None

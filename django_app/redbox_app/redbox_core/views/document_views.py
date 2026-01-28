@@ -19,7 +19,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.http import require_http_methods
 
-from redbox_app.redbox_core.models import File, FileTeamMembership, InactiveFileError, Skill, Team, UserTeamMembership
+from redbox_app.redbox_core.models import File, FileTeamMembership, InactiveFileError, Team, Tool, UserTeamMembership
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.utils import render_with_oob
@@ -31,20 +31,14 @@ logger = logging.getLogger(__name__)
 class DocumentView(View):
     @method_decorator(login_required)
     def get(self, request: HttpRequest) -> HttpResponse:
-        file_context = documents_service.get_file_context(request)
-
-        ingest_errors = request.session.get("ingest_errors", [])
+        context = chat_service.get_context(request)
+        context["ingest_errors"] = request.session.get("ingest_errors", [])
         request.session["ingest_errors"] = []
 
         return render(
             request,
             template_name="documents.html",
-            context={
-                "request": request,
-                "completed_files": file_context["completed_files"],
-                "processing_files": file_context["processing_files"],
-                "ingest_errors": ingest_errors,
-            },
+            context=context,
         )
 
 
@@ -94,7 +88,7 @@ class UploadView(View):
 
 @require_http_methods(["POST"])
 @login_required
-def upload_document(request, skill_slug: str | None = None):
+def upload_document(request, slug: str | None = None):
     errors: MutableSequence[str] = []
 
     uploaded_file: UploadedFile = request.FILES.get("file")
@@ -109,10 +103,10 @@ def upload_document(request, skill_slug: str | None = None):
         response["errors"] = errors
         return JsonResponse(response)
 
-    skill = Skill.objects.get(slug=skill_slug) if skill_slug else None
+    tool = Tool.objects.get(slug=slug) if slug else None
 
     # ingest errors are handled differently, as the other documents have started uploading by this point
-    ingest_errors, file = documents_service.ingest_file(uploaded_file, request.user, skill)
+    ingest_errors, file = documents_service.ingest_file(uploaded_file, request.user, tool)
     request.session["ingest_errors"] = ingest_errors
 
     if ingest_errors:
@@ -133,8 +127,7 @@ def remove_doc_view(request, doc_id: uuid):
 
     if request.method == "POST":
         try:
-            file.delete_from_elastic()
-            file.delete_from_s3()
+            file.delete_from_elastic_and_s3()
             file.status = File.Status.deleted
             file.save()
             logger.info("Removing document: %s", request.POST["doc_id"])
@@ -146,10 +139,15 @@ def remove_doc_view(request, doc_id: uuid):
 
         return redirect("documents")
 
+    context = chat_service.get_context(request)
+    context["doc_id"] = doc_id
+    context["doc_name"] = file.file_name
+    context["errors"] = errors
+
     return render(
         request,
         template_name="remove-doc.html",
-        context={"request": request, "doc_id": doc_id, "doc_name": file.file_name, "errors": errors},
+        context=context,
     )
 
 
@@ -161,12 +159,9 @@ def remove_all_docs_view(request):
     if request.method == "POST":
         for file in users_files:
             try:
-                file.delete_from_elastic()
+                file.delete_from_elastic_and_s3()
             except InactiveFileError:
                 logger.warning("File %s is inactive skipping delete_from_elastic", file)
-
-            try:
-                file.delete_from_s3()
             except Exception as e:
                 logger.exception("Error deleting file %s from S3", file, exc_info=e)
                 errors.append(f"Error deleting file {file.id} from S3")
@@ -177,16 +172,19 @@ def remove_all_docs_view(request):
 
         return redirect("documents")
 
+    context = chat_service.get_context(request)
+    context["errors"] = errors
+
     return render(
         request,
         template_name="remove-all-docs.html",
-        context={"request": request, "errors": errors},
+        context=context,
     )
 
 
 @require_http_methods(["POST"])
 @login_required
-def delete_document(request, doc_id: uuid.UUID, skill_slug: str | None = None):
+def delete_document(request, doc_id: uuid.UUID, slug: str | None = None):
     try:
         doc_uuid = uuid.UUID(str(doc_id))
     except ValueError:
@@ -197,8 +195,7 @@ def delete_document(request, doc_id: uuid.UUID, skill_slug: str | None = None):
     errors: list[str] = []
 
     try:
-        file.delete_from_elastic()
-        file.delete_from_s3()
+        file.delete_from_elastic_and_s3()
         file.status = File.Status.deleted
         file.save()
         logger.info("Removing document: %s", request.POST.get("doc_id"))
@@ -233,20 +230,20 @@ def delete_document(request, doc_id: uuid.UUID, skill_slug: str | None = None):
 
         return render_with_oob(
             [
-                {"template": "side_panel/your_documents_list.html", "context": context, "request": request},
+                {"template": "side_panel/your_documents.html", "context": context, "request": request},
                 {"template": "chat/chat_window.html", "context": oob_context, "request": request},
             ]
         )
 
-    return documents_service.render_your_documents(request, active_chat_id, skill_slug)
+    return documents_service.render_your_documents(request, active_chat_id, slug)
 
 
 class YourDocuments(View):
     @method_decorator(login_required)
     def get(
-        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, skill_slug: str | None = None
+        self, request: HttpRequest, active_chat_id: uuid.UUID | None = None, slug: str | None = None
     ) -> HttpResponse:
-        return documents_service.render_your_documents(request, active_chat_id, skill_slug)
+        return documents_service.render_your_documents(request, active_chat_id, slug)
 
 
 class DocumentsTitleView(View):

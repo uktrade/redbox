@@ -3,6 +3,7 @@ from unittest import mock
 
 import pytest
 import pytz
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.test import Client
@@ -11,6 +12,7 @@ from waffle.testutils import override_flag
 from redbox_app.jinja2 import (
     environment,
     get_menu_items,
+    get_product_name,
     humanise_expiry,
     humanize_short_timedelta,
     humanize_timedelta,
@@ -206,7 +208,7 @@ def test_get_menu_items(alice: User, client: Client):
     menu_items_not_authenticated = get_menu_items(AnonymousUser())
 
     # Can be removed once feature is launched and flag removed
-    with override_flag(flags.ENABLE_SKILLS, active=True):
+    with override_flag(flags.ENABLE_TOOLS, active=True):
         flagged_menu_items = get_menu_items(alice)
 
     # Then
@@ -217,4 +219,25 @@ def test_get_menu_items(alice: User, client: Client):
     assert menu_items_not_authenticated[0]["text"] == "Sign in"
     assert menu_items_not_authenticated[0]["href"] == url("sign-in")
 
-    assert any(item["text"] == "Tools" and item["href"] == url("skills") for item in flagged_menu_items)
+    assert any(item["text"] == "Tools" and item["href"] == url("tools") for item in flagged_menu_items)
+
+
+def test_get_product_name(alice: User, client: Client):
+    # Given
+    client.force_login(alice)
+
+    # When
+    product_name_authenticated = get_product_name(alice)
+    product_name_not_authenticated = get_product_name(AnonymousUser())
+
+    # Can be removed once feature is launched and flag removed
+    with override_flag(flags.ENABLE_ASSIST_REBRAND, active=True):
+        flagged_product_name_authenticated = get_product_name(alice)
+        flagged_product_name_not_authenticated = get_product_name(AnonymousUser())
+
+    # Then
+    assert product_name_authenticated == settings.PRODUCT_NAME
+    assert product_name_not_authenticated == settings.PRODUCT_NAME
+
+    assert flagged_product_name_authenticated == "Assist"
+    assert flagged_product_name_not_authenticated == "Assist"

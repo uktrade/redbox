@@ -1,15 +1,16 @@
 {% from "rbds/components/editable-text.html" import editable_text %}
 {% from "macros/icon.html" import rbds_icon %}
+{% from "macros/govuk-button.html" import govukButton %}
 
-<div class="rbds-chat-title">
-    <div class="rbds-chat-title__heading-container">
-        {% if current_chat %}
+<div class="rbds-chat-title rbds-flex-row">
+    {% if current_chat %}
+        <div class="rbds-chat-title__heading-container">
             {% set chat_edit_url = url('chat-titles', current_chat.id) %}
             {% call editable_text(chat_edit_url, 'chat-title-change', 'chat-title', current_chat.id) %}
                 <div class="rbds-chat-title__heading-container-inner display">
                     {% if current_chat.name %}
-                        <h2 class="rbds-chat-title__heading govuk-heading-m title-text">{{ current_chat.name }}</h2>
-                        <button id="chat-title-edit-button" class="edit-trigger rbds-edit-button dark" type="button">
+                        <h2 class="rbds-chat-title__heading govuk-heading-s title-text">{{ current_chat.name }}</h2>
+                        <button id="chat-title-edit-button" class="edit-trigger rbds-icon-button" type="button">
                             {{ rbds_icon(icon_name="edit.html") }}
                             <span class="govuk-visually-hidden">Chat Title</span>
                         </button>
@@ -25,10 +26,10 @@
                         tabindex="-1">
                 </div>
             {% endcall %}
-        {% else %}
-            <div class="rbds-chat-title__heading-container-inner">
-                <h2 class="rbds-chat-title__heading govuk-visually-hidden" hidden>Current Chat</h2>
-            </div>
-        {% endif %}
-    </div>
+        </div>
+    {% else %}
+        <div class="rbds-chat-title__heading-container-inner">
+            <h2 class="rbds-chat-title__heading govuk-visually-hidden" hidden>Current Chat</h2>
+        </div>
+    {% endif %}
 </div>

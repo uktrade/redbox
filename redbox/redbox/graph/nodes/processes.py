@@ -4,7 +4,6 @@ import os
 import random
 import re
 import sqlite3
-import textwrap
 import time
 from collections.abc import Callable
 from functools import reduce
@@ -42,12 +41,12 @@ from redbox.models.chain import (
 )
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
+from redbox.models.settings import ChatLLMBackend
 from redbox.transform import (
-    bedrock_tokeniser,
     combine_agents_state,
     combine_documents,
     flatten_document_state,
-    truncate_to_tokens,
+    join_result_with_token_limit,
 )
 
 log = logging.getLogger(__name__)
@@ -174,6 +173,7 @@ def build_stuff_pattern(
     final_response_chain: bool = False,
     additional_variables: dict = {},
     summary_multiagent_flag: bool = False,
+    model: ChatLLMBackend | None = None,
 ) -> Runnable[RedboxState, dict[str, Any]]:
     """Returns a Runnable that uses state.request and state.documents to set state.messages.
 
@@ -182,7 +182,10 @@ def build_stuff_pattern(
 
     @RunnableLambda
     def _stuff(state: RedboxState) -> dict[str, Any]:
-        llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
+        if model is not None:
+            llm = get_chat_llm(model, tools=tools)
+        else:
+            llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
 
         events = [
             event
@@ -211,28 +214,6 @@ def build_set_route_pattern(route: ChatRoute) -> Runnable[RedboxState, dict[str,
         return {"route_name": route}
 
     return RunnableLambda(_set_route).with_config(tags=[ROUTE_NAME_TAG])
-
-
-def build_set_self_route_from_llm_answer(
-    conditional: Callable[[str], bool],
-    true_condition_state_update: dict,
-    false_condition_state_update: dict,
-    final_route_response: bool = True,
-) -> Runnable[RedboxState, dict[str, Any]]:
-    """A Runnable which sets the route based on a conditional on state['text']"""
-
-    @RunnableLambda
-    def _set_self_route_from_llm_answer(state: RedboxState):
-        llm_response = state.last_message.content
-        if conditional(llm_response):
-            return true_condition_state_update
-        else:
-            return false_condition_state_update
-
-    runnable = _set_self_route_from_llm_answer
-    if final_route_response:
-        runnable = _set_self_route_from_llm_answer.with_config(tags=[ROUTE_NAME_TAG])
-    return runnable
 
 
 def build_passthrough_pattern() -> Runnable[RedboxState, dict[str, Any]]:
@@ -309,30 +290,6 @@ def empty_process(state: RedboxState) -> None:
     return None
 
 
-def build_log_node(message: str) -> Runnable[RedboxState, dict[str, Any]]:
-    """A Runnable which logs the current state in a compact way"""
-
-    @RunnableLambda
-    def _log_node(state: RedboxState):
-        log.info(
-            json.dumps(
-                {
-                    "user_uuid": str(state.request.user_uuid),
-                    "document_metadata": {
-                        group_id: {doc_id: d.metadata for doc_id, d in group_documents.items()}
-                        for group_id, group_documents in state.documents.group
-                    },
-                    "messages": (textwrap.shorten(state.last_message.content, width=32, placeholder="...")),
-                    "route": state.route_name,
-                    "message": message,
-                }
-            )
-        )
-        return None
-
-    return _log_node
-
-
 def build_activity_log_node(
     log_message: RedboxActivityEvent
     | Callable[[RedboxState], Iterable[RedboxActivityEvent]]
@@ -381,7 +338,7 @@ def create_planner(is_streamed=False):
     def _create_planner(state: RedboxState):
         planner_prompt = state.request.ai_settings.planner_prompt_with_format
         # dynamically generate agent plan based on state
-        agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
+        agent_options = state.request.ai_settings.get_worker_agents_options
         _, ConfiguredAgentPlan = configure_agent_task_plan(agent_options)
         orchestration_agent = create_chain_agent(
             system_prompt=planner_prompt,
@@ -390,7 +347,10 @@ def create_planner(is_streamed=False):
             parser=ClaudeParser(pydantic_object=ConfiguredAgentPlan),
             using_only_structure=False,
             using_chat_history=True,
-            _additional_variables={"document_filenames": document_filenames},
+            use_knowledge_base=True,
+            _additional_variables={
+                "document_filenames": document_filenames,
+            },
         )
         return orchestration_agent
 
@@ -416,7 +376,7 @@ def my_planner(
             user_input = state.user_feedback.replace("@newroute ", "")
             document_filenames = [doc.split("/")[1] if "/" in doc else doc for doc in state.request.s3_keys]
             # dynamically generate agent plan based on state
-            agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
+            agent_options = state.request.ai_settings.get_worker_agents_options
             _, ConfiguredAgentPlan = configure_agent_task_plan(agent_options)
             orchestration_agent = create_chain_agent(
                 system_prompt=plan_prompt,
@@ -424,6 +384,7 @@ def my_planner(
                 tools=None,
                 parser=ClaudeParser(pydantic_object=ConfiguredAgentPlan),
                 using_only_structure=False,
+                use_knowledge_base=True,
                 _additional_variables={
                     "previous_plan": plan,
                     "user_feedback": user_input,
@@ -458,96 +419,6 @@ def my_planner(
     return _create_planner
 
 
-def build_agent(
-    agent_name: str,
-    system_prompt: str,
-    tools: list,
-    use_metadata: bool = False,
-    max_tokens: int = 5000,
-    using_chat_history: bool = False,
-):
-    @RunnableLambda
-    def _build_agent(state: RedboxState):
-        log.warning(f"[{agent_name}] Starting agent run. Tools: {[t.name for t in tools]}")
-
-        # dynamically generate agent task based on state
-        agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
-        ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
-        parser = ClaudeParser(pydantic_object=ConfiguredAgentTask)
-        try:
-            task = parser.parse(state.last_message.content)
-        except Exception as e:
-            print(f"Cannot parse in {agent_name}: {e}")
-        activity_node = build_activity_log_node(
-            RedboxActivityEvent(message=f"{agent_name} is completing task: {task.task}")
-        )
-        activity_node.invoke(state)
-
-        log.warning(f"[{agent_name}] Creating chain agent (use_metadata={use_metadata})")
-        worker_agent = create_chain_agent(
-            system_prompt=system_prompt,
-            use_metadata=use_metadata,
-            parser=None,
-            tools=tools,
-            _additional_variables={"task": task.task, "expected_output": task.expected_output},
-            using_chat_history=using_chat_history,
-        )
-
-        log.warning(f"[{agent_name}] Invoking worker agent...")
-        ai_msg = worker_agent.invoke(state)
-
-        log.warning(f"[{agent_name}] Worker agent output:\n{ai_msg}")
-
-        # --- RUN TOOLS IN PARALLEL ---
-        log.warning(f"[{agent_name}] Running tools via run_tools_parallel...")
-
-        result = run_tools_parallel(ai_msg, tools, state)
-
-        if isinstance(result, str):
-            log.warning(f"[{agent_name}] Using raw string result.")
-            result_content = result
-        elif isinstance(result, list) and isinstance(result[0], dict):
-            log.warning(f"[{agent_name}] Using raw string in a list as result.")
-            result_content = result[0].get("text", "")
-        elif isinstance(result, list):
-            log.warning(f"[{agent_name}] Aggregating list of tool results...")
-            result_content = []
-            current_token_counts = 0
-
-            for res in result:
-                token_count = bedrock_tokeniser(res.content)
-                log.warning(f"[{agent_name}] Tool response token count: {token_count}")
-
-                # If adding this whole piece still fits, append normally
-                if current_token_counts + token_count <= max_tokens:
-                    result_content.append(res.content)
-                    current_token_counts += token_count
-                else:
-                    # If no room, add only what fits
-                    remaining_tokens = max_tokens - current_token_counts
-                    if remaining_tokens > 0:
-                        log.warning(
-                            f"[{agent_name}] Truncating tool output to fit remaining token budget ({remaining_tokens})."
-                        )
-                        truncated = truncate_to_tokens(res.content, remaining_tokens)
-                        result_content.append(truncated)
-                        current_token_counts += bedrock_tokeniser(truncated)
-                    else:
-                        log.warning(f"[{agent_name}] No remaining token budget ({max_tokens}). Skipping.")
-                    break  # Max reached — stop processing further results
-            result_content = " ".join(result_content)
-        else:
-            log.error(f"[{agent_name}] Worker agent return incompatible data type {type(result)}")
-            raise TypeError("Invalid tool result type")
-        log.warning(f"[{agent_name}] Completed agent run.")
-        return {
-            "agents_results": f"<{agent_name}_Result>{result_content}</{agent_name}_Result>",
-            "tasks_evaluator": task.task + "\n" + task.expected_output,
-        }
-
-    return _build_agent.with_retry(stop_after_attempt=3)
-
-
 def build_agent_with_loop(
     agent_name: str,
     system_prompt: str,
@@ -558,11 +429,14 @@ def build_agent_with_loop(
     loop_condition: Callable | None = None,
     max_attempt=3,
     using_chat_history: bool = False,
+    model: ChatLLMBackend | None = None,
 ):
     @RunnableLambda
     def _build_agent_with_loop(state: RedboxState):
+        log.warning(f"[{agent_name}] Starting agent_with_loop run. Tools: {[t.name for t in tools]}")
+
         local_loop_condition = loop_condition
-        agent_options = {agent.name: agent.name for agent in state.request.ai_settings.worker_agents}
+        agent_options = state.request.ai_settings.get_worker_agents_options
         ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
         parser = ClaudeParser(pydantic_object=ConfiguredAgentTask)
         try:
@@ -608,6 +482,9 @@ def build_agent_with_loop(
 
         while local_loop_condition() and num_iter < max_attempt:
             num_iter += 1
+            log_stub = f"[{agent_name}] Loop Iteration={num_iter}/{max_attempt}."
+
+            log.warning(f"{log_stub} Creating chain agent (use_metadata={use_metadata})")
             worker_agent = create_chain_agent(
                 system_prompt=system_prompt,
                 use_metadata=use_metadata,
@@ -615,9 +492,15 @@ def build_agent_with_loop(
                 tools=tools,
                 _additional_variables=additional_variables,
                 using_chat_history=using_chat_history,
+                model=model,
             )
+
+            log.warning(f"{log_stub} Invoking worker agent...")
             ai_msg = worker_agent.invoke(state)
 
+            log.warning(f"{log_stub} Worker agent output:\n{ai_msg}")
+
+            log.warning(f"{log_stub} Running tools via run_tools_parallel...")
             result = run_tools_parallel(ai_msg, tools, state)
 
             if has_loop and len(ai_msg.tool_calls) > 0:  # if loop, we need to transform results
@@ -636,23 +519,24 @@ def build_agent_with_loop(
                     if is_intermediate_step:
                         additional_variables.update({"previous_tool_error": "", "previous_tool_results": all_results})
                 result = result_content
-            if type(result) is str:
+
+            if isinstance(result, str):
+                log.warning(f"{log_stub} Using raw string result.")
                 result_content = result
-            elif type(result) is list and type(result[0]) is dict:
+            elif isinstance(result, list) and isinstance(result[0], dict):
+                log.warning(f"{log_stub} Using raw string in a list as result.")
                 result_content = result[0].get("text", "")
-            elif type(result) is list:
-                result_content = []
-                current_token_counts = 0
-                for res in result:
-                    current_token_counts += bedrock_tokeniser(res.content)
-                    if current_token_counts <= max_tokens:
-                        result_content.append(res.content)
-                result_content = " ".join(result_content)
+            elif isinstance(result, list):
+                log.warning(f"{log_stub} Aggregating list of tool results...")
+                result_content = join_result_with_token_limit(result=result, max_tokens=max_tokens, log_stub=log_stub)
             else:
-                log.error(f"Worker agent return incompatible data type {type(result)}")
+                log.error(f"{log_stub} Worker agent return incompatible data type {type(result)}")
                 log.info(result)
                 result_content = "There is an issue with tool call. No results returned."
             all_results.append(result_content)
+            log.warning(f"{log_stub} Completed agent run.")
+
+        log.warning(f"[{agent_name}] Completed agent_with_loop run.")
         all_results = " ".join(all_results)
         return {
             "agents_results": f"<{agent_name}_Result>{all_results}</{agent_name}_Result>",
@@ -686,11 +570,14 @@ def invoke_custom_state(
     use_as_agent: bool,
     debug: bool = False,
     max_tokens: int = 5000,
+    model: ChatLLMBackend | None = None,
 ):
     @RunnableLambda
     def _invoke_custom_state(state: RedboxState):
         # transform the state to the subgraph state
-        subgraph = custom_graph(all_chunks_retriever=all_chunks_retriever, use_as_agent=use_as_agent, debug=debug)
+        subgraph = custom_graph(
+            all_chunks_retriever=all_chunks_retriever, use_as_agent=use_as_agent, debug=debug, model=model
+        )
         subgraph_state = state.model_copy()
         agent_task = json.loads(subgraph_state.last_message.content)
         subgraph_state.request.question = (
@@ -910,7 +797,11 @@ def sanitise_file_name(file_name: str) -> str:
 
 
 def get_tabular_agent(
-    agent_name: str = "Tabular Agent", max_tokens: int = 5000, tools=list[StructuredTool], max_attempt=int
+    agent_name: str = "Tabular Agent",
+    max_tokens: int = 5000,
+    tools=list[StructuredTool],
+    max_attempt=int,
+    model: ChatLLMBackend | None = None,
 ):
     @RunnableLambda
     def _build_tabular_agent(state: RedboxState):
@@ -944,6 +835,7 @@ def get_tabular_agent(
                 tools=tools,
                 final_response_chain=False,
                 additional_variables={"sql_error": sql_error, "db_schema": state.tabular_schema},
+                model=model,
             )
             ai_msg = worker_agent.invoke(state)
 

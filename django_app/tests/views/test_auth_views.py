@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.django_db
-def test_sign_in_view_redirect_to_sign_in(alice: User, client: Client, mailoutbox):
+def test_sign_in_view_redirect_to_sign_in(alice: User, client: Client):
     # Given a user that does exist in the db Alice
 
     # When
@@ -21,10 +21,7 @@ def test_sign_in_view_redirect_to_sign_in(alice: User, client: Client, mailoutbo
 
     # Then
     assert response.status_code == HTTPStatus.FOUND
-    assert response.url == "/sign-in-link-sent/"
-    link = next(line for line in mailoutbox[-1].body.splitlines() if line.startswith("http"))
-    signed_in_response = client.get(link)
-    assert signed_in_response.status_code == HTTPStatus.OK
+    assert response.url == "/auth/login/"
 
 
 @pytest.mark.django_db
@@ -37,4 +34,4 @@ def test_sign_in_view_redirect_sign_up(client: Client):
 
     # Then
     assert response.status_code == HTTPStatus.FOUND
-    assert response.url == "/sign-up-page-1"
+    assert response.url == "/auth/login/"

@@ -7,7 +7,7 @@ from random import choice
 from typing import TYPE_CHECKING
 
 import pytest
-from pages import LandingPage, SignInConfirmationPage
+from pages import LandingPage
 from playwright.sync_api import Page
 from yarl import URL
 
@@ -41,14 +41,8 @@ def test_user_journey(page: Page, email_address: str):
     sign_in_page.email = email_address
     sign_in_page.continue_()
 
-    # Use magic link
-    magic_link = get_magic_link(email_address)
-    logger.debug("magic_link: %s", magic_link)
-    chats_page = SignInConfirmationPage.autosubmit(page, magic_link)
-    # Dismiss profile overlay
-    page.press("body", "Escape")
-
     # Settings - My details page
+    chats_page = page
     my_details_page = chats_page.navigate_my_details()
     my_details_page.name = "Roland Hamilton-Jones"
     my_details_page.ai_experience = "Enthusiastic Experimenter"
@@ -102,8 +96,6 @@ def test_user_journey(page: Page, email_address: str):
     for keyword, route, select_file, should_have_citation in [
         ("search", "search", False, True),
         ("search", "search", True, True),
-        ("gadget", "search", False, True),
-        ("gadget", "search", True, True),
     ]:
         question = f"@{keyword} What do I need to install?"
         logger.info("Asking %r", question)
@@ -168,13 +160,6 @@ def create_user(email_address: str):
     result = subprocess.run(command, capture_output=True, text=True, check=True)  # noqa: S603
     logger.debug("create_user result: %s", result)
     logger.debug("user created for %s", email_address)
-
-
-def get_magic_link(email_address: str) -> URL:
-    command = ["docker", "compose", "run", "django-app", "venv/bin/django-admin", "show_magiclink_url", email_address]
-    result = subprocess.run(command, capture_output=True, text=True, check=True)  # noqa: S603
-    magic_link = result.stdout.strip().lstrip("/")
-    return BASE_URL / magic_link
 
 
 @pytest.fixture

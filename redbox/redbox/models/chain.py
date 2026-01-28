@@ -13,8 +13,9 @@ from langgraph.graph.message import add_messages
 from langgraph.managed.is_last_step import RemainingStepsManager
 from pydantic import BaseModel, Field, create_model, field_validator
 
+from redbox.graph.agents.configs import AgentConfig, agent_configs
 from redbox.models import prompts
-from redbox.models.chat import DecisionEnum, ToolEnum
+from redbox.models.chat import DecisionEnum
 from redbox.models.settings import ChatLLMBackend
 
 load_dotenv()
@@ -24,14 +25,6 @@ env = environ.Env()
 class ChainChatMessage(TypedDict):
     role: Literal["user", "ai", "system"]
     text: str
-
-
-class Agent(BaseModel):
-    name: str = Field(description="Name of the agent")
-    description: str = Field(description="Name of the agent", default="")
-    agents_max_tokens: int = Field(description="Maximum tokens limit for the agent", default=5000)
-    prompt: str = Field(description="System prompt for the agent", default="")
-    default_agent: bool = Field(description="Is this the default agent", default=True)
 
 
 class AISettings(BaseModel):
@@ -104,48 +97,11 @@ class AISettings(BaseModel):
     tool_govuk_returned_results: int = 5
 
     # agents reporting to planner agent
-    worker_agents: List[Agent] = [
-        Agent(
-            name="Internal_Retrieval_Agent",
-            description=prompts.INTERNAL_RETRIEVAL_AGENT_DESC,
-            agents_max_tokens=10000,
-            prompt=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT,
-        ),
-        Agent(
-            name="External_Retrieval_Agent",
-            description=prompts.EXTERNAL_RETRIEVAL_AGENT_DESC,
-            agents_max_tokens=5000,
-            prompt=prompts.EXTERNAL_RETRIEVAL_AGENT_PROMPT,
-        ),
-        Agent(
-            name="Web_Search_Agent",
-            description=prompts.WEB_SEARCH_AGENT_DESC,
-            agents_max_tokens=10000,
-            prompt=prompts.WEB_SEARCH_AGENT_PROMPT,
-        ),
-        Agent(
-            name="Legislation_Search_Agent",
-            description=prompts.LEGISLATION_SEARCH_AGENT_DESC,
-            agents_max_tokens=10000,
-            prompt=prompts.LEGISLATION_SEARCH_AGENT_PROMPT,
-        ),
-        Agent(name="Summarisation_Agent", description=prompts.SUMMARISATION_AGENT_DESC, agents_max_tokens=20000),
-        Agent(name="Tabular_Agent", description=prompts.TABULAR_AGENT_DESC, agents_max_tokens=10000),
-        Agent(
-            name="Submission_Checker_Agent",
-            description=prompts.SUBMISSION_AGENT_DESC,
-            prompt=prompts.SUBMISSION_PROMPT,
-            agents_max_tokens=10000,
-            default_agent=False,
-        ),
-        Agent(
-            name="Submission_Question_Answer_Agent",
-            description=prompts.SUBMISSION_QA_AGENT_DESC,
-            prompt=prompts.SUBMISSION_QA_PROMPT,
-            agents_max_tokens=10000,
-            default_agent=False,
-        ),
-    ]
+    worker_agents: List[AgentConfig] = [agent for agent in agent_configs.values() if agent.default_agent]
+
+    @property
+    def get_worker_agents_options(self) -> Dict[str, str]:
+        return {agent.name: agent.name for agent in self.worker_agents}
 
     @property
     def get_agent_workers_prompt(self):
@@ -375,7 +331,7 @@ def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskB
     except (
         Exception
     ):  # this to handle a specific test in test_multiagents_app, as we pass agent=None for chat without documents.
-        # in reality agents won't be None for a specific skill.
+        # in reality agents won't be None for a specific tool.
         # anyhow, this should be handled at consumers.py if there are no agents found in database.
         AgentEnum = Enum("AgentEnum", {"None": {"None"}})
         default_agent = "None"
@@ -569,10 +525,6 @@ class GeneratedMetadata(BaseModel):
     name: str = Field(description="document name", default="")
     description: str | None = Field(description="document description", default="")
     keywords: list[str] = Field(description="document keywords", default_factory=list)
-
-
-class AgentDecision(BaseModel):
-    next: ToolEnum = ToolEnum.search
 
 
 class FeedbackEvalDecision(BaseModel):

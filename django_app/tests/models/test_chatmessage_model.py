@@ -5,6 +5,7 @@ from yarl import URL
 from redbox_app.redbox_core.models import (
     ChatMessage,
     Citation,
+    Tool,
 )
 
 User = get_user_model()
@@ -27,3 +28,30 @@ def test_get_citations(
     assert citations[0].uri == URL("http://example.com")
     assert citations[1].display_name.startswith("original_file")
     assert citations[1].uri.parts[-1].startswith("original_file")
+
+
+def test_citations_url(client: Client, alice: User, external_citation: Citation):
+    # Given
+    client.force_login(alice)
+    chat_message = external_citation.chat_message
+    expected_url = f"/chats/{chat_message.chat.id}/citations/{chat_message.id}/"
+    # When
+    citations_url = chat_message.citations_url
+
+    # Then
+    assert citations_url == expected_url
+
+
+def test_citations_url_with_tool(client: Client, alice: User, external_citation: Citation, default_tool: Tool):
+    # Given
+    client.force_login(alice)
+    chat_message = external_citation.chat_message
+    chat_message.chat.tool = default_tool
+    chat_message.save()
+    expected_url = f"/tools/{default_tool.slug}/chats/{chat_message.chat.id}/citations/{chat_message.id}/"
+
+    # When
+    citations_url = chat_message.citations_url
+
+    # Then
+    assert citations_url == expected_url

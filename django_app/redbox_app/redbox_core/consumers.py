@@ -20,9 +20,11 @@ from django.forms.models import model_to_dict
 from django.utils import timezone
 from langchain_core.documents import Document
 from pydantic import ValidationError
+from waffle import flag_is_active
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
+from redbox.graph.agents.configs import agent_configs
 from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
@@ -36,30 +38,30 @@ from redbox.models.chain import (
 )
 from redbox.models.chain import Citation as AICitation
 from redbox.models.graph import RedboxActivityEvent
-from redbox.models.settings import get_settings
-from redbox_app.redbox_core import error_messages
+from redbox.models.settings import ChatLLMBackend, get_settings
+from redbox_app.redbox_core import error_messages, flags
 from redbox_app.redbox_core.models import (
     ActivityEvent,
     AgentPlan,
-    AgentSkill,
+    AgentTool,
     Chat,
-    ChatLLMBackend,
     ChatMessage,
     ChatMessageTokenUse,
     Citation,
     File,
-    FileSkill,
     FileTeamMembership,
+    FileTool,
     MonitorSearchRoute,
     MonitorWebSearchResults,
-    Skill,
+    Tool,
     UserTeamMembership,
 )
+from redbox_app.redbox_core.models import Agent as AgentModel
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
+from redbox_app.redbox_core.models import ChatLLMBackend as ChatLLMBackendModel
 
 # Temporary condition before next uwotm8 release: monkey patch CONVERSION_IGNORE_LIST
 uwm8.CONVERSION_IGNORE_LIST = uwm8.CONVERSION_IGNORE_LIST | {"filters": "philtres", "connection": "connexion"}
-
 User = get_user_model()
 OptFileSeq = Sequence[File] | None
 logger = logging.getLogger(__name__)
@@ -86,13 +88,17 @@ def get_latest_complete_file(ref: str) -> File:
     return File.objects.filter(original_file__endswith=ref, status=File.Status.complete).order_by("-created_at").first()
 
 
+@database_sync_to_async
+def get_all_agents():
+    return tuple(AgentModel.objects.select_related("llm_backend").all())
+
+
 class ChatConsumer(AsyncWebsocketConsumer):
     route = None
     metadata: RequestMetadata = RequestMetadata()
     env = get_settings()
     debug = not env.is_prod
-
-    redbox = Redbox(env=env, debug=debug)
+    redbox = None
     chat_message = None  # incrementally updating the chat stream
 
     async def get_file_cached(self, ref):
@@ -132,6 +138,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data=None, bytes_data=None):  # noqa: C901, PLR0915
         """Receive & respond to message from browser websocket."""
+        # if user is unauthenticated, close connection
+        user = getattr(self, "user", None) or self.scope.get("user")
+        if (not user) or (not user.is_authenticated):
+            await self.close(code=4001)
+            return
         self._file_cache = {}
         self.full_reply = []
         self.converted_reply = []
@@ -147,7 +158,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         user_message_text: str = data.get("message", "")
         selected_file_uuids: Sequence[UUID] = [UUID(u) for u in data.get("selectedFiles", [])]
         activities: Sequence[str] = data.get("activities", [])
-        selected_skill_id: str | None = data.get("selectedSkill")
+        selected_tool_id: str | None = data.get("selectedTool")
         user: User = self.scope["user"]
 
         user_ai_settings = await AISettingsModel.objects.aget(label=user.ai_settings_id if user else "Claude 3.7")
@@ -155,7 +166,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             lambda: list(UserTeamMembership.objects.filter(user=user).values_list("team_id", flat=True))
         )()
 
-        chat_backend = await ChatLLMBackend.objects.aget(id=data.get("llm", user_ai_settings.chat_backend_id))
+        chat_backend = await ChatLLMBackendModel.objects.aget(id=data.get("llm", user_ai_settings.chat_backend_id))
         temperature = data.get("temperature", user_ai_settings.temperature)
 
         session, previous_selected_files = await self._init_session(
@@ -192,25 +203,25 @@ class ChatConsumer(AsyncWebsocketConsumer):
             session.name = (session_name or "")[: settings.CHAT_TITLE_LENGTH]
             await session.asave()
 
-        skill_obj = None
+        tool_obj = None
         selected_agent_names = []
         knowledge_files = []
-        if selected_skill_id:
+        if selected_tool_id:
             try:
-                skill_obj = await database_sync_to_async(Skill.objects.get)(id=selected_skill_id)
-                session.skill = skill_obj
+                tool_obj = await database_sync_to_async(Tool.objects.get)(id=selected_tool_id)
+                session.tool = tool_obj
                 await session.asave()
                 selected_agent_names = await database_sync_to_async(
-                    lambda s: list(AgentSkill.objects.filter(skill=s).values_list("agent__name", flat=True))
-                )(skill_obj)
-                knowledge_files = await database_sync_to_async(lambda s: list(s.get_files(FileSkill.FileType.ADMIN)))(
-                    skill_obj
+                    lambda t: list(AgentTool.objects.filter(tool=t).values_list("agent__name", flat=True))
+                )(tool_obj)
+                knowledge_files = await database_sync_to_async(lambda t: list(t.get_files(FileTool.FileType.ADMIN)))(
+                    tool_obj
                 )
-            except Skill.DoesNotExist:
-                logger.warning("Selected skill '%s' not found", selected_skill_id)
+            except Tool.DoesNotExist:
+                logger.warning("Selected tool '%s' not found", selected_tool_id)
 
         user_chat_message = await self.save_user_message(
-            session, user_message_text, selected_files=selected_files, activities=activities, skill=skill_obj
+            session, user_message_text, selected_files=selected_files, activities=activities, tool=tool_obj
         )
 
         self.chat_message = await self.create_ai_message(session)
@@ -281,7 +292,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             if plan:
                 try:
-                    agent_options = {agent.name: agent.name for agent in AISettings().worker_agents}
+                    agent_options = {agent: agent for agent in agent_configs}
                     _, configured_agent_plan = configure_agent_task_plan(agent_options)
                     agent_plans = configured_agent_plan.model_validate_json(plan[0])
                     question = message_history[-4].text
@@ -314,7 +325,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
     ) -> None:
         """Initiate & close websocket conversation with the core-api message endpoint."""
         await self.send_to_client("session-id", session.id)
-
         session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
         message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
         question = message_history[-2].text
@@ -324,15 +334,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         agent_plans, question, user_feedback = await self._load_agent_plan(session, message_history)
 
         ai_settings = await self.get_ai_settings(session)
+
         if selected_agent_names:
             ai_settings = ai_settings.model_copy(
                 update={
-                    "worker_agents": [
-                        agent for agent in AISettings().worker_agents if agent.name in selected_agent_names
-                    ]
+                    "worker_agents": [agent for agent in agent_configs.values() if agent.name in selected_agent_names]
                 }
             )
-
         state = RedboxState(
             request=RedboxQuery(
                 question=question,
@@ -396,7 +404,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         user_message_text: str,
         selected_files: Sequence[File] | None = None,
         activities: Sequence[str] | None = None,
-        skill: Skill | None = None,
+        tool: Tool | None = None,
     ) -> ChatMessage:
         chat_message = ChatMessage(
             chat=session,
@@ -404,7 +412,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             role=ChatMessage.Role.user,
             route=self.route,
         )
-        chat_message.skill = skill
+        chat_message.tool = tool
         chat_message.save()
         if selected_files:
             chat_message.selected_files.set(selected_files)
@@ -571,15 +579,33 @@ class ChatConsumer(AsyncWebsocketConsumer):
         ai_settings = {k: v for k, v in ai_settings.items() if v not in (None, "")}
         ai_settings = AISettings.model_validate(ai_settings)
         return ai_settings.model_copy(
-            update={"worker_agents": [agent for agent in AISettings().worker_agents if agent.default_agent]}
+            update={"worker_agents": [agent for agent in agent_configs.values() if agent.default_agent]}
         )
 
     async def connect(self):
         self.user = self.scope["user"]
-        if self.user.is_authenticated:
-            self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
-        else:
-            self.uk_english = False
+        # if user is unauthenticated, send auth_required error message
+        if not self.user.is_authenticated:
+            await self.accept()
+            await self.send_to_client("error", error_messages.AUTH_REQUIRED)
+            return
+
+        if ChatConsumer.redbox is None:
+            agents = await get_all_agents()
+
+            for agent in agents:
+                if agent.name in list(agent_configs.keys()):
+                    if agent.llm_backend:
+                        agent_configs[agent.name].llm_backend = ChatLLMBackend(
+                            name=agent.llm_backend.name,
+                            provider=agent.llm_backend.provider,
+                            description=agent.llm_backend.description,
+                        )
+                    if agent.agents_max_tokens:
+                        agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
+            ChatConsumer.redbox = Redbox(agents=agent_configs, env=ChatConsumer.env, debug=ChatConsumer.debug)
+
+        self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
         await self.accept()
 
     async def handle_text(self, response: str) -> str:
@@ -609,7 +635,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.metadata = metadata_reducer(self.metadata, RequestMetadata.model_validate(response))
 
     async def handle_activity(self, response: dict):
-        await self.send_to_client("activity", response.message)
+        # Feature flag activity event display till design is confirmed
+        if await sync_to_async(flag_is_active)(self.user, flags.ENABLE_ACTIVITY_EVENTS):
+            await self.send_to_client("activity", response.message)
         self.activities.append(RedboxActivityEvent.model_validate(response))
 
     async def handle_documents(self, response: list[Document]):

@@ -1,54 +1,7 @@
 // @ts-check
 
 import htmx from "htmx.org";
-import { getActiveChatId, getActiveSkillSlug } from "../utils";
-
-/**
- * Reloads chat window component
- * @param {string | null} chatId - Active chat ID
-*/
-export function updateChatWindow(chatId = getActiveChatId(), skill_slug = getActiveSkillSlug()) {;
-    const skill_url_fragment = skill_slug ? `/skills/${skill_slug}` : "";
-    const chat_url_fragment = chatId ? `/${chatId}` : "";
-    const url = `${skill_url_fragment}/chats${chat_url_fragment}/chat-window/`;
-
-    return htmx.ajax('get', url, {
-    target: '#chat-window',
-    swap: 'outerHTML',
-    });
-}
-
-
-/**
- * Reloads recent chats side-panel template
- * @param {string | null} chatId - Active chat ID
-*/
-export function updateRecentChatHistory(chatId = getActiveChatId(), skill_slug = getActiveSkillSlug()) {;
-    const skill_url_fragment = skill_slug ? `/skills/${skill_slug}` : "";
-    const chat_url_fragment = chatId ? `/${chatId}` : "";
-    const url = `${skill_url_fragment}/chats${chat_url_fragment}/recent-chats/`;
-
-    return htmx.ajax('get', url, {
-      target: 'chat-history',
-      swap: 'outerHTML',
-    });
-}
-
-
-/**
- * Reloads Your documents side-panel template
- * @param {string | null} chatId - Active chat ID
-*/
-export function updateYourDocuments(chatId = getActiveChatId(), skill_slug = getActiveSkillSlug()) {;
-    const skill_url_fragment = skill_slug ? `/skills/${skill_slug}` : "";
-    const chat_url_fragment = chatId ? `/${chatId}` : "";
-    const url = `${skill_url_fragment}/documents/your-documents${chat_url_fragment}/`;
-
-    return htmx.ajax('get', url, {
-      target: 'document-selector',
-      swap: 'outerHTML settle:0ms',
-    });
-}
+import { getActiveChatId, getActiveToolSlug } from "../utils";
 
 
 /**
@@ -62,4 +15,26 @@ export async function loadIcon(ext) {
     if (!response.ok) throw new Error(`Icon not found for extension: ${ext}`);
     const html = await response.text();
     return html;
+}
+
+
+/**
+ * Reloads page fragments
+ * @param {(string|any)[]} fragments - List of page section/element id's to reload
+ * @param {string | null} chatId - Active chat ID
+ * @param {string | undefined} slug - Tool slug
+*/
+export function refreshUI(fragments, chatId = getActiveChatId(), slug = getActiveToolSlug()) {
+    const params = new URLSearchParams();
+    if (chatId) params.set("chat", chatId);
+    if (slug) params.set("tool", slug);
+
+    fragments.forEach((/** @type {string | any} */ fragment) =>
+        params.append("fragments", fragment)
+    );
+
+    return htmx.ajax('get', `/ui/refresh?${params}`, {
+      target: 'body',
+      swap: 'none settle:0ms',
+    });
 }

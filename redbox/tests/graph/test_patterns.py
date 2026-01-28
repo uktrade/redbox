@@ -9,7 +9,6 @@ from langgraph.graph import END, START, StateGraph
 from pytest_mock import MockerFixture
 
 from redbox.chains.components import get_structured_response_with_citations_parser
-from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, build_chat_prompt_from_messages_runnable, build_llm_chain
 from redbox.graph.nodes.processes import (
     build_agent_with_loop,
@@ -22,10 +21,8 @@ from redbox.graph.nodes.processes import (
     build_stuff_pattern,
     clear_documents_process,
     empty_process,
-    lm_choose_route,
 )
 from redbox.models.chain import (
-    AgentDecision,
     AISettings,
     Citation,
     DocumentState,
@@ -42,7 +39,6 @@ from redbox.test.data import (
     generate_docs,
     generate_test_cases,
     mock_all_chunks_retriever,
-    mock_basic_metadata_retriever,
     mock_parameterised_retriever,
 )
 from redbox.transform import flatten_document_state, structure_documents_by_file_name
@@ -496,27 +492,6 @@ LLM_ROUTE_TEST_CASE = generate_test_cases(
 )
 
 
-@pytest.mark.parametrize(
-    "test_case, basic_metadata",
-    [
-        (LLM_ROUTE_TEST_CASE[0], mock_basic_metadata_retriever),
-    ],
-    ids=[t.test_id for t in LLM_ROUTE_TEST_CASE],
-)
-def test_llm_choose_route(test_case: RedboxChatTestCase, basic_metadata: BaseRetriever, mocker: MockerFixture):
-    mocker.patch("redbox.chains.runnables.get_basic_metadata_retriever", return_value=basic_metadata(test_case.docs))
-    llm = GenericFakeChatModel(messages=iter(test_case.test_data.llm_responses))
-    llm._default_config = {"model": "bedrock"}
-
-    mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
-    agent_parser = ClaudeParser(pydantic_object=AgentDecision)
-    state = RedboxState(request=test_case.query, documents=structure_documents_by_file_name(test_case.docs))
-
-    llm_choose_search = lm_choose_route(state, parser=agent_parser)
-
-    assert llm_choose_search == "search"
-
-
 STRUCTURED_OUTPUT_TEST_CASE = generate_test_cases(
     query=RedboxQuery(
         question="What is AI?",
@@ -593,13 +568,13 @@ def test_citation_structured_output(test_case: RedboxChatTestCase, mocker: Mocke
 
 
 class TestBuildAgentLoop:
-    def test_fail_parser_agent_task(self, fake_state):
+    def test_fail_parser_agent_task(self, fake_state, mocker: MockerFixture):
         fake_agent = build_agent_with_loop(
-            agent_name="Internal_Retrieval_Agent",
+            agent_name="External_Retrieval_Agent",
             system_prompt="Fake prompt",
             tools=[],
         )
-
+        fake_state.messages = AIMessage(content="Incorrect task format")
         response = fake_agent.invoke(fake_state)
         assert response is None
 
@@ -620,6 +595,7 @@ class TestBuildAgentLoop:
             ("preprocess-loop-pass", True, True, 2, (AIMessage(content="preprocess-loop-pass"), "pass", "False")),
             ("preprocess-loop-fail", True, True, 2, (AIMessage(content="preprocess-loop-fail"), "fail", "True")),
             ("There is an issue with tool call. No results returned.", None, None, 1, None),
+            ("raw-string-result", None, None, 1, "raw-string-result"),
         ],
     )
     def test_preprocess_loop(
@@ -689,3 +665,69 @@ class TestBuildAgentLoop:
         )
         assert len(response) == 2
         assert mock_tool_calls.call_count == no_calls
+
+    @pytest.mark.parametrize(
+        "test_name, max_tokens, actual_tokens",
+        [
+            ("truncate-response-over-max-tokens", 50, 1000),
+            ("truncate-response-over-max-tokens2", 50, 26),
+            ("dont-truncate-response-under-max-tokens", 100, 80),
+            ("dont-truncate-response-equal-to-max-tokens", 10, 10),
+        ],
+    )
+    def test_llm_response_truncation(self, test_name, max_tokens, actual_tokens, fake_state, mocker: MockerFixture):
+        sanitised_test_name = test_name.replace("-", "")
+
+        llm_content = f"{sanitised_test_name} " * actual_tokens
+        llm_message = AIMessage(
+            content=llm_content.strip(),
+            additional_kwargs={"tool_calls": [{"name": "test_tool", "args": {"is_intermediate_step": True}}]},
+        )
+        llm = GenericFakeChatModel(messages=iter([llm_message]))
+        mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
+
+        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel")
+        mock_tool_calls.return_value = [llm_message]
+
+        agent = "Internal_Retrieval_Agent"
+        agent_task, multi_agent_plan = configure_agent_task_plan({agent: agent})
+        tasks = [agent_task(task="Fake Task", expected_output="Fake output")]
+        plan = multi_agent_plan().model_copy(update={"tasks": tasks})
+
+        fake_state.user_feedback = "proceed"
+        fake_state.agent_plans = plan
+        fake_state.tasks_evaluator = ""
+        fake_state.messages = [AIMessage(content=plan.tasks[0].model_dump_json())]
+
+        fake_agent = build_agent_with_loop(
+            agent_name="Internal_Retrieval_Agent",
+            system_prompt="Fake prompt",
+            tools=[],
+            use_metadata=False,
+            max_tokens=max_tokens,
+            pre_process=None,
+            loop_condition=None,
+            max_attempt=2,
+        )
+
+        response = fake_agent.invoke(fake_state)
+        assert response is not None
+
+        agent_result = response.get("agents_results")
+        content = agent_result.replace("<Internal_Retrieval_Agent_Result>", "").replace(
+            "</Internal_Retrieval_Agent_Result>", ""
+        )
+        content_tokens = len(content.split())
+
+        if actual_tokens > max_tokens:
+            # Should be truncated
+            assert content_tokens == max_tokens
+            assert content == (f"{sanitised_test_name} " * max_tokens).strip()
+        else:
+            # Should match original
+            assert content_tokens == actual_tokens
+            assert content == llm_content.strip()
+
+        # Basic checks
+        assert len(response) == 2
+        assert mock_tool_calls.call_count == 1

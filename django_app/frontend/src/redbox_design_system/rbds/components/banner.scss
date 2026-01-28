@@ -19,6 +19,15 @@
     background-color: var(--banner-background-color);
     color: var(--banner-text-color);
   }
+
+  &--full-width {
+    width: 100vw;
+    left: 50%;
+    position: relative;
+    right: 50%;
+    margin-left: -50vw;
+    margin-right: -50vw;
+  }
 }
 
 .rbds-banner--brand {
@@ -47,7 +56,7 @@
   margin-bottom: 0;
 }
 
-.rbds-skills-banner {
+.rbds-tools-banner {
   background-color: var(--redbox-light-red);
   color: var(--color-text);
 }

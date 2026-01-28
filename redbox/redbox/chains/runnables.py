@@ -8,15 +8,21 @@ from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import Runnable, RunnableLambda, RunnablePassthrough, chain
+from langchain_core.runnables import Runnable, RunnableLambda, RunnableParallel, RunnablePassthrough, chain
 
 from redbox.api.format import format_documents
 from redbox.chains.activity import log_activity
-from redbox.chains.components import get_basic_metadata_retriever, get_chat_llm, get_tokeniser
+from redbox.chains.components import (
+    get_basic_metadata_retriever,
+    get_chat_llm,
+    get_knowledge_base_metadata_retriever,
+    get_knowledge_base_tabular_metadata_retriever,
+    get_tokeniser,
+)
 from redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_prompts
 from redbox.models.errors import QuestionLengthError
 from redbox.models.graph import RedboxEventType
-from redbox.models.settings import get_settings
+from redbox.models.settings import ChatLLMBackend, get_settings
 from redbox.transform import bedrock_tokeniser, flatten_document_state, get_all_metadata
 
 log = logging.getLogger()
@@ -63,7 +69,7 @@ def build_chat_prompt_from_messages_runnable(
         task_system_prompt, task_question_prompt, format_prompt = get_prompts(state, prompt_set)
 
         system_info_prompt = ai_settings.system_info_prompt.replace(
-            "{built_in_skills}",
+            "{built_in_tools}",
             "\n".join(
                 [f"- {agent.name.removesuffix('_Agent')}: {agent.description}" for agent in ai_settings.worker_agents]
             ),
@@ -71,11 +77,11 @@ def build_chat_prompt_from_messages_runnable(
 
         in_default_mode = all(agent.default_agent for agent in ai_settings.worker_agents)
         if not in_default_mode:
-            # -- In Skill Mode --
+            # -- In Tool Mode --
             agent_names = ",".join([f"'{agent.name.removesuffix('_Agent')}'" for agent in ai_settings.worker_agents])
             system_info_prompt = system_info_prompt.replace(
                 "{knowledge_mode}",
-                f"You are in skill mode using: {agent_names}. Make sure to tell the user when stating your capabilities or responding to a greeting, do not mention capabilities outside the scope of this skill. If a user requests you to perform a capability outside of this skill advise them to use normal chat. ",
+                f"You are in tool mode using: {agent_names}. Make sure to tell the user when stating your capabilities or responding to a greeting, do not mention capabilities outside the scope of this tool. If a user requests you to perform a capability outside of this tool advise them to use normal chat. ",
             )
         else:
             # -- Default --
@@ -314,14 +320,18 @@ def basic_chat_chain(
     parser=None,
     using_only_structure: bool = False,
     using_chat_history: bool = False,
+    model: ChatLLMBackend | None = None,
 ):
     @chain
     def _basic_chat_chain(state: RedboxState):
         nonlocal parser
-        if tools:
-            llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
-        else:
-            llm = get_chat_llm(state.request.ai_settings.chat_backend)
+        if model is not None:
+            llm = get_chat_llm(model, tools=tools)
+        else:  # use default
+            if tools:
+                llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
+            else:
+                llm = get_chat_llm(state.request.ai_settings.chat_backend)
 
         # chat history
         if using_chat_history:
@@ -360,20 +370,32 @@ def chain_use_metadata(
     _additional_variables: dict = {},
     using_only_structure=False,
     using_chat_history=False,
+    model: ChatLLMBackend | None = None,
+    use_knowledge_base=False,
 ):
-    metadata = None
-
     @chain
     def get_metadata(state: RedboxState):
-        nonlocal metadata
-        env = get_settings()
-        retriever = get_basic_metadata_retriever(env)
-        metadata = retriever.invoke(state)
-        return state
+        metadata = get_basic_metadata_retriever(get_settings()).invoke(state)
+        return metadata
 
     @chain
-    def use_result(state: RedboxState):
-        additional_variables = {"metadata": metadata}
+    def get_knowledge_base_metadata(state: RedboxState):
+        knowledge_base_metadata = get_knowledge_base_metadata_retriever(get_settings()).invoke(state)
+        return knowledge_base_metadata
+
+    @chain
+    def get_tabular_knowledge_base_metadata(state: RedboxState):
+        tabular_knowledge_base_metadata = get_knowledge_base_tabular_metadata_retriever(get_settings()).invoke(state)
+        return tabular_knowledge_base_metadata
+
+    @chain
+    def use_result(input):
+        if input.get("metadata") is not None:
+            additional_variables = {"metadata": input["metadata"]}
+        if input.get("knowledge_base_metadata") is not None:
+            additional_variables["knowledge_base_metadata"] = input["knowledge_base_metadata"]
+        if input.get("tabular_knowledge_base_metadata") is not None:
+            additional_variables["tabular_knowledge_base_metadata"] = input["tabular_knowledge_base_metadata"]
         if _additional_variables:
             additional_variables = dict(additional_variables, **_additional_variables)
         chain = basic_chat_chain(
@@ -383,10 +405,20 @@ def chain_use_metadata(
             _additional_variables=additional_variables,
             using_only_structure=using_only_structure,
             using_chat_history=using_chat_history,
+            model=model,
         )
-        return chain.invoke(state)
+        return chain.invoke(input["state"])
 
-    return get_metadata | use_result
+    return (
+        RunnableParallel(
+            state=RunnablePassthrough(),
+            metadata=get_metadata,
+            knowledge_base_metadata=get_knowledge_base_metadata,
+            tabular_knowledge_base_metadata=get_tabular_knowledge_base_metadata,
+        )
+        if use_knowledge_base
+        else RunnableParallel(state=RunnablePassthrough(), metadata=get_metadata)
+    ) | use_result
 
 
 def create_chain_agent(
@@ -397,8 +429,10 @@ def create_chain_agent(
     _additional_variables: dict = {},
     using_only_structure=False,
     using_chat_history=False,
+    model: ChatLLMBackend | None = None,
+    use_knowledge_base=False,
 ):
-    if use_metadata:
+    if use_metadata or use_knowledge_base:
         return chain_use_metadata(
             system_prompt=system_prompt,
             tools=tools,
@@ -406,6 +440,8 @@ def create_chain_agent(
             _additional_variables=_additional_variables,
             using_only_structure=using_only_structure,
             using_chat_history=using_chat_history,
+            model=model,
+            use_knowledge_base=use_knowledge_base,
         )
     else:
         return basic_chat_chain(
@@ -415,4 +451,5 @@ def create_chain_agent(
             _additional_variables=_additional_variables,
             using_only_structure=using_only_structure,
             using_chat_history=using_chat_history,
+            model=model,
         )

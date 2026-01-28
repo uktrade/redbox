@@ -82,15 +82,24 @@ def get_menu_items(user):
 
     items = []
 
-    items.append({"text": "Documents", "href": url("documents")})
+    items.append({"text": "All documents", "href": url("documents")})
+    # items.append({"text": "Chat", "href": url("chats")})
 
-    if flag_is_active(user, flags.ENABLE_SKILLS):
-        items.append({"text": "Tools", "href": url("skills")})
+    if flag_is_active(user, flags.ENABLE_TOOLS):
+        items.append({"text": "Tools", "href": url("tools")})
 
     items.append({"text": "Profile", "href": url("settings")})
+    items.append({"text": "Give us feedback", "href": settings.FEEDBACK_LINK or "/"})
     items.append({"text": "Log out", "href": url("signed-out")})
 
     return items
+
+
+def get_product_name(user):
+    if flag_is_active(user, flags.ENABLE_ASSIST_REBRAND):
+        return "Assist"
+
+    return settings.PRODUCT_NAME
 
 
 def environment(**options):
@@ -132,6 +141,8 @@ def environment(**options):
             "flag_is_active": flag_is_active,
             "flags": flags,
             "get_menu_items": get_menu_items,
+            "feedback_link": settings.FEEDBACK_LINK,
+            "product_name": get_product_name,
         }
     )
     return env

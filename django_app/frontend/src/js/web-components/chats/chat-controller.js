@@ -1,6 +1,6 @@
 // @ts-check
 
-import { getActiveSkillId } from "../../utils";
+import { getActiveToolId, hideElement } from "../../utils";
 import { ChatMessage } from "./chat-message";
 
 class ChatController extends HTMLElement {
@@ -12,7 +12,7 @@ class ChatController extends HTMLElement {
   #bindEvents = () => {
     const chatsForm = document.querySelector("#chats-form");
     let selectedDocuments = [];
-    const selectedSkill = getActiveSkillId();
+    const selectedTool = getActiveToolId();
 
     chatsForm?.addEventListener("submit", (evt) => {
       evt.preventDefault();
@@ -34,6 +34,13 @@ class ChatController extends HTMLElement {
       const hasContent = Boolean(userText || messageInput?.hasUploadedFiles());
 
       if (!messageInput || !hasContent) return;
+
+      // Input is valid, prepare to stream
+
+      const firstTimeUploadElement = /** @type {HTMLFormElement | null} */ (
+          document.querySelector("#first-time-user-upload")
+      );
+      if (firstTimeUploadElement) hideElement(firstTimeUploadElement);
 
       let userMessage = /** @type {ChatMessage} */ (
         document.createElement("rbds-chat-message")
@@ -62,6 +69,9 @@ class ChatController extends HTMLElement {
           document.querySelector("#llm-selector")
         )?.value || "";
 
+      const startStreamingEvent = new CustomEvent("start-streaming");
+      document.dispatchEvent(startStreamingEvent);
+
       aiMessage.stream(
         userText,
         selectedDocuments.map(doc => doc.id),
@@ -70,7 +80,7 @@ class ChatController extends HTMLElement {
         chatController.dataset.sessionId,
         chatController.dataset.streamUrl || "",
         chatController,
-        selectedSkill
+        selectedTool
       );
       /** @type {HTMLElement | null} */ (
         aiMessage.querySelector(".govuk-inset-text")

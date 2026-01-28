@@ -2,7 +2,6 @@ import json
 import os
 import re
 from datetime import UTC, datetime, timedelta
-from io import StringIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -16,7 +15,6 @@ from django.core.management import CommandError, call_command
 from django.utils import timezone
 from freezegun import freeze_time
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
-from magic_link.models import MagicLink
 from pytest_mock import MockerFixture
 from requests_mock import Mocker
 
@@ -26,60 +24,6 @@ User = get_user_model()
 
 
 # === check_file_status command tests ===
-
-
-# === show_magiclink_url command tests ===
-
-
-@pytest.mark.django_db
-def test_command_output_no_such_user():
-    # Given
-
-    # When
-    with pytest.raises(CommandError) as exception:
-        call_command("show_magiclink_url", "alice@example.com")
-
-    # Then
-    assert str(exception.value) == "No User found with email alice@example.com"
-
-
-@pytest.mark.django_db
-def test_command_output_no_links_ever(alice: User):
-    # Given
-
-    # When
-    with pytest.raises(CommandError) as exception:
-        call_command("show_magiclink_url", alice.email)
-
-    # Then
-    assert str(exception.value) == f"No MagicLink found for user {alice.email}"
-
-
-@pytest.mark.django_db
-def test_command_output_no_valid_links(alice: User):
-    # Given
-    MagicLink.objects.create(user=alice, expires_at=datetime.now(UTC) - timedelta(seconds=10))
-
-    # When
-    with pytest.raises(CommandError) as exception:
-        call_command("show_magiclink_url", alice.email)
-
-    # Then
-    assert str(exception.value) == f"No active link for user {alice.email}"
-
-
-@pytest.mark.django_db
-def test_command_output_with_valid_links(alice: User):
-    # Given
-    link: MagicLink = MagicLink.objects.create(user=alice, expires_at=datetime.now(UTC) + timedelta(seconds=10))
-    out, err = StringIO(), StringIO()
-
-    # When
-    call_command("show_magiclink_url", alice.email, stdout=out, stderr=err)
-
-    # Then
-    assert out.getvalue().strip() == link.get_absolute_url()
-
 
 # === delete_expired_data command tests ===
 EXPIRED_FILE_DATE = timezone.now() - timedelta(seconds=(settings.FILE_EXPIRY_IN_SECONDS + 60))
@@ -107,7 +51,7 @@ def test_delete_expired_files(uploaded_file: File, last_referenced: datetime, sh
     assert is_deleted == should_delete
 
 
-@patch("redbox_app.redbox_core.models.File.delete_from_elastic")
+@patch("redbox_app.redbox_core.models.File.delete_from_elastic_and_s3")
 @pytest.mark.django_db
 def test_delete_expired_files_with_elastic_error(deletion_mock: MagicMock, uploaded_file: File):
     deletion_mock.side_effect = elasticsearch.BadRequestError(message="i am am error", meta=None, body=None)

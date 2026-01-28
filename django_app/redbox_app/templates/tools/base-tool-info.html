@@ -1,0 +1,42 @@
+{% set pageTitle = tool.name %}
+{% extends "base.html" %}
+{% from "macros/govuk-button.html" import govukButton %}
+
+{% block content %}
+
+    <div class="govuk-width-container rbds-width-container">
+        <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">{{ tool.name }}</h2>
+
+        <p class="govuk-body">
+            {% block tool_description %}
+            {% endblock %}
+        </p>
+
+        <div class="rbds-divider govuk-!-margin-top-7 govuk-!-margin-bottom-6"></div>
+
+        <div class="govuk-grid-row">
+            <div class="govuk-grid-column-two-thirds">
+                <h3 class="govuk-heading-s">When to use this tool</h3>
+                {% block tool_when_to_use %}
+                {% endblock %}
+
+                <h3 class="govuk-heading-s govuk-!-margin-top-5">How to use this tool</h3>
+                {% block tool_how_to_use %}
+                {% endblock %}
+
+                {{ govukButton(
+                    text = "Use " ~ tool.name | lower,
+                    href=tool.chat_url,
+                    classes="rbds-push-bottom rbds-w-fit"
+                ) }}
+            </div>
+            <div class="govuk-grid-column-one-third">
+                {% include "tools/tool-files.html" %}
+
+                {% block tool_document_guidance %}
+                {% endblock %}
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
