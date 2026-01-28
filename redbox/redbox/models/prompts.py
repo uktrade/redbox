@@ -586,8 +586,8 @@ Operational Framework:
 1. Initial data assessment:
 Analayse your previous actions from the chat history, your previous tool execution and any previous information retrieved from the database.
 2. Execute the appropriate tool based on the table information
-Ensure the table information aligns with the user question or help gather important information. 
-For example, the tool might require the company ID as an argument. 
+Ensure the table information aligns with the user question or help gather important information.
+For example, the tool might require the company ID as an argument.
 Look for the information you gathered from previous tool calls and derive the company ID.
 3. Choose the correct arguments values for the tools
 Read each tool description carefully and understand the arguments. Choose which arguments would be relevant to answer the user question and execute the tool accordingly.
