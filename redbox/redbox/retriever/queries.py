@@ -144,6 +144,72 @@ def get_knowledge_base_metadata(
     }
 
 
+def get_knowledge_base_tabular_metadata(
+    chunk_resolution: ChunkResolution | None,
+    state: RedboxState,
+) -> dict[str, Any]:
+    """Retrieve knowledge base metadata with schema metadata and without page_content"""
+    query_filter = build_query_filter(
+        selected_files=state.request.knowledge_base_s3_keys,
+        permitted_files=state.request.knowledge_base_s3_keys,
+        chunk_resolution=chunk_resolution,
+    )
+
+    return {
+        "_source": {
+            "includes": [
+                "metadata.uri",
+                "metadata.name",
+                "metadata.description",
+                "metadata.keywords",
+                "metadata.document_schema",
+            ],
+            "excludes": ["text", "vector_field"],
+        },
+        "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
+    }
+
+
+def get_schematised_tabular_chunks(
+    chunk_resolution: ChunkResolution | None,
+    knowledge_base_s3_keys: list[str],
+    uris: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Retrieve tabular metadata including the `.text` content.
+
+    Args:
+        chunk_resolution: Optional chunk resolution for filtering.
+        knowledge_base_s3_keys: List of allowed knowledge base file URIs.
+        uris: Optional list of specific URIs to filter on (agent can select).
+
+    Returns:
+        dict: Elasticsearch query body with metadata and text for relevant tabular files.
+    """
+    # Base filter using permissions
+    query_filter = build_query_filter(
+        selected_files=uris,
+        permitted_files=knowledge_base_s3_keys,
+        chunk_resolution=chunk_resolution,
+    )
+
+    return {
+        "_source": {
+            "includes": [
+                "metadata.uri",
+                "metadata.name",
+                "metadata.description",
+                "metadata.keywords",
+                "metadata.document_schema",
+                "text",  # include the actual file content
+            ],
+            "excludes": ["vector_field"],
+        },
+        "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
+        "sort": [{"metadata.name.keyword": {"order": "asc"}}],
+    }
+
+
 def get_k_value(file_list, desired_size=30):
     """
     Simple rule: more files filtered = lower k needed

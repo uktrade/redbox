@@ -24,6 +24,7 @@ from redbox.graph.nodes.tools import (
     build_search_wikipedia_tool,
     build_web_search_tool,
     execute_sql_query,
+    build_query_tabular_knowledge_base_tool,
 )
 from redbox.graph.root import build_new_route_graph, build_root_graph, get_summarise_graph
 from redbox.models.chain import RedboxState
@@ -95,6 +96,10 @@ class Redbox:
         retrieve_knowledge_base = build_retrieve_knowledge_base(
             es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias, loop=True
         )
+        query_knowledge_base = build_query_tabular_knowledge_base_tool(
+            es_client=_env.elasticsearch_client(),
+            index_name=_env.elastic_schematised_chunk_index,
+        )
 
         search_wikipedia = build_search_wikipedia_tool()
         search_govuk = build_govuk_search_tool()
@@ -118,7 +123,7 @@ class Redbox:
             retrieve_knowledge_base,
             doc_from_prompt,
         ]
-        self.agent_configs["Knowledge_Base_Retrieval_Agent"].tools = [search_knowledge_base]
+        self.agent_configs["Knowledge_Base_Retrieval_Agent"].tools = [query_knowledge_base, search_knowledge_base]
 
         self.graph = build_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,

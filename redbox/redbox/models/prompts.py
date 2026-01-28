@@ -240,7 +240,7 @@ Execution Strategy:
 4. Produce the expected output with maximum accuracy and efficiency. Only use information obtained from tools.
 """
 METADATA = """<Document_Metadata>{metadata}</Document_Metadata>"""
-KNOWLEDGE_BASE_METADTA = """<Knowledge_Base_Metadata>{knowledge_base_metadata}</Knowledge_Base_Metadata>"""
+KNOWLEDGE_BASE_METADTA = """<Knowledge_Base_Metadata>{knowledge_base_metadata}</Knowledge_Base_Metadata> <Tabular_Knowledge_Base_Metadata>{tabular_knowledge_base_metadata}</Tabular_Knowledge_Base_Metadata>"""
 
 EXTERNAL_RETRIEVAL_AGENT_PROMPT = """You are an expert information analyst with the ability to critically assess when and how to retrieve information. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
 
@@ -314,14 +314,15 @@ Use when the user wants to:
 
 KNOWLEDGE_BASE_RETRIEVAL_AGENT_DESC = """
 **Knowledge_Base_Retrieval_Agent**:
-Purpose: Information retrieval and question answering from knowledge base.
-Use when the selected documents are NOT tabular data such as PDF files or Word documents
+Purpose: Information retrieval and question answering from knowledge base, supporting both tabular and non-tabular documents.
+Use when the selected documents may include tabular data (like CSV or Excel) as well as standard documents (PDF, Word, etc.)
 Use when the user wants to:
 - Ask questions about specific documents or knowledge base content
 - Retrieve specific information or facts
 - Get answers to queries based on existing documents
 - Search for particular details within documents
 - Compare information across multiple documents
+- Query structured tabular data using SQL-like searches
 - Get explanations about content within documents
 """
 
