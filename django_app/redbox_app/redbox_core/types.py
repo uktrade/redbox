@@ -60,3 +60,29 @@ class TabRegistry:
 
     def get(self, key: str, default=None):
         return self._lookup.get(key, default)
+
+
+@dataclass(frozen=True)
+class UIFragment:
+    id: str
+    template: str
+
+
+FRAGMENTS = {
+    "chat-window": UIFragment(
+        id="chat-window",
+        template="chat/chat_window.html",
+    ),
+    "chat-cta": UIFragment(
+        id="chat-cta",
+        template="chat/cta.html",
+    ),
+    "conversations": UIFragment(
+        id="conversations",
+        template="side_panel/conversations.html",
+    ),
+    "your-documents": UIFragment(
+        id="your-documents",
+        template="side_panel/your_documents.html",
+    ),
+}
