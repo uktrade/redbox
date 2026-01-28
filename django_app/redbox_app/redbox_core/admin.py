@@ -120,6 +120,7 @@ class UserAdmin(ImportExportMixin, admin.ModelAdmin):
                     "last_login",
                     "ai_settings",
                     "is_developer",
+                    "first_time_user",
                 ]
             },
         ),

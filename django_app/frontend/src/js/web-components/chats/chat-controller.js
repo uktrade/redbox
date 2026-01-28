@@ -62,6 +62,9 @@ class ChatController extends HTMLElement {
           document.querySelector("#llm-selector")
         )?.value || "";
 
+      const startStreamingEvent = new CustomEvent("start-streaming");
+      document.dispatchEvent(startStreamingEvent);
+
       aiMessage.stream(
         userText,
         selectedDocuments.map(doc => doc.id),
