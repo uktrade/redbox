@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from django.http import Http404, HttpRequest, HttpResponse
 from django.utils import timezone
 
-from redbox_app.redbox_core.utils import get_date_group, render_with_oob, resolve_instance
+from redbox_app.redbox_core.utils import get_date_group, parse_uuid, render_with_oob, resolve_instance
 
 User = get_user_model()
 
@@ -134,3 +134,21 @@ def test_resolve_instance(alice: User):
     assert response_2 == alice
     assert response_3 == alice
     assert response_4 is None
+
+
+@pytest.mark.django_db
+def test_parse_uuid():
+    # Given
+    valid_uuid = uuid.uuid4()
+    valid_str_uuid = str(uuid.uuid4())
+    invalid_uuid = "invalid uuid"
+
+    # When
+    valid_result = parse_uuid(valid_uuid)
+    valid_str_result = parse_uuid(valid_str_uuid)
+    invalid_result = parse_uuid(invalid_uuid)
+
+    # Then
+    assert valid_result == valid_uuid
+    assert str(valid_str_result) == valid_str_uuid
+    assert invalid_result is None

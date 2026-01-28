@@ -230,7 +230,7 @@ def delete_document(request, doc_id: uuid.UUID, slug: str | None = None):
 
         return render_with_oob(
             [
-                {"template": "side_panel/your_documents_list.html", "context": context, "request": request},
+                {"template": "side_panel/your_documents.html", "context": context, "request": request},
                 {"template": "chat/chat_window.html", "context": oob_context, "request": request},
             ]
         )

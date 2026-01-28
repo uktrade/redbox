@@ -8,8 +8,8 @@ from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
 
-from redbox_app.redbox_core.models import Chat, ChatMessage, File, Tool
-from redbox_app.redbox_core.services import url as url_service
+from redbox_app.redbox_core.models import ChatMessage, File
+from redbox_app.redbox_core.services import chats as chat_service
 
 logger = logging.getLogger(__name__)
 
@@ -24,21 +24,14 @@ class CitationsView(View):
         chat_id: uuid.UUID | None = None,
     ) -> HttpResponse:
         message = get_object_or_404(ChatMessage, id=message_id)
-        tool = get_object_or_404(Tool, slug=slug) if slug else None
-        chat = get_object_or_404(Chat, id=chat_id) if chat_id else None
 
         if message.chat.user != request.user:
             return redirect(reverse("chats"))
 
-        source_files = File.get_ordered_by_citation_priority(message_id)
-        citations_url = url_service.get_citation_url(message_id=message.id, chat_id=chat.id, slug=slug)
-
         context = {
+            **chat_service.get_context(request, chat_id, slug),
             "message": message,
-            "source_files": source_files,
-            "tool": tool,
-            "chat": chat,
-            "citations_url": citations_url,
+            "source_files": File.get_ordered_by_citation_priority(message_id),
         }
 
         return render(

@@ -133,24 +133,30 @@ def test_staff_user_can_see_route(chat_with_files: Chat, client: Client):
 
 
 @pytest.mark.django_db
-def test_recent_chats_with_chat(user_with_chats_with_messages_over_time: User, client: Client):
+def test_conversations_with_chat(user_with_chats_with_messages_over_time: User, client: Client):
     # Given
     user = user_with_chats_with_messages_over_time
     client.force_login(user)
     chats = Chat.get_ordered_by_last_message_date(user)
 
     # When
-    response = client.get(reverse("recent-chats", kwargs={"active_chat_id": chats[0].id}))
+    response = client.get(
+        reverse("refresh"),
+        data={
+            "chat": chats[0].id,
+            "fragments": ["conversations"],
+        },
+    )
     soup = BeautifulSoup(response.content)
     selected_chat = soup.find(
-        "div",
-        class_=["chat-list-item", "selected"],
+        "li",
+        class_=["rbds-list-row", "rbds-list-row--selected"],
         attrs={"data-chatid": str(chats[0].id)},
     )
 
     # Then
     assert response.status_code == HTTPStatus.OK
-    assert list(response.context_data["chats"]) == list(chats)
+    assert response.content.decode()
     assert selected_chat is not None
 
 
@@ -162,18 +168,22 @@ def test_recent_chats_without_chat(user_with_chats_with_messages_over_time: User
     chats = Chat.get_ordered_by_last_message_date(user)
 
     # When
-    response = client.get(reverse("recent-chats"))
+    response = client.get(
+        reverse("refresh"),
+        data={
+            "fragments": ["conversations"],
+        },
+    )
     soup = BeautifulSoup(response.content)
-    chat_items = soup.find_all("div", class_="chat-list-item")
+    chat_items = soup.find_all("li", class_="rbds-list-row")
     rendered_ids = [item["data-chatid"] for item in chat_items]
 
     # Then
     assert response.status_code == HTTPStatus.OK
-    assert list(response.context_data["chats"]) == list(chats)
     for chat in chats:
         assert str(chat.id) in rendered_ids
     for chat_item in chat_items:
-        assert "selected" not in chat_item.get("class", [])
+        assert "rbds-list-row--selected" not in chat_item.get("class", [])
 
 
 @pytest.mark.django_db
@@ -184,12 +194,17 @@ def test_chat_window_with_chat(chat_with_message: Chat, client: Client):
     message = ChatMessage.objects.filter(chat=chat_with_message).first()
 
     # When
-    response = client.get(reverse("chat-window", kwargs={"active_chat_id": chat_with_message.id}))
+    response = client.get(
+        reverse("refresh"),
+        data={
+            "chat": chat_with_message.id,
+            "fragments": ["chat-window"],
+        },
+    )
     response_content = response.content.decode()
 
     # Then
     assert response.status_code == HTTPStatus.OK
-    assert response.context_data["current_chat"] == chat_with_message
     assert f"{message.id}" in response_content
 
 
@@ -199,11 +214,15 @@ def test_chat_window_without_chat(alice: User, client: Client):
     client.force_login(alice)
 
     # When
-    response = client.get(reverse("chat-window"))
+    response = client.get(
+        reverse("refresh"),
+        data={
+            "fragments": ["chat-window"],
+        },
+    )
     soup = BeautifulSoup(response.content)
     canned_prompt = soup.find("canned-prompts")
 
     # Then
     assert response.status_code == HTTPStatus.OK
-    assert not response.context_data["current_chat"]
     assert canned_prompt is not None
