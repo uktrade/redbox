@@ -2,7 +2,7 @@
 {% from "macros/govuk-button.html" import govukButton %}
 
 <div class="rbds-chat-title__actions">
-    {% if promoted_tool and not tool %}
+    {% if flag_is_active(request, flags.ENABLE_TOOLS) and promoted_tool and not tool %}
         {{ govukButton(
             text="Try " ~ promoted_tool.name,
             href=promoted_tool.chat_url,

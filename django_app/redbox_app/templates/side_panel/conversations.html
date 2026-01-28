@@ -2,7 +2,7 @@
 {% from "rbds/components/show-more.html" import show_more %}
 {% from "macros/icon.html" import rbds_icon %}
 
-<section id="conversations" class="rbds-card rbds-card--no-border rbds-card--block rbds-scrollable" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+<section id="conversations" class="rbds-card rbds-card--no-border" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
     <div class="rbds-card__header">
         {{ rbds_icon(icon_name="chat.svg") }}
         <h3 class="side-panel-heading__text">Conversations</h3>
