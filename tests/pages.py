@@ -148,8 +148,7 @@ class SignInLinkSentPage(BasePage):
 class SignInConfirmationPage(BasePage):
     EXPECTED_TITLE = "Sign in - confirmation - Redbox"
 
-    def __init__(self, page, magic_link: URL):
-        page.goto(str(magic_link))
+    def __init__(self, page):
         super().__init__(page)
 
     @property
@@ -162,8 +161,7 @@ class SignInConfirmationPage(BasePage):
         return self._where_are_we(self.page)
 
     @staticmethod
-    def autosubmit(page: Page, magic_link: URL) -> Union["ChatsPage", "MyDetailsPage"]:
-        page.goto(str(magic_link))
+    def autosubmit(page: Page) -> Union["ChatsPage", "MyDetailsPage"]:
         expect(page).not_to_have_title(SignInConfirmationPage.EXPECTED_TITLE)
         return SignInConfirmationPage._where_are_we(page)
 

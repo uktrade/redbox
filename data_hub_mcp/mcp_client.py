@@ -1,7 +1,8 @@
 import asyncio
+from dataclasses import asdict
 
 import log
-from dataclasses import asdict
+
 
 async def call_tool(client, tool_name: str, name: str):
     async with client:
@@ -19,14 +20,14 @@ async def call_companies(client, company_name: str, page: int = 0, page_size: in
 
         return asdict(result)
 
+
 async def call_company_details(client, company_id: str):
     async with client:
-        result = await client.call_tool(
-            "company_details", {"company_id": company_id}
-        )
+        result = await client.call_tool("company_details", {"company_id": company_id})
         log.logger.info(result)
 
         return asdict(result)
+
 
 async def call_company_interactions(client, company_id: str, page: int = 0, page_size: int = 10):
     async with client:
@@ -37,6 +38,7 @@ async def call_company_interactions(client, company_id: str, page: int = 0, page
 
         return asdict(result)
 
+
 async def call_account_management_objectives(client, company_id: str, page: int = 0, page_size: int = 10):
     async with client:
         result = await client.call_tool(
@@ -45,6 +47,7 @@ async def call_account_management_objectives(client, company_id: str, page: int 
         log.logger.info(result)
 
         return asdict(result)
+
 
 async def call_investment_projects(client, company_id: str, page: int = 0, page_size: int = 10):
     async with client:
@@ -55,6 +58,7 @@ async def call_investment_projects(client, company_id: str, page: int = 0, page_
 
         return asdict(result)
 
+
 async def call_companies_or_interactions(client, company_name: str, page: int = 0, page_size: int = 10):
     async with client:
         result = await client.call_tool(
@@ -64,6 +68,7 @@ async def call_companies_or_interactions(client, company_name: str, page: int = 
 
         return asdict(result)
 
+
 def run_examples(client):
     asyncio.run(call_tool(client, "greet", "Ford"))
     asyncio.run(call_tool(client, "greet", "Ford"))
@@ -72,7 +77,6 @@ def run_examples(client):
     # asyncio.run(call_tool('greet', "Doug"))
     asyncio.run(call_companies(client, "SOME"))
     asyncio.run(call_companies(client, "SOME OTHER", 0, 2))
-
 
     asyncio.run(call_company_details(client, "00000000-0000-0000-0000-000000000000"))
     asyncio.run(call_company_details(client, "00000000-0000-0000-0000-000000000001"))
@@ -99,6 +103,3 @@ def run_examples(client):
     asyncio.run(call_companies_or_interactions(client, "Some company"))
     asyncio.run(call_companies_or_interactions(client, "some"))
     asyncio.run(call_companies_or_interactions(client, "some other"))
-
-
-

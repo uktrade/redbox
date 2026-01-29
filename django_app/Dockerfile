@@ -69,4 +69,4 @@ RUN chmod +x health.sh
 
 RUN libreoffice --version
 
-CMD ["./start.sh"]
+CMD ["/bin/sh", "./start.sh"]

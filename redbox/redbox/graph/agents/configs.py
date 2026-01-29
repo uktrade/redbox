@@ -14,7 +14,9 @@ class PromptVariable(BaseModel):
 
     task: bool = Field(description="Task information", default=False)
     expected_output: bool = Field(description="Expected output from a task", default=False)
-    metadata: bool = Field(description="File metadata containing file name, description, and keywords", default=False)
+    metadata: bool = Field(
+        description="User uploaded file metadata containing file name, description, and keywords", default=False
+    )
     chat_history: bool = Field(description="User chat history", default=False)
     question: bool = Field(description="User question", default=False)
     document_filenames: bool = Field(description="User selected document file names", default=False)
@@ -25,6 +27,7 @@ class PromptVariable(BaseModel):
     formatted_documents: bool = Field(description="Document content", default=False)
     previous_tool_error: bool = Field(description="Message from previous tool error", default=False)
     previous_tool_results: bool = Field(description="Results from previous tool call", default=False)
+    knowledge_base_metadata: bool = Field(description="Knowledge base files metadata", default=False)
 
 
 class PromptConfig(BaseModel):
@@ -45,11 +48,16 @@ class PromptConfig(BaseModel):
 # This dict is for storing prompt configs for all the agents.
 prompt_configs: Dict[str, PromptConfig] = {
     "Planner_Agent": PromptConfig(
-        system=prompts.PLANNER_PROMPT_TOP,
+        system=prompts.PLANNER_PROMPT_TOP,  # the refactor will need to add PLANNER_PROMPT_BOTTOM
         question=prompts.PLANNER_QUESTION_PROMPT,
         format=prompts.PLANNER_FORMAT_PROMPT,
         prompt_vars=PromptVariable(
-            chat_history=True, question=True, document_filenames=True, metadata=True, format_instruction=True
+            chat_history=True,
+            question=True,
+            document_filenames=True,
+            metadata=True,
+            format_instruction=True,
+            knowledge_base_metadata=True,
         ),
     ),
     "Replanner_Agent": PromptConfig(
@@ -63,10 +71,11 @@ prompt_configs: Dict[str, PromptConfig] = {
             document_filenames=True,
             metadata=True,
             format_instruction=True,
+            knowledge_base_metadata=True,
         ),
     ),
     "Internal_Retrieval_Agent": PromptConfig(
-        system=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT,
+        system=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT + prompts.METADATA,
         prompt_vars=PromptVariable(task=True, expected_output=True, metadata=True),
     ),
     "External_Retrieval_Agent": PromptConfig(
@@ -122,11 +131,22 @@ prompt_configs: Dict[str, PromptConfig] = {
         ),
     ),
     "Datahub_Agent": PromptConfig(
+<<<<<<< HEAD
         system= prompts.DATAHUB_PROMPT,
         question= prompts.DATAHUB_QUESTION_PROMPT,
             prompt_vars=PromptVariable(question=True)
         )
     
+=======
+        system=prompts.DATAHUB_PROMPT,
+        question=prompts.DATAHUB_QUESTION_PROMPT,
+        prompt_vars=PromptVariable(question=True),
+    ),
+    "Knowledge_Base_Retrieval_Agent": PromptConfig(
+        system=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT + prompts.KNOWLEDGE_BASE_METADTA,
+        prompt_vars=PromptVariable(task=True, expected_output=True, knowledge_base_metadata=True),
+    ),
+>>>>>>> data_hub_mcp
 }
 
 
@@ -221,12 +241,19 @@ agent_configs: Dict[str, AgentConfig] = {
         default_agent=True,
         agents_max_tokens=10000,
     ),
-    'Datahub_Agent': AgentConfig(
-                    name='Datahub_Agent',
-                    description=prompts.DATAHUB_AGENT_DESC,
-                    prompt=prompt_configs['Datahub_Agent'],
-                    parser=None,
-                    agents_max_tokens=10000,
-                    default_agent=True,
-    )
+    "Datahub_Agent": AgentConfig(
+        name="Datahub_Agent",
+        description=prompts.DATAHUB_AGENT_DESC,
+        prompt=prompt_configs["Datahub_Agent"],
+        parser=None,
+        agents_max_tokens=10000,
+        default_agent=True,
+    ),
+    "Knowledge_Base_Retrieval_Agent": AgentConfig(
+        name="Knowledge_Base_Retrieval_Agent",
+        description=prompts.KNOWLEDGE_BASE_RETRIEVAL_AGENT_DESC,
+        prompt=prompt_configs["Knowledge_Base_Retrieval_Agent"],
+        agents_max_tokens=10000,
+        parser=None,
+    ),
 }

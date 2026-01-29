@@ -238,9 +238,9 @@ Execution Strategy:
    - Select the most precise tool to fill that gap
    - Make a targeted, focused tool call
 4. Produce the expected output with maximum accuracy and efficiency. Only use information obtained from tools.
-
-<Document_Metadata>{metadata}</Document_Metadata>
 """
+METADATA = """<Document_Metadata>{metadata}</Document_Metadata>"""
+KNOWLEDGE_BASE_METADTA = """<Knowledge_Base_Metadata>{knowledge_base_metadata}</Knowledge_Base_Metadata>"""
 
 EXTERNAL_RETRIEVAL_AGENT_PROMPT = """You are an expert information analyst with the ability to critically assess when and how to retrieve information. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
 
@@ -302,6 +302,19 @@ Always prioritize official, authoritative sources within the specified domain
 INTERNAL_RETRIEVAL_AGENT_DESC = """
 **Internal_Retrieval_Agent**:
 Purpose: Information retrieval and question answering
+Use when the selected documents are NOT tabular data such as PDF files or Word documents
+Use when the user wants to:
+- Ask questions about specific documents or knowledge base content
+- Retrieve specific information or facts
+- Get answers to queries based on existing documents
+- Search for particular details within documents
+- Compare information across multiple documents
+- Get explanations about content within documents
+"""
+
+KNOWLEDGE_BASE_RETRIEVAL_AGENT_DESC = """
+**Knowledge_Base_Retrieval_Agent**:
+Purpose: Information retrieval and question answering from knowledge base.
 Use when the selected documents are NOT tabular data such as PDF files or Word documents
 Use when the user wants to:
 - Ask questions about specific documents or knowledge base content
@@ -435,7 +448,9 @@ Remember that your primary value is in effective coordination and integration - 
 
 PLANNER_QUESTION_PROMPT = """User question: <Question>{question}</Question>.
 User selected documents: {document_filenames}
-User uploaded documents metadata:<Document_Metadata>{metadata}</Document_Metadata>."""
+User uploaded documents metadata:<Document_Metadata>{metadata}</Document_Metadata>.
+Contain Knowledge Base: <Contain_Knowledge_Base>{knowledge_base_metadata}</Contain_Knowledge_Base>
+"""
 
 PLANNER_FORMAT_PROMPT = """## Output Format
 For each user request, provide your response in the following format: {format_instructions}. Do not give explanation, only return a list."""
