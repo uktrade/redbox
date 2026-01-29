@@ -186,22 +186,14 @@ def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, per_tool_timeo
                 # Get arguments and submit the tool invocation
                 args = tool_call.get("args", {})
                 log.warning(f"args: {args}")
-<<<<<<< HEAD
-                #check if tool is sync (not async). the sync tool should have sync function defined and no async coroutine
-=======
                 # check if tool is sync (not async). the sync tool should have sync function defined and no async coroutine
->>>>>>> data_hub_mcp
                 if selected_tool.func and not selected_tool.coroutine:
                     args["state"] = state
                     future = executor.submit(run_with_timeout, selected_tool.invoke, args, per_tool_timeout)
                 else:
-<<<<<<< HEAD
-                    future = executor.submit(run_with_timeout, wrap_async_tool(selected_tool, tool_name), args, per_tool_timeout)
-=======
                     future = executor.submit(
                         run_with_timeout, wrap_async_tool(selected_tool, tool_name), args, per_tool_timeout
                     )
->>>>>>> data_hub_mcp
                 futures[future] = {"name": tool_name}
 
             # Collect responses as tools complete
