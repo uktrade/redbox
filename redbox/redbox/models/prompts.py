@@ -240,7 +240,7 @@ Execution Strategy:
 4. Produce the expected output with maximum accuracy and efficiency. Only use information obtained from tools.
 """
 
-PREVIOUS_AGENT_RESULTS = """<Previous_agents_results>{previous_agents_results}</Previous_agents_results>"""
+PREVIOUS_AGENT_RESULTS = """<Previous_Agents_Results>{previous_agents_results}</Previous_Agents_Results>"""
 METADATA = """<Document_Metadata>{metadata}</Document_Metadata>"""
 KNOWLEDGE_BASE_METADTA = """<Knowledge_Base_Metadata>{knowledge_base_metadata}</Knowledge_Base_Metadata> <Tabular_Knowledge_Base_Metadata>{tabular_knowledge_base_metadata}</Tabular_Knowledge_Base_Metadata>"""
 
