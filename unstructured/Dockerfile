@@ -1,6 +1,10 @@
 # Use the existing image as the base image
 FROM quay.io/unstructured-io/unstructured-api:latest
 
+ENV TMPDIR=/tmp/unstructured_temp
+ENV TEMP=/tmp/unstructured_temp
+ENV TMP=/tmp/unstructured_temp
+
 # datadog
 ARG DD_GIT_REPOSITORY_URL
 ARG DD_GIT_COMMIT_SHA
