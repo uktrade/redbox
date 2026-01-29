@@ -208,7 +208,7 @@ CSP_SCRIPT_SRC = (
     "sha256-T/1K73p+yppfXXw/AfMZXDh5VRDNaoEh3enEGFmZp8M=",
 )
 CSP_OBJECT_SRC = ("'none'",)
-CSP_TRUSTED_TYPES = ("dompurify", "default")
+CSP_TRUSTED_TYPES = ("dompurify", "default", "allow-duplicates", "goog#html")
 CSP_REPORT_TO = "csp-endpoint"
 CSP_FONT_SRC = ("'self'", "s3.amazonaws.com", "https://fonts.gstatic.com", "data:")
 CSP_INCLUDE_NONCE_IN = ("script-src",)
