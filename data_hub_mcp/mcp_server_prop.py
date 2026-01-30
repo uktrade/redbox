@@ -2,33 +2,20 @@ import os
 
 from data_classes_prop import (
     CompanyEnrichmentSearchResult,
-    # CompaniesOrInteractionSearchResult,
     SectorGroupedCompanySearchResult,
+    SectorGroupedInvestmentSummary,
+    SectorGroupedOverview,
 )
 from db_ops_prop import (
     db_check,
-    # get_account_management_objectives,
-    # get_companies_or_interactions,
-    # get_companies,
     get_company_details,
     get_related_company_details,
-    # get_company_interactions,
-    # get_investment_projects,
+    get_sector_investment_projects,
+    get_sector_overview,
 )
+from exceptions import NoCompanyOrSectorError
 from fastmcp import FastMCP
-
-# from fastmcp.server.auth.providers.auth0 import Auth0Provider
 from starlette.responses import JSONResponse
-
-# load_dotenv()
-
-# auth_provider = Auth0Provider(
-#     config_url=os.getenv("AUTHBROKER_CONFIG_URL"),  # Your Auth0 configuration URL
-#     client_id=os.getenv("AUTHBROKER_CLIENT_ID"),  # Your Auth0 application Client ID
-#     client_secret=os.getenv("AUTHBROKER_CLIENT_SECRET"),  # Your Auth0 application Client Secret
-#     audience=os.getenv("AUTHBROKER_AUDIENCE"),  # Your Auth0 API audience
-#     base_url=os.getenv("AUTHBROKER_BASE_URL"),  # Must match your application configuration
-# )
 
 mcp = FastMCP(
     name="Data Hub companies MCP server",
@@ -108,6 +95,10 @@ async def related_company_details(
     Async wrapper for fetching companies in the same sector as a given company or a target sector.
     Optional flags control whether to fetch interactions, objectives, and investment projects.
     """
+    # Validate input
+    if not sector_name and not company_name:
+        raise NoCompanyOrSectorError
+
     return get_related_company_details(
         sector_name=sector_name,
         company_name=company_name,
@@ -119,62 +110,51 @@ async def related_company_details(
     )
 
 
-# @mcp.tool(
-#     name="company_details",
-#     description="Full details of a company",
-#     tags={"data_hub", "companies"},
-#     meta={"version": "1.0", "author": "Doug Mills"},
-# )
-# async def company_details(company_id: str) -> CompanyDetails | None:
-#     return get_company(company_id)
+@mcp.tool(
+    name="sector_overview",
+    description="Aggregate high-level metrics for a sector (companies, turnover, employees, investments, GVA)",
+    tags={"data_hub", "sector", "overview"},
+    meta={"version": "1.0", "author": "Doug Mills"},
+)
+async def sector_overview(
+    sector_name: str | None = None,
+    company_name: str | None = None,
+) -> SectorGroupedOverview:
+    """
+    Async wrapper for fetching aggregated sector metrics.
+    Can query either by sector_name directly or a company_name to find its sector.
+    """
+    if not sector_name and not company_name:
+        raise NoCompanyOrSectorError
+
+    return get_sector_overview(
+        sector_name=sector_name,
+        company_name=company_name,
+    )
 
 
-# @mcp.tool(
-#     name="companies_or_interactions",
-#     description="""
-# Query companies, and will return interactions on a single result,
-# or a list of companies of there are multiple matches
-# """,
-#     tags={"data_hub", "companies_or_interactions"},
-#     meta={"version": "1.0", "author": "Doug Mills"},
-# )
-# async def companies_or_interactions(
-#     company_name: str, page_size: int = 10, page: int = 0
-# ) -> CompaniesOrInteractionSearchResult | None:
-#     return get_companies_or_interactions(company_name, page_size, page)
+@mcp.tool(
+    name="sector_investment_projects",
+    description="Fetch investment projects in a sector, including their economic impact and status",
+    tags={"data_hub", "sector", "investment"},
+    meta={"version": "1.0", "author": "Doug Mills"},
+)
+async def sector_investment_projects(
+    sector_name: str | None = None,
+    company_name: str | None = None,
+    page: int = 0,
+    page_size: int = 10,
+) -> SectorGroupedInvestmentSummary:
+    """
+    Async wrapper for fetching sector-level investment projects.
+    Can query either by sector_name directly or company_name to find its sector.
+    """
+    if not sector_name and not company_name:
+        raise NoCompanyOrSectorError
 
-
-# @mcp.tool(
-#     name="company_interactions",
-#     description="Query company interactions based on company id",
-#     tags={"data_hub", "company_interactions"},
-#     meta={"version": "1.0", "author": "Doug Mills"},
-# )
-# async def company_interactions(
-#     company_id: str, page_size: int = 10, page: int = 0
-# ) -> CompanyInteractionSearchResult | None:
-#     return get_company_interactions(company_id, page_size, page)
-
-
-# @mcp.tool(
-#     name="account_management_objectives",
-#     description="Query account management objectives based on company id",
-#     tags={"data_hub", "company", "account_management_objectives"},
-#     meta={"version": "1.0", "author": "Doug Mills"},
-# )
-# async def account_management_objectives(
-#     company_id: str, page_size: int = 10, page: int = 0
-# ) -> AccountManagementObjectivesSearchResult | None:
-#     return get_account_management_objectives(company_id, page_size, page)
-
-
-# @mcp.tool(
-#     name="investment_projects",
-#     description="Query investment projects based on company id",
-#     tags={"data_hub", "company", "investment_projects"},
-#     meta={"version": "1.0", "author": "Doug Mills"},
-# )
-# async def investment_projects(
-#     company_id: str, page_size: int = 10, page: int = 0
-# ) -> InvestmentProjectsSearchResult | None:
-#     return get_investment_projects(company_id, page_size, page)
+    return get_sector_investment_projects(
+        sector_name=sector_name,
+        company_name=company_name,
+        page=page,
+        page_size=page_size,
+    )

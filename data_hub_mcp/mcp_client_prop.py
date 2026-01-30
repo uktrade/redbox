@@ -3,6 +3,7 @@ from dataclasses import asdict, is_dataclass
 from datetime import date, datetime
 
 import log
+from exceptions import ToolInputError
 
 
 async def call_tool(client, tool_name: str, name: str):
@@ -191,6 +192,42 @@ async def run_examples(client):
                 "fetch_investments": True,
             },
         },
+        # 3️⃣ Sector overview: aggregated investment, jobs, GVA
+        {
+            "tool": "sector_overview",
+            "params": {
+                "sector_name": "Manufacturing",
+            },
+        },
+        # 4️⃣ Sector investment projects: FDI, status, economic impact
+        {
+            "tool": "sector_investment_projects",
+            "params": {
+                "sector_name": "Technology",
+                "page": 0,
+                "page_size": 5,
+            },
+        },
+        # 5️⃣ Sector overview by company name
+        {
+            "tool": "sector_overview",
+            "params": {
+                "company_name": "VERTEX NIMBUS INDUSTRIES",
+            },
+        },
+        {
+            "tool": "sector_overview",
+            "params": {},
+        },
+        # 6️⃣ Sector investment projects by company name
+        {
+            "tool": "sector_investment_projects",
+            "params": {
+                "company_name": "VERTEX",
+                "page": 1,
+                "page_size": 3,
+            },
+        },
     ]
 
     async with client:
@@ -199,16 +236,19 @@ async def run_examples(client):
             params = example["params"]
 
             # Call tool
-            response = await client.call_tool(tool_name, params)
-
-            # Convert dataclass to dict safely
-            response_dict = dataclass_to_json_safe(response)
+            try:
+                response = await client.call_tool(tool_name, params)
+                # Convert dataclass to dict safely
+                response_dict = dataclass_to_json_safe(response)
+                result = response_dict.get("structured_content")
+            except ToolInputError as e:
+                result = str(e)
 
             results.append(
                 {
                     "tool": tool_name,
                     "query": params,
-                    "response": response_dict.get("structured_content"),  # no need for serialize or structured_content
+                    "response": result,  # no need for serialize or structured_content
                 }
             )
 

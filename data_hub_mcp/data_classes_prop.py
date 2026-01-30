@@ -419,3 +419,72 @@ class SectorGroupedCompanySearchResult:
     total_companies: int
     page: int
     page_size: int
+
+
+@dataclass
+class SectorOverviewGroup:
+    sector: str
+    total_companies: int
+    total_turnover_gbp: float | None
+    total_employees: int | None
+    total_investment_gbp: float | None
+    total_gva: float | None
+    average_turnover_gbp: float | None
+    average_employees: float | None
+    average_investment_gbp: float | None
+    average_gva: float | None
+
+
+@dataclass
+class SectorGroupedOverview:
+    sectors: list[SectorOverviewGroup]
+    total_sectors: int
+
+
+@dataclass
+class SectorInvestmentProject:
+    project_name: str
+    company_name: str
+    uk_company_id: str | None
+    investor_company_id: str | None
+    investment_type: str
+    stage: str
+    status: str
+    likelihood_to_land: str
+    total_investment: float | None
+    foreign_equity_investment: float | None
+    gross_value_added: float | None
+    number_new_jobs: int | None
+    number_safeguarded_jobs: int | None
+
+
+@dataclass
+class SectorInvestmentGroup:
+    sector: str
+    total_projects: int
+    total_investment: float | None
+    total_gva: float | None
+    total_new_jobs: int | None
+    total_safeguarded_jobs: int | None
+    projects: list[SectorInvestmentProject]
+
+
+@dataclass
+class SectorGroupedInvestmentSummary:
+    sectors: list[SectorInvestmentGroup]
+    total_sectors: int
+    total_projects: int
+    page: int
+    page_size: int
+
+
+@dataclass
+class SectorCompanyPerformance:
+    company_name: str
+    turnover_gbp: int | None
+    turnover_usd: int | None
+    number_of_employees: int | None
+    export_segment: str | None
+    export_sub_segment: str | None
+    growth_turnover: float | None
+    growth_employees: float | None
