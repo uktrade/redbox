@@ -1,6 +1,6 @@
 import os
 
-import mcp_client
+import mcp_client_prop
 from dotenv import load_dotenv
 from fastmcp import Client
 
@@ -11,4 +11,4 @@ if __name__ == "__main__":
     mcp_port = os.getenv("MCP_PORT")
 
     client = Client(f"http://{mcp_host}:{mcp_port}/mcp")
-    mcp_client.run_examples(client)
+    mcp_client_prop.run_examples(client)

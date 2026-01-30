@@ -1,17 +1,18 @@
 import os
 
-from data_classes import (
+from data_classes_prop import (
     AccountManagementObjectivesSearchResult,
     CompaniesOrInteractionSearchResult,
     CompanyInteractionSearchResult,
     CompanySearchResult,
     InvestmentProjectsSearchResult,
 )
-from db_ops import (
+from db_ops_prop import (
     db_check,
     get_account_management_objectives,
-    get_companies,
     get_companies_or_interactions,
+    # get_companies,
+    get_company_details,
     get_company_interactions,
     get_investment_projects,
 )
@@ -68,7 +69,7 @@ async def greet(name: str) -> str:
     meta={"version": "1.0", "author": "Doug Mills"},
 )
 async def company_details(company_name: str, page_size: int = 10, page: int = 0) -> CompanySearchResult:
-    return get_companies(company_name, page_size, page)
+    return get_company_details(company_name=company_name, page_size=page_size, page=page)
 
 
 # @mcp.tool(
