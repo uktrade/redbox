@@ -12,7 +12,8 @@ services:
     mem_limit: 6g
     cpus: 2
     environment:
-      - UNSTRUCTURED_MAX_WORKERS=2
+      - UNSTRUCTURED_MAX_WORKERS=1
+      - UNSTRUCTURED_MEMORY_FREE_MB=1024
       - UNSTRUCTURED_TEMP_DIR=/tmp/unstructured_temp
       - ENV=local
     volumes:
@@ -120,11 +121,15 @@ services:
     environment:
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BROWSER=on
+      - MINIO_CACHE=off
+      - MINIO_API_REQUESTS_MAX=100
     command: server --console-address ":9001" /data
+    volumes:
+      - minio-data:/data
     networks:
       - redbox-app-network
-    volumes:
-      - ./data/objectstore:/data
+    mem_limit: 1g
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "mc", "ready", "local" ]
@@ -180,6 +185,7 @@ networks:
     driver: bridge
 
 volumes:
+  minio-data:
   opensearch-data:
   redbox-app-data:
   local_postgres_data: {}
