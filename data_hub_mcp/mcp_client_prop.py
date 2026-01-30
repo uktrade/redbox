@@ -3,7 +3,7 @@ from dataclasses import asdict, is_dataclass
 from datetime import date, datetime
 
 import log
-from exceptions import ToolInputError
+from fastmcp.exceptions import ToolError
 
 
 async def call_tool(client, tool_name: str, name: str):
@@ -241,7 +241,7 @@ async def run_examples(client):
                 # Convert dataclass to dict safely
                 response_dict = dataclass_to_json_safe(response)
                 result = response_dict.get("structured_content")
-            except ToolInputError as e:
+            except ToolError as e:
                 result = str(e)
 
             results.append(
