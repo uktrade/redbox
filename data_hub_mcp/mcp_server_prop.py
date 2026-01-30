@@ -1,20 +1,19 @@
 import os
 
 from data_classes_prop import (
-    AccountManagementObjectivesSearchResult,
-    CompaniesOrInteractionSearchResult,
-    CompanyInteractionSearchResult,
-    CompanySearchResult,
-    InvestmentProjectsSearchResult,
+    CompanyEnrichmentSearchResult,
+    # CompaniesOrInteractionSearchResult,
+    SectorGroupedCompanySearchResult,
 )
 from db_ops_prop import (
     db_check,
-    get_account_management_objectives,
-    get_companies_or_interactions,
+    # get_account_management_objectives,
+    # get_companies_or_interactions,
     # get_companies,
     get_company_details,
-    get_company_interactions,
-    get_investment_projects,
+    get_related_company_details,
+    # get_company_interactions,
+    # get_investment_projects,
 )
 from fastmcp import FastMCP
 
@@ -68,8 +67,56 @@ async def greet(name: str) -> str:
     tags={"data_hub", "companies", "search"},
     meta={"version": "1.0", "author": "Doug Mills"},
 )
-async def company_details(company_name: str, page_size: int = 10, page: int = 0) -> CompanySearchResult:
-    return get_company_details(company_name=company_name, page_size=page_size, page=page)
+async def company_details(
+    company_name: str,
+    page_size: int = 10,
+    page: int = 0,
+    fetch_interactions: bool = True,
+    fetch_objectives: bool = True,
+    fetch_investments: bool = True,
+) -> CompanyEnrichmentSearchResult:
+    """
+    Async wrapper for fetching enriched company details.
+    Allows optional fetching of related interactions, objectives, and investment projects.
+    """
+    return get_company_details(
+        company_name=company_name,
+        page_size=page_size,
+        page=page,
+        fetch_interactions=fetch_interactions,
+        fetch_objectives=fetch_objectives,
+        fetch_investments=fetch_investments,
+    )
+
+
+@mcp.tool(
+    name="related_company_details",
+    description="Fetch companies related by sector or a given company's sector, with optional enrichment",
+    tags={"data_hub", "companies", "related", "search"},
+    meta={"version": "1.0", "author": "Doug Mills"},
+)
+async def related_company_details(
+    sector_name: str | None = None,
+    company_name: str | None = None,
+    page: int = 0,
+    page_size: int = 10,
+    fetch_interactions: bool = True,
+    fetch_objectives: bool = True,
+    fetch_investments: bool = True,
+) -> SectorGroupedCompanySearchResult:
+    """
+    Async wrapper for fetching companies in the same sector as a given company or a target sector.
+    Optional flags control whether to fetch interactions, objectives, and investment projects.
+    """
+    return get_related_company_details(
+        sector_name=sector_name,
+        company_name=company_name,
+        page=page,
+        page_size=page_size,
+        fetch_interactions=fetch_interactions,
+        fetch_objectives=fetch_objectives,
+        fetch_investments=fetch_investments,
+    )
 
 
 # @mcp.tool(
@@ -82,52 +129,52 @@ async def company_details(company_name: str, page_size: int = 10, page: int = 0)
 #     return get_company(company_id)
 
 
-@mcp.tool(
-    name="companies_or_interactions",
-    description="""
-Query companies, and will return interactions on a single result,
-or a list of companies of there are multiple matches
-""",
-    tags={"data_hub", "companies_or_interactions"},
-    meta={"version": "1.0", "author": "Doug Mills"},
-)
-async def companies_or_interactions(
-    company_name: str, page_size: int = 10, page: int = 0
-) -> CompaniesOrInteractionSearchResult | None:
-    return get_companies_or_interactions(company_name, page_size, page)
+# @mcp.tool(
+#     name="companies_or_interactions",
+#     description="""
+# Query companies, and will return interactions on a single result,
+# or a list of companies of there are multiple matches
+# """,
+#     tags={"data_hub", "companies_or_interactions"},
+#     meta={"version": "1.0", "author": "Doug Mills"},
+# )
+# async def companies_or_interactions(
+#     company_name: str, page_size: int = 10, page: int = 0
+# ) -> CompaniesOrInteractionSearchResult | None:
+#     return get_companies_or_interactions(company_name, page_size, page)
 
 
-@mcp.tool(
-    name="company_interactions",
-    description="Query company interactions based on company id",
-    tags={"data_hub", "company_interactions"},
-    meta={"version": "1.0", "author": "Doug Mills"},
-)
-async def company_interactions(
-    company_id: str, page_size: int = 10, page: int = 0
-) -> CompanyInteractionSearchResult | None:
-    return get_company_interactions(company_id, page_size, page)
+# @mcp.tool(
+#     name="company_interactions",
+#     description="Query company interactions based on company id",
+#     tags={"data_hub", "company_interactions"},
+#     meta={"version": "1.0", "author": "Doug Mills"},
+# )
+# async def company_interactions(
+#     company_id: str, page_size: int = 10, page: int = 0
+# ) -> CompanyInteractionSearchResult | None:
+#     return get_company_interactions(company_id, page_size, page)
 
 
-@mcp.tool(
-    name="account_management_objectives",
-    description="Query account management objectives based on company id",
-    tags={"data_hub", "company", "account_management_objectives"},
-    meta={"version": "1.0", "author": "Doug Mills"},
-)
-async def account_management_objectives(
-    company_id: str, page_size: int = 10, page: int = 0
-) -> AccountManagementObjectivesSearchResult | None:
-    return get_account_management_objectives(company_id, page_size, page)
+# @mcp.tool(
+#     name="account_management_objectives",
+#     description="Query account management objectives based on company id",
+#     tags={"data_hub", "company", "account_management_objectives"},
+#     meta={"version": "1.0", "author": "Doug Mills"},
+# )
+# async def account_management_objectives(
+#     company_id: str, page_size: int = 10, page: int = 0
+# ) -> AccountManagementObjectivesSearchResult | None:
+#     return get_account_management_objectives(company_id, page_size, page)
 
 
-@mcp.tool(
-    name="investment_projects",
-    description="Query investment projects based on company id",
-    tags={"data_hub", "company", "investment_projects"},
-    meta={"version": "1.0", "author": "Doug Mills"},
-)
-async def investment_projects(
-    company_id: str, page_size: int = 10, page: int = 0
-) -> InvestmentProjectsSearchResult | None:
-    return get_investment_projects(company_id, page_size, page)
+# @mcp.tool(
+#     name="investment_projects",
+#     description="Query investment projects based on company id",
+#     tags={"data_hub", "company", "investment_projects"},
+#     meta={"version": "1.0", "author": "Doug Mills"},
+# )
+# async def investment_projects(
+#     company_id: str, page_size: int = 10, page: int = 0
+# ) -> InvestmentProjectsSearchResult | None:
+#     return get_investment_projects(company_id, page_size, page)
