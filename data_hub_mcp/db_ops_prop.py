@@ -539,9 +539,14 @@ def get_sector_investment_projects(
             sector_total_projects = projects_query.count()
             total_projects_count += sector_total_projects
 
-            projects_page = projects_query.offset(page * page_size).limit(page_size).all()
+            # Safe pagination: clamp offset
+            offset = page * page_size
+            if offset >= sector_total_projects:
+                projects_page = []
+            else:
+                projects_page = projects_query.offset(offset).limit(page_size).all()
 
-            # Aggregate metrics for this sector
+            # Aggregate metrics for this sector page
             total_investment = 0
             total_gva = 0
             total_new_jobs = 0

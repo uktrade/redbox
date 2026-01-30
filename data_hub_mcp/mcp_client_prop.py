@@ -13,115 +13,6 @@ async def call_tool(client, tool_name: str, name: str):
         return asdict(result)
 
 
-# async def call_companies(
-#     client,
-#     company_name: str,
-#     page: int = 0,
-#     page_size: int = 10,
-#     fetch_interactions: bool = True,
-#     fetch_objectives: bool = True,
-#     fetch_investments: bool = True,
-# ):
-#     """
-#     Call the 'company_details' tool and return enriched company data.
-#     Allows selectively fetching related interactions, objectives, and investments.
-#     """
-#     async with client:
-#         result = await client.call_tool(
-#             "company_details",
-#             {
-#                 "company_name": company_name,
-#                 "page": page,
-#                 "page_size": page_size,
-#                 "fetch_interactions": fetch_interactions,
-#                 "fetch_objectives": fetch_objectives,
-#                 "fetch_investments": fetch_investments,
-#             },
-#         )
-#         log.logger.info(result)
-
-#         return asdict(result)
-
-# async def call_related_companies(
-#     client,
-#     sector_name: str | None = None,
-#     company_name: str | None = None,
-#     page: int = 0,
-#     page_size: int = 10,
-#     fetch_interactions: bool = True,
-#     fetch_objectives: bool = True,
-#     fetch_investments: bool = True,
-# ):
-#     """
-#     Call the 'related_company_details' tool and return enriched company data.
-#     Supports querying by sector or by a given company's sector.
-#     Allows selectively fetching related interactions, objectives, and investments.
-#     """
-#     async with client:
-#         result = await client.call_tool(
-#             "related_company_details",
-#             {
-#                 "sector_name": sector_name,
-#                 "company_name": company_name,
-#                 "page": page,
-#                 "page_size": page_size,
-#                 "fetch_interactions": fetch_interactions,
-#                 "fetch_objectives": fetch_objectives,
-#                 "fetch_investments": fetch_investments,
-#             },
-#         )
-#         log.logger.info(result)
-
-#         return asdict(result)
-
-# async def call_company_details(client, company_id: str):
-#     async with client:
-#         result = await client.call_tool("company_details", {"company_id": company_id})
-#         log.logger.info(result)
-
-#         return asdict(result)
-
-
-# async def call_company_interactions(client, company_id: str, page: int = 0, page_size: int = 10):
-#     async with client:
-#         result = await client.call_tool(
-#             "company_interactions", {"company_id": company_id, "page": page, "page_size": page_size}
-#         )
-#         log.logger.info(result)
-
-#         return asdict(result)
-
-
-# async def call_account_management_objectives(client, company_id: str, page: int = 0, page_size: int = 10):
-#     async with client:
-#         result = await client.call_tool(
-#             "account_management_objectives", {"company_id": company_id, "page": page, "page_size": page_size}
-#         )
-#         log.logger.info(result)
-
-#         return asdict(result)
-
-
-# async def call_investment_projects(client, company_id: str, page: int = 0, page_size: int = 10):
-#     async with client:
-#         result = await client.call_tool(
-#             "investment_projects", {"company_id": company_id, "page": page, "page_size": page_size}
-#         )
-#         log.logger.info(result)
-
-#         return asdict(result)
-
-
-# async def call_companies_or_interactions(client, company_name: str, page: int = 0, page_size: int = 10):
-#     async with client:
-#         result = await client.call_tool(
-#             "companies_or_interactions", {"company_name": company_name, "page": page, "page_size": page_size}
-#         )
-#         log.logger.info(result)
-
-#         return asdict(result)
-
-
 def dataclass_to_json_safe(obj):
     """Recursively convert dataclass / objects to JSON-safe dicts/lists."""
     if is_dataclass(obj):
@@ -224,8 +115,6 @@ async def run_examples(client):
             "tool": "sector_investment_projects",
             "params": {
                 "company_name": "VERTEX",
-                "page": 1,
-                "page_size": 3,
             },
         },
     ]
