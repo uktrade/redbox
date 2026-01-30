@@ -47,8 +47,9 @@ def check_ref_ids_unique(message: ChatMessage) -> bool:
 
 def decorate_selected_files(all_files: Sequence[File], messages: Sequence[ChatMessage]) -> Sequence[File]:
     if messages:
-        last_user_message = [m for m in messages if m.role == ChatMessage.Role.user][-1]
-        selected_files: Sequence[File] = last_user_message.selected_files.all() or []
+        user_message_history = [m for m in messages if m.role == ChatMessage.Role.user]
+        last_user_message = user_message_history[-1] if user_message_history else None
+        selected_files: Sequence[File] = last_user_message.selected_files.all() if last_user_message else []
     else:
         selected_files = []
 
