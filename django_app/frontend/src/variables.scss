@@ -1,6 +1,18 @@
 @import "../node_modules/govuk-frontend/dist/govuk/settings";
 @import "../node_modules/govuk-frontend/dist/govuk/helpers";
 
+$screen-widths: (
+  xs: 373px,
+  s: 960px,
+  m: 1020px,
+  l: 1280px,
+  xl: 1440px,
+);
+
+@function bp($key) {
+  @return map-get($screen-widths, $key)
+}
+
 :root {
   --govuk-assets-path: "govuk-assets/";
 
@@ -106,12 +118,30 @@
   --card-gap: #{govuk-spacing(3)}; //15px;
   --chat-message-gap: #{govuk-spacing(7)}; //40px;
   --icon-gap: #{govuk-spacing(2)}; //10px;
-  --side-panel-width: 373px;
-  --side-panel-collapsed-width: 54px;
+
+  --side-panel-width--xl: 373px;
+  --side-panel-width--l: 373px;
+  --side-panel-width--m: 281px;
+  --side-panel-width--s: 373px;
+  --side-panel-width--xs: 373px;
+
+  --side-panel-collapsed-width--xl: 54px;
+  --side-panel-collapsed-width--l: 54px;
+  --side-panel-collapsed-width--m: 54px;
+  --side-panel-collapsed-width--s: 54px;
+  --side-panel-collapsed-width--xs: 0px;
+
   --text-spacing: 5px;
   --button-icon-size: 24px;
 
-  // Screen sizes
-  --screen-width-xl: 960px;
-  --screen-width-full: 1200px;
+  @each $k, $v in $screen-widths {
+    --screen-width-#{$k}: #{$v};
+  }
+
+  --page-content-width--full: 1200px;
+  --page-content-width--xl: 960px;
+  --page-content-width--l: 711px;
+  --page-content-width--m: 711px;
+  --page-content-width--s: 711px;
+  --page-content-width--xs: 373px;
 }

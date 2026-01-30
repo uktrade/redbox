@@ -129,7 +129,7 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/i-dot-ai/redbox
     - icon: fontawesome/solid/envelope
-      link: mailto:redbox@businessandtrade.gov.uk
+      link: mailto:assist@businessandtrade.gov.uk
     - icon: fontawesome/solid/globe
       link: https://ai.gov.uk
   generator: false

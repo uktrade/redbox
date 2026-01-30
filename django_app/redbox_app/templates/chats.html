@@ -1,6 +1,8 @@
 {% set pageTitle = "Chats" %}
 {% set hideFooter = True %}
+
 {% extends "base.html" %}
+
 {% from "macros/profile-overlay.html" import profile_overlay %}
 
 
@@ -12,7 +14,7 @@
 {% endif %}
 #}
 
-<div class="govuk-width-container rbds-width-container rbds-page-content--xl">
+<div class="govuk-width-container rbds-page-content">
   {% include "chat/cta.html" %}
   {% include "chat/chat_window.html" %}
   {% include "chat/message_input.html" %}

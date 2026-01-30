@@ -53,7 +53,6 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
         "chats": Chat.get_ordered_by_last_message_date(request.user, tool),
         "current_chat": current_chat,
         "streaming": {"endpoint": str(endpoint)},
-        "contact_email": settings.CONTACT_EMAIL,
         "chat_title_length": settings.CHAT_TITLE_LENGTH,
         "llm_options": [
             {
