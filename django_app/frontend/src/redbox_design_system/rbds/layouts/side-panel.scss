@@ -2,11 +2,11 @@
   --collapsed-width: calc(var(--side-panel-collapsed-width, 54px) - var(--header-border-width));
   width: var(--side-panel-width, 373px);
   display: flex;
-  flex-shrink: 0;
   position: sticky;
   top: 0;
   align-self: flex-start;
   height: 100vh;
+  overflow: hidden;
 
   &--collapsed {
     width: var(--side-panel-collapsed-width);
