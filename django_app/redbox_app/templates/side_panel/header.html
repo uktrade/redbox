@@ -1,0 +1,26 @@
+{% from "macros/icon.html" import rbds_icon %}
+
+<div class="rbds-side-panel__header">
+    <header class="govuk-header govuk-!-width-full" role="banner" data-module="govuk-header" id="top">
+        <div class="govuk-header__container rbds-header-container">
+
+            <div class="govuk-header__logo app-header-logo govuk-!-margin-bottom-0">
+                <a class="govuk-header__link govuk-header__link--homepage" href="/">
+                    <span class="govuk-header__product-name govuk-!-font-weight-bold rbds-text-xl">{{ productName }}</span>
+                </a>
+            </div>
+
+            <div class="govuk-header__content">
+                <button slot="toggle"
+                        type="button"
+                        class="govuk-header__menu-button rbds-header__menu-button rbds-side-panel__toggle rbds-icon-button"
+                        aria-controls="navigation"
+                        aria-label="Show or hide menu">
+                    {{ rbds_icon(icon_name="left-panel-close.svg", icon_classes="dark") }}
+                </button>
+                <ul id="navigation" class="govuk-header__navigation-list header-list"></ul>
+            </div>
+
+        </div>
+    </header>
+</div>

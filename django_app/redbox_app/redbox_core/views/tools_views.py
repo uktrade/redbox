@@ -10,6 +10,7 @@ from django.views import View
 from django.views.decorators.http import require_http_methods
 
 from redbox_app.redbox_core.models import Tool
+from redbox_app.redbox_core.services import chats as chat_service
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -18,16 +19,21 @@ logger = logging.getLogger(__name__)
 class ToolsView(View):
     @method_decorator(login_required)
     def get(self, request: HttpRequest) -> HttpResponse:
+        context = chat_service.get_context(request)
+        context["tools"] = Tool.objects.all()
+
         return render(
             request,
             template_name="tools/tools.html",
-            context={"tools": Tool.objects.all()},
+            context=context,
         )
 
 
 @require_http_methods(["GET"])
 def tool_info_page_view(request: HttpRequest, slug: str) -> HttpResponse:
     tool = get_object_or_404(Tool, slug=slug)
+    context = chat_service.get_context(request)
+    context["tool"] = tool
 
     if not tool.has_info_page:
         return HttpResponse(
@@ -35,4 +41,4 @@ def tool_info_page_view(request: HttpRequest, slug: str) -> HttpResponse:
             status=HTTPStatus.NOT_FOUND,
         )
 
-    return render(request, tool.info_template, context={"tool": tool})
+    return render(request, tool.info_template, context=context)

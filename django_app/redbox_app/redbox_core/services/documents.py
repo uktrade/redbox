@@ -61,22 +61,21 @@ def render_your_documents(request, active_chat_id, slug: str | None = None) -> T
 
     return TemplateResponse(
         request,
-        "side_panel/your_documents_list.html",
+        "side_panel/your_documents.html",
         context,
     )
 
 
 def build_upload_response(request: HttpRequest, errors: Sequence[str] | None = None) -> HttpResponse:
-    user_teams = UserTeamMembership.objects.filter(user=request.user)
+    context = chat_service.get_context(request)
+    context["errors"] = {"upload_doc": errors or []}
+    context["uploaded"] = not errors
+    context["user_teams"] = UserTeamMembership.objects.filter(user=request.user)
+
     return render(
         request,
         template_name="upload.html",
-        context={
-            "request": request,
-            "errors": {"upload_doc": errors or []},
-            "uploaded": not errors,
-            "user_teams": user_teams,
-        },
+        context=context,
     )
 
 

@@ -6,74 +6,76 @@
 
 {% block content %}
 
-<div class="govuk-width-container rbds-width-container">
-  <div class="govuk-grid-row">
-    <div class="govuk-grid-column-two-thirds">
+<div class="govuk-width-container rbds-width-container rbds-page-content--xl govuk-!-margin-top-3">
 
-      <a href="{{url('documents')}}" class="govuk-back-link govuk-!-margin-bottom-5 govuk-!-margin-top-0">Back</a>
+  <div class="govuk-grid-column-full">
 
-      <form method="post" enctype="multipart/form-data">
+    <a href="{{url('documents')}}" class="govuk-back-link govuk-!-margin-bottom-5 govuk-!-margin-top-0">Back</a>
 
-        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+    <form method="post" enctype="multipart/form-data">
 
-        <div class="govuk-form-group {% if errors.upload_doc %} govuk-form-group--error{% endif %}">
-          <label class="govuk-label" for="upload-docs">
-            <h1 class="govuk-heading-l">{{ pageTitle }}</h1>
-          </label>
+      <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
 
-          <div id="upload-docs-notification">
-            <p class="govuk-body-l">The AI will use all documents you upload. You can use up to, and including, {{ security }} documents. Do not upload any documents with personal data.</p>
+      <div class="govuk-form-group {% if errors.upload_doc %} govuk-form-group--error{% endif %}">
+        <label class="govuk-label" for="upload-docs">
+          <h1 class="govuk-heading-l">{{ pageTitle }}</h1>
+        </label>
+
+        <div id="upload-docs-notification">
+          <p class="govuk-body-l">The AI will use all documents you upload. You can use up to, and including, {{
+            security }} documents. Do not upload any documents with personal data.</p>
+        </div>
+
+        <p class="govuk-body rb-file-types" id="upload-docs-filetypes">Limit 200MB per file: EML, HTML, JSON, MD, MSG,
+          RST, RTF, TXT, XML, CSV, DOC, DOCX, EPUB, ODT, PDF, PPT, PPTX, TSV, XLSX, HTM</p>
+        {% for error in errors.upload_doc %}
+        <p id="file-upload-docs-error" class="govuk-error-message">
+          <span class="govuk-visually-hidden">Error:</span> {{ error }}
+        </p>
+        {% endfor %}
+        <label class="govuk-label" for="upload-docs">
+          Upload a file
+        </label>
+        <div class="govuk-drop-zone" data-module="govuk-file-upload">
+          <input class="govuk-file-upload {% if errors.upload_doc %} govuk-file-upload--error{% endif %}" multiple
+            id="upload-docs" name="uploadDocs" type="file"
+            aria-describedby="upload-docs-notification upload-docs-filetypes {% if errors.upload_doc %} file-upload-docs-error{% endif %}">
+        </div>
+      </div>
+      {% if flag_is_active(request, flags.ENABLE_TEAMS) %}
+      <!-- Manage access to team or personal -->
+      <div class="govuk-form-group" id="visibility-group">
+        <label class="govuk-label" for="visibility">
+          Visibility
+        </label>
+        <div class="govuk-radios" data-module="govuk-radios">
+          <div class="govuk-radios__item">
+            <input class="govuk-radios__input" id="visibility-individual" name="visibility" type="radio"
+              value="INDIVIDUAL" checked>
+            <label class="govuk-label govuk-radios__label" for="visibility-individual">Individual</label>
           </div>
-
-          <p class="govuk-body rb-file-types" id="upload-docs-filetypes">Limit 200MB per file: EML, HTML, JSON, MD, MSG, RST, RTF, TXT, XML, CSV, DOC, DOCX, EPUB, ODT, PDF, PPT, PPTX, TSV, XLSX, HTM</p>
-          {% for error in errors.upload_doc %}
-            <p id="file-upload-docs-error" class="govuk-error-message">
-              <span class="govuk-visually-hidden">Error:</span> {{ error }}
-            </p>
-          {% endfor %}
-          <label class="govuk-label" for="upload-docs">
-            Upload a file
-          </label>
-          <div
-            class="govuk-drop-zone"
-            data-module="govuk-file-upload">
-            <input class="govuk-file-upload {% if errors.upload_doc %} govuk-file-upload--error{% endif %}" multiple id="upload-docs" name="uploadDocs" type="file" aria-describedby="upload-docs-notification upload-docs-filetypes {% if errors.upload_doc %} file-upload-docs-error{% endif %}">
+          <div class="govuk-radios__item">
+            <input class="govuk-radios__input" id="visibility-team" name="visibility" type="radio" value="TEAM">
+            <label class="govuk-label govuk-radios__label" for="visibility-team">Share with team</label>
           </div>
         </div>
-        {% if flag_is_active(request, flags.ENABLE_TEAMS) %}
-          <!-- Manage access to team or personal -->
-          <div class="govuk-form-group" id="visibility-group">
-            <label class="govuk-label" for="visibility">
-              Visibility
-            </label>
-            <div class="govuk-radios" data-module="govuk-radios">
-              <div class="govuk-radios__item">
-                <input class="govuk-radios__input" id="visibility-individual" name="visibility" type="radio" value="INDIVIDUAL" checked>
-                <label class="govuk-label govuk-radios__label" for="visibility-individual">Individual</label>
-              </div>
-              <div class="govuk-radios__item">
-                <input class="govuk-radios__input" id="visibility-team" name="visibility" type="radio" value="TEAM">
-                <label class="govuk-label govuk-radios__label" for="visibility-team">Share with team</label>
-              </div>
-            </div>
-          </div>
+      </div>
 
-          <!-- Team -->
-          <div class="govuk-form-group govuk-!-display-none" id="team-group">
-            {% call(team) adaptive_select(user_teams, "team", id="team", label="Share with team (optional)") %}
-              <option value="{{ team.team.id }}">{{ team.team.team_name }}</option>
-            {% endcall %}
-            {% include "document-help-text.html" %}
-          </div>
-        {% endif %}
+      <!-- Team -->
+      <div class="govuk-form-group govuk-!-display-none" id="team-group">
+        {% call(team) adaptive_select(user_teams, "team", id="team", label="Share with team (optional)") %}
+        <option value="{{ team.team.id }}">{{ team.team.team_name }}</option>
+        {% endcall %}
+        {% include "document-help-text.html" %}
+      </div>
+      {% endif %}
 
-        <upload-button>
-          {{ govukButton(text="Upload", prevent_double_click=True, classes="govuk-!-display-inline-block") }}
-        </upload-button>
+      <upload-button>
+        {{ govukButton(text="Upload", prevent_double_click=True, classes="govuk-!-display-inline-block") }}
+      </upload-button>
 
-      </form>
+    </form>
 
-    </div>
   </div>
 </div>
 

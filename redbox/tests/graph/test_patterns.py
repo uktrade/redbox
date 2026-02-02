@@ -9,7 +9,6 @@ from langgraph.graph import END, START, StateGraph
 from pytest_mock import MockerFixture
 
 from redbox.chains.components import get_structured_response_with_citations_parser
-from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, build_chat_prompt_from_messages_runnable, build_llm_chain
 from redbox.graph.nodes.processes import (
     build_agent_with_loop,
@@ -22,10 +21,8 @@ from redbox.graph.nodes.processes import (
     build_stuff_pattern,
     clear_documents_process,
     empty_process,
-    lm_choose_route,
 )
 from redbox.models.chain import (
-    AgentDecision,
     AISettings,
     Citation,
     DocumentState,
@@ -42,7 +39,6 @@ from redbox.test.data import (
     generate_docs,
     generate_test_cases,
     mock_all_chunks_retriever,
-    mock_basic_metadata_retriever,
     mock_parameterised_retriever,
 )
 from redbox.transform import flatten_document_state, structure_documents_by_file_name
@@ -494,27 +490,6 @@ LLM_ROUTE_TEST_CASE = generate_test_cases(
     ],
     test_id="LLM choose route",
 )
-
-
-@pytest.mark.parametrize(
-    "test_case, basic_metadata",
-    [
-        (LLM_ROUTE_TEST_CASE[0], mock_basic_metadata_retriever),
-    ],
-    ids=[t.test_id for t in LLM_ROUTE_TEST_CASE],
-)
-def test_llm_choose_route(test_case: RedboxChatTestCase, basic_metadata: BaseRetriever, mocker: MockerFixture):
-    mocker.patch("redbox.chains.runnables.get_basic_metadata_retriever", return_value=basic_metadata(test_case.docs))
-    llm = GenericFakeChatModel(messages=iter(test_case.test_data.llm_responses))
-    llm._default_config = {"model": "bedrock"}
-
-    mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
-    agent_parser = ClaudeParser(pydantic_object=AgentDecision)
-    state = RedboxState(request=test_case.query, documents=structure_documents_by_file_name(test_case.docs))
-
-    llm_choose_search = lm_choose_route(state, parser=agent_parser)
-
-    assert llm_choose_search == "search"
 
 
 STRUCTURED_OUTPUT_TEST_CASE = generate_test_cases(

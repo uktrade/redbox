@@ -2,6 +2,9 @@ import re
 from urllib.parse import urlparse
 from uuid import uuid4
 
+import duckdb
+from io import StringIO
+import pandas as pd
 import pytest
 import requests_mock
 from langchain_core.documents import Document
@@ -23,6 +26,7 @@ from redbox.graph.nodes.tools import (
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
+    build_query_tabular_knowledge_base_tool,
     format_result,
     kagi_response_to_documents,
     web_search_call,
@@ -145,6 +149,47 @@ def test_retrieve_document_full_text_tool(
         assert len(result_state["messages"][0].content) == 0
     elif stored_file_all_chunks.test_id == "Empty keys but permitted":
         assert len(result_state["messages"][0].content) > 0
+
+
+@pytest.mark.parametrize("chain_params", TEST_CHAIN_PARAMETERS)
+def test_knowledge_base_search_documents_tool(
+    chain_params: dict,
+    es_client: OpenSearch,
+    es_index: str,
+    embedding_model: FakeEmbeddings,
+    env: Settings,
+    stored_file_knowledge_base: RedboxChatTestCase,
+):
+    # Build and run
+    kb_tool = build_search_documents_tool(
+        es_client=es_client,
+        index_name=es_index,
+        embedding_model=embedding_model,
+        embedding_field_name=env.embedding_document_field_name,
+        chunk_resolution=ChunkResolution.normal,
+        repository="knowledge_base",
+    )
+
+    tool_node = ToolNode(tools=[kb_tool])
+    result_state = tool_node.invoke(
+        RedboxState(
+            request=stored_file_knowledge_base.query,
+            messages=[
+                AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "name": "_search_knowledge_base",
+                            "args": {"query": "example"},
+                            "id": "1",
+                        }
+                    ],
+                )
+            ],
+        )
+    )
+
+    print(result_state["messages"][0])
 
 
 @pytest.mark.parametrize("chain_params", TEST_CHAIN_PARAMETERS)
@@ -750,3 +795,119 @@ def test_reduce_chunks_by_tokens_multiple_operations(monkeypatch):
     assert chunks[0].page_content == "Chunk 1Chunk 2"
     assert chunks[1].page_content == "Chunk 3Chunk 4"
     assert chunks[1].metadata["token_count"] == 90
+
+
+def get_expected_docs_for_sql_query(sql_query: str, docs: list[Document], uri: str) -> list[Document]:
+    """
+    Execute an SQL query on the tabular content of a list of Documents and
+    return a list of Documents with the matching rows, just like the tool would.
+
+    Args:
+        sql_query: SQL query string to execute.
+        docs: List of Document objects containing CSV/Excel content and TabularSchema.
+        uri: Only include documents matching this URI.
+
+    Returns:
+        List of Document objects matching the SQL query.
+    """
+    results = []
+
+    # Use in-memory DuckDB
+    with duckdb.connect(database=":memory:") as con:
+        for doc in docs:
+            if doc.metadata["uri"] != uri:
+                continue
+            schema = doc.metadata.get("document_schema")
+            if not schema:
+                continue  # skip documents without schema
+
+            # Convert CSV content to DataFrame
+            df = pd.read_csv(StringIO(doc.page_content))
+
+            # Keep only schema columns
+            df = df[[c for c in schema["columns"].keys() if c in df.columns]]
+
+            # Create table in DuckDB
+            con.execute(f'CREATE TABLE "{schema["name"]}" AS SELECT * FROM df')
+
+        # Execute SQL query
+        query_result = con.execute(sql_query).fetchall()
+        col_names = [desc[0] for desc in con.description]
+
+        # Wrap results as Documents
+        for row in query_result:
+            row_dict = dict(zip(col_names, row))
+            results.append(Document(page_content=str(row_dict), metadata={"uri": uri}))
+
+    return results
+
+
+@pytest.mark.parametrize(
+    "sql_query",
+    [
+        "SELECT * FROM sheet0 WHERE id < 5",
+        "SELECT name, value FROM sheet0 WHERE value > 100",
+    ],
+)
+def test_query_tabular_knowledge_base_tool(
+    es_client: OpenSearch,
+    es_index: str,
+    stored_file_tabular_kb: RedboxChatTestCase,
+    sql_query: str,
+):
+    """
+    Test the tabular KB tool via LangChain ToolNode, simulating agent tool call.
+    """
+
+    # Build the tool
+    kb_tool = build_query_tabular_knowledge_base_tool(
+        es_client=es_client,
+        index_name=es_index,
+    )
+
+    # Wrap the tool in a ToolNode
+    tool_node = ToolNode(tools=[kb_tool])
+
+    # Pick a URI from the stored test KB files
+    kb_keys = stored_file_tabular_kb.query.knowledge_base_s3_keys
+    if not kb_keys:
+        pytest.skip("No knowledge_base_s3_keys for this test case")
+    test_uri = kb_keys[0]
+
+    # Create RedboxState with the tool call
+    state = RedboxState(
+        request=stored_file_tabular_kb.query,
+        messages=[
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "_query_tabular_knowledge_base",
+                        "args": {"sql_query": sql_query, "uri": test_uri},
+                        "id": "1",
+                    }
+                ],
+            )
+        ],
+    )
+
+    # Invoke the tool via ToolNode
+    result_state = tool_node.invoke(state)
+
+    # Extract the result message
+    message = result_state["messages"][0]
+    formatted_output = getattr(message, "content", "")
+    docs = getattr(message, "artifact", [])
+
+    # --- NEW: Execute SQL on the KB documents to get expected results ---
+    expected_docs = get_expected_docs_for_sql_query(sql_query=sql_query, docs=stored_file_tabular_kb.docs, uri=test_uri)
+
+    # Assertions
+    assert isinstance(formatted_output, str)
+    assert isinstance(docs, list)
+    assert all(isinstance(d, Document) for d in docs)
+    assert len(docs) == len(expected_docs), f"Expected {len(expected_docs)} docs, got {len(docs)}"
+
+    # Check that returned docs all have the correct URI
+    for doc in docs:
+        assert doc.metadata["uri"] == test_uri

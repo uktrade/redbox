@@ -47,7 +47,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
 
 /* Response feedback - general styles */
 .feedback-container--1:not([hidden]) {
-  align-items: flex-start;
+  align-items: center;
   color: #6b7280;
   display: flex;
   flex-wrap: wrap;
@@ -102,7 +102,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   scroll-margin-bottom: 16rem;
   padding-right: 0;
 }
-main:has(.govuk-inset-text) .chat-options {
+main:has(.redbox-message-container) .chat-options {
   display: none;
 }
 @media (min-width: 641px) {
@@ -289,10 +289,6 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   }
 }
 
-.full-width-panel-title {
-  width: 100%;
-}
-
 #document-link {
   float: right;
 }
@@ -312,22 +308,47 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   font-size: 14px;
 }
 
+.rbds-message-container,
 .redbox-message-container {
-margin-top: 64px;
-margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  margin: 0;
+
+  .rbds-message-container__left,
+  .rbds-message-container__right {
+    padding: 10px;
+  }
+
+  .rbds-message-container__left {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .rbds-message-container__right {
+    align-items: flex-end;
+    text-align: right;
+    margin-left: auto;
+  }
 }
+
+.rbds-chat-message__document {
+  display: flex;
+  align-items: center;
+  font-size: var(--font-size-xs);
+  margin: 0;
+}
+
 .chat-input__input-container {
   position: sticky;
   background-color: var(--color-background-white);
   top: 0;
   z-index: 100;
-  bottom: 0;
+  bottom: 20px;
+  padding-top: 7.5px;
+  width: 100%;
 }
 
 .redbox-message-route {
   margin-bottom: 16px;
-}
-
-.rbds-chat-window {
-  min-height: calc(100vh - var(--header-height));
 }

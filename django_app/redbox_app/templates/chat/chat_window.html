@@ -1,21 +1,29 @@
 {% from "macros/chat-macros.html" import message_box, route_display %}
 {% from "macros/govuk-button.html" import govukButton %}
 {% from "macros/govuk-warning.html" import govuk_warning %}
+{% from "macros/icon.html" import rbds_icon %}
 
-<div id="chat-window" name="swapped" class="govuk-grid-column-three-quarters rbds-chat-window rbds-flex-column" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
-    {% if tool %}
-        {% include "tools/tool-banner.html" %}
-    {% endif %}
-
+<div id="chat-window" class="rbds-chat-window {% if is_first_time_user %}rbds-chat-window--first-time{% endif %}" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
     {% if not messages %}
-    <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1"
-        security-classification="{{ security }}"></canned-prompts>
+        <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1" security-classification="{{ security }}">
+            <h3 class="govuk-heading-s">
+                <span class="rbds-text--product">{{ product_name(request) }}</span> can help you to:
+                <ul>
+                    <li>analyse and summarise your documents</li>
+                    <li>draft content and brainstorm ideas</li>
+                    <li>search government sources and the web</li>
+                    <li>use tools - for example, the Submission Checker tool, which reviews ministerial briefings</li>
+                </ul>
+            </h3>
+        </canned-prompts>
     {% endif %}
+
+    {% if is_first_time_user %}{% include "upload_form.html" %}{% endif %}
+
     <div class="rb-chats-section">
-        {% include "chat/chat_title.html" %}
         <chat-controller class="iai-chat-container" data-stream-url="{{ streaming.endpoint if streaming else '' }}"
             data-session-id="{{ chat_id or '' }}">
-            <div class="rbds-chat-message__container js-message-container">
+            <div class="rbds-chat-message__container rbds-flex-column js-message-container">
 
                 <template id="template-route-display">
                     {{ route_display() }}
@@ -35,52 +43,5 @@
             {% if chat_id %}<input type="hidden" name="session-id" value="{{ chat_id }}" />{% endif %}
 
         </chat-controller>
-    </div>
-    <div class="chat-input__input-container">
-        <rbds-message-input>
-            <div class="govuk-textarea rbds-message-input {% if not messages %}rbds-message-input__expanded {% endif %}rbds-drop-zone" id="message" name="message" contenteditable="true" role="textbox"
-                aria-multiline="true" data-text="Type here..."></div>
-        </rbds-message-input>
-        <file-upload upload-url="{{ urls.upload_url }}">
-            <input class="govuk-file-upload govuk-!-display-none" multiple id="upload-docs" name="uploadDocs" type="file" aria-describedby="upload-docs-notification upload-docs-filetypes">
-            {{ govukButton(
-                text="Add document",
-                classes="upload-button govuk-!-margin-top-5 govuk-button--secondary govuk-!-margin-right-4",
-                id="upload-button"
-            ) }}
-        </file-upload>
-        {% if enable_dictation_flag_is_active %}
-            <send-message-with-dictation data-api-key="{{ redbox_api_key }}">
-                <button type="submit"
-                    class="govuk-button govuk-!-margin-top-5 govuk-button--secondary govuk-!-margin-right-4 dictate-button"
-                    data-module="govuk-button">
-                    Dictate
-                </button>
-                {{ govukButton(
-                text="Stop",
-                classes="govuk-!-margin-top-5 govuk-button--secondary govuk-!-margin-right-4 govuk-!-display-none",
-                dont_submit=True
-                ) }}
-                {{ govukButton(
-                text="Send",
-                classes="govuk-!-margin-top-5 send-button"
-                ) }}
-                {{ govukButton(
-                text="Stop",
-                classes="govuk-!-margin-top-5 govuk-!-display-none"
-                ) }}
-            </send-message-with-dictation>
-        {% else %}
-            <send-message>
-                {{ govukButton(
-                text="Send",
-                classes="govuk-!-margin-top-5 send-button"
-                ) }}
-                {{ govukButton(
-                text="Stop",
-                classes="govuk-!-margin-top-5 govuk-!-display-none"
-                ) }}
-            </send-message>
-        {% endif %}
     </div>
 </div>

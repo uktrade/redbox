@@ -18,6 +18,7 @@ from redbox.retriever import (
     OpenSearchRetriever,
     ParameterisedElasticsearchRetriever,
 )
+from redbox.retriever.retrievers import KnowledgeBaseTabularMetadataRetriever
 from redbox.test.data import RedboxChatTestCase
 from redbox.transform import bedrock_tokeniser
 from tests.retriever.data import (
@@ -25,6 +26,7 @@ from tests.retriever.data import (
     KNOWLEDGE_BASE_CASES,
     METADATA_RETRIEVER_CASES,
     PARAMETERISED_RETRIEVER_CASES,
+    TABULAR_KB_RETRIEVER_CASES,
 )
 
 if TYPE_CHECKING:
@@ -136,6 +138,13 @@ def metadata_retriever(env: Settings) -> OpenSearchRetriever:
 
 
 @pytest.fixture(scope="session")
+def kb_tabular_metadata_retriever(env: Settings) -> KnowledgeBaseTabularMetadataRetriever:
+    return KnowledgeBaseTabularMetadataRetriever(
+        es_client=env.elasticsearch_client(), index_name=env.elastic_chunk_alias
+    )
+
+
+@pytest.fixture(scope="session")
 def fake_state() -> RedboxState:
     q = RedboxQuery(
         question="But seriously what is AI?",
@@ -190,6 +199,14 @@ def stored_file_parameterised(
 def stored_file_metadata(
     request: FixtureRequest, es_vector_store: OpenSearchVectorSearch
 ) -> Generator[RedboxChatTestCase, None, None]:
+    test_case: RedboxChatTestCase = request.param
+    doc_ids = es_vector_store.add_documents(test_case.docs)
+    yield test_case
+    es_vector_store.delete(doc_ids)
+
+
+@pytest.fixture(params=TABULAR_KB_RETRIEVER_CASES)
+def stored_file_tabular_kb(request: FixtureRequest, es_vector_store: OpenSearchVectorSearch):
     test_case: RedboxChatTestCase = request.param
     doc_ids = es_vector_store.add_documents(test_case.docs)
     yield test_case

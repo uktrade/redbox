@@ -38,6 +38,7 @@
   // Redbox Colors
   --redbox-red: #942514; /*old:#A50202, #1D70B8*/
   --redbox-blue: var(--gds-blue);
+  --redbox--light-blue: #F4F8FB;
   --redbox-white: var(--dbt-white);
   --redbox-grey: var(--gds-mid-grey);
   --redbox-light-grey: var(--gds-light-grey);
@@ -58,6 +59,7 @@
   --color-background-white: var(--redbox-white);
   --color-background-blue: var(--redbox-blue);
   --color-background-dark-blue: var(--gds-dark-blue);
+  --color-background-light-blue: var(--redbox--light-blue);
   --color-background-red: var(--redbox-red);
   --color-background-black: var(--dbt-black);
   --color-background-grey: var(--redbox-light-grey);
@@ -70,13 +72,18 @@
   --color-text-secondary: var(--dbt-white);
   --color-link-text: var(--redbox-blue);
   --color-link-text-hover: var(--gds-dark-blue);
+  --color-product-name: #AA2A16;
+  --color-side-panel: var(--color-background-light-blue);
 
-  // Icons
-  --color-icon-light-foreground: var(--redbox-blue);
+  // Icon Colors
+  --color-icon-light-foreground: var(--dbt-black);
+  --color-icon-link-foreground: var(--redbox-blue);
   --color-icon-light-foreground-hover: var(--dbt-black);
   --color-icon-dark-foreground: var(--redbox-white);
-  --color-icon-light-foreground-secondary: var(--dbt-black);
+  // --color-icon-light-foreground-secondary: var(--dbt-black);
+  --color-icon-success: var(--redbox-green);
   --color-file-icon: var(--redbox-black);
+  --color-focus: var(--gds-yellow);
 
   // Typography
   --font-family-primary: Arial;
@@ -92,8 +99,19 @@
   // Misc
   --header-height: 111px;
   --border-radius: 5px;
+  --header-border-width: 5px;
 
   // Layout
   --desktop-width: 1020px;
   --card-gap: #{govuk-spacing(3)}; //15px;
+  --chat-message-gap: #{govuk-spacing(7)}; //40px;
+  --icon-gap: #{govuk-spacing(2)}; //10px;
+  --side-panel-width: 373px;
+  --side-panel-collapsed-width: 54px;
+  --text-spacing: 5px;
+  --button-icon-size: 24px;
+
+  // Screen sizes
+  --screen-width-xl: 960px;
+  --screen-width-full: 1200px;
 }

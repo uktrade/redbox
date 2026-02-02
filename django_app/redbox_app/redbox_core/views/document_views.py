@@ -31,20 +31,14 @@ logger = logging.getLogger(__name__)
 class DocumentView(View):
     @method_decorator(login_required)
     def get(self, request: HttpRequest) -> HttpResponse:
-        file_context = documents_service.get_file_context(request)
-
-        ingest_errors = request.session.get("ingest_errors", [])
+        context = chat_service.get_context(request)
+        context["ingest_errors"] = request.session.get("ingest_errors", [])
         request.session["ingest_errors"] = []
 
         return render(
             request,
             template_name="documents.html",
-            context={
-                "request": request,
-                "completed_files": file_context["completed_files"],
-                "processing_files": file_context["processing_files"],
-                "ingest_errors": ingest_errors,
-            },
+            context=context,
         )
 
 
@@ -145,10 +139,15 @@ def remove_doc_view(request, doc_id: uuid):
 
         return redirect("documents")
 
+    context = chat_service.get_context(request)
+    context["doc_id"] = doc_id
+    context["doc_name"] = file.file_name
+    context["errors"] = errors
+
     return render(
         request,
         template_name="remove-doc.html",
-        context={"request": request, "doc_id": doc_id, "doc_name": file.file_name, "errors": errors},
+        context=context,
     )
 
 
@@ -173,10 +172,13 @@ def remove_all_docs_view(request):
 
         return redirect("documents")
 
+    context = chat_service.get_context(request)
+    context["errors"] = errors
+
     return render(
         request,
         template_name="remove-all-docs.html",
-        context={"request": request, "errors": errors},
+        context=context,
     )
 
 
@@ -228,7 +230,7 @@ def delete_document(request, doc_id: uuid.UUID, slug: str | None = None):
 
         return render_with_oob(
             [
-                {"template": "side_panel/your_documents_list.html", "context": context, "request": request},
+                {"template": "side_panel/your_documents.html", "context": context, "request": request},
                 {"template": "chat/chat_window.html", "context": oob_context, "request": request},
             ]
         )

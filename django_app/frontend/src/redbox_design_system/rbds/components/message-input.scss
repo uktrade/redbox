@@ -1,28 +1,48 @@
 rbds-message-input {
-    --input-line-height: 1.25rem;
-    --input-min-height: calc(var(--input-line-height) * 5);
+    --input-font-size: var(--font-size-s);
+    // --input-line-height-real: 25px;
+    --input-expanded-height: 130px; //calc(calc(var(--input-line-height-real) * 3) + 0px);
+    --input-expanded-border-bottom: 30px;
 
     [contentEditable=true]:empty:not(:focus):before {
         content: attr(data-text)
     }
 
+    position: relative;
+
     .rbds-message-input {
         font-size: 16px;
         font-size: 1rem;
         margin-bottom: 0;
-        padding: 4px;
+
         font-family: var(--font-family-primary);
+        background-color: var(--color-background-white);
+        padding-top: 7.5px;
+        padding-left: 10px;
+        padding-right: 10px;
+        padding-bottom: 7.5px;
+        line-height: var(--input-line-height);
 
         &:focus {
             outline: 4px solid #fd0;
             outline-offset: 0;
             box-shadow: inset 0 0 0 2px;
-            min-height: var(--input-min-height);
+            min-height: var(--input-expanded-height);
+            padding-bottom: var(--input-expanded-border-bottom);
         }
 
         &.rbds-message-input__expanded {
-            min-height: var(--input-min-height);
+            min-height: var(--input-expanded-height);
+            padding-bottom: var(--input-expanded-border-bottom);
         }
+    }
+
+    .rbds-message-input__actions {
+        position: absolute;
+        right: 7.5px;
+        bottom: 7.5px;
+        display: flex;
+        gap: 10px;
     }
 
     @media (min-width:40.0625em) {

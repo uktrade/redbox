@@ -8,11 +8,17 @@ from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import Runnable, RunnableLambda, RunnablePassthrough, chain
+from langchain_core.runnables import Runnable, RunnableLambda, RunnableParallel, RunnablePassthrough, chain
 
 from redbox.api.format import format_documents
 from redbox.chains.activity import log_activity
-from redbox.chains.components import get_basic_metadata_retriever, get_chat_llm, get_tokeniser
+from redbox.chains.components import (
+    get_basic_metadata_retriever,
+    get_chat_llm,
+    get_knowledge_base_metadata_retriever,
+    get_knowledge_base_tabular_metadata_retriever,
+    get_tokeniser,
+)
 from redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_prompts
 from redbox.models.errors import QuestionLengthError
 from redbox.models.graph import RedboxEventType
@@ -365,20 +371,31 @@ def chain_use_metadata(
     using_only_structure=False,
     using_chat_history=False,
     model: ChatLLMBackend | None = None,
+    use_knowledge_base=False,
 ):
-    metadata = None
-
     @chain
     def get_metadata(state: RedboxState):
-        nonlocal metadata
-        env = get_settings()
-        retriever = get_basic_metadata_retriever(env)
-        metadata = retriever.invoke(state)
-        return state
+        metadata = get_basic_metadata_retriever(get_settings()).invoke(state)
+        return metadata
 
     @chain
-    def use_result(state: RedboxState):
-        additional_variables = {"metadata": metadata}
+    def get_knowledge_base_metadata(state: RedboxState):
+        knowledge_base_metadata = get_knowledge_base_metadata_retriever(get_settings()).invoke(state)
+        return knowledge_base_metadata
+
+    @chain
+    def get_tabular_knowledge_base_metadata(state: RedboxState):
+        tabular_knowledge_base_metadata = get_knowledge_base_tabular_metadata_retriever(get_settings()).invoke(state)
+        return tabular_knowledge_base_metadata
+
+    @chain
+    def use_result(input):
+        if input.get("metadata") is not None:
+            additional_variables = {"metadata": input["metadata"]}
+        if input.get("knowledge_base_metadata") is not None:
+            additional_variables["knowledge_base_metadata"] = input["knowledge_base_metadata"]
+        if input.get("tabular_knowledge_base_metadata") is not None:
+            additional_variables["tabular_knowledge_base_metadata"] = input["tabular_knowledge_base_metadata"]
         if _additional_variables:
             additional_variables = dict(additional_variables, **_additional_variables)
         chain = basic_chat_chain(
@@ -390,9 +407,18 @@ def chain_use_metadata(
             using_chat_history=using_chat_history,
             model=model,
         )
-        return chain.invoke(state)
+        return chain.invoke(input["state"])
 
-    return get_metadata | use_result
+    return (
+        RunnableParallel(
+            state=RunnablePassthrough(),
+            metadata=get_metadata,
+            knowledge_base_metadata=get_knowledge_base_metadata,
+            tabular_knowledge_base_metadata=get_tabular_knowledge_base_metadata,
+        )
+        if use_knowledge_base
+        else RunnableParallel(state=RunnablePassthrough(), metadata=get_metadata)
+    ) | use_result
 
 
 def create_chain_agent(
@@ -404,8 +430,9 @@ def create_chain_agent(
     using_only_structure=False,
     using_chat_history=False,
     model: ChatLLMBackend | None = None,
+    use_knowledge_base=False,
 ):
-    if use_metadata:
+    if use_metadata or use_knowledge_base:
         return chain_use_metadata(
             system_prompt=system_prompt,
             tools=tools,
@@ -414,6 +441,7 @@ def create_chain_agent(
             using_only_structure=using_only_structure,
             using_chat_history=using_chat_history,
             model=model,
+            use_knowledge_base=use_knowledge_base,
         )
     else:
         return basic_chat_chain(
