@@ -2,7 +2,12 @@ import pytest
 from langchain_core.messages import HumanMessage
 
 from redbox.models.chain import RedboxState
-from redbox.retriever import AllElasticsearchRetriever, MetadataRetriever, ParameterisedElasticsearchRetriever
+from redbox.retriever import (
+    AllElasticsearchRetriever,
+    MetadataRetriever,
+    ParameterisedElasticsearchRetriever,
+)
+from redbox.retriever.retrievers import KnowledgeBaseTabularMetadataRetriever
 from redbox.test.data import RedboxChatTestCase
 
 TEST_CHAIN_PARAMETERS = (
@@ -147,5 +152,33 @@ def test_metadata_retriever(metadata_retriever: MetadataRetriever, stored_file_m
         assert len(result) == len(correct)
         assert {c.metadata["uri"] for c in result} == set(stored_file_metadata.query.s3_keys)
         assert {c.metadata["uri"] for c in result} <= set(stored_file_metadata.query.permitted_s3_keys)
+    else:
+        len(result) == 0
+
+
+def test_tabular_kb_retriever(
+    kb_tabular_metadata_retriever: KnowledgeBaseTabularMetadataRetriever,
+    stored_file_tabular_kb: RedboxChatTestCase,
+):
+    """
+    Given a RedboxState, asserts that the tabular retriever:
+
+    * Retrieves only selected and permitted files
+    * Returns documents grouped in a DocumentState
+    * Populates state.knowledge_tabular_files
+    """
+
+    # Invoke the retriever
+    result = kb_tabular_metadata_retriever.invoke(RedboxState(request=stored_file_tabular_kb.query))
+    correct = stored_file_tabular_kb.get_kb_docs_matching_query()
+
+    # Determine if any files were selected and permitted
+    selected = bool(stored_file_tabular_kb.query.knowledge_base_s3_keys)
+    permission = bool(stored_file_tabular_kb.query.permitted_s3_keys)
+
+    if selected and permission:
+        assert len(result) == len(correct)
+        assert {c["metadata"]["uri"] for c in result} == set(stored_file_tabular_kb.query.knowledge_base_s3_keys)
+        assert {c["metadata"]["uri"] for c in result} <= set(stored_file_tabular_kb.query.permitted_s3_keys)
     else:
         len(result) == 0

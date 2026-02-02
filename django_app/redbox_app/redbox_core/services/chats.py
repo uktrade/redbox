@@ -6,7 +6,6 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
-from django.template.response import TemplateResponse
 from waffle import flag_is_active
 from yarl import URL
 
@@ -135,28 +134,4 @@ def render_chats(request: HttpRequest, context: dict) -> HttpResponse:
         request,
         template_name="chats.html",
         context=context,
-    )
-
-
-def render_recent_chats(
-    request: HttpRequest, active_chat_id: UUID | None = None, slug: str | None = None
-) -> TemplateResponse:
-    context = get_context(request, active_chat_id, slug)
-
-    return TemplateResponse(
-        request,
-        "side_panel/conversations.html",
-        context,
-    )
-
-
-def render_chat_window(
-    request: HttpRequest, active_chat_id: UUID | None = None, slug: str | None = None
-) -> TemplateResponse:
-    context = get_context(request, active_chat_id, slug)
-
-    return TemplateResponse(
-        request,
-        "chat/chat_window.html",
-        context,
     )

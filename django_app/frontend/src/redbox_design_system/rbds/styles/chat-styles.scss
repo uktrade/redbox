@@ -102,7 +102,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   scroll-margin-bottom: 16rem;
   padding-right: 0;
 }
-main:has(.govuk-inset-text) .chat-options {
+main:has(.redbox-message-container) .chat-options {
   display: none;
 }
 @media (min-width: 641px) {
@@ -346,6 +346,7 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   z-index: 100;
   bottom: 20px;
   padding-top: 7.5px;
+  width: 100%;
 }
 
 .redbox-message-route {
