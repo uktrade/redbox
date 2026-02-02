@@ -326,7 +326,6 @@ class Settings(BaseSettings):
     def elasticsearch_client(self) -> Union[Elasticsearch, OpenSearch]:
         logger.info("Testing OpenSearch is definitely being used")
 
-        # Setup the client
         if ENVIRONMENT.is_local:
             client = OpenSearch(
                 hosts=[
