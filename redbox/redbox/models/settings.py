@@ -324,9 +324,9 @@ class Settings(BaseSettings):
 
     # @lru_cache(1) #removing cache because pydantic object (index mapping) is not hashable
     def elasticsearch_client(self) -> Union[Elasticsearch, OpenSearch]:
-        logger.info("Creating OpenSearch client")
+        logger.info("Testing OpenSearch is definitely being used")
 
-        # --------- Create the client using original if/else ---------
+        # Setup the client
         if ENVIRONMENT.is_local:
             client = OpenSearch(
                 hosts=[
@@ -362,7 +362,6 @@ class Settings(BaseSettings):
                 timeout=120,
             )
 
-        # --------- Helper to create index safely ---------
         def ensure_index(index_name, mapping=None):
             try:
                 if not client.indices.exists(index=index_name):
@@ -370,7 +369,6 @@ class Settings(BaseSettings):
             except Exception:
                 logger.exception("Failed to create index %s", index_name)
 
-        # --------- Helper to create alias safely ---------
         def ensure_alias(index_name, alias_name):
             try:
                 if not client.indices.exists_alias(name=alias_name):
@@ -378,7 +376,7 @@ class Settings(BaseSettings):
             except Exception:
                 logger.exception("Failed to set alias %s for index %s", alias_name, index_name)
 
-        # --------- Ensure indices and aliases ---------
+        # Ensure indexes and aliases exist
         chunk_index = f"{self.elastic_root_index}-chunk"
         ensure_index(chunk_index, self.index_mapping)
         ensure_alias(chunk_index, f"{self.elastic_root_index}-chunk-current")
