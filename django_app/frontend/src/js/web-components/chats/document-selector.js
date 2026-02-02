@@ -1,6 +1,6 @@
 // @ts-check
 
-import { updateChatWindow } from "../../services";
+import { refreshUI } from "../../services";
 
 class DocumentSelector extends HTMLElement {
   selectedDocuments = [];
@@ -90,7 +90,7 @@ class DocumentSelector extends HTMLElement {
             );
 
             if (inputElementChecked) {
-              updateChatWindow();
+              refreshUI(["chat-window"]);
               this.#sendDocSelectionChangeEvent(inputElementChecked);
               this.#bindDocumentListeners();
               this.#getSelectedDocuments();

@@ -3,16 +3,16 @@
 {% from "macros/icon.html" import rbds_icon %}
 
 {% macro chat_history_item (chat, link, active_chat_id) %}
-    <li class="side-panel-item-container rbds-list-row {% if chat.id == active_chat_id %}rbds-list-row--selected {% endif %}govuk-!-display-none" id="chat-{{ chat.id }}" data-chatid="{{ chat.id }}">
+    <li class="rbds-list-row {% if chat.id == active_chat_id %}rbds-list-row--selected {% endif %}govuk-!-display-none" id="chat-{{ chat.id }}" data-chatid="{{ chat.id }}">
         {% set chat_edit_url = url('chat-titles', chat.id) %}
-        {% call editable_text(chat_edit_url, 'chat-title-change', 'recent-chats', chat.id) %}
+        {% call editable_text(chat_edit_url, 'chat-title-change', 'conversations', chat.id) %}
             <div class="chat-list-item rbds-card__item {% if chat.id == active_chat_id %}selected{% endif %}" data-chatid="{{ chat.id }}">
                 <span class="item-text-container">
                     <a class="item-link govuk-link govuk-link--no-visited-state govuk-link--no-underline display title-text"
                     href="{{ link }}" {% if chat.id == active_chat_id %}aria-current="page"{% endif %} title="{{ chat.name }}">
                         {{ chat.name }}
                     </a>
-                    <div class="item-text-input govuk-!-display-none edit-input-wrapper">
+                    <div class="govuk-!-display-none edit-input-wrapper">
                         <label class="govuk-visually-hidden" for="chat-title-text-input-{{ chat.id }}">Chat title</label>
                         <input class="chat-title-text-input edit-input" type="text" id="chat-title-text-input-{{ chat.id }}"/>
                     </div>

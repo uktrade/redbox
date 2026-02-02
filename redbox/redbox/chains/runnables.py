@@ -16,6 +16,7 @@ from redbox.chains.components import (
     get_basic_metadata_retriever,
     get_chat_llm,
     get_knowledge_base_metadata_retriever,
+    get_knowledge_base_tabular_metadata_retriever,
     get_tokeniser,
 )
 from redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_prompts
@@ -383,11 +384,18 @@ def chain_use_metadata(
         return knowledge_base_metadata
 
     @chain
+    def get_tabular_knowledge_base_metadata(state: RedboxState):
+        tabular_knowledge_base_metadata = get_knowledge_base_tabular_metadata_retriever(get_settings()).invoke(state)
+        return tabular_knowledge_base_metadata
+
+    @chain
     def use_result(input):
-        if input["metadata"] is not None:
+        if input.get("metadata") is not None:
             additional_variables = {"metadata": input["metadata"]}
-        if input.get("knowledge_base_metadata", None) is not None:
+        if input.get("knowledge_base_metadata") is not None:
             additional_variables["knowledge_base_metadata"] = input["knowledge_base_metadata"]
+        if input.get("tabular_knowledge_base_metadata") is not None:
+            additional_variables["tabular_knowledge_base_metadata"] = input["tabular_knowledge_base_metadata"]
         if _additional_variables:
             additional_variables = dict(additional_variables, **_additional_variables)
         chain = basic_chat_chain(
@@ -403,7 +411,10 @@ def chain_use_metadata(
 
     return (
         RunnableParallel(
-            state=RunnablePassthrough(), metadata=get_metadata, knowledge_base_metadata=get_knowledge_base_metadata
+            state=RunnablePassthrough(),
+            metadata=get_metadata,
+            knowledge_base_metadata=get_knowledge_base_metadata,
+            tabular_knowledge_base_metadata=get_tabular_knowledge_base_metadata,
         )
         if use_knowledge_base
         else RunnableParallel(state=RunnablePassthrough(), metadata=get_metadata)

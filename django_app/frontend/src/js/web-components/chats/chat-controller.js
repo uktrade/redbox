@@ -1,6 +1,6 @@
 // @ts-check
 
-import { getActiveToolId } from "../../utils";
+import { getActiveToolId, hideElement } from "../../utils";
 import { ChatMessage } from "./chat-message";
 
 class ChatController extends HTMLElement {
@@ -35,6 +35,13 @@ class ChatController extends HTMLElement {
 
       if (!messageInput || !hasContent) return;
 
+      // Input is valid, prepare to stream
+
+      const firstTimeUploadElement = /** @type {HTMLFormElement | null} */ (
+          document.querySelector("#first-time-user-upload")
+      );
+      if (firstTimeUploadElement) hideElement(firstTimeUploadElement);
+
       let userMessage = /** @type {ChatMessage} */ (
         document.createElement("rbds-chat-message")
       );
@@ -61,6 +68,9 @@ class ChatController extends HTMLElement {
         /** @type {HTMLInputElement | null}*/ (
           document.querySelector("#llm-selector")
         )?.value || "";
+
+      const startStreamingEvent = new CustomEvent("start-streaming");
+      document.dispatchEvent(startStreamingEvent);
 
       aiMessage.stream(
         userText,
