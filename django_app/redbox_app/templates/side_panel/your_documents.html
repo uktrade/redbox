@@ -2,7 +2,7 @@
 {% from "rbds/components/editable-text.html" import editable_text %}
 {% from "rbds/components/modal.html" import modal %}
 {% from "macros/icon.html" import rbds_icon %}
-<section class ="documents rbds-card rbds-card--no-border rbds-card--block rbds-scrollable" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+<section id="your-documents" class ="rbds-card rbds-card--no-border" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
     <div class="rbds-card__header">
         {{ rbds_icon(icon_name="file-present.svg") }}
         <h3 class="side-panel-heading__text">Documents</h3>
@@ -10,10 +10,10 @@
     <div class="rbds-card__content">
         <document-selector id="document-selector" class="rbds-full-width">
             <fieldset class="govuk-fieldset">
-                <div id="your-documents" class="your-documents rbds-card__list govuk-checkboxes govuk-checkboxes--small rbds-checkbox rbds-checkbox--side-panel"
+                <div class="rbds-card__list govuk-checkboxes govuk-checkboxes--small rbds-checkbox rbds-checkbox--side-panel"
                     data-module="govuk-checkboxes">
                     {% for file in completed_files %}
-                    <div class="side-panel-item-container rbds-list-row govuk-!-display-none">
+                    <div class="rbds-list-row govuk-!-display-none">
                         {% set document_edit_url = url('document-titles', doc_id=file.id) %}
                         {% call editable_text(document_edit_url, 'document-title-change', 'your-documents', file.id) %}
                             <div class="govuk-checkboxes__item item-checkbox-container display">
@@ -27,11 +27,11 @@
                                     {% endif %}
                                 </label>
                             </div>
-                            <div class="item-text-input govuk-!-display-none edit-input-wrapper">
+                            <div class="govuk-!-display-none edit-input-wrapper">
                                 <label class="govuk-visually-hidden" for="item-title-text-input-{{ file.id }}">Document name</label>
                                 <input class="edit-input" type="text" id="item-title-text-input-{{ file.id }}" />
                             </div>
-                            <div class="side-panel-item-actions rbds-item-actions">
+                            <div class="rbds-item-actions">
                                 <button class="rbds-icon-button edit-trigger" type="button" data-action="rename">
                                     {{ rbds_icon(icon_name="edit.html", icon_classes="link") }}
                                     <span class="govuk-visually-hidden"> edit document: {{ file.file_name }}</span>
@@ -50,7 +50,7 @@
                                                         "active_chat_id": "{{ chat_id }}",
                                                         "file_selected": "{{ file.selected }}"
                                                     }'
-                                                    hx-target="closest .side-panel-item-container"
+                                                    hx-target="closest .rbds-list-row"
                                                     hx-swap="delete">
                                                 Yes delete
                                                 <span class="govuk-visually-hidden"> delete document: {{ file.file_name }}</span>
@@ -81,7 +81,7 @@
                         </div>
                         {% endfor %}
                     </div>
-                    {{ show_more('.your-documents', '.side-panel-item-container', 3) }}
+                    {{ show_more('#your-documents', '.rbds-list-row', 3) }}
                 </div>
             </fieldset>
         </document-selector>
