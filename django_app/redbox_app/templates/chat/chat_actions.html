@@ -2,16 +2,16 @@
 {% from "macros/govuk-button.html" import govukButton %}
 
 <div class="rbds-chat-title__actions">
-    {% if promoted_tool %}
+    {% if flag_is_active(request, flags.ENABLE_TOOLS) and promoted_tool and not tool %}
         {{ govukButton(
             text="Try " ~ promoted_tool.name,
             href=promoted_tool.chat_url,
-            classes="govuk-button--secondary rbds-flex-align-center"
+            classes="govuk-button--secondary govuk-!-margin-0 rbds-flex-align-center"
             ) }}
     {% endif %}
     {{ govukButton(
         text=rbds_icon(icon_name='chat-add-on.svg') ~ "New conversation",
-        href=url('chats'),
-        classes="govuk-button--secondary rbds-icon-text-button"
+        href=urls.new_chat_url,
+        classes="govuk-button--secondary govuk-!-margin-0 rbds-icon-text-button"
         ) }}
 </div>
