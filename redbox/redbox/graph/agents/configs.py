@@ -131,13 +131,6 @@ prompt_configs: Dict[str, PromptConfig] = {
         ),
     ),
     "Datahub_Agent": PromptConfig(
-<<<<<<< HEAD
-        system= prompts.DATAHUB_PROMPT,
-        question= prompts.DATAHUB_QUESTION_PROMPT,
-            prompt_vars=PromptVariable(question=True)
-        )
-    
-=======
         system=prompts.DATAHUB_PROMPT,
         question=prompts.DATAHUB_QUESTION_PROMPT,
         prompt_vars=PromptVariable(question=True),
@@ -146,7 +139,6 @@ prompt_configs: Dict[str, PromptConfig] = {
         system=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT + prompts.KNOWLEDGE_BASE_METADTA,
         prompt_vars=PromptVariable(task=True, expected_output=True, knowledge_base_metadata=True),
     ),
->>>>>>> data_hub_mcp
 }
 
 
