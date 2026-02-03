@@ -1,13 +1,13 @@
-from uuid import uuid4
 import logging
-from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 import threading
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from typing import Callable
+from uuid import uuid4
 
 from langchain_core.messages import AIMessage
 from langgraph.constants import Send
 
-from redbox.models.chain import DocumentState, RedboxState
+from redbox.models.chain import DocumentState, RedboxState, TaskStatus
 
 log = logging.getLogger(__name__)
 
@@ -185,11 +185,37 @@ def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, per_tool_timeo
         return None
 
 
+def no_dependencies(dependencies: list[str], plan) -> bool:
+    """
+    Check if all dependencies are completed
+    return True if no dependencies i.e. []
+    return True if depencies are completed or failed e.g. ['completed']
+    return False if there are dependencies in pending, scheduled, running e.g. ['pending']
+    """
+    if dependencies:
+        deps = [
+            dep
+            for dep in dependencies
+            if plan.get_task_status(dep) in [TaskStatus.PENDING, TaskStatus.SCHEDULED, TaskStatus.RUNNING]
+        ]
+        return len(deps) == 0
+    else:
+        return True
+
+
 def sending_task_to_agent(state: RedboxState):
     plan = state.agent_plans
     if plan:
-        task_send_states: list[RedboxState] = [
-            (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
-            for task in plan.tasks
-        ]
+        # sending tasks that have no dependencies
+        task_send_states = []
+        for task in plan.tasks:
+            if no_dependencies(task.dependencies, plan) and (task.status == TaskStatus.PENDING):
+                # update status
+                task.status = TaskStatus.SCHEDULED
+                state.agent_plans.update_task_status(task.id, TaskStatus.SCHEDULED)
+                task_send_states += [
+                    (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
+                ]
+                log.warning(f"Sending task: {task.id} to agent {task.agent}")
+
         return [Send(node=target, arg=state) for target, state in task_send_states]
