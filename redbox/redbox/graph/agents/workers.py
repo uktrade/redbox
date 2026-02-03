@@ -31,6 +31,7 @@ class WorkerAgent(Agent):
             agent_options = state.request.ai_settings.get_worker_agents_options
             ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
             parser = ClaudeParser(pydantic_object=ConfiguredAgentTask)
+            task = None
             try:
                 task = parser.parse(state.last_message.content)
                 self.logger.warning(f"Parsing task {state.last_message.content}")
