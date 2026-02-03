@@ -58,9 +58,9 @@ async def company_details(
     company_name: str,
     page_size: int = 10,
     page: int = 0,
-    fetch_interactions: bool = True,
-    fetch_objectives: bool = True,
-    fetch_investments: bool = True,
+    fetch_interactions: bool = False,
+    fetch_objectives: bool = False,
+    fetch_investments: bool = False,
 ) -> CompanyEnrichmentSearchResult:
     """
     Async wrapper for fetching enriched company details.

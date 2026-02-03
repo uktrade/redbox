@@ -13,12 +13,15 @@ from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.messages import ToolCall
-from langchain_core.tools import Tool, tool
+from langchain_core.tools import Tool, tool, StructuredTool
 from langgraph.prebuilt import InjectedState
 from mohawk import Sender
 from opensearchpy import OpenSearch
 from sklearn.metrics.pairwise import cosine_similarity
 from waffle.decorators import waffle_flag
+from mcp.client.streamable_http import streamable_http_client
+from mcp import ClientSession
+from langchain_mcp_adapters.tools import load_mcp_tools
 
 from redbox.api.format import format_documents
 from redbox.chains.components import get_embeddings
@@ -386,6 +389,78 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
         return format_documents(docs), docs
 
     return _search_wikipedia
+
+
+PY_TYPE_MAP = {
+    "str": str,
+    "int": int,
+    "float": float,
+    "bool": bool,
+    "dict": dict,
+    "list": list,
+    # add more as needed
+}
+
+
+def build_fields_from_mcp(inputs: dict) -> dict:
+    """
+    Convert MCP endpoint input definitions into Pydantic model fields.
+    Required fields are marked with ...
+    """
+    fields = {}
+    for k, t in inputs.items():
+        py_type = PY_TYPE_MAP.get(t, str)
+        fields[k] = (py_type, ...)  # all fields required by default
+    return fields
+
+
+async def init_datahub_tools(datahub_mcp_url: str) -> list[StructuredTool]:
+    """
+    Load structured LangChain tools asynchronously.
+    The input schema is retrieved dynamically from MCP server.
+    """
+    async with streamable_http_client(datahub_mcp_url) as (read, write, _), ClientSession(read, write) as session:
+        await session.initialize()
+
+        # Load raw tools from MCP
+        raw_tools = await load_mcp_tools(session)
+
+    return raw_tools
+    # structured_tools = []
+
+    # for t in raw_tools:
+    #     # Get MCP-provided input schema if exists
+    #     inputs = getattr(t, "inputs", {})  # should be a dict {field_name: type_str}
+    #     fields = build_fields_from_mcp(inputs)
+    #     if not fields:
+    #         # fallback to single dict input
+    #         fields = {"input": (dict, ...)}
+
+    #     # Create dynamic Pydantic model
+    #     ArgsSchema = create_model(f"{t.name}_Input", **fields)
+
+    #     # Async wrapper for the tool call
+    #     async def tool_func(*args, tool=t, **kwargs):
+    #         async with (
+    #             streamable_http_client(datahub_mcp_url) as (read, write, _),
+    #             ClientSession(read, write) as session
+    #         ):
+    #             await session.initialize()
+    #             return await tool.ainvoke(kwargs, session=session)
+
+    #     # Create StructuredTool
+    #     structured_tools.append(
+    #         StructuredTool.from_function(
+    #             func=tool_func,
+    #             name=t.name,
+    #             description=t.description or "Call MCP API with structured input",
+    #             args_schema=ArgsSchema,
+    #             return_direct=True,
+    #             metadata={"url": datahub_mcp_url},
+    #         )
+    #     )
+
+    # return structured_tools
 
 
 @waffle_flag("DATA_HUB_API_ROUTE_ON")

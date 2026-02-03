@@ -25,6 +25,7 @@ from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
 from redbox.graph.agents.configs import agent_configs
+from redbox.graph.nodes.tools import init_datahub_tools
 from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
@@ -603,6 +604,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         )
                     if agent.agents_max_tokens:
                         agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
+                    if agent.name == "Datahub_Agent":
+                        mcp_tools = await init_datahub_tools("http://localhost:8100/mcp")
+                        agent_configs[agent.name].tools = mcp_tools
             ChatConsumer.redbox = Redbox(agents=agent_configs, env=ChatConsumer.env, debug=ChatConsumer.debug)
 
         self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)

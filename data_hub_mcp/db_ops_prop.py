@@ -203,15 +203,12 @@ def get_company_details(
 ) -> CompanyEnrichmentSearchResult:
     session = get_session()
     try:
-        # 1️⃣ Fetch companies
         result_type, companies = fetch_companies(session, company_name)
         total = len(companies)
 
-        # 2️⃣ Apply company-level pagination
         companies_page = companies[page * page_size : (page + 1) * page_size]
         company_ids = [c.id for c in companies_page]
 
-        # 3️⃣ Fetch related data if requested
         interactions_map, objectives_map, investments_map = fetch_related_data(
             session,
             company_ids,
@@ -220,7 +217,6 @@ def get_company_details(
             fetch_investments,
         )
 
-        # 4️⃣ Build enriched results
         companies_enriched = [
             build_enriched_company(
                 company,
@@ -234,7 +230,6 @@ def get_company_details(
             for company in companies_page
         ]
 
-        # 5️⃣ Return top-level MCP result
         return CompanyEnrichmentSearchResult(
             result_type=result_type,
             companies=companies_enriched,
