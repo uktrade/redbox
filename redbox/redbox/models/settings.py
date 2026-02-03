@@ -3,9 +3,6 @@ import os
 from functools import cache
 from typing import Dict, Literal, Optional, Union
 from urllib.parse import urlparse
-from mcp.client.streamable_http import streamable_http_client
-from mcp import ClientSession
-from contextlib import asynccontextmanager
 
 import boto3
 from elasticsearch import Elasticsearch
@@ -334,20 +331,6 @@ class Settings(BaseSettings):
             # client.indices.create(index=self.elastic_chat_mesage_index)
 
         return client
-
-    @asynccontextmanager
-    async def get_mcp_client(self, datahub_mcp_url: str):
-        """
-        Async context manager that yields a fully initialized MCP ClientSession.
-
-        Usage:
-            async with get_mcp_client("http://localhost:8100/mcp") as session:
-                result = await session.call_tool("company_details", {"company_name": "BMW"})
-        """
-        async with streamable_http_client(datahub_mcp_url) as (read, write, _):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                yield session
 
     def s3_client(self):
         if self.object_store == "minio":

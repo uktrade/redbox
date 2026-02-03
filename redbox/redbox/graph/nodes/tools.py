@@ -391,29 +391,6 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
     return _search_wikipedia
 
 
-PY_TYPE_MAP = {
-    "str": str,
-    "int": int,
-    "float": float,
-    "bool": bool,
-    "dict": dict,
-    "list": list,
-    # add more as needed
-}
-
-
-def build_fields_from_mcp(inputs: dict) -> dict:
-    """
-    Convert MCP endpoint input definitions into Pydantic model fields.
-    Required fields are marked with ...
-    """
-    fields = {}
-    for k, t in inputs.items():
-        py_type = PY_TYPE_MAP.get(t, str)
-        fields[k] = (py_type, ...)  # all fields required by default
-    return fields
-
-
 async def fetch_mcp_tools(mcp_url: str) -> list[StructuredTool]:
     """
     Load structured LangChain tools asynchronously.
