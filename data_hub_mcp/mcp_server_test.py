@@ -170,7 +170,7 @@ STATIC_INVESTMENT_PROJECT = InvestmentProject(
     project_moved_to_won=None,
     project_manager_id="pm_001",
     project_reference="IP-2025-001",
-    proposal_deadline=date(2025, 3, 31, tzinfo=UTC),
+    proposal_deadline=date(2025, 3, 31),
     r_and_d_budget=True,
     referral_source_activity="Trade show",
     referral_source_activity_marketing=None,
@@ -214,7 +214,39 @@ async def greet(name: str) -> str:
     return f"Hello, {name}!"
 
 
-@mcp.tool(name="companies", description="Static company search")
+@mcp.tool(
+    name="companies",
+    description="""
+Search for companies by name and retrieve a short overview of matching results.
+
+This tool returns a list of companies containing:
+- `id`: Internal company identifier
+- `name`: Company name
+- `description`: Brief description of the company
+- `turnover_gbp`: Approximate turnover in GBP
+- `address_1`, `address_2`, `address_postcode`, `address_country`: Address details
+- `company_number`: Official registration number
+
+Example output (static data):
+{
+    "companies": [
+        {
+            "id": "cmp_001",
+            "name": "Acme Industries Ltd",
+            "description": "Static test company",
+            "turnover_gbp": 1500000,
+            "address_1": "1 Test Street",
+            "address_postcode": "SW1A 1AA",
+            "address_country": "UK",
+            "company_number": "12345678"
+        }
+    ],
+    "total": 1,
+    "page": 0,
+    "page_size": 10
+}
+""",
+)
 async def companies(company_name: str, page_size: int = 10, page: int = 0) -> CompanySearchResult:
     _ = company_name
     return CompanySearchResult(
@@ -225,13 +257,80 @@ async def companies(company_name: str, page_size: int = 10, page: int = 0) -> Co
     )
 
 
-@mcp.tool(name="company_details", description="Static company details")
-async def company_details(company_id: str) -> CompanyDetails:
-    _ = company_id
+@mcp.tool(
+    name="company_details",
+    description="""
+Retrieve full details of a single company by its name.
+
+Returned data includes:
+- Full address and registered address
+- Company identifiers: company_number, DUNS, VAT number
+- Financials: turnover in GBP and USD, estimated flags
+- Business information: sector, business type, trading names, export experience
+- Operational status and strategy
+- Employee information
+
+Example static output:
+{
+    "id": "cmp_001",
+    "name": "Acme Industries Ltd",
+    "description": "Static test company",
+    "turnover_gbp": 1500000,
+    "number_of_employees": 50,
+    "address_1": "1 Test Street",
+    "address_postcode": "SW1A 1AA",
+    "address_country": "UK",
+    "sector": "Manufacturing",
+    "business_type": "Private Limited",
+    "is_out_of_business": false
+}
+
+Use this tool when you need complete, detailed information about a single company.
+""",
+)
+async def company_details(company_name: str) -> CompanyDetails:
+    _ = company_name
     return STATIC_COMPANY_DETAILS
 
 
-@mcp.tool(name="companies_or_interactions", description="Static combined search")
+@mcp.tool(
+    name="companies_or_interactions",
+    description="""
+Search for a company by name. If a single match is found, returns associated interactions.
+If multiple matches are found, returns a list of company overviews.
+
+Outputs include:
+- `companies_search_result`: Short company info (as in `companies` tool)
+- `interactions_search_result`: List of company interactions (date, subject, team, theme)
+
+Example static output:
+{
+    "companies_search_result": {
+        "companies": [...],
+        "total": 1,
+        "page": 0,
+        "page_size": 10
+    },
+    "interactions_search_result": {
+        "interactions": [
+            {
+                "company_name": "Acme Industries Ltd",
+                "interaction_year": 2025,
+                "date_of_interaction": "2025-11-12",
+                "interaction_subject": "Investment enquiry",
+                "team_region": "EMEA",
+                "interaction_theme_investment_or_export": "Investment"
+            }
+        ],
+        "total": 1,
+        "page": 0,
+        "page_size": 10
+    }
+}
+
+This tool is useful when you want either a short list of companies or the interactions of a single company.
+""",
+)
 async def companies_or_interactions(
     company_name: str, page_size: int = 10, page: int = 0
 ) -> CompaniesOrInteractionSearchResult:
@@ -247,9 +346,39 @@ async def companies_or_interactions(
     )
 
 
-@mcp.tool(name="company_interactions", description="Static company interactions")
-async def company_interactions(company_id: str, page_size: int = 10, page: int = 0) -> CompanyInteractionSearchResult:
-    _ = company_id
+@mcp.tool(
+    name="company_interactions",
+    description="""
+Retrieve interactions for a given company name.
+
+Each interaction includes:
+- Team region and country
+- Date of interaction and financial year
+- Interaction subject and theme
+- Company sector
+
+Example static output:
+{
+    "interactions": [
+        {
+            "company_name": "Acme Industries Ltd",
+            "interaction_year": 2025,
+            "date_of_interaction": "2025-11-12",
+            "interaction_subject": "Investment enquiry",
+            "team_region": "EMEA",
+            "interaction_theme_investment_or_export": "Investment"
+        }
+    ],
+    "total": 1,
+    "page": 0,
+    "page_size": 10
+}
+
+Use this tool to see all historical interactions for a company.
+""",
+)
+async def company_interactions(company_name: str, page_size: int = 10, page: int = 0) -> CompanyInteractionSearchResult:
+    _ = company_name
     return CompanyInteractionSearchResult(
         interactions=[STATIC_INTERACTION],
         total=1,
@@ -258,11 +387,41 @@ async def company_interactions(company_id: str, page_size: int = 10, page: int =
     )
 
 
-@mcp.tool(name="account_management_objectives", description="Static account objectives")
+@mcp.tool(
+    name="account_management_objectives",
+    description="""
+Retrieve account management objectives for a given company.
+
+Each objective contains:
+- `subject` and `detail`
+- Target date and progress
+- Blocker flags and descriptions
+- Created/modified timestamps and user IDs
+
+Example static output:
+{
+    "account_management_objectives": [
+        {
+            "id": "obj_001",
+            "subject": "Expand export markets",
+            "detail": "Target Germany and France by Q2 2026",
+            "target_date": "2026-06-30",
+            "progress": 50,
+            "has_blocker": false
+        }
+    ],
+    "total": 1,
+    "page": 0,
+    "page_size": 10
+}
+
+This tool is useful for tracking strategic objectives for a company's account.
+""",
+)
 async def account_management_objectives(
-    company_id: str, page_size: int = 10, page: int = 0
+    company_name: str, page_size: int = 10, page: int = 0
 ) -> AccountManagementObjectivesSearchResult:
-    _ = company_id
+    _ = company_name
     return AccountManagementObjectivesSearchResult(
         account_management_objectives=[STATIC_OBJECTIVE],
         total=1,
@@ -271,9 +430,45 @@ async def account_management_objectives(
     )
 
 
-@mcp.tool(name="investment_projects", description="Static investment projects")
-async def investment_projects(company_id: str, page_size: int = 10, page: int = 0) -> InvestmentProjectsSearchResult:
-    _ = company_id
+@mcp.tool(
+    name="investment_projects",
+    description="""
+Retrieve investment projects associated with a company.
+
+Each project includes:
+- Name, description, and sector
+- Investment type and value
+- Project dates (estimated and actual land date)
+- Locations, UK regions, and client details
+- Number of new and safeguarded jobs
+- Strategic drivers and stage
+
+Example static output:
+{
+    "investment_projects": [
+        {
+            "id": "inv_001",
+            "name": "Acme Expansion Project",
+            "description": "Static test investment project",
+            "sector": "Manufacturing",
+            "investment_type": "FDI",
+            "total_investment": 5000000,
+            "number_new_jobs": 20,
+            "number_safeguarded_jobs": 5,
+            "estimated_land_date": "2026-09-01",
+            "actual_land_date": null
+        }
+    ],
+    "total": 1,
+    "page": 0,
+    "page_size": 10
+}
+
+Use this tool to explore planned and ongoing investment projects for a company.
+""",
+)
+async def investment_projects(company_name: str, page_size: int = 10, page: int = 0) -> InvestmentProjectsSearchResult:
+    _ = company_name
     return InvestmentProjectsSearchResult(
         investment_projects=[STATIC_INVESTMENT_PROJECT],
         total=1,
