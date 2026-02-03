@@ -414,53 +414,23 @@ def build_fields_from_mcp(inputs: dict) -> dict:
     return fields
 
 
-async def init_datahub_tools(datahub_mcp_url: str) -> list[StructuredTool]:
+async def fetch_mcp_tools(mcp_url: str) -> list[StructuredTool]:
     """
     Load structured LangChain tools asynchronously.
     The input schema is retrieved dynamically from MCP server.
     """
-    async with streamable_http_client(datahub_mcp_url) as (read, write, _), ClientSession(read, write) as session:
+    async with streamable_http_client(mcp_url) as (read, write, _), ClientSession(read, write) as session:
         await session.initialize()
 
         # Load raw tools from MCP
         raw_tools = await load_mcp_tools(session)
 
+    for t in raw_tools:
+        meta = t.metadata or {}
+        meta["mcp_url"] = mcp_url
+        t.metadata = meta
+
     return raw_tools
-    # structured_tools = []
-
-    # for t in raw_tools:
-    #     # Get MCP-provided input schema if exists
-    #     inputs = getattr(t, "inputs", {})  # should be a dict {field_name: type_str}
-    #     fields = build_fields_from_mcp(inputs)
-    #     if not fields:
-    #         # fallback to single dict input
-    #         fields = {"input": (dict, ...)}
-
-    #     # Create dynamic Pydantic model
-    #     ArgsSchema = create_model(f"{t.name}_Input", **fields)
-
-    #     # Async wrapper for the tool call
-    #     async def tool_func(*args, tool=t, **kwargs):
-    #         async with (
-    #             streamable_http_client(datahub_mcp_url) as (read, write, _),
-    #             ClientSession(read, write) as session
-    #         ):
-    #             await session.initialize()
-    #             return await tool.ainvoke(kwargs, session=session)
-
-    #     # Create StructuredTool
-    #     structured_tools.append(
-    #         StructuredTool.from_function(
-    #             func=tool_func,
-    #             name=t.name,
-    #             description=t.description or "Call MCP API with structured input",
-    #             args_schema=ArgsSchema,
-    #             return_direct=True,
-    #             metadata={"url": datahub_mcp_url},
-    #         )
-    #     )
-
-    # return structured_tools
 
 
 @waffle_flag("DATA_HUB_API_ROUTE_ON")

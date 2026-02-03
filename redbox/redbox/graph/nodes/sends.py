@@ -5,7 +5,9 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 import threading
 from typing import Callable
 
+from fastmcp import Client
 from langchain_core.messages import AIMessage
+from langchain_core.tools import StructuredTool
 from langgraph.constants import Send
 
 from redbox.models.chain import DocumentState, RedboxState
@@ -98,16 +100,13 @@ def run_with_timeout(func, args, timeout):
     return result[0]
 
 
-def wrap_async_tool(tool):
+def wrap_async_tool(tool: StructuredTool):
     """
     Returns a synchronous function that wraps a StructuredTool for ThreadPoolExecutor.
     Ensures that each thread has its own event loop and MCP client session.
     """
 
     def wrapper(args: dict):
-        from fastmcp import Client  # import wherever your MCP client is defined
-
-        # Create a new event loop for this thread
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
@@ -115,17 +114,14 @@ def wrap_async_tool(tool):
 
             async def run_tool():
                 log.debug(f"Running async tool '{tool.name}' with args: {args}")
-
-                # Recreate a new MCP client session for this loop
-                # Assuming the coroutine expects a 'client' argument
-                # client = Client("http://localhost:8100/mcp")  # or your MCP base URL
-
-                async with Client("http://localhost:8100/mcp") as client:
-                    # Call the tool coroutine with client injected if needed
-                    result = await client.call_tool(name=tool.name, arguments=args, raise_on_error=True)
-                    raw_text = "\n".join([c.text for c in result.content])
-                    log.debug(f"Result from async tool '{tool.name}': {raw_text}")
-                    return raw_text
+                if mcp_url := tool.metadata.get("mcp_url"):
+                    async with Client(mcp_url) as client:
+                        result = await client.call_tool(name=tool.name, arguments=args, raise_on_error=True)
+                        raw_text = "\n".join([c.text for c in result.content])
+                        log.debug(f"Result from async tool '{tool.name}': {raw_text}")
+                        return raw_text
+                else:
+                    return "Could not fetch data. No MCP URL configured for this tool."
 
             return loop.run_until_complete(run_tool())
         finally:
