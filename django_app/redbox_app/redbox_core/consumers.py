@@ -249,7 +249,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             user_question = self.final_state.request.question
             web_search_results_urls = []
             web_search_api_counter = 0
-            for agent_res in self.final_state.agents_results:
+            for agent_res in self.final_state.agents_results.values():
                 source_type = re.search("<SourceType>(.*?)</SourceType>", agent_res.content)
                 if source_type and source_type.group(1) == Citation.Origin.WEB_SEARCH:
                     web_search_results_urls += re.findall("<Source>(.*?)</Source>", agent_res.content)
