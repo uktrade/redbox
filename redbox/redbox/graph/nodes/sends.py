@@ -207,7 +207,7 @@ def sending_task_to_agent(state: RedboxState):
     plan = state.agent_plans
     if plan:
         # sending tasks that have no dependencies
-        task_send_states = []
+        task_send_states: list[RedboxState] = []
         for task in plan.tasks:
             if no_dependencies(task.dependencies, plan) and (task.status == TaskStatus.PENDING):
                 # update status

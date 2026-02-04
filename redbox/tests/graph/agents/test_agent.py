@@ -40,24 +40,22 @@ class TestWorkerAgent:
         indirect=["fake_state_fixture"],
     )
     def test_reading_task_info(self, success, fake_state_fixture):
-        self.worker.reading_task_info().invoke(fake_state_fixture)
+        _, task = self.worker.reading_task_info().invoke(fake_state_fixture)
         if success == "success":
-            assert self.worker.task is not None
+            assert task is not None
         else:
-            assert self.worker.task is None
+            assert task is None
 
     @pytest.mark.parametrize(
         "result", [("A result"), ([AIMessage("A"), AIMessage("result")]), ([{"text": "A result"}])]
     )
     def test_post_processing(self, result, fake_state_with_plan):
-        self.worker.task = fake_state_with_plan.agent_plans.tasks[0]
-        response = self.worker.post_processing().invoke((fake_state_with_plan, result))
+        task = fake_state_with_plan.agent_plans.tasks[0]
+        response = self.worker.post_processing().invoke((fake_state_with_plan, result, task))
         assert response["agents_results"] == {
-            self.worker.task.id: AIMessage(
-                content=f"<{self.worker.config.name}_Result>A result</{self.worker.config.name}_Result>"
-            )
+            task.id: AIMessage(content=f"<{self.worker.config.name}_Result>A result</{self.worker.config.name}_Result>")
         }
-        assert response["tasks_evaluator"] == self.worker.task.task + "\n" + self.worker.task.expected_output
+        assert response["tasks_evaluator"] == task.task + "\n" + task.expected_output
 
     @pytest.mark.parametrize(
         "AI_response",
@@ -76,8 +74,8 @@ class TestWorkerAgent:
             "redbox.graph.agents.workers.run_tools_parallel",
             return_value=[AIMessage(content="Here is your fake response")],
         )
-        self.worker.task = fake_state_with_plan.agent_plans.tasks[0]
-        response = self.worker.core_task().invoke(fake_state_with_plan)
+        task = fake_state_with_plan.agent_plans.tasks[0]
+        response = self.worker.core_task().invoke((fake_state_with_plan, task))
         if isinstance(response, str):
             response == "Here is your fake response"
         elif isinstance(response, list):
@@ -92,12 +90,12 @@ class TestWorkerAgent:
             "redbox.graph.agents.workers.run_tools_parallel",
             return_value=[AIMessage(content="Here is your fake response")],
         )
-        self.worker.task = fake_state_with_plan.agent_plans.tasks[0]
+        task = fake_state_with_plan.agent_plans.tasks[0]
         response = self.worker.execute().invoke(fake_state_with_plan)
         assert response["agents_results"] == {
-            self.worker.task.id: AIMessage(
+            task.id: AIMessage(
                 content=f"<{self.worker.config.name}_Result>Here is your fake response</{self.worker.config.name}_Result>"
             )
         }
-        assert response["tasks_evaluator"] == self.worker.task.task + "\n" + self.worker.task.expected_output
-        assert response["agent_plans"].get_task_status(self.worker.task.id) == TaskStatus.COMPLETED
+        assert response["tasks_evaluator"] == task.task + "\n" + task.expected_output
+        assert response["agent_plans"].get_task_status(task.id) == TaskStatus.COMPLETED
