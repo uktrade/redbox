@@ -6,8 +6,11 @@ from typing import TYPE_CHECKING, List, Tuple
 
 import environ
 import fitz
+from redbox.chains.parser import ClaudeParser
 
 from langchain_core.documents import Document
+from langchain_core.prompts import PromptTemplate
+
 from pydantic import ValidationError
 from redbox_app.setting_enums import Environment
 
@@ -159,6 +162,7 @@ class TextractChunkLoader:
     Load, partition and chunk a document using:
     - Textract for PDFs
     - python-docx for DOCX.
+    - Pandas for CSV/Excel
     """
 
     def __init__(
@@ -172,7 +176,6 @@ class TextractChunkLoader:
         self.bucket = bucket
         self.textract = boto3.client("textract", region_name=region)
         self.s3 = boto3.client("s3", region_name=region)
-
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
         self.overlap_chars = overlap_chars
@@ -188,164 +191,23 @@ class TextractChunkLoader:
 
     def _extract_docx(self, file_bytes: BytesIO) -> List[str]:
         logger.info("Extracting DOCX content")
+        file_bytes.seek(0)
         doc = DocxDocument(file_bytes)
         text = "\n".join(p.text for p in doc.paragraphs)
-
         logger.debug("Extracted %d characters from DOCX", len(text))
-        return [text]
-
-    def _upload_to_s3(self, file_name: str, file_bytes: BytesIO):
-        logger.info("Uploading file to S3 for Textract processing: %s", file_name)
-        file_bytes.seek(0)
-
-        try:
-            self.s3.put_object(Bucket=self.bucket, Key=f"{file_name}", Body=file_bytes)
-            logger.info("Successfully uploaded %s to bucket %s", file_name, self.bucket)
-        except Exception as e:
-            logger.exception("Failed to upload %s to S3: %s", file_name, e)
-            raise
-
-    def _start_textract_job(self, file_name: str) -> str:
-        logger.info("Starting Textract job for file: %s", file_name)
-
-        try:
-            response = self.textract.start_document_text_detection(
-                DocumentLocation={
-                    "S3Object": {
-                        "Bucket": self.bucket,
-                        "Name": f"{file_name}",
-                    }
-                }
-            )
-            job_id = response["JobId"]
-            logger.info("Textract job started for %s with JobId=%s", file_name, job_id)
-            return job_id
-        except Exception as e:
-            logger.exception("Failed to start Textract job for %s: %s", file_name, e)
-            raise
-
-    def _wait_for_job(self, job_id: str):
-        logger.info("Waiting for Textract job %s to complete", job_id)
-
-        while True:
-            try:
-                response = self.textract.get_document_text_detection(JobId=job_id)
-                status = response["JobStatus"]
-
-                logger.debug("Textract job %s current status: %s", job_id, status)
-
-                if status in ["SUCCEEDED", "FAILED"]:
-                    logger.info("Textract job %s finished with status: %s", job_id, status)
-                    return status
-
-                time.sleep(3)
-
-            except Exception as e:
-                logger.exception("Error while polling Textract job %s: %s", job_id, e)
-                raise
-
-    def _get_textract_results(self, job_id: str) -> List[str]:
-        logger.info("Fetching Textract results for job %s", job_id)
-
-        pages: dict[int, List[str]] = {}
-        next_token = None
-        api_calls = 0
-
-        while True:
-            try:
-                kwargs = {"JobId": job_id}
-                if next_token:
-                    kwargs["NextToken"] = next_token
-
-                response = self.textract.get_document_text_detection(**kwargs)
-                api_calls += 1
-
-                for block in response.get("Blocks", []):
-                    if block["BlockType"] == "LINE":
-                        page = block.get("Page", 1)
-                        pages.setdefault(page, []).append(block["Text"])
-
-                next_token = response.get("NextToken")
-                if not next_token:
-                    break
-
-            except Exception as e:
-                logger.exception("Error retrieving Textract results for job %s: %s", job_id, e)
-                raise
-
-        logger.info(
-            "Retrieved Textract results for job %s: %d pages via %d API calls",
-            job_id,
-            len(pages),
-            api_calls,
-        )
-
-        return ["\n".join(pages[p]) for p in sorted(pages)]
-
-    def _extract_pdf(self, file_name: str, file_bytes: BytesIO) -> List[str]:
-        logger.info("Processing PDF file through Textract: %s", file_name)
-
-        self._upload_to_s3(file_name, file_bytes)
-
-        job_id = self._start_textract_job(file_name)
-
-        status = self._wait_for_job(job_id)
-
-        if status != "SUCCEEDED":
-            logger.error("Textract job %s failed for file %s", job_id, file_name)
-            raise RuntimeError(f"Textract failed for {file_name}")
-
-        pages = self._get_textract_results(job_id)
-        logger.info("Textract processing complete for %s - extracted %d pages", file_name, len(pages))
-
-        return pages
+        return [text] if text.strip() else []
 
     def _chunk_text(self, text: str) -> List[str]:
-        logger.debug("Chunking text of length %d", len(text))
-
         chunks = []
         start = 0
         length = len(text)
-
         while start < length:
             end = min(start + self.max_chunk_size, length)
             chunk = text[start:end]
-
             if len(chunk) >= self.min_chunk_size:
                 chunks.append(chunk)
-
             start = end - self.overlap_chars
-
-        logger.debug("Produced %d chunks from text", len(chunks))
         return chunks
-
-    def _extract_pdf_from_s3(self, bucket: str, key: str) -> list[str]:
-        logger.info("Starting Textract extraction directly from S3: s3://%s/%s", bucket, key)
-
-        try:
-            response = self.textract.start_document_text_detection(
-                DocumentLocation={
-                    "S3Object": {
-                        "Bucket": bucket,
-                        "Name": key,
-                    }
-                }
-            )
-
-            job_id = response["JobId"]
-            logger.info("Started Textract job %s for s3://%s/%s", job_id, bucket, key)
-
-            status = self._wait_for_job(job_id)
-
-            if status != "SUCCEEDED":
-                logger.error("Textract job %s failed for s3://%s/%s", job_id, bucket, key)
-                raise RuntimeError(f"Textract failed for s3://{bucket}/{key}")
-
-            return self._get_textract_results(job_id)
-
-        except Exception as e:
-            logger.exception("Textract extraction failed for s3://%s/%s: %s", bucket, key, e)
-            raise
 
     def lazy_load(
         self,
@@ -354,63 +216,63 @@ class TextractChunkLoader:
         s3_key: str,
         file_bytes: BytesIO | None = None,
     ) -> Iterator[Document]:
-        logger.info("Starting lazy_load for file: %s", file_name)
+        if file_name.lower().endswith((".csv", ".xls", ".xlsx")):
+            if file_bytes is None:
+                obj = self.s3.get_object(Bucket=s3_bucket, Key=file_name)
+                file_bytes = BytesIO(obj["Body"].read())
 
-        try:
-            if file_name.lower().endswith(".docx"):
-                logger.info("Detected DOCX file - using local extraction path")
-                if file_bytes is None:
-                    raise ValueError("DOCX requires file_bytes")
+            tabular_elements = load_tabular_file(file_name, file_bytes)
+            for idx, el in enumerate(tabular_elements):
+                schema_dict = el.get("metadata", {}).get("document_schema")
+                schema = None
+                if schema_dict:
+                    try:
+                        schema = TabularSchema.model_validate(schema_dict)
+                    except ValidationError:
+                        schema = None
 
-                pages = self._extract_docx(file_bytes)
-
-            else:
-                logger.info("Detected PDF or other file - using Textract path")
-                pages = self._extract_pdf_from_s3(bucket=s3_bucket, key=s3_key)
-
-        except Exception as e:
-            logger.exception("Failed to extract text from %s: %s", file_name, e)
-            raise
-
-        logger.info("Extracted %d pages from file %s", len(pages), file_name)
-
-        index = 0
-        total_chunks = 0
-
-        for page_num, page_text in enumerate(pages, start=1):
-            chunks = self._chunk_text(page_text)
-
-            logger.debug(
-                "File %s page %d produced %d chunks",
-                file_name,
-                page_num,
-                len(chunks),
-            )
-
-            for chunk in chunks:
+                token_count = tokeniser(el["text"])
                 metadata = {
-                    "index": index,
+                    "index": idx,
+                    "uri": file_name,
+                    "page_number": 1,
+                    "created_datetime": datetime.now(UTC),
+                    "token_count": token_count,
+                    "document_schema": schema,
+                }
+                yield Document(page_content=el["text"], metadata=metadata)
+            return
+
+        if file_name.lower().endswith(".docx"):
+            if file_bytes is None:
+                obj = self.s3.get_object(Bucket=s3_bucket, Key=file_name)
+                file_bytes = BytesIO(obj["Body"].read())
+            pages = self._extract_docx(file_bytes)
+
+        else:
+            loader = TextractChunkLoader(bucket=s3_bucket)
+            pages = loader._extract_pdf_from_s3(bucket=s3_bucket, key=s3_key)
+
+        idx = 0
+        for page_num, page_text in enumerate(pages, start=1):
+            for chunk in self._chunk_text(page_text):
+                metadata = {
+                    "index": idx,
                     "uri": file_name,
                     "page_number": page_num,
                     "created_datetime": datetime.now(UTC),
-                    "token_count": len(chunk.split()),
+                    "token_count": tokeniser(chunk),
                 }
-
-                total_chunks += 1
-
                 yield Document(page_content=chunk, metadata=metadata)
-
-                index += 1
-
-        logger.info(
-            "Completed lazy_load for %s - total pages=%d, total chunks=%d",
-            file_name,
-            len(pages),
-            total_chunks,
-        )
+                idx += 1
 
 
 class MetadataLoader:
+    """
+    Extract metadata from a file using a TextractChunkLoader and LLM.
+    Preserves trimming and robust handling from old loader.
+    """
+
     def __init__(self, env: Settings, s3_client: S3Client, file_name: str):
         self.env = env
         self.s3_client = s3_client
@@ -418,7 +280,8 @@ class MetadataLoader:
         self.file_name = file_name
 
     def _get_file_bytes(self, file_name: str) -> BytesIO:
-        return BytesIO(self.s3_client.get_object(Bucket=self.env.bucket_name, Key=file_name)["Body"].read())
+        obj = self.s3_client.get_object(Bucket=self.env.bucket_name, Key=file_name)
+        return BytesIO(obj["Body"].read())
 
     def extract_metadata(self) -> GeneratedMetadata:
         start_time = time.time()
@@ -447,18 +310,53 @@ class MetadataLoader:
             logger.info("Failed metadata extraction - %s", e)
             chunks = []
 
-        text_sample = "".join(c.page_content for c in chunks)[:10_000]
+        first_10k_chars = "".join(c.page_content for c in chunks)[:10_000]
 
         try:
-            metadata = self.create_file_metadata(text_sample)
+            metadata = self.create_file_metadata(first_10k_chars)
         except Exception as e:
             logger.info(e)
             metadata = GeneratedMetadata(name=self.file_name)
 
         logger.info(
-            "total metadata extraction time for file [%s] took %.2f seconds",
+            "Total metadata extraction for file [%s] took %.2f seconds",
             self.file_name,
             time.time() - start_time,
         )
 
         return metadata
+
+    def create_file_metadata(self, page_content: str, original_metadata: dict | None = None) -> GeneratedMetadata:
+        """Trim original metadata and invoke LLM chain"""
+        if not original_metadata:
+            original_metadata = {}
+
+        def trim(obj, max_length=1000):
+            if isinstance(obj, dict):
+                return {k: trim(v, max_length) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [trim(v, max_length) for v in obj]
+            if isinstance(obj, str):
+                return obj[:max_length]
+            return obj
+
+        original_metadata = trim(original_metadata)
+
+        parser = ClaudeParser(pydantic_object=GeneratedMetadata)
+
+        metadata_prompt = PromptTemplate(
+            template="".join(self.env.metadata_prompt)
+            + "\n\n{format_instructions}\n\n{page_content}\n\n{original_metadata}",
+            input_variables=["page_content"],
+            partial_variables={
+                "format_instructions": parser.get_format_instructions(),
+                "original_metadata": original_metadata,
+            },
+        )
+        metadata_chain = metadata_prompt | self.llm | parser
+
+        try:
+            return metadata_chain.invoke({"page_content": page_content})
+        except ValidationError as e:
+            logger.info(e.errors())
+            return GeneratedMetadata(name=original_metadata.get("filename") or self.file_name)
