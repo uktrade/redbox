@@ -23,7 +23,6 @@ def dataclass_to_json_safe(obj):
         return {k: dataclass_to_json_safe(v) for k, v in obj.items()}
     elif isinstance(obj, (datetime, date)):
         return obj.isoformat()
-    # Add custom handling for TextContent
     elif type(obj).__name__ == "TextContent":
         return str(obj)
     else:
@@ -83,23 +82,12 @@ async def run_examples(client):
                 "fetch_investments": True,
             },
         },
-        # 3️⃣ Sector overview: aggregated investment, jobs, GVA
         {
             "tool": "sector_overview",
             "params": {
                 "sector_name": "Manufacturing",
             },
         },
-        # 4️⃣ Sector investment projects: FDI, status, economic impact
-        {
-            "tool": "sector_investment_projects",
-            "params": {
-                "sector_name": "Technology",
-                "page": 0,
-                "page_size": 5,
-            },
-        },
-        # 5️⃣ Sector overview by company name
         {
             "tool": "sector_overview",
             "params": {
@@ -110,7 +98,14 @@ async def run_examples(client):
             "tool": "sector_overview",
             "params": {},
         },
-        # 6️⃣ Sector investment projects by company name
+        {
+            "tool": "sector_investment_projects",
+            "params": {
+                "sector_name": "Technology",
+                "page": 0,
+                "page_size": 5,
+            },
+        },
         {
             "tool": "sector_investment_projects",
             "params": {
@@ -124,10 +119,8 @@ async def run_examples(client):
             tool_name = example["tool"]
             params = example["params"]
 
-            # Call tool
             try:
                 response = await client.call_tool(tool_name, params)
-                # Convert dataclass to dict safely
                 response_dict = dataclass_to_json_safe(response)
                 result = response_dict.get("structured_content")
             except ToolError as e:
@@ -137,9 +130,7 @@ async def run_examples(client):
                 {
                     "tool": tool_name,
                     "query": params,
-                    "response": result,  # no need for serialize or structured_content
+                    "response": result,
                 }
             )
-
-    # Return nicely formatted JSON string
     return json.dumps(results, indent=4)

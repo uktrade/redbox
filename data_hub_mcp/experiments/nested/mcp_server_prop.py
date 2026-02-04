@@ -1,21 +1,22 @@
 import os
 
-from data_classes_prop import (
+from exceptions import NoCompanyOrSectorError
+from fastmcp import FastMCP
+from starlette.responses import JSONResponse
+
+from data_hub_mcp.experiments.nested.data_classes_prop import (
     CompanyEnrichmentSearchResult,
     SectorGroupedCompanySearchResult,
     SectorGroupedInvestmentSummary,
     SectorGroupedOverview,
 )
-from db_ops_prop import (
+from data_hub_mcp.experiments.nested.db_ops_prop import (
     db_check,
     get_company_details,
     get_related_company_details,
     get_sector_investment_projects,
     get_sector_overview,
 )
-from exceptions import NoCompanyOrSectorError
-from fastmcp import FastMCP
-from starlette.responses import JSONResponse
 
 mcp = FastMCP(
     name="Data Hub companies MCP server",
