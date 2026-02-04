@@ -19,7 +19,7 @@ from mohawk import Sender
 from opensearchpy import OpenSearch
 from sklearn.metrics.pairwise import cosine_similarity
 from waffle.decorators import waffle_flag
-from mcp.client.streamable_http import streamable_http_client
+from mcp.client.streamable_http import streamablehttp_client
 from mcp import ClientSession
 from langchain_mcp_adapters.tools import load_mcp_tools
 
@@ -396,7 +396,7 @@ async def fetch_mcp_tools(mcp_url: str) -> list[StructuredTool]:
     Load structured LangChain tools asynchronously.
     The input schema is retrieved dynamically from MCP server.
     """
-    async with streamable_http_client(mcp_url) as (read, write, _), ClientSession(read, write) as session:
+    async with streamablehttp_client(mcp_url) as (read, write, _), ClientSession(read, write) as session:
         await session.initialize()
         raw_tools = await load_mcp_tools(session)
 
