@@ -22,6 +22,7 @@ django-log-formatter-asim = "^1.2.0"
 django-requestlogs = "^0.8"
 openpyxl = "^3.1.5"
 coverage = "^7.13.1"
+fastmcp = "^2.14.5"
 
 [tool.poetry.group.dev.dependencies]
 bumpversion = "^0.6.0"

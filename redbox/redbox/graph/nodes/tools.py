@@ -13,12 +13,15 @@ from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.messages import ToolCall
-from langchain_core.tools import Tool, tool
+from langchain_core.tools import Tool, tool, StructuredTool
 from langgraph.prebuilt import InjectedState
 from mohawk import Sender
 from opensearchpy import OpenSearch
 from sklearn.metrics.pairwise import cosine_similarity
 from waffle.decorators import waffle_flag
+from mcp.client.streamable_http import streamablehttp_client
+from mcp import ClientSession
+from langchain_mcp_adapters.tools import load_mcp_tools
 
 from redbox.api.format import format_documents
 from redbox.chains.components import get_embeddings
@@ -386,6 +389,23 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
         return format_documents(docs), docs
 
     return _search_wikipedia
+
+
+async def fetch_mcp_tools(mcp_url: str) -> list[StructuredTool]:
+    """
+    Load structured LangChain tools asynchronously.
+    The input schema is retrieved dynamically from MCP server.
+    """
+    async with streamablehttp_client(mcp_url) as (read, write, _), ClientSession(read, write) as session:
+        await session.initialize()
+        raw_tools = await load_mcp_tools(session)
+
+    for t in raw_tools:
+        meta = t.metadata or {}
+        meta["mcp_url"] = mcp_url
+        t.metadata = meta
+
+    return raw_tools
 
 
 @waffle_flag("DATA_HUB_API_ROUTE_ON")
