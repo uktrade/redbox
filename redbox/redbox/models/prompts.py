@@ -239,8 +239,6 @@ Execution Strategy:
    - Make a targeted, focused tool call
 4. Produce the expected output with maximum accuracy and efficiency. Only use information obtained from tools.
 """
-
-PREVIOUS_AGENT_RESULTS = """<Previous_Agents_Results>{previous_agents_results}</Previous_Agents_Results>"""
 METADATA = """<Document_Metadata>{metadata}</Document_Metadata>"""
 KNOWLEDGE_BASE_METADTA = """<Knowledge_Base_Metadata>{knowledge_base_metadata}</Knowledge_Base_Metadata> <Tabular_Knowledge_Base_Metadata>{tabular_knowledge_base_metadata}</Tabular_Knowledge_Base_Metadata>"""
 
@@ -261,11 +259,9 @@ Execution Strategy:
    - Select the most precise tool to fill that gap
    - Make a targeted, focused tool call
 2. Produce the expected output with maximum accuracy and efficiency. Only use information obtained from tools.
-
 """
 
 WEB_SEARCH_AGENT_PROMPT = """You are WebSearchAgent, an AI assistant designed to search websites based on user questions. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
-
 Guidelines for Tool Usage:
 1. Please use the available tools to perform multiple parallel tool calls to gather all necessary information.
 Decision-Making Process:
@@ -281,7 +277,6 @@ Handling Ambiguity: Request clarification when queries are ambiguous or lack spe
 Operational Parameters:
 When a user provides a website, focus your search exclusively on that domain
 Always prioritize official, authoritative sources within the specified domain
-
 """
 
 LEGISLATION_SEARCH_AGENT_PROMPT = """
@@ -302,7 +297,6 @@ Handling Ambiguity: Request clarification when queries are ambiguous or lack spe
 Operational Parameters:
 When a user specifies the legislation.gov.uk website, or when you determine that the legislation.gov.uk website may contain relevant information to the users question
 Always prioritize official, authoritative sources within the specified domain
-
 """
 
 INTERNAL_RETRIEVAL_AGENT_DESC = """
@@ -384,7 +378,7 @@ Use instead of the Internal_Retrieval_Agent when the selected documents are tabu
 
 SUMMARISATION_AGENT_DESC = """
 **Summarisation_Agent**:
-Purpose: Document summarization only. This agent streams result directly to user, so cannot be requisition of other agents.
+Purpose: Document summarization only
 Use when the user wants to:
 - Get a summary of an entire document
 - Create an executive summary
