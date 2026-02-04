@@ -1,9 +1,5 @@
 import os
 
-from fastmcp import FastMCP
-from fastmcp.exceptions import ValidationError
-from starlette.responses import JSONResponse
-
 from data_hub_mcp.experiments.nested.data_classes_prop import (
     CompanyEnrichmentSearchResult,
     SectorGroupedCompanySearchResult,
@@ -17,6 +13,9 @@ from data_hub_mcp.experiments.nested.db_ops_prop import (
     get_sector_investment_projects,
     get_sector_overview,
 )
+from fastmcp import FastMCP
+from fastmcp.exceptions import ValidationError
+from starlette.responses import JSONResponse
 
 NoCompanyOrSectorError = ValidationError("No company or sector provided")
 
@@ -45,7 +44,7 @@ async def config():
     name="greet",
     description="Basic example tool useful for testing.",
     tags={"testing"},
-    meta={"version": "1.0", "author": "Doug Mills"},
+    meta={"version": "1.0", "author": "Harry Wixley"},
 )
 async def greet(name: str) -> str:
     return f"Hello, {name}!"
@@ -55,7 +54,7 @@ async def greet(name: str) -> str:
     name="company_details",
     description="Query companies based on company name",
     tags={"data_hub", "companies", "search"},
-    meta={"version": "1.0", "author": "Doug Mills"},
+    meta={"version": "1.0", "author": "Harry Wixley"},
 )
 async def company_details(
     company_name: str,
@@ -83,7 +82,7 @@ async def company_details(
     name="related_company_details",
     description="Fetch companies related by sector or a given company's sector, with optional enrichment",
     tags={"data_hub", "companies", "related", "search"},
-    meta={"version": "1.0", "author": "Doug Mills"},
+    meta={"version": "1.0", "author": "Harry Wixley"},
 )
 async def related_company_details(
     sector_name: str | None = None,
@@ -117,7 +116,7 @@ async def related_company_details(
     name="sector_overview",
     description="Aggregate high-level metrics for a sector (companies, turnover, employees, investments, GVA)",
     tags={"data_hub", "sector", "overview"},
-    meta={"version": "1.0", "author": "Doug Mills"},
+    meta={"version": "1.0", "author": "Harry Wixley"},
 )
 async def sector_overview(
     sector_name: str | None = None,
@@ -140,7 +139,7 @@ async def sector_overview(
     name="sector_investment_projects",
     description="Fetch investment projects in a sector, including their economic impact and status",
     tags={"data_hub", "sector", "investment"},
-    meta={"version": "1.0", "author": "Doug Mills"},
+    meta={"version": "1.0", "author": "Harry Wixley"},
 )
 async def sector_investment_projects(
     sector_name: str | None = None,

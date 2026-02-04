@@ -1,10 +1,6 @@
 import logging
 import os
 
-from sa_models import AccountManagementObjectives, Company, Interaction, InvestmentProjects
-from sqlalchemy import create_engine, inspect, or_
-from sqlalchemy.orm import Session
-
 from data_hub_mcp.experiments.nested.data_classes_prop import (
     AccountManagementObjective,
     AccountManagementObjectivesSearchResult,
@@ -24,6 +20,9 @@ from data_hub_mcp.experiments.nested.data_classes_prop import (
     SectorInvestmentProject,
     SectorOverviewGroup,
 )
+from sa_models import AccountManagementObjectives, Company, Interaction, InvestmentProjects
+from sqlalchemy import create_engine, inspect, or_
+from sqlalchemy.orm import Session
 
 logging.basicConfig(
     level=logging.INFO,
