@@ -398,8 +398,6 @@ async def fetch_mcp_tools(mcp_url: str) -> list[StructuredTool]:
     """
     async with streamable_http_client(mcp_url) as (read, write, _), ClientSession(read, write) as session:
         await session.initialize()
-
-        # Load raw tools from MCP
         raw_tools = await load_mcp_tools(session)
 
     for t in raw_tools:
