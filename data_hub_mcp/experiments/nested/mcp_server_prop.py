@@ -1,7 +1,7 @@
 import os
 
-from exceptions import NoCompanyOrSectorError
 from fastmcp import FastMCP
+from fastmcp.exceptions import ValidationError
 from starlette.responses import JSONResponse
 
 from data_hub_mcp.experiments.nested.data_classes_prop import (
@@ -17,6 +17,8 @@ from data_hub_mcp.experiments.nested.db_ops_prop import (
     get_sector_investment_projects,
     get_sector_overview,
 )
+
+NoCompanyOrSectorError = ValidationError("No company or sector provided")
 
 mcp = FastMCP(
     name="Data Hub companies MCP server",
