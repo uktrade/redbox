@@ -1,25 +1,16 @@
+import logging
 import os
 
-from data_classes import (
-    AccountManagementObjectivesSearchResult,
-    CompaniesOrInteractionSearchResult,
-    CompanyDetails,
-    CompanyInteractionSearchResult,
-    CompanySearchResult,
-    InvestmentProjectsSearchResult,
-)
-from db_ops import (
-    db_check,
-    get_account_management_objectives,
-    get_companies,
-    get_companies_or_interactions,
-    get_company,
-    get_company_interactions,
-    get_investment_projects,
-)
+import httpx
+from data_classes import (AccountManagementObjectivesSearchResult,
+                          CompaniesOrInteractionSearchResult, CompanyDetails,
+                          CompanyInteractionSearchResult, CompanySearchResult,
+                          InvestmentProjectsSearchResult)
+from db_ops import (db_check, get_account_management_objectives, get_companies,
+                    get_companies_or_interactions, get_company,
+                    get_company_interactions, get_investment_projects)
 from fastmcp import FastMCP
-
-# from fastmcp.server.auth.providers.auth0 import Auth0Provider
+from fastmcp.server.auth import AccessToken, TokenVerifier
 from starlette.responses import JSONResponse
 
 # load_dotenv()
@@ -32,11 +23,69 @@ from starlette.responses import JSONResponse
 #     base_url=os.getenv("AUTHBROKER_BASE_URL"),  # Must match your application configuration
 # )
 
+
+logger = logging.getLogger(__name__)
+
+
+SSO_INTROSPECTION_URL = os.getenv("SSO_INTROSPECTION_URL")
+INTROSPECTION_TOKEN = os.getenv("INTROSPECTION_TOKEN")
+AUTH_ENABLED = os.getenv("MCP_AUTH_ENABLED", True)
+http_client = httpx.AsyncClient(timeout=5.0)
+
+class SSOIntrospectionVerifier(TokenVerifier):
+    def __init__(self, introspection_url: str, introspection_token: str):
+        super().__init__()
+        self._introspection_url = introspection_url
+        self._introspection_token = introspection_token
+        self._client = httpx.AsyncClient(timeout=5.0)
+
+    async def verify_token(self, token: str) -> AccessToken | None:
+        if not self._introspection_url or not self._introspection_token:
+            return None
+        try:
+            response = await self._client.post(
+                self._introspection_url,
+                data={"token": token},
+                headers={"Authorization": f"Bearer {self._introspection_token}"},
+            )
+        except httpx.HTTPError as exc:
+            logger.warning("SSO communication failure: %s", exc)
+            return None
+
+        if response.status_code not in (200, 401):
+            logger.warning("SSO introspection failed: %s", response.status_code)
+            return None
+
+        token_data = response.json()
+        if not token_data or not token_data.get("active"):
+            return None
+
+        scopes = str(token_data.get("scope", "")).split()
+        client_id = token_data.get("client_id") or "sso"
+        expires_at = token_data.get("exp")
+        resource = token_data.get("aud") if isinstance(token_data.get("aud"), str) else None
+
+        return AccessToken(
+            token=token,
+            client_id=client_id,
+            scopes=scopes,
+            expires_at=expires_at,
+            resource=resource,
+            claims=token_data,
+        )
+    
+if AUTH_ENABLED:
+    auth_provider = SSOIntrospectionVerifier(SSO_INTROSPECTION_URL, INTROSPECTION_TOKEN)
+else:
+    auth_provider = None
+
 mcp = FastMCP(
-    name="Data Hub companies MCP server",
-    stateless_http=True,
-    json_response=True,
+    name = "Data Hub MCP Server",
+    stateless_http = True,
+    json_response = True,
+    auth = auth_provider
 )
+
 
 
 @mcp.custom_route("/health", methods=["GET"])
