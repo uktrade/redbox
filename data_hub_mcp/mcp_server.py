@@ -1,9 +1,8 @@
-import os
-
 from data_classes import (
     AccountManagementObjectivesSearchResult,
     CompaniesOrInteractionSearchResult,
     CompanyDetails,
+    CompanyDetailsExtended,
     CompanyInteractionSearchResult,
     CompanySearchResult,
     InvestmentProjectsSearchResult,
@@ -48,11 +47,6 @@ async def health_check():
     return JSONResponse({"status": "healthy", "service": "mcp-server", "db_access_status": db_status})
 
 
-@mcp.custom_route("/config", methods=["GET"])
-async def config():
-    return JSONResponse({"env": str(os.environ)})
-
-
 @mcp.tool(
     name="greet",  # Custom tool name for the LLM
     description="Basic example tool useful for testing.",  # Custom description
@@ -84,11 +78,20 @@ async def company_details(company_id: str) -> CompanyDetails | None:
 
 
 @mcp.tool(
+    name="company_details_extended",
+    description="Full details of a company, related interactions, account management "
+    "objectives and investment projects",
+    tags={"data_hub", "companies", "interactions", "objectives", "investment projects"},
+    meta={"version": "1.0", "author": "Doug Mills"},
+)
+async def company_details_extended(company_id: str) -> CompanyDetailsExtended | None:
+    return get_company(company_id)
+
+
+@mcp.tool(
     name="companies_or_interactions",
-    description="""
-Query companies, and will return interactions on a single result,
-or a list of companies of there are multiple matches
-""",
+    description="Query companies, and will return interactions on a single result, "
+    "or a list of companies of there are multiple matches",
     tags={"data_hub", "companies_or_interactions"},
     meta={"version": "1.0", "author": "Doug Mills"},
 )

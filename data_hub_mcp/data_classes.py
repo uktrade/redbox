@@ -407,3 +407,10 @@ class InvestmentProjectsSearchResult:
     total: int
     page: int
     page_size: int
+
+
+@dataclass
+class CompanyDetailsExtended(CompanyDetails):
+    investment_projects: list[InvestmentProject]
+    interactions: list[CompanyInteraction]
+    account_management_objectives: list[AccountManagementObjective]

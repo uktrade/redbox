@@ -26,8 +26,6 @@ class Company(Base):
     address_postcode = Column("address_postcode", String(200))
     address_area_name = Column("address_area_name", String(200))
     address_town = Column("address_town", String(200))
-    archived = Column("archived", Boolean)
-    archived_on = Column("archived_on", DateTime, nullable=True)
     business_type = Column("business_type", String(200))
     company_number = Column("company_number", String(200))
     created_on = Column("created_on", Date)
@@ -38,15 +36,10 @@ class Company(Base):
     global_ultimate_duns_number = Column("global_ultimate_duns_number", String(200))
     headquarter_type = Column("headquarter_type", String(200))
     id = Column("id", UUID, primary_key=True)
-    is_number_of_employees_estimated = Column("is_number_of_employees_estimated", Boolean, nullable=True)
-    is_turnover_estimated = Column("is_turnover_estimated", Boolean, nullable=True)
     modified_on = Column("modified_on", DateTime, nullable=True)
     name = Column("name", String(250))
     number_of_employees = Column("number_of_employees", Integer, nullable=True)
-    one_list_account_owner_id = Column("one_list_account_owner_id", UUID, nullable=True)
-    one_list_core_team_adviser_ids = Column("one_list_core_team_adviser_ids", ARRAY(UUID))
     one_list_tier = Column("one_list_tier", String(100))
-    cdms_reference_code = Column("cdms_reference_code", String(200))
     registered_address_1 = Column("registered_address_1", String(100))
     registered_address_2 = Column("registered_address_2", String(100))
     registered_address_country = Column("registered_address_country", String(100))
@@ -62,58 +55,30 @@ class Company(Base):
     turnover_usd = Column("turnover_usd", BigInteger, nullable=True)
     turnover_gbp = Column("turnover_gbp", BigInteger, nullable=True)
     uk_region = Column("uk_region", String(100))
-    vat_number = Column("vat_number", String(300))
     website = Column("website", String(300))
-    archived_reason = Column("archived_reason", String, nullable=True)
-    created_by_id = Column("created_by_id", UUID, nullable=True)
     is_out_of_business = Column("is_out_of_business", Boolean)
     strategy = Column("strategy", String, nullable=True)
     source = Column("source", String(200))
 
 
-class Interaction(Base):
-    __tablename__ = "interactions"
-
-    id = Column("id", Integer, primary_key=True, autoincrement=True)
-    team_region = Column("team_region", String(100))
-    team_country = Column("team_country", String(100))
-    interaction_year = Column("interaction_year", Integer, nullable=True)
-    interaction_financial_year = Column("interaction_financial_year", String(50))
-    company_name = Column("company_name", String(300))
-    company_sector = Column("company_sector", String(300))
-    date_of_interaction = Column("date_of_interaction", Date)
-    interaction_subject = Column("interaction_subject", String())
-    interaction_theme_investment_or_export = Column("interaction_theme_investment_or_export", String)
-    adviser_name = Column("adviser_name", String)
-    team_name = Column("team_name", String)
-
-    company_id = Column("company_id", UUID, ForeignKey(Company.id))
-    company = relationship("Company", foreign_keys="Interaction.company_id")
-
-
-class InvestmentProjects(Base):
+class InvestmentProject(Base):
     __tablename__ = "investment_projects"
 
     actual_land_date = Column("actual_land_date", Date, nullable=True)
     actual_uk_regions = Column("actual_uk_regions", String(100))
     address_1 = Column("address_1", String)
     address_2 = Column("address_2", String)
-    address_county = Column("address_county", String(100))
-    address_country = Column("address_country", String(100))
+    # address_county = Column("address_county", String(100))
+    # address_country = Column("address_country", String(100))
     address_town = Column("address_town", String(100))
     address_postcode = Column("address_postcode", String(100))
     anonymous_description = Column("anonymous_description", String)
     associated_non_fdi_r_and_d_project_id = Column("associated_non_fdi_r_and_d_project_id", String)
     average_salary = Column("average_salary", String(100))
     business_activities = Column("business_activities", ARRAY(String(100)))
-    client_relationship_manager_id = Column("client_relationship_manager_id", UUID, nullable=True)
     client_requirements = Column("client_requirements", String, nullable=True)
-    client_contact_ids = Column("client_contact_ids", ARRAY(UUID))
-    client_contact_names = Column("client_contact_names", ARRAY(String(100)))
-    client_contact_emails = Column("client_contact_emails", ARRAY(String(200)))
     competing_countries = Column("competing_countries", ARRAY(String(100)), nullable=True)
     country_investment_originates_from = Column("country_investment_originates_from", String(100), nullable=True)
-    created_by_id = Column("created_by_id", UUID, nullable=True)
     created_on = Column("created_on", DateTime, nullable=True)
     delivery_partners = Column("delivery_partners", ARRAY(String(100)))
     description = Column("description", String)
@@ -128,12 +93,11 @@ class InvestmentProjects(Base):
     gva_multiplier = Column("gva_multiplier", Float, nullable=True)
     id = Column("id", UUID, primary_key=True)
     investment_type = Column("investment_type", String(100), nullable=True)
-    investor_company_id = Column("investor_company_id", UUID, nullable=True)
+    # investor_company_id = Column("investor_company_id", UUID, nullable=True)
     investor_company_sector = Column("investor_company_sector", String(100), nullable=True)
     investor_type = Column("investor_type", String(100), nullable=True)
     level_of_involvement = Column("level_of_involvement", String(100), nullable=True)
     likelihood_to_land = Column("likelihood_to_land", String(100), nullable=True)
-    modified_by_id = Column("modified_by_id", UUID, nullable=True)
     modified_on = Column("modified_on", DateTime, nullable=True)
     name = Column("name", String(300), nullable=True)
     new_tech_to_uk = Column("new_tech_to_uk", Boolean, nullable=True)
@@ -142,9 +106,7 @@ class InvestmentProjects(Base):
     number_safeguarded_jobs = Column("number_safeguarded_jobs", Integer, nullable=True)
     other_business_activity = Column("other_business_activity", String, nullable=True)
     project_arrived_in_triage_on = Column("project_arrived_in_triage_on", DateTime, nullable=True)
-    project_assurance_adviser_id = Column("project_assurance_adviser_id", UUID, nullable=True)
     project_moved_to_won = Column("project_moved_to_won", DateTime, nullable=True)
-    project_manager_id = Column("project_manager_id", UUID, nullable=True)
     project_reference = Column("project_reference", String(100), nullable=True)
     proposal_deadline = Column("proposal_deadline", Date, nullable=True)
     r_and_d_budget = Column("r_and_d_budget", Boolean, nullable=True)
@@ -156,17 +118,56 @@ class InvestmentProjects(Base):
     stage = Column("stage", String(100), nullable=True)
     status = Column("status", String(100), nullable=True)
     strategic_drivers = Column("strategic_drivers", ARRAY(String(100)))
-    team_member_ids = Column("team_member_ids", ARRAY(UUID))
     total_investment = Column("total_investment", BigInteger, nullable=True)
     uk_company_sector = Column("uk_company_sector", String(100), nullable=True)
     possible_uk_regions = Column("possible_uk_regions", ARRAY(String(100)))
     eyb_lead_ids = Column("eyb_lead_ids", String(100), nullable=True)
 
     uk_company_id = Column("uk_company_id", UUID, ForeignKey(Company.id), nullable=True)
-    company = relationship("Company", foreign_keys="InvestmentProjects.uk_company_id")
+    company = relationship("Company", foreign_keys="InvestmentProject.uk_company_id")
+
+    investor_company_id = Column("investor_company_id", UUID, ForeignKey(Company.id), nullable=True)
+    investor_company = relationship("Company", foreign_keys="InvestmentProject.investor_company_id")
 
 
-class AccountManagementObjectives(Base):
+class Interaction(Base):
+    __tablename__ = "interactions"
+
+    communication_channel = Column("communication_channel", String, nullable=True)
+    company_export_id = Column("company_export_id", UUID, nullable=True)
+    created_on = Column("created_on", DateTime)
+    interaction_date = Column("interaction_date", Date)
+    id = Column("id", UUID, primary_key=True)
+    interaction_link = Column("interaction_link", String, nullable=True)
+
+    interaction_kind = Column("interaction_kind", String, nullable=True)
+    modified_on = Column("modified_on", DateTime)
+    net_company_receipt = Column("net_company_receipt", Float, nullable=True)
+    interaction_notes = Column("interaction_notes", String, nullable=True)
+    sector = Column("sector", String)
+    service_delivery_status = Column("service_delivery_status", String)
+    service_delivery = Column("service_delivery", String)
+    interaction_subject = Column("interaction_subject", String)
+    theme = Column("theme", String)
+    policy_feedback_notes = Column("policy_feedback_notes", String)
+    policy_areas = Column("policy_areas", ARRAY(String), nullable=True)
+    policy_issue_types = Column("policy_issue_types", ARRAY(String), nullable=True)
+    were_countries_discussed = Column("were_countries_discussed", Boolean, nullable=True)
+    related_trade_agreement_names = Column("related_trade_agreement_names", ARRAY(String), nullable=True)
+    export_barrier_type_names = Column("export_barrier_type_names", ARRAY(String), nullable=True)
+    export_barrier_notes = Column("export_barrier_notes", String, nullable=True)
+    dbt_initiative = Column("dbt_initiative", String, nullable=True)
+    export_challenge_type = Column("export_challenge_type", String, nullable=True)
+    interaction_type = Column("interaction_type", String, nullable=True)
+
+    investment_project_id = Column("investment_project_id", UUID, ForeignKey(InvestmentProject.id), nullable=True)
+    investment_project = relationship("InvestmentProject", foreign_keys="Interaction.investment_project_id")
+
+    company_id = Column("company_id", UUID, ForeignKey(Company.id))
+    company = relationship("Company", foreign_keys="Interaction.company_id")
+
+
+class AccountManagementObjective(Base):
     __tablename__ = "account_management_objectives"
 
     id = Column("id", UUID, primary_key=True)
@@ -178,8 +179,6 @@ class AccountManagementObjectives(Base):
     progress = Column("progress", Integer, nullable=True)
     created_on = Column("created_on", DateTime, nullable=True)
     modified_on = Column("modified_on", DateTime, nullable=True)
-    created_by_id = Column("created_by_id", UUID, nullable=True)
-    modified_by_id = Column("modified_by_id", UUID, nullable=True)
 
     company_id = Column("company_id", UUID, ForeignKey(Company.id))
-    company = relationship("Company", foreign_keys="AccountManagementObjectives.company_id")
+    company = relationship("Company", foreign_keys="AccountManagementObjective.company_id")
