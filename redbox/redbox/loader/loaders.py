@@ -1,30 +1,27 @@
 import logging
 import time
-import json
-from collections.abc import Iterator
 from datetime import UTC, datetime
 from io import BytesIO
-from typing import TYPE_CHECKING, List, Tuple, Optional
+from typing import TYPE_CHECKING, List, Tuple
 
 import environ
 import fitz
-import requests
-from requests.exceptions import RequestException
 
 from langchain_core.documents import Document
-from langchain_core.prompts import PromptTemplate
 from pydantic import ValidationError
 from redbox_app.setting_enums import Environment
 
 from redbox.chains.components import get_chat_llm
-from redbox.chains.parser import ClaudeParser
 from redbox.models.chain import GeneratedMetadata
-from redbox.models.file import ChunkResolution, UploadedFileMetadata, TabularSchema
+from redbox.models.file import TabularSchema
 from redbox.models.settings import Settings
 from redbox.transform import bedrock_tokeniser
 import pandas as pd
 import math
-import time as _time
+import boto3
+from typing import Iterator
+
+from docx import Document as DocxDocument
 
 env = environ.Env()
 ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
@@ -157,266 +154,156 @@ def load_tabular_file(file_name: str, file_bytes: BytesIO) -> list[dict[str, str
     return elements if elements else []
 
 
-class UnstructuredChunkLoader:
+class TextractChunkLoader:
     """
-    Load, partition and chunk a document using local unstructured library.
-
-    Notes:
-    - Large PDFs - split into smaller PDF files and call the API per chunk
-    - Image heavy PDFs - we avoid the fast strategy to prevent the "fast not available for image files" error
-    - Exponential backoff for transient errors
+    Load, partition and chunk a document using:
+    - Textract for PDFs
+    - python-docx for DOCX.
     """
 
     def __init__(
         self,
-        chunk_resolution: ChunkResolution,
-        env: Settings,
-        min_chunk_size: int,
-        max_chunk_size: int,
-        metadata: GeneratedMetadata | None = None,
-        overlap_chars: int = 0,
-        overlap_all_chunks: bool = True,
-        request_timeout: int = 480,
-        max_retries: int = 3,
-        pages_per_pdf_chunk: int = 75,
+        bucket: str,
+        min_chunk_size: int = 500,
+        max_chunk_size: int = 2000,
+        overlap_chars: int = 200,
+        region: str = "eu-west-2",
     ):
-        self.chunk_resolution = chunk_resolution
-        self.env = env
-        self._min_chunk_size = min_chunk_size
-        self._max_chunk_size = max_chunk_size
-        self._overlap_chars = overlap_chars
-        self._overlap_all_chunks = overlap_all_chunks
-        self.metadata = metadata or GeneratedMetadata(name="", description="", keywords=[])
-        self.request_timeout = request_timeout
-        self.max_retries = max_retries
-        self.pages_per_pdf_chunk = pages_per_pdf_chunk
+        self.bucket = bucket
+        self.textract = boto3.client("textract", region_name=region)
+        self.s3 = boto3.client("s3", region_name=region)
 
-    def _get_chunks(self, file_name: str, file_bytes: BytesIO) -> List[dict]:
-        """Helper method to perform chunking via the unstructured API with robust fallback behaviour."""
-        if ENVIRONMENT.is_local:
-            url = f"http://{self.env.unstructured_host}:8000/general/v0/general"
+        self.min_chunk_size = min_chunk_size
+        self.max_chunk_size = max_chunk_size
+        self.overlap_chars = overlap_chars
+
+    def _extract_docx(self, file_bytes: BytesIO) -> List[str]:
+        doc = DocxDocument(file_bytes)
+        text = "\n".join(p.text for p in doc.paragraphs)
+        return [text]
+
+    def _upload_to_s3(self, file_name: str, file_bytes: BytesIO):
+        file_bytes.seek(0)
+        self.s3.put_object(Bucket=self.bucket, Key=f"ingest/{file_name}", Body=file_bytes)
+
+    def _start_textract_job(self, file_name: str) -> str:
+        response = self.textract.start_document_text_detection(
+            DocumentLocation={
+                "S3Object": {
+                    "Bucket": self.bucket,
+                    "Name": f"ingest/{file_name}",
+                }
+            }
+        )
+        return response["JobId"]
+
+    def _wait_for_job(self, job_id: str):
+        while True:
+            response = self.textract.get_document_text_detection(JobId=job_id)
+            status = response["JobStatus"]
+
+            if status in ["SUCCEEDED", "FAILED"]:
+                return status
+
+            time.sleep(3)
+
+    def _get_textract_results(self, job_id: str) -> List[str]:
+        pages: dict[int, List[str]] = {}
+        next_token = None
+
+        while True:
+            kwargs = {"JobId": job_id}
+            if next_token:
+                kwargs["NextToken"] = next_token
+
+            response = self.textract.get_document_text_detection(**kwargs)
+
+            for block in response.get("Blocks", []):
+                if block["BlockType"] == "LINE":
+                    page = block.get("Page", 1)
+                    pages.setdefault(page, []).append(block["Text"])
+
+            next_token = response.get("NextToken")
+            if not next_token:
+                break
+
+        return ["\n".join(pages[p]) for p in sorted(pages)]
+
+    def _extract_pdf(self, file_name: str, file_bytes: BytesIO) -> List[str]:
+        self._upload_to_s3(file_name, file_bytes)
+
+        job_id = self._start_textract_job(file_name)
+
+        status = self._wait_for_job(job_id)
+
+        if status != "SUCCEEDED":
+            raise RuntimeError(f"Textract failed for {file_name}")
+
+        return self._get_textract_results(job_id)
+
+    def _chunk_text(self, text: str) -> List[str]:
+        chunks = []
+        start = 0
+        length = len(text)
+
+        while start < length:
+            end = min(start + self.max_chunk_size, length)
+            chunk = text[start:end]
+
+            if len(chunk) >= self.min_chunk_size:
+                chunks.append(chunk)
+
+            start = end - self.overlap_chars
+
+        return chunks
+
+    def _extract_pdf_from_s3(self, bucket: str, key: str) -> list[str]:
+        response = self.textract.start_document_text_detection(
+            DocumentLocation={
+                "S3Object": {
+                    "Bucket": bucket,
+                    "Name": key,
+                }
+            }
+        )
+
+        job_id = response["JobId"]
+
+        self._wait_for_job(job_id)
+
+        return self._get_textract_results(job_id)
+
+    def lazy_load(
+        self,
+        file_name: str,
+        s3_bucket: str,
+        s3_key: str,
+        file_bytes: BytesIO | None = None,
+    ) -> Iterator[Document]:
+        if file_name.lower().endswith(".docx"):
+            if file_bytes is None:
+                raise ValueError("DOCX requires file_bytes")
+            pages = self._extract_docx(file_bytes)
         else:
-            url = f"http://{self.env.unstructured_host}/general/v0/general"
+            pages = self._extract_pdf_from_s3(bucket=s3_bucket, key=s3_key)
 
-        is_large, page_count = is_large_pdf(file_name=file_name, filebytes=file_bytes)
-        is_tabular = file_name.endswith((".csv", ".xls", ".xlsx"))
+        index = 0
 
-        if is_large and page_count > 0:
-            logger.info(
-                "Large PDF with (%d pages) - splitting into chunks with %d pages", page_count, self.pages_per_pdf_chunk
-            )
-            elements: List[dict] = []
-            pdf_chunks = split_pdf(filebytes=file_bytes, pages_per_chunk=self.pages_per_pdf_chunk)
-            for idx, chunk in enumerate(pdf_chunks):
-                chunk.seek(0)
-                files = {"files": (file_name, chunk)}
-                try:
-                    chunk_elements = self._post_files_with_fallback(
-                        url=url, files=files, file_name=file_name, file_bytes=chunk
-                    )
-                except Exception as e:
-                    msg = f"Chunk {idx + 1} failed: {e}"
-                    logger.exception(msg)
-                    raise ValueError(msg)
-                elements.extend(chunk_elements)
-            logger.debug("Unstructured returned %d elements", len(elements))
-            return elements
+        for page_num, page_text in enumerate(pages, start=1):
+            chunks = self._chunk_text(page_text)
 
-        elif is_tabular and self.chunk_resolution == ChunkResolution.tabular:
-            # Carry out the special ingest process for tabular files - will be carried out in addition to
-            elements = load_tabular_file(file_name=file_name, file_bytes=file_bytes)
-            logger.debug("Unstructured returned %d elements", len(elements))
-            return elements
+            for chunk in chunks:
+                metadata = {
+                    "index": index,
+                    "uri": file_name,
+                    "page_number": page_num,
+                    "created_datetime": datetime.now(UTC),
+                    "token_count": len(chunk.split()),
+                }
 
-        try:
-            file_bytes.seek(0)
-        except Exception as e:
-            logger.warning("Unable to seek file %s before upload - %s", file_name, str(e))
+                yield Document(page_content=chunk, metadata=metadata)
 
-        files = {"files": (file_name, file_bytes)}
-        elements = self._post_files_with_fallback(url=url, files=files, file_name=file_name, file_bytes=file_bytes)
-        if not elements:
-            raise ValueError("Unstructured failed to extract text for this file")
-        logger.debug("Unstructured returned %d elements", len(elements))
-        return elements
-
-    def _post_files_with_fallback(self, url: str, files: dict, file_name: str, file_bytes: BytesIO) -> List[dict]:
-        try:
-            file_bytes.seek(0)
-        except Exception as e:
-            logger.warning("Unable to seek file %s before upload - %s", file_name, e)
-
-        # build default data payload
-        base_data = {
-            "chunking_strategy": "by_title",
-            "max_characters": self._max_chunk_size,
-            "combine_under_n_chars": self._min_chunk_size,
-            "overlap": self._overlap_chars,
-            "overlap_all": str(self._overlap_all_chunks).lower(),
-            "infer_table_structure": "true",
-        }
-
-        # detect if file is an image-heavy pdf
-        lower_name = file_name.lower()
-        is_pdf_image_heavy = False
-        if lower_name.endswith(".pdf"):
-            try:
-                is_pdf_image_heavy = _pdf_is_image_heavy(file_bytes)
-            except Exception:
-                is_pdf_image_heavy = False
-
-        logger.debug("file %s pdf_image_heavy=%s", file_name, is_pdf_image_heavy)
-
-        candidate_data_payloads = []
-
-        # try fast strategy first
-        if not is_pdf_image_heavy:
-            candidate_data_payloads.append({**base_data, "strategy": "fast"})
-        # then fallback 1 let unstructured pick the strategy
-        candidate_data_payloads.append({**base_data})
-        # then fallback 2 conservative chunking
-        candidate_data_payloads.append({**base_data, "infer_table_structure": "false"})
-
-        last_exc = None
-        for attempt, data in enumerate(candidate_data_payloads, start=1):
-            for retry in range(self.max_retries):
-                try:
-                    file_bytes.seek(0)
-                    logger.info(
-                        "calling Unstructured API - attempt %d.%d for %s with payload keys=%s",
-                        attempt,
-                        retry + 1,
-                        file_name,
-                        list(data.keys()),
-                    )
-                    resp = requests.post(url, files=files, data=data, timeout=self.request_timeout)
-                    status = resp.status_code
-                    text = resp.text or ""
-                    try:
-                        json_body = resp.json()
-                    except Exception:
-                        json_body = None
-
-                    if status == 200:
-                        try:
-                            elements = resp.json()
-                        except Exception as parse_exc:
-                            logger.exception("Failed parsing Unstructured JSON - %s", parse_exc)
-                            try:
-                                elements = json.loads(resp.text)
-                            except Exception as fallback_exc:
-                                raise ValueError("Failed to parse Unstructured JSON response") from fallback_exc
-
-                        if not isinstance(elements, list):
-                            logger.warning("Unstructured responded with unexpected payload type - %s", type(elements))
-                            raise ValueError("Unexpected payload from Unstructured")
-                        return elements
-
-                    detail_msg = ""
-                    if isinstance(json_body, dict):
-                        detail_msg = json_body.get("detail", "") or json_body.get("error", "")
-                    if "fast strategy" in text.lower() or "fast strategy" in str(detail_msg).lower():
-                        logger.warning(
-                            "Unstructured server reported fast strategy unavailable so trying fallback payloads"
-                        )
-                        last_exc = ValueError(f"Unstructured error - {resp.status_code} {resp.text}")
-                        break
-
-                    if 400 <= status < 500:
-                        logger.error("Unstructured returned client error %d - %s", status, resp.text)
-                        last_exc = ValueError(f"Client error {status} - {resp.text}")
-                        break
-
-                    if status >= 500:
-                        logger.warning(
-                            "Server error %d from Unstructured, will retry - response was: %s", status, resp.text[:200]
-                        )
-                        last_exc = RequestException(f"Server error {status}")
-                        _time.sleep((2**retry) * 0.5)
-                        continue
-
-                    last_exc = ValueError(f"Unexpected status {status} - {resp.text}")
-                    break
-
-                except RequestException as re:
-                    logger.warning("RequestException communicating with Unstructured - %s", re)
-                    last_exc = re
-                    _time.sleep((2**retry) * 0.5)
-                    continue
-            else:
-                logger.debug("Exhausted retries for payload moving to next approach")
-                continue
-            continue
-
-        # if we're at this point everything failed
-        logger.exception("All Unstructured requests failed for file %s. Last exception: %s", file_name, last_exc)
-        raise last_exc or RuntimeError("Unstructured requests failed without a recorded exception")
-
-    def lazy_load(self, file_name: str, file_bytes: BytesIO) -> Iterator[Document]:
-        """A lazy loader that reads a file line by line.
-
-        When you're implementing lazy load methods, you should use a generator
-        to yield documents one by one.
-        """
-        elements = self._get_chunks(file_name, file_bytes)
-
-        for i, raw_chunk in enumerate(elements):
-            raw_metadata = raw_chunk.get("metadata") or {}
-            page_number = raw_metadata.get("page_number") or 1
-
-            token_count = tokeniser(raw_chunk.get("text", ""))
-            uploaded_meta = UploadedFileMetadata(
-                index=i,
-                uri=file_name,
-                page_number=page_number,
-                created_datetime=datetime.now(UTC),
-                token_count=token_count,
-                chunk_resolution=self.chunk_resolution,
-                document_schema=None,
-                name=self.metadata.name,
-                description=self.metadata.description,
-                keywords=self.metadata.keywords,
-            ).model_dump()
-
-            yield Document(page_content=raw_chunk.get("text", ""), metadata=uploaded_meta)
-
-
-class UnstructuredSchematisedChunkLoader(UnstructuredChunkLoader):
-    def lazy_load(self, file_name: str, file_bytes: BytesIO) -> Iterator[Document]:
-        """A lazy loader that reads a file line by line.
-
-        When you're implementing lazy load methods, you should use a generator
-        to yield documents one by one.
-        """
-        elements = self._get_chunks(file_name, file_bytes)
-
-        for i, raw_chunk in enumerate(elements):
-            raw_metadata = raw_chunk.get("metadata") or {}
-            page_number = raw_metadata.get("page_number") or 1
-
-            document_schema_dict = raw_metadata.get("document_schema")
-            document_schema: Optional[TabularSchema] = None
-            if document_schema_dict:
-                try:
-                    document_schema = TabularSchema.model_validate(document_schema_dict)
-                except ValidationError:
-                    document_schema = None
-
-            token_count = tokeniser(raw_chunk.get("text", ""))
-            uploaded_meta = UploadedFileMetadata(
-                index=i,
-                uri=file_name,
-                page_number=page_number,
-                created_datetime=datetime.now(UTC),
-                token_count=token_count,
-                chunk_resolution=self.chunk_resolution,
-                document_schema=document_schema,
-                name=self.metadata.name,
-                description=self.metadata.description,
-                keywords=self.metadata.keywords,
-            ).model_dump()
-
-            yield Document(page_content=raw_chunk.get("text", ""), metadata=uploaded_meta)
+                index += 1
 
 
 class MetadataLoader:
@@ -426,81 +313,48 @@ class MetadataLoader:
         self.llm = get_chat_llm(env.metadata_extraction_llm)
         self.file_name = file_name
 
-    def _get_file_bytes(self, s3_client: S3Client, file_name: str) -> BytesIO:
-        return BytesIO(s3_client.get_object(Bucket=self.env.bucket_name, Key=file_name)["Body"].read())
+    def _get_file_bytes(self, file_name: str) -> BytesIO:
+        return BytesIO(self.s3_client.get_object(Bucket=self.env.bucket_name, Key=file_name)["Body"].read())
 
     def extract_metadata(self) -> GeneratedMetadata:
-        """
-        Extract metadata from first 1_000 chunks using UnstructuredChunkLoader
-        """
         start_time = time.time()
 
-        chunk_loader = UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
-            env=self.env,
-            min_chunk_size=self.env.worker_ingest_min_chunk_size,
-            max_chunk_size=self.env.worker_ingest_max_chunk_size,
+        loader = TextractChunkLoader(
+            bucket=self.env.bucket_name,
+            min_chunk_size=200,
+            max_chunk_size=2000,
             overlap_chars=0,
-            metadata=None,
         )
 
-        file_bytes = self._get_file_bytes(s3_client=self.s3_client, file_name=self.file_name)
+        file_bytes = None
+        if self.file_name.lower().endswith(".docx"):
+            file_bytes = self._get_file_bytes(self.file_name)
 
         try:
-            chunks = chunk_loader._get_chunks(file_name=self.file_name, file_bytes=file_bytes)
+            chunks = list(
+                loader.lazy_load(
+                    file_name=self.file_name,
+                    s3_bucket=self.env.bucket_name,
+                    s3_key=self.file_name,
+                    file_bytes=file_bytes,
+                )
+            )
         except Exception as e:
             logger.info("Failed metadata extraction - %s", e)
             chunks = []
 
-        original_metadata = chunks[0]["metadata"] if chunks else {}
-        first_thousand_words = "".join(chunk.get("text", "") for chunk in chunks)[:10_000]
+        text_sample = "".join(c.page_content for c in chunks)[:10_000]
+
         try:
-            metadata = self.create_file_metadata(first_thousand_words, original_metadata=original_metadata)
+            metadata = self.create_file_metadata(text_sample)
         except Exception as e:
             logger.info(e)
-            if original_metadata and original_metadata.get("filename"):
-                metadata = GeneratedMetadata(name=original_metadata.get("filename"))
-            else:
-                metadata = GeneratedMetadata(name=self.file_name)
+            metadata = GeneratedMetadata(name=self.file_name)
 
-        duration = time.time() - start_time
-        logger.info("total metadata extraction time for file [%s] took %.2f seconds", self.file_name, duration)
+        logger.info(
+            "total metadata extraction time for file [%s] took %.2f seconds",
+            self.file_name,
+            time.time() - start_time,
+        )
 
         return metadata
-
-    def create_file_metadata(self, page_content: str, original_metadata: dict | None = None) -> GeneratedMetadata:
-        """Uses a sample of the document and any extracted metadata to generate further metadata."""
-        if not original_metadata:
-            original_metadata = {}
-
-        def trim(obj, max_length=1000):
-            """original_metadata can be very long as it includes the original text"""
-            if isinstance(obj, dict):
-                return {k: trim(v, max_length) for k, v in obj.items()}
-            if isinstance(obj, list):
-                return [trim(v, max_length) for v in obj]
-            if isinstance(obj, str):
-                return obj[:max_length]
-            return obj
-
-        original_metadata = trim(original_metadata)
-
-        parser = ClaudeParser(pydantic_object=GeneratedMetadata)
-
-        metadata_prompt = PromptTemplate(
-            template="".join(self.env.metadata_prompt)
-            + "\n\n{format_instructions}\n\n{page_content}\n\n{original_metadata}",
-            input_variables=["page_content"],
-            partial_variables={
-                "format_instructions": parser.get_format_instructions(),
-                "original_metadata": original_metadata,
-            },
-        )
-        metadata_chain = metadata_prompt | self.llm | parser
-
-        try:
-            return metadata_chain.invoke({"page_content": page_content})
-        except ValidationError as e:
-            # error due to LLM return incorrect response
-            logger.info(e.errors())
-            return GeneratedMetadata(name=original_metadata.get("filename") or self.file_name)

@@ -8,9 +8,7 @@ from langchain_core.runnables import RunnableParallel
 
 from redbox.chains.components import get_embeddings
 from redbox.chains.ingest import ingest_from_loader
-from redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader, UnstructuredSchematisedChunkLoader
-from redbox.models.chain import GeneratedMetadata
-from redbox.models.file import ChunkResolution
+from redbox.loader.loaders import TextractChunkLoader
 from redbox.models.settings import get_settings
 
 if TYPE_CHECKING:
@@ -70,22 +68,12 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
         else:
             es.indices.create(index=es_index_name, body=env.index_mapping, ignore=400)
 
-    # Extract metadata
-    if enable_metadata_extraction:
-        metadata_loader = MetadataLoader(env=env, s3_client=env.s3_client(), file_name=file_name)
-        metadata = metadata_loader.extract_metadata()
-    else:
-        # return empty metadata
-        metadata = GeneratedMetadata(name=file_name, description="", keywords=[])
-
     chunk_ingest_chain = ingest_from_loader(
-        loader=UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
-            env=env,
+        loader=TextractChunkLoader(
+            bucket=env.bucket_name,
             min_chunk_size=env.worker_ingest_min_chunk_size,
             max_chunk_size=env.worker_ingest_max_chunk_size,
             overlap_chars=0,
-            metadata=metadata,
         ),
         s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store(es, es_index_name),
@@ -93,13 +81,11 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
     )
 
     large_chunk_ingest_chain = ingest_from_loader(
-        loader=UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.largest,
-            env=env,
-            min_chunk_size=env.worker_ingest_largest_chunk_size,
-            max_chunk_size=env.worker_ingest_largest_chunk_size,
-            overlap_chars=env.worker_ingest_largest_chunk_overlap,
-            metadata=metadata,
+        loader=TextractChunkLoader(
+            bucket=env.bucket_name,
+            min_chunk_size=env.worker_ingest_min_chunk_size,
+            max_chunk_size=env.worker_ingest_max_chunk_size,
+            overlap_chars=0,
         ),
         s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
@@ -107,13 +93,11 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
     )
 
     tabular_chunk_ingest_chain = ingest_from_loader(
-        loader=UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.tabular,
-            env=env,
-            min_chunk_size=env.worker_ingest_largest_chunk_size,
-            max_chunk_size=env.worker_ingest_largest_chunk_size,
-            overlap_chars=env.worker_ingest_largest_chunk_overlap,
-            metadata=metadata,
+        loader=TextractChunkLoader(
+            bucket=env.bucket_name,
+            min_chunk_size=env.worker_ingest_min_chunk_size,
+            max_chunk_size=env.worker_ingest_max_chunk_size,
+            overlap_chars=0,
         ),
         s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
@@ -121,13 +105,11 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
     )
 
     tabular_schema_chunk_ingest_chain = ingest_from_loader(
-        loader=UnstructuredSchematisedChunkLoader(
-            chunk_resolution=ChunkResolution.tabular,
-            env=env,
-            min_chunk_size=env.worker_ingest_largest_chunk_size,
-            max_chunk_size=env.worker_ingest_largest_chunk_size,
-            overlap_chars=env.worker_ingest_largest_chunk_overlap,
-            metadata=metadata,
+        loader=TextractChunkLoader(
+            bucket=env.bucket_name,
+            min_chunk_size=env.worker_ingest_min_chunk_size,
+            max_chunk_size=env.worker_ingest_max_chunk_size,
+            overlap_chars=0,
         ),
         s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store_without_embeddings(es, env.elastic_schematised_chunk_index),
