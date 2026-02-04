@@ -383,6 +383,14 @@ class Settings(BaseSettings):
         ensure_index(self.elastic_chat_mesage_index)
         ensure_index(self.elastic_schematised_chunk_index, self.index_mapping_schematised)
 
+        if not client.indices.exists(index=self.elastic_schematised_chunk_index):
+            try:
+                client.indices.create(
+                    index=self.elastic_schematised_chunk_index, body=self.index_mapping_schematised, ignore=400
+                )
+            except Exception as e:
+                logger.error(f"Failed to create index {self.elastic_schematised_chunk_index}: {e}")
+
         return client
 
     def s3_client(self):
