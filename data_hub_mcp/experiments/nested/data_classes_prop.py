@@ -2,10 +2,6 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from enum import StrEnum
 
-# ============================================================
-# Search / Quality Metadata
-# ============================================================
-
 
 class MCPToolResultType(StrEnum):
     SINGLE_EXACT_MATCH = "A single result was returned with an exact match"
@@ -13,11 +9,6 @@ class MCPToolResultType(StrEnum):
     SINGLE_SIM_MATCH = "A single result was returned with a similar ILIKE match"
     MULTI_SIM_MATCH = "Multiple results were returned with a similar ILIKE match"
     NONE = "No results found with exact match or similar ILIKE match"
-
-
-# ============================================================
-# Company Models
-# ============================================================
 
 
 @dataclass
@@ -149,11 +140,6 @@ class CompanyDetails:
         )
 
 
-# ============================================================
-# Related Domain Models
-# ============================================================
-
-
 @dataclass
 class CompanyInteraction:
     team_region: str | None
@@ -274,11 +260,6 @@ class InvestmentProject:
         )
 
 
-# ============================================================
-# Search Result Wrappers
-# ============================================================
-
-
 @dataclass
 class CompanySearchResult:
     result_type: MCPToolResultType
@@ -379,11 +360,6 @@ class InvestmentProjectsSearchResult:
             page=page,
             page_size=page_size,
         )
-
-
-# ============================================================
-# Fully Enriched MCP Result
-# ============================================================
 
 
 @dataclass

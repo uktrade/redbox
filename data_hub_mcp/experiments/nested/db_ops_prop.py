@@ -26,7 +26,7 @@ from data_hub_mcp.experiments.nested.data_classes_prop import (
 )
 
 logging.basicConfig(
-    level=logging.INFO,  # Show INFO and above
+    level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
@@ -68,7 +68,6 @@ def get_engine():
     postgres_host = os.getenv("POSTGRES_HOST")
     postgres_port = os.getenv("POSTGRES_PORT")
 
-    # creds need extracting to local env
     return create_engine(
         f"postgresql+psycopg2://{postgres_user}:{postgres_password}@{postgres_host}:{postgres_port}/{postgres_db}"
     )
@@ -83,23 +82,18 @@ def get_session(engine=None) -> Session:
 
 def db_check():
     session = get_session()
-    # We just want to check we can query at this point
     session.query(Company).count()
     return True
 
 
 def resolve_companies_by_name(session: Session, company_name: str):
-    # 1️⃣ Exact match
     exact = session.query(Company).filter(Company.name == company_name).all()
     if len(exact) == 1:
         return MCPToolResultType.SINGLE_EXACT_MATCH, exact
     if len(exact) > 1:
         return MCPToolResultType.MULTI_EXACT_MATCH, exact
 
-    # 2️⃣ Fetch candidates (case-insensitive) and filter in Python
     candidates = session.query(Company).filter(Company.name.ilike(f"%{company_name}%")).all()
-
-    # Keep only rows where company_name is actually a substring of company.name
     filtered = [c for c in candidates if company_name.lower() in c.name.lower()]
 
     if len(filtered) == 1:
@@ -107,7 +101,6 @@ def resolve_companies_by_name(session: Session, company_name: str):
     if len(filtered) > 1:
         return MCPToolResultType.MULTI_SIM_MATCH, filtered
 
-    # 3️⃣ No matches
     return MCPToolResultType.NONE, []
 
 
@@ -131,7 +124,6 @@ def fetch_related_data(
     if not company_ids:
         return interactions_map, objectives_map, investments_map
 
-    # Interactions
     if fetch_interactions:
         interactions_all = session.query(Interaction).filter(Interaction.company_id.in_(company_ids)).all()
         for i in interactions_all:
@@ -139,7 +131,6 @@ def fetch_related_data(
                 CompanyInteraction.populate_from_record(object_as_dict(i))
             )
 
-    # Objectives
     if fetch_objectives:
         objectives_all = (
             session.query(AccountManagementObjectives)
@@ -151,7 +142,6 @@ def fetch_related_data(
                 AccountManagementObjective.populate_from_record(object_as_dict(o))
             )
 
-    # Investments
     if fetch_investments:
         investments_all = (
             session.query(InvestmentProjects)
@@ -254,29 +244,21 @@ def resolve_sectors_by_name(
     - Return MCPToolResultType + list[str]
     """
 
-    # 1️⃣ Exact match
     exact = session.query(Company.sector).filter(Company.sector == sector_name).distinct().all()
-
     exact_sectors = [row[0] for row in exact if row[0]]
 
     if len(exact_sectors) == 1:
         return MCPToolResultType.SINGLE_EXACT_MATCH, exact_sectors
-
     if len(exact_sectors) > 1:
         return MCPToolResultType.MULTI_EXACT_MATCH, exact_sectors
 
-    # 2️⃣ Similar (ILIKE) match
     similar = session.query(Company.sector).filter(Company.sector.ilike(f"%{sector_name}%")).distinct().all()
-
     similar_sectors = [row[0] for row in similar if row[0]]
 
     if len(similar_sectors) == 1:
         return MCPToolResultType.SINGLE_SIM_MATCH, similar_sectors
-
     if len(similar_sectors) > 1:
         return MCPToolResultType.MULTI_SIM_MATCH, similar_sectors
-
-    # 3️⃣ Nothing found
     return MCPToolResultType.NONE, []
 
 
@@ -298,7 +280,6 @@ def get_related_company_details(
     session = get_session()
     try:
         if company_name:
-            # 1️⃣ Resolve companies by name
             result_type, companies = resolve_companies_by_name(session, company_name)
             total_companies = len(companies)
 
@@ -310,12 +291,9 @@ def get_related_company_details(
                     page=page,
                     page_size=page_size,
                 )
-
-            # Apply pagination
             companies_page = companies[page * page_size : (page + 1) * page_size]
 
         else:
-            # 1️⃣ Resolve sectors by name
             result_type, sectors = resolve_sectors_by_name(session, sector_name)
             if not sectors:
                 return SectorGroupedCompanySearchResult(
@@ -325,15 +303,10 @@ def get_related_company_details(
                     page=page,
                     page_size=page_size,
                 )
-
-            # 2️⃣ Query companies in all resolved sectors
             base_query = session.query(Company).filter(Company.sector.in_(sectors))
             total_companies = base_query.count()
-
-            # Apply pagination
             companies_page = base_query.offset(page * page_size).limit(page_size).all()
 
-        # 3️⃣ Fetch related data if requested
         company_ids = [c.id for c in companies_page]
         interactions_map, objectives_map, investments_map = fetch_related_data(
             session,
@@ -343,7 +316,6 @@ def get_related_company_details(
             fetch_investments,
         )
 
-        # 4️⃣ Build enriched companies and group by sector
         sector_map: dict[str, list[CompanyEnrichmentResult]] = {}
         for company in companies_page:
             enriched = build_enriched_company(
@@ -357,7 +329,6 @@ def get_related_company_details(
             )
             sector_map.setdefault(company.sector, []).append(enriched)
 
-        # 5️⃣ Construct sector groups
         sector_groups = [
             SectorCompanyGroup(
                 sector=sector,
@@ -366,8 +337,6 @@ def get_related_company_details(
             )
             for sector, companies in sector_map.items()
         ]
-
-        # 6️⃣ Return grouped result
         return SectorGroupedCompanySearchResult(
             result_type=result_type,
             sectors=sector_groups,
@@ -388,25 +357,21 @@ def resolve_sector(
 ) -> str | None:
     """
     Determine a single sector to query.
-    1️⃣ If company_name is provided, use resolve_companies_by_name and pick the first sector.
-    2️⃣ If sector_name is provided, use resolve_sectors_by_name and pick the first match.
+    - If company_name is provided, use resolve_companies_by_name and pick the first sector.
+    - If sector_name is provided, use resolve_sectors_by_name and pick the first match.
     Returns None if no sector could be determined.
     """
-    # 1️⃣ Resolve by company_name first
     if company_name:
         _, companies = resolve_companies_by_name(session, company_name)
         sectors = [c.sector for c in companies if c.sector]
         if sectors:
-            # Return the first sector found
             return sectors[0]
 
-    # 2️⃣ Resolve by sector_name
     if sector_name:
         _, sectors = resolve_sectors_by_name(session, sector_name)
         if sectors:
             return sectors[0]
 
-    # 3️⃣ Nothing found
     return None
 
 
@@ -425,7 +390,6 @@ def get_sector_overview(
 
     session = get_session()
     try:
-        # 1️⃣ Resolve sectors
         if company_name:
             _, companies = resolve_companies_by_name(session, company_name)
             sectors = sorted({c.sector for c in companies if c.sector})
@@ -445,7 +409,6 @@ def get_sector_overview(
             total_turnover, turnover_count = aggregate("turnover_gbp", companies)
             total_employees, employees_count = aggregate("number_of_employees", companies)
 
-            # Investment projects
             company_ids = [c.id for c in companies]
             investments = (
                 session.query(InvestmentProjects)
@@ -459,7 +422,6 @@ def get_sector_overview(
             total_investment, invest_count = aggregate("total_investment", investments)
             total_gva, gva_count = aggregate("gross_value_added", investments)
 
-            # Compute averages
             avg_turnover = total_turnover / turnover_count if total_turnover is not None else None
             avg_employees = total_employees / employees_count if total_employees is not None else None
             avg_investment = total_investment / invest_count if total_investment is not None else None
@@ -499,7 +461,6 @@ def get_sector_investment_projects(
     """
     session = get_session()
     try:
-        # 1️⃣ Resolve sectors
         if company_name:
             _, companies = resolve_companies_by_name(session, company_name)
             sectors = sorted({c.sector for c in companies if c.sector})
@@ -520,13 +481,10 @@ def get_sector_investment_projects(
         sector_groups: list[SectorInvestmentGroup] = []
         total_projects_count = 0
 
-        # 2️⃣ Loop over sectors
         for sector in sectors:
-            # Companies in this sector
             companies = session.query(Company).filter(Company.sector == sector).all()
             company_ids = [c.id for c in companies]
 
-            # Projects for these companies
             projects_query = session.query(InvestmentProjects).filter(
                 (InvestmentProjects.uk_company_id.in_(company_ids))
                 | (InvestmentProjects.investor_company_id.in_(company_ids))
@@ -535,14 +493,12 @@ def get_sector_investment_projects(
             sector_total_projects = projects_query.count()
             total_projects_count += sector_total_projects
 
-            # Safe pagination: clamp offset
             offset = page * page_size
             if offset >= sector_total_projects:
                 projects_page = []
             else:
                 projects_page = projects_query.offset(offset).limit(page_size).all()
 
-            # Aggregate metrics for this sector page
             total_investment = 0
             total_gva = 0
             total_new_jobs = 0

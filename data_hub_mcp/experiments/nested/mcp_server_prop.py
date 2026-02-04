@@ -42,10 +42,10 @@ async def config():
 
 
 @mcp.tool(
-    name="greet",  # Custom tool name for the LLM
-    description="Basic example tool useful for testing.",  # Custom description
-    tags={"testing"},  # Optional tags for organization/filtering
-    meta={"version": "1.0", "author": "Doug Mills"},  # Custom metadata
+    name="greet",
+    description="Basic example tool useful for testing.",
+    tags={"testing"},
+    meta={"version": "1.0", "author": "Doug Mills"},
 )
 async def greet(name: str) -> str:
     return f"Hello, {name}!"
