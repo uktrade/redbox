@@ -23,6 +23,19 @@ from static_data import (
     STATIC_OBJECTIVE_2,
 )
 
+MATCH_TYPE = os.getenv("MCP_RECORD_MATCHING_TYPE", "exact").lower()
+
+
+def check_company_name(input_company_name: str, db_company_name: str) -> bool:
+    match MATCH_TYPE:
+        case "contains":
+            return input_company_name.lower() in db_company_name.lower()
+        case "contains_keyword":
+            return set(input_company_name.lower().split()) & set(db_company_name.lower().split())
+        case _:
+            return input_company_name.lower() == db_company_name.lower()
+
+
 # -- MCP Setup --
 
 mcp = FastMCP(
@@ -73,21 +86,21 @@ This tool returns a list of companies containing:
 """,
 )
 async def companies(company_name: str, page_size: int = 10, page: int = 0) -> CompanySearchResult:
-    if company_name.lower() == "acme":
+    if check_company_name(company_name, "acme"):
         return CompanySearchResult(
             companies=[STATIC_COMPANY_SHORT, STATIC_COMPANY_SHORT_2],
             total=2,
             page=page,
             page_size=page_size,
         )
-    if company_name.lower() == STATIC_COMPANY_SHORT.name.lower():
+    if check_company_name(company_name, STATIC_COMPANY_SHORT.name):
         return CompanySearchResult(
             companies=[STATIC_COMPANY_SHORT],
             total=1,
             page=page,
             page_size=page_size,
         )
-    if company_name.lower() == STATIC_COMPANY_SHORT_2.name.lower():
+    if check_company_name(company_name, STATIC_COMPANY_SHORT_2.name):
         return CompanySearchResult(
             companies=[STATIC_COMPANY_SHORT_2],
             total=1,
@@ -119,9 +132,9 @@ Use this tool when you need complete, detailed information about a single compan
 """,
 )
 async def company_details(company_name: str) -> CompanyDetails | None:
-    if company_name.lower() == STATIC_COMPANY_DETAILS.name.lower():
+    if check_company_name(company_name, STATIC_COMPANY_DETAILS.name):
         return STATIC_COMPANY_DETAILS
-    if company_name.lower() == STATIC_COMPANY_DETAILS_2.name.lower():
+    if check_company_name(company_name, STATIC_COMPANY_DETAILS_2.name):
         return STATIC_COMPANY_DETAILS_2
     return None
 
@@ -143,7 +156,7 @@ async def companies_or_interactions(
     company_name: str, page_size: int = 10, page: int = 0
 ) -> CompaniesOrInteractionSearchResult:
     _ = company_name
-    if company_name.lower() == "acme":
+    if check_company_name(company_name, "acme"):
         return CompaniesOrInteractionSearchResult(
             companies_search_result=CompanySearchResult(
                 companies=[STATIC_COMPANY_SHORT, STATIC_COMPANY_SHORT_2],
@@ -153,7 +166,7 @@ async def companies_or_interactions(
             ),
             interactions_search_result=[STATIC_INTERACTION, STATIC_INTERACTION_2],
         )
-    if company_name.lower() == STATIC_COMPANY_SHORT.name.lower():
+    if check_company_name(company_name, STATIC_COMPANY_SHORT.name):
         return CompaniesOrInteractionSearchResult(
             companies_search_result=CompanySearchResult(
                 companies=[STATIC_COMPANY_SHORT],
@@ -163,7 +176,7 @@ async def companies_or_interactions(
             ),
             interactions_search_result=[STATIC_INTERACTION],
         )
-    if company_name.lower() == STATIC_COMPANY_SHORT_2.name.lower():
+    if check_company_name(company_name, STATIC_COMPANY_SHORT_2.name):
         return CompaniesOrInteractionSearchResult(
             companies_search_result=CompanySearchResult(
                 companies=[STATIC_COMPANY_SHORT_2],
@@ -191,21 +204,21 @@ Use this tool to see all historical interactions for a company.
 """,
 )
 async def company_interactions(company_name: str, page_size: int = 10, page: int = 0) -> CompanyInteractionSearchResult:
-    if company_name.lower() == "acme":
+    if check_company_name(company_name, "acme"):
         return CompanyInteractionSearchResult(
             interactions=[STATIC_INTERACTION, STATIC_INTERACTION_2],
             total=2,
             page=page,
             page_size=page_size,
         )
-    if company_name.lower() == STATIC_INTERACTION.company_name.lower():
+    if check_company_name(company_name, STATIC_INTERACTION.company_name):
         return CompanyInteractionSearchResult(
             interactions=[STATIC_INTERACTION],
             total=1,
             page=page,
             page_size=page_size,
         )
-    if company_name.lower() == STATIC_INTERACTION_2.company_name.lower():
+    if check_company_name(company_name, STATIC_INTERACTION_2.company_name):
         return CompanyInteractionSearchResult(
             interactions=[STATIC_INTERACTION_2],
             total=1,
@@ -237,21 +250,21 @@ This tool is useful for tracking strategic objectives for a company's account.
 async def account_management_objectives(
     company_name: str, page_size: int = 10, page: int = 0
 ) -> AccountManagementObjectivesSearchResult:
-    if company_name.lower() == "acme":
+    if check_company_name(company_name, "acme"):
         return AccountManagementObjectivesSearchResult(
             account_management_objectives=[STATIC_OBJECTIVE, STATIC_OBJECTIVE_2],
             total=2,
             page=page,
             page_size=page_size,
         )
-    if company_name.lower() == STATIC_COMPANY_SHORT.name.lower():
+    if check_company_name(company_name, STATIC_COMPANY_SHORT.name):
         return AccountManagementObjectivesSearchResult(
             account_management_objectives=[STATIC_OBJECTIVE],
             total=1,
             page=page,
             page_size=page_size,
         )
-    if company_name.lower() == STATIC_COMPANY_SHORT_2.name.lower():
+    if check_company_name(company_name, STATIC_COMPANY_SHORT_2.name):
         return AccountManagementObjectivesSearchResult(
             account_management_objectives=[STATIC_OBJECTIVE_2],
             total=1,
@@ -283,21 +296,21 @@ Use this tool to explore planned and ongoing investment projects for a company.
 """,
 )
 async def investment_projects(company_name: str, page_size: int = 10, page: int = 0) -> InvestmentProjectsSearchResult:
-    if company_name.lower() == "acme":
+    if check_company_name(company_name, "acme"):
         return InvestmentProjectsSearchResult(
             investment_projects=[STATIC_INVESTMENT_PROJECT, STATIC_INVESTMENT_PROJECT_2],
             total=2,
             page=page,
             page_size=page_size,
         )
-    if company_name.lower() == STATIC_COMPANY_SHORT.name.lower():
+    if check_company_name(company_name, STATIC_COMPANY_SHORT.name):
         return InvestmentProjectsSearchResult(
             investment_projects=[STATIC_INVESTMENT_PROJECT],
             total=1,
             page=page,
             page_size=page_size,
         )
-    if company_name.lower() == STATIC_COMPANY_SHORT_2.name.lower():
+    if check_company_name(company_name, STATIC_COMPANY_SHORT_2.name):
         return InvestmentProjectsSearchResult(
             investment_projects=[STATIC_INVESTMENT_PROJECT_2],
             total=1,
