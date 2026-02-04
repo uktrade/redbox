@@ -605,7 +605,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     if agent.agents_max_tokens:
                         agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
                     if agent.name == "Datahub_Agent":
-                        mcp_tools = await fetch_mcp_tools(mcp_url="http://localhost:8100/mcp")
+                        mcp_tools = await fetch_mcp_tools(mcp_url=get_settings().datahub_mcp.url)
                         agent_configs[agent.name].tools = mcp_tools
             ChatConsumer.redbox = Redbox(agents=agent_configs, env=ChatConsumer.env, debug=ChatConsumer.debug)
 
