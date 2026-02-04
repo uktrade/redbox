@@ -389,7 +389,7 @@ class TestNewRoutes:
         for i in range(len(agents)):
             agent = agents[i]
             agent_task, multi_agent_plan = configure_agent_task_plan({agent: agent})
-            tasks += [agent_task(id=f"task{i}")]
+            tasks += [agent_task()]
         configured_multi_agent_plan = multi_agent_plan().model_copy(update={"tasks": tasks})
         old_plan = []
         if "modify" in user_feedback:
