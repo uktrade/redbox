@@ -177,59 +177,114 @@ class TextractChunkLoader:
         self.max_chunk_size = max_chunk_size
         self.overlap_chars = overlap_chars
 
+        logger.info(
+            "Initialised TextractChunkLoader (bucket=%s, region=%s, min_chunk=%s, max_chunk=%s, overlap=%s)",
+            bucket,
+            region,
+            min_chunk_size,
+            max_chunk_size,
+            overlap_chars,
+        )
+
     def _extract_docx(self, file_bytes: BytesIO) -> List[str]:
+        logger.info("Extracting DOCX content")
         doc = DocxDocument(file_bytes)
         text = "\n".join(p.text for p in doc.paragraphs)
+
+        logger.debug("Extracted %d characters from DOCX", len(text))
         return [text]
 
     def _upload_to_s3(self, file_name: str, file_bytes: BytesIO):
+        logger.info("Uploading file to S3 for Textract processing: %s", file_name)
         file_bytes.seek(0)
-        self.s3.put_object(Bucket=self.bucket, Key=f"ingest/{file_name}", Body=file_bytes)
+
+        try:
+            self.s3.put_object(Bucket=self.bucket, Key=f"{file_name}", Body=file_bytes)
+            logger.info("Successfully uploaded %s to bucket %s", file_name, self.bucket)
+        except Exception as e:
+            logger.exception("Failed to upload %s to S3: %s", file_name, e)
+            raise
 
     def _start_textract_job(self, file_name: str) -> str:
-        response = self.textract.start_document_text_detection(
-            DocumentLocation={
-                "S3Object": {
-                    "Bucket": self.bucket,
-                    "Name": f"ingest/{file_name}",
+        logger.info("Starting Textract job for file: %s", file_name)
+
+        try:
+            response = self.textract.start_document_text_detection(
+                DocumentLocation={
+                    "S3Object": {
+                        "Bucket": self.bucket,
+                        "Name": f"{file_name}",
+                    }
                 }
-            }
-        )
-        return response["JobId"]
+            )
+            job_id = response["JobId"]
+            logger.info("Textract job started for %s with JobId=%s", file_name, job_id)
+            return job_id
+        except Exception as e:
+            logger.exception("Failed to start Textract job for %s: %s", file_name, e)
+            raise
 
     def _wait_for_job(self, job_id: str):
+        logger.info("Waiting for Textract job %s to complete", job_id)
+
         while True:
-            response = self.textract.get_document_text_detection(JobId=job_id)
-            status = response["JobStatus"]
+            try:
+                response = self.textract.get_document_text_detection(JobId=job_id)
+                status = response["JobStatus"]
 
-            if status in ["SUCCEEDED", "FAILED"]:
-                return status
+                logger.debug("Textract job %s current status: %s", job_id, status)
 
-            time.sleep(3)
+                if status in ["SUCCEEDED", "FAILED"]:
+                    logger.info("Textract job %s finished with status: %s", job_id, status)
+                    return status
+
+                time.sleep(3)
+
+            except Exception as e:
+                logger.exception("Error while polling Textract job %s: %s", job_id, e)
+                raise
 
     def _get_textract_results(self, job_id: str) -> List[str]:
+        logger.info("Fetching Textract results for job %s", job_id)
+
         pages: dict[int, List[str]] = {}
         next_token = None
+        api_calls = 0
 
         while True:
-            kwargs = {"JobId": job_id}
-            if next_token:
-                kwargs["NextToken"] = next_token
+            try:
+                kwargs = {"JobId": job_id}
+                if next_token:
+                    kwargs["NextToken"] = next_token
 
-            response = self.textract.get_document_text_detection(**kwargs)
+                response = self.textract.get_document_text_detection(**kwargs)
+                api_calls += 1
 
-            for block in response.get("Blocks", []):
-                if block["BlockType"] == "LINE":
-                    page = block.get("Page", 1)
-                    pages.setdefault(page, []).append(block["Text"])
+                for block in response.get("Blocks", []):
+                    if block["BlockType"] == "LINE":
+                        page = block.get("Page", 1)
+                        pages.setdefault(page, []).append(block["Text"])
 
-            next_token = response.get("NextToken")
-            if not next_token:
-                break
+                next_token = response.get("NextToken")
+                if not next_token:
+                    break
+
+            except Exception as e:
+                logger.exception("Error retrieving Textract results for job %s: %s", job_id, e)
+                raise
+
+        logger.info(
+            "Retrieved Textract results for job %s: %d pages via %d API calls",
+            job_id,
+            len(pages),
+            api_calls,
+        )
 
         return ["\n".join(pages[p]) for p in sorted(pages)]
 
     def _extract_pdf(self, file_name: str, file_bytes: BytesIO) -> List[str]:
+        logger.info("Processing PDF file through Textract: %s", file_name)
+
         self._upload_to_s3(file_name, file_bytes)
 
         job_id = self._start_textract_job(file_name)
@@ -237,11 +292,17 @@ class TextractChunkLoader:
         status = self._wait_for_job(job_id)
 
         if status != "SUCCEEDED":
+            logger.error("Textract job %s failed for file %s", job_id, file_name)
             raise RuntimeError(f"Textract failed for {file_name}")
 
-        return self._get_textract_results(job_id)
+        pages = self._get_textract_results(job_id)
+        logger.info("Textract processing complete for %s - extracted %d pages", file_name, len(pages))
+
+        return pages
 
     def _chunk_text(self, text: str) -> List[str]:
+        logger.debug("Chunking text of length %d", len(text))
+
         chunks = []
         start = 0
         length = len(text)
@@ -255,23 +316,36 @@ class TextractChunkLoader:
 
             start = end - self.overlap_chars
 
+        logger.debug("Produced %d chunks from text", len(chunks))
         return chunks
 
     def _extract_pdf_from_s3(self, bucket: str, key: str) -> list[str]:
-        response = self.textract.start_document_text_detection(
-            DocumentLocation={
-                "S3Object": {
-                    "Bucket": bucket,
-                    "Name": key,
+        logger.info("Starting Textract extraction directly from S3: s3://%s/%s", bucket, key)
+
+        try:
+            response = self.textract.start_document_text_detection(
+                DocumentLocation={
+                    "S3Object": {
+                        "Bucket": bucket,
+                        "Name": key,
+                    }
                 }
-            }
-        )
+            )
 
-        job_id = response["JobId"]
+            job_id = response["JobId"]
+            logger.info("Started Textract job %s for s3://%s/%s", job_id, bucket, key)
 
-        self._wait_for_job(job_id)
+            status = self._wait_for_job(job_id)
 
-        return self._get_textract_results(job_id)
+            if status != "SUCCEEDED":
+                logger.error("Textract job %s failed for s3://%s/%s", job_id, bucket, key)
+                raise RuntimeError(f"Textract failed for s3://{bucket}/{key}")
+
+            return self._get_textract_results(job_id)
+
+        except Exception as e:
+            logger.exception("Textract extraction failed for s3://%s/%s: %s", bucket, key, e)
+            raise
 
     def lazy_load(
         self,
@@ -280,17 +354,38 @@ class TextractChunkLoader:
         s3_key: str,
         file_bytes: BytesIO | None = None,
     ) -> Iterator[Document]:
-        if file_name.lower().endswith(".docx"):
-            if file_bytes is None:
-                raise ValueError("DOCX requires file_bytes")
-            pages = self._extract_docx(file_bytes)
-        else:
-            pages = self._extract_pdf_from_s3(bucket=s3_bucket, key=s3_key)
+        logger.info("Starting lazy_load for file: %s", file_name)
+
+        try:
+            if file_name.lower().endswith(".docx"):
+                logger.info("Detected DOCX file - using local extraction path")
+                if file_bytes is None:
+                    raise ValueError("DOCX requires file_bytes")
+
+                pages = self._extract_docx(file_bytes)
+
+            else:
+                logger.info("Detected PDF or other file - using Textract path")
+                pages = self._extract_pdf_from_s3(bucket=s3_bucket, key=s3_key)
+
+        except Exception as e:
+            logger.exception("Failed to extract text from %s: %s", file_name, e)
+            raise
+
+        logger.info("Extracted %d pages from file %s", len(pages), file_name)
 
         index = 0
+        total_chunks = 0
 
         for page_num, page_text in enumerate(pages, start=1):
             chunks = self._chunk_text(page_text)
+
+            logger.debug(
+                "File %s page %d produced %d chunks",
+                file_name,
+                page_num,
+                len(chunks),
+            )
 
             for chunk in chunks:
                 metadata = {
@@ -301,9 +396,18 @@ class TextractChunkLoader:
                     "token_count": len(chunk.split()),
                 }
 
+                total_chunks += 1
+
                 yield Document(page_content=chunk, metadata=metadata)
 
                 index += 1
+
+        logger.info(
+            "Completed lazy_load for %s - total pages=%d, total chunks=%d",
+            file_name,
+            len(pages),
+            total_chunks,
+        )
 
 
 class MetadataLoader:
