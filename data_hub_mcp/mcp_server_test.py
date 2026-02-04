@@ -73,6 +73,7 @@ This tool returns a list of companies containing:
 """,
 )
 async def companies(company_name: str, page_size: int = 10, page: int = 0) -> CompanySearchResult:
+    # Exact
     if company_name.lower() == "acme":
         return CompanySearchResult(
             companies=[STATIC_COMPANY_SHORT, STATIC_COMPANY_SHORT_2],
@@ -94,9 +95,16 @@ async def companies(company_name: str, page_size: int = 10, page: int = 0) -> Co
             page=page,
             page_size=page_size,
         )
+
+    # Contains
+    results = []
+    if company_name.lower() in STATIC_COMPANY_SHORT.name.lower():
+        results.append(STATIC_COMPANY_SHORT)
+    if company_name.lower() in STATIC_COMPANY_SHORT_2.name.lower():
+        results.append(STATIC_COMPANY_SHORT_2)
     return CompanySearchResult(
-        companies=[],
-        total=0,
+        companies=results,
+        total=len(results),
         page=page,
         page_size=page_size,
     )
@@ -119,10 +127,18 @@ Use this tool when you need complete, detailed information about a single compan
 """,
 )
 async def company_details(company_name: str) -> CompanyDetails | None:
+    # Exact
     if company_name.lower() == STATIC_COMPANY_DETAILS.name.lower():
         return STATIC_COMPANY_DETAILS
     if company_name.lower() == STATIC_COMPANY_DETAILS_2.name.lower():
         return STATIC_COMPANY_DETAILS_2
+
+    # Contains
+    if company_name.lower() in STATIC_COMPANY_DETAILS.name.lower():
+        return STATIC_COMPANY_DETAILS
+    if company_name.lower() in STATIC_COMPANY_DETAILS_2.name.lower():
+        return STATIC_COMPANY_DETAILS_2
+
     return None
 
 
@@ -142,7 +158,7 @@ This tool is useful when you want either a short list of companies or the intera
 async def companies_or_interactions(
     company_name: str, page_size: int = 10, page: int = 0
 ) -> CompaniesOrInteractionSearchResult:
-    _ = company_name
+    # Exact
     if company_name.lower() == "acme":
         return CompaniesOrInteractionSearchResult(
             companies_search_result=CompanySearchResult(
@@ -173,7 +189,25 @@ async def companies_or_interactions(
             ),
             interactions_search_result=[STATIC_INTERACTION_2],
         )
-    return CompaniesOrInteractionSearchResult()
+    # Contains
+    company_res, interaction_res = [], []
+    if company_name.lower() in STATIC_COMPANY_SHORT.name.lower():
+        company_res.append(STATIC_COMPANY_SHORT)
+        interaction_res.append(STATIC_INTERACTION)
+
+    if company_name.lower() == STATIC_COMPANY_SHORT_2.name.lower():
+        company_res.append(STATIC_COMPANY_SHORT_2)
+        interaction_res.append(STATIC_INTERACTION_2)
+
+    return CompaniesOrInteractionSearchResult(
+        companies_search_result=CompanySearchResult(
+            companies=company_res,
+            total=len(company_res),
+            page=page,
+            page_size=page_size,
+        ),
+        interactions_search_result=interaction_res,
+    )
 
 
 @mcp.tool(
@@ -191,6 +225,7 @@ Use this tool to see all historical interactions for a company.
 """,
 )
 async def company_interactions(company_name: str, page_size: int = 10, page: int = 0) -> CompanyInteractionSearchResult:
+    # Exact
     if company_name.lower() == "acme":
         return CompanyInteractionSearchResult(
             interactions=[STATIC_INTERACTION, STATIC_INTERACTION_2],
@@ -212,9 +247,16 @@ async def company_interactions(company_name: str, page_size: int = 10, page: int
             page=page,
             page_size=page_size,
         )
+    # Contains
+    result = []
+    if company_name.lower() in STATIC_INTERACTION.company_name.lower():
+        result.append(STATIC_INTERACTION)
+    if company_name.lower() in STATIC_INTERACTION_2.company_name.lower():
+        result.append(STATIC_INTERACTION_2)
+
     return CompanyInteractionSearchResult(
-        interactions=[],
-        total=0,
+        interactions=result,
+        total=len(result),
         page=page,
         page_size=page_size,
     )
@@ -237,6 +279,7 @@ This tool is useful for tracking strategic objectives for a company's account.
 async def account_management_objectives(
     company_name: str, page_size: int = 10, page: int = 0
 ) -> AccountManagementObjectivesSearchResult:
+    # Exact
     if company_name.lower() == "acme":
         return AccountManagementObjectivesSearchResult(
             account_management_objectives=[STATIC_OBJECTIVE, STATIC_OBJECTIVE_2],
@@ -258,9 +301,16 @@ async def account_management_objectives(
             page=page,
             page_size=page_size,
         )
+    # Contains
+    result = []
+    if company_name.lower() in STATIC_COMPANY_SHORT.name.lower():
+        result.append(STATIC_OBJECTIVE)
+    if company_name.lower() in STATIC_COMPANY_SHORT_2.name.lower():
+        result.append(STATIC_OBJECTIVE_2)
+
     return AccountManagementObjectivesSearchResult(
-        account_management_objectives=[],
-        total=0,
+        account_management_objectives=result,
+        total=len(result),
         page=page,
         page_size=page_size,
     )
@@ -283,6 +333,7 @@ Use this tool to explore planned and ongoing investment projects for a company.
 """,
 )
 async def investment_projects(company_name: str, page_size: int = 10, page: int = 0) -> InvestmentProjectsSearchResult:
+    # Exact
     if company_name.lower() == "acme":
         return InvestmentProjectsSearchResult(
             investment_projects=[STATIC_INVESTMENT_PROJECT, STATIC_INVESTMENT_PROJECT_2],
@@ -304,9 +355,16 @@ async def investment_projects(company_name: str, page_size: int = 10, page: int 
             page=page,
             page_size=page_size,
         )
+    # Contains
+    result = []
+    if company_name.lower() in STATIC_COMPANY_SHORT.name.lower():
+        result.append(STATIC_INVESTMENT_PROJECT)
+    if company_name.lower() in STATIC_COMPANY_SHORT_2.name.lower():
+        result.append(STATIC_INVESTMENT_PROJECT_2)
+
     return InvestmentProjectsSearchResult(
-        investment_projects=[],
-        total=0,
+        investment_projects=result,
+        total=len(result),
         page=page,
         page_size=page_size,
     )
