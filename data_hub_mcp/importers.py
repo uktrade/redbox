@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import log
-from sa_models import AccountManagementObjectives, Company, Interaction, InvestmentProjects
+from sa_models import AccountManagementObjective, Company, Interaction, InvestmentProject
 
 
 class ColumnNotFoundError(Exception):
@@ -143,7 +143,6 @@ def import_companies(session, import_newer_than_in_days=3):
             company_new = Company()
             company_new = dict_to_db_obj(company_new, row)
             log.logger.info(f"company data : {company_new!s}")
-            # if company has been created or updated in the last 3 days, update
             days_ago = datetime.now(tz=UTC) + timedelta(days=-import_newer_than_in_days)
 
             process_import = False
@@ -175,18 +174,6 @@ def import_companies(session, import_newer_than_in_days=3):
 
 def import_interactions(session, import_newer_than_in_days=3):
     log.logger.info("Begin importing interactions")
-    mapping = {
-        "Interaction Year": "interaction_year",
-        "Interaction Financial Year": "interaction_financial_year",
-        "Company Name": "company_name",
-        "Company Sector": "company_sector",
-        "Company ID": "company_id",
-        "Date of Interaction": "date_of_interaction",
-        "Interaction Subject": "interaction_subject",
-        "Interaction Theme: Investment or Export": "interaction_theme_investment_or_export",
-        "Adviser Name": "adviser_name",
-        "Team Name": "team_name",
-    }
 
     # Remove all interactions
     session.query(Interaction).delete()
@@ -198,19 +185,42 @@ def import_interactions(session, import_newer_than_in_days=3):
 
         counter = 0
         for row in data:
-            # New object
-            company_interaction = Interaction()
-            company_interaction = dict_to_db_obj(company_interaction, row, mapping)
+            company_interaction = dict_to_db_obj(Interaction(), row)
             days_ago = datetime.now(tz=UTC) + timedelta(days=-import_newer_than_in_days)
-            if company_interaction.date_of_interaction > days_ago.date():
+            if company_interaction.interaction_date > days_ago.date():
                 # check company exists
                 company = session.query(Company).filter(Company.id == company_interaction.company_id).first()
+                if company_interaction.investment_project_id is not None:
+                    investment_project = (
+                        session.query(InvestmentProject)
+                        .filter(InvestmentProject.id == company_interaction.investment_project_id)
+                        .first()
+                    )
+                    # If we cant match to the project make it None - could be an old project that s not imported
+                    if not investment_project:
+                        company_interaction.investment_project_id = None
+
+                if company:
+                    # Check interaction existing
+                    company_interaction_existing = (
+                        session.query(Interaction).filter(Interaction.id == row["id"]).first()
+                    )
+
+                    if company_interaction_existing:
+                        company_interaction_existing = dict_to_db_obj(company_interaction_existing, row)
+                        session.add(company_interaction_existing)
+                        log.logger.info("updating company")
+                    else:
+                        session.add(company_interaction)
+                        log.logger.info("adding company")
+
+                else:
+                    log.logger.info(f"No match for interaction company {company_interaction.company_id}")
+
                 if company:
                     session.add(company_interaction)
                     log.logger.info("adding interaction")
                     counter += 1
-                else:
-                    log.logger.info(f"No match for interaction company {company_interaction.company_id}")
 
             if counter % 1000 == 0 and counter > 0:
                 session.commit()
@@ -230,11 +240,11 @@ def import_objectives(session, import_newer_than_in_days=3):
 
         counter = 0
         for row in data:
-            objective = AccountManagementObjectives()
+            objective = AccountManagementObjective()
             objective = dict_to_db_obj(objective, row, mapping)
 
             objective_existing = (
-                session.query(AccountManagementObjectives).filter(AccountManagementObjectives.id == row["id"]).first()
+                session.query(AccountManagementObjective).filter(AccountManagementObjective.id == row["id"]).first()
             )
 
             if objective_existing:
@@ -265,11 +275,11 @@ def import_projects(session, import_newer_than_in_days=3):
 
         for row in data:
             # New object
-            investment_project = InvestmentProjects()
+            investment_project = InvestmentProject()
             investment_project = dict_to_db_obj(investment_project, row, mapping)
 
             investment_project_existing = (
-                session.query(InvestmentProjects).filter(InvestmentProjects.id == row["id"]).first()
+                session.query(InvestmentProject).filter(InvestmentProject.id == row["id"]).first()
             )
 
             if investment_project_existing:
