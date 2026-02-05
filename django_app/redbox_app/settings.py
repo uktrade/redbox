@@ -21,10 +21,14 @@ from redbox_app.setting_enums import Classification, Environment
 
 logger = logging.getLogger(__name__)
 
+if os.getenv("USE_TESTS_INTEGRATION_ENV", "False").lower() == "true":
+    logger.warning("Loading Integration EnvFile: tests/.env.integration")
+    load_dotenv(find_dotenv("tests/.env.integration"))
 
-load_dotenv()
+load_dotenv(override=True)
 
 if os.getenv("USE_LOCAL_ENV", "False").lower() == "true":
+    logger.warning("Loading Local EnvFile: .env.local")
     load_dotenv(find_dotenv(".env.local"), override=True)
 
 env = environ.Env()
