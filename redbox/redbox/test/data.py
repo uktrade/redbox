@@ -14,7 +14,7 @@ from pydantic.v1 import BaseModel, Field, validator
 
 from redbox.models.chain import RedboxQuery
 from redbox.models.chat import ChatRoute, ErrorRoute
-from redbox.models.file import ChunkResolution, UploadedFileMetadata
+from redbox.models.file import ChunkResolution, TabularSchema, UploadedFileMetadata
 from redbox.models.graph import RedboxActivityEvent
 from redbox.models.chain import MultiAgentPlanBase
 
@@ -82,6 +82,9 @@ def generate_tabular_docs(
             uri=s3_key,
             page_number=page_numbers[min(i, len(page_numbers) - 1)],
             created_datetime=datetime.datetime.now(datetime.UTC),
+            document_schema=TabularSchema(
+                name=f"sheet{i}", columns={"id": "NUMERIC", "name": "TEXT", "value": "NUMERIC"}
+            ),
             token_count=int(total_tokens / number_of_docs),
             chunk_resolution=chunk_resolution,
             name=Path(s3_key).stem,
@@ -148,6 +151,7 @@ class RedboxChatTestCase:
     ):
         # Use separate file_uuids if specified else match the query
         all_s3_keys = test_data.s3_keys if test_data.s3_keys else query.s3_keys
+        all_s3_keys = list(set(all_s3_keys + query.knowledge_base_s3_keys))
 
         if test_data.llm_responses is not None and len(test_data.llm_responses) < test_data.number_of_docs:
             log.warning(
@@ -180,6 +184,14 @@ class RedboxChatTestCase:
 
     def get_all_permitted_docs(self) -> list[Document]:
         return [doc for doc in self.docs if doc.metadata["uri"] in set(self.query.permitted_s3_keys)]
+
+    def get_kb_docs_matching_query(self) -> list[Document]:
+        """
+        Returns all documents whose URI is both in the knowledge_base_s3_keys
+        and permitted_s3_keys.
+        """
+        expected_files = set(self.query.knowledge_base_s3_keys) & set(self.query.permitted_s3_keys)
+        return [doc for doc in self.docs if doc.metadata["uri"] in expected_files]
 
 
 def generate_test_cases(query: RedboxQuery, test_data: list[RedboxTestData], test_id: str) -> list[RedboxChatTestCase]:
