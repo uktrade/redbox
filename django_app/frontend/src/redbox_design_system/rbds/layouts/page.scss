@@ -19,8 +19,8 @@
 
 .rbds-page-side-panel {
     --side-panel-width: var(--side-panel-width--xl);
-    --side-panel-collapsed-width: calc(var(--side-panel-collapsed-width--xl, 54px) - var(--header-border-width));
 
+    min-width: var(--side-panel-collapsed-width, 54px);
     max-width: var(--side-panel-width, 373px);
     display: flex;
 }
@@ -57,6 +57,7 @@
 
         &.rbds-page-layout--side-panel .rbds-page-side-panel {
             --side-panel-collapsed-width: var(--side-panel-collapsed-width--xl);
+            // min-width: var(--side-panel-collapsed-width--xl);
         }
     }
 
