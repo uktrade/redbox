@@ -1,7 +1,7 @@
-import itertools
 import logging
+import itertools
 import re
-from typing import Dict, Iterable
+from typing import Iterable
 from uuid import NAMESPACE_DNS, UUID, uuid5
 
 from langchain_core.callbacks.manager import dispatch_custom_event
@@ -342,9 +342,11 @@ def sort_documents(documents: list[Document]) -> list[Document]:
     return list(itertools.chain.from_iterable(all_sorted_blocks_by_max_score))
 
 
-def combine_agents_state(agents_results: Dict[str, AnyMessage]):
+def combine_agents_state(agents_results: list[AnyMessage]):
     """Combine a list of agent results into a string."""
     if not agents_results:
-        return {}
-    flatten_agent_results = "\n\n".join([msg.content for msg in agents_results.values()])
-    return {"all_result": flatten_agent_results}
+        return []
+    print("agents_results")
+    print(agents_results)
+    flatten_agent_results = "\n\n".join([msg.content for msg in agents_results])
+    return flatten_agent_results

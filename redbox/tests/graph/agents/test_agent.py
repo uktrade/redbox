@@ -5,7 +5,7 @@ from pytest_mock import MockerFixture
 from redbox.graph.agents.configs import AgentConfig, PromptConfig, PromptVariable
 from redbox.graph.agents.workers import WorkerAgent
 from redbox.graph.nodes.tools import build_search_wikipedia_tool
-from redbox.models.chain import RedboxState, TaskStatus
+from redbox.models.chain import AgentTaskBase, RedboxState
 from redbox.test.data import GenericFakeChatModelWithTools
 
 WORKER_RESPONSE_WITH_TOOL = AIMessage(
@@ -33,31 +33,32 @@ class TestWorkerAgent:
         name="Internal_Retrieval_Agent", description="Fake description", prompt=propmt_config, tools=tools
     )
     worker = WorkerAgent(config=config)
-
-    @pytest.mark.parametrize(
-        "success, fake_state_fixture",
-        [("fail", "fake_state"), ("success", "fake_state_with_plan")],
-        indirect=["fake_state_fixture"],
+    task = AgentTaskBase(
+        task="Fake task",
+        agent="Internal_Retrieval_Agent",
+        expected_output="A comprehensive list of fake results",
     )
-    def test_reading_task_info(self, success, fake_state_fixture):
-        self.worker.reading_task_info().invoke(fake_state_fixture)
+
+    @pytest.mark.parametrize("success, task", [("success", task.model_dump_json()), ("fail", "")])
+    def test_reading_task_info(self, success, task, fake_state):
+        fake_state.messages = [AIMessage(content=task)]
+        _, task = self.worker.reading_task_info().invoke(fake_state)
         if success == "success":
-            assert self.worker.task is not None
+            assert task is not None
         else:
-            assert self.worker.task is None
+            assert task is None
 
     @pytest.mark.parametrize(
         "result", [("A result"), ([AIMessage("A"), AIMessage("result")]), ([{"text": "A result"}])]
     )
-    def test_post_processing(self, result, fake_state_with_plan):
-        self.worker.task = fake_state_with_plan.agent_plans.tasks[0]
-        response = self.worker.post_processing().invoke((fake_state_with_plan, result))
-        assert response["agents_results"] == {
-            self.worker.task.id: AIMessage(
-                content=f"<{self.worker.config.name}_Result>A result</{self.worker.config.name}_Result>"
-            )
-        }
-        assert response["tasks_evaluator"] == self.worker.task.task + "\n" + self.worker.task.expected_output
+    def test_post_processing(self, result, fake_state):
+        task = self.task
+        response = self.worker.post_processing().invoke((fake_state, result, task))
+        assert (
+            response["agents_results"]
+            == f"<{self.worker.config.name}_Result>A result</{self.worker.config.name}_Result>"
+        )
+        assert response["tasks_evaluator"] == task.task + "\n" + task.expected_output
 
     @pytest.mark.parametrize(
         "AI_response",
@@ -67,7 +68,7 @@ class TestWorkerAgent:
             (WORKER_RESPONSE_WITH_TOOL),
         ],
     )
-    def test_core_task(self, AI_response, fake_state_with_plan, mocker: MockerFixture):
+    def test_core_task(self, AI_response, fake_state, mocker: MockerFixture):
         # mock LLM call
         llm_mock = mocker.patch("redbox.chains.runnables.get_chat_llm")
         llm_mock.return_value = GenericFakeChatModelWithTools(messages=iter([AI_response]))
@@ -76,14 +77,14 @@ class TestWorkerAgent:
             "redbox.graph.agents.workers.run_tools_parallel",
             return_value=[AIMessage(content="Here is your fake response")],
         )
-        self.worker.task = fake_state_with_plan.agent_plans.tasks[0]
-        response = self.worker.core_task().invoke(fake_state_with_plan)
+        task = self.task
+        response = self.worker.core_task().invoke((fake_state, task))
         if isinstance(response, str):
             response == "Here is your fake response"
         elif isinstance(response, list):
             assert response[0].content == "Here is your fake response"
 
-    def test_execute(self, fake_state_with_plan: RedboxState, mocker: MockerFixture):
+    def test_execute(self, fake_state: RedboxState, mocker: MockerFixture):
         # mock LLM call
         llm_mock = mocker.patch("redbox.chains.runnables.get_chat_llm")
         llm_mock.return_value = GenericFakeChatModelWithTools(messages=iter([WORKER_RESPONSE_WITH_TOOL]))
@@ -92,12 +93,12 @@ class TestWorkerAgent:
             "redbox.graph.agents.workers.run_tools_parallel",
             return_value=[AIMessage(content="Here is your fake response")],
         )
-        self.worker.task = fake_state_with_plan.agent_plans.tasks[0]
-        response = self.worker.execute().invoke(fake_state_with_plan)
-        assert response["agents_results"] == {
-            self.worker.task.id: AIMessage(
-                content=f"<{self.worker.config.name}_Result>Here is your fake response</{self.worker.config.name}_Result>"
-            )
-        }
-        assert response["tasks_evaluator"] == self.worker.task.task + "\n" + self.worker.task.expected_output
-        assert response["agent_plans"].get_task_status(self.worker.task.id) == TaskStatus.COMPLETED
+        task = self.task
+        fake_state.messages = [AIMessage(content=task.model_dump_json())]
+        response = self.worker.execute().invoke(fake_state)
+        type(response)
+        assert (
+            response["agents_results"]
+            == f"<{self.worker.config.name}_Result>Here is your fake response</{self.worker.config.name}_Result>"
+        )
+        assert response["tasks_evaluator"] == task.task + "\n" + task.expected_output
