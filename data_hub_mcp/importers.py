@@ -55,7 +55,7 @@ def dict_to_db_obj(db_obj, data_dict, mapping: dict | None = None):  # noqa: C90
             formatted_value = parse_integer_string(formatted_value, value)
 
         elif str(column.type) == "FLOAT":
-            formatted_value = float(value)
+            formatted_value = parse_float_string(formatted_value, value)
 
         elif str(column.type).startswith("VARCHAR") or str(column.type) == "UUID":
             formatted_value = value
@@ -70,6 +70,13 @@ def dict_to_db_obj(db_obj, data_dict, mapping: dict | None = None):  # noqa: C90
         db_obj.__setattr__(updated_key, formatted_value)
 
     return db_obj
+
+
+def parse_float_string(formatted_value, value) -> float:
+    if value != "":
+        formatted_value = float(value)
+
+    return formatted_value
 
 
 def find_column(db_obj, updated_key) -> Any:
@@ -106,6 +113,8 @@ def parse_datetime_string(value: Literal[""] | Any) -> datetime | None:
     # '2025-10-07 23:09:42.394611'
     if re.search("^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{6}$", value):
         formatted_value = datetime.strptime(value, "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=UTC)
+    elif re.search("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{6}$", value):
+        formatted_value = datetime.strptime(value, "%Y-%m-%dT%H:%M:%S.%f").replace(tzinfo=UTC)
     elif re.search("^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$", value):
         formatted_value = datetime.strptime(value, "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
     elif re.search("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", value):
