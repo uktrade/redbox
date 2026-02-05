@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 import boto3
 from elasticsearch import Elasticsearch
 from langchain.globals import set_debug
-from opensearchpy import OpenSearch, Urllib3HttpConnection
+from opensearchpy import OpenSearch, RequestsHttpConnection
 from pydantic import AnyUrl, BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from redbox_app.setting_enums import Environment
@@ -339,9 +339,8 @@ class Settings(BaseSettings):
                     self.elastic.collection_endpoint__password,
                 ),
                 use_ssl=False,
-                connection_class=Urllib3HttpConnection,
+                connection_class=RequestsHttpConnection,
             )
-
         else:
             client = OpenSearch(
                 hosts=[
@@ -356,44 +355,33 @@ class Settings(BaseSettings):
                 ),
                 use_ssl=True,
                 verify_certs=True,
-                connection_class=Urllib3HttpConnection,
+                connection_class=RequestsHttpConnection,
                 retry_on_timeout=True,
                 pool_maxsize=100,
                 timeout=120,
             )
 
-        if not client.indices.exists_alias(name=self.elastic_alias):
-            chunk_index = f"{self.elastic_root_index}-chunk"
-            # client.options(ignore_status=[400]).indices.create(index=chunk_index)
-            # client.indices.put_alias(index=chunk_index, name=self.elastic_alias)
+        def ensure_index(index_name, mapping=None):
             try:
-                client.indices.create(
-                    index=chunk_index, body=self.index_mapping, ignore=400
-                )  # 400 is ignored to avoid index-already-exists errors
-            except Exception as e:
-                logger.error(f"Failed to create index {chunk_index}: {e}")
+                if not client.indices.exists(index=index_name):
+                    client.indices.create(index=index_name, body=mapping, ignore=400)
+            except Exception:
+                logger.exception("Failed to create index %s", index_name)
 
+        def ensure_alias(index_name, alias_name):
             try:
-                client.indices.put_alias(index=chunk_index, name=f"{self.elastic_root_index}-chunk-current")
-            except Exception as e:
-                logger.error(f"Failed to set alias {self.elastic_root_index}-chunk-current: {e}")
+                if not client.indices.exists_alias(name=alias_name):
+                    client.indices.put_alias(index=index_name, name=alias_name)
+            except Exception:
+                logger.exception("Failed to set alias %s for index %s", alias_name, index_name)
 
-        if not client.indices.exists(index=self.elastic_chat_mesage_index):
-            try:
-                client.indices.create(
-                    index=self.elastic_chat_mesage_index, ignore=400
-                )  # 400 is ignored to avoid index-already-exists errors
-            except Exception as e:
-                logger.error(f"Failed to create index {self.elastic_chat_mesage_index}: {e}")
-            # client.indices.create(index=self.elastic_chat_mesage_index)
+        # Ensure indexes and aliases exist
+        chunk_index = f"{self.elastic_root_index}-chunk"
+        ensure_index(chunk_index, self.index_mapping)
+        ensure_alias(chunk_index, f"{self.elastic_root_index}-chunk-current")
 
-        if not client.indices.exists(index=self.elastic_schematised_chunk_index):
-            try:
-                client.indices.create(
-                    index=self.elastic_schematised_chunk_index, body=self.index_mapping_schematised, ignore=400
-                )
-            except Exception as e:
-                logger.error(f"Failed to create index {self.elastic_schematised_chunk_index}: {e}")
+        ensure_index(self.elastic_chat_mesage_index)
+        ensure_index(self.elastic_schematised_chunk_index, self.index_mapping_schematised)
 
         return client
 
