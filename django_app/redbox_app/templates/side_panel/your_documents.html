@@ -19,7 +19,7 @@
                             <div class="govuk-checkboxes__item item-checkbox-container display">
                                 <input class="govuk-checkboxes__input rbds-item-checkbox__input" id="file-{{ file.id }}" name="file-{{ file.id }}" type="checkbox"
                                     value="{{ file.id }}" title="{{ file.file_name }}" {% if file.selected %}checked{% endif %}>
-                                <label class="item-checkbox-label rbds-item-label rbds-item-link govuk-checkboxes__label title-text" for="file-{{ file.id }}"
+                                <label class="rbds-item-label rbds-text-ellipses rbds-item-link govuk-checkboxes__label title-text" for="file-{{ file.id }}"
                                     title="{{ file.file_name }}">
                                     {{ file.file_name }}
                                     {% if request.user.is_superuser and file.team_associations.exists() and file.team_associations.first.visibility == 'TEAM' %}
@@ -71,7 +71,7 @@
                         <div class="govuk-checkboxes__item">
                             <input class="govuk-checkboxes__input" id="file-{{ file.id }}" name="file-{{ file.id }}"
                                 type="checkbox" value="{{ file.id }}" {% if file.selected %}checked{% endif %}>
-                            <label class="item-checkbox-label rbds-item-label govuk-checkboxes__label" for="file-{{ file.id }}">
+                            <label class="rbds-item-label rbds-text-ellipses govuk-checkboxes__label" for="file-{{ file.id }}">
                                 {{ file.file_name }}
                                 {% if request.user.is_superuser and file.team_associations.exists() %}
                                     (Shared with {{ file.team_associations.first().team.team_name }})

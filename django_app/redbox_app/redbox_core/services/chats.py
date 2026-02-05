@@ -134,3 +134,11 @@ def render_chats(request: HttpRequest, context: dict) -> HttpResponse:
         template_name="chats.html",
         context=context,
     )
+
+
+def render_conversations(request: HttpRequest, context: dict) -> HttpResponse:
+    return render(
+        request,
+        template_name="side_panel/conversations.html",
+        context=context,
+    )

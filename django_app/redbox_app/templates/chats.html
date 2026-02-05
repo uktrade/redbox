@@ -15,9 +15,13 @@
 #}
 
 <div class="govuk-width-container rbds-page-content">
-  {% include "chat/cta.html" %}
-  {% include "chat/chat_window.html" %}
-  {% include "chat/message_input.html" %}
+  <div class="rbds-chat">
+    {% include "chat/cta.html" %}
+    <div class="rbds-chat-feed rbds-scrollable">
+      {% include "chat/chat_window.html" %}
+    </div>
+    {% include "chat/message_input.html" %}
+  </div>
   <exit-feedback class="exit-feedback" data-chatid="{{ current_chat.id }}" data-csrf="{{ csrf_token }}"></exit-feedback>
 </div>
 

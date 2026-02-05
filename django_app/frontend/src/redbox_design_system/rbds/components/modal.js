@@ -3,6 +3,7 @@
 import { disableNoScroll, enableNoScroll } from "./no-scroll";
 
 export class Modal extends HTMLElement {
+    noScrollSource = "modal";
 
     connectedCallback() {
         this.#initialiseModal();
@@ -43,7 +44,7 @@ export class Modal extends HTMLElement {
             if (!this.dialog) return;
 
             this.dialog.showModal();
-            this.dialogId = enableNoScroll();
+            this.dialogId = enableNoScroll(this.noScrollSource);
         });
 
         closeElements.forEach((element) => {
@@ -52,21 +53,30 @@ export class Modal extends HTMLElement {
                 if (!this.dialog) return;
 
                 this.dialog.close();
-                disableNoScroll(this.dialogId);
+                if (this.dialogId) disableNoScroll(this.dialogId);
             });
         });
 
         this.dialog.addEventListener("click", (event) => {
-            const target = /** @type {HTMLDialogElement} */ (event.target);
+            const target = /** @type {HTMLElement} */ (event.target);
+            if (!target) return;
             const rect = target.getBoundingClientRect();
             const isInDialog =
                 rect.top <= event.clientY &&
                 event.clientY <= rect.top + rect.height &&
                 rect.left <= event.clientX &&
                 event.clientX <= rect.left + rect.width;
-            if (!isInDialog) {
-                target.close();
-                disableNoScroll(this.dialogId);
+
+            let closeElementFired = false;
+            closeElements.forEach((element) => {
+                if (target==element) {
+                    closeElementFired = true;
+                }
+            });
+
+            if (!isInDialog && !closeElementFired) {
+                this.dialog?.close();
+                if (this.dialogId) disableNoScroll(this.dialogId);
             }
         });
     }

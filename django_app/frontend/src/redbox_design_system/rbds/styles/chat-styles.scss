@@ -25,11 +25,11 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   background-color: var(--colour-text);
 }
 
-@media (min-width: 641px) {
-  .rb-chats-section {
-    flex-grow: 1;
-  }
-}
+// @media (min-width: 641px) {
+//   .rb-chats-section {
+//     flex-grow: 1;
+//   }
+// }
 
 /* Footnotes */
 .rb-footnote-link {

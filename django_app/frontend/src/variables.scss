@@ -86,6 +86,7 @@ $screen-widths: (
   --color-link-text-hover: var(--gds-dark-blue);
   --color-product-name: #AA2A16;
   --color-side-panel: var(--color-background-light-blue);
+  --color-background-inactive: rgba(255, 255, 255, 0.5);
 
   // Icon Colors
   --color-icon-light-foreground: var(--dbt-black);
@@ -130,6 +131,8 @@ $screen-widths: (
   --side-panel-collapsed-width--m: 54px;
   --side-panel-collapsed-width--s: 54px;
   --side-panel-collapsed-width--xs: 0px;
+
+  --side-panel-box-shadow: 0px 0px 10px var(--gds-black);
 
   --text-spacing: 5px;
   --button-icon-size: 24px;

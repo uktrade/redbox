@@ -91,17 +91,17 @@ class DeleteChat(View):
         else:
             active_chat_id = None
 
-        if active_chat_deleted:
-            context = chat_service.get_context(request, active_chat_id)
-            oob_context = context
-            oob_context["oob"] = True
+        context = chat_service.get_context(request, active_chat_id)
+        oob_context = context
+        oob_context["oob"] = True
 
+        if active_chat_deleted:
             return render_with_oob(
                 [
-                    {"template": "side_panel/conversations.html", "context": context, "request": request},
                     {"template": "side_panel/your_documents.html", "context": oob_context, "request": request},
                     {"template": "chat/cta.html", "context": oob_context, "request": request},
                     {"template": "chat/chat_window.html", "context": oob_context, "request": request},
                 ]
             )
-        return chat_service.render_recent_chats(request, active_chat_id)
+
+        return HttpResponse(status=HTTPStatus.OK)

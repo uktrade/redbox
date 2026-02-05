@@ -1,10 +1,18 @@
 @use "./../../../variables.scss" as *;
 
+.rbds-chat {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    min-height: 0;
+}
+
+.rbds-chat-feed {
+    display: flex;
+}
+
 .rbds-chat-window {
     --chat-window-min-height: 100vh;
-    width: var(--screen-width-xl);
-    max-width: 100%;
-    min-height: var(--chat-window-min-height);
     flex: 1;
     display: flex;
     align-items: stretch;
@@ -13,6 +21,7 @@
         --chat-window-min-height: 0;
     }
     flex-direction: column;
+    padding-bottom: 10px;
 }
 
 .rbds-chat-cta {
@@ -73,12 +82,12 @@
 
     padding-top: 30px;
     padding-bottom: 20px;
-    min-height: var(--interaction-container-height);
     position: sticky;
     bottom: 0;
     background-color: var(--color-background-white);
     background-color: white;
     z-index: 200;
+    flex-shrink: 0;
 
     &__inner {
         display: flex;

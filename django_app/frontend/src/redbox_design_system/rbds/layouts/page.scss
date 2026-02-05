@@ -22,7 +22,6 @@
     --side-panel-collapsed-width: calc(var(--side-panel-collapsed-width--xl, 54px) - var(--header-border-width));
 
     max-width: var(--side-panel-width, 373px);
-    min-width: var(--side-panel-collapsed-width);
     display: flex;
 }
 
@@ -66,9 +65,10 @@
             content: "";
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.3) !important;
+            background: var(--color-background-inactive) !important;
+            backdrop-filter: blur(3px);
             pointer-events: none;
-            z-index: 1;
+            z-index: 800;
         }
 
         .rbds-page-content {

@@ -66,3 +66,15 @@
 .rbds-fit-content-width {
   min-width: fit-content;
 }
+
+.rbds-blur {
+  &::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: var(--color-background-inactive) !important;
+    backdrop-filter: blur(3px);
+    pointer-events: none;
+    z-index: 800;
+  }
+}
