@@ -131,8 +131,7 @@ prompt_configs: Dict[str, PromptConfig] = {
         ),
     ),
     "Datahub_Agent": PromptConfig(
-        system=prompts.DATAHUB_PROMPT,
-        question=prompts.DATAHUB_QUESTION_PROMPT,
+        system=prompts.DATAHUB_PROMPT + prompts.DATAHUB_QUESTION_PROMPT,
         prompt_vars=PromptVariable(question=True),
     ),
     "Knowledge_Base_Retrieval_Agent": PromptConfig(
