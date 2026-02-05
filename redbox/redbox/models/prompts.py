@@ -71,6 +71,9 @@ SELF_ROUTE_SYSTEM_PROMPT = """
 RETRIEVAL_QUESTION_PROMPT = "<User_question>From the provided documents, {question}</User_question>"
 
 NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context.
+
+Use the structure and specifications provided by ARTIFACT_BUILDER_AGENT to produce the final artifact output.
+
 When analysing results from the tabular agent, only synthesise or summarise the provided information to answer the question. Do not derive new statistics from the tabular agent results."""
 
 AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
@@ -387,6 +390,14 @@ Use when the user wants to:
 - Create abstracts or overviews
 """
 
+ARTIFACT_BUILDER_AGENT_DESC = """
+**Artifact_Builder_Agent**:
+Purpose: Retrieve artifact criteria including structure, headings, word limit, style from the knowledge base.
+Use when the user wants to:
+- Produce an artifact such as drafting, briefing, proposals, propositions
+"""
+
+
 WORKER_AGENTS_PROMPT = """
 ## Available agents and their responsibilities
 
@@ -568,4 +579,8 @@ After evaluating all seven criteria, provide the following:
 
 EVAL_SUBMISSION_QA = """
 Make the response be extremely concise. 200 words max unless user asks for detail.
+"""
+
+ARTIFACT_BUILDER_AGENT_PROMPT = """
+You are an artifact builder agent. Your job is to extract the correct artifact criteria from the knowledge base.
 """
