@@ -3,6 +3,7 @@
 import { hideElement, showElement } from "../../utils/dom-utils.js";
 import { LoadingMessage } from "../../../redbox_design_system/rbds/components/loading-message.js";
 
+// TODO: Reimplement scroll position save-and-restore on active chat reload
 // window.addEventListener('load', () => {
 //   const scrollPosition = sessionStorage.getItem('scrollPosition');
 //   if (scrollPosition !== null) {

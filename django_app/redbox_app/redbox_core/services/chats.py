@@ -136,9 +136,9 @@ def render_chats(request: HttpRequest, context: dict) -> HttpResponse:
     )
 
 
-def render_conversations(request: HttpRequest, context: dict) -> HttpResponse:
+def render_conversations(request: HttpRequest, context: dict | None = None) -> HttpResponse:
     return render(
         request,
         template_name="side_panel/conversations.html",
-        context=context,
+        context=context or get_context(request),
     )

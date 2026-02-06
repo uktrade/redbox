@@ -97,7 +97,7 @@ def get_menu_items(user):
 
 def get_product_name(user):
     if flag_is_active(user, flags.ENABLE_ASSIST_REBRAND):
-        return "Assist"
+        return "DBT Assist"
 
     return settings.PRODUCT_NAME
 

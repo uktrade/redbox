@@ -15,7 +15,7 @@ from waffle import flag_is_active
 from redbox_app.redbox_core import flags
 from redbox_app.redbox_core.models import Chat
 from redbox_app.redbox_core.services import chats as chat_service
-from redbox_app.redbox_core.utils import render_with_oob
+from redbox_app.redbox_core.utils import parse_uuid, render_with_oob
 
 logger = logging.getLogger(__name__)
 
@@ -80,16 +80,11 @@ class DeleteChat(View):
         chat.save()
 
         session_id = request.POST.get("session-id")
-        active_chat_id = session_id if session_id else request.POST.get("active_chat_id")
+        active_chat_id = session_id or parse_uuid(request.POST.get("active_chat_id"))
 
-        if active_chat_id != "None":
-            active_chat_id = uuid.UUID(active_chat_id)
-
-            if active_chat_id == chat_id:
-                active_chat_id = None
-                active_chat_deleted = True
-        else:
+        if active_chat_id == chat_id:
             active_chat_id = None
+            active_chat_deleted = True
 
         context = chat_service.get_context(request, active_chat_id)
         oob_context = context
