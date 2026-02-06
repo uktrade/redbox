@@ -1,3 +1,5 @@
+import os
+
 from data_classes import (
     AccountManagementObjectivesSearchResult,
     CompaniesOrInteractionSearchResult,
@@ -9,14 +11,9 @@ from data_classes import (
 )
 from db_ops import (
     db_check,
-    get_account_management_objectives,
-    get_companies,
-    get_companies_or_interactions,
-    get_company,
-    get_company_interactions,
-    get_investment_projects,
 )
 from fastmcp import FastMCP
+from repository import PostgresRepository, StaticRepository
 
 # from fastmcp.server.auth.providers.auth0 import Auth0Provider
 from starlette.responses import JSONResponse
@@ -31,8 +28,20 @@ from starlette.responses import JSONResponse
 #     base_url=os.getenv("AUTHBROKER_BASE_URL"),  # Must match your application configuration
 # )
 
+# Static Data Override
+
+USE_STATIC_DATA = os.getenv("MCP_USE_STATIC_DATA", "false").lower() in ("true", "1", "yes")
+repo = PostgresRepository()
+server_suffix = ""
+
+if USE_STATIC_DATA:
+    repo = StaticRepository()
+    server_suffix = " [STATIC]"
+
+# Setup Server
+
 mcp = FastMCP(
-    name="Data Hub companies MCP server",
+    name=f"Data Hub companies MCP server{server_suffix}",
     stateless_http=True,
     json_response=True,
 )
@@ -64,7 +73,7 @@ async def greet(name: str) -> str:
     meta={"version": "1.0", "author": "Doug Mills"},
 )
 async def companies(company_name: str, page_size: int = 10, page: int = 0) -> CompanySearchResult:
-    return get_companies(company_name, page_size, page)
+    return await repo.companies(company_name, page_size, page)
 
 
 @mcp.tool(
@@ -74,7 +83,7 @@ async def companies(company_name: str, page_size: int = 10, page: int = 0) -> Co
     meta={"version": "1.0", "author": "Doug Mills"},
 )
 async def company_details(company_id: str) -> CompanyDetails | None:
-    return get_company(company_id)
+    return await repo.company_details(company_id)
 
 
 @mcp.tool(
@@ -85,7 +94,7 @@ async def company_details(company_id: str) -> CompanyDetails | None:
     meta={"version": "1.0", "author": "Doug Mills"},
 )
 async def company_details_extended(company_id: str) -> CompanyDetailsExtended | None:
-    return get_company(company_id)
+    return await repo.company_details(company_id)
 
 
 @mcp.tool(
@@ -98,7 +107,7 @@ async def company_details_extended(company_id: str) -> CompanyDetailsExtended | 
 async def companies_or_interactions(
     company_name: str, page_size: int = 10, page: int = 0
 ) -> CompaniesOrInteractionSearchResult | None:
-    return get_companies_or_interactions(company_name, page_size, page)
+    return await repo.companies_or_interactions(company_name, page_size, page)
 
 
 @mcp.tool(
@@ -110,7 +119,7 @@ async def companies_or_interactions(
 async def company_interactions(
     company_id: str, page_size: int = 10, page: int = 0
 ) -> CompanyInteractionSearchResult | None:
-    return get_company_interactions(company_id, page_size, page)
+    return await repo.company_interactions(company_id, page_size, page)
 
 
 @mcp.tool(
@@ -122,7 +131,7 @@ async def company_interactions(
 async def account_management_objectives(
     company_id: str, page_size: int = 10, page: int = 0
 ) -> AccountManagementObjectivesSearchResult | None:
-    return get_account_management_objectives(company_id, page_size, page)
+    return await repo.account_management_objectives(company_id, page_size, page)
 
 
 @mcp.tool(
@@ -134,4 +143,4 @@ async def account_management_objectives(
 async def investment_projects(
     company_id: str, page_size: int = 10, page: int = 0
 ) -> InvestmentProjectsSearchResult | None:
-    return get_investment_projects(company_id, page_size, page)
+    return await repo.investment_projects(company_id, page_size, page)
