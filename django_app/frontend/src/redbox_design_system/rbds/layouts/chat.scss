@@ -1,8 +1,18 @@
+@use "./../../../variables.scss" as *;
+
+.rbds-chat {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    min-height: 0;
+}
+
+.rbds-chat-feed {
+    display: flex;
+}
+
 .rbds-chat-window {
     --chat-window-min-height: 100vh;
-    width: var(--screen-width-xl);
-    max-width: 100%;
-    min-height: var(--chat-window-min-height);
     flex: 1;
     display: flex;
     align-items: stretch;
@@ -11,70 +21,73 @@
         --chat-window-min-height: 0;
     }
     flex-direction: column;
+    padding-bottom: 10px;
 }
 
 .rbds-chat-cta {
-    --cta-container-height: 15px;
+    --cta-container-height: 35px;
 
-    width: var(--screen-width-xl);
+    background-color: var(--color-background-white);
+    display: grid;
+    grid-template-columns: auto auto;
+    row-gap: 15px;
+
+    &__toggle  { grid-area: toggle; }
+    &__tool    { grid-area: tool; }
+    &__title   { grid-area: title; }
+    &__actions { grid-area: actions; }
+
+    align-items: center;
+    justify-self: stretch;
+    justify-items: stretch;
+    justify-content: space-between;
+
     height: var(--cta-container-height);
-    display: flex;
-    flex-direction: column;
     padding-top: 20px;
     padding-bottom: 60px;
-    margin-bottom: 10px;
 
     position: sticky;
     top: 0;
-    background-color: var(--color-background-white);
     z-index: 200;
 
-    &--centered {
-        .rbds-chat-cta__row--top {
-            justify-content: center;
-        }
-    }
-
-    &__row {
-        display: flex;
-        align-items: center;
-        width: 100%;
-    }
-
-    &__row--top {
-        justify-content: space-between;
-    }
-
-    &__row--bottom {
-        padding-top: 10px;
-    }
-
-    &__left {
+    .cta-text {
         display: flex;
     }
 
-    &__row {
-        display: flex;
-        align-items: center;
-        margin-left: auto;
+    &:has(.rbds-chat-cta__tool):has(.rbds-chat-cta__title) {
+        grid-template-areas:
+            "tool   actions"
+            "title  .";
+    }
+
+    &:has(.rbds-chat-cta__tool):not(:has(.rbds-chat-cta__title)) {
+        grid-template-areas:
+            "tool   actions"
+    }
+
+    &:has(.rbds-chat-cta__title):not(:has(.rbds-chat-cta__tool)) {
+        grid-template-areas:
+            "title  actions"
+    }
+
+    &:not(:has(.rbds-chat-cta__title)):not(:has(.rbds-chat-cta__tool)) {
+        justify-self: center;
+        grid-template-areas:
+            ".  actions"
     }
 }
 
 .rbds-chat-interaction {
-    --interaction-container-height: 30px;
-    --interaction-container-width: var(--screen-width-xl);
+    --interaction-container-height: 60px;
 
+    padding-top: 30px;
+    padding-bottom: 20px;
     position: sticky;
     bottom: 0;
     background-color: var(--color-background-white);
     background-color: white;
     z-index: 200;
-
-    width: var(--interaction-container-width);
-    min-height: var(--interaction-container-height);
-
-    padding-top: 30px;
-    padding-bottom: 30px;
+    flex-shrink: 0;
 
     &__inner {
         display: flex;
@@ -82,5 +95,106 @@
         justify-content: flex-end;
 
         max-height: 200px;
+    }
+}
+
+@media (min-width: bp(xs)) {
+    .rbds-chat-cta {
+        --cta-container-height: 75px;
+
+        grid-template-columns: auto 1fr;
+        justify-items: end;
+        padding-top: 40px;
+        padding-bottom: 40px;
+
+        .cta-text {
+            display: none;
+        }
+
+        &:has(.rbds-chat-cta__tool):has(.rbds-chat-cta__title) {
+            padding-top: 20px;
+            padding-bottom: 60px;
+            grid-template-areas:
+                "toggle actions"
+                ".      tool"
+                ".      title";
+        }
+
+        &:has(.rbds-chat-cta__tool):not(:has(.rbds-chat-cta__title)) {
+            grid-template-areas:
+                "toggle actions"
+                ".      tool";
+        }
+
+        &:has(.rbds-chat-cta__title):not(:has(.rbds-chat-cta__tool)) {
+            grid-template-areas:
+                "toggle actions"
+                ".      title";
+        }
+
+        &:not(:has(.rbds-chat-cta__title)):not(:has(.rbds-chat-cta__tool)) {
+            justify-self: stretch;
+            grid-template-areas:
+                "toggle actions";
+        }
+
+        .rbds-chat-cta__toggle {
+            display: flex;
+        }
+    }
+
+    .rbds-chat-interaction {
+        --interaction-container-height: 60px;
+
+        padding-top: 15px;
+        padding-bottom: 10px;
+    }
+}
+
+@media (min-width: bp(s)) {
+    .rbds-chat-cta {
+        --cta-container-height: 35px;
+
+        grid-template-columns: auto auto;
+        justify-items: stretch;
+        padding-top: 20px;
+        padding-bottom: 60px;
+
+        .cta-text {
+            display: flex;
+        }
+
+        &:has(.rbds-chat-cta__tool):has(.rbds-chat-cta__title) {
+            grid-template-areas:
+                "tool   actions"
+                "title  .";
+        }
+
+        &:has(.rbds-chat-cta__tool):not(:has(.rbds-chat-cta__title)) {
+            grid-template-areas:
+                "tool   actions";
+        }
+
+        &:has(.rbds-chat-cta__title):not(:has(.rbds-chat-cta__tool)) {
+            grid-template-areas:
+                "title  actions";
+        }
+
+        &:not(:has(.rbds-chat-cta__title)):not(:has(.rbds-chat-cta__tool)) {
+            justify-self: center;
+            grid-template-areas:
+                ".  actions";
+        }
+
+        .rbds-chat-cta__toggle {
+            display: none;
+        }
+    }
+
+    .rbds-chat-interaction {
+        --interaction-container-height: 60px;
+
+        padding-top: 30px;
+        padding-bottom: 20px;
     }
 }

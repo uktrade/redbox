@@ -1,14 +1,17 @@
 {% set pageTitle = "Remove all documents" %}
+{% set persistentSidepanel = True %}
 
 {% extends "base.html" %}
+
 {% from "macros/govuk-button.html" import govukButton %}
 {% from "macros/govuk-error-summary.html" import govukErrorSummary %}
+
 
 {% block content %}
 
 <form method="post" enctype="multipart/form-data">
 
-<div class="govuk-width-container rbds-width-container rbds-page-content--xl govuk-!-margin-top-3">
+<div class="govuk-width-container rbds-page-content rbds-page-content--full govuk-!-margin-top-3">
 
   <a href="{{url('documents')}}" class="govuk-back-link govuk-!-margin-bottom-5 govuk-!-margin-top-0">Back</a>
 
