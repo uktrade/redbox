@@ -71,7 +71,7 @@
     }
 
     &:not(:has(.rbds-chat-cta__title)):not(:has(.rbds-chat-cta__tool)) {
-        justify-self: center;
+        justify-content: center;
         grid-template-areas:
             ".  actions"
     }
