@@ -239,5 +239,5 @@ def test_get_product_name(alice: User, client: Client):
     assert product_name_authenticated == settings.PRODUCT_NAME
     assert product_name_not_authenticated == settings.PRODUCT_NAME
 
-    assert flagged_product_name_authenticated == "Assist"
-    assert flagged_product_name_not_authenticated == "Assist"
+    assert flagged_product_name_authenticated == "DBT Assist"
+    assert flagged_product_name_not_authenticated == "DBT Assist"
