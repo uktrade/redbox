@@ -30,6 +30,7 @@ from redbox.graph.nodes.processes import (
     build_set_route_pattern,
     build_stuff_pattern,
     build_user_feedback_evaluation,
+    check_if_tasks_completed,
     clear_documents_process,
     combine_question_evaluator,
     create_evaluator,
@@ -571,6 +572,7 @@ def build_new_route_graph(
     )
     builder.add_node("stream_suggestion", stream_suggestion())
     builder.add_node("sending_task", empty_process)
+    builder.add_node("has_all_task_completed", empty_process)
 
     # add all agents here
     add_agent(builder, agent_configs, "Internal_Retrieval_Agent")
@@ -599,8 +601,6 @@ def build_new_route_graph(
         edge_nodes=["update_submission_qa", "combine_question_evaluator"],
     )
 
-    builder.add_node("fake_node", empty_process)
-
     # add edges
     builder.add_edge(START, "set_route_to_newroute")
     builder.add_edge("set_route_to_newroute", "remove_keyword")
@@ -617,8 +617,12 @@ def build_new_route_graph(
             "more_info": "stream_suggestion",
         },
     )
+
     builder.add_conditional_edges("sending_task", sending_task_to_agent)
-    builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
+    builder.add_edge("combine_question_evaluator", "has_all_task_completed")
+    builder.add_conditional_edges(
+        "has_all_task_completed", check_if_tasks_completed, {True: "Evaluator_Agent", False: "sending_task"}
+    )
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
     builder.add_edge("stream_plan", END)
