@@ -7,7 +7,7 @@
         {% set chat_edit_url = url('chat-titles', chat.id) %}
         {% call editable_text(chat_edit_url, 'chat-title-change', 'conversations', chat.id) %}
             <div class="chat-list-item rbds-card__item {% if chat.id == active_chat_id %}selected{% endif %}" data-chatid="{{ chat.id }}">
-                <span class="item-text-container">
+                <span class="item-text-container rbds-text-ellipses">
                     <a class="item-link govuk-link govuk-link--no-visited-state govuk-link--no-underline display title-text"
                     href="{{ link }}" {% if chat.id == active_chat_id %}aria-current="page"{% endif %} title="{{ chat.name }}">
                         {{ chat.name }}
@@ -17,7 +17,7 @@
                         <input class="chat-title-text-input edit-input" type="text" id="chat-title-text-input-{{ chat.id }}"/>
                     </div>
                 </span>
-                <div class="side-panel-item-actions">
+                <div class="rbds-item-actions">
                     <button class="rbds-icon-button edit-trigger" type="button" data-action="rename">
                         {{ rbds_icon(icon_name="edit.html", icon_classes="link") }}
                         <span class="govuk-visually-hidden"> edit chat: {{ chat.name }}</span>

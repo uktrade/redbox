@@ -1,13 +1,17 @@
 {% set pageTitle = "Tools" %}
+{% set persistentSidepanel = True %}
+
 {% extends "base.html" %}
+
 {% from "macros/govuk-button.html" import govukButton %}
 
+
 {% block content %}
-<div class="rbds-flex-column">
+<div class="rbds-page-content rbds-page-content--full">
     <div class="rbds-banner rbds-banner--neutral">
-        <div class="govuk-width-container rbds-width-container">
+        <div class="govuk-width-container">
             <div class="govuk-grid-row">
-                <div class="govuk-grid-column-two-thirds">
+                <div class="govuk-grid-column-two-thirds govuk-!-margin-left-3 govuk-!-margin-right-3">
                     <h1 class="govuk-heading-xl govuk-!-margin-bottom-7">
                         Use {{ productName }} tools to complete routine and repeatable tasks more efficiently
                     </h1>
@@ -19,7 +23,7 @@
         </div>
     </div>
 
-    <div class="govuk-width-container rbds-width-container">
+    <div class="govuk-width-container">
         <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">Available tools</h2>
         <div class="rbds-justify-content-center">
             <div class="govuk-grid-row rbds-card-grid rbds-card-grid--3-col govuk-!-margin-bottom-7">
