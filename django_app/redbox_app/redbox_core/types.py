@@ -61,6 +61,25 @@ class TabRegistry:
     def get(self, key: str, default=None):
         return self._lookup.get(key, default)
 
+    def get_context(self, request: HttpRequest) -> list[dict]:
+        """
+        Returns template-ready tab context.
+
+        :param request:
+        :type request: HttpRequest
+        :return:
+        :rtype: list[dict]
+        """
+        return [
+            {
+                "id": tab.id,
+                "title": tab.title,
+                "template": tab.template,
+                "context": tab.get_context(request),
+            }
+            for tab in self._tabs
+        ]
+
 
 @dataclass(frozen=True)
 class UIFragment:

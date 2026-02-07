@@ -53,7 +53,6 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
         "chats": Chat.get_ordered_by_last_message_date(request.user, tool),
         "current_chat": current_chat,
         "streaming": {"endpoint": str(endpoint)},
-        "contact_email": settings.CONTACT_EMAIL,
         "chat_title_length": settings.CHAT_TITLE_LENGTH,
         "llm_options": [
             {
@@ -134,4 +133,12 @@ def render_chats(request: HttpRequest, context: dict) -> HttpResponse:
         request,
         template_name="chats.html",
         context=context,
+    )
+
+
+def render_conversations(request: HttpRequest, context: dict | None = None) -> HttpResponse:
+    return render(
+        request,
+        template_name="side_panel/conversations.html",
+        context=context or get_context(request),
     )

@@ -5,7 +5,8 @@ rbds-message-input {
     --input-expanded-border-bottom: 30px;
 
     [contentEditable=true]:empty:not(:focus):before {
-        content: attr(data-text)
+        content: attr(data-text);
+        pointer-events: none;
     }
 
     position: relative;

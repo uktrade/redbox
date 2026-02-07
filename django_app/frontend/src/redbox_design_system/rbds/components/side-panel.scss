@@ -1,7 +1,7 @@
 .rbds-side-panel {
   background-color: var(--color-side-panel);
   padding-left: 15px;
-  padding-right: 25px;
+  padding-right: 15px;
 
   --color-side-panel-text: var(--color-text);
   --color-side-panel-link-text: var(--color-link-text);
@@ -25,6 +25,10 @@
 
 .rbds-side-panel__title {
   font-size: var(--font-size-s);
+}
+
+.rbds-side-panel__content {
+  padding-right: 15px;
 }
 
 /* Footer */
