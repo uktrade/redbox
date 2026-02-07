@@ -1,11 +1,13 @@
 {% set pageTitle = "" %}
 {% extends "base.html" %}
+
 {% from "macros/govuk-button.html" import govukButton %}
 
+
 {% block content %}
-<div class="rbds-page-content--full rbds-flex-column">
+<div class="rbds-page-content rbds-page-content--full rbds-flex-column">
     <div class="rbds-banner rbds-banner--full-width">
-        <div class="govuk-width-container rbds-width-container">
+        <div class="govuk-width-container">
             <div class="govuk-grid-row">
                 <div class="govuk-grid-column-two-thirds">
                     <h1 class="govuk-heading-xl govuk-!-margin-bottom-7">
@@ -36,7 +38,7 @@
         </div>
     </div>
 
-    <div class="govuk-width-container rbds-width-container">
+    <div class="govuk-width-container">
         <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">What you can do with {{ productName }}</h2>
         <div class="govuk-grid-row">
             <div class="govuk-grid-column-one-third">

@@ -1,12 +1,14 @@
 {% set pageTitle = "Upload a document" %}
+{% set persistentSidepanel = True %}
 
 {% extends "base.html" %}
+
 {% from "macros/govuk-button.html" import govukButton %}
 {% from "macros/adaptive-select.html" import adaptive_select %}
 
-{% block content %}
 
-<div class="govuk-width-container rbds-width-container rbds-page-content--xl govuk-!-margin-top-3">
+{% block content %}
+<div class="govuk-width-container rbds-page-content rbds-page-content--full govuk-!-margin-top-3">
 
   <div class="govuk-grid-column-full">
 
@@ -80,5 +82,4 @@
 </div>
 
 <script src="{{ static('js/document-upload.js') }}" type="module"></script>
-
 {% endblock %}

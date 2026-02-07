@@ -63,11 +63,7 @@
 .rbds-item-label {
   flex: 1;
   min-width: 0;
-
-  line-height: 1.4;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  // line-height: 1.4;
   max-width: 30ch;
 }
 
