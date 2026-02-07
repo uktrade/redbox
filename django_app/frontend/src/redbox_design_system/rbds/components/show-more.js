@@ -145,7 +145,7 @@ export class ShowMore extends HTMLElement {
                 if (!evt.currentTarget) return;
 
                 const target = /** @type {HTMLElement} */ (evt.currentTarget);
-                target.remove();
+                hideElement(target);
 
                 if (labelText === this.showMoreLabelText) {
                     this.#addShowLess();

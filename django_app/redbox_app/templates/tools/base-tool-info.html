@@ -1,10 +1,13 @@
 {% set pageTitle = tool.name %}
+{% set persistentSidepanel = True %}
+
 {% extends "base.html" %}
+
 {% from "macros/govuk-button.html" import govukButton %}
 
-{% block content %}
 
-    <div class="govuk-width-container rbds-width-container">
+{% block content %}
+    <div class="govuk-width-container rbds-page-content rbds-page-content--full">
         <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">{{ tool.name }}</h2>
 
         <p class="govuk-body">
@@ -38,5 +41,4 @@
             </div>
         </div>
     </div>
-
 {% endblock %}

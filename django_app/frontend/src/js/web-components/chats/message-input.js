@@ -1,7 +1,7 @@
 // @ts-check
 
 import { UploadedFiles } from "../../../redbox_design_system/rbds/components";
-import { getActiveChatId, hideElement } from "../../utils";
+import { hideElement } from "../../utils";
 import { SendMessage } from "./send-message";
 import { SendMessageWithDictation } from "./send-message-with-dictation";
 
@@ -159,6 +159,7 @@ export class MessageInput extends HTMLElement {
       }
     }
     if (hasUploadedFiles) this.textarea.appendChild(document.createElement("br"));
+    this.textarea.blur();
   };
 
 

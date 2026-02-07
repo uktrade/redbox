@@ -68,3 +68,29 @@ def test_render_chats(
 
     assert chat_response.status_code == HTTPStatus.OK
     assert "canned-prompts" not in chat_response.content.decode()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_render_conversations(
+    client: Client,
+    user_with_chats_with_messages_over_time: User,
+    chat_with_files: Chat,
+):
+    # Given
+    alice = user_with_chats_with_messages_over_time
+    client.force_login(alice)
+    factory = RequestFactory()
+    request = factory.get("/chats/")
+    request.user = alice
+    chat_context = chats_service.get_context(request, chat_with_files.id)
+
+    # When
+    response = chats_service.render_conversations(request)
+    chat_response = chats_service.render_conversations(request, chat_context)
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert "rbds-list-row--selected" not in response.content.decode()
+
+    assert chat_response.status_code == HTTPStatus.OK
+    assert "rbds-list-row--selected" in chat_response.content.decode()
