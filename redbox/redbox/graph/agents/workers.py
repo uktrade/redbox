@@ -20,7 +20,6 @@ class WorkerAgent(Agent):
 
     def __init__(self, config: AgentConfig):
         super().__init__(config)
-        self.task = None
 
     def reading_task_info(self):
         @RunnableLambda
@@ -31,24 +30,28 @@ class WorkerAgent(Agent):
             agent_options = state.request.ai_settings.get_worker_agents_options
             ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
             parser = ClaudeParser(pydantic_object=ConfiguredAgentTask)
+            task = None
             try:
-                self.task = parser.parse(state.last_message.content)
+                task = parser.parse(state.last_message.content)
+                self.logger.warning(f"Parsing task {state.last_message.content}")
             except JSONDecodeError as e:
                 self.logger.exception(f"Cannot parse task in {self.config.name}: {e}")
-            return state
+            return state, task
 
         return _reading_task_info
 
     def log_agent_activity(self):
         @RunnableLambda
         def _log_agent_activity(
-            state: RedboxState,
+            input,
         ):
             """
             log what task the agent is completing
             """
+            state, task = input
+            self.logger.warning(f"{self.config.name} is completing task: {task.task}")
             activity_node = build_activity_log_node(
-                RedboxActivityEvent(message=f"{self.config.name} is completing task: {self.task.task}")
+                RedboxActivityEvent(message=f"{self.config.name} is completing task: {task.task}")
             )
             activity_node.invoke(state)
 
@@ -60,7 +63,7 @@ class WorkerAgent(Agent):
             """
             Processing data from the agent core function.
             """
-            _, result = input
+            _, result, task = input
 
             if isinstance(result, str):
                 self.logger.warning(f"[{self.config.name}] Using raw string result.")
@@ -80,21 +83,22 @@ class WorkerAgent(Agent):
 
             return {
                 "agents_results": f"<{self.config.name}_Result>{result_content}</{self.config.name}_Result>",
-                "tasks_evaluator": self.task.task + "\n" + self.task.expected_output,
+                "tasks_evaluator": task.task + "\n" + task.expected_output,
             }
 
         return _post_processing
 
     def core_task(self):
         @RunnableLambda
-        def _core_task(state: RedboxState):
+        def _core_task(input):
+            state, task = input
             worker_agent = create_chain_agent(
                 system_prompt=self.config.prompt.get_prompt,
                 use_metadata=self.config.prompt.prompt_vars.metadata,
                 using_chat_history=self.config.prompt.prompt_vars.chat_history,
                 parser=self.config.parser,
                 tools=self.config.tools,
-                _additional_variables={"task": self.task.task, "expected_output": self.task.expected_output},
+                _additional_variables={"task": task.task, "expected_output": task.expected_output},
                 model=self.config.llm_backend,
                 use_knowledge_base=self.config.prompt.prompt_vars.knowledge_base_metadata,
             )
@@ -108,7 +112,7 @@ class WorkerAgent(Agent):
             self.logger.warning(f"[{self.config.name}] Running tools via run_tools_parallel...")
 
             result = run_tools_parallel(ai_msg, self.config.tools, state)
-            return (state, result)
+            return (state, result, task)
 
         return _core_task.with_retry(stop_after_attempt=3)
 

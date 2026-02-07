@@ -51,14 +51,14 @@
 
   <a href="#main-content" class="govuk-skip-link" data-module="govuk-skip-link">Skip to main content</a>
 
-
-  {% if environment | lower != "prod" %}
-    <div class="govuk-warning-text rbds-environment-banner">
-      {{environment|upper}} - This is not a live service
-    </div>
+  {% if not flag_is_active(request, flags.DISABLE_ENVIRONMENT_BANNER) %}
+    {% if environment | lower != "prod" %}
+      <div class="govuk-warning-text rbds-environment-banner">
+        {{environment|upper}} - This is not a live service
+      </div>
+    {% endif %}
   {% endif %}
-
-  <div class="rbds-page-layout {% if not request.user.is_authenticated %}rbds-page-layout--no-sidebar{% endif %}">
+  <div class="rbds-page-layout {% if persistentSidepanel %}rbds-page-layout--side-panel {% endif %}{% if not request.user.is_authenticated %}rbds-page-layout--no-side-panel{% endif %}">
     {% if request.user.is_authenticated %}
       {% include "side_panel/side_panel.html" %}
     {% else %}
@@ -81,8 +81,8 @@
   ] %}
 
   {% if not hideFooter %}
-    <footer class="govuk-footer govuk-footer--min-width-border">
-      <div class="govuk-width-container rbds-width-container">
+    <footer class="govuk-footer govuk-footer--min-width-border rbds-footer">
+      <div class="govuk-width-container">
         <div class="govuk-footer__meta">
           <div class="govuk-footer__meta-item govuk-footer__meta-item--grow">
             <h2 class="govuk-visually-hidden">Support links</h2>

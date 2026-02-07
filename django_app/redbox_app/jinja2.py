@@ -89,7 +89,7 @@ def get_menu_items(user):
         items.append({"text": "Tools", "href": url("tools")})
 
     items.append({"text": "Profile", "href": url("settings")})
-    items.append({"text": "Give us feedback", "href": settings.FEEDBACK_LINK or "/"})
+    items.append({"text": "Give us feedback", "href": settings.FEEDBACK_LINK})
     items.append({"text": "Log out", "href": url("signed-out")})
 
     return items
@@ -97,7 +97,7 @@ def get_menu_items(user):
 
 def get_product_name(user):
     if flag_is_active(user, flags.ENABLE_ASSIST_REBRAND):
-        return "Assist"
+        return "DBT Assist"
 
     return settings.PRODUCT_NAME
 
@@ -143,6 +143,7 @@ def environment(**options):
             "get_menu_items": get_menu_items,
             "feedback_link": settings.FEEDBACK_LINK,
             "product_name": get_product_name,
+            "contact_email": settings.CONTACT_EMAIL,
         }
     )
     return env

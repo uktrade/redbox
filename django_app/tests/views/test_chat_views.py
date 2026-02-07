@@ -226,3 +226,23 @@ def test_chat_window_without_chat(alice: User, client: Client):
     # Then
     assert response.status_code == HTTPStatus.OK
     assert canned_prompt is not None
+
+
+@pytest.mark.django_db
+def test_delete_chat(user_with_chats_with_messages_over_time: User, client: Client):
+    # Given
+    user = user_with_chats_with_messages_over_time
+    client.force_login(user)
+    chats = Chat.get_ordered_by_last_message_date(user)
+    chat_count = chats.count()
+    chat = chats[0]
+    url = reverse("delete-chat", kwargs={"chat_id": chat.id})
+
+    # When
+    response = client.post(url, json.dumps({"active_chat_id": "None"}), content_type="application/json")
+    chat_response = client.post(url, json.dumps({"active_chat_id": str(chat.id)}), content_type="application/json")
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert chat_response.status_code == HTTPStatus.OK
+    assert chat_count - 1 == Chat.get_ordered_by_last_message_date(user).count()
