@@ -67,11 +67,19 @@
   justify-content: center;
 }
 
+<<<<<<<< HEAD:django_app/frontend/src/interaction_design_system/ids/utils/utils.scss
 .ids-fit-content-width {
   min-width: fit-content;
 }
 
 .ids-blur {
+========
+.rbds-fit-content-width {
+  min-width: fit-content;
+}
+
+.rbds-blur {
+>>>>>>>> 4f8bc394 (git soft reset back into main (#809)):django_app/frontend/src/redbox_design_system/rbds/utils/utils.scss
   &::after {
     content: "";
     position: fixed;

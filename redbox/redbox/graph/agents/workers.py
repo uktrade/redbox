@@ -21,7 +21,6 @@ class WorkerAgent(Agent):
 
     def __init__(self, config: AgentConfig):
         super().__init__(config)
-        self.task = None
 
     def reading_task_info(self):
         @RunnableLambda
