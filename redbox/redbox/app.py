@@ -24,6 +24,7 @@ from redbox.graph.nodes.tools import (
     build_search_wikipedia_tool,
     build_web_search_tool,
     execute_sql_query,
+    get_datahub_mcp_tools,
     build_query_tabular_knowledge_base_tool,
 )
 from redbox.graph.root import build_new_route_graph, build_root_graph, get_summarise_graph
@@ -107,6 +108,7 @@ class Redbox:
         web_search = build_web_search_tool()
         legislation_search = build_legislation_search_tool()
         doc_from_prompt = build_document_from_prompt_tool(loop=True)
+        datahub_mcp = get_datahub_mcp_tools()
 
         self.agent_configs["Internal_Retrieval_Agent"].tools = [search_documents]
         self.agent_configs["External_Retrieval_Agent"].tools = [search_wikipedia, search_govuk]
@@ -124,6 +126,7 @@ class Redbox:
             doc_from_prompt,
         ]
         self.agent_configs["Knowledge_Base_Retrieval_Agent"].tools = [query_knowledge_base, search_knowledge_base]
+        self.agent_configs["Datahub_Agent"].tools = datahub_mcp
 
         self.graph = build_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,

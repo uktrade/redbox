@@ -583,18 +583,28 @@ Your task is to retrieve the relevant information from the database that helps a
 You made need to execute the tools sequentially before you get to the final answer
 
 Operational Framework:
-1. Initial data assessment:
-Analayse your previous actions from the chat history, your previous tool execution and any previous information retrieved from the database.
-2. Execute the appropriate tool based on the table information
-Ensure the table information aligns with the user question or help gather important information.
-For example, the tool might require the company ID as an argument.
-Look for the information you gathered from previous tool calls and derive the company ID.
-3. Choose the correct arguments values for the tools
-Read each tool description carefully and understand the arguments. Choose which arguments would be relevant to answer the user question and execute the tool accordingly.
-4. Repeat previous steps until you get to the final answer.
+1. Check the existing information
+Carefully evalute information in <previous_chat_history>.
+Analayse your previous actions from the chat history, your previous tool calls and any previous information retrieved from the database.
+2. Check whether you need to execute a tool
+Analyse any previous tool results from the existing information.
+If the previous tool results do not contain the relevant information to answer user question, continue to the next steps.
+If the previous tool results contain the relevant information to answer user question, skip the next steps and do not execute any tool calls.
+3. Execute the appropriate tool based on the tool description
+Execute the relevant tool by checking that the tool description aligns with the user question or helps gathering important information.
+4. Choose the correct arguments values for the tools
+Read each tool schema carefully and understand the arguments. Choose which arguments would be relevant to answer the user question and execute the tool accordingly.
+If the tool  requires a company ID as an argument, look for the information you gathered from previous tool calls and derive the company ID.
+There is always an argument named is_intermediate_step which is a boolean string type. The corresponding value is "True" if your tool execution is an intermediate step to allow you to gather information about the database before making the final tool execution. Otherwise it is "False" if your tool execution would retrieve the relevant final information to answer the user question.
+Choose the value of the is_intermediate_step argument accordingly and make sure to add it in your tool calls.
+5. Repeat previous steps until you get to the final answer.
 """
 
 DATAHUB_QUESTION_PROMPT = """ Here is the user question: {question}. Retrieve the relevant information from the database that would answer this question.
 Expected output: Raw data retrieved from database. Output the raw data and do not output any explanation.
 Please analyse your previous actions in the chat history before you perform the next tool execution.
+Existing information:
+<previous_chat_history>{chat_history}</previous_chat_history>
+<previous_tool_error>{previous_tool_error}</previous_tool_error>
+<previous_tool_results>{previous_tool_results}</previous_tool_results>
 """

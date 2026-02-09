@@ -501,12 +501,13 @@ def build_agent_with_loop(
             log.warning(f"{log_stub} Worker agent output:\n{ai_msg}")
 
             log.warning(f"{log_stub} Running tools via run_tools_parallel...")
-            result = run_tools_parallel(ai_msg, tools, state)
+            result = run_tools_parallel(ai_msg, tools, state, is_loop=True)  # this agent runs with loop
 
             if has_loop and len(ai_msg.tool_calls) > 0:  # if loop, we need to transform results
                 result = result[-1].content  # this is a tuple
                 # format of result: (result, success, is_intermediate_step)
-
+                log.warning("my-overall-result")
+                log.warning(result)
                 result_content = result[0]
                 success = result[1]
                 is_intermediate_step = eval(result[2])
@@ -527,6 +528,8 @@ def build_agent_with_loop(
                 log.warning(f"{log_stub} Using raw string in a list as result.")
                 result_content = result[0].get("text", "")
             elif isinstance(result, list):
+                log.warning("my-result")
+                log.warning(result)
                 log.warning(f"{log_stub} Aggregating list of tool results...")
                 result_content = join_result_with_token_limit(result=result, max_tokens=max_tokens, log_stub=log_stub)
             else:
