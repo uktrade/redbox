@@ -5,10 +5,8 @@
         <thead class="govuk-table__head">
             <tr class="govuk-table__row">
                 <th scope="col" class="govuk-table__header">Name</th>
-                {% if type=="complete" %}
-                <th scope="col" class="govuk-table__header">Expires</th>
-                {% else %}
-                <th scope="col" class="govuk-table__header">Status</th>
+                {% if type!="complete" %}
+                    <th scope="col" class="govuk-table__header">Status</th>
                 {% endif %}
                 <th scope="col" class="govuk-table__header">Action</th>
             </tr>
@@ -17,12 +15,13 @@
             {% for doc in docs %}
                 <tr class="govuk-table__row">
                     <td class="govuk-table__cell">{{ doc.file_name }}</td>
-                    <td class="govuk-table__cell">{% if type=="complete" %}
-                        {{ doc.expires | humanise_expiry }}{% else %}
-                        <file-status data-id="{{ doc.id }}" data-status="{{ doc.get_status_text() }}">{{ doc.get_status_text() }}</file-status>
-                        {%endif %}
-                    </td>
-
+                    {% if type!="complete" %}
+                        <td class="govuk-table__cell">
+                            <file-status data-id="{{ doc.id }}" data-status="{{ doc.get_status_text() }}">
+                                {{ doc.get_status_text() }}
+                            </file-status>
+                        </td>
+                    {% endif %}
                     <td class="govuk-table__cell">
                         <a class="govuk-body govuk-link--no-visited-state" role="button" href="{{ url('remove-doc', doc.id) }}">
                             Remove

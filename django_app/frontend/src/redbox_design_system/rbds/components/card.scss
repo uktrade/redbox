@@ -7,11 +7,12 @@
   &--no-border {
     border: none;
   }
+  border-radius: var(--border-radius);
 }
 
 /* Card variants */
 .rbds-card--block {
-  max-height: 204px;
+  max-height: 230px;
 }
 
 // .rbds-card--conversations {
@@ -62,11 +63,7 @@
 .rbds-item-label {
   flex: 1;
   min-width: 0;
-
-  line-height: 1.4;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  // line-height: 1.4;
   max-width: 30ch;
 }
 

@@ -69,6 +69,24 @@ async def call_companies_or_interactions(client, company_name: str, page: int = 
         return asdict(result)
 
 
+async def call_company_details_extended(
+    client, company_id, include_interactions=True, include_objectives=True, include_investment_projects=True
+):
+    async with client:
+        result = await client.call_tool(
+            "company_details_extended",
+            {
+                "company_id": company_id,
+                "include_interactions": include_interactions,
+                "include_objectives": include_objectives,
+                "include_investment_projects": include_investment_projects,
+            },
+        )
+        log.logger.info(result)
+
+        return asdict(result)
+
+
 def run_examples(client):
     asyncio.run(call_tool(client, "greet", "Ford"))
     asyncio.run(call_tool(client, "greet", "Ford"))
@@ -99,7 +117,12 @@ def run_examples(client):
     asyncio.run(call_investment_projects(client, "00000000-0000-0000-0000-000000000001"))
     asyncio.run(call_investment_projects(client, "00000000-0000-0000-0000-000000000000"))
 
-    # companies or interactions
-    asyncio.run(call_companies_or_interactions(client, "Some company"))
-    asyncio.run(call_companies_or_interactions(client, "some"))
-    asyncio.run(call_companies_or_interactions(client, "some other"))
+    # # companies or interactions
+    # asyncio.run(call_companies_or_interactions(client, "CRESCENT MARIGOLD"))
+    # asyncio.run(call_companies_or_interactions(client, "NIMBUS"))
+    # asyncio.run(call_companies_or_interactions(client, "BANANAJOE"))
+
+    # Company details extended
+    asyncio.run(call_company_details_extended(client, "df27f8a4-6341-4571-82a4-94732d23eca5"))
+    # asyncio.run(call_company_details_extended(client, "7f535d50-fa98-475b-be46-1f763b4398e5"))
+    # asyncio.run(call_company_details_extended(client, "00000000-0000-0000-0000-000000000000"))

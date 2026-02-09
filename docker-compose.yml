@@ -1,6 +1,8 @@
 services:
   redbox-unstructured:
-    image: quay.io/unstructured-io/unstructured-api:latest
+    build:
+      context: ./unstructured
+      dockerfile: Dockerfile
     container_name: unstructured
     platform: linux/amd64
     ports:
@@ -12,6 +14,7 @@ services:
     environment:
       - UNSTRUCTURED_MAX_WORKERS=2
       - UNSTRUCTURED_TEMP_DIR=/tmp/unstructured_temp
+      - ENV=local
     volumes:
       - ./unstructured_temp:/tmp/unstructured_temp
   redbox-django-app:

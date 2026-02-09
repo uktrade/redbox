@@ -1,3 +1,4 @@
+import uuid
 from datetime import date
 
 from django import forms
@@ -22,7 +23,7 @@ def render_with_oob(templates: list[RenderTemplateItem]) -> HttpResponse:
     Using HTMX Out of bounds swap method.
 
     Args:
-        templates (List[RenderTemplateItem]): A list of dicts like:
+        templates (List[RenderTemplateItem]): A list of objects like:
             {
                 "template": str,
                 "context": dict,
@@ -74,3 +75,14 @@ def resolve_instance(value, model, lookup="pk", raise_404=False):
             raise Http404(msg) from err
         msg = f"Cannot resolve {model.__name__} from value: {lookup}='{value}'"
         raise ValueError(msg) from err
+
+
+def parse_uuid(value: str | uuid.UUID | None) -> uuid.UUID | None:
+    if isinstance(value, uuid.UUID):
+        return value
+    if not value or value == "None":
+        return None
+    try:
+        return uuid.UUID(value)
+    except (ValueError, TypeError):
+        return None

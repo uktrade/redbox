@@ -69,24 +69,33 @@ def get_company(company_id) -> CompanyDetails:
 
 
 def get_company_extended(
-    company_id, include_interactions: bool, include_objectives: bool, include_investment_projects: bool
+    company_id,
+    include_interactions: bool = True,
+    include_objectives: bool = True,
+    include_investment_projects: bool = True,
 ) -> CompanyDetailsExtended:
     session = get_session()
     company = session.query(sa_models.Company).filter(sa_models.Company.id == company_id).one_or_none()
-    company_details = CompanyDetailsExtended.populate_from_record(object_as_dict(company)) if company else None
+    company_details = CompanyDetails.populate_from_record(object_as_dict(company)) if company else None
+    company_details_extended = CompanyDetailsExtended(
+        company_details=company_details, interactions=None, account_management_objectives=None, investment_projects=None
+    )
 
-    if company_details is not None:
+    if company_details_extended.company_details is not None:
         if include_interactions:
-            company_details.interactions = get_company_interactions(company_id, 1000)
+            company_details_extended.interactions = get_company_interactions(company_id, 1000)
 
         if include_objectives:
-            company_details.account_management_objectives = get_account_management_objectives(company_id, 1000)
+            pass
+        #     company_details_extended.account_management_objectives =
+        #     get_account_management_objectives(company_id, 1000)
 
         if include_investment_projects:
-            company_details.investment_projects = get_investment_projects(company_id, 1000)
+            pass
+    #     company_details_extended.investment_projects = get_investment_projects(company_id, 1000)
 
     session.close()
-    return company_details
+    return company_details_extended
 
 
 def get_companies_or_interactions(

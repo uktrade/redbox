@@ -21,10 +21,14 @@ from redbox_app.setting_enums import Classification, Environment
 
 logger = logging.getLogger(__name__)
 
+if os.getenv("USE_TESTS_INTEGRATION_ENV", "False").lower() == "true":
+    logger.warning("Loading Integration EnvFile: tests/.env.integration")
+    load_dotenv(find_dotenv("tests/.env.integration"))
 
-load_dotenv()
+load_dotenv(override=True)
 
 if os.getenv("USE_LOCAL_ENV", "False").lower() == "true":
+    logger.warning("Loading Local EnvFile: .env.local")
     load_dotenv(find_dotenv(".env.local"), override=True)
 
 env = environ.Env()
@@ -198,6 +202,8 @@ CSP_SCRIPT_SRC = (
     "'sha256-1NTuHcjvzzB6D69Pb9lbxI5pMJNybP/SwBliv3OvOOE='",
     "'sha256-DrkvIvFj5cNADO03twE83GwgAKgP224E5UyyxXFfvTc='",
     "'sha256-6BIGXagXVUHOQ8pw9flNwo/urWufeay+hbx+Q+U6/DM='",  # pragma: allowlist secret
+    "'sha256-SgZQWsfLqFIbXUavZS4pxgi9Pr0JFuIh5pAp0LdrHPU='",  # pragma: allowlist secret
+    "'sha256-XAYqMHKLikdz4TwKJfz53n9YgPx3M6F2KB98Dxf/A5c='",  # pragma: allowlist secret
     "https://*.googletagmanager.com",
     "https://tagmanager.google.com/",
     "https://www.googletagmanager.com/",
@@ -206,7 +212,7 @@ CSP_SCRIPT_SRC = (
     "sha256-T/1K73p+yppfXXw/AfMZXDh5VRDNaoEh3enEGFmZp8M=",
 )
 CSP_OBJECT_SRC = ("'none'",)
-CSP_TRUSTED_TYPES = ("dompurify", "default", "goog#html")
+CSP_TRUSTED_TYPES = ("dompurify", "default", "'allow-duplicates'", "goog#html")
 CSP_REPORT_TO = "csp-endpoint"
 CSP_FONT_SRC = ("'self'", "s3.amazonaws.com", "https://fonts.gstatic.com", "data:")
 CSP_INCLUDE_NONCE_IN = ("script-src",)

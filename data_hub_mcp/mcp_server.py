@@ -13,23 +13,12 @@ from db_ops import (
     get_companies,
     get_companies_or_interactions,
     get_company,
+    get_company_extended,
     get_company_interactions,
     get_investment_projects,
 )
 from fastmcp import FastMCP
-
-# from fastmcp.server.auth.providers.auth0 import Auth0Provider
 from starlette.responses import JSONResponse
-
-# load_dotenv()
-
-# auth_provider = Auth0Provider(
-#     config_url=os.getenv("AUTHBROKER_CONFIG_URL"),  # Your Auth0 configuration URL
-#     client_id=os.getenv("AUTHBROKER_CLIENT_ID"),  # Your Auth0 application Client ID
-#     client_secret=os.getenv("AUTHBROKER_CLIENT_SECRET"),  # Your Auth0 application Client Secret
-#     audience=os.getenv("AUTHBROKER_AUDIENCE"),  # Your Auth0 API audience
-#     base_url=os.getenv("AUTHBROKER_BASE_URL"),  # Must match your application configuration
-# )
 
 mcp = FastMCP(
     name="Data Hub companies MCP server",
@@ -84,8 +73,13 @@ async def company_details(company_id: str) -> CompanyDetails | None:
     tags={"data_hub", "companies", "interactions", "objectives", "investment projects"},
     meta={"version": "1.0", "author": "Doug Mills"},
 )
-async def company_details_extended(company_id: str) -> CompanyDetailsExtended | None:
-    return get_company(company_id)
+async def company_details_extended(
+    company_id: str,
+    include_interactions: bool = True,
+    include_objectives: bool = True,
+    include_investment_projects: bool = True,
+) -> CompanyDetailsExtended:
+    return get_company_extended(company_id, include_interactions, include_objectives, include_investment_projects)
 
 
 @mcp.tool(

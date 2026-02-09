@@ -6,7 +6,6 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
-from django.template.response import TemplateResponse
 from waffle import flag_is_active
 from yarl import URL
 
@@ -54,7 +53,6 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
         "chats": Chat.get_ordered_by_last_message_date(request.user, tool),
         "current_chat": current_chat,
         "streaming": {"endpoint": str(endpoint)},
-        "contact_email": settings.CONTACT_EMAIL,
         "chat_title_length": settings.CHAT_TITLE_LENGTH,
         "llm_options": [
             {
@@ -138,25 +136,9 @@ def render_chats(request: HttpRequest, context: dict) -> HttpResponse:
     )
 
 
-def render_recent_chats(
-    request: HttpRequest, active_chat_id: UUID | None = None, slug: str | None = None
-) -> TemplateResponse:
-    context = get_context(request, active_chat_id, slug)
-
-    return TemplateResponse(
+def render_conversations(request: HttpRequest, context: dict | None = None) -> HttpResponse:
+    return render(
         request,
-        "side_panel/conversations.html",
-        context,
-    )
-
-
-def render_chat_window(
-    request: HttpRequest, active_chat_id: UUID | None = None, slug: str | None = None
-) -> TemplateResponse:
-    context = get_context(request, active_chat_id, slug)
-
-    return TemplateResponse(
-        request,
-        "chat/chat_window.html",
-        context,
+        template_name="side_panel/conversations.html",
+        context=context or get_context(request),
     )
