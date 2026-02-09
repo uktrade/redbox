@@ -1876,6 +1876,21 @@ django = {version = ">=3,<6", markers = "python_version >= \"3.10\" and python_v
 django-ipware = ">=7.0.1,<8.0.0"
 
 [[package]]
+name = "django-magic-link"
+version = "1.2.0"
+description = "Django app for managing tokenised 'magic link' logins."
+optional = false
+python-versions = "<4.0,>=3.12"
+groups = ["main"]
+files = [
+    {file = "django_magic_link-1.2.0-py3-none-any.whl", hash = "sha256:908281dd54ca6ae46eb4d6df78fb7365abfa93c306c278b9ff0bd853dc7c2d9c"},
+    {file = "django_magic_link-1.2.0.tar.gz", hash = "sha256:a8c9307846c8a5ef46431616de9a0d42710bbc3b53610df89c90149f07e8714c"},
+]
+
+[package.dependencies]
+django = ">=5.2,<7.0"
+
+[[package]]
 name = "django-permissions-policy"
 version = "4.28.0"
 description = "Set the Permissions-Policy HTTP header on your Django app."
@@ -7129,4 +7144,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "2c6955ce34930a2fd563e5bf0ff77834836804c280f6206fa9c0686a7638a159"
+content-hash = "94509af933336d2cf9adb740b5368864b0d55282f8ab322a2258958fe3534ada"
