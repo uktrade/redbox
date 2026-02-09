@@ -67,7 +67,7 @@ The versioned dataset should ideally have been **baselined**, providing you with
 
 Right now the notebook only contains the final retrieval engine: the interplay of prompts and retriever. Chunking and embedding strategies will need to be loaded outside this notebook, though you can certainly assess them using it.
 
-[Contact the Redbox team](mailto://redbox@businessandtrade.gov.uk) if you're interested in working on our existing versioned evaluation datasets.
+[Contact the Redbox team](mailto://assist@businessandtrade.gov.uk) if you're interested in working on our existing versioned evaluation datasets.
 
 ## ✅ Success! What now?
 

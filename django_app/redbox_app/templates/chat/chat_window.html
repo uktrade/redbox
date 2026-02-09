@@ -20,7 +20,7 @@
 
     {% if is_first_time_user %}{% include "upload_form.html" %}{% endif %}
 
-    <div class="rb-chats-section">
+    <div class="rbds-chats-section">
         <chat-controller class="iai-chat-container" data-stream-url="{{ streaming.endpoint if streaming else '' }}"
             data-session-id="{{ chat_id or '' }}">
             <div class="rbds-chat-message__container rbds-flex-column js-message-container">

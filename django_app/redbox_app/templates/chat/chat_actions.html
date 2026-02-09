@@ -6,11 +6,17 @@
         {{ govukButton(
             text="Try " ~ promoted_tool.name,
             href=promoted_tool.chat_url,
-            classes="govuk-button--secondary govuk-!-margin-0 rbds-flex-align-center"
+            classes="govuk-button--secondary govuk-!-margin-0 rbds-flex-align-center rbds-fit-content-width"
             ) }}
     {% endif %}
+
+    {% set new_chat_text %}
+        {{ rbds_icon(icon_name='chat-add-on.svg') }}
+        <span class='cta-text'>New conversation</span>
+    {% endset %}
+
     {{ govukButton(
-        text=rbds_icon(icon_name='chat-add-on.svg') ~ "New conversation",
+        text=new_chat_text,
         href=urls.new_chat_url,
         classes="govuk-button--secondary govuk-!-margin-0 rbds-icon-text-button"
         ) }}

@@ -1,20 +1,26 @@
+{% from "macros/icon.html" import rbds_icon %}
+
 <div id="chat-cta" class="rbds-chat-cta {% if not tool and not current_chat %}rbds-chat-cta--centered{% endif %}" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
-    <div class="rbds-chat-cta__row rbds-chat-cta__row--top">
-        <div class="rbds-chat-cta__left">
-            {% if tool %}
-            {% include "tools/tool-banner.html" %}
-            {% elif current_chat %}
-            {% include "chat/chat_title.html" %}
-            {% endif %}
-        </div>
-        <div class="rbds-chat-cta__right">
-            {% include "chat/chat_actions.html" %}
-        </div>
+    <div class="rbds-chat-cta__toggle">
+        <button slot="toggle-side-panel" class="rbds-side-panel__toggle rbds-icon-button govuk-!-padding-left-0" type="button">
+            {{ rbds_icon(icon_name="left-panel-open.svg", icon_classes="") }}
+            <span class="govuk-visually-hidden">Toggle sidepanel</span>
+        </button>
     </div>
 
-    {% if tool and current_chat %}
-    <div class="rbds-chat-cta__row rbds-chat-cta__row--bottom">
+    {% if tool %}
+    <div class="rbds-chat-cta__tool">
+        {% include "tools/tool-banner.html" %}
+    </div>
+    {% endif %}
+
+    {% if current_chat %}
+    <div class="rbds-chat-cta__title">
         {% include "chat/chat_title.html" %}
     </div>
     {% endif %}
+
+    <div class="rbds-chat-cta__actions">
+        {% include "chat/chat_actions.html" %}
+    </div>
 </div>
