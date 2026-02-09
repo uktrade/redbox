@@ -69,24 +69,30 @@ def get_company(company_id) -> CompanyDetails:
 
 
 def get_company_extended(
-    company_id, include_interactions: bool, include_objectives: bool, include_investment_projects: bool
+    company_id,
+    include_interactions: bool = True,
+    include_objectives: bool = True,
+    include_investment_projects: bool = True,
 ) -> CompanyDetailsExtended:
     session = get_session()
     company = session.query(sa_models.Company).filter(sa_models.Company.id == company_id).one_or_none()
-    company_details = CompanyDetailsExtended.populate_from_record(object_as_dict(company)) if company else None
+    company_details = CompanyDetails.populate_from_record(object_as_dict(company)) if company else None
+    company_details_extended = CompanyDetailsExtended(
+        company_details=company_details, interactions=None, account_management_objectives=None, investment_projects=None
+    )
 
-    if company_details is not None:
+    if company_details_extended.company_details is not None:
         if include_interactions:
-            company_details.interactions = get_company_interactions(company_id, 1000)
+            company_details_extended.interactions = get_company_interactions(company_id, 1000)
 
         if include_objectives:
-            company_details.account_management_objectives = get_account_management_objectives(company_id, 1000)
+            company_details_extended.account_management_objectives = get_account_management_objectives(company_id, 1000)
 
         if include_investment_projects:
-            company_details.investment_projects = get_investment_projects(company_id, 1000)
+            company_details_extended.investment_projects = get_investment_projects(company_id, 1000)
 
     session.close()
-    return company_details
+    return company_details_extended
 
 
 def get_companies_or_interactions(
@@ -140,9 +146,9 @@ def get_account_management_objectives(
     company = session.query(sa_models.Company).filter(sa_models.Company.id == company_id).one_or_none()
     if company:
         account_management_objectives_all = (
-            session.query(AccountManagementObjective)
-            .filter(sa_models.Interaction.company_id == company.id)
-            .order_by(sa_models.Interaction.interaction_date.desc())
+            session.query(sa_models.AccountManagementObjective)
+            .filter(sa_models.AccountManagementObjective.company_id == company.id)
+            .order_by(sa_models.AccountManagementObjective.created_on.desc())
         )
         total_count = len(account_management_objectives_all.all())
         account_management_objectives_search_result.total = total_count
@@ -168,7 +174,7 @@ def get_investment_projects(company_id, page_size: int = 10, page: int = 0) -> I
     company = session.query(sa_models.Company).filter(sa_models.Company.id == company_id).one_or_none()
     if company:
         investment_projects_all = (
-            session.query(InvestmentProject)
+            session.query(sa_models.InvestmentProject)
             .filter(sa_models.InvestmentProject.uk_company_id == company.id)
             .order_by(sa_models.InvestmentProject.created_on.desc())
         )

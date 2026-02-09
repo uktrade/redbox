@@ -1,28 +1,30 @@
 {% from "macros/icon.html" import rbds_icon %}
 
-<rbds-side-panel class="rbds-side-panel-wrapper {% if sidepanel_collapsed %}rbds-side-panel-wrapper--collapsed{% endif %}">
-    <div class="rbds-side-panel rbds-text-xs">
-        <button slot="toggle" class="rbds-side-panel__toggle rbds-icon-button" type="button">
-            {{ rbds_icon(icon_name="left-panel-open.svg", icon_classes="dark") }}
-            <span class="govuk-visually-hidden">Toggle sidepanel</span>
-        </button>
+<div class="rbds-page-side-panel">
+    <rbds-side-panel class="rbds-side-panel-wrapper {% if sidepanel_collapsed %}rbds-side-panel-wrapper--collapsed{% endif %}">
+        <div class="rbds-side-panel rbds-text-xs">
+            <button slot="toggle-side-panel" class="rbds-side-panel--collapsed__content rbds-side-panel__toggle rbds-icon-button" type="button">
+                {{ rbds_icon(icon_name="left-panel-open.svg", icon_classes="dark") }}
+                <span class="govuk-visually-hidden">Toggle sidepanel</span>
+            </button>
 
-        {% include "side_panel/header.html" %}
+            {% include "side_panel/header.html" %}
 
-        <div class="rbds-side-panel__content">
-            {% include "side_panel/conversations.html" %}
-            {% include "side_panel/model_selector.html" %}
-            {% include "side_panel/your_documents_list.html" %}
-            {% include "side_panel/menu.html" %}
+            <div class="rbds-side-panel__content rbds-scrollable">
+                {% include "side_panel/conversations.html" %}
+                {% include "side_panel/model_selector.html" %}
+                {% include "side_panel/your_documents.html" %}
+                {% include "side_panel/menu.html" %}
+            </div>
+
+            <footer class="rbds-side-panel__footer">
+                <span class="rbds-flex-align-center rbds-justify-content-center">
+                    {{ rbds_icon(icon_name="dbt-logo.svg", icon_classes="rbds-full-width") }}
+                </span>
+                <span class="govuk-!-text-align-centre">
+                    © Crown copyright 2025. All rights reserved.
+                </span>
+            </footer>
         </div>
-
-        <footer class="rbds-side-panel__footer">
-            <span class="rbds-flex-align-center rbds-justify-content-center">
-                {{ rbds_icon(icon_name="dbt-logo.svg") }}
-            </span>
-            <span class="govuk-!-text-align-centre">
-                © Crown copyright 2025. All rights reserved.
-            </span>
-        </footer>
-    </div>
-</rbds-side-panel>
+    </rbds-side-panel>
+</div>

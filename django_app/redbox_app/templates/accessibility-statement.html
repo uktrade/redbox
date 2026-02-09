@@ -1,17 +1,21 @@
-{% extends "base.html" %}
-
 {% set pageTitle = "Accessibility statement" %}
+{% set persistentSidepanel = True %}
+
+{% extends "base.html" %}
 
 {% set departmental_owner = "Department for Business and Trade" %}
 {% set zoom_level = "300%" %}
 {% set review_date_last = "21st June 2024" %}
-{% set compliance_status = 'This website is fully compliant with the <a href="https://www.w3.org/TR/WCAG22/"
-  class="govuk-link">Web Content Accessibility Guidelines version 2.2</a> AA standard.' %}
+{% set compliance_status %}
+  This website is fully compliant with the
+  <a href="https://www.w3.org/TR/WCAG22/" class="govuk-link">Web Content Accessibility Guidelines version 2.2</a>
+  AA standard.
+{% endset %}
 
 
 {% block content %}
 
-<div class="govuk-width-container rbds-width-container rbds-page-content--xl govuk-!-margin-top-3">
+<div class="govuk-width-container rbds-page-content rbds-page-content--full govuk-!-margin-top-3">
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
 

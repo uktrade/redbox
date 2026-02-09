@@ -1,37 +1,200 @@
+@use "./../../../variables.scss" as *;
+
+.rbds-chat {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    min-height: 0;
+}
+
+.rbds-chat-feed {
+    display: flex;
+}
+
 .rbds-chat-window {
-    width: var(--screen-size-xl);
-    max-width: 100%;
-    min-height: calc(100vh);
+    --chat-window-min-height: 100vh;
     flex: 1;
     display: flex;
     align-items: stretch;
-    // gap: 55px;
+
+    &--first-time {
+        --chat-window-min-height: 0;
+    }
+    flex-direction: column;
+    padding-bottom: 10px;
 }
 
 .rbds-chat-cta {
-    --cta-container-height: 95px;
+    --cta-container-height: 35px;
 
-    width: var(--screen-width-xl);
-    height: var(--cta-container-height);
+    background-color: var(--color-background-white);
     display: grid;
-    justify-content: center;
+    grid-template-columns: auto auto;
+    row-gap: 15px;
 
-    &--active {
-        display: block;
-        justify-content: space-between;
+    &__toggle  { grid-area: toggle; }
+    &__tool    { grid-area: tool; }
+    &__title   { grid-area: title; }
+    &__actions { grid-area: actions; }
+
+    align-items: center;
+    justify-self: stretch;
+    justify-items: stretch;
+    justify-content: space-between;
+
+    height: var(--cta-container-height);
+    padding-top: 20px;
+    padding-bottom: 60px;
+
+    position: sticky;
+    top: 0;
+    z-index: 200;
+
+    .cta-text {
+        display: flex;
+    }
+
+    &:has(.rbds-chat-cta__tool):has(.rbds-chat-cta__title) {
+        grid-template-areas:
+            "tool   actions"
+            "title  .";
+    }
+
+    &:has(.rbds-chat-cta__tool):not(:has(.rbds-chat-cta__title)) {
+        grid-template-areas:
+            "tool   actions"
+    }
+
+    &:has(.rbds-chat-cta__title):not(:has(.rbds-chat-cta__tool)) {
+        grid-template-areas:
+            "title  actions"
+    }
+
+    &:not(:has(.rbds-chat-cta__title)):not(:has(.rbds-chat-cta__tool)) {
+        justify-content: center;
+        grid-template-areas:
+            ".  actions"
     }
 }
 
 .rbds-chat-interaction {
-    --interaction-container-height: 110px;
+    --interaction-container-height: 60px;
 
-
-    width: var(--screen-width-xl);
-    height: var(--interaction-container-height);
-    display: grid;
-    justify-content: center;
-
-    position: fixed;
+    padding-top: 30px;
+    padding-bottom: 20px;
+    position: sticky;
     bottom: 0;
+    background-color: var(--color-background-white);
     background-color: white;
+    z-index: 200;
+    flex-shrink: 0;
+
+    &__inner {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+
+        max-height: 200px;
+    }
+}
+
+@media (min-width: bp(xs)) {
+    .rbds-chat-cta {
+        --cta-container-height: 75px;
+
+        grid-template-columns: auto 1fr;
+        justify-items: end;
+        padding-top: 40px;
+        padding-bottom: 40px;
+
+        .cta-text {
+            display: none;
+        }
+
+        &:has(.rbds-chat-cta__tool):has(.rbds-chat-cta__title) {
+            padding-top: 20px;
+            padding-bottom: 60px;
+            grid-template-areas:
+                "toggle actions"
+                ".      tool"
+                ".      title";
+        }
+
+        &:has(.rbds-chat-cta__tool):not(:has(.rbds-chat-cta__title)) {
+            grid-template-areas:
+                "toggle actions"
+                ".      tool";
+        }
+
+        &:has(.rbds-chat-cta__title):not(:has(.rbds-chat-cta__tool)) {
+            grid-template-areas:
+                "toggle actions"
+                ".      title";
+        }
+
+        &:not(:has(.rbds-chat-cta__title)):not(:has(.rbds-chat-cta__tool)) {
+            justify-self: stretch;
+            grid-template-areas:
+                "toggle actions";
+        }
+
+        .rbds-chat-cta__toggle {
+            display: flex;
+        }
+    }
+
+    .rbds-chat-interaction {
+        --interaction-container-height: 60px;
+
+        padding-top: 15px;
+        padding-bottom: 10px;
+    }
+}
+
+@media (min-width: bp(s)) {
+    .rbds-chat-cta {
+        --cta-container-height: 35px;
+
+        grid-template-columns: auto auto;
+        justify-items: stretch;
+        padding-top: 20px;
+        padding-bottom: 60px;
+
+        .cta-text {
+            display: flex;
+        }
+
+        &:has(.rbds-chat-cta__tool):has(.rbds-chat-cta__title) {
+            grid-template-areas:
+                "tool   actions"
+                "title  .";
+        }
+
+        &:has(.rbds-chat-cta__tool):not(:has(.rbds-chat-cta__title)) {
+            grid-template-areas:
+                "tool   actions";
+        }
+
+        &:has(.rbds-chat-cta__title):not(:has(.rbds-chat-cta__tool)) {
+            grid-template-areas:
+                "title  actions";
+        }
+
+        &:not(:has(.rbds-chat-cta__title)):not(:has(.rbds-chat-cta__tool)) {
+            justify-self: center;
+            grid-template-areas:
+                ".  actions";
+        }
+
+        .rbds-chat-cta__toggle {
+            display: none;
+        }
+    }
+
+    .rbds-chat-interaction {
+        --interaction-container-height: 60px;
+
+        padding-top: 30px;
+        padding-bottom: 20px;
+    }
 }

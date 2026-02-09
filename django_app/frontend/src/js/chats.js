@@ -17,7 +17,7 @@ import "./web-components/chats/profile-overlay.js";
 import "./web-components/chats/exit-feedback.js";
 import "./web-components/documents/file-upload.js";
 
-import { updateChatWindow, syncUrlWithContent, updateRecentChatHistory } from "./services";
+import { syncUrlWithContent, refreshUI } from "./services";
 import { ChatHistory } from "./web-components/chats/chat-history.js";
 import { getActiveChatId } from "./utils/active-chat.js";
 
@@ -27,18 +27,23 @@ document.addEventListener("chat-response-end", (evt) => {
 
   const sessionId = event.detail.session_id;
   const isNewChat = event.detail.is_new_chat;
+  let chatId = getActiveChatId();
+  let fragmentsToRefresh = [];
 
   // If new chat or first message was stopped prematurely
-  if (isNewChat || !getActiveChatId()) {
-    // Update Recent chats section
-    updateRecentChatHistory(sessionId);
+  if (isNewChat || !chatId) {
+    // Update Conversations and cta section
+    chatId = sessionId;
+    fragmentsToRefresh.push("chat-cta");
+    fragmentsToRefresh.push("conversations");
   } else {
     // Move current chat to top of list
-    /** @type {ChatHistory} */ (document.querySelector("chat-history")).moveToTop(sessionId);
+    /** @type {ChatHistory} */ (document.querySelector("chat-history"))?.moveToTop(sessionId);
   }
 
-  // Reload chat window to fix citation references
-  updateChatWindow(sessionId);
+  // Refresh chat window to fix citation references
+  fragmentsToRefresh.push("chat-window");
+  refreshUI(fragmentsToRefresh, chatId);
 });
 
 syncUrlWithContent();

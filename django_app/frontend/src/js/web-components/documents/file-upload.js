@@ -1,7 +1,7 @@
 // @ts-check
 
 import { UploadedFiles, UploadedFile } from "../../../redbox_design_system/rbds/components";
-import { pollFileStatus, updateYourDocuments } from "../../services";
+import { pollFileStatus, refreshUI } from "../../services";
 import { getCsrfToken } from "../../utils";
 import { MessageInput } from "../chats/message-input";
 
@@ -147,7 +147,7 @@ class FileUpload extends HTMLElement {
 
             uploadedFile.status = UploadedFile.StatusTypes.COMPLETE;
 
-            updateYourDocuments().finally(() => this.#checkDocuments(id));
+            refreshUI(["your-documents"]).finally(() => this.#checkDocuments(id));
         });
 
         document.body.addEventListener("doc-error", (evt) => {
@@ -177,7 +177,7 @@ class FileUpload extends HTMLElement {
                 uploadedDocument.status = UploadedFile.StatusTypes.COMPLETE;
 
                 uploadedDocument.removeElement.addEventListener("click", () => {
-                    updateYourDocuments().finally(() => {
+                    refreshUI(["your-documents"]).finally(() => {
                         this.#uncheckDocument(uploadedDocument?.fileId);
                         this.#checkDocuments();
                     });
@@ -243,7 +243,7 @@ class FileUpload extends HTMLElement {
 
         uploadedFile.removeElement.addEventListener("click", () => {
             if (uploadedFile.status !== UploadedFile.StatusTypes.COMPLETE) return;
-            updateYourDocuments().finally(() => {
+            refreshUI(["your-documents"]).finally(() => {
                 this.#uncheckDocument(uploadedFile.fileId);
                 this.#checkDocuments();
             });
@@ -279,7 +279,7 @@ class FileUpload extends HTMLElement {
 
                 if (responseStatus === UploadedFile.StatusTypes.COMPLETE) {
                     uploadedFile.status = UploadedFile.StatusTypes.COMPLETE;
-                    updateYourDocuments().finally(() => { this.#checkDocuments(response.file_id) });
+                    refreshUI(["your-documents"]).finally(() => { this.#checkDocuments(response.file_id) });
                 }
 
                 if (responseStatus === UploadedFile.StatusTypes.PROCESSING) pollFileStatus(response.file_id);

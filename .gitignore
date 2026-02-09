@@ -1,4 +1,5 @@
 **/*.db
+**/*.duckdb
 .idea/
 redbox/models/
 .envrc
@@ -234,3 +235,6 @@ staticfiles
 # lambda files
 infrastructure/aws/cleanup_lambda/*.zip
 infrastructure/aws/cleanup_lambda/layer/*
+
+# Unstructured
+unstructured_temp
