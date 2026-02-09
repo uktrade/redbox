@@ -235,7 +235,6 @@ class InvestmentProject:
     client_requirements: str | None
     competing_countries: list[str] | None
     country_investment_originates_from: str | None
-    created_by_id: str | None
     created_on: datetime | None
     delivery_partners: list[str] | None
     description: str | None
@@ -263,7 +262,6 @@ class InvestmentProject:
     number_safeguarded_jobs: int | None
     other_business_activity: str | None
     project_arrived_in_triage_on: datetime | None
-    project_assurance_adviser_id: str | None
     project_moved_to_won: datetime | None
     project_reference: str | None
     proposal_deadline: date | None
@@ -298,7 +296,6 @@ class InvestmentProject:
             client_requirements=record["client_requirements"],
             competing_countries=record["competing_countries"],
             country_investment_originates_from=record["country_investment_originates_from"],
-            created_by_id=record["created_by_id"],
             created_on=record["created_on"],
             delivery_partners=record["delivery_partners"],
             description=record["description"],
@@ -326,7 +323,6 @@ class InvestmentProject:
             number_safeguarded_jobs=record["number_safeguarded_jobs"],
             other_business_activity=record["other_business_activity"],
             project_arrived_in_triage_on=record["project_arrived_in_triage_on"],
-            project_assurance_adviser_id=record["project_assurance_adviser_id"],
             project_moved_to_won=record["project_moved_to_won"],
             project_reference=record["project_reference"],
             proposal_deadline=record["proposal_deadline"],

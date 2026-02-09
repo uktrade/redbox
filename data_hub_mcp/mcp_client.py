@@ -118,11 +118,11 @@ def run_examples(client):
     asyncio.run(call_investment_projects(client, "00000000-0000-0000-0000-000000000000"))
 
     # # companies or interactions
-    # asyncio.run(call_companies_or_interactions(client, "CRESCENT MARIGOLD"))
-    # asyncio.run(call_companies_or_interactions(client, "NIMBUS"))
-    # asyncio.run(call_companies_or_interactions(client, "BANANAJOE"))
+    asyncio.run(call_companies_or_interactions(client, "CRESCENT MARIGOLD"))
+    asyncio.run(call_companies_or_interactions(client, "NIMBUS"))
+    asyncio.run(call_companies_or_interactions(client, "BANANAJOE"))
 
     # Company details extended
     asyncio.run(call_company_details_extended(client, "df27f8a4-6341-4571-82a4-94732d23eca5"))
-    # asyncio.run(call_company_details_extended(client, "7f535d50-fa98-475b-be46-1f763b4398e5"))
-    # asyncio.run(call_company_details_extended(client, "00000000-0000-0000-0000-000000000000"))
+    asyncio.run(call_company_details_extended(client, "7f535d50-fa98-475b-be46-1f763b4398e5"))
+    asyncio.run(call_company_details_extended(client, "00000000-0000-0000-0000-000000000000"))
