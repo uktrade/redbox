@@ -234,3 +234,5 @@ staticfiles
 # lambda files
 infrastructure/aws/cleanup_lambda/*.zip
 infrastructure/aws/cleanup_lambda/layer/*
+
+data_hub_mcp/data/seed_data_generator.py

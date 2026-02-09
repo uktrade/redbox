@@ -2,13 +2,23 @@ import logging
 import os
 
 import httpx
-from data_classes import (AccountManagementObjectivesSearchResult,
-                          CompaniesOrInteractionSearchResult, CompanyDetails,
-                          CompanyInteractionSearchResult, CompanySearchResult,
-                          InvestmentProjectsSearchResult)
-from db_ops import (db_check, get_account_management_objectives, get_companies,
-                    get_companies_or_interactions, get_company,
-                    get_company_interactions, get_investment_projects)
+from data_classes import (
+    AccountManagementObjectivesSearchResult,
+    CompaniesOrInteractionSearchResult,
+    CompanyDetails,
+    CompanyInteractionSearchResult,
+    CompanySearchResult,
+    InvestmentProjectsSearchResult,
+)
+from db_ops import (
+    db_check,
+    get_account_management_objectives,
+    get_companies,
+    get_companies_or_interactions,
+    get_company,
+    get_company_interactions,
+    get_investment_projects,
+)
 from fastmcp import FastMCP
 from fastmcp.server.auth import AccessToken, TokenVerifier
 from starlette.responses import JSONResponse
@@ -29,8 +39,9 @@ logger = logging.getLogger(__name__)
 
 SSO_INTROSPECTION_URL = os.getenv("SSO_INTROSPECTION_URL")
 INTROSPECTION_TOKEN = os.getenv("INTROSPECTION_TOKEN")
-AUTH_ENABLED = os.getenv("MCP_AUTH_ENABLED", True)
+AUTH_ENABLED = os.getenv("MCP_AUTH_ENABLED")
 http_client = httpx.AsyncClient(timeout=5.0)
+
 
 class SSOIntrospectionVerifier(TokenVerifier):
     def __init__(self, introspection_url: str, introspection_token: str):
@@ -73,19 +84,12 @@ class SSOIntrospectionVerifier(TokenVerifier):
             resource=resource,
             claims=token_data,
         )
-    
-if AUTH_ENABLED:
-    auth_provider = SSOIntrospectionVerifier(SSO_INTROSPECTION_URL, INTROSPECTION_TOKEN)
-else:
-    auth_provider = None
 
-mcp = FastMCP(
-    name = "Data Hub MCP Server",
-    stateless_http = True,
-    json_response = True,
-    auth = auth_provider
-)
 
+auth_provider = SSOIntrospectionVerifier(SSO_INTROSPECTION_URL, INTROSPECTION_TOKEN) if AUTH_ENABLED else None
+
+
+mcp = FastMCP(name="Data Hub MCP Server", stateless_http=True, json_response=True, auth=auth_provider)
 
 
 @mcp.custom_route("/health", methods=["GET"])
