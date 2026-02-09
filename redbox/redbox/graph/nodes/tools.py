@@ -147,17 +147,17 @@ def build_retrieve_knowledge_base(
         )
 
     @tool(response_format="content_and_artifact")
-    def _retrieve_specific_file_knowledge_base(selected_files: list[str], state: Annotated[RedboxState, InjectedState]):
+    def _retrieve_specific_file_knowledge_base(
+        uri: str, state: Annotated[RedboxState, InjectedState]
+    ) -> tuple[str, list[Document]]:
         """
         Retrieve full texts of specific files from the knowledge base,
         Arg:
-            - selected_files: list[str] A list of file URI to filter which files to query.
+            - uri: File URI to filter which file to query.
         Return:
-            The selected documents from knowledge base.
+            Tuple: A knowledge base document with metadata
         """
-        el_query = get_knowledge_base(
-            selected_files=selected_files, chunk_resolution=ChunkResolution.largest, state=state
-        )
+        el_query = get_knowledge_base(selected_files=[uri], chunk_resolution=ChunkResolution.largest, state=state)
         return query_repo(el_query, is_intermediate_step=False)
 
     @tool(response_format="content_and_artifact")
