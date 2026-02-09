@@ -102,7 +102,7 @@ class Redbox:
         retrieve_specific_files_knowledge_base = build_retrieve_knowledge_base(
             es_client=_env.elasticsearch_client(),
             index_name=_env.elastic_chunk_alias,
-            loop=True,
+            loop=False,
             all_files=False,
         )
         query_knowledge_base = build_query_tabular_knowledge_base_tool(

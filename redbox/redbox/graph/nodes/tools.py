@@ -123,7 +123,7 @@ def build_retrieve_document_full_text(es_client: Union[Elasticsearch, OpenSearch
 
 def build_retrieve_knowledge_base(
     es_client: Union[Elasticsearch, OpenSearch], index_name: str, loop: bool = False, all_files=True
-):
+) -> Tool:
     def query_repo(el_query, is_intermediate_step):
         results = query_to_documents(es_client=es_client, index_name=index_name, query=el_query)
 
@@ -140,7 +140,7 @@ def build_retrieve_knowledge_base(
         sorted_documents = sorted(results, key=lambda result: result.metadata["index"])
         return format_result(
             loop=loop,
-            content="<context>This is your knowledgebase result.</context>" + format_documents(sorted_documents),
+            content="<context>This is your knowledge base result.</context>" + format_documents(sorted_documents),
             artifact=sorted_documents,
             status="pass",
             is_intermediate_step=is_intermediate_step,
@@ -148,7 +148,8 @@ def build_retrieve_knowledge_base(
 
     @tool(response_format="content_and_artifact")
     def _retrieve_specific_file_knowledge_base(
-        uri: str, state: Annotated[RedboxState, InjectedState]
+        state: Annotated[RedboxState, InjectedState],
+        uri: str,
     ) -> tuple[str, list[Document]]:
         """
         Retrieve full texts of specific files from the knowledge base,
