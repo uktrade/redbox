@@ -724,20 +724,27 @@ def build_legislation_search_tool():
 
 def get_datahub_mcp_tools(agent_loop=True):
     async def _get_async_tools():
-        mcp_settings = get_settings().datahub_mcp
-        datahub_mcp_url = mcp_settings.url
-        async with streamablehttp_client(datahub_mcp_url) as (read, write, _), ClientSession(read, write) as session:
-            # Initialize the connection
-            await session.initialize()
-            # Get tools
-            tools = await load_mcp_tools(session)
-            # adding URL metadata so that the agent can execute the tool later
-            for tool in tools:
-                tool.metadata = {"url": datahub_mcp_url}
-                if agent_loop:  # if loop is True, add intermediate steps into schema so that it is exposed to LLM
-                    tool.args_schema["properties"]["is_intermediate_step"] = {"type": "string"}
-                    tool.args_schema["required"].append("is_intermediate_step")
-            return tools
+        try:
+            mcp_settings = get_settings().datahub_mcp
+            datahub_mcp_url = mcp_settings.url
+            async with (
+                streamablehttp_client(datahub_mcp_url) as (read, write, _),
+                ClientSession(read, write) as session,
+            ):
+                # Initialize the connection
+                await session.initialize()
+                # Get tools
+                tools = await load_mcp_tools(session)
+                # adding URL metadata so that the agent can execute the tool later
+                for tool in tools:
+                    tool.metadata = {"url": datahub_mcp_url}
+                    if agent_loop:  # if loop is True, add intermediate steps into schema so that it is exposed to LLM
+                        tool.args_schema["properties"]["is_intermediate_step"] = {"type": "string"}
+                        tool.args_schema["required"].append("is_intermediate_step")
+                return tools
+        except Exception:
+            log.error("MCP server not running")
+            return []
 
     # Apply patch to allow nested event loops
     nest_asyncio.apply()
