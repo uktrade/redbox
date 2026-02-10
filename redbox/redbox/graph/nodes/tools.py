@@ -124,7 +124,7 @@ def build_retrieve_document_full_text(es_client: Union[Elasticsearch, OpenSearch
 def build_retrieve_knowledge_base(
     es_client: Union[Elasticsearch, OpenSearch], index_name: str, loop: bool = False, all_files=True
 ) -> Tool:
-    def query_repo(el_query, is_intermediate_step):
+    def query_repo(el_query, is_intermediate_step, loop):
         results = query_to_documents(es_client=es_client, index_name=index_name, query=el_query)
 
         if not results:
@@ -159,12 +159,13 @@ def build_retrieve_knowledge_base(
             Tuple: A knowledge base document with metadata
         """
         el_query = get_knowledge_base(selected_files=[uri], chunk_resolution=ChunkResolution.largest, state=state)
-        return query_repo(el_query, is_intermediate_step=False)
+        # This current implementation do not support loop agent
+        return query_repo(el_query, is_intermediate_step=False, loop=False)
 
     @tool(response_format="content_and_artifact")
     def _retrieve_knowledge_base(
         state: Annotated[RedboxState, InjectedState], is_intermediate_step: bool = False
-    ) -> tuple[str, list[Document]]:
+    ) -> tuple:
         """
         Retrieve full texts from all knowledge base files.
 
@@ -178,7 +179,7 @@ def build_retrieve_knowledge_base(
             selected_files=state.request.knowledge_base_s3_keys, chunk_resolution=ChunkResolution.largest, state=state
         )
 
-        return query_repo(el_query, is_intermediate_step=is_intermediate_step)
+        return query_repo(el_query, is_intermediate_step=is_intermediate_step, loop=loop)
 
     return _retrieve_knowledge_base if all_files else _retrieve_specific_file_knowledge_base
 
