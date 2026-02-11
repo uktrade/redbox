@@ -198,7 +198,7 @@ def test_chat_window_with_chat(chat_with_message: Chat, client: Client):
         reverse("refresh"),
         data={
             "chat": chat_with_message.id,
-            "fragments": ["chat-window"],
+            "fragments": ["chat-feed"],
         },
     )
     response_content = response.content.decode()
@@ -217,7 +217,7 @@ def test_chat_window_without_chat(alice: User, client: Client):
     response = client.get(
         reverse("refresh"),
         data={
-            "fragments": ["chat-window"],
+            "fragments": ["chat-feed"],
         },
     )
     soup = BeautifulSoup(response.content)

@@ -46,8 +46,12 @@
   min-width: 0;
 }
 
-.rbds-full-width {
+.rbds-width--full {
   width: 100%;
+}
+
+.rbds-width--max-content {
+  width: max-content;
 }
 
 .rbds-transparent {

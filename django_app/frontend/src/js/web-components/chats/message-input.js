@@ -43,7 +43,6 @@ export class MessageInput extends HTMLElement {
 
         if (!this.submitDisabled) {
           this.#sendMessage();
-          textarea.classList.remove(this.expandedClass);
         }
       }
 
@@ -160,6 +159,7 @@ export class MessageInput extends HTMLElement {
     }
     if (hasUploadedFiles) this.textarea.appendChild(document.createElement("br"));
     this.textarea.blur();
+    this.textarea.classList.remove(this.expandedClass);
   };
 
 

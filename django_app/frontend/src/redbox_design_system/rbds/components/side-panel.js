@@ -10,6 +10,7 @@ export class SidePanel extends HTMLElement {
     toggleSlot = "toggle-side-panel";
     maxOverlap = getBreakpointPx("m");
     mediaQuery = window.matchMedia(`(min-width: ${this.maxOverlap}px)`);
+    toggleEventId = "side-panel-toggle";
 
     constructor() {
         super();
@@ -20,15 +21,15 @@ export class SidePanel extends HTMLElement {
 
 
     connectedCallback() {
-        // Bind toggle buttons
-        this.toggleElements.forEach((element) => {
-            element.addEventListener("click", (evt) => {
-                evt.stopPropagation();
-                this.togglePanel();
-            });
-        });
         // Handle screen size changes
         this.mediaQuery.addEventListener("change", this.handleScreenSizeChanges);
+
+        // Bind toggle event listener
+        document.addEventListener(this.toggleEventId, (evt) => {
+            console.log("Captured toggle event");
+            evt.stopPropagation();
+            this.togglePanel();
+        });
     }
 
 

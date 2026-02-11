@@ -6,18 +6,21 @@
 
             <div class="govuk-header__logo app-header-logo govuk-!-margin-bottom-0 govuk-!-width-full">
                 <a class="govuk-header__link govuk-header__link--homepage" href="/">
-                    <span class="govuk-header__product-name govuk-!-font-weight-bold rbds-text-xl">{{ productName }}</span>
+                    <span class="govuk-header__product-name govuk-!-font-weight-bold rbds-text-xl rbds-width--max-content">{{ productName }}</span>
                 </a>
             </div>
 
             <div class="govuk-header__content">
-                <button slot="toggle-side-panel"
-                        type="button"
-                        class="govuk-header__menu-button rbds-header__menu-button rbds-side-panel__toggle rbds-icon-button"
-                        aria-controls="navigation"
-                        aria-label="Show or hide menu">
-                    {{ rbds_icon(icon_name="left-panel-close.svg", icon_classes="dark") }}
-                </button>
+                <rbds-side-panel-toggle>
+                    <button slot="toggle-side-panel"
+                            type="button"
+                            class="govuk-header__menu-button rbds-header__menu-button rbds-side-panel__toggle rbds-icon-button"
+                            aria-controls="navigation"
+                            aria-label="Show or hide menu">
+                        {{ rbds_icon(icon_name="left-panel-close.svg", icon_classes="dark") }}
+                    </button>
+                </rbds-side-panel-toggle>
+
                 <ul id="navigation" class="govuk-header__navigation-list header-list"></ul>
             </div>
 

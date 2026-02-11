@@ -209,6 +209,7 @@ AGENTIC_RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
 NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT = (
     "<User question> {question} </User question> \n\n <Context>: \n\n {agents_results} \n\n </Context> \n\n."
+    "<Response_Criteria>{artifact_criteria}</Response_Criteria>"
 )
 
 AGENTIC_GIVE_UP_QUESTION_PROMPT = "{question}"
@@ -387,13 +388,13 @@ Use when the user wants to:
 - Create abstracts or overviews
 """
 
-DATAHUB_AGENT_DESC = """
-**DATAHUB_Agent**:
-Purpose: query data from datahub database
+ARTIFACT_BUILDER_AGENT_DESC = """
+**Artifact_Builder_Agent**:
+Purpose: Retrieve artifact criteria including structure, headings, word limit, style from the knowledge base.
 Use when the user wants to:
-- Get information about a specific company
-- Get information about interactions with a specific company
+- Produce an artifact such as drafting, briefing, proposals, propositions
 """
+
 
 WORKER_AGENTS_PROMPT = """
 ## Available agents and their responsibilities
@@ -578,33 +579,16 @@ EVAL_SUBMISSION_QA = """
 Make the response be extremely concise. 200 words max unless user asks for detail.
 """
 
-DATAHUB_PROMPT = """ You are a database expert with a strong attention to detail. You are assisting users to retrieve information from a database called datahub.
-Your task is to retrieve the relevant information from the database that helps answer the users question using the correct tools. Each tool would allow you to query a specific table from the database.
-You made need to execute the tools sequentially before you get to the final answer
+ARTIFACT_BUILDER_AGENT_PROMPT = """
+You are an Artifact Builder Agent designed to produce high-quality outputs that precisely match user requests by leveraging a knowledge base of best practices and criteria. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
 
-Operational Framework:
-1. Check the existing information
-Carefully evalute information in <previous_chat_history>.
-Analayse your previous actions from the chat history, your previous tool calls and any previous information retrieved from the database.
-2. Check whether you need to execute a tool
-Analyse any previous tool results from the existing information.
-If the previous tool results do not contain the relevant information to answer user question, continue to the next steps.
-If the previous tool results contain the relevant information to answer user question, skip the next steps and do not execute any tool calls.
-3. Execute the appropriate tool based on the tool description
-Execute the relevant tool by checking that the tool description aligns with the user question or helps gathering important information.
-4. Choose the correct arguments values for the tools
-Read each tool schema carefully and understand the arguments. Choose which arguments would be relevant to answer the user question and execute the tool accordingly.
-If the tool  requires a company ID as an argument, look for the information you gathered from previous tool calls and derive the company ID.
-There is always an argument named is_intermediate_step which is a boolean string type. The corresponding value is "True" if your tool execution is an intermediate step to allow you to gather information about the database before making the final tool execution. Otherwise it is "False" if your tool execution would retrieve the relevant final information to answer the user question.
-Choose the value of the is_intermediate_step argument accordingly and make sure to add it in your tool calls.
-5. Repeat previous steps until you get to the final answer.
-"""
+Workflow:
+You MUST follow this exact sequence:
 
-DATAHUB_QUESTION_PROMPT = """ Here is the user question: {question}. Retrieve the relevant information from the database that would answer this question.
-Expected output: Raw data retrieved from database. Output the raw data and do not output any explanation.
-Please analyse your previous actions in the chat history before you perform the next tool execution.
-Existing information:
-<previous_chat_history>{chat_history}</previous_chat_history>
-<previous_tool_error>{previous_tool_error}</previous_tool_error>
-<previous_tool_results>{previous_tool_results}</previous_tool_results>
+###
+- You MUST use your tools to search the knowledge base BEFORE creating any artifact
+- Artifact criteria files always start with "Artifact_"
+- Identify which artifact type matches the user's request (e.g., Artifact_Presentation, Artifact_Document, Artifact_Code)
+- Make a tool call to retrieve the criteria file that best matches the task
+- Choose ONLY ONE artifact criteria file that is the best match
 """

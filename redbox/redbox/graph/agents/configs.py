@@ -138,6 +138,10 @@ prompt_configs: Dict[str, PromptConfig] = {
         system=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT + prompts.KNOWLEDGE_BASE_METADTA,
         prompt_vars=PromptVariable(task=True, expected_output=True, knowledge_base_metadata=True),
     ),
+    "Artifact_Builder_Agent": PromptConfig(
+        system=prompts.ARTIFACT_BUILDER_AGENT_PROMPT + prompts.KNOWLEDGE_BASE_METADTA,
+        prompt_vars=PromptVariable(task=True, expected_output=True, knowledge_base_metadata=True),
+    ),
 }
 
 
@@ -245,6 +249,13 @@ agent_configs: Dict[str, AgentConfig] = {
         description=prompts.KNOWLEDGE_BASE_RETRIEVAL_AGENT_DESC,
         prompt=prompt_configs["Knowledge_Base_Retrieval_Agent"],
         agents_max_tokens=10000,
+        parser=None,
+    ),
+    "Artifact_Builder_Agent": AgentConfig(
+        name="Artifact_Builder_Agent",
+        description=prompts.ARTIFACT_BUILDER_AGENT_DESC,
+        prompt=prompt_configs["Artifact_Builder_Agent"],
+        agents_max_tokens=5000,
         parser=None,
     ),
 }
