@@ -10,6 +10,7 @@ from langgraph.pregel import RetryPolicy
 from redbox.chains.components import get_structured_response_with_citations_parser
 from redbox.chains.runnables import build_self_route_output_parser
 from redbox.graph.agents.configs import AgentConfig
+from redbox.graph.agents.formats import ArtifactAgent
 from redbox.graph.agents.workers import WorkerAgent
 from redbox.graph.edges import (
     build_documents_bigger_than_context_conditional,
@@ -505,6 +506,8 @@ def build_new_route_graph(
                     builder.add_edge("retrieve_tabular_documents", "retrieve_tabular_schema")
                     builder.add_edge("retrieve_tabular_schema", "call_tabular_agent")
                     builder.add_edge("call_tabular_agent", "combine_question_evaluator")
+                case "Artifact_Builder_Agent":
+                    builder.add_node(config.name, ArtifactAgent(config=config).execute())
                 case _:
                     success = "fail"
                     is_intermediate_step = False
@@ -582,6 +585,7 @@ def build_new_route_graph(
     add_agent(builder, agent_configs, "Web_Search_Agent")
     add_agent(builder, agent_configs, "Legislation_Search_Agent")
     add_agent(builder, agent_configs, "Knowledge_Base_Retrieval_Agent")
+    add_agent(builder, agent_configs, "Artifact_Builder_Agent")
     add_agent(
         builder,
         agent_configs,

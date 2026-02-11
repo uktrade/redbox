@@ -61,6 +61,25 @@ class WorkerAgent(Agent):
 
         return _log_agent_activity
 
+    def _processing(self, result):
+        result_content = ""
+        if isinstance(result, str):
+            self.logger.warning(f"[{self.config.name}] Using raw string result.")
+            result_content = result
+        elif isinstance(result, list) and isinstance(result[0], dict):
+            self.logger.warning(f"[{self.config.name}] Using raw string in a list as result.")
+            result_content = result[0].get("text", "")
+        elif isinstance(result, list):
+            self.logger.warning(f"[{self.config.name}] Aggregating list of tool results...")
+            result_content = join_result_with_token_limit(
+                result=result, max_tokens=self.config.agents_max_tokens, log_stub=f"[{self.config.name}]"
+            )
+        else:
+            self.logger.error(f"[{self.config.name}] Worker agent return incompatible data type {type(result)}")
+            raise TypeError("Invalid tool result type")
+        self.logger.warning(f"[{self.config.name}] Completed agent run.")
+        return result_content
+
     def post_processing(self):
         @RunnableLambda
         def _post_processing(input):
@@ -68,22 +87,7 @@ class WorkerAgent(Agent):
             Processing data from the agent core function.
             """
             state, result, task = input
-
-            if isinstance(result, str):
-                self.logger.warning(f"[{self.config.name}] Using raw string result.")
-                result_content = result
-            elif isinstance(result, list) and isinstance(result[0], dict):
-                self.logger.warning(f"[{self.config.name}] Using raw string in a list as result.")
-                result_content = result[0].get("text", "")
-            elif isinstance(result, list):
-                self.logger.warning(f"[{self.config.name}] Aggregating list of tool results...")
-                result_content = join_result_with_token_limit(
-                    result=result, max_tokens=self.config.agents_max_tokens, log_stub=f"[{self.config.name}]"
-                )
-            else:
-                self.logger.error(f"[{self.config.name}] Worker agent return incompatible data type {type(result)}")
-                raise TypeError("Invalid tool result type")
-            self.logger.warning(f"[{self.config.name}] Completed agent run.")
+            result_content = self._processing(result)
             return {
                 "agents_results": {
                     task.id: AIMessage(

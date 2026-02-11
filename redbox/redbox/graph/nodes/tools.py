@@ -1,19 +1,19 @@
-import json
+import csv
 import hashlib
+import json
 import logging
 import random
-import sqlite3
-import time
-from typing import Annotated, Callable, Iterable, Literal, Union
-import duckdb
-from io import StringIO
-import csv
 import re
+import sqlite3
 import threading
-import pandas as pd
+import time
+from io import StringIO
+from typing import Annotated, Callable, Iterable, Literal, Union
 
 import boto3
+import duckdb
 import numpy as np
+import pandas as pd
 import requests
 from elasticsearch import Elasticsearch
 from langchain_community.utilities import WikipediaAPIWrapper
@@ -38,7 +38,7 @@ from redbox.retriever.queries import (
     get_all,
     get_knowledge_base,
 )
-from redbox.retriever.retrievers import query_to_documents, SchematisedTabularChunkRetriever
+from redbox.retriever.retrievers import SchematisedTabularChunkRetriever, query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
 
 log = logging.getLogger(__name__)
@@ -121,21 +121,10 @@ def build_retrieve_document_full_text(es_client: Union[Elasticsearch, OpenSearch
     return _retrieve_document_full_text
 
 
-def build_retrieve_knowledge_base(es_client: Union[Elasticsearch, OpenSearch], index_name: str, loop: bool = False):
-    @tool(response_format="content_and_artifact")
-    def _retrieve_knowledge_base(
-        state: Annotated[RedboxState, InjectedState], is_intermediate_step: bool = False
-    ) -> tuple[str, list[Document]]:
-        """
-        Retrieve knowledge base data, information for this agent.
-
-        Arg:
-        - is_intermediate_step (bool): True if this tool call is an intermediate step to allow you to gather knowledge base. False if this is your final step.
-
-        Return:
-            Tuple: Collection of knowledge base documents with metadata
-        """
-        el_query = get_knowledge_base(chunk_resolution=ChunkResolution.largest, state=state)
+def build_retrieve_knowledge_base(
+    es_client: Union[Elasticsearch, OpenSearch], index_name: str, loop: bool = False, all_files=True
+) -> Tool:
+    def query_repo(el_query, is_intermediate_step, loop):
         results = query_to_documents(es_client=es_client, index_name=index_name, query=el_query)
 
         if not results:
@@ -151,13 +140,48 @@ def build_retrieve_knowledge_base(es_client: Union[Elasticsearch, OpenSearch], i
         sorted_documents = sorted(results, key=lambda result: result.metadata["index"])
         return format_result(
             loop=loop,
-            content="<context>This is your knowledgebase result.</context>" + format_documents(sorted_documents),
+            content="<context>This is your knowledge base result.</context>" + format_documents(sorted_documents),
             artifact=sorted_documents,
             status="pass",
             is_intermediate_step=is_intermediate_step,
         )
 
-    return _retrieve_knowledge_base
+    @tool(response_format="content_and_artifact")
+    def _retrieve_specific_file_knowledge_base(
+        state: Annotated[RedboxState, InjectedState],
+        uri: str,
+    ) -> tuple[str, list[Document]]:
+        """
+        Retrieve full texts of specific files from the knowledge base,
+        Arg:
+            - uri: File URI to filter which file to query.
+        Return:
+            Tuple: A knowledge base document with metadata
+        """
+        el_query = get_knowledge_base(selected_files=[uri], chunk_resolution=ChunkResolution.largest, state=state)
+        # This current implementation do not support loop agent
+        return query_repo(el_query, is_intermediate_step=False, loop=False)
+
+    @tool(response_format="content_and_artifact")
+    def _retrieve_knowledge_base(
+        state: Annotated[RedboxState, InjectedState], is_intermediate_step: bool = False
+    ) -> tuple:
+        """
+        Retrieve full texts from all knowledge base files.
+
+        Arg:
+        - is_intermediate_step (bool): True if this tool call is an intermediate step to allow you to gather knowledge base. False if this is your final step.
+
+        Return:
+            Tuple: Collection of knowledge base documents with metadata
+        """
+        el_query = get_knowledge_base(
+            selected_files=state.request.knowledge_base_s3_keys, chunk_resolution=ChunkResolution.largest, state=state
+        )
+
+        return query_repo(el_query, is_intermediate_step=is_intermediate_step, loop=loop)
+
+    return _retrieve_knowledge_base if all_files else _retrieve_specific_file_knowledge_base
 
 
 def build_search_documents_tool(

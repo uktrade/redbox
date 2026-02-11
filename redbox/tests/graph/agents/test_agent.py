@@ -2,7 +2,8 @@ import pytest
 from langchain_core.messages import AIMessage
 from pytest_mock import MockerFixture
 
-from redbox.graph.agents.configs import AgentConfig, PromptConfig, PromptVariable
+from redbox.graph.agents.configs import AgentConfig, PromptConfig, PromptVariable, agent_configs
+from redbox.graph.agents.formats import ArtifactAgent
 from redbox.graph.agents.workers import WorkerAgent
 from redbox.graph.nodes.tools import build_search_wikipedia_tool
 from redbox.models.chain import RedboxState, TaskStatus
@@ -99,3 +100,21 @@ class TestWorkerAgent:
         }
         assert response["tasks_evaluator"] == task.task + "\n" + task.expected_output
         assert response["agent_plans"].get_task_status(task.id) == TaskStatus.COMPLETED
+
+
+class TestArtifactAgent:
+    task = AgentTaskBase(
+        task="Fake task",
+        agent="Artifact_Builder_Agent",
+        expected_output="A comprehensive list of fake results",
+    )
+    agent = ArtifactAgent(config=agent_configs["Artifact_Builder_Agent"])
+
+    @pytest.mark.parametrize(
+        "result", [("A result"), ([AIMessage("A"), AIMessage("result")]), ([{"text": "A result"}])]
+    )
+    def test_post_processing(self, result, fake_state):
+        # same post processing as Worker agent but update on different property
+        task = self.task
+        response = self.agent.post_processing().invoke((fake_state, result, task))
+        assert response["artifact_criteria"] == "A result"
