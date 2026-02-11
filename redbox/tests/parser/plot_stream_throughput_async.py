@@ -44,14 +44,13 @@ class StreamingJsonOriginal(StreamingJsonOutputParserWithMetrics):
         async for chunk in input:
             chunk_gen = self._to_generation_chunk(chunk)
 
-            self.metrics.record_tokens(len(chunk_gen.text))
-
             acc_gen = chunk_gen if acc_gen is None else acc_gen + chunk_gen  # type: ignore[operator]
             if parsed := self.parse_partial_json(acc_gen.text):
                 is_parsed = True
                 field_content = parsed.get(self.name_of_streamed_field)
                 if field_content:
-                    if _ := field_content[field_length_at_last_run:]:
+                    if new_tokens := field_content[field_length_at_last_run:]:
+                        self.metrics.record_tokens(len(new_tokens))
                         field_length_at_last_run = len(field_content)
                         yield self.pydantic_schema_object.model_validate(parsed)
 
@@ -94,8 +93,6 @@ class StreamingJsonRefactored(StreamingJsonOutputParserWithMetrics):
             chunk_gen = self._to_generation_chunk(chunk)
             text = chunk_gen.text
 
-            self.metrics.record_tokens(len(text))
-
             acc_buffer.append(text)
 
             if not seen_json_start:
@@ -117,8 +114,8 @@ class StreamingJsonRefactored(StreamingJsonOutputParserWithMetrics):
                 continue
 
             if len(field_content) > field_length_at_last_run:
-                _ = field_content[field_length_at_last_run:]
-
+                new_tokens = field_content[field_length_at_last_run:]
+                self.metrics.record_tokens(len(new_tokens))
                 field_length_at_last_run = len(field_content)
                 yield self.pydantic_schema_object.model_validate(parsed)
 
