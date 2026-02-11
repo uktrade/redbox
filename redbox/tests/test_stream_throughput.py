@@ -12,34 +12,42 @@ from langchain_core.outputs import ChatGenerationChunk, GenerationChunk
 class MetricsCollector:
     def __init__(self):
         self.tokens = 0
+        self.chunks = 0
         self.timestamps = []
-        self.per_chunk = []
+        self.chunk_timestamps = []
 
     def record_tokens(self, n_tokens):
         now = time.perf_counter()
-        dt = 0
-        if self.timestamps:
-            dt = now - self.timestamps[-1][0]
         self.tokens += n_tokens
         self.timestamps.append((now, self.tokens))
-        self.per_chunk.append((now, n_tokens, dt))
+        self.chunks += 1
+        self.chunk_timestamps.append((now, self.chunks))
 
     def compute_throughput(self):
-        """Compute tokens/sec at each recorded timestamp"""
+        """Cumulative tokens/sec"""
         if not self.timestamps:
             return []
-        throughput = []
         start_time = self.timestamps[0][0]
-        for t, tokens in self.timestamps:
-            elapsed = t - start_time
-            throughput.append((elapsed, tokens / elapsed if elapsed > 0 else 0))
+        throughput = [
+            (t - start_time, tokens / (t - start_time) if (t - start_time) > 0 else 0) for t, tokens in self.timestamps
+        ]
+        return throughput
+
+    def compute_chunk_throughput(self):
+        """Cumulative chunks/sec"""
+        if not self.chunk_timestamps:
+            return []
+        start_time = self.chunk_timestamps[0][0]
+        throughput = [
+            (t - start_time, chunks / (t - start_time) if (t - start_time) > 0 else 0)
+            for t, chunks in self.chunk_timestamps
+        ]
         return throughput
 
     def compute_instantaneous_throughput(self):
-        """Tokens/sec per chunk, not cumulative"""
+        """Instantaneous tokens/sec per chunk"""
         if len(self.timestamps) < 2:
             return []
-
         throughput = []
         for i in range(1, len(self.timestamps)):
             t_prev, tokens_prev = self.timestamps[i - 1]
@@ -47,7 +55,21 @@ class MetricsCollector:
             dt = t_curr - t_prev
             d_tokens = tokens_curr - tokens_prev
             tps = d_tokens / dt if dt > 0 else 0
-            throughput.append((t_curr - self.timestamps[0][0], tps))  # elapsed time vs tps
+            throughput.append((t_curr - self.timestamps[0][0], tps))
+        return throughput
+
+    def compute_instantaneous_chunk_throughput(self):
+        """Instantaneous chunks/sec"""
+        if len(self.chunk_timestamps) < 2:
+            return []
+        throughput = []
+        for i in range(1, len(self.chunk_timestamps)):
+            t_prev, chunks_prev = self.chunk_timestamps[i - 1]
+            t_curr, chunks_curr = self.chunk_timestamps[i]
+            dt = t_curr - t_prev
+            d_chunks = chunks_curr - chunks_prev
+            cps = d_chunks / dt if dt > 0 else 0
+            throughput.append((t_curr - self.chunk_timestamps[0][0], cps))
         return throughput
 
 
@@ -264,11 +286,15 @@ class DummySchema(BaseModel):
 
 
 def generate_large_input(num_chunks: int = 100, chunk_size: int = 10) -> List[str]:
-    text = "Hello world, this is a streaming benchmark test." * 1000
-    chunks = ["```{", '"answer": "']
-    for i in range(0, len(text), chunk_size):
-        chunks.append(text[i : i + chunk_size])
-    chunks.append('"}```')
+    base_text = "Hello world, this is a streaming benchmark test. "
+    text = base_text * num_chunks
+
+    full_json = f'```{{"answer": "{text}"}}```'
+
+    chunks = []
+    for i in range(0, len(full_json), chunk_size):
+        chunks.append(full_json[i : i + chunk_size])
+
     return chunks
 
 
@@ -293,90 +319,25 @@ def benchmark_streaming(parser: StreamingJsonOutputParserWithMetrics, input_chun
     return parser.metrics
 
 
-def plot_throughput(metrics_list, labels):
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-    axes = axes.flatten()
+# def print_metrics_summary(metrics: MetricsCollector, label: str):
+#     if not metrics.timestamps:
+#         print(f"{label}: No tokens recorded.")
+#         return
 
-    for metrics, label in zip(metrics_list, labels):
-        if not metrics.timestamps:
-            continue
+#     times, tps = zip(*metrics.compute_throughput())
+#     total_tokens = metrics.tokens
+#     elapsed_time = times[-1]  # last timestamp is elapsed since first token
+#     avg_tps = total_tokens / elapsed_time if elapsed_time > 0 else 0
+#     max_tps = max(tps)
+#     min_tps = min(tps)
 
-        # Normalize timestamps to start at 0
-        start_time = metrics.timestamps[0][0]
-        norm_times = [(t - start_time) for t, _ in metrics.timestamps]
-
-        # Cumulative throughput (tokens/sec)
-        cum_times, cum_tps = zip(*metrics.compute_throughput())
-        cum_times = [t - cum_times[0] for t in cum_times]  # normalize
-        axes[0].plot(cum_times, cum_tps, label=label)
-        axes[0].set_title("Cumulative Throughput (Tokens/sec)")
-        axes[0].set_xlabel("Time (s)")
-        axes[0].set_ylabel("Tokens/sec")
-        axes[0].set_yscale("log")
-        axes[0].grid(True)
-
-        # Instantaneous throughput per chunk (tokens/sec)
-        inst_data = metrics.compute_instantaneous_throughput()
-        if inst_data:
-            inst_times, inst_tps = zip(*inst_data)
-            inst_times = [t - inst_times[0] for t in inst_times]  # normalize
-        else:
-            inst_times, inst_tps = [], []
-        axes[1].plot(inst_times, inst_tps, label=label)
-        axes[1].set_title("Instantaneous Throughput per Chunk (Tokens/sec)")
-        axes[1].set_xlabel("Time (s)")
-        axes[1].set_ylabel("Tokens/sec")
-        axes[1].set_yscale("log")
-        axes[1].grid(True)
-
-        # Cumulative chunks/sec
-        chunk_counts = list(range(1, len(metrics.timestamps) + 1))
-        axes[2].plot(norm_times, chunk_counts, label=label)
-        axes[2].set_title("Cumulative Chunks Over Time")
-        axes[2].set_xlabel("Time (s)")
-        axes[2].set_ylabel("Chunks")
-        axes[2].set_yscale("log")
-        axes[2].grid(True)
-
-        # Instantaneous chunks/sec per interval
-        inst_chunk_tps = []
-        for i in range(1, len(metrics.timestamps)):
-            dt = metrics.timestamps[i][0] - metrics.timestamps[i - 1][0]
-            inst_chunk_tps.append(1 / dt if dt > 0 else 0)
-        inst_chunk_times = [t - metrics.timestamps[0][0] for t, _ in metrics.timestamps[1:]]
-        axes[3].plot(inst_chunk_times, inst_chunk_tps, label=label)
-        axes[3].set_title("Instantaneous Chunks/sec")
-        axes[3].set_xlabel("Time (s)")
-        axes[3].set_ylabel("Chunks/sec")
-        axes[3].set_yscale("log")
-        axes[3].grid(True)
-
-    for ax in axes:
-        ax.legend()
-
-    plt.tight_layout()
-    plt.show()
-
-
-def print_metrics_summary(metrics: MetricsCollector, label: str):
-    if not metrics.timestamps:
-        print(f"{label}: No tokens recorded.")
-        return
-
-    times, tps = zip(*metrics.compute_throughput())
-    total_tokens = metrics.tokens
-    elapsed_time = times[-1]  # last timestamp is elapsed since first token
-    avg_tps = total_tokens / elapsed_time if elapsed_time > 0 else 0
-    max_tps = max(tps)
-    min_tps = min(tps)
-
-    print(f"--- {label} Summary ---")
-    print(f"Total tokens: {total_tokens}")
-    print(f"Elapsed time: {elapsed_time:.4f} s")
-    print(f"Average throughput: {avg_tps:.2f} tokens/sec")
-    print(f"Max throughput: {max_tps:.2f} tokens/sec")
-    print(f"Min throughput: {min_tps:.2f} tokens/sec")
-    print()
+#     print(f"--- {label} Summary ---")
+#     print(f"Total tokens: {total_tokens}")
+#     print(f"Elapsed time: {elapsed_time:.4f} s")
+#     print(f"Average throughput: {avg_tps:.2f} tokens/sec")
+#     print(f"Max throughput: {max_tps:.2f} tokens/sec")
+#     print(f"Min throughput: {min_tps:.2f} tokens/sec")
+#     print()
 
 
 def benchmark_multiple_runs(parser_class, input_chunks, num_runs: int = 5, **parser_kwargs):
@@ -391,78 +352,118 @@ def benchmark_multiple_runs(parser_class, input_chunks, num_runs: int = 5, **par
     return all_metrics
 
 
-def aggregate_metrics(metrics_list: List[MetricsCollector]):
+def aggregate_metrics_with_chunks(metrics_list: List[MetricsCollector]):
     """
-    Align timestamps across runs by interpolating to a common timeline.
-    Returns:
-        times: common timeline
-        mean_cum_tps: mean cumulative tokens/sec
-        std_cum_tps: std deviation cumulative tokens/sec
-        mean_inst_tps: mean instantaneous tokens/sec
-        std_inst_tps: std deviation instantaneous tokens/sec
+    Interpolate and compute mean/std for tokens/sec and chunks/sec (cumulative and instantaneous)
     """
     max_time = max(m.timestamps[-1][0] - m.timestamps[0][0] for m in metrics_list if m.timestamps)
     common_times = np.linspace(0, max_time, 1000)
 
-    cum_tps_runs = []
-    inst_tps_runs = []
+    # Tokens
+    cum_tokens_runs, inst_tokens_runs = [], []
+    cum_chunks_runs, inst_chunks_runs = [], []
 
     for m in metrics_list:
         if not m.timestamps:
             continue
+        # Cumulative tokens
+        t_times, cum_tokens = zip(*m.compute_throughput())
+        t_times = np.array(t_times) - t_times[0]
+        cum_tokens_interp = np.interp(common_times, t_times, cum_tokens)
+        cum_tokens_runs.append(cum_tokens_interp)
 
-        times, cum_tps = zip(*m.compute_throughput())
-        times = np.array(times) - times[0]
-        cum_tps_interp = np.interp(common_times, times, cum_tps)
-        cum_tps_runs.append(cum_tps_interp)
-
-        inst_data = m.compute_instantaneous_throughput()
-        if inst_data:
-            inst_times, inst_tps = zip(*inst_data)
+        # Instantaneous tokens
+        inst_tokens_data = m.compute_instantaneous_throughput()
+        if inst_tokens_data:
+            inst_times, inst_tokens = zip(*inst_tokens_data)
             inst_times = np.array(inst_times) - inst_times[0]
-            inst_tps_interp = np.interp(common_times, inst_times, inst_tps, left=0, right=0)
+            inst_tokens_interp = np.interp(common_times, inst_times, inst_tokens, left=0, right=0)
         else:
-            inst_tps_interp = np.zeros_like(common_times)
-        inst_tps_runs.append(inst_tps_interp)
+            inst_tokens_interp = np.zeros_like(common_times)
+        inst_tokens_runs.append(inst_tokens_interp)
 
-    cum_tps_runs = np.array(cum_tps_runs)
-    inst_tps_runs = np.array(inst_tps_runs)
+        # Cumulative chunks
+        t_times, cum_chunks = zip(*m.compute_chunk_throughput())
+        t_times = np.array(t_times) - t_times[0]
+        cum_chunks_interp = np.interp(common_times, t_times, cum_chunks)
+        cum_chunks_runs.append(cum_chunks_interp)
 
-    mean_cum_tps = np.mean(cum_tps_runs, axis=0)
-    std_cum_tps = np.std(cum_tps_runs, axis=0)
-    mean_inst_tps = np.mean(inst_tps_runs, axis=0)
-    std_inst_tps = np.std(inst_tps_runs, axis=0)
+        # Instantaneous chunks
+        inst_chunks_data = m.compute_instantaneous_chunk_throughput()
+        if inst_chunks_data:
+            inst_times, inst_chunks = zip(*inst_chunks_data)
+            inst_times = np.array(inst_times) - inst_times[0]
+            inst_chunks_interp = np.interp(common_times, inst_times, inst_chunks, left=0, right=0)
+        else:
+            inst_chunks_interp = np.zeros_like(common_times)
+        inst_chunks_runs.append(inst_chunks_interp)
 
-    return common_times, mean_cum_tps, std_cum_tps, mean_inst_tps, std_inst_tps
+    cum_tokens_runs = np.array(cum_tokens_runs)
+    inst_tokens_runs = np.array(inst_tokens_runs)
+    cum_chunks_runs = np.array(cum_chunks_runs)
+    inst_chunks_runs = np.array(inst_chunks_runs)
+
+    return (
+        common_times,
+        np.mean(cum_tokens_runs, axis=0),
+        np.std(cum_tokens_runs, axis=0),
+        np.mean(inst_tokens_runs, axis=0),
+        np.std(inst_tokens_runs, axis=0),
+        np.mean(cum_chunks_runs, axis=0),
+        np.std(cum_chunks_runs, axis=0),
+        np.mean(inst_chunks_runs, axis=0),
+        np.std(inst_chunks_runs, axis=0),
+    )
 
 
-def plot_aggregate_throughput(agg_data_list, labels):
-    """
-    Plot mean ± std.dev for cumulative and instantaneous throughput.
-    agg_data_list: list of (times, mean_cum_tps, std_cum_tps, mean_inst_tps, std_inst_tps)
-    """
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+def plot_aggregate_tokens_and_chunks(agg_data_list, labels):
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    axes = axes.flatten()
 
     for agg_data, label in zip(agg_data_list, labels):
-        times, mean_cum, std_cum, mean_inst, std_inst = agg_data
+        (
+            times,
+            mean_cum_tokens,
+            std_cum_tokens,
+            mean_inst_tokens,
+            std_inst_tokens,
+            mean_cum_chunks,
+            std_cum_chunks,
+            mean_inst_chunks,
+            std_inst_chunks,
+        ) = agg_data
 
-        axes[0].plot(times, mean_cum, label=label)
-        axes[0].fill_between(times, mean_cum - std_cum, mean_cum + std_cum, alpha=0.3)
+        # Cumulative tokens
+        axes[0].plot(times, mean_cum_tokens, label=label)
+        axes[0].fill_between(times, mean_cum_tokens - std_cum_tokens, mean_cum_tokens + std_cum_tokens, alpha=0.3)
         axes[0].set_title("Cumulative Throughput (Tokens/sec)")
-        axes[0].set_xlabel("Time (s)")
-        axes[0].set_ylabel("Tokens/sec")
-        axes[0].set_yscale("log")
+        # axes[0].set_yscale("log")
         axes[0].grid(True)
 
-        axes[1].plot(times, mean_inst, label=label)
-        axes[1].fill_between(times, mean_inst - std_inst, mean_inst + std_inst, alpha=0.3)
+        # Instantaneous tokens
+        axes[1].plot(times, mean_inst_tokens, label=label)
+        axes[1].fill_between(times, mean_inst_tokens - std_inst_tokens, mean_inst_tokens + std_inst_tokens, alpha=0.3)
         axes[1].set_title("Instantaneous Throughput per Chunk (Tokens/sec)")
-        axes[1].set_xlabel("Time (s)")
-        axes[1].set_ylabel("Tokens/sec")
-        axes[1].set_yscale("log")
+        # axes[1].set_yscale("log")
         axes[1].grid(True)
 
+        # Cumulative chunks
+        axes[2].plot(times, mean_cum_chunks, label=label)
+        axes[2].fill_between(times, mean_cum_chunks - std_cum_chunks, mean_cum_chunks + std_cum_chunks, alpha=0.3)
+        axes[2].set_title("Cumulative Throughput (Chunks/sec)")
+        # axes[2].set_yscale("log")
+        axes[2].grid(True)
+
+        # Instantaneous chunks
+        axes[3].plot(times, mean_inst_chunks, label=label)
+        axes[3].fill_between(times, mean_inst_chunks - std_inst_chunks, mean_inst_chunks + std_inst_chunks, alpha=0.3)
+        axes[3].set_title("Instantaneous Throughput per Chunk (Chunks/sec)")
+        # axes[3].set_yscale("log")
+        axes[3].grid(True)
+
     for ax in axes:
+        ax.set_xlabel("Time (s)")
+        ax.set_ylabel("Throughput/sec")
         ax.legend()
 
     plt.tight_layout()
@@ -473,7 +474,7 @@ if __name__ == "__main__":
     original_parser = StreamingJsonOriginal(pydantic_schema_object=DummySchema)
     refactored_parser = StreamingJsonRefactored(pydantic_schema_object=DummySchema)
 
-    input_chunks = generate_large_input(num_chunks=10, chunk_size=10)
+    input_chunks = generate_large_input(num_chunks=20, chunk_size=20)
 
     # metrics_refactored = benchmark_streaming(refactored_parser, input_chunks)
     # metrics_original = benchmark_streaming(original_parser, input_chunks)
@@ -483,7 +484,7 @@ if __name__ == "__main__":
 
     # plot_throughput([metrics_refactored, metrics_original], ["Refactored", "Original"])
 
-    num_runs = 5
+    num_runs = 10
     original_runs = benchmark_multiple_runs(
         StreamingJsonOriginal, input_chunks, num_runs=num_runs, pydantic_schema_object=DummySchema
     )
@@ -492,8 +493,8 @@ if __name__ == "__main__":
     )
 
     # Aggregate metrics
-    original_agg = aggregate_metrics(original_runs)
-    refactored_agg = aggregate_metrics(refactored_runs)
+    original_agg = aggregate_metrics_with_chunks(original_runs)
+    refactored_agg = aggregate_metrics_with_chunks(refactored_runs)
 
     # Plot mean +- std.dev
-    plot_aggregate_throughput([original_agg, refactored_agg], ["Original", "Refactored"])
+    plot_aggregate_tokens_and_chunks([original_agg, refactored_agg], ["Original", "Refactored"])
