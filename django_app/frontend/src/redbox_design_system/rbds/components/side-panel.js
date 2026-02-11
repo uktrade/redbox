@@ -21,13 +21,6 @@ export class SidePanel extends HTMLElement {
 
 
     connectedCallback() {
-        // Bind toggle buttons - move to separate component
-        // this.toggleElements.forEach((element) => {
-        //     element.addEventListener("click", (evt) => {
-        //         evt.stopPropagation();
-        //         this.togglePanel();
-        //     });
-        // });
         // Handle screen size changes
         this.mediaQuery.addEventListener("change", this.handleScreenSizeChanges);
 
