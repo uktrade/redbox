@@ -190,29 +190,29 @@ class AccountManagementObjective:
     """
 
     id: str | None
-    # subject: str | None
-    # detail: str | None
-    # target_date: date | None
-    # has_blocker: bool | None
-    # blocker_description: str | None
-    # progress: int | None
-    # created_on: datetime | None
-    # modified_on: datetime | None
-    # company_id: str | None
+    subject: str | None
+    detail: str | None
+    target_date: date | None
+    has_blocker: bool | None
+    blocker_description: str | None
+    progress: int | None
+    created_on: datetime | None
+    modified_on: datetime | None
+    company_id: str | None
 
     @staticmethod
     def populate_from_record(record):
         return AccountManagementObjective(
             id=record["id"],
-            # subject=record["subject"],
-            # detail=record["detail"],
-            # target_date=record["target_date"],
-            # has_blocker=record["has_blocker"],
-            # blocker_description=record["blocker_description"],
-            # progress=record["progress"],
-            # created_on=record["created_on"],
-            # modified_on=record["modified_on"],
-            # company_id=record["company_id"],
+            subject=record["subject"],
+            detail=record["detail"],
+            target_date=record["target_date"],
+            has_blocker=record["has_blocker"],
+            blocker_description=record["blocker_description"],
+            progress=record["progress"],
+            created_on=record["created_on"],
+            modified_on=record["modified_on"],
+            company_id=record["company_id"],
         )
 
 
