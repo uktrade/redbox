@@ -1,6 +1,6 @@
-{% macro govukErrorSummary(title="There is a problem", error_list=None, heading_level=2) %}
-{% if error_list %}
-  <div class="govuk-error-summary" data-module="govuk-error-summary">
+{% macro govukErrorSummary(title="There is a problem", error_list=None, heading_level=2, hidden=False) %}
+{% if true %}
+  <div class="govuk-error-summary {% if hidden %}govuk-!-display-none{% endif %}" data-module="govuk-error-summary">
     <div role="alert">
       <h{{ heading_level }} class="govuk-error-summary__title">
         {{ title }}
