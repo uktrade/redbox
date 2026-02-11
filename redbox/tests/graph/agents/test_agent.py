@@ -6,7 +6,7 @@ from redbox.graph.agents.configs import AgentConfig, PromptConfig, PromptVariabl
 from redbox.graph.agents.formats import ArtifactAgent
 from redbox.graph.agents.workers import WorkerAgent
 from redbox.graph.nodes.tools import build_search_wikipedia_tool
-from redbox.models.chain import RedboxState, TaskStatus
+from redbox.models.chain import AgentTaskBase, RedboxState, TaskStatus
 from redbox.test.data import GenericFakeChatModelWithTools
 
 WORKER_RESPONSE_WITH_TOOL = AIMessage(
