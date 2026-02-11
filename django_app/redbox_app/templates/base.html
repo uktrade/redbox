@@ -66,8 +66,14 @@
     {% endif %}
 
     <main id="main-content" role="main" class="govuk-main-wrapper govuk-main-wrapper--auto-spacing rbds-main">
-      {% block content %}
-      {% endblock %}
+      <div class="govuk-width-container rbds-page-content {% if fullWidth %}rbds-page-content--full{% endif %}">
+        {% if request.user.is_authenticated %}
+          {% include "chat/cta.html" %}
+        {% endif %}
+
+        {% block content %}
+        {% endblock %}
+      </div>
     </main>
   </div>
 

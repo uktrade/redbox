@@ -9,7 +9,7 @@
     </div>
 
     <div class="rbds-card__content">
-        <chat-history class="rbds-full-width">
+        <chat-history class="rbds-width--full">
             <ul class="chat-list rbds-card__list">
                 {% for chat in chats %}
                     {{ chat_history_item(chat, chat.url, chat_id) }}

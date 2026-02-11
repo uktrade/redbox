@@ -1,5 +1,7 @@
 {% set pageTitle = "FAQs" %}
-{% set persistentSidepanel = True %}
+{% if not request.user.is_authenticated %}
+  {% set persistentSidepanel = True %}
+{% endif %}
 
 {% extends "base.html" %}
 
@@ -8,7 +10,7 @@
 
 {% block content %}
 
-<div class="govuk-width-container rbds-page-content rbds-page-content--full govuk-!-margin-top-3">
+<div class="govuk-width-container govuk-!-margin-top-3">
     <h1 class="govuk-heading-l govuk-!-magin-top-5">Advanced Prompt FAQs</h1>
     <div class="govuk-accordion" data-module="govuk-accordion" id="advanced_faq">
         <div class="govuk-accordion__section">
