@@ -209,6 +209,7 @@ AGENTIC_RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
 NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT = (
     "<User question> {question} </User question> \n\n <Context>: \n\n {agents_results} \n\n </Context> \n\n."
+    "<Response_Criteria>{artifact_criteria}</Response_Criteria>"
 )
 
 AGENTIC_GIVE_UP_QUESTION_PROMPT = "{question}"
@@ -386,6 +387,14 @@ Use when the user wants to:
 - Produce condensed versions of lengthy documents
 - Create abstracts or overviews
 """
+
+ARTIFACT_BUILDER_AGENT_DESC = """
+**Artifact_Builder_Agent**:
+Purpose: Retrieve artifact criteria including structure, headings, word limit, style from the knowledge base.
+Use when the user wants to:
+- Produce an artifact such as drafting, briefing, proposals, propositions
+"""
+
 
 WORKER_AGENTS_PROMPT = """
 ## Available agents and their responsibilities
@@ -568,4 +577,18 @@ After evaluating all seven criteria, provide the following:
 
 EVAL_SUBMISSION_QA = """
 Make the response be extremely concise. 200 words max unless user asks for detail.
+"""
+
+ARTIFACT_BUILDER_AGENT_PROMPT = """
+You are an Artifact Builder Agent designed to produce high-quality outputs that precisely match user requests by leveraging a knowledge base of best practices and criteria. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
+
+Workflow:
+You MUST follow this exact sequence:
+
+###
+- You MUST use your tools to search the knowledge base BEFORE creating any artifact
+- Artifact criteria files always start with "Artifact_"
+- Identify which artifact type matches the user's request (e.g., Artifact_Presentation, Artifact_Document, Artifact_Code)
+- Make a tool call to retrieve the criteria file that best matches the task
+- Choose ONLY ONE artifact criteria file that is the best match
 """
