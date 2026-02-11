@@ -170,23 +170,18 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
     # sub_streamed_field: str = None
     pydantic_schema_object: type[BaseModel]
 
-    def extract_json(self, text):
+    def extract_json(self, text: str) -> str:
+        """Extract JSON from text more efficiently."""
         if isinstance(text, list):
             text = text[0].get("text")
 
-        try:
-            # Find content between first { and last }
-            match = re.search(r"(\{.*\})", text, re.DOTALL)
-            if not match:
-                return text
+        # Find first { and last } instead of using a greedy regex
+        start_idx = text.find("{")
+        end_idx = text.rfind("}")
+        if start_idx == -1 or end_idx == -1 or end_idx <= start_idx:
+            return text  # no JSON found
 
-            json_str = match.group(1)
-
-            return json_str
-
-        except Exception as e:
-            print(f"Error processing JSON: {e}")
-            return text
+        return text[start_idx : end_idx + 1]
 
     def answer_str_to_json(self, text: str):
         text_json = json.dumps({"answer": text, "citations": []})
@@ -215,60 +210,99 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
         return chunk_gen
 
     def _transform(self, input: Iterator[Union[str, BaseMessage]]) -> Iterator[Any]:
-        acc_gen: Union[GenerationChunk, ChatGenerationChunk, None] = None
+        acc_buffer: list[str] = []
         field_length_at_last_run: int = 0
         parsed = None
         is_parsed = False
+        seen_json_start = False
+
         for chunk in input:
             chunk_gen = self._to_generation_chunk(chunk)
-            acc_gen = chunk_gen if acc_gen is None else acc_gen + chunk_gen  # type: ignore[operator]
-            if parsed := self.parse_partial_json(acc_gen.text):
-                is_parsed = True
-                field_content = parsed.get(self.name_of_streamed_field)
-                if field_content:
-                    if new_tokens := field_content[field_length_at_last_run:]:
-                        dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
-                        field_length_at_last_run = len(field_content)
-                        yield self.pydantic_schema_object.model_validate(parsed)
-        if not is_parsed:  # if no tokens were parsed, parse last chunk
-            match = re.search(r"(\{)", acc_gen.text, re.DOTALL)
-            if not match:  # stream only when text does not contain json brackets to ensure quality of output
-                transformed_text = self.answer_str_to_json(acc_gen.text)
-                if parsed := self.parse_partial_json(transformed_text):
-                    field_content = parsed.get(self.name_of_streamed_field)
-                    if field_content:
-                        dispatch_custom_event(RedboxEventType.response_tokens, data=field_content)
-                        yield self.pydantic_schema_object.model_validate(parsed)
+            text = chunk_gen.text
+            acc_buffer.append(text)
+
+            if not seen_json_start:
+                if "{" not in text:
+                    continue
+                seen_json_start = True
+
+            acc_text = "".join(acc_buffer)
+
+            partial = self.parse_partial_json(acc_text)
+            if not partial:
+                continue
+
+            is_parsed = True
+            parsed = partial
+
+            field_content = parsed.get(self.name_of_streamed_field)
+            if not field_content:
+                continue
+
+            if len(field_content) > field_length_at_last_run:
+                new_tokens = field_content[field_length_at_last_run:]
+                dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
+                field_length_at_last_run = len(field_content)
+                yield self.pydantic_schema_object.model_validate(parsed)
+
+        if not is_parsed:
+            acc_text = "".join(acc_buffer)
+            if "{" not in acc_text:
+                acc_text = self.answer_str_to_json(acc_text)
+
+            if parsed := self.parse_partial_json(acc_text):
+                if field_content := parsed.get(self.name_of_streamed_field):
+                    dispatch_custom_event(RedboxEventType.response_tokens, data=field_content)
+                    yield self.pydantic_schema_object.model_validate(parsed)
 
         if parsed:
             yield self.pydantic_schema_object.model_validate(parsed)
 
     async def _atransform(self, input: AsyncIterator[Union[str, BaseMessage]]) -> AsyncIterator[Any]:
-        acc_gen: Union[GenerationChunk, ChatGenerationChunk, None] = None
+        acc_buffer: list[str] = []
         field_length_at_last_run: int = 0
         parsed = None
         is_parsed = False
+        seen_json_start = False
+
         async for chunk in input:
             chunk_gen = self._to_generation_chunk(chunk)
-            acc_gen = chunk_gen if acc_gen is None else acc_gen + chunk_gen  # type: ignore[operator]
-            if parsed := self.parse_partial_json(acc_gen.text):
-                is_parsed = True
-                field_content = parsed.get(self.name_of_streamed_field)
-                if field_content:
-                    if new_tokens := field_content[field_length_at_last_run:]:
-                        dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
-                        field_length_at_last_run = len(field_content)
-                        yield self.pydantic_schema_object.model_validate(parsed)
+            text = chunk_gen.text
+            acc_buffer.append(text)
 
-        if not is_parsed:  # if no tokens were parsed, parse last chunk
-            match = re.search(r"(\{)", acc_gen.text, re.DOTALL)
-            if not match:  # stream only when text does not contain json brackets to ensure quality of output
-                transformed_text = self.answer_str_to_json(acc_gen.text)
-                if parsed := self.parse_partial_json(transformed_text):
-                    field_content = parsed.get(self.name_of_streamed_field)
-                    if field_content:
-                        dispatch_custom_event(RedboxEventType.response_tokens, data=field_content)
-                        yield self.pydantic_schema_object.model_validate(parsed)
+            if not seen_json_start:
+                if "{" not in text:
+                    continue
+                seen_json_start = True
+
+            acc_text = "".join(acc_buffer)
+
+            partial = self.parse_partial_json(acc_text)
+            if not partial:
+                continue
+
+            is_parsed = True
+            parsed = partial
+
+            field_content = parsed.get(self.name_of_streamed_field)
+            if not field_content:
+                continue
+
+            if len(field_content) > field_length_at_last_run:
+                new_tokens = field_content[field_length_at_last_run:]
+                dispatch_custom_event(RedboxEventType.response_tokens, data=new_tokens)
+                field_length_at_last_run = len(field_content)
+                yield self.pydantic_schema_object.model_validate(parsed)
+
+        if not is_parsed:
+            acc_text = "".join(acc_buffer)
+            if "{" not in acc_text:
+                acc_text = self.answer_str_to_json(acc_text)
+
+            if parsed := self.parse_partial_json(acc_text):
+                if field_content := parsed.get(self.name_of_streamed_field):
+                    dispatch_custom_event(RedboxEventType.response_tokens, data=field_content)
+                    yield self.pydantic_schema_object.model_validate(parsed)
 
         if parsed:
             yield self.pydantic_schema_object.model_validate(parsed)

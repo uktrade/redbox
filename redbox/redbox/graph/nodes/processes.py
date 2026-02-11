@@ -9,7 +9,7 @@ from collections.abc import Callable
 from functools import reduce
 from io import StringIO
 from random import uniform
-from typing import Any, Iterable
+from typing import Any, Iterable, AsyncIterator
 from uuid import uuid4
 
 import pandas as pd
@@ -181,25 +181,26 @@ def build_stuff_pattern(
     """
 
     @RunnableLambda
-    def _stuff(state: RedboxState) -> dict[str, Any]:
+    async def _stuff(state: RedboxState) -> AsyncIterator[dict[str, Any]]:
         if model is not None:
             llm = get_chat_llm(model, tools=tools)
         else:
             llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
 
-        events = [
-            event
-            for event in build_llm_chain(
-                prompt_set=prompt_set,
-                llm=llm,
-                output_parser=output_parser,
-                format_instructions=format_instructions,
-                final_response_chain=final_response_chain,
-                additional_variables=additional_variables,
-                summary_multiagent_flag=summary_multiagent_flag,
-            ).stream(state)
-        ]
-        return sum(events, {})
+        chain = build_llm_chain(
+            prompt_set=prompt_set,
+            llm=llm,
+            output_parser=output_parser,
+            format_instructions=format_instructions,
+            final_response_chain=final_response_chain,
+            additional_variables=additional_variables,
+            summary_multiagent_flag=summary_multiagent_flag,
+        )
+
+        aggregated: dict[str, Any] = {}
+        async for event in chain.astream(state):
+            aggregated.update(event)
+            yield aggregated
 
     return _stuff
 
