@@ -170,23 +170,18 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
     # sub_streamed_field: str = None
     pydantic_schema_object: type[BaseModel]
 
-    def extract_json(self, text):
+    def extract_json(self, text: str) -> str:
+        """Extract JSON from text more efficiently."""
         if isinstance(text, list):
             text = text[0].get("text")
 
-        try:
-            # Find content between first { and last }
-            match = re.search(r"(\{.*\})", text, re.DOTALL)
-            if not match:
-                return text
+        # Find first { and last } instead of using a greedy regex
+        start_idx = text.find("{")
+        end_idx = text.rfind("}")
+        if start_idx == -1 or end_idx == -1 or end_idx <= start_idx:
+            return text  # no JSON found
 
-            json_str = match.group(1)
-
-            return json_str
-
-        except Exception as e:
-            print(f"Error processing JSON: {e}")
-            return text
+        return text[start_idx : end_idx + 1]
 
     def answer_str_to_json(self, text: str):
         text_json = json.dumps({"answer": text, "citations": []})
