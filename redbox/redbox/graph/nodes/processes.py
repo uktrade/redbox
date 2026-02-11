@@ -35,6 +35,7 @@ from redbox.models.chain import (
     PromptSet,
     RedboxState,
     RequestMetadata,
+    TaskStatus,
     configure_agent_task_plan,
     get_plan_fix_prompts,
     get_plan_fix_suggestion_prompts,
@@ -539,7 +540,7 @@ def build_agent_with_loop(
         log.warning(f"[{agent_name}] Completed agent_with_loop run.")
         all_results = " ".join(all_results)
         return {
-            "agents_results": f"<{agent_name}_Result>{all_results}</{agent_name}_Result>",
+            "agents_results": {task.id: f"<{agent_name}_Result>{all_results}</{agent_name}_Result>"},
             "tasks_evaluator": task.task + "\n" + task.expected_output,
         }
 
@@ -816,11 +817,13 @@ def get_tabular_agent(
                 if task_level.agent.value == "Tabular_Agent":
                     task = task_level.task
                     expected_output = task_level.expected_output
+                    break
         except Exception as e:
             log.error(f"Cannot parse in {agent_name}: {e}")
             task = state.request.question
 
         # Log activity
+        state.agent_plans.update_task_status(task_level.id, TaskStatus.RUNNING)
         activity_node = build_activity_log_node(RedboxActivityEvent(message=f"{agent_name} is completing task: {task}"))
         activity_node.invoke(state)
 
@@ -832,12 +835,23 @@ def get_tabular_agent(
         sql_error = ""
         is_intermediate_step = False
         messages = []
+
+        # dependencies' results
+        previous_agents_results = []
+        for dep in task_level.dependencies:
+            previous_agents_results += [state.agents_results[dep].content]
+        previous_agents_results = " ".join(previous_agents_results)
+
         while (success == "fail" or is_intermediate_step) and num_iter < max_attempt:
             worker_agent = build_stuff_pattern(
                 prompt_set=PromptSet.Tabular,
                 tools=tools,
                 final_response_chain=False,
-                additional_variables={"sql_error": sql_error, "db_schema": state.tabular_schema},
+                additional_variables={
+                    "sql_error": sql_error,
+                    "db_schema": state.tabular_schema,
+                    "previous_agents_results": previous_agents_results,
+                },
                 model=model,
             )
             ai_msg = worker_agent.invoke(state)
@@ -890,13 +904,15 @@ def get_tabular_agent(
                 formatted_result = f"<Tabular_Agent_Result>{tabular_context}\n The results of my query are: {result}</Tabular_Agent_Result>"
             else:
                 formatted_result = f"<Tabular_Agent_Result>Iteration limit of {num_iter} is reached by the tabular agent. This is the tabular agent's reasoning at the last iteration: {tabular_context}</Tabular_Agent_Result>"
+            state.agent_plans
 
         else:
             formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the error from the executed SQL query: {result} </Tabular_Agent_Result>"
 
         return {
-            "agents_results": [formatted_result],
+            "agents_results": {task_level.id: AIMessage(content=formatted_result)},
             "tasks_evaluator": task + "\n" + expected_output,
+            "agent_plans": state.agent_plans.update_task_status(task_level.id, TaskStatus.COMPLETED),
         }
 
     return _build_tabular_agent
@@ -940,3 +956,21 @@ def get_tabular_schema():
         return {"tabular_schema": db_schema}
 
     return _get_tabular_schema
+
+
+def check_if_tasks_completed(state: RedboxState) -> bool:
+    """
+    Check if all tasks have been completed.
+    If a task has status pending, it should go back to send.
+    If there is no pending task, go to evaluator
+    """
+    # if there is no pending task, go to evaluator
+    pending_running_tasks = [
+        task
+        for task in state.agent_plans.tasks
+        if task.status in [TaskStatus.PENDING, TaskStatus.RUNNING, TaskStatus.SCHEDULED]
+    ]
+    if pending_running_tasks:
+        return False
+    else:
+        return True
