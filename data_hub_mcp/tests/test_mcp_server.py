@@ -6,6 +6,7 @@ from mcp.types import TextContent
 from data_hub_mcp.mcp_server import mcp as data_hub_mcp_server
 
 
+@pytest.mark.data_hub_mcp
 @pytest.fixture
 def mcp_server():
     mcp = FastMCP(name="CalculationServer")
@@ -18,6 +19,7 @@ def mcp_server():
 
 
 # A straightforward test of our tool
+@pytest.mark.data_hub_mcp
 @pytest.mark.asyncio
 async def test_add_tool(mcp_server: FastMCP):
     async with Client(mcp_server) as client:  # Client uses the mcp_server instance

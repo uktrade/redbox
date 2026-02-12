@@ -5,8 +5,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
-import log
-from sa_models import AccountManagementObjective, Company, Interaction, InvestmentProject
+import data_hub_mcp.log as log
+from data_hub_mcp.sa_models import AccountManagementObjective, Company, Interaction, InvestmentProject
 
 
 class ColumnNotFoundError(Exception):

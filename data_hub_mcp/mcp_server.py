@@ -1,4 +1,4 @@
-from data_classes import (
+from data_hub_mcp.data_classes import (
     AccountManagementObjectivesSearchResult,
     CompaniesOrInteractionSearchResult,
     CompanyDetails,
@@ -7,7 +7,7 @@ from data_classes import (
     CompanySearchResult,
     InvestmentProjectsSearchResult,
 )
-from db_ops import (
+from data_hub_mcp.db_ops import (
     db_check,
     get_account_management_objectives,
     get_companies,

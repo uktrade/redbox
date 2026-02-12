@@ -1,0 +1,42 @@
+[tool.poetry]
+name = "data-hub-mcp-and-etl"
+version = "0.1.0"
+description = "MCP server for Data Hub data"
+authors = ["DBT Redbox <redbox@businessandtrade.gov.uk>"]
+license = "MIT"
+readme = "readme.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastmcp = "2.14.1"
+mcp = "1.25.0"
+psycopg2-binary = "2.9.11"
+sqlalchemy = "2.0.45"
+urllib3 = "2.6.2"
+opentelemetry-api = ">=1.21.0"
+opentelemetry-sdk = ">=1.21.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.2"
+pytest-django = "^4.8.0"
+pytest-env = "^1.2.0"
+pytest-mock = "^3.15.1"
+pytest-cov = "^7.0.0"
+pytest-asyncio = "^1.3"
+pylint = "^4.0.4"
+types-python-dateutil = "^2.9.0.20240315"
+types-markdown = "^3.10.0.20251106"
+ruff = "^0.14.13"
+python-dotenv = "^1.2.1"
+pre-commit = "^4.5.1"
+freezegun = "^1.5.5"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+target-version = 'py312'

@@ -1,10 +1,11 @@
 import uuid
 
-import importers
+import data_hub_mcp.importers as importers
 import pytest
-from sa_models import AccountManagementObjective, Company, Interaction, InvestmentProject
+from data_hub_mcp.sa_models import AccountManagementObjective, Company, Interaction, InvestmentProject
 
 
+@pytest.mark.data_hub_etl
 class TestImporters:
     @pytest.mark.parametrize(
         ("db_object", "in_data", "mapping", "expected_error"),

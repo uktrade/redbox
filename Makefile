@@ -49,6 +49,9 @@ test-django: ## Test django-app
 test-django-single: ## Test django-app with specified test file/case
 	$(MAKE) test-django TEST=$(test)
 
+.PHONY: test-mcp-and-etl
+test-mcp-and-etl: ## Test code for MCP and ETL for data hub
+	export PYTHONPATH=. && poetry install --with dev && poetry run pytest data_hub_mcp/tests/ --cov=data_hub_mcp -v --cov-report=term-missing --cov-fail-under=80
 
 .PHONY: build-django-static
 build-django-static: ## Build django-app static files
