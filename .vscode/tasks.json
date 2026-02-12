@@ -4,7 +4,7 @@
         {
             "label": "docker-compose up deps",
             "type": "shell",
-            "command": "docker compose up -d redbox-unstructured db minio opensearch opensearch-dashboards",
+            "command": "docker compose up -d redbox-unstructured db minio opensearch opensearch-dashboards db_data_hub data_hub_mcp",
             "options": {
                 "cwd": "${workspaceFolder}",
                 "env": {
@@ -15,7 +15,7 @@
         {
             "label": "docker-compose down deps",
             "type": "shell",
-            "command": "docker compose down redbox-unstructured db minio opensearch opensearch-dashboards",
+            "command": "docker compose down redbox-unstructured db minio opensearch opensearch-dashboards db_data_hub data_hub_mcp",
             "options": {
                 "cwd": "${workspaceFolder}",
                 "env": {

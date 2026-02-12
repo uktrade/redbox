@@ -23,8 +23,10 @@ django-requestlogs = "^0.8"
 openpyxl = "^3.1.5"
 coverage = "^7.13.1"
 duckdb = "^1.4.4"
+deepeval = "^3.8.4"
 
 [tool.poetry.group.dev.dependencies]
+
 bumpversion = "^0.6.0"
 pytest = "^9.0.2"
 pytest-env = "^1.2.0"
@@ -50,6 +52,8 @@ yarl = "^1.22.0"
 ipykernel = "^7.1.0"
 
 [tool.poetry.group.docs.dependencies]
+fastmcp = "^2.1.0"
+mcp = "^1.7.1"
 mkdocs = "^1.5.3"
 mkdocstrings = {extras = ["python"], version = "^1.0.0"}
 mkdocs-material = "^9.7.1"

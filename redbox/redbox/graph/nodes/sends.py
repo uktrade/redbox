@@ -9,6 +9,12 @@ from langgraph.constants import Send
 
 from redbox.models.chain import DocumentState, RedboxState
 
+import asyncio
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+from langchain_mcp_adapters.tools import load_mcp_tools
+import json
+
 log = logging.getLogger(__name__)
 
 
@@ -95,7 +101,65 @@ def run_with_timeout(func, args, timeout):
     return result[0]
 
 
-def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, per_tool_timeout=60, result_timeout=60):
+def wrap_async_tool(tool, tool_name):
+    """
+    Returns a synchronous function that properly wraps an async tool
+
+    Args:
+        tool_name: The name of the tool to invoke
+
+    Returns:
+        A function that synchronously executes the async tool
+    """
+
+    def wrapper(args):
+        # Create a new event loop for this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        # get mcp tool url
+        mcp_url = tool.metadata["url"]
+
+        try:
+            # Define the async operation
+            async def run_tool():
+                # tool need to be executed within the connection context manager
+                async with streamablehttp_client(mcp_url) as (read, write, _):
+                    async with ClientSession(read, write) as session:
+                        # Initialize the connection
+                        await session.initialize()
+                        # Get tools
+                        tools = await load_mcp_tools(session)
+
+                        selected_tool = next((t for t in tools if t.name == tool_name), None)
+                        # remove intermediate step argument if it is not required by tool
+                        if "is_intermediate_step" not in selected_tool.args_schema["required"] and args.get(
+                            "is_intermediate_step"
+                        ):
+                            args.pop("is_intermediate_step")
+                            log.warning(f"updated args: {args}")
+                        if not selected_tool:
+                            raise ValueError(f"tool with name '{tool_name}' not found")
+
+                        log.warning(f"tool found with name '{tool_name}'")
+                        log.warning(f"args '{args}'")
+                        result = await selected_tool.ainvoke(args)
+                        log.warning("result")
+                        log.warning(result)
+                        return result
+
+            # Run the async function and return its result
+            return loop.run_until_complete(run_tool())
+        finally:
+            # Clean up resources
+            loop.close()
+
+    return wrapper
+
+
+def run_tools_parallel(
+    ai_msg, tools, state, parallel_timeout=60, per_tool_timeout=60, result_timeout=60, is_loop=False
+):
     run_id = str(uuid4())[:8]
     log_stub = f"[run_tools_parallel run_id='{run_id}']"
     log.warning(f"{log_stub} Starting tool execution.")
@@ -130,21 +194,62 @@ def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, per_tool_timeo
 
                 # Get arguments and submit the tool invocation
                 args = tool_call.get("args", {})
-                args["state"] = state
-
-                future = executor.submit(run_with_timeout, selected_tool.invoke, args, per_tool_timeout)
-                futures[future] = {"name": tool_name}
+                log.warning(f"args: {args}")
+                is_intermediate_step = "False"
+                # check if tool is sync (not async). the sync tool should have sync function defined and no async coroutine
+                if selected_tool.func and not selected_tool.coroutine:
+                    args["state"] = state
+                    future = executor.submit(run_with_timeout, selected_tool.invoke, args, per_tool_timeout)
+                else:  # for async mcp tools
+                    # capture any intermediate step value decided by LLM
+                    if is_loop:
+                        is_intermediate_step = args.get("is_intermediate_step", "False")
+                        log.warning(f"intermediate step: {is_intermediate_step}")
+                    future = executor.submit(
+                        run_with_timeout, wrap_async_tool(selected_tool, tool_name), args, per_tool_timeout
+                    )
+                futures[future] = {"name": tool_name, "intermediate_step": is_intermediate_step}
 
             # Collect responses as tools complete
             responses = []
             for future in as_completed(futures.keys(), timeout=parallel_timeout):
                 future_tool_name = futures[future]["name"]
+                is_intermediate_step = futures[future]["intermediate_step"]
 
                 try:
                     response = future.result(timeout=result_timeout)
                     log.warning(f"{log_stub} This is what I got from tool '{future_tool_name}': {response}")
                     if response is not None:  # if response is not None, meaning tool did not fail or timeout
-                        responses.append(AIMessage(response))
+                        log.warning("response not None")
+                        if (not is_loop and isinstance(response, str)) or (
+                            is_loop and isinstance(response, tuple)
+                        ):  # when is_loop=True, result output should be a Tuple
+                            responses.append(AIMessage(response))
+                            log.warning("my non-transformed response")
+                            log.warning(response)
+                        elif is_loop and isinstance(response, str):
+                            try:
+                                result_dict = json.loads(response)
+                                # Check if response has no records
+                                is_empty = result_dict.get("total") == 0
+                                log.warning(f"is_empty {is_empty}")
+                            except json.JSONDecodeError:
+                                # Check if response is an empty string/None/empty array
+                                is_empty = response in ["", "None", "[]"]
+
+                            # Set status based on emptiness
+                            status = "fail" if is_empty else "pass"
+
+                            if is_empty:
+                                log.warning(f"No records  returned from {future_tool_name} tool")
+                                response = "Error message: Empty response"
+
+                            # Create transformed response and append to responses
+                            transformed_response = (response, status, is_intermediate_step)
+                            log.warning("my transformed response")
+                            log.warning(transformed_response)
+                            responses.append(AIMessage(transformed_response))
+
                     else:
                         log.warning(f"{future_tool_name} Tool has failed or timed out")
                         continue
