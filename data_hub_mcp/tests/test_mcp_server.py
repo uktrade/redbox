@@ -31,7 +31,7 @@ async def test_add_tool(mcp_server: FastMCP):
 @pytest.mark.asyncio
 async def test_server_tools():
     tools = await data_hub_mcp_server.get_tools()
-    assert len(tools.items()) == 8
+    assert len(tools.items()) == 7
 
     assert "companies" in tools
     assert "company_details" in tools

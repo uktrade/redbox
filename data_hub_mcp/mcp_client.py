@@ -88,14 +88,9 @@ async def call_company_details_extended(
 
 
 def run_examples(client):
-    asyncio.run(call_tool(client, "greet", "Ford"))
-    asyncio.run(call_tool(client, "greet", "Ford"))
-    asyncio.run(call_tool(client, "greet", "Ford"))
-
-    # asyncio.run(call_tool('greet', "Doug"))
+    # Call to companies for name matches
     asyncio.run(call_companies(client, "SOME"))
     asyncio.run(call_companies(client, "SOME OTHER", 0, 2))
-
     asyncio.run(call_company_details(client, "00000000-0000-0000-0000-000000000000"))
     asyncio.run(call_company_details(client, "00000000-0000-0000-0000-000000000001"))
 

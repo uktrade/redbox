@@ -37,16 +37,6 @@ async def health_check():
 
 
 @mcp.tool(
-    name="greet",  # Custom tool name for the LLM
-    description="Basic example tool useful for testing.",  # Custom description
-    tags={"testing"},  # Optional tags for organization/filtering
-    meta={"version": "1.0", "author": "Doug Mills"},  # Custom metadata
-)
-async def greet(name: str) -> str:
-    return f"Hello, {name}!"
-
-
-@mcp.tool(
     name="companies",
     description="Query companies based on company name, returns a short overview of a list of companies",
     tags={"data_hub", "companies", "search"},
