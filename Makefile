@@ -66,6 +66,11 @@ test-integration-without-build : ## Run all integration tests without rebuilding
 collect-static:
 	docker compose run django-app venv/bin/django-admin collectstatic --noinput
 
+.PHONY: run-mcp-etl-import
+run-mcp-etl-import: ## Import seed data for MCP server
+	docker compose up db_data_hub -d
+	cd data_hub_mcp && poetry install --with dev && poetry run python run_ingest.py
+
 .PHONY: lint
 lint:  ## Check code formatting & linting
 	poetry run ruff format . --check
