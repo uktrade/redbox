@@ -3,7 +3,7 @@ from fastmcp import FastMCP
 from fastmcp.client import Client
 from mcp.types import TextContent
 
-from data_hub_mcp.mcp_server import mcp as data_hub_mcp_server
+from mcp_server import mcp as data_hub_mcp_server
 
 
 @pytest.mark.data_hub_mcp

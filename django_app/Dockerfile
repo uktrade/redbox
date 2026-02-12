@@ -53,7 +53,7 @@ WORKDIR /usr/src/app
 
 COPY README.md .
 COPY redbox/ .
-COPY django_app/ .
+COPY django_app/ ./data_hub
 
 COPY --from=npm-packages /src/node_modules/ frontend/node_modules/
 COPY --from=npm-packages /src/dist/ frontend/dist/

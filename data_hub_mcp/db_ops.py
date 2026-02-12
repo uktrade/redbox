@@ -1,7 +1,7 @@
 import os
 
-import data_hub_mcp.sa_models as sa_models
-from data_hub_mcp.data_classes import (
+import sa_models as sa_models
+from data_classes import (
     AccountManagementObjective,
     AccountManagementObjectivesSearchResult,
     CompaniesOrInteractionSearchResult,

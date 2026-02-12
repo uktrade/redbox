@@ -1,8 +1,8 @@
 import uuid
 
-import data_hub_mcp.importers as importers
+import importers as importers
 import pytest
-from data_hub_mcp.sa_models import AccountManagementObjective, Company, Interaction, InvestmentProject
+from sa_models import AccountManagementObjective, Company, Interaction, InvestmentProject
 
 
 @pytest.mark.data_hub_etl
