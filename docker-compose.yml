@@ -125,7 +125,7 @@ services:
     build:
       context: .
       dockerfile: django_app/Dockerfile
-    command: "cd /usr/src/app && /usr/src/app/venv/bin/django-admin qcluster"
+    command: ["sh", "-c", "cd /usr/src/app && /usr/src/app/venv/bin/django-admin qcluster"]
     env_file:
       - path: tests/.env.integration
         required: false
