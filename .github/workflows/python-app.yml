@@ -58,6 +58,43 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
 
+  test-mcp-and-etl:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.12"
+
+    - name: Set up Poetry
+      uses: abatilo/actions-poetry@v2
+      with:
+        poetry-version: 2.2.1
+
+    - name: Build Containers
+      run: |
+        mkdir -p data/elastic/
+        chmod 777 data/elastic/
+        cp tests/.env.test .env
+        docker compose up -d --wait opensearch
+
+    - name: Test redbox with pytest
+      run: |
+        make test-mcp-and-etl
+
+    - name: Move coverage report
+      run: |
+        find . -name coverage.xml -exec mv {} ./coverage.xml \;
+
+    - name: Upload results to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
 
   test-django:
 
