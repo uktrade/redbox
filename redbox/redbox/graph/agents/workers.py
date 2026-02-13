@@ -1,9 +1,11 @@
+import httpx
+import logging
+
 from json import JSONDecodeError
 
 from langchain_core.runnables import RunnableLambda, RunnableParallel
 
 from redbox.chains.parser import ClaudeParser
-from redbox.chains.runnables import create_chain_agent
 from redbox.graph.agents.base import Agent
 from redbox.graph.agents.configs import AgentConfig
 from redbox.graph.nodes.processes import build_activity_log_node
@@ -11,6 +13,45 @@ from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models.chain import RedboxState, configure_agent_task_plan
 from redbox.models.graph import RedboxActivityEvent
 from redbox.transform import join_result_with_token_limit
+from redbox.models.settings import get_settings
+
+settings = get_settings()
+
+
+class RemoteWorkerAgent(Agent):
+    """
+    For the FastAPI service.
+    """
+
+    def __init__(self, agent_name: str, base_url: str):
+        self.agent_name = agent_name
+        self.base_url = base_url.rstrip("/")
+        self.logger = logging.getLogger(f"RemoteWorkerAgent[{agent_name}]")
+
+    def invoke(self, state: RedboxState, task=None):
+        """
+        Invokes remote agent.
+        `task` should be the task object containing `task.task` and `task.expected_output`
+        """
+        url = f"{self.base_url}/invoke/{self.agent_name}"
+
+        payload = state.model_dump()
+        if task:
+            payload["_task_info"] = {
+                "task": task.task,
+                "expected_output": task.expected_output,
+            }
+
+        self.logger.warning(f"Invoking remote agent {self.agent_name} at {url}")
+        try:
+            response = httpx.post(url, json=payload, timeout=60)
+            response.raise_for_status()
+            result = response.json()
+            self.logger.warning(f"Remote agent {self.agent_name} returned successfully")
+            return result
+        except httpx.HTTPError as e:
+            self.logger.exception(f"Remote agent call failed: {e}")
+            raise RuntimeError(f"Remote agent call failed: {e}") from e
 
 
 class WorkerAgent(Agent):
@@ -92,26 +133,34 @@ class WorkerAgent(Agent):
         @RunnableLambda
         def _core_task(input):
             state, task = input
-            worker_agent = create_chain_agent(
-                system_prompt=self.config.prompt.get_prompt,
-                use_metadata=self.config.prompt.prompt_vars.metadata,
-                using_chat_history=self.config.prompt.prompt_vars.chat_history,
-                parser=self.config.parser,
-                tools=self.config.tools,
-                _additional_variables={"task": task.task, "expected_output": task.expected_output},
-                model=self.config.llm_backend,
-                use_knowledge_base=self.config.prompt.prompt_vars.knowledge_base_metadata,
-            )
-            # worker_agent = llm_call(agent_config=self.config)
-            self.logger.warning(f"[{self.config.name}] Invoking worker agent...")
-            ai_msg = worker_agent.invoke(state)
+
+            self.logger.warning(f"[{self.config.name}] Preparing worker agent...")
+
+            # if getattr(self.config, "use_remote_agent", False):
+            from redbox.models.settings import get_settings
+
+            settings = get_settings()
+            worker_agent = RemoteWorkerAgent(agent_name=self.config.name, base_url=settings.ai_service_url)
+            ai_msg = worker_agent.invoke(state, task=task)
+            # else:
+            #     worker_agent = create_chain_agent(
+            #         system_prompt=self.config.prompt.get_prompt,
+            #         use_metadata=self.config.prompt.prompt_vars.metadata,
+            #         using_chat_history=self.config.prompt.prompt_vars.chat_history,
+            #         parser=self.config.parser,
+            #         tools=self.config.tools,
+            #         _additional_variables={"task": task.task, "expected_output": task.expected_output},
+            #         model=self.config.llm_backend,
+            #         use_knowledge_base=self.config.prompt.prompt_vars.knowledge_base_metadata,
+            #     )
+            #     ai_msg = worker_agent.invoke(state)
 
             self.logger.warning(f"[{self.config.name}] Worker agent output:\n{ai_msg}")
 
             # --- RUN TOOLS IN PARALLEL ---
             self.logger.warning(f"[{self.config.name}] Running tools via run_tools_parallel...")
-
             result = run_tools_parallel(ai_msg, self.config.tools, state)
+
             return (state, result, task)
 
         return _core_task.with_retry(stop_after_attempt=3)

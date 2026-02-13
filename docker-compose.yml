@@ -41,6 +41,7 @@ services:
         required: false
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-production}
+      - AI_SERVICE_URL=http://redbox_ai_service:8001
     volumes:
       - /app/django_app/frontend/node_modules
       - ./django_app:/app/django_app/
@@ -173,6 +174,29 @@ services:
     depends_on:
       opensearch:
         condition: service_healthy
+    restart: unless-stopped
+
+  redbox_ai_service:
+    build:
+      context: .
+      dockerfile: redbox_ai_service/Dockerfile
+    container_name: redbox_ai_service
+    ports:
+      - "8001:8001"
+    networks:
+      - redbox-app-network
+    env_file:
+      - path: tests/.env.integration
+        required: false
+      - path: .env
+        required: false
+    environment:
+      - ENV=local
+    depends_on:
+      redbox-django-app:
+        condition: service_healthy
+    mem_limit: 12g
+    cpus: 3
     restart: unless-stopped
 
 networks:
