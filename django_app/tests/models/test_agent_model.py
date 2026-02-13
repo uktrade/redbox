@@ -2,7 +2,7 @@ from redbox_app.redbox_core.models import Agent
 
 
 def test_agents_list_not_empty():
-    field = Agent._meta.get_field("name")  # noqa: SLF001
+    field = Agent._meta.get_field("name")
     choices = field.choices
 
     assert choices is not None, "List of agent names should not be None"
@@ -11,7 +11,7 @@ def test_agents_list_not_empty():
 
 
 def test_agents_list_contains_only_strings():
-    field = Agent._meta.get_field("name")  # noqa: SLF001
+    field = Agent._meta.get_field("name")
     choices = field.choices
 
     for value, _label in choices:
