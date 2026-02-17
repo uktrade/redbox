@@ -1877,14 +1877,14 @@ dev = ["black", "black[jupyter]", "coverage", "griffe-typingdoc (==0.2.2)", "mkd
 
 [[package]]
 name = "django"
-version = "5.2.9"
+version = "5.2.11"
 description = "A high-level Python web framework that encourages rapid development and clean, pragmatic design."
 optional = false
 python-versions = ">=3.10"
 groups = ["main", "dev"]
 files = [
-    {file = "django-5.2.9-py3-none-any.whl", hash = "sha256:3a4ea88a70370557ab1930b332fd2887a9f48654261cdffda663fef5976bb00a"},
-    {file = "django-5.2.9.tar.gz", hash = "sha256:16b5ccfc5e8c27e6c0561af551d2ea32852d7352c67d452ae3e76b4f6b2ca495"},
+    {file = "django-5.2.11-py3-none-any.whl", hash = "sha256:e7130df33ada9ab5e5e929bc19346a20fe383f5454acb2cc004508f242ee92c0"},
+    {file = "django-5.2.11.tar.gz", hash = "sha256:7f2d292ad8b9ee35e405d965fbbad293758b858c34bbf7f3df551aeeac6f02d3"},
 ]
 
 [package.dependencies]
@@ -6069,7 +6069,7 @@ croniter = "^6.0.0"
 dbt-copilot-python = "^2.1.0"
 ddtrace = "^3.19.5"
 dj-database-url = "^3.1.0"
-django = "5.2.9"
+django = "5.2.11"
 django-adminplus = "^0.6"
 django-chunk-upload-handlers = "^0.0.15"
 django-csp = "^3.7"
@@ -8294,4 +8294,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "5ed6c77760d84e50708d2c748a822776edc59f295d083aa1fd2b9472b04f0b84"
+content-hash = "d8d7e6ed6f24a2557269197c61888b39e561ef8520bd13aece6d0266d8b3c9b7"
