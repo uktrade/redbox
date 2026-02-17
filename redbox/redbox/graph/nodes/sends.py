@@ -132,14 +132,14 @@ def wrap_async_tool(tool, tool_name):
                         tools = await load_mcp_tools(session)
 
                         selected_tool = next((t for t in tools if t.name == tool_name), None)
+                        if not selected_tool:
+                            raise ValueError(f"tool with name '{tool_name}' not found")
                         # remove intermediate step argument if it is not required by tool
                         if "is_intermediate_step" not in selected_tool.args_schema["required"] and args.get(
                             "is_intermediate_step"
                         ):
                             args.pop("is_intermediate_step")
                             log.warning(f"updated args: {args}")
-                        if not selected_tool:
-                            raise ValueError(f"tool with name '{tool_name}' not found")
 
                         log.warning(f"tool found with name '{tool_name}'")
                         log.warning(f"args '{args}'")
