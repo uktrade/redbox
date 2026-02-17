@@ -252,8 +252,8 @@ class TestWrapAsyncTool:
     @pytest.mark.parametrize(
         "url,expected_exceptions",
         [
-            ("http://fake-mcp-url", (ConnectError, OSError)),  # non-existent hostname
-            ("http://127.0.0.1:59999", (ConnectError, OSError)),  # unused localhost port
+            ("http://fake-mcp-url", (ConnectError)),  # non-existent hostname
+            ("http://127.0.0.1:59999", (ConnectError)),  # unused localhost port
         ],
     )
     def test_connection_failure(self, url, expected_exceptions):
