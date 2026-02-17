@@ -46,9 +46,7 @@ class TestWrapAsyncTool:
             ({"foo": "bar"}, {"foo": "bar"}),  # no intermediate step
         ],
     )
-    def test_success(
-        self, fake_tool_definition: "FakeToolDefinition", fake_selected_tool: "FakeTool", args, expected_args
-    ):
+    def test_success(self, fake_tool_definition: FakeToolDefinition, fake_selected_tool: FakeTool, args, expected_args):
         wrapped = wrap_async_tool(fake_tool_definition, fake_selected_tool.name)
 
         with (
@@ -77,7 +75,7 @@ class TestWrapAsyncTool:
             assert result == {"status": "ok"}
             mock_session_instance.initialize.assert_awaited_once()
 
-    def test_tool_not_found(self, fake_tool_definition):
+    def test_tool_not_found(self, fake_tool_definition: FakeToolDefinition):
         missing_tool_name = "missing_tool"
         wrapped = wrap_async_tool(fake_tool_definition, missing_tool_name)
 
