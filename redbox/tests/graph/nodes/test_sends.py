@@ -1,5 +1,6 @@
 from concurrent.futures import TimeoutError
 from uuid import uuid4
+from typing import Self
 
 import pytest
 from langchain_core.documents import Document
@@ -18,7 +19,7 @@ from redbox.graph.nodes.tools import build_search_wikipedia_tool, build_govuk_se
 from redbox.models.chain import DocumentState, RedboxQuery, RedboxState
 from tests.conftest import fake_state
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from redbox.graph.nodes.sends import wrap_async_tool
 
 
@@ -235,6 +236,19 @@ class TestRunToolsParallel:
 
 
 class TestWrapAsyncTool:
+    class FakeTool:
+        def __init__(self, name: str, metadata: dict, args_schema: dict, ainvoke: AsyncMock):
+            self.name = name
+            self.metadata = metadata
+            self.args_schema = args_schema
+            self.ainvoke = ainvoke
+
+        @staticmethod
+        def dummy(url: str = "http://example.com/mcp") -> Self:
+            return TestWrapAsyncTool.FakeTool(
+                name="dummy_tool", metadata={"url": url}, args_schema={}, ainvoke=AsyncMock()
+            )
+
     @pytest.mark.parametrize(
         "url,expected_exceptions",
         [
@@ -245,11 +259,9 @@ class TestWrapAsyncTool:
     def test_connection_failure(self, url, expected_exceptions):
         """Test wrap_async_tool fails when MCP server cannot be reached."""
 
-        class FakeTool:
-            metadata = {"url": url}
-            name = "dummy_tool"
+        mock_tool = TestWrapAsyncTool.FakeTool.dummy(url=url)
 
-        wrapped = wrap_async_tool(FakeTool, "dummy_tool")
+        wrapped = wrap_async_tool(mock_tool, mock_tool.name)
         args = {"foo": "bar"}
 
         with pytest.raises(ExceptionGroup) as exc_info:
@@ -264,26 +276,22 @@ class TestWrapAsyncTool:
     @patch("redbox.graph.nodes.sends.load_mcp_tools")
     def test_returns_expected_results(self, mock_load_tools, mock_http_client, mock_session_class):
         """Test that wrap_async_tool correctly returns results from async tool invocation"""
-        # create expected result that we want to test for
+
         expected_result = {
             "status": "success",
             "data": {"company_name": "BMW", "country": "Germany", "sector": "Automotive"},
         }
 
-        # Mock tool with metadata
-        mock_tool = MagicMock()
-        mock_tool.metadata = {"url": "http://mock-url.com/tools"}
-
-        # The tool name we're testing
-
         tool_name = "company_tool"
-        # set up the mock MCP tool that will be returned by load_mcp_tools
-        mock_mcp_tool = MagicMock()
-        mock_mcp_tool.name = tool_name
-        mock_mcp_tool.args_schema = {"company_name": {"type": "string"}, "required": ["company_name"]}
+        metadata = {"url": "http://mock-url.com/tools"}
+        args_schema = {"company_name": {"type": "string"}, "required": ["company_name"]}
 
-        # configure the tool to return our expected result
-        mock_mcp_tool.ainvoke = AsyncMock(return_value=expected_result)
+        mock_mcp_tool = TestWrapAsyncTool.FakeTool(
+            name=tool_name,
+            metadata=metadata,
+            args_schema=args_schema,
+            ainvoke=AsyncMock(return_value=expected_result),
+        )
 
         # HTTP client mock
         mock_read, mock_write = AsyncMock(), AsyncMock()
@@ -303,14 +311,14 @@ class TestWrapAsyncTool:
         mock_load_tools.return_value = [mock_mcp_tool]
 
         # create the wrapped function
-        wrapped_func = wrap_async_tool(mock_tool, tool_name)
+        wrapped_func = wrap_async_tool(mock_mcp_tool, tool_name)
 
         # rest invocation with sample args
         test_args = {"company_name": "BMW"}
         result = wrapped_func(test_args)
 
         # verify correct interactions
-        mock_http_client.assert_called_once_with(mock_tool.metadata["url"])
+        mock_http_client.assert_called_once_with(mock_mcp_tool.metadata["url"])
         mock_session.initialize.assert_called_once()
         mock_load_tools.assert_called_once_with(mock_session)
         mock_mcp_tool.ainvoke.assert_called_once_with(test_args)
@@ -324,11 +332,8 @@ class TestWrapAsyncTool:
     def test_tool_not_found(self, mock_load_tools, mock_http_client, mock_session_class):
         """Test wrap_async_tool raises ValueError when the requested tool is not in the MCP tool list."""
 
-        class FakeTool:
-            metadata = {"url": "http://mock-url.com/tools"}
-            name = "dummy_tool"
-
-        wrapped_func = wrap_async_tool(FakeTool, "missing_tool")
+        mock_mcp_tool = TestWrapAsyncTool.FakeTool.dummy()
+        wrapped_func = wrap_async_tool(mock_mcp_tool, "missing_tool")
 
         # mock empty MCP tool list
         mock_load_tools.return_value = []
