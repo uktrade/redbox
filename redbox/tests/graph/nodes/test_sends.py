@@ -276,12 +276,13 @@ class TestWrapAsyncTool:
     @patch("redbox.graph.nodes.sends.load_mcp_tools")
     def test_returns_expected_results(self, mock_load_tools, mock_http_client, mock_session_class):
         """Test that wrap_async_tool correctly returns results from async tool invocation"""
-
+        # create expected result that we want to test for
         expected_result = {
             "status": "success",
             "data": {"company_name": "BMW", "country": "Germany", "sector": "Automotive"},
         }
 
+        # Mock tool with metadata
         tool_name = "company_tool"
         metadata = {"url": "http://mock-url.com/tools"}
         args_schema = {"company_name": {"type": "string"}, "required": ["company_name"]}
