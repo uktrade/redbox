@@ -17,6 +17,10 @@ from redbox.graph.nodes.tools import build_search_wikipedia_tool, build_govuk_se
 from redbox.models.chain import DocumentState, RedboxQuery, RedboxState
 from tests.conftest import fake_state
 
+import unittest
+from unittest.mock import AsyncMock, MagicMock, patch
+from redbox.graph.nodes.sends import wrap_async_tool
+
 
 def test_build_document_group_send():
     target = "my-target"
@@ -228,3 +232,64 @@ class TestRunToolsParallel:
         assert isinstance(responses, list)
         assert len(responses[0].content) > 0
         assert len(responses) == 1
+
+
+class TestWrapAsyncTool(unittest.TestCase):
+    @patch("redbox.graph.nodes.sends.ClientSession")
+    @patch("redbox.graph.nodes.sends.streamablehttp_client")
+    @patch("redbox.graph.nodes.sends.load_mcp_tools")
+    def test_returns_expected_results(self, mock_load_tools, mock_http_client, mock_session_class):
+        """Test that wrap_async_tool correctly returns results from async tool invocation"""
+        # create expected result that we want to test for
+        expected_result = {
+            "status": "success",
+            "data": {"company_name": "BMW", "country": "Germany", "sector": "Automotive"},
+        }
+
+        # Mock tool with metadata
+        mock_tool = MagicMock()
+        mock_tool.metadata = {"url": "http://mock-url.com/tools"}
+
+        # The tool name we're testing
+
+        tool_name = "company_tool"
+        # set up the mock MCP tool that will be returned by load_mcp_tools
+        mock_mcp_tool = MagicMock()
+        mock_mcp_tool.name = tool_name
+        mock_mcp_tool.args_schema = {"company_name": {"type": "string"}, "required": ["company_name"]}
+
+        # configure the tool to return our expected result
+        mock_mcp_tool.ainvoke = AsyncMock(return_value=expected_result)
+
+        # HTTP client mock
+        mock_read, mock_write = AsyncMock(), AsyncMock()
+        mock_http_cm = AsyncMock()
+        mock_http_cm.__aenter__ = AsyncMock(return_value=(mock_read, mock_write, None))
+        mock_http_cm.__aexit__ = AsyncMock(return_value=None)
+        mock_http_client.return_value = mock_http_cm
+
+        # session mock
+        mock_session = AsyncMock()
+        mock_session.initialize = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        # define return value (tool) for load_mcp_tools
+        mock_load_tools.return_value = [mock_mcp_tool]
+
+        # create the wrapped function
+        wrapped_func = wrap_async_tool(mock_tool, tool_name)
+
+        # rest invocation with sample args
+        test_args = {"company_name": "BMW"}
+        result = wrapped_func(test_args)
+
+        # verify correct interactions
+        mock_http_client.assert_called_once_with(mock_tool.metadata["url"])
+        mock_session.initialize.assert_called_once()
+        mock_load_tools.assert_called_once_with(mock_session)
+        mock_mcp_tool.ainvoke.assert_called_once_with(test_args)
+
+        # assert the result matches our expected output
+        self.assertEqual(result, expected_result)
