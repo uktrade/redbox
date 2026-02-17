@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import hashlib
 import json
@@ -12,6 +13,7 @@ from typing import Annotated, Callable, Iterable, Literal, Union
 
 import boto3
 import duckdb
+import nest_asyncio
 import numpy as np
 import pandas as pd
 import requests
@@ -21,7 +23,10 @@ from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.messages import ToolCall
 from langchain_core.tools import Tool, tool
+from langchain_mcp_adapters.tools import load_mcp_tools
 from langgraph.prebuilt import InjectedState
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
 from mohawk import Sender
 from opensearchpy import OpenSearch
 from sklearn.metrics.pairwise import cosine_similarity
@@ -40,11 +45,6 @@ from redbox.retriever.queries import (
 )
 from redbox.retriever.retrievers import SchematisedTabularChunkRetriever, query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
-from langchain_mcp_adapters.tools import load_mcp_tools
-import asyncio
-import nest_asyncio
 
 log = logging.getLogger(__name__)
 
@@ -931,7 +931,7 @@ def build_legislation_search_tool():
     return _search_legislation
 
 
-def get_datahub_mcp_tools(agent_loop=True):
+async def get_datahub_mcp_tools(agent_loop=True):
     async def _get_async_tools():
         try:
             mcp_settings = get_settings().datahub_mcp
@@ -951,7 +951,8 @@ def get_datahub_mcp_tools(agent_loop=True):
                         tool.args_schema["properties"]["is_intermediate_step"] = {"type": "string"}
                         tool.args_schema["required"].append("is_intermediate_step")
                 return tools
-        except Exception:
+        except Exception as e:
+            log.warning(f"Receiving exception: {e}")
             log.error("MCP server not running")
             return []
 

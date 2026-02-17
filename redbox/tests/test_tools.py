@@ -28,6 +28,7 @@ from redbox.graph.nodes.tools import (
     build_search_wikipedia_tool,
     build_web_search_tool,
     format_result,
+    get_datahub_mcp_tools,
     kagi_response_to_documents,
     web_search_call,
     web_search_with_retry,
@@ -930,3 +931,25 @@ def test_query_tabular_knowledge_base_tool(
     # Check that returned docs all have the correct URI
     for doc in docs:
         assert doc.metadata["uri"] == test_uri
+
+
+@pytest.mark.asyncio
+async def test_get_datahub_mcp_tools(mock_mcp_streamablehttp_client, mocker: MockerFixture, agent_loop=True):
+    mock_client_session = mocker.patch("redbox.graph.nodes.tools.ClientSession")
+    mock = mock_mcp_streamablehttp_client([{"test": "test"}])
+    mocker.patch("redbox.graph.nodes.tools.streamablehttp_client", mock)
+
+    mock_session = mocker.AsyncMock()
+    mock_tool = mocker.MagicMock()
+    mock_tool.name = "fake_tool"
+    mock_tool.description = "Fake description"
+    mock_tool.inputSchema = {"properties": {}, "type": "object"}
+    list_tools_result = mocker.MagicMock()
+    list_tools_result.tools = [mock_tool]
+
+    mock_session.list_tools.return_value = list_tools_result
+    mock_client_session.return_value.__aenter__.return_value = mock_session
+
+    tools = await get_datahub_mcp_tools(agent_loop=agent_loop)
+    assert len(tools) > 0
+    mock_session.call_tool.assert_called_once()

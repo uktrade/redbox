@@ -1,6 +1,7 @@
 from collections.abc import Generator
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -158,6 +159,26 @@ def fake_state() -> RedboxState:
     return RedboxState(
         request=q,
     )
+
+
+@pytest.fixture
+def mock_mcp_streamablehttp_client():
+    def _factory(responses: list[dict]):
+        received_urls = []
+
+        @asynccontextmanager
+        async def _mock(url):
+            received_urls.append(url)
+
+            async def read():
+                return responses.pop(0)
+
+            yield read, AsyncMock(), None
+
+        _mock.received_urls = received_urls
+        return _mock
+
+    return _factory
 
 
 # -----#
