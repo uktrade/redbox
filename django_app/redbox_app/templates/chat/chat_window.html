@@ -3,7 +3,7 @@
 {% from "macros/govuk-warning.html" import govuk_warning %}
 {% from "macros/icon.html" import rbds_icon %}
 
-<div id="chat-window" class="rbds-chat-window {% if is_first_time_user %}rbds-chat-window--first-time{% endif %}" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+<div id="chat-feed" class="rbds-chat-feed {% if is_first_time_user %}rbds-chat-feed--first-time{% endif %}" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
     {% if not messages %}
         <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1" security-classification="{{ security }}">
             <h3 class="govuk-heading-s">

@@ -1,5 +1,5 @@
 {% set pageTitle = tool.name %}
-{% set persistentSidepanel = True %}
+{% set persistentSidepanel = False %}
 
 {% extends "base.html" %}
 
@@ -7,7 +7,7 @@
 
 
 {% block content %}
-    <div class="govuk-width-container rbds-page-content rbds-page-content--full">
+    <div class="govuk-width-container">
         <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">{{ tool.name }}</h2>
 
         <p class="govuk-body">

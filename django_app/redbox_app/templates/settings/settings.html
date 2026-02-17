@@ -1,12 +1,12 @@
 {% set pageTitle = "Settings" %}
-{% set persistentSidepanel = True %}
+{% set persistentSidepanel = False %}
 
 {% extends "base.html" %}
 
 
 {% block content %}
 
-<div class="govuk-width-container rbds-page-content rbds-page-content--full">
+<div class="govuk-width-container">
   {% if tabs|length == 1 %}
     {% with tab = tabs.0 %} {% include tab.template %} {% endwith %}
   {% else %}

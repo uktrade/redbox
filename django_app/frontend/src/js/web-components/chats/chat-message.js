@@ -19,7 +19,7 @@ export class ChatMessage extends HTMLElement {
   autoScrollEnabled = true;
 
   connectedCallback() {
-    this.scrollContainer = this.closest(".rbds-scrollable");
+    this.scrollContainer = this.closest(".rbds-scrollable") || document.documentElement;
     this.programmaticScroll = false;
     this.streamedContent = "";
     this.#loadMessage();
@@ -35,9 +35,9 @@ export class ChatMessage extends HTMLElement {
   }
 
 
-  scrollToBottom() {
-    if (!this.scrollContainer) return;
-    this.scrollContainer.scrollTop = this.scrollContainer?.scrollHeight;
+  scrollToBottom(scrollContainer = this.scrollContainer) {
+    if (!scrollContainer) return;
+    scrollContainer.scrollTop = scrollContainer?.scrollHeight;
   }
 
 
@@ -281,7 +281,6 @@ export class ChatMessage extends HTMLElement {
       if (response.type === "text") {
         this.streamedContent += sanitiseText(response.data);
         if (this.streamedContent) this.responseContainer?.update(this.streamedContent);
-        hideElement(this.loadingElement);
       } else if (response.type === "session-id") {
         chatControllerRef.dataset.sessionId = sanitiseId(response.data);
       } else if (response.type === "source") {

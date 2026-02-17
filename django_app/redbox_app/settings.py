@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 import environ
 import sentry_sdk
 from dbt_copilot_python.database import database_from_env
+from dbt_copilot_python.error_tracking import DatadogErrorTrackingFilter
 from django.urls import reverse_lazy
 from django_log_formatter_asim import ASIMFormatter
 from dotenv import find_dotenv, load_dotenv
@@ -380,13 +381,14 @@ LOGGING = {
             if hasattr(record, "getMessage")
             else True,
         },
+        "error_tracking": {"()": DatadogErrorTrackingFilter},
     },
     "handlers": {
         "console": {
             "level": LOG_LEVEL,
             "class": "logging.StreamHandler",
             "formatter": LOG_FORMAT,
-            "filters": ["exclude_s3_urls_and_emails"],
+            "filters": ["exclude_s3_urls_and_emails", "error_tracking"],
         },
         "asim": {
             "level": "ERROR",

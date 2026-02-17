@@ -3,10 +3,12 @@
 <div class="rbds-page-side-panel">
     <rbds-side-panel class="rbds-side-panel-wrapper {% if sidepanel_collapsed %}rbds-side-panel-wrapper--collapsed{% endif %}">
         <div class="rbds-side-panel rbds-text-xs">
-            <button slot="toggle-side-panel" class="rbds-side-panel--collapsed__content rbds-side-panel__toggle rbds-icon-button" type="button">
-                {{ rbds_icon(icon_name="left-panel-open.svg", icon_classes="dark") }}
-                <span class="govuk-visually-hidden">Toggle sidepanel</span>
-            </button>
+            <rbds-side-panel-toggle>
+                <button slot="toggle-side-panel" class="rbds-side-panel--collapsed__content rbds-side-panel__toggle rbds-icon-button" type="button">
+                    {{ rbds_icon(icon_name="left-panel-open.svg", icon_classes="dark") }}
+                    <span class="govuk-visually-hidden">Toggle sidepanel</span>
+                </button>
+            </rbds-side-panel-toggle>
 
             {% include "side_panel/header.html" %}
 
@@ -19,7 +21,7 @@
 
             <footer class="rbds-side-panel__footer">
                 <span class="rbds-flex-align-center rbds-justify-content-center">
-                    {{ rbds_icon(icon_name="dbt-logo.svg", icon_classes="rbds-full-width") }}
+                    {{ rbds_icon(icon_name="dbt-logo.svg", icon_classes="rbds-width--full") }}
                 </span>
                 <span class="govuk-!-text-align-centre">
                     © Crown copyright 2025. All rights reserved.

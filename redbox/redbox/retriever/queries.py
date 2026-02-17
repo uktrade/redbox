@@ -75,6 +75,7 @@ def get_all(
 
 def get_knowledge_base(
     chunk_resolution: ChunkResolution | None,
+    selected_files: list[str],
     state: RedboxState,
 ) -> dict[str, Any]:
     """
@@ -83,7 +84,7 @@ def get_knowledge_base(
     Query against knowledge base
     """
     query_filter = build_query_filter(
-        selected_files=state.request.knowledge_base_s3_keys,
+        selected_files=selected_files,
         permitted_files=state.request.knowledge_base_s3_keys,
         chunk_resolution=chunk_resolution,
     )
@@ -122,6 +123,7 @@ def get_minimum_metadata(
     )
 
     return {
+        "size": 30,
         "_source": {"includes": ["metadata.name", "metadata.description", "metadata.keywords"]},
         "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
     }
@@ -139,7 +141,8 @@ def get_knowledge_base_metadata(
     )
 
     return {
-        "_source": {"includes": ["metadata.name", "metadata.description", "metadata.keywords"]},
+        "size": 30,
+        "_source": {"includes": ["metadata.uri", "metadata.name", "metadata.description", "metadata.keywords"]},
         "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
     }
 

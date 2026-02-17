@@ -1,9 +1,9 @@
 import re
+from io import StringIO
 from urllib.parse import urlparse
 from uuid import uuid4
 
 import duckdb
-from io import StringIO
 import pandas as pd
 import pytest
 import requests_mock
@@ -21,12 +21,12 @@ from redbox.graph.nodes.tools import (
     build_document_from_prompt_tool,
     build_govuk_search_tool,
     build_legislation_search_tool,
+    build_query_tabular_knowledge_base_tool,
     build_retrieve_document_full_text,
     build_retrieve_knowledge_base,
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
-    build_query_tabular_knowledge_base_tool,
     format_result,
     kagi_response_to_documents,
     web_search_call,
@@ -89,8 +89,24 @@ def test_document_from_prompt_tool():
     )
 
 
-def test_retrieve_knowledge_base(es_client: OpenSearch, es_index: str, stored_file_knowledge_base: RedboxChatTestCase):
-    kb_tool = build_retrieve_knowledge_base(es_client, es_index)
+@pytest.mark.parametrize(
+    "loop, all_files, tool_name, tool_arg",
+    [
+        (False, True, "_retrieve_knowledge_base", {}),
+        (True, True, "_retrieve_knowledge_base", {}),
+        (False, False, "_retrieve_specific_file_knowledge_base", {"uri": "s3_key"}),
+    ],
+)
+def test_retrieve_knowledge_base(
+    es_client: OpenSearch,
+    es_index: str,
+    stored_file_knowledge_base: RedboxChatTestCase,
+    loop,
+    all_files,
+    tool_name,
+    tool_arg,
+):
+    kb_tool = build_retrieve_knowledge_base(es_client, es_index, loop=loop, all_files=all_files)
     tool_node = ToolNode(tools=[kb_tool])
     result_state = tool_node.invoke(
         RedboxState(
@@ -100,8 +116,8 @@ def test_retrieve_knowledge_base(es_client: OpenSearch, es_index: str, stored_fi
                     content="",
                     tool_calls=[
                         {
-                            "name": "_retrieve_knowledge_base",
-                            "args": {},
+                            "name": tool_name,
+                            "args": tool_arg,
                             "id": "1",
                         }
                     ],
@@ -109,10 +125,13 @@ def test_retrieve_knowledge_base(es_client: OpenSearch, es_index: str, stored_fi
             ],
         )
     )
+
     if stored_file_knowledge_base.test_id == "Successful Path-0":
-        assert "<context>This is your knowledgebase result.</context>" in result_state["messages"][0].content
+        assert "<context>This is your knowledge base result.</context>" in result_state["messages"][0].content
+        assert len(result_state["messages"][0].artifact) > 0
     elif stored_file_knowledge_base.test_id == "Empty knowledge base-0":
-        assert result_state["messages"][0].content == "Tool returns empty result set."
+        assert "Tool returns empty result set." in result_state["messages"][0].content
+        assert len(result_state["messages"][0].artifact) == 0
 
 
 def test_retrieve_document_full_text_tool(
