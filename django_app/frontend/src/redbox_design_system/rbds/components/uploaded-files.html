@@ -1,7 +1,7 @@
 {% from "rbds/components/show-more.html" import show_more %}
 
 <template id="rbds-uploaded-files-template">
-    <div class="uploaded-files-wrapper" contenteditable="false">
+    <div class="uploaded-files-wrapper rbds-text-xs" contenteditable="false">
         <div class="uploaded-files rbds-scrollable" id="uploaded-files"></div>
         {{ show_more('#uploaded-files', 'rbds-uploaded-file', 3, showLessLabel='Show less...') }}
     </div>

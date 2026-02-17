@@ -42,6 +42,6 @@ Alternatively, run the following to get started quickly:
 
 `make dev` will run migrations, copy static files and start the frontend with parcel in watch mode on [localhost:8081](http://localhost:8081/).
 
-The magic link for login should appear in the terminal: `CTRL+F` > `magic_link`. You may need to increase the terminal buffer in order to capture the magic link. [Terminal › Integrated: Scrollback](vscode://settings/terminal.integrated.scrollback).
+You will need to login via SSO when first accessing if not already signed in on another service.
 
 To restart the app, `Ctrl+C` the active terminal and run `make dev` again.

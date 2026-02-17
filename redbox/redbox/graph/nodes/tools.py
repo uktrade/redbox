@@ -1,12 +1,19 @@
+import csv
+import hashlib
 import json
 import logging
 import random
+import re
 import sqlite3
+import threading
 import time
-from typing import Annotated, Callable, Iterable, Union
+from io import StringIO
+from typing import Annotated, Callable, Iterable, Literal, Union
 
 import boto3
+import duckdb
 import numpy as np
+import pandas as pd
 import requests
 from elasticsearch import Elasticsearch
 from langchain_community.utilities import WikipediaAPIWrapper
@@ -23,7 +30,7 @@ from waffle.decorators import waffle_flag
 from redbox.api.format import format_documents
 from redbox.chains.components import get_embeddings
 from redbox.models.chain import RedboxState
-from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
+from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution, TabularSchema
 from redbox.models.settings import get_settings
 from redbox.retriever.queries import (
     add_document_filter_scores_to_query,
@@ -31,10 +38,14 @@ from redbox.retriever.queries import (
     get_all,
     get_knowledge_base,
 )
-from redbox.retriever.retrievers import query_to_documents
+from redbox.retriever.retrievers import SchematisedTabularChunkRetriever, query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
 
 log = logging.getLogger(__name__)
+
+
+def get_func_logger(func):
+    return logging.getLogger(f"{__name__}.{func.__qualname__}")
 
 
 def format_result(loop, content, artifact, status, is_intermediate_step):
@@ -110,21 +121,10 @@ def build_retrieve_document_full_text(es_client: Union[Elasticsearch, OpenSearch
     return _retrieve_document_full_text
 
 
-def build_retrieve_knowledge_base(es_client: Union[Elasticsearch, OpenSearch], index_name: str, loop: bool = False):
-    @tool(response_format="content_and_artifact")
-    def _retrieve_knowledge_base(
-        state: Annotated[RedboxState, InjectedState], is_intermediate_step: bool = False
-    ) -> tuple[str, list[Document]]:
-        """
-        Retrieve knowledge base data, information for this agent.
-
-        Arg:
-        - is_intermediate_step (bool): True if this tool call is an intermediate step to allow you to gather knowledge base. False if this is your final step.
-
-        Return:
-            Tuple: Collection of knowledge base documents with metadata
-        """
-        el_query = get_knowledge_base(chunk_resolution=ChunkResolution.largest, state=state)
+def build_retrieve_knowledge_base(
+    es_client: Union[Elasticsearch, OpenSearch], index_name: str, loop: bool = False, all_files=True
+) -> Tool:
+    def query_repo(el_query, is_intermediate_step, loop):
         results = query_to_documents(es_client=es_client, index_name=index_name, query=el_query)
 
         if not results:
@@ -140,13 +140,48 @@ def build_retrieve_knowledge_base(es_client: Union[Elasticsearch, OpenSearch], i
         sorted_documents = sorted(results, key=lambda result: result.metadata["index"])
         return format_result(
             loop=loop,
-            content="<context>This is your knowledgebase result.</context>" + format_documents(sorted_documents),
+            content="<context>This is your knowledge base result.</context>" + format_documents(sorted_documents),
             artifact=sorted_documents,
             status="pass",
             is_intermediate_step=is_intermediate_step,
         )
 
-    return _retrieve_knowledge_base
+    @tool(response_format="content_and_artifact")
+    def _retrieve_specific_file_knowledge_base(
+        state: Annotated[RedboxState, InjectedState],
+        uri: str,
+    ) -> tuple[str, list[Document]]:
+        """
+        Retrieve full texts of specific files from the knowledge base,
+        Arg:
+            - uri: File URI to filter which file to query.
+        Return:
+            Tuple: A knowledge base document with metadata
+        """
+        el_query = get_knowledge_base(selected_files=[uri], chunk_resolution=ChunkResolution.largest, state=state)
+        # This current implementation do not support loop agent
+        return query_repo(el_query, is_intermediate_step=False, loop=False)
+
+    @tool(response_format="content_and_artifact")
+    def _retrieve_knowledge_base(
+        state: Annotated[RedboxState, InjectedState], is_intermediate_step: bool = False
+    ) -> tuple:
+        """
+        Retrieve full texts from all knowledge base files.
+
+        Arg:
+        - is_intermediate_step (bool): True if this tool call is an intermediate step to allow you to gather knowledge base. False if this is your final step.
+
+        Return:
+            Tuple: Collection of knowledge base documents with metadata
+        """
+        el_query = get_knowledge_base(
+            selected_files=state.request.knowledge_base_s3_keys, chunk_resolution=ChunkResolution.largest, state=state
+        )
+
+        return query_repo(el_query, is_intermediate_step=is_intermediate_step, loop=loop)
+
+    return _retrieve_knowledge_base if all_files else _retrieve_specific_file_knowledge_base
 
 
 def build_search_documents_tool(
@@ -155,30 +190,12 @@ def build_search_documents_tool(
     embedding_model: Embeddings,
     embedding_field_name: str,
     chunk_resolution: ChunkResolution | None,
+    repository: Literal["user_uploaded", "knowledge_base"] = "user_uploaded",
 ) -> Tool:
     """Constructs a tool that searches the index and sets state.documents."""
 
-    @tool(response_format="content_and_artifact")
-    def _search_documents(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
-        """
-        "Searches through state.documents to find and extract relevant information. This tool should be used whenever a query involves finding, searching, or retrieving information from documents that have already been uploaded or provided to the system.
-
-        The tool performs semantic search across all available documents. Results are automatically grouped by source document and ranked by relevance score. Each result includes document metadata (title, page/section) for context.
-
-        Args:
-            query (str): The search query to match against document content.
-            - Can be natural language, keywords, or phrases
-            - More specific queries yield more precise results
-            - Query length should be 1-500 characters
-        Returns:
-            dict[str, Any]: Collection of matching document snippets with metadata:
-        """
-        start_time = time.time()
+    def search_repo(query, selected_files, permitted_files, ai_settings, start_time=time.time()):
         query_vector = embedding_model.embed_query(query)
-        selected_files = state.request.s3_keys
-        permitted_files = state.request.permitted_s3_keys
-        ai_settings = state.request.ai_settings
-
         # Initial pass
         initial_query = build_document_query(
             query=query,
@@ -214,7 +231,225 @@ def build_search_documents_tool(
         # Return as state update
         return format_documents(sorted_documents), sorted_documents
 
-    return _search_documents
+    @tool(response_format="content_and_artifact")
+    def _search_documents(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
+        """
+        "Searches through state.documents to find and extract relevant information. This tool should be used whenever a query involves finding, searching, or retrieving information from documents that have already been uploaded or provided to the system.
+
+        The tool performs semantic search across all available documents. Results are automatically grouped by source document and ranked by relevance score. Each result includes document metadata (title, page/section) for context.
+
+        Args:
+            query (str): The search query to match against document content.
+            - Can be natural language, keywords, or phrases
+            - More specific queries yield more precise results
+            - Query length should be 1-500 characters
+        Returns:
+            dict[str, Any]: Collection of matching document snippets with metadata:
+        """
+        return search_repo(
+            query=query,
+            selected_files=state.request.s3_keys,
+            permitted_files=state.request.permitted_s3_keys,
+            ai_settings=state.request.ai_settings,
+        )
+
+    @tool(response_format="content_and_artifact")
+    def _search_knowledge_base(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
+        """
+        "Searches through knowledge base files to find and extract relevant information. This tool should be used whenever a query involves finding, searching, or retrieving information from knowledge base.
+
+        The tool performs semantic search across all available documents. Results are automatically grouped by source document and ranked by relevance score. Each result includes document metadata (title, page/section) for context.
+
+        Args:
+            query (str): The search query to match against document content.
+            - Can be natural language, keywords, or phrases
+            - More specific queries yield more precise results
+            - Query length should be 1-500 characters
+        Returns:
+            dict[str, Any]: Collection of matching document snippets with metadata:
+        """
+        return search_repo(
+            query=query,
+            selected_files=state.request.knowledge_base_s3_keys,
+            permitted_files=state.request.knowledge_base_s3_keys,
+            ai_settings=state.request.ai_settings,
+        )
+
+    return _search_documents if repository == "user_uploaded" else _search_knowledge_base
+
+
+DUCKDB_LOCKS: dict[str, threading.Lock] = {}
+DUCKDB_LOCKS_LOCK = threading.Lock()  # lock to safely create new per-db locks
+
+
+def build_query_tabular_knowledge_base_tool(
+    es_client: Union[Elasticsearch, OpenSearch],
+    index_name: str,
+) -> Tool:
+    """
+    Returns a tool that executes an agent-generated SQL query against tabular files
+    retrieved from OpenSearch. The retriever is embedded inside the tool.
+    """
+
+    logger = get_func_logger(build_query_tabular_knowledge_base_tool)
+    retriever = SchematisedTabularChunkRetriever(
+        es_client=es_client,
+        index_name=index_name,
+    )
+
+    def get_duckdb_lock(db_path: str) -> threading.Lock:
+        """Return a lock specific to a given DuckDB file."""
+        with DUCKDB_LOCKS_LOCK:
+            if db_path not in DUCKDB_LOCKS:
+                DUCKDB_LOCKS[db_path] = threading.Lock()
+            return DUCKDB_LOCKS[db_path]
+
+    def write_duckdb_table(db_path: str, schema: TabularSchema, text_content: str):
+        with duckdb.connect(database=db_path) as con:
+            tables = [t[0] for t in con.execute("SHOW TABLES").fetchall()]
+            if schema.name not in tables:
+                # Clean CSV content
+                lines = StringIO(text_content).readlines()
+                header = re.sub(
+                    r"^\s*<table_name>.*?</table_name>\s*",
+                    "",
+                    lines[0],
+                    count=1,
+                    flags=re.DOTALL,
+                )
+                csv_str = "\n".join([header] + lines[1:])
+                reader = csv.DictReader(StringIO(csv_str))
+                df = pd.DataFrame(list(reader))
+
+                # Keep only schema columns
+                df = df[[col for col in schema.columns.keys() if col in df.columns]]
+
+                # Cast columns to proper types based on schema_obj
+                for col, dtype in schema.columns.items():
+                    if col not in df.columns:
+                        continue  # skip missing columns
+                    try:
+                        if dtype.upper() in ("INTEGER", "INT"):
+                            df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")  # nullable integer
+                        elif dtype.upper() in ("FLOAT", "DOUBLE", "REAL"):
+                            df[col] = pd.to_numeric(df[col], errors="coerce")
+                        elif dtype.upper() in ("BOOLEAN", "BOOL"):
+                            df[col] = df[col].astype(bool)
+                        elif dtype.upper() in ("DATE", "TIMESTAMP"):
+                            df[col] = pd.to_datetime(df[col], errors="coerce")
+                        else:  # default to string
+                            df[col] = df[col].astype(str)
+                    except Exception as col_e:
+                        logger.warning("Failed to cast column %s: %s", col, str(col_e))
+                        df[col] = df[col].astype(str)
+
+                # Create table and insert data
+                columns_def = ", ".join(f'"{col}" {dtype}' for col, dtype in schema.columns.items())
+                con.execute(f'CREATE TABLE "{schema.name}" ({columns_def})')
+                if not df.empty:
+                    con.execute(f'INSERT INTO "{schema.name}" SELECT * FROM df')
+
+    def query_duckdb_db(db_path: str, sql_query: str, metadata: dict) -> list[Document]:
+        documents: list[Document] = []
+        with duckdb.connect(database=db_path, read_only=True) as con:
+            # Execute agent-provided SQL query
+            query_result = con.execute(sql_query).fetchall()
+            col_names = [desc[0] for desc in con.description]
+
+            # Wrap as Documents
+            for row in query_result:
+                row_dict = dict(zip(col_names, row))
+                documents.append(
+                    Document(
+                        page_content=str(row_dict),
+                        metadata=metadata,
+                    )
+                )
+        return documents
+
+    @tool(response_format="content_and_artifact")
+    def _query_tabular_knowledge_base(
+        sql_query: str,
+        uri: str,
+        state: Annotated[RedboxState, InjectedState],
+    ) -> tuple[str, list[Document]]:
+        """
+        Executes the SQL query against tabular files retrieved by the embedded retriever.
+
+        Args:
+            sql_query: Pre-generated SQL query by the agent.
+            uri: File URI to filter which file to query.
+
+        Returns:
+            Tuple[str, list[Document]]: Results string and list of Documents.
+
+        Notes:
+        - Supports CSV and Excel files.
+        - The agent is responsible for generating a valid SQL query based on the schema of the target table(s).
+        - Queries can include compound phrases or partial matches (e.g., "deal-making unit")
+        and should consider that such phrases may appear in different columns.
+        - Use SQL features such as `LIKE`, `ILIKE`, or full-text search functions to handle partial matches.
+        - Handles multi-line cells and escaped characters correctly.
+        - For maximum flexibility, the agent can generate queries that combine multiple columns using `OR`
+        or `CONCAT` to ensure relevant rows are captured.
+        - SQL queries should be **case-insensitive** so they capture capitalised or lowercase values (use ILIKE or equivalent).
+        - Queries should handle **compound phrases** (e.g., "deal-making unit") that may appear split across columns or contain different punctuation or spacing.
+        - When matching text, account for variations such as hyphens, spaces, and capitalization.
+        - Always include multiple columns in the WHERE clause if necessary to capture all relevant fields for the query.
+        """
+        documents: list[Document] = []
+        formatted_documents: str = ""
+
+        try:
+            # Retrieve tabular documents
+            docs_metadata = retriever._get_relevant_documents(
+                knowledge_base_s3_keys=state.request.knowledge_base_s3_keys, uris=[uri], run_manager=None
+            )
+            if not docs_metadata:
+                return "No documents found for URI", []
+
+            uri_sha = hashlib.sha256(uri.encode("utf-8")).hexdigest()
+            db_path = f"generated_db_{uri_sha}.duckdb"
+
+            lock = get_duckdb_lock(db_path)
+            with lock:
+                for meta in docs_metadata:
+                    metadata = meta.get("metadata", {})
+                    schema = metadata.get("document_schema")
+                    text_content = meta.get("text", "")
+
+                    if schema is None:
+                        return "Document not supported for querying as it uses legacy schema.", []
+
+                    try:
+                        schema_obj = TabularSchema.model_validate(schema)
+                    except Exception as e:
+                        logger.warning("Invalid schema for document %s: %s", uri, str(e))
+                        continue  # skip this document
+
+                    if not text_content.strip():
+                        continue
+
+                    try:
+                        write_duckdb_table(db_path=db_path, schema=schema_obj, text_content=text_content)
+                    except Exception as db_e:
+                        logger.warning("Failed to setup DB %s: %s", uri, str(db_e))
+                        return f"Error preparing tabular document database: {db_e}", []
+
+                try:
+                    documents = query_duckdb_db(db_path=db_path, sql_query=sql_query, metadata={"uri": uri})
+                    formatted_documents = format_documents(documents=documents)
+                except Exception as query_e:
+                    logger.warning("Failed to query %s: %s", uri, str(query_e))
+                    return f"SQL query failed: {query_e}", []
+
+            return formatted_documents, documents
+
+        except Exception as e:
+            logger.exception("Unexpected error in _query_tabular_knowledge_base")
+            return f"Unexpected error: {e}", []
+
+    return _query_tabular_knowledge_base
 
 
 def build_govuk_search_tool(filter=True) -> Tool:

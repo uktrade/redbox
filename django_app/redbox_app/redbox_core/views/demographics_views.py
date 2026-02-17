@@ -11,6 +11,7 @@ from django.views import View
 from django.views.generic import UpdateView
 
 from redbox_app.redbox_core.forms import DemographicsForm
+from redbox_app.redbox_core.views.mixins import ChatContextMixin
 
 User = get_user_model()
 
@@ -28,7 +29,7 @@ class CheckDemographicsView(View):
             return redirect("demographics")
 
 
-class DemographicsView(LoginRequiredMixin, UpdateView):
+class DemographicsView(LoginRequiredMixin, ChatContextMixin, UpdateView):
     model = User
     template_name = "demographics.html"
     form_class = DemographicsForm

@@ -10,7 +10,7 @@ reqs:
 
 .PHONY: run
 run: stop
-	docker compose up -d --wait django-app
+	docker compose up -d --wait redbox-django-app
 
 .PHONY: stop
 stop: ## Stop all containers
@@ -275,9 +275,9 @@ eval_backend:  ## Runs the only the necessary backend for evaluation BUCKET_NAME
 help: ## Show this help
 	@ grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(makefile_name) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1,$$2}'
 
-.PHONY: magic-link
-magic-link: # Get magic link(s) for sign-in
-	docker compose logs django-app | grep 8080/magic_link
+.PHONY: superuser
+superuser:
+	docker compose run --rm redbox-django-app venv/bin/python redbox_app/redbox_core/management/commands/create_superuser.py
 
 .PHONY: frontend-dev
 frontend-dev: # Start parcel in dev/watch mode

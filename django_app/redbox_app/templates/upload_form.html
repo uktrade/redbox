@@ -1,0 +1,17 @@
+<form id="first-time-user-upload" method="post" enctype="multipart/form-data">
+
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
+    <div class="govuk-form-group govuk-!-margin-bottom-0 {% if errors.upload_doc %} govuk-form-group--error{% endif %}">
+        <label class="govuk-label" for="upload-docs">
+            Upload a file (optional)
+        </label>
+        <div class="govuk-drop-zone" data-module="govuk-file-upload">
+            <file-upload upload-url="{{ urls.upload_url }}">
+                <input class="govuk-file-upload {% if errors.upload_doc %} govuk-file-upload--error{% endif %}" multiple
+                    id="upload-docs" name="uploadDocs" type="file"
+                    aria-describedby="upload-docs-notification upload-docs-filetypes {% if errors.upload_doc %} file-upload-docs-error{% endif %}">
+            </file-upload>
+        </div>
+    </div>
+</form>

@@ -6,6 +6,6 @@
   align-items: center;
 
   &.dark {
-    --color-icon-light-foreground: var(--color-icon-light-foreground-secondary);
+    --color-icon-light-foreground: var(--color-icon-light-foreground);
   }
 }

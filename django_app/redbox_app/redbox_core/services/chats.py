@@ -6,7 +6,6 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
-from django.template.response import TemplateResponse
 from waffle import flag_is_active
 from yarl import URL
 
@@ -22,6 +21,8 @@ User = get_user_model()
 
 
 def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | None = None) -> dict:
+    if not request.user.is_authenticated:
+        return {"request": request, "contact_email": settings.CONTACT_EMAIL}
     current_chat = _get_valid_chat(request.user, chat_id)
     chat_id = current_chat.id if current_chat else None
     tool = (
@@ -43,6 +44,8 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
         "upload_url": url_service.get_upload_url(slug=slug),
     }
 
+    sidepanel_collapsed = request.COOKIES.get("rbds-side-panel-collapsed", "false") == "true"
+
     return {
         "tool": tool,
         "chat_id": chat_id,
@@ -50,7 +53,6 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
         "chats": Chat.get_ordered_by_last_message_date(request.user, tool),
         "current_chat": current_chat,
         "streaming": {"endpoint": str(endpoint)},
-        "contact_email": settings.CONTACT_EMAIL,
         "chat_title_length": settings.CHAT_TITLE_LENGTH,
         "llm_options": [
             {
@@ -65,6 +67,10 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
         "enable_dictation_flag_is_active": flag_is_active(request, flags.ENABLE_DICTATION),
         **file_context,
         "urls": urls,
+        "errors": {"upload_doc": []},
+        "request": request,
+        "promoted_tool": Tool.objects.filter(slug="submissions-checker").first() or None,
+        "sidepanel_collapsed": sidepanel_collapsed,
     }
 
 
@@ -130,25 +136,9 @@ def render_chats(request: HttpRequest, context: dict) -> HttpResponse:
     )
 
 
-def render_recent_chats(
-    request: HttpRequest, active_chat_id: UUID | None = None, slug: str | None = None
-) -> TemplateResponse:
-    context = get_context(request, active_chat_id, slug)
-
-    return TemplateResponse(
+def render_conversations(request: HttpRequest, context: dict | None = None) -> HttpResponse:
+    return render(
         request,
-        "side_panel/recent_chats_list.html",
-        context,
-    )
-
-
-def render_chat_window(
-    request: HttpRequest, active_chat_id: UUID | None = None, slug: str | None = None
-) -> TemplateResponse:
-    context = get_context(request, active_chat_id, slug)
-
-    return TemplateResponse(
-        request,
-        "chat/chat_window.html",
-        context,
+        template_name="side_panel/conversations.html",
+        context=context or get_context(request),
     )

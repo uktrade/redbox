@@ -75,6 +75,7 @@ def get_all(
 
 def get_knowledge_base(
     chunk_resolution: ChunkResolution | None,
+    selected_files: list[str],
     state: RedboxState,
 ) -> dict[str, Any]:
     """
@@ -83,7 +84,7 @@ def get_knowledge_base(
     Query against knowledge base
     """
     query_filter = build_query_filter(
-        selected_files=state.request.knowledge_base_s3_keys,
+        selected_files=selected_files,
         permitted_files=state.request.knowledge_base_s3_keys,
         chunk_resolution=chunk_resolution,
     )
@@ -122,8 +123,93 @@ def get_minimum_metadata(
     )
 
     return {
+        "size": 30,
         "_source": {"includes": ["metadata.name", "metadata.description", "metadata.keywords"]},
         "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
+    }
+
+
+def get_knowledge_base_metadata(
+    chunk_resolution: ChunkResolution | None,
+    state: RedboxState,
+) -> dict[str, Any]:
+    """Retrive knowledge base metadata without page_content"""
+    query_filter = build_query_filter(
+        selected_files=state.request.knowledge_base_s3_keys,
+        permitted_files=state.request.knowledge_base_s3_keys,
+        chunk_resolution=chunk_resolution,
+    )
+
+    return {
+        "size": 30,
+        "_source": {"includes": ["metadata.uri", "metadata.name", "metadata.description", "metadata.keywords"]},
+        "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
+    }
+
+
+def get_knowledge_base_tabular_metadata(
+    chunk_resolution: ChunkResolution | None,
+    state: RedboxState,
+) -> dict[str, Any]:
+    """Retrieve knowledge base metadata with schema metadata and without page_content"""
+    query_filter = build_query_filter(
+        selected_files=state.request.knowledge_base_s3_keys,
+        permitted_files=state.request.knowledge_base_s3_keys,
+        chunk_resolution=chunk_resolution,
+    )
+
+    return {
+        "_source": {
+            "includes": [
+                "metadata.uri",
+                "metadata.name",
+                "metadata.description",
+                "metadata.keywords",
+                "metadata.document_schema",
+            ],
+            "excludes": ["text", "vector_field"],
+        },
+        "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
+    }
+
+
+def get_schematised_tabular_chunks(
+    chunk_resolution: ChunkResolution | None,
+    knowledge_base_s3_keys: list[str],
+    uris: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Retrieve tabular metadata including the `.text` content.
+
+    Args:
+        chunk_resolution: Optional chunk resolution for filtering.
+        knowledge_base_s3_keys: List of allowed knowledge base file URIs.
+        uris: Optional list of specific URIs to filter on (agent can select).
+
+    Returns:
+        dict: Elasticsearch query body with metadata and text for relevant tabular files.
+    """
+    # Base filter using permissions
+    query_filter = build_query_filter(
+        selected_files=uris,
+        permitted_files=knowledge_base_s3_keys,
+        chunk_resolution=chunk_resolution,
+    )
+
+    return {
+        "_source": {
+            "includes": [
+                "metadata.uri",
+                "metadata.name",
+                "metadata.description",
+                "metadata.keywords",
+                "metadata.document_schema",
+                "text",  # include the actual file content
+            ],
+            "excludes": ["vector_field"],
+        },
+        "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
+        "sort": [{"metadata.name.keyword": {"order": "asc"}}],
     }
 
 

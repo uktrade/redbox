@@ -1,0 +1,17 @@
+rbds-toggle {
+    display: inline-flex;
+    align-items: center;
+
+    .rbds-toggle__on,
+    .rbds-toggle__off {
+        display: none;
+    }
+
+    &[data-state="on"] .rbds-toggle__on {
+        display: inline-flex;
+    }
+
+        &[data-state="off"] .rbds-toggle__off {
+        display: inline-flex;
+    }
+}

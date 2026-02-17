@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
+from typing import Optional, Literal
 
 from pydantic import AliasChoices, BaseModel, Field
 
@@ -23,6 +24,16 @@ class ChunkCreatorType(StrEnum):
     web_search = "WebSearch"
 
 
+class BaseSchema(BaseModel):
+    type: str
+    name: str
+
+
+class TabularSchema(BaseSchema):
+    type: Literal["tabular"] = "tabular"
+    columns: dict[str, str]
+
+
 class ChunkMetadata(BaseModel):
     """
     Worker model for document metadata for new style chunks.
@@ -33,6 +44,7 @@ class ChunkMetadata(BaseModel):
     index: int = 0  # The order of this chunk in the original resource
     created_datetime: datetime.datetime = datetime.datetime.now(datetime.UTC)
     chunk_resolution: ChunkResolution = ChunkResolution.normal
+    document_schema: Optional[TabularSchema] = None
     creator_type: ChunkCreatorType
     uri: str = Field(validation_alias=AliasChoices("uri", "file_name"))  # URL or file name
     token_count: int

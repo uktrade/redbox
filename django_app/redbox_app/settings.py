@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 import environ
 import sentry_sdk
 from dbt_copilot_python.database import database_from_env
+from dbt_copilot_python.error_tracking import DatadogErrorTrackingFilter
 from django.urls import reverse_lazy
 from django_log_formatter_asim import ASIMFormatter
 from dotenv import find_dotenv, load_dotenv
@@ -21,10 +22,14 @@ from redbox_app.setting_enums import Classification, Environment
 
 logger = logging.getLogger(__name__)
 
+if os.getenv("USE_TESTS_INTEGRATION_ENV", "False").lower() == "true":
+    logger.warning("Loading Integration EnvFile: tests/.env.integration")
+    load_dotenv(find_dotenv("tests/.env.integration"))
 
-load_dotenv()
+load_dotenv(override=True)
 
 if os.getenv("USE_LOCAL_ENV", "False").lower() == "true":
+    logger.warning("Loading Local EnvFile: .env.local")
     load_dotenv(find_dotenv(".env.local"), override=True)
 
 env = environ.Env()
@@ -34,7 +39,6 @@ ALLOW_SIGN_UPS = env.bool("ALLOW_SIGN_UPS")
 SECRET_KEY = env.str("DJANGO_SECRET_KEY")
 ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
 WEBSOCKET_SCHEME = "ws" if ENVIRONMENT.is_test else "wss"
-LOGIN_METHOD = env.str("LOGIN_METHOD", None)
 
 # env variables used by redbox_core
 COLLECTION_ENDPOINT = env.str("COLLECTION_ENDPOINT")
@@ -71,6 +75,7 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Application definition
 INSTALLED_APPS = [
+    "authbroker_client",
     "daphne",
     "redbox_app.redbox_core",
     "django.contrib.admin.apps.SimpleAdminConfig",
@@ -82,7 +87,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "single_session",
     "storages",
-    "magic_link",
     "import_export",
     "django_q",
     "rest_framework",
@@ -91,9 +95,6 @@ INSTALLED_APPS = [
     "adminplus",
     "waffle",
 ]
-
-if LOGIN_METHOD == "sso":
-    INSTALLED_APPS.append("authbroker_client")
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -148,12 +149,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "redbox_app.wsgi.application"
 ASGI_APPLICATION = "redbox_app.asgi.application"
 
-AUTHENTICATION_BACKENDS = [
-    "django.contrib.auth.backends.ModelBackend",
-]
-
-if LOGIN_METHOD == "sso":
-    AUTHENTICATION_BACKENDS.append("authbroker_client.backends.AuthbrokerBackend")
+AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend", "authbroker_client.backends.AuthbrokerBackend"]
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -183,20 +179,11 @@ SITE_ID = 1
 AUTH_USER_MODEL = "redbox_core.User"
 ACCOUNT_EMAIL_VERIFICATION = "none"
 
-if LOGIN_METHOD == "sso":
-    # os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1' #TO REMOVE
-    AUTHBROKER_URL = env.str("AUTHBROKER_URL")
-    AUTHBROKER_CLIENT_ID = env.str("AUTHBROKER_CLIENT_ID")
-    AUTHBROKER_CLIENT_SECRET = env.str("AUTHBROKER_CLIENT_SECRET")
-    LOGIN_URL = reverse_lazy("authbroker_client:login")
-    LOGIN_REDIRECT_URL = reverse_lazy("homepage")
-elif LOGIN_METHOD == "magic_link":
-    SESSION_COOKIE_SAMESITE = "Strict"
-    LOGIN_REDIRECT_URL = "homepage"
-    LOGIN_URL = "sign-in"
-else:
-    LOGIN_REDIRECT_URL = "homepage"
-    LOGIN_URL = "sign-in"
+AUTHBROKER_URL = env.str("AUTHBROKER_URL", "https://example.com")
+AUTHBROKER_CLIENT_ID = env.str("AUTHBROKER_CLIENT_ID", "1234")
+AUTHBROKER_CLIENT_SECRET = env.str("AUTHBROKER_CLIENT_SECRET", "1234")
+LOGIN_URL = reverse_lazy("authbroker_client:login")
+LOGIN_REDIRECT_URL = reverse_lazy("homepage")
 
 # CSP settings https://content-security-policy.com/
 # https://django-csp.readthedocs.io/
@@ -216,6 +203,8 @@ CSP_SCRIPT_SRC = (
     "'sha256-1NTuHcjvzzB6D69Pb9lbxI5pMJNybP/SwBliv3OvOOE='",
     "'sha256-DrkvIvFj5cNADO03twE83GwgAKgP224E5UyyxXFfvTc='",
     "'sha256-6BIGXagXVUHOQ8pw9flNwo/urWufeay+hbx+Q+U6/DM='",  # pragma: allowlist secret
+    "'sha256-SgZQWsfLqFIbXUavZS4pxgi9Pr0JFuIh5pAp0LdrHPU='",  # pragma: allowlist secret
+    "'sha256-XAYqMHKLikdz4TwKJfz53n9YgPx3M6F2KB98Dxf/A5c='",  # pragma: allowlist secret
     "https://*.googletagmanager.com",
     "https://tagmanager.google.com/",
     "https://www.googletagmanager.com/",
@@ -224,7 +213,7 @@ CSP_SCRIPT_SRC = (
     "sha256-T/1K73p+yppfXXw/AfMZXDh5VRDNaoEh3enEGFmZp8M=",
 )
 CSP_OBJECT_SRC = ("'none'",)
-CSP_TRUSTED_TYPES = ("dompurify", "default", "goog#html")
+CSP_TRUSTED_TYPES = ("dompurify", "default", "'allow-duplicates'", "goog#html")
 CSP_REPORT_TO = "csp-endpoint"
 CSP_FONT_SRC = ("'self'", "s3.amazonaws.com", "https://fonts.gstatic.com", "data:")
 CSP_INCLUDE_NONCE_IN = ("script-src",)
@@ -383,22 +372,25 @@ LOGGING = {
         "exclude_s3_urls_and_emails": {
             "": "django.utils.log.CallbackFilter",
             "callback": lambda record: (
-                all(
-                    header not in record.getMessage()
-                    for header in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Security-Token"]
+                (
+                    all(
+                        header not in record.getMessage()
+                        for header in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Security-Token"]
+                    )
+                    and not re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", record.getMessage())
                 )
-                and not re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", record.getMessage())
-            )
-            if hasattr(record, "getMessage")
-            else True,
+                if hasattr(record, "getMessage")
+                else True
+            ),
         },
+        "error_tracking": {"()": DatadogErrorTrackingFilter},
     },
     "handlers": {
         "console": {
             "level": LOG_LEVEL,
             "class": "logging.StreamHandler",
             "formatter": LOG_FORMAT,
-            "filters": ["exclude_s3_urls_and_emails"],
+            "filters": ["exclude_s3_urls_and_emails", "error_tracking"],
         },
         "asim": {
             "level": "ERROR",
@@ -452,20 +444,6 @@ else:
 GOVUK_NOTIFY_API_KEY = env.str("GOVUK_NOTIFY_API_KEY", None)
 GOVUK_NOTIFY_PLAIN_EMAIL_TEMPLATE_ID = env.str("GOVUK_NOTIFY_PLAIN_EMAIL_TEMPLATE_ID", None)
 GOVUK_NOTIFY_TEAM_ADDITION_EMAIL_TEMPLATE_ID = env.str("GOVUK_NOTIFY_TEAM_ADDITION_EMAIL_TEMPLATE_ID", None)
-
-# Magic link
-
-MAGIC_LINK = {
-    # link expiry, in seconds
-    "DEFAULT_EXPIRY": 300,
-    # default link redirect
-    "DEFAULT_REDIRECT": "/",
-    # the preferred authorization backend to use, in the case where you have more
-    # than one specified in the `settings.AUTHORIZATION_BACKENDS` setting.
-    "AUTHENTICATION_BACKEND": "django.contrib.auth.backends.ModelBackend",
-    # SESSION_COOKIE_AGE override for magic-link logins - in seconds (default is 1 week)
-    "SESSION_EXPIRY": 21 * 60 * 60,
-}
 
 IMPORT_FORMATS = [CSV]
 
@@ -525,3 +503,10 @@ DEFAULT_MODEL_ID = env.str("DEFAULT_MODEL_ID", "anthropic.claude-3-sonnet-202402
 WEB_SEARCH_API_LIMIT = env.int("WEB_SEARCH_API_LIMIT", 100)
 
 ADMIN_EMAIL = env.str("ADMIN_EMAIL", "")
+
+FEEDBACK_LINK = env.str(
+    "FEEDBACK_LINK",
+    "https://teams.microsoft.com/l/channel/19%3A9ae6b3b539724595a3139c2b16dc56ef%40thread.tacv2/Redbox%20trial%20participants%20Chat%20Channel?groupId=7a71ce78-fe77-4185-825c-ae40cb07d614&tenantId=8fa217ec-33aa-46fb-ad96-dfe68006bb86",
+)
+
+PRODUCT_NAME = env.str("PRODUCT_NAME", "Redbox at DBT")

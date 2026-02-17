@@ -22,7 +22,6 @@ SUMMARY_MULTIAGENT_TAG = "summary_multiagent_tag"
 ROUTE_NAME_TAG = "route_flag"
 ROUTABLE_KEYWORDS = {
     ChatRoute.search: "Search for an answer to the question in the document",
-    ChatRoute.gadget: "Let Redbox go-go-gadget to answer to the question using the documents",
     ChatRoute.newroute: "New amazing route",
     ChatRoute.summarise: "Summarise documents",
     ChatRoute.tabular: "Interrogate tabular files with SQL",

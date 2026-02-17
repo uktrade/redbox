@@ -15,8 +15,8 @@ export function syncUrlWithContent() {
         switch (template.id) {
 
             // Update URL whenever content is updated
-            case "recent-chats":
-            case "chat-window":
+            case "conversations":
+            case "chat-feed":
                 const selectedUUID = getSelectedChatId();
                 const currentUUID = getChatIdFromUrl();
 

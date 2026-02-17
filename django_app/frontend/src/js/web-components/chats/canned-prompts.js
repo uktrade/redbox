@@ -1,32 +1,12 @@
 // @ts-check
 
+import { hideElement } from "../../utils";
+
 class CannedPrompts extends HTMLElement {
   connectedCallback() {
-    this.securityClassification = this.getAttribute("security-classification");
-    this.innerHTML = `
-      <h3 class="govuk-heading-m">How can Redbox help you today?</h3>
-  `
-
-    let buttons = this.querySelectorAll("button");
-    buttons.forEach((button) => {
-      button.addEventListener("click", () => {
-        this.#prepopulateMessageBox(button.textContent?.trim() || "");
-      });
+    document.addEventListener("start-streaming", () => {
+      hideElement(this);
     });
-  }
-
-
-  /**
-   * @param {string} prompt
-   */
-  #prepopulateMessageBox = (prompt) => {
-    /** @type HTMLInputElement | null */
-    let chatInput = document.querySelector(".rbds-message-input");
-    if (chatInput) {
-      chatInput.textContent = prompt;
-      chatInput.focus();
-      chatInput.selectionStart = chatInput.value.length;
-    }
   }
 }
 

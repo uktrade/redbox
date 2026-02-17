@@ -3,7 +3,6 @@ from enum import Enum, StrEnum
 
 class ChatRoute(StrEnum):
     search = "search"
-    gadget = "agent"
     chat = "chat"
     chat_with_docs = "summarise"
     chat_with_docs_map_reduce = "chat/documents/large"

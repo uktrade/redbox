@@ -6,7 +6,13 @@ import pytest
 from django.conf import Settings, settings
 from django.contrib.auth import get_user_model
 from django.test import Client
+from django.urls import reverse
 from yarl import URL
+
+from redbox_app.redbox_core.models import (
+    Chat,
+    Tool,
+)
 
 User = get_user_model()
 
@@ -44,3 +50,61 @@ def test_security_txt_redirect(path: str, client: Client):
 
     assert HTTPStatus(response.status_code).is_redirection
     assert response.headers["Location"] == f"{settings.SECURITY_TXT_REDIRECT}"
+
+
+@pytest.mark.django_db
+def test_user_can_see_privacy_notice(alice: User, client: Client):
+    # Given
+    url_name = "privacy-notice"
+    anonymous_response = response = client.get(reverse(url_name))
+    client.force_login(alice)
+
+    # When
+    response = client.get(reverse(url_name))
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert anonymous_response.status_code == HTTPStatus.OK
+
+
+@pytest.mark.django_db
+def test_user_can_see_accessibility_statement(alice: User, client: Client):
+    # Given
+    url_name = "accessibility-statement"
+    anonymous_response = response = client.get(reverse(url_name))
+    client.force_login(alice)
+
+    # When
+    response = client.get(reverse(url_name))
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert anonymous_response.status_code == HTTPStatus.OK
+
+
+@pytest.mark.django_db
+def test_refresh_fragments(alice: User, client: Client, chat: Chat, default_tool: Tool):
+    # Given
+    client.force_login(alice)
+    url_name = "refresh"
+
+    # When
+    no_fragment_response = client.get(reverse(url_name))
+    invalid_fragment_response = client.get(
+        reverse(url_name),
+        data={"fragments": ["invalid"]},
+    )
+    response = client.get(
+        reverse(url_name),
+        data={
+            "fragments": ["chat-cta", "conversations"],
+            "chat": chat.id,
+            "tool": default_tool.slug,
+        },
+    )
+
+    # Then
+    assert no_fragment_response.status_code == HTTPStatus.BAD_REQUEST
+    assert invalid_fragment_response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.status_code == HTTPStatus.OK
+    assert response.content.decode()

@@ -191,3 +191,64 @@ METADATA_RETRIEVER_CASES = [
     ]
     for test_case in generator
 ]
+
+TABULAR_KB_RETRIEVER_CASES = [
+    test_case
+    for generator in [
+        generate_test_cases(
+            query=RedboxQuery(
+                question="Retrieve tabular data",
+                user_uuid=uuid4(),
+                chat_history=[],
+                permitted_s3_keys=["file1.csv", "file2.xlsx"],
+                knowledge_base_s3_keys=["file1.csv", "file2.xlsx"],
+            ),
+            test_data=[
+                RedboxTestData(
+                    number_of_docs=4,
+                    tokens_in_all_docs=1000,
+                    chunk_resolution=ChunkResolution.tabular,
+                    s3_keys=["file1.csv", "file2.xlsx"],
+                )
+            ],
+            test_id="Successful Path",
+        ),
+        generate_test_cases(
+            query=RedboxQuery(
+                question="No permission case",
+                user_uuid=uuid4(),
+                chat_history=[],
+                permitted_s3_keys=[],  # no permission
+                knowledge_base_s3_keys=["file1.csv", "file2.xlsx"],
+            ),
+            test_data=[
+                RedboxTestData(
+                    number_of_docs=4,
+                    tokens_in_all_docs=1000,
+                    chunk_resolution=ChunkResolution.tabular,
+                    s3_keys=["file1.csv", "file2.xlsx"],
+                )
+            ],
+            test_id="No permitted S3 keys",
+        ),
+        generate_test_cases(
+            query=RedboxQuery(
+                question="Empty selection",
+                user_uuid=uuid4(),
+                chat_history=[],
+                permitted_s3_keys=["file1.csv", "file2.xlsx"],  # permission exists
+                knowledge_base_s3_keys=[],
+            ),
+            test_data=[
+                RedboxTestData(
+                    number_of_docs=4,
+                    tokens_in_all_docs=1000,
+                    chunk_resolution=ChunkResolution.tabular,
+                    s3_keys=["file1.csv", "file2.xlsx"],
+                )
+            ],
+            test_id="Empty keys but permitted",
+        ),
+    ]
+    for test_case in generator
+]

@@ -88,6 +88,7 @@
             "options": {
                 "env": {
                     "PYTHONUNBUFFERED": "1",
+                    "USE_TESTS_INTEGRATION_ENV": "true",
                     "USE_LOCAL_ENV": "true",
                     "DJANGO_LOG_FORMAT": "verbose"
                 },

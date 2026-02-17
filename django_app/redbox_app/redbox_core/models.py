@@ -663,6 +663,10 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
         except (IndexError, AttributeError, ValueError):
             return ""
 
+    @property
+    def first_time_user(self) -> bool:
+        return not Chat.objects.filter(user=self).first()
+
 
 class Team(UUIDPrimaryKeyBase):
     team_name = models.CharField(max_length=100, unique=True, blank=False, null=False)
@@ -978,9 +982,10 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
         )
 
     @property
-    def last_user_message(self):
+    def last_user_message(self) -> Optional["ChatMessage"]:
         messages = ChatMessage.get_messages_ordered_by_citation_priority(self.id)
-        return [m for m in messages if m.role == ChatMessage.Role.user][-1]
+        user_message_history = [m for m in messages if m.role == ChatMessage.Role.user]
+        return user_message_history[-1] if user_message_history else None
 
     def clear_selected_files(self):
         last_user_message = self.last_user_message

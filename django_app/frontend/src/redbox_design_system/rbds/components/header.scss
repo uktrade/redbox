@@ -1,0 +1,13 @@
+.rbds-header__menu-button {
+    &::after {
+        display: none;
+    }
+    &[aria-expanded="true"]:after {
+        display: none;
+    }
+    &:focus {
+        background-color: transparent;
+        box-shadow: none;
+    }
+    padding-top: 5px !important;
+}

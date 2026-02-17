@@ -1,6 +1,18 @@
 @import "../node_modules/govuk-frontend/dist/govuk/settings";
 @import "../node_modules/govuk-frontend/dist/govuk/helpers";
 
+$screen-widths: (
+  xs: 373px,
+  s: 960px,
+  m: 1020px,
+  l: 1280px,
+  xl: 1440px,
+);
+
+@function bp($key) {
+  @return map-get($screen-widths, $key)
+}
+
 :root {
   --govuk-assets-path: "govuk-assets/";
 
@@ -38,6 +50,7 @@
   // Redbox Colors
   --redbox-red: #942514; /*old:#A50202, #1D70B8*/
   --redbox-blue: var(--gds-blue);
+  --redbox--light-blue: #F4F8FB;
   --redbox-white: var(--dbt-white);
   --redbox-grey: var(--gds-mid-grey);
   --redbox-light-grey: var(--gds-light-grey);
@@ -58,6 +71,7 @@
   --color-background-white: var(--redbox-white);
   --color-background-blue: var(--redbox-blue);
   --color-background-dark-blue: var(--gds-dark-blue);
+  --color-background-light-blue: var(--redbox--light-blue);
   --color-background-red: var(--redbox-red);
   --color-background-black: var(--dbt-black);
   --color-background-grey: var(--redbox-light-grey);
@@ -70,13 +84,19 @@
   --color-text-secondary: var(--dbt-white);
   --color-link-text: var(--redbox-blue);
   --color-link-text-hover: var(--gds-dark-blue);
+  --color-product-name: #AA2A16;
+  --color-side-panel: var(--color-background-light-blue);
+  --color-background-inactive: rgba(255, 255, 255, 0.5);
 
-  // Icons
-  --color-icon-light-foreground: var(--redbox-blue);
+  // Icon Colors
+  --color-icon-light-foreground: var(--dbt-black);
+  --color-icon-link-foreground: var(--redbox-blue);
   --color-icon-light-foreground-hover: var(--dbt-black);
   --color-icon-dark-foreground: var(--redbox-white);
-  --color-icon-light-foreground-secondary: var(--dbt-black);
+  // --color-icon-light-foreground-secondary: var(--dbt-black);
+  --color-icon-success: var(--redbox-green);
   --color-file-icon: var(--redbox-black);
+  --color-focus: var(--gds-yellow);
 
   // Typography
   --font-family-primary: Arial;
@@ -92,8 +112,39 @@
   // Misc
   --header-height: 111px;
   --border-radius: 5px;
+  --header-border-width: 5px;
 
   // Layout
   --desktop-width: 1020px;
   --card-gap: #{govuk-spacing(3)}; //15px;
+  --chat-message-gap: #{govuk-spacing(7)}; //40px;
+  --icon-gap: #{govuk-spacing(2)}; //10px;
+
+  --side-panel-width--xl: 373px;
+  --side-panel-width--l: 373px;
+  --side-panel-width--m: 281px;
+  --side-panel-width--s: 373px;
+  --side-panel-width--xs: 373px;
+
+  --side-panel-collapsed-width--xl: 54px;
+  --side-panel-collapsed-width--l: 54px;
+  --side-panel-collapsed-width--m: 54px;
+  --side-panel-collapsed-width--s: 54px;
+  --side-panel-collapsed-width--xs: 0px;
+
+  --side-panel-box-shadow: 0px 0px 10px var(--gds-black);
+
+  --text-spacing: 5px;
+  --button-icon-size: 24px;
+
+  @each $k, $v in $screen-widths {
+    --screen-width-#{$k}: #{$v};
+  }
+
+  --page-content-width--full: 1200px;
+  --page-content-width--xl: 960px;
+  --page-content-width--l: 711px;
+  --page-content-width--m: 711px;
+  --page-content-width--s: 711px;
+  --page-content-width--xs: 373px;
 }
