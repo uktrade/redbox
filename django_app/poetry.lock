@@ -5073,6 +5073,7 @@ develop = true
 [package.dependencies]
 boto3 = "^1.34.160"
 ddtrace = "^3.10.0"
+django = "5.2.11"
 django-environ = "^0.12.0"
 django-log-formatter-asim = "^1.0.0"
 django-requestlogs = "^0.8"
@@ -7168,4 +7169,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "88912712557f3a393a7369f6911f4c9678cbd89f10fe694ce2830dc6312d4747"
+content-hash = "a7ca5bdef99ff10808b1f607458ba220dda3355d2e1ccbcd3d29edd1b2374605"
