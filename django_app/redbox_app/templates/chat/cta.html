@@ -2,10 +2,12 @@
 
 <div id="chat-cta" class="rbds-chat-cta {% if not tool and not current_chat %}rbds-chat-cta--centered{% endif %}" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
     <div class="rbds-chat-cta__toggle">
-        <button slot="toggle-side-panel" class="rbds-side-panel__toggle rbds-icon-button govuk-!-padding-left-0" type="button">
-            {{ rbds_icon(icon_name="left-panel-open.svg", icon_classes="") }}
-            <span class="govuk-visually-hidden">Toggle sidepanel</span>
-        </button>
+        <rbds-side-panel-toggle>
+            <button slot="toggle-side-panel" class="rbds-side-panel__toggle rbds-icon-button govuk-!-padding-left-0" type="button">
+                {{ rbds_icon(icon_name="left-panel-open.svg", icon_classes="") }}
+                <span class="govuk-visually-hidden">Toggle sidepanel</span>
+            </button>
+        </rbds-side-panel-toggle>
     </div>
 
     {% if tool %}

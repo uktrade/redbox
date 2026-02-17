@@ -1,5 +1,5 @@
 {% set pageTitle = "Documents" %}
-{% set persistentSidepanel = True %}
+{% set persistentSidepanel = False %}
 
 {% extends "base.html" %}
 
@@ -11,7 +11,7 @@
 
 <script src="{{ static('js/documents.js') }}"></script>
 
-<div class="govuk-width-container rbds-page-content rbds-page-content--full govuk-!-margin-bottom-2">
+<div class="govuk-width-container govuk-!-margin-bottom-2">
   {% if ingest_errors %}
     <div class="govuk-error-summary" data-module="govuk-error-summary">
       <div role="alert">

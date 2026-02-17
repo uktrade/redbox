@@ -1,27 +1,30 @@
 @use "./../../../variables.scss" as *;
 
+.rbds-chat-wrapper {
+    height: 100%;
+}
+
 .rbds-chat {
     display: flex;
     flex-direction: column;
-    height: 100vh;
     min-height: 0;
+    height: auto;
+
+    &:has(.rbds-message-container) {
+        height: 100%;
+    }
 }
 
 .rbds-chat-feed {
-    display: flex;
-}
-
-.rbds-chat-window {
-    --chat-window-min-height: 100vh;
+    --chat-feed-min-height: 100%;
     flex: 1;
     display: flex;
     align-items: stretch;
 
     &--first-time {
-        --chat-window-min-height: 0;
+        --chat-feed-min-height: 0;
     }
     flex-direction: column;
-    padding-bottom: 10px;
 }
 
 .rbds-chat-cta {
@@ -45,6 +48,7 @@
     height: var(--cta-container-height);
     padding-top: 20px;
     padding-bottom: 60px;
+    width: 100%;
 
     position: sticky;
     top: 0;
