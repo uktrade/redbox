@@ -6,6 +6,7 @@ from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, ToolCall
 from langgraph.constants import Send
 from pytest_mock import MockerFixture
+from httpx import ConnectError
 
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -17,7 +18,6 @@ from redbox.graph.nodes.tools import build_search_wikipedia_tool, build_govuk_se
 from redbox.models.chain import DocumentState, RedboxQuery, RedboxState
 from tests.conftest import fake_state
 
-import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 from redbox.graph.nodes.sends import wrap_async_tool
 
@@ -234,7 +234,31 @@ class TestRunToolsParallel:
         assert len(responses) == 1
 
 
-class TestWrapAsyncTool(unittest.TestCase):
+class TestWrapAsyncTool:
+    @pytest.mark.parametrize(
+        "url,expected_exceptions",
+        [
+            ("http://fake-mcp-url", (ConnectError, OSError)),  # non-existent hostname
+            ("http://127.0.0.1:59999", (ConnectError, OSError)),  # unused localhost port
+        ],
+    )
+    def test_connection_failure(self, url, expected_exceptions):
+        """Test wrap_async_tool fails when MCP server cannot be reached."""
+
+        class FakeTool:
+            metadata = {"url": url}
+            name = "dummy_tool"
+
+        wrapped = wrap_async_tool(FakeTool, "dummy_tool")
+        args = {"foo": "bar"}
+
+        with pytest.raises(ExceptionGroup) as exc_info:
+            wrapped(args)
+
+        # All inner exceptions should match the expected types
+        exceptions = exc_info.value.exceptions
+        assert all(isinstance(e, expected_exceptions) for e in exceptions)
+
     @patch("redbox.graph.nodes.sends.ClientSession")
     @patch("redbox.graph.nodes.sends.streamablehttp_client")
     @patch("redbox.graph.nodes.sends.load_mcp_tools")
@@ -292,4 +316,35 @@ class TestWrapAsyncTool(unittest.TestCase):
         mock_mcp_tool.ainvoke.assert_called_once_with(test_args)
 
         # assert the result matches our expected output
-        self.assertEqual(result, expected_result)
+        assert result == expected_result
+
+    @patch("redbox.graph.nodes.sends.ClientSession")
+    @patch("redbox.graph.nodes.sends.streamablehttp_client")
+    @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
+    def test_tool_not_found(self, mock_load_tools, mock_http_client, mock_session_class):
+        """Test wrap_async_tool raises ValueError when the requested tool is not in the MCP tool list."""
+
+        class FakeTool:
+            metadata = {"url": "http://mock-url.com/tools"}
+            name = "dummy_tool"
+
+        wrapped_func = wrap_async_tool(FakeTool, "missing_tool")
+
+        # mock empty MCP tool list
+        mock_load_tools.return_value = []
+
+        # minimal context manager mocks
+        mock_http_cm = AsyncMock()
+        mock_http_cm.__aenter__ = AsyncMock(return_value=(AsyncMock(), AsyncMock(), None))
+        mock_http_cm.__aexit__ = AsyncMock(return_value=None)
+        mock_http_client.return_value = mock_http_cm
+
+        mock_session = AsyncMock()
+        mock_session.initialize = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        # assert ValueError is raised
+        with pytest.raises(ValueError, match="tool with name 'missing_tool' not found"):
+            wrapped_func({"foo": "bar"})
