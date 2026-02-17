@@ -370,6 +370,7 @@ class RedboxState(BaseModel):
     agent_plans: MultiAgentPlanBase | None = None
     tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     tabular_schema: str = ""
+    artifact_criteria: str = ""
 
     @property
     def last_message(self) -> AnyMessage:

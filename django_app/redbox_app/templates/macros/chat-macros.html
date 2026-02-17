@@ -36,7 +36,7 @@
 {% endif %}
 
 
-<div class="redbox-message-container govuk-body" data-role="{{ message.role }}" tabindex="-1" id="chat-message-{{ message.id }}">
+<div class="rbds-message-container govuk-body" data-role="{{ message.role }}" tabindex="-1" id="chat-message-{{ message.id }}">
   <div class="{% if message.role == "user" %}rbds-message-container__right rbds-border{% else %}rbds-message-container__left{% endif %}">
     <markdown-converter class="rbds-chat-message__text">{{ message.text }}</markdown-converter>
     {% set citations = message.get_citations() %}

@@ -548,7 +548,10 @@ def build_agent_with_loop(
 
 def create_evaluator():
     def _create_evaluator(state: RedboxState):
-        _additional_variables = {"agents_results": combine_agents_state(state.agents_results)}
+        _additional_variables = {
+            "agents_results": combine_agents_state(state.agents_results),
+            "artifact_criteria": state.artifact_criteria,
+        }
         citation_parser, format_instructions = get_structured_response_with_citations_parser()
         evaluator_agent = build_stuff_pattern(
             prompt_set=PromptSet.NewRoute,

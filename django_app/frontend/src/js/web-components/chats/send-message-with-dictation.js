@@ -44,8 +44,8 @@ export class SendMessageWithDictation extends HTMLElement {
         e.preventDefault();
         form?.requestSubmit();
       } catch (error) {
-          console.error("Error:", error);
-        }
+        console.error("Error:", error);
+      }
     });
 
     this.messageInput.textarea.addEventListener("input", () => {

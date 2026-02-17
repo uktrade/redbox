@@ -34,6 +34,9 @@
     pointer-events: all;
     touch-action: auto;
 
+    display: flex;
+    flex-direction: column;
+
     &--full {
         width: 100% !important;
         max-width: var(--page-content-width--full);
@@ -44,10 +47,6 @@
     .rbds-page-content {
         width: var(--page-content-width--xs);
         --page-content-margin: 10px;
-
-        >* {
-            z-index: 0;
-        }
     }
 
     .rbds-page-layout {

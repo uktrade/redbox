@@ -18,13 +18,13 @@ from redbox.graph.nodes.tools import (
     build_document_from_prompt_tool,
     build_govuk_search_tool,
     build_legislation_search_tool,
+    build_query_tabular_knowledge_base_tool,
     build_retrieve_document_full_text,
     build_retrieve_knowledge_base,
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
     execute_sql_query,
-    build_query_tabular_knowledge_base_tool,
 )
 from redbox.graph.root import build_new_route_graph, build_root_graph, get_summarise_graph
 from redbox.models.chain import RedboxState
@@ -94,7 +94,16 @@ class Redbox:
             es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias, loop=True
         )
         retrieve_knowledge_base = build_retrieve_knowledge_base(
-            es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias, loop=True
+            es_client=_env.elasticsearch_client(),
+            index_name=_env.elastic_chunk_alias,
+            loop=True,
+            all_files=True,
+        )
+        retrieve_specific_files_knowledge_base = build_retrieve_knowledge_base(
+            es_client=_env.elasticsearch_client(),
+            index_name=_env.elastic_chunk_alias,
+            loop=False,
+            all_files=False,
         )
         query_knowledge_base = build_query_tabular_knowledge_base_tool(
             es_client=_env.elasticsearch_client(),
@@ -124,6 +133,7 @@ class Redbox:
             doc_from_prompt,
         ]
         self.agent_configs["Knowledge_Base_Retrieval_Agent"].tools = [query_knowledge_base, search_knowledge_base]
+        self.agent_configs["Artifact_Builder_Agent"].tools = [retrieve_specific_files_knowledge_base]
 
         self.graph = build_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,
