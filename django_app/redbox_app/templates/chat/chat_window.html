@@ -6,15 +6,15 @@
 <div id="chat-feed" class="ids-chat-feed {% if is_first_time_user %}ids-chat-feed--first-time{% endif %}" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
     {% if not messages %}
         <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1" security-classification="{{ security }}">
-            <h3 class="govuk-heading-s">
+            <h3 class="govuk-heading-s govuk-!-margin-bottom-2">
                 <span class="ids-text--product">{{ product_name(request) }}</span> can help you to:
-                <ul>
-                    <li>analyse and summarise your documents</li>
-                    <li>draft content and brainstorm ideas</li>
-                    <li>search government sources and the web</li>
-                    <li>use tools - for example, the Submission Checker tool, which reviews ministerial briefings</li>
-                </ul>
             </h3>
+            <ul class="govuk-list govuk-list--bullet govuk-body-s">
+                <li>analyse and summarise your documents</li>
+                <li>draft content and brainstorm ideas</li>
+                <li>search government sources and the web</li>
+                <li>use tools - for example, the Submission Checker tool, which reviews ministerial briefings</li>
+            </ul>
         </canned-prompts>
     {% endif %}
 
