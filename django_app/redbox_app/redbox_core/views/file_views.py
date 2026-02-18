@@ -79,6 +79,6 @@ def file_icon_view(request, ext: str):
 
     return render(
         request,
-        template_name=f"rbds/icons/{icon_filename}.svg",
-        context={"request": request, "icon_classes": "rbds-file-icon"},
+        template_name=f"ids/icons/{icon_filename}.svg",
+        context={"request": request, "icon_classes": "ids-file-icon"},
     )
