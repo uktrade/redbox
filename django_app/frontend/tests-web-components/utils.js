@@ -13,7 +13,7 @@ const signIn = async (page) => {
 };
 
 const sendMessage = async (page) => {
-  await page.locator(".rbds-message-input").fill("Testing");
+  await page.locator(".ids-message-input").fill("Testing");
   await page.getByRole("button", { name: "Send" }).click();
 };
 

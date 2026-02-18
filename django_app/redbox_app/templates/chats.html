@@ -14,8 +14,8 @@
 {% endif %}
 #}
 
-<div class="rbds-chat-wrapper">
-  <div class="rbds-chat">
+<div class="ids-chat-wrapper">
+  <div class="ids-chat">
     {% include "chat/chat_window.html" %}
     {% include "chat/message_input.html" %}
   </div>
@@ -23,8 +23,8 @@
 </div>
 
 {# Templates #}
-{% include "rbds/components/uploaded-files.html" %}
-{% include "rbds/components/uploaded-file.html" %}
+{% include "ids/components/uploaded-files.html" %}
+{% include "ids/components/uploaded-file.html" %}
 
 <script src="{{ static('js/libs/showdown.min.js') }}"></script>
 <script type="module" src="{{ static('js/chats.js') }}"></script>

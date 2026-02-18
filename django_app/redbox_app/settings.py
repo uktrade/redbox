@@ -123,7 +123,7 @@ TEMPLATES = [
         "DIRS": [
             BASE_DIR / "redbox_app" / "templates",
             BASE_DIR / "redbox_app" / "templates" / "auth",
-            BASE_DIR / "frontend" / "src" / "redbox_design_system",
+            BASE_DIR / "frontend" / "src" / "interaction_design_system",
         ],
         "OPTIONS": {
             "environment": "redbox_app.jinja2.environment",
@@ -390,12 +390,13 @@ LOGGING = {
             "level": LOG_LEVEL,
             "class": "logging.StreamHandler",
             "formatter": LOG_FORMAT,
-            "filters": ["exclude_s3_urls_and_emails", "error_tracking"],
+            "filters": ["exclude_s3_urls_and_emails"],
         },
         "asim": {
             "level": "ERROR",
             "class": "logging.StreamHandler",
             "formatter": "asim_formatter",
+            "filters": ["error_tracking"],
         },
     },
     "root": {"handlers": ["console"], "level": LOG_LEVEL},
