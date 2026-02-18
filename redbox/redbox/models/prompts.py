@@ -428,7 +428,7 @@ Operational Framework
 PLANNER_PROMPT_BOTTOM = """
 ## helpful instructions for calling agent
 
-When a user query involves finding information within selected documents (not summarising the documents), ALWAYS route to the Internal_Retrieval_Agent. Only use External_Retrieval_Agent if the query specifically requests external data sources.
+When a user query involves finding information within selected documents (not summarising the documents), ALWAYS route to the Internal_Retrieval_Agent. Only use External_Retrieval_Agent if the query specifically requests external data sources. Only use Artifact_Builder_Agent if there is specific artifact file that match user request.
 
 If a user asks to summarise a document, ALWAYS call Summarisation_Agent and do not call other agents.
 
@@ -452,6 +452,7 @@ PLANNER_QUESTION_PROMPT = """User question: <Question>{question}</Question>.
 User selected documents: {document_filenames}
 User uploaded documents metadata:<Document_Metadata>{metadata}</Document_Metadata>.
 Contain Knowledge Base: <Contain_Knowledge_Base>{knowledge_base_metadata}</Contain_Knowledge_Base>
+Artifact files: {artifact_files}
 """
 
 PLANNER_FORMAT_PROMPT = """## Output Format
