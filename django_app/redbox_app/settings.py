@@ -371,14 +371,16 @@ LOGGING = {
         "exclude_s3_urls_and_emails": {
             "": "django.utils.log.CallbackFilter",
             "callback": lambda record: (
-                all(
-                    header not in record.getMessage()
-                    for header in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Security-Token"]
+                (
+                    all(
+                        header not in record.getMessage()
+                        for header in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Security-Token"]
+                    )
+                    and not re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", record.getMessage())
                 )
-                and not re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", record.getMessage())
-            )
-            if hasattr(record, "getMessage")
-            else True,
+                if hasattr(record, "getMessage")
+                else True
+            ),
         },
     },
     "handlers": {

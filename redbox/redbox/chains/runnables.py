@@ -142,7 +142,7 @@ def final_response_if_needed(input_: dict) -> Runnable:
             need_log = True
 
     return RunnablePassthrough.assign(
-        _log=RunnableLambda(lambda _: (log_activity(f"Generating response with {model_name}...") if need_log else None))
+        _log=RunnableLambda(lambda _: log_activity(f"Generating response with {model_name}...") if need_log else None)
     )
 
 
