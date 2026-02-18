@@ -12,7 +12,7 @@ import { initAll } from "govuk-frontend";
 initAll();
 
 // REDBOX DESIGN SYSTEM
-import "../redbox_design_system/rbds";
+import "../interaction_design_system/ids";
 
 
 /* Application logic */
