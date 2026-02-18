@@ -38,7 +38,6 @@ async def health_check():
 
 @mcp.tool(
     name="companies",
-    description="Query companies based on company name, returns a short overview of a list of companies",
     tags={"data_hub", "companies", "search"},
     meta={"version": "1.0", "author": "Doug Mills"},
 )
@@ -72,7 +71,6 @@ async def companies(company_name: str, page_size: int = 10, page: int = 0) -> Co
 
 @mcp.tool(
     name="company_details",
-    description="Full details of a company",
     tags={"data_hub", "companies"},
     meta={"version": "1.0", "author": "Doug Mills"},
 )
@@ -124,8 +122,6 @@ async def company_details(company_id: str) -> CompanyDetails | None:
 
 @mcp.tool(
     name="company_details_extended",
-    description="Full details of a company, related interactions, account management "
-    "objectives and investment projects",
     tags={"data_hub", "companies", "interactions", "objectives", "investment projects"},
     meta={"version": "1.0", "author": "Doug Mills"},
 )
