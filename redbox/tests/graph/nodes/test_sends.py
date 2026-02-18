@@ -1,11 +1,13 @@
 from concurrent.futures import TimeoutError
 from uuid import uuid4
+from typing import Self
 
 import pytest
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, ToolCall
 from langgraph.constants import Send
 from pytest_mock import MockerFixture
+from httpx import ConnectError
 
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -16,6 +18,9 @@ from redbox.graph.nodes.sends import (
 from redbox.graph.nodes.tools import build_search_wikipedia_tool, build_govuk_search_tool
 from redbox.models.chain import DocumentState, RedboxQuery, RedboxState
 from tests.conftest import fake_state
+
+from unittest.mock import AsyncMock, patch
+from redbox.graph.nodes.sends import wrap_async_tool
 
 
 def test_build_document_group_send():
@@ -228,3 +233,124 @@ class TestRunToolsParallel:
         assert isinstance(responses, list)
         assert len(responses[0].content) > 0
         assert len(responses) == 1
+
+
+class TestWrapAsyncTool:
+    class FakeTool:
+        def __init__(self, name: str, metadata: dict, args_schema: dict, ainvoke: AsyncMock):
+            self.name = name
+            self.metadata = metadata
+            self.args_schema = args_schema
+            self.ainvoke = ainvoke
+
+        @staticmethod
+        def dummy(url: str = "http://example.com/mcp") -> Self:
+            return TestWrapAsyncTool.FakeTool(
+                name="dummy_tool", metadata={"url": url}, args_schema={}, ainvoke=AsyncMock()
+            )
+
+    @pytest.mark.parametrize(
+        "url,expected_exceptions",
+        [
+            ("http://fake-mcp-url", (ConnectError)),  # non-existent hostname
+            ("http://127.0.0.1:59999", (ConnectError)),  # unused localhost port
+        ],
+    )
+    def test_connection_failure(self, url, expected_exceptions):
+        """Test wrap_async_tool fails when MCP server cannot be reached."""
+
+        mock_tool = TestWrapAsyncTool.FakeTool.dummy(url=url)
+
+        wrapped = wrap_async_tool(mock_tool, mock_tool.name)
+        args = {"foo": "bar"}
+
+        with pytest.raises(ExceptionGroup) as exc_info:
+            wrapped(args)
+
+        # All inner exceptions should match the expected types
+        exceptions = exc_info.value.exceptions
+        assert all(isinstance(e, expected_exceptions) for e in exceptions)
+
+    @patch("redbox.graph.nodes.sends.ClientSession")
+    @patch("redbox.graph.nodes.sends.streamablehttp_client")
+    @patch("redbox.graph.nodes.sends.load_mcp_tools")
+    def test_returns_expected_results(self, mock_load_tools, mock_http_client, mock_session_class):
+        """Test that wrap_async_tool correctly returns results from async tool invocation"""
+        # create expected result that we want to test for
+        expected_result = {
+            "status": "success",
+            "data": {"company_name": "BMW", "country": "Germany", "sector": "Automotive"},
+        }
+
+        # Mock tool with metadata
+        tool_name = "company_tool"
+        metadata = {"url": "http://mock-url.com/tools"}
+        args_schema = {"company_name": {"type": "string"}, "required": ["company_name"]}
+
+        mock_mcp_tool = TestWrapAsyncTool.FakeTool(
+            name=tool_name,
+            metadata=metadata,
+            args_schema=args_schema,
+            ainvoke=AsyncMock(return_value=expected_result),
+        )
+
+        # HTTP client mock
+        mock_read, mock_write = AsyncMock(), AsyncMock()
+        mock_http_cm = AsyncMock()
+        mock_http_cm.__aenter__ = AsyncMock(return_value=(mock_read, mock_write, None))
+        mock_http_cm.__aexit__ = AsyncMock(return_value=None)
+        mock_http_client.return_value = mock_http_cm
+
+        # session mock
+        mock_session = AsyncMock()
+        mock_session.initialize = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        # define return value (tool) for load_mcp_tools
+        mock_load_tools.return_value = [mock_mcp_tool]
+
+        # create the wrapped function
+        wrapped_func = wrap_async_tool(mock_mcp_tool, tool_name)
+
+        # rest invocation with sample args
+        test_args = {"company_name": "BMW"}
+        result = wrapped_func(test_args)
+
+        # verify correct interactions
+        mock_http_client.assert_called_once_with(mock_mcp_tool.metadata["url"])
+        mock_session.initialize.assert_called_once()
+        mock_load_tools.assert_called_once_with(mock_session)
+        mock_mcp_tool.ainvoke.assert_called_once_with(test_args)
+
+        # assert the result matches our expected output
+        assert result == expected_result
+
+    @patch("redbox.graph.nodes.sends.ClientSession")
+    @patch("redbox.graph.nodes.sends.streamablehttp_client")
+    @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
+    def test_tool_not_found(self, mock_load_tools, mock_http_client, mock_session_class):
+        """Test wrap_async_tool raises ValueError when the requested tool is not in the MCP tool list."""
+
+        mock_mcp_tool = TestWrapAsyncTool.FakeTool.dummy()
+        wrapped_func = wrap_async_tool(mock_mcp_tool, "missing_tool")
+
+        # mock empty MCP tool list
+        mock_load_tools.return_value = []
+
+        # minimal context manager mocks
+        mock_http_cm = AsyncMock()
+        mock_http_cm.__aenter__ = AsyncMock(return_value=(AsyncMock(), AsyncMock(), None))
+        mock_http_cm.__aexit__ = AsyncMock(return_value=None)
+        mock_http_client.return_value = mock_http_cm
+
+        mock_session = AsyncMock()
+        mock_session.initialize = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        # assert ValueError is raised
+        with pytest.raises(ValueError, match="tool with name 'missing_tool' not found"):
+            wrapped_func({"foo": "bar"})
