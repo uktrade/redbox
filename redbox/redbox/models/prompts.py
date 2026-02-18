@@ -390,7 +390,7 @@ Use when the user wants to:
 
 ARTIFACT_BUILDER_AGENT_DESC = """
 **Artifact_Builder_Agent**:
-Purpose: Retrieve artifact criteria including structure, headings, word limit, style from the knowledge base.
+Purpose: Retrieve artifact criteria including structure, headings, word limit, style from the knowledge base. The Artifact criteria files always start with "Artifact_". You must check if the artifact file you need to use is available before using this agent.
 Use when the user wants to:
 - Produce an artifact such as drafting, briefing, proposals, propositions
 """
