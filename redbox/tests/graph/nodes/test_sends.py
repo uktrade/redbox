@@ -1,11 +1,13 @@
 from concurrent.futures import TimeoutError
 from uuid import uuid4
+from typing import Self
 
 import pytest
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, ToolCall
 from langgraph.constants import Send
 from pytest_mock import MockerFixture
+from httpx import ConnectError
 
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
@@ -17,8 +19,7 @@ from redbox.graph.nodes.tools import build_search_wikipedia_tool, build_govuk_se
 from redbox.models.chain import DocumentState, RedboxQuery, RedboxState
 from tests.conftest import fake_state
 
-import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from redbox.graph.nodes.sends import wrap_async_tool
 
 
@@ -234,7 +235,42 @@ class TestRunToolsParallel:
         assert len(responses) == 1
 
 
-class TestWrapAsyncTool(unittest.TestCase):
+class TestWrapAsyncTool:
+    class FakeTool:
+        def __init__(self, name: str, metadata: dict, args_schema: dict, ainvoke: AsyncMock):
+            self.name = name
+            self.metadata = metadata
+            self.args_schema = args_schema
+            self.ainvoke = ainvoke
+
+        @staticmethod
+        def dummy(url: str = "http://example.com/mcp") -> Self:
+            return TestWrapAsyncTool.FakeTool(
+                name="dummy_tool", metadata={"url": url}, args_schema={}, ainvoke=AsyncMock()
+            )
+
+    @pytest.mark.parametrize(
+        "url,expected_exceptions",
+        [
+            ("http://fake-mcp-url", (ConnectError)),  # non-existent hostname
+            ("http://127.0.0.1:59999", (ConnectError)),  # unused localhost port
+        ],
+    )
+    def test_connection_failure(self, url, expected_exceptions):
+        """Test wrap_async_tool fails when MCP server cannot be reached."""
+
+        mock_tool = TestWrapAsyncTool.FakeTool.dummy(url=url)
+
+        wrapped = wrap_async_tool(mock_tool, mock_tool.name)
+        args = {"foo": "bar"}
+
+        with pytest.raises(ExceptionGroup) as exc_info:
+            wrapped(args)
+
+        # All inner exceptions should match the expected types
+        exceptions = exc_info.value.exceptions
+        assert all(isinstance(e, expected_exceptions) for e in exceptions)
+
     @patch("redbox.graph.nodes.sends.ClientSession")
     @patch("redbox.graph.nodes.sends.streamablehttp_client")
     @patch("redbox.graph.nodes.sends.load_mcp_tools")
@@ -247,19 +283,16 @@ class TestWrapAsyncTool(unittest.TestCase):
         }
 
         # Mock tool with metadata
-        mock_tool = MagicMock()
-        mock_tool.metadata = {"url": "http://mock-url.com/tools"}
-
-        # The tool name we're testing
-
         tool_name = "company_tool"
-        # set up the mock MCP tool that will be returned by load_mcp_tools
-        mock_mcp_tool = MagicMock()
-        mock_mcp_tool.name = tool_name
-        mock_mcp_tool.args_schema = {"company_name": {"type": "string"}, "required": ["company_name"]}
+        metadata = {"url": "http://mock-url.com/tools"}
+        args_schema = {"company_name": {"type": "string"}, "required": ["company_name"]}
 
-        # configure the tool to return our expected result
-        mock_mcp_tool.ainvoke = AsyncMock(return_value=expected_result)
+        mock_mcp_tool = TestWrapAsyncTool.FakeTool(
+            name=tool_name,
+            metadata=metadata,
+            args_schema=args_schema,
+            ainvoke=AsyncMock(return_value=expected_result),
+        )
 
         # HTTP client mock
         mock_read, mock_write = AsyncMock(), AsyncMock()
@@ -279,17 +312,45 @@ class TestWrapAsyncTool(unittest.TestCase):
         mock_load_tools.return_value = [mock_mcp_tool]
 
         # create the wrapped function
-        wrapped_func = wrap_async_tool(mock_tool, tool_name)
+        wrapped_func = wrap_async_tool(mock_mcp_tool, tool_name)
 
         # rest invocation with sample args
         test_args = {"company_name": "BMW"}
         result = wrapped_func(test_args)
 
         # verify correct interactions
-        mock_http_client.assert_called_once_with(mock_tool.metadata["url"])
+        mock_http_client.assert_called_once_with(mock_mcp_tool.metadata["url"])
         mock_session.initialize.assert_called_once()
         mock_load_tools.assert_called_once_with(mock_session)
         mock_mcp_tool.ainvoke.assert_called_once_with(test_args)
 
         # assert the result matches our expected output
-        self.assertEqual(result, expected_result)
+        assert result == expected_result
+
+    @patch("redbox.graph.nodes.sends.ClientSession")
+    @patch("redbox.graph.nodes.sends.streamablehttp_client")
+    @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
+    def test_tool_not_found(self, mock_load_tools, mock_http_client, mock_session_class):
+        """Test wrap_async_tool raises ValueError when the requested tool is not in the MCP tool list."""
+
+        mock_mcp_tool = TestWrapAsyncTool.FakeTool.dummy()
+        wrapped_func = wrap_async_tool(mock_mcp_tool, "missing_tool")
+
+        # mock empty MCP tool list
+        mock_load_tools.return_value = []
+
+        # minimal context manager mocks
+        mock_http_cm = AsyncMock()
+        mock_http_cm.__aenter__ = AsyncMock(return_value=(AsyncMock(), AsyncMock(), None))
+        mock_http_cm.__aexit__ = AsyncMock(return_value=None)
+        mock_http_client.return_value = mock_http_cm
+
+        mock_session = AsyncMock()
+        mock_session.initialize = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        # assert ValueError is raised
+        with pytest.raises(ValueError, match="tool with name 'missing_tool' not found"):
+            wrapped_func({"foo": "bar"})
