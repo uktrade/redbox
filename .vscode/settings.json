@@ -14,5 +14,6 @@
         "activityBar.foreground": "#fbfbec",
         "titleBar.activeBackground": "#911212",
         "titleBar.activeForeground": "#fbfbec"
-    }
+    },
+    "terminal.integrated.scrollback": 100000
 }
