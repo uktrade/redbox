@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 import environ
 import sentry_sdk
 from dbt_copilot_python.database import database_from_env
+from dbt_copilot_python.error_tracking import DatadogErrorTrackingFilter
 from django.urls import reverse_lazy
 from django_log_formatter_asim import ASIMFormatter
 from dotenv import find_dotenv, load_dotenv
@@ -122,7 +123,7 @@ TEMPLATES = [
         "DIRS": [
             BASE_DIR / "redbox_app" / "templates",
             BASE_DIR / "redbox_app" / "templates" / "auth",
-            BASE_DIR / "frontend" / "src" / "redbox_design_system",
+            BASE_DIR / "frontend" / "src" / "interaction_design_system",
         ],
         "OPTIONS": {
             "environment": "redbox_app.jinja2.environment",
@@ -382,6 +383,7 @@ LOGGING = {
                 else True
             ),
         },
+        "error_tracking": {"()": DatadogErrorTrackingFilter},
     },
     "handlers": {
         "console": {
@@ -394,6 +396,7 @@ LOGGING = {
             "level": "ERROR",
             "class": "logging.StreamHandler",
             "formatter": "asim_formatter",
+            "filters": ["error_tracking"],
         },
     },
     "root": {"handlers": ["console"], "level": LOG_LEVEL},

@@ -1,0 +1,34 @@
+ids-chat-message {
+  scroll-margin-bottom: 10rem;
+}
+
+.ids-chat-message__text {
+  word-break: break-word;
+  // padding-top: .5rem;
+  font-size: 16px;
+  line-height: 1.5rem;
+
+  &.code {
+    display: block;
+    overflow-x: auto;
+  }
+
+  &.li {
+    padding: 0;
+  }
+
+  &.table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  &.th, &.td {
+    text-align: left;
+    border: 1px solid var(--color-border-dark);
+    padding: .25rem;
+  }
+}
+
+.ids-chat-message__container {
+  gap: var(--chat-message-gap);
+}

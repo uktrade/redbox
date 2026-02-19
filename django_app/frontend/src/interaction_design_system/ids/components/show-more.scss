@@ -1,0 +1,7 @@
+ids-show-more {
+  --show-more-padding: 5px;
+
+  padding-top: var(--show-more-padding);
+  padding-bottom: var(--show-more-padding);
+  display: flex;
+}
