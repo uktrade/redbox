@@ -48,10 +48,14 @@ async def test_server_tools():
     [
         ("companies", ["companies", "page", "page_size", "total"]),
         ("company_details", ["result"]),
+        (
+            "company_details_extended",
+            ["company_details", "investment_projects", "account_management_objectives", "interactions"],
+        ),
         ("companies_or_interactions", ["companies_search_result", "interactions_search_result"]),
-        ("company_interactions", ["interactions"]),
-        ("account_management_objectives", ["account_management_objectives"]),
-        ("investment_projects", ["investment_projects"]),
+        ("company_interactions", ["interactions", "total", "page", "page_size"]),
+        ("account_management_objectives", ["account_management_objectives", "total", "page", "page_size"]),
+        ("investment_projects", ["investment_projects", "total", "page", "page_size"]),
     ],
 )
 async def test_server_tool(tool_name, expected_properties):
