@@ -1,0 +1,37 @@
+[tool.ruff]
+line-length = 120
+target-version = 'py312'
+
+[tool.poetry]
+name = "redbox_ai_service"
+version = "0.0.1"
+description = "Microservice to offload worker agent invocation from front end"
+authors = ["DBT Redbox <redbox@businessandtrade.gov.uk>"]
+license = "MIT"
+readme = "../README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.13"
+redbox = {path="../redbox", develop=true}
+redbox_app = { path = "../django_app", develop = true }
+fastapi = "^0.128.7"
+uvicorn = "^0.40.0"
+pydantic = "^2.12.5"
+httpx = "^0.28.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+env_override_existing_values = 1
+env_files = [
+    "tests/.env.test",
+    ".env"
+]
+markers = [
+    "ai: marks tests as using a live LLM (deselect with '-m \"not ai\"')",
+    "vcr",
+]

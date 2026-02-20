@@ -155,6 +155,8 @@ class Settings(BaseSettings):
 
     max_attempts: int = os.environ.get("MAX_ATTEMPTS", 3)
 
+    ai_service_url: str = os.environ.get("AI_SERVICE_URL", "")
+
     # mcp
     caddy_mcp: MCPServerSettings = MCPServerSettings(
         name="caddy_mcp",
