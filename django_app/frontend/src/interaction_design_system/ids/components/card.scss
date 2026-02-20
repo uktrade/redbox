@@ -1,0 +1,86 @@
+.ids-card {
+  //color: var(--color-side-panel-link-text);
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  padding-bottom: 10px;
+
+  &--no-border {
+    border: none;
+  }
+  border-radius: var(--border-radius);
+}
+
+/* Card variants */
+.ids-card--block {
+  max-height: 230px;
+}
+
+// .ids-card--conversations {
+//   max-height: 204px;
+// }
+
+// .ids-card--documents {
+//   max-height: 334px;
+// }
+
+/* Header */
+.ids-card__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 24px;
+  padding-bottom: 10px;
+}
+
+/* Content */
+.ids-card__content {
+  display: flex;
+}
+
+/* Lists */
+.ids-card__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Items */
+.ids-card__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  width: 100%;
+  box-sizing: border-box;
+  margin: 5px 0;
+  gap: 10px;
+}
+
+/* Item internals (generic helpers) */
+.ids-item-label {
+  flex: 1;
+  min-width: 0;
+  // line-height: 1.4;
+  max-width: 30ch;
+}
+
+.ids-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ids-item-link {
+  color: var(--color-side-panel-link-text);
+
+  &:hover {
+    color: var(--color-link-text-hover);
+  }
+}
+
+.ids-item-checkbox__input {
+    color: black;
+}

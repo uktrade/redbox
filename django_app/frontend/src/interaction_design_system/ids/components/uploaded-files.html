@@ -1,0 +1,8 @@
+{% from "ids/components/show-more.html" import show_more %}
+
+<template id="ids-uploaded-files-template">
+    <div class="uploaded-files-wrapper ids-text-xs" contenteditable="false">
+        <div class="uploaded-files ids-scrollable" id="uploaded-files"></div>
+        {{ show_more('#uploaded-files', 'ids-uploaded-file', 3, showLessLabel='Show less...') }}
+    </div>
+</template>

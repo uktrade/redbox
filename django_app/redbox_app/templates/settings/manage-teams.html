@@ -1,9 +1,9 @@
 {% from "macros/govuk-button.html" import govukButton %}
-{% from "rbds/components/modal.html" import modal %}
+{% from "ids/components/modal.html" import modal %}
 {% from "macros/govuk-notification-banner.html" import govukNotificationBanner %}
 {% from "macros/adaptive-select.html" import adaptive_select %}
 {% from "macros/select-input.html" import select_input %}
-{% from "macros/icon.html" import rbds_icon %}
+{% from "macros/icon.html" import ids_icon %}
 
 {% set messages = get_messages(request) %}
 
@@ -52,11 +52,11 @@
     <form method='post'>
       <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
       <div class="govuk-form-group">
-        <label class="govuk-label govuk-!-font-weight-bold rbds-text-xs" for="team-name">Name</label>
+        <label class="govuk-label govuk-!-font-weight-bold ids-text-xs" for="team-name">Name</label>
         <input class="govuk-input govuk-!-width-two-thirds" type="text" name="name" id="team-name" value="">
       </div>
       <div class="govuk-form-group">
-        <label class="govuk-label govuk-!-font-weight-bold rbds-text-xs" for="team-directorate">Directorate</label>
+        <label class="govuk-label govuk-!-font-weight-bold ids-text-xs" for="team-directorate">Directorate</label>
         <input class="govuk-input govuk-!-width-two-thirds" type="text" name="directorate" id="team-directorate" value="">
       </div>
       {{ govukButton(text="Create Team") }}
@@ -80,12 +80,12 @@
             <input type="hidden" name="team_id" value="{{ team.team.id }}">
             <caption class="govuk-table__caption govuk-table__caption--m">
               {{ team.team.team_name }}
-              <button class="rbds-icon-button"
+              <button class="ids-icon-button"
                       type="button"
                       hx-delete="{{ url('delete-team', team.team.id) }}"
                       hx-target="#team-section-{{ team.team.id }}"
                       hx-swap="delete">
-              {{ rbds_icon(icon_name="delete.html") }}
+              {{ ids_icon(icon_name="delete.html") }}
           </button>
             </caption>
             <thead class="govuk-table__head">

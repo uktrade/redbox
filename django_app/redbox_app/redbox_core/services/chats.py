@@ -44,7 +44,7 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
         "upload_url": url_service.get_upload_url(slug=slug),
     }
 
-    sidepanel_collapsed = request.COOKIES.get("rbds-side-panel-collapsed", "false") == "true"
+    sidepanel_collapsed = request.COOKIES.get("ids-side-panel-collapsed", "false") == "true"
 
     return {
         "tool": tool,
