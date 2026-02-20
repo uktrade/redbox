@@ -114,7 +114,7 @@ class WorkerAgent(Agent):
             # --- RUN TOOLS IN PARALLEL ---
             self.logger.warning(f"[{self.config.name}] Running tools via run_tools_parallel...")
 
-            result = run_tools_parallel(ai_msg, self.config.tools, state)
+            result = run_tools_parallel(ai_msg, self.config.tools, state, is_loop=False)  # this agent runs without loop
             return (state, result, task)
 
         return _core_task.with_retry(stop_after_attempt=3)
