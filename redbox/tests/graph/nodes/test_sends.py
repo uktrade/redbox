@@ -234,33 +234,6 @@ class TestRunToolsParallel:
         assert len(responses) == 1
 
 
-class FakeMCPTools:
-    class Base:
-        """Base stub for simulating MCP tools."""
-
-        def __init__(self, name: str, args_schema: dict | None = None):
-            self.name = name
-            self.metadata = {"url": "http://mock-mcp-url.com/tools"}
-            self.args_schema = args_schema or {"required": []}
-            self.func = None
-            self.coroutine = True
-            self.ainvoke = AsyncMock()  # to be overridden by child classes
-
-    class Passing(Base):
-        """Simulates a normal async MCP tool."""
-
-        def __init__(self, name: str, return_value, args_schema: dict | None = None):
-            super().__init__(name, args_schema)
-            self.ainvoke = AsyncMock(return_value=return_value)
-
-    class Failing(Base):
-        """Simulates an async MCP tool that fails."""
-
-        def __init__(self, name: str, exception, args_schema: dict | None = None):
-            super().__init__(name, args_schema)
-            self.ainvoke = AsyncMock(side_effect=exception)
-
-
 class TestRunToolsParallelAsync:
     def _patch_mcp_env(self, mock_load_tools, mock_http_client, mock_session_class, tools):
         """Patch MCP networking to allow wrap_async_tool to succeed."""
@@ -285,11 +258,11 @@ class TestRunToolsParallelAsync:
     @patch("redbox.graph.nodes.sends.streamablehttp_client")
     @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
     def test_async_tool_returns_expected_response(
-        self, mock_load_tools, mock_http_client, mock_session_class, fake_state
+        self, mock_load_tools, mock_http_client, mock_session_class, fake_state, fake_mcp_tool
     ):
         expected_result = '{"status": "success"}'
         args_schema = {"company_name": {"type": "string"}, "required": ["company_name"]}
-        tool = FakeMCPTools.Passing("company_tool", expected_result, args_schema=args_schema)
+        tool = fake_mcp_tool("company_tool", expected_result, args_schema=args_schema)
 
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
@@ -316,11 +289,18 @@ class TestRunToolsParallelAsync:
     @patch("redbox.graph.nodes.sends.streamablehttp_client")
     @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
     def test_async_tool_with_loop_agent(
-        self, mock_load_tools, mock_http_client, mock_session_class, fake_state, required_keys, expected_ainvoke_args
+        self,
+        mock_load_tools,
+        mock_http_client,
+        mock_session_class,
+        fake_state,
+        fake_mcp_tool,
+        required_keys,
+        expected_ainvoke_args,
     ):
         expected_result = '{"total": 1}'
         args_schema = {"required": required_keys}
-        tool = FakeMCPTools.Passing("loop_tool", expected_result, args_schema=args_schema)
+        tool = fake_mcp_tool("loop_tool", expected_result, args_schema=args_schema)
 
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
@@ -344,10 +324,12 @@ class TestRunToolsParallelAsync:
     @patch("redbox.graph.nodes.sends.ClientSession")
     @patch("redbox.graph.nodes.sends.streamablehttp_client")
     @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
-    def test_async_tool_with_non_loop_agent(self, mock_load_tools, mock_http_client, mock_session_class, fake_state):
+    def test_async_tool_with_non_loop_agent(
+        self, mock_load_tools, mock_http_client, mock_session_class, fake_state, fake_mcp_tool
+    ):
         expected_result = "plain async response"
         args_schema = {"required": []}
-        tool = FakeMCPTools.Passing("non_loop_tool", expected_result, args_schema=args_schema)
+        tool = fake_mcp_tool("non_loop_tool", expected_result, args_schema=args_schema)
 
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
@@ -369,9 +351,9 @@ class TestRunToolsParallelAsync:
     @patch("redbox.graph.nodes.sends.streamablehttp_client")
     @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
     def test_async_tool_failures_return_none(
-        self, mock_load_tools, mock_http_client, mock_session_class, exception, fake_state
+        self, mock_load_tools, mock_http_client, mock_session_class, exception, fake_state, fake_mcp_tool_failing
     ):
-        tool = FakeMCPTools.Failing("failing_tool", exception)
+        tool = fake_mcp_tool_failing("failing_tool", exception)
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
         ai_msg = AIMessage(
@@ -386,9 +368,11 @@ class TestRunToolsParallelAsync:
     @patch("redbox.graph.nodes.sends.ClientSession")
     @patch("redbox.graph.nodes.sends.streamablehttp_client")
     @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
-    def test_async_tool_not_found_returns_none(self, mock_load_tools, mock_http_client, mock_session_class, fake_state):
+    def test_async_tool_not_found_returns_none(
+        self, mock_load_tools, mock_http_client, mock_session_class, fake_state, fake_mcp_tool
+    ):
         args_schema = {"required": []}
-        tool = FakeMCPTools.Passing("real_tool", "some response", args_schema=args_schema)
+        tool = fake_mcp_tool("real_tool", "some response", args_schema=args_schema)
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
         ai_msg = AIMessage(
@@ -429,9 +413,9 @@ class TestWrapAsyncTool:
             ("http://127.0.0.1:59999", (ConnectError)),  # unused localhost port
         ],
     )
-    def test_connection_failure(self, url, expected_exceptions):
+    def test_connection_failure(self, fake_mcp_tool, url, expected_exceptions):
         """Test wrap_async_tool fails when MCP server cannot be reached."""
-        tool = FakeMCPTools.Passing("dummy_tool", return_value=None)
+        tool = fake_mcp_tool("dummy_tool", return_value=None)
         tool.metadata["url"] = url
 
         wrapped = wrap_async_tool(tool, tool.name)
@@ -447,7 +431,7 @@ class TestWrapAsyncTool:
     @patch("redbox.graph.nodes.sends.ClientSession")
     @patch("redbox.graph.nodes.sends.streamablehttp_client")
     @patch("redbox.graph.nodes.sends.load_mcp_tools")
-    def test_returns_expected_results(self, mock_load_tools, mock_http_client, mock_session_class):
+    def test_returns_expected_results(self, mock_load_tools, mock_http_client, mock_session_class, fake_mcp_tool):
         """Test that wrap_async_tool correctly returns results from async tool invocation"""
         # create expected result that we want to test for
         expected_result = {
@@ -458,7 +442,7 @@ class TestWrapAsyncTool:
         # Mock tool with metadata
         tool_name = "company_tool"
         args_schema = {"company_name": {"type": "string"}, "required": ["company_name"]}
-        tool = FakeMCPTools.Passing(tool_name, return_value=expected_result, args_schema=args_schema)
+        tool = fake_mcp_tool(tool_name, return_value=expected_result, args_schema=args_schema)
 
         # mock session with patched mcp setup
         mock_session = self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
@@ -482,10 +466,10 @@ class TestWrapAsyncTool:
     @patch("redbox.graph.nodes.sends.ClientSession")
     @patch("redbox.graph.nodes.sends.streamablehttp_client")
     @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
-    def test_tool_not_found(self, mock_load_tools, mock_http_client, mock_session_class):
+    def test_tool_not_found(self, mock_load_tools, mock_http_client, mock_session_class, fake_mcp_tool):
         """Test wrap_async_tool raises ValueError when the requested tool is not in the MCP tool list."""
 
-        tool = FakeMCPTools.Passing("dummy_tool", return_value=None)
+        tool = fake_mcp_tool("dummy_tool", return_value=None)
         wrapped_func = wrap_async_tool(tool, "missing_tool")
 
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
