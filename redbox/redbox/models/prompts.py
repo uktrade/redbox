@@ -396,7 +396,7 @@ Use when the user wants to:
 """
 
 DATAHUB_AGENT_DESC = """
-**DATAHUB_Agent**:
+**Datahub_Agent**:
 Purpose: query data from datahub database
 Use when the user wants to:
 - Get information about a specific company
