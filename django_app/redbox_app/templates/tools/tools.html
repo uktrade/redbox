@@ -8,7 +8,7 @@
 
 {% block content %}
 <div class="govuk-width-container">
-    <div class="rbds-banner rbds-banner--neutral">
+    <div class="ids-banner ids-banner--neutral">
         <div class="govuk-width-container">
             <div class="govuk-grid-row">
                 <div class="govuk-grid-column-two-thirds govuk-!-margin-left-3 govuk-!-margin-right-3">
@@ -25,8 +25,8 @@
 
     <div class="govuk-width-container">
         <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">Available tools</h2>
-        <div class="rbds-justify-content-center">
-            <div class="govuk-grid-row rbds-card-grid rbds-card-grid--3-col govuk-!-margin-bottom-7">
+        <div class="ids-justify-content-center">
+            <div class="govuk-grid-row ids-card-grid ids-card-grid--3-col govuk-!-margin-bottom-7">
                 {% for tool in tools %}
                     {% include "tools/tool-card.html" %}
                 {% endfor %}

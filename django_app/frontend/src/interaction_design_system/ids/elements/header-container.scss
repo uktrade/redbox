@@ -1,0 +1,10 @@
+.ids-header-container {
+    display: flex;
+    max-width: 1200;
+    padding:10px 15px;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: var(--header-border-width) solid var(--redbox-red);
+    margin-bottom: calc(var(--header-border-width) * -1);
+    bottom: var(--header-border-width);
+}

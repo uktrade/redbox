@@ -337,6 +337,9 @@ def create_planner(is_streamed=False):
 
     @RunnableLambda
     def _create_planner(state: RedboxState):
+        artifact_files = [
+            kb_file for kb_file in state.request.knowledge_base_s3_keys if "artifact" in kb_file.split("/")[-1].lower()
+        ]
         planner_prompt = state.request.ai_settings.planner_prompt_with_format
         # dynamically generate agent plan based on state
         agent_options = state.request.ai_settings.get_worker_agents_options
@@ -351,6 +354,7 @@ def create_planner(is_streamed=False):
             use_knowledge_base=True,
             _additional_variables={
                 "document_filenames": document_filenames,
+                "artifact_files": artifact_files,
             },
         )
         return orchestration_agent
@@ -376,6 +380,11 @@ def my_planner(
             # plan = state.agent_plans[-1].model_dump_json()
             user_input = state.user_feedback.replace("@newroute ", "")
             document_filenames = [doc.split("/")[1] if "/" in doc else doc for doc in state.request.s3_keys]
+            artifact_files = [
+                kb_file
+                for kb_file in state.request.knowledge_base_s3_keys
+                if "artifact" in kb_file.split("/")[-1].lower()
+            ]
             # dynamically generate agent plan based on state
             agent_options = state.request.ai_settings.get_worker_agents_options
             _, ConfiguredAgentPlan = configure_agent_task_plan(agent_options)
@@ -390,6 +399,7 @@ def my_planner(
                     "previous_plan": plan,
                     "user_feedback": user_input,
                     "document_filenames": document_filenames,
+                    "artifact_files": artifact_files,
                 },
                 using_chat_history=True,
             )

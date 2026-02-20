@@ -1,9 +1,0 @@
-{% macro show_more(containerSelector, itemSelector, visibleCount=5, showMoreLabel="Show more...", showLessLabel="") %}
-    <rbds-show-more
-        container-selector="{{ containerSelector }}"
-        item-selector="{{ itemSelector }}"
-        visible-count="{{ visibleCount | e }}"
-        show-more-label="{{ showMoreLabel }}"
-        show-less-label="{{ showLessLabel }}">
-    </rbds-show-more>
-{% endmacro %}
