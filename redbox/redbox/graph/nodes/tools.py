@@ -40,6 +40,11 @@ from redbox.retriever.queries import (
 )
 from redbox.retriever.retrievers import SchematisedTabularChunkRetriever, query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+from langchain_mcp_adapters.tools import load_mcp_tools
+import asyncio
+import nest_asyncio
 
 log = logging.getLogger(__name__)
 
@@ -924,6 +929,40 @@ def build_legislation_search_tool():
         return web_search_call(query=query + " site:legislation.gov.uk")
 
     return _search_legislation
+
+
+def get_datahub_mcp_tools(agent_loop=True):
+    async def _get_async_tools():
+        try:
+            mcp_settings = get_settings().datahub_mcp
+            datahub_mcp_url = mcp_settings.url
+            async with (
+                streamablehttp_client(datahub_mcp_url) as (read, write, _),
+                ClientSession(read, write) as session,
+            ):
+                # Initialize the connection
+                await session.initialize()
+                # Get tools
+                tools = await load_mcp_tools(session)
+                # adding URL metadata so that the agent can execute the tool later
+                for tool in tools:
+                    tool.metadata = {"url": datahub_mcp_url}
+                    if agent_loop:  # if loop is True, add intermediate steps into schema so that it is exposed to LLM
+                        tool.args_schema["properties"]["is_intermediate_step"] = {"type": "string"}
+                        tool.args_schema["required"].append("is_intermediate_step")
+                return tools
+        except Exception:
+            log.error("MCP server not running")
+            return []
+
+    # Apply patch to allow nested event loops
+    nest_asyncio.apply()
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    tools = loop.run_until_complete(_get_async_tools())
+    loop.close()
+    return tools
 
 
 def execute_sql_query():
