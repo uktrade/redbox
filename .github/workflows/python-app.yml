@@ -43,6 +43,7 @@ jobs:
         mkdir -p data/elastic/
         chmod 777 data/elastic/
         cp tests/.env.test .env
+        docker network create redbox-app-network
         docker compose up -d --wait opensearch
 
     - name: Test redbox with pytest
@@ -82,6 +83,7 @@ jobs:
         chmod -R 777 data/
         cp tests/.env.test .env
         sed -i -e "s/^OBJECT_STORE=.*/OBJECT_STORE=minio/" .env
+        docker network create redbox-app-network
         docker compose up -d --wait opensearch minio db
         docker ps
 
