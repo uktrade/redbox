@@ -455,6 +455,8 @@ def build_agent_with_loop(
         except Exception as e:
             log.warning(f"Issue at build_agent_with_loop. Cannot parse in {agent_name}: {e}")
             return None
+        # update status
+        state.agent_plans.update_task_status(task.id, TaskStatus.RUNNING)
 
         activity_node = build_activity_log_node(
             RedboxActivityEvent(message=f"{agent_name} is completing task: {task.task}")
@@ -550,8 +552,9 @@ def build_agent_with_loop(
         log.warning(f"[{agent_name}] Completed agent_with_loop run.")
         all_results = " ".join(all_results)
         return {
-            "agents_results": {task.id: f"<{agent_name}_Result>{all_results}</{agent_name}_Result>"},
+            "agents_results": {task.id: AIMessage(content=f"<{agent_name}_Result>{all_results}</{agent_name}_Result>")},
             "tasks_evaluator": task.task + "\n" + task.expected_output,
+            "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.COMPLETED),
         }
 
     return _build_agent_with_loop.with_retry(stop_after_attempt=3)
