@@ -178,6 +178,7 @@ services:
 networks:
   redbox-app-network:
     driver: bridge
+    external: true
 
 volumes:
   opensearch-data:
