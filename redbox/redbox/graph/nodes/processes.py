@@ -609,6 +609,8 @@ def invoke_custom_state(
         ## invoke the subgraph
         response = subgraph.invoke(subgraph_state)  # the LLM response is streamed
 
+        # update status
+        state.agent_plans.update_task_status(agent_task, TaskStatus.COMPLETED)
         # invoking this subgraph will change original state.question - we correct the state question in subsequent nodes
 
         return response

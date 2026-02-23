@@ -662,10 +662,13 @@ class TestBuildAgentLoop:
             assert mock_preprocess is None
 
         assert (
-            response.get("agents_results")["task0"]
+            response.get("agents_results")["task0"].content
             == f"<Internal_Retrieval_Agent_Result>{test_name}</Internal_Retrieval_Agent_Result>"
         )
-        assert len(response) == 2
+        assert "agents_results" in response
+        assert "tasks_evaluator" in response
+        assert "agent_plans" in response
+        assert len(response) == 3
         assert mock_tool_calls.call_count == no_calls
 
     @pytest.mark.parametrize(
@@ -718,7 +721,7 @@ class TestBuildAgentLoop:
         agent_result = response.get("agents_results")
         content = (
             agent_result["task0"]
-            .replace("<Internal_Retrieval_Agent_Result>", "")
+            .content.replace("<Internal_Retrieval_Agent_Result>", "")
             .replace("</Internal_Retrieval_Agent_Result>", "")
         )
         content_tokens = len(content.split())
@@ -733,7 +736,10 @@ class TestBuildAgentLoop:
             assert content == llm_content.strip()
 
         # Basic checks
-        assert len(response) == 2
+        assert "agents_results" in response
+        assert "tasks_evaluator" in response
+        assert "agent_plans" in response
+        assert len(response) == 3  # content, eval task, task status
         assert mock_tool_calls.call_count == 1
 
 
