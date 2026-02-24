@@ -38,8 +38,13 @@ def user_view_pre_alpha(request):
 @permission_classes([IsAuthenticated, IsAdminUser])
 def message_view_pre_alpha(request):
     """Return paginated message data"""
+
     paginator = StandardResultsSetPagination()
-    queryset = ChatMessage.objects.all()
+    queryset = ChatMessage.objects.all().order_by("created_at")
+    created_after = request.query_params.get("created_after")
+    if created_after:
+        queryset = queryset.filter(created_at__gt=created_after)
+
     result_page = paginator.paginate_queryset(queryset, request)
     serializer = ChatMessageSerializer(result_page, many=True, read_only=True)
     return paginator.get_paginated_response(serializer.data)
