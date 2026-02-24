@@ -166,11 +166,10 @@ def build_llm_chain(
     )  # used for summarisation in multi-agent route
     _output_parser = output_parser if output_parser else StrOutputParser()
 
-    _llm_text_and_tools = _llm | _output_parser
-    # {
-    #     "raw_response": RunnablePassthrough(),
-    #     "parsed_response": _output_parser,
-    # }
+    _llm_text_and_tools = _llm | {
+        "raw_response": RunnablePassthrough(),
+        "parsed_response": _output_parser,
+    }
 
     text_and_tools = {
         "text_and_tools": _llm_text_and_tools,
