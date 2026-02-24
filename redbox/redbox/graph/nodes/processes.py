@@ -9,7 +9,7 @@ from collections.abc import Callable
 from functools import reduce
 from io import StringIO
 from random import uniform
-from typing import Any, Iterable, AsyncIterator
+from typing import Any, Iterable
 from uuid import uuid4
 
 import pandas as pd
@@ -181,7 +181,7 @@ def build_stuff_pattern(
     """
 
     @RunnableLambda
-    async def _stuff(state: RedboxState) -> AsyncIterator[dict[str, Any]]:
+    async def _stuff(state: RedboxState) -> dict[str, Any]:
         if model is not None:
             llm = get_chat_llm(model, tools=tools)
         else:
@@ -200,7 +200,8 @@ def build_stuff_pattern(
         aggregated: dict[str, Any] = {}
         async for event in chain.astream(state):
             aggregated.update(event)
-            yield aggregated
+
+        return aggregated
 
     return _stuff
 
@@ -574,7 +575,7 @@ def invoke_custom_state(
     model: ChatLLMBackend | None = None,
 ):
     @RunnableLambda
-    def _invoke_custom_state(state: RedboxState):
+    async def _invoke_custom_state(state: RedboxState):
         # transform the state to the subgraph state
         subgraph = custom_graph(
             all_chunks_retriever=all_chunks_retriever, use_as_agent=use_as_agent, debug=debug, model=model
@@ -591,7 +592,7 @@ def invoke_custom_state(
         )
         activity_node.invoke(state)
         ## invoke the subgraph
-        response = subgraph.invoke(subgraph_state)  # the LLM response is streamed
+        response = await subgraph.ainvoke(subgraph_state)  # the LLM response is streamed
 
         # invoking this subgraph will change original state.question - we correct the state question in subsequent nodes
 
