@@ -311,8 +311,8 @@ INTERNAL_RETRIEVAL_AGENT_DESC = """
 Purpose: Information retrieval and question answering
 Use when the selected documents are NOT tabular data such as PDF files or Word documents
 Use when the user wants to:
-- Ask questions about specific documents or knowledge base content
-- Retrieve specific information or facts
+- Ask questions about specific user uploaded documents
+- Retrieve specific information or facts from user uploaded documents
 - Get answers to queries based on existing documents
 - Search for particular details within documents
 - Compare information across multiple documents
@@ -375,6 +375,11 @@ Purpose: Respond to questions about submissions and answer follow-up questions a
 Use when the user wants to:
  - Ask general questions about submissions
  - Ask follow-up questions on their previous evaluations
+"""
+
+EVALUATOR_AGENT_DESC = """
+**Evaluator_Agent**:
+Purpose: Combine information from other agents to provide final response to user.
 """
 
 TABULAR_AGENT_DESC = """
@@ -441,7 +446,10 @@ Operational Framework
 PLANNER_PROMPT_BOTTOM = """
 ## helpful instructions for calling agent
 
-When a user query involves finding information within selected documents (not summarising the documents), ALWAYS route to the Internal_Retrieval_Agent. Only use External_Retrieval_Agent if the query specifically requests external data sources. Only use Artifact_Builder_Agent if there is specific artifact file that match user request.
+1. When a user query involves finding information within selected documents (not summarising the documents), ALWAYS route to the Internal_Retrieval_Agent.
+2. Only use External_Retrieval_Agent if the query specifically requests external data sources.
+3. Only use Artifact_Builder_Agent if there is specific artifact file that match user request.
+4. The Evaluator_Agent must be used for every multi-agent response to ensure consistency and quality in the final output delivered to the user.
 
 If a user asks to summarise a document, ALWAYS call Summarisation_Agent and do not call other agents.
 

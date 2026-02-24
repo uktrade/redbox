@@ -362,6 +362,17 @@ def create_planner(is_streamed=False):
     return _document_filenames | _create_planner
 
 
+def remove_evaluator_task(state: RedboxState):
+    """
+    Removing evaluator task from a plan and update the task for evaluator
+    """
+    if len(state.agent_plans.tasks) > 0:
+        if state.agent_plans.tasks[-1].agent.value == "Evaluator_Agent":
+            state.tasks_evaluator = state.agent_plans.tasks[-1].task + " " + state.agent_plans.tasks[-1].expected_output
+            state.agent_plans.tasks.pop(-1)
+    return state
+
+
 def my_planner(
     allow_plan_feedback=False,
     node_after_streamed: str = "human",
@@ -405,6 +416,8 @@ def my_planner(
             )
             res = orchestration_agent.invoke(state)
             state.agent_plans = res
+            # remove evaluator agent task
+            remove_evaluator_task(state)
             # reset user feedback
             state.user_feedback = ""
             return Command(update=state, goto=node_afer_replan)
@@ -413,6 +426,8 @@ def my_planner(
             orchestration_agent = create_planner(is_streamed=False)
             res = orchestration_agent.invoke(state)
             state.agent_plans = res
+            # remove evaluator agent task
+            remove_evaluator_task(state)
 
             # send task to worker agent if we have only 1 task
             if len(state.agent_plans.tasks) > no_tasks_auto:
@@ -600,6 +615,8 @@ def invoke_custom_state(
         )
         subgraph_state = state.model_copy()
         agent_task = json.loads(subgraph_state.last_message.content)
+        # update status
+        state.agent_plans.update_task_status(agent_task["id"], TaskStatus.COMPLETED)
         subgraph_state.request.question = (
             agent_task["task"] + f"\nReturn response that is no longer than {max_tokens} tokens."
         )
@@ -611,9 +628,6 @@ def invoke_custom_state(
         activity_node.invoke(state)
         ## invoke the subgraph
         response = subgraph.invoke(subgraph_state)  # the LLM response is streamed
-
-        # update status
-        state.agent_plans.update_task_status(agent_task, TaskStatus.COMPLETED)
         # invoking this subgraph will change original state.question - we correct the state question in subsequent nodes
 
         return response

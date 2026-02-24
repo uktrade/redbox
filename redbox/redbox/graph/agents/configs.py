@@ -271,4 +271,10 @@ agent_configs: Dict[str, AgentConfig] = {
         agents_max_tokens=5000,
         parser=None,
     ),
+    "Evaluator_Agent": AgentConfig(
+        name="Evaluator_Agent",
+        description=prompts.EVALUATOR_AGENT_DESC,
+        prompt=prompt_configs["Evaluator_Agent"],
+        default_agent=True,
+    ),
 }
