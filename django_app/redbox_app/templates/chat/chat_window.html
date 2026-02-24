@@ -2,8 +2,9 @@
 {% from "macros/govuk-button.html" import govukButton %}
 {% from "macros/govuk-warning.html" import govuk_warning %}
 {% from "macros/icon.html" import ids_icon %}
+{% from "macros/upload_form.html" import upload_form %}
 
-<div id="chat-feed" class="ids-chat-feed {% if is_first_time_user %}ids-chat-feed--first-time{% endif %}" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+<div id="chat-feed" class="ids-chat-feed" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
     {% if not messages %}
         <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1" security-classification="{{ security }}">
             <h3 class="govuk-heading-s govuk-!-margin-bottom-2">
@@ -18,9 +19,14 @@
         </canned-prompts>
     {% endif %}
 
-    {% if is_first_time_user %}{% include "upload_form.html" %}{% endif %}
-
     <div class="ids-chats-section">
+
+        {% if is_first_time_user %}
+            <div class="govuk-!-margin-bottom-2">
+                {{ upload_form(label="Upload a file (optional)", uploadUrl=urls.upload_url, errors=errors, showSubmit=False) }}
+            </div>
+        {% endif %}
+
         <chat-controller class="iai-chat-container" data-stream-url="{{ streaming.endpoint if streaming else '' }}"
             data-session-id="{{ chat_id or '' }}">
             <div class="ids-chat-message__container ids-flex-column js-message-container">
