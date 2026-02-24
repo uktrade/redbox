@@ -181,7 +181,7 @@ def build_stuff_pattern(
     """
 
     @RunnableLambda
-    async def _stuff(state: RedboxState) -> dict[str, Any]:
+    def _stuff(state: RedboxState) -> dict[str, Any]:
         if model is not None:
             llm = get_chat_llm(model, tools=tools)
         else:
@@ -197,11 +197,8 @@ def build_stuff_pattern(
             summary_multiagent_flag=summary_multiagent_flag,
         )
 
-        aggregated: dict[str, Any] = {}
-        async for event in chain.astream(state):
-            aggregated.update(event)
-
-        return aggregated
+        events = [event for event in chain.stream(state)]
+        return sum(events, {})
 
     return _stuff
 
@@ -575,7 +572,7 @@ def invoke_custom_state(
     model: ChatLLMBackend | None = None,
 ):
     @RunnableLambda
-    async def _invoke_custom_state(state: RedboxState):
+    def _invoke_custom_state(state: RedboxState):
         # transform the state to the subgraph state
         subgraph = custom_graph(
             all_chunks_retriever=all_chunks_retriever, use_as_agent=use_as_agent, debug=debug, model=model
@@ -592,7 +589,7 @@ def invoke_custom_state(
         )
         activity_node.invoke(state)
         ## invoke the subgraph
-        response = await subgraph.ainvoke(subgraph_state)  # the LLM response is streamed
+        response = subgraph.invoke(subgraph_state)  # the LLM response is streamed
 
         # invoking this subgraph will change original state.question - we correct the state question in subsequent nodes
 
