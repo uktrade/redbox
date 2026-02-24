@@ -41,6 +41,10 @@ class DocumentView(View):
             context=context,
         )
 
+    @method_decorator(login_required)
+    def post(self, request: HttpRequest) -> HttpResponse:
+        return documents_service.handle_post_upload(request)
+
 
 class UploadView(View):
     @method_decorator(login_required)

@@ -7,13 +7,21 @@ from django.core.exceptions import FieldError, SuspiciousFileOperation, Validati
 from django.core.files.uploadedfile import UploadedFile
 from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.template.response import TemplateResponse
 from django_q.tasks import async_task
 from waffle import flag_is_active
 
 from redbox_app.redbox_core import flags
-from redbox_app.redbox_core.models import ChatMessage, File, FileTool, Tool, UserTeamMembership
+from redbox_app.redbox_core.models import (
+    ChatMessage,
+    File,
+    FileTeamMembership,
+    FileTool,
+    Team,
+    Tool,
+    UserTeamMembership,
+)
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.services import message as message_service
 from redbox_app.redbox_core.types import APPROVED_FILE_EXTENSIONS
@@ -66,11 +74,58 @@ def render_your_documents(request, active_chat_id, slug: str | None = None) -> T
     )
 
 
-def build_upload_response(request: HttpRequest, errors: Sequence[str] | None = None) -> HttpResponse:
-    context = chat_service.get_context(request)
+def handle_post_upload(request: HttpRequest, errors: Sequence[str] | None = None) -> HttpResponse:
+    errors: MutableSequence[str] = []
+    uploaded_files: MutableSequence[UploadedFile] = request.FILES.getlist("uploadDocs")
+
+    if not uploaded_files:
+        errors.append("No document selected")
+
+    team_id = request.POST.get("team")
+
+    visibility = request.POST.get("visibility", "PERSONAL")
+
+    for _index, uploaded_file in enumerate(uploaded_files):
+        errors += validate_uploaded_file(uploaded_file)
+
+    if not errors:
+        for uploaded_file in uploaded_files:
+            # ingest errors are handled differently, as the other documents have started uploading by this point
+            request.session["ingest_errors"], file_obj = ingest_file(uploaded_file, request.user)
+            if file_obj and team_id:
+                try:
+                    team = Team.objects.get(id=team_id)
+                    if UserTeamMembership.objects.filter(user=request.user, team=team).exists():
+                        FileTeamMembership.objects.create(
+                            file=file_obj,
+                            team=team,
+                            visibility=visibility,
+                        )
+                    else:
+                        request.session["ingest_errors"].append("You are not a lead for the selected team")
+                except Team.DoesNotExist:
+                    request.session["ingest_errors"].append("The selected team does not exist")
+
+        return redirect(request.path)
+
+    context = build_upload_context(context=chat_service.get_context(request), errors=errors)
+
+    return render(
+        request,
+        template_name="documents.html",
+        context=context,
+    )
+
+
+def build_upload_context(context: dict | None = None, errors: Sequence[str] | None = None) -> dict:
     context["errors"] = {"upload_doc": errors or []}
     context["uploaded"] = not errors
-    context["user_teams"] = UserTeamMembership.objects.filter(user=request.user)
+
+    return context
+
+
+def build_upload_response(request: HttpRequest, errors: Sequence[str] | None = None) -> HttpResponse:
+    context = build_upload_context(context=chat_service.get_context(request), errors=errors)
 
     return render(
         request,
