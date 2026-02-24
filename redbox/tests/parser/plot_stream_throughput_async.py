@@ -220,29 +220,23 @@ class StreamingJsonOptimised(StreamingJsonOutputParserWithMetrics):
                     continue
                 seen_json_start = True
 
-            # Fast path — already found answer field
+            # Fast path — answer field already located
             if answer_start_pos != -1:
-                new_chars, last_raw_pos = self._extract_answer_incremental(acc_text, answer_start_pos, last_raw_pos)
+                new_chars, last_raw_pos = self._extract_answer(acc_text, answer_start_pos, last_raw_pos)
                 if new_chars:
                     self.metrics.record_tokens(len(new_chars))
                     field_length_at_last_run += len(new_chars)
-                    yield self.pydantic_schema_object.model_validate(
-                        {self.name_of_streamed_field: acc_text[answer_start_pos:last_raw_pos], "citations": []}
-                    )
                 continue
 
             # Slow path — find answer field start
             answer_start_pos = self._find_answer_start(acc_text)
             if answer_start_pos != -1:
                 last_raw_pos = answer_start_pos
-                new_chars, last_raw_pos = self._extract_answer_incremental(acc_text, answer_start_pos, last_raw_pos)
+                new_chars, last_raw_pos = self._extract_answer(acc_text, answer_start_pos, last_raw_pos)
                 if new_chars:
                     is_parsed = True
                     self.metrics.record_tokens(len(new_chars))
                     field_length_at_last_run += len(new_chars)
-                    yield self.pydantic_schema_object.model_validate(
-                        {self.name_of_streamed_field: new_chars, "citations": []}
-                    )
                 continue
 
             # Pre-answer preamble — full parse fallback
@@ -258,9 +252,8 @@ class StreamingJsonOptimised(StreamingJsonOutputParserWithMetrics):
                     new_tokens = field_content[field_length_at_last_run:]
                     self.metrics.record_tokens(len(new_tokens))
                     field_length_at_last_run = len(field_content)
-                    yield self.pydantic_schema_object.model_validate(partial)
 
-        # End of stream — full parse for citations
+        # End of stream — single full parse, single yield with citations
         if not is_parsed and "{" not in acc_text:
             acc_text = self.answer_str_to_json(acc_text)
 
@@ -270,6 +263,84 @@ class StreamingJsonOptimised(StreamingJsonOutputParserWithMetrics):
             if field_content and field_length_at_last_run == 0:
                 self.metrics.record_tokens(len(field_content))
             yield self.pydantic_schema_object.model_validate(final_parsed)
+
+    # async def _atransform(self, input: AsyncIterator) -> AsyncIterator[Any]:
+    #     acc_text = ""
+    #     acc_message = None
+    #     field_length_at_last_run = 0
+    #     is_parsed = False
+    #     seen_json_start = False
+    #     answer_start_pos = -1
+    #     last_raw_pos = -1
+
+    #     async for chunk in input:
+    #         chunk_gen = self._to_generation_chunk(chunk)
+    #         text = chunk_gen.text
+    #         acc_text += text
+
+    #         if acc_message is None:
+    #             acc_message = chunk
+    #         else:
+    #             try:
+    #                 acc_message = acc_message + chunk
+    #             except Exception:
+    #                 acc_message = chunk
+
+    #         if not seen_json_start:
+    #             if "{" not in acc_text:
+    #                 continue
+    #             seen_json_start = True
+
+    #         # Fast path — already found answer field
+    #         if answer_start_pos != -1:
+    #             new_chars, last_raw_pos = self._extract_answer_incremental(acc_text, answer_start_pos, last_raw_pos)
+    #             if new_chars:
+    #                 self.metrics.record_tokens(len(new_chars))
+    #                 field_length_at_last_run += len(new_chars)
+    #                 yield self.pydantic_schema_object.model_validate(
+    #                     {self.name_of_streamed_field: acc_text[answer_start_pos:last_raw_pos], "citations": []}
+    #                 )
+    #             continue
+
+    #         # Slow path — find answer field start
+    #         answer_start_pos = self._find_answer_start(acc_text)
+    #         if answer_start_pos != -1:
+    #             last_raw_pos = answer_start_pos
+    #             new_chars, last_raw_pos = self._extract_answer_incremental(acc_text, answer_start_pos, last_raw_pos)
+    #             if new_chars:
+    #                 is_parsed = True
+    #                 self.metrics.record_tokens(len(new_chars))
+    #                 field_length_at_last_run += len(new_chars)
+    #                 yield self.pydantic_schema_object.model_validate(
+    #                     {self.name_of_streamed_field: new_chars, "citations": []}
+    #                 )
+    #             continue
+
+    #         # Pre-answer preamble — full parse fallback
+    #         try:
+    #             partial = self.parse_partial_json(acc_text)
+    #         except Exception:
+    #             partial = None
+
+    #         if partial:
+    #             is_parsed = True
+    #             field_content = partial.get(self.name_of_streamed_field)
+    #             if field_content and len(field_content) > field_length_at_last_run:
+    #                 new_tokens = field_content[field_length_at_last_run:]
+    #                 self.metrics.record_tokens(len(new_tokens))
+    #                 field_length_at_last_run = len(field_content)
+    #                 yield self.pydantic_schema_object.model_validate(partial)
+
+    #     # End of stream — full parse for citations
+    #     if not is_parsed and "{" not in acc_text:
+    #         acc_text = self.answer_str_to_json(acc_text)
+
+    #     final_parsed = self.parse_partial_json(acc_text)
+    #     if final_parsed:
+    #         field_content = final_parsed.get(self.name_of_streamed_field)
+    #         if field_content and field_length_at_last_run == 0:
+    #             self.metrics.record_tokens(len(field_content))
+    #         yield self.pydantic_schema_object.model_validate(final_parsed)
 
 
 # - Run the async parser
