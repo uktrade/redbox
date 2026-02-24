@@ -1,3 +1,7 @@
+# _repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
+# sys.path.insert(0, _repo_root)  # for redbox
+# sys.path.insert(0, os.path.join(_repo_root, "django_app"))  # for redbox_app
+
 import asyncio
 import re
 from typing import List, Union, Any, AsyncIterator
@@ -133,6 +137,141 @@ class StreamingJsonRefactored(StreamingJsonOutputParserWithMetrics):
             yield self.pydantic_schema_object.model_validate(parsed)
 
 
+class StreamingJsonOptimised(StreamingJsonOutputParserWithMetrics):
+    def _find_answer_start(self, buffer: str, field_name: str = "answer") -> int:
+        key = f'"{field_name}"'
+        key_pos = buffer.find(key)
+        if key_pos == -1:
+            return -1
+        colon_pos = buffer.find(":", key_pos + len(key))
+        if colon_pos == -1:
+            return -1
+        quote_pos = buffer.find('"', colon_pos + 1)
+        if quote_pos == -1:
+            return -1
+        return quote_pos + 1
+
+    def _extract_answer_incremental(self, buffer: str, answer_start: int, resume_raw_pos: int) -> tuple[str, int]:
+        escape_map = {
+            "n": "\n",
+            "t": "\t",
+            "r": "\r",
+            '"': '"',
+            "\\": "\\",
+            "b": "\b",
+            "f": "\f",
+        }
+        i = resume_raw_pos if resume_raw_pos >= answer_start else answer_start
+        result = []
+
+        while i < len(buffer):
+            c = buffer[i]
+            if c == "\\":
+                if i + 1 >= len(buffer):
+                    break  # incomplete escape at boundary
+                next_c = buffer[i + 1]
+                if next_c in escape_map:
+                    result.append(escape_map[next_c])
+                    i += 2
+                elif next_c == "u":
+                    if i + 5 < len(buffer):
+                        try:
+                            codepoint = int(buffer[i + 2 : i + 6], 16)
+                            result.append(chr(codepoint))
+                            i += 6
+                        except ValueError:
+                            i += 1
+                    else:
+                        break  # incomplete \uXXXX
+                else:
+                    i += 1  # unknown escape, drop backslash
+                continue
+            if c == '"':
+                return "".join(result), i
+            result.append(c)
+            i += 1
+
+        return "".join(result), i
+
+    async def _atransform(self, input: AsyncIterator) -> AsyncIterator[Any]:
+        acc_text = ""
+        acc_message = None
+        field_length_at_last_run = 0
+        is_parsed = False
+        seen_json_start = False
+        answer_start_pos = -1
+        last_raw_pos = -1
+
+        async for chunk in input:
+            chunk_gen = self._to_generation_chunk(chunk)
+            text = chunk_gen.text
+            acc_text += text
+
+            if acc_message is None:
+                acc_message = chunk
+            else:
+                try:
+                    acc_message = acc_message + chunk
+                except Exception:
+                    acc_message = chunk
+
+            if not seen_json_start:
+                if "{" not in acc_text:
+                    continue
+                seen_json_start = True
+
+            # Fast path — already found answer field
+            if answer_start_pos != -1:
+                new_chars, last_raw_pos = self._extract_answer_incremental(acc_text, answer_start_pos, last_raw_pos)
+                if new_chars:
+                    self.metrics.record_tokens(len(new_chars))
+                    field_length_at_last_run += len(new_chars)
+                    yield self.pydantic_schema_object.model_validate(
+                        {self.name_of_streamed_field: acc_text[answer_start_pos:last_raw_pos], "citations": []}
+                    )
+                continue
+
+            # Slow path — find answer field start
+            answer_start_pos = self._find_answer_start(acc_text)
+            if answer_start_pos != -1:
+                last_raw_pos = answer_start_pos
+                new_chars, last_raw_pos = self._extract_answer_incremental(acc_text, answer_start_pos, last_raw_pos)
+                if new_chars:
+                    is_parsed = True
+                    self.metrics.record_tokens(len(new_chars))
+                    field_length_at_last_run += len(new_chars)
+                    yield self.pydantic_schema_object.model_validate(
+                        {self.name_of_streamed_field: new_chars, "citations": []}
+                    )
+                continue
+
+            # Pre-answer preamble — full parse fallback
+            try:
+                partial = self.parse_partial_json(acc_text)
+            except Exception:
+                partial = None
+
+            if partial:
+                is_parsed = True
+                field_content = partial.get(self.name_of_streamed_field)
+                if field_content and len(field_content) > field_length_at_last_run:
+                    new_tokens = field_content[field_length_at_last_run:]
+                    self.metrics.record_tokens(len(new_tokens))
+                    field_length_at_last_run = len(field_content)
+                    yield self.pydantic_schema_object.model_validate(partial)
+
+        # End of stream — full parse for citations
+        if not is_parsed and "{" not in acc_text:
+            acc_text = self.answer_str_to_json(acc_text)
+
+        final_parsed = self.parse_partial_json(acc_text)
+        if final_parsed:
+            field_content = final_parsed.get(self.name_of_streamed_field)
+            if field_content and field_length_at_last_run == 0:
+                self.metrics.record_tokens(len(field_content))
+            yield self.pydantic_schema_object.model_validate(final_parsed)
+
+
 # - Run the async parser
 
 
@@ -178,13 +317,19 @@ async def main():
     refactored_runs = await benchmark_multiple_runs(
         StreamingJsonRefactored, input_chunks, num_runs=num_runs, pydantic_schema_object=DummySchema
     )
+    optimised_runs = await benchmark_multiple_runs(
+        StreamingJsonOptimised, input_chunks, num_runs=num_runs, pydantic_schema_object=DummySchema
+    )
 
     # Aggregate metrics
     original_agg = aggregate_metrics_with_chunks(original_runs)
     refactored_agg = aggregate_metrics_with_chunks(refactored_runs)
+    optimised_agg = aggregate_metrics_with_chunks(optimised_runs)
 
     # Plot mean +- std.dev
-    plot_aggregate_tokens_and_chunks([original_agg, refactored_agg], ["Original", "Refactored"])
+    plot_aggregate_tokens_and_chunks(
+        [original_agg, refactored_agg, optimised_agg], ["Original", "Refactored", "Optimised"]
+    )
 
 
 if __name__ == "__main__":
