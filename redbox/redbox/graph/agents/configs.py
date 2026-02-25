@@ -31,6 +31,9 @@ class PromptVariable(BaseModel):
     previous_agents_results: bool = Field(
         description="Results from dependent agents required as input for this task", default=False
     )
+    sql_error: bool = Field(
+        description="Error generated from running sql", default=False
+    )  # this may need to be removed after tabular refactoring
 
 
 class PromptConfig(BaseModel):
@@ -104,7 +107,7 @@ prompt_configs: Dict[str, PromptConfig] = {
         prompt_vars=PromptVariable(
             question=True,
             formatted_documents=True,
-            previous_agents_results=True,
+            sql_error=True,
         ),
     ),
     "Evaluator_Agent": PromptConfig(

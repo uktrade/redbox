@@ -2,7 +2,19 @@ from datetime import UTC, datetime
 from enum import Enum, IntEnum, StrEnum
 from functools import reduce
 from types import UnionType
-from typing import Annotated, Dict, List, Literal, NotRequired, Required, Tuple, TypedDict, get_args, get_origin
+from typing import (
+    Annotated,
+    Dict,
+    List,
+    Literal,
+    NotRequired,
+    Optional,
+    Required,
+    Tuple,
+    TypedDict,
+    get_args,
+    get_origin,
+)
 from uuid import UUID, uuid4
 
 import environ
@@ -351,13 +363,14 @@ def update_task_status(self, task_id: str, status: TaskStatus):
     return self
 
 
-def get_task_status(self, task_id: str):
+def get_task_status(self, task_id: str) -> TaskStatus:
     """
     Get Agent Task status, given task id
     """
     for task in self.tasks:
         if task.id == task_id:
             return task.status
+    raise ValueError(f"No task found with id: {task_id}")
 
 
 def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskBase, MultiAgentPlanBase]:
@@ -399,7 +412,9 @@ def add_messages_dict(left: Dict[str, AnyMessage], right: Dict[str, AnyMessage])
     return {**left, **right}  # Right side wins on conflicts.
 
 
-def agent_plan_reducer(current: MultiAgentPlanBase | None, update: MultiAgentPlanBase | None):
+def agent_plan_reducer(
+    current: MultiAgentPlanBase | None, update: MultiAgentPlanBase | None
+) -> Optional[MultiAgentPlanBase]:
     if current is None:
         return update
     if update is None:
