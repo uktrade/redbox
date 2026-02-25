@@ -1,5 +1,6 @@
 export * from './accessible-autocomplete.js';
 export * from './editable-text.js';
+export * from './first-time-upload-form.js';
 export * from './loading-message.js';
 export * from './modal.js';
 export * from './no-scroll.js';
