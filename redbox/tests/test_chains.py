@@ -163,6 +163,160 @@ class TestStreamingJsonOutputParser:
         assert parsed is None
 
 
+class TestStreamingJsonOutputParserExtraction:
+    @pytest.fixture
+    def parser(self):
+        return StreamingJsonOutputParser(pydantic_schema_object=TestResponseModel)
+
+    # _find_answer_start
+
+    @pytest.mark.parametrize(
+        "buffer,expected",
+        [
+            ('{"answer": "hello world"}', "h"),
+            ('{"citations": [], "answer": "hello"}', "h"),
+            ('{"answer" :  "hello"}', "h"),  # whitespace around colon
+        ],
+    )
+    def test_find_answer_start_found(self, parser, buffer, expected):
+        pos = parser._find_answer_start(buffer)
+        assert pos != -1
+        assert buffer[pos] == expected
+
+    @pytest.mark.parametrize(
+        "buffer",
+        [
+            '{"ans',  # key not present
+            '{"answer"',  # missing colon
+            '{"answer":',  # missing value quote
+        ],
+    )
+    def test_find_answer_start_not_found(self, parser, buffer):
+        assert parser._find_answer_start(buffer) == -1
+
+    def test_find_answer_start_custom_field(self):
+        parser = StreamingJsonOutputParser(pydantic_schema_object=TestResponseModel, name_of_streamed_field="summary")
+        buffer = '{"summary": "hello"}'
+        pos = parser._find_answer_start(buffer)
+        assert pos != -1
+        assert buffer[pos] == "h"
+
+    # _extract_answer basic
+
+    def test_extract_answer_complete(self, parser):
+        buffer = '{"answer": "hello world", "citations": []}'
+        start = parser._find_answer_start(buffer)
+        text, pos = parser._extract_answer(buffer, start, start)
+        assert text == "hello world"
+        assert buffer[pos] == '"'
+
+    def test_extract_answer_empty_string(self, parser):
+        buffer = '{"answer": "", "citations": []}'
+        start = parser._find_answer_start(buffer)
+        text, _ = parser._extract_answer(buffer, start, start)
+        assert text == ""
+
+    def test_extract_answer_incomplete(self, parser):
+        buffer = '{"answer": "hello wor'
+        start = parser._find_answer_start(buffer)
+        text, pos = parser._extract_answer(buffer, start, start)
+        assert text == "hello wor"
+        assert pos == len(buffer)
+
+    def test_extract_answer_incremental_resume(self, parser):
+        buffer1 = '{"answer": "hello'
+        buffer2 = '{"answer": "hello world"}'
+        start = parser._find_answer_start(buffer1)
+
+        text1, pos1 = parser._extract_answer(buffer1, start, start)
+        assert text1 == "hello"
+
+        text2, _ = parser._extract_answer(buffer2, start, pos1)
+        assert text2 == " world"
+
+    def test_extract_answer_incremental_resume_no_new_chars(self, parser):
+        buffer = '{"answer": "hello'
+        start = parser._find_answer_start(buffer)
+        _, pos1 = parser._extract_answer(buffer, start, start)
+        text2, _ = parser._extract_answer(buffer, start, pos1)
+        assert text2 == ""
+
+    # escape sequences
+
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            (r"line1\nline2", "line1\nline2"),
+            (r"col1\tcol2", "col1\tcol2"),
+            (r"line1\rline2", "line1\rline2"),
+            (r"path\\to\\file", "path\\to\\file"),
+            (r"say \"hello\"", 'say "hello"'),
+            (r"caf\u00e9", "café"),
+            (r"## Header\n\n* item1\n* item2\n\ncaf\u00e9", "## Header\n\n* item1\n* item2\n\ncafé"),
+        ],
+    )
+    def test_extract_answer_escape_sequences(self, parser, raw, expected):
+        buffer = '{"answer": "' + raw + '"}'
+        start = parser._find_answer_start(buffer)
+        text, _ = parser._extract_answer(buffer, start, start)
+        assert text == expected
+
+    def test_extract_answer_escape_unicode_invalid(self, parser):
+        """Invalid unicode escape should not raise — backslash dropped."""
+        buffer = '{"answer": "bad\\uXXXX end"}'
+        start = parser._find_answer_start(buffer)
+        text, _ = parser._extract_answer(buffer, start, start)
+        assert "bad" in text
+        assert "end" in text
+
+    def test_extract_answer_no_forward_slash_escape(self, parser):
+        """\\/ should not produce phantom slashes — backslash dropped, slash kept."""
+        buffer = '{"answer": "http:\\/\\/example.com"}'
+        start = parser._find_answer_start(buffer)
+        text, _ = parser._extract_answer(buffer, start, start)
+        assert text == "http://example.com"
+        assert "\\" not in text
+
+    # chunk boundary handling
+
+    @pytest.mark.parametrize(
+        "partial_buffer,expected_text,expected_pos_offset",
+        [
+            ('{"answer": "line1\\', "line1", -1),  # backslash at end — parked before it
+            ('{"answer": "caf\\u00', "caf", None),  # incomplete \uXXXX
+        ],
+    )
+    def test_extract_answer_boundary_pauses(self, parser, partial_buffer, expected_text, expected_pos_offset):
+        start = parser._find_answer_start(partial_buffer)
+        text, pos = parser._extract_answer(partial_buffer, start, start)
+        assert text == expected_text
+        if expected_pos_offset is not None:
+            assert pos == len(partial_buffer) + expected_pos_offset
+        else:
+            assert pos < len(partial_buffer)
+
+    def test_extract_answer_boundary_escape_then_resume(self, parser):
+        """Chunk split on \\n boundary produces correct newline after resume."""
+        buffer1 = '{"answer": "line1\\'
+        buffer2 = '{"answer": "line1\\nline2"}'
+
+        start1 = parser._find_answer_start(buffer1)
+        text1, _ = parser._extract_answer(buffer1, start1, start1)
+        assert text1 == "line1"
+
+        start2 = parser._find_answer_start(buffer2)
+        text2, _ = parser._extract_answer(buffer2, start2, start2)
+        assert text2 == "line1\nline2"
+
+    def test_extract_answer_boundary_no_literal_n(self, parser):
+        """Escaped \\n must produce newline not literal 'n'."""
+        buffer = '{"answer": "line1\\nline2"}'
+        start = parser._find_answer_start(buffer)
+        text, _ = parser._extract_answer(buffer, start, start)
+        assert text == "line1\nline2"
+        assert "\\n" not in text
+
+
 @pytest.mark.parametrize("exceeding_budget, prompts_budget", [(True, 1000000), (False, 1000)])
 def test_prompt_budget_calculation(fake_state, exceeding_budget, prompts_budget):
     if not exceeding_budget:
