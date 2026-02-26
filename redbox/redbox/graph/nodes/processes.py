@@ -335,6 +335,9 @@ def create_planner(is_streamed=False):
 
     @RunnableLambda
     def _create_planner(state: RedboxState):
+        artifact_files = [
+            kb_file for kb_file in state.request.knowledge_base_s3_keys if "artifact" in kb_file.split("/")[-1].lower()
+        ]
         planner_prompt = state.request.ai_settings.planner_prompt_with_format
         # dynamically generate agent plan based on state
         agent_options = state.request.ai_settings.get_worker_agents_options
@@ -349,6 +352,7 @@ def create_planner(is_streamed=False):
             use_knowledge_base=True,
             _additional_variables={
                 "document_filenames": document_filenames,
+                "artifact_files": artifact_files,
             },
         )
         return orchestration_agent
@@ -374,6 +378,11 @@ def my_planner(
             # plan = state.agent_plans[-1].model_dump_json()
             user_input = state.user_feedback.replace("@newroute ", "")
             document_filenames = [doc.split("/")[1] if "/" in doc else doc for doc in state.request.s3_keys]
+            artifact_files = [
+                kb_file
+                for kb_file in state.request.knowledge_base_s3_keys
+                if "artifact" in kb_file.split("/")[-1].lower()
+            ]
             # dynamically generate agent plan based on state
             agent_options = state.request.ai_settings.get_worker_agents_options
             _, ConfiguredAgentPlan = configure_agent_task_plan(agent_options)
@@ -388,6 +397,7 @@ def my_planner(
                     "previous_plan": plan,
                     "user_feedback": user_input,
                     "document_filenames": document_filenames,
+                    "artifact_files": artifact_files,
                 },
                 using_chat_history=True,
             )
@@ -500,12 +510,13 @@ def build_agent_with_loop(
             log.warning(f"{log_stub} Worker agent output:\n{ai_msg}")
 
             log.warning(f"{log_stub} Running tools via run_tools_parallel...")
-            result = run_tools_parallel(ai_msg, tools, state)
+            result = run_tools_parallel(ai_msg, tools, state, is_loop=True)  # this agent runs with loop
 
             if has_loop and len(ai_msg.tool_calls) > 0:  # if loop, we need to transform results
                 result = result[-1].content  # this is a tuple
                 # format of result: (result, success, is_intermediate_step)
-
+                log.warning("my-overall-result")
+                log.warning(result)
                 result_content = result[0]
                 success = result[1]
                 is_intermediate_step = eval(result[2])
@@ -526,6 +537,8 @@ def build_agent_with_loop(
                 log.warning(f"{log_stub} Using raw string in a list as result.")
                 result_content = result[0].get("text", "")
             elif isinstance(result, list):
+                log.warning("my-result")
+                log.warning(result)
                 log.warning(f"{log_stub} Aggregating list of tool results...")
                 result_content = join_result_with_token_limit(result=result, max_tokens=max_tokens, log_stub=log_stub)
             else:
@@ -547,7 +560,10 @@ def build_agent_with_loop(
 
 def create_evaluator():
     def _create_evaluator(state: RedboxState):
-        _additional_variables = {"agents_results": combine_agents_state(state.agents_results)}
+        _additional_variables = {
+            "agents_results": combine_agents_state(state.agents_results),
+            "artifact_criteria": state.artifact_criteria,
+        }
         citation_parser, format_instructions = get_structured_response_with_citations_parser()
         evaluator_agent = build_stuff_pattern(
             prompt_set=PromptSet.NewRoute,

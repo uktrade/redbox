@@ -1,6 +1,6 @@
 // @ts-check
 
-import { UploadedFiles } from "../../../redbox_design_system/rbds/components";
+import { UploadedFiles } from "../../../interaction_design_system/ids/components";
 import { hideElement } from "../../utils";
 import { SendMessage } from "./send-message";
 import { SendMessageWithDictation } from "./send-message-with-dictation";
@@ -9,7 +9,7 @@ export class MessageInput extends HTMLElement {
   constructor() {
     super();
     this.submitDisabled = false;
-    this.expandedClass = "rbds-message-input__expanded";
+    this.expandedClass = "ids-message-input__expanded";
   }
 
   connectedCallback() {
@@ -43,7 +43,6 @@ export class MessageInput extends HTMLElement {
 
         if (!this.submitDisabled) {
           this.#sendMessage();
-          textarea.classList.remove(this.expandedClass);
         }
       }
 
@@ -98,11 +97,11 @@ export class MessageInput extends HTMLElement {
     this.submitDisabled = true;
     if (this.sendButton) {
       this.sendButton.disabled = true;
-      this.sendButton.classList.add("rbds-no-hover");
+      this.sendButton.classList.add("ids-no-hover");
     }
     if (this.dictateButton) {
       this.dictateButton.disabled = true;
-      this.dictateButton.classList.add("rbds-no-hover");
+      this.dictateButton.classList.add("ids-no-hover");
     }
   };
 
@@ -114,11 +113,11 @@ export class MessageInput extends HTMLElement {
     this.submitDisabled = false;
     if (this.sendButton) {
       this.sendButton.disabled = false;
-      this.sendButton.classList.remove("rbds-no-hover");
+      this.sendButton.classList.remove("ids-no-hover");
     }
     if (this.dictateButton) {
       this.dictateButton.disabled = false;
-      this.dictateButton.classList.remove("rbds-no-hover");
+      this.dictateButton.classList.remove("ids-no-hover");
     }
   };
 
@@ -129,7 +128,7 @@ export class MessageInput extends HTMLElement {
    */
   getValue = (trim=true) => {
     const clone = /** @type {HTMLElement} */ (this.textarea.cloneNode(true));
-    clone.querySelector("rbds-uploaded-files")?.remove();
+    clone.querySelector("ids-uploaded-files")?.remove();
     if (trim) return clone?.textContent?.trim() || "";
     return clone?.textContent || "";
   };
@@ -160,6 +159,7 @@ export class MessageInput extends HTMLElement {
     }
     if (hasUploadedFiles) this.textarea.appendChild(document.createElement("br"));
     this.textarea.blur();
+    this.textarea.classList.remove(this.expandedClass);
   };
 
 
@@ -168,7 +168,7 @@ export class MessageInput extends HTMLElement {
    * @returns {UploadedFiles | null}
    */
   getUploadedFilesEl = () => {
-    return  /** @type {UploadedFiles} */ (this.textarea?.querySelector("rbds-uploaded-files"));
+    return  /** @type {UploadedFiles} */ (this.textarea?.querySelector("ids-uploaded-files"));
   };
 
 
@@ -192,4 +192,4 @@ export class MessageInput extends HTMLElement {
   };
 }
 
-customElements.define("rbds-message-input", MessageInput);
+customElements.define("ids-message-input", MessageInput);

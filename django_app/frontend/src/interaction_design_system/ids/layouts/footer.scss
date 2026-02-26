@@ -1,0 +1,19 @@
+@use "./../../../variables.scss" as *;
+
+.ids-footer {
+    position: absolute;
+    z-index: 1000;
+    width: 100%;
+}
+
+@media (min-width: bp(xs)) {
+    .ids-footer {
+        display: none;
+    }
+}
+
+@media (min-width: bp(s)) {
+    .ids-footer {
+        display: block;
+    }
+}

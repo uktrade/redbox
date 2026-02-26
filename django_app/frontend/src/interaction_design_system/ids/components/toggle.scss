@@ -1,0 +1,17 @@
+ids-toggle {
+    display: inline-flex;
+    align-items: center;
+
+    .ids-toggle__on,
+    .ids-toggle__off {
+        display: none;
+    }
+
+    &[data-state="on"] .ids-toggle__on {
+        display: inline-flex;
+    }
+
+        &[data-state="off"] .ids-toggle__off {
+        display: inline-flex;
+    }
+}

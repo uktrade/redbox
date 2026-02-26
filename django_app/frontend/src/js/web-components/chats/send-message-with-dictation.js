@@ -24,7 +24,7 @@ export class SendMessageWithDictation extends HTMLElement {
 
     if (!this.buttonRecord || !this.buttonRecordStop || !this.buttonSend || !this.buttonSendStop || !this.messageInput) return;
 
-    customElements.whenDefined("rbds-message-input").then(() => this.#bindEvents())
+    customElements.whenDefined("ids-message-input").then(() => this.#bindEvents())
   }
 
   #bindEvents() {
@@ -44,8 +44,8 @@ export class SendMessageWithDictation extends HTMLElement {
         e.preventDefault();
         form?.requestSubmit();
       } catch (error) {
-          console.error("Error:", error);
-        }
+        console.error("Error:", error);
+      }
     });
 
     this.messageInput.textarea.addEventListener("input", () => {
@@ -78,7 +78,7 @@ export class SendMessageWithDictation extends HTMLElement {
   }
 
   get messageInput() {
-    return /** @type {MessageInput} */ (document.querySelector('rbds-message-input'));
+    return /** @type {MessageInput} */ (document.querySelector('ids-message-input'));
   }
 
   async startRecording() {

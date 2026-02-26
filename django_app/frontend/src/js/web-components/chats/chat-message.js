@@ -1,7 +1,7 @@
 // @ts-check
 
 import { hideElement, showElement } from "../../utils/dom-utils.js";
-import { LoadingMessage } from "../../../redbox_design_system/rbds/components/loading-message.js";
+import { LoadingMessage } from "../../../interaction_design_system/ids/components/loading-message.js";
 
 // TODO: Reimplement scroll position save-and-restore on active chat reload
 // window.addEventListener('load', () => {
@@ -19,7 +19,7 @@ export class ChatMessage extends HTMLElement {
   autoScrollEnabled = true;
 
   connectedCallback() {
-    this.scrollContainer = this.closest(".rbds-scrollable");
+    this.scrollContainer = this.closest(".ids-scrollable") || document.documentElement;
     this.programmaticScroll = false;
     this.streamedContent = "";
     this.#loadMessage();
@@ -35,9 +35,9 @@ export class ChatMessage extends HTMLElement {
   }
 
 
-  scrollToBottom() {
-    if (!this.scrollContainer) return;
-    this.scrollContainer.scrollTop = this.scrollContainer?.scrollHeight;
+  scrollToBottom(scrollContainer = this.scrollContainer) {
+    if (!scrollContainer) return;
+    scrollContainer.scrollTop = scrollContainer?.scrollHeight;
   }
 
 
@@ -50,15 +50,15 @@ export class ChatMessage extends HTMLElement {
   #loadMessage = () => {
     const uuid = crypto.randomUUID();
     this.innerHTML = `
-            <div class="rbds-message-container ${this.dataset.role == 'user' ? `rbds-message-container__right` : ''} govuk-body" data-role="${this.dataset.role
+            <div class="ids-message-container ${this.dataset.role == 'user' ? `ids-message-container__right` : ''} govuk-body" data-role="${this.dataset.role
       }" tabindex="-1" id="chat-message-${this.dataset.id}">
-                <div class="${this.dataset.role == 'user' ? `rbds-message-container__right rbds-border` : 'rbds-message-container__left'}">
-                  <markdown-converter class="rbds-chat-message__text">${this.dataset.text || ""
+                <div class="${this.dataset.role == 'user' ? `ids-message-container__right ids-border` : 'ids-message-container__left'}">
+                  <markdown-converter class="ids-chat-message__text">${this.dataset.text || ""
       }</markdown-converter>
                 </div>
                 ${!this.dataset.text
         ? `
-                      <rbds-loading-message data-aria-label="Loading message"></rbds-loading-message>
+                      <ids-loading-message data-aria-label="Loading message"></ids-loading-message>
                       <div class="rb-loading-complete govuk-!-display-none" aria-live="assertive"></div>
                     `
         : ""
@@ -281,7 +281,6 @@ export class ChatMessage extends HTMLElement {
       if (response.type === "text") {
         this.streamedContent += sanitiseText(response.data);
         if (this.streamedContent) this.responseContainer?.update(this.streamedContent);
-        hideElement(this.loadingElement);
       } else if (response.type === "session-id") {
         chatControllerRef.dataset.sessionId = sanitiseId(response.data);
       } else if (response.type === "source") {
@@ -356,9 +355,9 @@ export class ChatMessage extends HTMLElement {
   * @returns {LoadingMessage} Loading Message Activity element
   */
   get loadingElement() {
-    return /** @type {LoadingMessage} */ (this.querySelector("rbds-loading-message"));
+    return /** @type {LoadingMessage} */ (this.querySelector("ids-loading-message"));
   }
 
 }
 
-customElements.define("rbds-chat-message", ChatMessage);
+customElements.define("ids-chat-message", ChatMessage);

@@ -1,0 +1,13 @@
+.ids-flex-row {
+  display: flex;
+  flex-direction: row;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+  }
+}
+
+.ids-flex-column {
+  display: flex;
+  flex-direction: column;
+}

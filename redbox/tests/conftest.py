@@ -1,6 +1,6 @@
 from collections.abc import Generator
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -158,6 +158,42 @@ def fake_state() -> RedboxState:
     return RedboxState(
         request=q,
     )
+
+
+@pytest.fixture
+def fake_mcp_tool():
+    """Fixture providing a fake passing async MCP tool class."""
+
+    class Passing:
+        """Simulates a normal async MCP tool."""
+
+        def __init__(self, name: str, return_value, args_schema: dict | None = None):
+            self.name = name
+            self.metadata = {"url": "http://mock-mcp-url.com/tools"}
+            self.args_schema = args_schema or {"required": []}
+            self.func = None
+            self.coroutine = True
+            self.ainvoke = AsyncMock(return_value=return_value)
+
+    return Passing
+
+
+@pytest.fixture
+def fake_mcp_tool_failing():
+    """Fixture providing a fake failing async MCP tool class."""
+
+    class Failing:
+        """Simulates an async MCP tool that fails."""
+
+        def __init__(self, name: str, exception, args_schema: dict | None = None):
+            self.name = name
+            self.metadata = {"url": "http://mock-mcp-url.com/tools"}
+            self.args_schema = args_schema or {"required": []}
+            self.func = None
+            self.coroutine = True
+            self.ainvoke = AsyncMock(side_effect=exception)
+
+    return Failing
 
 
 # -----#

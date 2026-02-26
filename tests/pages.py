@@ -313,7 +313,7 @@ class ChatMessage:
     @classmethod
     def from_element(cls, element: Locator, page: "ChatsPage") -> "ChatMessage":
         status = element.get_attribute("data-status")
-        text = element.locator(".rbds-chat-message__text").inner_text()
+        text = element.locator(".ids-chat-message__text").inner_text()
         sources = element.locator("sources-list").get_by_role("listitem").all_inner_texts()
         return cls(status=status, text=text, sources=sources, element=element, chats_page=page)
 
@@ -322,7 +322,7 @@ class ChatsPage(SignedInBasePage):
     @override
     def check_a11y(self, **kwargs):
         # Exclude AI generated content, since we can't control it.
-        return super().check_a11y(exclude=[".rbds-chat-message__text"])
+        return super().check_a11y(exclude=[".ids-chat-message__text"])
 
     @property
     def expected_page_title(self) -> str:
@@ -378,7 +378,7 @@ class ChatsPage(SignedInBasePage):
 
     @property
     def chat_title(self) -> str:
-        return self.page.locator(".rbds-chat-title__heading").inner_text()
+        return self.page.locator(".ids-chat-title__heading").inner_text()
 
     @chat_title.setter
     def chat_title(self, title: str):
@@ -443,7 +443,7 @@ class CitationsPage(SignedInBasePage):
     @override
     def check_a11y(self, **kwargs):
         # Exclude AI generated content, since we can't control it.
-        return super().check_a11y(exclude=[".rbds-chat-message__text"])
+        return super().check_a11y(exclude=[".ids-chat-message__text"])
 
     @property
     def expected_page_title(self) -> str:
