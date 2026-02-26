@@ -95,10 +95,14 @@ prompt_configs: Dict[str, PromptConfig] = {
         question=prompts.CHAT_WITH_DOCS_QUESTION_PROMPT,
         prompt_vars=PromptVariable(question=True, formatted_documents=True),
     ),
+    # "Tabular_Agent": PromptConfig(
+    #     system=prompts.TABULAR_PROMPT,
+    #     question=prompts.TABULAR_QUESTION_PROMPT,
+    #     prompt_vars=PromptVariable(question=True, formatted_documents=True),
+    # ),
     "Tabular_Agent": PromptConfig(
         system=prompts.TABULAR_PROMPT,
-        question=prompts.TABULAR_QUESTION_PROMPT,
-        prompt_vars=PromptVariable(question=True, formatted_documents=True),
+        prompt_vars=PromptVariable(task=True, expected_output=True),
     ),
     "Evaluator_Agent": PromptConfig(
         system=prompts.NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT,
@@ -231,6 +235,14 @@ agent_configs: Dict[str, AgentConfig] = {
         parser=None,
         agents_max_tokens=10000,
     ),
+    # "Tabular_Agent": AgentConfig(
+    #     name="Tabular_Agent",
+    #     description=prompts.TABULAR_AGENT_DESC,
+    #     prompt=prompt_configs["Tabular_Agent"],
+    #     parser=None,
+    #     default_agent=True,
+    #     agents_max_tokens=10000,
+    # ),
     "Tabular_Agent": AgentConfig(
         name="Tabular_Agent",
         description=prompts.TABULAR_AGENT_DESC,

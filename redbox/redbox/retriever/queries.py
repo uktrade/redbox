@@ -175,7 +175,7 @@ def get_knowledge_base_tabular_metadata(
 
 def get_schematised_tabular_chunks(
     chunk_resolution: ChunkResolution | None,
-    knowledge_base_s3_keys: list[str],
+    permitted_s3_keys: list[str],
     uris: list[str] | None = None,
 ) -> dict[str, Any]:
     """
@@ -192,7 +192,7 @@ def get_schematised_tabular_chunks(
     # Base filter using permissions
     query_filter = build_query_filter(
         selected_files=uris,
-        permitted_files=knowledge_base_s3_keys,
+        permitted_files=permitted_s3_keys,
         chunk_resolution=chunk_resolution,
     )
 

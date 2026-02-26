@@ -411,12 +411,12 @@ class SchematisedTabularChunkRetriever(OpenSearchRetriever):
     def _get_relevant_documents(
         self,
         # index_name: str,
-        knowledge_base_s3_keys: list[str],
+        permitted_s3_keys: list[str],
         uris: list[str] | None = None,
         *,
         run_manager: CallbackManagerForRetrieverRun,
     ) -> list:  # noqa:ARG002
-        body = self.body_func(knowledge_base_s3_keys=knowledge_base_s3_keys, uris=uris)  # type: ignore
+        body = self.body_func(permitted_s3_keys=permitted_s3_keys, uris=uris)  # type: ignore
         response = self.es_client.search(index=self.index_name, body=body)
         hits = response.get("hits", {}).get("hits", [])
         return [hit["_source"] for hit in hits]
