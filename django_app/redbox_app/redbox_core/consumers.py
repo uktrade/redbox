@@ -25,6 +25,7 @@ from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
 from redbox.graph.agents.configs import agent_configs
+from redbox.graph.nodes.tools import get_datahub_mcp_tools
 from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
@@ -316,6 +317,41 @@ class ChatConsumer(AsyncWebsocketConsumer):
         ids = [f.id for f in files]
         return list(File.objects.filter(id__in=ids).values_list("original_file", flat=True))
 
+    @staticmethod
+    def _normalise_bearer_token(token: Any) -> str | None:
+        if not isinstance(token, str):
+            return None
+        token = token.strip()
+        if not token:
+            return None
+        if token.lower().startswith("bearer "):
+            return token
+        return f"Bearer {token}"
+
+    @staticmethod
+    def _session_token_candidates(session: Mapping) -> list[Any]:
+        token_keys = ("access_token", "auth_access_token", "sso_token", "auth_token", "token")
+        candidates = [session.get(key) for key in token_keys]
+        candidates.extend(
+            nested.get(key) for nested in session.values() if isinstance(nested, Mapping) for key in token_keys
+        )
+        return candidates
+
+    def _extract_sso_token(self) -> str | None:
+        headers = self.scope.get("headers", []) or []
+        auth_header = next((value for key, value in headers if key.lower() == b"authorization"), None)
+        if isinstance(auth_header, bytes):
+            normalised = self._normalise_bearer_token(auth_header.decode("utf-8"))
+            if normalised:
+                return normalised
+
+        session = self.scope.get("session")
+        if not isinstance(session, Mapping):
+            return None
+        for candidate in self._session_token_candidates(session):
+            normalised = self._normalise_bearer_token(candidate)
+        return None
+
     async def llm_conversation(
         self,
         selected_files: Sequence[File],
@@ -338,6 +374,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         agent_plans, question, user_feedback = await self._load_agent_plan(session, message_history)
 
         ai_settings = await self.get_ai_settings(session)
+        sso_access_token = self._extract_sso_token()
 
         if selected_agent_names:
             ai_settings = ai_settings.model_copy(
@@ -345,11 +382,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     "worker_agents": [agent for agent in agent_configs.values() if agent.name in selected_agent_names]
                 }
             )
+
+        if sso_access_token:
+            self.redbox.agent_configs["Datahub_Agent"].tools = get_datahub_mcp_tools(sso_access_token=sso_access_token)
+
         state = RedboxState(
             request=RedboxQuery(
                 question=question,
                 s3_keys=await self._files_to_s3_keys(selected_files),
                 user_uuid=user.id,
+                sso_access_token=sso_access_token,
                 chat_history=[
                     ChainChatMessage(role=m.role, text=escape_curly_brackets(m.text))
                     for m in message_history[:-2]

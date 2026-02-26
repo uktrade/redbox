@@ -252,6 +252,10 @@ class RedboxQuery(BaseModel):
     question: str = Field(description="The last user chat message")
     s3_keys: list[str] = Field(description="List of files to process", default_factory=list)
     user_uuid: UUID = Field(description="User the chain in executing for")
+    sso_access_token: str | None = Field(
+        description="Optional SSO bearer token for downstream MCP server",
+        default_factory=None,
+    )
     chat_history: list[ChainChatMessage] = Field(description="All previous messages in chat (excluding question)")
     ai_settings: AISettings = Field(description="User request AI settings", default_factory=AISettings)
     permitted_s3_keys: list[str] = Field(description="List of permitted files for response", default_factory=list)
@@ -388,7 +392,13 @@ def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskB
     ConfiguredAgentTask = create_model(
         "ConfiguredAgentTask",
         __base__=AgentTaskBase,
-        agent=(AgentEnum, Field(description="Name of the agent to complete the task", default=default_agent)),
+        agent=(
+            AgentEnum,
+            Field(
+                description="Name of the agent to complete the task",
+                default=default_agent,
+            ),
+        ),
     )
 
     # create agent plan pydantic model dynamically
@@ -397,7 +407,10 @@ def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskB
         __base__=MultiAgentPlanBase,
         tasks=(
             List[ConfiguredAgentTask],
-            Field(description="A list of tasks to be carried out by agents", default=[ConfiguredAgentTask()]),
+            Field(
+                description="A list of tasks to be carried out by agents",
+                default=[ConfiguredAgentTask()],
+            ),
         ),
     )
     ConfiguredAgentPlan.update_task_status = update_task_status
