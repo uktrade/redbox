@@ -478,10 +478,16 @@ def build_agent_with_loop(
         )
         activity_node.invoke(state)
 
+        # dependencies' results
+        previous_agents_results = []
+        for dep in task.dependencies:
+            previous_agents_results += [state.agents_results[dep].content]
+        previous_agents_results = " ".join(previous_agents_results)
+
         additional_variables = {
             "task": task.task,
             "expected_output": task.expected_output,
-            "agents_results": state.agents_results,
+            "previous_agents_results": previous_agents_results,
             "previous_tool_error": "",
             "previous_tool_results": "",
         }
