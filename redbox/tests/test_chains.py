@@ -189,6 +189,8 @@ class TestStreamingJsonOutputParserExtraction:
             '{"ans',  # key not present
             '{"answer"',  # missing colon
             '{"answer":',  # missing value quote
+            '"answer}"',  # invalid json
+            "{answer}",  # invalid json
         ],
     )
     def test_find_answer_start_not_found(self, parser, buffer):
