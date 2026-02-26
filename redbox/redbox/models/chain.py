@@ -2,7 +2,18 @@ from datetime import UTC, datetime
 from enum import Enum, StrEnum
 from functools import reduce
 from types import UnionType
-from typing import Annotated, Dict, List, Literal, NotRequired, Required, Tuple, TypedDict, get_args, get_origin
+from typing import (
+    Annotated,
+    Dict,
+    List,
+    Literal,
+    NotRequired,
+    Required,
+    Tuple,
+    TypedDict,
+    get_args,
+    get_origin,
+)
 from uuid import UUID, uuid4
 
 import environ
@@ -241,6 +252,10 @@ class RedboxQuery(BaseModel):
     question: str = Field(description="The last user chat message")
     s3_keys: list[str] = Field(description="List of files to process", default_factory=list)
     user_uuid: UUID = Field(description="User the chain in executing for")
+    sso_access_token: str | None = Field(
+        description="Optional SSO bearer token for downstream MCP server",
+        default_factory=None,
+    )
     chat_history: list[ChainChatMessage] = Field(description="All previous messages in chat (excluding question)")
     ai_settings: AISettings = Field(description="User request AI settings", default_factory=AISettings)
     permitted_s3_keys: list[str] = Field(description="List of permitted files for response", default_factory=list)
@@ -324,7 +339,9 @@ class MultiAgentPlanBase(BaseModel):
     model_config = {"extra": "forbid"}
 
 
-def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskBase, MultiAgentPlanBase]:
+def configure_agent_task_plan(
+    agent_options: Dict[str, str],
+) -> Tuple[AgentTaskBase, MultiAgentPlanBase]:
     try:
         AgentEnum = Enum("AgentEnum", agent_options)
         default_agent = list(AgentEnum)[0] if agent_options else None
@@ -340,7 +357,13 @@ def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskB
     ConfiguredAgentTask = create_model(
         "ConfiguredAgentTask",
         __base__=AgentTaskBase,
-        agent=(AgentEnum, Field(description="Name of the agent to complete the task", default=default_agent)),
+        agent=(
+            AgentEnum,
+            Field(
+                description="Name of the agent to complete the task",
+                default=default_agent,
+            ),
+        ),
     )
 
     # create agent plan pydantic model dynamically
@@ -349,7 +372,10 @@ def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskB
         __base__=MultiAgentPlanBase,
         tasks=(
             List[ConfiguredAgentTask],
-            Field(description="A list of tasks to be carried out by agents", default=[ConfiguredAgentTask()]),
+            Field(
+                description="A list of tasks to be carried out by agents",
+                default=[ConfiguredAgentTask()],
+            ),
         ),
     )
 

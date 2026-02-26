@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import hashlib
 import json
@@ -12,6 +13,7 @@ from typing import Annotated, Callable, Iterable, Literal, Union
 
 import boto3
 import duckdb
+import nest_asyncio
 import numpy as np
 import pandas as pd
 import requests
@@ -21,7 +23,10 @@ from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.messages import ToolCall
 from langchain_core.tools import Tool, tool
+from langchain_mcp_adapters.tools import load_mcp_tools
 from langgraph.prebuilt import InjectedState
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
 from mohawk import Sender
 from opensearchpy import OpenSearch
 from sklearn.metrics.pairwise import cosine_similarity
@@ -30,7 +35,12 @@ from waffle.decorators import waffle_flag
 from redbox.api.format import format_documents
 from redbox.chains.components import get_embeddings
 from redbox.models.chain import RedboxState
-from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution, TabularSchema
+from redbox.models.file import (
+    ChunkCreatorType,
+    ChunkMetadata,
+    ChunkResolution,
+    TabularSchema,
+)
 from redbox.models.settings import get_settings
 from redbox.retriever.queries import (
     add_document_filter_scores_to_query,
@@ -38,13 +48,11 @@ from redbox.retriever.queries import (
     get_all,
     get_knowledge_base,
 )
-from redbox.retriever.retrievers import SchematisedTabularChunkRetriever, query_to_documents
+from redbox.retriever.retrievers import (
+    SchematisedTabularChunkRetriever,
+    query_to_documents,
+)
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
-from langchain_mcp_adapters.tools import load_mcp_tools
-import asyncio
-import nest_asyncio
 
 log = logging.getLogger(__name__)
 
@@ -127,7 +135,10 @@ def build_retrieve_document_full_text(es_client: Union[Elasticsearch, OpenSearch
 
 
 def build_retrieve_knowledge_base(
-    es_client: Union[Elasticsearch, OpenSearch], index_name: str, loop: bool = False, all_files=True
+    es_client: Union[Elasticsearch, OpenSearch],
+    index_name: str,
+    loop: bool = False,
+    all_files=True,
 ) -> Tool:
     def query_repo(el_query, is_intermediate_step, loop):
         results = query_to_documents(es_client=es_client, index_name=index_name, query=el_query)
@@ -181,7 +192,9 @@ def build_retrieve_knowledge_base(
             Tuple: Collection of knowledge base documents with metadata
         """
         el_query = get_knowledge_base(
-            selected_files=state.request.knowledge_base_s3_keys, chunk_resolution=ChunkResolution.largest, state=state
+            selected_files=state.request.knowledge_base_s3_keys,
+            chunk_resolution=ChunkResolution.largest,
+            state=state,
         )
 
         return query_repo(el_query, is_intermediate_step=is_intermediate_step, loop=loop)
@@ -212,7 +225,10 @@ def build_search_documents_tool(
             ai_settings=ai_settings,
         )
         initial_documents = query_to_documents(es_client=es_client, index_name=index_name, query=initial_query)
-        log.warning("[_search_documents] Initial query using %s seconds", time.time() - start_time)
+        log.warning(
+            "[_search_documents] Initial query using %s seconds",
+            time.time() - start_time,
+        )
 
         # Handle nothing found (as when no files are permitted)
         if not initial_documents:
@@ -225,12 +241,18 @@ def build_search_documents_tool(
             centres=initial_documents,
         )
         adjacent_boosted = query_to_documents(es_client=es_client, index_name=index_name, query=with_adjacent_query)
-        log.warning("[_search_documents] Adjacent boosted query using %s seconds", time.time() - start_time)
+        log.warning(
+            "[_search_documents] Adjacent boosted query using %s seconds",
+            time.time() - start_time,
+        )
 
         # Merge and sort
         merged_documents = merge_documents(initial=initial_documents, adjacent=adjacent_boosted)
         sorted_documents = sort_documents(documents=merged_documents)
-        log.warning("[_search_documents] Merge and sort documents using %s seconds", time.time() - start_time)
+        log.warning(
+            "[_search_documents] Merge and sort documents using %s seconds",
+            time.time() - start_time,
+        )
         log.warning("[_search_documents] Returning %s documents", len(sorted_documents))
 
         # Return as state update
@@ -408,7 +430,9 @@ def build_query_tabular_knowledge_base_tool(
         try:
             # Retrieve tabular documents
             docs_metadata = retriever._get_relevant_documents(
-                knowledge_base_s3_keys=state.request.knowledge_base_s3_keys, uris=[uri], run_manager=None
+                knowledge_base_s3_keys=state.request.knowledge_base_s3_keys,
+                uris=[uri],
+                run_manager=None,
             )
             if not docs_metadata:
                 return "No documents found for URI", []
@@ -424,7 +448,10 @@ def build_query_tabular_knowledge_base_tool(
                     text_content = meta.get("text", "")
 
                     if schema is None:
-                        return "Document not supported for querying as it uses legacy schema.", []
+                        return (
+                            "Document not supported for querying as it uses legacy schema.",
+                            [],
+                        )
 
                     try:
                         schema_obj = TabularSchema.model_validate(schema)
@@ -436,7 +463,11 @@ def build_query_tabular_knowledge_base_tool(
                         continue
 
                     try:
-                        write_duckdb_table(db_path=db_path, schema=schema_obj, text_content=text_content)
+                        write_duckdb_table(
+                            db_path=db_path,
+                            schema=schema_obj,
+                            text_content=text_content,
+                        )
                     except Exception as db_e:
                         logger.warning("Failed to setup DB %s: %s", uri, str(db_e))
                         return f"Error preparing tabular document database: {db_e}", []
@@ -784,7 +815,11 @@ def get_log_formatter_for_retrieval_tool(t: ToolCall) -> BaseRetrievalToolLogFor
 
 
 def web_search_with_retry(
-    query: str, no_search_result: int = 20, max_retries: int = 3, country_code: str = "All", ui_lang: str = "en-GB"
+    query: str,
+    no_search_result: int = 20,
+    max_retries: int = 3,
+    country_code: str = "All",
+    ui_lang: str = "en-GB",
 ) -> requests.Response:
     web_search_settings = get_settings().web_search_settings()
     for attempt in range(max_retries):
@@ -848,7 +883,11 @@ def brave_response_to_documents(
 
 
 def map_documents(
-    tokeniser: Callable, index: int, doc: str, content_column: str, mapped_documents: list
+    tokeniser: Callable,
+    index: int,
+    doc: str,
+    content_column: str,
+    mapped_documents: list,
 ) -> list[Document]:
     page_content = "".join(doc.get(content_column, []))
     token_count = tokeniser(page_content)
@@ -867,7 +906,12 @@ def map_documents(
     return mapped_documents
 
 
-def web_search_call(query: str, no_search_result: int = 20, country_code: str = "All", ui_lang: str = "en-GB") -> tool:
+def web_search_call(
+    query: str,
+    no_search_result: int = 20,
+    country_code: str = "All",
+    ui_lang: str = "en-GB",
+) -> tool:
     web_search_settings = get_settings().web_search_settings()
     response = web_search_with_retry(
         query=query,
@@ -931,13 +975,29 @@ def build_legislation_search_tool():
     return _search_legislation
 
 
-def get_datahub_mcp_tools(agent_loop=True):
+def _get_mcp_headers(sso_access_token: str | None = None) -> dict[str, str]:
+    if not sso_access_token:
+        return {}
+    token = sso_access_token.strip()
+    if not token:
+        return {}
+    if token.lower().startswith("bearer "):
+        return {"Authorization": token}
+    return {"Authorization": f"Bearer {token}"}
+
+
+def get_datahub_mcp_tools(agent_loop=True, sso_access_token: str | None = None):
     async def _get_async_tools():
         try:
             mcp_settings = get_settings().datahub_mcp
             datahub_mcp_url = mcp_settings.url
+            headers = _get_mcp_headers(sso_access_token)
             async with (
-                streamablehttp_client(datahub_mcp_url) as (read, write, _),
+                streamablehttp_client(datahub_mcp_url, headers=headers or None) as (
+                    read,
+                    write,
+                    _,
+                ),
                 ClientSession(read, write) as session,
             ):
                 # Initialize the connection
@@ -967,7 +1027,11 @@ def get_datahub_mcp_tools(agent_loop=True):
 
 def execute_sql_query():
     @tool(response_format="content")
-    def _execute_sql_query(sql_query: str, is_intermediate_step: bool, state: Annotated[RedboxState, InjectedState]):
+    def _execute_sql_query(
+        sql_query: str,
+        is_intermediate_step: bool,
+        state: Annotated[RedboxState, InjectedState],
+    ):
         """
         SQL verification tool is a versatile tool that executes SQL queries against a SQLite database.
         Args:
