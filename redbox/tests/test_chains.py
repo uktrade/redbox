@@ -317,6 +317,185 @@ class TestStreamingJsonOutputParserExtraction:
         assert "\\n" not in text
 
 
+class TestStreamingJsonOutputParserStreaming:
+    @pytest.fixture
+    def parser(self):
+        return StreamingJsonOutputParser(pydantic_schema_object=TestResponseModel)
+
+    def _make_chain(self, parser, chunks):
+        def chunk_generator(_):
+            yield from chunks
+
+        return RunnableLambda(chunk_generator) | parser
+
+    # --- single yield at end of stream ---
+
+    @pytest.mark.parametrize(
+        "chunks,expected_answer",
+        [
+            (
+                ['{"answer": "hello world", "citations": []}'],
+                "hello world",
+            ),
+            (
+                ['{"answer": "hel', 'lo world", "cit', 'ations": []}'],
+                "hello world",
+            ),
+            (
+                ['{"answer": "a', "b", "c", 'd", "citations": []}'],
+                "abcd",
+            ),
+        ],
+    )
+    def test_single_yield_with_correct_answer(self, parser, chunks, expected_answer):
+        results = list(self._make_chain(parser, chunks).stream(None))
+        assert len(results) == 1
+        assert isinstance(results[0], TestResponseModel)
+        assert results[0].answer == expected_answer
+
+    # --- citations in final yield ---
+
+    @pytest.mark.parametrize(
+        "chunks",
+        [
+            (['{"answer": "response", "citations": []}'],),
+            (['{"answer": "response", "citations": [{"ref_id": "1", "sources": []}]}'],),
+        ],
+    )
+    def test_citations_present_in_final_yield(self, parser, chunks):
+        results = list(self._make_chain(parser, chunks[0]).stream(None))
+        assert len(results) == 1
+        assert results[0].citations is not None
+
+    # --- markdown and escape handling end-to-end ---
+
+    @pytest.mark.parametrize(
+        "raw_json_answer,expected",
+        [
+            (
+                r"## Header\n\n* item1\n* item2",
+                "## Header\n\n* item1\n* item2",
+            ),
+            (
+                r"line1\nline2",
+                "line1\nline2",
+            ),
+            (
+                r"col1\tcol2",
+                "col1\tcol2",
+            ),
+            (
+                r"caf\u00e9",
+                "café",
+            ),
+            (
+                r"say \"hello\"",
+                'say "hello"',
+            ),
+        ],
+    )
+    def test_markdown_and_escapes_preserved(self, parser, raw_json_answer, expected):
+        chunks = ['{"answer": "' + raw_json_answer + '", "citations": []}']
+        results = list(self._make_chain(parser, chunks).stream(None))
+        assert results[0].answer == expected
+
+    # --- chunk boundary escape handling ---
+
+    @pytest.mark.parametrize(
+        "chunks,expected",
+        [
+            (
+                ['{"answer": "line1\\', 'nline2", "citations": []}'],
+                "line1\nline2",
+            ),
+            (
+                ['{"answer": "col1\\', 'tcol2", "citations": []}'],
+                "col1\tcol2",
+            ),
+            (
+                ['{"answer": "caf\\u00', 'e9", "citations": []}'],
+                "café",
+            ),
+        ],
+    )
+    def test_chunked_across_escape_boundary(self, parser, chunks, expected):
+        results = list(self._make_chain(parser, chunks).stream(None))
+        assert results[0].answer == expected
+
+    # --- plain text fallback ---
+
+    @pytest.mark.parametrize(
+        "chunks,expected",
+        [
+            (["This is a plain text response"], "This is a plain text response"),
+            (["Plain", " text", " across chunks"], "Plain text across chunks"),
+        ],
+    )
+    def test_plain_text_fallback(self, parser, chunks, expected):
+        results = list(self._make_chain(parser, chunks).stream(None))
+        assert len(results) == 1
+        assert results[0].answer == expected
+        assert results[0].citations == []
+
+    # --- dispatch_custom_event ---
+
+    @patch("redbox.chains.parser.dispatch_custom_event")
+    def test_dispatch_called_incrementally(self, mock_dispatch, parser):
+        chunks = ['{"answer": "chunk', " one chunk", ' two", "citations": []}']
+        list(self._make_chain(parser, chunks).stream(None))
+
+        assert mock_dispatch.call_count > 1
+        all_tokens = "".join(call.kwargs.get("data", "") or call.args[1] for call in mock_dispatch.call_args_list)
+        assert "chunk one chunk two" in all_tokens
+
+    @patch("redbox.chains.parser.dispatch_custom_event")
+    def test_dispatch_only_answer_field(self, mock_dispatch, parser):
+        chunks = ['{"answer": "hello", "citations": [{"ref_id": "1"}]}']
+        list(self._make_chain(parser, chunks).stream(None))
+
+        all_dispatched = "".join(call.kwargs.get("data", "") or call.args[1] for call in mock_dispatch.call_args_list)
+        assert "ref_id" not in all_dispatched
+        assert "citations" not in all_dispatched
+
+    @patch("redbox.chains.parser.dispatch_custom_event")
+    def test_dispatch_not_called_when_no_answer(self, mock_dispatch, parser):
+        """If answer field is empty, no tokens should be dispatched during stream."""
+        chunks = ['{"answer": "", "citations": []}']
+        list(self._make_chain(parser, chunks).stream(None))
+        mock_dispatch.assert_not_called()
+
+    # --- async/sync parity ---
+
+    @pytest.mark.parametrize(
+        "chunks",
+        [
+            ['{"answer": "hello\\nworld", "citations": []}'],
+            ['{"answer": "hel', "lo wor", 'ld", "citations": []}'],
+            ['{"answer": "## Header\\n\\n* item", "citations": []}'],
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_atransform_matches_transform(self, chunks):
+        sync_parser = StreamingJsonOutputParser(pydantic_schema_object=TestResponseModel)
+        async_parser = StreamingJsonOutputParser(pydantic_schema_object=TestResponseModel)
+
+        def sync_gen(_):
+            yield from chunks
+
+        async def async_gen(_):
+            for c in chunks:
+                yield c
+
+        sync_results = list((RunnableLambda(sync_gen) | sync_parser).stream(None))
+
+        async_results = []
+        async for result in (RunnableLambda(async_gen) | async_parser).astream(None):
+            async_results.append(result)
+
+        assert sync_results[0].answer == async_results[0].answer
+        assert sync_results[0].citations == async_results[0].citations
+
+
 @pytest.mark.parametrize("exceeding_budget, prompts_budget", [(True, 1000000), (False, 1000)])
 def test_prompt_budget_calculation(fake_state, exceeding_budget, prompts_budget):
     if not exceeding_budget:
