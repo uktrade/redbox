@@ -471,38 +471,6 @@ def build_new_route_graph(
                             debug=debug,
                         ),
                     )
-                # case "Tabular_Agent":
-                #     builder.add_node(
-                #         "Tabular_Agent",
-                #         empty_process,
-                #     )
-
-                #     builder.add_node(
-                #         "retrieve_tabular_documents",
-                #         build_retrieve_pattern(
-                #             retriever=tabular_retriever,
-                #             structure_func=structure_documents_by_file_name,
-                #             final_source_chain=False,
-                #         ),
-                #     )
-
-                #     builder.add_node("retrieve_tabular_schema", get_tabular_schema())
-
-                #     builder.add_node(
-                #         "call_tabular_agent",
-                #         get_tabular_agent(
-                #             tools=config.tools,
-                #             max_attempt=get_settings().max_attempts,
-                #             max_tokens=config.agents_max_tokens,
-                #             model=ChatLLMBackend(name=config.llm_backend.name, provider=config.llm_backend.provider)
-                #             if config.llm_backend is not None
-                #             else None,
-                #         ),
-                #     )
-                #     builder.add_edge("Tabular_Agent", "retrieve_tabular_documents")
-                #     builder.add_edge("retrieve_tabular_documents", "retrieve_tabular_schema")
-                #     builder.add_edge("retrieve_tabular_schema", "call_tabular_agent")
-                #     builder.add_edge("call_tabular_agent", "combine_question_evaluator")
                 case "Artifact_Builder_Agent":
                     builder.add_node(config.name, ArtifactAgent(config=config).execute())
                 case _:
@@ -577,7 +545,7 @@ def build_new_route_graph(
     add_agent(builder, agent_configs, "Internal_Retrieval_Agent")
     add_agent(builder, agent_configs, "External_Retrieval_Agent")
     add_agent(builder, agent_configs, "Summarisation_Agent", edge_nodes=[])  # streaming response directly
-    add_agent(builder, agent_configs, "Tabular_Agent")  # go to other nodes/subgraphs
+    add_agent(builder, agent_configs, "Tabular_Agent")
     add_agent(builder, agent_configs, "Web_Search_Agent")
     add_agent(builder, agent_configs, "Legislation_Search_Agent")
     add_agent(

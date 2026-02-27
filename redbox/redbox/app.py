@@ -24,7 +24,6 @@ from redbox.graph.nodes.tools import (
     build_search_wikipedia_tool,
     build_web_search_tool,
     get_datahub_mcp_tools,
-    build_query_tabular_knowledge_base_tool,
     build_query_tabular_file_tool,
 )
 from redbox.graph.root import build_new_route_graph, build_root_graph, get_summarise_graph
@@ -106,18 +105,19 @@ class Redbox:
             loop=False,
             all_files=False,
         )
-        query_knowledge_base = build_query_tabular_knowledge_base_tool(
+        query_tabular_knowledge_base_file = build_query_tabular_file_tool(
             es_client=_env.elasticsearch_client(),
             index_name=_env.elastic_schematised_chunk_index,
+            knowledge_base=True,
         )
         query_tabular_file = build_query_tabular_file_tool(
             es_client=_env.elasticsearch_client(),
             index_name=_env.elastic_schematised_chunk_index,
+            knowledge_base=False,
         )
 
         search_wikipedia = build_search_wikipedia_tool()
         search_govuk = build_govuk_search_tool()
-        # execute_sql = execute_sql_query()
         web_search = build_web_search_tool()
         legislation_search = build_legislation_search_tool()
         doc_from_prompt = build_document_from_prompt_tool(loop=True)
@@ -125,7 +125,7 @@ class Redbox:
 
         self.agent_configs["Internal_Retrieval_Agent"].tools = [search_documents]
         self.agent_configs["External_Retrieval_Agent"].tools = [search_wikipedia, search_govuk]
-        # self.agent_configs["Tabular_Agent"].tools = [execute_sql]
+        self.agent_configs["Tabular_Agent"].tools = [query_tabular_file]
         self.agent_configs["Web_Search_Agent"].tools = [web_search]
         self.agent_configs["Legislation_Search_Agent"].tools = [legislation_search]
         self.agent_configs["Submission_Question_Answer_Agent"].tools = [
@@ -138,10 +138,12 @@ class Redbox:
             retrieve_knowledge_base,
             doc_from_prompt,
         ]
-        self.agent_configs["Knowledge_Base_Retrieval_Agent"].tools = [query_knowledge_base, search_knowledge_base]
+        self.agent_configs["Knowledge_Base_Retrieval_Agent"].tools = [
+            query_tabular_knowledge_base_file,
+            search_knowledge_base,
+        ]
         self.agent_configs["Artifact_Builder_Agent"].tools = [retrieve_specific_files_knowledge_base]
         self.agent_configs["Datahub_Agent"].tools = datahub_mcp
-        self.agent_configs["Tabular_Agent"].tools = [query_tabular_file]
 
         self.graph = build_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,

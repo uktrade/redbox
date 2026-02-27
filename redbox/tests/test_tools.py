@@ -21,7 +21,7 @@ from redbox.graph.nodes.tools import (
     build_document_from_prompt_tool,
     build_govuk_search_tool,
     build_legislation_search_tool,
-    build_query_tabular_knowledge_base_tool,
+    build_query_tabular_file_tool,
     build_retrieve_document_full_text,
     build_retrieve_knowledge_base,
     build_search_documents_tool,
@@ -879,7 +879,7 @@ def test_query_tabular_knowledge_base_tool(
     """
 
     # Build the tool
-    kb_tool = build_query_tabular_knowledge_base_tool(
+    kb_tool = build_query_tabular_file_tool(
         es_client=es_client,
         index_name=es_index,
     )

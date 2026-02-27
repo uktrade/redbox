@@ -89,8 +89,7 @@ def run_with_timeout(func, args, timeout):
 
     thread = threading.Thread(target=target, daemon=True)  # The thread will exit when the main program exits
     thread.start()
-    # thread.join(timeout)  # applying timeout constraint
-    completed = done.wait(timeout=timeout)
+    completed = done.wait(timeout=timeout)  # applying timeout constraint
 
     if not completed:  # if it times out
         log.warning(f"Tool execution timed out after {timeout} seconds")
