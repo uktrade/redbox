@@ -246,8 +246,8 @@ class Redbox:
             )
             try:
                 _ = final_state.messages[-1].content
-            except Exception as _:
-                logger.exception("LLM Error - Blank Response")
+            except Exception as e:
+                logger.exception(f"app: LLM Error - Blank Response; {e}")
         except CancelledError:
             logger.error("All retries exhausted for CancelledError in the astream_events function")
             raise

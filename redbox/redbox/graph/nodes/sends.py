@@ -77,7 +77,7 @@ def run_with_timeout(func, args, timeout):
     This function can be used to set a timeout for tool execution"""
     result = [None]
     exception = [None]
-    completed = [False]
+    done = threading.Event()
 
     def target():
         try:
@@ -85,14 +85,14 @@ def run_with_timeout(func, args, timeout):
         except Exception as e:
             exception[0] = e
         finally:
-            completed[0] = True
+            done.set()
 
-    thread = threading.Thread(target=target)
-    thread.daemon = True  # The thread will exit when the main program exits
+    thread = threading.Thread(target=target, daemon=True)  # The thread will exit when the main program exits
     thread.start()
-    thread.join(timeout)  # applying timeout constraint
+    # thread.join(timeout)  # applying timeout constraint
+    completed = done.wait(timeout=timeout)
 
-    if not completed[0]:  # if it times out
+    if not completed:  # if it times out
         log.warning(f"Tool execution timed out after {timeout} seconds")
         return None
     if exception[0]:  # if the tool fails
