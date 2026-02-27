@@ -28,6 +28,7 @@ class PromptVariable(BaseModel):
     previous_tool_error: bool = Field(description="Message from previous tool error", default=False)
     previous_tool_results: bool = Field(description="Results from previous tool call", default=False)
     knowledge_base_metadata: bool = Field(description="Knowledge base files metadata", default=False)
+    artifact_files: bool = Field(description="A list of artifact files URI", default=False)
 
 
 class PromptConfig(BaseModel):
@@ -58,6 +59,7 @@ prompt_configs: Dict[str, PromptConfig] = {
             metadata=True,
             format_instruction=True,
             knowledge_base_metadata=True,
+            artifact_files=True,
         ),
     ),
     "Replanner_Agent": PromptConfig(
@@ -72,6 +74,7 @@ prompt_configs: Dict[str, PromptConfig] = {
             metadata=True,
             format_instruction=True,
             knowledge_base_metadata=True,
+            artifact_files=True,
         ),
     ),
     "Internal_Retrieval_Agent": PromptConfig(
@@ -143,7 +146,12 @@ prompt_configs: Dict[str, PromptConfig] = {
     ),
     "Artifact_Builder_Agent": PromptConfig(
         system=prompts.ARTIFACT_BUILDER_AGENT_PROMPT + prompts.KNOWLEDGE_BASE_METADTA,
-        prompt_vars=PromptVariable(task=True, expected_output=True, knowledge_base_metadata=True),
+        prompt_vars=PromptVariable(
+            task=True,
+            expected_output=True,
+            knowledge_base_metadata=True,
+            artifact_files=True,
+        ),
     ),
 }
 
