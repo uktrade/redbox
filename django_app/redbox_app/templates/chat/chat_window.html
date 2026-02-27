@@ -22,9 +22,9 @@
     <div class="ids-chats-section">
 
         {% if is_first_time_user %}
-            <div class="govuk-!-margin-bottom-2">
+            <ids-first-time-upload-form class="govuk-!-margin-bottom-2">
                 {{ upload_form(label="Upload a file (optional)", uploadUrl=urls.upload_url, errors=errors, showSubmit=False) }}
-            </div>
+            </ids-first-time-upload-form>
         {% endif %}
 
         <chat-controller class="iai-chat-container" data-stream-url="{{ streaming.endpoint if streaming else '' }}"

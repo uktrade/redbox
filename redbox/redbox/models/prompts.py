@@ -71,7 +71,9 @@ SELF_ROUTE_SYSTEM_PROMPT = """
 RETRIEVAL_QUESTION_PROMPT = "<User_question>From the provided documents, {question}</User_question>"
 
 NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context.
-When analysing results from the tabular agent, only synthesise or summarise the provided information to answer the question. Do not derive new statistics from the tabular agent results."""
+When analysing results from the tabular agent, only synthesise or summarise the provided information to answer the question. Do not derive new statistics from the tabular agent results.
+
+IMPORTANT: Your response MUST strictly follow these <Artifact_Criteria>. Violating any criterion is not acceptable:"""
 
 AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
     "You are an advanced problem-solving assistant. Your primary goal is to carefully "
@@ -209,7 +211,7 @@ AGENTIC_RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 
 NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT = (
     "<User question> {question} </User question> \n\n <Context>: \n\n {agents_results} \n\n </Context> \n\n."
-    "<Response_Criteria>{artifact_criteria}</Response_Criteria>"
+    "<Artifact_Criteria>{artifact_criteria}</Artifact_Criteria>"
 )
 
 AGENTIC_GIVE_UP_QUESTION_PROMPT = "{question}"
@@ -607,11 +609,11 @@ Workflow:
 You MUST follow this exact sequence:
 
 ###
-- You MUST use your tools to search the knowledge base BEFORE creating any artifact
-- Artifact criteria files always start with "Artifact_"
 - Identify which artifact type matches the user's request (e.g., Artifact_Presentation, Artifact_Document, Artifact_Code)
-- Make a tool call to retrieve the criteria file that best matches the task
 - Choose ONLY ONE artifact criteria file that is the best match
+- You must only make ONE tool call to retrieve the artifact file that best matches the task
+
+Artifact files: {artifact_files}
 """
 
 

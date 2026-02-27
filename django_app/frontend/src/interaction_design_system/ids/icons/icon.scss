@@ -24,6 +24,10 @@
   &.success {
     --icon-foreground-color: var(--color-icon-success);
   }
+
+  &.error {
+    --icon-foreground-color: var(--color-icon-error);
+  }
 }
 
 .ids-file-icon {

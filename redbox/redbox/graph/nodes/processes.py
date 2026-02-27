@@ -188,18 +188,17 @@ def build_stuff_pattern(
         else:
             llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
 
-        events = [
-            event
-            for event in build_llm_chain(
-                prompt_set=prompt_set,
-                llm=llm,
-                output_parser=output_parser,
-                format_instructions=format_instructions,
-                final_response_chain=final_response_chain,
-                additional_variables=additional_variables,
-                summary_multiagent_flag=summary_multiagent_flag,
-            ).stream(state)
-        ]
+        chain = build_llm_chain(
+            prompt_set=prompt_set,
+            llm=llm,
+            output_parser=output_parser,
+            format_instructions=format_instructions,
+            final_response_chain=final_response_chain,
+            additional_variables=additional_variables,
+            summary_multiagent_flag=summary_multiagent_flag,
+        )
+
+        events = [event for event in chain.stream(state)]
         return sum(events, {})
 
     return _stuff
@@ -338,7 +337,9 @@ def create_planner(is_streamed=False):
     @RunnableLambda
     def _create_planner(state: RedboxState):
         artifact_files = [
-            kb_file for kb_file in state.request.knowledge_base_s3_keys if "artifact" in kb_file.split("/")[-1].lower()
+            kb_file
+            for kb_file in state.request.knowledge_base_s3_keys
+            if kb_file.split("/")[-1].lower().startswith("artifact")
         ]
         planner_prompt = state.request.ai_settings.planner_prompt_with_format
         # dynamically generate agent plan based on state
@@ -394,7 +395,7 @@ def my_planner(
             artifact_files = [
                 kb_file
                 for kb_file in state.request.knowledge_base_s3_keys
-                if "artifact" in kb_file.split("/")[-1].lower()
+                if kb_file.split("/")[-1].lower().startswith("artifact")
             ]
             # dynamically generate agent plan based on state
             agent_options = state.request.ai_settings.get_worker_agents_options

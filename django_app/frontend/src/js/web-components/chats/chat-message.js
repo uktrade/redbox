@@ -19,25 +19,43 @@ export class ChatMessage extends HTMLElement {
   autoScrollEnabled = true;
 
   connectedCallback() {
-    this.scrollContainer = this.closest(".ids-scrollable") || document.documentElement;
+    this.scrollContainer = this.closest(".ids-scrollable") || document;
     this.programmaticScroll = false;
     this.streamedContent = "";
-    this.#loadMessage();
 
-    this.scrollContainer?.addEventListener("scroll", () => {
-      if (this.scrollContainer) this.autoScrollEnabled = this.isAtBottom(this.scrollContainer);
+    this.#bindScrollEvents();
+    this.#loadMessage();
+  }
+
+
+  #bindScrollEvents(scrollContainer = this.scrollContainer) {
+    if (!scrollContainer) return;
+    let scrollEvents = [];
+
+    if (scrollContainer instanceof Document) scrollEvents.push("scroll");
+    if (scrollContainer instanceof Element) scrollEvents.push("pointerup", "mousewheel");
+
+    scrollEvents.forEach((scrollEvent) => {
+      scrollContainer.addEventListener(scrollEvent, () => this.#updateAutoScroll());
     });
   }
 
 
-  isAtBottom(/** @type {Element} */ el, threshold = 15) {
+  #updateAutoScroll() {
+    if (this.scrollContainer) this.autoScrollEnabled = this.isAtBottom(this.scrollContainer);
+  }
+
+
+  isAtBottom(/** @type {Element | Document} */ el, threshold = 10) {
+    if (el instanceof Document) el = el.documentElement;
     return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
   }
 
 
   scrollToBottom(scrollContainer = this.scrollContainer) {
     if (!scrollContainer) return;
-    scrollContainer.scrollTop = scrollContainer?.scrollHeight;
+    if (scrollContainer instanceof Document) scrollContainer = scrollContainer.documentElement;
+    scrollContainer.scrollTop = scrollContainer.scrollHeight;
   }
 
 
@@ -198,9 +216,17 @@ export class ChatMessage extends HTMLElement {
     }
 
     window.addEventListener('load', () => {
+      if (!this.scrollContainer) return;
+      let scrollElement;
       const scrollPosition = sessionStorage.getItem('scrollPosition');
+
       if (scrollPosition !== null) {
-        this.scrollContainer?.scrollTo(0, parseInt(scrollPosition));
+        if (this.scrollContainer instanceof Document) {
+          scrollElement = this.scrollContainer.documentElement;
+        } else {
+          scrollElement = this.scrollContainer;
+        }
+        scrollElement.scrollTo(0, parseInt(scrollPosition));
         sessionStorage.removeItem('scrollPosition');
       }
     });
