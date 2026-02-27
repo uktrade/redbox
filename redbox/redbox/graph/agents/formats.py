@@ -13,7 +13,7 @@ class ArtifactAgent(WorkerAgent):
             artifact_files = [
                 kb_file
                 for kb_file in state.request.knowledge_base_s3_keys
-                if "artifact" in kb_file.split("/")[-1].lower()
+                if kb_file.split("/")[-1].lower().startswith("artifact")
             ]
 
             worker_agent = create_chain_agent(
