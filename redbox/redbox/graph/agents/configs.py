@@ -104,8 +104,8 @@ prompt_configs: Dict[str, PromptConfig] = {
     #     prompt_vars=PromptVariable(question=True, formatted_documents=True),
     # ),
     "Tabular_Agent": PromptConfig(
-        system=prompts.TABULAR_PROMPT + prompts.TABULAR_METADATA,
-        prompt_vars=PromptVariable(task=True, expected_output=True, tabular_metadata=True),
+        system=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT + prompts.TABULAR_METADATA,
+        prompt_vars=PromptVariable(task=True, expected_output=True, metadata=True, tabular_metadata=True),
     ),
     "Evaluator_Agent": PromptConfig(
         system=prompts.NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT,

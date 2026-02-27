@@ -71,7 +71,7 @@ class AISettings(BaseModel):
     llm_decide_route_prompt: str = prompts.LLM_DECIDE_ROUTE
     citation_prompt: str = prompts.CITATION_PROMPT
     answer_instruction_prompt: str = prompts.ANSWER_INSTRUCTION_SYSTEM_PROMPT
-    tabular_system_prompt: str = prompts.TABULAR_PROMPT
+    tabular_system_prompt: str = prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT
     tabular_question_prompt: str = prompts.TABULAR_QUESTION_PROMPT
 
     # Elasticsearch RAG and boost values
