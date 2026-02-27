@@ -91,6 +91,19 @@ class WorkerAgent(Agent):
 
         return _post_processing
 
+    def _agent_invocation(self, agent, state):
+        # worker_agent = llm_call(agent_config=self.config)
+        self.logger.warning(f"[{self.config.name}] Invoking worker agent...")
+        ai_msg = agent.invoke(state)
+
+        self.logger.warning(f"[{self.config.name}] Worker agent output:\n{ai_msg}")
+
+        # --- RUN TOOLS IN PARALLEL ---
+        self.logger.warning(f"[{self.config.name}] Running tools via run_tools_parallel...")
+
+        result = run_tools_parallel(ai_msg, self.config.tools, state, is_loop=False)  # this agent runs without loop
+        return result
+
     def core_task(self):
         @RunnableLambda
         def _core_task(input):
@@ -105,16 +118,7 @@ class WorkerAgent(Agent):
                 model=self.config.llm_backend,
                 use_knowledge_base=self.config.prompt.prompt_vars.knowledge_base_metadata,
             )
-            # worker_agent = llm_call(agent_config=self.config)
-            self.logger.warning(f"[{self.config.name}] Invoking worker agent...")
-            ai_msg = worker_agent.invoke(state)
-
-            self.logger.warning(f"[{self.config.name}] Worker agent output:\n{ai_msg}")
-
-            # --- RUN TOOLS IN PARALLEL ---
-            self.logger.warning(f"[{self.config.name}] Running tools via run_tools_parallel...")
-
-            result = run_tools_parallel(ai_msg, self.config.tools, state, is_loop=False)  # this agent runs without loop
+            result = self._agent_invocation(agent=worker_agent, state=state)
             return (state, result, task)
 
         return _core_task.with_retry(stop_after_attempt=3)

@@ -336,7 +336,9 @@ def create_planner(is_streamed=False):
     @RunnableLambda
     def _create_planner(state: RedboxState):
         artifact_files = [
-            kb_file for kb_file in state.request.knowledge_base_s3_keys if "artifact" in kb_file.split("/")[-1].lower()
+            kb_file
+            for kb_file in state.request.knowledge_base_s3_keys
+            if kb_file.split("/")[-1].lower().startswith("artifact")
         ]
         planner_prompt = state.request.ai_settings.planner_prompt_with_format
         # dynamically generate agent plan based on state
@@ -381,7 +383,7 @@ def my_planner(
             artifact_files = [
                 kb_file
                 for kb_file in state.request.knowledge_base_s3_keys
-                if "artifact" in kb_file.split("/")[-1].lower()
+                if kb_file.split("/")[-1].lower().startswith("artifact")
             ]
             # dynamically generate agent plan based on state
             agent_options = state.request.ai_settings.get_worker_agents_options
