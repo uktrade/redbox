@@ -28,6 +28,9 @@ class PromptVariable(BaseModel):
     previous_tool_error: bool = Field(description="Message from previous tool error", default=False)
     previous_tool_results: bool = Field(description="Results from previous tool call", default=False)
     knowledge_base_metadata: bool = Field(description="Knowledge base files metadata", default=False)
+    tabular_metadata: bool = Field(
+        description="User uploaded tabular file metadata containing tabular schema", default=False
+    )
 
 
 class PromptConfig(BaseModel):
@@ -101,8 +104,8 @@ prompt_configs: Dict[str, PromptConfig] = {
     #     prompt_vars=PromptVariable(question=True, formatted_documents=True),
     # ),
     "Tabular_Agent": PromptConfig(
-        system=prompts.TABULAR_PROMPT,
-        prompt_vars=PromptVariable(task=True, expected_output=True),
+        system=prompts.TABULAR_PROMPT + prompts.TABULAR_METADATA,
+        prompt_vars=PromptVariable(task=True, expected_output=True, tabular_metadata=True),
     ),
     "Evaluator_Agent": PromptConfig(
         system=prompts.NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT,

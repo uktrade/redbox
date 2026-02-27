@@ -23,7 +23,6 @@ from redbox.graph.nodes.tools import (
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
-    execute_sql_query,
     get_datahub_mcp_tools,
     build_query_tabular_knowledge_base_tool,
     build_query_tabular_file_tool,
@@ -118,7 +117,7 @@ class Redbox:
 
         search_wikipedia = build_search_wikipedia_tool()
         search_govuk = build_govuk_search_tool()
-        execute_sql = execute_sql_query()
+        # execute_sql = execute_sql_query()
         web_search = build_web_search_tool()
         legislation_search = build_legislation_search_tool()
         doc_from_prompt = build_document_from_prompt_tool(loop=True)
@@ -126,7 +125,7 @@ class Redbox:
 
         self.agent_configs["Internal_Retrieval_Agent"].tools = [search_documents]
         self.agent_configs["External_Retrieval_Agent"].tools = [search_wikipedia, search_govuk]
-        self.agent_configs["Tabular_Agent"].tools = [execute_sql]
+        # self.agent_configs["Tabular_Agent"].tools = [execute_sql]
         self.agent_configs["Web_Search_Agent"].tools = [web_search]
         self.agent_configs["Legislation_Search_Agent"].tools = [legislation_search]
         self.agent_configs["Submission_Question_Answer_Agent"].tools = [
