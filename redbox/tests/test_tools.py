@@ -882,6 +882,7 @@ def test_query_tabular_knowledge_base_tool(
     kb_tool = build_query_tabular_file_tool(
         es_client=es_client,
         index_name=es_index,
+        knowledge_base=True,
     )
 
     # Wrap the tool in a ToolNode
@@ -901,7 +902,7 @@ def test_query_tabular_knowledge_base_tool(
                 content="",
                 tool_calls=[
                     {
-                        "name": "_query_tabular_knowledge_base",
+                        "name": "_query_tabular_file",
                         "args": {"sql_query": sql_query, "uri": test_uri},
                         "id": "1",
                     }
@@ -918,7 +919,7 @@ def test_query_tabular_knowledge_base_tool(
     formatted_output = getattr(message, "content", "")
     docs = getattr(message, "artifact", [])
 
-    # --- NEW: Execute SQL on the KB documents to get expected results ---
+    # Execute SQL on the KB documents to get expected results
     expected_docs = get_expected_docs_for_sql_query(sql_query=sql_query, docs=stored_file_tabular_kb.docs, uri=test_uri)
 
     # Assertions
