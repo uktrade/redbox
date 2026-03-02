@@ -113,8 +113,9 @@ class TestArtifactAgent:
     @pytest.mark.parametrize(
         "result", [("A result"), ([AIMessage("A"), AIMessage("result")]), ([{"text": "A result"}])]
     )
-    def test_post_processing(self, result, fake_state):
+    def test_post_processing(self, result, fake_state_with_plan):
         # same post processing as Worker agent but update on different property
         task = self.task
-        response = self.agent.post_processing().invoke((fake_state, result, task))
+        response = self.agent.post_processing().invoke((fake_state_with_plan, result, task))
         assert response["artifact_criteria"] == "A result"
+        assert response["agent_plans"].get_task_status(task.id) == TaskStatus.COMPLETED
