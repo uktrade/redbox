@@ -2,6 +2,7 @@ from langchain_core.runnables import RunnableLambda
 
 from redbox.chains.runnables import create_chain_agent
 from redbox.graph.agents.workers import WorkerAgent
+from redbox.models.chain import TaskStatus
 
 
 class ArtifactAgent(WorkerAgent):
@@ -41,8 +42,11 @@ class ArtifactAgent(WorkerAgent):
             """
             Processing data from the agent core function.
             """
-            _, result, _ = input
+            state, result, task = input
             result_content = self._processing(result)
-            return {"artifact_criteria": f"{result_content}"}
+            return {
+                "artifact_criteria": f"{result_content}",
+                "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.COMPLETED),
+            }
 
         return _post_processing
