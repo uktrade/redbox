@@ -333,6 +333,7 @@ class TestNewRoutes:
             "External_Retrieval_Agent",
             "Web_Search_Agent",
             "Legislation_Search_Agent",
+            "Tabular_Agent",
         ]:
             # This is a mocker for the new agent refactor. You will need to remove other mocking once all agents have been refactored.
             mocker.patch(
@@ -341,15 +342,8 @@ class TestNewRoutes:
             )
             mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=evaluator_response)
         else:
-            if agent == "Tabular_Agent":
-                tool_response = TABULAR_TOOL_RESPONSE
-                mocker.patch(
-                    "redbox.graph.nodes.processes.get_chat_llm", side_effect=[worker_response, evaluator_response]
-                )
-
-            else:
-                tool_response = WORKER_TOOL_RESPONSE
-                mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=evaluator_response)
+            tool_response = WORKER_TOOL_RESPONSE
+            mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=evaluator_response)
 
             mocker.patch("redbox.graph.nodes.processes.run_tools_parallel", return_value=[tool_response])
 

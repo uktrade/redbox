@@ -28,7 +28,7 @@ class TestNewRouteGraphs:
             ("External_Retrieval_Agent", ["combine_question_evaluator"]),
             ("Legislation_Search_Agent", ["combine_question_evaluator"]),
             ("Web_Search_Agent", ["combine_question_evaluator"]),
-            ("Tabular_Agent", ["retrieve_tabular_documents"]),
+            ("Tabular_Agent", ["combine_question_evaluator"]),
             ("Summarisation_Agent", None),
             ("Submission_Checker_Agent", ["update_submission_eval", "combine_question_evaluator"]),
             ("Submission_Question_Answer_Agent", ["update_submission_qa", "combine_question_evaluator"]),
