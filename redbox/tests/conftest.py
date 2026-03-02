@@ -2,6 +2,8 @@ from collections.abc import Generator
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, AsyncMock
 from uuid import uuid4
+import tempfile
+import os
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -12,6 +14,7 @@ from opensearchpy import OpenSearch
 
 from redbox.models.chain import AISettings, GeneratedMetadata, RedboxQuery, RedboxState
 from redbox.models.settings import Settings
+from redbox.models.file import TabularSchema
 from redbox.retriever import (
     AllElasticsearchRetriever,
     MetadataRetriever,
@@ -256,6 +259,26 @@ def stored_file_tabular_kb(request: FixtureRequest, es_vector_store: OpenSearchV
     doc_ids = es_vector_store.add_documents(test_case.docs)
     yield test_case
     es_vector_store.delete(doc_ids)
+
+
+@pytest.fixture
+def tmp_duckdb_path():
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "test.duckdb")
+        yield path  # file doesn't exist yet — DuckDB creates it
+
+
+@pytest.fixture
+def sample_tabular_schema():
+    return TabularSchema(
+        name="sheet0",
+        columns={"id": "INTEGER", "name": "TEXT", "value": "FLOAT"},
+    )
+
+
+@pytest.fixture
+def sample_csv():
+    return "id,name,value\n1,Alice,100.0\n2,Bob,200.0\n3,Charlie,300.0"
 
 
 @pytest.fixture

@@ -4,6 +4,7 @@ import re
 from urllib.parse import urlparse
 from uuid import uuid4
 
+import duckdb
 import pytest
 import requests_mock
 from langchain_core.documents import Document
@@ -894,3 +895,173 @@ def test_query_tabular_knowledge_base_tool(
     assert len(docs) == len(expected_docs), f"Expected {len(expected_docs)} docs, got {len(docs)}"
     for doc in docs:
         assert doc.metadata["uri"] == test_uri
+
+
+class TestWriteDuckdbTable:
+    @pytest.fixture(autouse=True)
+    def db(self, tmp_duckdb_path, sample_tabular_schema, sample_csv):
+        self.db_path = tmp_duckdb_path
+        self.schema = sample_tabular_schema
+        self.csv = sample_csv
+
+    def _tables(self):
+        with duckdb.connect(self.db_path) as con:
+            return [t[0] for t in con.execute("SHOW TABLES").fetchall()]
+
+    def _rows(self, table="sheet0"):
+        with duckdb.connect(self.db_path) as con:
+            return con.execute(f"SELECT * FROM {table} ORDER BY id").fetchall()
+
+    def _cols(self, table="sheet0"):
+        with duckdb.connect(self.db_path) as con:
+            return [c[0] for c in con.execute(f"DESCRIBE {table}").fetchall()]
+
+    def _count(self, table="sheet0"):
+        with duckdb.connect(self.db_path) as con:
+            return con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+
+    def test_creates_table(self):
+        write_duckdb_table(db_path=self.db_path, schema=self.schema, text_content=self.csv)
+        assert "sheet0" in self._tables()
+
+    def test_inserts_correct_rows(self):
+        write_duckdb_table(db_path=self.db_path, schema=self.schema, text_content=self.csv)
+        rows = self._rows()
+        assert len(rows) == 3
+        assert rows[0] == (1, "Alice", 100.0)
+        assert rows[1] == (2, "Bob", 200.0)
+        assert rows[2] == (3, "Charlie", 300.0)
+
+    def test_idempotent_does_not_duplicate(self):
+        write_duckdb_table(db_path=self.db_path, schema=self.schema, text_content=self.csv)
+        write_duckdb_table(db_path=self.db_path, schema=self.schema, text_content=self.csv)
+        assert self._count() == 3
+
+    def test_casts_numeric_columns(self):
+        write_duckdb_table(db_path=self.db_path, schema=self.schema, text_content=self.csv)
+        with duckdb.connect(self.db_path) as con:
+            row = con.execute("SELECT id, value FROM sheet0 WHERE id = 1").fetchone()
+        assert isinstance(row[0], int)
+        assert isinstance(row[1], float)
+
+    def test_skips_extra_columns_not_in_schema(self):
+        csv_with_extra = "id,name,value,extra_col\n1,Alice,100.0,ignored"
+        write_duckdb_table(db_path=self.db_path, schema=self.schema, text_content=csv_with_extra)
+        assert "extra_col" not in self._cols()
+        assert self._count() == 1
+
+    def test_handles_empty_csv(self):
+        write_duckdb_table(db_path=self.db_path, schema=self.schema, text_content="id,name,value\n")
+        assert "sheet0" in self._tables()
+        assert self._count() == 0
+
+    def test_multiple_sheets_same_db(self):
+        schema0 = TabularSchema(name="sheet0", columns={"id": "INTEGER", "name": "TEXT", "value": "FLOAT"})
+        schema1 = TabularSchema(name="sheet1", columns={"id": "INTEGER", "name": "TEXT", "value": "FLOAT"})
+        write_duckdb_table(db_path=self.db_path, schema=schema0, text_content=self.csv)
+        write_duckdb_table(db_path=self.db_path, schema=schema1, text_content=self.csv)
+        tables = self._tables()
+        assert "sheet0" in tables
+        assert "sheet1" in tables
+        assert self._count("sheet0") == 3
+        assert self._count("sheet1") == 3
+
+    @pytest.mark.parametrize(
+        "csv_content,expected_rows",
+        [
+            (
+                "id,name,value\n1,Alice,100.0\n2,Bob,200.0\n3,Charlie,300.0",
+                [(1, "Alice", 100.0), (2, "Bob", 200.0), (3, "Charlie", 300.0)],
+            ),
+            (
+                "id,name,value\n1,Alice,100.0",
+                [(1, "Alice", 100.0)],
+            ),
+            (
+                "id,name,value\n",
+                [],
+            ),
+        ],
+    )
+    def test_row_counts_and_values(self, csv_content, expected_rows):
+        write_duckdb_table(db_path=self.db_path, schema=self.schema, text_content=csv_content)
+        rows = self._rows()
+        assert rows == expected_rows
+
+
+class TestQueryDuckdbDb:
+    @pytest.fixture(autouse=True)
+    def populated_db(self, tmp_duckdb_path, sample_tabular_schema, sample_csv):
+        write_duckdb_table(db_path=tmp_duckdb_path, schema=sample_tabular_schema, text_content=sample_csv)
+        self.db_path = tmp_duckdb_path
+
+    @pytest.mark.parametrize(
+        "sql_query,expected_count,expected_in_content,expected_not_in_content",
+        [
+            (
+                "SELECT * FROM sheet0",
+                3,
+                [["Alice", "100"], ["Bob", "200"], ["Charlie", "300"]],
+                None,
+            ),
+            (
+                "SELECT * FROM sheet0 WHERE value > 150",
+                2,
+                [["Bob", "200"], ["Charlie", "300"]],
+                None,
+            ),
+            (
+                "SELECT * FROM sheet0 WHERE id = 1",
+                1,
+                [["Alice", "100"]],
+                None,
+            ),
+            (
+                "SELECT name FROM sheet0",
+                3,
+                [["Alice"], ["Bob"], ["Charlie"]],
+                ["value"],
+            ),
+            (
+                "SELECT * FROM sheet0 WHERE id > 999",
+                0,
+                [],
+                None,
+            ),
+        ],
+    )
+    def test_query_results(self, sql_query, expected_count, expected_in_content, expected_not_in_content):
+        docs = query_duckdb_db(db_path=self.db_path, sql_query=sql_query, metadata={"uri": "file1.csv"})
+
+        assert len(docs) == expected_count
+        assert all(isinstance(d, Document) for d in docs)
+        assert all(d.metadata == {"uri": "file1.csv"} for d in docs)
+
+        for doc, expected_terms in zip(docs, expected_in_content):
+            for term in expected_terms:
+                assert term in doc.page_content
+
+        if expected_not_in_content:
+            for doc in docs:
+                for term in expected_not_in_content:
+                    assert term not in doc.page_content
+
+    def test_ordering(self):
+        docs = query_duckdb_db(
+            db_path=self.db_path,
+            sql_query="SELECT * FROM sheet0 ORDER BY value DESC",
+            metadata={"uri": "file1.csv"},
+        )
+        assert len(docs) == 3
+        assert "Charlie" in docs[0].page_content
+        assert "Alice" in docs[2].page_content
+
+    def test_aggregation(self):
+        docs = query_duckdb_db(
+            db_path=self.db_path,
+            sql_query="SELECT COUNT(*) as count, SUM(value) as total FROM sheet0",
+            metadata={"uri": "file1.csv"},
+        )
+        assert len(docs) == 1
+        assert "3" in docs[0].page_content  # count
+        assert "600" in docs[0].page_content  # 100 + 200 + 300
