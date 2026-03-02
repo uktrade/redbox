@@ -35,6 +35,7 @@ from redbox.models.chain import (
     PromptSet,
     RedboxState,
     RequestMetadata,
+    TaskStatus,
     configure_agent_task_plan,
     get_plan_fix_prompts,
     get_plan_fix_suggestion_prompts,
@@ -362,6 +363,17 @@ def create_planner(is_streamed=False):
     return _document_filenames | _create_planner
 
 
+def remove_evaluator_task(state: RedboxState):
+    """
+    Removing evaluator task from a plan and update the task for evaluator
+    """
+    if len(state.agent_plans.tasks) > 0:
+        if state.agent_plans.tasks[-1].agent.value == "Evaluator_Agent":
+            state.tasks_evaluator = state.agent_plans.tasks[-1].task + " " + state.agent_plans.tasks[-1].expected_output
+            state.agent_plans.tasks.pop(-1)
+    return state
+
+
 def my_planner(
     allow_plan_feedback=False,
     node_after_streamed: str = "human",
@@ -405,6 +417,8 @@ def my_planner(
             )
             res = orchestration_agent.invoke(state)
             state.agent_plans = res
+            # remove evaluator agent task
+            remove_evaluator_task(state)
             # reset user feedback
             state.user_feedback = ""
             return Command(update=state, goto=node_afer_replan)
@@ -413,6 +427,8 @@ def my_planner(
             orchestration_agent = create_planner(is_streamed=False)
             res = orchestration_agent.invoke(state)
             state.agent_plans = res
+            # remove evaluator agent task
+            remove_evaluator_task(state)
 
             # send task to worker agent if we have only 1 task
             if len(state.agent_plans.tasks) > no_tasks_auto:
@@ -455,16 +471,24 @@ def build_agent_with_loop(
         except Exception as e:
             log.warning(f"Issue at build_agent_with_loop. Cannot parse in {agent_name}: {e}")
             return None
+        # update status
+        state.agent_plans.update_task_status(task.id, TaskStatus.RUNNING)
 
         activity_node = build_activity_log_node(
             RedboxActivityEvent(message=f"{agent_name} is completing task: {task.task}")
         )
         activity_node.invoke(state)
 
+        # dependencies' results
+        previous_agents_results = []
+        for dep in task.dependencies:
+            previous_agents_results += [state.agents_results[dep].content]
+        previous_agents_results = " ".join(previous_agents_results)
+
         additional_variables = {
             "task": task.task,
             "expected_output": task.expected_output,
-            "agents_results": state.agents_results,
+            "previous_agents_results": previous_agents_results,
             "previous_tool_error": "",
             "previous_tool_results": "",
         }
@@ -553,8 +577,9 @@ def build_agent_with_loop(
         log.warning(f"[{agent_name}] Completed agent_with_loop run.")
         all_results = " ".join(all_results)
         return {
-            "agents_results": f"<{agent_name}_Result>{all_results}</{agent_name}_Result>",
+            "agents_results": {task.id: AIMessage(content=f"<{agent_name}_Result>{all_results}</{agent_name}_Result>")},
             "tasks_evaluator": task.task + "\n" + task.expected_output,
+            "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.COMPLETED),
         }
 
     return _build_agent_with_loop.with_retry(stop_after_attempt=3)
@@ -597,6 +622,8 @@ def invoke_custom_state(
         )
         subgraph_state = state.model_copy()
         agent_task = json.loads(subgraph_state.last_message.content)
+        # update status
+        state.agent_plans.update_task_status(agent_task["id"], TaskStatus.COMPLETED)
         subgraph_state.request.question = (
             agent_task["task"] + f"\nReturn response that is no longer than {max_tokens} tokens."
         )
@@ -608,7 +635,6 @@ def invoke_custom_state(
         activity_node.invoke(state)
         ## invoke the subgraph
         response = subgraph.invoke(subgraph_state)  # the LLM response is streamed
-
         # invoking this subgraph will change original state.question - we correct the state question in subsequent nodes
 
         return response
@@ -830,11 +856,13 @@ def get_tabular_agent(
                 if task_level.agent.value == "Tabular_Agent":
                     task = task_level.task
                     expected_output = task_level.expected_output
+                    break
         except Exception as e:
             log.error(f"Cannot parse in {agent_name}: {e}")
             task = state.request.question
 
         # Log activity
+        state.agent_plans.update_task_status(task_level.id, TaskStatus.RUNNING)
         activity_node = build_activity_log_node(RedboxActivityEvent(message=f"{agent_name} is completing task: {task}"))
         activity_node.invoke(state)
 
@@ -846,12 +874,23 @@ def get_tabular_agent(
         sql_error = ""
         is_intermediate_step = False
         messages = []
+
+        # dependencies' results
+        previous_agents_results = []
+        for dep in task_level.dependencies:
+            previous_agents_results += [state.agents_results[dep].content]
+        previous_agents_results = " ".join(previous_agents_results)
+
         while (success == "fail" or is_intermediate_step) and num_iter < max_attempt:
             worker_agent = build_stuff_pattern(
                 prompt_set=PromptSet.Tabular,
                 tools=tools,
                 final_response_chain=False,
-                additional_variables={"sql_error": sql_error, "db_schema": state.tabular_schema},
+                additional_variables={
+                    "sql_error": sql_error,
+                    "db_schema": state.tabular_schema,
+                    "previous_agents_results": previous_agents_results,
+                },
                 model=model,
             )
             ai_msg = worker_agent.invoke(state)
@@ -904,13 +943,15 @@ def get_tabular_agent(
                 formatted_result = f"<Tabular_Agent_Result>{tabular_context}\n The results of my query are: {result}</Tabular_Agent_Result>"
             else:
                 formatted_result = f"<Tabular_Agent_Result>Iteration limit of {num_iter} is reached by the tabular agent. This is the tabular agent's reasoning at the last iteration: {tabular_context}</Tabular_Agent_Result>"
+            state.agent_plans
 
         else:
             formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the error from the executed SQL query: {result} </Tabular_Agent_Result>"
 
         return {
-            "agents_results": [formatted_result],
+            "agents_results": {task_level.id: AIMessage(content=formatted_result)},
             "tasks_evaluator": task + "\n" + expected_output,
+            "agent_plans": state.agent_plans.update_task_status(task_level.id, TaskStatus.COMPLETED),
         }
 
     return _build_tabular_agent
@@ -954,3 +995,21 @@ def get_tabular_schema():
         return {"tabular_schema": db_schema}
 
     return _get_tabular_schema
+
+
+def check_if_tasks_completed(state: RedboxState) -> bool:
+    """
+    Check if all tasks have been completed.
+    If a task has status pending, it should go back to send.
+    If there is no pending task, go to evaluator
+    """
+    # if there is no pending task, go to evaluator
+    pending_running_tasks = [
+        task
+        for task in state.agent_plans.tasks
+        if task.status in [TaskStatus.PENDING, TaskStatus.RUNNING, TaskStatus.SCHEDULED]
+    ]
+    if pending_running_tasks:
+        return False
+    else:
+        return True

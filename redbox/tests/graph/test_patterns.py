@@ -19,6 +19,7 @@ from redbox.graph.nodes.processes import (
     build_set_route_pattern,
     build_set_text_pattern,
     build_stuff_pattern,
+    check_if_tasks_completed,
     clear_documents_process,
     empty_process,
 )
@@ -30,6 +31,7 @@ from redbox.models.chain import (
     RedboxQuery,
     RedboxState,
     Source,
+    TaskStatus,
     configure_agent_task_plan,
 )
 from redbox.models.chat import ChatRoute
@@ -660,10 +662,13 @@ class TestBuildAgentLoop:
             assert mock_preprocess is None
 
         assert (
-            response.get("agents_results")
+            response.get("agents_results")["task0"].content
             == f"<Internal_Retrieval_Agent_Result>{test_name}</Internal_Retrieval_Agent_Result>"
         )
-        assert len(response) == 2
+        assert "agents_results" in response
+        assert "tasks_evaluator" in response
+        assert "agent_plans" in response
+        assert len(response) == 3
         assert mock_tool_calls.call_count == no_calls
 
     @pytest.mark.parametrize(
@@ -714,8 +719,10 @@ class TestBuildAgentLoop:
         assert response is not None
 
         agent_result = response.get("agents_results")
-        content = agent_result.replace("<Internal_Retrieval_Agent_Result>", "").replace(
-            "</Internal_Retrieval_Agent_Result>", ""
+        content = (
+            agent_result["task0"]
+            .content.replace("<Internal_Retrieval_Agent_Result>", "")
+            .replace("</Internal_Retrieval_Agent_Result>", "")
         )
         content_tokens = len(content.split())
 
@@ -729,5 +736,28 @@ class TestBuildAgentLoop:
             assert content == llm_content.strip()
 
         # Basic checks
-        assert len(response) == 2
+        assert "agents_results" in response
+        assert "tasks_evaluator" in response
+        assert "agent_plans" in response
+        assert len(response) == 3  # content, eval task, task status
         assert mock_tool_calls.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "task_idx, task_status, expected",
+    [
+        ([0], [TaskStatus.RUNNING], False),
+        ([0], [TaskStatus.COMPLETED], False),
+        ([0], [TaskStatus.FAILED], False),
+        ([0, 2], [TaskStatus.COMPLETED, TaskStatus.RUNNING], False),
+        ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.SCHEDULED, TaskStatus.SCHEDULED], False),
+        ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.RUNNING, TaskStatus.RUNNING], False),
+        ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.COMPLETED, TaskStatus.FAILED], True),
+        ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.COMPLETED, TaskStatus.COMPLETED], True),
+    ],
+)
+def test_check_if_tasks_completed(task_idx, task_status, expected, fake_state_with_plan: MockerFixture):
+    for i, idx in enumerate(task_idx):
+        fake_state_with_plan.agent_plans.tasks[idx].status = task_status[i]
+    actual = check_if_tasks_completed(fake_state_with_plan)
+    assert expected == actual
