@@ -1,8 +1,20 @@
 from datetime import UTC, datetime
-from enum import Enum, StrEnum
+from enum import Enum, IntEnum, StrEnum
 from functools import reduce
 from types import UnionType
-from typing import Annotated, Dict, List, Literal, NotRequired, Required, Tuple, TypedDict, get_args, get_origin
+from typing import (
+    Annotated,
+    Dict,
+    List,
+    Literal,
+    NotRequired,
+    Optional,
+    Required,
+    Tuple,
+    TypedDict,
+    get_args,
+    get_origin,
+)
 from uuid import UUID, uuid4
 
 import environ
@@ -313,15 +325,52 @@ def metadata_reducer(
     )
 
 
+class TaskStatus(IntEnum):
+    PENDING = 1
+    SCHEDULED = 2
+    RUNNING = 3
+    COMPLETED = 4
+    FAILED = 5
+
+
 # Base class definition for agent task
 class AgentTaskBase(BaseModel):
+    id: str = Field(description="Unique identifier for the task", default="task0")
     task: str = Field(description="Task to be completed by the agent", default="")
     expected_output: str = Field(description="What this agent should produce", default="")
+    dependencies: List[str] = Field(
+        description="List of task IDs that must be complete before this task can run", default_factory=list
+    )
+    status: TaskStatus = Field(
+        description="Current status of the task",
+        default=TaskStatus.PENDING,
+    )
 
 
 # Base class definition for multi agent plan
 class MultiAgentPlanBase(BaseModel):
     model_config = {"extra": "forbid"}
+
+
+def update_task_status(self, task_id: str, status: TaskStatus):
+    """
+    Update Agent Task status, given task id
+    """
+    for task in self.tasks:
+        if task.id == task_id:
+            task.status = status
+            break
+    return self
+
+
+def get_task_status(self, task_id: str) -> TaskStatus:
+    """
+    Get Agent Task status, given task id
+    """
+    for task in self.tasks:
+        if task.id == task_id:
+            return task.status
+    raise ValueError(f"No task found with id: {task_id}")
 
 
 def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskBase, MultiAgentPlanBase]:
@@ -352,8 +401,42 @@ def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskB
             Field(description="A list of tasks to be carried out by agents", default=[ConfiguredAgentTask()]),
         ),
     )
+    ConfiguredAgentPlan.update_task_status = update_task_status
+    ConfiguredAgentPlan.get_task_status = get_task_status
 
     return ConfiguredAgentTask, ConfiguredAgentPlan
+
+
+def add_messages_dict(left: Dict[str, AnyMessage], right: Dict[str, AnyMessage]) -> Dict[str, AnyMessage]:
+    """Reducer that merges dicts - right overwrites left."""
+    return {**left, **right}  # Right side wins on conflicts.
+
+
+def agent_plan_reducer(
+    current: MultiAgentPlanBase | None, update: MultiAgentPlanBase | None
+) -> Optional[MultiAgentPlanBase]:
+    if current is None:
+        return update
+    if update is None:
+        return current
+
+    # Update with the highest status
+    for i, (current_task, update_task) in enumerate(zip(current.tasks, update.tasks)):
+        if (update_task.status > current_task.status) and (update_task.id == current_task.id):
+            current.tasks[i].status = update_task.status
+
+    return current
+
+
+def artifact_criteria_reducer(
+    current: str | None,
+    update: str | list[RequestMetadata] | None,
+):
+    if current is None:
+        return update
+    if update is None:
+        return current
+    return update
 
 
 class RedboxState(BaseModel):
@@ -366,11 +449,11 @@ class RedboxState(BaseModel):
     citations: list[Citation] | None = None
     steps_left: Annotated[int | None, RemainingStepsManager] = None
     messages: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
-    agents_results: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
-    agent_plans: MultiAgentPlanBase | None = None
+    agents_results: Annotated[Dict[str, AnyMessage], add_messages_dict] = Field(default_factory=dict)
+    agent_plans: Annotated[MultiAgentPlanBase | None, agent_plan_reducer] = None
     tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     tabular_schema: str = ""
-    artifact_criteria: str = ""
+    artifact_criteria: Annotated[str | None, artifact_criteria_reducer] = None
 
     @property
     def last_message(self) -> AnyMessage:
