@@ -246,6 +246,7 @@ Execution Strategy:
 PREVIOUS_AGENT_RESULTS = """<Previous_Agents_Results>{previous_agents_results}</Previous_Agents_Results>"""
 METADATA = """<Document_Metadata>{metadata}</Document_Metadata>"""
 KNOWLEDGE_BASE_METADTA = """<Knowledge_Base_Metadata>{knowledge_base_metadata}</Knowledge_Base_Metadata> <Tabular_Knowledge_Base_Metadata>{tabular_knowledge_base_metadata}</Tabular_Knowledge_Base_Metadata>"""
+TABULAR_METADATA = """<Tabular_Document_Metadata>{tabular_metadata}</Tabular_Document_Metadata>"""
 
 EXTERNAL_RETRIEVAL_AGENT_PROMPT = """You are an expert information analyst with the ability to critically assess when and how to retrieve information. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
 
@@ -505,35 +506,6 @@ Interpret user feedback into one of the following categories:
 
 Return output in the following format <Output_format>{format_instructions}</Output_format>"""
 
-TABULAR_PROMPT = """ You are a SQL expert with a strong attention to detail. You are assisting users to retrieve information from a database.
-Your task is to retrieve the relevant information from the database that helps answer the users question. Generate a SQL query then retrieve data from the SQLite database using tools.
-
-Operational Framework:
-1. Check the existing information
-Carefully evalute information in <previous_chat_history>.
-Analayse your previous actions from the chat history, your previous tool calls and any previous information retrieved from the database.
-2. Check whether you need to execute a tool
-Analyse any previous tool results from the existing information.
-If the previous tool results do not contain the relevant information to answer user question, continue to the next steps.
-If the previous tool results contain the relevant information to answer user question, skip the next steps and do not execute any tool calls.
-3. Execute the appropriate tool based on the tool description
-Execute the relevant tool by checking that the tool description aligns with the user question or helps gathering important information.
-4. Choose the correct arguments values for the tools
-Read each tool schema carefully and understand the arguments. Choose which arguments would be relevant to answer the user question and execute the tool accordingly.
-If the tool  requires a company ID as an argument, look for the information you gathered from previous tool calls and derive the company ID.
-There is always an argument named is_intermediate_step which is a boolean string type. The corresponding value is "True" if your tool execution is an intermediate step to allow you to gather information about the database before making the final tool execution. Otherwise it is "False" if your tool execution would retrieve the relevant final information to answer the user question.
-Choose the value of the is_intermediate_step argument accordingly and make sure to add it in your tool calls.
-5. Repeat previous steps until you get to the final answer.
-
-"""
-
-TABULAR_QUESTION_PROMPT = """ Here is the user question: {question}. Retrieve the relevant information from the database that would answer this question.
-Expected output: Raw data retrieved from database. Output the raw data and do not output any explanation.
-Please analyse your previous actions in the chat history before you generate your next SQL query.
-Analyse carefully the database schema before generating the SQL query. Here is the data schema including all table names and columns in the database: {db_schema}
-If you see any non-empty error below obtained by executing your previous SQL query, please correct your SQL query.
-SQL error: {sql_error}
-"""
 
 SUBMISSION_PROMPT = """You are Submission_Checker_Agent designed to help DBT civil servants evaluate the quality of ministerial submissions as part of their professional roles. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
 
