@@ -31,7 +31,6 @@ from redbox.test.data import (
     mock_all_chunks_retriever,
     mock_metadata_retriever,
     mock_parameterised_retriever,
-    mock_tabular_retriever,
 )
 
 
@@ -107,7 +106,6 @@ async def run_app(
     app = Redbox(
         all_chunks_retriever=mock_all_chunks_retriever(test_case.docs),
         parameterised_retriever=mock_parameterised_retriever(test_case.docs),
-        tabular_retriever=mock_tabular_retriever(test_case.docs),
         metadata_retriever=mock_metadata_retriever(
             [d for d in test_case.docs if d.metadata["uri"] in test_case.query.s3_keys]
         ),

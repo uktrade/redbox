@@ -24,7 +24,6 @@ from redbox.retriever import (
     MetadataRetriever,
     OpenSearchRetriever,
     ParameterisedElasticsearchRetriever,
-    TabularElasticsearchRetriever,
 )
 from redbox.retriever.retrievers import (
     KnowledgeBaseMetadataRetriever,
@@ -142,13 +141,6 @@ def get_embeddings(env: Settings) -> Embeddings:
 
 def get_all_chunks_retriever(env: Settings) -> OpenSearchRetriever:
     return AllElasticsearchRetriever(
-        es_client=env.elasticsearch_client(),
-        index_name=env.elastic_chunk_alias,
-    )
-
-
-def get_tabular_chunks_retriever(env: Settings) -> OpenSearchRetriever:
-    return TabularElasticsearchRetriever(
         es_client=env.elasticsearch_client(),
         index_name=env.elastic_chunk_alias,
     )

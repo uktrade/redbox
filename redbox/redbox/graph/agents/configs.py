@@ -31,9 +31,6 @@ class PromptVariable(BaseModel):
     previous_agents_results: bool = Field(
         description="Results from dependent agents required as input for this task", default=False
     )
-    sql_error: bool = Field(
-        description="Error generated from running sql", default=False
-    )  # this may need to be removed after tabular refactoring
     artifact_files: bool = Field(description="A list of artifact files URI", default=False)
 
 

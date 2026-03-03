@@ -5,7 +5,6 @@ from redbox.chains.components import (
     get_embeddings,
     get_metadata_retriever,
     get_parameterised_retriever,
-    get_tabular_chunks_retriever,
 )
 from redbox.graph.agents.configs import AgentConfig, agent_configs
 from redbox.graph.root import build_new_route_graph
@@ -17,7 +16,6 @@ class TestNewRouteGraphs:
     agent_configs = agent_configs
     all_chunks_retriever = get_all_chunks_retriever(_env)
     parameterised_retriever = get_parameterised_retriever(_env)
-    tabular_retriever = get_tabular_chunks_retriever(_env)
     metadata_retriever = get_metadata_retriever(_env)
     embedding_model = get_embeddings(_env)
 
@@ -37,7 +35,6 @@ class TestNewRouteGraphs:
     def test_new_route_graph(self, agent_name, edges):
         graph = build_new_route_graph(
             all_chunks_retriever=self.all_chunks_retriever,
-            tabular_retriever=self.tabular_retriever,
             agent_configs=self.agent_configs,
         ).get_graph()
         # check if we have this agent node in the graph
@@ -55,7 +52,6 @@ class TestNewRouteGraphs:
         with pytest.raises(ValueError):
             graph = build_new_route_graph(
                 all_chunks_retriever=self.all_chunks_retriever,
-                tabular_retriever=self.tabular_retriever,
                 agent_configs={"Fake_Agent": AgentConfig(name="Fake_Agent")},
             ).get_graph()
 

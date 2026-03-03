@@ -57,7 +57,6 @@ def build_root_graph(
     all_chunks_retriever,
     parameterised_retriever,
     metadata_retriever,
-    tabular_retriever,
     agent_configs,
     debug,
 ):
@@ -74,7 +73,6 @@ def build_root_graph(
         "new_route_graph",
         build_new_route_graph(
             all_chunks_retriever=all_chunks_retriever,
-            tabular_retriever=tabular_retriever,
             agent_configs=agent_configs,
             debug=debug,
         ),
@@ -439,7 +437,6 @@ def strip_route(state: RedboxState):
 
 def build_new_route_graph(
     all_chunks_retriever: VectorStoreRetriever,
-    tabular_retriever: VectorStoreRetriever,
     agent_configs: Dict[str, AgentConfig],
     debug: bool = False,
 ) -> CompiledGraph:
