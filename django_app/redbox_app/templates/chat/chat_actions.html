@@ -2,7 +2,7 @@
 {% from "macros/govuk-button.html" import govukButton %}
 
 <div class="ids-chat-title__actions">
-    {% if flag_is_active(request, flags.ENABLE_TOOLS) %}
+    {% if not flag_is_active(request, flags.DISABLE_TOOLS) %}
         <details class="ids-collapsible-menu">
             <summary class="govuk-button govuk-button--secondary ids-tools-button  ids-fit-content-width" role="button">
                 {% if tool %}
