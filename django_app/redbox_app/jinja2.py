@@ -85,7 +85,6 @@ def get_menu_items(user):
     items = []
 
     items.append({"text": "All documents", "href": url("documents")})
-    # items.append({"text": "Chat", "href": url("chats")})
 
     if not flag_is_active(user, flags.DISABLE_TOOLS):
         items.append({"text": "Tools", "href": url("tools")})
