@@ -1,4 +1,5 @@
 export * from './accessible-autocomplete.js';
+export * from './collapsible-menu.js';
 export * from './editable-text.js';
 export * from './first-time-upload-form.js';
 export * from './loading-message.js';
