@@ -1,10 +1,20 @@
 {% from "macros/select-input.html" import select_input %}
 
-{% macro adaptive_select(items, name, threshold=10, id=None, multiple=False, label="", aria_labelledby="", classes="") %}
+{% macro adaptive_select(
+    items,
+    name,
+    threshold=10,
+    id=None,
+    multiple=False,
+    label="",
+    aria_labelledby="",
+    classes="",
+    default_option="---------")
+%}
     {% set use_autocomplete = items|length > threshold %}
 
     {% set options %}
-        <option value="">---------</option>
+        <option value="">{{ default_option }}</option>
         {% for item in items %}
             {{ caller(item) }}
         {% endfor %}

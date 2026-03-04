@@ -1,20 +1,22 @@
 // @ts-check
 
+const VISUALLY_HIDDEN_CLASS = "govuk-!-display-none"
+
 /**
  * Hide an element by using the govuk-!-display-none class
- * @param {HTMLElement | undefined} element - HTML element
+ * @param {Element | undefined | null} element - Element
 */
 export function hideElement(element) {
-    if (element) element.classList.add("govuk-!-display-none");
+    if (element) element.classList.add(VISUALLY_HIDDEN_CLASS);
 }
 
 
 /**
  * Show an element by removing the govuk-!-display-none class
- * @param {HTMLElement | undefined} element - HTML element
+ * @param {Element | undefined | null} element - Element
 */
 export function showElement(element) {
-    if (element) element.classList.remove("govuk-!-display-none");
+    if (element) element.classList.remove(VISUALLY_HIDDEN_CLASS);
 }
 
 

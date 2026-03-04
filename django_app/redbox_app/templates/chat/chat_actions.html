@@ -2,12 +2,28 @@
 {% from "macros/govuk-button.html" import govukButton %}
 
 <div class="ids-chat-title__actions">
-    {% if flag_is_active(request, flags.ENABLE_TOOLS) and promoted_tool and not tool %}
-        {{ govukButton(
-            text="Try " ~ promoted_tool.name,
-            href=promoted_tool.chat_url,
-            classes="govuk-button--secondary govuk-!-margin-0 ids-flex-align-center ids-fit-content-width"
-            ) }}
+    {% if flag_is_active(request, flags.ENABLE_TOOLS) %}
+        <details class="ids-collapsible-menu">
+            <summary class="govuk-button govuk-button--secondary ids-tools-button  ids-fit-content-width" role="button">
+                {% if tool %}
+                    {{ tool.name }}
+                {% else %}
+                    Try Tools
+                {% endif %}
+            </summary>
+
+            <div class="ids-collapsible-menu__panel">
+                {% for tool_obj in tools %}
+                    {% if tool_obj != tool %}
+                        {{ govukButton(
+                            text=tool_obj.name,
+                            classes="govuk-button--secondary ids-tools-button ids-flex-align-center ids-fit-content-width",
+                            href=tool_obj.chat_url
+                            ) }}
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </details>
     {% endif %}
 
     {% set new_chat_text %}
