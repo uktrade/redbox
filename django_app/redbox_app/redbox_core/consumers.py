@@ -376,7 +376,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
             await self.update_ai_message()
             if len(self.full_reply) == 0 or self.chat_message.text == "":
-                logger.exception("LLM Error - Blank Response")
+                logger.exception("consumers: LLM Error - Blank Response")
             await self.send_to_client(
                 "end", {"message_id": self.chat_message.id, "title": title, "session_id": session.id}
             )

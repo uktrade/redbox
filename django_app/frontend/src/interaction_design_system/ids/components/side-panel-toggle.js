@@ -4,13 +4,11 @@ export class SidePanelToggle extends HTMLElement {
     toggleEventId = "side-panel-toggle";
 
     connectedCallback() {
-        console.log("SidePanelToggle connectedCallback", this.toggleElement);
         const toggleEvent = new CustomEvent(this.toggleEventId, {
             detail: this,
         });
 
         this.toggleElement?.addEventListener("click", (evt) => {
-            console.log("Fired toggle event");
             document.dispatchEvent(toggleEvent);
         });
     }

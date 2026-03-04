@@ -4,7 +4,6 @@ import json
 import logging
 import random
 import re
-import sqlite3
 import threading
 import time
 from io import StringIO
@@ -287,93 +286,99 @@ DUCKDB_LOCKS: dict[str, threading.Lock] = {}
 DUCKDB_LOCKS_LOCK = threading.Lock()  # lock to safely create new per-db locks
 
 
-def build_query_tabular_knowledge_base_tool(
+def get_duckdb_lock(db_path: str) -> threading.Lock:
+    """Return a lock specific to a given DuckDB file."""
+    with DUCKDB_LOCKS_LOCK:
+        if db_path not in DUCKDB_LOCKS:
+            DUCKDB_LOCKS[db_path] = threading.Lock()
+        return DUCKDB_LOCKS[db_path]
+
+
+def write_duckdb_table(db_path: str, schema: TabularSchema, text_content: str):
+    logger = get_func_logger(write_duckdb_table)
+
+    with duckdb.connect(database=db_path) as con:
+        tables = [t[0] for t in con.execute("SHOW TABLES").fetchall()]
+        if schema.name not in tables:
+            # Clean CSV content
+            lines = StringIO(text_content).readlines()
+            header = re.sub(
+                r"^\s*<table_name>.*?</table_name>\s*",
+                "",
+                lines[0],
+                count=1,
+                flags=re.DOTALL,
+            )
+            csv_str = "\n".join([header] + lines[1:])
+            reader = csv.DictReader(StringIO(csv_str))
+            df = pd.DataFrame(list(reader))
+
+            # Keep only schema columns
+            df = df[[col for col in schema.columns.keys() if col in df.columns]]
+
+            # Cast columns to proper types based on schema_obj
+            for col, dtype in schema.columns.items():
+                if col not in df.columns:
+                    continue  # skip missing columns
+                try:
+                    if dtype.upper() in ("INTEGER", "INT"):
+                        df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")  # nullable integer
+                    elif dtype.upper() in ("FLOAT", "DOUBLE", "REAL"):
+                        df[col] = pd.to_numeric(df[col], errors="coerce")
+                    elif dtype.upper() in ("BOOLEAN", "BOOL"):
+                        df[col] = df[col].astype(bool)
+                    elif dtype.upper() in ("DATE", "TIMESTAMP"):
+                        df[col] = pd.to_datetime(df[col], errors="coerce")
+                    else:  # default to string
+                        df[col] = df[col].astype(str)
+                except Exception as col_e:
+                    logger.warning("Failed to cast column %s: %s", col, str(col_e))
+                    df[col] = df[col].astype(str)
+
+            # Create table and insert data
+            columns_def = ", ".join(f'"{col}" {dtype}' for col, dtype in schema.columns.items())
+            con.execute(f'CREATE TABLE "{schema.name}" ({columns_def})')
+            if not df.empty:
+                con.execute(f'INSERT INTO "{schema.name}" SELECT * FROM df')
+
+
+def query_duckdb_db(db_path: str, sql_query: str, metadata: dict) -> list[Document]:
+    documents: list[Document] = []
+    with duckdb.connect(database=db_path, read_only=True) as con:
+        # Execute agent-provided SQL query
+        query_result = con.execute(sql_query).fetchall()
+        col_names = [desc[0] for desc in con.description]
+
+        # Wrap as Documents
+        for row in query_result:
+            row_dict = dict(zip(col_names, row))
+            documents.append(
+                Document(
+                    page_content=str(row_dict),
+                    metadata=metadata,
+                )
+            )
+    return documents
+
+
+def build_query_tabular_file_tool(
     es_client: Union[Elasticsearch, OpenSearch],
     index_name: str,
+    knowledge_base: bool,
 ) -> Tool:
     """
     Returns a tool that executes an agent-generated SQL query against tabular files
     retrieved from OpenSearch. The retriever is embedded inside the tool.
     """
 
-    logger = get_func_logger(build_query_tabular_knowledge_base_tool)
+    logger = get_func_logger(build_query_tabular_file_tool)
     retriever = SchematisedTabularChunkRetriever(
         es_client=es_client,
         index_name=index_name,
     )
 
-    def get_duckdb_lock(db_path: str) -> threading.Lock:
-        """Return a lock specific to a given DuckDB file."""
-        with DUCKDB_LOCKS_LOCK:
-            if db_path not in DUCKDB_LOCKS:
-                DUCKDB_LOCKS[db_path] = threading.Lock()
-            return DUCKDB_LOCKS[db_path]
-
-    def write_duckdb_table(db_path: str, schema: TabularSchema, text_content: str):
-        with duckdb.connect(database=db_path) as con:
-            tables = [t[0] for t in con.execute("SHOW TABLES").fetchall()]
-            if schema.name not in tables:
-                # Clean CSV content
-                lines = StringIO(text_content).readlines()
-                header = re.sub(
-                    r"^\s*<table_name>.*?</table_name>\s*",
-                    "",
-                    lines[0],
-                    count=1,
-                    flags=re.DOTALL,
-                )
-                csv_str = "\n".join([header] + lines[1:])
-                reader = csv.DictReader(StringIO(csv_str))
-                df = pd.DataFrame(list(reader))
-
-                # Keep only schema columns
-                df = df[[col for col in schema.columns.keys() if col in df.columns]]
-
-                # Cast columns to proper types based on schema_obj
-                for col, dtype in schema.columns.items():
-                    if col not in df.columns:
-                        continue  # skip missing columns
-                    try:
-                        if dtype.upper() in ("INTEGER", "INT"):
-                            df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")  # nullable integer
-                        elif dtype.upper() in ("FLOAT", "DOUBLE", "REAL"):
-                            df[col] = pd.to_numeric(df[col], errors="coerce")
-                        elif dtype.upper() in ("BOOLEAN", "BOOL"):
-                            df[col] = df[col].astype(bool)
-                        elif dtype.upper() in ("DATE", "TIMESTAMP"):
-                            df[col] = pd.to_datetime(df[col], errors="coerce")
-                        else:  # default to string
-                            df[col] = df[col].astype(str)
-                    except Exception as col_e:
-                        logger.warning("Failed to cast column %s: %s", col, str(col_e))
-                        df[col] = df[col].astype(str)
-
-                # Create table and insert data
-                columns_def = ", ".join(f'"{col}" {dtype}' for col, dtype in schema.columns.items())
-                con.execute(f'CREATE TABLE "{schema.name}" ({columns_def})')
-                if not df.empty:
-                    con.execute(f'INSERT INTO "{schema.name}" SELECT * FROM df')
-
-    def query_duckdb_db(db_path: str, sql_query: str, metadata: dict) -> list[Document]:
-        documents: list[Document] = []
-        with duckdb.connect(database=db_path, read_only=True) as con:
-            # Execute agent-provided SQL query
-            query_result = con.execute(sql_query).fetchall()
-            col_names = [desc[0] for desc in con.description]
-
-            # Wrap as Documents
-            for row in query_result:
-                row_dict = dict(zip(col_names, row))
-                documents.append(
-                    Document(
-                        page_content=str(row_dict),
-                        metadata=metadata,
-                    )
-                )
-        return documents
-
     @tool(response_format="content_and_artifact")
-    def _query_tabular_knowledge_base(
+    def _query_tabular_file(
         sql_query: str,
         uri: str,
         state: Annotated[RedboxState, InjectedState],
@@ -406,9 +411,14 @@ def build_query_tabular_knowledge_base_tool(
         formatted_documents: str = ""
 
         try:
+            # Set permitted keys
+            permitted_s3_keys = state.request.permitted_s3_keys
+            if knowledge_base:
+                permitted_s3_keys = state.request.permitted_s3_keys
+
             # Retrieve tabular documents
             docs_metadata = retriever._get_relevant_documents(
-                knowledge_base_s3_keys=state.request.knowledge_base_s3_keys, uris=[uri], run_manager=None
+                permitted_s3_keys=permitted_s3_keys, uris=[uri], run_manager=None
             )
             if not docs_metadata:
                 return "No documents found for URI", []
@@ -454,7 +464,7 @@ def build_query_tabular_knowledge_base_tool(
             logger.exception("Unexpected error in _query_tabular_knowledge_base")
             return f"Unexpected error: {e}", []
 
-    return _query_tabular_knowledge_base
+    return _query_tabular_file
 
 
 def build_govuk_search_tool(filter=True) -> Tool:
@@ -963,35 +973,3 @@ def get_datahub_mcp_tools(agent_loop=True):
     tools = loop.run_until_complete(_get_async_tools())
     loop.close()
     return tools
-
-
-def execute_sql_query():
-    @tool(response_format="content")
-    def _execute_sql_query(sql_query: str, is_intermediate_step: bool, state: Annotated[RedboxState, InjectedState]):
-        """
-        SQL verification tool is a versatile tool that executes SQL queries against a SQLite database.
-        Args:
-            sql_query (str): The sql query to be executed against the SQLite database.
-            is_intermediate_step (bool): True if your sql query is an intermediate step to allow you to gather information about the database before making the final sql query. False if your sql query would retrieve the relevant information to answer the user question.
-        Returns:
-            results of the sql query execution if it is successful or an error message if the sql query execution failed
-        """
-        # execute tabular agent SQL
-        conn = sqlite3.connect(state.request.db_location)
-        cursor = conn.cursor()
-        try:
-            cursor.execute(sql_query)
-            results = str(cursor.fetchall())
-            conn.close()
-            if results not in ["", "None", "[]"]:
-                return (str(results), "pass", str(is_intermediate_step))
-            else:
-                error_message = "empty result set. Verify your query."
-                return (error_message, "fail", str(is_intermediate_step))
-        except Exception as e:
-            error_message = (
-                f"The SQL query syntax is wrong. Here is the error message: {e}.  Please correct your SQL query."
-            )
-            return (error_message, "fail", str(is_intermediate_step))
-
-    return _execute_sql_query

@@ -188,18 +188,17 @@ def build_stuff_pattern(
         else:
             llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
 
-        events = [
-            event
-            for event in build_llm_chain(
-                prompt_set=prompt_set,
-                llm=llm,
-                output_parser=output_parser,
-                format_instructions=format_instructions,
-                final_response_chain=final_response_chain,
-                additional_variables=additional_variables,
-                summary_multiagent_flag=summary_multiagent_flag,
-            ).stream(state)
-        ]
+        chain = build_llm_chain(
+            prompt_set=prompt_set,
+            llm=llm,
+            output_parser=output_parser,
+            format_instructions=format_instructions,
+            final_response_chain=final_response_chain,
+            additional_variables=additional_variables,
+            summary_multiagent_flag=summary_multiagent_flag,
+        )
+
+        events = [event for event in chain.stream(state)]
         return sum(events, {})
 
     return _stuff
@@ -338,7 +337,9 @@ def create_planner(is_streamed=False):
     @RunnableLambda
     def _create_planner(state: RedboxState):
         artifact_files = [
-            kb_file for kb_file in state.request.knowledge_base_s3_keys if "artifact" in kb_file.split("/")[-1].lower()
+            kb_file
+            for kb_file in state.request.knowledge_base_s3_keys
+            if kb_file.split("/")[-1].lower().startswith("artifact")
         ]
         planner_prompt = state.request.ai_settings.planner_prompt_with_format
         # dynamically generate agent plan based on state
@@ -394,7 +395,7 @@ def my_planner(
             artifact_files = [
                 kb_file
                 for kb_file in state.request.knowledge_base_s3_keys
-                if "artifact" in kb_file.split("/")[-1].lower()
+                if kb_file.split("/")[-1].lower().startswith("artifact")
             ]
             # dynamically generate agent plan based on state
             agent_options = state.request.ai_settings.get_worker_agents_options
@@ -478,10 +479,16 @@ def build_agent_with_loop(
         )
         activity_node.invoke(state)
 
+        # dependencies' results
+        previous_agents_results = []
+        for dep in task.dependencies:
+            previous_agents_results += [state.agents_results[dep].content]
+        previous_agents_results = " ".join(previous_agents_results)
+
         additional_variables = {
             "task": task.task,
             "expected_output": task.expected_output,
-            "agents_results": state.agents_results,
+            "previous_agents_results": previous_agents_results,
             "previous_tool_error": "",
             "previous_tool_results": "",
         }
@@ -830,164 +837,6 @@ def parse_doc_text_as_db_table(doc_text: str, table_name: str, conn: sqlite3.Con
 def sanitise_file_name(file_name: str) -> str:
     """Removes Spaces and special characters from file names"""
     return re.sub(r"\W+", "", file_name.replace(" ", ""))
-
-
-def get_tabular_agent(
-    agent_name: str = "Tabular Agent",
-    max_tokens: int = 5000,
-    tools=list[StructuredTool],
-    max_attempt=int,
-    model: ChatLLMBackend | None = None,
-):
-    @RunnableLambda
-    def _build_tabular_agent(state: RedboxState):
-        # update activity
-        try:
-            # retrieve tabular agent task
-            tasks = state.agent_plans.tasks
-            for task_level in tasks:
-                if task_level.agent.value == "Tabular_Agent":
-                    task = task_level.task
-                    expected_output = task_level.expected_output
-                    break
-        except Exception as e:
-            log.error(f"Cannot parse in {agent_name}: {e}")
-            task = state.request.question
-
-        # Log activity
-        state.agent_plans.update_task_status(task_level.id, TaskStatus.RUNNING)
-        activity_node = build_activity_log_node(RedboxActivityEvent(message=f"{agent_name} is completing task: {task}"))
-        activity_node.invoke(state)
-
-        # Create SQL database agent with structured output format
-        # db = SQLDatabase.from_uri(f"sqlite:///{state.request.db_location}")
-        # call tabular agent
-        success = "fail"
-        num_iter = 0
-        sql_error = ""
-        is_intermediate_step = False
-        messages = []
-
-        # dependencies' results
-        previous_agents_results = []
-        for dep in task_level.dependencies:
-            previous_agents_results += [state.agents_results[dep].content]
-        previous_agents_results = " ".join(previous_agents_results)
-
-        while (success == "fail" or is_intermediate_step) and num_iter < max_attempt:
-            worker_agent = build_stuff_pattern(
-                prompt_set=PromptSet.Tabular,
-                tools=tools,
-                final_response_chain=False,
-                additional_variables={
-                    "sql_error": sql_error,
-                    "db_schema": state.tabular_schema,
-                    "previous_agents_results": previous_agents_results,
-                },
-                model=model,
-            )
-            ai_msg = worker_agent.invoke(state)
-
-            if isinstance(ai_msg["messages"][-1].content, str):
-                messages.append(AIMessage(ai_msg["messages"][-1].content))
-
-            try:
-                messages.append(
-                    AIMessage(f"Here is the SQL query: {ai_msg['messages'][-1].tool_calls[-1]['args']['sql_query']}")
-                )
-            except Exception:
-                log.info("no sql query input to tool")
-
-            num_iter += 1
-            if isinstance(ai_msg["messages"][-1].content, str):
-                tabular_context = ai_msg["messages"][-1].content
-            else:
-                tabular_context = ""
-            tool_output = run_tools_parallel(ai_msg["messages"][-1], tools, state)
-
-            if not tool_output:
-                success = "fail"
-                continue
-
-            results = tool_output[-1].content  # this is a tuple
-
-            # Truncate to max_tokens. only using one tool here.
-            # retrieve result from database or sql error
-            result = results[0][:max_tokens]  # saving this as a new variable as tuples are immutable.
-            success = results[1]
-
-            is_intermediate_step = eval(results[2])
-
-            if success == "fail":
-                sql_error = result  # capture sql error
-                messages.append(
-                    AIMessage(f"The SQL query failed to execute correctly. Here is the error message: {sql_error}")
-                )
-
-            else:
-                if is_intermediate_step:
-                    sql_error = ""
-                    messages.append(AIMessage(f"Here are the results from the query: {result}"))
-            # update state messages
-            state.messages = messages
-
-        if success == "pass":
-            if not is_intermediate_step:  # if this is the final step
-                formatted_result = f"<Tabular_Agent_Result>{tabular_context}\n The results of my query are: {result}</Tabular_Agent_Result>"
-            else:
-                formatted_result = f"<Tabular_Agent_Result>Iteration limit of {num_iter} is reached by the tabular agent. This is the tabular agent's reasoning at the last iteration: {tabular_context}</Tabular_Agent_Result>"
-            state.agent_plans
-
-        else:
-            formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the error from the executed SQL query: {result} </Tabular_Agent_Result>"
-
-        return {
-            "agents_results": {task_level.id: AIMessage(content=formatted_result)},
-            "tasks_evaluator": task + "\n" + expected_output,
-            "agent_plans": state.agent_plans.update_task_status(task_level.id, TaskStatus.COMPLETED),
-        }
-
-    return _build_tabular_agent
-
-
-def get_tabular_schema():
-    def _get_tabular_schema(state: RedboxState):
-        # create db
-        state = create_or_update_db_from_tabulars(state=state)
-        db_path = state.request.db_location
-        # get schema
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        # get tables
-        tables = cursor.execute(
-            "SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite_%';"
-        ).fetchall()
-        schema = {"tables": []}
-        for (table_name,) in tables:
-            cols = cursor.execute(f'PRAGMA table_info("{table_name}");').fetchall()
-            # convert to JSON
-            schema["tables"].append(
-                {
-                    "name": table_name,
-                    "columns": [
-                        {
-                            "name": col[1],
-                            "type": col[2],
-                            "notnull": bool(col[3]),
-                            "default": col[4],
-                            "primary_key": bool(col[5]),
-                        }
-                        for col in cols
-                    ],
-                }
-            )
-
-        conn.close()
-        db_schema = json.dumps(schema, indent=2)
-
-        return {"tabular_schema": db_schema}
-
-    return _get_tabular_schema
 
 
 def check_if_tasks_completed(state: RedboxState) -> bool:

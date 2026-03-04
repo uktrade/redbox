@@ -26,7 +26,6 @@ export class SidePanel extends HTMLElement {
 
         // Bind toggle event listener
         document.addEventListener(this.toggleEventId, (evt) => {
-            console.log("Captured toggle event");
             evt.stopPropagation();
             this.togglePanel();
         });

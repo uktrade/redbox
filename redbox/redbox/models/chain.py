@@ -83,8 +83,7 @@ class AISettings(BaseModel):
     llm_decide_route_prompt: str = prompts.LLM_DECIDE_ROUTE
     citation_prompt: str = prompts.CITATION_PROMPT
     answer_instruction_prompt: str = prompts.ANSWER_INSTRUCTION_SYSTEM_PROMPT
-    tabular_system_prompt: str = prompts.TABULAR_PROMPT
-    tabular_question_prompt: str = prompts.TABULAR_QUESTION_PROMPT
+    tabular_system_prompt: str = prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT
 
     # Elasticsearch RAG and boost values
     rag_k: int = 30
@@ -428,6 +427,17 @@ def agent_plan_reducer(
     return current
 
 
+def artifact_criteria_reducer(
+    current: str | None,
+    update: str | list[RequestMetadata] | None,
+):
+    if current is None:
+        return update
+    if update is None:
+        return current
+    return update
+
+
 class RedboxState(BaseModel):
     knowledge_files: Annotated[DocumentState, document_reducer] = DocumentState()
     request: RedboxQuery
@@ -442,7 +452,7 @@ class RedboxState(BaseModel):
     agent_plans: Annotated[MultiAgentPlanBase | None, agent_plan_reducer] = None
     tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     tabular_schema: str = ""
-    artifact_criteria: str = ""
+    artifact_criteria: Annotated[str | None, artifact_criteria_reducer] = None
 
     @property
     def last_message(self) -> AnyMessage:
