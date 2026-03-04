@@ -54,6 +54,7 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
 
     context = {
         "tool": tool,
+        "tools": Tool.objects.all(),
         "chat_id": chat_id,
         "messages": messages,
         "chats": Chat.get_ordered_by_last_message_date(request.user, tool),
