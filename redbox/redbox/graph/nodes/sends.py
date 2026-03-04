@@ -242,10 +242,10 @@ def run_tools_parallel(
 
                             if is_empty:
                                 log.warning(f"No records  returned from {future_tool_name} tool")
-                                response = "Error message: Empty response"
 
                             # Create transformed response and append to responses
-                            transformed_response = (response, status, is_intermediate_step)
+                            formatted_response = f"<Database_records>{response}</Database_records>"
+                            transformed_response = (formatted_response, status, is_intermediate_step)
                             log.warning("my transformed response")
                             log.warning(transformed_response)
                             responses.append(AIMessage(transformed_response))

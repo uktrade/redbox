@@ -1006,3 +1006,33 @@ def check_if_tasks_completed(state: RedboxState) -> bool:
         return False
     else:
         return True
+    
+def is_multiple_records_datahub(state: RedboxState) -> bool:
+
+    #get task ID for datahub agent
+    for task in state.agent_plans.tasks:
+        if task.agent.value == "Datahub_Agent":
+            task_id = task.id
+
+    #get number records from datahub agent results
+    records = state.agents_results[task_id].content
+
+    #retrieve database records from results
+    matches = re.findall(r"<Database_records>(.*?)</Database_records>", records)
+    parsed = []
+    for match in matches:
+        parsed.append(json.loads(match))
+
+    #check if results contain single or multiple records
+    total_companies = 0
+    for parse in parsed:
+        total_companies +=parse['total']
+    
+    if total_companies > 1: #multiple records
+        log.warning('multiple datahub records detected')
+        print('multiple datahub records detected')
+        return True
+    else:
+        log.warning('multiple datahub records NOT detected')
+        print('multiple datahub records NOT detected')
+        return False
