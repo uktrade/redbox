@@ -3,7 +3,7 @@
 
 <div class="ids-chat-title__actions">
     {% if not flag_is_active(request, flags.DISABLE_TOOLS) %}
-        <ids-collapsible-menu>
+        <ids-collapsible-menu {% if tool %}data-tool-id="{{ tool.id }}" data-tool-slug="{{ tool.slug }}"{% endif %}>
             <details class="ids-collapsible-menu">
                 <summary class="govuk-button govuk-button--secondary ids-tools-button ids-collapsible-menu__button" role="button">
                     <span class="ids-collapsible-menu__label">
