@@ -1,10 +1,9 @@
 import logging
-import threading
-from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
-from typing import Callable
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed, Future
+from typing import Callable, Optional, Any
 from uuid import uuid4
 
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, ToolCall
 from langgraph.constants import Send
 
 from redbox.models.chain import DocumentState, RedboxState, TaskStatus
@@ -72,33 +71,33 @@ def build_tool_send(target: str) -> Callable[[RedboxState], list[Send]]:
     return _tool_send
 
 
-def run_with_timeout(func, args, timeout):
-    """Run a a function with a timeout and return its result or None if it times out or fails.
-    This function can be used to set a timeout for tool execution"""
-    result = [None]
-    exception = [None]
-    completed = [False]
+# def run_with_timeout(func, args, timeout):
+#     """Run a a function with a timeout and return its result or None if it times out or fails.
+#     This function can be used to set a timeout for tool execution"""
+#     result = [None]
+#     exception = [None]
+#     completed = [False]
 
-    def target():
-        try:
-            result[0] = func(args)
-        except Exception as e:
-            exception[0] = e
-        finally:
-            completed[0] = True
+#     def target():
+#         try:
+#             result[0] = func(args)
+#         except Exception as e:
+#             exception[0] = e
+#         finally:
+#             completed[0] = True
 
-    thread = threading.Thread(target=target)
-    thread.daemon = True  # The thread will exit when the main program exits
-    thread.start()
-    thread.join(timeout)  # applying timeout constraint
+#     thread = threading.Thread(target=target)
+#     thread.daemon = True  # The thread will exit when the main program exits
+#     thread.start()
+#     thread.join(timeout)  # applying timeout constraint
 
-    if not completed[0]:  # if it times out
-        log.warning(f"Tool execution timed out after {timeout} seconds")
-        return None
-    if exception[0]:  # if the tool fails
-        log.warning(f"Tool execution failed: {str(exception[0])}")
-        return None
-    return result[0]
+#     if not completed[0]:  # if it times out
+#         log.warning(f"Tool execution timed out after {timeout} seconds")
+#         return None
+#     if exception[0]:  # if the tool fails
+#         log.warning(f"Tool execution failed: {str(exception[0])}")
+#         return None
+#     return result[0]
 
 
 def wrap_async_tool(tool, tool_name):
@@ -176,92 +175,109 @@ def run_tools_parallel(
     max_workers = min(10, len(ai_msg.tool_calls))
     log.warning(f"{log_stub} Creating ThreadPoolExecutor(max_workers={max_workers})")
 
+    # -- helpers --
+
+    def submit_tool_future(tool_call: ToolCall) -> tuple[Future, dict] | None:
+        # Find the matching tool by name
+        tool_name = tool_call.get("name")
+        selected_tool = next((tool for tool in tools if tool.name == tool_name), None)
+
+        if selected_tool is None:
+            log.warning(f"{log_stub} Warning: No tool found for {tool_name}")
+            return None
+
+        # Get arguments and submit the tool invocation
+        args = tool_call.get("args", {})
+        log.warning(f"args: {args}")
+        is_intermediate_step = "False"
+
+        # check if tool is sync (not async). the sync tool should have sync function defined and no async coroutine
+        if selected_tool.func and not selected_tool.coroutine:
+            args["state"] = state
+            future = executor.submit(selected_tool.invoke, args)
+
+        # for async mcp tools
+        else:
+            # capture any intermediate step value decided by LLM
+            if is_loop:
+                is_intermediate_step = args.get("is_intermediate_step", "False")
+                log.warning(f"intermediate step: {is_intermediate_step}")
+            future = executor.submit(wrap_async_tool(selected_tool, tool_name), args)
+        return future, {"name": tool_name, "intermediate_step": is_intermediate_step}
+
+    def parse_tool_future(future: Future) -> Optional[Any]:
+        future_tool_name = futures[future]["name"]
+        is_intermediate_step = futures[future]["intermediate_step"]
+
+        # try:
+        response = future.result()
+        log.warning(f"{log_stub} This is what I got from tool '{future_tool_name}': {response}")
+
+        # if response is None:
+        #     log.warning(f"{log_stub} {future_tool_name} Tool has failed or timed out")
+        #     return None
+
+        log.warning("response not None")
+        if (not is_loop and isinstance(response, str)) or (
+            is_loop and isinstance(response, tuple)
+        ):  # when is_loop=True, result output should be a Tuple
+            responses.append(AIMessage(response))
+            log.warning("my non-transformed response")
+            log.warning(response)
+
+        elif is_loop and isinstance(response, str):
+            try:
+                result_dict = json.loads(response)
+                # Check if response has no records
+                is_empty = result_dict.get("total") == 0
+                log.warning(f"is_empty {is_empty}")
+            except json.JSONDecodeError:
+                # Check if response is an empty string/None/empty array
+                is_empty = response in ["", "None", "[]"]
+
+            # Set status based on emptiness
+            status = "fail" if is_empty else "pass"
+
+            if is_empty:
+                log.warning(f"No records  returned from {future_tool_name} tool")
+                response = "Error message: Empty response"
+
+            # Create transformed response and append to responses
+            transformed_response = (response, status, is_intermediate_step)
+            log.warning("my transformed response")
+            log.warning(transformed_response)
+            responses.append(AIMessage(transformed_response))
+
+        raw_res = response
+        if isinstance(raw_res, tuple):
+            raw_res = raw_res[0]
+
+        if not raw_res or not raw_res.strip():
+            log.warning(f"{log_stub} '{future_tool_name}' Tool returned empty/whitespace response: {repr(raw_res)}")
+
     # Dict to store futures and related metadata
     futures = {}
-
     try:
         # Use ThreadPoolExecutor for parallel execution
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit tool invocations to the executor
             for tool_call in ai_msg.tool_calls:
-                # Find the matching tool by name
-                tool_name = tool_call.get("name")
-                selected_tool = next((tool for tool in tools if tool.name == tool_name), None)
-
-                if selected_tool is None:
-                    log.warning(f"{log_stub} Warning: No tool found for {tool_name}")
+                res = submit_tool_future(tool_call=tool_call)
+                if res is None:
                     continue
 
-                # Get arguments and submit the tool invocation
-                args = tool_call.get("args", {})
-                log.warning(f"args: {args}")
-                is_intermediate_step = "False"
-                # check if tool is sync (not async). the sync tool should have sync function defined and no async coroutine
-                if selected_tool.func and not selected_tool.coroutine:
-                    args["state"] = state
-                    future = executor.submit(run_with_timeout, selected_tool.invoke, args, per_tool_timeout)
-                else:  # for async mcp tools
-                    # capture any intermediate step value decided by LLM
-                    if is_loop:
-                        is_intermediate_step = args.get("is_intermediate_step", "False")
-                        log.warning(f"intermediate step: {is_intermediate_step}")
-                    future = executor.submit(
-                        run_with_timeout, wrap_async_tool(selected_tool, tool_name), args, per_tool_timeout
-                    )
-                futures[future] = {"name": tool_name, "intermediate_step": is_intermediate_step}
+                future, args = res
+                futures[future] = args
 
             # Collect responses as tools complete
             responses = []
             for future in as_completed(futures.keys(), timeout=parallel_timeout):
                 future_tool_name = futures[future]["name"]
-                is_intermediate_step = futures[future]["intermediate_step"]
 
                 try:
-                    response = future.result(timeout=result_timeout)
-                    log.warning(f"{log_stub} This is what I got from tool '{future_tool_name}': {response}")
-                    if response is not None:  # if response is not None, meaning tool did not fail or timeout
-                        log.warning("response not None")
-                        if (not is_loop and isinstance(response, str)) or (
-                            is_loop and isinstance(response, tuple)
-                        ):  # when is_loop=True, result output should be a Tuple
-                            responses.append(AIMessage(response))
-                            log.warning("my non-transformed response")
-                            log.warning(response)
-                        elif is_loop and isinstance(response, str):
-                            try:
-                                result_dict = json.loads(response)
-                                # Check if response has no records
-                                is_empty = result_dict.get("total") == 0
-                                log.warning(f"is_empty {is_empty}")
-                            except json.JSONDecodeError:
-                                # Check if response is an empty string/None/empty array
-                                is_empty = response in ["", "None", "[]"]
-
-                            # Set status based on emptiness
-                            status = "fail" if is_empty else "pass"
-
-                            if is_empty:
-                                log.warning(f"No records  returned from {future_tool_name} tool")
-                                response = "Error message: Empty response"
-
-                            # Create transformed response and append to responses
-                            transformed_response = (response, status, is_intermediate_step)
-                            log.warning("my transformed response")
-                            log.warning(transformed_response)
-                            responses.append(AIMessage(transformed_response))
-
-                    else:
-                        log.warning(f"{future_tool_name} Tool has failed or timed out")
-                        continue
-
-                    raw_res = response
-                    if isinstance(raw_res, tuple):
-                        raw_res = raw_res[0]
-
-                    if not raw_res or not raw_res.strip():
-                        log.warning(
-                            f"{log_stub} '{future_tool_name}' Tool returned empty/whitespace response: {repr(raw_res)}"
-                        )
+                    response = parse_tool_future(future=future)
+                    if response is not None:
+                        responses.append(response)
 
                 except TimeoutError:
                     log.warning(
@@ -271,16 +287,16 @@ def run_tools_parallel(
                 except Exception as e:
                     log.warning(f"{log_stub} '{future_tool_name}' Tool invocation error: {e}")
 
-            if responses:
-                log.warning(
-                    f"{log_stub} Completed. Successful parallel tool responses: {len(responses)}. Responses: {responses}"
-                )
-                return responses
-            else:
+            if not responses:
                 log.warning(
                     f"{log_stub} Every tool execution has failed or timed out after {per_tool_timeout} seconds."
                 )
                 return None
+
+            log.warning(
+                f"{log_stub} Completed. Successful parallel tool responses: {len(responses)}. Responses: {responses}"
+            )
+            return responses
 
     except TimeoutError:
         log.warning(f"{log_stub} Global parallel tool execution timed out after {parallel_timeout} seconds.")
