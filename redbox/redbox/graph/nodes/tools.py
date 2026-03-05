@@ -31,6 +31,7 @@ from redbox.chains.components import get_embeddings
 from redbox.models.chain import RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution, TabularSchema
 from redbox.models.settings import get_settings
+from redbox.loader.loaders import compute_document_schema_from_text
 from redbox.retriever.queries import (
     add_document_filter_scores_to_query,
     build_document_query,
@@ -414,12 +415,10 @@ def build_query_tabular_file_tool(
             # Set permitted keys
             permitted_s3_keys = state.request.permitted_s3_keys
             if knowledge_base:
-                permitted_s3_keys = state.request.permitted_s3_keys
+                permitted_s3_keys = state.request.knowledge_base_s3_keys
 
             # Retrieve tabular documents
-            docs_metadata = retriever._get_relevant_documents(
-                permitted_s3_keys=permitted_s3_keys, uris=[uri], run_manager=None
-            )
+            docs_metadata = retriever.get_documents(permitted_s3_keys=permitted_s3_keys, uris=[uri], run_manager=None)
             if not docs_metadata:
                 return "No documents found for URI", []
 
@@ -430,8 +429,8 @@ def build_query_tabular_file_tool(
             with lock:
                 for meta in docs_metadata:
                     metadata = meta.get("metadata", {})
-                    schema = metadata.get("document_schema")
                     text_content = meta.get("text", "")
+                    schema = metadata.get("document_schema") or compute_document_schema_from_text(text_content)
 
                     if schema is None:
                         return "Document not supported for querying as it uses legacy schema.", []

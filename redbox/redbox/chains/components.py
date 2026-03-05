@@ -28,6 +28,7 @@ from redbox.retriever import (
 from redbox.retriever.retrievers import (
     KnowledgeBaseMetadataRetriever,
     KnowledgeBaseTabularMetadataRetriever,
+    SchematisedTabularChunkRetriever,
     TabularMetadataRetriever,
 )
 from redbox.transform import bedrock_tokeniser
@@ -170,6 +171,13 @@ def get_metadata_retriever(env: Settings):
 
 def get_basic_metadata_retriever(env: Settings):
     return BasicMetadataRetriever(
+        es_client=env.elasticsearch_client(),
+        index_name=env.elastic_chunk_alias,
+    )
+
+
+def get_legacy_tabular_metadata_retriever(env: Settings):
+    return SchematisedTabularChunkRetriever(
         es_client=env.elasticsearch_client(),
         index_name=env.elastic_chunk_alias,
     )

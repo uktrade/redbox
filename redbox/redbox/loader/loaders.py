@@ -3,8 +3,9 @@ import time
 import json
 from collections.abc import Iterator
 from datetime import UTC, datetime
-from io import BytesIO
+from io import BytesIO, StringIO
 from typing import TYPE_CHECKING, List, Tuple, Optional
+import re
 
 import environ
 import fitz
@@ -106,10 +107,15 @@ def read_csv_text(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
         if df.empty:
             logger.error("Empty File Uploaded")
             raise ValidationError("Empty File Uploaded")
+
+        csv_text = str(df.to_csv(index=False))
+        sheet_schema = compute_document_schema_from_text(text=csv_text)
         return [
             {
                 "text": str(df.to_csv(index=False)),  # Convert bytes to string
-                "metadata": {},  # returning empty metadata dictionary
+                "metadata": {
+                    "document_schema": sheet_schema.model_dump() if sheet_schema else None,
+                },  # returning empty metadata dictionary
             }
         ]
     except Exception as e:
@@ -132,12 +138,20 @@ def read_excel_file(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
                     continue
                 # Include the table name in the text that is stored. This will be extracted by the retriever
                 table_name = name.lower().replace(" ", "_")
-                sheet_schema = TabularSchema(
-                    name=table_name, columns={col: infer_sqlite_type(df[col].dtype) for col in df.columns}
-                )
+                # sheet_schema = TabularSchema(
+                #     name=table_name, columns={col: infer_sqlite_type(df[col].dtype) for col in df.columns}
+                # )
+                # sheet_schema = compute_document_schema_from_text()
 
                 csv_text = f"<table_name>{table_name}</table_name>" + str(df.to_csv(index=False))
-                elements.append({"text": csv_text, "metadata": {"document_schema": sheet_schema.model_dump()}})
+                sheet_schema = compute_document_schema_from_text(text=csv_text)
+
+                elements.append(
+                    {
+                        "text": csv_text,
+                        "metadata": {"document_schema": sheet_schema.model_dump() if sheet_schema else None},
+                    }
+                )
             except Exception as e:
                 logger.info(f"Skipping Sheet {name} due to error: {e}")
                 continue
@@ -155,6 +169,30 @@ def load_tabular_file(file_name: str, file_bytes: BytesIO) -> list[dict[str, str
         elements = read_excel_file(file_bytes=file_bytes)
 
     return elements if elements else []
+
+
+def compute_document_schema_from_text(text: str) -> dict | None:
+    """Reconstruct document_schema from legacy document text at runtime."""
+    # Extract table name from <table_name> tag
+    match = re.search(r"<table_name>(.*?)</table_name>", text)
+    if not match:
+        return None
+
+    table_name = match.group(1)
+
+    # Strip the tag to get clean CSV
+    csv_text = re.sub(r"<table_name>.*?</table_name>", "", text).strip()
+
+    # Parse CSV to get column dtypes
+    try:
+        df = pd.read_csv(StringIO(csv_text))
+        sheet_schema = TabularSchema(
+            name=table_name, columns={col: infer_sqlite_type(df[col].dtype) for col in df.columns}
+        )
+        return sheet_schema.model_dump()
+    except Exception as e:
+        logger.warning(f"Failed to compute schema from legacy document: {e}")
+        return None
 
 
 class UnstructuredChunkLoader:

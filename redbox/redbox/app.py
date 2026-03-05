@@ -109,7 +109,8 @@ class Redbox:
         )
         query_tabular_file = build_query_tabular_file_tool(
             es_client=_env.elasticsearch_client(),
-            index_name=_env.elastic_schematised_chunk_index,
+            index_name=_env.elastic_chunk_alias,
+            # index_name=_env.elastic_schematised_chunk_index,
             knowledge_base=False,
         )
 

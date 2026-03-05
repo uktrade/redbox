@@ -24,6 +24,7 @@ from redbox.retriever.queries import (
     get_knowledge_base_tabular_metadata,
     get_tabular_metadata,
     get_schematised_tabular_chunks,
+    get_tabular_chunks,
     get_metadata,
     get_minimum_metadata,
 )
@@ -413,12 +414,18 @@ class SchematisedTabularChunkRetriever(OpenSearchRetriever):
     def __init__(self, es_client: Union[Elasticsearch, OpenSearch], **kwargs: Any) -> None:
         # Hack to pass validation before overwrite
         # Partly necessary due to how .with_config() interacts with a retriever
-        kwargs["body_func"] = get_schematised_tabular_chunks
+        kwargs["body_func"] = get_tabular_chunks
         kwargs["es_client"] = es_client
         super().__init__(**kwargs)
-        self.body_func = partial(get_schematised_tabular_chunks, self.chunk_resolution)
+        self.body_func = partial(get_tabular_chunks, self.chunk_resolution)
 
-    def _get_relevant_documents(
+    def _get_relevant_documents(self, query: RedboxState, *, run_manager: CallbackManagerForRetrieverRun) -> list:  # noqa:ARG002
+        body = self.body_func(query)  # type: ignore
+        response = self.es_client.search(index=self.index_name, body=body)
+        hits = response.get("hits", {}).get("hits", [])
+        return [hit["_source"] for hit in hits]
+
+    def get_documents(
         self,
         # index_name: str,
         permitted_s3_keys: list[str],
@@ -426,7 +433,9 @@ class SchematisedTabularChunkRetriever(OpenSearchRetriever):
         *,
         run_manager: CallbackManagerForRetrieverRun,
     ) -> list:  # noqa:ARG002
-        body = self.body_func(permitted_s3_keys=permitted_s3_keys, uris=uris)  # type: ignore
+        body = get_schematised_tabular_chunks(
+            chunk_resolution=self.chunk_resolution, permitted_s3_keys=permitted_s3_keys, uris=uris
+        )  # type: ignore
         response = self.es_client.search(index=self.index_name, body=body)
         hits = response.get("hits", {}).get("hits", [])
         return [hit["_source"] for hit in hits]
