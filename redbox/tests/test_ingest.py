@@ -616,7 +616,9 @@ def test_read_csv_text_valid_file():
 
     assert len(result) == 1
     assert "name,age\nJohn,30\nJane,25" in result[0]["text"]
-    assert result[0]["metadata"] == {}
+    assert result[0]["metadata"] == {
+        "document_schema": {"columns": {"age": "INTEGER", "name": "TEXT"}, "name": "csv", "type": "tabular"}
+    }
 
 
 def test_read_csv_text_pandas_error():
@@ -640,7 +642,13 @@ def test_read_excel_file_multiple_sheets():
 
         assert len(result) == 2
         assert "<table_name>sheet1</table_name>" in result[0]["text"]
+        assert result[0]["metadata"] == {
+            "document_schema": {"columns": {"Col1": "INTEGER", "Col2": "INTEGER"}, "name": "sheet1", "type": "tabular"}
+        }
         assert "<table_name>sheet2</table_name>" in result[1]["text"]
+        assert result[1]["metadata"] == {
+            "document_schema": {"columns": {"Col3": "INTEGER", "Col4": "INTEGER"}, "name": "sheet2", "type": "tabular"}
+        }
 
 
 def test_read_excel_file_empty_sheet():
@@ -655,6 +663,9 @@ def test_read_excel_file_empty_sheet():
 
         assert len(result) == 1
         assert "<table_name>sheet2</table_name>" in result[0]["text"]
+        assert result[0]["metadata"] == {
+            "document_schema": {"columns": {"Col1": "INTEGER", "Col2": "INTEGER"}, "name": "sheet1", "type": "tabular"}
+        }
 
 
 def test_read_excel_file_sheet_error():
@@ -670,6 +681,9 @@ def test_read_excel_file_sheet_error():
 
         assert len(result) == 1
         assert "<table_name>sheet2</table_name>" in result[0]["text"]
+        assert result[0]["metadata"] == {
+            "document_schema": {"columns": {"Col1": "INTEGER", "Col2": "INTEGER"}, "name": "sheet1", "type": "tabular"}
+        }
 
 
 def test_read_excel_file_all_empty_sheets():
