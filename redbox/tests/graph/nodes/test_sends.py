@@ -17,6 +17,7 @@ from redbox.graph.nodes.sends import (
     run_tools_parallel,
     wrap_async_tool,
 )
+from redbox.graph.nodes import exceptions as tool_exceptions
 from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_wikipedia_tool
 from redbox.models.chain import DocumentState, RedboxQuery, RedboxState, TaskStatus, configure_agent_task_plan
 from tests.conftest import fake_state
@@ -374,14 +375,25 @@ class TestRunToolsParallelAsync:
         tool.ainvoke.assert_awaited_once_with({"foo": "bar"})
 
     @pytest.mark.parametrize(
-        "exception",
-        [TimeoutError("tool timed out"), ValueError("invalid value"), Exception("unknown error")],
+        "exception, expect_invoked",
+        [
+            (tool_exceptions.ToolTimeoutError("failing_tool", timeout_seconds=60), True),
+            (tool_exceptions.ToolNotFoundError("failing_tool"), False),
+            (tool_exceptions.ToolFailedError("failing_tool", stderr="something went wrong"), True),
+        ],
     )
     @patch("redbox.graph.nodes.sends.ClientSession")
     @patch("redbox.graph.nodes.sends.streamablehttp_client")
     @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
     def test_async_tool_failures_return_none(
-        self, mock_load_tools, mock_http_client, mock_session_class, exception, fake_state, fake_mcp_tool_failing
+        self,
+        mock_load_tools,
+        mock_http_client,
+        mock_session_class,
+        exception,
+        expect_invoked,
+        fake_state,
+        fake_mcp_tool_failing,
     ):
         tool = fake_mcp_tool_failing("failing_tool", exception)
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
@@ -393,7 +405,11 @@ class TestRunToolsParallelAsync:
 
         response = run_tools_parallel(ai_msg, tools=[tool], state=fake_state)
         assert response is None
-        tool.ainvoke.assert_awaited_once_with({"foo": "bar"})
+
+        if expect_invoked:
+            tool.ainvoke.assert_awaited_once_with({"foo": "bar"})
+        else:
+            tool.ainvoke.assert_not_awaited()
 
     @patch("redbox.graph.nodes.sends.ClientSession")
     @patch("redbox.graph.nodes.sends.streamablehttp_client")

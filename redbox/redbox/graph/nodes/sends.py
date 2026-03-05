@@ -239,8 +239,6 @@ def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, is_loop=False)
 
         if selected_tool is None:
             raise exceptions.ToolNotFoundError(tool_name=tool_name, available_tools=[tool.name for tool in tools])
-            # log.warning(f"{log_stub} Warning: No tool found for {tool_name}")
-            # return None
 
         # Get arguments and submit the tool invocation
         args = tool_call.get("args", {})
