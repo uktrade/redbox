@@ -417,7 +417,9 @@ def build_query_tabular_file_tool(
                 permitted_s3_keys = state.request.knowledge_base_s3_keys
 
             # Retrieve tabular documents
-            docs_metadata = retriever.get_documents(permitted_s3_keys=permitted_s3_keys, uris=[uri], run_manager=None)
+            docs_metadata = retriever._get_relevant_documents(
+                permitted_s3_keys=permitted_s3_keys, uris=[uri], run_manager=None
+            )
             if not docs_metadata:
                 return "No documents found for URI. Please advise the user to try again by reuploading the file.", []
 
