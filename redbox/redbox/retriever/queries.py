@@ -199,32 +199,6 @@ def get_tabular_metadata(
     }
 
 
-def get_tabular_chunks(
-    chunk_resolution: ChunkResolution | None,
-    state: RedboxState,
-) -> dict[str, Any]:
-    query_filter = build_query_filter(
-        selected_files=state.request.s3_keys,
-        permitted_files=state.request.permitted_s3_keys,
-        chunk_resolution=chunk_resolution,
-    )
-
-    return {
-        "_source": {
-            "includes": [
-                "metadata.uri",
-                "metadata.name",
-                "metadata.description",
-                "metadata.keywords",
-                "metadata.document_schema",
-                "text",
-            ],
-            "excludes": ["vector_field"],
-        },
-        "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
-    }
-
-
 def get_schematised_tabular_chunks(
     chunk_resolution: ChunkResolution | None,
     permitted_s3_keys: list[str],
