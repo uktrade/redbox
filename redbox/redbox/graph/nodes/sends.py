@@ -1,6 +1,6 @@
 import logging
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed, Future
-from typing import Callable, Optional, Any
+from typing import Callable, Optional
 from uuid import uuid4
 
 from langchain_core.messages import AIMessage, ToolCall
@@ -157,9 +157,7 @@ def wrap_async_tool(tool, tool_name):
     return wrapper
 
 
-def run_tools_parallel(
-    ai_msg, tools, state, parallel_timeout=60, per_tool_timeout=60, result_timeout=60, is_loop=False
-):
+def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, is_loop=False):
     run_id = str(uuid4())[:8]
     log_stub = f"[run_tools_parallel run_id='{run_id}']"
     log.warning(f"{log_stub} Starting tool execution.")
@@ -219,7 +217,9 @@ def run_tools_parallel(
 
         return future, {"name": tool_name, "intermediate_step": is_intermediate_step}
 
-    def parse_tool_future(future: Future, tool_timeout: float) -> Optional[Any]:
+    def parse_tool_future(future: Future, tool_timeout: float) -> Optional[AIMessage]:
+        result = None
+
         future_tool_name = futures[future]["name"]
         is_intermediate_step = futures[future]["intermediate_step"]
 
@@ -242,8 +242,8 @@ def run_tools_parallel(
         if (not is_loop and isinstance(response, str)) or (
             is_loop and isinstance(response, tuple)
         ):  # when is_loop=True, result output should be a Tuple
-            responses.append(AIMessage(response))
             log.warning(f"{log_stub} {future_tool_name} my non-transformed response: {response}")
+            result = response
 
         elif is_loop and isinstance(response, str):
             try:
@@ -263,7 +263,7 @@ def run_tools_parallel(
             transformed_response = (response, status, is_intermediate_step)
             log.warning("my transformed response")
             log.warning(transformed_response)
-            responses.append(AIMessage(transformed_response))
+            result = transformed_response
 
         else:
             raise exceptions.ToolOutputValidationError(
@@ -284,7 +284,7 @@ def run_tools_parallel(
                 reason=f"empty or whitespace-only response body: {repr(raw_res)}",
             )
 
-        return response
+        return AIMessage(result)
 
     # Dict to store futures and related metadata
     futures = {}
@@ -318,7 +318,7 @@ def run_tools_parallel(
                 future_tool_name = futures[future]["name"]
 
                 try:
-                    response = parse_tool_future(future=future)
+                    response = parse_tool_future(future=future, tool_timeout=parallel_timeout)
                     if response is not None:
                         responses.append(response)
 
@@ -356,6 +356,7 @@ def run_tools_parallel(
                 f"Failed: {len(failed_tools)}. Responses: {responses}"
             )
             return responses
+
     except TimeoutError:
         log.warning(f"{log_stub} Global parallel tool execution timed out after {parallel_timeout} seconds.")
         return None
