@@ -664,7 +664,7 @@ def test_read_excel_file_empty_sheet():
         assert len(result) == 1
         assert "<table_name>sheet2</table_name>" in result[0]["text"]
         assert result[0]["metadata"] == {
-            "document_schema": {"columns": {"Col1": "INTEGER", "Col2": "INTEGER"}, "name": "sheet1", "type": "tabular"}
+            "document_schema": {"columns": {"Col1": "INTEGER", "Col2": "INTEGER"}, "name": "sheet2", "type": "tabular"}
         }
 
 
@@ -682,7 +682,7 @@ def test_read_excel_file_sheet_error():
         assert len(result) == 1
         assert "<table_name>sheet2</table_name>" in result[0]["text"]
         assert result[0]["metadata"] == {
-            "document_schema": {"columns": {"Col1": "INTEGER", "Col2": "INTEGER"}, "name": "sheet1", "type": "tabular"}
+            "document_schema": {"columns": {"Col1": "INTEGER", "Col2": "INTEGER"}, "name": "sheet2", "type": "tabular"}
         }
 
 
