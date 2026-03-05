@@ -8,7 +8,7 @@ from langchain_core.runnables import RunnableParallel
 
 from redbox.chains.components import get_embeddings
 from redbox.chains.ingest import ingest_from_loader
-from redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader
+from redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader, UnstructuredSchematisedChunkLoader
 from redbox.models.chain import GeneratedMetadata
 from redbox.models.file import ChunkResolution
 from redbox.models.settings import get_settings
@@ -120,19 +120,19 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
         env=env,
     )
 
-    # tabular_schema_chunk_ingest_chain = ingest_from_loader(
-    #     loader=UnstructuredSchematisedChunkLoader(
-    #         chunk_resolution=ChunkResolution.tabular,
-    #         env=env,
-    #         min_chunk_size=env.worker_ingest_largest_chunk_size,
-    #         max_chunk_size=env.worker_ingest_largest_chunk_size,
-    #         overlap_chars=env.worker_ingest_largest_chunk_overlap,
-    #         metadata=metadata,
-    #     ),
-    #     s3_client=env.s3_client(),
-    #     vectorstore=get_elasticsearch_store_without_embeddings(es, env.elastic_schematised_chunk_index),
-    #     env=env,
-    # )
+    tabular_schema_chunk_ingest_chain = ingest_from_loader(
+        loader=UnstructuredSchematisedChunkLoader(
+            chunk_resolution=ChunkResolution.tabular,
+            env=env,
+            min_chunk_size=env.worker_ingest_largest_chunk_size,
+            max_chunk_size=env.worker_ingest_largest_chunk_size,
+            overlap_chars=env.worker_ingest_largest_chunk_overlap,
+            metadata=metadata,
+        ),
+        s3_client=env.s3_client(),
+        vectorstore=get_elasticsearch_store_without_embeddings(es, env.elastic_schematised_chunk_index),
+        env=env,
+    )
 
     if file_name.endswith((".csv", ".xls", "xlsx")):
         new_ids = RunnableParallel(
@@ -140,7 +140,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
                 "normal": chunk_ingest_chain,
                 "largest": large_chunk_ingest_chain,
                 "tabular": tabular_chunk_ingest_chain,
-                # "schematised_tabular": tabular_schema_chunk_ingest_chain,
+                "schematised_tabular": tabular_schema_chunk_ingest_chain,
             }
         ).invoke(file_name)  # Run an additional tabular process if a tabular file is ingested
     else:

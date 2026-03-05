@@ -108,13 +108,14 @@ def read_csv_text(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
             logger.error("Empty File Uploaded")
             raise ValidationError("Empty File Uploaded")
 
-        csv_text = str(df.to_csv(index=False))
+        csv_text = "<table_name>csv</table_name>" + str(df.to_csv(index=False))
         sheet_schema = compute_document_schema_from_text(text=csv_text)
+        logger.error(sheet_schema)
         return [
             {
-                "text": str(df.to_csv(index=False)),  # Convert bytes to string
+                "text": csv_text,  # Convert bytes to string
                 "metadata": {
-                    "document_schema": sheet_schema.model_dump() if sheet_schema else None,
+                    "document_schema": sheet_schema,
                 },  # returning empty metadata dictionary
             }
         ]
@@ -149,7 +150,7 @@ def read_excel_file(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
                 elements.append(
                     {
                         "text": csv_text,
-                        "metadata": {"document_schema": sheet_schema.model_dump() if sheet_schema else None},
+                        "metadata": {"document_schema": sheet_schema},
                     }
                 )
             except Exception as e:
