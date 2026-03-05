@@ -31,7 +31,6 @@ from redbox.chains.components import get_embeddings
 from redbox.models.chain import RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution, TabularSchema
 from redbox.models.settings import get_settings
-from redbox.loader.loaders import compute_document_schema_from_text
 from redbox.retriever.queries import (
     add_document_filter_scores_to_query,
     build_document_query,
@@ -420,7 +419,7 @@ def build_query_tabular_file_tool(
             # Retrieve tabular documents
             docs_metadata = retriever.get_documents(permitted_s3_keys=permitted_s3_keys, uris=[uri], run_manager=None)
             if not docs_metadata:
-                return "No documents found for URI", []
+                return "No documents found for URI. Please advise the user to try again by reuploading the file.", []
 
             uri_sha = hashlib.sha256(uri.encode("utf-8")).hexdigest()
             db_path = f"generated_db_{uri_sha}.duckdb"
@@ -429,8 +428,8 @@ def build_query_tabular_file_tool(
             with lock:
                 for meta in docs_metadata:
                     metadata = meta.get("metadata", {})
+                    schema = metadata.get("document_schema")
                     text_content = meta.get("text", "")
-                    schema = metadata.get("document_schema") or compute_document_schema_from_text(text_content)
 
                     if schema is None:
                         return "Document not supported for querying as it uses legacy schema.", []
