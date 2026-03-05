@@ -1,0 +1,19 @@
+.ids-collapsible-menu[open] summary {
+  --border-bottom-left-radius: 0;
+  --border-bottom-right-radius: 0;
+}
+
+.ids-collapsible-menu__panel {
+  position: absolute;
+  display: block;
+  z-index: 1000;
+
+  & > :not(:last-child) {
+    --border-radius: 0;
+  }
+
+  & > :last-child {
+    --border-top-left-radius: 0;
+    --border-top-right-radius: 0;
+  }
+}
