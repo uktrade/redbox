@@ -17,11 +17,9 @@ from redbox.chains.components import (
     get_chat_llm,
     get_knowledge_base_metadata_retriever,
     get_knowledge_base_tabular_metadata_retriever,
-    get_legacy_tabular_metadata_retriever,
     get_tabular_metadata_retriever,
     get_tokeniser,
 )
-from redbox.loader.loaders import compute_document_schema_from_text
 from redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_prompts
 from redbox.models.errors import QuestionLengthError
 from redbox.models.graph import RedboxEventType
@@ -394,21 +392,6 @@ def chain_use_metadata(
     @chain
     def get_tabular_metadata(state: RedboxState):
         tabular_metadata = get_tabular_metadata_retriever(get_settings()).invoke(state)
-        if not tabular_metadata:
-            legacy_tabular_metadata = get_legacy_tabular_metadata_retriever(get_settings()).invoke(state)
-            if not legacy_tabular_metadata:
-                return []
-
-            tabular_metadata = [
-                {
-                    **file,
-                    "metadata": {
-                        **file["metadata"],
-                        "document_schema": compute_document_schema_from_text(file["text"]),
-                    },
-                }
-                for file in legacy_tabular_metadata
-            ]
         return tabular_metadata
 
     @chain
