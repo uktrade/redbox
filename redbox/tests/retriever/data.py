@@ -258,174 +258,69 @@ TABULAR_KB_RETRIEVER_CASES = [
 ]
 
 
-MCP_TOOL_RESULTS = [
+WRAP_ASYNC_TOOL_RESULTS = [
     (
         '{"status": "success"}',
-        format_documents(
-            [
-                Document(
-                    page_content='{"status": "success"}',
-                    metadata={
-                        "creator_type": ChunkCreatorType.datahub,
-                        "uri": f"test-server@1.0/company_tool?{urlencode({'company_name': 'BMW'})}",
-                        "page_number": "",
-                    },
-                )
-            ]
-        ),
-    ),
-    (
-        '{"total": 0, "records": []}',
-        format_documents(
-            [
-                Document(
-                    page_content='{"total": 0, "records": []}',
-                    metadata={
-                        "creator_type": ChunkCreatorType.datahub,
-                        "uri": f"test-server@1.0/company_tool?{urlencode({'company_name': 'BMW'})}",
-                        "page_number": "",
-                    },
-                )
-            ]
-        ),
-    ),
-    (
-        '{"name": "BMW", "founded": 1916}',
-        format_documents(
-            [
-                Document(
-                    page_content='{"name": "BMW", "founded": 1916}',
-                    metadata={
-                        "creator_type": ChunkCreatorType.datahub,
-                        "uri": f"test-server@1.0/company_tool?{urlencode({'company_name': 'BMW'})}",
-                        "page_number": "",
-                    },
-                )
-            ]
-        ),
+        [
+            Document(
+                page_content='{"status": "success"}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": f"test-server@1.0/company_tool?{urlencode({'company_name': 'BMW'})}",
+                    "page_number": "",
+                },
+            )
+        ],
     ),
     (
         '{"name": "BMW", "founded": 1916, "datahub_link": "https://example.com"}',
-        format_documents(
-            [
-                Document(
-                    page_content='{"name": "BMW", "founded": 1916, "datahub_link": "https://example.com"}',
-                    metadata={
-                        "creator_type": ChunkCreatorType.datahub,
-                        "uri": "https://example.com",
-                        "page_number": "",
-                    },
-                )
-            ]
-        ),
+        [
+            Document(
+                page_content='{"name": "BMW", "founded": 1916, "datahub_link": "https://example.com"}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": "https://example.com",
+                    "page_number": "",
+                },
+            )
+        ],
     ),
     (
-        '{"total": 0, "records": [{"name": "BMW", "company_link": "https://example.com"}, {"name": "BMW2", "company_link": "https://example2.com"}]}',
-        format_documents(
-            [
-                Document(
-                    page_content='{"name": "BMW", "company_link": "https://example.com"}',
-                    metadata={
-                        "creator_type": ChunkCreatorType.datahub,
-                        "uri": "https://example.com",
-                        "page_number": "",
-                    },
-                ),
-                Document(
-                    page_content='{"name": "BMW2", "company_link": "https://example2.com"}',
-                    metadata={
-                        "creator_type": ChunkCreatorType.datahub,
-                        "uri": "https://example2.com",
-                        "page_number": "",
-                    },
-                ),
-            ]
-        ),
+        '{"total": 0, "records": []}',
+        [
+            Document(
+                page_content='{"total": 0, "records": []}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": f"test-server@1.0/company_tool?{urlencode({'company_name': 'BMW'})}",
+                    "page_number": "",
+                },
+            )
+        ],
+    ),
+    (
+        '{"total": 2, "records": [{"name": "BMW", "company_link": "https://example.com"}, {"name": "BMW2", "company_link": "https://example2.com"}]}',
+        [
+            Document(
+                page_content='{"name": "BMW", "company_link": "https://example.com"}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": "https://example.com",
+                    "page_number": "",
+                },
+            ),
+            Document(
+                page_content='{"name": "BMW2", "company_link": "https://example2.com"}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": "https://example2.com",
+                    "page_number": "",
+                },
+            ),
+        ],
     ),
 ]
 
-MCP_TOOL_RESULTS_LOOP = [
-    (
-        '{"status": "success"}',
-        format_documents(
-            [
-                Document(
-                    page_content='{"status": "success"}',
-                    metadata={
-                        "creator_type": ChunkCreatorType.datahub,
-                        "uri": f"test-server@1.0/company_tool?{urlencode({'company_name': 'BMW'})}",
-                        "page_number": "",
-                    },
-                )
-            ]
-        ),
-    ),
-    (
-        '{"total": 0, "records": []}',
-        format_documents(
-            [
-                Document(
-                    page_content='{"total": 0, "records": []}',
-                    metadata={
-                        "creator_type": ChunkCreatorType.datahub,
-                        "uri": f"test-server@1.0/company_tool?{urlencode({'company_name': 'BMW'})}",
-                        "page_number": "",
-                    },
-                )
-            ]
-        ),
-    ),
-    (
-        '{"name": "BMW", "founded": 1916}',
-        format_documents(
-            [
-                Document(
-                    page_content='{"name": "BMW", "founded": 1916}',
-                    metadata={
-                        "creator_type": ChunkCreatorType.datahub,
-                        "uri": f"test-server@1.0/company_tool?{urlencode({'company_name': 'BMW'})}",
-                        "page_number": "",
-                    },
-                )
-            ]
-        ),
-    ),
-    (
-        '{"name": "BMW", "founded": 1916, "datahub_link": "https://example.com"}',
-        format_documents(
-            [
-                Document(
-                    page_content='{"name": "BMW", "founded": 1916, "datahub_link": "https://example.com"}',
-                    metadata={
-                        "creator_type": ChunkCreatorType.datahub,
-                        "uri": "https://example.com",
-                        "page_number": "",
-                    },
-                )
-            ]
-        ),
-    ),
-    (
-        '{"total": 0, "records": [{"name": "BMW", "company_link": "https://example.com"}, {"name": "BMW2", "company_link": "https://example2.com"}]}',
-        format_documents(
-            [
-                Document(
-                    page_content='{"name": "BMW", "company_link": "https://example.com"}',
-                    metadata={
-                        "creator_type": ChunkCreatorType.datahub,
-                        "uri": "https://example.com",
-                        "page_number": "",
-                    },
-                ),
-                Document(
-                    page_content='{"name": "BMW2", "company_link": "https://example2.com"}',
-                    metadata={
-                        "creator_type": ChunkCreatorType.datahub,
-                        "uri": "https://example2.com",
-                        "page_number": "",
-                    },
-                ),
-            ]
-        ),
-    ),
+MCP_TOOL_RESULTS = [
+    (tool_result, format_documents(parsed_result)) for tool_result, parsed_result in WRAP_ASYNC_TOOL_RESULTS
 ]

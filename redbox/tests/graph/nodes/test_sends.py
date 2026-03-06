@@ -20,7 +20,7 @@ from redbox.graph.nodes.sends import (
 from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_wikipedia_tool
 from redbox.models.chain import DocumentState, RedboxQuery, RedboxState, TaskStatus, configure_agent_task_plan
 from tests.conftest import fake_state
-from tests.retriever.data import MCP_TOOL_RESULTS
+from tests.retriever.data import WRAP_ASYNC_TOOL_RESULTS, MCP_TOOL_RESULTS
 
 
 def test_build_document_group_send():
@@ -464,7 +464,15 @@ class TestWrapAsyncTool:
 
         # ClientSession mock
         mock_session = AsyncMock()
-        mock_session.initialize = AsyncMock()
+
+        # initialize() must return something with real strings at serverInfo.name/version
+        mock_server_info = MagicMock()
+        mock_server_info.name = "test-server"
+        mock_server_info.version = "1.0"
+        mock_init_result = MagicMock()
+        mock_init_result.serverInfo = mock_server_info
+        mock_session.initialize = AsyncMock(return_value=mock_init_result)
+
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session.__aexit__ = AsyncMock(return_value=None)
         mock_session_class.return_value = mock_session
@@ -496,21 +504,24 @@ class TestWrapAsyncTool:
         exceptions = exc_info.value.exceptions
         assert all(isinstance(e, expected_exceptions) for e in exceptions)
 
+    @pytest.mark.parametrize("expected_tool_result, expected_documents", WRAP_ASYNC_TOOL_RESULTS)
     @patch("redbox.graph.nodes.sends.ClientSession")
     @patch("redbox.graph.nodes.sends.streamablehttp_client")
     @patch("redbox.graph.nodes.sends.load_mcp_tools")
-    def test_returns_expected_results(self, mock_load_tools, mock_http_client, mock_session_class, fake_mcp_tool):
+    def test_returns_expected_results(
+        self,
+        mock_load_tools,
+        mock_http_client,
+        mock_session_class,
+        fake_mcp_tool,
+        expected_tool_result,
+        expected_documents,
+    ):
         """Test that wrap_async_tool correctly returns results from async tool invocation"""
-        # create expected result that we want to test for
-        expected_result = {
-            "status": "success",
-            "data": {"company_name": "BMW", "country": "Germany", "sector": "Automotive"},
-        }
-
         # Mock tool with metadata
         tool_name = "company_tool"
         args_schema = {"company_name": {"type": "string"}, "required": ["company_name"]}
-        tool = fake_mcp_tool(tool_name, return_value=expected_result, args_schema=args_schema)
+        tool = fake_mcp_tool(tool_name, return_value=expected_tool_result, args_schema=args_schema)
 
         # mock session with patched mcp setup
         mock_session = self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
@@ -529,7 +540,7 @@ class TestWrapAsyncTool:
         tool.ainvoke.assert_called_once_with(test_args)
 
         # assert the result matches our expected output
-        assert result == expected_result
+        assert result == expected_documents
 
     @patch("redbox.graph.nodes.sends.ClientSession")
     @patch("redbox.graph.nodes.sends.streamablehttp_client")

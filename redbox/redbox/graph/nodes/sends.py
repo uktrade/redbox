@@ -126,7 +126,7 @@ def wrap_async_tool(tool, tool_name):
 
         try:
             # Define the async operation
-            async def run_tool():
+            async def run_tool() -> list[Document]:
                 # tool need to be executed within the connection context manager
                 async with streamablehttp_client(mcp_url) as (read, write, _):
                     async with ClientSession(read, write) as session:
@@ -157,14 +157,16 @@ def wrap_async_tool(tool, tool_name):
                         links = extract_links(data=data)
 
                         if not links:
-                            return Document(
-                                page_content=result if isinstance(result, str) else str(result),
-                                metadata={
-                                    "creator_type": creator_type,
-                                    "uri": f"{slugify(server_name)}@{server_version}/{tool_name}?{urlencode(args)}",
-                                    "page_number": "",
-                                },
-                            )
+                            return [
+                                Document(
+                                    page_content=result if isinstance(result, str) else str(result),
+                                    metadata={
+                                        "creator_type": creator_type,
+                                        "uri": f"{slugify(server_name)}@{server_version}/{tool_name}?{urlencode(args)}",
+                                        "page_number": "",
+                                    },
+                                )
+                            ]
 
                         return [
                             Document(
