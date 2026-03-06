@@ -202,7 +202,12 @@ class TestNewRoutes:
     ):
         return generate_test_cases(
             query=RedboxQuery(
-                question=question, s3_keys=[], user_uuid=uuid4(), chat_history=chat_history, permitted_s3_keys=[]
+                question=question,
+                s3_keys=[],
+                user_uuid=uuid4(),
+                chat_history=chat_history,
+                permitted_s3_keys=[],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -440,7 +445,12 @@ class TestNewRoutes:
         ai_msg = AIMessage(content="test content")
         tools = []
         dummy_query = RedboxQuery(
-            question="dummy", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="dummy",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            sso_access_token=None,
         )
         state = RedboxState(request=dummy_query)
 
@@ -455,7 +465,12 @@ class TestNewRoutes:
         ai_msg = AIMessage(content="test", additional_kwargs={"tool_calls": [{"name": "test_tool", "args": {}}]})
 
         dummy_query = RedboxQuery(
-            question="dummy", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="dummy",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            sso_access_token=None,
         )
         state = RedboxState(request=dummy_query)
 
@@ -469,7 +484,12 @@ class TestNewRoutes:
         ai_msg = AIMessage(content="test", additional_kwargs={"tool_calls": [{"name": "test_tool", "args": {}}]})
 
         dummy_query = RedboxQuery(
-            question="dummy", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="dummy",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            sso_access_token=None,
         )
         state = RedboxState(request=dummy_query)
 
@@ -484,7 +504,12 @@ class TestNewRoutes:
         ai_msg = AIMessage(content="test", additional_kwargs={"tool_calls": [{"name": "test_tool", "args": {}}]})
 
         dummy_query = RedboxQuery(
-            question="dummy", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="dummy",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            sso_access_token=None,
         )
         state = RedboxState(request=dummy_query)
 
@@ -499,7 +524,12 @@ class TestNewRoutes:
         ai_msg = AIMessage(content="test", additional_kwargs={"tool_calls": [{"name": "test_tool", "args": {}}]})
 
         dummy_query = RedboxQuery(
-            question="dummy", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="dummy",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            sso_access_token=None,
         )
         state = RedboxState(request=dummy_query)
 
@@ -521,7 +551,12 @@ class TestNewRoutes:
         )
 
         dummy_query = RedboxQuery(
-            question="dummy", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="dummy",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            sso_access_token=None,
         )
         state = RedboxState(request=dummy_query)
 

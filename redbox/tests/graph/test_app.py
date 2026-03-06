@@ -81,7 +81,12 @@ TEST_CASES = [
     for generated_cases in [
         generate_test_cases(
             query=RedboxQuery(
-                question="@chat What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+                question="@chat What is AI?",
+                s3_keys=[],
+                user_uuid=uuid4(),
+                chat_history=[],
+                permitted_s3_keys=[],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -112,6 +117,7 @@ TEST_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -131,6 +137,7 @@ TEST_CASES = [
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
                 ai_settings=AISettings(new_route_enabled=True),
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -151,6 +158,7 @@ TEST_CASES = [
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
                 ai_settings=AISettings(new_route_enabled=False),
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -177,6 +185,7 @@ TEST_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -373,6 +382,7 @@ TABULAR_TEST_CASES = [
                 chat_history=[],
                 permitted_s3_keys=["example.csv"],
                 previous_s3_keys=[],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -392,6 +402,7 @@ TABULAR_TEST_CASES = [
                 chat_history=[],
                 permitted_s3_keys=["example.csv"],
                 previous_s3_keys=["example.csv"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -411,6 +422,7 @@ TABULAR_TEST_CASES = [
                 chat_history=[],
                 permitted_s3_keys=["account.csv", "example.csv"],
                 previous_s3_keys=["example.csv"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(

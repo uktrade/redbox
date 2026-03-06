@@ -24,7 +24,7 @@ from redbox.graph.nodes.sends import wrap_async_tool
 
 def test_build_document_group_send():
     target = "my-target"
-    request = RedboxQuery(question="what colour is the sky?", user_uuid=uuid4(), chat_history=[])
+    request = RedboxQuery(question="what colour is the sky?", user_uuid=uuid4(), chat_history=[], sso_access_token=None)
     documents = DocumentState(
         groups={
             uuid4(): {
@@ -48,7 +48,7 @@ def test_build_document_group_send():
 
 def test_build_document_chunk_send():
     target = "my-target"
-    request = RedboxQuery(question="what colour is the sky?", user_uuid=uuid4(), chat_history=[])
+    request = RedboxQuery(question="what colour is the sky?", user_uuid=uuid4(), chat_history=[], sso_access_token=None)
 
     uuid_1 = uuid4()
     doc_1 = Document(page_content="Hello, world!")
@@ -88,7 +88,7 @@ def test_build_document_chunk_send():
 
 def test_build_tool_send():
     target = "my-target"
-    request = RedboxQuery(question="what colour is the sky?", user_uuid=uuid4(), chat_history=[])
+    request = RedboxQuery(question="what colour is the sky?", user_uuid=uuid4(), chat_history=[], sso_access_token=None)
 
     tool_call_1 = [ToolCall(name="foo", args={"a": 1, "b": 2}, id="123")]
     tool_call_2 = [ToolCall(name="bar", args={"x": 10, "y": 20}, id="456")]
@@ -418,7 +418,7 @@ class TestWrapAsyncTool:
         tool = fake_mcp_tool("dummy_tool", return_value=None)
         tool.metadata["url"] = url
 
-        wrapped = wrap_async_tool(tool, tool.name)
+        wrapped = wrap_async_tool(tool, tool.name, None)
         args = {"foo": "bar"}
 
         with pytest.raises(ExceptionGroup) as exc_info:
@@ -448,14 +448,14 @@ class TestWrapAsyncTool:
         mock_session = self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
         # create the wrapped function
-        wrapped_func = wrap_async_tool(tool, tool_name)
+        wrapped_func = wrap_async_tool(tool, tool_name, None)
 
         # rest invocation with sample args
         test_args = {"company_name": "BMW"}
         result = wrapped_func(test_args)
 
         # verify correct interactions
-        mock_http_client.assert_called_once_with(tool.metadata["url"])
+        mock_http_client.assert_called_once_with(tool.metadata["url"], headers=None)
         mock_session.initialize.assert_called_once()
         mock_load_tools.assert_called_once_with(mock_session)
         tool.ainvoke.assert_called_once_with(test_args)
@@ -470,7 +470,7 @@ class TestWrapAsyncTool:
         """Test wrap_async_tool raises ValueError when the requested tool is not in the MCP tool list."""
 
         tool = fake_mcp_tool("dummy_tool", return_value=None)
-        wrapped_func = wrap_async_tool(tool, "missing_tool")
+        wrapped_func = wrap_async_tool(tool, "missing_tool", None)
 
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
