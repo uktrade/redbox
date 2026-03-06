@@ -22,6 +22,7 @@ class ChunkCreatorType(StrEnum):
     user_uploaded_document = "UserUploadedDocument"
     gov_uk = "GOV.UK"
     web_search = "WebSearch"
+    datahub = "DataHub"
 
 
 class BaseSchema(BaseModel):
