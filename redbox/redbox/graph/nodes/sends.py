@@ -7,7 +7,7 @@ from langchain_core.messages import AIMessage, ToolCall
 from langgraph.constants import Send
 
 from redbox.models.chain import DocumentState, RedboxState, TaskStatus
-from redbox.graph.nodes import exceptions
+from redbox.graph.nodes.runner import exceptions
 
 import asyncio
 from mcp import ClientSession
