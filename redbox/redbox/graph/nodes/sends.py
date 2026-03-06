@@ -168,7 +168,7 @@ def wrap_async_tool(tool, tool_name):
 
                         return [
                             Document(
-                                page_content=str(data),
+                                page_content=json.dumps(data),
                                 metadata={"creator_type": creator_type, "uri": link, "page_number": ""},
                             )
                             for link, data in links
