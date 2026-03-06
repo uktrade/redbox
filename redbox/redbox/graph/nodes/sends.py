@@ -1,17 +1,16 @@
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
-from typing import Callable, Any
+from typing import Callable
 from uuid import uuid4
 from urllib.parse import urlencode
-import re
 
 from langchain_core.messages import AIMessage
 from langchain_core.documents.base import Document
 from langgraph.constants import Send
 
 from redbox.models.chain import DocumentState, RedboxState, TaskStatus
-from redbox.api.format import format_documents
+from redbox.api.format import format_documents, extract_links, slugify
 
 import asyncio
 from mcp import ClientSession
@@ -105,58 +104,6 @@ def run_with_timeout(func, args, timeout):
     return result[0]
 
 
-def find_first_link_field(data) -> str | None:
-    """Recursively find the first field ending in _link in a nested structure."""
-
-    if isinstance(data, dict):
-        # Check current level first
-        for key, value in data.items():
-            if key.endswith("_link") and value is not None:
-                return str(value)
-        # Then recurse into values
-        for value in data.values():
-            result = find_first_link_field(value)
-            if result:
-                return result
-
-    elif isinstance(data, list):
-        for item in data:
-            result = find_first_link_field(item)
-            if result:
-                return result
-
-    return None
-
-
-def slugify(name: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
-
-
-def extract_links(data: dict | None) -> list[tuple[str, Any]]:
-    """
-    Handles two shapes:
-      - Single object:  { ...fields... }
-      - Paged result:   { "total": N, "<key>": [ {...}, {...} ] }
-
-    Returns all found _link values.
-    """
-    if data is None:
-        return []
-
-    # Detect paged result: has "total" field + at least one list field
-    if "total" in data:
-        for key, value in data.items():
-            if key == "total":
-                continue
-            if isinstance(value, list):
-                # Extract first _link from each item in the list
-                return [(link, item) for item in value if (link := find_first_link_field(item))]
-
-    # Single object — extract first _link from root
-    link = find_first_link_field(data)
-    return [(link, data)] if link else []
-
-
 def wrap_async_tool(tool, tool_name):
     """
     Returns a synchronous function that properly wraps an async tool
@@ -207,7 +154,6 @@ def wrap_async_tool(tool, tool_name):
                         result = await selected_tool.ainvoke(args)
 
                         data = json.loads(result)
-                        # is_list_response = isinstance(data.get("total"), int)
                         links = extract_links(data=data)
 
                         if not links:
@@ -227,23 +173,6 @@ def wrap_async_tool(tool, tool_name):
                             )
                             for link, data in links
                         ]
-
-                        # link_field = find_first_link_field(data)
-                        # link =
-                        # if link_field is not None and data.get(link_field) is not None:
-                        #     link = data.get(link_field)
-
-                        # log.warning("result")
-                        # log.warning(result)
-
-                        # return Document(
-                        #     page_content=result if isinstance(result, str) else str(result),
-                        #     metadata={
-                        #         "creator_type": creator_type,
-                        #         "uri": link,
-                        #         "page_number": "",
-                        #     },
-                        # )
 
             # Run the async function and return its result
             return loop.run_until_complete(run_tool())
