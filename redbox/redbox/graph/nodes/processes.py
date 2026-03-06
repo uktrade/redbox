@@ -856,11 +856,10 @@ def check_if_tasks_completed(state: RedboxState) -> bool:
     else:
         return True
     
-def is_multiple_records_datahub(state: RedboxState) -> bool:
-
+def parse_datahub_records(state: RedboxState):
     #get task ID for datahub agent
     for task in state.agent_plans.tasks:
-        if task.agent.value == "Datahub_Agent":
+        if task.agent.value == "Datahub_Agent" and task.status == TaskStatus.COMPLETED and task.dependencies == [] : #first task completed by datahub agent with no dependencies, need user feedback for initial filtering of records.
             task_id = task.id
 
     #get number records from datahub agent results
@@ -871,17 +870,35 @@ def is_multiple_records_datahub(state: RedboxState) -> bool:
     parsed = []
     for match in matches:
         parsed.append(json.loads(match))
+    return parsed
+
+def is_multiple_records_datahub(state: RedboxState) -> bool:
+
+    parsed_records = parse_datahub_records(state)
 
     #check if results contain single or multiple records
     total_companies = 0
-    for parse in parsed:
-        total_companies +=parse['total']
-    
+    for parse in parsed_records:
+        if parse.get("companies"):
+            total_companies +=parse['total']
+        
     if total_companies > 1: #multiple records
         log.warning('multiple datahub records detected')
-        print('multiple datahub records detected')
         return True
     else:
         log.warning('multiple datahub records NOT detected')
-        print('multiple datahub records NOT detected')
         return False
+
+
+def get_user_feedback() -> Runnable[RedboxState, dict[str, Any]]:
+    """Stream message to user asking for feedback"""
+
+    @RunnableLambda
+    def _stream_feedback_request(state: RedboxState):
+        parsed_records = parse_datahub_records(state)
+        dispatch_custom_event(RedboxEventType.response_tokens, data="Multile records were found from database. Can you please confirm which record is more relevant to your query?\n\n")
+        for parsed_record in parsed_records:
+            dispatch_custom_event(RedboxEventType.response_tokens, data=f"{parsed_record}\n\n")
+        return state
+
+    return _stream_feedback_request
