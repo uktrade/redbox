@@ -20,9 +20,11 @@ span,
 .govuk-details,
 .govuk-notification-banner,
 .govuk-footer,
-.govuk-footer__link
+.govuk-footer__link,
+[role="button"]
 {
   font-family:  var(--font-family-primary) !important;
+  font-size: var(--font-size-xs);
 }
 
 body {

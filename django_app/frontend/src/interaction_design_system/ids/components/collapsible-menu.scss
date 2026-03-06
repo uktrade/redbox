@@ -1,0 +1,42 @@
+ids-collapsible-menu {
+  display: flex;
+}
+
+.ids-collapsible-menu {
+  position: relative;
+}
+
+.ids-collapsible-menu[open] {
+  summary {
+    --border-bottom-left-radius: 0;
+    --border-bottom-right-radius: 0;
+  }
+
+  .ids-collapsible-menu__icon {
+    transform: rotate(180deg);
+  }
+}
+
+.ids-collapsible-menu__panel {
+  position: relative;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+
+  & > :not(:last-child) {
+    --border-radius: 0;
+  }
+
+  & > :last-child {
+    --border-top-left-radius: 0;
+    --border-top-right-radius: 0;
+  }
+}
+
+.ids-collapsible-menu__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}

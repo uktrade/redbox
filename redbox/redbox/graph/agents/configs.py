@@ -31,9 +31,6 @@ class PromptVariable(BaseModel):
     previous_agents_results: bool = Field(
         description="Results from dependent agents required as input for this task", default=False
     )
-    sql_error: bool = Field(
-        description="Error generated from running sql", default=False
-    )  # this may need to be removed after tabular refactoring
     artifact_files: bool = Field(description="A list of artifact files URI", default=False)
 
 
@@ -105,13 +102,8 @@ prompt_configs: Dict[str, PromptConfig] = {
         prompt_vars=PromptVariable(question=True, formatted_documents=True),
     ),
     "Tabular_Agent": PromptConfig(
-        system=prompts.TABULAR_PROMPT,
-        question=prompts.TABULAR_QUESTION_PROMPT,
-        prompt_vars=PromptVariable(
-            question=True,
-            formatted_documents=True,
-            sql_error=True,
-        ),
+        system=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT + prompts.TABULAR_METADATA,
+        prompt_vars=PromptVariable(task=True, expected_output=True, metadata=True),
     ),
     "Evaluator_Agent": PromptConfig(
         system=prompts.NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT,

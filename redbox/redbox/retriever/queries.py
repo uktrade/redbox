@@ -173,9 +173,35 @@ def get_knowledge_base_tabular_metadata(
     }
 
 
+def get_tabular_metadata(
+    chunk_resolution: ChunkResolution | None,
+    state: RedboxState,
+) -> dict[str, Any]:
+    """Retrieve knowledge base metadata with schema metadata and without page_content"""
+    query_filter = build_query_filter(
+        selected_files=state.request.s3_keys,
+        permitted_files=state.request.permitted_s3_keys,
+        chunk_resolution=chunk_resolution,
+    )
+
+    return {
+        "_source": {
+            "includes": [
+                "metadata.uri",
+                "metadata.name",
+                "metadata.description",
+                "metadata.keywords",
+                "metadata.document_schema",
+            ],
+            "excludes": ["text", "vector_field"],
+        },
+        "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
+    }
+
+
 def get_schematised_tabular_chunks(
     chunk_resolution: ChunkResolution | None,
-    knowledge_base_s3_keys: list[str],
+    permitted_s3_keys: list[str],
     uris: list[str] | None = None,
 ) -> dict[str, Any]:
     """
@@ -192,7 +218,7 @@ def get_schematised_tabular_chunks(
     # Base filter using permissions
     query_filter = build_query_filter(
         selected_files=uris,
-        permitted_files=knowledge_base_s3_keys,
+        permitted_files=permitted_s3_keys,
         chunk_resolution=chunk_resolution,
     )
 

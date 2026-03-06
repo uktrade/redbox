@@ -2,6 +2,8 @@ from collections.abc import Generator
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
+import tempfile
+import os
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -14,6 +16,7 @@ from opensearchpy import OpenSearch
 from redbox.models.chain import AISettings, GeneratedMetadata, RedboxQuery, RedboxState, configure_agent_task_plan
 from redbox.models.file import ChunkCreatorType
 from redbox.models.settings import Settings
+from redbox.models.file import TabularSchema
 from redbox.retriever import (
     AllElasticsearchRetriever,
     MetadataRetriever,
@@ -28,7 +31,8 @@ from tests.retriever.data import (
     KNOWLEDGE_BASE_CASES,
     METADATA_RETRIEVER_CASES,
     PARAMETERISED_RETRIEVER_CASES,
-    TABULAR_KB_RETRIEVER_CASES,
+    TABULAR_RETRIEVER_CASES,
+    TABULAR_RETRIEVER_KB_CASES,
 )
 
 if TYPE_CHECKING:
@@ -274,12 +278,40 @@ def stored_file_metadata(
     es_vector_store.delete(doc_ids)
 
 
-@pytest.fixture(params=TABULAR_KB_RETRIEVER_CASES)
+@pytest.fixture(params=TABULAR_RETRIEVER_CASES)
+def stored_file_tabular(request: FixtureRequest, es_vector_store: OpenSearchVectorSearch):
+    test_case, knowledge_base = request.param
+    doc_ids = es_vector_store.add_documents(test_case.docs)
+    yield test_case, knowledge_base
+    es_vector_store.delete(doc_ids)
+
+
+@pytest.fixture(params=TABULAR_RETRIEVER_KB_CASES)
 def stored_file_tabular_kb(request: FixtureRequest, es_vector_store: OpenSearchVectorSearch):
     test_case: RedboxChatTestCase = request.param
     doc_ids = es_vector_store.add_documents(test_case.docs)
     yield test_case
     es_vector_store.delete(doc_ids)
+
+
+@pytest.fixture
+def tmp_duckdb_path():
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "test.duckdb")
+        yield path  # file doesn't exist yet — DuckDB creates it
+
+
+@pytest.fixture
+def sample_tabular_schema():
+    return TabularSchema(
+        name="sheet0",
+        columns={"id": "INTEGER", "name": "TEXT", "value": "FLOAT"},
+    )
+
+
+@pytest.fixture
+def sample_csv():
+    return "id,name,value\n1,Alice,100.0\n2,Bob,200.0\n3,Charlie,300.0"
 
 
 @pytest.fixture

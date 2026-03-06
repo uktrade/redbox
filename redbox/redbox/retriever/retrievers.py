@@ -22,6 +22,7 @@ from redbox.retriever.queries import (
     get_all,
     get_knowledge_base_metadata,
     get_knowledge_base_tabular_metadata,
+    get_tabular_metadata,
     get_schematised_tabular_chunks,
     get_metadata,
     get_minimum_metadata,
@@ -285,17 +286,6 @@ class AllElasticsearchRetriever(OpenSearchRetriever):
         return sorted(results, key=lambda result: result.metadata["index"])
 
 
-class TabularElasticsearchRetriever(AllElasticsearchRetriever):
-    """An modified AllElasticsearchRetriever that retrieves tabular chunks."""
-
-    chunk_resolution: ChunkResolution = ChunkResolution.tabular
-
-    def __init__(self, es_client: Union[Elasticsearch, OpenSearch], **kwargs: Any) -> None:
-        super().__init__(es_client, **kwargs)
-        # Reinitialise the body_func with tabular chunk resolution
-        self.body_func = partial(get_all, self.chunk_resolution)
-
-
 class MetadataRetriever(OpenSearchRetriever):
     """A modified ElasticsearchRetriever that retrieves query metadata without any content"""
 
@@ -395,6 +385,26 @@ class KnowledgeBaseTabularMetadataRetriever(OpenSearchRetriever):
         return [hit["_source"] for hit in hits]
 
 
+class TabularMetadataRetriever(OpenSearchRetriever):
+    """A modified MetadataRetriever that retrieves only filename, keyword and description metadata"""
+
+    chunk_resolution: ChunkResolution = ChunkResolution.tabular
+
+    def __init__(self, es_client: Union[Elasticsearch, OpenSearch], **kwargs: Any) -> None:
+        # Hack to pass validation before overwrite
+        # Partly necessary due to how .with_config() interacts with a retriever
+        kwargs["body_func"] = get_tabular_metadata
+        kwargs["es_client"] = es_client
+        super().__init__(**kwargs)
+        self.body_func = partial(get_tabular_metadata, self.chunk_resolution)
+
+    def _get_relevant_documents(self, query: RedboxState, *, run_manager: CallbackManagerForRetrieverRun) -> list:  # noqa:ARG002
+        body = self.body_func(query)  # type: ignore
+        response = self.es_client.search(index=self.index_name, body=body)
+        hits = response.get("hits", {}).get("hits", [])
+        return [hit["_source"] for hit in hits]
+
+
 class SchematisedTabularChunkRetriever(OpenSearchRetriever):
     """A modified MetadataRetriever that retrieves text"""
 
@@ -411,12 +421,12 @@ class SchematisedTabularChunkRetriever(OpenSearchRetriever):
     def _get_relevant_documents(
         self,
         # index_name: str,
-        knowledge_base_s3_keys: list[str],
+        permitted_s3_keys: list[str],
         uris: list[str] | None = None,
         *,
         run_manager: CallbackManagerForRetrieverRun,
     ) -> list:  # noqa:ARG002
-        body = self.body_func(knowledge_base_s3_keys=knowledge_base_s3_keys, uris=uris)  # type: ignore
+        body = self.body_func(permitted_s3_keys=permitted_s3_keys, uris=uris)  # type: ignore
         response = self.es_client.search(index=self.index_name, body=body)
         hits = response.get("hits", {}).get("hits", [])
         return [hit["_source"] for hit in hits]
