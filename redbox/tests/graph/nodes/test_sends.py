@@ -380,27 +380,36 @@ class TestRunToolsParallelAsync:
             expected_ainvoke_args.pop("is_intermediate_step")
         tool.ainvoke.assert_awaited_once_with(expected_ainvoke_args)
 
+    @pytest.mark.parametrize("expected_tool_result, expected_parsed_result", MCP_TOOL_RESULTS)
     @patch("redbox.graph.nodes.sends.ClientSession")
     @patch("redbox.graph.nodes.sends.streamablehttp_client")
     @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
     def test_async_tool_with_non_loop_agent(
-        self, mock_load_tools, mock_http_client, mock_session_class, fake_state, fake_mcp_tool
+        self,
+        mock_load_tools,
+        mock_http_client,
+        mock_session_class,
+        fake_state,
+        fake_mcp_tool,
+        expected_tool_result,
+        expected_parsed_result,
     ):
-        expected_result = "plain async response"
+        tool_name = "company_tool"
         args_schema = {"required": []}
-        tool = fake_mcp_tool("non_loop_tool", expected_result, args_schema=args_schema)
+        args = {"company_name": "BMW"}
+        tool = fake_mcp_tool(tool_name, expected_tool_result, args_schema=args_schema)
 
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
         ai_msg = AIMessage(
             content="non-loop call",
-            tool_calls=[{"name": "non_loop_tool", "args": {"foo": "bar"}, "id": "1"}],
+            tool_calls=[{"name": tool_name, "args": args, "id": "1"}],
         )
 
         responses = run_tools_parallel(ai_msg, tools=[tool], state=fake_state, is_loop=False)
         assert isinstance(responses, list)
-        assert responses[0].content == expected_result
-        tool.ainvoke.assert_awaited_once_with({"foo": "bar"})
+        assert responses[0].content == expected_parsed_result
+        tool.ainvoke.assert_awaited_once_with(args)
 
     @pytest.mark.parametrize(
         "exception",
