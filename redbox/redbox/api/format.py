@@ -1,6 +1,5 @@
 import json
 import logging
-import re
 from typing import Any
 
 from langchain_core.documents.base import Document
@@ -65,10 +64,6 @@ def find_first_link_field(data) -> str | None:
                 return result
 
     return None
-
-
-def slugify(name: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
 
 def extract_links(data: dict | None) -> list[tuple[str, Any]]:
