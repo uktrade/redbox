@@ -135,7 +135,7 @@ def wrap_async_tool(tool, tool_name):
                         server_name = init_result.serverInfo.name
                         server_version = init_result.serverInfo.version
 
-                        log.info(f"Calling '{tool_name}' on MCP server {server_name}@{server_version}")
+                        log.info(f"Calling tool '{tool_name}' on MCP server {server_name}@{server_version}")
 
                         # Get tools
                         tools = await load_mcp_tools(session)
@@ -158,11 +158,13 @@ def wrap_async_tool(tool, tool_name):
                         log.warning(f"MCP Tool '{tool_name}' result: {result}")
 
                         if creator_type == ChunkCreatorType.datahub:
+                            log.warning(f"Formatting MCP tool response for creator_type='{creator_type}'")
                             return format_mcp_tool_response(
                                 tool_response=result,
                                 creator_type=creator_type,
                             )
 
+                        log.warning(f"Returning raw MCP tool response for creator_type='{creator_type}'")
                         return result
 
             # Run the async function and return its result
