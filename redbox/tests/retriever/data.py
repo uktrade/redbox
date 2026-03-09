@@ -1,5 +1,4 @@
 from uuid import uuid4
-from urllib.parse import urlencode
 
 import pytest
 from langchain_core.documents import Document
@@ -296,22 +295,13 @@ TABULAR_RETRIEVER_CASES: list[tuple[RedboxChatTestCase, bool]] = [
 WRAP_ASYNC_TOOL_RESULTS = [
     (
         '{"status": "success"}',
-        [
-            Document(
-                page_content='{"status": "success"}',
-                metadata={
-                    "creator_type": ChunkCreatorType.datahub,
-                    "uri": f"test-server@1.0/company_tool?{urlencode({'company_name': 'BMW'})}",
-                    "page_number": "",
-                },
-            )
-        ],
+        '{"status": "success"}',
     ),
     (
-        '{"name": "BMW", "founded": 1916, "datahub_link": "https://example.com"}',
+        '{"name": "BMW", "founded": 1916, "url": "https://example.com"}',
         [
             Document(
-                page_content='{"name": "BMW", "founded": 1916, "datahub_link": "https://example.com"}',
+                page_content='{"name": "BMW", "founded": 1916, "url": "https://example.com"}',
                 metadata={
                     "creator_type": ChunkCreatorType.datahub,
                     "uri": "https://example.com",
@@ -322,22 +312,13 @@ WRAP_ASYNC_TOOL_RESULTS = [
     ),
     (
         '{"total": 0, "records": []}',
-        [
-            Document(
-                page_content='{"total": 0, "records": []}',
-                metadata={
-                    "creator_type": ChunkCreatorType.datahub,
-                    "uri": f"test-server@1.0/company_tool?{urlencode({'company_name': 'BMW'})}",
-                    "page_number": "",
-                },
-            )
-        ],
+        '{"total": 0, "records": []}',
     ),
     (
-        '{"total": 2, "records": [{"name": "BMW", "company_link": "https://example.com"}, {"name": "BMW2", "company_link": "https://example2.com"}]}',
+        '{"total": 2, "records": [{"name": "BMW", "url": "https://example.com"}, {"name": "BMW2", "url": "https://example2.com"}]}',
         [
             Document(
-                page_content='{"name": "BMW", "company_link": "https://example.com"}',
+                page_content='{"name": "BMW", "url": "https://example.com"}',
                 metadata={
                     "creator_type": ChunkCreatorType.datahub,
                     "uri": "https://example.com",
@@ -345,7 +326,7 @@ WRAP_ASYNC_TOOL_RESULTS = [
                 },
             ),
             Document(
-                page_content='{"name": "BMW2", "company_link": "https://example2.com"}',
+                page_content='{"name": "BMW2", "url": "https://example2.com"}',
                 metadata={
                     "creator_type": ChunkCreatorType.datahub,
                     "uri": "https://example2.com",
@@ -357,5 +338,6 @@ WRAP_ASYNC_TOOL_RESULTS = [
 ]
 
 MCP_TOOL_RESULTS = [
-    (tool_result, format_documents(parsed_result)) for tool_result, parsed_result in WRAP_ASYNC_TOOL_RESULTS
+    (tool_result, format_documents(parsed_result) if isinstance(parsed_result, list) else parsed_result)
+    for tool_result, parsed_result in WRAP_ASYNC_TOOL_RESULTS
 ]

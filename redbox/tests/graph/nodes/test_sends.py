@@ -1,6 +1,7 @@
 from concurrent.futures import TimeoutError
 from unittest.mock import AsyncMock, patch, MagicMock
 from uuid import uuid4
+import json
 
 import pytest
 from httpx import ConnectError
@@ -20,7 +21,7 @@ from redbox.graph.nodes.sends import (
 from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_wikipedia_tool
 from redbox.models.chain import DocumentState, RedboxQuery, RedboxState, TaskStatus, configure_agent_task_plan
 from tests.conftest import fake_state
-from tests.retriever.data import WRAP_ASYNC_TOOL_RESULTS, MCP_TOOL_RESULTS
+from tests.retriever.data import MCP_TOOL_RESULTS
 
 
 def test_build_document_group_send():
@@ -371,8 +372,25 @@ class TestRunToolsParallelAsync:
 
         transformed = responses[0].content
         assert isinstance(transformed, list)
-        assert transformed[0] == expected_parsed_result
-        assert transformed[1] == "pass"
+
+        if expected_parsed_result.startswith("<Document>"):
+            assert transformed[0] == expected_parsed_result
+            expected_status = "pass"
+        else:
+            try:
+                data = json.loads(expected_parsed_result)
+                is_empty = data.get("total") == 0
+            except json.JSONDecodeError:
+                is_empty = expected_parsed_result in ["", "None", "[]"]
+
+            if is_empty:
+                assert transformed[0] == "Error message: Empty response"
+                expected_status = "fail"
+            else:
+                assert transformed[0] == expected_parsed_result
+                expected_status = "pass"
+
+        assert transformed[1] == expected_status
         assert transformed[2] == "False"
 
         # Ensure ainvoke got the correct args based on whether 'is_intermediate_step' is required
@@ -504,7 +522,7 @@ class TestWrapAsyncTool:
         exceptions = exc_info.value.exceptions
         assert all(isinstance(e, expected_exceptions) for e in exceptions)
 
-    @pytest.mark.parametrize("expected_tool_result, expected_documents", WRAP_ASYNC_TOOL_RESULTS)
+    @pytest.mark.parametrize("expected_tool_result, expected_documents", MCP_TOOL_RESULTS)
     @patch("redbox.graph.nodes.sends.ClientSession")
     @patch("redbox.graph.nodes.sends.streamablehttp_client")
     @patch("redbox.graph.nodes.sends.load_mcp_tools")
