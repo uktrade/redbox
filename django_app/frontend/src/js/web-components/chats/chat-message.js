@@ -2,66 +2,12 @@
 
 import { hideElement, showElement } from "../../utils/dom-utils.js";
 import { LoadingMessage } from "../../../interaction_design_system/ids/components/loading-message.js";
-
-// TODO: Reimplement scroll position save-and-restore on active chat reload
-// window.addEventListener('load', () => {
-//   const scrollPosition = sessionStorage.getItem('scrollPosition');
-//   if (scrollPosition !== null) {
-//     window.scrollTo({
-//       top: parseInt(scrollPosition),
-//       behavior: 'instant'
-//     });
-//     sessionStorage.removeItem('scrollPosition');
-//   }
-// });
+import { emitEvent, Events } from "../../../interaction_design_system/ids/events/events.js";
 
 export class ChatMessage extends HTMLElement {
-  autoScrollEnabled = true;
-
   connectedCallback() {
-    this.scrollContainer = this.closest(".ids-scrollable") || document;
-    this.programmaticScroll = false;
     this.streamedContent = "";
-
-    this.#bindScrollEvents();
     this.#loadMessage();
-  }
-
-
-  #bindScrollEvents(scrollContainer = this.scrollContainer) {
-    if (!scrollContainer) return;
-    let scrollEvents = [];
-
-    if (scrollContainer instanceof Document) scrollEvents.push("scroll");
-    if (scrollContainer instanceof Element) scrollEvents.push("pointerup", "mousewheel");
-
-    scrollEvents.forEach((scrollEvent) => {
-      scrollContainer.addEventListener(scrollEvent, () => this.#updateAutoScroll());
-    });
-  }
-
-
-  #updateAutoScroll() {
-    if (this.scrollContainer) this.autoScrollEnabled = this.isAtBottom(this.scrollContainer);
-  }
-
-
-  isAtBottom(/** @type {Element | Document} */ el, threshold = 10) {
-    if (el instanceof Document) el = el.documentElement;
-    return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
-  }
-
-
-  scrollToBottom(scrollContainer = this.scrollContainer) {
-    if (!scrollContainer) return;
-    if (scrollContainer instanceof Document) scrollContainer = scrollContainer.documentElement;
-    scrollContainer.scrollTop = scrollContainer.scrollHeight;
-  }
-
-
-  reloadAtCurrentPosition() {
-    sessionStorage.setItem('scrollPosition', window.scrollY.toString());
-    location.reload();
   }
 
 
@@ -98,10 +44,6 @@ export class ChatMessage extends HTMLElement {
 
 
         `;
-
-    // ensure new chat-messages aren't hidden behind the chat-input
-    // this.programmaticScroll = true;
-    // this.scrollIntoView({ block: "end" });
 
     // Insert route_display HTML
     if (this.dataset.role == "ai") {
@@ -215,22 +157,6 @@ export class ChatMessage extends HTMLElement {
       return id.replace(/[^a-zA-Z0-9_-]/g, '');
     }
 
-    window.addEventListener('load', () => {
-      if (!this.scrollContainer) return;
-      let scrollElement;
-      const scrollPosition = sessionStorage.getItem('scrollPosition');
-
-      if (scrollPosition !== null) {
-        if (this.scrollContainer instanceof Document) {
-          scrollElement = this.scrollContainer.documentElement;
-        } else {
-          scrollElement = this.scrollContainer;
-        }
-        scrollElement.scrollTo(0, parseInt(scrollPosition));
-        sessionStorage.removeItem('scrollPosition');
-      }
-    });
-
     this.responseContainer =
       /** @type {import("../markdown-converter").MarkdownConverter} */ (
         this.querySelector("markdown-converter")
@@ -269,8 +195,7 @@ export class ChatMessage extends HTMLElement {
       this.dataset.status = "streaming";
       const chatResponseStartEvent = new CustomEvent("chat-response-start");
       document.dispatchEvent(chatResponseStartEvent);
-      this.autoScrollEnabled = true;
-      this.scrollToBottom();
+      emitEvent(Events.SCROLL_TO_BOTTOM, {source:this, force:true});
     };
 
     webSocket.onerror = (event) => {
@@ -292,7 +217,6 @@ export class ChatMessage extends HTMLElement {
       }
       const stopStreamingEvent = new CustomEvent("stop-streaming");
       document.dispatchEvent(stopStreamingEvent);
-      if (this.autoScrollEnabled) this.scrollToBottom();
     };
 
     webSocket.onmessage = (event) => {
@@ -339,7 +263,6 @@ export class ChatMessage extends HTMLElement {
 
           actionsContainer.appendChild(feedbackButtons)
           actionsContainer.appendChild(copyText)
-
         }
         // this.#addFootnotes(this.streamedContent, response.data.message_id);
         const chatResponseEndEvent = new CustomEvent("chat-response-end", {
@@ -361,7 +284,6 @@ export class ChatMessage extends HTMLElement {
           errorContentContainer.textContent = sanitiseText(response.data);
         }
       }
-      if (this.autoScrollEnabled) this.scrollToBottom();
     };
   };
 
@@ -383,7 +305,5 @@ export class ChatMessage extends HTMLElement {
   get loadingElement() {
     return /** @type {LoadingMessage} */ (this.querySelector("ids-loading-message"));
   }
-
 }
-
 customElements.define("ids-chat-message", ChatMessage);
