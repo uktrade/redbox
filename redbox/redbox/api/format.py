@@ -44,13 +44,12 @@ def reduce_chunks_by_tokens(chunks: list[Document] | None, chunk: Document, max_
 
 
 def find_first_link_field(data) -> str | None:
-    """Recursively find the first field ending in _link in a nested structure."""
+    """Recursively find the first "url" field in a nested structure."""
 
     if isinstance(data, dict):
         # Check current level first
-        for key, value in data.items():
-            if key.endswith("_link") and value is not None:
-                return str(value)
+        if "url" in data.keys() and data.get("url") is not None:
+            return str(data.get("url"))
         # Then recurse into values
         for value in data.values():
             result = find_first_link_field(value)
@@ -76,7 +75,7 @@ def extract_links(data: dict | None) -> list[tuple[str, Any]]:
       - Single object:  { ...fields... }
       - Paged result:   { "total": N, "<key>": [ {...}, {...} ] }
 
-    Returns all found _link values.
+    Returns all found url values.
     """
     if data is None:
         return []
