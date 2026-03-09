@@ -3,14 +3,13 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from typing import Callable
 from uuid import uuid4
-from urllib.parse import urlencode
 
 from langchain_core.messages import AIMessage
 from langchain_core.documents.base import Document
 from langgraph.constants import Send
 
 from redbox.models.chain import DocumentState, RedboxState, TaskStatus
-from redbox.api.format import format_documents, extract_links, slugify
+from redbox.api.format import format_documents, extract_links
 
 import asyncio
 from mcp import ClientSession
@@ -135,6 +134,8 @@ def wrap_async_tool(tool, tool_name):
                         server_name = init_result.serverInfo.name
                         server_version = init_result.serverInfo.version
 
+                        log.info(f"Calling '{tool_name}' on MCP server {server_name}@{server_version}")
+
                         # Get tools
                         tools = await load_mcp_tools(session)
 
@@ -157,16 +158,7 @@ def wrap_async_tool(tool, tool_name):
                         links = extract_links(data=data)
 
                         if not links:
-                            return [
-                                Document(
-                                    page_content=result if isinstance(result, str) else str(result),
-                                    metadata={
-                                        "creator_type": creator_type,
-                                        "uri": f"{slugify(server_name)}@{server_version}/{tool_name}?{urlencode(args)}",
-                                        "page_number": "",
-                                    },
-                                )
-                            ]
+                            return result if isinstance(result, str) else str(result)
 
                         return [
                             Document(
