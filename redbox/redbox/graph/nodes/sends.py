@@ -155,6 +155,8 @@ def wrap_async_tool(tool, tool_name):
                         log.warning(f"args '{args}'")
                         result = await selected_tool.ainvoke(args)
 
+                        log.warning(f"MCP Tool '{tool_name}' result: {result}")
+
                         if creator_type == ChunkCreatorType.datahub:
                             return format_mcp_tool_response(
                                 tool_response=result,
