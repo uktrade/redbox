@@ -1,9 +1,11 @@
+import json
 import logging
 import re
 from typing import Any
 
 from langchain_core.documents.base import Document
 
+from redbox.models.file import ChunkCreatorType
 from redbox.transform import combine_documents
 
 log = logging.getLogger(__name__)
@@ -48,7 +50,7 @@ def find_first_link_field(data) -> str | None:
 
     if isinstance(data, dict):
         # Check current level first
-        if "url" in data.keys() and data.get("url") is not None:
+        if "url" in data.keys() and data.get("url", None) is not None:
             return str(data.get("url"))
         # Then recurse into values
         for value in data.values():
@@ -92,3 +94,20 @@ def extract_links(data: dict | None) -> list[tuple[str, Any]]:
     # Single object — extract first _link from root
     link = find_first_link_field(data)
     return [(link, data)] if link else []
+
+
+def format_mcp_tool_response(tool_response, creator_type: ChunkCreatorType) -> str:
+    data = json.loads(tool_response)
+    links = extract_links(data=data)
+
+    if not links:
+        return tool_response if isinstance(tool_response, str) else str(tool_response)
+
+    citations = [
+        Document(
+            page_content=json.dumps(data),
+            metadata={"creator_type": creator_type, "uri": link, "page_number": ""},
+        )
+        for link, data in links
+    ]
+    return format_documents(documents=citations)

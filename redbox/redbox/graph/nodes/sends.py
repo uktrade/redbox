@@ -5,17 +5,18 @@ from typing import Callable
 from uuid import uuid4
 
 from langchain_core.messages import AIMessage
-from langchain_core.documents.base import Document
 from langgraph.constants import Send
 
 from redbox.models.chain import DocumentState, RedboxState, TaskStatus
-from redbox.api.format import format_documents, extract_links
+from redbox.api.format import format_mcp_tool_response
 
 import asyncio
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from langchain_mcp_adapters.tools import load_mcp_tools
 import json
+
+from redbox.models.file import ChunkCreatorType
 
 log = logging.getLogger(__name__)
 
@@ -125,7 +126,7 @@ def wrap_async_tool(tool, tool_name):
 
         try:
             # Define the async operation
-            async def run_tool() -> list[Document]:
+            async def run_tool():
                 # tool need to be executed within the connection context manager
                 async with streamablehttp_client(mcp_url) as (read, write, _):
                     async with ClientSession(read, write) as session:
@@ -154,19 +155,13 @@ def wrap_async_tool(tool, tool_name):
                         log.warning(f"args '{args}'")
                         result = await selected_tool.ainvoke(args)
 
-                        data = json.loads(result)
-                        links = extract_links(data=data)
-
-                        if not links:
-                            return result if isinstance(result, str) else str(result)
-
-                        return [
-                            Document(
-                                page_content=json.dumps(data),
-                                metadata={"creator_type": creator_type, "uri": link, "page_number": ""},
+                        if creator_type == ChunkCreatorType.datahub:
+                            return format_mcp_tool_response(
+                                tool_response=result,
+                                creator_type=creator_type,
                             )
-                            for link, data in links
-                        ]
+
+                        return result
 
             # Run the async function and return its result
             return loop.run_until_complete(run_tool())
@@ -243,20 +238,6 @@ def run_tools_parallel(
                     if response is None:
                         log.warning(f"{future_tool_name} Tool has failed or timed out")
                         continue
-
-                    # Handle Document responses from MCP tools
-                    if isinstance(response, Document):
-                        log.warning(f"{log_stub} '{future_tool_name}' returned a Document, formatting with citations.")
-                        formatted = format_documents([response])
-                        response = formatted  # now a cited XML string, treat as regular str response
-
-                    # Handle list of Documents (if tool returns multiple)
-                    elif isinstance(response, list) and all(isinstance(r, Document) for r in response):
-                        log.warning(
-                            f"{log_stub} '{future_tool_name}' returned {len(response)} Documents, formatting with citations."
-                        )
-                        formatted = format_documents(response)
-                        response = formatted
 
                     log.warning("response not None")
 
