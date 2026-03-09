@@ -1,19 +1,19 @@
 import logging
-from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed, Future
-from typing import Callable, Optional
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
+from typing import Callable
 from uuid import uuid4
 
-from langchain_core.messages import AIMessage, ToolCall
+from langchain_core.messages import AIMessage
 from langgraph.constants import Send
 
 from redbox.models.chain import DocumentState, RedboxState, TaskStatus
 from redbox.graph.nodes.runner import exceptions
+from redbox.graph.nodes.runner.runner import ToolRunner
 
 import asyncio
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from langchain_mcp_adapters.tools import load_mcp_tools
-import json
 
 log = logging.getLogger(__name__)
 
@@ -232,184 +232,196 @@ def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, is_loop=False)
 
     # -- helpers --
 
-    def submit_tool_future(tool_call: ToolCall) -> tuple[Future, dict] | None:
-        # Find the matching tool by name
-        tool_name = tool_call.get("name")
-        selected_tool = next((tool for tool in tools if tool.name == tool_name), None)
+    # def submit_tool_future(tool_call: ToolCall) -> tuple[Future, dict] | None:
+    #     # Find the matching tool by name
+    #     tool_name = tool_call.get("name")
+    #     selected_tool = next((tool for tool in tools if tool.name == tool_name), None)
 
-        if selected_tool is None:
-            raise exceptions.ToolNotFoundError(tool_name=tool_name, available_tools=[tool.name for tool in tools])
+    #     if selected_tool is None:
+    #         raise exceptions.ToolNotFoundError(tool_name=tool_name, available_tools=[tool.name for tool in tools])
 
-        # Get arguments and submit the tool invocation
-        args = tool_call.get("args", {})
-        if not isinstance(args, dict):
-            raise exceptions.ToolInputValidationError(
-                tool_name=tool_name,
-                field="args",
-                value=args,
-                reason=f"expected dict, got {type(args).__name__!r}",
+    #     # Get arguments and submit the tool invocation
+    #     args = tool_call.get("args", {})
+    #     if not isinstance(args, dict):
+    #         raise exceptions.ToolInputValidationError(
+    #             tool_name=tool_name,
+    #             field="args",
+    #             value=args,
+    #             reason=f"expected dict, got {type(args).__name__!r}",
+    #         )
+
+    #     log.warning(f"args: {args}")
+    #     is_intermediate_step = "False"
+
+    #     try:
+    #         # check if tool is sync (not async). the sync tool should have sync function defined and no async coroutine
+    #         if selected_tool.func and not selected_tool.coroutine:
+    #             args["state"] = state
+    #             future = executor.submit(selected_tool.invoke, args)
+
+    #         # for async mcp tools
+    #         else:
+    #             # capture any intermediate step value decided by LLM
+    #             if is_loop:
+    #                 is_intermediate_step = args.get("is_intermediate_step", "False")
+    #                 log.warning(f"intermediate step: {is_intermediate_step}")
+    #             future = executor.submit(wrap_async_tool(selected_tool, tool_name), args)
+    #     except Exception as e:
+    #         raise exceptions.ToolFailedError(tool_name=tool_name, cause=e) from e
+
+    #     return future, {"name": tool_name, "intermediate_step": is_intermediate_step}
+
+    # def parse_tool_future(future: Future, tool_timeout: float) -> Optional[AIMessage]:
+    #     result = None
+
+    #     future_tool_name = futures[future]["name"]
+    #     is_intermediate_step = futures[future]["intermediate_step"]
+
+    #     try:
+    #         response = future.result()
+    #     except TimeoutError as e:
+    #         raise exceptions.ToolTimeoutError(future_tool_name, timeout_seconds=tool_timeout) from e
+    #     except Exception as e:
+    #         raise exceptions.ToolFailedError(future_tool_name, cause=e) from e
+
+    #     log.warning(f"{log_stub} This is what I got from tool '{future_tool_name}': {response}")
+
+    #     if response is None:
+    #         raise exceptions.ToolFailedError(
+    #             future_tool_name, stderr="Tool returned None — may have failed or timed out"
+    #         )
+
+    #     log.warning(f"{log_stub} {future_tool_name} response not None")
+
+    #     if (not is_loop and isinstance(response, str)) or (
+    #         is_loop and isinstance(response, tuple)
+    #     ):  # when is_loop=True, result output should be a Tuple
+    #         log.warning(f"{log_stub} {future_tool_name} my non-transformed response: {response}")
+    #         result = response
+
+    #     elif is_loop and isinstance(response, str):
+    #         try:
+    #             result_dict = json.loads(response)
+    #             is_empty = result_dict.get("total") == 0  # Check if response has no records
+    #             log.warning(f"{log_stub} {future_tool_name} is_empty {is_empty}")
+    #         except json.JSONDecodeError:
+    #             is_empty = response in ["", "None", "[]"]  # Check if response is an empty string/None/empty array
+
+    #         status = "fail" if is_empty else "pass"  # Set status based on emptiness
+
+    #         if is_empty:
+    #             log.warning(f"No records  returned from {future_tool_name} tool")
+    #             response = "Error message: Empty response"
+
+    #         # Create transformed response and append to responses
+    #         transformed_response = (response, status, is_intermediate_step)
+    #         log.warning("my transformed response")
+    #         log.warning(transformed_response)
+    #         result = transformed_response
+
+    #     else:
+    #         raise exceptions.ToolOutputValidationError(
+    #             future_tool_name,
+    #             reason=(
+    #                 f"expected str (is_loop=False) or tuple (is_loop=True), "
+    #                 f"got {type(response).__name__!r} — is_loop={is_loop}"
+    #             ),
+    #         )
+
+    #     raw_res = response
+    #     if isinstance(raw_res, tuple):
+    #         raw_res = raw_res[0]
+
+    #     if not raw_res or not isinstance(raw_res, str) or not raw_res.strip():
+    #         raise exceptions.ToolOutputValidationError(
+    #             future_tool_name,
+    #             reason=f"empty or whitespace-only response body: {repr(raw_res)}",
+    #         )
+
+    #     return AIMessage(result)
+
+    try:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            runner = ToolRunner(
+                tools=tools,
+                state=state,
+                executor=executor,
+                is_loop=is_loop,
+                parallel_timeout=parallel_timeout,
             )
 
-        log.warning(f"args: {args}")
-        is_intermediate_step = "False"
-
-        try:
-            # check if tool is sync (not async). the sync tool should have sync function defined and no async coroutine
-            if selected_tool.func and not selected_tool.coroutine:
-                args["state"] = state
-                future = executor.submit(selected_tool.invoke, args)
-
-            # for async mcp tools
-            else:
-                # capture any intermediate step value decided by LLM
-                if is_loop:
-                    is_intermediate_step = args.get("is_intermediate_step", "False")
-                    log.warning(f"intermediate step: {is_intermediate_step}")
-                future = executor.submit(wrap_async_tool(selected_tool, tool_name), args)
-        except Exception as e:
-            raise exceptions.ToolFailedError(tool_name=tool_name, cause=e) from e
-
-        return future, {"name": tool_name, "intermediate_step": is_intermediate_step}
-
-    def parse_tool_future(future: Future, tool_timeout: float) -> Optional[AIMessage]:
-        result = None
-
-        future_tool_name = futures[future]["name"]
-        is_intermediate_step = futures[future]["intermediate_step"]
-
-        try:
-            response = future.result()
-        except TimeoutError as e:
-            raise exceptions.ToolTimeoutError(future_tool_name, timeout_seconds=tool_timeout) from e
-        except Exception as e:
-            raise exceptions.ToolFailedError(future_tool_name, cause=e) from e
-
-        log.warning(f"{log_stub} This is what I got from tool '{future_tool_name}': {response}")
-
-        if response is None:
-            raise exceptions.ToolFailedError(
-                future_tool_name, stderr="Tool returned None — may have failed or timed out"
-            )
-
-        log.warning(f"{log_stub} {future_tool_name} response not None")
-
-        if (not is_loop and isinstance(response, str)) or (
-            is_loop and isinstance(response, tuple)
-        ):  # when is_loop=True, result output should be a Tuple
-            log.warning(f"{log_stub} {future_tool_name} my non-transformed response: {response}")
-            result = response
-
-        elif is_loop and isinstance(response, str):
-            try:
-                result_dict = json.loads(response)
-                is_empty = result_dict.get("total") == 0  # Check if response has no records
-                log.warning(f"{log_stub} {future_tool_name} is_empty {is_empty}")
-            except json.JSONDecodeError:
-                is_empty = response in ["", "None", "[]"]  # Check if response is an empty string/None/empty array
-
-            status = "fail" if is_empty else "pass"  # Set status based on emptiness
-
-            if is_empty:
-                log.warning(f"No records  returned from {future_tool_name} tool")
-                response = "Error message: Empty response"
-
-            # Create transformed response and append to responses
-            transformed_response = (response, status, is_intermediate_step)
-            log.warning("my transformed response")
-            log.warning(transformed_response)
-            result = transformed_response
-
-        else:
-            raise exceptions.ToolOutputValidationError(
-                future_tool_name,
-                reason=(
-                    f"expected str (is_loop=False) or tuple (is_loop=True), "
-                    f"got {type(response).__name__!r} — is_loop={is_loop}"
-                ),
-            )
-
-        raw_res = response
-        if isinstance(raw_res, tuple):
-            raw_res = raw_res[0]
-
-        if not raw_res or not isinstance(raw_res, str) or not raw_res.strip():
-            raise exceptions.ToolOutputValidationError(
-                future_tool_name,
-                reason=f"empty or whitespace-only response body: {repr(raw_res)}",
-            )
-
-        return AIMessage(result)
+            return runner.run(tool_calls=ai_msg.tool_calls)
 
     # Dict to store futures and related metadata
-    futures = {}
-    try:
-        # Use ThreadPoolExecutor for parallel execution
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit tool invocations to the executor
-            for tool_call in ai_msg.tool_calls:
-                tool_name = tool_call.get("name")
-                try:
-                    res = submit_tool_future(tool_call=tool_call)
-                    if res is None:
-                        continue
+    # futures = {}
+    # try:
+    #     # Use ThreadPoolExecutor for parallel execution
+    #     with ThreadPoolExecutor(max_workers=max_workers) as executor:
+    #         # Submit tool invocations to the executor
+    #         for tool_call in ai_msg.tool_calls:
+    #             tool_name = tool_call.get("name")
+    #             try:
+    #                 res = submit_tool_future(tool_call=tool_call)
+    #                 if res is None:
+    #                     continue
 
-                    future, args = res
-                    futures[future] = args
+    #                 future, args = res
+    #                 futures[future] = args
 
-                except exceptions.ToolNotFoundError as e:
-                    log.warning(f"{log_stub} '{tool_name}' not found: {e}")
+    #             except exceptions.ToolNotFoundError as e:
+    #                 log.warning(f"{log_stub} '{tool_name}' not found: {e}")
 
-                except exceptions.ToolInputValidationError as e:
-                    log.warning(f"{log_stub} '{tool_name}' invalid input: {e}")
+    #             except exceptions.ToolInputValidationError as e:
+    #                 log.warning(f"{log_stub} '{tool_name}' invalid input: {e}")
 
-                except exceptions.ToolRunnerError as e:
-                    log.warning(f"{log_stub} '{tool_name}' failed to submit: {e}")
+    #             except exceptions.ToolRunnerError as e:
+    #                 log.warning(f"{log_stub} '{tool_name}' failed to submit: {e}")
 
-            # Collect responses as tools complete
-            responses = []
-            failed_tools: list[str] = []
-            for future in as_completed(futures.keys(), timeout=parallel_timeout):
-                future_tool_name = futures[future]["name"]
+    #         # Collect responses as tools complete
+    #         responses = []
+    #         failed_tools: list[str] = []
+    #         for future in as_completed(futures.keys(), timeout=parallel_timeout):
+    #             future_tool_name = futures[future]["name"]
 
-                try:
-                    response = parse_tool_future(future=future, tool_timeout=parallel_timeout)
-                    if response is not None:
-                        responses.append(response)
+    #             try:
+    #                 response = parse_tool_future(future=future, tool_timeout=parallel_timeout)
+    #                 if response is not None:
+    #                     responses.append(response)
 
-                except exceptions.ToolTimeoutError as e:
-                    log.warning(f"{log_stub} '{future_tool_name}' timed out after {e.timeout_seconds:.1f}s.")
-                    failed_tools.append(future_tool_name)
+    #             except exceptions.ToolTimeoutError as e:
+    #                 log.warning(f"{log_stub} '{future_tool_name}' timed out after {e.timeout_seconds:.1f}s.")
+    #                 failed_tools.append(future_tool_name)
 
-                except exceptions.ToolOutputValidationError as e:
-                    log.warning(f"{log_stub} '{future_tool_name}' returned an invalid output: {e}")
-                    failed_tools.append(future_tool_name)
+    #             except exceptions.ToolOutputValidationError as e:
+    #                 log.warning(f"{log_stub} '{future_tool_name}' returned an invalid output: {e}")
+    #                 failed_tools.append(future_tool_name)
 
-                except exceptions.ToolFailedError as e:
-                    log.warning(f"{log_stub} '{future_tool_name}' failed: {e}")
-                    if e.cause:
-                        log.debug(f"{log_stub} '{future_tool_name}' cause: {e.cause}", exc_info=e.cause)
-                    failed_tools.append(future_tool_name)
+    #             except exceptions.ToolFailedError as e:
+    #                 log.warning(f"{log_stub} '{future_tool_name}' failed: {e}")
+    #                 if e.cause:
+    #                     log.debug(f"{log_stub} '{future_tool_name}' cause: {e.cause}", exc_info=e.cause)
+    #                 failed_tools.append(future_tool_name)
 
-                except exceptions.ToolRunnerError as e:
-                    # Catch-all for any other typed tool errors (e.g. ToolPermissionError, ToolRateLimitError)
-                    log.warning(f"{log_stub} '{future_tool_name}' tool runner error: {e}")
-                    failed_tools.append(future_tool_name)
+    #             except exceptions.ToolRunnerError as e:
+    #                 # Catch-all for any other typed tool errors (e.g. ToolPermissionError, ToolRateLimitError)
+    #                 log.warning(f"{log_stub} '{future_tool_name}' tool runner error: {e}")
+    #                 failed_tools.append(future_tool_name)
 
-            if failed_tools:
-                log.warning(f"{log_stub} {len(failed_tools)} tool(s) failed: {', '.join(failed_tools)}")
+    #         if failed_tools:
+    #             log.warning(f"{log_stub} {len(failed_tools)} tool(s) failed: {', '.join(failed_tools)}")
 
-            if not responses:
-                log.warning(
-                    f"{log_stub} Every tool execution has failed or timed out. "
-                    f"Failed tools: {', '.join(failed_tools) or 'unknown'}."
-                )
-                return None
+    #         if not responses:
+    #             log.warning(
+    #                 f"{log_stub} Every tool execution has failed or timed out. "
+    #                 f"Failed tools: {', '.join(failed_tools) or 'unknown'}."
+    #             )
+    #             return None
 
-            log.warning(
-                f"{log_stub} Completed. Successful: {len(responses)}, "
-                f"Failed: {len(failed_tools)}. Responses: {responses}"
-            )
-            return responses
+    #         log.warning(
+    #             f"{log_stub} Completed. Successful: {len(responses)}, "
+    #             f"Failed: {len(failed_tools)}. Responses: {responses}"
+    #         )
+    #         return responses
 
     except TimeoutError:
         log.warning(f"{log_stub} Global parallel tool execution timed out after {parallel_timeout} seconds.")

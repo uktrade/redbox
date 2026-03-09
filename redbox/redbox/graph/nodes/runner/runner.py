@@ -2,7 +2,7 @@ import logging
 import json
 from uuid import uuid4
 from typing import Optional
-from concurrent.futures import TimeoutError, as_completed, Future
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed, Future
 
 from langchain_core.messages import AIMessage, ToolCall
 
@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 class ToolRunner:
     """Encapsulates the logic for submitting and parsing individual tool futures."""
 
-    def __init__(self, tools, state, executor, is_loop: bool, parallel_timeout: float, log_stub: str):
+    def __init__(self, tools, state, executor: ThreadPoolExecutor, is_loop: bool, parallel_timeout: float):
         self.tools = tools
         self.state = state
         self.executor = executor
