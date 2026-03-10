@@ -1,6 +1,5 @@
 from json import JSONDecodeError
 
-from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda, RunnableParallel
 
 from redbox.chains.parser import ClaudeParser
@@ -9,7 +8,7 @@ from redbox.graph.agents.base import Agent
 from redbox.graph.agents.configs import AgentConfig
 from redbox.graph.nodes.processes import build_activity_log_node
 from redbox.graph.nodes.sends import run_tools_parallel
-from redbox.models.chain import RedboxState, TaskStatus, configure_agent_task_plan
+from redbox.models.chain import RedboxState, configure_agent_task_plan
 from redbox.models.graph import RedboxActivityEvent
 from redbox.transform import join_result_with_token_limit
 
@@ -37,8 +36,6 @@ class WorkerAgent(Agent):
                 self.logger.warning(f"Parsing task {state.last_message.content}")
             except JSONDecodeError as e:
                 self.logger.exception(f"Cannot parse task in {self.config.name}: {e}")
-            except ValueError as e:
-                self.logger.exception(f"There is no message in the state in {self.config.name}: {e}")
             return state, task
 
         return _reading_task_info
@@ -57,7 +54,6 @@ class WorkerAgent(Agent):
                 RedboxActivityEvent(message=f"{self.config.name} is completing task: {task.task}")
             )
             activity_node.invoke(state)
-            return {"agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.RUNNING)}
 
         return _log_agent_activity
 
@@ -86,57 +82,39 @@ class WorkerAgent(Agent):
             """
             Processing data from the agent core function.
             """
-            state, result, task = input
+            _, result, task = input
             result_content = self._processing(result)
             return {
-                "agents_results": {
-                    task.id: AIMessage(
-                        content=f"<{self.config.name}_Result>{result_content}</{self.config.name}_Result>"
-                    )
-                },
+                "agents_results": f"<{self.config.name}_Result>{result_content}</{self.config.name}_Result>",
                 "tasks_evaluator": task.task + "\n" + task.expected_output,
-                "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.COMPLETED),
             }
 
         return _post_processing
-
-    def _agent_invocation(self, agent, state):
-        # worker_agent = llm_call(agent_config=self.config)
-        self.logger.warning(f"[{self.config.name}] Invoking worker agent...")
-        ai_msg = agent.invoke(state)
-
-        self.logger.warning(f"[{self.config.name}] Worker agent output:\n{ai_msg}")
-
-        # --- RUN TOOLS IN PARALLEL ---
-        self.logger.warning(f"[{self.config.name}] Running tools via run_tools_parallel...")
-
-        result = run_tools_parallel(ai_msg, self.config.tools, state, is_loop=False)  # this agent runs without loop
-        return result
 
     def core_task(self):
         @RunnableLambda
         def _core_task(input):
             state, task = input
-            # dependencies' results
-            previous_agents_results = []
-            for dep in task.dependencies:
-                previous_agents_results += [state.agents_results[dep].content]
-            previous_agents_results = " ".join(previous_agents_results)
             worker_agent = create_chain_agent(
                 system_prompt=self.config.prompt.get_prompt,
                 use_metadata=self.config.prompt.prompt_vars.metadata,
                 using_chat_history=self.config.prompt.prompt_vars.chat_history,
                 parser=self.config.parser,
                 tools=self.config.tools,
-                _additional_variables={
-                    "task": task.task,
-                    "expected_output": task.expected_output,
-                    "previous_agents_results": previous_agents_results,
-                },
+                _additional_variables={"task": task.task, "expected_output": task.expected_output},
                 model=self.config.llm_backend,
                 use_knowledge_base=self.config.prompt.prompt_vars.knowledge_base_metadata,
             )
-            result = self._agent_invocation(agent=worker_agent, state=state)
+            # worker_agent = llm_call(agent_config=self.config)
+            self.logger.warning(f"[{self.config.name}] Invoking worker agent...")
+            ai_msg = worker_agent.invoke(state)
+
+            self.logger.warning(f"[{self.config.name}] Worker agent output:\n{ai_msg}")
+
+            # --- RUN TOOLS IN PARALLEL ---
+            self.logger.warning(f"[{self.config.name}] Running tools via run_tools_parallel...")
+
+            result = run_tools_parallel(ai_msg, self.config.tools, state, is_loop=False)  # this agent runs without loop
             return (state, result, task)
 
         return _core_task.with_retry(stop_after_attempt=3)
@@ -147,6 +125,6 @@ class WorkerAgent(Agent):
         """
         return (
             self.reading_task_info()
-            | RunnableParallel(state=self.log_agent_activity(), result=self.core_task() | self.post_processing())
-            | (lambda x: x["result"])  # Return only the result
+            | RunnableParallel(_=self.log_agent_activity(), result=self.core_task() | self.post_processing())
+            | (lambda x: x["result"])
         )
