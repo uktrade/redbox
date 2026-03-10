@@ -414,14 +414,14 @@ def build_query_tabular_file_tool(
             # Set permitted keys
             permitted_s3_keys = state.request.permitted_s3_keys
             if knowledge_base:
-                permitted_s3_keys = state.request.permitted_s3_keys
+                permitted_s3_keys = state.request.knowledge_base_s3_keys
 
             # Retrieve tabular documents
             docs_metadata = retriever._get_relevant_documents(
                 permitted_s3_keys=permitted_s3_keys, uris=[uri], run_manager=None
             )
             if not docs_metadata:
-                return "No documents found for URI", []
+                return "No documents found for URI. Please advise the user to try again by reuploading the file.", []
 
             uri_sha = hashlib.sha256(uri.encode("utf-8")).hexdigest()
             db_path = f"generated_db_{uri_sha}.duckdb"

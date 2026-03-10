@@ -5,6 +5,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    position: relative;
 
     width: 100%;
     box-sizing: border-box;
@@ -20,11 +21,15 @@
         --list-row-text-color: var(--color-text);
         --list-row-icon-color: var(--color-text);
 
+        padding-left: 5px;
+
         &::before {
             content: "";
-            height: 20px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
             border-left: 1px solid var(--color-text);
-            padding-left: 5px;
         }
     }
 }

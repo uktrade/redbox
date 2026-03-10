@@ -32,7 +32,6 @@
     row-gap: 15px;
 
     &__toggle  { grid-area: toggle; }
-    &__tool    { grid-area: tool; }
     &__title   { grid-area: title; }
     &__actions { grid-area: actions; }
 
@@ -48,29 +47,18 @@
 
     position: sticky;
     top: 0;
-    z-index: 200;
+    z-index: 300;
 
     .cta-text {
         display: flex;
     }
 
-    &:has(.ids-chat-cta__tool):has(.ids-chat-cta__title) {
-        grid-template-areas:
-            "tool   actions"
-            "title  .";
-    }
-
-    &:has(.ids-chat-cta__tool):not(:has(.ids-chat-cta__title)) {
-        grid-template-areas:
-            "tool   actions"
-    }
-
-    &:has(.ids-chat-cta__title):not(:has(.ids-chat-cta__tool)) {
+    &:has(.ids-chat-cta__title) {
         grid-template-areas:
             "title  actions"
     }
 
-    &:not(:has(.ids-chat-cta__title)):not(:has(.ids-chat-cta__tool)) {
+    &:not(:has(.ids-chat-cta__title)) {
         justify-content: center;
         grid-template-areas:
             ".  actions"
@@ -111,28 +99,13 @@
             display: none;
         }
 
-        &:has(.ids-chat-cta__tool):has(.ids-chat-cta__title) {
-            padding-top: 20px;
-            padding-bottom: 60px;
-            grid-template-areas:
-                "toggle actions"
-                ".      tool"
-                ".      title";
-        }
-
-        &:has(.ids-chat-cta__tool):not(:has(.ids-chat-cta__title)) {
-            grid-template-areas:
-                "toggle actions"
-                ".      tool";
-        }
-
-        &:has(.ids-chat-cta__title):not(:has(.ids-chat-cta__tool)) {
+        &:has(.ids-chat-cta__title) {
             grid-template-areas:
                 "toggle actions"
                 ".      title";
         }
 
-        &:not(:has(.ids-chat-cta__title)):not(:has(.ids-chat-cta__tool)) {
+        &:not(:has(.ids-chat-cta__title)) {
             justify-self: stretch;
             grid-template-areas:
                 "toggle actions";
@@ -164,23 +137,12 @@
             display: flex;
         }
 
-        &:has(.ids-chat-cta__tool):has(.ids-chat-cta__title) {
-            grid-template-areas:
-                "tool   actions"
-                "title  .";
-        }
-
-        &:has(.ids-chat-cta__tool):not(:has(.ids-chat-cta__title)) {
-            grid-template-areas:
-                "tool   actions";
-        }
-
-        &:has(.ids-chat-cta__title):not(:has(.ids-chat-cta__tool)) {
+        &:has(.ids-chat-cta__title) {
             grid-template-areas:
                 "title  actions";
         }
 
-        &:not(:has(.ids-chat-cta__title)):not(:has(.ids-chat-cta__tool)) {
+        &:not(:has(.ids-chat-cta__title)) {
             justify-self: center;
             grid-template-areas:
                 ".  actions";

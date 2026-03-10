@@ -246,7 +246,7 @@ Execution Strategy:
 PREVIOUS_AGENT_RESULTS = """<Previous_Agents_Results>{previous_agents_results}</Previous_Agents_Results>"""
 METADATA = """<Document_Metadata>{metadata}</Document_Metadata>"""
 KNOWLEDGE_BASE_METADTA = """<Knowledge_Base_Metadata>{knowledge_base_metadata}</Knowledge_Base_Metadata> <Tabular_Knowledge_Base_Metadata>{tabular_knowledge_base_metadata}</Tabular_Knowledge_Base_Metadata>"""
-TABULAR_METADATA = """<Tabular_Document_Metadata>{tabular_metadata}</Tabular_Document_Metadata>"""
+TABULAR_METADATA = """<Tabular_Document_Metadata>{tabular_metadata}</Tabular_Document_Metadata> If no tabular metadata found. Please advise user to reupload their tabular document."""
 
 EXTERNAL_RETRIEVAL_AGENT_PROMPT = """You are an expert information analyst with the ability to critically assess when and how to retrieve information. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
 

@@ -1,6 +1,6 @@
 ENABLE_DICTATION = "enable_dictation"
 ENABLE_TEAMS = "enable_teams"
-ENABLE_TOOLS = "enable_tools"
+DISABLE_TOOLS = "disable_tools"
 ENABLE_MODEL_SELECTOR = "enable_model_selector"
 ENABLE_ACTIVITY_EVENTS = "enable_activity_events"
 ENABLE_ASSIST_REBRAND = "enable_assist_rebrand"
