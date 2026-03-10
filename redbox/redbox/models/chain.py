@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from enum import Enum, StrEnum
+from enum import Enum, IntEnum, StrEnum
 from functools import reduce
 from types import UnionType
 from typing import Annotated, Dict, List, Literal, NotRequired, Required, Tuple, TypedDict, get_args, get_origin
@@ -317,10 +317,26 @@ def metadata_reducer(
     )
 
 
+class TaskStatus(IntEnum):
+    PENDING = 1
+    SCHEDULED = 2
+    RUNNING = 3
+    COMPLETED = 4
+    FAILED = 5
+
+
 # Base class definition for agent task
 class AgentTaskBase(BaseModel):
+    id: str = Field(description="Unique identifier for the task", default="task0")
     task: str = Field(description="Task to be completed by the agent", default="")
     expected_output: str = Field(description="What this agent should produce", default="")
+    dependencies: List[str] = Field(
+        description="List of task IDs that must be complete before this task can run", default_factory=list
+    )
+    status: TaskStatus = Field(
+        description="Current status of the task",
+        default=TaskStatus.PENDING,
+    )
 
 
 # Base class definition for multi agent plan

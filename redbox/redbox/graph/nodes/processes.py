@@ -35,6 +35,7 @@ from redbox.models.chain import (
     PromptSet,
     RedboxState,
     RequestMetadata,
+    TaskStatus,
     configure_agent_task_plan,
     get_plan_fix_prompts,
     get_plan_fix_suggestion_prompts,
@@ -952,3 +953,21 @@ def get_tabular_schema():
         return {"tabular_schema": db_schema}
 
     return _get_tabular_schema
+
+
+def check_if_tasks_completed(state: RedboxState) -> bool:
+    """
+    Check if all tasks have been completed.
+    If a task has status pending, it should go back to send.
+    If there is no pending task, go to evaluator
+    """
+    # if there is no pending task, go to evaluator
+    pending_running_tasks = [
+        task
+        for task in state.agent_plans.tasks
+        if task.status in [TaskStatus.PENDING, TaskStatus.RUNNING, TaskStatus.SCHEDULED]
+    ]
+    if pending_running_tasks:
+        return False
+    else:
+        return True

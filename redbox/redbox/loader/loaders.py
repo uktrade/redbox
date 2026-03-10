@@ -157,6 +157,20 @@ def load_tabular_file(file_name: str, file_bytes: BytesIO) -> list[dict[str, str
     return elements if elements else []
 
 
+def parse_tabular_schema(table_name: str, df: pd.DataFrame) -> tuple[str, dict] | None:
+    """Reconstruct document_schema from legacy document text at runtime."""
+    # Parse CSV to get column dtypes
+    try:
+        csv_text = f"<table_name>{table_name}</table_name>" + df.to_csv(index=False)
+        sheet_schema = TabularSchema(
+            name=table_name, columns={col: infer_sqlite_type(df[col].dtype) for col in df.columns}
+        )
+        return csv_text, sheet_schema.model_dump()
+    except Exception as e:
+        logger.warning(f"Failed to compute schema from legacy document: {e}")
+        return None
+
+
 class UnstructuredChunkLoader:
     """
     Load, partition and chunk a document using local unstructured library.

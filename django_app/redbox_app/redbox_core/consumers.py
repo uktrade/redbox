@@ -319,7 +319,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     def _extract_sso_token(self) -> str | None:
         session = self.scope.get("session")
-        return session["_authbroker_token"]["access_token"]
+        try:
+            return session["_authbroker_token"]["access_token"]
+        except TypeError as e:
+            error_msg = f"Cannot get sso token {e!s}"
+            logger.exception(error_msg)
+            return None
 
     async def llm_conversation(
         self,

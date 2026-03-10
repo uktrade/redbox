@@ -175,6 +175,7 @@ def fake_state_with_plan() -> RedboxState:
         chat_history=[{"role": "user", "text": "what is AI policy?"}, {"role": "ai", "text": "let me generate plan"}],
         ai_settings=AISettings(),
         permitted_s3_keys=[],
+        sso_access_token=None,
     )
 
     agent = "Internal_Retrieval_Agent"
