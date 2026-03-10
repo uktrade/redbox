@@ -297,5 +297,4 @@ def sending_task_to_agent(state: RedboxState):
             (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
             for task in plan.tasks
         ]
-
         return [Send(node=target, arg=state) for target, state in task_send_states]

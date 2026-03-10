@@ -107,13 +107,10 @@ def read_csv_text(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
             logger.error("Empty File Uploaded")
             raise ValidationError("Empty File Uploaded")
 
-        csv_text, sheet_schema = parse_tabular_schema(table_name="csv", df=df)
         return [
             {
-                "text": csv_text,
-                "metadata": {
-                    "document_schema": sheet_schema,
-                },
+                "text": str(df.to_csv(index=False)),  # Convert bytes to string
+                "metadata": {},  # returning empty metadata dictionary
             }
         ]
     except Exception as e:
@@ -134,17 +131,14 @@ def read_excel_file(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
                 if df.empty:
                     logger.info(f"Skipping Sheet {name}")
                     continue
-
                 # Include the table name in the text that is stored. This will be extracted by the retriever
                 table_name = name.lower().replace(" ", "_")
-                csv_text, sheet_schema = parse_tabular_schema(table_name=table_name, df=df)
-
-                elements.append(
-                    {
-                        "text": csv_text,
-                        "metadata": {"document_schema": sheet_schema},
-                    }
+                sheet_schema = TabularSchema(
+                    name=table_name, columns={col: infer_sqlite_type(df[col].dtype) for col in df.columns}
                 )
+
+                csv_text = f"<table_name>{table_name}</table_name>" + str(df.to_csv(index=False))
+                elements.append({"text": csv_text, "metadata": {"document_schema": sheet_schema.model_dump()}})
             except Exception as e:
                 logger.info(f"Skipping Sheet {name} due to error: {e}")
                 continue
@@ -162,20 +156,6 @@ def load_tabular_file(file_name: str, file_bytes: BytesIO) -> list[dict[str, str
         elements = read_excel_file(file_bytes=file_bytes)
 
     return elements if elements else []
-
-
-def parse_tabular_schema(table_name: str, df: pd.DataFrame) -> tuple[str, dict] | None:
-    """Reconstruct document_schema from legacy document text at runtime."""
-    # Parse CSV to get column dtypes
-    try:
-        csv_text = f"<table_name>{table_name}</table_name>" + df.to_csv(index=False)
-        sheet_schema = TabularSchema(
-            name=table_name, columns={col: infer_sqlite_type(df[col].dtype) for col in df.columns}
-        )
-        return csv_text, sheet_schema.model_dump()
-    except Exception as e:
-        logger.warning(f"Failed to compute schema from legacy document: {e}")
-        return None
 
 
 class UnstructuredChunkLoader:
