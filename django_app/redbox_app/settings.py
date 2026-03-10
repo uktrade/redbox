@@ -149,7 +149,10 @@ TEMPLATES = [
 WSGI_APPLICATION = "redbox_app.wsgi.application"
 ASGI_APPLICATION = "redbox_app.asgi.application"
 
-AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend", "authbroker_client.backends.AuthbrokerBackend"]
+AUTHENTICATION_BACKENDS = [
+    "redbox_app.backends.TokenCaptureBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
 
 AUTH_PASSWORD_VALIDATORS = [
     {
