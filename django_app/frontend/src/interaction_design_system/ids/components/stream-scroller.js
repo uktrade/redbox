@@ -33,7 +33,6 @@ export class StreamScroller extends HTMLElement {
 
     #onScroll() {
         if (this.programmaticScroll) return;
-        console.log("isatbottom", this.#isAtBottom());
         this.autoScrollEnabled = this.#isAtBottom();
     }
 
@@ -113,7 +112,7 @@ export class StreamScroller extends HTMLElement {
 
         this.programmaticScroll = true;
 
-        // Move sentinel to bottom before scrolling
+        // Move anchor to bottom before scrolling
         if (this._anchor) this.appendChild(this._anchor);
 
         let scrollElement;
