@@ -10,7 +10,6 @@ export class ChatMessage extends HTMLElement {
     this.#loadMessage();
   }
 
-
   #loadMessage = () => {
     const uuid = crypto.randomUUID();
     this.innerHTML = `
