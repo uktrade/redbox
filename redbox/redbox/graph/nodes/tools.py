@@ -10,12 +10,12 @@ import threading
 import time
 from io import StringIO
 from typing import Annotated, Callable, Iterable, Literal, Union
+import duckdb
+import pandas as pd
 
 import boto3
-import duckdb
 import nest_asyncio
 import numpy as np
-import pandas as pd
 import requests
 from elasticsearch import Elasticsearch
 from langchain_community.utilities import WikipediaAPIWrapper
@@ -48,10 +48,7 @@ from redbox.retriever.queries import (
     get_all,
     get_knowledge_base,
 )
-from redbox.retriever.retrievers import (
-    SchematisedTabularChunkRetriever,
-    query_to_documents,
-)
+from redbox.retriever.retrievers import query_to_documents, SchematisedTabularChunkRetriever
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
 
 log = logging.getLogger(__name__)
@@ -430,9 +427,7 @@ def build_query_tabular_knowledge_base_tool(
         try:
             # Retrieve tabular documents
             docs_metadata = retriever._get_relevant_documents(
-                knowledge_base_s3_keys=state.request.knowledge_base_s3_keys,
-                uris=[uri],
-                run_manager=None,
+                knowledge_base_s3_keys=state.request.knowledge_base_s3_keys, uris=[uri], run_manager=None
             )
             if not docs_metadata:
                 return "No documents found for URI", []
@@ -448,10 +443,7 @@ def build_query_tabular_knowledge_base_tool(
                     text_content = meta.get("text", "")
 
                     if schema is None:
-                        return (
-                            "Document not supported for querying as it uses legacy schema.",
-                            [],
-                        )
+                        return "Document not supported for querying as it uses legacy schema.", []
 
                     try:
                         schema_obj = TabularSchema.model_validate(schema)
@@ -463,11 +455,7 @@ def build_query_tabular_knowledge_base_tool(
                         continue
 
                     try:
-                        write_duckdb_table(
-                            db_path=db_path,
-                            schema=schema_obj,
-                            text_content=text_content,
-                        )
+                        write_duckdb_table(db_path=db_path, schema=schema_obj, text_content=text_content)
                     except Exception as db_e:
                         logger.warning("Failed to setup DB %s: %s", uri, str(db_e))
                         return f"Error preparing tabular document database: {db_e}", []

@@ -1,17 +1,17 @@
-{% from "ids/components/editable-text.html" import editable_text %}
-{% from "macros/icon.html" import ids_icon %}
+{% from "rbds/components/editable-text.html" import editable_text %}
+{% from "macros/icon.html" import rbds_icon %}
 {% from "macros/govuk-button.html" import govukButton %}
 
-<div class="ids-chat-title ids-flex-row">
+<div class="rbds-chat-title rbds-flex-row">
     {% if current_chat %}
-        <div class="ids-chat-title__heading-container">
+        <div class="rbds-chat-title__heading-container">
             {% set chat_edit_url = url('chat-titles', current_chat.id) %}
             {% call editable_text(chat_edit_url, 'chat-title-change', 'chat-title', current_chat.id) %}
-                <div class="ids-chat-title__heading-container-inner display">
+                <div class="rbds-chat-title__heading-container-inner display">
                     {% if current_chat.name %}
-                        <h2 class="ids-chat-title__heading govuk-heading-s title-text">{{ current_chat.name }}</h2>
-                        <button id="chat-title-edit-button" class="edit-trigger ids-icon-button" type="button">
-                            {{ ids_icon(icon_name="edit.html") }}
+                        <h2 class="rbds-chat-title__heading govuk-heading-s title-text">{{ current_chat.name }}</h2>
+                        <button id="chat-title-edit-button" class="edit-trigger rbds-icon-button" type="button">
+                            {{ rbds_icon(icon_name="edit.html") }}
                             <span class="govuk-visually-hidden">Chat Title</span>
                         </button>
                     {% endif %}
@@ -19,7 +19,7 @@
                 <div class="chat-title__form-container govuk-!-display-none edit-input-wrapper">
                     <label for="chat-title" class="govuk-visually-hidden">Chat Title</label>
                     <input type="text"
-                        class="ids-chat-title__input edit-input"
+                        class="rbds-chat-title__input edit-input"
                         id="chat-title"
                         maxlength="{{ chat_title_length }}"
                         value="{{ current_chat.name or '' }}"
@@ -28,8 +28,8 @@
             {% endcall %}
         </div>
     {% else %}
-        <div class="ids-chat-title__heading-container-inner">
-            <h2 class="ids-chat-title__heading govuk-visually-hidden" hidden>Current Chat</h2>
+        <div class="rbds-chat-title__heading-container-inner">
+            <h2 class="rbds-chat-title__heading govuk-visually-hidden" hidden>Current Chat</h2>
         </div>
     {% endif %}
 </div>

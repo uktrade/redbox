@@ -96,16 +96,7 @@ class Redbox:
             es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias, loop=True
         )
         retrieve_knowledge_base = build_retrieve_knowledge_base(
-            es_client=_env.elasticsearch_client(),
-            index_name=_env.elastic_chunk_alias,
-            loop=True,
-            all_files=True,
-        )
-        retrieve_specific_files_knowledge_base = build_retrieve_knowledge_base(
-            es_client=_env.elasticsearch_client(),
-            index_name=_env.elastic_chunk_alias,
-            loop=False,
-            all_files=False,
+            es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias, loop=True
         )
         query_knowledge_base = build_query_tabular_knowledge_base_tool(
             es_client=_env.elasticsearch_client(),
@@ -136,7 +127,6 @@ class Redbox:
             doc_from_prompt,
         ]
         self.agent_configs["Knowledge_Base_Retrieval_Agent"].tools = [query_knowledge_base, search_knowledge_base]
-        self.agent_configs["Artifact_Builder_Agent"].tools = [retrieve_specific_files_knowledge_base]
         self.agent_configs["Datahub_Agent"].tools = datahub_mcp
 
         self.graph = build_root_graph(

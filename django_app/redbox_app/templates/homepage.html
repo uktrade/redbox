@@ -1,14 +1,12 @@
 {% set pageTitle = "" %}
-{% set fullWidth = True %}
-
 {% extends "base.html" %}
 
 {% from "macros/govuk-button.html" import govukButton %}
 
 
 {% block content %}
-<div class="govuk-width-container ids-flex-column">
-    <div class="ids-banner ids-banner--full-width">
+<div class="rbds-page-content rbds-page-content--full rbds-flex-column">
+    <div class="rbds-banner rbds-banner--full-width">
         <div class="govuk-width-container">
             <div class="govuk-grid-row">
                 <div class="govuk-grid-column-two-thirds">
@@ -19,7 +17,7 @@
                         Ask questions, create summaries, or chat with Artificial Intelligence (AI)
                         about single or multiple documents to support your work.
                     </p>
-                    <div class="ids-banner__links">
+                    <div class="rbds-banner__links">
                         {% if not request.user.is_authenticated %}
                             {{ govukButton(
                                 text="Sign in",
@@ -86,16 +84,16 @@
             </div>
         </div>
         <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">How your personal data is used in {{ productName }}</h2>
-        <div class="govuk-grid-row ids-flex-row govuk-!-margin-bottom-5">
-            <div class="govuk-grid-column-one-third ids-flex-column">
+        <div class="govuk-grid-row rbds-flex-row govuk-!-margin-bottom-5">
+            <div class="govuk-grid-column-one-third rbds-flex-column">
                 <h3 class="govuk-heading-s govuk-!-margin-top-5">Personal data</h3>
                 <p class="govuk-body-s">
                     At {{ productName }}, we process your personal information securely to deliver a seamless experience that will be personalised in future iterations.
                     This includes using your information to improve our services, communicate updates, and ensure secure access.
                 </p>
-                <a href="{{ url('privacy-notice') }}" class="govuk-link ids-push-bottom">Personal data access policy</a>
+                <a href="{{ url('privacy-notice') }}" class="govuk-link rbds-push-bottom">Personal data access policy</a>
             </div>
-            <div class="govuk-grid-column-one-third ids-flex-column">
+            <div class="govuk-grid-column-one-third rbds-flex-column">
 
                 <h3 class="govuk-heading-s govuk-!-margin-top-5">Data policy statement</h3>
                 <p class="govuk-body-s">
@@ -103,11 +101,11 @@
                     You can access, update, or delete your information at any time.
                 </p>
                 <a href="https://workspace.trade.gov.uk/working-at-dbt/policies-and-guidance/policies/data-protection-policy/"
-                class="govuk-link ids-push-bottom">
+                class="govuk-link rbds-push-bottom">
                     Data protection
                 </a>
             </div>
-            <div class="govuk-grid-column-one-third ids-flex-column">
+            <div class="govuk-grid-column-one-third rbds-flex-column">
                 <h3 class="govuk-heading-s govuk-!-margin-top-5">Data processing</h3>
                 <p class="govuk-body-s">
                     We collect and process your data solely to provide and improve our services.
@@ -115,7 +113,7 @@
                     You're always in control and can manage your preferences anytime.
                 </p>
                 <a href="https://workspace.trade.gov.uk/working-at-dbt/policies-and-guidance/policies/data-processing-policy/"
-                class="govuk-link ids-push-bottom">
+                class="govuk-link rbds-push-bottom">
                     Data processing
                 </a>
             </div>

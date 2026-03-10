@@ -3,12 +3,12 @@
 export class LoadingMessage extends HTMLElement {
   connectedCallback() {
     this.innerHTML = `
-      <span class="ids-loading-text govuk-body-s" aria-label="${
+      <span class="rbds-loading-text govuk-body-s" aria-label="${
         this.dataset.dataAriaLabel || this.dataset.message || "Loading"
       }">
         ${this.dataset.message || "Loading"}
       </span>
-      <span class="ids-loading-ellipsis govuk-body-s"></span>
+      <span class="rbds-loading-ellipsis govuk-body-s"></span>
     `;
   }
 
@@ -20,11 +20,11 @@ export class LoadingMessage extends HTMLElement {
   get loadingText() {
     if (!this._loadingText) {
       this._loadingText = /** @type {HTMLSpanElement} */ (
-        this.querySelector(".ids-loading-text")
+        this.querySelector(".rbds-loading-text")
       );
     }
     return this._loadingText;
   }
 
 }
-customElements.define("ids-loading-message", LoadingMessage);
+customElements.define("rbds-loading-message", LoadingMessage);

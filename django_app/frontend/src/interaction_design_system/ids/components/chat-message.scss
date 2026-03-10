@@ -1,8 +1,8 @@
-ids-chat-message {
+rbds-chat-message {
   scroll-margin-bottom: 10rem;
 }
 
-.ids-chat-message__text {
+.rbds-chat-message__text {
   word-break: break-word;
   // padding-top: .5rem;
   font-size: 16px;
@@ -29,6 +29,6 @@ ids-chat-message {
   }
 }
 
-.ids-chat-message__container {
+.rbds-chat-message__container {
   gap: var(--chat-message-gap);
 }

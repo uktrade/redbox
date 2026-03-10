@@ -1,19 +1,19 @@
 @use "./../../../variables.scss" as *;
 
-.ids-footer {
+.rbds-footer {
     position: absolute;
     z-index: 1000;
     width: 100%;
 }
 
 @media (min-width: bp(xs)) {
-    .ids-footer {
+    .rbds-footer {
         display: none;
     }
 }
 
 @media (min-width: bp(s)) {
-    .ids-footer {
+    .rbds-footer {
         display: block;
     }
 }
