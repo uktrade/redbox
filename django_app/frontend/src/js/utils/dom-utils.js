@@ -1,6 +1,5 @@
 // @ts-check
 
-
 /**
  * Hide an element by using the govuk-!-display-none class
  * @param {HTMLElement | undefined} element - HTML element
@@ -12,7 +11,7 @@ export function hideElement(element) {
 
 /**
  * Show an element by removing the govuk-!-display-none class
- * @param {Element | undefined | null} element - Element
+ * @param {HTMLElement | undefined} element - HTML element
 */
 export function showElement(element) {
     if (element) element.classList.remove("govuk-!-display-none");
