@@ -344,7 +344,7 @@ class TestRunToolsParallelAsync:
 
         transformed = responses[0].content
         assert isinstance(transformed, list)
-        assert transformed[0] == expected_result
+        assert transformed[0] == f"<Database_records>{expected_result}</Database_records>"
         assert transformed[1] == "pass"
         assert transformed[2] == "False"
 
