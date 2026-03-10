@@ -164,12 +164,23 @@
             display: flex;
         }
 
-        &:has(.ids-chat-cta__title) {
+        &:has(.ids-chat-cta__tool):has(.ids-chat-cta__title) {
+            grid-template-areas:
+                "tool   actions"
+                "title  .";
+        }
+
+        &:has(.ids-chat-cta__tool):not(:has(.ids-chat-cta__title)) {
+            grid-template-areas:
+                "tool   actions";
+        }
+
+        &:has(.ids-chat-cta__title):not(:has(.ids-chat-cta__tool)) {
             grid-template-areas:
                 "title  actions";
         }
 
-        &:not(:has(.ids-chat-cta__title)) {
+        &:not(:has(.ids-chat-cta__title)):not(:has(.ids-chat-cta__tool)) {
             justify-self: center;
             grid-template-areas:
                 ".  actions";
