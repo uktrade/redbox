@@ -1,6 +1,6 @@
 @use "./../../../variables.scss" as *;
 
-.rbds-page-layout {
+.ids-page-layout {
     display: grid;
     grid-template-columns: auto 1fr;
     min-height: 100vh;
@@ -12,12 +12,12 @@
     }
 }
 
-.rbds-main {
+.ids-main {
     display: flex;
     justify-content: center;
 }
 
-.rbds-page-side-panel {
+.ids-page-side-panel {
     --side-panel-width: var(--side-panel-width--xl);
 
     min-width: var(--side-panel-collapsed-width, 54px);
@@ -25,7 +25,7 @@
     display: flex;
 }
 
-.rbds-page-content {
+.ids-page-content {
     --page-content-width-margin: 15px;
 
     margin-left: var(--page-content-margin);
@@ -34,6 +34,9 @@
     pointer-events: all;
     touch-action: auto;
 
+    display: flex;
+    flex-direction: column;
+
     &--full {
         width: 100% !important;
         max-width: var(--page-content-width--full);
@@ -41,27 +44,23 @@
 }
 
 @media (min-width: bp(xs)) {
-    .rbds-page-content {
+    .ids-page-content {
         width: var(--page-content-width--xs);
         --page-content-margin: 10px;
-
-        >* {
-            z-index: 0;
-        }
     }
 
-    .rbds-page-layout {
-        .rbds-page-side-panel {
+    .ids-page-layout {
+        .ids-page-side-panel {
             --side-panel-collapsed-width: var(--side-panel-collapsed-width--xs);
         }
 
-        &.rbds-page-layout--side-panel .rbds-page-side-panel {
+        &.ids-page-layout--side-panel .ids-page-side-panel {
             --side-panel-collapsed-width: var(--side-panel-collapsed-width--xl);
             // min-width: var(--side-panel-collapsed-width--xl);
         }
     }
 
-    .rbds-page-layout:has(.rbds-side-panel-wrapper[aria-expanded="true"]) {
+    .ids-page-layout:has(.ids-side-panel-wrapper[aria-expanded="true"]) {
         &::after {
             content: "";
             position: fixed;
@@ -72,34 +71,34 @@
             z-index: 800;
         }
 
-        .rbds-page-content {
+        .ids-page-content {
             pointer-events: none;
             touch-action: none;
         }
     }
-    .rbds-page-layout:has(.rbds-side-panel-wrapper[aria-expanded="false"])::after {
+    .ids-page-layout:has(.ids-side-panel-wrapper[aria-expanded="false"])::after {
         background: rgba(0, 0, 0, 0);
     }
 }
 
 @media (min-width: bp(s)) {
-    .rbds-page-content {
+    .ids-page-content {
         width: var(--page-content-width--s);
         --page-content-margin: 15px;
     }
 }
 
 @media (min-width: bp(m)) {
-    .rbds-page-content {
+    .ids-page-content {
         width: var(--page-content-width--m);
     }
 
-    .rbds-page-layout {
+    .ids-page-layout {
         &::after {
             content: none !important;
         }
 
-        &:has(.rbds-side-panel-wrapper[aria-expanded="true"]) .rbds-page-content {
+        &:has(.ids-side-panel-wrapper[aria-expanded="true"]) .ids-page-content {
             pointer-events: all;
             touch-action: auto;
         }
@@ -107,13 +106,13 @@
 }
 
 @media (min-width: bp(l)) {
-    .rbds-page-content {
+    .ids-page-content {
         width: var(--page-content-width--l);
     }
 }
 
 @media (min-width: bp(xl)) {
-    .rbds-page-content {
+    .ids-page-content {
         width: var(--page-content-width--xl);
     }
 }

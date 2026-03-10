@@ -102,7 +102,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   scroll-margin-bottom: 16rem;
   padding-right: 0;
 }
-main:has(.redbox-message-container) .chat-options {
+main:has(.ids-message-container) .chat-options {
   display: none;
 }
 @media (min-width: 641px) {
@@ -308,31 +308,31 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   font-size: 14px;
 }
 
-.rbds-message-container,
+.ids-message-container,
 .redbox-message-container {
   display: flex;
   flex-direction: column;
   align-self: stretch;
   margin: 0;
 
-  .rbds-message-container__left,
-  .rbds-message-container__right {
+  .ids-message-container__left,
+  .ids-message-container__right {
     padding: 10px;
   }
 
-  .rbds-message-container__left {
+  .ids-message-container__left {
     align-items: flex-start;
     text-align: left;
   }
 
-  .rbds-message-container__right {
+  .ids-message-container__right {
     align-items: flex-end;
     text-align: right;
     margin-left: auto;
   }
 }
 
-.rbds-chat-message__document {
+.ids-chat-message__document {
   display: flex;
   align-items: center;
   font-size: var(--font-size-xs);
