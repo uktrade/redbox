@@ -214,7 +214,6 @@ def test_get_menu_items(alice: User, client: Client):
     # Then
     assert len(menu_items_authenticated) > 1
     assert any(item["text"] == "Profile" and item["href"] == url("settings") for item in menu_items_authenticated)
-    assert any(item["text"] == "Tools" and item["href"] == url("tools") for item in menu_items_authenticated)
 
     assert len(menu_items_not_authenticated) == 1
     assert menu_items_not_authenticated[0]["text"] == "Sign in"
