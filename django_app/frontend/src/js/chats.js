@@ -42,7 +42,7 @@ document.addEventListener("chat-response-end", (evt) => {
   }
 
   // Refresh chat window to fix citation references
-  fragmentsToRefresh.push("chat-window");
+  fragmentsToRefresh.push("chat-feed");
   refreshUI(fragmentsToRefresh, chatId);
 });
 

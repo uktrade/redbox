@@ -1,6 +1,6 @@
 // @ts-check
 
-import { UploadedFiles } from "../../../redbox_design_system/rbds/components";
+import { UploadedFiles } from "../../../interaction_design_system/ids/components";
 import { hideElement } from "../../utils";
 import { SendMessage } from "./send-message";
 import { SendMessageWithDictation } from "./send-message-with-dictation";
@@ -9,7 +9,7 @@ export class MessageInput extends HTMLElement {
   constructor() {
     super();
     this.submitDisabled = false;
-    this.expandedClass = "rbds-message-input__expanded";
+    this.expandedClass = "ids-message-input__expanded";
   }
 
   connectedCallback() {

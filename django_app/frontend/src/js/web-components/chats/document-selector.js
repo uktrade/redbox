@@ -90,7 +90,7 @@ class DocumentSelector extends HTMLElement {
             );
 
             if (inputElementChecked) {
-              refreshUI(["chat-window"]);
+              refreshUI(["chat-feed"]);
               this.#sendDocSelectionChangeEvent(inputElementChecked);
               this.#bindDocumentListeners();
               this.#getSelectedDocuments();

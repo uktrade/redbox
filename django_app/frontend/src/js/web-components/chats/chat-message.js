@@ -1,64 +1,28 @@
 // @ts-check
 
 import { hideElement, showElement } from "../../utils/dom-utils.js";
-import { LoadingMessage } from "../../../redbox_design_system/rbds/components/loading-message.js";
-
-// TODO: Reimplement scroll position save-and-restore on active chat reload
-// window.addEventListener('load', () => {
-//   const scrollPosition = sessionStorage.getItem('scrollPosition');
-//   if (scrollPosition !== null) {
-//     window.scrollTo({
-//       top: parseInt(scrollPosition),
-//       behavior: 'instant'
-//     });
-//     sessionStorage.removeItem('scrollPosition');
-//   }
-// });
+import { LoadingMessage } from "../../../interaction_design_system/ids/components/loading-message.js";
+import { emitEvent, Events } from "../../../interaction_design_system/ids/events/events.js";
 
 export class ChatMessage extends HTMLElement {
-  autoScrollEnabled = true;
-
   connectedCallback() {
-    this.scrollContainer = this.closest(".rbds-scrollable");
-    this.programmaticScroll = false;
     this.streamedContent = "";
     this.#loadMessage();
-
-    this.scrollContainer?.addEventListener("scroll", () => {
-      if (this.scrollContainer) this.autoScrollEnabled = this.isAtBottom(this.scrollContainer);
-    });
-  }
-
-
-  isAtBottom(/** @type {Element} */ el, threshold = 15) {
-    return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
-  }
-
-
-  scrollToBottom() {
-    if (!this.scrollContainer) return;
-    this.scrollContainer.scrollTop = this.scrollContainer?.scrollHeight;
-  }
-
-
-  reloadAtCurrentPosition() {
-    sessionStorage.setItem('scrollPosition', window.scrollY.toString());
-    location.reload();
   }
 
 
   #loadMessage = () => {
     const uuid = crypto.randomUUID();
     this.innerHTML = `
-            <div class="rbds-message-container ${this.dataset.role == 'user' ? `rbds-message-container__right` : ''} govuk-body" data-role="${this.dataset.role
+            <div class="ids-message-container ${this.dataset.role == 'user' ? `ids-message-container__right` : ''} govuk-body" data-role="${this.dataset.role
       }" tabindex="-1" id="chat-message-${this.dataset.id}">
-                <div class="${this.dataset.role == 'user' ? `rbds-message-container__right rbds-border` : 'rbds-message-container__left'}">
-                  <markdown-converter class="rbds-chat-message__text">${this.dataset.text || ""
+                <div class="${this.dataset.role == 'user' ? `ids-message-container__right ids-border` : 'ids-message-container__left'}">
+                  <markdown-converter class="ids-chat-message__text">${this.dataset.text || ""
       }</markdown-converter>
                 </div>
                 ${!this.dataset.text
         ? `
-                      <rbds-loading-message data-aria-label="Loading message"></rbds-loading-message>
+                      <ids-loading-message data-aria-label="Loading message"></ids-loading-message>
                       <div class="rb-loading-complete govuk-!-display-none" aria-live="assertive"></div>
                     `
         : ""
@@ -80,10 +44,6 @@ export class ChatMessage extends HTMLElement {
 
 
         `;
-
-    // ensure new chat-messages aren't hidden behind the chat-input
-    // this.programmaticScroll = true;
-    // this.scrollIntoView({ block: "end" });
 
     // Insert route_display HTML
     if (this.dataset.role == "ai") {
@@ -197,14 +157,6 @@ export class ChatMessage extends HTMLElement {
       return id.replace(/[^a-zA-Z0-9_-]/g, '');
     }
 
-    window.addEventListener('load', () => {
-      const scrollPosition = sessionStorage.getItem('scrollPosition');
-      if (scrollPosition !== null) {
-        this.scrollContainer?.scrollTo(0, parseInt(scrollPosition));
-        sessionStorage.removeItem('scrollPosition');
-      }
-    });
-
     this.responseContainer =
       /** @type {import("../markdown-converter").MarkdownConverter} */ (
         this.querySelector("markdown-converter")
@@ -243,8 +195,7 @@ export class ChatMessage extends HTMLElement {
       this.dataset.status = "streaming";
       const chatResponseStartEvent = new CustomEvent("chat-response-start");
       document.dispatchEvent(chatResponseStartEvent);
-      this.autoScrollEnabled = true;
-      this.scrollToBottom();
+      emitEvent(Events.SCROLL_TO_BOTTOM, {source:this, force:true});
     };
 
     webSocket.onerror = (event) => {
@@ -266,7 +217,6 @@ export class ChatMessage extends HTMLElement {
       }
       const stopStreamingEvent = new CustomEvent("stop-streaming");
       document.dispatchEvent(stopStreamingEvent);
-      if (this.autoScrollEnabled) this.scrollToBottom();
     };
 
     webSocket.onmessage = (event) => {
@@ -281,7 +231,6 @@ export class ChatMessage extends HTMLElement {
       if (response.type === "text") {
         this.streamedContent += sanitiseText(response.data);
         if (this.streamedContent) this.responseContainer?.update(this.streamedContent);
-        hideElement(this.loadingElement);
       } else if (response.type === "session-id") {
         chatControllerRef.dataset.sessionId = sanitiseId(response.data);
       } else if (response.type === "source") {
@@ -314,7 +263,6 @@ export class ChatMessage extends HTMLElement {
 
           actionsContainer.appendChild(feedbackButtons)
           actionsContainer.appendChild(copyText)
-
         }
         // this.#addFootnotes(this.streamedContent, response.data.message_id);
         const chatResponseEndEvent = new CustomEvent("chat-response-end", {
@@ -336,7 +284,6 @@ export class ChatMessage extends HTMLElement {
           errorContentContainer.textContent = sanitiseText(response.data);
         }
       }
-      if (this.autoScrollEnabled) this.scrollToBottom();
     };
   };
 
@@ -356,9 +303,7 @@ export class ChatMessage extends HTMLElement {
   * @returns {LoadingMessage} Loading Message Activity element
   */
   get loadingElement() {
-    return /** @type {LoadingMessage} */ (this.querySelector("rbds-loading-message"));
+    return /** @type {LoadingMessage} */ (this.querySelector("ids-loading-message"));
   }
-
 }
-
-customElements.define("rbds-chat-message", ChatMessage);
+customElements.define("ids-chat-message", ChatMessage);
