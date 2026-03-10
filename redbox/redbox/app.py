@@ -58,6 +58,7 @@ class Redbox:
         metadata_retriever: VectorStoreRetriever | None = None,
         embedding_model: Embeddings | None = None,
         env: Settings | None = None,
+        sso_access_token: str | None = None,
         debug: bool = False,
     ):
         _env = env or get_settings()
@@ -117,7 +118,7 @@ class Redbox:
         web_search = build_web_search_tool()
         legislation_search = build_legislation_search_tool()
         doc_from_prompt = build_document_from_prompt_tool(loop=True)
-        datahub_mcp = get_datahub_mcp_tools()
+        datahub_mcp = get_datahub_mcp_tools(sso_access_token=sso_access_token)
 
         self.agent_configs["Internal_Retrieval_Agent"].tools = [search_documents]
         self.agent_configs["External_Retrieval_Agent"].tools = [search_wikipedia, search_govuk]

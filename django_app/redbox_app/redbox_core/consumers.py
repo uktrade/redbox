@@ -334,19 +334,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         return candidates
 
     def _extract_sso_token(self) -> str | None:
-        headers = self.scope.get("headers", []) or []
-        auth_header = next((value for key, value in headers if key.lower() == b"authorization"), None)
-        if isinstance(auth_header, bytes):
-            normalised = self._normalise_bearer_token(auth_header.decode("utf-8"))
-            if normalised:
-                return normalised
-
         session = self.scope.get("session")
-        if not isinstance(session, Mapping):
-            return None
-        for candidate in self._session_token_candidates(session):
-            normalised = self._normalise_bearer_token(candidate)
-        return None
+        return session["_authbroker_token"]["access_token"]
 
     async def llm_conversation(
         self,
@@ -626,6 +615,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         self.user = self.scope["user"]
+
         # if user is unauthenticated, send auth_required error message
         if not self.user.is_authenticated:
             await self.accept()
@@ -634,7 +624,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         if ChatConsumer.redbox is None:
             agents = await get_all_agents()
-
+            sso_access_token = self._extract_sso_token()
             for agent in agents:
                 if agent.name in list(agent_configs.keys()):
                     if agent.llm_backend:
@@ -645,7 +635,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         )
                     if agent.agents_max_tokens:
                         agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
-            ChatConsumer.redbox = Redbox(agents=agent_configs, env=ChatConsumer.env, debug=ChatConsumer.debug)
+            ChatConsumer.redbox = Redbox(
+                agents=agent_configs,
+                env=ChatConsumer.env,
+                debug=ChatConsumer.debug,
+                sso_access_token=sso_access_token,
+            )
 
         self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
         await self.accept()
