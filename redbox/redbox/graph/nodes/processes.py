@@ -381,7 +381,7 @@ def my_planner(
             artifact_files = [
                 kb_file
                 for kb_file in state.request.knowledge_base_s3_keys
-                if kb_file.split("/")[-1].lower().startswith("artifact")
+                if "artifact" in kb_file.split("/")[-1].lower()
             ]
             # dynamically generate agent plan based on state
             agent_options = state.request.ai_settings.get_worker_agents_options
