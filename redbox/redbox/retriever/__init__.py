@@ -4,6 +4,7 @@ from .retrievers import (
     MetadataRetriever,
     OpenSearchRetriever,
     ParameterisedElasticsearchRetriever,
+    TabularElasticsearchRetriever,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "MetadataRetriever",
     "OpenSearchRetriever",
     "BasicMetadataRetriever",
+    "TabularElasticsearchRetriever",
 ]

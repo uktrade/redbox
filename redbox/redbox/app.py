@@ -11,6 +11,7 @@ from redbox.chains.components import (
     get_embeddings,
     get_metadata_retriever,
     get_parameterised_retriever,
+    get_tabular_chunks_retriever,
 )
 from redbox.graph.agents.configs import AgentConfig, agent_configs
 from redbox.graph.nodes.tools import (
@@ -52,6 +53,7 @@ class Redbox:
         agents: Dict[str, AgentConfig] | None = None,
         all_chunks_retriever: VectorStoreRetriever | None = None,
         parameterised_retriever: VectorStoreRetriever | None = None,
+        tabular_retriever: VectorStoreRetriever | None = None,
         metadata_retriever: VectorStoreRetriever | None = None,
         embedding_model: Embeddings | None = None,
         env: Settings | None = None,
@@ -67,6 +69,7 @@ class Redbox:
 
         self.all_chunks_retriever = all_chunks_retriever or get_all_chunks_retriever(_env)
         self.parameterised_retriever = parameterised_retriever or get_parameterised_retriever(_env)
+        self.tabular_retriever = tabular_retriever or get_tabular_chunks_retriever(_env)
         self.metadata_retriever = metadata_retriever or get_metadata_retriever(_env)
         self.embedding_model = embedding_model or get_embeddings(_env)
 
@@ -92,7 +95,16 @@ class Redbox:
             es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias, loop=True
         )
         retrieve_knowledge_base = build_retrieve_knowledge_base(
-            es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias, loop=True
+            es_client=_env.elasticsearch_client(),
+            index_name=_env.elastic_chunk_alias,
+            loop=True,
+            all_files=True,
+        )
+        retrieve_specific_files_knowledge_base = build_retrieve_knowledge_base(
+            es_client=_env.elasticsearch_client(),
+            index_name=_env.elastic_chunk_alias,
+            loop=False,
+            all_files=False,
         )
         query_tabular_knowledge_base_file = build_query_tabular_file_tool(
             es_client=_env.elasticsearch_client(),
@@ -131,11 +143,13 @@ class Redbox:
             query_tabular_knowledge_base_file,
             search_knowledge_base,
         ]
+        self.agent_configs["Artifact_Builder_Agent"].tools = [retrieve_specific_files_knowledge_base]
         self.agent_configs["Datahub_Agent"].tools = datahub_mcp
 
         self.graph = build_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,
             parameterised_retriever=self.parameterised_retriever,
+            tabular_retriever=self.tabular_retriever,
             metadata_retriever=self.metadata_retriever,
             agent_configs=self.agent_configs,
             debug=debug,
@@ -224,8 +238,8 @@ class Redbox:
                         await activity_event_callback(event["data"])
                     elif kind == "on_chain_end" and event["name"] == "LangGraph":
                         final_state = RedboxState(**event["data"]["output"])
-                except Exception as e:
-                    logger.error(f"Error processing {kind} - {str(e)}")
+                except Exception as _:
+                    logger.exception("LLM Error - Blank Response")
                     raise
 
         try:
@@ -262,6 +276,7 @@ class Redbox:
         elif graph_to_draw == "new_route":
             graph = build_new_route_graph(
                 all_chunks_retriever=self.all_chunks_retriever,
+                tabular_retriever=self.tabular_retriever,
                 agents=self.agents,
             ).get_graph()
         else:

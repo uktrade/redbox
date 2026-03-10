@@ -298,7 +298,6 @@ Handling Ambiguity: Request clarification when queries are ambiguous or lack spe
 Operational Parameters:
 When a user specifies the legislation.gov.uk website, or when you determine that the legislation.gov.uk website may contain relevant information to the users question
 Always prioritize official, authoritative sources within the specified domain
-
 """
 
 INTERNAL_RETRIEVAL_AGENT_DESC = """
