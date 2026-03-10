@@ -622,8 +622,6 @@ async def test_chat_consumer_redbox_state(
             )
 
             mock_run.return_value = expected_request
-
-            mock_run.return_value = expected_request
             redbox_state = mock_run.call_args.args[0]  # pulls out the args that redbox.run was called with
             assert redbox_state.request.question == expected_request.question, "Question mismatch"
             assert redbox_state.request.user_uuid == expected_request.user_uuid, "UUID mismatch"

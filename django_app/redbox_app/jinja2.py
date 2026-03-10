@@ -6,6 +6,7 @@ import jinja2
 import pytz
 from django.conf import settings
 from django.contrib import messages
+from django.middleware.csrf import get_token
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.timezone import template_localtime
@@ -13,6 +14,7 @@ from markdown_it import MarkdownIt
 from waffle import flag_is_active
 
 from redbox_app.redbox_core import flags
+from redbox_app.redbox_core.types import APPROVED_FILE_EXTENSIONS
 
 # `js-default` setting required to sanitize inputs
 # https://markdown-it-py.readthedocs.io/en/latest/security.html
@@ -101,6 +103,10 @@ def get_product_name(user):
     return settings.PRODUCT_NAME
 
 
+def get_csrf_token(request):
+    return get_token(request)
+
+
 def environment(**options):
     extra_options = {}
 
@@ -143,6 +149,8 @@ def environment(**options):
             "feedback_link": settings.FEEDBACK_LINK,
             "product_name": get_product_name,
             "contact_email": settings.CONTACT_EMAIL,
+            "approved_file_extensions": APPROVED_FILE_EXTENSIONS,
+            "get_csrf_token": get_csrf_token,
         }
     )
     return env
