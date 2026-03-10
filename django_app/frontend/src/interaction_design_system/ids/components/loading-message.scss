@@ -1,9 +1,9 @@
-rbds-loading-message {
+ids-loading-message {
   display: inline;
 }
 
-.rbds-loading-ellipsis,
-.rbds-loading-text {
+.ids-loading-ellipsis,
+.ids-loading-text {
   font-style: italic;
   margin-top: 1rem;
   display: inline;
@@ -16,7 +16,7 @@ rbds-loading-message {
   100% { content: '...'; }
 }
 
-.rbds-loading-ellipsis::after {
+.ids-loading-ellipsis::after {
   content: '';
   animation: ellipsis 1.5s steps(3, end) infinite;
 }

@@ -19,11 +19,11 @@ export class Toggle extends HTMLElement {
         this.setAttribute("data-state", this.state);
 
         this.dispatchEvent(
-            new CustomEvent("rbds:toggle", {
+            new CustomEvent("ids:toggle", {
                 bubbles: true,
                 detail: { state: this.state },
             })
         );
     }
 }
-customElements.define("rbds-toggle", Toggle);
+customElements.define("ids-toggle", Toggle);

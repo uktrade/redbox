@@ -1,17 +1,17 @@
-rbds-toggle {
+ids-toggle {
     display: inline-flex;
     align-items: center;
 
-    .rbds-toggle__on,
-    .rbds-toggle__off {
+    .ids-toggle__on,
+    .ids-toggle__off {
         display: none;
     }
 
-    &[data-state="on"] .rbds-toggle__on {
+    &[data-state="on"] .ids-toggle__on {
         display: inline-flex;
     }
 
-        &[data-state="off"] .rbds-toggle__off {
+        &[data-state="off"] .ids-toggle__off {
         display: inline-flex;
     }
 }

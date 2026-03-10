@@ -4,12 +4,13 @@ import { getBreakpointPx } from "../utils";
 import { disableNoScroll, enableNoScroll } from "./no-scroll";
 
 export class SidePanel extends HTMLElement {
-    storageKey = "rbds-side-panel-collapsed";
-    collapsedClass = "rbds-side-panel-wrapper--collapsed";
+    storageKey = "ids-side-panel-collapsed";
+    collapsedClass = "ids-side-panel-wrapper--collapsed";
     noScrollSource = "side-panel";
     toggleSlot = "toggle-side-panel";
     maxOverlap = getBreakpointPx("m");
     mediaQuery = window.matchMedia(`(min-width: ${this.maxOverlap}px)`);
+    toggleEventId = "side-panel-toggle";
 
     constructor() {
         super();
@@ -20,15 +21,14 @@ export class SidePanel extends HTMLElement {
 
 
     connectedCallback() {
-        // Bind toggle buttons
-        this.toggleElements.forEach((element) => {
-            element.addEventListener("click", (evt) => {
-                evt.stopPropagation();
-                this.togglePanel();
-            });
-        });
         // Handle screen size changes
         this.mediaQuery.addEventListener("change", this.handleScreenSizeChanges);
+
+        // Bind toggle event listener
+        document.addEventListener(this.toggleEventId, (evt) => {
+            evt.stopPropagation();
+            this.togglePanel();
+        });
     }
 
 
@@ -131,4 +131,4 @@ export class SidePanel extends HTMLElement {
         document.removeEventListener("click", this.handleOutsideClick);
     }
 }
-customElements.define("rbds-side-panel", SidePanel);
+customElements.define("ids-side-panel", SidePanel);

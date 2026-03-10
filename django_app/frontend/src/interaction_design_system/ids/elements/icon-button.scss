@@ -33,9 +33,6 @@
   align-items: center;
   display: flex;
   gap: 10px;
-  white-space: nowrap;
-  justify-content: space-between;
-
   &.dark {
     --color-icon-light-foreground: var(--color-icon-dark-foreground);
   }
