@@ -17,7 +17,7 @@ from langchain_core.tools import tool
 from pytest_mock import MockerFixture
 
 from redbox import Redbox
-from redbox.graph.nodes.processes import create_or_update_db_from_tabulars
+from redbox.graph.nodes.processes import create_or_update_db_from_tabulars, is_multiple_records_datahub
 from redbox.models.chain import (
     AISettings,
     DocumentState,
@@ -27,6 +27,7 @@ from redbox.models.chain import (
     StructuredResponseWithCitations,
     configure_agent_task_plan,
     metadata_reducer,
+    TaskStatus,
 )
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import RedboxActivityEvent
@@ -41,6 +42,7 @@ from redbox.test.data import (
     mock_parameterised_retriever,
 )
 from redbox.transform import structure_documents_by_group_and_indices
+from redbox.graph.agents.configs import agent_configs
 
 # create logger
 logger = logging.getLogger("simple_example")
@@ -556,3 +558,43 @@ def test_tabular_file_handling(test, tmp_path: Path, mocker: MockerFixture, simu
 
     finally:
         os.chdir(original_cwd)
+
+
+multiple_records_companies = '{"companies": [{"id": "123", "address_1": "some street", "address_2": "unit number", "address_postcode": "HC6 1SR", "address_country": "United Kingdom", "company_number": "None", "description": "Anonymised company record 5.", "name": "some company name"},\
+          {"id": "456", "address_1": "another street", "address_2": "another unit number", "address_postcode": "HC6 2BS", "address_country": "United Kingdom", "company_number": "None", "description": "Anonymised company record 4.", "name": "another company name"}], "total": 2, "page": 0, "page_size": 10}'
+single_record_companies = (
+    '{"companies": [{"id": "123", "address_1": "some street", "address_2": "unit number", "address_postcode": "HC6 1SR", "address_country": "United Kingdom", "company_number": "None", "description": "Anonymised company record 5.", "name": "some company name"}], \
+    "total": 1, "page": 0, "page_size": 10}'
+)
+multiple_records_not_companies = '{"companies_details": [{"id": "123", "address_1": "some street", "address_2": "unit number", "address_postcode": "HC6 1SR", "address_country": "United Kingdom", "company_number": "None", "description": "Anonymised company record 5.", "name": "some company name"},\
+          {"id": "456", "address_1": "another street", "address_2": "another unit number", "address_postcode": "HC6 2BS", "address_country": "United Kingdom", "company_number": "None", "description": "Anonymised company record 4.", "name": "another company name"}], "total": 2, "page": 0, "page_size": 10}'
+MCP_TEST_CASES = [
+    {"mcp_data": multiple_records_companies, "is_multiple_records": True},
+    {"mcp_data": single_record_companies, "is_multiple_records": False},
+    {"mcp_data": multiple_records_not_companies, "is_multiple_records": False},
+]
+
+
+@pytest.mark.parametrize(("tool_results"), MCP_TEST_CASES)
+def test_is_multiple_companies_record(fake_state, tool_results):
+    """
+    Test the following scenarios:
+       - Checks that when multiple records from companies tool are detected, the tested function returns False
+       - Checks that when a single record from companies tool is detected, the tested function returns False
+       - Checks that when multiple records are detected from a different tool other than companies, the tested function returns False
+    """
+    agent_name = "Datahub_Agent"
+    agent_configs[agent_name].default_agent = True
+    worker_agents = [agent for agent in agent_configs.values() if agent.default_agent]
+    agent_options = {agent.name: agent.name for agent in worker_agents}
+    agent_task, multi_agent_plan = configure_agent_task_plan(agent_options)
+    tasks = [agent_task(task="Get Some company details", expected_output="company information", agent=agent_name)]
+    fake_state.agent_plans = multi_agent_plan(tasks=tasks)
+    fake_state.agent_plans.tasks[0].status = TaskStatus.COMPLETED
+
+    formatted_response = f"<Database_records>{tool_results['mcp_data']}</Database_records>"
+    fake_state.agents_results = {
+        tasks[0].id: AIMessage(content=f"<{agent_name}_Result>{formatted_response}</{agent_name}_Result>")
+    }
+
+    assert is_multiple_records_datahub(fake_state) == tool_results["is_multiple_records"]
