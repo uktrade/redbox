@@ -10,13 +10,7 @@ from waffle import flag_is_active
 from yarl import URL
 
 from redbox_app.redbox_core import flags
-from redbox_app.redbox_core.models import (
-    Chat,
-    ChatLLMBackend,
-    ChatMessage,
-    Tool,
-    UserTeamMembership,
-)
+from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, Tool
 from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.services import message as message_service
 from redbox_app.redbox_core.services import url as url_service
@@ -50,9 +44,9 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
         "upload_url": url_service.get_upload_url(slug=slug),
     }
 
-    sidepanel_collapsed = request.COOKIES.get("ids-side-panel-collapsed", "false") == "true"
+    sidepanel_collapsed = request.COOKIES.get("rbds-side-panel-collapsed", "false") == "true"
 
-    context = {
+    return {
         "tool": tool,
         "tools": Tool.objects.all(),
         "chat_id": chat_id,
@@ -79,11 +73,6 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
         "promoted_tool": Tool.objects.filter(slug="submissions-checker").first() or None,
         "sidepanel_collapsed": sidepanel_collapsed,
     }
-
-    if flag_is_active(request.user, flags.ENABLE_TEAMS):
-        context["user_teams"] = UserTeamMembership.objects.filter(user=request.user)
-
-    return context
 
 
 def _get_valid_chat(user: User, chat_id: UUID | None):

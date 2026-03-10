@@ -11,7 +11,6 @@ from redbox.graph.nodes.processes import build_activity_log_node
 from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models.chain import RedboxState, TaskStatus, configure_agent_task_plan
 from redbox.models.graph import RedboxActivityEvent
-from redbox.transform import join_result_with_token_limit
 
 
 class WorkerAgent(Agent):
@@ -60,25 +59,6 @@ class WorkerAgent(Agent):
             return {"agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.RUNNING)}
 
         return _log_agent_activity
-
-    def _processing(self, result):
-        result_content = ""
-        if isinstance(result, str):
-            self.logger.warning(f"[{self.config.name}] Using raw string result.")
-            result_content = result
-        elif isinstance(result, list) and isinstance(result[0], dict):
-            self.logger.warning(f"[{self.config.name}] Using raw string in a list as result.")
-            result_content = result[0].get("text", "")
-        elif isinstance(result, list):
-            self.logger.warning(f"[{self.config.name}] Aggregating list of tool results...")
-            result_content = join_result_with_token_limit(
-                result=result, max_tokens=self.config.agents_max_tokens, log_stub=f"[{self.config.name}]"
-            )
-        else:
-            self.logger.error(f"[{self.config.name}] Worker agent return incompatible data type {type(result)}")
-            raise TypeError("Invalid tool result type")
-        self.logger.warning(f"[{self.config.name}] Completed agent run.")
-        return result_content
 
     def post_processing(self):
         @RunnableLambda

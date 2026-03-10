@@ -1,13 +1,13 @@
-{% from "ids/components/editable-text.html" import editable_text %}
-{% from "ids/components/modal.html" import modal %}
-{% from "macros/icon.html" import ids_icon %}
+{% from "rbds/components/editable-text.html" import editable_text %}
+{% from "rbds/components/modal.html" import modal %}
+{% from "macros/icon.html" import rbds_icon %}
 
 {% macro chat_history_item (chat, link, active_chat_id) %}
-    <li class="ids-list-row {% if chat.id == active_chat_id %}ids-list-row--selected {% endif %}govuk-!-display-none" id="chat-{{ chat.id }}" data-chatid="{{ chat.id }}">
+    <li class="rbds-list-row {% if chat.id == active_chat_id %}rbds-list-row--selected {% endif %}govuk-!-display-none" id="chat-{{ chat.id }}" data-chatid="{{ chat.id }}">
         {% set chat_edit_url = url('chat-titles', chat.id) %}
         {% call editable_text(chat_edit_url, 'chat-title-change', 'conversations', chat.id) %}
-            <div class="chat-list-item ids-card__item {% if chat.id == active_chat_id %}selected{% endif %}" data-chatid="{{ chat.id }}">
-                <span class="item-text-container ids-text-ellipses">
+            <div class="chat-list-item rbds-card__item {% if chat.id == active_chat_id %}selected{% endif %}" data-chatid="{{ chat.id }}">
+                <span class="item-text-container rbds-text-ellipses">
                     <a class="item-link govuk-link govuk-link--no-visited-state govuk-link--no-underline display title-text"
                     href="{{ link }}" {% if chat.id == active_chat_id %}aria-current="page"{% endif %} title="{{ chat.name }}">
                         {{ chat.name }}
@@ -17,17 +17,17 @@
                         <input class="chat-title-text-input edit-input" type="text" id="chat-title-text-input-{{ chat.id }}"/>
                     </div>
                 </span>
-                <div class="ids-item-actions">
-                    <button class="ids-icon-button edit-trigger" type="button" data-action="rename">
-                        {{ ids_icon(icon_name="edit.html", icon_classes="link") }}
+                <div class="rbds-item-actions">
+                    <button class="rbds-icon-button edit-trigger" type="button" data-action="rename">
+                        {{ rbds_icon(icon_name="edit.html", icon_classes="link") }}
                         <span class="govuk-visually-hidden"> edit chat: {{ chat.name }}</span>
                     </button>
                     {% call modal() %}
-                        <button class="ids-icon-button modal-open">{{ ids_icon(icon_name="delete.html", icon_classes="link") }}</button>
+                        <button class="rbds-icon-button modal-open">{{ rbds_icon(icon_name="delete.html", icon_classes="link") }}</button>
                         <dialog>
                             <div>
                                 <h2 class="govuk-heading-m">Are you sure you want to delete this chat?</h2>
-                                <span class="govuk-captionx-xs">This action will remove <span id="delete-chat-confirm-title" class="govuk-!-font-weight-bold ids-text-emphasis">{{ chat.name }}</span> from Redbox and cannot be reversed.</span>
+                                <span class="govuk-captionx-xs">This action will remove <span id="delete-chat-confirm-title" class="govuk-!-font-weight-bold rbds-text-emphasis">{{ chat.name }}</span> from Redbox and cannot be reversed.</span>
                             </div>
                             <div>
                                 <button class="govuk-button govuk-!-margin-right-4 govuk-!-margin-bottom-0 govuk-!-margin-top-4 govuk-button--warning modal-close"

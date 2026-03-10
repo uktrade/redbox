@@ -376,7 +376,9 @@ def get_task_status(self, task_id: str) -> TaskStatus:
     raise ValueError(f"No task found with id: {task_id}")
 
 
-def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskBase, MultiAgentPlanBase]:
+def configure_agent_task_plan(
+    agent_options: Dict[str, str],
+) -> Tuple[AgentTaskBase, MultiAgentPlanBase]:
     try:
         AgentEnum = Enum("AgentEnum", agent_options)
         default_agent = list(AgentEnum)[0] if agent_options else None

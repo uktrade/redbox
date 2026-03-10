@@ -24,7 +24,6 @@ from redbox.graph.nodes.tools import (
     build_web_search_tool,
     get_datahub_mcp_tools,
     build_query_tabular_file_tool,
-    build_query_tabular_knowledge_base_tool,
 )
 from redbox.graph.root import build_new_route_graph, build_root_graph, get_summarise_graph
 from redbox.models.chain import RedboxState
@@ -93,16 +92,7 @@ class Redbox:
             es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias, loop=True
         )
         retrieve_knowledge_base = build_retrieve_knowledge_base(
-            es_client=_env.elasticsearch_client(),
-            index_name=_env.elastic_chunk_alias,
-            loop=True,
-            all_files=True,
-        )
-        retrieve_specific_files_knowledge_base = build_retrieve_knowledge_base(
-            es_client=_env.elasticsearch_client(),
-            index_name=_env.elastic_chunk_alias,
-            loop=False,
-            all_files=False,
+            es_client=_env.elasticsearch_client(), index_name=_env.elastic_chunk_alias, loop=True
         )
         query_tabular_knowledge_base_file = build_query_tabular_file_tool(
             es_client=_env.elasticsearch_client(),
@@ -141,7 +131,6 @@ class Redbox:
             query_tabular_knowledge_base_file,
             search_knowledge_base,
         ]
-        self.agent_configs["Artifact_Builder_Agent"].tools = [retrieve_specific_files_knowledge_base]
         self.agent_configs["Datahub_Agent"].tools = datahub_mcp
 
         self.graph = build_root_graph(

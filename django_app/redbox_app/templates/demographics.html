@@ -1,5 +1,5 @@
 {% set pageTitle = "Settings - My details" %}
-{% set persistentSidepanel = False %}
+{% set persistentSidepanel = True %}
 
 {% extends "base.html" %}
 
@@ -8,7 +8,7 @@
 
 {% block content %}
 
-  <div class="govuk-width-container govuk-!-margin-top-3">
+  <div class="govuk-width-container rbds-page-content rbds-page-content--full govuk-!-margin-top-3">
 
     <h1 class="govuk-heading-l">My Details</h1>
 
@@ -16,7 +16,7 @@
       <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
 
       <div class="govuk-form-group">
-        <label class="govuk-label govuk-!-font-weight-bold ids-text-xs" for="{{ form.name.id_for_label }}">
+        <label class="govuk-label govuk-!-font-weight-bold rbds-text-xs" for="{{ form.name.id_for_label }}">
           {{ form.name.label }}
         </label>
         {{ form.name }}
@@ -24,16 +24,16 @@
 
       <div class="govuk-form-group  govuk-!-width-full">
         <fieldset class="govuk-fieldset">
-          <legend class="govuk-label govuk-!-font-weight-bold ids-text-xs">
+          <legend class="govuk-label govuk-!-font-weight-bold rbds-text-xs">
             <h1 class="govuk-fieldset__heading govuk-!-margin-bottom-1">
             {{ form.ai_experience.label }}
             </h1>
           </legend>
-          <div id="ai_experience-hint" class="govuk-hint govuk-!-margin-bottom-4 ids-text-xs">
+          <div id="ai_experience-hint" class="govuk-hint govuk-!-margin-bottom-4 rbds-text-xs">
             Select what best describes your level of experience using AI tools. This will help us tailor your experience. You can always update this page anytime.
           </div>
-          <div class="ids-radio-groups-container">
-            <div class="govuk-radios govuk-radios--small ids-radio-flex-container" data-module="govuk-radios">
+          <div class="rbds-radio-groups-container">
+            <div class="govuk-radios govuk-radios--small rbds-radio-flex-container" data-module="govuk-radios">
               {% for value, label in form.ai_experience.field.choices %}
                 {% if value %}
                   <div class="govuk-radios__item">
@@ -43,9 +43,9 @@
                           value="{{ value }}"
                           {% if value|string == form.ai_experience.value()|string %}checked{% endif %}
                           data-testid="{{ value }}">
-                    <label class="govuk-radios__label ids-text-xs" for="ai_experience_{{ loop.index0 }}">
+                    <label class="govuk-radios__label rbds-text-xs" for="ai_experience_{{ loop.index0 }}">
                       {{ value }}
-                      <div class="govuk-hint govuk-radios__hint govuk-!-padding-left-0 govuk-!-padding-top-1 ids-text-xs">{{ label }}</div>
+                      <div class="govuk-hint govuk-radios__hint govuk-!-padding-left-0 govuk-!-padding-top-1 rbds-text-xs">{{ label }}</div>
                     </label>
                   </div>
                 {% endif %}
@@ -57,27 +57,27 @@
       </div>
 
       <div class="govuk-form-group">
-        <label class="govuk-label govuk-!-font-weight-bold ids-text-xs" for="{{ form.business_unit.id_for_label }}">
+        <label class="govuk-label govuk-!-font-weight-bold rbds-text-xs" for="{{ form.business_unit.id_for_label }}">
           {{ form.business_unit.label }}
         </label>
         {{ form.business_unit }}
       </div>
       <div class="govuk-form-group">
-        <label class="govuk-label govuk-!-font-weight-bold ids-text-xs" for="{{ form.profession.id_for_label }}">
+        <label class="govuk-label govuk-!-font-weight-bold rbds-text-xs" for="{{ form.profession.id_for_label }}">
           {{ form.profession.label }}
         </label>
         {{ form.profession }}
       </div>
 
       <div class="govuk-form-group">
-        <label class="govuk-label govuk-!-font-weight-bold ids-text-xs" for="{{ form.role.id_for_label }}">
+        <label class="govuk-label govuk-!-font-weight-bold rbds-text-xs" for="{{ form.role.id_for_label }}">
           {{ form.role.label }}
         </label>
         {{ form.role }}
       </div>
 
       <div class="govuk-form-group">
-        <label class="govuk-label govuk-!-font-weight-bold ids-text-xs" for="{{ form.grade.id_for_label }}">
+        <label class="govuk-label govuk-!-font-weight-bold rbds-text-xs" for="{{ form.grade.id_for_label }}">
           {{ form.grade.label }}
         </label>
         {{ form.grade }}
@@ -87,7 +87,7 @@
         <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
           <div class="govuk-checkboxes__item">
             {{ form.uk_or_us_english }}
-            <label class="govuk-checkboxes__label govuk-label govuk-!-font-weight-bold ids-text-xs" for="{{ form.uk_or_us_english.id_for_label }}">
+            <label class="govuk-checkboxes__label govuk-label govuk-!-font-weight-bold rbds-text-xs" for="{{ form.uk_or_us_english.id_for_label }}">
               {{ form.uk_or_us_english.label }}
             </label>
           </div>

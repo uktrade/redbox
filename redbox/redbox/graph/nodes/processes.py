@@ -563,8 +563,6 @@ def build_agent_with_loop(
                 log.warning(f"{log_stub} Using raw string in a list as result.")
                 result_content = result[0].get("text", "")
             elif isinstance(result, list):
-                log.warning("my-result")
-                log.warning(result)
                 log.warning(f"{log_stub} Aggregating list of tool results...")
                 result_content = join_result_with_token_limit(result=result, max_tokens=max_tokens, log_stub=log_stub)
             else:

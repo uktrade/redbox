@@ -1,29 +1,30 @@
 @use "./../../../variables.scss" as *;
 
-.ids-chat-wrapper {
-    height: 100%;
-}
-
-.ids-chat {
+.rbds-chat {
     display: flex;
     flex-direction: column;
+    height: 100vh;
     min-height: 0;
-    height: auto;
-
-    &:has(.ids-message-container) {
-        height: 100%;
-    }
 }
 
-.ids-chat-feed {
-    --chat-feed-min-height: 100%;
+.rbds-chat-feed {
+    display: flex;
+}
+
+.rbds-chat-window {
+    --chat-window-min-height: 100vh;
     flex: 1;
     display: flex;
     align-items: stretch;
+
+    &--first-time {
+        --chat-window-min-height: 0;
+    }
     flex-direction: column;
+    padding-bottom: 10px;
 }
 
-.ids-chat-cta {
+.rbds-chat-cta {
     --cta-container-height: 35px;
 
     background-color: var(--color-background-white);
@@ -32,6 +33,7 @@
     row-gap: 15px;
 
     &__toggle  { grid-area: toggle; }
+    &__tool    { grid-area: tool; }
     &__title   { grid-area: title; }
     &__actions { grid-area: actions; }
 
@@ -43,29 +45,39 @@
     height: var(--cta-container-height);
     padding-top: 20px;
     padding-bottom: 60px;
-    width: 100%;
 
     position: sticky;
     top: 0;
-    z-index: 300;
+    z-index: 200;
 
     .cta-text {
         display: flex;
     }
 
-    &:has(.ids-chat-cta__title) {
+    &:has(.rbds-chat-cta__tool):has(.rbds-chat-cta__title) {
+        grid-template-areas:
+            "tool   actions"
+            "title  .";
+    }
+
+    &:has(.rbds-chat-cta__tool):not(:has(.rbds-chat-cta__title)) {
+        grid-template-areas:
+            "tool   actions"
+    }
+
+    &:has(.rbds-chat-cta__title):not(:has(.rbds-chat-cta__tool)) {
         grid-template-areas:
             "title  actions"
     }
 
-    &:not(:has(.ids-chat-cta__title)) {
+    &:not(:has(.rbds-chat-cta__title)):not(:has(.rbds-chat-cta__tool)) {
         justify-content: center;
         grid-template-areas:
             ".  actions"
     }
 }
 
-.ids-chat-interaction {
+.rbds-chat-interaction {
     --interaction-container-height: 60px;
 
     padding-top: 30px;
@@ -87,7 +99,7 @@
 }
 
 @media (min-width: bp(xs)) {
-    .ids-chat-cta {
+    .rbds-chat-cta {
         --cta-container-height: 75px;
 
         grid-template-columns: auto 1fr;
@@ -99,24 +111,39 @@
             display: none;
         }
 
-        &:has(.ids-chat-cta__title) {
+        &:has(.rbds-chat-cta__tool):has(.rbds-chat-cta__title) {
+            padding-top: 20px;
+            padding-bottom: 60px;
+            grid-template-areas:
+                "toggle actions"
+                ".      tool"
+                ".      title";
+        }
+
+        &:has(.rbds-chat-cta__tool):not(:has(.rbds-chat-cta__title)) {
+            grid-template-areas:
+                "toggle actions"
+                ".      tool";
+        }
+
+        &:has(.rbds-chat-cta__title):not(:has(.rbds-chat-cta__tool)) {
             grid-template-areas:
                 "toggle actions"
                 ".      title";
         }
 
-        &:not(:has(.ids-chat-cta__title)) {
+        &:not(:has(.rbds-chat-cta__title)):not(:has(.rbds-chat-cta__tool)) {
             justify-self: stretch;
             grid-template-areas:
                 "toggle actions";
         }
 
-        .ids-chat-cta__toggle {
+        .rbds-chat-cta__toggle {
             display: flex;
         }
     }
 
-    .ids-chat-interaction {
+    .rbds-chat-interaction {
         --interaction-container-height: 60px;
 
         padding-top: 15px;
@@ -125,7 +152,7 @@
 }
 
 @media (min-width: bp(s)) {
-    .ids-chat-cta {
+    .rbds-chat-cta {
         --cta-container-height: 35px;
 
         grid-template-columns: auto auto;
@@ -137,24 +164,34 @@
             display: flex;
         }
 
-        &:has(.ids-chat-cta__title) {
+        &:has(.rbds-chat-cta__tool):has(.rbds-chat-cta__title) {
+            grid-template-areas:
+                "tool   actions"
+                "title  .";
+        }
+
+        &:has(.rbds-chat-cta__tool):not(:has(.rbds-chat-cta__title)) {
+            grid-template-areas:
+                "tool   actions";
+        }
+
+        &:has(.rbds-chat-cta__title):not(:has(.rbds-chat-cta__tool)) {
             grid-template-areas:
                 "title  actions";
         }
 
-        &:not(:has(.ids-chat-cta__title)) {
+        &:not(:has(.rbds-chat-cta__title)):not(:has(.rbds-chat-cta__tool)) {
             justify-self: center;
             grid-template-areas:
                 ".  actions";
-            padding-bottom: 40px;
         }
 
-        .ids-chat-cta__toggle {
+        .rbds-chat-cta__toggle {
             display: none;
         }
     }
 
-    .ids-chat-interaction {
+    .rbds-chat-interaction {
         --interaction-container-height: 60px;
 
         padding-top: 30px;

@@ -6,7 +6,6 @@ export * from './loading-message.js';
 export * from './modal.js';
 export * from './no-scroll.js';
 export * from './show-more.js';
-export * from './side-panel-toggle.js';
 export * from './side-panel.js';
 export * from './stream-scroller.js';
 export * from './toggle.js';

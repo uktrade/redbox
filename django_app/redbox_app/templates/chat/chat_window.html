@@ -1,48 +1,40 @@
 {% from "macros/chat-macros.html" import message_box, route_display %}
 {% from "macros/govuk-button.html" import govukButton %}
 {% from "macros/govuk-warning.html" import govuk_warning %}
-{% from "macros/icon.html" import ids_icon %}
-{% from "macros/upload_form.html" import upload_form %}
+{% from "macros/icon.html" import rbds_icon %}
 
-<div id="chat-feed" class="ids-chat-feed" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+<div id="chat-window" class="rbds-chat-window {% if is_first_time_user %}rbds-chat-window--first-time{% endif %}" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
     {% if not messages %}
         <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1" security-classification="{{ security }}">
-            <h3 class="govuk-heading-s govuk-!-margin-bottom-2">
-                <span class="ids-text--product">{{ product_name(request) }}</span> can help you to:
+            <h3 class="govuk-heading-s">
+                <span class="rbds-text--product">{{ product_name(request) }}</span> can help you to:
+                <ul>
+                    <li>analyse and summarise your documents</li>
+                    <li>draft content and brainstorm ideas</li>
+                    <li>search government sources and the web</li>
+                    <li>use tools - for example, the Submission Checker tool, which reviews ministerial briefings</li>
+                </ul>
             </h3>
-            <ul class="govuk-list govuk-list--bullet govuk-body-s">
-                <li>analyse and summarise your documents</li>
-                <li>draft content and brainstorm ideas</li>
-                <li>search government sources and the web</li>
-                <li>use tools - for example, the Submission Checker tool, which reviews ministerial briefings</li>
-            </ul>
         </canned-prompts>
     {% endif %}
 
-    {% if is_first_time_user %}
-        <ids-first-time-upload-form class="govuk-!-margin-bottom-2">
-            {{ upload_form(label="Upload a file (optional)", uploadUrl=urls.upload_url, errors=errors, showSubmit=False) }}
-        </ids-first-time-upload-form>
-    {% endif %}
+    {% if is_first_time_user %}{% include "upload_form.html" %}{% endif %}
 
-    <ids-stream-scroller class="ids-scrollablee">
-        <chat-controller class="iai-chat-container"
-                        data-stream-url="{{ streaming.endpoint if streaming else '' }}"
-                        data-session-id="{{ chat_id or '' }}"
-                        {% if tool %}
-                            data-tool-id="{{ tool.id }}"
-                            data-tool-slug="{{ tool.slug }}"
-                        {% endif %}>
-            <div class="ids-chat-message__container ids-flex-column js-message-container">
+    <div class="rbds-chats-section">
+        <chat-controller class="iai-chat-container" data-stream-url="{{ streaming.endpoint if streaming else '' }}"
+            data-session-id="{{ chat_id or '' }}">
+            <div class="rbds-chat-message__container rbds-flex-column js-message-container">
 
                 <template id="template-route-display">
                     {{ route_display() }}
                 </template>
 
                 {# SSR messages #}
-                    {% for message in messages %}
-                    {{ message_box(message=message) }}
-                    {% endfor %}
+
+                {% for message in messages %}
+                {{ message_box(message=message) }}
+                {% endfor %}
+
                 {# CSR messages are inserted here #}
 
             </div>
@@ -51,5 +43,5 @@
             {% if chat_id %}<input type="hidden" name="session-id" value="{{ chat_id }}" />{% endif %}
 
         </chat-controller>
-    </ids-stream-scroller>
+    </div>
 </div>

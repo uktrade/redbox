@@ -1,5 +1,5 @@
 {% set pageTitle = tool.name %}
-{% set persistentSidepanel = False %}
+{% set persistentSidepanel = True %}
 
 {% extends "base.html" %}
 
@@ -7,7 +7,7 @@
 
 
 {% block content %}
-    <div class="govuk-width-container">
+    <div class="govuk-width-container rbds-page-content rbds-page-content--full">
         <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">{{ tool.name }}</h2>
 
         <div class="govuk-body">
@@ -15,7 +15,7 @@
             {% endblock %}
         </div>
 
-        <div class="ids-divider govuk-!-margin-top-7 govuk-!-margin-bottom-6"></div>
+        <div class="rbds-divider govuk-!-margin-top-7 govuk-!-margin-bottom-6"></div>
 
         <div class="govuk-grid-row">
             <div class="govuk-grid-column-two-thirds">
@@ -30,7 +30,7 @@
                 {{ govukButton(
                     text = "Use " ~ tool.name | lower,
                     href=tool.chat_url,
-                    classes="ids-push-bottom ids-w-fit"
+                    classes="rbds-push-bottom rbds-w-fit"
                 ) }}
             </div>
             <div class="govuk-grid-column-one-third">
