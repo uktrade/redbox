@@ -42,7 +42,7 @@ from redbox.graph.nodes.processes import (
     stream_plan,
     stream_suggestion,
     is_multiple_records_datahub,
-    get_user_feedback
+    get_user_feedback,
 )
 from redbox.graph.nodes.sends import build_document_chunk_send, build_document_group_send, sending_task_to_agent
 from redbox.models.chain import PromptSet, RedboxState
@@ -603,7 +603,9 @@ def build_new_route_graph(
         "has_all_task_completed", check_if_tasks_completed, {True: "Evaluator_Agent", False: "sending_task"}
     )
     builder.add_conditional_edges(
-        "is_multiple_records_datahub", is_multiple_records_datahub, {True: "get_user_feedback", False: "combine_question_evaluator"}
+        "is_multiple_records_datahub",
+        is_multiple_records_datahub,
+        {True: "get_user_feedback", False: "combine_question_evaluator"},
     )
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
