@@ -135,11 +135,28 @@ prompt_configs: Dict[str, PromptConfig] = {
             previous_tool_results=True,
         ),
     ),
+    "Datahub_Agent": PromptConfig(
+        system=prompts.DATAHUB_PROMPT + prompts.DATAHUB_QUESTION_PROMPT,
+        prompt_vars=PromptVariable(question=True),
+        chat_history=True,
+        previous_tool_error=True,
+        previous_tool_results=True,
+    ),
     "Knowledge_Base_Retrieval_Agent": PromptConfig(
         system=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT
         + prompts.KNOWLEDGE_BASE_METADTA
         + prompts.PREVIOUS_AGENT_RESULTS,
         prompt_vars=PromptVariable(task=True, expected_output=True, knowledge_base_metadata=True),
+        previous_agents_results=True,
+    ),
+    "Artifact_Builder_Agent": PromptConfig(
+        system=prompts.ARTIFACT_BUILDER_AGENT_PROMPT + prompts.KNOWLEDGE_BASE_METADTA,
+        prompt_vars=PromptVariable(
+            task=True,
+            expected_output=True,
+            knowledge_base_metadata=True,
+            artifact_files=True,
+        ),
     ),
 }
 
@@ -235,11 +252,26 @@ agent_configs: Dict[str, AgentConfig] = {
         default_agent=True,
         agents_max_tokens=10000,
     ),
+    "Datahub_Agent": AgentConfig(
+        name="Datahub_Agent",
+        description=prompts.DATAHUB_AGENT_DESC,
+        prompt=prompt_configs["Datahub_Agent"],
+        parser=None,
+        agents_max_tokens=10000,
+        default_agent=False,
+    ),
     "Knowledge_Base_Retrieval_Agent": AgentConfig(
         name="Knowledge_Base_Retrieval_Agent",
         description=prompts.KNOWLEDGE_BASE_RETRIEVAL_AGENT_DESC,
         prompt=prompt_configs["Knowledge_Base_Retrieval_Agent"],
         agents_max_tokens=10000,
+        parser=None,
+    ),
+    "Artifact_Builder_Agent": AgentConfig(
+        name="Artifact_Builder_Agent",
+        description=prompts.ARTIFACT_BUILDER_AGENT_DESC,
+        prompt=prompt_configs["Artifact_Builder_Agent"],
+        agents_max_tokens=5000,
         parser=None,
     ),
     "Evaluator_Agent": AgentConfig(

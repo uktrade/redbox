@@ -97,7 +97,6 @@ def test_user_can_see_tool_chats(alice: User, client: Client, default_tool: Tool
 @pytest.mark.django_db
 def test_user_cannot_see_other_user_tool_chats(bob: User, client: Client, default_tool: Tool, chat_with_alice: Chat):
     # Given
-    chat_with_alice.tool = default_tool
     client.force_login(bob)
     url = reverse("chats", kwargs={"slug": default_tool.slug, "chat_id": chat_with_alice.id})
 
@@ -106,6 +105,7 @@ def test_user_cannot_see_other_user_tool_chats(bob: User, client: Client, defaul
 
     # Then
     assert response.status_code == HTTPStatus.OK
+    assert default_tool.name not in response.content.decode()
     assert chat_with_alice.name not in response.content.decode()
 
 
