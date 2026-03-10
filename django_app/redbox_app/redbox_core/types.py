@@ -88,8 +88,8 @@ class UIFragment:
 
 
 FRAGMENTS = {
-    "chat-window": UIFragment(
-        id="chat-window",
+    "chat-feed": UIFragment(
+        id="chat-feed",
         template="chat/chat_window.html",
     ),
     "chat-cta": UIFragment(
