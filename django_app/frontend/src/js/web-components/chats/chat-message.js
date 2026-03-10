@@ -2,13 +2,69 @@
 
 import { hideElement, showElement } from "../../utils/dom-utils.js";
 import { LoadingMessage } from "../../../interaction_design_system/ids/components/loading-message.js";
-import { emitEvent, Events } from "../../../interaction_design_system/ids/events/events.js";
+
+// TODO: Reimplement scroll position save-and-restore on active chat reload
+// window.addEventListener('load', () => {
+//   const scrollPosition = sessionStorage.getItem('scrollPosition');
+//   if (scrollPosition !== null) {
+//     window.scrollTo({
+//       top: parseInt(scrollPosition),
+//       behavior: 'instant'
+//     });
+//     sessionStorage.removeItem('scrollPosition');
+//   }
+// });
+
 
 export class ChatMessage extends HTMLElement {
+  autoScrollEnabled = true;
+
   connectedCallback() {
+    this.scrollContainer = this.closest(".ids-scrollable") || document;
+    this.programmaticScroll = false;
     this.streamedContent = "";
+
+    this.#bindScrollEvents();
     this.#loadMessage();
   }
+
+
+  #bindScrollEvents(scrollContainer = this.scrollContainer) {
+    if (!scrollContainer) return;
+    let scrollEvents = [];
+
+    if (scrollContainer instanceof Document) scrollEvents.push("scroll");
+    if (scrollContainer instanceof Element) scrollEvents.push("pointerup", "mousewheel");
+
+    scrollEvents.forEach((scrollEvent) => {
+      scrollContainer.addEventListener(scrollEvent, () => this.#updateAutoScroll());
+    });
+  }
+
+
+  #updateAutoScroll() {
+    if (this.scrollContainer) this.autoScrollEnabled = this.isAtBottom(this.scrollContainer);
+  }
+
+
+  isAtBottom(/** @type {Element | Document} */ el, threshold = 10) {
+    if (el instanceof Document) el = el.documentElement;
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+  }
+
+
+  scrollToBottom(scrollContainer = this.scrollContainer) {
+    if (!scrollContainer) return;
+    if (scrollContainer instanceof Document) scrollContainer = scrollContainer.documentElement;
+    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+  }
+
+
+  reloadAtCurrentPosition() {
+    sessionStorage.setItem('scrollPosition', window.scrollY.toString());
+    location.reload();
+  }
+
 
   #loadMessage = () => {
     const uuid = crypto.randomUUID();
