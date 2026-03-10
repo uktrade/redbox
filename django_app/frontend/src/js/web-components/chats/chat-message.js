@@ -271,7 +271,6 @@ export class ChatMessage extends HTMLElement {
       document.dispatchEvent(chatResponseStartEvent);
       this.autoScrollEnabled = true;
       this.scrollToBottom();
-      emitEvent(Events.SCROLL_TO_BOTTOM, {source:this, force:true});
     };
 
     webSocket.onerror = (event) => {
