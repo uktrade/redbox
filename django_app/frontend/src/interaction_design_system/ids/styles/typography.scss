@@ -20,8 +20,7 @@ span,
 .govuk-details,
 .govuk-notification-banner,
 .govuk-footer,
-.govuk-footer__link,
-[role="button"]
+.govuk-footer__link
 {
   font-family:  var(--font-family-primary) !important;
 }
@@ -30,8 +29,7 @@ body {
   font-size: var(--font-size-s) !important;
 }
 
-button,
-[role="button"] {
+button {
   font-size: var(--font-size-xs) !important;
 }
 
