@@ -290,7 +290,6 @@ DUCKDB_LOCKS_LOCK = threading.Lock()  # lock to safely create new per-db locks
 def build_query_tabular_knowledge_base_tool(
     es_client: Union[Elasticsearch, OpenSearch],
     index_name: str,
-    knowledge_base: bool,
 ) -> Tool:
     """
     Returns a tool that executes an agent-generated SQL query against tabular files

@@ -106,7 +106,6 @@ def read_csv_text(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
         if df.empty:
             logger.error("Empty File Uploaded")
             raise ValidationError("Empty File Uploaded")
-
         return [
             {
                 "text": str(df.to_csv(index=False)),  # Convert bytes to string

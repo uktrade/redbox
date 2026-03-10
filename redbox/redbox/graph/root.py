@@ -627,7 +627,6 @@ def build_new_route_graph(
             "more_info": "stream_suggestion",
         },
     )
-
     builder.add_conditional_edges("sending_task", sending_task_to_agent)
     builder.add_edge("combine_question_evaluator", "Evaluator_Agent")
     builder.add_edge("Evaluator_Agent", "report_citations")
