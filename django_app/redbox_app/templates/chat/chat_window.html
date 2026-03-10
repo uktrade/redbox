@@ -27,7 +27,7 @@
             </ids-first-time-upload-form>
         {% endif %}
 
-          <chat-controller class="iai-chat-container" data-stream-url="{{ streaming.endpoint if streaming else '' }}"
+        <chat-controller class="iai-chat-container" data-stream-url="{{ streaming.endpoint if streaming else '' }}"
             data-session-id="{{ chat_id or '' }}">
             <div class="ids-chat-message__container ids-flex-column js-message-container">
 
@@ -36,9 +36,11 @@
                 </template>
 
                 {# SSR messages #}
+
                 {% for message in messages %}
                 {{ message_box(message=message) }}
                 {% endfor %}
+
                 {# CSR messages are inserted here #}
 
             </div>
