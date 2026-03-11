@@ -5,7 +5,6 @@ from typing import Callable
 from uuid import uuid4
 
 from langchain_core.messages import AIMessage
-from langchain_mcp_adapters.tools import load_mcp_tools
 from langgraph.constants import Send
 
 from redbox.models.chain import DocumentState, RedboxState, TaskStatus
@@ -13,6 +12,7 @@ from redbox.models.chain import DocumentState, RedboxState, TaskStatus
 import asyncio
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
+from langchain_mcp_adapters.tools import load_mcp_tools
 import json
 
 log = logging.getLogger(__name__)
