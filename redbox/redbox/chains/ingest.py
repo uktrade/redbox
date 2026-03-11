@@ -40,8 +40,6 @@ def document_loader(
 
         return document_loader.lazy_load(
             file_name=file_name,
-            s3_bucket=env.bucket_name,
-            s3_key=file_name,
             file_bytes=file_bytes,
         )
 

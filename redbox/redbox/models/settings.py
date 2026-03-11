@@ -112,9 +112,6 @@ class Settings(BaseSettings):
     monitoring_internal_password: str = "redboxpass"
     beats_system_password: str = "redboxpass"
 
-    aws_access_key: str | None = None
-    aws_secret_key: str | None = None
-
     aws_region: str = "eu-west-2"
     bucket_name: str = "redbox-storage-dev"
 
@@ -389,32 +386,9 @@ class Settings(BaseSettings):
         return client
 
     def s3_client(self):
-        if self.object_store == "minio":
-            return boto3.client(
-                "s3",
-                aws_access_key_id=self.aws_access_key or "",
-                aws_secret_access_key=self.aws_secret_key or "",
-                endpoint_url=f"http://{self.minio_host}:{self.minio_port}",
-            )
-
         if self.object_store == "s3":
             return boto3.client(
                 "s3",
-                aws_access_key_id=self.aws_access_key,
-                aws_secret_access_key=self.aws_secret_key,
-                region_name=self.aws_region,
-            )
-
-        if self.object_store == "moto":
-            from moto import mock_aws
-
-            mock = mock_aws()
-            mock.start()
-
-            return boto3.client(
-                "s3",
-                aws_access_key_id=self.aws_access_key,
-                aws_secret_access_key=self.aws_secret_key,
                 region_name=self.aws_region,
             )
 
