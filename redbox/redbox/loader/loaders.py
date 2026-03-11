@@ -16,7 +16,7 @@ from redbox_app.setting_enums import Environment
 
 from redbox.chains.components import get_chat_llm
 from redbox.models.chain import GeneratedMetadata
-from redbox.models.file import TabularSchema
+from redbox.models.file import TabularSchema, UploadedFileMetadata, ChunkResolution
 from redbox.models.settings import Settings
 from redbox.transform import bedrock_tokeniser
 import pandas as pd
@@ -325,51 +325,49 @@ class TextractChunkLoader:
     ) -> Iterator[Document]:
         if file_name.lower().endswith((".csv", ".xls", ".xlsx")):
             if file_bytes is None:
-                obj = self.s3.get_object(Bucket=s3_bucket, Key=file_name)
+                obj = self.s3.get_object(Bucket=s3_bucket, Key=s3_key)
                 file_bytes = BytesIO(obj["Body"].read())
 
             tabular_elements = load_tabular_file(file_name, file_bytes)
             for idx, el in enumerate(tabular_elements):
-                schema_dict = el.get("metadata", {}).get("document_schema")
-                schema = None
-                if schema_dict:
-                    try:
-                        schema = TabularSchema.model_validate(schema_dict)
-                    except ValidationError:
-                        schema = None
+                metadata = UploadedFileMetadata(
+                    index=idx,
+                    uri=file_name,
+                    page_number=1,
+                    created_datetime=datetime.now(UTC),
+                    token_count=tokeniser(el["text"]),
+                    chunk_resolution=ChunkResolution.normal,
+                    name=file_name,
+                    description=None,
+                    keywords=None,
+                ).model_dump()
 
-                token_count = tokeniser(el["text"])
-                metadata = {
-                    "index": idx,
-                    "uri": file_name,
-                    "page_number": 1,
-                    "created_datetime": datetime.now(UTC),
-                    "token_count": token_count,
-                    "document_schema": schema,
-                }
                 yield Document(page_content=el["text"], metadata=metadata)
             return
 
         if file_name.lower().endswith(".docx"):
             if file_bytes is None:
-                obj = self.s3.get_object(Bucket=s3_bucket, Key=file_name)
+                obj = self.s3.get_object(Bucket=s3_bucket, Key=s3_key)
                 file_bytes = BytesIO(obj["Body"].read())
             pages = self._extract_docx(file_bytes)
 
         else:
-            loader = TextractChunkLoader(bucket=s3_bucket)
-            pages = loader._extract_pdf_from_s3(bucket=s3_bucket, key=s3_key)
+            pages = self._extract_pdf_from_s3(bucket=s3_bucket, key=s3_key)
 
         idx = 0
         for page_num, page_text in enumerate(pages, start=1):
             for chunk in self._chunk_text(page_text):
-                metadata = {
-                    "index": idx,
-                    "uri": file_name,
-                    "page_number": page_num,
-                    "created_datetime": datetime.now(UTC),
-                    "token_count": tokeniser(chunk),
-                }
+                metadata = UploadedFileMetadata(
+                    index=idx,
+                    uri=file_name,
+                    page_number=page_num,
+                    created_datetime=datetime.now(UTC),
+                    token_count=tokeniser(chunk),
+                    chunk_resolution=ChunkResolution.normal,
+                    name=file_name,
+                    description=None,
+                    keywords=None,
+                ).model_dump()
                 yield Document(page_content=chunk, metadata=metadata)
                 idx += 1
 
