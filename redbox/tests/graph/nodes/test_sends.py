@@ -16,6 +16,7 @@ from redbox.graph.nodes.sends import (
     no_dependencies,
     run_tools_parallel,
     wrap_async_tool,
+    _get_mcp_headers,
 )
 from redbox.graph.nodes.tools import build_search_wikipedia_tool, build_govuk_search_tool
 from redbox.models.chain import DocumentState, RedboxQuery, RedboxState, TaskStatus, configure_agent_task_plan
@@ -507,3 +508,25 @@ class TestWrapAsyncTool:
         # assert ValueError is raised
         with pytest.raises(ValueError, match="tool with name 'missing_tool' not found"):
             wrapped_func({"foo": "bar"})
+
+
+@pytest.mark.parametrize(
+    "token_input, expected_output",
+    [
+        (None, {}),
+        ("", {}),
+        ("   ", {}),
+        ("simple-token-123", {"Authorization": "Bearer simple-token-123"}),
+        ("Bearer already-has-prefix", {"Authorization": "Bearer already-has-prefix"}),
+        ("bearer lowercase-prefix", {"Authorization": "bearer lowercase-prefix"}),
+        ("  token-with-spaces  ", {"Authorization": "Bearer token-with-spaces"}),
+    ],
+)
+def test_get_mcp_headers_logic(token_input, expected_output):
+    """Verify that headers are correctly formatted or returned empty based on input."""
+    assert _get_mcp_headers(token_input) == expected_output
+
+
+def test_get_mcp_headers_no_args():
+    """Verify the default parameter behavior (None)."""
+    assert _get_mcp_headers() == {}
