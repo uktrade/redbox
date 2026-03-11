@@ -39,11 +39,11 @@ test-ai: ## Test code with live LLM
 .PHONY: test-redbox
 test-redbox: ## Test redbox
 	cd redbox && PYTHONPATH=$(PWD)/django_app:$(PWD)/redbox DJANGO_SETTINGS_MODULE=django_app.settings poetry install && \
-    PYTHONPATH=$(PWD)/django_app:$(PWD)/redbox poetry run pytest -m "not ai" --cov=redbox -v --cov-report=term-missing --cov-report=xml --cov-fail-under=60
+    PYTHONPATH=$(PWD)/django_app:$(PWD)/redbox poetry run pytest -m "not ai" --cov=redbox -v --cov-report=term-missing --cov-report=xml --cov-fail-under=75
 
 .PHONY: test-django
 test-django: ## Test django-app
-	cd django_app && poetry install && poetry run pytest --cov=redbox_app -v --cov-report=term-missing --cov-report=xml --cov-fail-under=60 --ds redbox_app.settings $(TEST)
+	cd django_app && poetry install && poetry run pytest --cov=redbox_app -v --cov-report=term-missing --cov-report=xml --cov-fail-under=80 --ds redbox_app.settings $(TEST)
 
 .PHONY: test-django-single
 test-django-single: ## Test django-app with specified test file/case
