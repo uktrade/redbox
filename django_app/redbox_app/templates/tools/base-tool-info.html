@@ -41,7 +41,7 @@
 
             <div class="govuk-grid-column-one-third">
                 <h3 class="govuk-heading-s govuk-!-margin-bottom-4">Documents used in this tool</h3>
-                {% block tool_document_guidance_header %}
+                {% block tool_document_guidance_description %}
                 {% endblock %}
 
                 {% for file in tool.get_files("ADMIN") %}
@@ -51,7 +51,7 @@
                     <div class="ids-divider govuk-!-padding-bottom-5"></div>
                 {% endfor %}
 
-                {% block tool_document_guidance_footer %}
+                {% block tool_document_guidance_footnotes %}
                 {% endblock %}
             </div>
         </div>
