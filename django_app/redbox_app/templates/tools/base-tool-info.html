@@ -40,9 +40,18 @@
             </div>
 
             <div class="govuk-grid-column-one-third">
-                {% include "tools/tool-files.html" %}
+                <h3 class="govuk-heading-s govuk-!-margin-bottom-4">Documents used in this tool</h3>
+                {% block tool_document_guidance_header %}
+                {% endblock %}
 
-                {% block tool_document_guidance %}
+                {% for file in tool.get_files("ADMIN") %}
+                    <p class="govuk-body-s govuk-!-margin-top-2 govuk-!-margin-bottom-2 ids-text-ellipses ids-action-link" title="{{ file.file_name }}">
+                        <a class="govuk-link govuk-link--no-underline" href="{{ file.url }}">{{ file.file_name }}</a>
+                    </p>
+                    <div class="ids-divider govuk-!-padding-bottom-5"></div>
+                {% endfor %}
+
+                {% block tool_document_guidance_footer %}
                 {% endblock %}
             </div>
         </div>
