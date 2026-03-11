@@ -126,16 +126,34 @@ def extract_links(data: dict | None) -> list[tuple[str, Any]]:
 
 def format_mcp_tool_response(tool_response, creator_type: ChunkCreatorType) -> str:
     data = json.loads(tool_response)
-    links = extract_links(data=data)
+    result_type = data.get("result_type")
+    result = data.get("result")
 
-    if not links:
+    if result_type is None or result is None:
         return tool_response if isinstance(tool_response, str) else str(tool_response)
+
+    deep_links = []
+    match result_type:
+        case "nullable":
+            deep_links = [(result.get("url"), result)]
+        case "paged":
+            deep_links = [(p.get("url"), p) for p in result.get("items", [])]
+        case "multipaged":
+            paged_results = [v for v in result.values() if v is not None]
+            for page_result in paged_results:
+                deep_links += [(p.get("url"), p) for p in page_result.get("result", {}).get("items", [])]
+        case "composite":
+            parent, paged_data = result
+            deep_links = [(parent.get("url"), parent)]
+            paged_results = [v for v in paged_data.values() if v is not None]
+            for page in paged_results:
+                deep_links += [(item.get("url"), item) for item in page.get("result", {}).get("items", [])]
 
     citations = [
         Document(
             page_content=json.dumps(item),
-            metadata={"creator_type": creator_type, "uri": link, "page_number": ""},
+            metadata={"creator_type": creator_type, "uri": link or "", "page_number": ""},
         )
-        for link, item in links
+        for link, item in deep_links
     ]
     return format_documents(documents=citations)
