@@ -38,6 +38,13 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
     if tool and current_chat and tool.settings.deselect_documents_on_load:
         current_chat.clear_selected_files()
 
+    tools = Tool.objects.all()
+
+    # Only enable Invest Lens for specified users until launch
+    # On release - TODO: implement permissions into tool model for future trials
+    if not flag_is_active(request, flags.ENABLE_INVEST_LENS):
+        tools = tools.exclude(slug="invest-lens")
+
     messages = ChatMessage.get_messages_ordered_by_citation_priority(chat_id) if current_chat else []
     endpoint = _build_ws_endpoint(request)
     file_context = documents_service.decorate_file_context(request, tool, messages)
@@ -54,7 +61,7 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
 
     context = {
         "tool": tool,
-        "tools": Tool.objects.all(),
+        "tools": tools,
         "chat_id": chat_id,
         "messages": messages,
         "chats": Chat.get_ordered_by_last_message_date(request.user, tool),
