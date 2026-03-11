@@ -338,8 +338,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         return candidates
 
     def _extract_sso_token(self) -> str | None:
-        session = self.scope.get("session")
-        return session["_authbroker_token"]["access_token"]
+        try:
+            session = self.scope.get("session")
+            return session["_authbroker_token"]["access_token"]
+        except TypeError:
+            return None
 
     async def llm_conversation(
         self,
