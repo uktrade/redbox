@@ -903,3 +903,53 @@ async def test_connect_with_agents_update_via_db(agents_list: list, alice: User)
         assert "Fake_Agent" not in list(ChatConsumer.redbox.agent_configs.keys())
         assert ChatConsumer.redbox.agent_configs["Internal_Retrieval_Agent"].agents_max_tokens == 100
         assert ChatConsumer.redbox.agent_configs["Internal_Retrieval_Agent"].llm_backend.name == "gpt-4o"
+
+
+def test_extract_sso_token_success():
+    """Test successful token extraction when the session data is present."""
+    # Arrange
+    consumer = ChatConsumer()
+    mock_token = "mock_token"  # noqa: S105
+
+    # Mocking the scope dictionary structure
+    consumer.scope = {"session": {"_authbroker_token": {"access_token": mock_token}}}
+
+    # Act
+    token = consumer._extract_sso_token()  # noqa: SLF001
+
+    # Assert
+    assert token == mock_token
+
+
+def test_extract_sso_token_missing_session():
+    """Test that it returns None if 'session' is missing from scope."""
+    # Arrange
+    consumer = ChatConsumer()
+    consumer.scope = {}  # Empty scope
+
+    # Act
+    token = consumer._extract_sso_token()  # noqa: SLF001
+
+    # Assert
+    assert token is None
+
+
+def test_extract_sso_token_type_error():
+    """Test that it returns None if session is None (triggers TypeError)."""
+    # Arrange
+    consumer = ChatConsumer()
+    consumer.scope = {"session": None}
+
+    # Act
+    token = consumer._extract_sso_token()  # noqa: SLF001
+
+    # Assert
+    assert token is None
+
+
+def test_extract_sso_token_missing_key():
+    """Test that it returns None if the expected SSO keys are missing."""
+    consumer = ChatConsumer()
+    consumer.scope = {"session": {"other_key": "no_token_here"}}
+    token = consumer._extract_sso_token()  # noqa: SLF001
+    assert token is None

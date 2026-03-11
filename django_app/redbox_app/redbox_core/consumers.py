@@ -317,31 +317,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         ids = [f.id for f in files]
         return list(File.objects.filter(id__in=ids).values_list("original_file", flat=True))
 
-    @staticmethod
-    def _normalise_bearer_token(token: Any) -> str | None:
-        if not isinstance(token, str):
-            return None
-        token = token.strip()
-        if not token:
-            return None
-        if token.lower().startswith("bearer "):
-            return token
-        return f"Bearer {token}"
-
-    @staticmethod
-    def _session_token_candidates(session: Mapping) -> list[Any]:
-        token_keys = ("access_token", "auth_access_token", "sso_token", "auth_token", "token")
-        candidates = [session.get(key) for key in token_keys]
-        candidates.extend(
-            nested.get(key) for nested in session.values() if isinstance(nested, Mapping) for key in token_keys
-        )
-        return candidates
-
     def _extract_sso_token(self) -> str | None:
         try:
             session = self.scope.get("session")
             return session["_authbroker_token"]["access_token"]
-        except TypeError:
+        except (KeyError, TypeError):
             return None
 
     async def llm_conversation(
