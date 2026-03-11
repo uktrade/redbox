@@ -907,43 +907,26 @@ async def test_connect_with_agents_update_via_db(agents_list: list, alice: User)
 
 def test_extract_sso_token_success():
     """Test successful token extraction when the session data is present."""
-    # Arrange
     consumer = ChatConsumer()
     mock_token = "mock_token"  # noqa: S105
-
-    # Mocking the scope dictionary structure
     consumer.scope = {"session": {"_authbroker_token": {"access_token": mock_token}}}
-
-    # Act
     token = consumer._extract_sso_token()  # noqa: SLF001
-
-    # Assert
     assert token == mock_token
 
 
 def test_extract_sso_token_missing_session():
     """Test that it returns None if 'session' is missing from scope."""
-    # Arrange
     consumer = ChatConsumer()
     consumer.scope = {}  # Empty scope
-
-    # Act
     token = consumer._extract_sso_token()  # noqa: SLF001
-
-    # Assert
     assert token is None
 
 
 def test_extract_sso_token_type_error():
     """Test that it returns None if session is None (triggers TypeError)."""
-    # Arrange
     consumer = ChatConsumer()
     consumer.scope = {"session": None}
-
-    # Act
     token = consumer._extract_sso_token()  # noqa: SLF001
-
-    # Assert
     assert token is None
 
 
