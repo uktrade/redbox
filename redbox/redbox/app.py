@@ -24,7 +24,6 @@ from redbox.graph.nodes.tools import (
     build_web_search_tool,
     get_datahub_mcp_tools,
     build_query_tabular_file_tool,
-    build_query_tabular_knowledge_base_tool,
 )
 from redbox.graph.root import build_new_route_graph, build_root_graph, get_summarise_graph
 from redbox.models.chain import RedboxState

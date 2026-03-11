@@ -1,8 +1,6 @@
-import asyncio
 import csv
 import hashlib
 import json
-import hashlib
 import logging
 import random
 import re
@@ -10,16 +8,9 @@ import threading
 import time
 from io import StringIO
 from typing import Annotated, Callable, Iterable, Literal, Union
-import duckdb
-from io import StringIO
-import csv
-import re
-import threading
-import pandas as pd
 
 import boto3
 import duckdb
-import nest_asyncio
 import numpy as np
 import pandas as pd
 import requests
@@ -29,10 +20,7 @@ from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.messages import ToolCall
 from langchain_core.tools import Tool, tool
-from langchain_mcp_adapters.tools import load_mcp_tools
 from langgraph.prebuilt import InjectedState
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
 from mohawk import Sender
 from opensearchpy import OpenSearch
 from sklearn.metrics.pairwise import cosine_similarity
@@ -41,12 +29,7 @@ from waffle.decorators import waffle_flag
 from redbox.api.format import format_documents
 from redbox.chains.components import get_embeddings
 from redbox.models.chain import RedboxState
-from redbox.models.file import (
-    ChunkCreatorType,
-    ChunkMetadata,
-    ChunkResolution,
-    TabularSchema,
-)
+from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution, TabularSchema
 from redbox.models.settings import get_settings
 from redbox.retriever.queries import (
     add_document_filter_scores_to_query,
@@ -54,11 +37,13 @@ from redbox.retriever.queries import (
     get_all,
     get_knowledge_base,
 )
-from redbox.retriever.retrievers import (
-    SchematisedTabularChunkRetriever,
-    query_to_documents,
-)
+from redbox.retriever.retrievers import SchematisedTabularChunkRetriever, query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+from langchain_mcp_adapters.tools import load_mcp_tools
+import asyncio
+import nest_asyncio
 
 log = logging.getLogger(__name__)
 
@@ -1040,39 +1025,3 @@ def get_datahub_mcp_tools(agent_loop=True, sso_access_token: str | None = None):
     tools = loop.run_until_complete(_get_async_tools())
     loop.close()
     return tools
-
-
-def execute_sql_query():
-    @tool(response_format="content")
-    def _execute_sql_query(
-        sql_query: str,
-        is_intermediate_step: bool,
-        state: Annotated[RedboxState, InjectedState],
-    ):
-        """
-        SQL verification tool is a versatile tool that executes SQL queries against a SQLite database.
-        Args:
-            sql_query (str): The sql query to be executed against the SQLite database.
-            is_intermediate_step (bool): True if your sql query is an intermediate step to allow you to gather information about the database before making the final sql query. False if your sql query would retrieve the relevant information to answer the user question.
-        Returns:
-            results of the sql query execution if it is successful or an error message if the sql query execution failed
-        """
-        # execute tabular agent SQL
-        conn = sqlite3.connect(state.request.db_location)
-        cursor = conn.cursor()
-        try:
-            cursor.execute(sql_query)
-            results = str(cursor.fetchall())
-            conn.close()
-            if results not in ["", "None", "[]"]:
-                return (str(results), "pass", str(is_intermediate_step))
-            else:
-                error_message = "empty result set. Verify your query."
-                return (error_message, "fail", str(is_intermediate_step))
-        except Exception as e:
-            error_message = (
-                f"The SQL query syntax is wrong. Here is the error message: {e}.  Please correct your SQL query."
-            )
-            return (error_message, "fail", str(is_intermediate_step))
-
-    return _execute_sql_query

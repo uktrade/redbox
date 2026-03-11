@@ -235,6 +235,7 @@ TABULAR_RETRIEVER_KB_CASES: list[RedboxChatTestCase] = [
                 permitted_s3_keys=[],
                 knowledge_base_s3_keys=[],
                 s3_keys=[],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(

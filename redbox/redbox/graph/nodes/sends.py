@@ -5,7 +5,6 @@ import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from typing import Callable
-from uuid import uuid4
 
 from langchain_core.messages import AIMessage
 from langchain_mcp_adapters.tools import load_mcp_tools
@@ -13,11 +12,9 @@ from langgraph.constants import Send
 
 from redbox.models.chain import DocumentState, RedboxState, TaskStatus
 
-import asyncio
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
-from redbox.models.chain import DocumentState, RedboxState
 
 log = logging.getLogger(__name__)
 
@@ -360,9 +357,9 @@ def sending_task_to_agent(state: RedboxState):
                 state.agent_plans.update_task_status(task.id, TaskStatus.SCHEDULED)
                 task_send_states += [
                     (
-                task.agent.value,
-                _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]),
-            )
+                        task.agent.value,
+                        _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]),
+                    )
                 ]
                 log.warning(f"Sending task: {task.id} to agent {task.agent}")
         return [Send(node=target, arg=state) for target, state in task_send_states]
