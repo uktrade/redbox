@@ -28,6 +28,7 @@ from waffle.decorators import waffle_flag
 
 from redbox.api.format import format_documents
 from redbox.chains.components import get_embeddings
+from redbox.graph.nodes.sends import _get_mcp_headers
 from redbox.models.chain import RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution, TabularSchema
 from redbox.models.settings import get_settings
@@ -975,17 +976,6 @@ def build_legislation_search_tool():
         return web_search_call(query=query + " site:legislation.gov.uk")
 
     return _search_legislation
-
-
-def _get_mcp_headers(sso_access_token: str | None = None) -> dict[str, str]:
-    if not sso_access_token:
-        return {}
-    token = sso_access_token.strip()
-    if not token:
-        return {}
-    if token.lower().startswith("bearer "):
-        return {"Authorization": token}
-    return {"Authorization": f"Bearer {token}"}
 
 
 def get_datahub_mcp_tools(agent_loop=True, sso_access_token: str | None = None):
