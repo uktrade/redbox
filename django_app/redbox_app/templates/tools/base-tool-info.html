@@ -8,7 +8,7 @@
 
 {% block content %}
     <div class="govuk-width-container">
-        <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">{{ tool.name }}</h2>
+        <h1 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">{{ tool.name }}</h1>
 
         <div class="govuk-body">
             {% block tool_description %}
@@ -19,12 +19,17 @@
 
         <div class="govuk-grid-row">
             <div class="govuk-grid-column-two-thirds">
-                <h3 class="govuk-heading-s">When to use this tool</h3>
+                <h2 class="govuk-heading-s">When to use this tool</h2>
+                <p class="govuk-body-s">This tool is useful when:</p>
                 {% block tool_when_to_use %}
                 {% endblock %}
 
-                <h3 class="govuk-heading-s govuk-!-margin-top-5">How to use this tool</h3>
+                <h2 class="govuk-heading-s govuk-!-margin-top-5">How to use this tool</h2>
+                <p class="govuk-body-s">To get started and get the most out of the tool:</p>
                 {% block tool_how_to_use %}
+                {% endblock %}
+
+                {% block tool_additional_content %}
                 {% endblock %}
 
                 {{ govukButton(
@@ -33,6 +38,7 @@
                     classes="ids-push-bottom ids-w-fit"
                 ) }}
             </div>
+
             <div class="govuk-grid-column-one-third">
                 {% include "tools/tool-files.html" %}
 
