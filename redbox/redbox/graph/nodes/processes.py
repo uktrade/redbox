@@ -515,6 +515,16 @@ def build_agent_with_loop(
             # loop_condition = lambda: True
             num_iter = max_attempt - 1
 
+        if len(tools) == 0:
+            all_results = "Error. Unable to complete request the '{agent_name}' agent has no tools."
+            return {
+                "agents_results": {
+                    task.id: AIMessage(content=f"<{agent_name}_Result>{all_results}</{agent_name}_Result>")
+                },
+                "tasks_evaluator": task.task + "\n" + task.expected_output,
+                "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.FAILED),
+            }
+
         while local_loop_condition() and num_iter < max_attempt:
             num_iter += 1
             log_stub = f"[{agent_name}] Loop Iteration={num_iter}/{max_attempt}."
