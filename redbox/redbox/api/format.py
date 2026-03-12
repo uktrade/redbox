@@ -1,6 +1,5 @@
 import json
 import logging
-from typing import Any
 
 from langchain_core.documents.base import Document
 
@@ -42,86 +41,6 @@ def reduce_chunks_by_tokens(chunks: list[Document] | None, chunk: Document, max_
     else:
         chunks.append(chunk)
     return chunks
-
-
-def find_first_link_field(data, _depth: int = 0, max_depth: int = 0) -> str | None:
-    """Recursively find the first "url" field in a nested structure."""
-    if _depth > max_depth:
-        return None
-
-    if isinstance(data, dict):
-        # Check current level first
-        if "url" in data.keys() and data.get("url", None) is not None:
-            return str(data.get("url"))
-        # Then recurse into values
-        for value in data.values():
-            result = find_first_link_field(value, _depth + 1, max_depth)
-            if result:
-                return result
-
-    elif isinstance(data, list):
-        for item in data:
-            result = find_first_link_field(item, _depth + 1, max_depth)
-            if result:
-                return result
-
-    return None
-
-
-# def extract_links(data: dict | None) -> list[tuple[str, Any]]:
-#     """
-#     Handles two shapes:
-#       - Single object:  { ...fields... }
-#       - Paged result:   { "total": N, "<key>": [ {...}, {...} ] }
-
-#     Returns all found url values.
-#     """
-#     if data is None:
-#         return []
-
-#     # Detect paged result: has "total" field + at least one list field
-#     if "total" in data:
-#         for key, value in data.items():
-#             if key == "total":
-#                 continue
-#             if isinstance(value, list):
-#                 # Extract first _link from each item in the list
-#                 return [(link, item) for item in value if (link := find_first_link_field(item))]
-
-#     # Single object — extract first _link from root
-#     link = find_first_link_field(data)
-#     return [(link, data)] if link else []
-
-
-def _find_paged_list(data: dict) -> list | None:
-    """
-    Returns the list field from a paged result, or None if not a paged shape.
-    A paged result must have 'total' (int) + exactly one list field (ignoring 'total').
-    """
-    if "total" not in data or not isinstance(data["total"], int):
-        return None
-
-    list_fields = [v for k, v in data.items() if k != "total" and isinstance(v, list)]
-    return list_fields[0] if len(list_fields) == 1 else None
-
-
-def extract_links(data: dict | None) -> list[tuple[str, Any]]:
-    """
-    Handles two shapes:
-      - Paged result:  { "total": N, "<key>": [ {...}, {...} ] }
-      - Single object: { ...fields... }
-
-    Returns list of (url, object) tuples.
-    """
-    if data is None:
-        return []
-
-    paged_list = _find_paged_list(data)
-    if paged_list is not None:
-        return [(link, item) for item in paged_list if (link := find_first_link_field(item))]
-
-    link = find_first_link_field(data)
-    return [(link, data)] if link else []
 
 
 def format_mcp_tool_response(tool_response, creator_type: ChunkCreatorType) -> str:
