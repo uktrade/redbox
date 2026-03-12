@@ -151,6 +151,14 @@ class Redbox:
             debug=debug,
         )
 
+    def reload_tools(self, agent: str, sso_access_token: str | None):
+        logger.warning(f"Reloading tools for {agent}")
+        if agent == "Datahub_Agent":
+            datahub_mcp = get_datahub_mcp_tools(sso_access_token=sso_access_token)
+            self.agent_configs["Datahub_Agent"].tools = datahub_mcp
+            return
+        logger.error(f"Reloading tools for {agent} not supported")
+
     def run_sync(self, input: RedboxState):
         """
         Run Redbox without streaming events. This simpler, synchronous execution enables use of the graph debug logging

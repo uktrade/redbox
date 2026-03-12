@@ -132,9 +132,10 @@ def wrap_async_tool(tool, tool_name, sso_access_token):
         mcp_url = tool.metadata["url"]
         headers = _get_mcp_headers(sso_access_token)
 
-        try:
-            # Define the async operation
-            async def run_tool():
+        # Define the async operation
+        async def run_tool():
+            error = None
+            try:
                 # tool need to be executed within the connection context manager
                 async with streamablehttp_client(mcp_url, headers=headers or None) as (
                     read,
@@ -164,6 +165,21 @@ def wrap_async_tool(tool, tool_name, sso_access_token):
                         log.warning(result)
                         return result
 
+            except ValueError:
+                raise  # don't retry logic errors
+            except Exception as e:
+                error = e
+                log.warning(
+                    "Tool '%s' failed: %s",
+                    tool_name,
+                    e,
+                )
+
+            # all attempts exhausted — return structured error so agent can reason about it
+            log.error("Tool '%s' failed: %s", tool_name, error)
+            return f"Tool '{tool_name}' is currently unavailable (MCP server unreachable). Please inform the user and try again later."
+
+        try:
             # Run the async function and return its result
             return loop.run_until_complete(run_tool())
         finally:
