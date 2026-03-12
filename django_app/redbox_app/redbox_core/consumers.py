@@ -659,39 +659,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         if ChatConsumer.redbox is None:
             await self._init_redbox()
-            # agents = await get_all_agents()
-            # sso_access_token = self._extract_sso_token()
-            # for agent in agents:
-            #     if agent.name in list(agent_configs.keys()):
-            #         if agent.llm_backend:
-            #             agent_configs[agent.name].llm_backend = ChatLLMBackend(
-            #                 name=agent.llm_backend.name,
-            #                 provider=agent.llm_backend.provider,
-            #                 description=agent.llm_backend.description,
-            #             )
-            #         if agent.agents_max_tokens:
-            #             agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
-
-            # if "Datahub_Agent" in agent_configs.keys():
-            #     health_endpoint = f"{ChatConsumer.env.datahub_mcp.url.removesuffix("/mcp/")}/health"
-            #     healthy = await wait_for_health(
-            #         url=health_endpoint,
-            #         headers={
-            #             "Accept": "application/json",
-            #             # "Authorization":
-            #         }
-            #     )
-            #     if not healthy:
-            #         await self.send_to_client("error", "Datahub MCP unavailable")
-            #         await self.close()
-            #         return  # ← cleaner than raising inside connect()
-
-            # ChatConsumer.redbox = Redbox(
-            #     agents=agent_configs,
-            #     env=ChatConsumer.env,
-            #     debug=ChatConsumer.debug,
-            #     sso_access_token=sso_access_token,
-            # )
 
         # start background MCP monitor if not already running
         if ChatConsumer._mcp_monitor_task is None or ChatConsumer._mcp_monitor_task.done():
@@ -787,11 +754,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                             ChatConsumer._datahub_tools_loaded = True
                         except AttributeError:
                             ChatConsumer.redbox = None
-                    # if ChatConsumer.redbox is not None:
-                    #     try:
-                    #         ChatConsumer.redbox.reload_tools(agent="Datahub_Agent", sso_access_token=sso_access_token)
-                    #     except AttributeError:
-                    #         ChatConsumer.redbox = None  # force reinit on next connect
 
                 elif not healthy and was_healthy:
                     # MCP went down — log it
