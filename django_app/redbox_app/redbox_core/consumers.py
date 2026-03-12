@@ -5,7 +5,7 @@ import re
 from asyncio import CancelledError
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, ClassVar
 from uuid import UUID
 
 import aiohttp
@@ -146,7 +146,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
     debug = not env.is_prod
     redbox = None
     chat_message = None  # incrementally updating the chat stream
-    _mcp_monitor_task: asyncio.Task | None = None
+    _mcp_monitor_tasks: ClassVar[dict[str, asyncio.Task]] = {}
+    _tools_loaded: ClassVar[dict[str, bool]] = {}
 
     async def get_file_cached(self, ref):
         if ref not in self._file_cache:
@@ -657,23 +658,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.send_to_client("error", error_messages.AUTH_REQUIRED)
             return
 
-        if ChatConsumer.redbox is None:
-            await self._init_redbox()
+        mcp_agents = {
+            "Datahub_Agent": f"{ChatConsumer.env.datahub_mcp.url.removesuffix('/mcp/')}/health",
+        }
+        sso_access_token = self._extract_sso_token()
 
-        # start background MCP monitor if not already running
-        if ChatConsumer._mcp_monitor_task is None or ChatConsumer._mcp_monitor_task.done():
-            sso_access_token = self._extract_sso_token()
-            ChatConsumer._mcp_monitor_task = asyncio.create_task(
-                ChatConsumer._mcp_monitor_loop(
-                    mcp_url=f"{ChatConsumer.env.datahub_mcp.url.removesuffix('/mcp/')}/health",
-                    sso_access_token=sso_access_token,
+        if ChatConsumer.redbox is None:
+            await self._init_redbox(mcp_agents=mcp_agents, sso_access_token=sso_access_token)
+
+        for agent_name, health_url in mcp_agents.items():
+            task = ChatConsumer._mcp_monitor_tasks.get(agent_name)
+            if task is None or task.done():
+                ChatConsumer._mcp_monitor_tasks[agent_name] = asyncio.create_task(
+                    ChatConsumer._mcp_monitor_loop(
+                        agent_name=agent_name,
+                        mcp_url=health_url,
+                        sso_access_token=sso_access_token,
+                    )
                 )
-            )
 
         self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
 
-    async def _init_redbox(self, sso_access_token=None):
-        """Initialise or reinitialise Redbox, with or without Datahub tools."""
+    async def _init_redbox(self, mcp_agents: dict[str, str], sso_access_token=None):
+        """Initialise or reinitialise Redbox, with or without MCP tools."""
         agents = await get_all_agents()
         sso_access_token = sso_access_token or self._extract_sso_token()
 
@@ -690,23 +697,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         # check MCP health but don't block — degrade gracefully
         active_configs = dict(agent_configs)
-        if "Datahub_Agent" in active_configs:
-            healthy = await wait_for_health(
-                url=f"{ChatConsumer.env.datahub_mcp.url.removesuffix('/mcp/')}/health",
-                headers={"Accept": "application/json"},
-                success_codes=[200],
-                wait_seconds=30.0,  # short timeout — don't block startup
-                interval=3.0,
-                request_timeout=5.0,
-            )
-            if not healthy:
-                logger.warning("Datahub MCP unavailable at startup — Datahub_Agent will have no tools")
-                # keep agent in config but mark MCP as down
-                ChatConsumer._datahub_mcp_healthy = False
-                ChatConsumer._datahub_tools_loaded = False
-            else:
-                ChatConsumer._datahub_mcp_healthy = True
-                ChatConsumer._datahub_tools_loaded = True
+        for agent_name, health_url in mcp_agents.items():
+            if agent_name in active_configs:
+                healthy = await wait_for_health(
+                    url=health_url,
+                    headers={"Accept": "application/json"},
+                    success_codes=[200],
+                    wait_seconds=30.0,  # short timeout — don't block startup
+                    interval=3.0,
+                    request_timeout=5.0,
+                )
+                if not healthy:
+                    logger.warning("%s MCP unavailable at startup — agent will have no tools", agent_name)
+                    ChatConsumer._tools_loaded[agent_name] = False
+                else:
+                    ChatConsumer._tools_loaded[agent_name] = True
 
         ChatConsumer.redbox = Redbox(
             agents=active_configs,
@@ -716,10 +721,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     @staticmethod
-    async def _mcp_monitor_loop(mcp_url: str, sso_access_token: str | None = None):
+    async def _mcp_monitor_loop(agent_name: str, mcp_url: str, sso_access_token: str | None = None):
         """
         Background task: poll MCP health every 30s.
-        If state changes (up→down or down→up), reinitialise Redbox tools.
+        If state changes (up->down or down->up), reinitialise Redbox tools.
         """
         was_healthy: bool | None = None
 
@@ -737,33 +742,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
                 if healthy and not was_healthy:
                     # MCP came back up — reload tools
-                    logger.info("Datahub MCP recovered — reloading tools")
-                    ChatConsumer._datahub_mcp_healthy = True
+                    logger.info("%s MCP recovered — reloading tools", agent_name)
 
-                    if not ChatConsumer._datahub_tools_loaded:
+                    if not ChatConsumer._tools_loaded.get(agent_name):
                         # tools never loaded — full reinit required
-                        logger.info("Tools were never loaded — forcing full Redbox reinit")
+                        logger.info("Tools were never loaded for %s — forcing full Redbox reinit", agent_name)
                         ChatConsumer.redbox = None  # force _init_redbox on next connect
-                        ChatConsumer._datahub_tools_loaded = False
+                        ChatConsumer._tools_loaded[agent_name] = False
                     else:
                         # tools loaded before, just reconnect
                         try:
-                            await ChatConsumer.redbox.reload_tools(
-                                agent="Datahub_Agent", sso_access_token=sso_access_token
-                            )
-                            ChatConsumer._datahub_tools_loaded = True
+                            await ChatConsumer.redbox.reload_tools(agent=agent_name, sso_access_token=sso_access_token)
+                            ChatConsumer._tools_loaded[agent_name] = True
                         except AttributeError:
                             ChatConsumer.redbox = None
 
                 elif not healthy and was_healthy:
                     # MCP went down — log it
-                    logger.warning("Datahub MCP went down — tools unavailable until recovery")
-                    ChatConsumer._datahub_mcp_healthy = False
+                    logger.warning("%s MCP went down — tools unavailable until recovery", agent_name)
 
                 was_healthy = healthy
 
             except Exception:
-                logger.exception("MCP monitor error")
+                logger.exception("%s MCP monitor error", agent_name)
 
     async def _reload_mcp_tools(self):
         """Ask Redbox to reconnect to MCP and refresh tools without full reinit."""
