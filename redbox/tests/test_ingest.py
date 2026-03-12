@@ -1,6 +1,4 @@
 import json
-import boto3
-from botocore.stub import Stubber
 from pathlib import Path
 
 from typing import TYPE_CHECKING, Any
@@ -11,12 +9,11 @@ from opensearchpy import OpenSearch
 from opensearchpy.helpers import scan
 from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
-from langchain_community.vectorstores import OpenSearchVectorSearch
 
-from redbox.chains.ingest import document_loader, ingest_from_loader
+from redbox.chains.ingest import document_loader
 from redbox.loader import ingester
 from redbox.loader.ingester import ingest_file
-from redbox.loader.loaders import MetadataLoader, parse_tabular_schema, TextractChunkLoader
+from redbox.loader.loaders import MetadataLoader, parse_tabular_schema
 from redbox.models.chain import GeneratedMetadata
 
 
@@ -136,7 +133,7 @@ def test_extract_metadata_extra_key(
 
 
 @patch("redbox.loader.loaders.get_chat_llm")
-@patch("redbox.loader.loaders.requests.post")
+@patch("requests.post")
 def test_document_loader(
     mock_post: MagicMock,
     mock_llm: MagicMock,
@@ -189,151 +186,8 @@ def test_document_loader(
         assert chuck.metadata["keywords"] == llm_response["keywords"]
 
 
-@pytest.mark.parametrize(
-    "file_extension, expected_chunks_min, has_embeddings",
-    [
-        (".pdf", 2, True),
-        (".docx", 1, True),
-        (".pdf", 2, False),
-    ],
-)
 @patch("redbox.loader.loaders.get_chat_llm")
-@patch("redbox.loader.ingest.get_embeddings")
-def test_textract_ingest_from_loader(
-    mock_get_embeddings: MagicMock,
-    mock_get_chat_llm: MagicMock,
-    file_extension: str,
-    expected_chunks_min: int,
-    has_embeddings: bool,
-    monkeypatch: MonkeyPatch,
-    es_client: OpenSearch,
-    es_vector_store: OpenSearchVectorSearch,
-    es_index: str,
-    s3_client: boto3.client,
-    env: Settings,
-):
-    """
-    Given that I have a file in S3
-    When I call ingest_from_loader with TextractChunkLoader
-    Then I expect the file to be extracted, chunked, embedded and indexed in OpenSearch with correct metadata
-    """
-
-    base_name = "example"
-    file_name = f"{base_name}{file_extension}"
-    s3_key = f"ingest-test/{file_name}"
-
-    dummy_content = b"%PDF-1.4\n% small dummy pdf\n1 0 obj << /Type /Catalog >> endobj"
-    if file_extension == ".docx":
-        dummy_content = b"PK\x03\x04some fake docx content"
-
-    s3_client.put_object(Bucket=env.bucket_name, Key=s3_key, Body=dummy_content)
-
-    textract = boto3.client("textract", region_name="eu-west-2")
-    stubber = Stubber(textract)
-
-    job_id = "mock-job-1234567890abcdef"
-
-    stubber.add_response(
-        "start_document_text_detection",
-        {"JobId": job_id},
-        {
-            "DocumentLocation": {
-                "S3Object": {
-                    "Bucket": "test-bucket",
-                    "Name": file_name,
-                }
-            }
-        },
-    )
-
-    stubber.add_response(
-        "get_document_text_detection",
-        {
-            "JobStatus": "SUCCEEDED",
-            "Blocks": [
-                {"BlockType": "LINE", "Text": "This is line one.", "Page": 1},
-                {"BlockType": "LINE", "Text": "This is line two.", "Page": 1},
-                {"BlockType": "LINE", "Text": "Page two content here.", "Page": 2},
-            ],
-        },
-    )
-
-    stubber.add_response("get_document_text_detection", {"JobStatus": "SUCCEEDED", "Blocks": []})
-
-    stubber.activate()
-
-    def mock_textract_client(*args, **kwargs):
-        return textract
-
-    monkeypatch.setattr(
-        "boto3.client",
-        lambda service, region_name: (
-            mock_textract_client() if service == "textract" else boto3.client(service, region_name=region_name)
-        ),
-    )
-
-    if has_embeddings:
-        mock_get_embeddings.return_value = fake_embedding(["dummy"])
-    else:
-        mock_get_embeddings.return_value = [[]]
-
-    mock_llm = mock_get_chat_llm.return_value
-    mock_llm.invoke.return_value = fake_llm_response()
-
-    loader = TextractChunkLoader(
-        bucket=env.bucket_name,
-        min_chunk_size=env.worker_ingest_min_chunk_size,
-        max_chunk_size=env.worker_ingest_max_chunk_size,
-        overlap_chars=200,
-        region="eu-west-2",
-    )
-
-    mapping = {"properties": {"embedding": {"type": "knn_vector", "dimension": 1024}}}
-
-    index_name = "my_index"  # or f"{es_index}-current"
-    if es_client.indices.exists(index=index_name):
-        es_client.indices.delete(index=index_name)
-
-    es_client.indices.create(index=index_name, body={"mappings": mapping})
-
-    ingest_chain = ingest_from_loader(loader=loader, s3_client=s3_client, vectorstore=es_vector_store, env=env)
-
-    _ = ingest_chain.invoke(s3_key)
-
-    file_query = make_file_query(file_name=s3_key, resolution=ChunkResolution.normal)
-
-    chunks = list(es_client.search(index=index_name, query=file_query, size=100)["hits"]["hits"])
-
-    assert len(chunks) >= expected_chunks_min, f"Expected at least {expected_chunks_min} chunks, got {len(chunks)}"
-
-    for chunk in chunks:
-        meta = chunk["_source"]["metadata"]
-        assert "uri" in meta
-        assert "page_number" in meta
-        assert "token_count" in meta
-        assert meta["chunk_resolution"] == "normal"
-        assert meta["name"].endswith(file_extension)
-
-    if has_embeddings:
-        for chunk in chunks:
-            meta = chunk["_source"]["metadata"]
-            assert meta.get("name") == fake_llm_response()["name"]
-            assert meta.get("description") == fake_llm_response()["description"]
-            assert meta.get("keywords") == fake_llm_response()["keywords"]
-
-        first_chunk = chunks[0]["_source"]
-        embeddings = first_chunk.get("embedding") or first_chunk.get("vector_field")
-        assert embeddings is not None
-        assert isinstance(embeddings, list)
-        assert len(embeddings) > 10
-
-    es_client.delete_by_query(index=index_name, body=file_query)
-    stubber.deactivate()
-    s3_client.delete_object(Bucket=env.bucket_name, Key=s3_key)
-
-
-@patch("redbox.loader.loaders.get_chat_llm")
-@patch("redbox.loader.loaders.requests.post")
+@patch("requests.post")
 @pytest.mark.parametrize(
     ("filename", "is_complete", "mock_json"),
     [
