@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+import json
 import pytest
 from langchain_core.documents import Document
 
@@ -298,7 +299,12 @@ WRAP_ASYNC_TOOL_RESULTS = [
         '{"status": "success"}',
     ),
     (
-        '{"name": "BMW", "founded": 1916, "url": "https://example.com"}',
+        json.dumps(
+            {
+                "result_type": "nullable",
+                "result": {"name": "BMW", "founded": 1916, "url": "https://example.com"},
+            }
+        ),
         [
             Document(
                 page_content='{"name": "BMW", "founded": 1916, "url": "https://example.com"}',
@@ -315,7 +321,20 @@ WRAP_ASYNC_TOOL_RESULTS = [
         '{"total": 0, "records": []}',
     ),
     (
-        '{"total": 2, "records": [{"name": "BMW", "url": "https://example.com"}, {"name": "BMW2", "url": "https://example2.com"}]}',
+        json.dumps(
+            {
+                "result_type": "paged",
+                "result": {
+                    "items": [
+                        {"name": "BMW", "url": "https://example.com"},
+                        {"name": "BMW2", "url": "https://example2.com"},
+                    ],
+                    "total": 2,
+                    "page": 0,
+                    "page_size": 10,
+                },
+            }
+        ),
         [
             Document(
                 page_content='{"name": "BMW", "url": "https://example.com"}',
@@ -330,6 +349,109 @@ WRAP_ASYNC_TOOL_RESULTS = [
                 metadata={
                     "creator_type": ChunkCreatorType.datahub,
                     "uri": "https://example2.com",
+                    "page_number": "",
+                },
+            ),
+        ],
+    ),
+    (
+        json.dumps(
+            {
+                "result_type": "multipaged",
+                "result": {
+                    "companies": {
+                        "result": {
+                            "items": [
+                                {"name": "BMW", "url": "https://bmw.com"},
+                                {"name": "Audi", "url": "https://audi.com"},
+                            ],
+                            "total": 2,
+                            "page": 0,
+                            "page_size": 10,
+                        }
+                    },
+                    "interactions": {
+                        "result": {
+                            "items": [{"name": "Meeting", "url": "https://interaction.com"}],
+                            "total": 1,
+                            "page": 0,
+                            "page_size": 10,
+                        }
+                    },
+                },
+            }
+        ),
+        [
+            Document(
+                page_content='{"name": "BMW", "url": "https://bmw.com"}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": "https://bmw.com",
+                    "page_number": "",
+                },
+            ),
+            Document(
+                page_content='{"name": "Audi", "url": "https://audi.com"}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": "https://audi.com",
+                    "page_number": "",
+                },
+            ),
+            Document(
+                page_content='{"name": "Meeting", "url": "https://interaction.com"}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": "https://interaction.com",
+                    "page_number": "",
+                },
+            ),
+        ],
+    ),
+    (
+        json.dumps(
+            {
+                "result_type": "composite",
+                "result": [
+                    {"name": "BMW", "url": "https://bmw.com", "founded": 1916},
+                    {
+                        "interactions": {
+                            "result": {
+                                "items": [
+                                    {"name": "Meeting", "url": "https://interaction.com"},
+                                    {"name": "Call", "url": "https://interaction2.com"},
+                                ],
+                                "total": 2,
+                                "page": 0,
+                                "page_size": 10,
+                            }
+                        }
+                    },
+                ],
+            }
+        ),
+        [
+            Document(
+                page_content='{"name": "BMW", "url": "https://bmw.com", "founded": 1916}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": "https://bmw.com",
+                    "page_number": "",
+                },
+            ),
+            Document(
+                page_content='{"name": "Meeting", "url": "https://interaction.com"}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": "https://interaction.com",
+                    "page_number": "",
+                },
+            ),
+            Document(
+                page_content='{"name": "Call", "url": "https://interaction2.com"}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": "https://interaction2.com",
                     "page_number": "",
                 },
             ),
