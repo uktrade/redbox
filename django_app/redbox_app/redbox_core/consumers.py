@@ -771,13 +771,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self._init_redbox()
             return
 
-        try:
-            # if Redbox exposes a reload method, use it
-            await ChatConsumer.redbox.reload_tools("Datahub_Agent", self._extract_sso_token())
-        except AttributeError:
-            # otherwise full reinit — tools are cheap to reload vs full Redbox rebuild
-            logger.info("Redbox has no reload_tools — doing full reinit")
-            await self._init_redbox()
+        await ChatConsumer.redbox.reload_tools("Datahub_Agent", self._extract_sso_token())
 
     async def handle_text(self, response: str) -> str:
         """Handle text chunks and British spelling conversion before sending to client."""
