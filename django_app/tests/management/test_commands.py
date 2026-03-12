@@ -146,12 +146,6 @@ def test_reingest_files(uploaded_file: File, requests_mock: Mocker, mocker: Mock
         json={"acknowledged": True},
     )
 
-    # Mock the external service response
-    requests_mock.post(
-        f"http://{settings.UNSTRUCTURED_HOST}:8000/general/v0/general",
-        json=[{"text": "hello", "metadata": {"filename": "my-file.txt"}}],
-    )
-
     # When
     mocker.patch("redbox.chains.ingest.VectorStore.add_documents", return_value=[])
     mocker.patch(
