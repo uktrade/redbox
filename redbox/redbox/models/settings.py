@@ -112,6 +112,9 @@ class Settings(BaseSettings):
     monitoring_internal_password: str = "redboxpass"
     beats_system_password: str = "redboxpass"
 
+    aws_access_key: str | None = None
+    aws_secret_key: str | None = None
+
     aws_region: str = "eu-west-2"
     bucket_name: str = "redbox-storage-dev"
 
