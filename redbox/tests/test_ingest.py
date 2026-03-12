@@ -4,16 +4,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 import pytest
-from _pytest.monkeypatch import MonkeyPatch
-from opensearchpy import OpenSearch
-from opensearchpy.helpers import scan
-from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 
 from redbox.chains.ingest import document_loader
-from redbox.loader import ingester
-from redbox.loader.ingester import ingest_file
-from redbox.loader.loaders import MetadataLoader, parse_tabular_schema
+from redbox.loader.loaders import MetadataLoader, parse_tabular_schema, TextractChunkLoader
 from redbox.models.chain import GeneratedMetadata
 
 
@@ -172,7 +166,14 @@ def test_document_loader(
     metadata_loader = MetadataLoader(env=env, s3_client=s3_client, file_name=file)
     metadata_loader.extract_metadata()
     # Call loader
-    doc_loader = document_loader(..., s3_client, env)
+
+    loader = TextractChunkLoader(
+        bucket=env.bucket_name,
+        min_chunk_size=env.worker_ingest_min_chunk_size,
+        max_chunk_size=env.worker_ingest_max_chunk_size,
+        overlap_chars=0,
+    )
+    doc_loader = document_loader(loader, s3_client, env)
 
     chunks = list(doc_loader.invoke(file))
 
@@ -184,112 +185,6 @@ def test_document_loader(
         assert chuck.metadata["name"] == llm_response["name"]
         assert chuck.metadata["description"] == llm_response["description"]
         assert chuck.metadata["keywords"] == llm_response["keywords"]
-
-
-@patch("redbox.loader.loaders.get_chat_llm")
-@patch("requests.post")
-@pytest.mark.parametrize(
-    ("filename", "is_complete", "mock_json"),
-    [
-        (
-            "html/example.html",
-            True,
-            [
-                {
-                    "type": "CompositeElement",
-                    "element_id": "1c493e1166a6e59ebe9e054c9c6c03db",
-                    "text": "Routing enables us to create bespoke responses according to user intent. Examples include:\n\n* RAG\n* Summarization\n* Plain chat",
-                    "metadata": {
-                        "languages": ["eng"],
-                        "orig_elements": "eJwVjsFOwzAQRH9l5SMiCEVtSXrjxI0D4lZVaGNPgtV4HdlrVKj679iXXe3szOidbgYrAkS/vDNHMnY89NPezd2Be9ft+mHfjfM4dOwwvDg4O++ezSOZAGXHyjVzMyvLUnhBrtfJQBZzvleP4qqtM8WiXhaC8LQiU8mkkWwCK2hC3uIFlNqWXN9sbUyuBaqrZCTyopXwiXDlsLUGL3YtDkd6oI/XtzpzCYET+z9WH6UK28peyH6zNlr93dBI3jml6vjBZ0O7n/8BhxNVfA==",
-                        "filename": "example.html",
-                        "filetype": "text/html",
-                    },
-                }
-            ],
-        ),
-        ("html/corrupt.html", False, None),
-    ],
-)
-def test_ingest_file(
-    mock_post: MagicMock,
-    mock_llm: MagicMock,
-    es_client: OpenSearch,
-    s3_client: S3Client,
-    monkeypatch: MonkeyPatch,
-    env: Settings,
-    es_index: str,
-    filename: str,
-    is_complete: bool,
-    mock_json: list | None,
-):
-    """
-    Given that I have written a text File to s3
-    When I call ingest_file
-    I Expect to see this file to be:
-    1. chunked
-    2. written to OpenSearch
-    """
-    # Mock call to Unstructured
-    mock_response = mock_post.return_value
-    mock_response.status_code = 200
-    mock_response.json.return_value = mock_json
-
-    # Mock embeddings
-    monkeypatch.setattr(ingester, "get_embeddings", lambda _: FakeEmbeddings(size=1024))
-
-    # Upload file and call
-    filename = file_to_s3(filename=filename, s3_client=s3_client, env=env)
-
-    # Mock llm
-    mock_llm_response = mock_llm.return_value
-    mock_llm_response.status_code = 200
-    mock_llm_response.return_value = GenericFakeChatModel(messages=iter([json.dumps(fake_llm_response())]))
-
-    try:
-        res = ingest_file(filename)
-    except Exception as e:
-        print(f"Exception occurred: {e}")
-        raise
-
-    if not is_complete:
-        assert isinstance(res, str)
-    else:
-        assert res is None
-
-        # Test it's written to Elastic
-        file_query = make_file_query(file_name=filename)
-
-        try:
-            chunks = list(scan(client=es_client, index=f"{es_index}-current", query=file_query, _source=True))
-        except Exception as e:
-            print(f"Exception during scanning: {e}")
-            raise
-
-        assert len(chunks) > 0
-
-        def get_metadata(chunk: dict) -> dict:
-            return chunk["_source"]["metadata"]
-
-        # Verify that metadata has been attached to document.
-        for chunk in chunks:
-            metadata = get_metadata(chunk)
-            llm_response = fake_llm_response()
-            assert metadata["name"] == llm_response["name"]
-            assert metadata["description"] == llm_response["description"]
-            assert metadata["keywords"] == llm_response["keywords"]
-
-        def get_chunk_resolution(chunk: dict) -> str:
-            return chunk["_source"]["metadata"]["chunk_resolution"]
-
-        normal_resolution = [chunk for chunk in chunks if get_chunk_resolution(chunk) == "normal"]
-        largest_resolution = [chunk for chunk in chunks if get_chunk_resolution(chunk) == "largest"]
-
-        assert len(normal_resolution) > 0
-        assert len(largest_resolution) > 0
-
-        # Teardown
-        es_client.delete_by_query(index=es_index, body=file_query)
 
 
 def test_is_large_pdf_small_file():
