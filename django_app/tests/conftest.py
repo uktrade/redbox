@@ -40,23 +40,14 @@ env = environ.Env()
 
 @pytest.fixture
 def s3_client():
-    if settings.OBJECT_STORE == "s3":
-        client = boto3.client(
-            "s3",
-            region_name=settings.AWS_S3_REGION_NAME,
-        )
-    else:
-        client = boto3.client(
-            "s3",
-            aws_access_key_id=env.str("AWS_ACCESS_KEY"),
-            aws_secret_access_key=env.str("AWS_SECRET_KEY"),
-            endpoint_url=f"{env.str('MINIO_HOST')}:{env.str('MINIO_PORT')}",
-        )
+    client = boto3.client(
+        "s3",
+        region_name=settings.AWS_S3_REGION_NAME,
+    )
 
     try:
         client.create_bucket(
             Bucket=settings.BUCKET_NAME,
-            CreateBucketConfiguration={"LocationConstraint": f"http://{env.str('MINIO_HOST')}:{env.str('MINIO_PORT')}"},
         )
     except ClientError as e:
         if e.response["Error"]["Code"] != "BucketAlreadyOwnedByYou":
