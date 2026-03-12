@@ -494,7 +494,10 @@ async def test_chat_consumer_with_explicit_no_document_selected_error(
 async def test_chat_consumer_get_ai_settings(
     agents_list: list, chat_with_alice: Chat, mocked_connect_with_explicit_no_document_selected_error: Connect
 ):
-    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+    with (
+        patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get,
+        patch("redbox.app.get_datahub_mcp_tools", return_value=[]),
+    ):
         mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = chat_with_alice.user
@@ -615,6 +618,7 @@ async def test_chat_consumer_redbox_state(
                 permitted_s3_keys=permitted_file_keys,
                 previous_s3_keys=previous_file_keys,
                 db_location=None,
+                sso_access_token=None,
             )
 
             mock_run.return_value = expected_request
@@ -897,3 +901,36 @@ async def test_connect_with_agents_update_via_db(agents_list: list, alice: User)
         assert "Fake_Agent" not in list(ChatConsumer.redbox.agent_configs.keys())
         assert ChatConsumer.redbox.agent_configs["Internal_Retrieval_Agent"].agents_max_tokens == 100
         assert ChatConsumer.redbox.agent_configs["Internal_Retrieval_Agent"].llm_backend.name == "gpt-4o"
+
+
+def test_extract_sso_token_success():
+    """Test successful token extraction when the session data is present."""
+    consumer = ChatConsumer()
+    mock_token = "mock_token"  # noqa: S105
+    consumer.scope = {"session": {"_authbroker_token": {"access_token": mock_token}}}
+    token = consumer._extract_sso_token()  # noqa: SLF001
+    assert token == mock_token
+
+
+def test_extract_sso_token_missing_session():
+    """Test that it returns None if 'session' is missing from scope."""
+    consumer = ChatConsumer()
+    consumer.scope = {}  # Empty scope
+    token = consumer._extract_sso_token()  # noqa: SLF001
+    assert token is None
+
+
+def test_extract_sso_token_type_error():
+    """Test that it returns None if session is None (triggers TypeError)."""
+    consumer = ChatConsumer()
+    consumer.scope = {"session": None}
+    token = consumer._extract_sso_token()  # noqa: SLF001
+    assert token is None
+
+
+def test_extract_sso_token_missing_key():
+    """Test that it returns None if the expected SSO keys are missing."""
+    consumer = ChatConsumer()
+    consumer.scope = {"session": {"other_key": "no_token_here"}}
+    token = consumer._extract_sso_token()  # noqa: SLF001
+    assert token is None

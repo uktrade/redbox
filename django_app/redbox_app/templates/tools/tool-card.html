@@ -1,9 +1,9 @@
 {% if tool %}
-    <div class="govuk-grid-column-one-third govuk-!-padding-3 rbds-flex-column rbds-card">
+    <div class="govuk-grid-column-one-third govuk-!-padding-3 ids-flex-column ids-card">
         <h3 class="govuk-heading-s govuk-!-margin-top-5">{{ tool.name }}</h3>
         <p class="govuk-body-s">{{ tool.description }}</p>
 
-        <div class="cta-navigation rbds-push-bottom">
+        <div class="cta-navigation ids-push-bottom">
             {% if tool.has_info_page %}
                 <p class="govuk-body-s">
                     <a href="{{ tool.info_page_url }}"
@@ -16,7 +16,7 @@
             {{ govukButton(
                 text = "Use Tool",
                 href=tool.chat_url,
-                classes="rbds-w-fit govuk-!-margin-bottom-0"
+                classes="ids-w-fit govuk-!-margin-bottom-0"
             ) }}
         </div>
 

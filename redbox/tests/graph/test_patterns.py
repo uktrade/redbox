@@ -19,6 +19,7 @@ from redbox.graph.nodes.processes import (
     build_set_route_pattern,
     build_set_text_pattern,
     build_stuff_pattern,
+    check_if_tasks_completed,
     clear_documents_process,
     empty_process,
 )
@@ -30,6 +31,7 @@ from redbox.models.chain import (
     RedboxQuery,
     RedboxState,
     Source,
+    TaskStatus,
     configure_agent_task_plan,
 )
 from redbox.models.chat import ChatRoute
@@ -46,7 +48,14 @@ from redbox.transform import flatten_document_state, structure_documents_by_file
 LANGGRAPH_DEBUG = True
 
 CHAT_PROMPT_TEST_CASES = generate_test_cases(
-    query=RedboxQuery(question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]),
+    query=RedboxQuery(
+        question="What is AI?",
+        s3_keys=[],
+        user_uuid=uuid4(),
+        chat_history=[],
+        permitted_s3_keys=[],
+        sso_access_token=None,
+    ),
     test_data=[
         RedboxTestData(
             number_of_docs=0,
@@ -78,7 +87,14 @@ def test_build_chat_prompt_from_messages_runnable(test_case: RedboxChatTestCase,
 
 
 BUILD_LLM_TEST_CASES = generate_test_cases(
-    query=RedboxQuery(question="What is AI?", file_uuids=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]),
+    query=RedboxQuery(
+        question="What is AI?",
+        file_uuids=[],
+        user_uuid=uuid4(),
+        chat_history=[],
+        permitted_s3_keys=[],
+        sso_access_token=None,
+    ),
     test_data=[
         RedboxTestData(
             number_of_docs=2,
@@ -124,7 +140,14 @@ def test_build_llm_chain(test_case: RedboxChatTestCase):
 
 
 CHAT_TEST_CASES = generate_test_cases(
-    query=RedboxQuery(question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]),
+    query=RedboxQuery(
+        question="What is AI?",
+        s3_keys=[],
+        user_uuid=uuid4(),
+        chat_history=[],
+        permitted_s3_keys=[],
+        sso_access_token=None,
+    ),
     test_data=[
         RedboxTestData(
             number_of_docs=0,
@@ -157,7 +180,14 @@ def test_build_chat_pattern(test_case: RedboxChatTestCase, mocker: MockerFixture
 
 
 SET_ROUTE_TEST_CASES = generate_test_cases(
-    query=RedboxQuery(question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]),
+    query=RedboxQuery(
+        question="What is AI?",
+        s3_keys=[],
+        user_uuid=uuid4(),
+        chat_history=[],
+        permitted_s3_keys=[],
+        sso_access_token=None,
+    ),
     test_data=[
         RedboxTestData(
             number_of_docs=0,
@@ -197,6 +227,7 @@ RETRIEVER_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=["s3_key_1", "s3_key_2"],
+        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -248,6 +279,7 @@ MERGE_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=["s3_key_1", "s3_key_2"],
+        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -299,6 +331,7 @@ STUFF_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=["s3_key_1", "s3_key_2"],
+        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -345,6 +378,7 @@ TOOL_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=["s3_key_1", "s3_key_2"],
+        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -363,7 +397,12 @@ def test_build_passthrough_pattern():
     passthrough = build_passthrough_pattern()
     state = RedboxState(
         request=RedboxQuery(
-            question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="What is AI?",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            sso_access_token=None,
         ),
     )
 
@@ -378,7 +417,12 @@ def test_build_set_text_pattern():
     set_text = build_set_text_pattern(text="An hendy hap ychabbe ychent.")
     state = RedboxState(
         request=RedboxQuery(
-            question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="What is AI?",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            sso_access_token=None,
         ),
     )
 
@@ -392,7 +436,12 @@ def test_empty_process():
     """Tests the empty process doesn't touch the state whatsoever."""
     state = RedboxState(
         request=RedboxQuery(
-            question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="What is AI?",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            sso_access_token=None,
         ),
         documents=structure_documents_by_file_name([doc for doc in generate_docs(s3_key="s3_key")]),
         messages=[HumanMessage(content="Foo")],
@@ -414,7 +463,12 @@ def test_empty_process():
 CLEAR_DOC_TEST_CASES = [
     RedboxState(
         request=RedboxQuery(
-            question="What is AI?", file_uuids=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="What is AI?",
+            file_uuids=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            sso_access_token=None,
         ),
         documents=structure_documents_by_file_name([doc for doc in generate_docs(s3_key="s3_key")]),
         messages=[HumanMessage(content="Foo")],
@@ -422,7 +476,12 @@ CLEAR_DOC_TEST_CASES = [
     ),
     RedboxState(
         request=RedboxQuery(
-            question="What is AI?", file_uuids=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="What is AI?",
+            file_uuids=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            sso_access_token=None,
         ),
         documents={},
         messages=[HumanMessage(content="Foo")],
@@ -479,6 +538,7 @@ LLM_ROUTE_TEST_CASE = generate_test_cases(
         ai_settings=AISettings(
             self_route_enabled=True,
         ),
+        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -502,6 +562,7 @@ STRUCTURED_OUTPUT_TEST_CASE = generate_test_cases(
         ai_settings=AISettings(
             self_route_enabled=True,
         ),
+        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -660,10 +721,13 @@ class TestBuildAgentLoop:
             assert mock_preprocess is None
 
         assert (
-            response.get("agents_results")
+            response.get("agents_results")["task0"].content
             == f"<Internal_Retrieval_Agent_Result>{test_name}</Internal_Retrieval_Agent_Result>"
         )
-        assert len(response) == 2
+        assert "agents_results" in response
+        assert "tasks_evaluator" in response
+        assert "agent_plans" in response
+        assert len(response) == 3
         assert mock_tool_calls.call_count == no_calls
 
     @pytest.mark.parametrize(
@@ -714,8 +778,10 @@ class TestBuildAgentLoop:
         assert response is not None
 
         agent_result = response.get("agents_results")
-        content = agent_result.replace("<Internal_Retrieval_Agent_Result>", "").replace(
-            "</Internal_Retrieval_Agent_Result>", ""
+        content = (
+            agent_result["task0"]
+            .content.replace("<Internal_Retrieval_Agent_Result>", "")
+            .replace("</Internal_Retrieval_Agent_Result>", "")
         )
         content_tokens = len(content.split())
 
@@ -729,5 +795,28 @@ class TestBuildAgentLoop:
             assert content == llm_content.strip()
 
         # Basic checks
-        assert len(response) == 2
+        assert "agents_results" in response
+        assert "tasks_evaluator" in response
+        assert "agent_plans" in response
+        assert len(response) == 3  # content, eval task, task status
         assert mock_tool_calls.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "task_idx, task_status, expected",
+    [
+        ([0], [TaskStatus.RUNNING], False),
+        ([0], [TaskStatus.COMPLETED], False),
+        ([0], [TaskStatus.FAILED], False),
+        ([0, 2], [TaskStatus.COMPLETED, TaskStatus.RUNNING], False),
+        ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.SCHEDULED, TaskStatus.SCHEDULED], False),
+        ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.RUNNING, TaskStatus.RUNNING], False),
+        ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.COMPLETED, TaskStatus.FAILED], True),
+        ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.COMPLETED, TaskStatus.COMPLETED], True),
+    ],
+)
+def test_check_if_tasks_completed(task_idx, task_status, expected, fake_state_with_plan: MockerFixture):
+    for i, idx in enumerate(task_idx):
+        fake_state_with_plan.agent_plans.tasks[idx].status = task_status[i]
+    actual = check_if_tasks_completed(fake_state_with_plan)
+    assert expected == actual

@@ -1,6 +1,6 @@
 // @ts-check
 
-import { UploadedFiles, UploadedFile } from "../../../redbox_design_system/rbds/components";
+import { UploadedFiles, UploadedFile } from "../../../interaction_design_system/ids/components";
 import { pollFileStatus, refreshUI } from "../../services";
 import { getCsrfToken } from "../../utils";
 import { MessageInput } from "../chats/message-input";
@@ -41,7 +41,7 @@ class FileUpload extends HTMLElement {
      * Container for file upload textbox UI elements
     */
     get uploadedFiles() {
-        return /** @type {UploadedFiles} */ (this.textarea?.querySelector("rbds-uploaded-files"));
+        return /** @type {UploadedFiles} */ (this.textarea?.querySelector("ids-uploaded-files"));
     }
 
 
@@ -51,7 +51,7 @@ class FileUpload extends HTMLElement {
     get messageInput() {
         if (!this._messageInput || !document.body.contains(this._messageInput)) {
             this._messageInput = /** @type {MessageInput} */ (
-                document.querySelector('rbds-message-input')
+                document.querySelector('ids-message-input')
             );
         }
         return this._messageInput;
@@ -114,7 +114,7 @@ class FileUpload extends HTMLElement {
         if (!this.textarea) return;
 
         // Attach drag/drop upload functionality to textbox
-        if (this.textarea.classList.contains("rbds-drop-zone")) {
+        if (this.textarea.classList.contains("ids-drop-zone")) {
             this.textarea.addEventListener("dragover", (evt) => {
                 evt.preventDefault();
                 this.textarea?.classList.add("drag-over");
@@ -203,7 +203,7 @@ class FileUpload extends HTMLElement {
     #createFile(name) {
         if (!this.uploadedFiles) {
             const uploadedFiles = /** @type {UploadedFiles} */ (
-                document.createElement("rbds-uploaded-files")
+                document.createElement("ids-uploaded-files")
             );
             this.textarea.prepend(uploadedFiles);
 

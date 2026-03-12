@@ -1,17 +1,21 @@
 from collections.abc import Generator
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
+import tempfile
+import os
 
 import pytest
 from _pytest.fixtures import FixtureRequest
 from botocore.exceptions import ClientError
 from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.embeddings.fake import FakeEmbeddings
+from langchain_core.messages import AIMessage
 from opensearchpy import OpenSearch
 
-from redbox.models.chain import AISettings, GeneratedMetadata, RedboxQuery, RedboxState
+from redbox.models.chain import AISettings, GeneratedMetadata, RedboxQuery, RedboxState, configure_agent_task_plan
 from redbox.models.settings import Settings
+from redbox.models.file import TabularSchema
 from redbox.retriever import (
     AllElasticsearchRetriever,
     MetadataRetriever,
@@ -26,7 +30,8 @@ from tests.retriever.data import (
     KNOWLEDGE_BASE_CASES,
     METADATA_RETRIEVER_CASES,
     PARAMETERISED_RETRIEVER_CASES,
-    TABULAR_KB_RETRIEVER_CASES,
+    TABULAR_RETRIEVER_CASES,
+    TABULAR_RETRIEVER_KB_CASES,
 )
 
 if TYPE_CHECKING:
@@ -153,11 +158,80 @@ def fake_state() -> RedboxState:
         chat_history=[{"role": "user", "text": "what is AI?"}, {"role": "ai", "text": "AI is a lie."}],
         ai_settings=AISettings(),
         permitted_s3_keys=[],
+        sso_access_token=None,
     )
 
     return RedboxState(
         request=q,
     )
+
+
+@pytest.fixture(scope="session")
+def fake_state_with_plan() -> RedboxState:
+    q = RedboxQuery(
+        question="proceed",
+        s3_keys=[],
+        user_uuid=uuid4(),
+        chat_history=[{"role": "user", "text": "what is AI policy?"}, {"role": "ai", "text": "let me generate plan"}],
+        ai_settings=AISettings(),
+        permitted_s3_keys=[],
+        sso_access_token=None,
+    )
+
+    agent = "Internal_Retrieval_Agent"
+    agent_task, multi_agent_plan = configure_agent_task_plan({agent: agent})
+    tasks = [
+        agent_task(id="task0", task="Fake Task", expected_output="Fake output"),
+        agent_task(id="task1", task="Fake Task", expected_output="Fake output", dependencies=["task0"]),
+        agent_task(id="task2", task="Fake Task", expected_output="Fake output", dependencies=["task0"]),
+    ]
+
+    return RedboxState(
+        request=q,
+        agent_plans=multi_agent_plan().model_copy(update={"tasks": tasks}),
+        messages=[AIMessage(content=tasks[0].model_dump_json())],
+    )
+
+
+@pytest.fixture
+def fake_state_fixture(request):
+    return request.getfixturevalue(request.param)
+
+
+@pytest.fixture
+def fake_mcp_tool():
+    """Fixture providing a fake passing async MCP tool class."""
+
+    class Passing:
+        """Simulates a normal async MCP tool."""
+
+        def __init__(self, name: str, return_value, args_schema: dict | None = None):
+            self.name = name
+            self.metadata = {"url": "http://mock-mcp-url.com/tools"}
+            self.args_schema = args_schema or {"required": []}
+            self.func = None
+            self.coroutine = True
+            self.ainvoke = AsyncMock(return_value=return_value)
+
+    return Passing
+
+
+@pytest.fixture
+def fake_mcp_tool_failing():
+    """Fixture providing a fake failing async MCP tool class."""
+
+    class Failing:
+        """Simulates an async MCP tool that fails."""
+
+        def __init__(self, name: str, exception, args_schema: dict | None = None):
+            self.name = name
+            self.metadata = {"url": "http://mock-mcp-url.com/tools"}
+            self.args_schema = args_schema or {"required": []}
+            self.func = None
+            self.coroutine = True
+            self.ainvoke = AsyncMock(side_effect=exception)
+
+    return Failing
 
 
 # -----#
@@ -205,12 +279,40 @@ def stored_file_metadata(
     es_vector_store.delete(doc_ids)
 
 
-@pytest.fixture(params=TABULAR_KB_RETRIEVER_CASES)
+@pytest.fixture(params=TABULAR_RETRIEVER_CASES)
+def stored_file_tabular(request: FixtureRequest, es_vector_store: OpenSearchVectorSearch):
+    test_case, knowledge_base = request.param
+    doc_ids = es_vector_store.add_documents(test_case.docs)
+    yield test_case, knowledge_base
+    es_vector_store.delete(doc_ids)
+
+
+@pytest.fixture(params=TABULAR_RETRIEVER_KB_CASES)
 def stored_file_tabular_kb(request: FixtureRequest, es_vector_store: OpenSearchVectorSearch):
     test_case: RedboxChatTestCase = request.param
     doc_ids = es_vector_store.add_documents(test_case.docs)
     yield test_case
     es_vector_store.delete(doc_ids)
+
+
+@pytest.fixture
+def tmp_duckdb_path():
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "test.duckdb")
+        yield path  # file doesn't exist yet — DuckDB creates it
+
+
+@pytest.fixture
+def sample_tabular_schema():
+    return TabularSchema(
+        name="sheet0",
+        columns={"id": "INTEGER", "name": "TEXT", "value": "FLOAT"},
+    )
+
+
+@pytest.fixture
+def sample_csv():
+    return "id,name,value\n1,Alice,100.0\n2,Bob,200.0\n3,Charlie,300.0"
 
 
 @pytest.fixture

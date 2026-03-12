@@ -1,8 +1,9 @@
 from uuid import uuid4
+import pytest
 
 from redbox.models.chain import RedboxQuery
 from redbox.models.file import ChunkResolution
-from redbox.test.data import RedboxTestData, generate_test_cases
+from redbox.test.data import RedboxChatTestCase, RedboxTestData, generate_test_cases
 
 KNOWLEDGE_BASE_CASES = [
     test_case
@@ -15,6 +16,7 @@ KNOWLEDGE_BASE_CASES = [
                 chat_history=[],
                 permitted_s3_keys=[],
                 knowledge_base_s3_keys=["s3_key"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=1, tokens_in_all_docs=1000, chunk_resolution=ChunkResolution.largest)
@@ -29,6 +31,7 @@ KNOWLEDGE_BASE_CASES = [
                 chat_history=[],
                 permitted_s3_keys=[],
                 knowledge_base_s3_keys=[],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.largest)
@@ -49,6 +52,7 @@ ALL_CHUNKS_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.largest)
@@ -62,6 +66,7 @@ ALL_CHUNKS_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=[],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.largest)
@@ -75,6 +80,7 @@ ALL_CHUNKS_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -100,6 +106,7 @@ PARAMETERISED_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.normal)
@@ -113,6 +120,7 @@ PARAMETERISED_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=[],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.normal)
@@ -126,6 +134,7 @@ PARAMETERISED_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -151,6 +160,7 @@ METADATA_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.largest)
@@ -164,6 +174,7 @@ METADATA_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=[],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.largest)
@@ -177,6 +188,7 @@ METADATA_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -192,7 +204,7 @@ METADATA_RETRIEVER_CASES = [
     for test_case in generator
 ]
 
-TABULAR_KB_RETRIEVER_CASES = [
+TABULAR_RETRIEVER_KB_CASES: list[RedboxChatTestCase] = [
     test_case
     for generator in [
         generate_test_cases(
@@ -202,53 +214,92 @@ TABULAR_KB_RETRIEVER_CASES = [
                 chat_history=[],
                 permitted_s3_keys=["file1.csv", "file2.xlsx"],
                 knowledge_base_s3_keys=["file1.csv", "file2.xlsx"],
+                sso_access_token=None,
+                s3_keys=[],
             ),
             test_data=[
                 RedboxTestData(
-                    number_of_docs=4,
+                    number_of_docs=2,
                     tokens_in_all_docs=1000,
                     chunk_resolution=ChunkResolution.tabular,
                     s3_keys=["file1.csv", "file2.xlsx"],
                 )
             ],
-            test_id="Successful Path",
+            test_id="KB-Successful Path",
         ),
         generate_test_cases(
             query=RedboxQuery(
                 question="No permission case",
                 user_uuid=uuid4(),
                 chat_history=[],
-                permitted_s3_keys=[],  # no permission
-                knowledge_base_s3_keys=["file1.csv", "file2.xlsx"],
-            ),
-            test_data=[
-                RedboxTestData(
-                    number_of_docs=4,
-                    tokens_in_all_docs=1000,
-                    chunk_resolution=ChunkResolution.tabular,
-                    s3_keys=["file1.csv", "file2.xlsx"],
-                )
-            ],
-            test_id="No permitted S3 keys",
-        ),
-        generate_test_cases(
-            query=RedboxQuery(
-                question="Empty selection",
-                user_uuid=uuid4(),
-                chat_history=[],
-                permitted_s3_keys=["file1.csv", "file2.xlsx"],  # permission exists
+                permitted_s3_keys=[],
                 knowledge_base_s3_keys=[],
+                s3_keys=[],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
-                    number_of_docs=4,
+                    number_of_docs=2,
                     tokens_in_all_docs=1000,
                     chunk_resolution=ChunkResolution.tabular,
                     s3_keys=["file1.csv", "file2.xlsx"],
                 )
             ],
-            test_id="Empty keys but permitted",
+            test_id="KB-No Files",
         ),
     ]
     for test_case in generator
+]
+
+TABULAR_RETRIEVER_USER_CASES: list[RedboxChatTestCase] = [
+    test_case
+    for generator in [
+        generate_test_cases(
+            query=RedboxQuery(
+                question="Retrieve tabular data",
+                user_uuid=uuid4(),
+                chat_history=[],
+                permitted_s3_keys=["file1.csv", "file2.xlsx"],
+                knowledge_base_s3_keys=[],
+                s3_keys=["file1.csv", "file2.xlsx"],
+                sso_access_token=None,
+            ),
+            test_data=[
+                RedboxTestData(
+                    number_of_docs=2,
+                    tokens_in_all_docs=1000,
+                    chunk_resolution=ChunkResolution.tabular,
+                    s3_keys=["file1.csv", "file2.xlsx"],
+                )
+            ],
+            test_id="User-Successful Path",
+        ),
+        generate_test_cases(
+            query=RedboxQuery(
+                question="No permission case",
+                user_uuid=uuid4(),
+                chat_history=[],
+                permitted_s3_keys=[],
+                knowledge_base_s3_keys=[],
+                sso_access_token=None,
+                s3_keys=["file1.csv", "file2.xlsx"],
+            ),
+            test_data=[
+                RedboxTestData(
+                    number_of_docs=2,
+                    tokens_in_all_docs=1000,
+                    chunk_resolution=ChunkResolution.tabular,
+                    s3_keys=["file1.csv", "file2.xlsx"],
+                )
+            ],
+            test_id="User-No Permission",
+        ),
+    ]
+    for test_case in generator
+]
+
+TABULAR_RETRIEVER_CASES: list[tuple[RedboxChatTestCase, bool]] = [
+    pytest.param((test_case, knowledge_base), id=f"{test_case.test_id}-{'kb' if knowledge_base else 'user'}")
+    for knowledge_base, test_case in [(True, tc) for tc in TABULAR_RETRIEVER_KB_CASES]
+    + [(False, tc) for tc in TABULAR_RETRIEVER_USER_CASES]
 ]

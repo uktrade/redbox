@@ -38,6 +38,7 @@ def get_state(user_uuid, prompts, documents, ai_setting):
         chat_history=prompts[:-1],
         ai_settings=ai_setting,
         permitted_s3_keys=documents,
+        sso_access_token=None,
     )
 
     return RedboxState(

@@ -31,7 +31,6 @@ from redbox.test.data import (
     mock_all_chunks_retriever,
     mock_metadata_retriever,
     mock_parameterised_retriever,
-    mock_tabular_retriever,
 )
 
 
@@ -107,7 +106,6 @@ async def run_app(
     app = Redbox(
         all_chunks_retriever=mock_all_chunks_retriever(test_case.docs),
         parameterised_retriever=mock_parameterised_retriever(test_case.docs),
-        tabular_retriever=mock_tabular_retriever(test_case.docs),
         metadata_retriever=mock_metadata_retriever(
             [d for d in test_case.docs if d.metadata["uri"] in test_case.query.s3_keys]
         ),
@@ -202,7 +200,12 @@ class TestNewRoutes:
     ):
         return generate_test_cases(
             query=RedboxQuery(
-                question=question, s3_keys=[], user_uuid=uuid4(), chat_history=chat_history, permitted_s3_keys=[]
+                question=question,
+                s3_keys=[],
+                user_uuid=uuid4(),
+                chat_history=chat_history,
+                permitted_s3_keys=[],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -333,6 +336,7 @@ class TestNewRoutes:
             "External_Retrieval_Agent",
             "Web_Search_Agent",
             "Legislation_Search_Agent",
+            "Tabular_Agent",
         ]:
             # This is a mocker for the new agent refactor. You will need to remove other mocking once all agents have been refactored.
             mocker.patch(
@@ -341,15 +345,8 @@ class TestNewRoutes:
             )
             mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=evaluator_response)
         else:
-            if agent == "Tabular_Agent":
-                tool_response = TABULAR_TOOL_RESPONSE
-                mocker.patch(
-                    "redbox.graph.nodes.processes.get_chat_llm", side_effect=[worker_response, evaluator_response]
-                )
-
-            else:
-                tool_response = WORKER_TOOL_RESPONSE
-                mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=evaluator_response)
+            tool_response = WORKER_TOOL_RESPONSE
+            mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=evaluator_response)
 
             mocker.patch("redbox.graph.nodes.processes.run_tools_parallel", return_value=[tool_response])
 
@@ -389,7 +386,7 @@ class TestNewRoutes:
         for i in range(len(agents)):
             agent = agents[i]
             agent_task, multi_agent_plan = configure_agent_task_plan({agent: agent})
-            tasks += [agent_task()]
+            tasks += [agent_task(id=f"task{i}")]
         configured_multi_agent_plan = multi_agent_plan().model_copy(update={"tasks": tasks})
         old_plan = []
         if "modify" in user_feedback:
@@ -440,7 +437,12 @@ class TestNewRoutes:
         ai_msg = AIMessage(content="test content")
         tools = []
         dummy_query = RedboxQuery(
-            question="dummy", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="dummy",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            sso_access_token=None,
         )
         state = RedboxState(request=dummy_query)
 
@@ -455,7 +457,12 @@ class TestNewRoutes:
         ai_msg = AIMessage(content="test", additional_kwargs={"tool_calls": [{"name": "test_tool", "args": {}}]})
 
         dummy_query = RedboxQuery(
-            question="dummy", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="dummy",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            sso_access_token=None,
         )
         state = RedboxState(request=dummy_query)
 
@@ -469,7 +476,12 @@ class TestNewRoutes:
         ai_msg = AIMessage(content="test", additional_kwargs={"tool_calls": [{"name": "test_tool", "args": {}}]})
 
         dummy_query = RedboxQuery(
-            question="dummy", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="dummy",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            sso_access_token=None,
         )
         state = RedboxState(request=dummy_query)
 
@@ -484,7 +496,12 @@ class TestNewRoutes:
         ai_msg = AIMessage(content="test", additional_kwargs={"tool_calls": [{"name": "test_tool", "args": {}}]})
 
         dummy_query = RedboxQuery(
-            question="dummy", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="dummy",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            sso_access_token=None,
         )
         state = RedboxState(request=dummy_query)
 
@@ -499,7 +516,12 @@ class TestNewRoutes:
         ai_msg = AIMessage(content="test", additional_kwargs={"tool_calls": [{"name": "test_tool", "args": {}}]})
 
         dummy_query = RedboxQuery(
-            question="dummy", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="dummy",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            sso_access_token=None,
         )
         state = RedboxState(request=dummy_query)
 
@@ -521,7 +543,12 @@ class TestNewRoutes:
         )
 
         dummy_query = RedboxQuery(
-            question="dummy", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="dummy",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+            sso_access_token=None,
         )
         state = RedboxState(request=dummy_query)
 

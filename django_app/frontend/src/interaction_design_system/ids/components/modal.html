@@ -1,0 +1,5 @@
+{% macro modal(modal_classes='') %}
+    <ids-modal class="{{ modal_classes }}">
+        {{ caller() }}
+    </ids-modal>
+{% endmacro %}

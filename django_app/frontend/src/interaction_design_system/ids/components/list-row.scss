@@ -1,0 +1,35 @@
+.ids-list-row {
+    --list-row-text-color: var(--color-link-text);
+    --list-row-icon-color: var(--color-link-text);
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+
+    width: 100%;
+    box-sizing: border-box;
+    height: 20px;
+
+    color: var(--list-row-text-color);
+
+    a {
+        color: inherit !important;
+    }
+
+    &--selected {
+        --list-row-text-color: var(--color-text);
+        --list-row-icon-color: var(--color-text);
+
+        padding-left: 5px;
+
+        &::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            border-left: 1px solid var(--color-text);
+        }
+    }
+}
