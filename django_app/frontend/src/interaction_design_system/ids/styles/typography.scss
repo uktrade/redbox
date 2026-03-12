@@ -24,14 +24,14 @@ span,
 [role="button"]
 {
   font-family:  var(--font-family-primary) !important;
-  font-size: var(--font-size-xs);
 }
 
 body {
   font-size: var(--font-size-s) !important;
 }
 
-button {
+button,
+[role="button"] {
   font-size: var(--font-size-xs) !important;
 }
 

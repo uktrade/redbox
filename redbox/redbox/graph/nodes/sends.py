@@ -104,7 +104,18 @@ def run_with_timeout(func, args, timeout):
     return result[0]
 
 
-def wrap_async_tool(tool, tool_name):
+def _get_mcp_headers(sso_access_token: str | None = None) -> dict[str, str]:
+    if not sso_access_token:
+        return {}
+    token = sso_access_token.strip()
+    if not token:
+        return {}
+    if token.lower().startswith("bearer "):
+        return {"Authorization": token}
+    return {"Authorization": f"Bearer {token}"}
+
+
+def wrap_async_tool(tool, tool_name, sso_access_token):
     """
     Returns a synchronous function that properly wraps an async tool
 
@@ -123,12 +134,17 @@ def wrap_async_tool(tool, tool_name):
         # get mcp tool url
         mcp_url = tool.metadata["url"]
         creator_type = tool.metadata["creator_type"]
+        headers = _get_mcp_headers(sso_access_token)
 
         try:
             # Define the async operation
             async def run_tool():
                 # tool need to be executed within the connection context manager
-                async with streamablehttp_client(mcp_url) as (read, write, _):
+                async with streamablehttp_client(mcp_url, headers=headers or None) as (
+                    read,
+                    write,
+                    _,
+                ):
                     async with ClientSession(read, write) as session:
                         # Initialize the connection
                         init_result = await session.initialize()
@@ -177,7 +193,13 @@ def wrap_async_tool(tool, tool_name):
 
 
 def run_tools_parallel(
-    ai_msg, tools, state, parallel_timeout=60, per_tool_timeout=60, result_timeout=60, is_loop=False
+    ai_msg,
+    tools,
+    state,
+    parallel_timeout=60,
+    per_tool_timeout=60,
+    result_timeout=60,
+    is_loop=False,
 ):
     run_id = str(uuid4())[:8]
     log_stub = f"[run_tools_parallel run_id='{run_id}']"
@@ -224,10 +246,17 @@ def run_tools_parallel(
                     if is_loop:
                         is_intermediate_step = args.get("is_intermediate_step", "False")
                         log.warning(f"intermediate step: {is_intermediate_step}")
+                    sso_access_token = getattr(state.request, "sso_access_token", None)
                     future = executor.submit(
-                        run_with_timeout, wrap_async_tool(selected_tool, tool_name), args, per_tool_timeout
+                        run_with_timeout,
+                        wrap_async_tool(selected_tool, tool_name, sso_access_token),
+                        args,
+                        per_tool_timeout,
                     )
-                futures[future] = {"name": tool_name, "intermediate_step": is_intermediate_step}
+                futures[future] = {
+                    "name": tool_name,
+                    "intermediate_step": is_intermediate_step,
+                }
 
             # Collect responses as tools complete
             responses = []
@@ -306,7 +335,10 @@ def run_tools_parallel(
         log.warning(f"{log_stub} Global parallel tool execution timed out after {parallel_timeout} seconds.")
         return None
     except Exception as e:
-        log.warning(f"{log_stub} Unexpected error in parallel tool execution: {str(e)}", exc_info=True)
+        log.warning(
+            f"{log_stub} Unexpected error in parallel tool execution: {str(e)}",
+            exc_info=True,
+        )
         return None
 
 
@@ -339,8 +371,10 @@ def sending_task_to_agent(state: RedboxState):
                 task.status = TaskStatus.SCHEDULED
                 state.agent_plans.update_task_status(task.id, TaskStatus.SCHEDULED)
                 task_send_states += [
-                    (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
+                    (
+                        task.agent.value,
+                        _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]),
+                    )
                 ]
                 log.warning(f"Sending task: {task.id} to agent {task.agent}")
-
         return [Send(node=target, arg=state) for target, state in task_send_states]

@@ -20,6 +20,7 @@ KNOWLEDGE_BASE_CASES = [
                 chat_history=[],
                 permitted_s3_keys=[],
                 knowledge_base_s3_keys=["s3_key"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=1, tokens_in_all_docs=1000, chunk_resolution=ChunkResolution.largest)
@@ -34,6 +35,7 @@ KNOWLEDGE_BASE_CASES = [
                 chat_history=[],
                 permitted_s3_keys=[],
                 knowledge_base_s3_keys=[],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.largest)
@@ -54,6 +56,7 @@ ALL_CHUNKS_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.largest)
@@ -67,6 +70,7 @@ ALL_CHUNKS_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=[],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.largest)
@@ -80,6 +84,7 @@ ALL_CHUNKS_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -105,6 +110,7 @@ PARAMETERISED_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.normal)
@@ -118,6 +124,7 @@ PARAMETERISED_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=[],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.normal)
@@ -131,6 +138,7 @@ PARAMETERISED_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -156,6 +164,7 @@ METADATA_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.largest)
@@ -169,6 +178,7 @@ METADATA_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=[],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.largest)
@@ -182,6 +192,7 @@ METADATA_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -207,6 +218,7 @@ TABULAR_RETRIEVER_KB_CASES: list[RedboxChatTestCase] = [
                 chat_history=[],
                 permitted_s3_keys=["file1.csv", "file2.xlsx"],
                 knowledge_base_s3_keys=["file1.csv", "file2.xlsx"],
+                sso_access_token=None,
                 s3_keys=[],
             ),
             test_data=[
@@ -227,6 +239,7 @@ TABULAR_RETRIEVER_KB_CASES: list[RedboxChatTestCase] = [
                 permitted_s3_keys=[],
                 knowledge_base_s3_keys=[],
                 s3_keys=[],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -253,6 +266,7 @@ TABULAR_RETRIEVER_USER_CASES: list[RedboxChatTestCase] = [
                 permitted_s3_keys=["file1.csv", "file2.xlsx"],
                 knowledge_base_s3_keys=[],
                 s3_keys=["file1.csv", "file2.xlsx"],
+                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -271,6 +285,7 @@ TABULAR_RETRIEVER_USER_CASES: list[RedboxChatTestCase] = [
                 chat_history=[],
                 permitted_s3_keys=[],
                 knowledge_base_s3_keys=[],
+                sso_access_token=None,
                 s3_keys=["file1.csv", "file2.xlsx"],
             ),
             test_data=[
