@@ -389,6 +389,18 @@ class Settings(BaseSettings):
                 "s3",
                 region_name=self.aws_region,
             )
+        if self.object_store == "moto":
+            from moto import mock_aws
+
+            mock = mock_aws()
+            mock.start()
+
+            return boto3.client(
+                "s3",
+                aws_access_key_id=self.aws_access_key,
+                aws_secret_access_key=self.aws_secret_key,
+                region_name=self.aws_region,
+            )
 
         msg = f"unkown object_store={self.object_store}"
         raise NotImplementedError(msg)
