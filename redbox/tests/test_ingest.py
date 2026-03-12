@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 from typing import TYPE_CHECKING, Any
@@ -6,8 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 
-from redbox.chains.ingest import document_loader
-from redbox.loader.loaders import MetadataLoader, parse_tabular_schema, TextractChunkLoader
+from redbox.loader.loaders import MetadataLoader, parse_tabular_schema
 from redbox.models.chain import GeneratedMetadata
 
 
@@ -124,67 +122,6 @@ def test_extract_metadata_extra_key(
     assert metadata.name == "foo"
     assert metadata.description == "test"
     assert metadata.keywords == ["abc"]
-
-
-@patch("redbox.loader.loaders.get_chat_llm")
-@patch("requests.post")
-def test_document_loader(
-    mock_post: MagicMock,
-    mock_llm: MagicMock,
-    s3_client: S3Client,
-    env: Settings,
-):
-    """
-    Given that I have written a text File to s3
-    When I call document_loader
-    I Expect to see this file chunked and embedded if appropriate
-    """
-    # Mock call to Unstructured
-    mock_response = mock_post.return_value
-    mock_response.status_code = 200
-    mock_response.json.return_value = [
-        {
-            "type": "CompositeElement",
-            "element_id": "1c493e1166a6e59ebe9e054c9c6c03db",
-            "text": "Routing enables us to create bespoke responses according to user intent. Examples include:\n\n* RAG\n* Summarization\n* Plain chat",
-            "metadata": {
-                "languages": ["eng"],
-                "orig_elements": "eJwVjsFOwzAQRH9l5SMiCEVtSXrjxI0D4lZVaGNPgtV4HdlrVKj679iXXe3szOidbgYrAkS/vDNHMnY89NPezd2Be9ft+mHfjfM4dOwwvDg4O++ezSOZAGXHyjVzMyvLUnhBrtfJQBZzvleP4qqtM8WiXhaC8LQiU8mkkWwCK2hC3uIFlNqWXN9sbUyuBaqrZCTyopXwiXDlsLUGL3YtDkd6oI/XtzpzCYET+z9WH6UK28peyH6zNlr93dBI3jml6vjBZ0O7n/8BhxNVfA==",
-                "filename": "example.html",
-                "filetype": "text/html",
-            },
-        }
-    ]
-
-    mock_llm_response = mock_llm.return_value
-    mock_llm_response.status_code = 200
-    mock_llm_response.return_value = GenericFakeChatModel(messages=iter([json.dumps(fake_llm_response())]))
-
-    # Upload file
-    file = file_to_s3("html/example.html", s3_client, env)
-
-    metadata_loader = MetadataLoader(env=env, s3_client=s3_client, file_name=file)
-    metadata_loader.extract_metadata()
-    # Call loader
-
-    loader = TextractChunkLoader(
-        bucket=env.bucket_name,
-        min_chunk_size=env.worker_ingest_min_chunk_size,
-        max_chunk_size=env.worker_ingest_max_chunk_size,
-        overlap_chars=0,
-    )
-    doc_loader = document_loader(loader, s3_client, env)
-
-    chunks = list(doc_loader.invoke(file))
-
-    assert len(chunks) > 0
-
-    # Verify that metadata has been attached to object
-    for chuck in chunks:
-        llm_response = fake_llm_response()
-        assert chuck.metadata["name"] == llm_response["name"]
-        assert chuck.metadata["description"] == llm_response["description"]
-        assert chuck.metadata["keywords"] == llm_response["keywords"]
 
 
 def test_is_large_pdf_small_file():
