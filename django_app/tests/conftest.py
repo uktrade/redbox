@@ -1,4 +1,5 @@
 import logging
+import os
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
@@ -8,13 +9,13 @@ from uuid import UUID
 import boto3
 import environ
 import pytest
-from botocore.exceptions import ClientError
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile, UploadedFile
 from django.core.management import call_command
 from django.utils import timezone
 from freezegun import freeze_time
+from moto import mock_aws
 
 from redbox_app.redbox_core.models import (
     Agent,
@@ -38,21 +39,27 @@ DEFAULT_AISETTINGS_ID = UUID("00000000-0000-0000-0000-000000000000")
 env = environ.Env()
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def s3_client():
-    client = boto3.client(
-        "s3",
-        region_name=settings.AWS_S3_REGION_NAME,
-    )
-
-    try:
-        client.create_bucket(
-            Bucket=settings.BUCKET_NAME,
+    with mock_aws():
+        client = boto3.client(
+            "s3",
+            region_name="eu-west-2",
+            aws_access_key_id="testing",  # pragma: allowlist secret
+            aws_secret_access_key="testing",  # pragma: allowlist secret
+            aws_session_token="testing",  # pragma: allowlist secret
         )
-    except ClientError as e:
-        if e.response["Error"]["Code"] != "BucketAlreadyOwnedByYou":
-            raise
-    return client
+
+        try:
+            client.create_bucket(
+                Bucket=os.environ["BUCKET_NAME"], CreateBucketConfiguration={"LocationConstraint": "eu-west-2"}
+            )
+        except client.exceptions.BucketAlreadyOwnedByYou:
+            pass
+        except client.exceptions.BucketAlreadyExists:
+            pass
+
+        yield client
 
 
 @pytest.fixture
