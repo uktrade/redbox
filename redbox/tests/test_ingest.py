@@ -1,8 +1,10 @@
 import json
+import boto3
+from botocore.stub import Stubber
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch, call, ANY
 
+from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock, patch
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 from opensearchpy import OpenSearch
@@ -10,12 +12,11 @@ from opensearchpy.helpers import scan
 from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_community.vectorstores import OpenSearchVectorSearch
-from requests.exceptions import RequestException
 
 from redbox.chains.ingest import document_loader, ingest_from_loader
 from redbox.loader import ingester
 from redbox.loader.ingester import ingest_file
-from redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader, parse_tabular_schema
+from redbox.loader.loaders import MetadataLoader, parse_tabular_schema, TextractChunkLoader
 from redbox.models.chain import GeneratedMetadata
 
 
@@ -89,11 +90,6 @@ def test_extract_metadata_missing_key(
     mock_llm_response.status_code = 200
     mock_llm_response.return_value = GenericFakeChatModel(messages=iter(['{"missing_key":""}']))
 
-    requests_mock.post(
-        f"http://{env.unstructured_host}:8000/general/v0/general",
-        json=[{"text": "hello", "metadata": {}}],
-    )
-
     """
     LLM replies but without one of the keys
     """
@@ -121,11 +117,6 @@ def test_extract_metadata_extra_key(
     mock_llm_response.status_code = 200
     mock_llm_response.return_value = GenericFakeChatModel(
         messages=iter(['{"extra_key": "", "name": "foo", "description": "test", "keywords": ["abc"]}'])
-    )
-
-    requests_mock.post(
-        f"http://{env.unstructured_host}:8000/general/v0/general",
-        json=[{"text": "hello", "metadata": {"filename": "something"}}],
     )
 
     """
@@ -182,19 +173,11 @@ def test_document_loader(
     file = file_to_s3("html/example.html", s3_client, env)
 
     metadata_loader = MetadataLoader(env=env, s3_client=s3_client, file_name=file)
-    metadata = metadata_loader.extract_metadata()
-
-    loader = UnstructuredChunkLoader(
-        chunk_resolution=ChunkResolution.normal,
-        env=env,
-        min_chunk_size=env.worker_ingest_min_chunk_size,
-        max_chunk_size=env.worker_ingest_max_chunk_size,
-        metadata=metadata,
-    )
-
+    metadata_loader.extract_metadata()
     # Call loader
-    loader = document_loader(loader, s3_client, env)
-    chunks = list(loader.invoke(file))
+    doc_loader = document_loader(..., s3_client, env)
+
+    chunks = list(doc_loader.invoke(file))
 
     assert len(chunks) > 0
 
@@ -206,113 +189,147 @@ def test_document_loader(
         assert chuck.metadata["keywords"] == llm_response["keywords"]
 
 
-@patch("redbox.loader.loaders.get_chat_llm")
-@patch("redbox.loader.loaders.requests.post")
 @pytest.mark.parametrize(
-    "resolution, has_embeddings",
+    "file_extension, expected_chunks_min, has_embeddings",
     [
-        (ChunkResolution.largest, False),
-        (ChunkResolution.normal, True),
+        (".pdf", 2, True),
+        (".docx", 1, True),
+        (".pdf", 2, False),
     ],
 )
-def test_ingest_from_loader(
-    mock_post: MagicMock,
-    mock_llm: MagicMock,
-    resolution: ChunkResolution,
+@patch("redbox.loader.loaders.get_chat_llm")
+@patch("redbox.loader.ingest.get_embeddings")
+def test_textract_ingest_from_loader(
+    mock_get_embeddings: MagicMock,
+    mock_get_chat_llm: MagicMock,
+    file_extension: str,
+    expected_chunks_min: int,
     has_embeddings: bool,
     monkeypatch: MonkeyPatch,
     es_client: OpenSearch,
     es_vector_store: OpenSearchVectorSearch,
     es_index: str,
-    s3_client: S3Client,
+    s3_client: boto3.client,
     env: Settings,
 ):
     """
-    Given that I have written a text File to s3
-    When I call ingest_from_loader
-    I Expect to see this file chunked and embedded if appropriate
+    Given that I have a file in S3
+    When I call ingest_from_loader with TextractChunkLoader
+    Then I expect the file to be extracted, chunked, embedded and indexed in OpenSearch with correct metadata
     """
 
-    # Mock call to Unstructured
-    mock_response = mock_post.return_value
-    mock_response.status_code = 200
-    mock_response.json.return_value = [
+    base_name = "example"
+    file_name = f"{base_name}{file_extension}"
+    s3_key = f"ingest-test/{file_name}"
+
+    dummy_content = b"%PDF-1.4\n% small dummy pdf\n1 0 obj << /Type /Catalog >> endobj"
+    if file_extension == ".docx":
+        dummy_content = b"PK\x03\x04some fake docx content"
+
+    s3_client.put_object(Bucket=env.bucket_name, Key=s3_key, Body=dummy_content)
+
+    textract = boto3.client("textract", region_name="eu-west-2")
+    stubber = Stubber(textract)
+
+    job_id = "mock-job-1234567890abcdef"
+
+    stubber.add_response(
+        "start_document_text_detection",
+        {"JobId": job_id},
         {
-            "type": "CompositeElement",
-            "element_id": "1c493e1166a6e59ebe9e054c9c6c03db",
-            "text": "Routing enables us to create bespoke responses according to user intent. Examples include:\n\n* RAG\n* Summarization\n* Plain chat",
-            "metadata": {
-                "languages": ["eng"],
-                "orig_elements": "eJwVjsFOwzAQRH9l5SMiCEVtSXrjxI0D4lZVaGNPgtV4HdlrVKj679iXXe3szOidbgYrAkS/vDNHMnY89NPezd2Be9ft+mHfjfM4dOwwvDg4O++ezSOZAGXHyjVzMyvLUnhBrtfJQBZzvleP4qqtM8WiXhaC8LQiU8mkkWwCK2hC3uIFlNqWXN9sbUyuBaqrZCTyopXwiXDlsLUGL3YtDkd6oI/XtzpzCYET+z9WH6UK28peyH6zNlr93dBI3jml6vjBZ0O7n/8BhxNVfA==",
-                "filename": "example.html",
-                "filetype": "text/html",
-            },
-        }
-    ]
+            "DocumentLocation": {
+                "S3Object": {
+                    "Bucket": "test-bucket",
+                    "Name": file_name,
+                }
+            }
+        },
+    )
 
-    mock_llm_response = mock_llm.return_value
-    mock_llm_response.status_code = 200
-    mock_llm_response.return_value = GenericFakeChatModel(messages=iter([json.dumps(fake_llm_response())]))
+    stubber.add_response(
+        "get_document_text_detection",
+        {
+            "JobStatus": "SUCCEEDED",
+            "Blocks": [
+                {"BlockType": "LINE", "Text": "This is line one.", "Page": 1},
+                {"BlockType": "LINE", "Text": "This is line two.", "Page": 1},
+                {"BlockType": "LINE", "Text": "Page two content here.", "Page": 2},
+            ],
+        },
+    )
 
-    # Upload file and call
-    file_name = file_to_s3(filename="html/example.html", s3_client=s3_client, env=env)
+    stubber.add_response("get_document_text_detection", {"JobStatus": "SUCCEEDED", "Blocks": []})
 
-    # Extract metadata
-    metadata_loader = MetadataLoader(env=env, s3_client=s3_client, file_name=file_name)
-    metadata = metadata_loader.extract_metadata()
+    stubber.activate()
 
-    loader = UnstructuredChunkLoader(
-        chunk_resolution=resolution,
-        env=env,
+    def mock_textract_client(*args, **kwargs):
+        return textract
+
+    monkeypatch.setattr(
+        "boto3.client",
+        lambda service, region_name: (
+            mock_textract_client() if service == "textract" else boto3.client(service, region_name=region_name)
+        ),
+    )
+
+    if has_embeddings:
+        mock_get_embeddings.return_value = fake_embedding(["dummy"])
+    else:
+        mock_get_embeddings.return_value = [[]]
+
+    mock_llm = mock_get_chat_llm.return_value
+    mock_llm.invoke.return_value = fake_llm_response()
+
+    loader = TextractChunkLoader(
+        bucket=env.bucket_name,
         min_chunk_size=env.worker_ingest_min_chunk_size,
         max_chunk_size=env.worker_ingest_max_chunk_size,
-        metadata=metadata,
+        overlap_chars=200,
+        region="eu-west-2",
     )
 
     mapping = {"properties": {"embedding": {"type": "knn_vector", "dimension": 1024}}}
 
-    # Check if the index already exists and delete it if it does
-    if es_client.indices.exists(index="my_index"):
-        es_client.indices.delete(index="my_index")
+    index_name = "my_index"  # or f"{es_index}-current"
+    if es_client.indices.exists(index=index_name):
+        es_client.indices.delete(index=index_name)
 
-    es_client.indices.create(index="my_index", body={"mappings": mapping})
-
-    # Mock embeddings
-    monkeypatch.setattr(ingester, "get_embeddings", lambda _: fake_embedding)
+    es_client.indices.create(index=index_name, body={"mappings": mapping})
 
     ingest_chain = ingest_from_loader(loader=loader, s3_client=s3_client, vectorstore=es_vector_store, env=env)
 
-    _ = ingest_chain.invoke(file_name)
+    _ = ingest_chain.invoke(s3_key)
 
-    # Test it's written to Elastic
-    file_query = make_file_query(file_name=file_name, resolution=resolution)
+    file_query = make_file_query(file_name=s3_key, resolution=ChunkResolution.normal)
 
-    chunks = list(scan(client=es_client, index=f"{es_index}-current", query=file_query))
-    assert len(chunks) > 0
+    chunks = list(es_client.search(index=index_name, query=file_query, size=100)["hits"]["hits"])
 
-    # Debugging: Print chunks to inspect the output
+    assert len(chunks) >= expected_chunks_min, f"Expected at least {expected_chunks_min} chunks, got {len(chunks)}"
+
     for chunk in chunks:
-        print(chunk)
+        meta = chunk["_source"]["metadata"]
+        assert "uri" in meta
+        assert "page_number" in meta
+        assert "token_count" in meta
+        assert meta["chunk_resolution"] == "normal"
+        assert meta["name"].endswith(file_extension)
 
-    def get_metadata(chunk: dict) -> dict:
-        return chunk["_source"]["metadata"]
-
-    # Verify that metadata has been attached to object
     if has_embeddings:
         for chunk in chunks:
-            metadata = get_metadata(chunk)
-            assert metadata["name"] == fake_llm_response()["name"]
-            assert metadata["description"] == fake_llm_response()["description"]
-            assert metadata["keywords"] == fake_llm_response()["keywords"]
+            meta = chunk["_source"]["metadata"]
+            assert meta.get("name") == fake_llm_response()["name"]
+            assert meta.get("description") == fake_llm_response()["description"]
+            assert meta.get("keywords") == fake_llm_response()["keywords"]
 
-    if has_embeddings:
-        embeddings = chunks[0]["_source"].get("vector_field")
-        print("Embeddings:", embeddings)  # Debugging: Print embeddings to inspect the output
+        first_chunk = chunks[0]["_source"]
+        embeddings = first_chunk.get("embedding") or first_chunk.get("vector_field")
         assert embeddings is not None
-        assert len(embeddings) > 0
+        assert isinstance(embeddings, list)
+        assert len(embeddings) > 10
 
-    # Teardown
-    es_client.delete_by_query(index=es_index, body=file_query)
+    es_client.delete_by_query(index=index_name, body=file_query)
+    stubber.deactivate()
+    s3_client.delete_object(Bucket=env.bucket_name, Key=s3_key)
 
 
 @patch("redbox.loader.loaders.get_chat_llm")
@@ -791,275 +808,3 @@ def test_read_excel_file_pandas_error():
         result = read_excel_file(file_bytes)
 
         assert result is None
-
-
-def test_unstructured_chunk_loader_large_pdf_path(mock_env, mock_metadata):
-    file_name = "large_test.pdf"
-    file_bytes = BytesIO(b"mock pdf content")
-    mock_elements_chunk1 = [{"text": "chunk1"}]
-    mock_elements_chunk2 = [{"text": "chunk2"}]
-    mock_pdf_chunks = [BytesIO(b"chunk1"), BytesIO(b"chunk2")]
-
-    with (
-        patch("redbox.loader.loaders.is_large_pdf", return_value=(True, 200)),
-        patch("redbox.loader.loaders.split_pdf", return_value=mock_pdf_chunks),
-        patch("redbox.loader.loaders.UnstructuredChunkLoader._post_files_with_fallback") as mock_post,
-        patch("redbox.loader.loaders.logger") as mock_logger,
-    ):
-        mock_post.side_effect = [mock_elements_chunk1, mock_elements_chunk2]
-
-        loader = UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
-            env=mock_env,
-            min_chunk_size=100,
-            max_chunk_size=1000,
-            metadata=mock_metadata,
-            pages_per_pdf_chunk=75,
-        )
-        elements = list(loader._get_chunks(file_name, file_bytes))
-
-        assert len(elements) == 2
-        assert elements[0]["text"] == "chunk1"
-        assert elements[1]["text"] == "chunk2"
-        mock_logger.info.assert_called_once_with(
-            "Large PDF with (%d pages) - splitting into chunks with %d pages", 200, 75
-        )
-        mock_post.assert_has_calls(
-            [
-                call(
-                    url=ANY,
-                    files={"files": (file_name, mock_pdf_chunks[0])},
-                    file_name=file_name,
-                    file_bytes=mock_pdf_chunks[0],
-                ),
-                call(
-                    url=ANY,
-                    files={"files": (file_name, mock_pdf_chunks[1])},
-                    file_name=file_name,
-                    file_bytes=mock_pdf_chunks[1],
-                ),
-            ]
-        )
-        mock_logger.debug.assert_called_once_with("Unstructured returned %d elements", 2)
-
-
-def test_unstructured_chunk_loader_large_pdf_chunk_failure(mock_env, mock_metadata):
-    file_name = "large_test.pdf"
-    file_bytes = BytesIO(b"mock pdf content")
-    mock_pdf_chunks = [BytesIO(b"chunk1"), BytesIO(b"chunk2")]
-
-    with (
-        patch("redbox.loader.loaders.is_large_pdf", return_value=(True, 200)),
-        patch("redbox.loader.loaders.split_pdf", return_value=mock_pdf_chunks),
-        patch(
-            "redbox.loader.loaders.UnstructuredChunkLoader._post_files_with_fallback",
-            side_effect=[{"text": "chunk1"}, Exception("chunk fail")],
-        ),
-        patch("redbox.loader.loaders.logger") as mock_logger,
-    ):
-        loader = UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
-            env=mock_env,
-            min_chunk_size=100,
-            max_chunk_size=1000,
-            metadata=mock_metadata,
-            pages_per_pdf_chunk=75,
-        )
-
-        with pytest.raises(ValueError, match="Chunk 2 failed: chunk fail"):
-            list(loader._get_chunks(file_name, file_bytes))
-
-        mock_logger.exception.assert_called_once_with("Chunk 2 failed: chunk fail")
-
-
-def test_unstructured_chunk_loader_tabular_path(mock_env, mock_metadata):
-    file_name = "test.csv"
-    file_bytes = BytesIO(b"mock csv")
-    mock_elements = [{"text": "tabular chunk"}]
-
-    with (
-        patch("redbox.loader.loaders.load_tabular_file", return_value=mock_elements),
-        patch("redbox.loader.loaders.logger") as mock_logger,
-    ):
-        loader = UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.tabular,
-            env=mock_env,
-            min_chunk_size=100,
-            max_chunk_size=1000,
-            metadata=mock_metadata,
-        )
-        elements = list(loader._get_chunks(file_name, file_bytes))
-
-        assert elements == mock_elements
-        mock_logger.debug.assert_called_once_with("Unstructured returned %d elements", 1)
-
-
-def test_unstructured_chunk_loader_empty_elements_raise(mock_env, mock_metadata):
-    file_name = "test.txt"
-    file_bytes = BytesIO(b"mock")
-
-    with patch("redbox.loader.loaders.UnstructuredChunkLoader._post_files_with_fallback", return_value=[]):
-        loader = UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
-            env=mock_env,
-            min_chunk_size=100,
-            max_chunk_size=1000,
-            metadata=mock_metadata,
-        )
-
-        with pytest.raises(ValueError, match="Unstructured failed to extract text for this file"):
-            list(loader._get_chunks(file_name, file_bytes))
-
-
-def test_unstructured_chunk_loader_post_seek_warning(mock_env, mock_metadata):
-    file_name = "test.pdf"
-    file_bytes = MagicMock(spec=BytesIO)
-    file_bytes.seek.side_effect = Exception("seek fail")
-
-    with (
-        patch("redbox.loader.loaders.UnstructuredChunkLoader._post_files_with_fallback") as mock_post,
-        patch("redbox.loader.loaders.logger") as mock_logger,
-        patch("redbox.loader.loaders.is_large_pdf", return_value=(False, 0)),
-        patch("redbox.loader.loaders._pdf_is_image_heavy", return_value=False),
-    ):
-        mock_post.return_value = [{"text": "ok"}]
-
-        loader = UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
-            env=mock_env,
-            min_chunk_size=100,
-            max_chunk_size=1000,
-            metadata=mock_metadata,
-        )
-        elements = list(loader._get_chunks(file_name, file_bytes))
-
-        assert len(elements) == 1
-        mock_logger.warning.assert_called_once_with("Unable to seek file %s before upload - %s", file_name, "seek fail")
-
-
-def test_unstructured_chunk_loader_pdf_image_heavy_exception(mock_env, mock_metadata):
-    file_name = "test.pdf"
-    file_bytes = BytesIO(b"mock")
-
-    with (
-        patch("redbox.loader.loaders._pdf_is_image_heavy", side_effect=Exception("image detect fail")),
-        patch("redbox.loader.loaders.UnstructuredChunkLoader._post_files_with_fallback", return_value=[{"text": "ok"}]),
-        patch("redbox.loader.loaders.is_large_pdf", return_value=(False, 0)),
-    ):
-        loader = UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
-            env=mock_env,
-            min_chunk_size=100,
-            max_chunk_size=1000,
-            metadata=mock_metadata,
-        )
-        elements = list(loader._get_chunks(file_name, file_bytes))
-
-        assert len(elements) == 1
-
-
-def test_unstructured_chunk_loader_post_json_parse_exception(mock_env, mock_metadata):
-    file_name = "test.txt"
-    file_bytes = BytesIO(b"mock")
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.side_effect = ValueError("Unexpected payload from Unstructured")
-    mock_resp.text = '{"text": "ok"}'
-
-    with (
-        patch("redbox.loader.loaders.requests.post", return_value=mock_resp),
-        patch("redbox.loader.loaders.is_large_pdf", return_value=(False, 0)),
-        patch("redbox.loader.loaders._pdf_is_image_heavy", return_value=False),
-    ):
-        loader = UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
-            env=mock_env,
-            min_chunk_size=100,
-            max_chunk_size=1000,
-            metadata=mock_metadata,
-        )
-        try:
-            elements = loader._post_files_with_fallback(
-                url="http://test", files={}, file_name=file_name, file_bytes=file_bytes
-            )
-            assert isinstance(elements, list)
-        except ValueError as e:
-            assert str(e) == "Unexpected payload from Unstructured"
-
-
-@pytest.mark.parametrize(
-    "error_type, status, text_contains, expected_exc_type",
-    [
-        ("server_error", 500, "server error", RequestException),
-    ],
-)
-def test_unstructured_chunk_loader_post_errors(
-    mock_env, mock_metadata, error_type, status, text_contains, expected_exc_type
-):
-    file_name = "test.txt"
-    file_bytes = BytesIO(b"mock")
-    mock_resp = MagicMock()
-    mock_resp.status_code = status
-    mock_resp.text = text_contains
-    mock_resp.json.return_value = (
-        {"detail": text_contains} if error_type != "fast_strategy" else {"error": text_contains}
-    )
-
-    mock_request_exc = RequestException("request fail")
-
-    side_effects = []
-    if error_type == "server_error":
-        side_effects = [mock_resp] * (mock_env.max_retries + 1)
-    else:
-        side_effects = [mock_resp]
-
-    with (
-        patch("redbox.loader.loaders.requests.post", side_effect=side_effects),
-        patch("redbox.loader.loaders._time") as mock_time,
-        patch("redbox.loader.loaders.is_large_pdf", return_value=(False, 0)),
-        patch("redbox.loader.loaders._pdf_is_image_heavy", return_value=False),
-        patch("redbox.loader.loaders.logger") as mock_logger,
-    ):
-        mock_time.sleep = MagicMock()
-
-        loader = UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
-            env=mock_env,
-            min_chunk_size=100,
-            max_chunk_size=1000,
-            metadata=mock_metadata,
-            max_retries=1,
-        )
-
-        if error_type == "request_exception":
-            with patch("redbox.loader.loaders.requests.post", side_effect=mock_request_exc):
-                with pytest.raises(RequestException, match="request fail"):
-                    loader._post_files_with_fallback(
-                        url="http://test", files={}, file_name=file_name, file_bytes=file_bytes
-                    )
-            mock_logger.warning.assert_called_with(
-                "RequestException communicating with Unstructured - %s", mock_request_exc
-            )
-            mock_time.sleep.assert_called_once_with(0.5)  # 2**0 * 0.5
-            return
-
-        with pytest.raises(expected_exc_type):
-            loader._post_files_with_fallback(url="http://test", files={}, file_name=file_name, file_bytes=file_bytes)
-
-        if error_type == "fast_strategy":
-            mock_logger.warning.assert_called_with(
-                "Unstructured server reported fast strategy unavailable so trying fallback payloads"
-            )
-        if error_type == "client_error":
-            mock_logger.error.assert_called_once_with(
-                "Unstructured returned client error %d - %s", status, text_contains
-            )
-        if error_type == "server_error":
-            mock_logger.warning.assert_called_with(
-                "Server error %d from Unstructured, will retry - response was: %s", status, text_contains[:200]
-            )
-            assert mock_time.sleep.call_count >= 1  # Retries with exponential backoff
-        mock_logger.debug.assert_called_with("Exhausted retries for payload moving to next approach")
-        mock_logger.exception.assert_called_with(
-            "All Unstructured requests failed for file %s. Last exception: %s", file_name, ANY
-        )

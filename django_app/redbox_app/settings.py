@@ -463,7 +463,6 @@ Q_CLUSTER = {
     "error_reporter": {"sentry": {"dsn": env.str("SENTRY_DSN", " ")}},
 }
 
-UNSTRUCTURED_HOST = env.str("UNSTRUCTURED_HOST")
 
 GOOGLE_ANALYTICS_TAG = env.str("GOOGLE_ANALYTICS_TAG", " ")
 GOOGLE_ANALYTICS_LINK = env.str("GOOGLE_ANALYTICS_LINK", " ")

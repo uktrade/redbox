@@ -318,7 +318,6 @@ def sample_csv():
 @pytest.fixture
 def mock_env():
     mock_env = MagicMock(spec=Settings)
-    mock_env.unstructured_host = "localhost"
     mock_env.worker_ingest_min_chunk_size = 100
     mock_env.worker_ingest_max_chunk_size = 1000
     mock_env.bucket_name = "test-bucket"
