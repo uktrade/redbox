@@ -750,12 +750,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         ChatConsumer.redbox = None  # force _init_redbox on next connect
                         ChatConsumer._tools_loaded[agent_name] = False
                     else:
-                        # tools loaded before, just reconnect
-                        try:
-                            await ChatConsumer.redbox.reload_tools(agent=agent_name, sso_access_token=sso_access_token)
-                            ChatConsumer._tools_loaded[agent_name] = True
-                        except AttributeError:
-                            ChatConsumer.redbox = None
+                        await ChatConsumer.redbox.reload_tools(agent=agent_name, sso_access_token=sso_access_token)
+                        ChatConsumer._tools_loaded[agent_name] = True
 
                 elif not healthy and was_healthy:
                     # MCP went down — log it
