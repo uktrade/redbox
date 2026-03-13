@@ -207,7 +207,7 @@ def fake_mcp_tool():
 
         def __init__(self, name: str, return_value, args_schema: dict | None = None):
             self.name = name
-            self.metadata = {"url": "http://mock-mcp-url.com/tools"}
+            self.metadata = {"url": "http://mock-mcp-url.com/tools", "sso_access_token": None}
             self.args_schema = args_schema or {"required": []}
             self.func = None
             self.coroutine = True
@@ -225,7 +225,7 @@ def fake_mcp_tool_failing():
 
         def __init__(self, name: str, exception, args_schema: dict | None = None):
             self.name = name
-            self.metadata = {"url": "http://mock-mcp-url.com/tools"}
+            self.metadata = {"url": "http://mock-mcp-url.com/tools", "sso_access_token": None}
             self.args_schema = args_schema or {"required": []}
             self.func = None
             self.coroutine = True
