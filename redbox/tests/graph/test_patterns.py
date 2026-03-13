@@ -54,7 +54,6 @@ CHAT_PROMPT_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=[],
-        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -93,7 +92,6 @@ BUILD_LLM_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=[],
-        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -146,7 +144,6 @@ CHAT_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=[],
-        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -186,7 +183,6 @@ SET_ROUTE_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=[],
-        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -402,7 +398,6 @@ def test_build_passthrough_pattern():
             user_uuid=uuid4(),
             chat_history=[],
             permitted_s3_keys=[],
-            sso_access_token=None,
         ),
     )
 
@@ -422,7 +417,6 @@ def test_build_set_text_pattern():
             user_uuid=uuid4(),
             chat_history=[],
             permitted_s3_keys=[],
-            sso_access_token=None,
         ),
     )
 
@@ -441,7 +435,6 @@ def test_empty_process():
             user_uuid=uuid4(),
             chat_history=[],
             permitted_s3_keys=[],
-            sso_access_token=None,
         ),
         documents=structure_documents_by_file_name([doc for doc in generate_docs(s3_key="s3_key")]),
         messages=[HumanMessage(content="Foo")],
@@ -468,7 +461,6 @@ CLEAR_DOC_TEST_CASES = [
             user_uuid=uuid4(),
             chat_history=[],
             permitted_s3_keys=[],
-            sso_access_token=None,
         ),
         documents=structure_documents_by_file_name([doc for doc in generate_docs(s3_key="s3_key")]),
         messages=[HumanMessage(content="Foo")],
@@ -481,7 +473,6 @@ CLEAR_DOC_TEST_CASES = [
             user_uuid=uuid4(),
             chat_history=[],
             permitted_s3_keys=[],
-            sso_access_token=None,
         ),
         documents={},
         messages=[HumanMessage(content="Foo")],

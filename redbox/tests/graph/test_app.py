@@ -86,7 +86,6 @@ TEST_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=[],
-                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
