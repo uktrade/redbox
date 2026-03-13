@@ -252,10 +252,6 @@ class RedboxQuery(BaseModel):
     question: str = Field(description="The last user chat message")
     s3_keys: list[str] = Field(description="List of files to process", default_factory=list)
     user_uuid: UUID = Field(description="User the chain in executing for")
-    sso_access_token: str | None = Field(
-        description="Optional SSO bearer token for downstream MCP server",
-        default_factory=None,
-    )
     chat_history: list[ChainChatMessage] = Field(description="All previous messages in chat (excluding question)")
     ai_settings: AISettings = Field(description="User request AI settings", default_factory=AISettings)
     permitted_s3_keys: list[str] = Field(description="List of permitted files for response", default_factory=list)
