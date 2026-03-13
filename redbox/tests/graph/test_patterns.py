@@ -660,9 +660,18 @@ class TestBuildAgentLoop:
         ],
     )
     def test_preprocess_loop(
-        self, test_name, pre_process, loop_condition, no_calls, tool_call_results, fake_state, mocker: MockerFixture
+        self,
+        fake_mcp_tool,
+        test_name,
+        pre_process,
+        loop_condition,
+        no_calls,
+        tool_call_results,
+        fake_state,
+        mocker: MockerFixture,
     ):
         # patch
+        fake_tool = fake_mcp_tool("test_tool", '{"status": "success"}')
         res = AIMessage(
             content="test",
             additional_kwargs={"tool_calls": [{"name": "test_tool", "args": {"is_intermediate_step": True}}]},
@@ -703,7 +712,7 @@ class TestBuildAgentLoop:
         fake_agent = build_agent_with_loop(
             agent_name="Internal_Retrieval_Agent",
             system_prompt="Fake prompt",
-            tools=[],
+            tools=[fake_tool],
             use_metadata=False,
             max_tokens=10000,
             pre_process=pre_process,
@@ -739,7 +748,10 @@ class TestBuildAgentLoop:
             ("dont-truncate-response-equal-to-max-tokens", 10, 10),
         ],
     )
-    def test_llm_response_truncation(self, test_name, max_tokens, actual_tokens, fake_state, mocker: MockerFixture):
+    def test_llm_response_truncation(
+        self, fake_mcp_tool, test_name, max_tokens, actual_tokens, fake_state, mocker: MockerFixture
+    ):
+        fake_tool = fake_mcp_tool("test_tool", '{"status": "success"}')
         sanitised_test_name = test_name.replace("-", "")
 
         llm_content = f"{sanitised_test_name} " * actual_tokens
@@ -766,7 +778,7 @@ class TestBuildAgentLoop:
         fake_agent = build_agent_with_loop(
             agent_name="Internal_Retrieval_Agent",
             system_prompt="Fake prompt",
-            tools=[],
+            tools=[fake_tool],
             use_metadata=False,
             max_tokens=max_tokens,
             pre_process=None,
