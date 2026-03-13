@@ -205,7 +205,6 @@ class TestNewRoutes:
                 user_uuid=uuid4(),
                 chat_history=chat_history,
                 permitted_s3_keys=[],
-                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -442,7 +441,6 @@ class TestNewRoutes:
             user_uuid=uuid4(),
             chat_history=[],
             permitted_s3_keys=[],
-            sso_access_token=None,
         )
         state = RedboxState(request=dummy_query)
 
@@ -462,7 +460,6 @@ class TestNewRoutes:
             user_uuid=uuid4(),
             chat_history=[],
             permitted_s3_keys=[],
-            sso_access_token=None,
         )
         state = RedboxState(request=dummy_query)
 
@@ -481,7 +478,6 @@ class TestNewRoutes:
             user_uuid=uuid4(),
             chat_history=[],
             permitted_s3_keys=[],
-            sso_access_token=None,
         )
         state = RedboxState(request=dummy_query)
 
@@ -501,7 +497,6 @@ class TestNewRoutes:
             user_uuid=uuid4(),
             chat_history=[],
             permitted_s3_keys=[],
-            sso_access_token=None,
         )
         state = RedboxState(request=dummy_query)
 
@@ -521,7 +516,6 @@ class TestNewRoutes:
             user_uuid=uuid4(),
             chat_history=[],
             permitted_s3_keys=[],
-            sso_access_token=None,
         )
         state = RedboxState(request=dummy_query)
 
@@ -548,7 +542,6 @@ class TestNewRoutes:
             user_uuid=uuid4(),
             chat_history=[],
             permitted_s3_keys=[],
-            sso_access_token=None,
         )
         state = RedboxState(request=dummy_query)
 

@@ -998,13 +998,17 @@ def get_datahub_mcp_tools(agent_loop=True, sso_access_token: str | None = None):
                 tools = await load_mcp_tools(session)
                 # adding URL metadata so that the agent can execute the tool later
                 for tool in tools:
-                    tool.metadata = {"url": datahub_mcp_url, "creator_type": ChunkCreatorType.datahub}
+                    tool.metadata = {
+                        "url": datahub_mcp_url,
+                        "creator_type": ChunkCreatorType.datahub,
+                        "sso_access_token": sso_access_token,
+                    }
                     if agent_loop:  # if loop is True, add intermediate steps into schema so that it is exposed to LLM
                         tool.args_schema["properties"]["is_intermediate_step"] = {"type": "string"}
                         tool.args_schema["required"].append("is_intermediate_step")
                 return tools
-        except Exception:
-            log.error("MCP server not running")
+        except Exception as e:
+            log.error("Unable to connect to MCP server - %s", e)
             return []
 
     # Apply patch to allow nested event loops

@@ -159,7 +159,6 @@ def fake_state() -> RedboxState:
         chat_history=[{"role": "user", "text": "what is AI?"}, {"role": "ai", "text": "AI is a lie."}],
         ai_settings=AISettings(),
         permitted_s3_keys=[],
-        sso_access_token=None,
     )
 
     return RedboxState(
@@ -176,7 +175,6 @@ def fake_state_with_plan() -> RedboxState:
         chat_history=[{"role": "user", "text": "what is AI policy?"}, {"role": "ai", "text": "let me generate plan"}],
         ai_settings=AISettings(),
         permitted_s3_keys=[],
-        sso_access_token=None,
     )
 
     agent = "Internal_Retrieval_Agent"
@@ -208,7 +206,11 @@ def fake_mcp_tool():
 
         def __init__(self, name: str, return_value, args_schema: dict | None = None):
             self.name = name
-            self.metadata = {"url": "http://mock-mcp-url.com/tools", "creator_type": ChunkCreatorType.datahub}
+            self.metadata = {
+                "url": "http://mock-mcp-url.com/tools",
+                "creator_type": ChunkCreatorType.datahub,
+                "sso_access_token": None,
+            }
             self.args_schema = args_schema or {"required": []}
             self.func = None
             self.coroutine = True
@@ -226,7 +228,11 @@ def fake_mcp_tool_failing():
 
         def __init__(self, name: str, exception, args_schema: dict | None = None):
             self.name = name
-            self.metadata = {"url": "http://mock-mcp-url.com/tools", "creator_type": ChunkCreatorType.datahub}
+            self.metadata = {
+                "url": "http://mock-mcp-url.com/tools",
+                "creator_type": ChunkCreatorType.datahub,
+                "sso_access_token": None,
+            }
             self.args_schema = args_schema or {"required": []}
             self.func = None
             self.coroutine = True
