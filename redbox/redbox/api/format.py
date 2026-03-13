@@ -84,4 +84,4 @@ def format_mcp_tool_response(tool_response, creator_type: ChunkCreatorType) -> s
         else:
             response.append(json.dumps(item))
 
-    return "\n".join(response)
+    return "\n\n".join(response)
