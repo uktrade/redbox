@@ -449,7 +449,7 @@ class TestWrapAsyncTool:
         tool = fake_mcp_tool("dummy_tool", return_value=None)
         tool.metadata["url"] = url
 
-        wrapped = wrap_async_tool(tool, tool.name, None)
+        wrapped = wrap_async_tool(tool, tool.name)
         args = {"foo": "bar"}
 
         with pytest.raises(ExceptionGroup) as exc_info:
@@ -479,7 +479,7 @@ class TestWrapAsyncTool:
         mock_session = self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
         # create the wrapped function
-        wrapped_func = wrap_async_tool(tool, tool_name, None)
+        wrapped_func = wrap_async_tool(tool, tool_name)
 
         # rest invocation with sample args
         test_args = {"company_name": "BMW"}
@@ -501,7 +501,7 @@ class TestWrapAsyncTool:
         """Test wrap_async_tool raises ValueError when the requested tool is not in the MCP tool list."""
 
         tool = fake_mcp_tool("dummy_tool", return_value=None)
-        wrapped_func = wrap_async_tool(tool, "missing_tool", None)
+        wrapped_func = wrap_async_tool(tool, "missing_tool")
 
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 

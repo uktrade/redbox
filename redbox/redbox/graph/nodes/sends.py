@@ -112,7 +112,7 @@ def _get_mcp_headers(sso_access_token: str | None = None) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def wrap_async_tool(tool, tool_name, sso_access_token):
+def wrap_async_tool(tool, tool_name):
     """
     Returns a synchronous function that properly wraps an async tool
 
@@ -130,6 +130,7 @@ def wrap_async_tool(tool, tool_name, sso_access_token):
 
         # get mcp tool url
         mcp_url = tool.metadata["url"]
+        sso_access_token = tool.metadata["sso_access_token"]
         headers = _get_mcp_headers(sso_access_token)
 
         try:
@@ -227,10 +228,9 @@ def run_tools_parallel(
                     if is_loop:
                         is_intermediate_step = args.get("is_intermediate_step", "False")
                         log.warning(f"intermediate step: {is_intermediate_step}")
-                    sso_access_token = getattr(state.request, "sso_access_token", None)
                     future = executor.submit(
                         run_with_timeout,
-                        wrap_async_tool(selected_tool, tool_name, sso_access_token),
+                        wrap_async_tool(selected_tool, tool_name),
                         args,
                         per_tool_timeout,
                     )
