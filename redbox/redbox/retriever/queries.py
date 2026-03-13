@@ -5,6 +5,7 @@ from langchain_core.documents import Document
 
 from redbox.models.chain import AISettings, RedboxState
 from redbox.models.file import ChunkResolution
+from redbox.models.settings import get_settings
 
 log = logging.getLogger()
 
@@ -121,9 +122,9 @@ def get_minimum_metadata(
         permitted_files=state.request.permitted_s3_keys,
         chunk_resolution=chunk_resolution,
     )
-
+    s = get_settings()
     return {
-        "size": 30,
+        "size": s.max_user_uploaded_files,
         "_source": {"includes": ["metadata.name", "metadata.description", "metadata.keywords"]},
         "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
     }
@@ -139,9 +140,9 @@ def get_knowledge_base_metadata(
         permitted_files=state.request.knowledge_base_s3_keys,
         chunk_resolution=chunk_resolution,
     )
-
+    s = get_settings()
     return {
-        "size": 30,
+        "size": s.max_knowledge_base_files,
         "_source": {"includes": ["metadata.uri", "metadata.name", "metadata.description", "metadata.keywords"]},
         "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
     }
