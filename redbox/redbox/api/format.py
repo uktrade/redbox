@@ -68,11 +68,20 @@ def format_mcp_tool_response(tool_response, creator_type: ChunkCreatorType) -> s
             for page in paged_results:
                 deep_links += [(item.get("url"), item) for item in page.get("result", {}).get("items", [])]
 
-    citations = [
-        Document(
-            page_content=json.dumps(item),
-            metadata={"creator_type": creator_type, "uri": link or "", "page_number": ""},
-        )
-        for link, item in deep_links
-    ]
-    return format_documents(documents=citations)
+    response = []
+    for link, item in deep_links:
+        if link:
+            response.append(
+                format_documents(
+                    [
+                        Document(
+                            page_content=json.dumps(item),
+                            metadata={"creator_type": creator_type, "uri": link, "page_number": ""},
+                        )
+                    ]
+                )
+            )
+        else:
+            response.append(json.dumps(item))
+
+    return "\n".join(response)
