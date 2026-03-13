@@ -202,6 +202,7 @@ TEST_QUERY = RedboxQuery(
     user_uuid=uuid4(),
     chat_history=[],
     ai_settings=AISettings(rag_k=3),
+    sso_access_token=None,
 )
 
 

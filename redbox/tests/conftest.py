@@ -158,6 +158,7 @@ def fake_state() -> RedboxState:
         chat_history=[{"role": "user", "text": "what is AI?"}, {"role": "ai", "text": "AI is a lie."}],
         ai_settings=AISettings(),
         permitted_s3_keys=[],
+        sso_access_token=None,
     )
 
     return RedboxState(

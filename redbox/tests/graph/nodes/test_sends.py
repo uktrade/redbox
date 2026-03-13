@@ -25,7 +25,7 @@ from tests.conftest import fake_state
 
 def test_build_document_group_send():
     target = "my-target"
-    request = RedboxQuery(question="what colour is the sky?", user_uuid=uuid4(), chat_history=[])
+    request = RedboxQuery(question="what colour is the sky?", user_uuid=uuid4(), chat_history=[], sso_access_token=None)
     documents = DocumentState(
         groups={
             uuid4(): {
@@ -49,7 +49,7 @@ def test_build_document_group_send():
 
 def test_build_document_chunk_send():
     target = "my-target"
-    request = RedboxQuery(question="what colour is the sky?", user_uuid=uuid4(), chat_history=[])
+    request = RedboxQuery(question="what colour is the sky?", user_uuid=uuid4(), chat_history=[], sso_access_token=None)
 
     uuid_1 = uuid4()
     doc_1 = Document(page_content="Hello, world!")
@@ -89,7 +89,7 @@ def test_build_document_chunk_send():
 
 def test_build_tool_send():
     target = "my-target"
-    request = RedboxQuery(question="what colour is the sky?", user_uuid=uuid4(), chat_history=[])
+    request = RedboxQuery(question="what colour is the sky?", user_uuid=uuid4(), chat_history=[], sso_access_token=None)
 
     tool_call_1 = [ToolCall(name="foo", args={"a": 1, "b": 2}, id="123")]
     tool_call_2 = [ToolCall(name="bar", args={"x": 10, "y": 20}, id="456")]
