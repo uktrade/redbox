@@ -2,7 +2,6 @@ from uuid import uuid4
 import pytest
 
 import json
-import pytest
 from langchain_core.documents import Document
 
 from redbox.models.chain import RedboxQuery
