@@ -608,9 +608,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.send_to_client("error", error_messages.AUTH_REQUIRED)
             return
 
+        sso_access_token = self._extract_sso_token()
         if ChatConsumer.redbox is None:
             agents = await get_all_agents()
-            sso_access_token = self._extract_sso_token()
             for agent in agents:
                 if agent.name in list(agent_configs.keys()):
                     if agent.llm_backend:
@@ -627,9 +627,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 debug=ChatConsumer.debug,
                 sso_access_token=sso_access_token,
             )
+        else:
+            # Update sso_access_token
+            self.update_chat_consumer_redbox_with_new_sso_token(sso_access_token)
 
         self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
         await self.accept()
+
+    def update_chat_consumer_redbox_with_new_sso_token(self, sso_access_token: str) -> None:
+        ChatConsumer.redbox.sso_access_token = sso_access_token
+        ChatConsumer.redbox.init_datahub_agent(sso_access_token)
+        ChatConsumer.redbox.setup_graph(ChatConsumer.debug)
 
     async def handle_text(self, response: str) -> str:
         """Handle text chunks and British spelling conversion before sending to client."""
