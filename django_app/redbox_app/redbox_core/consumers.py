@@ -363,6 +363,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 question=question,
                 s3_keys=await self._files_to_s3_keys(selected_files),
                 user_uuid=user.id,
+                sso_access_token=sso_access_token,
                 chat_history=[
                     ChainChatMessage(role=m.role, text=escape_curly_brackets(m.text))
                     for m in message_history[:-2]

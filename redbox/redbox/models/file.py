@@ -35,6 +35,16 @@ class TabularSchema(BaseSchema):
     columns: dict[str, str]
 
 
+class BaseSchema(BaseModel):
+    type: str
+    name: str
+
+
+class TabularSchema(BaseSchema):
+    type: Literal["tabular"] = "tabular"
+    columns: dict[str, str]
+
+
 class ChunkMetadata(BaseModel):
     """
     Worker model for document metadata for new style chunks.

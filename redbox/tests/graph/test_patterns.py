@@ -223,6 +223,7 @@ RETRIEVER_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=["s3_key_1", "s3_key_2"],
+        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -274,6 +275,7 @@ MERGE_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=["s3_key_1", "s3_key_2"],
+        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -325,6 +327,7 @@ STUFF_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=["s3_key_1", "s3_key_2"],
+        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -371,6 +374,7 @@ TOOL_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=["s3_key_1", "s3_key_2"],
+        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -525,6 +529,7 @@ LLM_ROUTE_TEST_CASE = generate_test_cases(
         ai_settings=AISettings(
             self_route_enabled=True,
         ),
+        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -548,6 +553,7 @@ STRUCTURED_OUTPUT_TEST_CASE = generate_test_cases(
         ai_settings=AISettings(
             self_route_enabled=True,
         ),
+        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
