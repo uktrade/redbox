@@ -64,7 +64,6 @@ class Redbox:
         self.agent_configs = agents or agent_configs
 
         # Retrievers
-
         self.all_chunks_retriever = all_chunks_retriever or get_all_chunks_retriever(_env)
         self.parameterised_retriever = parameterised_retriever or get_parameterised_retriever(_env)
         self.metadata_retriever = metadata_retriever or get_metadata_retriever(_env)
@@ -119,7 +118,6 @@ class Redbox:
         web_search = build_web_search_tool()
         legislation_search = build_legislation_search_tool()
         doc_from_prompt = build_document_from_prompt_tool(loop=True)
-        datahub_mcp = get_datahub_mcp_tools(sso_access_token=sso_access_token)
 
         self.agent_configs["Internal_Retrieval_Agent"].tools = [search_documents]
         self.agent_configs["External_Retrieval_Agent"].tools = [search_wikipedia, search_govuk]
@@ -141,15 +139,21 @@ class Redbox:
             search_knowledge_base,
         ]
         self.agent_configs["Artifact_Builder_Agent"].tools = [retrieve_specific_files_knowledge_base]
-        self.agent_configs["Datahub_Agent"].tools = datahub_mcp
+        self.init_datahub_agent(sso_access_token=sso_access_token)
 
-        self.graph = build_root_graph(
+        self.graph = self.setup_graph(debug)
+
+    def setup_graph(self, debug: bool):
+        return build_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,
             parameterised_retriever=self.parameterised_retriever,
             metadata_retriever=self.metadata_retriever,
             agent_configs=self.agent_configs,
             debug=debug,
         )
+
+    def init_datahub_agent(self, sso_access_token: str) -> None:
+        self.agent_configs["Datahub_Agent"].tools = get_datahub_mcp_tools(sso_access_token=sso_access_token)
 
     def run_sync(self, input: RedboxState):
         """
