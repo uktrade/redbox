@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import Any
 
 from langchain_core.documents.base import Document
 
@@ -7,6 +8,19 @@ from redbox.models.file import ChunkCreatorType
 from redbox.transform import combine_documents
 
 log = logging.getLogger(__name__)
+
+
+class SensitiveValue:
+    """Wrap any metadata value you never want serialized."""
+
+    def __init__(self, value: Any):
+        self._value = value
+
+    def get(self) -> Any:
+        return self._value
+
+    def __repr__(self):
+        return "SensitiveValue(**redacted**)"
 
 
 def format_documents(documents: list[Document]) -> str:

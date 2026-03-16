@@ -134,7 +134,7 @@ def wrap_async_tool(tool, tool_name):
         # get mcp tool url
         mcp_url = tool.metadata["url"]
         creator_type = tool.metadata["creator_type"]
-        sso_access_token = tool.metadata["sso_access_token"]
+        sso_access_token = tool.metadata["sso_access_token"].get()
         headers = _get_mcp_headers(sso_access_token)
 
         try:
