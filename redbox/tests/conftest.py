@@ -13,6 +13,7 @@ from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.messages import AIMessage
 from opensearchpy import OpenSearch
 
+from redbox.api.format import SensitiveValue
 from redbox.models.chain import AISettings, GeneratedMetadata, RedboxQuery, RedboxState, configure_agent_task_plan
 from redbox.models.file import ChunkCreatorType
 from redbox.models.settings import Settings
@@ -209,7 +210,7 @@ def fake_mcp_tool():
             self.metadata = {
                 "url": "http://mock-mcp-url.com/tools",
                 "creator_type": ChunkCreatorType.datahub,
-                "sso_access_token": None,
+                "sso_access_token": SensitiveValue(None),
             }
             self.args_schema = args_schema or {"required": []}
             self.func = None
@@ -231,7 +232,7 @@ def fake_mcp_tool_failing():
             self.metadata = {
                 "url": "http://mock-mcp-url.com/tools",
                 "creator_type": ChunkCreatorType.datahub,
-                "sso_access_token": None,
+                "sso_access_token": SensitiveValue(None),
             }
             self.args_schema = args_schema or {"required": []}
             self.func = None
