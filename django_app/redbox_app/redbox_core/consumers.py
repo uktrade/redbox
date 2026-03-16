@@ -25,6 +25,7 @@ from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
 from redbox.graph.agents.configs import agent_configs
+from redbox.graph.nodes.tools import get_datahub_mcp_tools
 from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
@@ -316,6 +317,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         ids = [f.id for f in files]
         return list(File.objects.filter(id__in=ids).values_list("original_file", flat=True))
 
+    def _extract_sso_token(self) -> str | None:
+        try:
+            session = self.scope.get("session")
+            return session["_authbroker_token"]["access_token"]
+        except (KeyError, TypeError):
+            return None
+
     async def llm_conversation(
         self,
         selected_files: Sequence[File],
@@ -338,6 +346,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         agent_plans, question, user_feedback = await self._load_agent_plan(session, message_history)
 
         ai_settings = await self.get_ai_settings(session)
+        sso_access_token = self._extract_sso_token()
 
         if selected_agent_names:
             ai_settings = ai_settings.model_copy(
@@ -345,6 +354,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     "worker_agents": [agent for agent in agent_configs.values() if agent.name in selected_agent_names]
                 }
             )
+
+        if sso_access_token:
+            self.redbox.agent_configs["Datahub_Agent"].tools = get_datahub_mcp_tools(sso_access_token=sso_access_token)
+
         state = RedboxState(
             request=RedboxQuery(
                 question=question,
@@ -588,15 +601,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         self.user = self.scope["user"]
+
         # if user is unauthenticated, send auth_required error message
         if not self.user.is_authenticated:
             await self.accept()
             await self.send_to_client("error", error_messages.AUTH_REQUIRED)
             return
 
+        sso_access_token = self._extract_sso_token()
         if ChatConsumer.redbox is None:
             agents = await get_all_agents()
-
             for agent in agents:
                 if agent.name in list(agent_configs.keys()):
                     if agent.llm_backend:
@@ -607,10 +621,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         )
                     if agent.agents_max_tokens:
                         agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
-            ChatConsumer.redbox = Redbox(agents=agent_configs, env=ChatConsumer.env, debug=ChatConsumer.debug)
+            ChatConsumer.redbox = Redbox(
+                agents=agent_configs,
+                env=ChatConsumer.env,
+                debug=ChatConsumer.debug,
+                sso_access_token=sso_access_token,
+            )
+        else:
+            # Update sso_access_token
+            self.update_chat_consumer_redbox_with_new_sso_token(sso_access_token)
 
         self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
         await self.accept()
+
+    def update_chat_consumer_redbox_with_new_sso_token(self, sso_access_token: str) -> None:
+        ChatConsumer.redbox.sso_access_token = sso_access_token
+        ChatConsumer.redbox.init_datahub_agent(sso_access_token)
+        ChatConsumer.redbox.setup_graph(ChatConsumer.debug)
 
     async def handle_text(self, response: str) -> str:
         """Handle text chunks and British spelling conversion before sending to client."""
