@@ -899,14 +899,14 @@ def format_company_records(parsed):
     for data_record in parsed:
         if data_record.get("companies"):  # not all records are from companies tool
             for record in data_record["companies"]:
-                company_name = record["name"]
-                company_number = record["company_number"]
+                company_name = record.get("name")
+                company_number = record.get("company_number")
                 address_columns = ["address_1", "address_2", "address_postcode", "address_country"]
-                full_address = [record[col] for col in address_columns if record[col]]
+                full_address = [record[col] for col in address_columns if record.get(col)]
                 if full_address == []:
                     full_address = ["None"]
                 company_address = " ".join(full_address)
-                description = record["description"]
+                description = record.get("description")
                 formatted_record = {
                     "Company Name": company_name,
                     "Company Address": company_address,
@@ -923,20 +923,23 @@ def get_user_feedback() -> Runnable[RedboxState, dict[str, Any]]:
     @RunnableLambda
     def _stream_feedback_request(state: RedboxState):
         parsed_records = parse_datahub_records(state)
-        dispatch_custom_event(
-            RedboxEventType.response_tokens,
-            data="Multiple records were found in Datahub database. Can you please confirm which record is more relevant to your query?\n\n",
-        )
-        formatted_records = format_company_records(parsed_records)
-        for record in formatted_records:
-            for record_name, record_value in record.items():
-                if record_name == "Company Name":
-                    dispatch_custom_event(RedboxEventType.response_tokens, data=f"**{record_name}**: ")
-                    dispatch_custom_event(RedboxEventType.response_tokens, data=f"**{record_value}**\n\n")
-                else:
-                    dispatch_custom_event(RedboxEventType.response_tokens, data=f"{record_name}: ")
-                    dispatch_custom_event(RedboxEventType.response_tokens, data=f"{record_value}\n\n")
-                dispatch_custom_event(RedboxEventType.response_tokens, data="\n\n")
-        return state
+        if not parsed_records:
+            raise ValueError("No records parsed from datahub agent")
+        else:
+            dispatch_custom_event(
+                RedboxEventType.response_tokens,
+                data="Multiple records were found in Datahub database. Can you please confirm which record is more relevant to your query?\n\n",
+            )
+            formatted_records = format_company_records(parsed_records)
+            for record in formatted_records:
+                for record_name, record_value in record.items():
+                    if record_name == "Company Name":
+                        dispatch_custom_event(RedboxEventType.response_tokens, data=f"**{record_name}**: ")
+                        dispatch_custom_event(RedboxEventType.response_tokens, data=f"**{record_value}**\n\n")
+                    else:
+                        dispatch_custom_event(RedboxEventType.response_tokens, data=f"{record_name}: ")
+                        dispatch_custom_event(RedboxEventType.response_tokens, data=f"{record_value}\n\n")
+                    dispatch_custom_event(RedboxEventType.response_tokens, data="\n\n")
+            return state
 
     return _stream_feedback_request
