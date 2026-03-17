@@ -424,7 +424,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 question=question,
                 s3_keys=await self._files_to_s3_keys(selected_files),
                 user_uuid=user.id,
-                sso_access_token=sso_access_token,
                 chat_history=[
                     ChainChatMessage(role=m.role, text=escape_curly_brackets(m.text))
                     for m in message_history[:-2]
@@ -786,6 +785,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
         await ChatConsumer.redbox.reload_tools("Datahub_Agent", self._extract_sso_token())
+
+    def update_chat_consumer_redbox_with_new_sso_token(self, sso_access_token: str) -> None:
+        ChatConsumer.redbox.sso_access_token = sso_access_token
+        ChatConsumer.redbox.init_datahub_agent(sso_access_token)
+        ChatConsumer.redbox.setup_graph(ChatConsumer.debug)
 
     async def handle_text(self, response: str) -> str:
         """Handle text chunks and British spelling conversion before sending to client."""

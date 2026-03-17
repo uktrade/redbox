@@ -1,28 +1,44 @@
 {% extends "tools/base-tool-info.html" %}
 
 {% block tool_description %}
-    The Submissions Checker tool uses pre-set 'Ministerial Submission Template Guidance' to help you assess whether your draft submission meets the criteria for submission.
+    <p class="govuk-body">
+        The Submissions Checker helps you assess whether your draft submission aligns with the 'Ministerial template guidance'.
+        It reviews your submission against 7 criteria taken from that guidance.
+    </p>
+
+    <p class="govuk-body">For each criterion, you'll get:</p>
+
+    <ul class="govuk-list govuk-list--bullet govuk-body">
+        <li>a score</li>
+        <li>a short explanation</li>
+        <li>specific examples</li>
+    </ul>
+
+    <p class="govuk-body">
+        Once all 7 parts are checked, you'll get an average score, summary and recommendations to improve your draft.
+    </p>
 {% endblock %}
 
 {% block tool_when_to_use %}
     <ul class="govuk-list govuk-list--bullet govuk-body-s">
-        <li>if you are on your first draft and want to test whether you’re on the right track</li>
-        <li>if you want detailed feedback on a draft</li>
-        <li>if you are reviewing a submission and want a quick overview of the potential strengths and weaknesses</li>
-        <li>final checks before sending your Submission</li>
+        <li>you're reviewing a submission and want a quick overview of its strengths and weaknesses</li>
+        <li>you want to check that your first draft is on the right track</li>
+        <li>you want a final sense check before submitting</li>
+        <li>you want detailed feedback on a draft</li>
     </ul>
 {% endblock %}
 
 {% block tool_how_to_use %}
     <ul class="govuk-list govuk-list--bullet govuk-body-s">
-        <li>upload your submission draft and ask for feedback</li>
-        <li>the tool will give you detailed feedback and scoring on the Ministerial Submission Template Guidance, and narrative flow</li>
-        <li>for a more holistic review, you can upload additional documents to provide the tool with more context</li>
+        <li>go to the submission checker tool (from the menu or green button below) and upload your submission draft in the chat box</li>
+        <li>if you don't enter a prompt with your upload, the tool will review your submission against 7 key criteria, score it and give you an explanation</li>
+        <li>if you want the review to focus on a particular area, type a prompt before clicking send</li>
+        <li>for a more holistic review, you can upload additional documents to provide more context</li>
     </ul>
 {% endblock %}
 
-{% block tool_document_guidance %}
-    <p class="govuk-body-s govuk-!-padding-top-5 ids-push-bottom">
+{% block tool_document_guidance_description %}
+    <p class="govuk-body-s">
         <strong>note: </strong>you can upload additional documents to the chat,
         such as important ministerial context or prior example submissions.
     </p>

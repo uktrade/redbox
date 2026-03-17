@@ -13,7 +13,9 @@ from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.messages import AIMessage
 from opensearchpy import OpenSearch
 
+from redbox.api.format import SensitiveValue
 from redbox.models.chain import AISettings, GeneratedMetadata, RedboxQuery, RedboxState, configure_agent_task_plan
+from redbox.models.file import ChunkCreatorType
 from redbox.models.settings import Settings
 from redbox.models.file import TabularSchema
 from redbox.retriever import (
@@ -158,7 +160,6 @@ def fake_state() -> RedboxState:
         chat_history=[{"role": "user", "text": "what is AI?"}, {"role": "ai", "text": "AI is a lie."}],
         ai_settings=AISettings(),
         permitted_s3_keys=[],
-        sso_access_token=None,
     )
 
     return RedboxState(
@@ -175,7 +176,6 @@ def fake_state_with_plan() -> RedboxState:
         chat_history=[{"role": "user", "text": "what is AI policy?"}, {"role": "ai", "text": "let me generate plan"}],
         ai_settings=AISettings(),
         permitted_s3_keys=[],
-        sso_access_token=None,
     )
 
     agent = "Internal_Retrieval_Agent"
@@ -207,7 +207,11 @@ def fake_mcp_tool():
 
         def __init__(self, name: str, return_value, args_schema: dict | None = None):
             self.name = name
-            self.metadata = {"url": "http://mock-mcp-url.com/tools"}
+            self.metadata = {
+                "url": "http://mock-mcp-url.com/tools",
+                "creator_type": ChunkCreatorType.datahub,
+                "sso_access_token": SensitiveValue(None),
+            }
             self.args_schema = args_schema or {"required": []}
             self.func = None
             self.coroutine = True
@@ -225,7 +229,11 @@ def fake_mcp_tool_failing():
 
         def __init__(self, name: str, exception, args_schema: dict | None = None):
             self.name = name
-            self.metadata = {"url": "http://mock-mcp-url.com/tools"}
+            self.metadata = {
+                "url": "http://mock-mcp-url.com/tools",
+                "creator_type": ChunkCreatorType.datahub,
+                "sso_access_token": SensitiveValue(None),
+            }
             self.args_schema = args_schema or {"required": []}
             self.func = None
             self.coroutine = True

@@ -1,9 +1,13 @@
 from uuid import uuid4
+
+import json
 import pytest
+from langchain_core.documents import Document
 
 from redbox.models.chain import RedboxQuery
-from redbox.models.file import ChunkResolution
+from redbox.models.file import ChunkResolution, ChunkCreatorType
 from redbox.test.data import RedboxChatTestCase, RedboxTestData, generate_test_cases
+from redbox.api.format import format_documents
 
 KNOWLEDGE_BASE_CASES = [
     test_case
@@ -16,7 +20,6 @@ KNOWLEDGE_BASE_CASES = [
                 chat_history=[],
                 permitted_s3_keys=[],
                 knowledge_base_s3_keys=["s3_key"],
-                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=1, tokens_in_all_docs=1000, chunk_resolution=ChunkResolution.largest)
@@ -31,7 +34,6 @@ KNOWLEDGE_BASE_CASES = [
                 chat_history=[],
                 permitted_s3_keys=[],
                 knowledge_base_s3_keys=[],
-                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.largest)
@@ -52,7 +54,6 @@ ALL_CHUNKS_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
-                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.largest)
@@ -66,7 +67,6 @@ ALL_CHUNKS_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=[],
-                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.largest)
@@ -80,7 +80,6 @@ ALL_CHUNKS_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
-                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -106,7 +105,6 @@ PARAMETERISED_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
-                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.normal)
@@ -120,7 +118,6 @@ PARAMETERISED_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=[],
-                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.normal)
@@ -134,7 +131,6 @@ PARAMETERISED_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
-                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -160,7 +156,6 @@ METADATA_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
-                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.largest)
@@ -174,7 +169,6 @@ METADATA_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=[],
-                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(number_of_docs=8, tokens_in_all_docs=8000, chunk_resolution=ChunkResolution.largest)
@@ -188,7 +182,6 @@ METADATA_RETRIEVER_CASES = [
                 user_uuid=uuid4(),
                 chat_history=[],
                 permitted_s3_keys=["s3_key"],
-                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -214,7 +207,6 @@ TABULAR_RETRIEVER_KB_CASES: list[RedboxChatTestCase] = [
                 chat_history=[],
                 permitted_s3_keys=["file1.csv", "file2.xlsx"],
                 knowledge_base_s3_keys=["file1.csv", "file2.xlsx"],
-                sso_access_token=None,
                 s3_keys=[],
             ),
             test_data=[
@@ -235,7 +227,6 @@ TABULAR_RETRIEVER_KB_CASES: list[RedboxChatTestCase] = [
                 permitted_s3_keys=[],
                 knowledge_base_s3_keys=[],
                 s3_keys=[],
-                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -262,7 +253,6 @@ TABULAR_RETRIEVER_USER_CASES: list[RedboxChatTestCase] = [
                 permitted_s3_keys=["file1.csv", "file2.xlsx"],
                 knowledge_base_s3_keys=[],
                 s3_keys=["file1.csv", "file2.xlsx"],
-                sso_access_token=None,
             ),
             test_data=[
                 RedboxTestData(
@@ -281,7 +271,6 @@ TABULAR_RETRIEVER_USER_CASES: list[RedboxChatTestCase] = [
                 chat_history=[],
                 permitted_s3_keys=[],
                 knowledge_base_s3_keys=[],
-                sso_access_token=None,
                 s3_keys=["file1.csv", "file2.xlsx"],
             ),
             test_data=[
@@ -302,4 +291,175 @@ TABULAR_RETRIEVER_CASES: list[tuple[RedboxChatTestCase, bool]] = [
     pytest.param((test_case, knowledge_base), id=f"{test_case.test_id}-{'kb' if knowledge_base else 'user'}")
     for knowledge_base, test_case in [(True, tc) for tc in TABULAR_RETRIEVER_KB_CASES]
     + [(False, tc) for tc in TABULAR_RETRIEVER_USER_CASES]
+]
+
+WRAP_ASYNC_TOOL_RESULTS = [
+    (
+        '{"status": "success"}',
+        '{"status": "success"}',
+    ),
+    (
+        json.dumps(
+            {
+                "result_type": "nullable",
+                "result": {"name": "BMW", "founded": 1916, "url": "https://example.com"},
+            }
+        ),
+        [
+            Document(
+                page_content='{"name": "BMW", "founded": 1916, "url": "https://example.com"}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": "https://example.com",
+                    "page_number": "",
+                },
+            )
+        ],
+    ),
+    (
+        '{"total": 0, "records": []}',
+        '{"total": 0, "records": []}',
+    ),
+    (
+        json.dumps(
+            {
+                "result_type": "paged",
+                "result": {
+                    "items": [
+                        {"name": "BMW", "url": "https://example.com"},
+                        {"name": "BMW2", "url": "https://example2.com"},
+                    ],
+                    "total": 2,
+                    "page": 0,
+                    "page_size": 10,
+                },
+            }
+        ),
+        [
+            Document(
+                page_content='{"name": "BMW", "url": "https://example.com"}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": "https://example.com",
+                    "page_number": "",
+                },
+            ),
+            Document(
+                page_content='{"name": "BMW2", "url": "https://example2.com"}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": "https://example2.com",
+                    "page_number": "",
+                },
+            ),
+        ],
+    ),
+    (
+        json.dumps(
+            {
+                "result_type": "multipaged",
+                "result": {
+                    "companies": {
+                        "result": {
+                            "items": [
+                                {"name": "BMW", "url": "https://bmw.com"},
+                                {"name": "Audi", "url": "https://audi.com"},
+                            ],
+                            "total": 2,
+                            "page": 0,
+                            "page_size": 10,
+                        }
+                    },
+                    "interactions": {
+                        "result": {
+                            "items": [{"name": "Meeting", "url": "https://interaction.com"}],
+                            "total": 1,
+                            "page": 0,
+                            "page_size": 10,
+                        }
+                    },
+                },
+            }
+        ),
+        [
+            Document(
+                page_content='{"name": "BMW", "url": "https://bmw.com"}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": "https://bmw.com",
+                    "page_number": "",
+                },
+            ),
+            Document(
+                page_content='{"name": "Audi", "url": "https://audi.com"}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": "https://audi.com",
+                    "page_number": "",
+                },
+            ),
+            Document(
+                page_content='{"name": "Meeting", "url": "https://interaction.com"}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": "https://interaction.com",
+                    "page_number": "",
+                },
+            ),
+        ],
+    ),
+    (
+        json.dumps(
+            {
+                "result_type": "composite",
+                "result": [
+                    {"name": "BMW", "url": "https://bmw.com", "founded": 1916},
+                    {
+                        "interactions": {
+                            "result": {
+                                "items": [
+                                    {"name": "Meeting", "url": "https://interaction.com"},
+                                    {"name": "Call", "url": "https://interaction2.com"},
+                                ],
+                                "total": 2,
+                                "page": 0,
+                                "page_size": 10,
+                            }
+                        }
+                    },
+                ],
+            }
+        ),
+        [
+            Document(
+                page_content='{"name": "BMW", "url": "https://bmw.com", "founded": 1916}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": "https://bmw.com",
+                    "page_number": "",
+                },
+            ),
+            Document(
+                page_content='{"name": "Meeting", "url": "https://interaction.com"}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": "https://interaction.com",
+                    "page_number": "",
+                },
+            ),
+            Document(
+                page_content='{"name": "Call", "url": "https://interaction2.com"}',
+                metadata={
+                    "creator_type": ChunkCreatorType.datahub,
+                    "uri": "https://interaction2.com",
+                    "page_number": "",
+                },
+            ),
+        ],
+    ),
+]
+
+MCP_TOOL_RESULTS = [
+    (tool_result, format_documents(parsed_result) if isinstance(parsed_result, list) else parsed_result)
+    for tool_result, parsed_result in WRAP_ASYNC_TOOL_RESULTS
 ]
