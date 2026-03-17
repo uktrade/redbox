@@ -79,6 +79,20 @@ async def wait_for_health(
     interval: float = 2.0,
     request_timeout: float = 5.0,
 ) -> bool:
+    """
+    Polls URL for a response
+
+    Parameters:
+        url: str - the endpoint to poll
+        headers: dict - headers to embed in the endpoint call
+        success_codes: list[int] - successful response codes ie. [200]
+        wait_seconds: float - the deadline for polling
+        interval: float - the interval for polling
+        request_timeout: float - the timeout for the request
+
+    Outputs:
+        bool - True if successful response, False otherwise
+    """
     deadline = asyncio.get_event_loop().time() + wait_seconds
     attempt = 0
 
