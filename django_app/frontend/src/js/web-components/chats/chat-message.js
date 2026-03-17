@@ -175,7 +175,6 @@ export class ChatMessage extends HTMLElement {
       webSocket.close();
     };
 
-    // document.addEventListener("stop-streaming", stopStreaming);
     listenEvent(Events.STOP_STREAMING, stopStreaming);
 
     webSocket.onopen = (event) => {
