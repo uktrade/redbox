@@ -552,7 +552,10 @@ def build_agent_with_loop(
                     return {
                         "agents_results": {
                             task.id: AIMessage(
-                                content=f"<{agent_name}_Result>Fail Reason: {reason}\n{result_content}</{agent_name}_Result>"
+                                content=f"<{agent_name}_Result>Ask user for feedback based on failure reason. Failure reason: {reason}.\n\n{result_content}</{agent_name}_Result>",
+                                kwargs={
+                                    "reason": reason,
+                                },
                             )
                         },
                         "tasks_evaluator": task.task + "\n" + task.expected_output,
@@ -883,93 +886,96 @@ def check_if_task_requires_user_feedback(state: RedboxState) -> bool:
         return False
 
 
-def parse_datahub_records(state: RedboxState):
-    # get task ID for datahub agent
-    for task in state.agent_plans.tasks:
-        if (
-            task.agent.value == "Datahub_Agent"
-            and task.status == TaskStatus.REQUIRES_USER_FEEDBACK
-            and task.dependencies == []
-        ):  # first task completed by datahub agent with no dependencies, need user feedback for initial filtering of records.
-            task_id = task.id
+# def parse_datahub_records(state: RedboxState) -> tuple[str, str]:
+#     # get task ID for datahub agent
+#     for task in state.agent_plans.tasks:
+#         if (
+#             task.agent.value == "Datahub_Agent"
+#             and task.status == TaskStatus.REQUIRES_USER_FEEDBACK
+#             and task.dependencies == []
+#         ):  # first task completed by datahub agent with no dependencies, need user feedback for initial filtering of records.
+#             task_id = task.id
 
-    # get number records from datahub agent results
-    records = state.agents_results[task_id].content
+#     # get number records from datahub agent results
+#     record = state.agents_results[task_id]
+#     content = record.content
+#     reason = record.model_extra.get("kwargs", {}).get("reason") or "Multiple records were found in Datahub database. Can you please confirm which record is more relevant to your query?\n\n"
 
-    return records
+#     return (content, reason)
 
-    # # retrieve database records from results
-    # matches = re.findall(r"<Database_records>(.*?)</Database_records>", records)
-    # parsed = []
-    # for match in matches:
-    #     parsed.append(json.loads(match))
-    # return parsed
-
-
-def is_multiple_records_datahub(state: RedboxState) -> bool:
-    parsed_records = parse_datahub_records(state)
-
-    # check if results contain single or multiple records
-    total_companies = 0
-    for parse in parsed_records:
-        if parse.get("companies"):
-            total_companies += parse["total"]
-
-    if total_companies > 1:  # multiple records
-        log.warning("multiple datahub records detected")
-        return True
-    else:
-        log.warning("multiple datahub records NOT detected")
-        return False
+# # retrieve database records from results
+# matches = re.findall(r"<Database_records>(.*?)</Database_records>", records)
+# parsed = []
+# for match in matches:
+#     parsed.append(json.loads(match))
+# return parsed
 
 
-def format_company_records(parsed):
-    formatted_records = []
+# def is_multiple_records_datahub(state: RedboxState) -> bool:
+#     parsed_records = parse_datahub_records(state)
 
-    for data_record in parsed:
-        if data_record.get("companies"):  # not all records are from companies tool
-            for record in data_record["companies"]:
-                company_name = record.get("name")
-                company_number = record.get("company_number")
-                address_columns = ["address_1", "address_2", "address_postcode", "address_country"]
-                full_address = [record[col] for col in address_columns if record.get(col)]
-                if full_address == []:
-                    full_address = ["None"]
-                company_address = " ".join(full_address)
-                description = record.get("description")
-                formatted_record = {
-                    "Company Name": company_name,
-                    "Company Address": company_address,
-                    "Company Number": company_number,
-                    "Description": description,
-                }
-                formatted_records.append(formatted_record)
-    return formatted_records
+#     # check if results contain single or multiple records
+#     total_companies = 0
+#     for parse in parsed_records:
+#         if parse.get("companies"):
+#             total_companies += parse["total"]
+
+#     if total_companies > 1:  # multiple records
+#         log.warning("multiple datahub records detected")
+#         return True
+#     else:
+#         log.warning("multiple datahub records NOT detected")
+#         return False
 
 
-def get_user_feedback() -> Runnable[RedboxState, dict[str, Any]]:
-    """Stream message to user asking for feedback"""
+# def format_company_records(parsed):
+#     formatted_records = []
 
-    @RunnableLambda
-    def _stream_feedback_request(state: RedboxState):
-        parsed_records = parse_datahub_records(state)
-        if not parsed_records:
-            raise ValueError("No records parsed from datahub agent")
-        else:
-            dispatch_custom_event(
-                RedboxEventType.response_tokens,
-                data="Multiple records were found in Datahub database. Can you please confirm which record is more relevant to your query?\n\n",
-            )
-            formatted_records = format_company_records(parsed_records)
-            for record in formatted_records:
-                for record_name, record_value in record.items():
-                    if record_name == "Company Name":
-                        dispatch_custom_event(RedboxEventType.response_tokens, data=f"**{record_name}**: ")
-                        dispatch_custom_event(RedboxEventType.response_tokens, data=f"**{record_value}**\n\n")
-                    else:
-                        dispatch_custom_event(RedboxEventType.response_tokens, data=f"{record_name}: ")
-                        dispatch_custom_event(RedboxEventType.response_tokens, data=f"{record_value}\n\n")
-                    dispatch_custom_event(RedboxEventType.response_tokens, data="\n\n")
-            return state
+#     for data_record in parsed:
+#         if data_record.get("companies"):  # not all records are from companies tool
+#             for record in data_record["companies"]:
+#                 company_name = record.get("name")
+#                 company_number = record.get("company_number")
+#                 address_columns = ["address_1", "address_2", "address_postcode", "address_country"]
+#                 full_address = [record[col] for col in address_columns if record.get(col)]
+#                 if full_address == []:
+#                     full_address = ["None"]
+#                 company_address = " ".join(full_address)
+#                 description = record.get("description")
+#                 formatted_record = {
+#                     "Company Name": company_name,
+#                     "Company Address": company_address,
+#                     "Company Number": company_number,
+#                     "Description": description,
+#                 }
+#                 formatted_records.append(formatted_record)
+#     return formatted_records
 
-    return _stream_feedback_request
+
+# def get_user_feedback() -> Runnable[RedboxState, dict[str, Any]]:
+#     """Stream message to user asking for feedback"""
+
+#     @RunnableLambda
+#     def _stream_feedback_request(state: RedboxState):
+#         parsed_records, reason = parse_datahub_records(state)
+#         if not parsed_records:
+#             raise ValueError("No records parsed from datahub agent")
+#         else:
+#             dispatch_custom_event(
+#                 RedboxEventType.response_tokens,
+#                 data=reason,
+#             )
+#             dispatch_custom_event(RedboxEventType.response_tokens, data=parsed_records)
+#             # formatted_records = format_company_records(parsed_records)
+#             # for record in formatted_records:
+#             #     for record_name, record_value in record.items():
+#             #         if record_name == "Company Name":
+#             #             dispatch_custom_event(RedboxEventType.response_tokens, data=f"**{record_name}**: ")
+#             #             dispatch_custom_event(RedboxEventType.response_tokens, data=f"**{record_value}**\n\n")
+#             #         else:
+#             #             dispatch_custom_event(RedboxEventType.response_tokens, data=f"{record_name}: ")
+#             #             dispatch_custom_event(RedboxEventType.response_tokens, data=f"{record_value}\n\n")
+#             #         dispatch_custom_event(RedboxEventType.response_tokens, data="\n\n")
+#             return state
+
+#     return _stream_feedback_request

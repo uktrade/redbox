@@ -42,7 +42,7 @@ from redbox.graph.nodes.processes import (
     report_sources_process,
     stream_plan,
     stream_suggestion,
-    get_user_feedback,
+    # get_user_feedback,
 )
 from redbox.graph.nodes.sends import build_document_chunk_send, build_document_group_send, sending_task_to_agent
 from redbox.models.chain import PromptSet, RedboxState
@@ -543,7 +543,7 @@ def build_new_route_graph(
     builder.add_node("sending_task", empty_process)
     builder.add_node("does_task_require_user_feedback", empty_process)
     builder.add_node("has_all_task_completed", empty_process)
-    builder.add_node("get_user_feedback", get_user_feedback())
+    # builder.add_node("get_user_feedback", get_user_feedback())
 
     # add all agents here
     add_agent(builder, agent_configs, "Internal_Retrieval_Agent")
@@ -603,8 +603,9 @@ def build_new_route_graph(
     builder.add_conditional_edges(
         "does_task_require_user_feedback",
         check_if_task_requires_user_feedback,
-        {True: "get_user_feedback", False: "has_all_task_completed"},
+        {True: "Evaluator_Agent", False: "has_all_task_completed"},
     )
+    # builder.add_edge("get_user_feedback", "Evaluator_Agent")
     builder.add_conditional_edges(
         "has_all_task_completed", check_if_tasks_completed, {True: "Evaluator_Agent", False: "sending_task"}
     )
@@ -616,7 +617,7 @@ def build_new_route_graph(
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
     builder.add_edge("stream_plan", END)
-    builder.add_edge("get_user_feedback", END)
+    # builder.add_edge("get_user_feedback", END)
     builder.add_edge("stream_suggestion", END)
 
     return builder.compile(debug=debug)
