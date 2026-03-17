@@ -38,7 +38,3 @@ export function refreshUI(fragments, chatId = getActiveChatId(), slug = getActiv
       swap: 'none settle:0ms',
     });
 }
-
-export function signOut() {
-    window.location.href = "/signed-out/";
-}

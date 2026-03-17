@@ -11,3 +11,4 @@ RATE_LIMITED = (
     'Please try again in a few minutes, and contact <a href="/support/">support</a> if the problem persists.'
 )
 AUTH_REQUIRED = "You need to be signed in and authenticated to use Redbox chat"
+AUTH_EXPIRED = "Your authentication has expired, please sign in again to use Redbox chat"

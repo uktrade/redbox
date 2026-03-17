@@ -17,6 +17,7 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.db.models import Q
 from django.forms.models import model_to_dict
+from django.urls import reverse
 from django.utils import timezone
 from langchain_core.documents import Document
 from pydantic import ValidationError
@@ -325,8 +326,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             authbroker_token = session["_authbroker_token"]
 
             if check_expiry and (timezone.now().timestamp() > authbroker_token["expires_at"] - AUTH_EXPIRY_BUFFER):
+                response = {
+                    "redirect_url": reverse("signed-out"),
+                    "error_message": error_messages.AUTH_EXPIRED,
+                }
                 await self.accept()
-                await self.send_to_client("auth_expired", error_messages.AUTH_REQUIRED)
+                await self.send_to_client("auth_expired", response)
 
             return authbroker_token["access_token"]
         except (KeyError, TypeError):

@@ -277,8 +277,7 @@ export class ChatMessage extends HTMLElement {
           errorContentContainer.textContent = sanitiseText(response.data);
         }
       } else if (response.type === "auth_expired") {
-        // Should we pass the url from the consumer where we have access to django's url patterns?
-        signOut();
+        window.location.href = response.data.redirect_url
       }
     };
   };
