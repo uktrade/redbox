@@ -547,6 +547,18 @@ def build_agent_with_loop(
                 success = result[1]
                 is_intermediate_step = eval(result[2])
 
+                if len(result) > 3:
+                    reason = result[3]
+                    return {
+                        "agents_results": {
+                            task.id: AIMessage(
+                                content=f"<{agent_name}_Result>Fail Reason: {reason}\n{result_content}</{agent_name}_Result>"
+                            )
+                        },
+                        "tasks_evaluator": task.task + "\n" + task.expected_output,
+                        "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.REQUIRES_USER_FEEDBACK),
+                    }
+
                 if success == "fail":
                     # pass error back if any
                     additional_variables.update({"previous_tool_error": result_content})
@@ -857,23 +869,41 @@ def check_if_tasks_completed(state: RedboxState) -> bool:
         return True
 
 
+def check_if_task_requires_user_feedback(state: RedboxState) -> bool:
+    """
+    Check if task requires user feedback
+    """
+    # if there is no pending task, go to evaluator
+    require_feedback_tasks = [
+        task for task in state.agent_plans.tasks if task.status == TaskStatus.REQUIRES_USER_FEEDBACK
+    ]
+    if require_feedback_tasks:
+        return True
+    else:
+        return False
+
+
 def parse_datahub_records(state: RedboxState):
     # get task ID for datahub agent
     for task in state.agent_plans.tasks:
         if (
-            task.agent.value == "Datahub_Agent" and task.status == TaskStatus.COMPLETED and task.dependencies == []
+            task.agent.value == "Datahub_Agent"
+            and task.status == TaskStatus.REQUIRES_USER_FEEDBACK
+            and task.dependencies == []
         ):  # first task completed by datahub agent with no dependencies, need user feedback for initial filtering of records.
             task_id = task.id
 
     # get number records from datahub agent results
     records = state.agents_results[task_id].content
 
-    # retrieve database records from results
-    matches = re.findall(r"<Database_records>(.*?)</Database_records>", records)
-    parsed = []
-    for match in matches:
-        parsed.append(json.loads(match))
-    return parsed
+    return records
+
+    # # retrieve database records from results
+    # matches = re.findall(r"<Database_records>(.*?)</Database_records>", records)
+    # parsed = []
+    # for match in matches:
+    #     parsed.append(json.loads(match))
+    # return parsed
 
 
 def is_multiple_records_datahub(state: RedboxState) -> bool:

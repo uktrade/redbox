@@ -277,7 +277,14 @@ def run_tools_parallel(
                     if (not is_loop and isinstance(response, str)) or (
                         is_loop and isinstance(response, tuple)
                     ):  # when is_loop=True, result output should be a Tuple
-                        responses.append(AIMessage(response))
+                        if isinstance(response, tuple):
+                            res, metadata = response
+                            requires_user_feedback, reason = metadata.requires_user_feedback
+                            status = "fail" if requires_user_feedback else "pass"
+                            result = (res, status, str(requires_user_feedback), reason)
+                            responses.append(AIMessage(result))
+                        else:
+                            responses.append(AIMessage(response))
                         log.warning("my non-transformed response")
                         log.warning(response)
                     elif is_loop and isinstance(response, str):
