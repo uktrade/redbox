@@ -4,7 +4,7 @@ import logging
 import re
 from asyncio import CancelledError
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any, ClassVar
 from uuid import UUID
 
@@ -165,6 +165,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     _mcp_monitor_tasks: ClassVar[dict[str, asyncio.Task]] = {}
     _monitor_task_lock: ClassVar[asyncio.Lock] = asyncio.Lock()
     _tools_loaded: ClassVar[dict[str, bool]] = {}
+    _sso_token: str | None = None
 
     async def get_file_cached(self, ref):
         if ref not in self._file_cache:
@@ -676,7 +677,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         mcp_agents = {
             "Datahub_Agent": f"{ChatConsumer.env.datahub_mcp.url.removesuffix('/mcp/')}/health",
         }
-        sso_access_token = self._extract_sso_token()
+
+        ChatConsumer._sso_token = self._extract_sso_token()
 
         if ChatConsumer.redbox is None:
             await self._init_redbox(mcp_agents=mcp_agents)
@@ -690,7 +692,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         ChatConsumer._mcp_monitor_loop(
                             agent_name=agent_name,
                             mcp_url=health_url,
-                            sso_access_token=sso_access_token,
+                            get_token=lambda: ChatConsumer._sso_token,
                         )
                     )
 
@@ -743,7 +745,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     @staticmethod
-    async def _mcp_monitor_loop(agent_name: str, mcp_url: str, sso_access_token: str | None = None):
+    async def _mcp_monitor_loop(
+        agent_name: str,
+        mcp_url: str,
+        get_token: Callable[[], str | None],
+    ):
         """
         Background task - poll MCP health every 30s
         If MCP server state changes, reinitialise Redbox tools
@@ -751,7 +757,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         Inputs:
             agent_name: str - name of the MCP agent to check
             mcp_url: str - health endpoint URL of MCP server
-            sso_access_token: str | None - SSO access token for tool reloading
+            get_token: Callable - callable for generating a token
         """
         was_healthy: bool = True
 
@@ -777,7 +783,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         ChatConsumer.redbox = None  # force _init_redbox on next connect
                     elif ChatConsumer.redbox is not None:
                         try:
-                            await ChatConsumer.redbox.reload_tools(agent=agent_name, sso_access_token=sso_access_token)
+                            await ChatConsumer.redbox.reload_tools(agent=agent_name, sso_access_token=get_token())
                             ChatConsumer._tools_loaded[agent_name] = True
                         except AttributeError:
                             ChatConsumer.redbox = None
