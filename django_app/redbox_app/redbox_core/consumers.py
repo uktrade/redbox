@@ -678,7 +678,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         sso_access_token = self._extract_sso_token()
 
         if ChatConsumer.redbox is None:
-            await self._init_redbox(mcp_agents=mcp_agents, sso_access_token=sso_access_token)
+            await self._init_redbox(mcp_agents=mcp_agents)
 
         for agent_name, health_url in mcp_agents.items():
             task = ChatConsumer._mcp_monitor_tasks.get(agent_name)
@@ -693,10 +693,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
 
-    async def _init_redbox(self, mcp_agents: dict[str, str], sso_access_token=None):
+    async def _init_redbox(self, mcp_agents: dict[str, str]):
         """Initialise or reinitialise Redbox, with or without MCP tools."""
         agents = await get_all_agents()
-        sso_access_token = sso_access_token or self._extract_sso_token()
+        sso_access_token = self._extract_sso_token()
 
         for agent in agents:
             if agent.name in agent_configs:
@@ -763,9 +763,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         logger.info("Tools were never loaded for %s — forcing full Redbox reinit", agent_name)
                         ChatConsumer.redbox = None  # force _init_redbox on next connect
                         ChatConsumer._tools_loaded[agent_name] = False
-                    else:
-                        await ChatConsumer.redbox.reload_tools(agent=agent_name, sso_access_token=sso_access_token)
-                        ChatConsumer._tools_loaded[agent_name] = True
+                    elif ChatConsumer.redbox is not None:
+                        try:
+                            await ChatConsumer.redbox.reload_tools(agent=agent_name, sso_access_token=sso_access_token)
+                            ChatConsumer._tools_loaded[agent_name] = True
+                        except AttributeError:
+                            ChatConsumer.redbox = None
 
                 elif not healthy and was_healthy:
                     # MCP went down — log it
