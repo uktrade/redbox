@@ -697,7 +697,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
 
     async def _init_redbox(self, mcp_agents: dict[str, str]):
-        """Initialise or reinitialise Redbox"""
+        """
+        Initialise or reinitialise Redbox
+
+        Inputs:
+            mcp_agents: dict[str, str] - key-value pairs of MCP agent names and their health endpoint URL
+        """
         agents = await get_all_agents()
         sso_access_token = self._extract_sso_token()
 
@@ -742,6 +747,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """
         Background task - poll MCP health every 30s
         If MCP server state changes, reinitialise Redbox tools
+
+        Inputs:
+            agent_name: str - name of the MCP agent to check
+            mcp_url: str - health endpoint URL of MCP server
+            sso_access_token: str | None - SSO access token for tool reloading
         """
         was_healthy: bool = True
 
