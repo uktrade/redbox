@@ -204,7 +204,7 @@ class ToolSettings(UUIDPrimaryKeyBase, TimeStampedModel):
 
     class Meta:
         ordering = ["created_at"]
-        verbose_name_plural = "Toool Settings"
+        verbose_name_plural = "Tool Settings"
 
     def __str__(self):
         return self.tool.name + " Settings"

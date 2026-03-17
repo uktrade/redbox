@@ -50,7 +50,7 @@ export const Events = /** @type {const} */ ({
 /**
  * @typedef {{
  *  "chat-response-start": undefined,
- *  "chat-response-end": {title:string, session_id:string},
+ *  "chat-response-end": {title:string, session_id:string, is_new_chat:boolean},
  *  "doc-complete": {fileStatus:HTMLElement},
  *  "selected-docs-change": {id:string, name:string}[],
  *  "start-streaming": undefined,
@@ -80,9 +80,9 @@ export function setEventTarget(target) {
  * Emit event
  * @template {keyof EventMap} T
  * @param {T} name
- * @param {EventMap[T]} detail
+ * @param {EventMap[T] | undefined} detail
  */
-export function emitEvent(name, detail) {
+export function emitEvent(name, detail=undefined) {
     eventTarget.dispatchEvent(new CustomEvent(name, { detail }));
 }
 

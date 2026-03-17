@@ -2,7 +2,8 @@
 
 import { hideElement, showElement } from "../../utils/dom-utils.js";
 import { LoadingMessage } from "../../../interaction_design_system/ids/components/loading-message.js";
-import { emitEvent, Events } from "../../../interaction_design_system/ids/events/events.js";
+import { emitEvent, Events, listenEvent } from "../../../interaction_design_system/ids/events/events.js";
+import { signOut } from "../../services/views.js";
 
 export class ChatMessage extends HTMLElement {
   connectedCallback() {
@@ -169,17 +170,13 @@ export class ChatMessage extends HTMLElement {
     let responseComplete = this.querySelector(".rb-loading-complete");
     let webSocket = new WebSocket(endPoint);
 
-    // Stop streaming on escape-key or stop-button press
     const stopStreaming = () => {
       this.dataset.status = "stopped";
       webSocket.close();
     };
-    this.addEventListener("keydown", (evt) => {
-      if (evt.key === "Escape" && this.dataset.status === "streaming") {
-        stopStreaming();
-      }
-    });
-    document.addEventListener("stop-streaming", stopStreaming);
+
+    // document.addEventListener("stop-streaming", stopStreaming);
+    listenEvent(Events.STOP_STREAMING, stopStreaming);
 
     webSocket.onopen = (event) => {
       webSocket.send(
@@ -193,8 +190,7 @@ export class ChatMessage extends HTMLElement {
         })
       );
       this.dataset.status = "streaming";
-      const chatResponseStartEvent = new CustomEvent("chat-response-start");
-      document.dispatchEvent(chatResponseStartEvent);
+      emitEvent(Events.CHAT_RESPONSE_START);
       emitEvent(Events.SCROLL_TO_BOTTOM, {source:this, force:true});
     };
 
@@ -215,8 +211,7 @@ export class ChatMessage extends HTMLElement {
       if (this.dataset.status !== "stopped") {
         this.dataset.status = "complete";
       }
-      const stopStreamingEvent = new CustomEvent("stop-streaming");
-      document.dispatchEvent(stopStreamingEvent);
+      emitEvent(Events.STOP_STREAMING);
     };
 
     webSocket.onmessage = (event) => {
@@ -265,14 +260,12 @@ export class ChatMessage extends HTMLElement {
           actionsContainer.appendChild(copyText)
         }
         // this.#addFootnotes(this.streamedContent, response.data.message_id);
-        const chatResponseEndEvent = new CustomEvent("chat-response-end", {
-          detail: {
-            title: sanitiseText(response.data.title),
-            session_id: sanitiseId(response.data.session_id),
-            is_new_chat,
-          },
-        });
-        document.dispatchEvent(chatResponseEndEvent);
+        emitEvent(Events.CHAT_RESPONSE_END, {
+          title: sanitiseText(response.data.title),
+          session_id: sanitiseId(response.data.session_id),
+          is_new_chat,
+        })
+
       } else if (response.type === "error") {
         this.querySelector(".govuk-error-summary")?.removeAttribute(
           "hidden"
@@ -283,6 +276,9 @@ export class ChatMessage extends HTMLElement {
         if (errorContentContainer) {
           errorContentContainer.textContent = sanitiseText(response.data);
         }
+      } else if (response.type === "auth_expired") {
+        // Should we pass the url from the consumer where we have access to django's url patterns?
+        signOut();
       }
     };
   };
