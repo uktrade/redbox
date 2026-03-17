@@ -161,6 +161,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     debug = not env.is_prod
     redbox = None
     chat_message = None  # incrementally updating the chat stream
+
     _mcp_monitor_tasks: ClassVar[dict[str, asyncio.Task]] = {}
     _monitor_task_lock: ClassVar[asyncio.Lock] = asyncio.Lock()
     _tools_loaded: ClassVar[dict[str, bool]] = {}
@@ -680,6 +681,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if ChatConsumer.redbox is None:
             await self._init_redbox(mcp_agents=mcp_agents)
 
+        # setup background task to monitor health of MCP servers
         async with ChatConsumer._monitor_task_lock:
             for agent_name, health_url in mcp_agents.items():
                 task = ChatConsumer._mcp_monitor_tasks.get(agent_name)
@@ -695,7 +697,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
 
     async def _init_redbox(self, mcp_agents: dict[str, str]):
-        """Initialise or reinitialise Redbox, with or without MCP tools."""
+        """Initialise or reinitialise Redbox"""
         agents = await get_all_agents()
         sso_access_token = self._extract_sso_token()
 
@@ -710,7 +712,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 if agent.agents_max_tokens:
                     agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
 
-        # check MCP health but don't block — degrade gracefully
+        # check MCP health on startup to mark if tools are loaded
         active_configs = dict(agent_configs)
         for agent_name, health_url in mcp_agents.items():
             if agent_name in active_configs:
@@ -718,7 +720,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     url=health_url,
                     headers={"Accept": "application/json"},
                     success_codes=[200],
-                    wait_seconds=10.0,  # short timeout — don't block startup
+                    wait_seconds=10.0,
                     interval=3.0,
                     request_timeout=5.0,
                 )
@@ -738,8 +740,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @staticmethod
     async def _mcp_monitor_loop(agent_name: str, mcp_url: str, sso_access_token: str | None = None):
         """
-        Background task: poll MCP health every 30s.
-        If state changes (up->down or down->up), reinitialise Redbox tools.
+        Background task - poll MCP health every 30s
+        If MCP server state changes, reinitialise Redbox tools
         """
         was_healthy: bool = True
 
@@ -786,7 +788,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 logger.exception("%s MCP monitor error - ", agent_name)
 
     async def _reload_mcp_tools(self):
-        """Ask Redbox to reconnect to MCP and refresh tools without full reinit."""
+        """Reload redbox MCP tools"""
         if ChatConsumer.redbox is None:
             await self._init_redbox()
             return
