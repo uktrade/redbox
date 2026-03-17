@@ -3,11 +3,11 @@
 import { hideElement, showElement } from "../../utils/dom-utils.js";
 import { LoadingMessage } from "../../../interaction_design_system/ids/components/loading-message.js";
 import { emitEvent, Events, listenEvent } from "../../../interaction_design_system/ids/events/events.js";
-import { signOut } from "../../services/views.js";
 
 export class ChatMessage extends HTMLElement {
   connectedCallback() {
     this.streamedContent = "";
+    this.LOGOUT_URL = this.dataset.logoutUrl;
     this.#loadMessage();
   }
 
@@ -29,8 +29,8 @@ export class ChatMessage extends HTMLElement {
         : ""
       }
                 <sources-list data-id="${uuid}"></sources-list>
-                <div class="govuk-error-summary" data-module="govuk-error-summary" hidden>
-                  <div class="govuk-body govuk-!-font-weight-bold">
+                <div class="govuk-error-summary govuk-!-display-none" data-module="govuk-error-summary">
+                  <div class="govuk-body govuk-error-summary__title govuk-!-font-weight-bold">
                     There was an unexpected error communicating with Redbox. Please try again.
                   </div>
                   <div class="govuk-body">
@@ -108,6 +108,13 @@ export class ChatMessage extends HTMLElement {
 
   };
 
+  sanitiseText(/** @type {String} */ text) {
+    if (typeof text !== 'string') return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML; // to escape html entities
+  }
+
   /**
    * Streams an LLM response
    * @param {string} message
@@ -130,13 +137,6 @@ export class ChatMessage extends HTMLElement {
     selectedTool
   ) => {
     const is_new_chat = !sessionId;
-
-    function sanitiseText(/** @type {String} */ text) {
-      if (typeof text !== 'string') return '';
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML; // to escape html entities
-    }
 
     function sanitiseUrl(/** @type {String} */ url) {
       if (typeof url !== 'string') return '';
@@ -224,22 +224,22 @@ export class ChatMessage extends HTMLElement {
       }
 
       if (response.type === "text") {
-        this.streamedContent += sanitiseText(response.data);
+        this.streamedContent += this.sanitiseText(response.data);
         if (this.streamedContent) this.responseContainer?.update(this.streamedContent);
       } else if (response.type === "session-id") {
         chatControllerRef.dataset.sessionId = sanitiseId(response.data);
       } else if (response.type === "source") {
         sourcesContainer.add(
-          sanitiseText(response.data.file_name),
+          this.sanitiseText(response.data.file_name),
           sanitiseUrl(response.data.url),
-          sanitiseText(response.data.text_in_answer || "")
+          this.sanitiseText(response.data.text_in_answer || "")
         );
       } else if (response.type === "route") {
         // Update the route text on the page now the selected route is known
         let route = this?.querySelector(".redbox-message-route");
         let routeText = route?.querySelector(".route-text");
         if (route && routeText) {
-          routeText.textContent = sanitiseText(response.data);
+          routeText.textContent = this.sanitiseText(response.data);
           route.removeAttribute("hidden");
         }
       } else if (response.type === "activity") {
@@ -261,23 +261,19 @@ export class ChatMessage extends HTMLElement {
         }
         // this.#addFootnotes(this.streamedContent, response.data.message_id);
         emitEvent(Events.CHAT_RESPONSE_END, {
-          title: sanitiseText(response.data.title),
+          title: this.sanitiseText(response.data.title),
           session_id: sanitiseId(response.data.session_id),
           is_new_chat,
         })
 
       } else if (response.type === "error") {
-        this.querySelector(".govuk-error-summary")?.removeAttribute(
-          "hidden"
-        );
-        let errorContentContainer = this.querySelector(
-          ".govuk-error-summary__title"
-        );
-        if (errorContentContainer) {
-          errorContentContainer.textContent = sanitiseText(response.data);
-        }
+        this.showError(response.data);
       } else if (response.type === "auth_expired") {
-        window.location.href = response.data.redirect_url
+        if (this.LOGOUT_URL) {
+          window.location.href = this.LOGOUT_URL;
+        } else {
+          this.showError(response.data);
+        }
       }
     };
   };
@@ -291,6 +287,19 @@ export class ChatMessage extends HTMLElement {
     this.loadingElement.loadingText.textContent = message;
     showElement(this.loadingElement);
   };
+
+
+  /**
+  * Displays error message
+  * @param {string} message
+  */
+  showError = (message) => {
+    showElement(this.querySelector(".govuk-error-summary"));
+    let errorContentContainer = this.querySelector(".govuk-error-summary__title");
+    if (errorContentContainer) {
+      errorContentContainer.textContent = this.sanitiseText(message);
+    }
+  }
 
 
   /**
