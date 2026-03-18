@@ -1005,3 +1005,4 @@ async def test_expired_sso_token_forces_logout():
 
     consumer.accept.assert_called()
     consumer.send_to_client.assert_awaited_once_with("auth_expired", error_messages.AUTH_EXPIRED)
+    ChatConsumer.redbox = None
