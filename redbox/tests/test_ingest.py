@@ -15,6 +15,7 @@ from redbox.loader.loaders import (
     read_csv_text,
     read_excel_file,
     _pdf_is_image_heavy,
+    TextractChunkLoader,
 )
 from redbox.models.file import ChunkResolution
 from redbox.models.settings import Settings
@@ -494,3 +495,429 @@ def test_read_excel_file_pandas_error():
         result = read_excel_file(file_bytes)
 
         assert result is None
+
+
+class TestTextractChunkLoaderInit:
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_init_default_parameters(self, mock_boto_client: MagicMock):
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+
+        assert loader.bucket == "test-bucket"
+        assert loader.min_chunk_size == 500
+        assert loader.max_chunk_size == 2000
+        assert loader.overlap_chars == 200
+        assert loader.metadata.name == ""
+        assert loader.metadata.description == ""
+        assert loader.metadata.keywords == []
+        mock_boto_client.assert_called()
+
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_init_custom_parameters(self, mock_boto_client: MagicMock):
+
+        custom_metadata = MagicMock(name="test.pdf", description="Test file", keywords=["test"])
+
+        loader = TextractChunkLoader(
+            bucket="custom-bucket",
+            min_chunk_size=300,
+            max_chunk_size=3000,
+            overlap_chars=100,
+            region="eu-west-2",
+            metadata=custom_metadata,
+        )
+
+        assert loader.bucket == "custom-bucket"
+        assert loader.min_chunk_size == 300
+        assert loader.max_chunk_size == 3000
+        assert loader.overlap_chars == 100
+        assert loader.metadata == custom_metadata
+
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_init_creates_boto_clients(self, mock_boto_client: MagicMock):
+
+        TextractChunkLoader(bucket="test-bucket")
+
+        assert mock_boto_client.call_count >= 2
+
+
+class TestWaitForJob:
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("time.sleep")
+    def test_wait_for_job_success(self, mock_sleep: MagicMock, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.return_value = {"JobStatus": "SUCCEEDED"}
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        result = loader._wait_for_job("test-job-id")
+
+        assert result == "SUCCEEDED"
+        mock_textract.get_document_text_detection.assert_called_once_with(JobId="test-job-id")
+
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("time.sleep")
+    def test_wait_for_job_failed(self, mock_sleep: MagicMock, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.return_value = {"JobStatus": "FAILED"}
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        result = loader._wait_for_job("test-job-id")
+
+        assert result == "FAILED"
+
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("time.sleep")
+    def test_wait_for_job_polling(self, mock_sleep: MagicMock, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.side_effect = [
+            {"JobStatus": "IN_PROGRESS"},
+            {"JobStatus": "IN_PROGRESS"},
+            {"JobStatus": "SUCCEEDED"},
+        ]
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        result = loader._wait_for_job("test-job-id")
+
+        assert result == "SUCCEEDED"
+        assert mock_textract.get_document_text_detection.call_count == 3
+        assert mock_sleep.call_count == 2
+
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_wait_for_job_api_error(self, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.side_effect = Exception("API Error")
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        with pytest.raises(Exception):
+            loader._wait_for_job("test-job-id")
+
+
+class TestGetTextractResults:
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_get_textract_results_single_page(self, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.return_value = {
+            "Blocks": [
+                {"BlockType": "LINE", "Text": "Line 1", "Page": 1},
+                {"BlockType": "LINE", "Text": "Line 2", "Page": 1},
+            ],
+            "NextToken": None,
+        }
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        result = loader._get_textract_results("test-job-id")
+
+        assert len(result) == 1
+        assert "Line 1" in result[0]
+        assert "Line 2" in result[0]
+
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_get_textract_results_multiple_pages(self, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.side_effect = [
+            {
+                "Blocks": [
+                    {"BlockType": "LINE", "Text": "Page 1 Line 1", "Page": 1},
+                    {"BlockType": "LINE", "Text": "Page 1 Line 2", "Page": 1},
+                ],
+                "NextToken": "token123",
+            },
+            {
+                "Blocks": [
+                    {"BlockType": "LINE", "Text": "Page 2 Line 1", "Page": 2},
+                    {"BlockType": "LINE", "Text": "Page 2 Line 2", "Page": 2},
+                ],
+                "NextToken": None,
+            },
+        ]
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        result = loader._get_textract_results("test-job-id")
+
+        assert len(result) == 2
+        assert "Page 1 Line 1" in result[0]
+        assert "Page 2 Line 1" in result[1]
+
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_get_textract_results_no_blocks(self, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.return_value = {
+            "Blocks": [],
+            "NextToken": None,
+        }
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        result = loader._get_textract_results("test-job-id")
+
+        assert result == []
+
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_get_textract_results_ignores_non_line_blocks(self, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.return_value = {
+            "Blocks": [
+                {"BlockType": "LINE", "Text": "Valid Line", "Page": 1},
+                {"BlockType": "WORD", "Text": "Word Block", "Page": 1},
+                {"BlockType": "PAGE", "Text": "Page Block", "Page": 1},
+            ],
+            "NextToken": None,
+        }
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        result = loader._get_textract_results("test-job-id")
+
+        assert len(result) == 1
+        assert result[0] == "Valid Line"
+
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_get_textract_results_pagination(self, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.side_effect = [
+            {
+                "Blocks": [{"BlockType": "LINE", "Text": "Batch 1", "Page": 1}],
+                "NextToken": "token1",
+            },
+            {
+                "Blocks": [{"BlockType": "LINE", "Text": "Batch 2", "Page": 1}],
+                "NextToken": "token2",
+            },
+            {
+                "Blocks": [{"BlockType": "LINE", "Text": "Batch 3", "Page": 1}],
+                "NextToken": None,
+            },
+        ]
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        result = loader._get_textract_results("test-job-id")
+
+        assert mock_textract.get_document_text_detection.call_count == 3
+        assert "Batch 1" in result[0]
+        assert "Batch 2" in result[0]
+        assert "Batch 3" in result[0]
+
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_get_textract_results_api_error(self, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.side_effect = Exception("API Error")
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        with pytest.raises(Exception):
+            loader._get_textract_results("test-job-id")
+
+
+class TestExtractDocx:
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("redbox.loader.loaders.partition_docx")
+    def test_extract_docx_single_page(self, mock_partition: MagicMock, mock_boto_client: MagicMock):
+
+        mock_element = MagicMock()
+        mock_element.__str__.return_value = "Test content"
+        mock_element.metadata.page_number = 1
+
+        mock_partition.return_value = [mock_element]
+        mock_boto_client.return_value = MagicMock()
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        result = loader._extract_docx(BytesIO(b"fake docx content"))
+
+        assert len(result) == 1
+        assert "Test content" in result[0]
+
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("redbox.loader.loaders.partition_docx")
+    def test_extract_docx_multiple_pages(self, mock_partition: MagicMock, mock_boto_client: MagicMock):
+
+        mock_elements = []
+        for page in [1, 1, 2, 2, 3]:
+            el = MagicMock()
+            el.__str__.return_value = f"Content page {page}"
+            el.metadata.page_number = page
+            mock_elements.append(el)
+
+        mock_partition.return_value = mock_elements
+        mock_boto_client.return_value = MagicMock()
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        result = loader._extract_docx(BytesIO(b"fake docx content"))
+
+        assert len(result) == 3
+
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("redbox.loader.loaders.partition_docx")
+    def test_extract_docx_no_elements(self, mock_partition: MagicMock, mock_boto_client: MagicMock):
+
+        mock_partition.return_value = []
+        mock_boto_client.return_value = MagicMock()
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+
+        with pytest.raises(ValueError, match="unstructured returned no elements"):
+            loader._extract_docx(BytesIO(b"fake docx content"))
+
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("redbox.loader.loaders.partition_docx")
+    def test_extract_docx_partition_error(self, mock_partition: MagicMock, mock_boto_client: MagicMock):
+
+        mock_partition.side_effect = Exception("Partition failed")
+        mock_boto_client.return_value = MagicMock()
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+
+        with pytest.raises(Exception):
+            loader._extract_docx(BytesIO(b"fake docx content"))
+
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("redbox.loader.loaders.partition_docx")
+    def test_extract_docx_element_without_page_number(self, mock_partition: MagicMock, mock_boto_client: MagicMock):
+
+        mock_element = MagicMock()
+        mock_element.__str__.return_value = "Test content"
+        mock_element.metadata.page_number = None
+
+        mock_partition.return_value = [mock_element]
+        mock_boto_client.return_value = MagicMock()
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        result = loader._extract_docx(BytesIO(b"fake docx content"))
+
+        assert len(result) == 1
+        assert "Test content" in result[0]
+
+
+class TestExtractPdfFromS3:
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_extract_pdf_success(self, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.start_document_text_detection.return_value = {"JobId": "job-123"}
+        mock_textract.get_document_text_detection.return_value = {"JobStatus": "SUCCEEDED"}
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+        loader._wait_for_job = MagicMock(return_value="SUCCEEDED")
+        loader._get_textract_results = MagicMock(return_value=["Page 1 content"])
+
+        result = loader._extract_pdf_from_s3("test-bucket", "test.pdf")
+
+        assert result == ["Page 1 content"]
+        mock_textract.start_document_text_detection.assert_called_once()
+        loader._wait_for_job.assert_called_once_with("job-123")
+        loader._get_textract_results.assert_called_once_with("job-123")
+
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_extract_pdf_job_failed(self, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.start_document_text_detection.return_value = {"JobId": "job-123"}
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+        loader._wait_for_job = MagicMock(return_value="FAILED")
+
+        with pytest.raises(RuntimeError, match="Textract failed"):
+            loader._extract_pdf_from_s3("test-bucket", "test.pdf")
+
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_extract_pdf_api_error(self, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.start_document_text_detection.side_effect = Exception("API Error")
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        with pytest.raises(Exception):
+            loader._extract_pdf_from_s3("test-bucket", "test.pdf")
+
+
+class TestLazyLoad:
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("redbox.loader.loaders.load_tabular_file")
+    def test_lazy_load_csv_file(self, mock_load_tabular: MagicMock, mock_boto_client: MagicMock):
+
+        mock_load_tabular.return_value = [
+            {
+                "text": "<table_name>test</table_name>col1,col2\n1,2",
+                "metadata": {"document_schema": {"name": "test", "type": "tabular", "columns": {}}},
+            }
+        ]
+        mock_boto_client.return_value = MagicMock()
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        docs = list(loader.lazy_load("test.csv", BytesIO(b"csv content")))
+
+        assert len(docs) == 1
+        assert docs[0].page_content.startswith("<table_name>")
+        assert docs[0].metadata["chunk_resolution"] == ChunkResolution.tabular
+
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("redbox.loader.loaders.load_tabular_file")
+    def test_lazy_load_excel_file(self, mock_load_tabular: MagicMock, mock_boto_client: MagicMock):
+
+        mock_load_tabular.return_value = [
+            {
+                "text": "<table_name>Sheet1</table_name>col1,col2\n1,2",
+                "metadata": {"document_schema": {"name": "Sheet1"}},
+            }
+        ]
+        mock_boto_client.return_value = MagicMock()
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        docs = list(loader.lazy_load("test.xlsx", BytesIO(b"excel content")))
+
+        assert len(docs) == 1
+        assert docs[0].metadata["chunk_resolution"] == ChunkResolution.tabular
+
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("redbox.loader.loaders.load_tabular_file")
+    def test_lazy_load_empty_tabular_file(self, mock_load_tabular: MagicMock, mock_boto_client: MagicMock):
+
+        mock_load_tabular.return_value = []
+        mock_boto_client.return_value = MagicMock()
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        docs = list(loader.lazy_load("test.csv", BytesIO(b"csv content")))
+
+        assert len(docs) == 0
