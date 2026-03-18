@@ -977,7 +977,6 @@ async def test_connect_updates_sso_token_and_rebuilds_graph_if_redbox_exists(moc
     ChatConsumer.redbox = None
 
 
-@pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_expired_sso_token_forces_logout():
     mock_user = MagicMock()
