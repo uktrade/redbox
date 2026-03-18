@@ -121,7 +121,19 @@ def read_csv_text(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
         if isinstance(e, ValidationError):
             raise
         logger.error(f"Error while trying to upload csv file {e}")
-        return []
+
+        try:
+            file_bytes.seek(0)
+            raw_text = file_bytes.read().decode("utf-8", errors="replace")
+            return [
+                {
+                    "text": raw_text,
+                    "metadata": {},
+                }
+            ]
+        except Exception as fallback_e:
+            logger.error("Fallback raw CSV parsing also failed: %s", fallback_e)
+            return []
 
 
 def read_excel_file(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
@@ -152,7 +164,13 @@ def read_excel_file(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
         return elements if len(elements) else None
     except Exception as e:
         logger.error(f"Excel Read Error: {e}")
-        return None
+        try:
+            file_bytes.seek(0)
+            raw_text = file_bytes.read().decode("utf-8", errors="replace")
+            return [{"text": raw_text, "metadata": {}}]
+        except Exception as fallback_e:
+            logger.error("Fallback raw Excel parsing also failed: %s", fallback_e)
+            return None
 
 
 def load_tabular_file(file_name: str, file_bytes: BytesIO) -> list[dict[str, str]]:
@@ -518,7 +536,12 @@ class MetadataLoader:
         metadata_chain = metadata_prompt | self.llm | parser
 
         try:
-            return metadata_chain.invoke({"page_content": page_content})
+            metadata = metadata_chain.invoke({"page_content": page_content})
+
+            if not metadata.name:
+                metadata.name = original_metadata.get("filename") or self.file_name
+
+            return metadata
         except ValidationError as e:
             logger.info(e.errors())
             return GeneratedMetadata(name=original_metadata.get("filename") or self.file_name)
