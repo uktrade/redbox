@@ -998,11 +998,9 @@ async def test_expired_sso_token_forces_logout():
     consumer = ChatConsumer(scope=scope)
     consumer.scope = scope
     consumer.accept = AsyncMock()
-    consumer.base_send = AsyncMock()
+    consumer.send_to_client = AsyncMock()
 
     await consumer.connect()
 
     consumer.accept.assert_called()
-    sent_message = consumer.base_send.call_args[0][0]
-    assert sent_message["type"] == "websocket.send"
-    assert "auth_expired" in sent_message["text"]
+    consumer.send_to_client.assert_awaited_once_with("auth_expired", error_messages.AUTH_EXPIRED)
