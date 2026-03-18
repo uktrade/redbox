@@ -975,3 +975,34 @@ async def test_connect_updates_sso_token_and_rebuilds_graph_if_redbox_exists(moc
 
     consumer.accept.assert_called_once()
     ChatConsumer.redbox = None
+
+
+@pytest.mark.asyncio
+async def test_expired_sso_token_forces_logout():
+    mock_user = MagicMock()
+    mock_user.is_authenticated = True
+    mock_user.uk_or_us_english = False
+
+    expired_token = "expired-sso-token"  # noqa: S105
+    expires_at_epoc = (datetime.now(UTC) - timedelta(hours=1)).timestamp()
+
+    scope = {
+        "user": mock_user,
+        "session": {"_authbroker_token": {"access_token": expired_token, "expires_at": int(expires_at_epoc)}},
+    }
+
+    mock_redbox_instance = MagicMock()
+    ChatConsumer.redbox = mock_redbox_instance
+    ChatConsumer.debug = True
+
+    consumer = ChatConsumer(scope=scope)
+    consumer.scope = scope
+    consumer.accept = AsyncMock()
+    consumer.base_send = AsyncMock()
+
+    await consumer.connect()
+
+    consumer.accept.assert_called()
+    sent_message = consumer.base_send.call_args[0][0]
+    assert sent_message["type"] == "websocket.send"
+    assert "auth_expired" in sent_message["text"]

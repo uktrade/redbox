@@ -67,8 +67,7 @@ User = get_user_model()
 OptFileSeq = Sequence[File] | None
 logger = logging.getLogger(__name__)
 logger.info("WEBSOCKET_SCHEME is: %s", settings.WEBSOCKET_SCHEME)
-# Is a buffer needed? If so how long should it be? Should we set it in .env?
-AUTH_EXPIRY_BUFFER = 0
+AUTH_EXPIRY_BUFFER = 600  # seconds
 
 
 def parse_page_number(obj: int | list[int] | None) -> list[int]:
