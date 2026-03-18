@@ -1,5 +1,6 @@
 import logging
 import time
+import traceback
 from typing import TYPE_CHECKING
 
 from langchain_community.vectorstores import OpenSearchVectorSearch
@@ -8,7 +9,7 @@ from langchain_core.runnables import RunnableParallel
 
 from redbox.chains.components import get_embeddings
 from redbox.chains.ingest import ingest_from_loader
-from redbox.loader.loaders import TextractChunkLoader
+from redbox.loader.loaders import TextractChunkLoader, MetadataLoader
 from redbox.models.settings import get_settings
 
 if TYPE_CHECKING:
@@ -24,6 +25,7 @@ alias = env.elastic_chunk_alias
 
 
 def get_elasticsearch_store(es, es_index_name: str):
+    log.info("Creating OpenSearchVectorSearch for index %s against %s", es_index_name, env.elastic.collection_endpoint)
     return OpenSearchVectorSearch(
         index_name=es_index_name,
         opensearch_url=env.elastic.collection_endpoint,
@@ -35,6 +37,11 @@ def get_elasticsearch_store(es, es_index_name: str):
 
 
 def get_elasticsearch_store_without_embeddings(es, es_index_name: str):
+    log.info(
+        "Creating OpenSearchVectorSearch (no embeddings) for index %s against %s",
+        es_index_name,
+        env.elastic.collection_endpoint,
+    )
     return OpenSearchVectorSearch(
         index_name=es_index_name,
         opensearch_url=env.elastic.collection_endpoint,
@@ -56,16 +63,21 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
     logging.info("Ingesting file: %s", file_name)
     start_time = time.time()
 
+    metadata = MetadataLoader(env, env.s3_client(), file_name).extract_metadata()
+
     es = env.elasticsearch_client()
+    log.info("Using Elasticsearch client: %s", es)
 
     if es_index_name == alias:
         if not es.indices.exists_alias(name=alias):
-            print("The alias does not exist")
+            log.info("Alias %s does not exist; creating", alias)
             create_alias(alias)
     else:
         if es_index_name == env.elastic_schematised_chunk_index:
+            log.info("Creating schematised index %s", env.elastic_schematised_chunk_index)
             es.indices.create(index=env.elastic_schematised_chunk_index, body=env.index_mapping_schematised, ignore=400)
         else:
+            log.info("Creating index %s", es_index_name)
             es.indices.create(index=es_index_name, body=env.index_mapping, ignore=400)
 
     chunk_ingest_chain = ingest_from_loader(
@@ -74,6 +86,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             min_chunk_size=env.worker_ingest_min_chunk_size,
             max_chunk_size=env.worker_ingest_max_chunk_size,
             overlap_chars=0,
+            metadata=metadata,
         ),
         s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store(es, es_index_name),
@@ -86,6 +99,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             min_chunk_size=env.worker_ingest_min_chunk_size,
             max_chunk_size=env.worker_ingest_max_chunk_size,
             overlap_chars=0,
+            metadata=metadata,
         ),
         s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
@@ -98,6 +112,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             min_chunk_size=env.worker_ingest_min_chunk_size,
             max_chunk_size=env.worker_ingest_max_chunk_size,
             overlap_chars=0,
+            metadata=metadata,
         ),
         s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
@@ -110,6 +125,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             min_chunk_size=env.worker_ingest_min_chunk_size,
             max_chunk_size=env.worker_ingest_max_chunk_size,
             overlap_chars=0,
+            metadata=metadata,
         ),
         s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store_without_embeddings(es, env.elastic_schematised_chunk_index),
@@ -141,6 +157,6 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
 def ingest_file(file_name: str, es_index_name: str = alias) -> str | None:
     try:
         _ingest_file(file_name, es_index_name)
-    except Exception as e:
+    except Exception:
         logging.exception("Error while processing file [%s]", file_name)
-        return f"{type(e)}: {e.args[0]}"
+        return traceback.format_exc()

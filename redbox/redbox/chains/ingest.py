@@ -32,16 +32,32 @@ def document_loader(
 ) -> Runnable:
     @chain
     def wrapped(file_name: str) -> Iterator[Document]:
-        if file_name.lower().endswith(".docx"):
-            obj = s3_client.get_object(Bucket=env.bucket_name, Key=file_name)
-            file_bytes = BytesIO(obj["Body"].read())
-        else:
-            file_bytes = None
+        try:
+            log.info("wrapped START: %s", file_name)
 
-        return document_loader.lazy_load(
-            file_name=file_name,
-            file_bytes=file_bytes,
-        )
+            if file_name.lower().endswith(".docx"):
+                log.info("Loading DOCX from S3")
+                obj = s3_client.get_object(Bucket=env.bucket_name, Key=file_name)
+                file_bytes = BytesIO(obj["Body"].read())
+            else:
+                file_bytes = None
+
+            docs = list(
+                document_loader.lazy_load(
+                    file_name=file_name,
+                    file_bytes=file_bytes,
+                )
+            )
+
+            if not docs:
+                raise ValueError(f"No content extracted from {file_name}")
+
+            log.info("Extracted %d documents", len(docs))
+            return docs
+
+        except Exception:
+            log.exception("wrapped() crashed for %s", file_name)
+            raise
 
     return wrapped
 

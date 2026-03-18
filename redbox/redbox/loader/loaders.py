@@ -4,6 +4,7 @@ import time
 from datetime import UTC, datetime
 from io import BytesIO
 from typing import TYPE_CHECKING, List, Tuple
+from unstructured.partition.docx import partition_docx
 
 import environ
 import fitz
@@ -25,7 +26,6 @@ import math
 import boto3
 from typing import Iterator
 
-from docx import Document as DocxDocument
 
 env = environ.Env()
 ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
@@ -121,7 +121,7 @@ def read_csv_text(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
         if isinstance(e, ValidationError):
             raise
         logger.error(f"Error while trying to upload csv file {e}")
-        return None
+        return []
 
 
 def read_excel_file(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
@@ -194,10 +194,12 @@ class TextractChunkLoader:
         max_chunk_size: int = 2000,
         overlap_chars: int = 200,
         region: str = "eu-west-2",
+        metadata: GeneratedMetadata | None = None,
     ):
         self.bucket = bucket
         self.textract = boto3.client("textract", region_name=region)
         self.s3 = boto3.client("s3", region_name=region)
+        self.metadata = metadata or GeneratedMetadata(name="", description="", keywords=[])
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
         self.overlap_chars = overlap_chars
@@ -298,14 +300,50 @@ class TextractChunkLoader:
             raise
 
     def _extract_docx(self, file_bytes: BytesIO) -> List[str]:
-        logger.info("Extracting DOCX content")
+        logger.info("Extracting DOCX with unstructured")
+
         file_bytes.seek(0)
-        doc = DocxDocument(file_bytes)
-        text = "\n".join(p.text for p in doc.paragraphs)
-        logger.debug("Extracted %d characters from DOCX", len(text))
-        return [text] if text.strip() else []
+
+        try:
+            elements = partition_docx(file=file_bytes)
+
+            if not elements:
+                raise ValueError("unstructured returned no elements from DOCX")
+
+            text_pages = []
+            current_page = []
+            last_page = None
+
+            for el in elements:
+                page_number = getattr(el.metadata, "page_number", None)
+
+                if page_number is not None:
+                    if last_page is None:
+                        last_page = page_number
+                    if page_number != last_page:
+                        if current_page:
+                            text_pages.append("\n".join(current_page))
+                        current_page = []
+                        last_page = page_number
+
+                current_page.append(str(el).strip())
+
+            if current_page:
+                text_pages.append("\n".join(current_page))
+
+            if not text_pages:
+                raise ValueError("unstructured extracted no readable text from DOCX")
+
+            logger.info("Extracted %d page(s) from DOCX using unstructured", len(text_pages))
+            return text_pages
+
+        except Exception as e:
+            logger.exception("unstructured failed to process DOCX: %s", str(e))
+            raise
 
     def _chunk_text(self, text: str) -> List[str]:
+        if not text:
+            return []
         chunks = []
         start = 0
         length = len(text)
@@ -323,8 +361,11 @@ class TextractChunkLoader:
         file_bytes: BytesIO | None = None,
     ) -> Iterator[Document]:
 
+        logger.info("lazy_load called for %s", file_name)
+
         s3_key = file_name
         display_name = os.path.basename(file_name)
+        logger.info("File type detected: %s", display_name)
 
         if file_bytes is None:
             obj = self.s3.get_object(Bucket=self.bucket, Key=s3_key)
@@ -339,22 +380,28 @@ class TextractChunkLoader:
                     page_number=1,
                     created_datetime=datetime.now(UTC),
                     token_count=tokeniser(el["text"]),
-                    chunk_resolution=ChunkResolution.normal,
-                    name=display_name,
-                    description=None,
-                    keywords=None,
+                    chunk_resolution=ChunkResolution.tabular,
+                    name=self.metadata.name,
+                    description=self.metadata.description,
+                    keywords=self.metadata.keywords,
                 ).model_dump()
-                yield Document(page_content=el["text"], metadata=metadata)
+                yield Document(page_content=el["text"], metadata={**metadata, **el.get("metadata", {})})
             return
 
+        logger.info("This is a document file: %s", display_name)
         if display_name.lower().endswith(".docx"):
             pages = self._extract_docx(file_bytes)
         else:
+            logger.info("This is a PDF file: %s", display_name)
             pages = self._extract_pdf_from_s3(bucket=self.bucket, key=s3_key)
 
         idx = 0
         for page_num, page_text in enumerate(pages, start=1):
-            for chunk in self._chunk_text(page_text):
+            chunks = self._chunk_text(page_text)
+            if not chunks:
+                logger.warning("No chunks produced for page %s", page_num)
+                continue
+            for chunk in chunks:
                 metadata = UploadedFileMetadata(
                     index=idx,
                     uri=s3_key,
@@ -362,9 +409,9 @@ class TextractChunkLoader:
                     created_datetime=datetime.now(UTC),
                     token_count=tokeniser(chunk),
                     chunk_resolution=ChunkResolution.normal,
-                    name=display_name,
-                    description=None,
-                    keywords=None,
+                    name=self.metadata.name,
+                    description=self.metadata.description,
+                    keywords=self.metadata.keywords,
                 ).model_dump()
                 yield Document(page_content=chunk, metadata=metadata)
                 idx += 1
@@ -400,21 +447,35 @@ class MetadataLoader:
         if self.file_name.lower().endswith(".docx"):
             file_bytes = self._get_file_bytes(self.file_name)
 
+        chunks = []
+
         try:
-            chunks = list(
-                loader.lazy_load(
-                    file_name=self.file_name,
-                    file_bytes=file_bytes,
-                )
-            )
-        except Exception as e:
-            logger.info("Failed metadata extraction - %s", e)
-            chunks = []
+            for c in loader.lazy_load(
+                file_name=self.file_name,
+                file_bytes=file_bytes,
+            ):
+                chunks.append(c)
+        except Exception:
+            logger.exception("Lazy loader crashed during metadata extraction")
+            raise
 
         first_10k_chars = "".join(c.page_content for c in chunks)[:10_000]
 
+        # Determine file type for metadata extraction
+        file_type = "unknown"
+        if self.file_name.lower().endswith(".docx"):
+            file_type = "DOCX"
+        elif self.file_name.lower().endswith(".csv"):
+            file_type = "CSV"
+        elif self.file_name.lower().endswith((".xlsx", ".xls")):
+            file_type = "Excel"
+        elif self.file_name.lower().endswith(".pdf"):
+            file_type = "PDF"
+
+        original_metadata = {"file_type": file_type, "filename": self.file_name}
+
         try:
-            metadata = self.create_file_metadata(first_10k_chars)
+            metadata = self.create_file_metadata(first_10k_chars, original_metadata=original_metadata)
         except Exception as e:
             logger.info(e)
             metadata = GeneratedMetadata(name=self.file_name)
