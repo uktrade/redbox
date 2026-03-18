@@ -416,7 +416,7 @@ def test_read_csv_text_pandas_error():
 
     with patch("pandas.read_csv", side_effect=Exception("CSV parsing error")):
         result = read_csv_text(file_bytes)
-        assert result is None
+        assert result == [{"metadata": {}, "text": "invalid csv content"}]
 
 
 def test_read_excel_file_multiple_sheets():
@@ -494,7 +494,7 @@ def test_read_excel_file_pandas_error():
         file_bytes = BytesIO(b"mock excel content")
         result = read_excel_file(file_bytes)
 
-        assert result is None
+        assert result == [{"metadata": {}, "text": "mock excel content"}]
 
 
 class TestTextractChunkLoaderInit:
