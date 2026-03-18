@@ -69,7 +69,6 @@ def test_document_from_prompt_tool():
                 chat_history=[],
                 ai_settings=AISettings(),
                 permitted_s3_keys=[],
-                sso_access_token=None,
             ),
             messages=[
                 AIMessage(
@@ -402,7 +401,6 @@ def test_gov_filter_AI(is_filter, relevant_return, query, keyword):
                         chat_history=[],
                         ai_settings=AISettings(),
                         permitted_s3_keys=[],
-                        sso_access_token=None,
                     )
                 ),
             }
@@ -542,7 +540,6 @@ class TestGovTool:
                     chat_history=[],
                     ai_settings=ai_setting,
                     permitted_s3_keys=[],
-                    sso_access_token=None,
                 ),
                 "messages": [
                     AIMessage(

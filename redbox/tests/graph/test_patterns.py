@@ -54,7 +54,6 @@ CHAT_PROMPT_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=[],
-        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -93,7 +92,6 @@ BUILD_LLM_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=[],
-        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -146,7 +144,6 @@ CHAT_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=[],
-        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -186,7 +183,6 @@ SET_ROUTE_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=[],
-        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -227,7 +223,6 @@ RETRIEVER_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=["s3_key_1", "s3_key_2"],
-        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -279,7 +274,6 @@ MERGE_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=["s3_key_1", "s3_key_2"],
-        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -331,7 +325,6 @@ STUFF_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=["s3_key_1", "s3_key_2"],
-        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -378,7 +371,6 @@ TOOL_TEST_CASES = generate_test_cases(
         user_uuid=uuid4(),
         chat_history=[],
         permitted_s3_keys=["s3_key_1", "s3_key_2"],
-        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -402,7 +394,6 @@ def test_build_passthrough_pattern():
             user_uuid=uuid4(),
             chat_history=[],
             permitted_s3_keys=[],
-            sso_access_token=None,
         ),
     )
 
@@ -422,7 +413,6 @@ def test_build_set_text_pattern():
             user_uuid=uuid4(),
             chat_history=[],
             permitted_s3_keys=[],
-            sso_access_token=None,
         ),
     )
 
@@ -441,7 +431,6 @@ def test_empty_process():
             user_uuid=uuid4(),
             chat_history=[],
             permitted_s3_keys=[],
-            sso_access_token=None,
         ),
         documents=structure_documents_by_file_name([doc for doc in generate_docs(s3_key="s3_key")]),
         messages=[HumanMessage(content="Foo")],
@@ -468,7 +457,6 @@ CLEAR_DOC_TEST_CASES = [
             user_uuid=uuid4(),
             chat_history=[],
             permitted_s3_keys=[],
-            sso_access_token=None,
         ),
         documents=structure_documents_by_file_name([doc for doc in generate_docs(s3_key="s3_key")]),
         messages=[HumanMessage(content="Foo")],
@@ -481,7 +469,6 @@ CLEAR_DOC_TEST_CASES = [
             user_uuid=uuid4(),
             chat_history=[],
             permitted_s3_keys=[],
-            sso_access_token=None,
         ),
         documents={},
         messages=[HumanMessage(content="Foo")],
@@ -538,7 +525,6 @@ LLM_ROUTE_TEST_CASE = generate_test_cases(
         ai_settings=AISettings(
             self_route_enabled=True,
         ),
-        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(
@@ -562,7 +548,6 @@ STRUCTURED_OUTPUT_TEST_CASE = generate_test_cases(
         ai_settings=AISettings(
             self_route_enabled=True,
         ),
-        sso_access_token=None,
     ),
     test_data=[
         RedboxTestData(

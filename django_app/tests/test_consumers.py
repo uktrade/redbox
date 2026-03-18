@@ -20,6 +20,7 @@ from websockets.legacy.client import Connect
 from redbox.models.chain import LLMCallMetadata, RedboxQuery, RequestMetadata
 from redbox.models.graph import FINAL_RESPONSE_TAG, ROUTE_NAME_TAG, RedboxActivityEvent
 from redbox.models.prompts import CHAT_MAP_QUESTION_PROMPT
+from redbox_app.redbox_core import consumers as consumers_module
 from redbox_app.redbox_core import error_messages
 from redbox_app.redbox_core.consumers import ChatConsumer
 from redbox_app.redbox_core.models import ActivityEvent, Chat, ChatMessage, ChatMessageTokenUse, File
@@ -618,7 +619,6 @@ async def test_chat_consumer_redbox_state(
                 permitted_s3_keys=permitted_file_keys,
                 previous_s3_keys=previous_file_keys,
                 db_location=None,
-                sso_access_token=None,
             )
 
             mock_run.return_value = expected_request
@@ -934,3 +934,35 @@ def test_extract_sso_token_missing_key():
     consumer.scope = {"session": {"other_key": "no_token_here"}}
     token = consumer._extract_sso_token()  # noqa: SLF001
     assert token is None
+
+
+@pytest.mark.asyncio
+async def test_connect_updates_sso_token_and_rebuilds_graph_if_redbox_exists(mocker):
+    mock_user = MagicMock()
+    mock_user.is_authenticated = True
+    mock_user.uk_or_us_english = False
+
+    new_token = "new-shiny-sso-token"  # noqa: S105
+
+    scope = {"user": mock_user, "session": {"_authbroker_token": {"access_token": new_token}}}
+
+    mock_redbox_instance = MagicMock()
+    ChatConsumer.redbox = mock_redbox_instance
+    ChatConsumer.debug = True
+
+    consumer = ChatConsumer(scope=scope)
+    consumer.scope = scope
+
+    mocker.patch.object(consumers_module, "database_sync_to_async", side_effect=lambda f: AsyncMock(side_effect=f))
+
+    mocker.patch.object(consumers_module, "get_all_agents", new_callable=AsyncMock)
+    consumer.accept = AsyncMock()
+
+    await consumer.connect()
+    assert ChatConsumer.redbox.sso_access_token == new_token
+
+    mock_redbox_instance.init_datahub_agent.assert_called_once_with(new_token)
+    mock_redbox_instance.setup_graph.assert_called_once_with(True)
+
+    consumer.accept.assert_called_once()
+    ChatConsumer.redbox = None

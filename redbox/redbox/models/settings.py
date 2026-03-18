@@ -118,6 +118,10 @@ class Settings(BaseSettings):
     aws_region: str = "eu-west-2"
     bucket_name: str = "redbox-storage-dev"
 
+    ## maximum number of metadata files to pull from opensearch
+    max_user_uploaded_files: int = os.environ.get("MAX_USER_UPLOADED_FILES", 30)
+    max_knowledge_base_files: int = os.environ.get("MAX_KNOWLEDGE_BASE_FILES", 100)
+
     ## Chunks
     ### Normal
     worker_ingest_min_chunk_size: int = 1_000
