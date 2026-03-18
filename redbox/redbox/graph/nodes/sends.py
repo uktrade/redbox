@@ -1,3 +1,5 @@
+import asyncio
+import json
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
@@ -5,17 +7,13 @@ from typing import Callable
 from uuid import uuid4
 
 from langchain_core.messages import AIMessage
+from langchain_mcp_adapters.tools import load_mcp_tools
 from langgraph.constants import Send
-
-from redbox.models.chain import DocumentState, RedboxState, TaskStatus
-from redbox.api.format import format_mcp_tool_response
-
-import asyncio
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
-from langchain_mcp_adapters.tools import load_mcp_tools
-import json
 
+from redbox.api.format import format_mcp_tool_response
+from redbox.models.chain import DocumentState, RedboxState, TaskStatus
 from redbox.models.file import ChunkCreatorType
 
 log = logging.getLogger(__name__)
@@ -270,6 +268,7 @@ def run_tools_parallel(
 
                     if response is None:
                         log.warning(f"{future_tool_name} Tool has failed or timed out")
+                        response = f"{future_tool_name} Tool has failed or timed out"
                         continue
 
                     log.warning("response not None")
@@ -329,17 +328,17 @@ def run_tools_parallel(
                 log.warning(
                     f"{log_stub} Every tool execution has failed or timed out after {per_tool_timeout} seconds."
                 )
-                return None
+                return "Tool has failed or timed out"
 
     except TimeoutError:
         log.warning(f"{log_stub} Global parallel tool execution timed out after {parallel_timeout} seconds.")
-        return None
+        return "Tool has timed out"
     except Exception as e:
         log.warning(
             f"{log_stub} Unexpected error in parallel tool execution: {str(e)}",
             exc_info=True,
         )
-        return None
+        return "Tool has unexpected error"
 
 
 def no_dependencies(dependencies: list[str], plan) -> bool:
