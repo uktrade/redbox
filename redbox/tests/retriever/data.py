@@ -471,7 +471,7 @@ WRAP_ASYNC_TOOL_RESULTS: list[tuple[str, str | list[Document]]] = [
 
 MCP_TOOL_RESULTS: list[tuple[tuple[str, MCPResponseMetadata], str]] = [
     (
-        (tool_result, json.loads(tool_result).get("metadata") or MCPResponseMetadata()),
+        (tool_result, MCPResponseMetadata.model_validate(json.loads(tool_result).get("metadata") or {})),
         format_documents(parsed_result) if isinstance(parsed_result, list) else parsed_result,
     )
     for tool_result, parsed_result in WRAP_ASYNC_TOOL_RESULTS

@@ -274,7 +274,18 @@ def run_tools_parallel(
                     log.warning("response not None")
 
                     if not is_loop:
-                        responses.append(AIMessage(response))
+                        if isinstance(response, str):
+                            responses.append(AIMessage(response))
+
+                        elif isinstance(response, tuple):
+                            # Response from Datahub MCP
+                            if isinstance(response[1], MCPResponseMetadata):
+                                responses.append(response[0])
+                            else:
+                                responses.append(response)
+
+                        else:
+                            responses.append(response)
                     else:
                         if isinstance(response, tuple):
                             if isinstance(response[1], MCPResponseMetadata):

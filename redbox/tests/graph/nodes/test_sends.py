@@ -309,11 +309,13 @@ class TestRunToolsParallelAsync:
         expected_tool_result,
         expected_parsed_result,
     ):
+        expected_tool_content, _ = expected_tool_result
+
         tool_name = "company_tool"
         args_schema = {"company_name": {"type": "string"}, "required": ["company_name"]}
         args = {"company_name": "BMW"}
 
-        tool = fake_mcp_tool(tool_name, expected_tool_result, args_schema=args_schema)
+        tool = fake_mcp_tool(tool_name, expected_tool_content, args_schema=args_schema)
 
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
@@ -397,6 +399,9 @@ class TestRunToolsParallelAsync:
 
         assert transformed[1] == expected_status
         assert transformed[2] == "False"
+
+        if len(transformed) > 3:
+            assert transformed[3] == expected_tool_metadata.user_feedback.reason
 
         # Ensure ainvoke got the correct args based on whether 'is_intermediate_step' is required
         if "is_intermediate_step" not in required_keys and "is_intermediate_step" in expected_ainvoke_args.keys():
