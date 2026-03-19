@@ -280,11 +280,16 @@ def run_tools_parallel(
                             if isinstance(response[1], MCPResponseMetadata):
                                 res = response[0]
                                 metadata = response[1]
-                                status = "fail" if metadata.user_feedback.required else "pass"
+                                status = "pass" if res != "" else "fail"
                                 result = (
-                                    (res, status, str(metadata.user_feedback.required), metadata.user_feedback.reason)
-                                    if metadata.user_feedback.reason is not None
-                                    else (res, status, str(metadata.user_feedback.required))
+                                    (
+                                        res,
+                                        status,
+                                        is_intermediate_step,
+                                        metadata.user_feedback.reason or "Requires feedback from the user.",
+                                    )
+                                    if metadata.user_feedback.required
+                                    else (res, status, is_intermediate_step)
                                 )
                                 responses.append(AIMessage(result))
 

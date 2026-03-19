@@ -1,7 +1,6 @@
 from concurrent.futures import TimeoutError
 from unittest.mock import AsyncMock, patch, MagicMock
 from uuid import uuid4
-import json
 
 import pytest
 from httpx import ConnectError
@@ -10,6 +9,7 @@ from langchain_core.messages import AIMessage, ToolCall
 from langgraph.constants import Send
 from pytest_mock import MockerFixture
 
+from redbox.api.format import MCPResponseMetadata
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
     build_document_group_send,
@@ -352,14 +352,15 @@ class TestRunToolsParallelAsync:
         fake_mcp_tool,
         required_keys,
         expected_ainvoke_args,
-        expected_tool_result: str,
+        expected_tool_result: tuple[str, MCPResponseMetadata],
         expected_parsed_result: str,
     ):
+        expected_tool_content, expected_tool_metadata = expected_tool_result
 
         tool_name = "company_tool"
         args_schema = {"required": required_keys}
 
-        tool = fake_mcp_tool(tool_name, expected_tool_result, args_schema=args_schema)
+        tool = fake_mcp_tool(tool_name, expected_tool_content, args_schema=args_schema)
 
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
@@ -374,21 +375,25 @@ class TestRunToolsParallelAsync:
         transformed = responses[0].content
         assert isinstance(transformed, list)
 
-        if expected_parsed_result.startswith("<Document>"):
-            assert transformed[0] == f"<Database_records>{expected_parsed_result}</Database_records>"
-            expected_status = "pass"
-        else:
-            try:
-                data = json.loads(expected_parsed_result)
-                is_empty = data.get("total") == 0
-            except json.JSONDecodeError:
-                is_empty = expected_parsed_result in ["", "None", "[]"]
+        assert transformed[0] == expected_parsed_result
+        expected_status = "pass" if expected_parsed_result != "" else "fail"
+        # if expected_parsed_result.startswith("<Document>"):
+        #     assert transformed[0] == expected_parsed_result #f"<Database_records>{expected_parsed_result}</Database_records>"
+        #     expected_status = "pass" #if not expected_tool_metadata.user_feedback.required else "fail"
+        # else:
+        #     assert transformed[0] == expected_parsed_result
+        #     expected_status = "fail"
+        # try:
+        #     data = json.loads(expected_parsed_result)
+        #     is_empty = data.get("total") == 0
+        # except json.JSONDecodeError:
+        #     is_empty = expected_parsed_result in ["", "None", "[]"]
 
-            assert transformed[0] == f"<Database_records>{expected_parsed_result}</Database_records>"
-            if is_empty:
-                expected_status = "fail"
-            else:
-                expected_status = "pass"
+        # assert transformed[0] == expected_parsed_result #f"<Database_records>{expected_parsed_result}</Database_records>"
+        # if is_empty:
+        #     expected_status = "fail"
+        # else:
+        #     expected_status = "pass"
 
         assert transformed[1] == expected_status
         assert transformed[2] == "False"
