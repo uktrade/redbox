@@ -278,17 +278,17 @@ def run_tools_parallel(
                     else:
                         if isinstance(response, tuple):
                             if isinstance(response[1], MCPResponseMetadata):
-                                res, metadata = response
-                                requires_user_feedback, reason = metadata.requires_user_feedback or (False, None)
-                                status = "fail" if requires_user_feedback else "pass"
+                                res = response[0]
+                                metadata = response[1]
+                                status = "fail" if metadata.user_feedback.required else "pass"
                                 result = (
-                                    (res, status, str(requires_user_feedback), reason)
-                                    if reason is not None
-                                    else (res, status, str(requires_user_feedback))
+                                    (res, status, str(metadata.user_feedback.required), metadata.user_feedback.reason)
+                                    if metadata.user_feedback.reason is not None
+                                    else (res, status, str(metadata.user_feedback.required))
                                 )
                                 responses.append(AIMessage(result))
 
-                                if requires_user_feedback:
+                                if metadata.user_feedback.required:
                                     return responses
 
                             else:

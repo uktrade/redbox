@@ -59,7 +59,11 @@ def reduce_chunks_by_tokens(chunks: list[Document] | None, chunk: Document, max_
 
 
 class MCPResponseMetadata(BaseModel):
-    requires_user_feedback: Optional[tuple[bool, Optional[str]]] = None
+    class UserFeedback(BaseModel):
+        required: bool = False
+        reason: Optional[str] = None
+
+    user_feedback: UserFeedback = UserFeedback()
 
 
 def format_mcp_tool_response(tool_response, creator_type: ChunkCreatorType) -> tuple[str, MCPResponseMetadata]:
