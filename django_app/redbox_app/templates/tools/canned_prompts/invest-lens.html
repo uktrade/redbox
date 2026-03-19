@@ -50,3 +50,22 @@
         </ul>
     </div>
 </details>
+
+<details class="govuk-details ids-text-s">
+    <summary class="govuk-details__summary">
+        <span class="govuk-details__summary-text">
+            Resources that {{ tool.name }} uses
+        </span>
+    </summary>
+    <div class="govuk-details__text">
+        <p class="govuk-body-s">It uses the following documents to build briefings:</p>
+
+        <ul class="govuk-list govuk-list--bullet govuk-body-s">
+            <li>Data Hub company records</li>
+            <li>briefing templates specific to investment contexts (maintained by admins)</li>
+            <li>built-in investment documents (maintained by admins)</li>
+        </ul>
+
+        {% include "tools/tool-files.html" %}
+    </div>
+</details>

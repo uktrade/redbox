@@ -3,6 +3,7 @@ import logging
 import os
 from asyncio import CancelledError
 from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -903,36 +904,40 @@ async def test_connect_with_agents_update_via_db(agents_list: list, alice: User)
         assert ChatConsumer.redbox.agent_configs["Internal_Retrieval_Agent"].llm_backend.name == "gpt-4o"
 
 
-def test_extract_sso_token_success():
+@pytest.mark.asyncio
+async def test_extract_sso_token_success():
     """Test successful token extraction when the session data is present."""
     consumer = ChatConsumer()
     mock_token = "mock_token"  # noqa: S105
     consumer.scope = {"session": {"_authbroker_token": {"access_token": mock_token}}}
-    token = consumer._extract_sso_token()  # noqa: SLF001
+    token = await consumer._extract_sso_token()  # noqa: SLF001
     assert token == mock_token
 
 
-def test_extract_sso_token_missing_session():
+@pytest.mark.asyncio
+async def test_extract_sso_token_missing_session():
     """Test that it returns None if 'session' is missing from scope."""
     consumer = ChatConsumer()
     consumer.scope = {}  # Empty scope
-    token = consumer._extract_sso_token()  # noqa: SLF001
+    token = await consumer._extract_sso_token()  # noqa: SLF001
     assert token is None
 
 
-def test_extract_sso_token_type_error():
+@pytest.mark.asyncio
+async def test_extract_sso_token_type_error():
     """Test that it returns None if session is None (triggers TypeError)."""
     consumer = ChatConsumer()
     consumer.scope = {"session": None}
-    token = consumer._extract_sso_token()  # noqa: SLF001
+    token = await consumer._extract_sso_token()  # noqa: SLF001
     assert token is None
 
 
-def test_extract_sso_token_missing_key():
+@pytest.mark.asyncio
+async def test_extract_sso_token_missing_key():
     """Test that it returns None if the expected SSO keys are missing."""
     consumer = ChatConsumer()
     consumer.scope = {"session": {"other_key": "no_token_here"}}
-    token = consumer._extract_sso_token()  # noqa: SLF001
+    token = await consumer._extract_sso_token()  # noqa: SLF001
     assert token is None
 
 
@@ -944,7 +949,11 @@ async def test_connect_updates_sso_token_and_rebuilds_graph_if_redbox_exists(moc
 
     new_token = "new-shiny-sso-token"  # noqa: S105
 
-    scope = {"user": mock_user, "session": {"_authbroker_token": {"access_token": new_token}}}
+    expires_at_epoc = (datetime.now(UTC) + timedelta(hours=1)).timestamp()
+    scope = {
+        "user": mock_user,
+        "session": {"_authbroker_token": {"access_token": new_token, "expires_at": int(expires_at_epoc)}},
+    }
 
     mock_redbox_instance = MagicMock()
     ChatConsumer.redbox = mock_redbox_instance
@@ -965,4 +974,34 @@ async def test_connect_updates_sso_token_and_rebuilds_graph_if_redbox_exists(moc
     mock_redbox_instance.setup_graph.assert_called_once_with(True)
 
     consumer.accept.assert_called_once()
+    ChatConsumer.redbox = None
+
+
+@pytest.mark.asyncio
+async def test_expired_sso_token_forces_logout():
+    mock_user = MagicMock()
+    mock_user.is_authenticated = True
+    mock_user.uk_or_us_english = False
+
+    expired_token = "expired-sso-token"  # noqa: S105
+    expires_at_epoc = (datetime.now(UTC) - timedelta(hours=1)).timestamp()
+
+    scope = {
+        "user": mock_user,
+        "session": {"_authbroker_token": {"access_token": expired_token, "expires_at": int(expires_at_epoc)}},
+    }
+
+    mock_redbox_instance = MagicMock()
+    ChatConsumer.redbox = mock_redbox_instance
+    ChatConsumer.debug = True
+
+    consumer = ChatConsumer(scope=scope)
+    consumer.scope = scope
+    consumer.accept = AsyncMock()
+    consumer.send_to_client = AsyncMock()
+
+    await consumer.connect()
+
+    consumer.accept.assert_called()
+    consumer.send_to_client.assert_awaited_once_with("auth_expired", error_messages.AUTH_EXPIRED)
     ChatConsumer.redbox = None

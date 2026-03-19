@@ -67,6 +67,7 @@ User = get_user_model()
 OptFileSeq = Sequence[File] | None
 logger = logging.getLogger(__name__)
 logger.info("WEBSOCKET_SCHEME is: %s", settings.WEBSOCKET_SCHEME)
+AUTH_EXPIRY_BUFFER = 600  # seconds
 
 
 def parse_page_number(obj: int | list[int] | None) -> list[int]:
@@ -317,10 +318,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
         ids = [f.id for f in files]
         return list(File.objects.filter(id__in=ids).values_list("original_file", flat=True))
 
-    def _extract_sso_token(self) -> str | None:
+    async def _extract_sso_token(self, check_expiry=False) -> str | None:
         try:
             session = self.scope.get("session")
-            return session["_authbroker_token"]["access_token"]
+            authbroker_token = session["_authbroker_token"]
+
+            if check_expiry and (timezone.now().timestamp() > authbroker_token["expires_at"] - AUTH_EXPIRY_BUFFER):
+                await self.accept()
+                await self.send_to_client("auth_expired", error_messages.AUTH_EXPIRED)
+
+            return authbroker_token["access_token"]
         except (KeyError, TypeError):
             return None
 
@@ -346,7 +353,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         agent_plans, question, user_feedback = await self._load_agent_plan(session, message_history)
 
         ai_settings = await self.get_ai_settings(session)
-        sso_access_token = self._extract_sso_token()
+        sso_access_token = await self._extract_sso_token()
 
         if selected_agent_names:
             ai_settings = ai_settings.model_copy(
@@ -608,7 +615,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.send_to_client("error", error_messages.AUTH_REQUIRED)
             return
 
-        sso_access_token = self._extract_sso_token()
+        sso_access_token = await self._extract_sso_token(check_expiry=True)
+
         if ChatConsumer.redbox is None:
             agents = await get_all_agents()
             for agent in agents:
