@@ -81,7 +81,11 @@ TEST_CASES = [
     for generated_cases in [
         generate_test_cases(
             query=RedboxQuery(
-                question="@chat What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+                question="@chat What is AI?",
+                s3_keys=[],
+                user_uuid=uuid4(),
+                chat_history=[],
+                permitted_s3_keys=[],
             ),
             test_data=[
                 RedboxTestData(

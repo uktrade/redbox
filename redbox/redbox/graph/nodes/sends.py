@@ -8,12 +8,15 @@ from langchain_core.messages import AIMessage
 from langgraph.constants import Send
 
 from redbox.models.chain import DocumentState, RedboxState, TaskStatus
+from redbox.api.format import format_mcp_tool_response
 
 import asyncio
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from langchain_mcp_adapters.tools import load_mcp_tools
 import json
+
+from redbox.models.file import ChunkCreatorType
 
 log = logging.getLogger(__name__)
 
@@ -101,6 +104,17 @@ def run_with_timeout(func, args, timeout):
     return result[0]
 
 
+def _get_mcp_headers(sso_access_token: str | None = None) -> dict[str, str]:
+    if not sso_access_token:
+        return {}
+    token = sso_access_token.strip()
+    if not token:
+        return {}
+    if token.lower().startswith("bearer "):
+        return {"Authorization": token}
+    return {"Authorization": f"Bearer {token}"}
+
+
 def wrap_async_tool(tool, tool_name):
     """
     Returns a synchronous function that properly wraps an async tool
@@ -119,21 +133,34 @@ def wrap_async_tool(tool, tool_name):
 
         # get mcp tool url
         mcp_url = tool.metadata["url"]
+        creator_type = tool.metadata["creator_type"]
+        sso_access_token = tool.metadata["sso_access_token"].get()
+        headers = _get_mcp_headers(sso_access_token)
 
         try:
             # Define the async operation
             async def run_tool():
                 # tool need to be executed within the connection context manager
-                async with streamablehttp_client(mcp_url) as (read, write, _):
+                async with streamablehttp_client(mcp_url, headers=headers or None) as (
+                    read,
+                    write,
+                    _,
+                ):
                     async with ClientSession(read, write) as session:
                         # Initialize the connection
-                        await session.initialize()
+                        init_result = await session.initialize()
+                        server_name = init_result.serverInfo.name
+                        server_version = init_result.serverInfo.version
+
+                        log.info(f"Calling tool '{tool_name}' on MCP server {server_name}@{server_version}")
+
                         # Get tools
                         tools = await load_mcp_tools(session)
 
                         selected_tool = next((t for t in tools if t.name == tool_name), None)
                         if not selected_tool:
                             raise ValueError(f"tool with name '{tool_name}' not found")
+
                         # remove intermediate step argument if it is not required by tool
                         if "is_intermediate_step" not in selected_tool.args_schema["required"] and args.get(
                             "is_intermediate_step"
@@ -144,8 +171,17 @@ def wrap_async_tool(tool, tool_name):
                         log.warning(f"tool found with name '{tool_name}'")
                         log.warning(f"args '{args}'")
                         result = await selected_tool.ainvoke(args)
-                        log.warning("result")
-                        log.warning(result)
+
+                        log.warning(f"MCP Tool '{tool_name}' result: {result}")
+
+                        if creator_type == ChunkCreatorType.datahub:
+                            log.warning(f"Formatting MCP tool response for creator_type='{creator_type}'")
+                            return format_mcp_tool_response(
+                                tool_response=result,
+                                creator_type=creator_type,
+                            )
+
+                        log.warning(f"Returning raw MCP tool response for creator_type='{creator_type}'")
                         return result
 
             # Run the async function and return its result
@@ -158,7 +194,13 @@ def wrap_async_tool(tool, tool_name):
 
 
 def run_tools_parallel(
-    ai_msg, tools, state, parallel_timeout=60, per_tool_timeout=60, result_timeout=60, is_loop=False
+    ai_msg,
+    tools,
+    state,
+    parallel_timeout=60,
+    per_tool_timeout=60,
+    result_timeout=60,
+    is_loop=False,
 ):
     run_id = str(uuid4())[:8]
     log_stub = f"[run_tools_parallel run_id='{run_id}']"
@@ -206,9 +248,15 @@ def run_tools_parallel(
                         is_intermediate_step = args.get("is_intermediate_step", "False")
                         log.warning(f"intermediate step: {is_intermediate_step}")
                     future = executor.submit(
-                        run_with_timeout, wrap_async_tool(selected_tool, tool_name), args, per_tool_timeout
+                        run_with_timeout,
+                        wrap_async_tool(selected_tool, tool_name),
+                        args,
+                        per_tool_timeout,
                     )
-                futures[future] = {"name": tool_name, "intermediate_step": is_intermediate_step}
+                futures[future] = {
+                    "name": tool_name,
+                    "intermediate_step": is_intermediate_step,
+                }
 
             # Collect responses as tools complete
             responses = []
@@ -219,40 +267,41 @@ def run_tools_parallel(
                 try:
                     response = future.result(timeout=result_timeout)
                     log.warning(f"{log_stub} This is what I got from tool '{future_tool_name}': {response}")
-                    if response is not None:  # if response is not None, meaning tool did not fail or timeout
-                        log.warning("response not None")
-                        if (not is_loop and isinstance(response, str)) or (
-                            is_loop and isinstance(response, tuple)
-                        ):  # when is_loop=True, result output should be a Tuple
-                            responses.append(AIMessage(response))
-                            log.warning("my non-transformed response")
-                            log.warning(response)
-                        elif is_loop and isinstance(response, str):
-                            try:
-                                result_dict = json.loads(response)
-                                # Check if response has no records
-                                is_empty = result_dict.get("total") == 0
-                                log.warning(f"is_empty {is_empty}")
-                            except json.JSONDecodeError:
-                                # Check if response is an empty string/None/empty array
-                                is_empty = response in ["", "None", "[]"]
 
-                            # Set status based on emptiness
-                            status = "fail" if is_empty else "pass"
-
-                            if is_empty:
-                                log.warning(f"No records  returned from {future_tool_name} tool")
-                                response = "Error message: Empty response"
-
-                            # Create transformed response and append to responses
-                            transformed_response = (response, status, is_intermediate_step)
-                            log.warning("my transformed response")
-                            log.warning(transformed_response)
-                            responses.append(AIMessage(transformed_response))
-
-                    else:
+                    if response is None:
                         log.warning(f"{future_tool_name} Tool has failed or timed out")
                         continue
+
+                    log.warning("response not None")
+
+                    if (not is_loop and isinstance(response, str)) or (
+                        is_loop and isinstance(response, tuple)
+                    ):  # when is_loop=True, result output should be a Tuple
+                        responses.append(AIMessage(response))
+                        log.warning("my non-transformed response")
+                        log.warning(response)
+                    elif is_loop and isinstance(response, str):
+                        try:
+                            result_dict = json.loads(response)
+                            # Check if response has no records
+                            is_empty = result_dict.get("total") == 0
+                            log.warning(f"is_empty {is_empty}")
+                        except json.JSONDecodeError:
+                            # Check if response is an empty string/None/empty array
+                            is_empty = response in ["", "None", "[]"]
+
+                        # Set status based on emptiness
+                        status = "fail" if is_empty else "pass"
+
+                        if is_empty:
+                            log.warning(f"No records  returned from {future_tool_name} tool")
+                            response = "Error message: Empty response"
+
+                        # Create transformed response and append to responses
+                        transformed_response = (response, status, is_intermediate_step)
+                        log.warning("my transformed response")
+                        log.warning(transformed_response)
+                        responses.append(AIMessage(transformed_response))
 
                     raw_res = response
                     if isinstance(raw_res, tuple):
@@ -286,7 +335,10 @@ def run_tools_parallel(
         log.warning(f"{log_stub} Global parallel tool execution timed out after {parallel_timeout} seconds.")
         return None
     except Exception as e:
-        log.warning(f"{log_stub} Unexpected error in parallel tool execution: {str(e)}", exc_info=True)
+        log.warning(
+            f"{log_stub} Unexpected error in parallel tool execution: {str(e)}",
+            exc_info=True,
+        )
         return None
 
 
@@ -319,8 +371,10 @@ def sending_task_to_agent(state: RedboxState):
                 task.status = TaskStatus.SCHEDULED
                 state.agent_plans.update_task_status(task.id, TaskStatus.SCHEDULED)
                 task_send_states += [
-                    (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
+                    (
+                        task.agent.value,
+                        _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]),
+                    )
                 ]
                 log.warning(f"Sending task: {task.id} to agent {task.agent}")
-
         return [Send(node=target, arg=state) for target, state in task_send_states]

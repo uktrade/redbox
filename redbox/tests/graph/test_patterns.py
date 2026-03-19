@@ -48,7 +48,13 @@ from redbox.transform import flatten_document_state, structure_documents_by_file
 LANGGRAPH_DEBUG = True
 
 CHAT_PROMPT_TEST_CASES = generate_test_cases(
-    query=RedboxQuery(question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]),
+    query=RedboxQuery(
+        question="What is AI?",
+        s3_keys=[],
+        user_uuid=uuid4(),
+        chat_history=[],
+        permitted_s3_keys=[],
+    ),
     test_data=[
         RedboxTestData(
             number_of_docs=0,
@@ -80,7 +86,13 @@ def test_build_chat_prompt_from_messages_runnable(test_case: RedboxChatTestCase,
 
 
 BUILD_LLM_TEST_CASES = generate_test_cases(
-    query=RedboxQuery(question="What is AI?", file_uuids=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]),
+    query=RedboxQuery(
+        question="What is AI?",
+        file_uuids=[],
+        user_uuid=uuid4(),
+        chat_history=[],
+        permitted_s3_keys=[],
+    ),
     test_data=[
         RedboxTestData(
             number_of_docs=2,
@@ -126,7 +138,13 @@ def test_build_llm_chain(test_case: RedboxChatTestCase):
 
 
 CHAT_TEST_CASES = generate_test_cases(
-    query=RedboxQuery(question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]),
+    query=RedboxQuery(
+        question="What is AI?",
+        s3_keys=[],
+        user_uuid=uuid4(),
+        chat_history=[],
+        permitted_s3_keys=[],
+    ),
     test_data=[
         RedboxTestData(
             number_of_docs=0,
@@ -159,7 +177,13 @@ def test_build_chat_pattern(test_case: RedboxChatTestCase, mocker: MockerFixture
 
 
 SET_ROUTE_TEST_CASES = generate_test_cases(
-    query=RedboxQuery(question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]),
+    query=RedboxQuery(
+        question="What is AI?",
+        s3_keys=[],
+        user_uuid=uuid4(),
+        chat_history=[],
+        permitted_s3_keys=[],
+    ),
     test_data=[
         RedboxTestData(
             number_of_docs=0,
@@ -365,7 +389,11 @@ def test_build_passthrough_pattern():
     passthrough = build_passthrough_pattern()
     state = RedboxState(
         request=RedboxQuery(
-            question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="What is AI?",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
         ),
     )
 
@@ -380,7 +408,11 @@ def test_build_set_text_pattern():
     set_text = build_set_text_pattern(text="An hendy hap ychabbe ychent.")
     state = RedboxState(
         request=RedboxQuery(
-            question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="What is AI?",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
         ),
     )
 
@@ -394,7 +426,11 @@ def test_empty_process():
     """Tests the empty process doesn't touch the state whatsoever."""
     state = RedboxState(
         request=RedboxQuery(
-            question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="What is AI?",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
         ),
         documents=structure_documents_by_file_name([doc for doc in generate_docs(s3_key="s3_key")]),
         messages=[HumanMessage(content="Foo")],
@@ -416,7 +452,11 @@ def test_empty_process():
 CLEAR_DOC_TEST_CASES = [
     RedboxState(
         request=RedboxQuery(
-            question="What is AI?", file_uuids=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="What is AI?",
+            file_uuids=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
         ),
         documents=structure_documents_by_file_name([doc for doc in generate_docs(s3_key="s3_key")]),
         messages=[HumanMessage(content="Foo")],
@@ -424,7 +464,11 @@ CLEAR_DOC_TEST_CASES = [
     ),
     RedboxState(
         request=RedboxQuery(
-            question="What is AI?", file_uuids=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="What is AI?",
+            file_uuids=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
         ),
         documents={},
         messages=[HumanMessage(content="Foo")],

@@ -2,66 +2,13 @@
 
 import { hideElement, showElement } from "../../utils/dom-utils.js";
 import { LoadingMessage } from "../../../interaction_design_system/ids/components/loading-message.js";
-
-// TODO: Reimplement scroll position save-and-restore on active chat reload
-// window.addEventListener('load', () => {
-//   const scrollPosition = sessionStorage.getItem('scrollPosition');
-//   if (scrollPosition !== null) {
-//     window.scrollTo({
-//       top: parseInt(scrollPosition),
-//       behavior: 'instant'
-//     });
-//     sessionStorage.removeItem('scrollPosition');
-//   }
-// });
+import { emitEvent, Events, listenEvent } from "../../../interaction_design_system/ids/events/events.js";
 
 export class ChatMessage extends HTMLElement {
-  autoScrollEnabled = true;
-
   connectedCallback() {
-    this.scrollContainer = this.closest(".ids-scrollable") || document;
-    this.programmaticScroll = false;
     this.streamedContent = "";
-
-    this.#bindScrollEvents();
+    this.LOGOUT_URL = this.dataset.logoutUrl;
     this.#loadMessage();
-  }
-
-
-  #bindScrollEvents(scrollContainer = this.scrollContainer) {
-    if (!scrollContainer) return;
-    let scrollEvents = [];
-
-    if (scrollContainer instanceof Document) scrollEvents.push("scroll");
-    if (scrollContainer instanceof Element) scrollEvents.push("pointerup", "mousewheel");
-
-    scrollEvents.forEach((scrollEvent) => {
-      scrollContainer.addEventListener(scrollEvent, () => this.#updateAutoScroll());
-    });
-  }
-
-
-  #updateAutoScroll() {
-    if (this.scrollContainer) this.autoScrollEnabled = this.isAtBottom(this.scrollContainer);
-  }
-
-
-  isAtBottom(/** @type {Element | Document} */ el, threshold = 10) {
-    if (el instanceof Document) el = el.documentElement;
-    return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
-  }
-
-
-  scrollToBottom(scrollContainer = this.scrollContainer) {
-    if (!scrollContainer) return;
-    if (scrollContainer instanceof Document) scrollContainer = scrollContainer.documentElement;
-    scrollContainer.scrollTop = scrollContainer.scrollHeight;
-  }
-
-
-  reloadAtCurrentPosition() {
-    sessionStorage.setItem('scrollPosition', window.scrollY.toString());
-    location.reload();
   }
 
 
@@ -82,8 +29,8 @@ export class ChatMessage extends HTMLElement {
         : ""
       }
                 <sources-list data-id="${uuid}"></sources-list>
-                <div class="govuk-error-summary" data-module="govuk-error-summary" hidden>
-                  <div class="govuk-body govuk-!-font-weight-bold">
+                <div class="govuk-error-summary govuk-!-display-none" data-module="govuk-error-summary">
+                  <div class="govuk-body govuk-error-summary__title govuk-!-font-weight-bold">
                     There was an unexpected error communicating with Redbox. Please try again.
                   </div>
                   <div class="govuk-body">
@@ -98,10 +45,6 @@ export class ChatMessage extends HTMLElement {
 
 
         `;
-
-    // ensure new chat-messages aren't hidden behind the chat-input
-    // this.programmaticScroll = true;
-    // this.scrollIntoView({ block: "end" });
 
     // Insert route_display HTML
     if (this.dataset.role == "ai") {
@@ -165,6 +108,13 @@ export class ChatMessage extends HTMLElement {
 
   };
 
+  sanitiseText(/** @type {String} */ text) {
+    if (typeof text !== 'string') return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML; // to escape html entities
+  }
+
   /**
    * Streams an LLM response
    * @param {string} message
@@ -188,13 +138,6 @@ export class ChatMessage extends HTMLElement {
   ) => {
     const is_new_chat = !sessionId;
 
-    function sanitiseText(/** @type {String} */ text) {
-      if (typeof text !== 'string') return '';
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML; // to escape html entities
-    }
-
     function sanitiseUrl(/** @type {String} */ url) {
       if (typeof url !== 'string') return '';
       try {
@@ -215,22 +158,6 @@ export class ChatMessage extends HTMLElement {
       return id.replace(/[^a-zA-Z0-9_-]/g, '');
     }
 
-    window.addEventListener('load', () => {
-      if (!this.scrollContainer) return;
-      let scrollElement;
-      const scrollPosition = sessionStorage.getItem('scrollPosition');
-
-      if (scrollPosition !== null) {
-        if (this.scrollContainer instanceof Document) {
-          scrollElement = this.scrollContainer.documentElement;
-        } else {
-          scrollElement = this.scrollContainer;
-        }
-        scrollElement.scrollTo(0, parseInt(scrollPosition));
-        sessionStorage.removeItem('scrollPosition');
-      }
-    });
-
     this.responseContainer =
       /** @type {import("../markdown-converter").MarkdownConverter} */ (
         this.querySelector("markdown-converter")
@@ -243,17 +170,12 @@ export class ChatMessage extends HTMLElement {
     let responseComplete = this.querySelector(".rb-loading-complete");
     let webSocket = new WebSocket(endPoint);
 
-    // Stop streaming on escape-key or stop-button press
     const stopStreaming = () => {
       this.dataset.status = "stopped";
       webSocket.close();
     };
-    this.addEventListener("keydown", (evt) => {
-      if (evt.key === "Escape" && this.dataset.status === "streaming") {
-        stopStreaming();
-      }
-    });
-    document.addEventListener("stop-streaming", stopStreaming);
+
+    listenEvent(Events.STOP_STREAMING, stopStreaming);
 
     webSocket.onopen = (event) => {
       webSocket.send(
@@ -267,10 +189,8 @@ export class ChatMessage extends HTMLElement {
         })
       );
       this.dataset.status = "streaming";
-      const chatResponseStartEvent = new CustomEvent("chat-response-start");
-      document.dispatchEvent(chatResponseStartEvent);
-      this.autoScrollEnabled = true;
-      this.scrollToBottom();
+      emitEvent(Events.CHAT_RESPONSE_START);
+      emitEvent(Events.SCROLL_TO_BOTTOM, {source:this, force:true});
     };
 
     webSocket.onerror = (event) => {
@@ -290,9 +210,7 @@ export class ChatMessage extends HTMLElement {
       if (this.dataset.status !== "stopped") {
         this.dataset.status = "complete";
       }
-      const stopStreamingEvent = new CustomEvent("stop-streaming");
-      document.dispatchEvent(stopStreamingEvent);
-      if (this.autoScrollEnabled) this.scrollToBottom();
+      emitEvent(Events.STOP_STREAMING);
     };
 
     webSocket.onmessage = (event) => {
@@ -305,22 +223,22 @@ export class ChatMessage extends HTMLElement {
       }
 
       if (response.type === "text") {
-        this.streamedContent += sanitiseText(response.data);
+        this.streamedContent += this.sanitiseText(response.data);
         if (this.streamedContent) this.responseContainer?.update(this.streamedContent);
       } else if (response.type === "session-id") {
         chatControllerRef.dataset.sessionId = sanitiseId(response.data);
       } else if (response.type === "source") {
         sourcesContainer.add(
-          sanitiseText(response.data.file_name),
+          this.sanitiseText(response.data.file_name),
           sanitiseUrl(response.data.url),
-          sanitiseText(response.data.text_in_answer || "")
+          this.sanitiseText(response.data.text_in_answer || "")
         );
       } else if (response.type === "route") {
         // Update the route text on the page now the selected route is known
         let route = this?.querySelector(".redbox-message-route");
         let routeText = route?.querySelector(".route-text");
         if (route && routeText) {
-          routeText.textContent = sanitiseText(response.data);
+          routeText.textContent = this.sanitiseText(response.data);
           route.removeAttribute("hidden");
         }
       } else if (response.type === "activity") {
@@ -339,29 +257,23 @@ export class ChatMessage extends HTMLElement {
 
           actionsContainer.appendChild(feedbackButtons)
           actionsContainer.appendChild(copyText)
-
         }
         // this.#addFootnotes(this.streamedContent, response.data.message_id);
-        const chatResponseEndEvent = new CustomEvent("chat-response-end", {
-          detail: {
-            title: sanitiseText(response.data.title),
-            session_id: sanitiseId(response.data.session_id),
-            is_new_chat,
-          },
-        });
-        document.dispatchEvent(chatResponseEndEvent);
+        emitEvent(Events.CHAT_RESPONSE_END, {
+          title: this.sanitiseText(response.data.title),
+          session_id: sanitiseId(response.data.session_id),
+          is_new_chat,
+        })
+
       } else if (response.type === "error") {
-        this.querySelector(".govuk-error-summary")?.removeAttribute(
-          "hidden"
-        );
-        let errorContentContainer = this.querySelector(
-          ".govuk-error-summary__title"
-        );
-        if (errorContentContainer) {
-          errorContentContainer.textContent = sanitiseText(response.data);
+        this.showError(response.data);
+      } else if (response.type === "auth_expired") {
+        if (this.LOGOUT_URL) {
+          window.location.href = this.LOGOUT_URL;
+        } else {
+          this.showError(response.data);
         }
       }
-      if (this.autoScrollEnabled) this.scrollToBottom();
     };
   };
 
@@ -377,13 +289,24 @@ export class ChatMessage extends HTMLElement {
 
 
   /**
+  * Displays error message
+  * @param {string} message
+  */
+  showError = (message) => {
+    showElement(this.querySelector(".govuk-error-summary"));
+    let errorContentContainer = this.querySelector(".govuk-error-summary__title");
+    if (errorContentContainer) {
+      errorContentContainer.textContent = this.sanitiseText(message);
+    }
+  }
+
+
+  /**
   * Returns the activity element used for response feedback
   * @returns {LoadingMessage} Loading Message Activity element
   */
   get loadingElement() {
     return /** @type {LoadingMessage} */ (this.querySelector("ids-loading-message"));
   }
-
 }
-
 customElements.define("ids-chat-message", ChatMessage);

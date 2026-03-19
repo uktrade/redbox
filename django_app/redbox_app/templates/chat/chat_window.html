@@ -7,28 +7,29 @@
 <div id="chat-feed" class="ids-chat-feed" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
     {% if not messages %}
         <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1" security-classification="{{ security }}">
-            <h3 class="govuk-heading-s govuk-!-margin-bottom-2">
-                <span class="ids-text--product">{{ product_name(request) }}</span> can help you to:
-            </h3>
-            <ul class="govuk-list govuk-list--bullet govuk-body-s">
-                <li>analyse and summarise your documents</li>
-                <li>draft content and brainstorm ideas</li>
-                <li>search government sources and the web</li>
-                <li>use tools - for example, the Submission Checker tool, which reviews ministerial briefings</li>
-            </ul>
+            {% if tool %}
+                {% include ["tools/canned_prompts/" ~ tool.slug ~ ".html", "chat/default_canned_prompt.html"] %}
+            {% else %}
+                {% include "chat/default_canned_prompt.html" %}
+            {% endif %}
         </canned-prompts>
     {% endif %}
 
-    <div class="ids-chats-section">
+    {% if is_first_time_user %}
+        <ids-first-time-upload-form class="govuk-!-margin-bottom-2">
+            {{ upload_form(label="Upload a file (optional)", uploadUrl=urls.upload_url, errors=errors, showSubmit=False) }}
+        </ids-first-time-upload-form>
+    {% endif %}
 
-        {% if is_first_time_user %}
-            <ids-first-time-upload-form class="govuk-!-margin-bottom-2">
-                {{ upload_form(label="Upload a file (optional)", uploadUrl=urls.upload_url, errors=errors, showSubmit=False) }}
-            </ids-first-time-upload-form>
-        {% endif %}
-
-        <chat-controller class="iai-chat-container" data-stream-url="{{ streaming.endpoint if streaming else '' }}"
-            data-session-id="{{ chat_id or '' }}">
+    <ids-stream-scroller class="ids-scrollablee">
+        <chat-controller class="iai-chat-container"
+                        data-stream-url="{{ streaming.endpoint if streaming else '' }}"
+                        data-session-id="{{ chat_id or '' }}"
+                        data-logout-url="{{ url('signed-out') }}"
+                        {% if tool %}
+                            data-tool-id="{{ tool.id }}"
+                            data-tool-slug="{{ tool.slug }}"
+                        {% endif %}>
             <div class="ids-chat-message__container ids-flex-column js-message-container">
 
                 <template id="template-route-display">
@@ -36,11 +37,9 @@
                 </template>
 
                 {# SSR messages #}
-
-                {% for message in messages %}
-                {{ message_box(message=message) }}
-                {% endfor %}
-
+                    {% for message in messages %}
+                    {{ message_box(message=message) }}
+                    {% endfor %}
                 {# CSR messages are inserted here #}
 
             </div>
@@ -49,5 +48,5 @@
             {% if chat_id %}<input type="hidden" name="session-id" value="{{ chat_id }}" />{% endif %}
 
         </chat-controller>
-    </div>
+    </ids-stream-scroller>
 </div>

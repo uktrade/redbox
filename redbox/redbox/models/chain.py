@@ -388,7 +388,13 @@ def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskB
     ConfiguredAgentTask = create_model(
         "ConfiguredAgentTask",
         __base__=AgentTaskBase,
-        agent=(AgentEnum, Field(description="Name of the agent to complete the task", default=default_agent)),
+        agent=(
+            AgentEnum,
+            Field(
+                description="Name of the agent to complete the task",
+                default=default_agent,
+            ),
+        ),
     )
 
     # create agent plan pydantic model dynamically
@@ -397,7 +403,10 @@ def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskB
         __base__=MultiAgentPlanBase,
         tasks=(
             List[ConfiguredAgentTask],
-            Field(description="A list of tasks to be carried out by agents", default=[ConfiguredAgentTask()]),
+            Field(
+                description="A list of tasks to be carried out by agents",
+                default=[ConfiguredAgentTask()],
+            ),
         ),
     )
     ConfiguredAgentPlan.update_task_status = update_task_status
