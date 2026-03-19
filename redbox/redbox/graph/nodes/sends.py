@@ -297,44 +297,6 @@ def run_tools_parallel(
                         else:
                             responses.append(AIMessage(result))
 
-                    # if (not is_loop and isinstance(response, str)) or (
-                    #     is_loop and isinstance(response, tuple)
-                    # ):  # when is_loop=True, result output should be a Tuple
-                    #     if isinstance(response, tuple):
-                    #         res, metadata = response
-                    #         if metadata is not None:
-                    #             requires_user_feedback, reason = metadata.requires_user_feedback
-                    #             status = "fail" if requires_user_feedback else "pass"
-                    #             result = (res, status, str(requires_user_feedback), reason)
-                    #             responses.append(AIMessage(result))
-                    #         else:
-                    #     else:
-                    #         responses.append(AIMessage(response))
-                    #     log.warning("my non-transformed response")
-                    #     log.warning(response)
-                    # elif is_loop and isinstance(response, str):
-                    #     try:
-                    #         result_dict = json.loads(response)
-                    #         # Check if response has no records
-                    #         is_empty = result_dict.get("total") == 0
-                    #         log.warning(f"is_empty {is_empty}")
-                    #     except json.JSONDecodeError:
-                    #         # Check if response is an empty string/None/empty array
-                    #         is_empty = response in ["", "None", "[]"]
-
-                    #     # Set status based on emptiness
-                    #     status = "fail" if is_empty else "pass"
-
-                    #     if is_empty:
-                    #         log.warning(f"No records  returned from {future_tool_name} tool")
-
-                    #     # Create transformed response and append to responses
-                    #     formatted_response = f"<Database_records>{response}</Database_records>"
-                    #     transformed_response = (formatted_response, status, is_intermediate_step)
-                    #     log.warning("my transformed response")
-                    #     log.warning(transformed_response)
-                    #     responses.append(AIMessage(transformed_response))
-
                     raw_res = response
                     if isinstance(raw_res, tuple):
                         raw_res = raw_res[0]

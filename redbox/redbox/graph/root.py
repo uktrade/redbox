@@ -42,7 +42,6 @@ from redbox.graph.nodes.processes import (
     report_sources_process,
     stream_plan,
     stream_suggestion,
-    # get_user_feedback,
 )
 from redbox.graph.nodes.sends import build_document_chunk_send, build_document_group_send, sending_task_to_agent
 from redbox.models.chain import PromptSet, RedboxState
@@ -533,7 +532,6 @@ def build_new_route_graph(
     builder.add_node("user_feedback_evaluation", empty_process)
     builder.add_node("Evaluator_Agent", create_evaluator())
     builder.add_node("combine_question_evaluator", combine_question_evaluator())
-    builder.add_node("is_multiple_records_datahub", empty_process)
     builder.add_node(
         "report_citations",
         report_sources_process,
@@ -543,7 +541,6 @@ def build_new_route_graph(
     builder.add_node("sending_task", empty_process)
     builder.add_node("does_task_require_user_feedback", empty_process)
     builder.add_node("has_all_task_completed", empty_process)
-    # builder.add_node("get_user_feedback", get_user_feedback())
 
     # add all agents here
     add_agent(builder, agent_configs, "Internal_Retrieval_Agent")
@@ -558,7 +555,6 @@ def build_new_route_graph(
         "Datahub_Agent",
         with_loop=True,
         using_chat_history=True,
-        # edge_nodes=["is_multiple_records_datahub"],
     )
     add_agent(builder, agent_configs, "Knowledge_Base_Retrieval_Agent")
     add_agent(builder, agent_configs, "Artifact_Builder_Agent")
@@ -599,25 +595,18 @@ def build_new_route_graph(
     )
 
     builder.add_conditional_edges("sending_task", sending_task_to_agent)
-    builder.add_edge("combine_question_evaluator", "does_task_require_user_feedback")  # "has_all_task_completed")
+    builder.add_edge("combine_question_evaluator", "does_task_require_user_feedback")
     builder.add_conditional_edges(
         "does_task_require_user_feedback",
         check_if_task_requires_user_feedback,
         {True: "Evaluator_Agent", False: "has_all_task_completed"},
     )
-    # builder.add_edge("get_user_feedback", "Evaluator_Agent")
     builder.add_conditional_edges(
         "has_all_task_completed", check_if_tasks_completed, {True: "Evaluator_Agent", False: "sending_task"}
     )
-    # builder.add_conditional_edges(
-    #     "is_multiple_records_datahub",
-    #     is_multiple_records_datahub,
-    #     {True: "get_user_feedback", False: "combine_question_evaluator"},
-    # )
     builder.add_edge("Evaluator_Agent", "report_citations")
     builder.add_edge("report_citations", END)
     builder.add_edge("stream_plan", END)
-    # builder.add_edge("get_user_feedback", END)
     builder.add_edge("stream_suggestion", END)
 
     return builder.compile(debug=debug)
