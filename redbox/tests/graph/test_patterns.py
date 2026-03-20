@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+import copy
 import pytest
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, HumanMessage, ToolCall
@@ -801,7 +802,9 @@ class TestBuildAgentLoop:
     ],
 )
 def test_check_if_tasks_completed(task_idx, task_status, expected, fake_state_with_plan: MockerFixture):
+    fake_state = copy.deepcopy(fake_state_with_plan)
+
     for i, idx in enumerate(task_idx):
-        fake_state_with_plan.agent_plans.tasks[idx].status = task_status[i]
-    actual = check_if_tasks_completed(fake_state_with_plan)
+        fake_state.agent_plans.tasks[idx].status = task_status[i]
+    actual = check_if_tasks_completed(fake_state)
     assert expected == actual

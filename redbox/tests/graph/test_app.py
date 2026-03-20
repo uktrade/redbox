@@ -574,5 +574,7 @@ class TestCheckIfTaskRequiresUserFeedback:
         ],
     )
     def test_check_if_task_requires_user_feedback(self, fake_state_with_plan, statuses, expected):
-        fake_state_with_plan.agent_plans.tasks = [MagicMock(status=s) for s in statuses]
-        assert check_if_task_requires_user_feedback(fake_state_with_plan) is expected
+        fake_state = copy.deepcopy(fake_state_with_plan)
+
+        fake_state.agent_plans.tasks = [MagicMock(status=s) for s in statuses]
+        assert check_if_task_requires_user_feedback(fake_state) is expected
