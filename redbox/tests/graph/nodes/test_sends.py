@@ -422,10 +422,12 @@ class TestRunToolsParallelAsync:
         expected_tool_result,
         expected_parsed_result,
     ):
+        expected_tool_content, _ = expected_tool_result
+
         tool_name = "company_tool"
         args_schema = {"required": []}
         args = {"company_name": "BMW"}
-        tool = fake_mcp_tool(tool_name, expected_tool_result, args_schema=args_schema)
+        tool = fake_mcp_tool(tool_name, expected_tool_content, args_schema=args_schema)
 
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
@@ -546,10 +548,12 @@ class TestWrapAsyncTool:
         expected_documents,
     ):
         """Test that wrap_async_tool correctly returns results from async tool invocation"""
+        expected_tool_content, expected_tool_metadata = expected_tool_result
+
         # Mock tool with metadata
         tool_name = "company_tool"
         args_schema = {"company_name": {"type": "string"}, "required": ["company_name"]}
-        tool = fake_mcp_tool(tool_name, return_value=expected_tool_result, args_schema=args_schema)
+        tool = fake_mcp_tool(tool_name, return_value=expected_tool_content, args_schema=args_schema)
 
         # mock session with patched mcp setup
         mock_session = self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
@@ -559,7 +563,7 @@ class TestWrapAsyncTool:
 
         # rest invocation with sample args
         test_args = {"company_name": "BMW"}
-        result = wrapped_func(test_args)
+        result, metadata = wrapped_func(test_args)
 
         # verify correct interactions
         mock_http_client.assert_called_once_with(tool.metadata["url"], headers=None)
@@ -569,6 +573,7 @@ class TestWrapAsyncTool:
 
         # assert the result matches our expected output
         assert result == expected_documents
+        assert metadata == expected_tool_metadata
 
     @patch("redbox.graph.nodes.sends.ClientSession")
     @patch("redbox.graph.nodes.sends.streamablehttp_client")
