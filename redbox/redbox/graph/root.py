@@ -22,6 +22,7 @@ from redbox.graph.edges import (
 from redbox.graph.nodes.processes import (
     build_activity_log_node,
     build_agent_with_loop,
+    build_datahub_agent_with_loop,
     build_chat_pattern,
     build_error_pattern,
     build_merge_pattern,
@@ -472,6 +473,27 @@ def build_new_route_graph(
                     )
                 case "Artifact_Builder_Agent":
                     builder.add_node(config.name, ArtifactAgent(config=config).execute())
+
+                case "Datahub_Agent":
+                    success = "fail"
+                    is_intermediate_step = False
+                    builder.add_node(
+                        config.name,
+                        build_datahub_agent_with_loop(
+                            agent_name=config.name,
+                            system_prompt=config.prompt.system,
+                            tools=config.tools,
+                            max_tokens=config.agents_max_tokens,
+                            loop_condition=lambda: success == "fail" or is_intermediate_step,
+                            max_attempt=kwargs.get("max_attempt", 2),
+                            use_metadata=kwargs.get("use_metadata", False),
+                            using_chat_history=kwargs.get("using_chat_history", False),
+                            model=ChatLLMBackend(name=config.llm_backend.name, provider=config.llm_backend.provider)
+                            if config.llm_backend is not None
+                            else None,
+                        ),
+                    )
+
                 case _:
                     success = "fail"
                     is_intermediate_step = False
