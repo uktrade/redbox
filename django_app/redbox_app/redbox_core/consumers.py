@@ -362,6 +362,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
 
         if sso_access_token:
+            # Update sso_access_token
             self.update_chat_consumer_redbox_with_new_sso_token(sso_access_token)
 
         state = RedboxState(
