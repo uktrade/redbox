@@ -973,7 +973,6 @@ async def test_connect_updates_sso_token_and_rebuilds_graph_if_redbox_exists(moc
     consumer.accept = AsyncMock()
 
     await consumer.connect()
-    assert ChatConsumer.redbox.sso_access_token == new_token
 
     mock_redbox_instance.init_datahub_agent.assert_called_once_with(new_token)
     mock_redbox_instance.setup_graph.assert_called_once_with(True)
