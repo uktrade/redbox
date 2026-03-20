@@ -643,7 +643,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
     def update_chat_consumer_redbox_with_new_sso_token(self, sso_access_token: str) -> None:
-        ChatConsumer.redbox.sso_access_token = sso_access_token
         ChatConsumer.redbox.init_datahub_agent(sso_access_token)
         ChatConsumer.redbox.setup_graph(ChatConsumer.debug)
 
