@@ -25,7 +25,6 @@ from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
 from redbox.graph.agents.configs import agent_configs
-from redbox.graph.nodes.tools import get_datahub_mcp_tools
 from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
@@ -363,7 +362,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
 
         if sso_access_token:
-            self.redbox.agent_configs["Datahub_Agent"].tools = get_datahub_mcp_tools(sso_access_token=sso_access_token)
+            self.update_chat_consumer_redbox_with_new_sso_token(sso_access_token)
 
         state = RedboxState(
             request=RedboxQuery(

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import uuid
 from asyncio import CancelledError
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
@@ -18,13 +19,17 @@ from pydantic import BaseModel
 from websockets import WebSocketClientProtocol
 from websockets.legacy.client import Connect
 
+from redbox.models.chain import AISettings as PydanticAISettings
 from redbox.models.chain import LLMCallMetadata, RedboxQuery, RequestMetadata
 from redbox.models.graph import FINAL_RESPONSE_TAG, ROUTE_NAME_TAG, RedboxActivityEvent
 from redbox.models.prompts import CHAT_MAP_QUESTION_PROMPT
+from redbox.models.settings import ChatLLMBackend as PydanticChatLLMBackend
 from redbox_app.redbox_core import consumers as consumers_module
 from redbox_app.redbox_core import error_messages
 from redbox_app.redbox_core.consumers import ChatConsumer
 from redbox_app.redbox_core.models import ActivityEvent, Chat, ChatMessage, ChatMessageTokenUse, File
+from redbox_app.redbox_core.models import Chat as ChatModel
+from redbox_app.redbox_core.models import ChatMessage as ChatMessageModel
 
 User = get_user_model()
 
@@ -1005,3 +1010,83 @@ async def test_expired_sso_token_forces_logout():
     consumer.accept.assert_called()
     consumer.send_to_client.assert_awaited_once_with("auth_expired", error_messages.AUTH_EXPIRED)
     ChatConsumer.redbox = None
+
+
+@pytest.mark.asyncio
+async def test_llm_conversation_updates_sso_token():
+    """
+    Verify that llm_conversation extracts the SSO token and updates the Redbox engine.
+    """
+    # 1. Setup Mock User with a real UUID to satisfy Pydantic validation
+    test_user_uuid = uuid.uuid4()
+    mock_user = MagicMock(spec=User)
+    mock_user.id = test_user_uuid
+
+    # 2. Setup Mock Session
+    mock_session = MagicMock(spec=ChatModel)
+    mock_session.id = uuid.uuid4()
+    mock_session.user = mock_user
+
+    # 3. Setup Mock Messages (History needs at least 2 for indexing [-2])
+    mock_user_msg = MagicMock(spec=ChatMessageModel)
+    mock_user_msg.text = "How do I test this?"
+    mock_user_msg.role = "user"
+
+    mock_ai_msg = MagicMock(spec=ChatMessageModel)
+    mock_ai_msg.text = ""
+    mock_ai_msg.role = "ai"
+
+    # 4. Create the Pydantic AISettings object expected by RedboxQuery
+    # This prevents the "unexpected keyword arguments: 'worker_agents'" error
+    valid_pydantic_settings = PydanticAISettings(
+        chat_backend=PydanticChatLLMBackend(name="gpt-4o", provider="openai", description="test-backend"),
+        worker_agents=[],
+    )
+
+    # 5. Instantiate Consumer and set up mocks
+    consumer = ChatConsumer()
+
+    # Mock the scope to include the SSO token
+    consumer.scope = {"user": mock_user, "session": {"_authbroker_token": {"access_token": "test-sso-token-456"}}}
+
+    # Mock the Redbox engine and essential methods
+    consumer.redbox = AsyncMock()
+    consumer.send = AsyncMock()
+    consumer.chat_message = MagicMock()  # Placeholder for the AI message update
+
+    # 6. Patch DB and internal helper methods
+    with (
+        patch("redbox_app.redbox_core.consumers.ChatMessage.objects.filter") as mock_filter,
+        patch.object(ChatConsumer, "get_ai_settings", new_callable=AsyncMock) as mock_get_settings,
+        patch.object(ChatConsumer, "update_chat_consumer_redbox_with_new_sso_token") as mock_update_token,
+        patch.object(ChatConsumer, "update_ai_message", new_callable=AsyncMock),
+        patch.object(ChatConsumer, "_files_to_s3_keys", return_value=[]),
+        patch.object(ChatConsumer, "_load_agent_plan", new_callable=AsyncMock) as mock_load_plan,
+    ):
+        # Configure filter to return our two messages
+        mock_filter.return_value.order_by.return_value.__aiter__.return_value = [mock_user_msg, mock_ai_msg]
+
+        # Return the valid Pydantic settings object
+        mock_get_settings.return_value = valid_pydantic_settings
+
+        # Ensure the load plan returns data consistent with our history
+        mock_load_plan.return_value = (None, "How do I test this?", "")
+
+        # 7. Execute the method
+        await consumer.llm_conversation(
+            selected_files=[],
+            session=mock_session,
+            user=mock_user,
+            title="Test Conversation",
+            permitted_files=[],
+            previous_selected_files=[],
+            knowledge_files=[],
+            selected_agent_names=None,
+        )
+
+        # 8. Assertions
+        # Check that the token was extracted and the update method was called
+        mock_update_token.assert_called_once_with("test-sso-token-456")
+
+        # Verify the Redbox engine was actually triggered
+        assert consumer.redbox.run.called
