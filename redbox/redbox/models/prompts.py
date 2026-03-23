@@ -613,7 +613,11 @@ Choose the value of the is_intermediate_step argument accordingly and make sure 
 Guidelines for Tool Usage:
 1. Carefully evaluate the existing information first
 2. Please use the available tools to perform multiple parallel tool calls to gather all necessary information.
-3. If last message in <previous_chat_history> requests user feedback on filtering a list of results ensure to match list indexes with the respective object. For example, user says 'item 9' assume this refers to item 9 not a field with value 9.
+3. When the user selects from a list of results presented in the conversation:
+   3.1 Treat any number the user gives (e.g. "item 9", "option 9") as a
+       1-based position in the displayed list — never as a field value.
+   3.2 Always retrieve the ID for that item from <previous_tool_results>.
+       Never infer, guess, or recall an ID from memory.
 """
 
 DATAHUB_QUESTION_PROMPT = """ Here is the user question: {question}. Retrieve the relevant information from the database that would answer this question.
