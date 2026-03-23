@@ -379,29 +379,15 @@ class TestRunToolsParallelAsync:
 
         assert transformed[0] == expected_parsed_result
         expected_status = "pass" if expected_parsed_result != "" else "fail"
-        # if expected_parsed_result.startswith("<Document>"):
-        #     assert transformed[0] == expected_parsed_result #f"<Database_records>{expected_parsed_result}</Database_records>"
-        #     expected_status = "pass" #if not expected_tool_metadata.user_feedback.required else "fail"
-        # else:
-        #     assert transformed[0] == expected_parsed_result
-        #     expected_status = "fail"
-        # try:
-        #     data = json.loads(expected_parsed_result)
-        #     is_empty = data.get("total") == 0
-        # except json.JSONDecodeError:
-        #     is_empty = expected_parsed_result in ["", "None", "[]"]
-
-        # assert transformed[0] == expected_parsed_result #f"<Database_records>{expected_parsed_result}</Database_records>"
-        # if is_empty:
-        #     expected_status = "fail"
-        # else:
-        #     expected_status = "pass"
 
         assert transformed[1] == expected_status
         assert transformed[2] == "False"
 
-        if len(transformed) > 3:
+        if expected_tool_metadata.user_feedback.required:
+            assert len(transformed) == 4
             assert transformed[3] == expected_tool_metadata.user_feedback.reason
+        else:
+            assert len(transformed) == 3
 
         # Ensure ainvoke got the correct args based on whether 'is_intermediate_step' is required
         if "is_intermediate_step" not in required_keys and "is_intermediate_step" in expected_ainvoke_args.keys():
