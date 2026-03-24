@@ -1,8 +1,10 @@
 import json
 import logging
 import os
+import uuid
 from asyncio import CancelledError
 from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -17,13 +19,17 @@ from pydantic import BaseModel
 from websockets import WebSocketClientProtocol
 from websockets.legacy.client import Connect
 
+from redbox.models.chain import AISettings as PydanticAISettings
 from redbox.models.chain import LLMCallMetadata, RedboxQuery, RequestMetadata
 from redbox.models.graph import FINAL_RESPONSE_TAG, ROUTE_NAME_TAG, RedboxActivityEvent
 from redbox.models.prompts import CHAT_MAP_QUESTION_PROMPT
+from redbox.models.settings import ChatLLMBackend as PydanticChatLLMBackend
 from redbox_app.redbox_core import consumers as consumers_module
 from redbox_app.redbox_core import error_messages
 from redbox_app.redbox_core.consumers import ChatConsumer
 from redbox_app.redbox_core.models import ActivityEvent, Chat, ChatMessage, ChatMessageTokenUse, File
+from redbox_app.redbox_core.models import Chat as ChatModel
+from redbox_app.redbox_core.models import ChatMessage as ChatMessageModel
 
 User = get_user_model()
 
@@ -903,36 +909,40 @@ async def test_connect_with_agents_update_via_db(agents_list: list, alice: User)
         assert ChatConsumer.redbox.agent_configs["Internal_Retrieval_Agent"].llm_backend.name == "gpt-4o"
 
 
-def test_extract_sso_token_success():
+@pytest.mark.asyncio
+async def test_extract_sso_token_success():
     """Test successful token extraction when the session data is present."""
     consumer = ChatConsumer()
     mock_token = "mock_token"  # noqa: S105
     consumer.scope = {"session": {"_authbroker_token": {"access_token": mock_token}}}
-    token = consumer._extract_sso_token()  # noqa: SLF001
+    token = await consumer._extract_sso_token()  # noqa: SLF001
     assert token == mock_token
 
 
-def test_extract_sso_token_missing_session():
+@pytest.mark.asyncio
+async def test_extract_sso_token_missing_session():
     """Test that it returns None if 'session' is missing from scope."""
     consumer = ChatConsumer()
     consumer.scope = {}  # Empty scope
-    token = consumer._extract_sso_token()  # noqa: SLF001
+    token = await consumer._extract_sso_token()  # noqa: SLF001
     assert token is None
 
 
-def test_extract_sso_token_type_error():
+@pytest.mark.asyncio
+async def test_extract_sso_token_type_error():
     """Test that it returns None if session is None (triggers TypeError)."""
     consumer = ChatConsumer()
     consumer.scope = {"session": None}
-    token = consumer._extract_sso_token()  # noqa: SLF001
+    token = await consumer._extract_sso_token()  # noqa: SLF001
     assert token is None
 
 
-def test_extract_sso_token_missing_key():
+@pytest.mark.asyncio
+async def test_extract_sso_token_missing_key():
     """Test that it returns None if the expected SSO keys are missing."""
     consumer = ChatConsumer()
     consumer.scope = {"session": {"other_key": "no_token_here"}}
-    token = consumer._extract_sso_token()  # noqa: SLF001
+    token = await consumer._extract_sso_token()  # noqa: SLF001
     assert token is None
 
 
@@ -944,7 +954,11 @@ async def test_connect_updates_sso_token_and_rebuilds_graph_if_redbox_exists(moc
 
     new_token = "new-shiny-sso-token"  # noqa: S105
 
-    scope = {"user": mock_user, "session": {"_authbroker_token": {"access_token": new_token}}}
+    expires_at_epoc = (datetime.now(UTC) + timedelta(hours=1)).timestamp()
+    scope = {
+        "user": mock_user,
+        "session": {"_authbroker_token": {"access_token": new_token, "expires_at": int(expires_at_epoc)}},
+    }
 
     mock_redbox_instance = MagicMock()
     ChatConsumer.redbox = mock_redbox_instance
@@ -959,10 +973,98 @@ async def test_connect_updates_sso_token_and_rebuilds_graph_if_redbox_exists(moc
     consumer.accept = AsyncMock()
 
     await consumer.connect()
-    assert ChatConsumer.redbox.sso_access_token == new_token
 
     mock_redbox_instance.init_datahub_agent.assert_called_once_with(new_token)
     mock_redbox_instance.setup_graph.assert_called_once_with(True)
 
     consumer.accept.assert_called_once()
     ChatConsumer.redbox = None
+
+
+@pytest.mark.asyncio
+async def test_expired_sso_token_forces_logout():
+    mock_user = MagicMock()
+    mock_user.is_authenticated = True
+    mock_user.uk_or_us_english = False
+
+    expired_token = "expired-sso-token"  # noqa: S105
+    expires_at_epoc = (datetime.now(UTC) - timedelta(hours=1)).timestamp()
+
+    scope = {
+        "user": mock_user,
+        "session": {"_authbroker_token": {"access_token": expired_token, "expires_at": int(expires_at_epoc)}},
+    }
+
+    mock_redbox_instance = MagicMock()
+    ChatConsumer.redbox = mock_redbox_instance
+    ChatConsumer.debug = True
+
+    consumer = ChatConsumer(scope=scope)
+    consumer.scope = scope
+    consumer.accept = AsyncMock()
+    consumer.send_to_client = AsyncMock()
+
+    await consumer.connect()
+
+    consumer.accept.assert_called()
+    consumer.send_to_client.assert_awaited_once_with("auth_expired", error_messages.AUTH_EXPIRED)
+    ChatConsumer.redbox = None
+
+
+@pytest.mark.asyncio
+async def test_llm_conversation_updates_sso_token():
+    test_user_uuid = uuid.uuid4()
+    mock_user = MagicMock(spec=User)
+    mock_user.id = test_user_uuid
+
+    mock_session = MagicMock(spec=ChatModel)
+    mock_session.id = uuid.uuid4()
+    mock_session.user = mock_user
+
+    mock_user_msg = MagicMock(spec=ChatMessageModel)
+    mock_user_msg.text = "How do I test this?"
+    mock_user_msg.role = "user"
+
+    mock_ai_msg = MagicMock(spec=ChatMessageModel)
+    mock_ai_msg.text = ""
+    mock_ai_msg.role = "ai"
+
+    valid_pydantic_settings = PydanticAISettings(
+        chat_backend=PydanticChatLLMBackend(name="gpt-4o", provider="openai", description="test-backend"),
+        worker_agents=[],
+    )
+
+    consumer = ChatConsumer()
+
+    consumer.scope = {"user": mock_user, "session": {"_authbroker_token": {"access_token": "test-sso-token-456"}}}
+
+    consumer.redbox = AsyncMock()
+    consumer.send = AsyncMock()
+    consumer.chat_message = MagicMock()
+
+    with (
+        patch("redbox_app.redbox_core.consumers.ChatMessage.objects.filter") as mock_filter,
+        patch.object(ChatConsumer, "get_ai_settings", new_callable=AsyncMock) as mock_get_settings,
+        patch.object(ChatConsumer, "update_chat_consumer_redbox_with_new_sso_token") as mock_update_token,
+        patch.object(ChatConsumer, "update_ai_message", new_callable=AsyncMock),
+        patch.object(ChatConsumer, "_files_to_s3_keys", return_value=[]),
+        patch.object(ChatConsumer, "_load_agent_plan", new_callable=AsyncMock) as mock_load_plan,
+    ):
+        mock_filter.return_value.order_by.return_value.__aiter__.return_value = [mock_user_msg, mock_ai_msg]
+        mock_get_settings.return_value = valid_pydantic_settings
+        mock_load_plan.return_value = (None, "How do I test this?", "")
+
+        await consumer.llm_conversation(
+            selected_files=[],
+            session=mock_session,
+            user=mock_user,
+            title="Test Conversation",
+            permitted_files=[],
+            previous_selected_files=[],
+            knowledge_files=[],
+            selected_agent_names=None,
+        )
+
+        mock_update_token.assert_called_once_with("test-sso-token-456")
+
+        assert consumer.redbox.run.called
