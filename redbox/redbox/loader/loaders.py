@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 from io import BytesIO
 from typing import TYPE_CHECKING, List, Tuple
 from unstructured.partition.docx import partition_docx
+from unstructured.partition.auto import partition
+from unstructured.partition.pptx import partition_pptx
 
 import environ
 import fitz
@@ -175,10 +177,15 @@ def read_excel_file(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
 
 def load_tabular_file(file_name: str, file_bytes: BytesIO) -> list[dict[str, str]]:
     """Selects the right read method for each file type. Returns an empty list if n"""
-    if file_name.endswith(".csv"):
+    if file_name.lower().endswith(".tsv"):
+        file_bytes.seek(0)
+        df = pd.read_csv(file_bytes, sep="\t")
+        csv_text, sheet_schema = parse_tabular_schema(table_name="tsv", df=df)
+        return [{"text": csv_text, "metadata": {"document_schema": sheet_schema}}]
+    elif file_name.endswith(".csv"):
         elements = read_csv_text(file_bytes=file_bytes)
     else:
-        elements = read_excel_file(file_bytes=file_bytes)
+        elements = read_excel_file(file_bytes=file_bytes) or []
 
     return elements if elements else []
 
@@ -359,19 +366,115 @@ class TextractChunkLoader:
             logger.exception("unstructured failed to process DOCX: %s", str(e))
             raise
 
+    def _extract_pptx(self, file_bytes: BytesIO) -> List[str]:
+        logger.info("Extracting PPTX with unstructured.partition.pptx")
+        file_bytes.seek(0)
+
+        try:
+            elements = partition_pptx(file=file_bytes)
+
+            logger.info("partition_pptx returned %d elements", len(elements))
+            if elements:
+                logger.info("First element: %s", repr(elements[0]))
+                logger.info("Has slide_number? %s", hasattr(elements[0].metadata, "slide_number"))
+                slide_nums = {getattr(el.metadata, "slide_number", None) for el in elements}
+                logger.info("Unique slide numbers found: %s", sorted(slide_nums - {None}))
+            else:
+                logger.warning("partition_pptx returned ZERO elements!")
+
+            if not elements:
+                raise ValueError("unstructured.partition.pptx returned no elements")
+
+            text_pages = []
+            current_page = []
+            last_page = None
+
+            for el in elements:
+                page_number = getattr(el.metadata, "page_number", None)
+
+                if page_number is not None:
+                    if last_page is None:
+                        last_page = page_number
+                    if page_number != last_page:
+                        if current_page:
+                            text_pages.append("\n".join(current_page))
+                        current_page = []
+                        last_page = page_number
+
+                current_page.append(str(el).strip())
+
+            if current_page:
+                text_pages.append("\n".join(current_page))
+
+            if not text_pages:
+                text_pages = ["\n".join(str(el).strip() for el in elements)]
+
+            logger.info("Extracted %d slide(s) from PPTX", len(text_pages))
+            return text_pages
+
+        except ImportError:
+            logger.error("unstructured[pptx] extra not installed")
+            raise
+        except Exception as e:
+            logger.exception("PPTX extraction failed: %s", e)
+            raise
+
     def _chunk_text(self, text: str) -> List[str]:
         if not text:
             return []
+
         chunks = []
         start = 0
         length = len(text)
+
         while start < length:
             end = min(start + self.max_chunk_size, length)
             chunk = text[start:end]
-            if len(chunk) >= self.min_chunk_size:
+
+            if len(chunk) >= self.min_chunk_size or not chunks:
                 chunks.append(chunk)
+
             start = end - self.overlap_chars
+
         return chunks
+
+    def _extract_with_unstructured(self, file_bytes: BytesIO, file_name: str) -> List[str]:
+        file_bytes.seek(0)
+
+        elements = partition(file=file_bytes)
+
+        if not elements:
+            raise ValueError(f"unstructured returned no elements from {file_name}")
+
+        text_pages: List[str] = []
+        current_page: List[str] = []
+        last_page = None
+
+        for el in elements:
+            page_number = getattr(el.metadata, "page_number", None) or getattr(el.metadata, "slide_number", None)
+
+            if page_number is not None:
+                if last_page is None or page_number != last_page:
+                    if current_page:
+                        text_pages.append("\n".join(current_page))
+                    current_page = []
+                    last_page = page_number
+
+            current_page.append(str(el).strip())
+
+        if current_page:
+            text_pages.append("\n".join(current_page))
+
+        if not text_pages:
+            text_pages = ["\n".join(str(el).strip() for el in elements)]
+
+        logger.info("Extracted %d page(s) from %s using unstructured", len(text_pages), file_name)
+        return text_pages
+
+    def _extract_simple_text(self, file_bytes: BytesIO) -> List[str]:
+        file_bytes.seek(0)
+        text = file_bytes.read().decode("utf-8", errors="replace")
+        return [text] if text.strip() else []
 
     def lazy_load(
         self,
@@ -382,16 +485,16 @@ class TextractChunkLoader:
         logger.info("lazy_load called for %s", file_name)
 
         s3_key = file_name
-        display_name = os.path.basename(file_name)
+        display_name = os.path.basename(file_name).lower()
         logger.info("File type detected: %s", display_name)
 
         if file_bytes is None:
             obj = self.s3.get_object(Bucket=self.bucket, Key=s3_key)
             file_bytes = BytesIO(obj["Body"].read())
 
-        if display_name.lower().endswith((".csv", ".xls", ".xlsx")):
+        if display_name.endswith((".csv", ".tsv", ".xls", ".xlsx")):
             tabular_elements = load_tabular_file(display_name, file_bytes)
-            for idx, el in enumerate(tabular_elements):
+            for idx, el in enumerate(tabular_elements or []):
                 metadata = UploadedFileMetadata(
                     index=idx,
                     uri=s3_key,
@@ -406,12 +509,25 @@ class TextractChunkLoader:
                 yield Document(page_content=el["text"], metadata={**metadata, **el.get("metadata", {})})
             return
 
-        logger.info("This is a document file: %s", display_name)
+        if display_name.lower().endswith(".pptx"):
+            logger.info("This is a PPTX file: %s", display_name)
+            pages = self._extract_pptx(file_bytes)
+
+        if display_name.lower().endswith(".ppt"):
+            logger.info("This is a legacy PowerPoint file: %s", display_name)
+            pages = self._extract_pptx(file_bytes)
+
         if display_name.lower().endswith(".docx"):
+            logger.info("This is a document file: %s", display_name)
             pages = self._extract_docx(file_bytes)
-        else:
+
+        if display_name.endswith(".pdf"):
             logger.info("This is a PDF file: %s", display_name)
             pages = self._extract_pdf_from_s3(bucket=self.bucket, key=s3_key)
+
+        else:
+            logger.info("Processing with unstructured: %s", display_name)
+            pages = self._extract_with_unstructured(file_bytes, file_name)
 
         idx = 0
         for page_num, page_text in enumerate(pages, start=1):
