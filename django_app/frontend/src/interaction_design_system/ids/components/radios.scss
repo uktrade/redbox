@@ -1,0 +1,9 @@
+.ids-radios__item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+
+  label:before {
+    content: '';
+    border: 0.1px solid var(--color-border);
+  }
+}

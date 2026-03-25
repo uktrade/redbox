@@ -455,8 +455,8 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
         AI_ALCHEMIST = (
             "AI Alchemist",
             _(
-                "I have extensive experience with Generative AI tools and can leverage them effectively "
-                "in various contexts."
+                "I have extensive experience with Generative AI tools and can leverage them effectively in various "
+                "contexts."
             ),
         )
 

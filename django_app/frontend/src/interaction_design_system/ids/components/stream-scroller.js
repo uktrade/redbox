@@ -79,10 +79,8 @@ export class StreamScroller extends HTMLElement {
                 overflowY === "scroll" ||
                 overflowY === "overlay";
 
-            if (canScroll) {
-                if (parent == document.documentElement) return document;
-                return parent;
-            }
+            // Return the scrollable element or continue traversal
+            if (canScroll) return (parent == document.documentElement) ? document: parent;
 
             parent = parent.parentElement;
         }
