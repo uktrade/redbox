@@ -28,7 +28,7 @@ sentry-sdk = {extras = ["django"], version = "^2.53.0"}
 django-storages = "^1.14.2"
 boto3 = "^1.42.50"
 urllib3 = "2.6.3"
-requests = "^2.32.5"
+requests = "^2.33.0"
 python-dotenv = "^1.2.1"
 yarl = "^1.22.0"
 humanize = "^4.15.0"
