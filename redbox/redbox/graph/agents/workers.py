@@ -1,5 +1,6 @@
 from json import JSONDecodeError
 
+from ddtrace.llmobs import LLMObs
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda, RunnableParallel
 
@@ -146,8 +147,12 @@ class WorkerAgent(Agent):
         """
         Execution flow of the worker agent.
         """
-        return (
-            self.reading_task_info()
-            | RunnableParallel(state=self.log_agent_activity(), result=self.core_task() | self.post_processing())
-            | (lambda x: x["result"])  # Return only the result
-        )
+        with LLMObs.agent(name=self.config.name) as span:
+            workflow = (
+                self.reading_task_info()
+                | RunnableParallel(state=self.log_agent_activity(), result=self.core_task() | self.post_processing())
+                | (lambda x: x["result"])  # Return only the result
+            )
+
+            LLMObs.annotate(span, tags={"agent_type": "worker_agent", "graph": "new_route"})
+            return workflow
