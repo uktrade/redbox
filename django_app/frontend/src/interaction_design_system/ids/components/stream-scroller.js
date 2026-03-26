@@ -25,7 +25,7 @@ export class StreamScroller extends HTMLElement {
 
 
     get scrollOnLoad() {
-        return (this.dataset.scrollOnLoad?.toLowerCase() == "true") ? true : false;
+        return this.dataset.scrollOnLoad?.toLowerCase() === "true";
     }
 
 
