@@ -1,5 +1,4 @@
 import logging
-import threading
 from uuid import uuid4
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed, Future
@@ -15,35 +14,6 @@ from redbox.graph.nodes.runner.wrap_async import wrap_async_tool
 log = logging.getLogger(__name__)
 
 
-def run_with_timeout(func, args, timeout):
-    """Run a a function with a timeout and return its result or None if it times out or fails.
-    This function can be used to set a timeout for tool execution"""
-    result = [None]
-    exception = [None]
-    completed = [False]
-
-    def target():
-        try:
-            result[0] = func(args)
-        except Exception as e:
-            exception[0] = e
-        finally:
-            completed[0] = True
-
-    thread = threading.Thread(target=target)
-    thread.daemon = True  # The thread will exit when the main program exits
-    thread.start()
-    thread.join(timeout)  # applying timeout constraint
-
-    if not completed[0]:  # if it times out
-        log.warning(f"Tool execution timed out after {timeout} seconds")
-        return None
-    if exception[0]:  # if the tool fails
-        log.warning(f"Tool execution failed: {str(exception[0])}")
-        return None
-    return result[0]
-
-
 class ToolRunner:
     """Encapsulates the logic for submitting and parsing individual tool futures."""
 
@@ -51,13 +21,13 @@ class ToolRunner:
         self,
         tools: list[StructuredTool],
         state: RedboxState,
-        executor: ThreadPoolExecutor,
+        max_workers: int,
         is_loop: bool,
         parallel_timeout: float,
     ):
         self.tools = tools
         self.state = state
-        self.executor = executor
+        self.executor = ThreadPoolExecutor(max_workers=max_workers)
         self.is_loop = is_loop
         self.parallel_timeout = parallel_timeout
         self.log_stub = f"[run_tools_parallel run_id='{str(uuid4())[:8]}']"
@@ -198,7 +168,7 @@ class ToolRunner:
             if isinstance(response, tuple):
                 if isinstance(response[1], MCPResponseMetadata):
                     res = response[0]
-                    metadata = response[1]
+                    metadata: MCPResponseMetadata = response[1]
                     status = "pass" if res != "" else "fail"
                     result = (
                         (
@@ -214,38 +184,6 @@ class ToolRunner:
                     result = response
             else:
                 result = response
-
-        # if (not self.is_loop and isinstance(response, str)) or (self.is_loop and isinstance(response, tuple)):
-        #     log.warning(f"{self.log_stub} {future_tool_name} my non-transformed response: {response}")
-        #     result = response
-
-        # elif self.is_loop and isinstance(response, str):
-        #     try:
-        #         result_dict = json.loads(response)
-        #         is_empty = result_dict.get("total") == 0
-        #         log.warning(f"{self.log_stub} {future_tool_name} is_empty {is_empty}")
-        #     except json.JSONDecodeError:
-        #         is_empty = response in ["", "None", "[]"]
-
-        #     status = "fail" if is_empty else "pass"
-
-        #     if is_empty:
-        #         log.warning(f"No records returned from {future_tool_name} tool")
-        #         response = "Error message: Empty response"
-
-        #     transformed_response = (response, status, is_intermediate_step)
-        #     log.warning("my transformed response")
-        #     log.warning(transformed_response)
-        #     result = transformed_response
-
-        # else:
-        #     raise tool_exceptions.ToolOutputValidationError(
-        #         future_tool_name,
-        #         reason=(
-        #             f"expected str (is_loop=False) or tuple (is_loop=True), "
-        #             f"got {type(response).__name__!r} — is_loop={self.is_loop}"
-        #         ),
-        #     )
 
         raw_res = result
         if isinstance(raw_res, tuple):

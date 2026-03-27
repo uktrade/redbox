@@ -1,6 +1,5 @@
 import logging
 import threading
-from concurrent.futures import ThreadPoolExecutor
 from typing import Callable
 
 from langchain_core.messages import AIMessage
@@ -202,163 +201,15 @@ def run_tools_parallel(
     is_loop=False,
 ):
     max_workers = min(10, len(ai_msg.tool_calls))
-    executor = ThreadPoolExecutor(max_workers=max_workers)
     runner = ToolRunner(
         tools=tools,
         state=state,
-        executor=executor,
+        max_workers=max_workers,
         is_loop=is_loop,
         parallel_timeout=parallel_timeout,
     )
 
     return runner.run(tool_calls=ai_msg.tool_calls)
-
-    # run_id = str(uuid4())[:8]
-    # log_stub = f"[run_tools_parallel run_id='{run_id}']"
-    # log.warning(f"{log_stub} Starting tool execution.")
-
-    # if not ai_msg.tool_calls:
-    #     # No tool calls
-    #     log.warning(f"{log_stub} No tool calls detected. Returning agent content.")
-    #     return ai_msg.content
-
-    # log.warning(
-    #     f"{log_stub} {len(ai_msg.tool_calls)} tool call(s) detected: {[tc.get('name') for tc in ai_msg.tool_calls]}"
-    # )
-
-    # max_workers = min(10, len(ai_msg.tool_calls))
-    # log.warning(f"{log_stub} Creating ThreadPoolExecutor(max_workers={max_workers})")
-
-    # # Dict to store futures and related metadata
-    # futures = {}
-
-    # try:
-    #     # Use ThreadPoolExecutor for parallel execution
-    #     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-    #         # Submit tool invocations to the executor
-    #         for tool_call in ai_msg.tool_calls:
-    #             # Find the matching tool by name
-    #             tool_name = tool_call.get("name")
-    #             selected_tool = next((tool for tool in tools if tool.name == tool_name), None)
-
-    #             if selected_tool is None:
-    #                 log.warning(f"{log_stub} Warning: No tool found for {tool_name}")
-    #                 continue
-
-    #             # Get arguments and submit the tool invocation
-    #             args = tool_call.get("args", {})
-    #             log.warning(f"args: {args}")
-    #             is_intermediate_step = "False"
-    #             # check if tool is sync (not async). the sync tool should have sync function defined and no async coroutine
-    #             if selected_tool.func and not selected_tool.coroutine:
-    #                 args["state"] = state
-    #                 future = executor.submit(run_with_timeout, selected_tool.invoke, args, per_tool_timeout)
-    #             else:  # for async mcp tools
-    #                 # capture any intermediate step value decided by LLM
-    #                 if is_loop:
-    #                     is_intermediate_step = args.get("is_intermediate_step", "False")
-    #                     log.warning(f"intermediate step: {is_intermediate_step}")
-    #                 future = executor.submit(
-    #                     run_with_timeout,
-    #                     wrap_async_tool(selected_tool, tool_name),
-    #                     args,
-    #                     per_tool_timeout,
-    #                 )
-    #             futures[future] = {
-    #                 "name": tool_name,
-    #                 "intermediate_step": is_intermediate_step,
-    #             }
-
-    #         # Collect responses as tools complete
-    #         responses = []
-    #         for future in as_completed(futures.keys(), timeout=parallel_timeout):
-    #             future_tool_name = futures[future]["name"]
-    #             is_intermediate_step = futures[future]["intermediate_step"]
-
-    #             try:
-    #                 response = future.result(timeout=result_timeout)
-    #                 log.warning(f"{log_stub} This is what I got from tool '{future_tool_name}': {response}")
-
-    #                 if response is None:
-    #                     log.warning(f"{future_tool_name} Tool has failed or timed out")
-    #                     continue
-
-    #                 log.warning("response not None")
-
-    #                 if not is_loop:
-    #                     if isinstance(response, tuple):
-    #                         # Response from Datahub MCP
-    #                         if isinstance(response[1], MCPResponseMetadata):
-    #                             responses.append(AIMessage(response[0]))
-    #                         else:
-    #                             responses.append(AIMessage(response))
-
-    #                     else:
-    #                         responses.append(AIMessage(response))
-    #                 else:
-    #                     if isinstance(response, tuple):
-    #                         if isinstance(response[1], MCPResponseMetadata):
-    #                             res = response[0]
-    #                             metadata = response[1]
-    #                             status = "pass" if res != "" else "fail"
-    #                             result = (
-    #                                 (
-    #                                     res,
-    #                                     status,
-    #                                     is_intermediate_step,
-    #                                     metadata.user_feedback.reason or "Requires feedback from the user.",
-    #                                 )
-    #                                 if metadata.user_feedback.required
-    #                                 else (res, status, is_intermediate_step)
-    #                             )
-    #                             responses.append(AIMessage(result))
-
-    #                             if metadata.user_feedback.required:
-    #                                 return responses
-
-    #                         else:
-    #                             responses.append(AIMessage(result))
-
-    #                     else:
-    #                         responses.append(AIMessage(result))
-
-    #                 raw_res = response
-    #                 if isinstance(raw_res, tuple):
-    #                     raw_res = raw_res[0]
-
-    #                 if not raw_res or not raw_res.strip():
-    #                     log.warning(
-    #                         f"{log_stub} '{future_tool_name}' Tool returned empty/whitespace response: {repr(raw_res)}"
-    #                     )
-
-    #             except TimeoutError:
-    #                 log.warning(
-    #                     f"{log_stub} '{future_tool_name}' Results retrieval from tool timed out after {result_timeout} seconds."
-    #                 )
-
-    #             except Exception as e:
-    #                 log.warning(f"{log_stub} '{future_tool_name}' Tool invocation error: {e}")
-
-    #         if responses:
-    #             log.warning(
-    #                 f"{log_stub} Completed. Successful parallel tool responses: {len(responses)}. Responses: {responses}"
-    #             )
-    #             return responses
-    #         else:
-    #             log.warning(
-    #                 f"{log_stub} Every tool execution has failed or timed out after {per_tool_timeout} seconds."
-    #             )
-    #             return None
-
-    # except TimeoutError:
-    #     log.warning(f"{log_stub} Global parallel tool execution timed out after {parallel_timeout} seconds.")
-    #     return None
-    # except Exception as e:
-    #     log.warning(
-    #         f"{log_stub} Unexpected error in parallel tool execution: {str(e)}",
-    #         exc_info=True,
-    #     )
-    #     return None
 
 
 def no_dependencies(dependencies: list[str], plan) -> bool:
