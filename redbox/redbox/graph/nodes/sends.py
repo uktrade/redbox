@@ -196,20 +196,26 @@ def run_tools_parallel(
     tools,
     state,
     parallel_timeout=60,
-    per_tool_timeout=60,
-    result_timeout=60,
     is_loop=False,
 ):
-    max_workers = min(10, len(ai_msg.tool_calls))
-    runner = ToolRunner(
-        tools=tools,
-        state=state,
-        max_workers=max_workers,
-        is_loop=is_loop,
-        parallel_timeout=parallel_timeout,
-    )
+    try:
+        max_workers = min(10, len(ai_msg.tool_calls))
+        runner = ToolRunner(
+            tools=tools,
+            state=state,
+            max_workers=max_workers,
+            is_loop=is_loop,
+            parallel_timeout=parallel_timeout,
+        )
 
-    return runner.run(tool_calls=ai_msg.tool_calls)
+        return runner.run(tool_calls=ai_msg.tool_calls)
+
+    except Exception as e:
+        log.warning(
+            f"Unexpected error in parallel tool execution: {str(e)}",
+            exc_info=True,
+        )
+        return None
 
 
 def no_dependencies(dependencies: list[str], plan) -> bool:
