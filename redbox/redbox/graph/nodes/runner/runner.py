@@ -40,6 +40,7 @@ class ToolRunner:
     def _submit_all(self, tool_calls: list[ToolCall]) -> dict[Future, dict]:
         """Submit every tool call to the executor, skipping and logging any that fail to launch."""
         futures = {}
+
         for tool_call in tool_calls:
             tool_name = tool_call.get("name")
             try:
@@ -48,12 +49,16 @@ class ToolRunner:
                     continue
                 future, metadata = res
                 futures[future] = metadata
+
             except tool_exceptions.ToolNotFoundError as e:
-                log.warning(f"{self.log_stub} '{tool_name}' not found: {e}")
-            except tool_exceptions.ToolInputValidationError as e:
-                log.warning(f"{self.log_stub} '{tool_name}' invalid input: {e}")
+                log.warning(f"{self.log_stub} Tool '{tool_name}' not found: {e}")
+
+            except tool_exceptions.ToolValidationError as e:
+                log.warning(f"{self.log_stub} Tool '{tool_name}' validation error: {e}")
+
             except tool_exceptions.BaseToolRunnerException as e:
-                log.warning(f"{self.log_stub} '{tool_name}' failed to submit: {e}")
+                log.warning(f"{self.log_stub} Tool '{tool_name}' error: {e}")
+
         return futures
 
     def _collect(self, futures: dict[Future, dict]) -> list[AIMessage] | None:
@@ -67,19 +72,21 @@ class ToolRunner:
                 response = self.parse(future=future, metadata=futures[future])
                 if response is not None:
                     responses.append(response)
+
             except tool_exceptions.ToolTimeoutError as e:
-                log.warning(f"{self.log_stub} '{future_tool_name}' timed out after {e.timeout_seconds:.1f}s.")
+                log.warning(f"{self.log_stub} Tool '{future_tool_name}' timed out: {e}")
                 failed_tools.append(future_tool_name)
-            except tool_exceptions.ToolOutputValidationError as e:
-                log.warning(f"{self.log_stub} '{future_tool_name}' returned an invalid output: {e}")
+
+            except tool_exceptions.ToolValidationError as e:
+                log.warning(f"{self.log_stub} Tool '{future_tool_name}' validation error: {e}")
                 failed_tools.append(future_tool_name)
-            except tool_exceptions.ToolFailedError as e:
-                log.warning(f"{self.log_stub} '{future_tool_name}' failed: {e}")
-                if e.cause:
-                    log.debug(f"{self.log_stub} '{future_tool_name}' cause: {e.cause}", exc_info=e.cause)
+
+            except tool_exceptions.ToolExecutionError as e:
+                log.warning(f"{self.log_stub} Tool '{future_tool_name}' execution error: {e}")
                 failed_tools.append(future_tool_name)
+
             except tool_exceptions.BaseToolRunnerException as e:
-                log.warning(f"{self.log_stub} '{future_tool_name}' tool runner error: {e}")
+                log.warning(f"{self.log_stub} Tool '{future_tool_name}' error: {e}")
                 failed_tools.append(future_tool_name)
 
         if failed_tools:
@@ -104,17 +111,15 @@ class ToolRunner:
         selected_tool: Optional[StructuredTool] = next((tool for tool in self.tools if tool.name == tool_name), None)
 
         if selected_tool is None:
+            available = [tool.name for tool in self.tools]
             raise tool_exceptions.ToolNotFoundError(
-                tool_name=tool_name, available_tools=[tool.name for tool in self.tools]
+                f"Tool '{tool_name}' not found. Available tools: {', '.join(available)}"
             )
 
         raw_args = tool_call.get("args", {})
         if not isinstance(raw_args, dict):
-            raise tool_exceptions.ToolInputValidationError(
-                tool_name=tool_name,
-                field="args",
-                value=raw_args,
-                reason=f"expected dict, got {type(raw_args).__name__!r}",
+            raise tool_exceptions.ToolValidationError(
+                f"Invalid input for tool '{tool_name}': expected dict, got {type(raw_args).__name__!r}"
             )
 
         is_intermediate_step = "False"
@@ -130,7 +135,9 @@ class ToolRunner:
                     log.warning(f"intermediate step: {is_intermediate_step}")
                 future = self.executor.submit(wrap_async_tool(selected_tool, tool_name), args)
         except Exception as e:
-            raise tool_exceptions.ToolFailedError(tool_name=tool_name, cause=e) from e
+            raise tool_exceptions.ToolExecutionError(
+                f"Failed to submit tool '{tool_name}' for execution: {str(e)}"
+            ) from e
 
         return future, {"name": tool_name, "intermediate_step": is_intermediate_step}
 
@@ -142,15 +149,17 @@ class ToolRunner:
         try:
             response = future.result()
         except TimeoutError as e:
-            raise tool_exceptions.ToolTimeoutError(future_tool_name, timeout_seconds=self.parallel_timeout) from e
+            raise tool_exceptions.ToolTimeoutError(
+                f"Tool '{future_tool_name}' timed out after {self.parallel_timeout:.1f}s"
+            ) from e
         except Exception as e:
-            raise tool_exceptions.ToolFailedError(future_tool_name, cause=e) from e
+            raise tool_exceptions.ToolExecutionError(f"Tool '{future_tool_name}' failed: {str(e)}") from e
 
         log.warning(f"{self.log_stub} This is what I got from tool '{future_tool_name}': {response}")
 
         if response is None:
-            raise tool_exceptions.ToolFailedError(
-                future_tool_name, stderr="Tool returned None — may have failed or timed out"
+            raise tool_exceptions.ToolExecutionError(
+                f"Tool '{future_tool_name}' returned None — may have failed or timed out"
             )
 
         log.warning(f"{self.log_stub} {future_tool_name} response not None")
@@ -190,9 +199,6 @@ class ToolRunner:
             raw_res = raw_res[0]
 
         if not raw_res or not isinstance(raw_res, str) or not raw_res.strip():
-            raise tool_exceptions.ToolOutputValidationError(
-                future_tool_name,
-                reason=f"empty or whitespace-only response body: {repr(raw_res)}",
-            )
+            raise tool_exceptions.ToolValidationError(f"empty or whitespace-only response body: {repr(raw_res)}")
 
         return AIMessage(result)
