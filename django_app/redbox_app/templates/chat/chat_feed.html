@@ -4,7 +4,7 @@
 {% from "macros/icon.html" import ids_icon %}
 {% from "macros/upload_form.html" import upload_form %}
 
-<div id="chat-feed" class="ids-chat-feed" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+<div id="chat-feed" class="ids-chat-feed" hx-swap-oob="outerHTML">
     {% if not messages %}
         <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1" security-classification="{{ security }}">
             {% if tool %}
@@ -21,7 +21,7 @@
         </ids-first-time-upload-form>
     {% endif %}
 
-    <ids-stream-scroller class="ids-scrollablee">
+    <ids-stream-scroller data-scroll-on-load="true">
         <chat-controller class="iai-chat-container"
                         data-stream-url="{{ streaming.endpoint if streaming else '' }}"
                         data-session-id="{{ chat_id or '' }}"
@@ -46,7 +46,6 @@
 
             <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" />
             {% if chat_id %}<input type="hidden" name="session-id" value="{{ chat_id }}" />{% endif %}
-
         </chat-controller>
     </ids-stream-scroller>
 </div>
