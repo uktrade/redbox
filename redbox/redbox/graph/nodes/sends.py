@@ -197,7 +197,12 @@ def run_tools_parallel(
     state,
     parallel_timeout=60,
     is_loop=False,
-):
+) -> list[AIMessage] | None:
+
+    if not ai_msg.tool_calls:
+        log.warning("No tool calls detected. Returning agent content.")
+        return ai_msg.content
+
     try:
         max_workers = min(10, len(ai_msg.tool_calls))
         runner = ToolRunner(
