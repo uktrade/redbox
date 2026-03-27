@@ -2,6 +2,8 @@ import logging
 import re
 from typing import Any, Callable, Iterable, Iterator
 
+from ddtrace.llmobs import LLMObs
+from ddtrace.llmobs.decorators import llm
 from langchain_core.callbacks.manager import CallbackManagerForLLMRun, dispatch_custom_event
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
@@ -147,6 +149,7 @@ def final_response_if_needed(input_: dict) -> Runnable:
     )
 
 
+@llm
 def build_llm_chain(
     prompt_set: PromptSet,
     llm: BaseChatModel,
@@ -314,6 +317,7 @@ class CannedChatLLM(BaseChatModel):
         return "canned"
 
 
+@llm
 def basic_chat_chain(
     system_prompt,
     tools=None,
@@ -344,22 +348,36 @@ def basic_chat_chain(
             "question": state.request.question,
             "chat_history": truncated_history if using_chat_history else "",
         } | _additional_variables
-        if parser:
-            if isinstance(parser, StrOutputParser):
-                prompt = ChatPromptTemplate([(system_prompt)])
-            else:
-                format_instructions = parser.get_format_instructions()
-                prompt = ChatPromptTemplate(
-                    [(system_prompt)], partial_variables={"format_instructions": format_instructions}
-                )
-            if using_only_structure:
-                chain = prompt | llm
-            else:
-                chain = prompt | llm | parser
+        if parser and not isinstance(parser, StrOutputParser):
+            format_instructions = parser.get_format_instructions()
+            prompt = ChatPromptTemplate(
+                [(system_prompt)], partial_variables={"format_instructions": format_instructions}
+            )
         else:
             prompt = ChatPromptTemplate([(system_prompt)])
-            chain = prompt | llm
-        return chain.invoke(context)
+        chain = prompt | llm
+        output = chain.invoke(context)
+
+        LLMObs.annotate(
+            span=None,
+            input_data=[context],
+            output_data=[output],
+            metadata={
+                "max_tokens": llm._default_config["max_tokens"],
+                "stop_reason": output.response_metadata["stop_reason"],
+                "model_name": output.response_metadata["model_name"],
+            },
+            metrics={
+                "input_tokens": output.usage_metadata["input_tokens"],
+                "output_tokens": output.usage_metadata["output_tokens"],
+                "total_tokens": output.usage_metadata["total_tokens"],
+            },
+            tags={"chain": "basic_chat_chain"},
+        )
+
+        if parser and not using_only_structure:
+            output = parser.invoke(output)
+        return output
 
     return _basic_chat_chain
 
