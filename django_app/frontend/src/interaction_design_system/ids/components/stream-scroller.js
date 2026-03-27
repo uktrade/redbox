@@ -5,7 +5,7 @@ import { Events, listenEvent } from "../events";
 export class StreamScroller extends HTMLElement {
     constructor() {
         super();
-        this.autoScrollEnabled = true;
+        this.autoScrollEnabled = this.scrollOnLoad;
         this.programmaticScroll = false;
         this.scrollPending = false;
         this._anchor = null;
@@ -20,21 +20,19 @@ export class StreamScroller extends HTMLElement {
     }
 
     disconnectedCallback() {
-        this.scrollContainer?.removeEventListener("scroll", () => this.#onScroll());
         this._observer?.disconnect();
     }
 
 
+    get scrollOnLoad() {
+        return this.dataset.scrollOnLoad?.toLowerCase() === "true";
+    }
+
+
     #bindScrollEvents() {
-        this.scrollContainer?.addEventListener("scroll", () => this.#onScroll(), { passive: true });
         listenEvent(Events.SCROLL_TO_BOTTOM, (evt) => this.scheduleScroll(evt.detail));
     }
 
-
-    #onScroll() {
-        if (this.programmaticScroll) return;
-        this.autoScrollEnabled = this.#isAtBottom();
-    }
 
     #setupAnchor() {
         // Auto-create anchor if missing
@@ -64,20 +62,6 @@ export class StreamScroller extends HTMLElement {
     }
 
 
-    #isAtBottom(threshold = 10) {
-        if (!this.scrollContainer) return false;
-
-        let scrollElement;
-        if (this.scrollContainer instanceof Document) {
-            scrollElement = this.scrollContainer.documentElement;
-        } else {
-            scrollElement = this.scrollContainer;
-        }
-
-        return scrollElement.scrollHeight - scrollElement.scrollTop - scrollElement.clientHeight <= threshold;
-    }
-
-
     /**
      * Finds the nearest scrollable ancestor
      * @param {HTMLElement} element
@@ -95,15 +79,13 @@ export class StreamScroller extends HTMLElement {
                 overflowY === "scroll" ||
                 overflowY === "overlay";
 
-            if (canScroll && parent.scrollHeight > parent.clientHeight) {
-                if (parent == document.documentElement) return document;
-                return parent;
-            }
+            // Return the scrollable element or continue traversal
+            if (canScroll) return (parent == document.documentElement) ? document: parent;
 
             parent = parent.parentElement;
         }
 
-        return document.scrollingElement || document.documentElement;
+        console.warn("scrollable element not found");
     }
 
 
@@ -138,5 +120,4 @@ export class StreamScroller extends HTMLElement {
         this.scrollPending = false;
     }
 }
-
 customElements.define("ids-stream-scroller", StreamScroller);
