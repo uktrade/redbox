@@ -45,6 +45,8 @@ duckdb = "^1.4"
 pymupdf = "^1.26"
 kneed = "^0.8"
 
+mcp = "^1.7.1"
+
 wikipedia = "^1.4"
 mohawk = "^1.1"
 ddtrace = "^3.10"
