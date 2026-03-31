@@ -3,7 +3,7 @@ from functools import partial
 from io import BytesIO
 from typing import TYPE_CHECKING, Iterator
 
-from langchain.vectorstores import VectorStore
+from langchain_core.vectorstores import VectorStore
 from langchain_core.documents.base import Document
 from langchain_core.runnables import Runnable, RunnableLambda, chain
 

@@ -14,7 +14,7 @@ from uuid import uuid4
 
 import pandas as pd
 from botocore.exceptions import EventStreamError
-from langchain.schema import StrOutputParser
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.callbacks.manager import dispatch_custom_event
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
