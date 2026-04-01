@@ -164,40 +164,28 @@ class ToolRunner:
 
         log.warning(f"{self.log_stub} {future_tool_name} response not None")
 
-        result = None
-
+        result = response
         if not self.is_loop:
-            if isinstance(response, tuple):
-                if isinstance(response[1], MCPResponseMetadata):
-                    result = response[0]
-                else:
-                    result = response
+            if isinstance(response, tuple) and isinstance(response[1], MCPResponseMetadata):
+                result = response[0]
 
         else:
-            if isinstance(response, tuple):
-                if isinstance(response[1], MCPResponseMetadata):
-                    res = response[0]
-                    metadata: MCPResponseMetadata = response[1]
-                    status = "pass" if res != "" else "fail"
-                    result = (
-                        (
-                            res,
-                            status,
-                            is_intermediate_step,
-                            metadata.user_feedback.reason or "Requires feedback from the user.",
-                        )
-                        if metadata.user_feedback.required
-                        else (res, status, is_intermediate_step)
+            if isinstance(response, tuple) and isinstance(response[1], MCPResponseMetadata):
+                res = response[0]
+                metadata: MCPResponseMetadata = response[1]
+                status = "pass" if res != "" else "fail"
+                result = (
+                    (
+                        res,
+                        status,
+                        is_intermediate_step,
+                        metadata.user_feedback.reason or "Requires feedback from the user.",
                     )
-                else:
-                    result = response
-            else:
-                result = response
+                    if metadata.user_feedback.required
+                    else (res, status, is_intermediate_step)
+                )
 
-        raw_res = result
-        if isinstance(raw_res, tuple):
-            raw_res = raw_res[0]
-
+        raw_res = result[0] if isinstance(result, tuple) else result
         if not raw_res or not isinstance(raw_res, str) or not raw_res.strip():
             raise tool_exceptions.ToolValidationError(f"empty or whitespace-only response body: {repr(raw_res)}")
 
