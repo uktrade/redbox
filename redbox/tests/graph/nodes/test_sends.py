@@ -16,9 +16,8 @@ from redbox.graph.nodes.sends import (
     build_tool_send,
     no_dependencies,
     run_tools_parallel,
-    wrap_async_tool,
-    _get_mcp_headers,
 )
+from redbox.graph.nodes.runner.wrap_async import _get_mcp_headers, wrap_async_tool
 from redbox.graph.nodes.tools import build_search_wikipedia_tool, build_govuk_search_tool
 from redbox.models.chain import DocumentState, RedboxQuery, RedboxState, TaskStatus, configure_agent_task_plan
 from tests.conftest import fake_state
@@ -296,9 +295,9 @@ class TestRunToolsParallelAsync:
         mock_load_tools.return_value = tools
 
     @pytest.mark.parametrize("expected_tool_result, expected_parsed_result", MCP_TOOL_RESULTS)
-    @patch("redbox.graph.nodes.sends.ClientSession")
-    @patch("redbox.graph.nodes.sends.streamablehttp_client")
-    @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
+    @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
+    @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
+    @patch("redbox.graph.nodes.runner.wrap_async.load_mcp_tools", new_callable=AsyncMock)
     def test_async_tool_returns_expected_response(
         self,
         mock_load_tools,
@@ -342,9 +341,9 @@ class TestRunToolsParallelAsync:
         ],
     )
     @pytest.mark.parametrize("expected_tool_result, expected_parsed_result", MCP_TOOL_RESULTS)
-    @patch("redbox.graph.nodes.sends.ClientSession")
-    @patch("redbox.graph.nodes.sends.streamablehttp_client")
-    @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
+    @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
+    @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
+    @patch("redbox.graph.nodes.runner.wrap_async.load_mcp_tools", new_callable=AsyncMock)
     def test_async_tool_with_loop_agent(
         self,
         mock_load_tools,
@@ -395,9 +394,9 @@ class TestRunToolsParallelAsync:
         tool.ainvoke.assert_awaited_once_with(expected_ainvoke_args)
 
     @pytest.mark.parametrize("expected_tool_result, expected_parsed_result", MCP_TOOL_RESULTS)
-    @patch("redbox.graph.nodes.sends.ClientSession")
-    @patch("redbox.graph.nodes.sends.streamablehttp_client")
-    @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
+    @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
+    @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
+    @patch("redbox.graph.nodes.runner.wrap_async.load_mcp_tools", new_callable=AsyncMock)
     def test_async_tool_with_non_loop_agent(
         self,
         mock_load_tools,
@@ -431,9 +430,9 @@ class TestRunToolsParallelAsync:
         "exception",
         [TimeoutError("tool timed out"), ValueError("invalid value"), Exception("unknown error")],
     )
-    @patch("redbox.graph.nodes.sends.ClientSession")
-    @patch("redbox.graph.nodes.sends.streamablehttp_client")
-    @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
+    @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
+    @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
+    @patch("redbox.graph.nodes.runner.wrap_async.load_mcp_tools", new_callable=AsyncMock)
     def test_async_tool_failures_return_none(
         self, mock_load_tools, mock_http_client, mock_session_class, exception, fake_state, fake_mcp_tool_failing
     ):
@@ -449,9 +448,9 @@ class TestRunToolsParallelAsync:
         assert response is None
         tool.ainvoke.assert_awaited_once_with({"foo": "bar"})
 
-    @patch("redbox.graph.nodes.sends.ClientSession")
-    @patch("redbox.graph.nodes.sends.streamablehttp_client")
-    @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
+    @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
+    @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
+    @patch("redbox.graph.nodes.runner.wrap_async.load_mcp_tools", new_callable=AsyncMock)
     def test_async_tool_not_found_returns_none(
         self, mock_load_tools, mock_http_client, mock_session_class, fake_state, fake_mcp_tool
     ):
@@ -521,9 +520,9 @@ class TestWrapAsyncTool:
         assert all(isinstance(e, expected_exceptions) for e in exceptions)
 
     @pytest.mark.parametrize("expected_tool_result, expected_documents", MCP_TOOL_RESULTS)
-    @patch("redbox.graph.nodes.sends.ClientSession")
-    @patch("redbox.graph.nodes.sends.streamablehttp_client")
-    @patch("redbox.graph.nodes.sends.load_mcp_tools")
+    @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
+    @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
+    @patch("redbox.graph.nodes.runner.wrap_async.load_mcp_tools", new_callable=AsyncMock)
     def test_returns_expected_results(
         self,
         mock_load_tools,
@@ -561,9 +560,9 @@ class TestWrapAsyncTool:
         assert result == expected_documents
         assert metadata == expected_tool_metadata
 
-    @patch("redbox.graph.nodes.sends.ClientSession")
-    @patch("redbox.graph.nodes.sends.streamablehttp_client")
-    @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
+    @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
+    @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
+    @patch("redbox.graph.nodes.runner.wrap_async.load_mcp_tools", new_callable=AsyncMock)
     def test_tool_not_found(self, mock_load_tools, mock_http_client, mock_session_class, fake_mcp_tool):
         """Test wrap_async_tool raises ValueError when the requested tool is not in the MCP tool list."""
 
