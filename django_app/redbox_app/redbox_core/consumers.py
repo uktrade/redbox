@@ -322,9 +322,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
             session = self.scope.get("session")
             authbroker_token = session["_authbroker_token"]
 
-            if timezone.now().timestamp() > authbroker_token["expires_at"] - AUTH_EXPIRY_BUFFER:
+            if (
+                authbroker_token.get("expires_at") is not None
+                and timezone.now().timestamp() > authbroker_token["expires_at"] - AUTH_EXPIRY_BUFFER
+            ):
                 await self.accept()
                 await self.send_to_client("auth_expired", error_messages.AUTH_EXPIRED)
+                return None
 
             return authbroker_token["access_token"]
         except (KeyError, TypeError):
