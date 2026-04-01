@@ -13,6 +13,7 @@ from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.db.models import Model
+from django.utils import timezone
 from langchain_core.documents import Document
 from langchain_core.language_models import BaseChatModel
 from pydantic import BaseModel
@@ -909,14 +910,31 @@ async def test_connect_with_agents_update_via_db(agents_list: list, alice: User)
         assert ChatConsumer.redbox.agent_configs["Internal_Retrieval_Agent"].llm_backend.name == "gpt-4o"
 
 
+@pytest.mark.parametrize(
+    "mock_token, expired, expected_result",  # noqa: PT006
+    [("mock_token1", None, "mock_token1"), ("mock_token2", True, None), ("mock_token3", False, "mock_token3")],
+)
 @pytest.mark.asyncio
-async def test_extract_sso_token_success():
+async def test_extract_sso_token_success(mock_token, expired, expected_result):
     """Test successful token extraction when the session data is present."""
     consumer = ChatConsumer()
-    mock_token = "mock_token"  # noqa: S105
     consumer.scope = {"session": {"_authbroker_token": {"access_token": mock_token}}}
-    token = await consumer._extract_sso_token()  # noqa: SLF001
-    assert token == mock_token
+    if expired is not None:
+        consumer.scope = {
+            "session": {
+                "_authbroker_token": {
+                    "access_token": mock_token,
+                    "expires_at": 0 if expired else timezone.now().timestamp() + 1000,
+                }
+            }
+        }
+
+    with (
+        patch.object(ChatConsumer, "accept", return_value=None),
+        patch.object(ChatConsumer, "send_to_client", return_value=None),
+    ):
+        token = await consumer._extract_sso_token()  # noqa: SLF001
+    assert token == expected_result
 
 
 @pytest.mark.asyncio

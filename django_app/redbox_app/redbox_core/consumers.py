@@ -317,14 +317,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
         ids = [f.id for f in files]
         return list(File.objects.filter(id__in=ids).values_list("original_file", flat=True))
 
-    async def _extract_sso_token(self, check_expiry=False) -> str | None:
+    async def _extract_sso_token(self) -> str | None:
         try:
             session = self.scope.get("session")
             authbroker_token = session["_authbroker_token"]
 
-            if check_expiry and (timezone.now().timestamp() > authbroker_token["expires_at"] - AUTH_EXPIRY_BUFFER):
+            if (
+                authbroker_token.get("expires_at") is not None
+                and timezone.now().timestamp() > authbroker_token["expires_at"] - AUTH_EXPIRY_BUFFER
+            ):
                 await self.accept()
                 await self.send_to_client("auth_expired", error_messages.AUTH_EXPIRED)
+                return None
 
             return authbroker_token["access_token"]
         except (KeyError, TypeError):
@@ -615,7 +619,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.send_to_client("error", error_messages.AUTH_REQUIRED)
             return
 
-        sso_access_token = await self._extract_sso_token(check_expiry=True)
+        sso_access_token = await self._extract_sso_token()
 
         if ChatConsumer.redbox is None:
             agents = await get_all_agents()
