@@ -174,12 +174,16 @@ class Redbox:
         citations_callback=_default_callback,
         metadata_tokens_callback=_default_callback,
         activity_event_callback=_default_callback,
+        sso_token_getter: Callable[[], str] | None = None,
     ) -> RedboxState:
         final_state = None
         request_dict = input.request.model_dump()
         logger.info("Request: %s", {k: request_dict[k] for k in request_dict.keys() - {"ai_settings"}})
         is_summary_multiagent_streamed = False
         is_evaluator_output_streamed = False
+
+        if sso_token_getter:
+            self.init_datahub_agent(sso_token_getter=sso_token_getter)
 
         @retry(
             stop=stop_after_attempt(3),

@@ -392,6 +392,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 citations_callback=self.handle_citations,
                 metadata_tokens_callback=self.handle_metadata,
                 activity_event_callback=self.handle_activity,
+                sso_token_getter=self._extract_sso_token,
             )
             await self.update_ai_message()
             if len(self.full_reply) == 0 or self.chat_message.text == "":
