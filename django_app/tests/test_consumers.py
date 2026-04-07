@@ -993,7 +993,7 @@ async def test_connect_updates_sso_token_and_rebuilds_graph_if_redbox_exists(moc
 
     await consumer.connect()
 
-    mock_redbox_instance.init_datahub_agent.assert_called_once_with(new_token)
+    mock_redbox_instance.init_datahub_agent.assert_called_once_with(consumer._extract_sso_token)  # noqa: SLF001
     mock_redbox_instance.setup_graph.assert_called_once_with(True)
 
     consumer.accept.assert_called_once()
@@ -1064,6 +1064,7 @@ async def test_llm_conversation_updates_sso_token():
     with (
         patch("redbox_app.redbox_core.consumers.ChatMessage.objects.filter") as mock_filter,
         patch.object(ChatConsumer, "get_ai_settings", new_callable=AsyncMock) as mock_get_settings,
+        patch.object(ChatConsumer, "update_chat_consumer_redbox_with_new_sso_token") as mock_update_token,
         patch.object(ChatConsumer, "update_ai_message", new_callable=AsyncMock),
         patch.object(ChatConsumer, "_files_to_s3_keys", return_value=[]),
         patch.object(ChatConsumer, "_load_agent_plan", new_callable=AsyncMock) as mock_load_plan,
@@ -1082,6 +1083,8 @@ async def test_llm_conversation_updates_sso_token():
             knowledge_files=[],
             selected_agent_names=None,
         )
+
+        mock_update_token.assert_called_once_with()
 
         assert consumer.redbox.run.called
 
@@ -1108,7 +1111,9 @@ async def test_llm_conversation_multiple_users_get_correct_sso_token():
 
         consumer = ChatConsumer()
         consumer.scope = {"user": user, "session": {"_authbroker_token": {"access_token": token}}}
-        consumer.redbox = AsyncMock()
+        consumer.redbox = MagicMock()
+        ChatConsumer.redbox = MagicMock()
+        ChatConsumer.redbox.init_datahub_agent = AsyncMock()
         consumer.send = AsyncMock()
         consumer.chat_message = MagicMock()
 

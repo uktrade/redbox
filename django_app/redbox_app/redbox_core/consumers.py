@@ -356,6 +356,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         agent_plans, question, user_feedback = await self._load_agent_plan(session, message_history)
 
         ai_settings = await self.get_ai_settings(session)
+        sso_access_token = await self._extract_sso_token()
 
         if selected_agent_names:
             ai_settings = ai_settings.model_copy(
@@ -363,6 +364,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     "worker_agents": [agent for agent in agent_configs.values() if agent.name in selected_agent_names]
                 }
             )
+
+        if sso_access_token:
+            # Update sso_access_token
+            self.update_chat_consumer_redbox_with_new_sso_token()
 
         state = RedboxState(
             request=RedboxQuery(
@@ -614,6 +619,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.accept()
             await self.send_to_client("error", error_messages.AUTH_REQUIRED)
             return
+
+        await self._extract_sso_token()
 
         if ChatConsumer.redbox is None:
             agents = await get_all_agents()
