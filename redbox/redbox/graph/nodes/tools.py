@@ -6,6 +6,7 @@ import random
 import re
 import threading
 import time
+import inspect
 from io import StringIO
 from typing import Annotated, Callable, Iterable, Literal, Union
 
@@ -978,11 +979,16 @@ def build_legislation_search_tool():
     return _search_legislation
 
 
-def get_datahub_mcp_tools(agent_loop=True, sso_access_token: str | None = None):
+def get_datahub_mcp_tools(sso_token_getter: Callable[[], str], agent_loop=True):
     async def _get_async_tools():
         try:
             mcp_settings = get_settings().datahub_mcp
             datahub_mcp_url = mcp_settings.url
+
+            if inspect.iscoroutinefunction(sso_token_getter):
+                sso_access_token = await sso_token_getter()
+            else:
+                sso_access_token = sso_token_getter()
             headers = _get_mcp_headers(sso_access_token)
             async with (
                 streamablehttp_client(datahub_mcp_url, headers=headers or None) as (
@@ -1001,10 +1007,11 @@ def get_datahub_mcp_tools(agent_loop=True, sso_access_token: str | None = None):
                     tool.metadata = {
                         "url": datahub_mcp_url,
                         "creator_type": ChunkCreatorType.datahub,
-                        "sso_access_token": SensitiveValue(sso_access_token),
+                        "sso_access_token": SensitiveValue(sso_token_getter),
                     }
                     if agent_loop:  # if loop is True, add intermediate steps into schema so that it is exposed to LLM
                         tool.args_schema["properties"]["is_intermediate_step"] = {"type": "string"}
+                        tool.args_schema["required"] = tool.args_schema.get("required", [])
                         tool.args_schema["required"].append("is_intermediate_step")
                 return tools
         except Exception as e:

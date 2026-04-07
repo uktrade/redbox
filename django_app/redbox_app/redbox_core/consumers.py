@@ -356,7 +356,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         agent_plans, question, user_feedback = await self._load_agent_plan(session, message_history)
 
         ai_settings = await self.get_ai_settings(session)
-        sso_access_token = await self._extract_sso_token()
+        # sso_access_token = await self._extract_sso_token()
 
         if selected_agent_names:
             ai_settings = ai_settings.model_copy(
@@ -365,9 +365,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }
             )
 
-        if sso_access_token:
-            # Update sso_access_token
-            self.update_chat_consumer_redbox_with_new_sso_token(sso_access_token)
+        # if sso_access_token:
+        # Update sso_access_token
+        # self.update_chat_consumer_redbox_with_new_sso_token(sso_access_token)
 
         state = RedboxState(
             request=RedboxQuery(
@@ -619,8 +619,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.send_to_client("error", error_messages.AUTH_REQUIRED)
             return
 
-        sso_access_token = await self._extract_sso_token()
-
         if ChatConsumer.redbox is None:
             agents = await get_all_agents()
             for agent in agents:
@@ -637,17 +635,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 agents=agent_configs,
                 env=ChatConsumer.env,
                 debug=ChatConsumer.debug,
-                sso_access_token=sso_access_token,
+                sso_token_getter=self._extract_sso_token,
             )
         else:
             # Update sso_access_token
-            self.update_chat_consumer_redbox_with_new_sso_token(sso_access_token)
+            self.update_chat_consumer_redbox_with_new_sso_token()
 
         self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
         await self.accept()
 
-    def update_chat_consumer_redbox_with_new_sso_token(self, sso_access_token: str) -> None:
-        ChatConsumer.redbox.init_datahub_agent(sso_access_token)
+    def update_chat_consumer_redbox_with_new_sso_token(self) -> None:
+        ChatConsumer.redbox.init_datahub_agent(self._extract_sso_token)
         ChatConsumer.redbox.setup_graph(ChatConsumer.debug)
 
     async def handle_text(self, response: str) -> str:
