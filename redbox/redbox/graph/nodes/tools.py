@@ -1005,6 +1005,8 @@ def get_datahub_mcp_tools(agent_loop=True, sso_access_token: str | None = None):
                     }
                     if agent_loop:  # if loop is True, add intermediate steps into schema so that it is exposed to LLM
                         tool.args_schema["properties"]["is_intermediate_step"] = {"type": "string"}
+                        if "required" not in tool.args_schema:
+                            tool.args_schema["required"] = []
                         tool.args_schema["required"].append("is_intermediate_step")
                 return tools
         except Exception as e:

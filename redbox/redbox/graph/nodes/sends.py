@@ -161,7 +161,7 @@ def wrap_async_tool(tool, tool_name):
                             raise ValueError(f"tool with name '{tool_name}' not found")
 
                         # remove intermediate step argument if it is not required by tool
-                        if "is_intermediate_step" not in selected_tool.args_schema["required"] and args.get(
+                        if "is_intermediate_step" not in selected_tool.args_schema.get("required", {}) and args.get(
                             "is_intermediate_step"
                         ):
                             args.pop("is_intermediate_step")
