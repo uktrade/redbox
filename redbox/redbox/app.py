@@ -152,7 +152,11 @@ class Redbox:
             debug=debug,
         )
 
-    def init_datahub_agent(self, sso_token_getter: Callable[[], str]) -> None:
+    def init_datahub_agent(self, sso_token_getter: Callable[[], str] | None = None) -> None:
+        if sso_token_getter is None:
+            logger.error("No sso_token_getter callable configured for DataHub agent")
+            return
+
         self.agent_configs["Datahub_Agent"].tools = get_datahub_mcp_tools(sso_token_getter=sso_token_getter)
 
     def run_sync(self, input: RedboxState):
