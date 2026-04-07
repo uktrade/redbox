@@ -62,8 +62,15 @@ async def test_chat_consumer_with_new_session(
     # Given
 
     # When
-    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+    with (
+        patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get,
+        patch.object(ChatConsumer, "_extract_sso_token", new_callable=AsyncMock) as mock_sso,
+        patch("redbox.graph.nodes.tools.get_datahub_mcp_tools", new_callable=AsyncMock) as mock_datahub_tools,
+    ):
         mock_get.return_value = agents_list
+        mock_sso.return_value = "fake-token"
+        mock_datahub_tools.return_value = []
+
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
         connected, _ = await communicator.connect()
@@ -89,6 +96,8 @@ async def test_chat_consumer_with_new_session(
         assert await get_chat_message_text(alice, ChatMessage.Role.user) == ["Hello Hal."]
         assert await get_chat_message_route(alice, ChatMessage.Role.ai) == ["gratitude"]
 
+        mock_sso.assert_called()
+
         await refresh_from_db(uploaded_file)
 
 
@@ -98,8 +107,13 @@ async def test_chat_consumer_staff_user(agents_list: list, staff_user: User, moc
     # Given
 
     # When
-    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+    with (
+        patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get,
+        patch.object(ChatConsumer, "_extract_sso_token", new_callable=AsyncMock) as mock_sso,
+    ):
         mock_get.return_value = agents_list
+        mock_sso.return_value = "fake-token"
+
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = staff_user
         connected, _ = await communicator.connect()
@@ -122,6 +136,8 @@ async def test_chat_consumer_staff_user(agents_list: list, staff_user: User, moc
             assert response4["data"] == "gratitude"
             # Close
             await communicator.disconnect()
+
+        mock_sso.assert_called()
 
         assert await get_chat_message_route(staff_user, ChatMessage.Role.ai) == ["gratitude"]
 
