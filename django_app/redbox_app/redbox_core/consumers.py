@@ -319,6 +319,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def _extract_sso_token(self) -> str | None:
         try:
+            logger.info("ChatConsumer._extract_sso_token - extracting sso token...")
+
             session = self.scope.get("session")
             authbroker_token = session["_authbroker_token"]
 
@@ -326,9 +328,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 authbroker_token.get("expires_at") is not None
                 and timezone.now().timestamp() > authbroker_token["expires_at"] - AUTH_EXPIRY_BUFFER
             ):
+                logger.warning("ChatConsumer._extract_sso_token - auth expired")
                 await self.accept()
                 await self.send_to_client("auth_expired", error_messages.AUTH_EXPIRED)
                 return None
+
+            logger.info("ChatConsumer._extract_sso_token - valid token")
 
             return authbroker_token["access_token"]
         except (KeyError, TypeError):
