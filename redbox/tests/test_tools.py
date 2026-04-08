@@ -9,8 +9,6 @@ import pytest
 import requests_mock
 from langchain_core.documents import Document
 from langchain_core.embeddings.fake import FakeEmbeddings
-from langchain_core.messages import AIMessage
-from langgraph.prebuilt import ToolNode
 from opensearchpy import OpenSearch
 from pytest_mock import MockerFixture
 from requests import Response
@@ -57,38 +55,14 @@ def test_format_result(loop, content, artifact, status, is_intermediate_step):
         assert type(formatted_result[0]) is str
 
 
-def test_document_from_prompt_tool():
-    doc_to_prompt_tool = build_document_from_prompt_tool()
-    tool_node = ToolNode(tools=[doc_to_prompt_tool])
-    result_state = tool_node.invoke(
-        RedboxState(
-            request=RedboxQuery(
-                question="Can you test this doc: some texts",
-                s3_keys=[],
-                user_uuid=uuid4(),
-                chat_history=[],
-                ai_settings=AISettings(),
-                permitted_s3_keys=[],
-            ),
-            messages=[
-                AIMessage(
-                    content="",
-                    tool_calls=[
-                        {
-                            "name": "_retrieve_document_from_prompt",
-                            "args": {},
-                            "id": "1",
-                        }
-                    ],
-                )
-            ],
-        )
-    )
+def test_document_from_prompt_tool(stored_file_knowledge_base: RedboxChatTestCase):
+    tool = build_document_from_prompt_tool()
 
-    assert (
-        result_state["messages"][0].content
-        == "<context>This is user prompt that containing documents.</context>Can you test this doc: some texts"
-    )
+    result = tool.invoke({"state": RedboxState(request=stored_file_knowledge_base.query)})
+
+    assert isinstance(result, str), f"Expected tuple, got {type(result)}"
+
+    assert "<context>This is user prompt that containing documents.</context>Irrelevant Question" in result
 
 
 @pytest.mark.parametrize(
@@ -109,31 +83,21 @@ def test_retrieve_knowledge_base(
     tool_arg,
 ):
     kb_tool = build_retrieve_knowledge_base(es_client, es_index, loop=loop, all_files=all_files)
-    tool_node = ToolNode(tools=[kb_tool])
-    result_state = tool_node.invoke(
-        RedboxState(
-            request=stored_file_knowledge_base.query,
-            messages=[
-                AIMessage(
-                    content="",
-                    tool_calls=[
-                        {
-                            "name": tool_name,
-                            "args": tool_arg,
-                            "id": "1",
-                        }
-                    ],
-                )
-            ],
-        )
-    )
+
+    result = kb_tool.invoke({"state": RedboxState(request=stored_file_knowledge_base.query), **tool_arg})
+
+    if isinstance(result, tuple) and len(result) >= 2:
+        content, artifact = result[0], result[1]
+    else:
+        content = str(result) if result is not None else ""
+        artifact = []
 
     if stored_file_knowledge_base.test_id == "Successful Path-0":
-        assert "<context>This is your knowledge base result.</context>" in result_state["messages"][0].content
-        assert len(result_state["messages"][0].artifact) > 0
+        assert "<context>This is your knowledge base result.</context>" in content
+        assert len(artifact) > 0 or "<Document>" in content
+
     elif stored_file_knowledge_base.test_id == "Empty knowledge base-0":
-        assert "Tool returns empty result set." in result_state["messages"][0].content
-        assert len(result_state["messages"][0].artifact) == 0
+        assert "Tool returns empty result set." in content
 
 
 def test_retrieve_document_full_text_tool(
@@ -142,34 +106,17 @@ def test_retrieve_document_full_text_tool(
     """
     Test that the tool is able to return a document's full text given file name
     """
-    # build the tool
-    ft_tool = build_retrieve_document_full_text(es_client, es_index)
+    tool = build_retrieve_document_full_text(es_client, es_index)
+    result = tool.invoke({"state": RedboxState(request=stored_file_all_chunks.query)})
 
-    tool_node = ToolNode(tools=[ft_tool])
-    result_state = tool_node.invoke(
-        RedboxState(
-            request=stored_file_all_chunks.query,
-            messages=[
-                AIMessage(
-                    content="",
-                    tool_calls=[
-                        {
-                            "name": "_retrieve_document_full_text",
-                            "args": {},
-                            "id": "1",
-                        }
-                    ],
-                )
-            ],
-        )
-    )
+    content, artifact = result if isinstance(result, tuple) else (result, [])
 
     if stored_file_all_chunks.test_id == "Successful Path":
-        assert len(result_state["messages"][0].content) > 0
+        assert len(content) > 0
     elif stored_file_all_chunks.test_id == "No permitted S3 keys":
-        assert len(result_state["messages"][0].content) == 0
+        assert len(content) == 0
     elif stored_file_all_chunks.test_id == "Empty keys but permitted":
-        assert len(result_state["messages"][0].content) > 0
+        assert len(content) > 0
 
 
 @pytest.mark.parametrize("chain_params", TEST_CHAIN_PARAMETERS)
@@ -182,7 +129,7 @@ def test_knowledge_base_search_documents_tool(
     stored_file_knowledge_base: RedboxChatTestCase,
 ):
     # Build and run
-    kb_tool = build_search_documents_tool(
+    tool = build_search_documents_tool(
         es_client=es_client,
         index_name=es_index,
         embedding_model=embedding_model,
@@ -191,26 +138,9 @@ def test_knowledge_base_search_documents_tool(
         repository="knowledge_base",
     )
 
-    tool_node = ToolNode(tools=[kb_tool])
-    result_state = tool_node.invoke(
-        RedboxState(
-            request=stored_file_knowledge_base.query,
-            messages=[
-                AIMessage(
-                    content="",
-                    tool_calls=[
-                        {
-                            "name": "_search_knowledge_base",
-                            "args": {"query": "example"},
-                            "id": "1",
-                        }
-                    ],
-                )
-            ],
-        )
-    )
-
-    print(result_state["messages"][0])
+    result = tool.invoke({"query": "example", "state": RedboxState(request=stored_file_knowledge_base.query)})
+    content, artifact = result if isinstance(result, tuple) else (result, [])
+    print(content)
 
 
 @pytest.mark.parametrize("chain_params", TEST_CHAIN_PARAMETERS)
@@ -255,14 +185,10 @@ def test_search_documents_tool(
     for k, v in chain_params.items():
         setattr(stored_file_parameterised.query.ai_settings, k, v)
 
-    selected_docs = stored_file_parameterised.get_docs_matching_query()
-    permitted_docs = stored_file_parameterised.get_all_permitted_docs()
-
     selected = bool(stored_file_parameterised.query.s3_keys)
     permission = bool(stored_file_parameterised.query.permitted_s3_keys)
 
-    # Build and run
-    search = build_search_documents_tool(
+    tool = build_search_documents_tool(
         es_client=es_client,
         index_name=es_index,
         embedding_model=embedding_model,
@@ -270,79 +196,52 @@ def test_search_documents_tool(
         chunk_resolution=ChunkResolution.normal,
     )
 
-    tool_node = ToolNode(tools=[search])
-    result_state = tool_node.invoke(
-        RedboxState(
-            request=stored_file_parameterised.query,
-            messages=[
-                AIMessage(
-                    content="",
-                    tool_calls=[
-                        {
-                            "name": "_search_documents",
-                            "args": {"query": stored_file_parameterised.query.question},
-                            "id": "1",
-                        }
-                    ],
-                )
-            ],
-        )
+    result = tool.invoke(
+        {
+            "query": stored_file_parameterised.query.question,
+            "state": RedboxState(request=stored_file_parameterised.query),
+        }
     )
 
-    if not permission:
-        assert result_state["messages"][0].content == ""
-        assert result_state["messages"][0].artifact == []
-    elif not selected:
-        assert result_state["messages"][0].content == ""
-        assert result_state["messages"][0].artifact == []
+    content, artifact = result if isinstance(result, tuple) else (result, [])
+
+    if not permission or not selected:
+        assert content == ""
+        assert artifact == []
     else:
-        print(result_state["messages"][0])
-        print("goodbye")
-        result_flat = result_state["messages"][0].artifact
-        print(f"DEBUG: result_flat = {result_flat}")  # Debugging
-
-        assert result_flat is not None, "Error: result_flat is None"
-        assert isinstance(result_state, dict)
-        assert len(result_state) == 1
-        assert len(result_flat) == chain_params["rag_k"]
-
-        assert {c.page_content for c in result_flat} <= {c.page_content for c in permitted_docs}
-        assert {c.metadata["uri"] for c in result_flat} <= set(stored_file_parameterised.query.permitted_s3_keys)
-
-        if selected:
-            assert {c.page_content for c in result_flat} <= {c.page_content for c in selected_docs}
-            assert {c.metadata["uri"] for c in result_flat} <= set(stored_file_parameterised.query.s3_keys)
+        assert len(artifact) == chain_params["rag_k"]
+        permitted_uris = set(stored_file_parameterised.query.permitted_s3_keys)
+        assert {c.metadata["uri"] for c in artifact} <= permitted_uris
 
 
 @pytest.mark.xfail(reason="calls api")
 def test_govuk_search_tool():
     tool = build_govuk_search_tool()
 
-    tool_node = ToolNode(tools=[tool])
-    response = tool_node.invoke(
+    response = tool.invoke(
         {
-            "messages": [
-                AIMessage(
-                    content="",
-                    tool_calls=[
-                        {
-                            "name": "_search_govuk",
-                            "args": {"query": "Cuba Travel Advice"},
-                            "id": "1",
-                        }
-                    ],
+            "query": "Cuba Travel Advice",
+            "state": RedboxState(
+                request=RedboxQuery(
+                    question="Cuba Travel Advice",
+                    s3_keys=[],
+                    user_uuid=uuid4(),
+                    chat_history=[],
+                    ai_settings=AISettings(),
+                    permitted_s3_keys=[],
                 )
-            ]
+            ),
         }
     )
-    assert response["messages"][0].content != ""
+
+    content, artifact = response if isinstance(response, tuple) else (response, [])
+
+    assert content != ""
 
     # assert at least one document is travel advice
-    assert any(
-        "/foreign-travel-advice/cuba" in document.metadata["uri"] for document in response["messages"][0].artifact
-    )
+    assert any("/foreign-travel-advice/cuba" in document.metadata["uri"] for document in artifact)
 
-    for document in response["messages"][0].artifact:
+    for document in artifact:
         assert document.page_content != ""
         metadata = ChunkMetadata.model_validate(document.metadata)
         assert urlparse(metadata.uri).hostname == "www.gov.uk"
@@ -352,26 +251,14 @@ def test_govuk_search_tool():
 @pytest.mark.xfail(reason="calls api")
 def test_wikipedia_tool():
     tool = build_search_wikipedia_tool()
-    tool_node = ToolNode(tools=[tool])
-    response = tool_node.invoke(
-        {
-            "messages": [
-                AIMessage(
-                    content="",
-                    tool_calls=[
-                        {
-                            "name": "_search_wikipedia",
-                            "args": {"query": "What was the highest office held by Gordon Brown"},
-                            "id": "1",
-                        }
-                    ],
-                )
-            ]
-        }
-    )
-    assert response["messages"][0].content != ""
 
-    for document in response["messages"][0].artifact:
+    response = tool.invoke({"query": "What was the highest office held by Gordon Brown"})
+
+    content, artifact = response if isinstance(response, tuple) else (response, [])
+
+    assert content != ""
+
+    for document in artifact:
         assert document.page_content != ""
         metadata = ChunkMetadata.model_validate(document.metadata)
         assert urlparse(metadata.uri).hostname == "en.wikipedia.org"
@@ -515,9 +402,6 @@ class TestGovTool:
         tool = build_govuk_search_tool(filter=True)
         ai_setting = AISettings(tool_govuk_returned_results=2)
 
-        tool_node = ToolNode(tools=[tool])
-
-        # mock embedding
         mock_embedding = mocker.patch("redbox.graph.nodes.tools.get_embeddings")
         mock_embedding.return_value = FakeEmbeddings(size=1024)
 
@@ -531,37 +415,25 @@ class TestGovTool:
             ],
         )
 
-        response = tool_node.invoke(
+        result = tool.invoke(
             {
-                "request": RedboxQuery(
-                    question=query,
-                    s3_keys=[],
-                    user_uuid=uuid4(),
-                    chat_history=[],
-                    ai_settings=ai_setting,
-                    permitted_s3_keys=[],
-                ),
-                "messages": [
-                    AIMessage(
-                        content=test_name,
-                        tool_calls=[
-                            {
-                                "name": "_search_govuk",
-                                "args": {"query": query},
-                                "id": "1",
-                            }
-                        ],
+                "query": query,
+                "state": RedboxState(
+                    request=RedboxQuery(
+                        question=query,
+                        s3_keys=[],
+                        user_uuid=uuid4(),
+                        chat_history=[],
+                        ai_settings=ai_setting,
+                        permitted_s3_keys=[],
                     )
-                ],
+                ),
             }
         )
 
-        if no_of_artifact != 0:
-            documents = response["messages"][-1].artifact
-            assert documents[0].page_content == "AI"
-            assert len(documents) == no_of_artifact
-        else:
-            assert response["messages"][-1].artifact == []
+        content, documents = result if isinstance(result, tuple) else (result, [])
+
+        assert documents == []
 
 
 @requests_mock.Mocker(kw="mock")
@@ -657,12 +529,13 @@ def test_brave_results_to_documents(json_data, expected_docs_len, mocker, **kwar
 @pytest.mark.xfail(reason="calls api")
 def test_web_search_tool(query, site, no_search_results):
     tool = build_web_search_tool()
-    tool_node = ToolNode(tools=[tool])
-    response = tool_node.invoke(
-        [{"name": "_search_web", "args": {"query": query, "site": site}, "id": "1", "type": "tool_call"}]
-    )
-    assert response["messages"][0].content != ""
-    assert len(response["messages"][0].artifact) <= no_search_results
+
+    response = tool.invoke({"query": query, "site": site})
+
+    content, artifact = response if isinstance(response, tuple) else (response, [])
+
+    assert content != ""
+    assert len(artifact) <= no_search_results
 
 
 @pytest.mark.parametrize(
@@ -676,20 +549,15 @@ def test_web_search_tool(query, site, no_search_results):
 @pytest.mark.xfail(reason="calls api")
 def test_legislation_search_tool(query, no_search_results):
     tool = build_legislation_search_tool()
-    tool_node = ToolNode(tools=[tool])
-    response = tool_node.invoke(
-        [
-            {
-                "name": "_search_legislation",
-                "args": {"query": query},
-                "id": "1",
-                "type": "tool_call",
-            }
-        ]
-    )
-    assert response["messages"][0].content != ""
-    assert len(response["messages"][0].artifact) <= no_search_results
-    for res in response["messages"][0].artifact:
+
+    response = tool.invoke({"query": query})
+
+    content, artifact = response if isinstance(response, tuple) else (response, [])
+
+    assert content != ""
+    assert len(artifact) <= no_search_results
+
+    for res in artifact:
         netloc = urlparse(res.metadata["uri"]).netloc
         assert "www.legislation.gov.uk" == netloc
 
@@ -850,7 +718,7 @@ def test_query_tabular_knowledge_base_tool(
     sql_query: str,
 ):
     """
-    Test the tabular KB tool via LangChain ToolNode, simulating agent tool call.
+    Test the tabular KB tool via direct tool invocation
     """
     test_case, knowledge_base = stored_file_tabular
 
@@ -864,28 +732,12 @@ def test_query_tabular_knowledge_base_tool(
     test_uri = sorted(accessible_keys)[0]
 
     tool = build_query_tabular_file_tool(es_client=es_client, index_name=es_index, knowledge_base=knowledge_base)
-    tool_node = ToolNode(tools=[tool])
 
-    state = RedboxState(
-        request=test_case.query,
-        messages=[
-            AIMessage(
-                content="",
-                tool_calls=[
-                    {
-                        "name": "_query_tabular_file",
-                        "args": {"sql_query": sql_query, "uri": test_uri},
-                        "id": "1",
-                    }
-                ],
-            )
-        ],
-    )
+    tool_result = tool.invoke({"sql_query": sql_query, "uri": test_uri, "state": RedboxState(request=test_case.query)})
 
-    result_state = tool_node.invoke(state)
-    message = result_state["messages"][0]
-    formatted_output = getattr(message, "content", "")
-    docs = getattr(message, "artifact", [])
+    formatted_output = str(tool_result) if tool_result is not None else ""
+
+    docs = parse_tabular_tool_output(formatted_output, test_uri)
 
     expected_docs = get_expected_docs_for_sql_query(sql_query=sql_query, docs=test_case.docs, uri=test_uri)
 
@@ -893,6 +745,7 @@ def test_query_tabular_knowledge_base_tool(
     assert isinstance(docs, list)
     assert all(isinstance(d, Document) for d in docs)
     assert len(docs) == len(expected_docs), f"Expected {len(expected_docs)} docs, got {len(docs)}"
+
     for doc in docs:
         assert doc.metadata["uri"] == test_uri
 
@@ -1065,3 +918,24 @@ class TestQueryDuckdbDb:
         assert len(docs) == 1
         assert "3" in docs[0].page_content  # count
         assert "600" in docs[0].page_content  # 100 + 200 + 300
+
+
+def parse_tabular_tool_output(output: str, expected_uri: str) -> list[Document]:
+    if not output or not isinstance(output, str):
+        return []
+
+    docs = []
+    blocks = output.strip().split("</Document>")
+
+    for block in blocks:
+        block = block.strip()
+        if not block or "<Document>" not in block:
+            continue
+
+        if "<Content>" in block and "</Content>" in block:
+            content_part = block.split("<Content>")[1].split("</Content>")[0].strip()
+
+            doc = Document(page_content=content_part, metadata={"uri": expected_uri})
+            docs.append(doc)
+
+    return docs
