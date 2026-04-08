@@ -317,7 +317,16 @@ class CannedChatLLM(BaseChatModel):
         return "canned"
 
 
-@llm
+def extract_model_name(llm_output):
+    model_name = (llm_output.response_metadata or {}).get("model_name", None)
+    if model_name:
+        if model_name.startswith("arn"):
+            # grab the last bit
+            model_name = model_name.split("/")[-1]
+        model_name = model_name.split(".")[-1]
+    return model_name
+
+
 def basic_chat_chain(
     system_prompt,
     tools=None,
@@ -356,24 +365,27 @@ def basic_chat_chain(
         else:
             prompt = ChatPromptTemplate([(system_prompt)])
         chain = prompt | llm
-        output = chain.invoke(context)
+        with LLMObs.workflow(name="basic_chat_chain") as span:
+            output = chain.invoke(context)
 
-        LLMObs.annotate(
-            span=None,
-            input_data=[context],
-            output_data=[output],
-            metadata={
-                "max_tokens": llm._default_config["max_tokens"],
-                "stop_reason": output.response_metadata["stop_reason"],
-                "model_name": output.response_metadata["model_name"],
-            },
-            metrics={
-                "input_tokens": output.usage_metadata["input_tokens"],
-                "output_tokens": output.usage_metadata["output_tokens"],
-                "total_tokens": output.usage_metadata["total_tokens"],
-            },
-            tags={"chain": "basic_chat_chain"},
-        )
+            formatted_input_dd = prompt.format_messages(**context)
+
+            LLMObs.annotate(
+                span=span,
+                input_data=[{"role": msg.type, "content": msg.content} for msg in formatted_input_dd],
+                output_data=output.content,
+                metadata={
+                    "max_tokens": llm._default_config["max_tokens"],
+                    "stop_reason": (output.response_metadata or {}).get("stop_reason", None),
+                    "model_name": extract_model_name(output),
+                },
+                metrics={
+                    "input_tokens": (output.usage_metadata or {}).get("input_tokens", None),
+                    "output_tokens": (output.usage_metadata or {}).get("output_tokens", None),
+                    "total_tokens": (output.usage_metadata or {}).get("total_tokens", None),
+                },
+                tags={"chain": "basic_chat_chain"},
+            )
 
         if parser and not using_only_structure:
             output = parser.invoke(output)
