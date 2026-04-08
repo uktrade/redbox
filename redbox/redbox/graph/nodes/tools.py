@@ -982,6 +982,8 @@ def build_legislation_search_tool():
 def get_datahub_mcp_tools(sso_token_getter: Callable[[], str], agent_loop=True):
     async def _get_async_tools():
         try:
+            log.info("get_datahub_mcp_tools - Loading Datahub MCP tools...")
+
             mcp_settings = get_settings().datahub_mcp
             datahub_mcp_url = mcp_settings.url
 
@@ -989,6 +991,10 @@ def get_datahub_mcp_tools(sso_token_getter: Callable[[], str], agent_loop=True):
                 sso_access_token = await sso_token_getter()
             else:
                 sso_access_token = sso_token_getter()
+
+            if not sso_access_token:
+                log.error("get_datahub_mcp_tools - Datahub MCP sso_access_token is None")
+
             headers = _get_mcp_headers(sso_access_token)
             async with (
                 streamablehttp_client(datahub_mcp_url, headers=headers or None) as (
@@ -1015,7 +1021,7 @@ def get_datahub_mcp_tools(sso_token_getter: Callable[[], str], agent_loop=True):
                         tool.args_schema["required"].append("is_intermediate_step")
                 return tools
         except Exception as e:
-            log.error("Unable to connect to MCP server - %s", e)
+            log.error("get_datahub_mcp_tools - Unable to connect to MCP server - %s", e)
             return []
 
     # Apply patch to allow nested event loops
