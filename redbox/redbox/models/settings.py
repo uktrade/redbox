@@ -133,7 +133,7 @@ class Settings(BaseSettings):
     response_no_doc_available: str = "No available data for selected files. They may need to be removed and added again"
     response_max_content_exceeded: str = "Max content exceeded. Try smaller or fewer documents"
 
-    object_store: str = "minio"
+    object_store: str = "s3"
 
     dev_mode: bool = False
     superuser_email: str | None = None
