@@ -1016,9 +1016,13 @@ def get_datahub_mcp_tools(sso_token_getter: Callable[[], str], agent_loop=True):
                         "sso_access_token": SensitiveValue(sso_token_getter),
                     }
                     if agent_loop:  # if loop is True, add intermediate steps into schema so that it is exposed to LLM
+                        tool.args_schema["properties"] = tool.args_schema.get("properties", {})
                         tool.args_schema["properties"]["is_intermediate_step"] = {"type": "string"}
+
                         tool.args_schema["required"] = tool.args_schema.get("required", [])
-                        tool.args_schema["required"].append("is_intermediate_step")
+                        if "is_intermediate_step" not in tool.args_schema["required"]:
+                            tool.args_schema["required"].append("is_intermediate_step")
+
                 return tools
         except Exception as e:
             log.error("get_datahub_mcp_tools - Unable to connect to MCP server - %s", e)
