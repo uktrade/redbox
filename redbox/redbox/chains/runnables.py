@@ -3,7 +3,7 @@ import re
 from typing import Any, Callable, Iterable, Iterator
 
 from ddtrace.llmobs import LLMObs
-from ddtrace.llmobs.decorators import llm
+from ddtrace.trace import tracer
 from langchain_core.callbacks.manager import CallbackManagerForLLMRun, dispatch_custom_event
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
@@ -149,7 +149,6 @@ def final_response_if_needed(input_: dict) -> Runnable:
     )
 
 
-@llm
 def build_llm_chain(
     prompt_set: PromptSet,
     llm: BaseChatModel,
@@ -317,8 +316,8 @@ class CannedChatLLM(BaseChatModel):
         return "canned"
 
 
-def extract_model_name(llm_output):
-    model_name = (llm_output.response_metadata or {}).get("model_name", None)
+def extract_model_name(llm_output) -> str:
+    model_name = (llm_output.response_metadata or {}).get("model_name", "unspecified_model")
     if model_name:
         if model_name.startswith("arn"):
             # grab the last bit
@@ -365,27 +364,29 @@ def basic_chat_chain(
         else:
             prompt = ChatPromptTemplate([(system_prompt)])
         chain = prompt | llm
-        with LLMObs.workflow(name="basic_chat_chain") as span:
-            output = chain.invoke(context)
 
-            formatted_input_dd = prompt.format_messages(**context)
-
-            LLMObs.annotate(
-                span=span,
-                input_data=[{"role": msg.type, "content": msg.content} for msg in formatted_input_dd],
-                output_data=output.content,
-                metadata={
-                    "max_tokens": llm._default_config["max_tokens"],
-                    "stop_reason": (output.response_metadata or {}).get("stop_reason", None),
-                    "model_name": extract_model_name(output),
-                },
-                metrics={
-                    "input_tokens": (output.usage_metadata or {}).get("input_tokens", None),
-                    "output_tokens": (output.usage_metadata or {}).get("output_tokens", None),
-                    "total_tokens": (output.usage_metadata or {}).get("total_tokens", None),
-                },
-                tags={"chain": "basic_chat_chain"},
-            )
+        output = chain.invoke(context)
+        bedrock_span = tracer.current_span()
+        formatted_input_dd = prompt.format_messages(**context)
+        role_map = {"human": "user", "ai": "assistant", "system": "system"}
+        LLMObs.annotate(
+            span=bedrock_span,
+            input_data=[
+                {"role": role_map.get(msg.type, msg.type), "content": msg.content} for msg in formatted_input_dd
+            ],
+            output_data=output.content,
+            metadata={
+                "max_tokens": (llm._default_config or {}).get("max_tokens", None),
+                "stop_reason": (output.response_metadata or {}).get("stop_reason", None),
+                "model_name": extract_model_name(output),
+            },
+            metrics={
+                "input_tokens": (output.usage_metadata or {}).get("input_tokens", None),
+                "output_tokens": (output.usage_metadata or {}).get("output_tokens", None),
+                "total_tokens": (output.usage_metadata or {}).get("total_tokens", None),
+            },
+            tags={"func": "basic_chat_chain"},
+        )
 
         if parser and not using_only_structure:
             output = parser.invoke(output)
