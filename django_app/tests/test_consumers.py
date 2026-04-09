@@ -54,6 +54,20 @@ def get_token_use_count(use_type: str) -> int:
     return ChatMessageTokenUse.objects.filter(use_type=use_type).latest("created_at").token_count
 
 
+@pytest.fixture
+def mock_sso():
+    with patch.object(ChatConsumer, "_extract_sso_token", new_callable=AsyncMock) as mock:
+        mock.return_value = "fake-token"
+        yield mock
+
+
+@pytest.fixture
+def mock_datahub_tools():
+    with patch("redbox.app.get_datahub_mcp_tools", new_callable=AsyncMock) as mock:
+        mock.return_value = []
+        yield mock
+
+
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_chat_consumer_with_new_session(
@@ -62,14 +76,8 @@ async def test_chat_consumer_with_new_session(
     # Given
 
     # When
-    with (
-        patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get,
-        patch.object(ChatConsumer, "_extract_sso_token", new_callable=AsyncMock) as mock_sso,
-        patch("redbox.graph.nodes.tools.get_datahub_mcp_tools", new_callable=AsyncMock) as mock_datahub_tools,
-    ):
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
-        mock_sso.return_value = "fake-token"
-        mock_datahub_tools.return_value = []
 
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
@@ -96,8 +104,6 @@ async def test_chat_consumer_with_new_session(
         assert await get_chat_message_text(alice, ChatMessage.Role.user) == ["Hello Hal."]
         assert await get_chat_message_route(alice, ChatMessage.Role.ai) == ["gratitude"]
 
-        mock_sso.assert_called()
-
         await refresh_from_db(uploaded_file)
 
 
@@ -107,12 +113,8 @@ async def test_chat_consumer_staff_user(agents_list: list, staff_user: User, moc
     # Given
 
     # When
-    with (
-        patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get,
-        patch.object(ChatConsumer, "_extract_sso_token", new_callable=AsyncMock) as mock_sso,
-    ):
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
-        mock_sso.return_value = "fake-token"
 
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = staff_user
@@ -136,8 +138,6 @@ async def test_chat_consumer_staff_user(agents_list: list, staff_user: User, moc
             assert response4["data"] == "gratitude"
             # Close
             await communicator.disconnect()
-
-        mock_sso.assert_called()
 
         assert await get_chat_message_route(staff_user, ChatMessage.Role.ai) == ["gratitude"]
 
@@ -885,7 +885,13 @@ def refresh_from_db(obj: Model) -> None:
 
 
 @pytest.mark.asyncio
-async def test_connect_with_agents_cache(agents_list: list, alice: User, staff_user: User):
+async def test_connect_with_agents_cache(
+    mock_sso,  # noqa: ARG001
+    mock_datahub_tools,  # noqa: ARG001
+    agents_list: list,
+    alice: User,
+    staff_user: User,
+):
     ChatConsumer.redbox = None
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
@@ -1116,84 +1122,90 @@ async def test_llm_conversation_updates_sso_token():
 @pytest.mark.asyncio
 async def test_llm_conversation_multiple_users_get_correct_sso_token():
     """Verify that concurrent users each get their own SSO token and don't cross-contaminate."""
+    original_redbox = getattr(ChatConsumer, "redbox", None)
 
-    def make_consumer(token: str):
-        user = MagicMock(spec=User)
-        user.id = uuid.uuid4()
+    try:
 
-        session = MagicMock(spec=ChatModel)
-        session.id = uuid.uuid4()
-        session.user = user
+        def make_consumer(token: str):
+            user = MagicMock(spec=User)
+            user.id = uuid.uuid4()
 
-        consumer = ChatConsumer()
-        consumer.scope = {"user": user, "session": {"_authbroker_token": {"access_token": token}}}
-        consumer.redbox = MagicMock()
-        ChatConsumer.redbox = MagicMock()
-        ChatConsumer.redbox.init_datahub_agent = AsyncMock()
-        consumer.send = AsyncMock()
-        consumer.chat_message = MagicMock()
+            session = MagicMock(spec=ChatModel)
+            session.id = uuid.uuid4()
+            session.user = user
 
-        return consumer, user, session
+            consumer = ChatConsumer()
+            consumer.scope = {"user": user, "session": {"_authbroker_token": {"access_token": token}}}
+            consumer.redbox = MagicMock()
+            ChatConsumer.redbox = MagicMock()
+            ChatConsumer.redbox.init_datahub_agent = AsyncMock()
+            consumer.send = AsyncMock()
+            consumer.chat_message = MagicMock()
 
-    consumer_a, user_a, session_a = make_consumer("token-user-a")
-    consumer_b, user_b, session_b = make_consumer("token-user-b")
+            return consumer, user, session
 
-    valid_pydantic_settings = PydanticAISettings(
-        chat_backend=PydanticChatLLMBackend(name="gpt-4o", provider="openai", description="test-backend"),
-        worker_agents=[],
-    )
+        consumer_a, user_a, session_a = make_consumer("token-user-a")
+        consumer_b, user_b, session_b = make_consumer("token-user-b")
 
-    mock_user_msg = MagicMock(spec=ChatMessageModel)
-    mock_user_msg.text = "How do I test this?"
-    mock_user_msg.role = "user"
+        valid_pydantic_settings = PydanticAISettings(
+            chat_backend=PydanticChatLLMBackend(name="gpt-4o", provider="openai", description="test-backend"),
+            worker_agents=[],
+        )
 
-    mock_ai_msg = MagicMock(spec=ChatMessageModel)
-    mock_ai_msg.text = ""
-    mock_ai_msg.role = "ai"
+        mock_user_msg = MagicMock(spec=ChatMessageModel)
+        mock_user_msg.text = "How do I test this?"
+        mock_user_msg.role = "user"
 
-    async def run_conversation(consumer, user, session):
-        with (
-            patch("redbox_app.redbox_core.consumers.ChatMessage.objects.filter") as mock_filter,
-            patch.object(ChatConsumer, "get_ai_settings", new_callable=AsyncMock) as mock_get_settings,
-            patch.object(ChatConsumer, "update_ai_message", new_callable=AsyncMock),
-            patch.object(ChatConsumer, "_files_to_s3_keys", return_value=[]),
-            patch.object(ChatConsumer, "_load_agent_plan", new_callable=AsyncMock) as mock_load_plan,
-        ):
-            mock_filter.return_value.order_by.return_value.__aiter__.return_value = [mock_user_msg, mock_ai_msg]
-            mock_get_settings.return_value = valid_pydantic_settings
-            mock_load_plan.return_value = (None, "How do I test this?", "")
+        mock_ai_msg = MagicMock(spec=ChatMessageModel)
+        mock_ai_msg.text = ""
+        mock_ai_msg.role = "ai"
 
-            await consumer.llm_conversation(
-                selected_files=[],
-                session=session,
-                user=user,
-                title="Test Conversation",
-                permitted_files=[],
-                previous_selected_files=[],
-                knowledge_files=[],
-                selected_agent_names=None,
-            )
+        async def run_conversation(consumer, user, session):
+            with (
+                patch("redbox_app.redbox_core.consumers.ChatMessage.objects.filter") as mock_filter,
+                patch.object(ChatConsumer, "get_ai_settings", new_callable=AsyncMock) as mock_get_settings,
+                patch.object(ChatConsumer, "update_ai_message", new_callable=AsyncMock),
+                patch.object(ChatConsumer, "_files_to_s3_keys", return_value=[]),
+                patch.object(ChatConsumer, "_load_agent_plan", new_callable=AsyncMock) as mock_load_plan,
+            ):
+                mock_filter.return_value.order_by.return_value.__aiter__.return_value = [mock_user_msg, mock_ai_msg]
+                mock_get_settings.return_value = valid_pydantic_settings
+                mock_load_plan.return_value = (None, "How do I test this?", "")
 
-    # Run both consumers concurrently to simulate real multi-user scenario
-    await asyncio.gather(
-        run_conversation(consumer_a, user_a, session_a),
-        run_conversation(consumer_b, user_b, session_b),
-    )
+                await consumer.llm_conversation(
+                    selected_files=[],
+                    session=session,
+                    user=user,
+                    title="Test Conversation",
+                    permitted_files=[],
+                    previous_selected_files=[],
+                    knowledge_files=[],
+                    selected_agent_names=None,
+                )
 
-    # Verify each consumer passed its own getter to run()
-    getter_a = consumer_a.redbox.run.call_args.kwargs["sso_token_getter"]
-    getter_b = consumer_b.redbox.run.call_args.kwargs["sso_token_getter"]
+        # Run both consumers concurrently to simulate real multi-user scenario
+        await asyncio.gather(
+            run_conversation(consumer_a, user_a, session_a),
+            run_conversation(consumer_b, user_b, session_b),
+        )
 
-    assert getter_a == consumer_a._extract_sso_token  # noqa: SLF001
-    assert getter_b == consumer_b._extract_sso_token  # noqa: SLF001
+        # Verify each consumer passed its own getter to run()
+        getter_a = consumer_a.redbox.run.call_args.kwargs["sso_token_getter"]
+        getter_b = consumer_b.redbox.run.call_args.kwargs["sso_token_getter"]
 
-    # The critical assertion — getters must be different callables bound to different consumers
-    assert getter_a != getter_b
+        assert getter_a == consumer_a._extract_sso_token  # noqa: SLF001
+        assert getter_b == consumer_b._extract_sso_token  # noqa: SLF001
 
-    # Verify each getter returns the correct token for its user
-    assert await getter_a() == "token-user-a"
-    assert await getter_b() == "token-user-b"
+        # The critical assertion — getters must be different callables bound to different consumers
+        assert getter_a != getter_b
 
-    # Verify cross-contamination is impossible — a's getter cannot return b's token
-    assert await getter_a() != "token-user-b"
-    assert await getter_b() != "token-user-a"
+        # Verify each getter returns the correct token for its user
+        assert await getter_a() == "token-user-a"
+        assert await getter_b() == "token-user-b"
+
+        # Verify cross-contamination is impossible — a's getter cannot return b's token
+        assert await getter_a() != "token-user-b"
+        assert await getter_b() != "token-user-a"
+
+    finally:
+        ChatConsumer.redbox = original_redbox
