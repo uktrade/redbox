@@ -56,7 +56,6 @@ class Redbox:
         metadata_retriever: VectorStoreRetriever | None = None,
         embedding_model: Embeddings | None = None,
         env: Settings | None = None,
-        sso_token_getter: Callable[[], str] | None = None,
         debug: bool = False,
         graph: CompiledStateGraph | None = None,
     ):
@@ -141,7 +140,6 @@ class Redbox:
             search_knowledge_base,
         ]
         self.agent_configs["Artifact_Builder_Agent"].tools = [retrieve_specific_files_knowledge_base]
-        # self.load_agent_tools(agent="Datahub_Agent", sso_token_getter=sso_token_getter)
 
         self.graph = graph or self.setup_graph(debug)
         self._initialised = False
@@ -171,9 +169,8 @@ class Redbox:
                     logger.error("No sso_token_getter callable configured for DataHub agent")
                     return
 
-                self.agent_configs["Datahub_Agent"].tools = await get_datahub_mcp_tools(
-                    sso_token_getter=sso_token_getter
-                )
+                tools = await get_datahub_mcp_tools(sso_token_getter=sso_token_getter)
+                self.agent_configs["Datahub_Agent"].tools = tools
 
             case _:
                 logger.error(f"Loading tools for {agent} not supported")

@@ -31,6 +31,7 @@ from redbox.chains.components import (
     get_parameterised_retriever,
 )
 from redbox.graph.agents.configs import agent_configs
+from redbox.graph.nodes.tools import get_datahub_mcp_tools
 from redbox.graph.root import build_root_graph
 from redbox.models.chain import (
     AISettings,
@@ -631,9 +632,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
         await self._extract_sso_token()
-
-        if self.redbox is None:
-            await self._init_redbox()
+        await self._init_redbox()
 
         self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
         await self.accept()
@@ -655,6 +654,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
 
         async with ChatConsumer._state.get_lock():
+            # Load MCP tools once per connection with this user's token
+            # self._mcp_tools: dict[str, list] = {}
+            try:
+                ChatConsumer._state.agent_configs["Datahub_Agent"].tools = await get_datahub_mcp_tools(
+                    sso_token_getter=self._extract_sso_token
+                )
+                logger.info("Datahub MCP tools loaded for user %s", self.user.id)
+            except Exception:
+                logger.exception("Failed to load Datahub MCP tools, agent will have no tools")
+
             if ChatConsumer._state.graph is None:
                 _env = ChatConsumer.env
                 ChatConsumer._state.agent_configs = agent_configs
@@ -675,14 +684,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
             agents=ChatConsumer._state.agent_configs,
             env=ChatConsumer.env,
             debug=ChatConsumer.debug,
-            sso_token_getter=self._extract_sso_token,
             all_chunks_retriever=ChatConsumer._state.all_chunks_retriever,
             parameterised_retriever=ChatConsumer._state.parameterised_retriever,
             metadata_retriever=ChatConsumer._state.metadata_retriever,
             embedding_model=ChatConsumer._state.embedding_model,
             graph=ChatConsumer._state.graph,
         )
-        await self.redbox.initialise(sso_token_getter=self._extract_sso_token)
+        # await self.redbox.initialise(sso_token_getter=self._extract_sso_token)
+        # ChatConsumer._state.agent_configs = self.redbox.agent_configs
 
     async def handle_text(self, response: str) -> str:
         """Handle text chunks and British spelling conversion before sending to client."""
