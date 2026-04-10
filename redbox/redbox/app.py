@@ -1,12 +1,13 @@
 from asyncio import CancelledError
 from logging import getLogger
-from typing import Dict, Literal
+from typing import Dict, Literal, Callable
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.graph.state import CompiledStateGraph
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+from redbox.api.format import SensitiveValue
 from redbox.chains.components import (
     get_all_chunks_retriever,
     get_embeddings,
@@ -160,6 +161,7 @@ class Redbox:
     async def run(
         self,
         input: RedboxState,
+        sso_token_getter: Callable[[], str] | None = None,
         response_tokens_callback=_default_callback,
         route_name_callback=_default_callback,
         documents_callback=_default_callback,
@@ -172,6 +174,8 @@ class Redbox:
         logger.info("Request: %s", {k: request_dict[k] for k in request_dict.keys() - {"ai_settings"}})
         is_summary_multiagent_streamed = False
         is_evaluator_output_streamed = False
+
+        input.request.sso_token_getter = sso_token_getter
 
         @retry(
             stop=stop_after_attempt(3),
@@ -188,10 +192,15 @@ class Redbox:
             nonlocal final_state
             local_is_summary_multiagent_streamed = is_summary_multiagent_streamed
             local_is_evaluator_output_streamed = is_evaluator_output_streamed
+
+            config = {
+                "recursion_limit": input.request.ai_settings.recursion_limit,
+                "configurable": {"sso_token_getter": SensitiveValue(sso_token_getter)},
+            }
             async for event in self.graph.astream_events(
                 input=input,
                 version="v2",
-                config={"recursion_limit": input.request.ai_settings.recursion_limit},
+                config=config,
             ):
                 kind = event["event"]
                 tags = event.get("tags", [])

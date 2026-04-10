@@ -31,7 +31,6 @@ from redbox.chains.components import (
     get_parameterised_retriever,
 )
 from redbox.graph.agents.configs import agent_configs
-from redbox.graph.nodes.tools import get_datahub_mcp_tools
 from redbox.graph.root import build_root_graph
 from redbox.models.chain import (
     AISettings,
@@ -403,6 +402,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             self.final_state = await self.redbox.run(
                 state,
+                sso_token_getter=self._extract_sso_token,
                 response_tokens_callback=self.handle_text,
                 route_name_callback=self.handle_route,
                 documents_callback=self.handle_documents,
@@ -654,15 +654,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
 
         async with ChatConsumer._state.get_lock():
-            # Load MCP tools once per connection with this user's token
-            try:
-                ChatConsumer._state.agent_configs["Datahub_Agent"].tools = await get_datahub_mcp_tools(
-                    sso_token_getter=self._extract_sso_token
-                )
-                logger.info("Datahub MCP tools loaded for user %s", self.user.id)
-            except Exception:
-                logger.exception("Failed to load Datahub MCP tools, agent will have no tools")
-
             if ChatConsumer._state.graph is None:
                 _env = ChatConsumer.env
                 ChatConsumer._state.agent_configs = agent_configs

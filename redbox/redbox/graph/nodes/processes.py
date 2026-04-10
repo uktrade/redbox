@@ -43,6 +43,7 @@ from redbox.models.chain import (
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
 from redbox.models.settings import ChatLLMBackend
+from redbox.graph.nodes.tools import get_datahub_mcp_tools
 from redbox.transform import (
     combine_agents_state,
     combine_documents,
@@ -598,7 +599,12 @@ def build_datahub_agent_with_loop(
     model: ChatLLMBackend | None = None,
 ):
     @RunnableLambda
-    def _build_datahub_agent_with_loop(state: RedboxState):
+    async def _build_datahub_agent_with_loop(state: RedboxState):
+        sso_token_getter = getattr(state.request, "sso_token_getter", None)
+        tools = await get_datahub_mcp_tools(sso_token_getter=sso_token_getter) if sso_token_getter else []
+        if not tools:
+            log.error(f"[{agent_name}] No tools available")
+
         log.warning(f"[{agent_name}] Starting datahub_agent_with_loop run. Tools: {[t.name for t in tools]}")
 
         local_loop_condition = loop_condition

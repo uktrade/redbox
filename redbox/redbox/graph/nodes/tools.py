@@ -6,7 +6,6 @@ import random
 import re
 import threading
 import time
-import inspect
 from io import StringIO
 from typing import Annotated, Callable, Iterable, Literal, Union
 
@@ -977,17 +976,13 @@ def build_legislation_search_tool():
     return _search_legislation
 
 
-async def get_datahub_mcp_tools(sso_token_getter: Callable[[], str], agent_loop=True):
+async def get_datahub_mcp_tools(sso_token_getter: SensitiveValue, agent_loop=True):
     try:
         log.warning("get_datahub_mcp_tools - Loading Datahub MCP tools...")
 
         mcp_settings = get_settings().datahub_mcp
         datahub_mcp_url = mcp_settings.url
-
-        if inspect.iscoroutinefunction(sso_token_getter):
-            sso_access_token = await sso_token_getter()
-        else:
-            sso_access_token = sso_token_getter()
+        sso_access_token = sso_token_getter.get()
 
         if not sso_access_token:
             log.error("get_datahub_mcp_tools - Datahub MCP sso_access_token is None")
