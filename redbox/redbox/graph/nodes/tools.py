@@ -1008,6 +1008,9 @@ def get_datahub_mcp_tools(sso_token_getter: Callable[[], str], agent_loop=True):
                 await session.initialize()
                 # Get tools
                 tools = await load_mcp_tools(session)
+
+                log.warning("get_datahub_mcp_tools - Successfully loaded Datahub MCP tools...")
+
                 # adding URL metadata so that the agent can execute the tool later
                 for tool in tools:
                     tool.metadata = {
