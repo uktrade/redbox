@@ -139,7 +139,7 @@ class Redbox:
             search_knowledge_base,
         ]
         self.agent_configs["Artifact_Builder_Agent"].tools = [retrieve_specific_files_knowledge_base]
-        self.init_datahub_agent(sso_token_getter=sso_token_getter)
+        self.load_agent_tools(agent="Datahub_Agent", sso_token_getter=sso_token_getter)
 
         self.graph = self.setup_graph(debug)
 
@@ -152,12 +152,19 @@ class Redbox:
             debug=debug,
         )
 
-    def init_datahub_agent(self, sso_token_getter: Callable[[], str] | None = None) -> None:
-        if sso_token_getter is None:
-            logger.error("No sso_token_getter callable configured for DataHub agent")
-            return
+    def load_agent_tools(self, agent: str, sso_token_getter: Callable[[], str] | None = None) -> None:
+        logger.info(f"Loading tools for {agent}")
 
-        self.agent_configs["Datahub_Agent"].tools = get_datahub_mcp_tools(sso_token_getter=sso_token_getter)
+        match agent:
+            case "Datahub_Agent":
+                if sso_token_getter is None:
+                    logger.error("No sso_token_getter callable configured for DataHub agent")
+                    return
+
+                self.agent_configs["Datahub_Agent"].tools = get_datahub_mcp_tools(sso_token_getter=sso_token_getter)
+
+            case _:
+                logger.error(f"Loading tools for {agent} not supported")
 
     def run_sync(self, input: RedboxState):
         """
@@ -183,7 +190,7 @@ class Redbox:
         is_evaluator_output_streamed = False
 
         if sso_token_getter:
-            self.init_datahub_agent(sso_token_getter=sso_token_getter)
+            self.load_agent_tools(agent="Datahub_Agent", sso_token_getter=sso_token_getter)
 
         @retry(
             stop=stop_after_attempt(3),

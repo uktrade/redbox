@@ -1,10 +1,11 @@
+import asyncio
 import json
 import logging
 import re
 from asyncio import CancelledError
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
-from typing import Any
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any, ClassVar
 from uuid import UUID
 
 import uwotm8.convert as uwm8
@@ -24,6 +25,7 @@ from waffle import flag_is_active
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
+from redbox.api.health import wait_for_health
 from redbox.graph.agents.configs import agent_configs
 from redbox.models.chain import (
     AISettings,
@@ -101,6 +103,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
     debug = not env.is_prod
     redbox = None
     chat_message = None  # incrementally updating the chat stream
+
+    _mcp_monitor_tasks: ClassVar[dict[str, asyncio.Task]] = {}
+    _monitor_task_lock: ClassVar[asyncio.Lock] = asyncio.Lock()
+    _tools_loaded: ClassVar[dict[str, bool]] = {}
 
     async def get_file_cached(self, ref):
         if ref not in self._file_cache:
@@ -625,35 +631,162 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.send_to_client("error", error_messages.AUTH_REQUIRED)
             return
 
+        mcp_agents = {
+            "Datahub_Agent": f"{ChatConsumer.env.datahub_mcp.url.removesuffix('/mcp/')}/health",
+        }
         await self._extract_sso_token()
 
         if ChatConsumer.redbox is None:
-            agents = await get_all_agents()
-            for agent in agents:
-                if agent.name in list(agent_configs.keys()):
-                    if agent.llm_backend:
-                        agent_configs[agent.name].llm_backend = ChatLLMBackend(
-                            name=agent.llm_backend.name,
-                            provider=agent.llm_backend.provider,
-                            description=agent.llm_backend.description,
+            # agents = await get_all_agents()
+            # for agent in agents:
+            #     if agent.name in list(agent_configs.keys()):
+            #         if agent.llm_backend:
+            #             agent_configs[agent.name].llm_backend = ChatLLMBackend(
+            #                 name=agent.llm_backend.name,
+            #                 provider=agent.llm_backend.provider,
+            #                 description=agent.llm_backend.description,
+            #             )
+            #         if agent.agents_max_tokens:
+            #             agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
+            # ChatConsumer.redbox = Redbox(
+            #     agents=agent_configs,
+            #     env=ChatConsumer.env,
+            #     debug=ChatConsumer.debug,
+            #     sso_token_getter=self._extract_sso_token,
+            # )
+            await self._init_redbox(mcp_agents=mcp_agents)
+        # else:
+        #     # Update sso_access_token
+        #     self.update_chat_consumer_redbox_with_new_sso_token()
+
+        async with ChatConsumer._monitor_task_lock:
+            for agent_name, health_url in mcp_agents.items():
+                task = ChatConsumer._mcp_monitor_tasks.get(agent_name)
+                if task is None or task.done():
+                    ChatConsumer._mcp_monitor_tasks[agent_name] = asyncio.create_task(
+                        ChatConsumer._mcp_monitor_loop(
+                            agent_name=agent_name,
+                            mcp_url=health_url,
+                            sso_token_getter=self._extract_sso_token,
                         )
-                    if agent.agents_max_tokens:
-                        agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
-            ChatConsumer.redbox = Redbox(
-                agents=agent_configs,
-                env=ChatConsumer.env,
-                debug=ChatConsumer.debug,
-                sso_token_getter=self._extract_sso_token,
-            )
-        else:
-            # Update sso_access_token
-            self.update_chat_consumer_redbox_with_new_sso_token()
+                    )
 
         self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
         await self.accept()
 
+    async def _init_redbox(self, mcp_agents: dict[str, str]):
+        """
+        Initialise or reinitialise Redbox
+
+        Inputs:
+            mcp_agents: dict[str, str] - key-value pairs of MCP agent names and their health endpoint URL
+        """
+        agents = await get_all_agents()
+        await self._extract_sso_token()
+
+        for agent in agents:
+            if agent.name in agent_configs:
+                if agent.llm_backend:
+                    agent_configs[agent.name].llm_backend = ChatLLMBackend(
+                        name=agent.llm_backend.name,
+                        provider=agent.llm_backend.provider,
+                        description=agent.llm_backend.description,
+                    )
+                if agent.agents_max_tokens:
+                    agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
+
+        # check MCP health on startup to mark if tools are loaded
+        active_configs = dict(agent_configs)
+        for agent_name, health_url in mcp_agents.items():
+            if agent_name in active_configs:
+                healthy = await wait_for_health(
+                    url=health_url,
+                    headers={"Accept": "application/json"},
+                    success_codes=[200],
+                    wait_seconds=10.0,
+                    interval=3.0,
+                    request_timeout=5.0,
+                )
+                if not healthy:
+                    logger.warning("%s MCP unavailable at startup, agent will have no tools", agent_name)
+                    ChatConsumer._tools_loaded[agent_name] = False
+                else:
+                    ChatConsumer._tools_loaded[agent_name] = True
+
+        ChatConsumer.redbox = Redbox(
+            agents=active_configs,
+            env=ChatConsumer.env,
+            debug=ChatConsumer.debug,
+            sso_token_getter=self._extract_sso_token,
+        )
+
+    @staticmethod
+    async def _mcp_monitor_loop(agent_name: str, mcp_url: str, sso_token_getter: Callable[[], str] | None = None):
+        """
+        Background task - poll MCP health every 30s
+        If MCP server state changes, reinitialise Redbox tools
+
+        Inputs:
+            agent_name: str - name of the MCP agent to check
+            mcp_url: str - health endpoint URL of MCP server
+            sso_access_token: str | None - SSO access token for tool reloading
+        """
+        was_healthy: bool = True
+
+        while True:
+            await asyncio.sleep(30)
+            try:
+                healthy = await wait_for_health(
+                    url=mcp_url,
+                    headers={"Accept": "application/json"},
+                    success_codes=[200],
+                    wait_seconds=10,
+                    interval=2,
+                    request_timeout=3.0,
+                )
+
+                if healthy and not was_healthy:
+                    # MCP came back up — reload tools
+                    logger.info("%s MCP recovered, reloading tools", agent_name)
+
+                    if not ChatConsumer._tools_loaded.get(agent_name):
+                        # tools never loaded — full reinit required
+                        logger.info("Tools were never loaded for %s, forcing full Redbox reinit", agent_name)
+                        ChatConsumer.redbox = None  # force _init_redbox on next connect
+                    elif ChatConsumer.redbox is not None:
+                        try:
+                            await ChatConsumer.redbox.load_agent_tools(
+                                agent=agent_name, sso_token_getter=sso_token_getter
+                            )
+                            ChatConsumer._tools_loaded[agent_name] = True
+                        except AttributeError:
+                            ChatConsumer.redbox = None
+                    else:
+                        # redbox was None despite tools previously being loaded — force reinit
+                        logger.warning(
+                            "%s redbox is None despite tools being marked loaded, forcing reinit", agent_name
+                        )
+                        ChatConsumer._tools_loaded[agent_name] = False
+
+                elif not healthy and was_healthy:
+                    # MCP went down — log it
+                    logger.warning("%s MCP went down, tools unavailable until recovery", agent_name)
+
+                was_healthy = healthy
+
+            except Exception:
+                logger.exception("%s MCP monitor error, ", agent_name)
+
+    async def _reload_mcp_tools(self):
+        """Reload redbox MCP tools"""
+        if ChatConsumer.redbox is None:
+            await self._init_redbox()
+            return
+
+        await ChatConsumer.redbox.load_agent_tools("Datahub_Agent", self._extract_sso_token)
+
     def update_chat_consumer_redbox_with_new_sso_token(self) -> None:
-        ChatConsumer.redbox.init_datahub_agent(self._extract_sso_token)
+        ChatConsumer.redbox.load_agent_tools("Datahub_Agent", self._extract_sso_token)
         ChatConsumer.redbox.setup_graph(ChatConsumer.debug)
 
     async def handle_text(self, response: str) -> str:
