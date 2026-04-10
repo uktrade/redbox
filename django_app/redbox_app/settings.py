@@ -10,6 +10,7 @@ import environ
 import sentry_sdk
 from dbt_copilot_python.database import database_from_env
 from dbt_copilot_python.error_tracking import DatadogErrorTrackingFilter
+from ddtrace import patch
 from ddtrace.llmobs import LLMObs
 from django.urls import reverse_lazy
 from django_log_formatter_asim import ASIMFormatter
@@ -518,5 +519,5 @@ PRODUCT_NAME = env.str("PRODUCT_NAME", "Redbox at DBT")
 
 # datadog
 # enable llm manual instrument
-LLMObs.enable(integrations_enabled=True, api_key=env.str("DATADOG_API_KEY", "Fake"))
-# patch(langchain=True, langgraph=True, mcp=True, botocore=False)
+LLMObs.enable(integrations_enabled=False, api_key=env.str("DATADOG_API_KEY", "Fake"))
+patch(langchain=True, langgraph=True, mcp=True, botocore=False)
