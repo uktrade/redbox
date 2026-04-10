@@ -1,19 +1,19 @@
-import json
+import csv
 import hashlib
+import json
 import logging
 import random
-import sqlite3
-import time
-from typing import Annotated, Callable, Iterable, Literal, Union
-import duckdb
-from io import StringIO
-import csv
 import re
 import threading
-import pandas as pd
+import time
+import inspect
+from io import StringIO
+from typing import Annotated, Callable, Iterable, Literal, Union
 
 import boto3
+import duckdb
 import numpy as np
+import pandas as pd
 import requests
 from elasticsearch import Elasticsearch
 from langchain_community.utilities import WikipediaAPIWrapper
@@ -27,8 +27,9 @@ from opensearchpy import OpenSearch
 from sklearn.metrics.pairwise import cosine_similarity
 from waffle.decorators import waffle_flag
 
-from redbox.api.format import format_documents
+from redbox.api.format import format_documents, SensitiveValue
 from redbox.chains.components import get_embeddings
+from redbox.graph.nodes.sends import _get_mcp_headers
 from redbox.models.chain import RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution, TabularSchema
 from redbox.models.settings import get_settings
@@ -38,8 +39,13 @@ from redbox.retriever.queries import (
     get_all,
     get_knowledge_base,
 )
-from redbox.retriever.retrievers import query_to_documents, SchematisedTabularChunkRetriever
+from redbox.retriever.retrievers import SchematisedTabularChunkRetriever, query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+from langchain_mcp_adapters.tools import load_mcp_tools
+import asyncio
+import nest_asyncio
 
 log = logging.getLogger(__name__)
 
@@ -121,21 +127,13 @@ def build_retrieve_document_full_text(es_client: Union[Elasticsearch, OpenSearch
     return _retrieve_document_full_text
 
 
-def build_retrieve_knowledge_base(es_client: Union[Elasticsearch, OpenSearch], index_name: str, loop: bool = False):
-    @tool(response_format="content_and_artifact")
-    def _retrieve_knowledge_base(
-        state: Annotated[RedboxState, InjectedState], is_intermediate_step: bool = False
-    ) -> tuple[str, list[Document]]:
-        """
-        Retrieve knowledge base data, information for this agent.
-
-        Arg:
-        - is_intermediate_step (bool): True if this tool call is an intermediate step to allow you to gather knowledge base. False if this is your final step.
-
-        Return:
-            Tuple: Collection of knowledge base documents with metadata
-        """
-        el_query = get_knowledge_base(chunk_resolution=ChunkResolution.largest, state=state)
+def build_retrieve_knowledge_base(
+    es_client: Union[Elasticsearch, OpenSearch],
+    index_name: str,
+    loop: bool = False,
+    all_files=True,
+) -> Tool:
+    def query_repo(el_query, is_intermediate_step, loop):
         results = query_to_documents(es_client=es_client, index_name=index_name, query=el_query)
 
         if not results:
@@ -151,13 +149,50 @@ def build_retrieve_knowledge_base(es_client: Union[Elasticsearch, OpenSearch], i
         sorted_documents = sorted(results, key=lambda result: result.metadata["index"])
         return format_result(
             loop=loop,
-            content="<context>This is your knowledgebase result.</context>" + format_documents(sorted_documents),
+            content="<context>This is your knowledge base result.</context>" + format_documents(sorted_documents),
             artifact=sorted_documents,
             status="pass",
             is_intermediate_step=is_intermediate_step,
         )
 
-    return _retrieve_knowledge_base
+    @tool(response_format="content_and_artifact")
+    def _retrieve_specific_file_knowledge_base(
+        state: Annotated[RedboxState, InjectedState],
+        uri: str,
+    ) -> tuple[str, list[Document]]:
+        """
+        Retrieve full texts of specific files from the knowledge base,
+        Arg:
+            - uri: File URI to filter which file to query.
+        Return:
+            Tuple: A knowledge base document with metadata
+        """
+        el_query = get_knowledge_base(selected_files=[uri], chunk_resolution=ChunkResolution.largest, state=state)
+        # This current implementation do not support loop agent
+        return query_repo(el_query, is_intermediate_step=False, loop=False)
+
+    @tool(response_format="content_and_artifact")
+    def _retrieve_knowledge_base(
+        state: Annotated[RedboxState, InjectedState], is_intermediate_step: bool = False
+    ) -> tuple:
+        """
+        Retrieve full texts from all knowledge base files.
+
+        Arg:
+        - is_intermediate_step (bool): True if this tool call is an intermediate step to allow you to gather knowledge base. False if this is your final step.
+
+        Return:
+            Tuple: Collection of knowledge base documents with metadata
+        """
+        el_query = get_knowledge_base(
+            selected_files=state.request.knowledge_base_s3_keys,
+            chunk_resolution=ChunkResolution.largest,
+            state=state,
+        )
+
+        return query_repo(el_query, is_intermediate_step=is_intermediate_step, loop=loop)
+
+    return _retrieve_knowledge_base if all_files else _retrieve_specific_file_knowledge_base
 
 
 def build_search_documents_tool(
@@ -183,7 +218,10 @@ def build_search_documents_tool(
             ai_settings=ai_settings,
         )
         initial_documents = query_to_documents(es_client=es_client, index_name=index_name, query=initial_query)
-        log.warning("[_search_documents] Initial query using %s seconds", time.time() - start_time)
+        log.warning(
+            "[_search_documents] Initial query using %s seconds",
+            time.time() - start_time,
+        )
 
         # Handle nothing found (as when no files are permitted)
         if not initial_documents:
@@ -196,12 +234,18 @@ def build_search_documents_tool(
             centres=initial_documents,
         )
         adjacent_boosted = query_to_documents(es_client=es_client, index_name=index_name, query=with_adjacent_query)
-        log.warning("[_search_documents] Adjacent boosted query using %s seconds", time.time() - start_time)
+        log.warning(
+            "[_search_documents] Adjacent boosted query using %s seconds",
+            time.time() - start_time,
+        )
 
         # Merge and sort
         merged_documents = merge_documents(initial=initial_documents, adjacent=adjacent_boosted)
         sorted_documents = sort_documents(documents=merged_documents)
-        log.warning("[_search_documents] Merge and sort documents using %s seconds", time.time() - start_time)
+        log.warning(
+            "[_search_documents] Merge and sort documents using %s seconds",
+            time.time() - start_time,
+        )
         log.warning("[_search_documents] Returning %s documents", len(sorted_documents))
 
         # Return as state update
@@ -258,93 +302,99 @@ DUCKDB_LOCKS: dict[str, threading.Lock] = {}
 DUCKDB_LOCKS_LOCK = threading.Lock()  # lock to safely create new per-db locks
 
 
-def build_query_tabular_knowledge_base_tool(
+def get_duckdb_lock(db_path: str) -> threading.Lock:
+    """Return a lock specific to a given DuckDB file."""
+    with DUCKDB_LOCKS_LOCK:
+        if db_path not in DUCKDB_LOCKS:
+            DUCKDB_LOCKS[db_path] = threading.Lock()
+        return DUCKDB_LOCKS[db_path]
+
+
+def write_duckdb_table(db_path: str, schema: TabularSchema, text_content: str):
+    logger = get_func_logger(write_duckdb_table)
+
+    with duckdb.connect(database=db_path) as con:
+        tables = [t[0] for t in con.execute("SHOW TABLES").fetchall()]
+        if schema.name not in tables:
+            # Clean CSV content
+            lines = StringIO(text_content).readlines()
+            header = re.sub(
+                r"^\s*<table_name>.*?</table_name>\s*",
+                "",
+                lines[0],
+                count=1,
+                flags=re.DOTALL,
+            )
+            csv_str = "\n".join([header] + lines[1:])
+            reader = csv.DictReader(StringIO(csv_str))
+            df = pd.DataFrame(list(reader))
+
+            # Keep only schema columns
+            df = df[[col for col in schema.columns.keys() if col in df.columns]]
+
+            # Cast columns to proper types based on schema_obj
+            for col, dtype in schema.columns.items():
+                if col not in df.columns:
+                    continue  # skip missing columns
+                try:
+                    if dtype.upper() in ("INTEGER", "INT"):
+                        df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")  # nullable integer
+                    elif dtype.upper() in ("FLOAT", "DOUBLE", "REAL"):
+                        df[col] = pd.to_numeric(df[col], errors="coerce")
+                    elif dtype.upper() in ("BOOLEAN", "BOOL"):
+                        df[col] = df[col].astype(bool)
+                    elif dtype.upper() in ("DATE", "TIMESTAMP"):
+                        df[col] = pd.to_datetime(df[col], errors="coerce")
+                    else:  # default to string
+                        df[col] = df[col].astype(str)
+                except Exception as col_e:
+                    logger.warning("Failed to cast column %s: %s", col, str(col_e))
+                    df[col] = df[col].astype(str)
+
+            # Create table and insert data
+            columns_def = ", ".join(f'"{col}" {dtype}' for col, dtype in schema.columns.items())
+            con.execute(f'CREATE TABLE "{schema.name}" ({columns_def})')
+            if not df.empty:
+                con.execute(f'INSERT INTO "{schema.name}" SELECT * FROM df')
+
+
+def query_duckdb_db(db_path: str, sql_query: str, metadata: dict) -> list[Document]:
+    documents: list[Document] = []
+    with duckdb.connect(database=db_path, read_only=True) as con:
+        # Execute agent-provided SQL query
+        query_result = con.execute(sql_query).fetchall()
+        col_names = [desc[0] for desc in con.description]
+
+        # Wrap as Documents
+        for row in query_result:
+            row_dict = dict(zip(col_names, row))
+            documents.append(
+                Document(
+                    page_content=str(row_dict),
+                    metadata=metadata,
+                )
+            )
+    return documents
+
+
+def build_query_tabular_file_tool(
     es_client: Union[Elasticsearch, OpenSearch],
     index_name: str,
+    knowledge_base: bool,
 ) -> Tool:
     """
     Returns a tool that executes an agent-generated SQL query against tabular files
     retrieved from OpenSearch. The retriever is embedded inside the tool.
     """
 
-    logger = get_func_logger(build_query_tabular_knowledge_base_tool)
+    logger = get_func_logger(build_query_tabular_file_tool)
     retriever = SchematisedTabularChunkRetriever(
         es_client=es_client,
         index_name=index_name,
     )
 
-    def get_duckdb_lock(db_path: str) -> threading.Lock:
-        """Return a lock specific to a given DuckDB file."""
-        with DUCKDB_LOCKS_LOCK:
-            if db_path not in DUCKDB_LOCKS:
-                DUCKDB_LOCKS[db_path] = threading.Lock()
-            return DUCKDB_LOCKS[db_path]
-
-    def write_duckdb_table(db_path: str, schema: TabularSchema, text_content: str):
-        with duckdb.connect(database=db_path) as con:
-            tables = [t[0] for t in con.execute("SHOW TABLES").fetchall()]
-            if schema.name not in tables:
-                # Clean CSV content
-                lines = StringIO(text_content).readlines()
-                header = re.sub(
-                    r"^\s*<table_name>.*?</table_name>\s*",
-                    "",
-                    lines[0],
-                    count=1,
-                    flags=re.DOTALL,
-                )
-                csv_str = "\n".join([header] + lines[1:])
-                reader = csv.DictReader(StringIO(csv_str))
-                df = pd.DataFrame(list(reader))
-
-                # Keep only schema columns
-                df = df[[col for col in schema.columns.keys() if col in df.columns]]
-
-                # Cast columns to proper types based on schema_obj
-                for col, dtype in schema.columns.items():
-                    if col not in df.columns:
-                        continue  # skip missing columns
-                    try:
-                        if dtype.upper() in ("INTEGER", "INT"):
-                            df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int64")  # nullable integer
-                        elif dtype.upper() in ("FLOAT", "DOUBLE", "REAL"):
-                            df[col] = pd.to_numeric(df[col], errors="coerce")
-                        elif dtype.upper() in ("BOOLEAN", "BOOL"):
-                            df[col] = df[col].astype(bool)
-                        elif dtype.upper() in ("DATE", "TIMESTAMP"):
-                            df[col] = pd.to_datetime(df[col], errors="coerce")
-                        else:  # default to string
-                            df[col] = df[col].astype(str)
-                    except Exception as col_e:
-                        logger.warning("Failed to cast column %s: %s", col, str(col_e))
-                        df[col] = df[col].astype(str)
-
-                # Create table and insert data
-                columns_def = ", ".join(f'"{col}" {dtype}' for col, dtype in schema.columns.items())
-                con.execute(f'CREATE TABLE "{schema.name}" ({columns_def})')
-                if not df.empty:
-                    con.execute(f'INSERT INTO "{schema.name}" SELECT * FROM df')
-
-    def query_duckdb_db(db_path: str, sql_query: str, metadata: dict) -> list[Document]:
-        documents: list[Document] = []
-        with duckdb.connect(database=db_path, read_only=True) as con:
-            # Execute agent-provided SQL query
-            query_result = con.execute(sql_query).fetchall()
-            col_names = [desc[0] for desc in con.description]
-
-            # Wrap as Documents
-            for row in query_result:
-                row_dict = dict(zip(col_names, row))
-                documents.append(
-                    Document(
-                        page_content=str(row_dict),
-                        metadata=metadata,
-                    )
-                )
-        return documents
-
     @tool(response_format="content_and_artifact")
-    def _query_tabular_knowledge_base(
+    def _query_tabular_file(
         sql_query: str,
         uri: str,
         state: Annotated[RedboxState, InjectedState],
@@ -377,12 +427,19 @@ def build_query_tabular_knowledge_base_tool(
         formatted_documents: str = ""
 
         try:
+            # Set permitted keys
+            permitted_s3_keys = state.request.permitted_s3_keys
+            if knowledge_base:
+                permitted_s3_keys = state.request.knowledge_base_s3_keys
+
             # Retrieve tabular documents
             docs_metadata = retriever._get_relevant_documents(
-                knowledge_base_s3_keys=state.request.knowledge_base_s3_keys, uris=[uri], run_manager=None
+                permitted_s3_keys=permitted_s3_keys,
+                uris=[uri],
+                run_manager=None,
             )
             if not docs_metadata:
-                return "No documents found for URI", []
+                return "No documents found for URI. Please advise the user to try again by reuploading the file.", []
 
             uri_sha = hashlib.sha256(uri.encode("utf-8")).hexdigest()
             db_path = f"generated_db_{uri_sha}.duckdb"
@@ -395,7 +452,10 @@ def build_query_tabular_knowledge_base_tool(
                     text_content = meta.get("text", "")
 
                     if schema is None:
-                        return "Document not supported for querying as it uses legacy schema.", []
+                        return (
+                            "Document not supported for querying as it uses legacy schema.",
+                            [],
+                        )
 
                     try:
                         schema_obj = TabularSchema.model_validate(schema)
@@ -407,7 +467,11 @@ def build_query_tabular_knowledge_base_tool(
                         continue
 
                     try:
-                        write_duckdb_table(db_path=db_path, schema=schema_obj, text_content=text_content)
+                        write_duckdb_table(
+                            db_path=db_path,
+                            schema=schema_obj,
+                            text_content=text_content,
+                        )
                     except Exception as db_e:
                         logger.warning("Failed to setup DB %s: %s", uri, str(db_e))
                         return f"Error preparing tabular document database: {db_e}", []
@@ -425,7 +489,7 @@ def build_query_tabular_knowledge_base_tool(
             logger.exception("Unexpected error in _query_tabular_knowledge_base")
             return f"Unexpected error: {e}", []
 
-    return _query_tabular_knowledge_base
+    return _query_tabular_file
 
 
 def build_govuk_search_tool(filter=True) -> Tool:
@@ -755,7 +819,11 @@ def get_log_formatter_for_retrieval_tool(t: ToolCall) -> BaseRetrievalToolLogFor
 
 
 def web_search_with_retry(
-    query: str, no_search_result: int = 20, max_retries: int = 3, country_code: str = "All", ui_lang: str = "en-GB"
+    query: str,
+    no_search_result: int = 20,
+    max_retries: int = 3,
+    country_code: str = "All",
+    ui_lang: str = "en-GB",
 ) -> requests.Response:
     web_search_settings = get_settings().web_search_settings()
     for attempt in range(max_retries):
@@ -819,7 +887,11 @@ def brave_response_to_documents(
 
 
 def map_documents(
-    tokeniser: Callable, index: int, doc: str, content_column: str, mapped_documents: list
+    tokeniser: Callable,
+    index: int,
+    doc: str,
+    content_column: str,
+    mapped_documents: list,
 ) -> list[Document]:
     page_content = "".join(doc.get(content_column, []))
     token_count = tokeniser(page_content)
@@ -838,7 +910,12 @@ def map_documents(
     return mapped_documents
 
 
-def web_search_call(query: str, no_search_result: int = 20, country_code: str = "All", ui_lang: str = "en-GB") -> tool:
+def web_search_call(
+    query: str,
+    no_search_result: int = 20,
+    country_code: str = "All",
+    ui_lang: str = "en-GB",
+) -> tool:
     web_search_settings = get_settings().web_search_settings()
     response = web_search_with_retry(
         query=query,
@@ -902,33 +979,60 @@ def build_legislation_search_tool():
     return _search_legislation
 
 
-def execute_sql_query():
-    @tool(response_format="content")
-    def _execute_sql_query(sql_query: str, is_intermediate_step: bool, state: Annotated[RedboxState, InjectedState]):
-        """
-        SQL verification tool is a versatile tool that executes SQL queries against a SQLite database.
-        Args:
-            sql_query (str): The sql query to be executed against the SQLite database.
-            is_intermediate_step (bool): True if your sql query is an intermediate step to allow you to gather information about the database before making the final sql query. False if your sql query would retrieve the relevant information to answer the user question.
-        Returns:
-            results of the sql query execution if it is successful or an error message if the sql query execution failed
-        """
-        # execute tabular agent SQL
-        conn = sqlite3.connect(state.request.db_location)
-        cursor = conn.cursor()
+def get_datahub_mcp_tools(sso_token_getter: Callable[[], str], agent_loop=True):
+    async def _get_async_tools():
         try:
-            cursor.execute(sql_query)
-            results = str(cursor.fetchall())
-            conn.close()
-            if results not in ["", "None", "[]"]:
-                return (str(results), "pass", str(is_intermediate_step))
-            else:
-                error_message = "empty result set. Verify your query."
-                return (error_message, "fail", str(is_intermediate_step))
-        except Exception as e:
-            error_message = (
-                f"The SQL query syntax is wrong. Here is the error message: {e}.  Please correct your SQL query."
-            )
-            return (error_message, "fail", str(is_intermediate_step))
+            log.info("get_datahub_mcp_tools - Loading Datahub MCP tools...")
 
-    return _execute_sql_query
+            mcp_settings = get_settings().datahub_mcp
+            datahub_mcp_url = mcp_settings.url
+
+            if inspect.iscoroutinefunction(sso_token_getter):
+                sso_access_token = await sso_token_getter()
+            else:
+                sso_access_token = sso_token_getter()
+
+            if not sso_access_token:
+                log.error("get_datahub_mcp_tools - Datahub MCP sso_access_token is None")
+
+            headers = _get_mcp_headers(sso_access_token)
+            async with (
+                streamablehttp_client(datahub_mcp_url, headers=headers or None) as (
+                    read,
+                    write,
+                    _,
+                ),
+                ClientSession(read, write) as session,
+            ):
+                # Initialize the connection
+                await session.initialize()
+                # Get tools
+                tools = await load_mcp_tools(session)
+                # adding URL metadata so that the agent can execute the tool later
+                for tool in tools:
+                    tool.metadata = {
+                        "url": datahub_mcp_url,
+                        "creator_type": ChunkCreatorType.datahub,
+                        "sso_access_token": SensitiveValue(sso_token_getter),
+                    }
+                    if agent_loop:  # if loop is True, add intermediate steps into schema so that it is exposed to LLM
+                        tool.args_schema["properties"] = tool.args_schema.get("properties", {})
+                        tool.args_schema["properties"]["is_intermediate_step"] = {"type": "string"}
+
+                        tool.args_schema["required"] = tool.args_schema.get("required", [])
+                        if "is_intermediate_step" not in tool.args_schema["required"]:
+                            tool.args_schema["required"].append("is_intermediate_step")
+
+                return tools
+        except Exception as e:
+            log.error("get_datahub_mcp_tools - Unable to connect to MCP server - %s", e)
+            return []
+
+    # Apply patch to allow nested event loops
+    nest_asyncio.apply()
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    tools = loop.run_until_complete(_get_async_tools())
+    loop.close()
+    return tools

@@ -188,18 +188,17 @@ def build_stuff_pattern(
         else:
             llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
 
-        events = [
-            event
-            for event in build_llm_chain(
-                prompt_set=prompt_set,
-                llm=llm,
-                output_parser=output_parser,
-                format_instructions=format_instructions,
-                final_response_chain=final_response_chain,
-                additional_variables=additional_variables,
-                summary_multiagent_flag=summary_multiagent_flag,
-            ).stream(state)
-        ]
+        chain = build_llm_chain(
+            prompt_set=prompt_set,
+            llm=llm,
+            output_parser=output_parser,
+            format_instructions=format_instructions,
+            final_response_chain=final_response_chain,
+            additional_variables=additional_variables,
+            summary_multiagent_flag=summary_multiagent_flag,
+        )
+
+        events = [event for event in chain.stream(state)]
         return sum(events, {})
 
     return _stuff
@@ -337,6 +336,11 @@ def create_planner(is_streamed=False):
 
     @RunnableLambda
     def _create_planner(state: RedboxState):
+        artifact_files = [
+            kb_file
+            for kb_file in state.request.knowledge_base_s3_keys
+            if kb_file.split("/")[-1].lower().startswith("artifact")
+        ]
         planner_prompt = state.request.ai_settings.planner_prompt_with_format
         # dynamically generate agent plan based on state
         agent_options = state.request.ai_settings.get_worker_agents_options
@@ -351,11 +355,23 @@ def create_planner(is_streamed=False):
             use_knowledge_base=True,
             _additional_variables={
                 "document_filenames": document_filenames,
+                "artifact_files": artifact_files,
             },
         )
         return orchestration_agent
 
     return _document_filenames | _create_planner
+
+
+def remove_evaluator_task(state: RedboxState):
+    """
+    Removing evaluator task from a plan and update the task for evaluator
+    """
+    if len(state.agent_plans.tasks) > 0:
+        if state.agent_plans.tasks[-1].agent.value == "Evaluator_Agent":
+            state.tasks_evaluator = state.agent_plans.tasks[-1].task + " " + state.agent_plans.tasks[-1].expected_output
+            state.agent_plans.tasks.pop(-1)
+    return state
 
 
 def my_planner(
@@ -376,6 +392,11 @@ def my_planner(
             # plan = state.agent_plans[-1].model_dump_json()
             user_input = state.user_feedback.replace("@newroute ", "")
             document_filenames = [doc.split("/")[1] if "/" in doc else doc for doc in state.request.s3_keys]
+            artifact_files = [
+                kb_file
+                for kb_file in state.request.knowledge_base_s3_keys
+                if kb_file.split("/")[-1].lower().startswith("artifact")
+            ]
             # dynamically generate agent plan based on state
             agent_options = state.request.ai_settings.get_worker_agents_options
             _, ConfiguredAgentPlan = configure_agent_task_plan(agent_options)
@@ -390,11 +411,14 @@ def my_planner(
                     "previous_plan": plan,
                     "user_feedback": user_input,
                     "document_filenames": document_filenames,
+                    "artifact_files": artifact_files,
                 },
                 using_chat_history=True,
             )
             res = orchestration_agent.invoke(state)
             state.agent_plans = res
+            # remove evaluator agent task
+            remove_evaluator_task(state)
             # reset user feedback
             state.user_feedback = ""
             return Command(update=state, goto=node_afer_replan)
@@ -403,6 +427,8 @@ def my_planner(
             orchestration_agent = create_planner(is_streamed=False)
             res = orchestration_agent.invoke(state)
             state.agent_plans = res
+            # remove evaluator agent task
+            remove_evaluator_task(state)
 
             # send task to worker agent if we have only 1 task
             if len(state.agent_plans.tasks) > no_tasks_auto:
@@ -445,16 +471,24 @@ def build_agent_with_loop(
         except Exception as e:
             log.warning(f"Issue at build_agent_with_loop. Cannot parse in {agent_name}: {e}")
             return None
+        # update status
+        state.agent_plans.update_task_status(task.id, TaskStatus.RUNNING)
 
         activity_node = build_activity_log_node(
             RedboxActivityEvent(message=f"{agent_name} is completing task: {task.task}")
         )
         activity_node.invoke(state)
 
+        # dependencies' results
+        previous_agents_results = []
+        for dep in task.dependencies:
+            previous_agents_results += [state.agents_results[dep].content]
+        previous_agents_results = " ".join(previous_agents_results)
+
         additional_variables = {
             "task": task.task,
             "expected_output": task.expected_output,
-            "agents_results": state.agents_results,
+            "previous_agents_results": previous_agents_results,
             "previous_tool_error": "",
             "previous_tool_results": "",
         }
@@ -502,12 +536,13 @@ def build_agent_with_loop(
             log.warning(f"{log_stub} Worker agent output:\n{ai_msg}")
 
             log.warning(f"{log_stub} Running tools via run_tools_parallel...")
-            result = run_tools_parallel(ai_msg, tools, state)
+            result = run_tools_parallel(ai_msg, tools, state, is_loop=True)  # this agent runs with loop
 
             if has_loop and len(ai_msg.tool_calls) > 0:  # if loop, we need to transform results
                 result = result[-1].content  # this is a tuple
                 # format of result: (result, success, is_intermediate_step)
-
+                log.warning("my-overall-result")
+                log.warning(result)
                 result_content = result[0]
                 success = result[1]
                 is_intermediate_step = eval(result[2])
@@ -528,6 +563,8 @@ def build_agent_with_loop(
                 log.warning(f"{log_stub} Using raw string in a list as result.")
                 result_content = result[0].get("text", "")
             elif isinstance(result, list):
+                log.warning("my-result")
+                log.warning(result)
                 log.warning(f"{log_stub} Aggregating list of tool results...")
                 result_content = join_result_with_token_limit(result=result, max_tokens=max_tokens, log_stub=log_stub)
             else:
@@ -540,16 +577,177 @@ def build_agent_with_loop(
         log.warning(f"[{agent_name}] Completed agent_with_loop run.")
         all_results = " ".join(all_results)
         return {
-            "agents_results": {task.id: f"<{agent_name}_Result>{all_results}</{agent_name}_Result>"},
+            "agents_results": {task.id: AIMessage(content=f"<{agent_name}_Result>{all_results}</{agent_name}_Result>")},
             "tasks_evaluator": task.task + "\n" + task.expected_output,
+            "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.COMPLETED),
         }
 
     return _build_agent_with_loop.with_retry(stop_after_attempt=3)
 
 
+def build_datahub_agent_with_loop(
+    agent_name: str,
+    system_prompt: str,
+    tools: list,
+    use_metadata: bool = False,
+    max_tokens: int = 5000,
+    pre_process: Runnable | None = None,
+    loop_condition: Callable | None = None,
+    max_attempt=3,
+    using_chat_history: bool = False,
+    model: ChatLLMBackend | None = None,
+):
+    @RunnableLambda
+    def _build_datahub_agent_with_loop(state: RedboxState):
+        log.warning(f"[{agent_name}] Starting datahub_agent_with_loop run. Tools: {[t.name for t in tools]}")
+
+        local_loop_condition = loop_condition
+        agent_options = state.request.ai_settings.get_worker_agents_options
+        ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
+        parser = ClaudeParser(pydantic_object=ConfiguredAgentTask)
+        try:
+            task = parser.parse(state.last_message.content)
+        except Exception as e:
+            log.warning(f"Issue at build_datahub_agent_with_loop. Cannot parse in {agent_name}: {e}")
+            return None
+        # update status
+        state.agent_plans.update_task_status(task.id, TaskStatus.RUNNING)
+
+        activity_node = build_activity_log_node(
+            RedboxActivityEvent(message=f"{agent_name} is completing task: {task.task}")
+        )
+        activity_node.invoke(state)
+
+        # dependencies' results
+        previous_agents_results = []
+        for dep in task.dependencies:
+            previous_agents_results += [state.agents_results[dep].content]
+        previous_agents_results = " ".join(previous_agents_results)
+
+        additional_variables = {
+            "task": task.task,
+            "expected_output": task.expected_output,
+            "previous_agents_results": previous_agents_results,
+            "previous_tool_error": "",
+            "previous_tool_results": "",
+        }
+
+        # has pre_process
+        if pre_process is not None:
+            # if the agent has preprocess steps, this will be run here
+            # must be runnable lambda
+            pre_process_vars = pre_process.invoke(state)
+            additional_variables.update(pre_process_vars)
+
+        # local vars
+        success = "fail"
+        num_iter = 0
+        is_intermediate_step = False
+        has_loop = local_loop_condition is not None
+        all_results = []
+        if local_loop_condition is None:
+            # if there is no loop condition, we will run things once
+            # loop condition must use only success and/or intermediate step
+            def local_loop_condition():
+                return True
+
+            # loop_condition = lambda: True
+            num_iter = max_attempt - 1
+
+        while local_loop_condition() and num_iter < max_attempt:
+            num_iter += 1
+            log_stub = f"[{agent_name}] Loop Iteration={num_iter}/{max_attempt}."
+
+            log.warning(f"{log_stub} Creating chain agent (use_metadata={use_metadata})")
+            worker_agent = create_chain_agent(
+                system_prompt=system_prompt,
+                use_metadata=use_metadata,
+                parser=None,
+                tools=tools,
+                _additional_variables=additional_variables,
+                using_chat_history=using_chat_history,
+                model=model,
+            )
+
+            log.warning(f"{log_stub} Invoking worker agent...")
+            ai_msg = worker_agent.invoke(state)
+
+            log.warning(f"{log_stub} Worker agent output:\n{ai_msg}")
+
+            log.warning(f"{log_stub} Running tools via run_tools_parallel...")
+            result = run_tools_parallel(ai_msg, tools, state, is_loop=True)  # this agent runs with loop
+
+            if not result:
+                result = "Tool error: no results received."
+
+            elif has_loop and len(ai_msg.tool_calls) > 0:  # if loop, we need to transform results
+                result = result[-1].content  # this is a tuple
+                # format of result: (result, success, is_intermediate_step)
+                log.warning("my-overall-result")
+                log.warning(result)
+                result_content = result[0]
+                success = result[1]
+                is_intermediate_step = eval(result[2])
+
+                if len(result) > 3:
+                    reason = result[3]
+                    return {
+                        "agents_results": {
+                            task.id: AIMessage(
+                                content=f"<{agent_name}_Result>Ask user for feedback based on failure reason. Failure reason: {reason}.\n\n{result_content}</{agent_name}_Result>",
+                                kwargs={
+                                    "reason": reason,
+                                },
+                            )
+                        },
+                        "tasks_evaluator": task.task + "\n" + task.expected_output,
+                        "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.REQUIRES_USER_FEEDBACK),
+                    }
+
+                if success == "fail":
+                    # pass error back if any
+                    additional_variables.update({"previous_tool_error": result_content})
+                else:
+                    # if success tool invocation, and intermediate steps then pass info back
+                    if is_intermediate_step:
+                        additional_variables.update({"previous_tool_error": "", "previous_tool_results": all_results})
+                result = result_content
+
+            if isinstance(result, str):
+                log.warning(f"{log_stub} Using raw string result.")
+                result_content = result
+            elif isinstance(result, list) and isinstance(result[0], dict):
+                log.warning(f"{log_stub} Using raw string in a list as result.")
+                result_content = result[0].get("text", "")
+            elif isinstance(result, list):
+                log.warning("my-result")
+                log.warning(result)
+                log.warning(f"{log_stub} Aggregating list of tool results...")
+                result_content = join_result_with_token_limit(result=result, max_tokens=max_tokens, log_stub=log_stub)
+            else:
+                log.error(f"{log_stub} Worker agent return incompatible data type {type(result)}")
+                log.info(result)
+                result_content = "There is an issue with tool call. No results returned."
+            all_results.append(result_content)
+            log.warning(f"{log_stub} Completed agent run.")
+
+        log.warning(f"[{agent_name}] Completed agent_with_loop run.")
+        all_results = " ".join(all_results)
+        return {
+            "agents_results": {task.id: AIMessage(content=f"<{agent_name}_Result>{all_results}</{agent_name}_Result>")},
+            "tasks_evaluator": task.task + "\n" + task.expected_output,
+            "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.COMPLETED),
+        }
+
+    return _build_datahub_agent_with_loop.with_retry(stop_after_attempt=3)
+
+
 def create_evaluator():
     def _create_evaluator(state: RedboxState):
-        _additional_variables = {"agents_results": combine_agents_state(state.agents_results)}
+        _additional_variables = {
+            "agents_results": combine_agents_state(state.agents_results),
+            "artifact_criteria": state.artifact_criteria,
+        }
         citation_parser, format_instructions = get_structured_response_with_citations_parser()
         evaluator_agent = build_stuff_pattern(
             prompt_set=PromptSet.NewRoute,
@@ -581,6 +779,8 @@ def invoke_custom_state(
         )
         subgraph_state = state.model_copy()
         agent_task = json.loads(subgraph_state.last_message.content)
+        # update status
+        state.agent_plans.update_task_status(agent_task["id"], TaskStatus.COMPLETED)
         subgraph_state.request.question = (
             agent_task["task"] + f"\nReturn response that is no longer than {max_tokens} tokens."
         )
@@ -592,7 +792,6 @@ def invoke_custom_state(
         activity_node.invoke(state)
         ## invoke the subgraph
         response = subgraph.invoke(subgraph_state)  # the LLM response is streamed
-
         # invoking this subgraph will change original state.question - we correct the state question in subsequent nodes
 
         return response
@@ -797,164 +996,6 @@ def sanitise_file_name(file_name: str) -> str:
     return re.sub(r"\W+", "", file_name.replace(" ", ""))
 
 
-def get_tabular_agent(
-    agent_name: str = "Tabular Agent",
-    max_tokens: int = 5000,
-    tools=list[StructuredTool],
-    max_attempt=int,
-    model: ChatLLMBackend | None = None,
-):
-    @RunnableLambda
-    def _build_tabular_agent(state: RedboxState):
-        # update activity
-        try:
-            # retrieve tabular agent task
-            tasks = state.agent_plans.tasks
-            for task_level in tasks:
-                if task_level.agent.value == "Tabular_Agent":
-                    task = task_level.task
-                    expected_output = task_level.expected_output
-                    break
-        except Exception as e:
-            log.error(f"Cannot parse in {agent_name}: {e}")
-            task = state.request.question
-
-        # Log activity
-        state.agent_plans.update_task_status(task_level.id, TaskStatus.RUNNING)
-        activity_node = build_activity_log_node(RedboxActivityEvent(message=f"{agent_name} is completing task: {task}"))
-        activity_node.invoke(state)
-
-        # Create SQL database agent with structured output format
-        # db = SQLDatabase.from_uri(f"sqlite:///{state.request.db_location}")
-        # call tabular agent
-        success = "fail"
-        num_iter = 0
-        sql_error = ""
-        is_intermediate_step = False
-        messages = []
-
-        # dependencies' results
-        previous_agents_results = []
-        for dep in task_level.dependencies:
-            previous_agents_results += [state.agents_results[dep].content]
-        previous_agents_results = " ".join(previous_agents_results)
-
-        while (success == "fail" or is_intermediate_step) and num_iter < max_attempt:
-            worker_agent = build_stuff_pattern(
-                prompt_set=PromptSet.Tabular,
-                tools=tools,
-                final_response_chain=False,
-                additional_variables={
-                    "sql_error": sql_error,
-                    "db_schema": state.tabular_schema,
-                    "previous_agents_results": previous_agents_results,
-                },
-                model=model,
-            )
-            ai_msg = worker_agent.invoke(state)
-
-            if isinstance(ai_msg["messages"][-1].content, str):
-                messages.append(AIMessage(ai_msg["messages"][-1].content))
-
-            try:
-                messages.append(
-                    AIMessage(f"Here is the SQL query: {ai_msg['messages'][-1].tool_calls[-1]['args']['sql_query']}")
-                )
-            except Exception:
-                log.info("no sql query input to tool")
-
-            num_iter += 1
-            if isinstance(ai_msg["messages"][-1].content, str):
-                tabular_context = ai_msg["messages"][-1].content
-            else:
-                tabular_context = ""
-            tool_output = run_tools_parallel(ai_msg["messages"][-1], tools, state)
-
-            if not tool_output:
-                success = "fail"
-                continue
-
-            results = tool_output[-1].content  # this is a tuple
-
-            # Truncate to max_tokens. only using one tool here.
-            # retrieve result from database or sql error
-            result = results[0][:max_tokens]  # saving this as a new variable as tuples are immutable.
-            success = results[1]
-
-            is_intermediate_step = eval(results[2])
-
-            if success == "fail":
-                sql_error = result  # capture sql error
-                messages.append(
-                    AIMessage(f"The SQL query failed to execute correctly. Here is the error message: {sql_error}")
-                )
-
-            else:
-                if is_intermediate_step:
-                    sql_error = ""
-                    messages.append(AIMessage(f"Here are the results from the query: {result}"))
-            # update state messages
-            state.messages = messages
-
-        if success == "pass":
-            if not is_intermediate_step:  # if this is the final step
-                formatted_result = f"<Tabular_Agent_Result>{tabular_context}\n The results of my query are: {result}</Tabular_Agent_Result>"
-            else:
-                formatted_result = f"<Tabular_Agent_Result>Iteration limit of {num_iter} is reached by the tabular agent. This is the tabular agent's reasoning at the last iteration: {tabular_context}</Tabular_Agent_Result>"
-            state.agent_plans
-
-        else:
-            formatted_result = f"<Tabular_Agent_Result>Error analysing tabular data. Here is the error from the executed SQL query: {result} </Tabular_Agent_Result>"
-
-        return {
-            "agents_results": {task_level.id: AIMessage(content=formatted_result)},
-            "tasks_evaluator": task + "\n" + expected_output,
-            "agent_plans": state.agent_plans.update_task_status(task_level.id, TaskStatus.COMPLETED),
-        }
-
-    return _build_tabular_agent
-
-
-def get_tabular_schema():
-    def _get_tabular_schema(state: RedboxState):
-        # create db
-        state = create_or_update_db_from_tabulars(state=state)
-        db_path = state.request.db_location
-        # get schema
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        # get tables
-        tables = cursor.execute(
-            "SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite_%';"
-        ).fetchall()
-        schema = {"tables": []}
-        for (table_name,) in tables:
-            cols = cursor.execute(f'PRAGMA table_info("{table_name}");').fetchall()
-            # convert to JSON
-            schema["tables"].append(
-                {
-                    "name": table_name,
-                    "columns": [
-                        {
-                            "name": col[1],
-                            "type": col[2],
-                            "notnull": bool(col[3]),
-                            "default": col[4],
-                            "primary_key": bool(col[5]),
-                        }
-                        for col in cols
-                    ],
-                }
-            )
-
-        conn.close()
-        db_schema = json.dumps(schema, indent=2)
-
-        return {"tabular_schema": db_schema}
-
-    return _get_tabular_schema
-
-
 def check_if_tasks_completed(state: RedboxState) -> bool:
     """
     Check if all tasks have been completed.
@@ -971,3 +1012,17 @@ def check_if_tasks_completed(state: RedboxState) -> bool:
         return False
     else:
         return True
+
+
+def check_if_task_requires_user_feedback(state: RedboxState) -> bool:
+    """
+    Check if task requires user feedback
+    """
+    # if there is no pending task, go to evaluator
+    require_feedback_tasks = [
+        task for task in state.agent_plans.tasks if task.status == TaskStatus.REQUIRES_USER_FEEDBACK
+    ]
+    if require_feedback_tasks:
+        return True
+    else:
+        return False

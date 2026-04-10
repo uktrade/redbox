@@ -5,6 +5,7 @@ from langchain_core.documents import Document
 
 from redbox.models.chain import AISettings, RedboxState
 from redbox.models.file import ChunkResolution
+from redbox.models.settings import get_settings
 
 log = logging.getLogger()
 
@@ -75,6 +76,7 @@ def get_all(
 
 def get_knowledge_base(
     chunk_resolution: ChunkResolution | None,
+    selected_files: list[str],
     state: RedboxState,
 ) -> dict[str, Any]:
     """
@@ -83,7 +85,7 @@ def get_knowledge_base(
     Query against knowledge base
     """
     query_filter = build_query_filter(
-        selected_files=state.request.knowledge_base_s3_keys,
+        selected_files=selected_files,
         permitted_files=state.request.knowledge_base_s3_keys,
         chunk_resolution=chunk_resolution,
     )
@@ -120,8 +122,9 @@ def get_minimum_metadata(
         permitted_files=state.request.permitted_s3_keys,
         chunk_resolution=chunk_resolution,
     )
-
+    s = get_settings()
     return {
+        "size": s.max_user_uploaded_files,
         "_source": {"includes": ["metadata.name", "metadata.description", "metadata.keywords"]},
         "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
     }
@@ -137,9 +140,10 @@ def get_knowledge_base_metadata(
         permitted_files=state.request.knowledge_base_s3_keys,
         chunk_resolution=chunk_resolution,
     )
-
+    s = get_settings()
     return {
-        "_source": {"includes": ["metadata.name", "metadata.description", "metadata.keywords"]},
+        "size": s.max_knowledge_base_files,
+        "_source": {"includes": ["metadata.uri", "metadata.name", "metadata.description", "metadata.keywords"]},
         "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
     }
 
@@ -170,9 +174,35 @@ def get_knowledge_base_tabular_metadata(
     }
 
 
+def get_tabular_metadata(
+    chunk_resolution: ChunkResolution | None,
+    state: RedboxState,
+) -> dict[str, Any]:
+    """Retrieve knowledge base metadata with schema metadata and without page_content"""
+    query_filter = build_query_filter(
+        selected_files=state.request.s3_keys,
+        permitted_files=state.request.permitted_s3_keys,
+        chunk_resolution=chunk_resolution,
+    )
+
+    return {
+        "_source": {
+            "includes": [
+                "metadata.uri",
+                "metadata.name",
+                "metadata.description",
+                "metadata.keywords",
+                "metadata.document_schema",
+            ],
+            "excludes": ["text", "vector_field"],
+        },
+        "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
+    }
+
+
 def get_schematised_tabular_chunks(
     chunk_resolution: ChunkResolution | None,
-    knowledge_base_s3_keys: list[str],
+    permitted_s3_keys: list[str],
     uris: list[str] | None = None,
 ) -> dict[str, Any]:
     """
@@ -189,7 +219,7 @@ def get_schematised_tabular_chunks(
     # Base filter using permissions
     query_filter = build_query_filter(
         selected_files=uris,
-        permitted_files=knowledge_base_s3_keys,
+        permitted_files=permitted_s3_keys,
         chunk_resolution=chunk_resolution,
     )
 

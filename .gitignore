@@ -235,3 +235,7 @@ staticfiles
 # lambda files
 infrastructure/aws/cleanup_lambda/*.zip
 infrastructure/aws/cleanup_lambda/layer/*
+
+# Unstructured
+unstructured_temp
+/django_app/.local.env

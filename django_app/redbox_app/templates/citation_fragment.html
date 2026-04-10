@@ -6,7 +6,7 @@
       <div class="govuk-!-padding-left-1 govuk-!-padding-right-1">
         <h2 class="govuk-heading-m">Response</h2>
         <div class="iai-chat-bubble">
-          <markdown-converter class="rbds-chat-message__text">{{ message.text|remove_refs }}</markdown-converter>
+          <markdown-converter class="ids-chat-message__text">{{ message.text|remove_refs }}</markdown-converter>
         </div>
       </div>
     </div>
@@ -23,9 +23,9 @@
               <li class="rb-citations__item">
                 <h3 class="govuk-heading-s govuk-!-margin-bottom-0">
                   {% if citation.url %} {# an external reference #}
-                    <a class="iai-chat-bubbles__sources-link govuk-link" href="{{ citation.url }}">{{ citation.url }}</a>
+                    <a class="iai-chat-bubbles__sources-link govuk-link" target="_blank" href="{{ citation.url }}">{{ citation.url }}</a>
                   {% else %} {# a user doc #}
-                    <a class="iai-chat-bubbles__sources-link govuk-link" href="{{ citation.file.url }}">{{ citation.file.file_name }}</a>
+                    <a class="iai-chat-bubbles__sources-link govuk-link" target="_blank" href="{{ citation.file.url }}">{{ citation.file.file_name }}</a>
                   {% endif %}
                 </h3>
                 {% if citation.page_numbers %}

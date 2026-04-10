@@ -10,6 +10,7 @@ from langgraph.pregel import RetryPolicy
 from redbox.chains.components import get_structured_response_with_citations_parser
 from redbox.chains.runnables import build_self_route_output_parser
 from redbox.graph.agents.configs import AgentConfig
+from redbox.graph.agents.formats import ArtifactAgent
 from redbox.graph.agents.workers import WorkerAgent
 from redbox.graph.edges import (
     build_documents_bigger_than_context_conditional,
@@ -21,6 +22,7 @@ from redbox.graph.edges import (
 from redbox.graph.nodes.processes import (
     build_activity_log_node,
     build_agent_with_loop,
+    build_datahub_agent_with_loop,
     build_chat_pattern,
     build_error_pattern,
     build_merge_pattern,
@@ -30,13 +32,12 @@ from redbox.graph.nodes.processes import (
     build_set_route_pattern,
     build_stuff_pattern,
     build_user_feedback_evaluation,
+    check_if_task_requires_user_feedback,
     check_if_tasks_completed,
     clear_documents_process,
     combine_question_evaluator,
     create_evaluator,
     empty_process,
-    get_tabular_agent,
-    get_tabular_schema,
     invoke_custom_state,
     my_planner,
     report_sources_process,
@@ -58,7 +59,6 @@ def build_root_graph(
     all_chunks_retriever,
     parameterised_retriever,
     metadata_retriever,
-    tabular_retriever,
     agent_configs,
     debug,
 ):
@@ -75,7 +75,6 @@ def build_root_graph(
         "new_route_graph",
         build_new_route_graph(
             all_chunks_retriever=all_chunks_retriever,
-            tabular_retriever=tabular_retriever,
             agent_configs=agent_configs,
             debug=debug,
         ),
@@ -440,7 +439,6 @@ def strip_route(state: RedboxState):
 
 def build_new_route_graph(
     all_chunks_retriever: VectorStoreRetriever,
-    tabular_retriever: VectorStoreRetriever,
     agent_configs: Dict[str, AgentConfig],
     debug: bool = False,
 ) -> CompiledGraph:
@@ -473,38 +471,29 @@ def build_new_route_graph(
                             debug=debug,
                         ),
                     )
-                case "Tabular_Agent":
-                    builder.add_node(
-                        "Tabular_Agent",
-                        empty_process,
-                    )
+                case "Artifact_Builder_Agent":
+                    builder.add_node(config.name, ArtifactAgent(config=config).execute())
 
+                case "Datahub_Agent":
+                    success = "fail"
+                    is_intermediate_step = False
                     builder.add_node(
-                        "retrieve_tabular_documents",
-                        build_retrieve_pattern(
-                            retriever=tabular_retriever,
-                            structure_func=structure_documents_by_file_name,
-                            final_source_chain=False,
-                        ),
-                    )
-
-                    builder.add_node("retrieve_tabular_schema", get_tabular_schema())
-
-                    builder.add_node(
-                        "call_tabular_agent",
-                        get_tabular_agent(
+                        config.name,
+                        build_datahub_agent_with_loop(
+                            agent_name=config.name,
+                            system_prompt=config.prompt.system,
                             tools=config.tools,
-                            max_attempt=get_settings().max_attempts,
                             max_tokens=config.agents_max_tokens,
+                            loop_condition=lambda: success == "fail" or is_intermediate_step,
+                            max_attempt=kwargs.get("max_attempt", 2),
+                            use_metadata=kwargs.get("use_metadata", False),
+                            using_chat_history=kwargs.get("using_chat_history", False),
                             model=ChatLLMBackend(name=config.llm_backend.name, provider=config.llm_backend.provider)
                             if config.llm_backend is not None
                             else None,
                         ),
                     )
-                    builder.add_edge("Tabular_Agent", "retrieve_tabular_documents")
-                    builder.add_edge("retrieve_tabular_documents", "retrieve_tabular_schema")
-                    builder.add_edge("retrieve_tabular_schema", "call_tabular_agent")
-                    builder.add_edge("call_tabular_agent", "combine_question_evaluator")
+
                 case _:
                     success = "fail"
                     is_intermediate_step = False
@@ -572,16 +561,25 @@ def build_new_route_graph(
     )
     builder.add_node("stream_suggestion", stream_suggestion())
     builder.add_node("sending_task", empty_process)
+    builder.add_node("does_task_require_user_feedback", empty_process)
     builder.add_node("has_all_task_completed", empty_process)
 
     # add all agents here
     add_agent(builder, agent_configs, "Internal_Retrieval_Agent")
     add_agent(builder, agent_configs, "External_Retrieval_Agent")
     add_agent(builder, agent_configs, "Summarisation_Agent", edge_nodes=[])  # streaming response directly
-    add_agent(builder, agent_configs, "Tabular_Agent", edge_nodes=[])  # go to other nodes/subgraphs
+    add_agent(builder, agent_configs, "Tabular_Agent")
     add_agent(builder, agent_configs, "Web_Search_Agent")
     add_agent(builder, agent_configs, "Legislation_Search_Agent")
+    add_agent(
+        builder,
+        agent_configs,
+        "Datahub_Agent",
+        with_loop=True,
+        using_chat_history=True,
+    )
     add_agent(builder, agent_configs, "Knowledge_Base_Retrieval_Agent")
+    add_agent(builder, agent_configs, "Artifact_Builder_Agent")
     add_agent(
         builder,
         agent_configs,
@@ -619,7 +617,12 @@ def build_new_route_graph(
     )
 
     builder.add_conditional_edges("sending_task", sending_task_to_agent)
-    builder.add_edge("combine_question_evaluator", "has_all_task_completed")
+    builder.add_edge("combine_question_evaluator", "does_task_require_user_feedback")
+    builder.add_conditional_edges(
+        "does_task_require_user_feedback",
+        check_if_task_requires_user_feedback,
+        {True: "Evaluator_Agent", False: "has_all_task_completed"},
+    )
     builder.add_conditional_edges(
         "has_all_task_completed", check_if_tasks_completed, {True: "Evaluator_Agent", False: "sending_task"}
     )

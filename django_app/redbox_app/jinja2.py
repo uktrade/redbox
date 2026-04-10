@@ -6,6 +6,7 @@ import jinja2
 import pytz
 from django.conf import settings
 from django.contrib import messages
+from django.middleware.csrf import get_token
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.timezone import template_localtime
@@ -13,6 +14,7 @@ from markdown_it import MarkdownIt
 from waffle import flag_is_active
 
 from redbox_app.redbox_core import flags
+from redbox_app.redbox_core.types import APPROVED_FILE_EXTENSIONS
 
 # `js-default` setting required to sanitize inputs
 # https://markdown-it-py.readthedocs.io/en/latest/security.html
@@ -83,13 +85,12 @@ def get_menu_items(user):
     items = []
 
     items.append({"text": "All documents", "href": url("documents")})
-    # items.append({"text": "Chat", "href": url("chats")})
 
-    if flag_is_active(user, flags.ENABLE_TOOLS):
+    if not flag_is_active(user, flags.DISABLE_TOOLS):
         items.append({"text": "Tools", "href": url("tools")})
 
     items.append({"text": "Profile", "href": url("settings")})
-    items.append({"text": "Give us feedback", "href": settings.FEEDBACK_LINK or "/"})
+    items.append({"text": "Give us feedback", "href": settings.FEEDBACK_LINK})
     items.append({"text": "Log out", "href": url("signed-out")})
 
     return items
@@ -97,9 +98,13 @@ def get_menu_items(user):
 
 def get_product_name(user):
     if flag_is_active(user, flags.ENABLE_ASSIST_REBRAND):
-        return "Assist"
+        return "DBT Assist"
 
     return settings.PRODUCT_NAME
+
+
+def get_csrf_token(request):
+    return get_token(request)
 
 
 def environment(**options):
@@ -143,6 +148,9 @@ def environment(**options):
             "get_menu_items": get_menu_items,
             "feedback_link": settings.FEEDBACK_LINK,
             "product_name": get_product_name,
+            "contact_email": settings.CONTACT_EMAIL,
+            "approved_file_extensions": APPROVED_FILE_EXTENSIONS,
+            "get_csrf_token": get_csrf_token,
         }
     )
     return env

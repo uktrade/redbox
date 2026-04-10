@@ -178,8 +178,8 @@ class DemographicsForm(forms.ModelForm):
             "redbox_response_preferences",
         )
         labels: ClassVar[Mapping[str, str]] = {
-            "name": "Full Name",
-            "ai_experience": "How would you describe your level of experience with Generative AI tools?",
+            "name": "Name",
+            "ai_experience": "What is your level of experience with generative AI tools?",
             "business_unit": "Business Unit",
             "role": "Role",
             "grade": "Grade",
@@ -189,14 +189,14 @@ class DemographicsForm(forms.ModelForm):
             "redbox_response_preferences": "How do you want Redbox to respond?",
         }
         widgets: ClassVar[Mapping[str, forms.Widget]] = {
-            "name": forms.TextInput(attrs={"class": "govuk-input govuk-!-width-full"}),
+            "name": forms.TextInput(attrs={"class": "govuk-input govuk-!-width-two-thirds"}),
             "ai_experience": forms.RadioSelect(attrs={"class": "govuk-radios__item"}),
-            "business_unit": forms.Select(attrs={"class": "govuk-select govuk-!-width-full"}),
-            "role": forms.TextInput(attrs={"class": "govuk-input govuk-!-width-full"}),
-            "grade": forms.Select(attrs={"class": "govuk-select govuk-!-width-full"}),
+            "business_unit": forms.Select(attrs={"class": "govuk-select govuk-!-width-two-thirds"}),
+            "role": forms.TextInput(attrs={"class": "govuk-input govuk-!-width-two-thirds"}),
+            "grade": forms.Select(attrs={"class": "govuk-select govuk-!-width-two-thirds"}),
             "uk_or_us_english": forms.CheckboxInput(attrs={"class": "govuk-checkboxes__input"}),
-            "profession": forms.Select(attrs={"class": "govuk-select govuk-!-width-full"}),
-            "info_about_user": forms.Textarea(attrs={"class": "govuk-textarea govuk-!-width-full", "rows": "5"}),
+            "profession": forms.Select(attrs={"class": "govuk-select govuk-!-width-two-thirds"}),
+            "info_about_user": forms.Textarea(attrs={"class": "govuk-textarea govuk-!-width-two-thirds", "rows": "5"}),
             "redbox_response_preferences": forms.Textarea(
                 attrs={"class": "govuk-textarea govuk-!-width-one-half", "rows": "5"}
             ),

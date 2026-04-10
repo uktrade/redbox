@@ -2,10 +2,11 @@ import pytest
 from langchain_core.messages import AIMessage
 from pytest_mock import MockerFixture
 
-from redbox.graph.agents.configs import AgentConfig, PromptConfig, PromptVariable
+from redbox.graph.agents.configs import AgentConfig, PromptConfig, PromptVariable, agent_configs
+from redbox.graph.agents.formats import ArtifactAgent
 from redbox.graph.agents.workers import WorkerAgent
 from redbox.graph.nodes.tools import build_search_wikipedia_tool
-from redbox.models.chain import RedboxState, TaskStatus
+from redbox.models.chain import AgentTaskBase, RedboxState, TaskStatus
 from redbox.test.data import GenericFakeChatModelWithTools
 
 WORKER_RESPONSE_WITH_TOOL = AIMessage(
@@ -40,24 +41,22 @@ class TestWorkerAgent:
         indirect=["fake_state_fixture"],
     )
     def test_reading_task_info(self, success, fake_state_fixture):
-        self.worker.reading_task_info().invoke(fake_state_fixture)
+        _, task = self.worker.reading_task_info().invoke(fake_state_fixture)
         if success == "success":
-            assert self.worker.task is not None
+            assert task is not None
         else:
-            assert self.worker.task is None
+            assert task is None
 
     @pytest.mark.parametrize(
         "result", [("A result"), ([AIMessage("A"), AIMessage("result")]), ([{"text": "A result"}])]
     )
     def test_post_processing(self, result, fake_state_with_plan):
-        self.worker.task = fake_state_with_plan.agent_plans.tasks[0]
-        response = self.worker.post_processing().invoke((fake_state_with_plan, result))
+        task = fake_state_with_plan.agent_plans.tasks[0]
+        response = self.worker.post_processing().invoke((fake_state_with_plan, result, task))
         assert response["agents_results"] == {
-            self.worker.task.id: AIMessage(
-                content=f"<{self.worker.config.name}_Result>A result</{self.worker.config.name}_Result>"
-            )
+            task.id: AIMessage(content=f"<{self.worker.config.name}_Result>A result</{self.worker.config.name}_Result>")
         }
-        assert response["tasks_evaluator"] == self.worker.task.task + "\n" + self.worker.task.expected_output
+        assert response["tasks_evaluator"] == task.task + "\n" + task.expected_output
 
     @pytest.mark.parametrize(
         "AI_response",
@@ -76,8 +75,8 @@ class TestWorkerAgent:
             "redbox.graph.agents.workers.run_tools_parallel",
             return_value=[AIMessage(content="Here is your fake response")],
         )
-        self.worker.task = fake_state_with_plan.agent_plans.tasks[0]
-        response = self.worker.core_task().invoke(fake_state_with_plan)
+        task = fake_state_with_plan.agent_plans.tasks[0]
+        response = self.worker.core_task().invoke((fake_state_with_plan, task))
         if isinstance(response, str):
             response == "Here is your fake response"
         elif isinstance(response, list):
@@ -92,12 +91,31 @@ class TestWorkerAgent:
             "redbox.graph.agents.workers.run_tools_parallel",
             return_value=[AIMessage(content="Here is your fake response")],
         )
-        self.worker.task = fake_state_with_plan.agent_plans.tasks[0]
+        task = fake_state_with_plan.agent_plans.tasks[0]
         response = self.worker.execute().invoke(fake_state_with_plan)
         assert response["agents_results"] == {
-            self.worker.task.id: AIMessage(
+            task.id: AIMessage(
                 content=f"<{self.worker.config.name}_Result>Here is your fake response</{self.worker.config.name}_Result>"
             )
         }
-        assert response["tasks_evaluator"] == self.worker.task.task + "\n" + self.worker.task.expected_output
-        assert response["agent_plans"].get_task_status(self.worker.task.id) == TaskStatus.COMPLETED
+        assert response["tasks_evaluator"] == task.task + "\n" + task.expected_output
+        assert response["agent_plans"].get_task_status(task.id) == TaskStatus.COMPLETED
+
+
+class TestArtifactAgent:
+    task = AgentTaskBase(
+        task="Fake task",
+        agent="Artifact_Builder_Agent",
+        expected_output="A comprehensive list of fake results",
+    )
+    agent = ArtifactAgent(config=agent_configs["Artifact_Builder_Agent"])
+
+    @pytest.mark.parametrize(
+        "result", [("A result"), ([AIMessage("A"), AIMessage("result")]), ([{"text": "A result"}])]
+    )
+    def test_post_processing(self, result, fake_state_with_plan):
+        # same post processing as Worker agent but update on different property
+        task = self.task
+        response = self.agent.post_processing().invoke((fake_state_with_plan, result, task))
+        assert response["artifact_criteria"] == "A result"
+        assert response["agent_plans"].get_task_status(task.id) == TaskStatus.COMPLETED

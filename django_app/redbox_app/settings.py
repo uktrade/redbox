@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 import environ
 import sentry_sdk
 from dbt_copilot_python.database import database_from_env
+from dbt_copilot_python.error_tracking import DatadogErrorTrackingFilter
 from django.urls import reverse_lazy
 from django_log_formatter_asim import ASIMFormatter
 from dotenv import find_dotenv, load_dotenv
@@ -21,10 +22,14 @@ from redbox_app.setting_enums import Classification, Environment
 
 logger = logging.getLogger(__name__)
 
+if os.getenv("USE_TESTS_INTEGRATION_ENV", "False").lower() == "true":
+    logger.warning("Loading Integration EnvFile: tests/.env.integration")
+    load_dotenv(find_dotenv("tests/.env.integration"))
 
-load_dotenv()
+load_dotenv(override=True)
 
 if os.getenv("USE_LOCAL_ENV", "False").lower() == "true":
+    logger.warning("Loading Local EnvFile: .env.local")
     load_dotenv(find_dotenv(".env.local"), override=True)
 
 env = environ.Env()
@@ -118,7 +123,7 @@ TEMPLATES = [
         "DIRS": [
             BASE_DIR / "redbox_app" / "templates",
             BASE_DIR / "redbox_app" / "templates" / "auth",
-            BASE_DIR / "frontend" / "src" / "redbox_design_system",
+            BASE_DIR / "frontend" / "src" / "interaction_design_system",
         ],
         "OPTIONS": {
             "environment": "redbox_app.jinja2.environment",
@@ -144,7 +149,10 @@ TEMPLATES = [
 WSGI_APPLICATION = "redbox_app.wsgi.application"
 ASGI_APPLICATION = "redbox_app.asgi.application"
 
-AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend", "authbroker_client.backends.AuthbrokerBackend"]
+AUTHENTICATION_BACKENDS = [
+    "redbox_app.backends.TokenCaptureBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -198,6 +206,8 @@ CSP_SCRIPT_SRC = (
     "'sha256-1NTuHcjvzzB6D69Pb9lbxI5pMJNybP/SwBliv3OvOOE='",
     "'sha256-DrkvIvFj5cNADO03twE83GwgAKgP224E5UyyxXFfvTc='",
     "'sha256-6BIGXagXVUHOQ8pw9flNwo/urWufeay+hbx+Q+U6/DM='",  # pragma: allowlist secret
+    "'sha256-SgZQWsfLqFIbXUavZS4pxgi9Pr0JFuIh5pAp0LdrHPU='",  # pragma: allowlist secret
+    "'sha256-XAYqMHKLikdz4TwKJfz53n9YgPx3M6F2KB98Dxf/A5c='",  # pragma: allowlist secret
     "https://*.googletagmanager.com",
     "https://tagmanager.google.com/",
     "https://www.googletagmanager.com/",
@@ -206,7 +216,7 @@ CSP_SCRIPT_SRC = (
     "sha256-T/1K73p+yppfXXw/AfMZXDh5VRDNaoEh3enEGFmZp8M=",
 )
 CSP_OBJECT_SRC = ("'none'",)
-CSP_TRUSTED_TYPES = ("dompurify", "default", "goog#html")
+CSP_TRUSTED_TYPES = ("dompurify", "default", "'allow-duplicates'", "goog#html")
 CSP_REPORT_TO = "csp-endpoint"
 CSP_FONT_SRC = ("'self'", "s3.amazonaws.com", "https://fonts.gstatic.com", "data:")
 CSP_INCLUDE_NONCE_IN = ("script-src",)
@@ -365,15 +375,18 @@ LOGGING = {
         "exclude_s3_urls_and_emails": {
             "": "django.utils.log.CallbackFilter",
             "callback": lambda record: (
-                all(
-                    header not in record.getMessage()
-                    for header in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Security-Token"]
+                (
+                    all(
+                        header not in record.getMessage()
+                        for header in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Security-Token"]
+                    )
+                    and not re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", record.getMessage())
                 )
-                and not re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", record.getMessage())
-            )
-            if hasattr(record, "getMessage")
-            else True,
+                if hasattr(record, "getMessage")
+                else True
+            ),
         },
+        "error_tracking": {"()": DatadogErrorTrackingFilter},
     },
     "handlers": {
         "console": {
@@ -386,6 +399,7 @@ LOGGING = {
             "level": "ERROR",
             "class": "logging.StreamHandler",
             "formatter": "asim_formatter",
+            "filters": ["error_tracking"],
         },
     },
     "root": {"handlers": ["console"], "level": LOG_LEVEL},

@@ -24,9 +24,12 @@ from redbox.retriever import (
     MetadataRetriever,
     OpenSearchRetriever,
     ParameterisedElasticsearchRetriever,
-    TabularElasticsearchRetriever,
 )
-from redbox.retriever.retrievers import KnowledgeBaseMetadataRetriever, KnowledgeBaseTabularMetadataRetriever
+from redbox.retriever.retrievers import (
+    KnowledgeBaseMetadataRetriever,
+    KnowledgeBaseTabularMetadataRetriever,
+    TabularMetadataRetriever,
+)
 from redbox.transform import bedrock_tokeniser
 
 logger = logging.getLogger(__name__)
@@ -143,13 +146,6 @@ def get_all_chunks_retriever(env: Settings) -> OpenSearchRetriever:
     )
 
 
-def get_tabular_chunks_retriever(env: Settings) -> OpenSearchRetriever:
-    return TabularElasticsearchRetriever(
-        es_client=env.elasticsearch_client(),
-        index_name=env.elastic_chunk_alias,
-    )
-
-
 def get_parameterised_retriever(env: Settings, embeddings: Embeddings | None = None):
     """Creates an Elasticsearch retriever runnable.
 
@@ -176,6 +172,13 @@ def get_basic_metadata_retriever(env: Settings):
     return BasicMetadataRetriever(
         es_client=env.elasticsearch_client(),
         index_name=env.elastic_chunk_alias,
+    )
+
+
+def get_tabular_metadata_retriever(env: Settings):
+    return TabularMetadataRetriever(
+        es_client=env.elasticsearch_client(),
+        index_name=env.elastic_schematised_chunk_index,
     )
 
 

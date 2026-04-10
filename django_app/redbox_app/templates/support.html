@@ -1,10 +1,13 @@
+{% set pageTitle = "Support" %}
+{% if not request.user.is_authenticated %}
+  {% set persistentSidepanel = True %}
+{% endif %}
+
 {% extends "base.html" %}
 
-{% set pageTitle = "Support" %}
 
 {% block content %}
-
-<div class="govuk-width-container rbds-width-container rbds-page-content--xl govuk-!-margin-top-3">
+<div class="govuk-width-container govuk-!-margin-top-3">
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
 
@@ -62,5 +65,4 @@
     </div>
   </div>
 </div>
-
 {% endblock %}

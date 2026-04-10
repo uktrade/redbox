@@ -17,6 +17,7 @@ from redbox.chains.components import (
     get_chat_llm,
     get_knowledge_base_metadata_retriever,
     get_knowledge_base_tabular_metadata_retriever,
+    get_tabular_metadata_retriever,
     get_tokeniser,
 )
 from redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_prompts
@@ -142,7 +143,7 @@ def final_response_if_needed(input_: dict) -> Runnable:
             need_log = True
 
     return RunnablePassthrough.assign(
-        _log=RunnableLambda(lambda _: (log_activity(f"Generating response with {model_name}...") if need_log else None))
+        _log=RunnableLambda(lambda _: log_activity(f"Generating response with {model_name}...") if need_log else None)
     )
 
 
@@ -389,6 +390,11 @@ def chain_use_metadata(
         return tabular_knowledge_base_metadata
 
     @chain
+    def get_tabular_metadata(state: RedboxState):
+        tabular_metadata = get_tabular_metadata_retriever(get_settings()).invoke(state)
+        return tabular_metadata
+
+    @chain
     def use_result(input):
         if input.get("metadata") is not None:
             additional_variables = {"metadata": input["metadata"]}
@@ -396,6 +402,8 @@ def chain_use_metadata(
             additional_variables["knowledge_base_metadata"] = input["knowledge_base_metadata"]
         if input.get("tabular_knowledge_base_metadata") is not None:
             additional_variables["tabular_knowledge_base_metadata"] = input["tabular_knowledge_base_metadata"]
+        if input.get("tabular_metadata") is not None:
+            additional_variables["tabular_metadata"] = input["tabular_metadata"]
         if _additional_variables:
             additional_variables = dict(additional_variables, **_additional_variables)
         chain = basic_chat_chain(
@@ -415,9 +423,14 @@ def chain_use_metadata(
             metadata=get_metadata,
             knowledge_base_metadata=get_knowledge_base_metadata,
             tabular_knowledge_base_metadata=get_tabular_knowledge_base_metadata,
+            tabular_metadata=get_tabular_metadata,
         )
         if use_knowledge_base
-        else RunnableParallel(state=RunnablePassthrough(), metadata=get_metadata)
+        else RunnableParallel(
+            state=RunnablePassthrough(),
+            metadata=get_metadata,
+            tabular_metadata=get_tabular_metadata,
+        )
     ) | use_result
 
 

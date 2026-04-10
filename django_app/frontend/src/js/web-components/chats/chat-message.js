@@ -1,49 +1,36 @@
 // @ts-check
 
 import { hideElement, showElement } from "../../utils/dom-utils.js";
-import { LoadingMessage } from "../../../redbox_design_system/rbds/components/loading-message.js";
-
-window.addEventListener('load', () => {
-  const scrollPosition = sessionStorage.getItem('scrollPosition');
-  if (scrollPosition !== null) {
-    window.scrollTo({
-      top: parseInt(scrollPosition),
-      behavior: 'instant'
-    });
-    sessionStorage.removeItem('scrollPosition');
-  }
-});
+import { LoadingMessage } from "../../../interaction_design_system/ids/components/loading-message.js";
+import { emitEvent, Events, listenEvent } from "../../../interaction_design_system/ids/events/events.js";
 
 export class ChatMessage extends HTMLElement {
-
   connectedCallback() {
-    this.programmaticScroll = false;
     this.streamedContent = "";
+    this.LOGOUT_URL = this.dataset.logoutUrl;
     this.#loadMessage();
   }
+
 
   #loadMessage = () => {
     const uuid = crypto.randomUUID();
     this.innerHTML = `
-            <div class="rbds-message-container ${this.dataset.role == 'user' ? `rbds-message-container__right`: ''} govuk-body" data-role="${
-              this.dataset.role
-            }" tabindex="-1" id="chat-message-${this.dataset.id}">
-                <div class="${this.dataset.role == 'user' ? `rbds-message-container__right rbds-border`: 'rbds-message-container__left'}">
-                  <markdown-converter class="rbds-chat-message__text">${
-                    this.dataset.text || ""
-                  }</markdown-converter>
+            <div class="ids-message-container ${this.dataset.role == 'user' ? `ids-message-container__right` : ''} govuk-body" data-role="${this.dataset.role
+      }" tabindex="-1" id="chat-message-${this.dataset.id}">
+                <div class="${this.dataset.role == 'user' ? `ids-message-container__right ids-border` : 'ids-message-container__left'}">
+                  <markdown-converter class="ids-chat-message__text">${this.dataset.text || ""
+      }</markdown-converter>
                 </div>
-                ${
-                  !this.dataset.text
-                    ? `
-                      <rbds-loading-message data-aria-label="Loading message"></rbds-loading-message>
-                      <div class="rb-loading-complete govuk-visually-hidden" aria-live="assertive"></div>
+                ${!this.dataset.text
+        ? `
+                      <ids-loading-message data-aria-label="Loading message"></ids-loading-message>
+                      <div class="rb-loading-complete govuk-!-display-none" aria-live="assertive"></div>
                     `
-                    : ""
-                }
+        : ""
+      }
                 <sources-list data-id="${uuid}"></sources-list>
-                <div class="govuk-error-summary" data-module="govuk-error-summary" hidden>
-                  <div class="govuk-body govuk-!-font-weight-bold">
+                <div class="govuk-error-summary govuk-!-display-none" data-module="govuk-error-summary">
+                  <div class="govuk-body govuk-error-summary__title govuk-!-font-weight-bold">
                     There was an unexpected error communicating with Redbox. Please try again.
                   </div>
                   <div class="govuk-body">
@@ -52,16 +39,12 @@ export class ChatMessage extends HTMLElement {
                     </div>
                 </div>
             ${this.dataset.role == 'ai' ?
-              `<div class="chat-actions-container">
+        `<div class="chat-actions-container">
             </div>`
-            : ''}
+        : ''}
 
 
         `;
-
-    // ensure new chat-messages aren't hidden behind the chat-input
-    this.programmaticScroll = true;
-    this.scrollIntoView({ block: "end" });
 
     // Insert route_display HTML
     if (this.dataset.role == "ai") {
@@ -75,7 +58,6 @@ export class ChatMessage extends HTMLElement {
       }
     }
   };
-
 
 
   #addFootnotes = (content, chatId) => {
@@ -93,10 +75,8 @@ export class ChatMessage extends HTMLElement {
       this.responseContainer.innerHTML =
         this.responseContainer.innerHTML.replace(
           matchingText,
-          `${matchingText}<a class="rb-footnote-link" href="/citations/${chatId}/#${
-            footnote.id
-          }" aria-label="Footnote ${footnoteIndex + 1}">${
-            footnoteIndex + 1
+          `${matchingText}<a class="rb-footnote-link" href="/citations/${chatId}/#${footnote.id
+          }" aria-label="Footnote ${footnoteIndex + 1}">${footnoteIndex + 1
           }</a>`
         );
     });
@@ -110,7 +90,7 @@ export class ChatMessage extends HTMLElement {
     let attachedFiles = document.createElement("p");
 
     attachedFiles.classList.add('govuk-body', 'govuk-!-text-align-right');
-    attachedFiles.innerHTML= `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    attachedFiles.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <g clip-path="url(#clip0_771_609)">
     <path d="M19.5 22.5H8.25C7.85232 22.4995 7.47105 22.3414 7.18984 22.0602C6.90864 21.7789 6.75046 21.3977 6.75 21V16.5H8.25V21H19.5V4.5H12.75V3H19.5C19.8977 3.00046 20.279 3.15864 20.5602 3.43984C20.8414 3.72105 20.9995 4.10232 21 4.5V21C20.9995 21.3977 20.8414 21.7789 20.5602 22.0602C20.279 22.3414 19.8977 22.4995 19.5 22.5Z" fill="black"/>
     <path d="M18 7.5H12.75V9H18V7.5Z" fill="black"/>
@@ -128,6 +108,13 @@ export class ChatMessage extends HTMLElement {
 
   };
 
+  sanitiseText(/** @type {String} */ text) {
+    if (typeof text !== 'string') return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML; // to escape html entities
+  }
+
   /**
    * Streams an LLM response
    * @param {string} message
@@ -137,6 +124,7 @@ export class ChatMessage extends HTMLElement {
    * @param {string | undefined} sessionId
    * @param {string} endPoint
    * @param {HTMLElement} chatControllerRef
+   * @param {string} selectedTool
    */
   stream = (
     message,
@@ -148,23 +136,9 @@ export class ChatMessage extends HTMLElement {
     chatControllerRef,
     selectedTool
   ) => {
-    // Scroll behaviour - depending on whether user has overridden this or not
-    let scrollOverride = false;
     const is_new_chat = !sessionId;
 
-    function reloadAtCurrentPosition() {
-      sessionStorage.setItem('scrollPosition', window.scrollY.toString());
-      location.reload();
-    }
-
-    function sanitiseText(text) {
-      if (typeof text !== 'string') return '';
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML; // to escape html entities
-    }
-
-    function sanitiseUrl(url) {
+    function sanitiseUrl(/** @type {String} */ url) {
       if (typeof url !== 'string') return '';
       try {
         const urlObj = new URL(url);
@@ -178,27 +152,11 @@ export class ChatMessage extends HTMLElement {
       return '';
     }
 
-    function sanitiseId(id) {
+    function sanitiseId(/** @type {String} */ id) {
       if (typeof id !== 'string') return '';
       // remove any characters that aren't alphanumeric, hyphen, or underscore
       return id.replace(/[^a-zA-Z0-9_-]/g, '');
     }
-
-    window.addEventListener("scroll", (evt) => {
-      if (this.programmaticScroll) {
-        this.programmaticScroll = false;
-        return;
-      }
-      scrollOverride = true;
-    });
-
-    window.addEventListener('load', () => {
-      const scrollPosition = sessionStorage.getItem('scrollPosition');
-      if (scrollPosition !== null) {
-        window.scrollTo(0, parseInt(scrollPosition));
-        sessionStorage.removeItem('scrollPosition');
-      }
-    });
 
     this.responseContainer =
       /** @type {import("../markdown-converter").MarkdownConverter} */ (
@@ -212,17 +170,12 @@ export class ChatMessage extends HTMLElement {
     let responseComplete = this.querySelector(".rb-loading-complete");
     let webSocket = new WebSocket(endPoint);
 
-    // Stop streaming on escape-key or stop-button press
     const stopStreaming = () => {
       this.dataset.status = "stopped";
       webSocket.close();
     };
-    this.addEventListener("keydown", (evt) => {
-      if (evt.key === "Escape" && this.dataset.status === "streaming") {
-        stopStreaming();
-      }
-    });
-    document.addEventListener("stop-streaming", stopStreaming);
+
+    listenEvent(Events.STOP_STREAMING, stopStreaming);
 
     webSocket.onopen = (event) => {
       webSocket.send(
@@ -236,8 +189,8 @@ export class ChatMessage extends HTMLElement {
         })
       );
       this.dataset.status = "streaming";
-      const chatResponseStartEvent = new CustomEvent("chat-response-start");
-      document.dispatchEvent(chatResponseStartEvent);
+      emitEvent(Events.CHAT_RESPONSE_START);
+      emitEvent(Events.SCROLL_TO_BOTTOM, {source:this, force:true});
     };
 
     webSocket.onerror = (event) => {
@@ -257,8 +210,7 @@ export class ChatMessage extends HTMLElement {
       if (this.dataset.status !== "stopped") {
         this.dataset.status = "complete";
       }
-      const stopStreamingEvent = new CustomEvent("stop-streaming");
-      document.dispatchEvent(stopStreamingEvent);
+      emitEvent(Events.STOP_STREAMING);
     };
 
     webSocket.onmessage = (event) => {
@@ -271,23 +223,22 @@ export class ChatMessage extends HTMLElement {
       }
 
       if (response.type === "text") {
-        this.streamedContent += sanitiseText(response.data);
-        this.responseContainer?.update(this.streamedContent);
-        hideElement(this.loadingElement);
+        this.streamedContent += this.sanitiseText(response.data);
+        if (this.streamedContent) this.responseContainer?.update(this.streamedContent);
       } else if (response.type === "session-id") {
         chatControllerRef.dataset.sessionId = sanitiseId(response.data);
       } else if (response.type === "source") {
         sourcesContainer.add(
-          sanitiseText(response.data.file_name),
+          this.sanitiseText(response.data.file_name),
           sanitiseUrl(response.data.url),
-          sanitiseText(response.data.text_in_answer || "")
+          this.sanitiseText(response.data.text_in_answer || "")
         );
       } else if (response.type === "route") {
         // Update the route text on the page now the selected route is known
         let route = this?.querySelector(".redbox-message-route");
         let routeText = route?.querySelector(".route-text");
         if (route && routeText) {
-          routeText.textContent = sanitiseText(response.data);
+          routeText.textContent = this.sanitiseText(response.data);
           route.removeAttribute("hidden");
         }
       } else if (response.type === "activity") {
@@ -295,7 +246,7 @@ export class ChatMessage extends HTMLElement {
       } else if (response.type === "end") {
         // Assign the new message its ID straight away
         const chatMessage = this.querySelector('.govuk-inset-text');
-        if (chatMessage) {chatMessage.id = `chat-message-${sanitiseId(response.data.message_id)}`}
+        if (chatMessage) { chatMessage.id = `chat-message-${sanitiseId(response.data.message_id)}` }
         // Add in feedback and copy buttons dynamically
         if (actionsContainer) {
           const feedbackButtons = document.createElement('feedback-buttons')
@@ -306,69 +257,56 @@ export class ChatMessage extends HTMLElement {
 
           actionsContainer.appendChild(feedbackButtons)
           actionsContainer.appendChild(copyText)
-
-      }
-        // this.#addFootnotes(this.streamedContent, response.data.message_id);
-        const chatResponseEndEvent = new CustomEvent("chat-response-end", {
-          detail: {
-            title: sanitiseText(response.data.title),
-            session_id: sanitiseId(response.data.session_id),
-            is_new_chat,
-          },
-        });
-        document.dispatchEvent(chatResponseEndEvent);
-      } else if (response.type === "error") {
-        this.querySelector(".govuk-error-summary")?.removeAttribute(
-          "hidden"
-        );
-        let errorContentContainer = this.querySelector(
-          ".govuk-error-summary__title"
-        );
-        if (errorContentContainer) {
-          errorContentContainer.textContent = sanitiseText(response.data);
         }
-      }
+        // this.#addFootnotes(this.streamedContent, response.data.message_id);
+        emitEvent(Events.CHAT_RESPONSE_END, {
+          title: this.sanitiseText(response.data.title),
+          session_id: sanitiseId(response.data.session_id),
+          is_new_chat,
+        })
 
-      // ensure new content isn't hidden behind the chat-input
-      // but stop scrolling if message is at the top of the screen
-      if (!scrollOverride) {
-        const TOP_POSITION = 88;
-        const boxInfo = this.getBoundingClientRect();
-        const newTopPosition =
-          boxInfo.top -
-          (boxInfo.height - (this.previousHeight || boxInfo.height));
-        this.previousHeight = boxInfo.height;
-        if (newTopPosition > TOP_POSITION) {
-          this.programmaticScroll = true;
-          this.scrollIntoView({ block: "end" });
+      } else if (response.type === "error") {
+        this.showError(response.data);
+      } else if (response.type === "auth_expired") {
+        if (this.LOGOUT_URL) {
+          window.location.href = this.LOGOUT_URL;
         } else {
-          scrollOverride = true;
-          this.scrollIntoView();
-          window.scrollBy(0, -TOP_POSITION);
+          this.showError(response.data);
         }
       }
     };
   };
 
 
-   /**
-   * Displays response activity below the message
-   * @param {string} message
-   */
+  /**
+  * Displays response activity below the message
+  * @param {string} message
+  */
   addActivity = (message) => {
     this.loadingElement.loadingText.textContent = message;
     showElement(this.loadingElement);
   };
 
 
-   /**
-   * Returns the activity element used for response feedback
-   * @returns {LoadingMessage} Loading Message Activity element
-   */
-  get loadingElement() {
-    return /** @type {LoadingMessage} */ (this.querySelector("rbds-loading-message"));
+  /**
+  * Displays error message
+  * @param {string} message
+  */
+  showError = (message) => {
+    showElement(this.querySelector(".govuk-error-summary"));
+    let errorContentContainer = this.querySelector(".govuk-error-summary__title");
+    if (errorContentContainer) {
+      errorContentContainer.textContent = this.sanitiseText(message);
+    }
   }
 
-}
 
-customElements.define("rbds-chat-message", ChatMessage);
+  /**
+  * Returns the activity element used for response feedback
+  * @returns {LoadingMessage} Loading Message Activity element
+  */
+  get loadingElement() {
+    return /** @type {LoadingMessage} */ (this.querySelector("ids-loading-message"));
+  }
+}
+customElements.define("ids-chat-message", ChatMessage);

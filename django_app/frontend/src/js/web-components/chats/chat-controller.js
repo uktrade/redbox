@@ -28,7 +28,7 @@ class ChatController extends HTMLElement {
         chatController.querySelector("feedback-buttons")
       );
       const messageInput = /** @type {import("./message-input").MessageInput} */ (
-          document.querySelector("rbds-message-input")
+          document.querySelector("ids-message-input")
       );
       const userText = messageInput?.getValue();
       const hasContent = Boolean(userText || messageInput?.hasUploadedFiles());
@@ -43,7 +43,7 @@ class ChatController extends HTMLElement {
       if (firstTimeUploadElement) hideElement(firstTimeUploadElement);
 
       let userMessage = /** @type {ChatMessage} */ (
-        document.createElement("rbds-chat-message")
+        document.createElement("ids-chat-message")
       );
       userMessage.setAttribute("data-text", userText);
       userMessage.setAttribute("data-role", "user");
@@ -59,9 +59,11 @@ class ChatController extends HTMLElement {
       });
 
       let aiMessage = /** @type {import("./chat-message").ChatMessage} */ (
-        document.createElement("rbds-chat-message")
+        document.createElement("ids-chat-message")
       );
       aiMessage.setAttribute("data-role", "ai");
+      aiMessage.setAttribute("data-logout-url", this.dataset.logoutUrl || "/");
+
       messageContainer?.insertBefore(aiMessage, insertPosition);
 
       const llm =

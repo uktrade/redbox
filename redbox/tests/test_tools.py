@@ -1,10 +1,10 @@
+import hashlib
+import os
 import re
 from urllib.parse import urlparse
 from uuid import uuid4
 
 import duckdb
-from io import StringIO
-import pandas as pd
 import pytest
 import requests_mock
 from langchain_core.documents import Document
@@ -21,19 +21,21 @@ from redbox.graph.nodes.tools import (
     build_document_from_prompt_tool,
     build_govuk_search_tool,
     build_legislation_search_tool,
+    build_query_tabular_file_tool,
+    write_duckdb_table,
+    query_duckdb_db,
     build_retrieve_document_full_text,
     build_retrieve_knowledge_base,
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
-    build_query_tabular_knowledge_base_tool,
     format_result,
     kagi_response_to_documents,
     web_search_call,
     web_search_with_retry,
 )
 from redbox.models.chain import AISettings, RedboxQuery, RedboxState
-from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution
+from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution, TabularSchema
 from redbox.models.settings import Settings
 from redbox.test.data import RedboxChatTestCase
 from redbox.transform import bedrock_tokeniser, combine_documents, flatten_document_state
@@ -89,8 +91,24 @@ def test_document_from_prompt_tool():
     )
 
 
-def test_retrieve_knowledge_base(es_client: OpenSearch, es_index: str, stored_file_knowledge_base: RedboxChatTestCase):
-    kb_tool = build_retrieve_knowledge_base(es_client, es_index)
+@pytest.mark.parametrize(
+    "loop, all_files, tool_name, tool_arg",
+    [
+        (False, True, "_retrieve_knowledge_base", {}),
+        (True, True, "_retrieve_knowledge_base", {}),
+        (False, False, "_retrieve_specific_file_knowledge_base", {"uri": "s3_key"}),
+    ],
+)
+def test_retrieve_knowledge_base(
+    es_client: OpenSearch,
+    es_index: str,
+    stored_file_knowledge_base: RedboxChatTestCase,
+    loop,
+    all_files,
+    tool_name,
+    tool_arg,
+):
+    kb_tool = build_retrieve_knowledge_base(es_client, es_index, loop=loop, all_files=all_files)
     tool_node = ToolNode(tools=[kb_tool])
     result_state = tool_node.invoke(
         RedboxState(
@@ -100,8 +118,8 @@ def test_retrieve_knowledge_base(es_client: OpenSearch, es_index: str, stored_fi
                     content="",
                     tool_calls=[
                         {
-                            "name": "_retrieve_knowledge_base",
-                            "args": {},
+                            "name": tool_name,
+                            "args": tool_arg,
                             "id": "1",
                         }
                     ],
@@ -109,10 +127,13 @@ def test_retrieve_knowledge_base(es_client: OpenSearch, es_index: str, stored_fi
             ],
         )
     )
+
     if stored_file_knowledge_base.test_id == "Successful Path-0":
-        assert "<context>This is your knowledgebase result.</context>" in result_state["messages"][0].content
+        assert "<context>This is your knowledge base result.</context>" in result_state["messages"][0].content
+        assert len(result_state["messages"][0].artifact) > 0
     elif stored_file_knowledge_base.test_id == "Empty knowledge base-0":
-        assert result_state["messages"][0].content == "Tool returns empty result set."
+        assert "Tool returns empty result set." in result_state["messages"][0].content
+        assert len(result_state["messages"][0].artifact) == 0
 
 
 def test_retrieve_document_full_text_tool(
@@ -798,91 +819,61 @@ def test_reduce_chunks_by_tokens_multiple_operations(monkeypatch):
 
 
 def get_expected_docs_for_sql_query(sql_query: str, docs: list[Document], uri: str) -> list[Document]:
-    """
-    Execute an SQL query on the tabular content of a list of Documents and
-    return a list of Documents with the matching rows, just like the tool would.
-
-    Args:
-        sql_query: SQL query string to execute.
-        docs: List of Document objects containing CSV/Excel content and TabularSchema.
-        uri: Only include documents matching this URI.
-
-    Returns:
-        List of Document objects matching the SQL query.
-    """
-    results = []
-
-    # Use in-memory DuckDB
-    with duckdb.connect(database=":memory:") as con:
+    uri_sha = hashlib.sha256(uri.encode("utf-8")).hexdigest()
+    db_path = f"/tmp/test_expected_{uri_sha}.duckdb"
+    try:
         for doc in docs:
-            if doc.metadata["uri"] != uri:
+            if doc.metadata.get("uri") != uri:
                 continue
             schema = doc.metadata.get("document_schema")
             if not schema:
-                continue  # skip documents without schema
-
-            # Convert CSV content to DataFrame
-            df = pd.read_csv(StringIO(doc.page_content))
-
-            # Keep only schema columns
-            df = df[[c for c in schema["columns"].keys() if c in df.columns]]
-
-            # Create table in DuckDB
-            con.execute(f'CREATE TABLE "{schema["name"]}" AS SELECT * FROM df')
-
-        # Execute SQL query
-        query_result = con.execute(sql_query).fetchall()
-        col_names = [desc[0] for desc in con.description]
-
-        # Wrap results as Documents
-        for row in query_result:
-            row_dict = dict(zip(col_names, row))
-            results.append(Document(page_content=str(row_dict), metadata={"uri": uri}))
-
-    return results
+                continue
+            schema_obj = TabularSchema.model_validate(schema)
+            write_duckdb_table(db_path=db_path, schema=schema_obj, text_content=doc.page_content)
+        return query_duckdb_db(db_path=db_path, sql_query=sql_query, metadata={"uri": uri})
+    finally:
+        if os.path.exists(db_path):
+            os.remove(db_path)
 
 
 @pytest.mark.parametrize(
     "sql_query",
     [
-        "SELECT * FROM sheet0 WHERE id < 5",
+        "SELECT * FROM sheet0",
         "SELECT name, value FROM sheet0 WHERE value > 100",
     ],
 )
 def test_query_tabular_knowledge_base_tool(
     es_client: OpenSearch,
     es_index: str,
-    stored_file_tabular_kb: RedboxChatTestCase,
+    stored_file_tabular: tuple[RedboxChatTestCase, bool],
     sql_query: str,
 ):
     """
     Test the tabular KB tool via LangChain ToolNode, simulating agent tool call.
     """
+    test_case, knowledge_base = stored_file_tabular
 
-    # Build the tool
-    kb_tool = build_query_tabular_knowledge_base_tool(
-        es_client=es_client,
-        index_name=es_index,
+    accessible_keys = (
+        set(test_case.query.knowledge_base_s3_keys) if knowledge_base else set(test_case.query.permitted_s3_keys)
     )
 
-    # Wrap the tool in a ToolNode
-    tool_node = ToolNode(tools=[kb_tool])
+    if not accessible_keys:
+        pytest.skip("No accessible keys — covered by permission test")
 
-    # Pick a URI from the stored test KB files
-    kb_keys = stored_file_tabular_kb.query.knowledge_base_s3_keys
-    if not kb_keys:
-        pytest.skip("No knowledge_base_s3_keys for this test case")
-    test_uri = kb_keys[0]
+    test_uri = sorted(accessible_keys)[0]
 
-    # Create RedboxState with the tool call
+    tool = build_query_tabular_file_tool(es_client=es_client, index_name=es_index, knowledge_base=knowledge_base)
+    tool_node = ToolNode(tools=[tool])
+
     state = RedboxState(
-        request=stored_file_tabular_kb.query,
+        request=test_case.query,
         messages=[
             AIMessage(
                 content="",
                 tool_calls=[
                     {
-                        "name": "_query_tabular_knowledge_base",
+                        "name": "_query_tabular_file",
                         "args": {"sql_query": sql_query, "uri": test_uri},
                         "id": "1",
                     }
@@ -891,23 +882,186 @@ def test_query_tabular_knowledge_base_tool(
         ],
     )
 
-    # Invoke the tool via ToolNode
     result_state = tool_node.invoke(state)
-
-    # Extract the result message
     message = result_state["messages"][0]
     formatted_output = getattr(message, "content", "")
     docs = getattr(message, "artifact", [])
 
-    # --- NEW: Execute SQL on the KB documents to get expected results ---
-    expected_docs = get_expected_docs_for_sql_query(sql_query=sql_query, docs=stored_file_tabular_kb.docs, uri=test_uri)
+    expected_docs = get_expected_docs_for_sql_query(sql_query=sql_query, docs=test_case.docs, uri=test_uri)
 
-    # Assertions
     assert isinstance(formatted_output, str)
     assert isinstance(docs, list)
     assert all(isinstance(d, Document) for d in docs)
     assert len(docs) == len(expected_docs), f"Expected {len(expected_docs)} docs, got {len(docs)}"
-
-    # Check that returned docs all have the correct URI
     for doc in docs:
         assert doc.metadata["uri"] == test_uri
+
+
+class TestWriteDuckdbTable:
+    @pytest.fixture(autouse=True)
+    def db(self, tmp_duckdb_path, sample_tabular_schema, sample_csv):
+        self.db_path = tmp_duckdb_path
+        self.schema = sample_tabular_schema
+        self.csv = sample_csv
+
+    def _tables(self):
+        with duckdb.connect(self.db_path) as con:
+            return [t[0] for t in con.execute("SHOW TABLES").fetchall()]
+
+    def _rows(self, table="sheet0"):
+        with duckdb.connect(self.db_path) as con:
+            return con.execute(f"SELECT * FROM {table} ORDER BY id").fetchall()
+
+    def _cols(self, table="sheet0"):
+        with duckdb.connect(self.db_path) as con:
+            return [c[0] for c in con.execute(f"DESCRIBE {table}").fetchall()]
+
+    def _count(self, table="sheet0"):
+        with duckdb.connect(self.db_path) as con:
+            return con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+
+    def test_creates_table(self):
+        write_duckdb_table(db_path=self.db_path, schema=self.schema, text_content=self.csv)
+        assert "sheet0" in self._tables()
+
+    def test_inserts_correct_rows(self):
+        write_duckdb_table(db_path=self.db_path, schema=self.schema, text_content=self.csv)
+        rows = self._rows()
+        assert len(rows) == 3
+        assert rows[0] == (1, "Alice", 100.0)
+        assert rows[1] == (2, "Bob", 200.0)
+        assert rows[2] == (3, "Charlie", 300.0)
+
+    def test_idempotent_does_not_duplicate(self):
+        write_duckdb_table(db_path=self.db_path, schema=self.schema, text_content=self.csv)
+        write_duckdb_table(db_path=self.db_path, schema=self.schema, text_content=self.csv)
+        assert self._count() == 3
+
+    def test_casts_numeric_columns(self):
+        write_duckdb_table(db_path=self.db_path, schema=self.schema, text_content=self.csv)
+        with duckdb.connect(self.db_path) as con:
+            row = con.execute("SELECT id, value FROM sheet0 WHERE id = 1").fetchone()
+        assert isinstance(row[0], int)
+        assert isinstance(row[1], float)
+
+    def test_skips_extra_columns_not_in_schema(self):
+        csv_with_extra = "id,name,value,extra_col\n1,Alice,100.0,ignored"
+        write_duckdb_table(db_path=self.db_path, schema=self.schema, text_content=csv_with_extra)
+        assert "extra_col" not in self._cols()
+        assert self._count() == 1
+
+    def test_handles_empty_csv(self):
+        write_duckdb_table(db_path=self.db_path, schema=self.schema, text_content="id,name,value\n")
+        assert "sheet0" in self._tables()
+        assert self._count() == 0
+
+    def test_multiple_sheets_same_db(self):
+        schema0 = TabularSchema(name="sheet0", columns={"id": "INTEGER", "name": "TEXT", "value": "FLOAT"})
+        schema1 = TabularSchema(name="sheet1", columns={"id": "INTEGER", "name": "TEXT", "value": "FLOAT"})
+        write_duckdb_table(db_path=self.db_path, schema=schema0, text_content=self.csv)
+        write_duckdb_table(db_path=self.db_path, schema=schema1, text_content=self.csv)
+        tables = self._tables()
+        assert "sheet0" in tables
+        assert "sheet1" in tables
+        assert self._count("sheet0") == 3
+        assert self._count("sheet1") == 3
+
+    @pytest.mark.parametrize(
+        "csv_content,expected_rows",
+        [
+            (
+                "id,name,value\n1,Alice,100.0\n2,Bob,200.0\n3,Charlie,300.0",
+                [(1, "Alice", 100.0), (2, "Bob", 200.0), (3, "Charlie", 300.0)],
+            ),
+            (
+                "id,name,value\n1,Alice,100.0",
+                [(1, "Alice", 100.0)],
+            ),
+            (
+                "id,name,value\n",
+                [],
+            ),
+        ],
+    )
+    def test_row_counts_and_values(self, csv_content, expected_rows):
+        write_duckdb_table(db_path=self.db_path, schema=self.schema, text_content=csv_content)
+        rows = self._rows()
+        assert rows == expected_rows
+
+
+class TestQueryDuckdbDb:
+    @pytest.fixture(autouse=True)
+    def populated_db(self, tmp_duckdb_path, sample_tabular_schema, sample_csv):
+        write_duckdb_table(db_path=tmp_duckdb_path, schema=sample_tabular_schema, text_content=sample_csv)
+        self.db_path = tmp_duckdb_path
+
+    @pytest.mark.parametrize(
+        "sql_query,expected_count,expected_in_content,expected_not_in_content",
+        [
+            (
+                "SELECT * FROM sheet0",
+                3,
+                [["Alice", "100"], ["Bob", "200"], ["Charlie", "300"]],
+                None,
+            ),
+            (
+                "SELECT * FROM sheet0 WHERE value > 150",
+                2,
+                [["Bob", "200"], ["Charlie", "300"]],
+                None,
+            ),
+            (
+                "SELECT * FROM sheet0 WHERE id = 1",
+                1,
+                [["Alice", "100"]],
+                None,
+            ),
+            (
+                "SELECT name FROM sheet0",
+                3,
+                [["Alice"], ["Bob"], ["Charlie"]],
+                ["value"],
+            ),
+            (
+                "SELECT * FROM sheet0 WHERE id > 999",
+                0,
+                [],
+                None,
+            ),
+        ],
+    )
+    def test_query_results(self, sql_query, expected_count, expected_in_content, expected_not_in_content):
+        docs = query_duckdb_db(db_path=self.db_path, sql_query=sql_query, metadata={"uri": "file1.csv"})
+
+        assert len(docs) == expected_count
+        assert all(isinstance(d, Document) for d in docs)
+        assert all(d.metadata == {"uri": "file1.csv"} for d in docs)
+
+        for doc, expected_terms in zip(docs, expected_in_content):
+            for term in expected_terms:
+                assert term in doc.page_content
+
+        if expected_not_in_content:
+            for doc in docs:
+                for term in expected_not_in_content:
+                    assert term not in doc.page_content
+
+    def test_ordering(self):
+        docs = query_duckdb_db(
+            db_path=self.db_path,
+            sql_query="SELECT * FROM sheet0 ORDER BY value DESC",
+            metadata={"uri": "file1.csv"},
+        )
+        assert len(docs) == 3
+        assert "Charlie" in docs[0].page_content
+        assert "Alice" in docs[2].page_content
+
+    def test_aggregation(self):
+        docs = query_duckdb_db(
+            db_path=self.db_path,
+            sql_query="SELECT COUNT(*) as count, SUM(value) as total FROM sheet0",
+            metadata={"uri": "file1.csv"},
+        )
+        assert len(docs) == 1
+        assert "3" in docs[0].page_content  # count
+        assert "600" in docs[0].page_content  # 100 + 200 + 300

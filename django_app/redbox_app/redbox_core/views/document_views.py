@@ -41,6 +41,10 @@ class DocumentView(View):
             context=context,
         )
 
+    @method_decorator(login_required)
+    def post(self, request: HttpRequest) -> HttpResponse:
+        return documents_service.handle_post_upload(request)
+
 
 class UploadView(View):
     @method_decorator(login_required)
@@ -207,7 +211,7 @@ def delete_document(request, doc_id: uuid.UUID, slug: str | None = None):
 
     session_id = request.POST.get("session-id")
     file_selected = request.POST.get("file_selected")
-    active_chat_id = session_id if session_id else request.POST.get("active_chat_id")
+    active_chat_id = session_id or request.POST.get("active_chat_id")
 
     if active_chat_id and active_chat_id != "None":
         try:
@@ -231,7 +235,7 @@ def delete_document(request, doc_id: uuid.UUID, slug: str | None = None):
         return render_with_oob(
             [
                 {"template": "side_panel/your_documents.html", "context": context, "request": request},
-                {"template": "chat/chat_window.html", "context": oob_context, "request": request},
+                {"template": "chat/chat_feed.html", "context": oob_context, "request": request},
             ]
         )
 

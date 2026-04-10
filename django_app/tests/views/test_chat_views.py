@@ -150,7 +150,7 @@ def test_conversations_with_chat(user_with_chats_with_messages_over_time: User, 
     soup = BeautifulSoup(response.content)
     selected_chat = soup.find(
         "li",
-        class_=["rbds-list-row", "rbds-list-row--selected"],
+        class_=["ids-list-row", "ids-list-row--selected"],
         attrs={"data-chatid": str(chats[0].id)},
     )
 
@@ -175,7 +175,7 @@ def test_recent_chats_without_chat(user_with_chats_with_messages_over_time: User
         },
     )
     soup = BeautifulSoup(response.content)
-    chat_items = soup.find_all("li", class_="rbds-list-row")
+    chat_items = soup.find_all("li", class_="ids-list-row")
     rendered_ids = [item["data-chatid"] for item in chat_items]
 
     # Then
@@ -183,11 +183,11 @@ def test_recent_chats_without_chat(user_with_chats_with_messages_over_time: User
     for chat in chats:
         assert str(chat.id) in rendered_ids
     for chat_item in chat_items:
-        assert "rbds-list-row--selected" not in chat_item.get("class", [])
+        assert "ids-list-row--selected" not in chat_item.get("class", [])
 
 
 @pytest.mark.django_db
-def test_chat_window_with_chat(chat_with_message: Chat, client: Client):
+def test_chat_feed_with_chat(chat_with_message: Chat, client: Client):
     # Given
     user = chat_with_message.user
     client.force_login(user)
@@ -198,7 +198,7 @@ def test_chat_window_with_chat(chat_with_message: Chat, client: Client):
         reverse("refresh"),
         data={
             "chat": chat_with_message.id,
-            "fragments": ["chat-window"],
+            "fragments": ["chat-feed"],
         },
     )
     response_content = response.content.decode()
@@ -209,7 +209,7 @@ def test_chat_window_with_chat(chat_with_message: Chat, client: Client):
 
 
 @pytest.mark.django_db
-def test_chat_window_without_chat(alice: User, client: Client):
+def test_chat_feed_without_chat(alice: User, client: Client):
     # Given
     client.force_login(alice)
 
@@ -217,7 +217,7 @@ def test_chat_window_without_chat(alice: User, client: Client):
     response = client.get(
         reverse("refresh"),
         data={
-            "fragments": ["chat-window"],
+            "fragments": ["chat-feed"],
         },
     )
     soup = BeautifulSoup(response.content)
@@ -226,3 +226,23 @@ def test_chat_window_without_chat(alice: User, client: Client):
     # Then
     assert response.status_code == HTTPStatus.OK
     assert canned_prompt is not None
+
+
+@pytest.mark.django_db
+def test_delete_chat(user_with_chats_with_messages_over_time: User, client: Client):
+    # Given
+    user = user_with_chats_with_messages_over_time
+    client.force_login(user)
+    chats = Chat.get_ordered_by_last_message_date(user)
+    chat_count = chats.count()
+    chat = chats[0]
+    url = reverse("delete-chat", kwargs={"chat_id": chat.id})
+
+    # When
+    response = client.post(url, json.dumps({"active_chat_id": "None"}), content_type="application/json")
+    chat_response = client.post(url, json.dumps({"active_chat_id": str(chat.id)}), content_type="application/json")
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert chat_response.status_code == HTTPStatus.OK
+    assert chat_count - 1 == Chat.get_ordered_by_last_message_date(user).count()

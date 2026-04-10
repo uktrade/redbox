@@ -10,7 +10,13 @@ from waffle import flag_is_active
 from yarl import URL
 
 from redbox_app.redbox_core import flags
-from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, Tool
+from redbox_app.redbox_core.models import (
+    Chat,
+    ChatLLMBackend,
+    ChatMessage,
+    Tool,
+    UserTeamMembership,
+)
 from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.services import message as message_service
 from redbox_app.redbox_core.services import url as url_service
@@ -32,6 +38,13 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
     if tool and current_chat and tool.settings.deselect_documents_on_load:
         current_chat.clear_selected_files()
 
+    tools = Tool.objects.all()
+
+    # Only enable Invest Lens for specified users until launch
+    # On release - TODO: implement permissions into tool model for future trials
+    if not flag_is_active(request, flags.ENABLE_INVEST_LENS):
+        tools = tools.exclude(slug="invest-lens")
+
     messages = ChatMessage.get_messages_ordered_by_citation_priority(chat_id) if current_chat else []
     endpoint = _build_ws_endpoint(request)
     file_context = documents_service.decorate_file_context(request, tool, messages)
@@ -44,16 +57,16 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
         "upload_url": url_service.get_upload_url(slug=slug),
     }
 
-    sidepanel_collapsed = request.COOKIES.get("rbds-side-panel-collapsed", "false") == "true"
+    sidepanel_collapsed = request.COOKIES.get("ids-side-panel-collapsed", "false") == "true"
 
-    return {
+    context = {
         "tool": tool,
+        "tools": tools,
         "chat_id": chat_id,
         "messages": messages,
         "chats": Chat.get_ordered_by_last_message_date(request.user, tool),
         "current_chat": current_chat,
         "streaming": {"endpoint": str(endpoint)},
-        "contact_email": settings.CONTACT_EMAIL,
         "chat_title_length": settings.CHAT_TITLE_LENGTH,
         "llm_options": [
             {
@@ -73,6 +86,11 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
         "promoted_tool": Tool.objects.filter(slug="submissions-checker").first() or None,
         "sidepanel_collapsed": sidepanel_collapsed,
     }
+
+    if flag_is_active(request.user, flags.ENABLE_TEAMS):
+        context["user_teams"] = UserTeamMembership.objects.filter(user=request.user)
+
+    return context
 
 
 def _get_valid_chat(user: User, chat_id: UUID | None):
@@ -134,4 +152,12 @@ def render_chats(request: HttpRequest, context: dict) -> HttpResponse:
         request,
         template_name="chats.html",
         context=context,
+    )
+
+
+def render_conversations(request: HttpRequest, context: dict | None = None) -> HttpResponse:
+    return render(
+        request,
+        template_name="side_panel/conversations.html",
+        context=context or get_context(request),
     )

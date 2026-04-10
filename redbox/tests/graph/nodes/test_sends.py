@@ -1,22 +1,28 @@
 from concurrent.futures import TimeoutError
+from unittest.mock import AsyncMock, patch, MagicMock
 from uuid import uuid4
 
 import pytest
+from httpx import ConnectError
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, ToolCall
 from langgraph.constants import Send
 from pytest_mock import MockerFixture
 
+from redbox.api.format import MCPResponseMetadata
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
     build_document_group_send,
     build_tool_send,
     no_dependencies,
     run_tools_parallel,
+    wrap_async_tool,
+    _get_mcp_headers,
 )
-from redbox.graph.nodes.tools import build_govuk_search_tool, build_search_wikipedia_tool
+from redbox.graph.nodes.tools import build_search_wikipedia_tool, build_govuk_search_tool
 from redbox.models.chain import DocumentState, RedboxQuery, RedboxState, TaskStatus, configure_agent_task_plan
 from tests.conftest import fake_state
+from tests.retriever.data import MCP_TOOL_RESULTS
 
 
 def test_build_document_group_send():
@@ -259,3 +265,335 @@ def test_no_dependencies(dependencies, expected):
     actual = no_dependencies(dependencies, plan=plan)
 
     assert actual == expected
+
+
+class TestRunToolsParallelAsync:
+    def _patch_mcp_env(self, mock_load_tools, mock_http_client, mock_session_class, tools):
+        """Patch MCP networking to allow wrap_async_tool to succeed."""
+        # streamablehttp_client mock
+        mock_read, mock_write = AsyncMock(), AsyncMock()
+        mock_http_cm = AsyncMock()
+        mock_http_cm.__aenter__ = AsyncMock(return_value=(mock_read, mock_write, None))
+        mock_http_cm.__aexit__ = AsyncMock(return_value=None)
+        mock_http_client.return_value = mock_http_cm
+
+        # ClientSession mock
+        mock_session = AsyncMock()
+
+        # initialize() must return something with real strings at serverInfo.name/version
+        mock_server_info = MagicMock()
+        mock_server_info.name = "test-server"
+        mock_server_info.version = "1.0"
+        mock_init_result = MagicMock()
+        mock_init_result.serverInfo = mock_server_info
+        mock_session.initialize = AsyncMock(return_value=mock_init_result)
+
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        # load_mcp_tools returns the tool
+        mock_load_tools.return_value = tools
+
+    @pytest.mark.parametrize("expected_tool_result, expected_parsed_result", MCP_TOOL_RESULTS)
+    @patch("redbox.graph.nodes.sends.ClientSession")
+    @patch("redbox.graph.nodes.sends.streamablehttp_client")
+    @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
+    def test_async_tool_returns_expected_response(
+        self,
+        mock_load_tools,
+        mock_http_client,
+        mock_session_class,
+        fake_state,
+        fake_mcp_tool,
+        expected_tool_result,
+        expected_parsed_result,
+    ):
+        expected_tool_content, _ = expected_tool_result
+
+        tool_name = "company_tool"
+        args_schema = {"company_name": {"type": "string"}, "required": ["company_name"]}
+        args = {"company_name": "BMW"}
+
+        tool = fake_mcp_tool(tool_name, expected_tool_content, args_schema=args_schema)
+
+        self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
+
+        ai_msg = AIMessage(
+            content="call async tool",
+            tool_calls=[{"name": tool_name, "args": args, "id": "1"}],
+        )
+
+        responses = run_tools_parallel(ai_msg, tools=[tool], state=fake_state)
+
+        assert isinstance(responses, list)
+        assert len(responses) == 1
+        assert responses[0].content == expected_parsed_result
+        tool.ainvoke.assert_awaited_once_with({"company_name": "BMW"})
+
+    @pytest.mark.parametrize(
+        "required_keys,expected_ainvoke_args",
+        [
+            (
+                ["company_name"],
+                {"company_name": "BMW", "is_intermediate_step": "False"},
+            ),
+            (["company_name"], {"company_name": "BMW"}),
+        ],
+    )
+    @pytest.mark.parametrize("expected_tool_result, expected_parsed_result", MCP_TOOL_RESULTS)
+    @patch("redbox.graph.nodes.sends.ClientSession")
+    @patch("redbox.graph.nodes.sends.streamablehttp_client")
+    @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
+    def test_async_tool_with_loop_agent(
+        self,
+        mock_load_tools,
+        mock_http_client,
+        mock_session_class,
+        fake_state,
+        fake_mcp_tool,
+        required_keys,
+        expected_ainvoke_args,
+        expected_tool_result: tuple[str, MCPResponseMetadata],
+        expected_parsed_result: str,
+    ):
+        expected_tool_content, expected_tool_metadata = expected_tool_result
+
+        tool_name = "company_tool"
+        args_schema = {"required": required_keys}
+
+        tool = fake_mcp_tool(tool_name, expected_tool_content, args_schema=args_schema)
+
+        self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
+
+        ai_msg = AIMessage(
+            content="loop call",
+            tool_calls=[{"name": tool_name, "args": expected_ainvoke_args, "id": "1"}],
+        )
+
+        responses = run_tools_parallel(ai_msg, tools=[tool], state=fake_state, is_loop=True)
+        assert isinstance(responses, list)
+
+        transformed = responses[0].content
+        assert isinstance(transformed, list)
+
+        assert transformed[0] == expected_parsed_result
+        expected_status = "pass" if expected_parsed_result != "" else "fail"
+
+        assert transformed[1] == expected_status
+        assert transformed[2] == "False"
+
+        if expected_tool_metadata.user_feedback.required:
+            assert len(transformed) == 4
+            assert transformed[3] == expected_tool_metadata.user_feedback.reason
+        else:
+            assert len(transformed) == 3
+
+        # Ensure ainvoke got the correct args based on whether 'is_intermediate_step' is required
+        if "is_intermediate_step" not in required_keys and "is_intermediate_step" in expected_ainvoke_args.keys():
+            expected_ainvoke_args.pop("is_intermediate_step")
+        tool.ainvoke.assert_awaited_once_with(expected_ainvoke_args)
+
+    @pytest.mark.parametrize("expected_tool_result, expected_parsed_result", MCP_TOOL_RESULTS)
+    @patch("redbox.graph.nodes.sends.ClientSession")
+    @patch("redbox.graph.nodes.sends.streamablehttp_client")
+    @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
+    def test_async_tool_with_non_loop_agent(
+        self,
+        mock_load_tools,
+        mock_http_client,
+        mock_session_class,
+        fake_state,
+        fake_mcp_tool,
+        expected_tool_result,
+        expected_parsed_result,
+    ):
+        expected_tool_content, _ = expected_tool_result
+
+        tool_name = "company_tool"
+        args_schema = {"required": []}
+        args = {"company_name": "BMW"}
+        tool = fake_mcp_tool(tool_name, expected_tool_content, args_schema=args_schema)
+
+        self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
+
+        ai_msg = AIMessage(
+            content="non-loop call",
+            tool_calls=[{"name": tool_name, "args": args, "id": "1"}],
+        )
+
+        responses = run_tools_parallel(ai_msg, tools=[tool], state=fake_state, is_loop=False)
+        assert isinstance(responses, list)
+        assert responses[0].content == expected_parsed_result
+        tool.ainvoke.assert_awaited_once_with(args)
+
+    @pytest.mark.parametrize(
+        "exception",
+        [TimeoutError("tool timed out"), ValueError("invalid value"), Exception("unknown error")],
+    )
+    @patch("redbox.graph.nodes.sends.ClientSession")
+    @patch("redbox.graph.nodes.sends.streamablehttp_client")
+    @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
+    def test_async_tool_failures_return_none(
+        self, mock_load_tools, mock_http_client, mock_session_class, exception, fake_state, fake_mcp_tool_failing
+    ):
+        tool = fake_mcp_tool_failing("failing_tool", exception)
+        self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
+
+        ai_msg = AIMessage(
+            content="call failing tool",
+            tool_calls=[{"name": "failing_tool", "args": {"foo": "bar"}, "id": "1"}],
+        )
+
+        response = run_tools_parallel(ai_msg, tools=[tool], state=fake_state)
+        assert response is None
+        tool.ainvoke.assert_awaited_once_with({"foo": "bar"})
+
+    @patch("redbox.graph.nodes.sends.ClientSession")
+    @patch("redbox.graph.nodes.sends.streamablehttp_client")
+    @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
+    def test_async_tool_not_found_returns_none(
+        self, mock_load_tools, mock_http_client, mock_session_class, fake_state, fake_mcp_tool
+    ):
+        args_schema = {"required": []}
+        tool = fake_mcp_tool("real_tool", "some response", args_schema=args_schema)
+        self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
+
+        ai_msg = AIMessage(
+            content="call missing tool",
+            tool_calls=[{"name": "missing_tool", "args": {"foo": "bar"}, "id": "1"}],
+        )
+
+        response = run_tools_parallel(ai_msg, tools=[tool], state=fake_state)
+        assert response is None
+
+
+class TestWrapAsyncTool:
+    def _patch_mcp_env(self, mock_load_tools, mock_http_client, mock_session_class, tools):
+        """Patch MCP networking to allow wrap_async_tool to succeed."""
+        # streamablehttp_client mock
+        mock_read, mock_write = AsyncMock(), AsyncMock()
+        mock_http_cm = AsyncMock()
+        mock_http_cm.__aenter__ = AsyncMock(return_value=(mock_read, mock_write, None))
+        mock_http_cm.__aexit__ = AsyncMock(return_value=None)
+        mock_http_client.return_value = mock_http_cm
+
+        # ClientSession mock
+        mock_session = AsyncMock()
+
+        # initialize() must return something with real strings at serverInfo.name/version
+        mock_server_info = MagicMock()
+        mock_server_info.name = "test-server"
+        mock_server_info.version = "1.0"
+        mock_init_result = MagicMock()
+        mock_init_result.serverInfo = mock_server_info
+        mock_session.initialize = AsyncMock(return_value=mock_init_result)
+
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session_class.return_value = mock_session
+
+        # load_mcp_tools returns the tool
+        mock_load_tools.return_value = tools
+
+        return mock_session
+
+    @pytest.mark.parametrize(
+        "url,expected_exceptions",
+        [
+            ("http://fake-mcp-url", (ConnectError)),  # non-existent hostname
+            ("http://127.0.0.1:59999", (ConnectError)),  # unused localhost port
+        ],
+    )
+    def test_connection_failure(self, fake_mcp_tool, url, expected_exceptions):
+        """Test wrap_async_tool fails when MCP server cannot be reached."""
+        tool = fake_mcp_tool("dummy_tool", return_value=None)
+        tool.metadata["url"] = url
+
+        wrapped = wrap_async_tool(tool, tool.name)
+        args = {"foo": "bar"}
+
+        with pytest.raises(ExceptionGroup) as exc_info:
+            wrapped(args)
+
+        # All inner exceptions should match the expected types
+        exceptions = exc_info.value.exceptions
+        assert all(isinstance(e, expected_exceptions) for e in exceptions)
+
+    @pytest.mark.parametrize("expected_tool_result, expected_documents", MCP_TOOL_RESULTS)
+    @patch("redbox.graph.nodes.sends.ClientSession")
+    @patch("redbox.graph.nodes.sends.streamablehttp_client")
+    @patch("redbox.graph.nodes.sends.load_mcp_tools")
+    def test_returns_expected_results(
+        self,
+        mock_load_tools,
+        mock_http_client,
+        mock_session_class,
+        fake_mcp_tool,
+        expected_tool_result,
+        expected_documents,
+    ):
+        """Test that wrap_async_tool correctly returns results from async tool invocation"""
+        expected_tool_content, expected_tool_metadata = expected_tool_result
+
+        # Mock tool with metadata
+        tool_name = "company_tool"
+        args_schema = {"company_name": {"type": "string"}, "required": ["company_name"]}
+        tool = fake_mcp_tool(tool_name, return_value=expected_tool_content, args_schema=args_schema)
+
+        # mock session with patched mcp setup
+        mock_session = self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
+
+        # create the wrapped function
+        wrapped_func = wrap_async_tool(tool, tool_name)
+
+        # rest invocation with sample args
+        test_args = {"company_name": "BMW"}
+        result, metadata = wrapped_func(test_args)
+
+        # verify correct interactions
+        mock_http_client.assert_called_once_with(tool.metadata["url"], headers=None)
+        mock_session.initialize.assert_called_once()
+        mock_load_tools.assert_called_once_with(mock_session)
+        tool.ainvoke.assert_called_once_with(test_args)
+
+        # assert the result matches our expected output
+        assert result == expected_documents
+        assert metadata == expected_tool_metadata
+
+    @patch("redbox.graph.nodes.sends.ClientSession")
+    @patch("redbox.graph.nodes.sends.streamablehttp_client")
+    @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
+    def test_tool_not_found(self, mock_load_tools, mock_http_client, mock_session_class, fake_mcp_tool):
+        """Test wrap_async_tool raises ValueError when the requested tool is not in the MCP tool list."""
+
+        tool = fake_mcp_tool("dummy_tool", return_value=None)
+        wrapped_func = wrap_async_tool(tool, "missing_tool")
+
+        self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
+
+        # assert ValueError is raised
+        with pytest.raises(ValueError, match="tool with name 'missing_tool' not found"):
+            wrapped_func({"foo": "bar"})
+
+
+@pytest.mark.parametrize(
+    "token_input, expected_output",
+    [
+        (None, {}),
+        ("", {}),
+        ("   ", {}),
+        ("simple-token-123", {"Authorization": "Bearer simple-token-123"}),
+        ("Bearer already-has-prefix", {"Authorization": "Bearer already-has-prefix"}),
+        ("bearer lowercase-prefix", {"Authorization": "bearer lowercase-prefix"}),
+        ("  token-with-spaces  ", {"Authorization": "Bearer token-with-spaces"}),
+    ],
+)
+def test_get_mcp_headers_logic(token_input, expected_output):
+    """Verify that headers are correctly formatted or returned empty based on input."""
+    assert _get_mcp_headers(token_input) == expected_output
+
+
+def test_get_mcp_headers_no_args():
+    """Verify the default parameter behavior (None)."""
+    assert _get_mcp_headers() == {}

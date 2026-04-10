@@ -2,7 +2,19 @@ from datetime import UTC, datetime
 from enum import Enum, IntEnum, StrEnum
 from functools import reduce
 from types import UnionType
-from typing import Annotated, Dict, List, Literal, NotRequired, Required, Tuple, TypedDict, get_args, get_origin
+from typing import (
+    Annotated,
+    Dict,
+    List,
+    Literal,
+    NotRequired,
+    Optional,
+    Required,
+    Tuple,
+    TypedDict,
+    get_args,
+    get_origin,
+)
 from uuid import UUID, uuid4
 
 import environ
@@ -71,8 +83,7 @@ class AISettings(BaseModel):
     llm_decide_route_prompt: str = prompts.LLM_DECIDE_ROUTE
     citation_prompt: str = prompts.CITATION_PROMPT
     answer_instruction_prompt: str = prompts.ANSWER_INSTRUCTION_SYSTEM_PROMPT
-    tabular_system_prompt: str = prompts.TABULAR_PROMPT
-    tabular_question_prompt: str = prompts.TABULAR_QUESTION_PROMPT
+    tabular_system_prompt: str = prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT
 
     # Elasticsearch RAG and boost values
     rag_k: int = 30
@@ -319,6 +330,7 @@ class TaskStatus(IntEnum):
     RUNNING = 3
     COMPLETED = 4
     FAILED = 5
+    REQUIRES_USER_FEEDBACK = 6
 
 
 # Base class definition for agent task
@@ -351,13 +363,14 @@ def update_task_status(self, task_id: str, status: TaskStatus):
     return self
 
 
-def get_task_status(self, task_id: str):
+def get_task_status(self, task_id: str) -> TaskStatus:
     """
     Get Agent Task status, given task id
     """
     for task in self.tasks:
         if task.id == task_id:
             return task.status
+    raise ValueError(f"No task found with id: {task_id}")
 
 
 def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskBase, MultiAgentPlanBase]:
@@ -376,7 +389,13 @@ def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskB
     ConfiguredAgentTask = create_model(
         "ConfiguredAgentTask",
         __base__=AgentTaskBase,
-        agent=(AgentEnum, Field(description="Name of the agent to complete the task", default=default_agent)),
+        agent=(
+            AgentEnum,
+            Field(
+                description="Name of the agent to complete the task",
+                default=default_agent,
+            ),
+        ),
     )
 
     # create agent plan pydantic model dynamically
@@ -385,7 +404,10 @@ def configure_agent_task_plan(agent_options: Dict[str, str]) -> Tuple[AgentTaskB
         __base__=MultiAgentPlanBase,
         tasks=(
             List[ConfiguredAgentTask],
-            Field(description="A list of tasks to be carried out by agents", default=[ConfiguredAgentTask()]),
+            Field(
+                description="A list of tasks to be carried out by agents",
+                default=[ConfiguredAgentTask()],
+            ),
         ),
     )
     ConfiguredAgentPlan.update_task_status = update_task_status
@@ -399,7 +421,9 @@ def add_messages_dict(left: Dict[str, AnyMessage], right: Dict[str, AnyMessage])
     return {**left, **right}  # Right side wins on conflicts.
 
 
-def agent_plan_reducer(current: MultiAgentPlanBase | None, update: MultiAgentPlanBase | None):
+def agent_plan_reducer(
+    current: MultiAgentPlanBase | None, update: MultiAgentPlanBase | None
+) -> Optional[MultiAgentPlanBase]:
     if current is None:
         return update
     if update is None:
@@ -411,6 +435,17 @@ def agent_plan_reducer(current: MultiAgentPlanBase | None, update: MultiAgentPla
             current.tasks[i].status = update_task.status
 
     return current
+
+
+def artifact_criteria_reducer(
+    current: str | None,
+    update: str | list[RequestMetadata] | None,
+):
+    if current is None:
+        return update
+    if update is None:
+        return current
+    return update
 
 
 class RedboxState(BaseModel):
@@ -427,6 +462,7 @@ class RedboxState(BaseModel):
     agent_plans: Annotated[MultiAgentPlanBase | None, agent_plan_reducer] = None
     tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     tabular_schema: str = ""
+    artifact_criteria: Annotated[str | None, artifact_criteria_reducer] = None
 
     @property
     def last_message(self) -> AnyMessage:
