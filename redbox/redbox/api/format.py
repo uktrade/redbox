@@ -1,6 +1,8 @@
 import json
 import logging
-from typing import Any
+import asyncio
+from pydantic import BaseModel, ValidationError
+from typing import Any, Optional, Callable
 
 from langchain_core.documents.base import Document
 
@@ -13,14 +15,30 @@ log = logging.getLogger(__name__)
 class SensitiveValue:
     """Wrap any metadata value you never want serialized."""
 
-    def __init__(self, value: Any):
+    def __init__(self, value: Any | Callable[[], Any]):
         self._value = value
 
     def get(self) -> Any:
+        if callable(self._value):
+            result = self._value()
+            if asyncio.iscoroutine(result):
+                # Run the coroutine synchronously
+                loop = asyncio.get_event_loop()
+                return loop.run_until_complete(result)
+            return result
         return self._value
 
     def __repr__(self):
         return "SensitiveValue(**redacted**)"
+
+    def __deepcopy__(self, memo):
+        # Don't deepcopy the inner value — just return a new SensitiveValue
+        # referencing the same callable/value. This prevents deepcopy from
+        # walking into bound methods and their unpicklable __self__.
+        new = SensitiveValue.__new__(SensitiveValue)
+        new._value = self._value  # shallow reference, not deepcopy
+        memo[id(self)] = new
+        return new
 
 
 def format_documents(documents: list[Document]) -> str:
@@ -57,13 +75,26 @@ def reduce_chunks_by_tokens(chunks: list[Document] | None, chunk: Document, max_
     return chunks
 
 
-def format_mcp_tool_response(tool_response, creator_type: ChunkCreatorType) -> str:
+class MCPResponseMetadata(BaseModel):
+    class UserFeedback(BaseModel):
+        required: bool = False
+        reason: Optional[str] = None
+
+    user_feedback: UserFeedback = UserFeedback()
+
+
+def format_mcp_tool_response(tool_response, creator_type: ChunkCreatorType) -> tuple[str, MCPResponseMetadata]:
     data = json.loads(tool_response)
     result_type = data.get("result_type")
     result = data.get("result")
 
+    try:
+        metadata = MCPResponseMetadata.model_validate(data.get("metadata", {}))
+    except ValidationError:
+        metadata = MCPResponseMetadata()
+
     if result_type is None or result is None:
-        return tool_response if isinstance(tool_response, str) else str(tool_response)
+        return (tool_response if isinstance(tool_response, str) else str(tool_response), metadata)
 
     deep_links = []
     match result_type:
@@ -98,4 +129,4 @@ def format_mcp_tool_response(tool_response, creator_type: ChunkCreatorType) -> s
         else:
             response.append(json.dumps(item))
 
-    return "\n\n".join(response)
+    return ("\n\n".join(response), metadata)

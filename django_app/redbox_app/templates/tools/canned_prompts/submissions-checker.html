@@ -51,3 +51,19 @@
         </ul>
     </div>
 </details>
+
+<details class="govuk-details ids-text-s">
+    <summary class="govuk-details__summary">
+        <span class="govuk-details__summary-text">
+            Resources that {{ tool.name }} uses
+        </span>
+    </summary>
+    <div class="govuk-details__text">
+        <p class="govuk-body-s">
+            You can upload additional documents to the chat,
+            such as important ministerial context or prior example submissions.
+        </p>
+
+        {% include "tools/tool-files.html" %}
+    </div>
+</details>

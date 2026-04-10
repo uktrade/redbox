@@ -17,7 +17,7 @@ from langchain_core.tools import tool
 from pytest_mock import MockerFixture
 
 from redbox import Redbox
-from redbox.graph.nodes.processes import create_or_update_db_from_tabulars
+from redbox.graph.nodes.processes import create_or_update_db_from_tabulars, check_if_task_requires_user_feedback
 from redbox.models.chain import (
     AISettings,
     DocumentState,
@@ -27,6 +27,7 @@ from redbox.models.chain import (
     StructuredResponseWithCitations,
     configure_agent_task_plan,
     metadata_reducer,
+    TaskStatus,
 )
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import RedboxActivityEvent
@@ -560,3 +561,20 @@ def test_tabular_file_handling(test, tmp_path: Path, mocker: MockerFixture, simu
 
     finally:
         os.chdir(original_cwd)
+
+
+class TestCheckIfTaskRequiresUserFeedback:
+    @pytest.mark.parametrize(
+        "statuses, expected",
+        [
+            ([TaskStatus.REQUIRES_USER_FEEDBACK], True),  # single feedback task
+            ([TaskStatus.COMPLETED, TaskStatus.REQUIRES_USER_FEEDBACK], True),  # mixed, one requires feedback
+            ([], False),  # no tasks
+            ([TaskStatus.COMPLETED, TaskStatus.RUNNING], False),  # no feedback task
+        ],
+    )
+    def test_check_if_task_requires_user_feedback(self, fake_state_with_plan, statuses, expected):
+        fake_state = copy.deepcopy(fake_state_with_plan)
+
+        fake_state.agent_plans.tasks = [MagicMock(status=s) for s in statuses]
+        assert check_if_task_requires_user_feedback(fake_state) is expected

@@ -585,6 +585,163 @@ def build_agent_with_loop(
     return _build_agent_with_loop.with_retry(stop_after_attempt=3)
 
 
+def build_datahub_agent_with_loop(
+    agent_name: str,
+    system_prompt: str,
+    tools: list,
+    use_metadata: bool = False,
+    max_tokens: int = 5000,
+    pre_process: Runnable | None = None,
+    loop_condition: Callable | None = None,
+    max_attempt=3,
+    using_chat_history: bool = False,
+    model: ChatLLMBackend | None = None,
+):
+    @RunnableLambda
+    def _build_datahub_agent_with_loop(state: RedboxState):
+        log.warning(f"[{agent_name}] Starting datahub_agent_with_loop run. Tools: {[t.name for t in tools]}")
+
+        local_loop_condition = loop_condition
+        agent_options = state.request.ai_settings.get_worker_agents_options
+        ConfiguredAgentTask, _ = configure_agent_task_plan(agent_options)
+        parser = ClaudeParser(pydantic_object=ConfiguredAgentTask)
+        try:
+            task = parser.parse(state.last_message.content)
+        except Exception as e:
+            log.warning(f"Issue at build_datahub_agent_with_loop. Cannot parse in {agent_name}: {e}")
+            return None
+        # update status
+        state.agent_plans.update_task_status(task.id, TaskStatus.RUNNING)
+
+        activity_node = build_activity_log_node(
+            RedboxActivityEvent(message=f"{agent_name} is completing task: {task.task}")
+        )
+        activity_node.invoke(state)
+
+        # dependencies' results
+        previous_agents_results = []
+        for dep in task.dependencies:
+            previous_agents_results += [state.agents_results[dep].content]
+        previous_agents_results = " ".join(previous_agents_results)
+
+        additional_variables = {
+            "task": task.task,
+            "expected_output": task.expected_output,
+            "previous_agents_results": previous_agents_results,
+            "previous_tool_error": "",
+            "previous_tool_results": "",
+        }
+
+        # has pre_process
+        if pre_process is not None:
+            # if the agent has preprocess steps, this will be run here
+            # must be runnable lambda
+            pre_process_vars = pre_process.invoke(state)
+            additional_variables.update(pre_process_vars)
+
+        # local vars
+        success = "fail"
+        num_iter = 0
+        is_intermediate_step = False
+        has_loop = local_loop_condition is not None
+        all_results = []
+        if local_loop_condition is None:
+            # if there is no loop condition, we will run things once
+            # loop condition must use only success and/or intermediate step
+            def local_loop_condition():
+                return True
+
+            # loop_condition = lambda: True
+            num_iter = max_attempt - 1
+
+        while local_loop_condition() and num_iter < max_attempt:
+            num_iter += 1
+            log_stub = f"[{agent_name}] Loop Iteration={num_iter}/{max_attempt}."
+
+            log.warning(f"{log_stub} Creating chain agent (use_metadata={use_metadata})")
+            worker_agent = create_chain_agent(
+                system_prompt=system_prompt,
+                use_metadata=use_metadata,
+                parser=None,
+                tools=tools,
+                _additional_variables=additional_variables,
+                using_chat_history=using_chat_history,
+                model=model,
+            )
+
+            log.warning(f"{log_stub} Invoking worker agent...")
+            ai_msg = worker_agent.invoke(state)
+
+            log.warning(f"{log_stub} Worker agent output:\n{ai_msg}")
+
+            log.warning(f"{log_stub} Running tools via run_tools_parallel...")
+            result = run_tools_parallel(ai_msg, tools, state, is_loop=True)  # this agent runs with loop
+
+            if not result:
+                result = "Tool error: no results received."
+
+            elif has_loop and len(ai_msg.tool_calls) > 0:  # if loop, we need to transform results
+                result = result[-1].content  # this is a tuple
+                # format of result: (result, success, is_intermediate_step)
+                log.warning("my-overall-result")
+                log.warning(result)
+                result_content = result[0]
+                success = result[1]
+                is_intermediate_step = eval(result[2])
+
+                if len(result) > 3:
+                    reason = result[3]
+                    return {
+                        "agents_results": {
+                            task.id: AIMessage(
+                                content=f"<{agent_name}_Result>Ask user for feedback based on failure reason. Failure reason: {reason}.\n\n{result_content}</{agent_name}_Result>",
+                                kwargs={
+                                    "reason": reason,
+                                },
+                            )
+                        },
+                        "tasks_evaluator": task.task + "\n" + task.expected_output,
+                        "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.REQUIRES_USER_FEEDBACK),
+                    }
+
+                if success == "fail":
+                    # pass error back if any
+                    additional_variables.update({"previous_tool_error": result_content})
+                else:
+                    # if success tool invocation, and intermediate steps then pass info back
+                    if is_intermediate_step:
+                        additional_variables.update({"previous_tool_error": "", "previous_tool_results": all_results})
+                result = result_content
+
+            if isinstance(result, str):
+                log.warning(f"{log_stub} Using raw string result.")
+                result_content = result
+            elif isinstance(result, list) and isinstance(result[0], dict):
+                log.warning(f"{log_stub} Using raw string in a list as result.")
+                result_content = result[0].get("text", "")
+            elif isinstance(result, list):
+                log.warning("my-result")
+                log.warning(result)
+                log.warning(f"{log_stub} Aggregating list of tool results...")
+                result_content = join_result_with_token_limit(result=result, max_tokens=max_tokens, log_stub=log_stub)
+            else:
+                log.error(f"{log_stub} Worker agent return incompatible data type {type(result)}")
+                log.info(result)
+                result_content = "There is an issue with tool call. No results returned."
+            all_results.append(result_content)
+            log.warning(f"{log_stub} Completed agent run.")
+
+        log.warning(f"[{agent_name}] Completed agent_with_loop run.")
+        all_results = " ".join(all_results)
+        return {
+            "agents_results": {task.id: AIMessage(content=f"<{agent_name}_Result>{all_results}</{agent_name}_Result>")},
+            "tasks_evaluator": task.task + "\n" + task.expected_output,
+            "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.COMPLETED),
+        }
+
+    return _build_datahub_agent_with_loop.with_retry(stop_after_attempt=3)
+
+
 def create_evaluator():
     def _create_evaluator(state: RedboxState):
         _additional_variables = {
@@ -855,3 +1012,17 @@ def check_if_tasks_completed(state: RedboxState) -> bool:
         return False
     else:
         return True
+
+
+def check_if_task_requires_user_feedback(state: RedboxState) -> bool:
+    """
+    Check if task requires user feedback
+    """
+    # if there is no pending task, go to evaluator
+    require_feedback_tasks = [
+        task for task in state.agent_plans.tasks if task.status == TaskStatus.REQUIRES_USER_FEEDBACK
+    ]
+    if require_feedback_tasks:
+        return True
+    else:
+        return False

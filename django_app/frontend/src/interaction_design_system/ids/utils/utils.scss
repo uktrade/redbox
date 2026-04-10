@@ -82,3 +82,10 @@
     z-index: 800;
   }
 }
+
+.ids-flex-space-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+}
