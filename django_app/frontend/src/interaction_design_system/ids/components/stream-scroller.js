@@ -20,6 +20,7 @@ export class StreamScroller extends HTMLElement {
     }
 
     disconnectedCallback() {
+        this.scrollContainer?.removeEventListener("scroll", () => this.#onScroll());
         this._observer?.disconnect();
     }
 
@@ -29,7 +30,28 @@ export class StreamScroller extends HTMLElement {
     }
 
 
+    #onScroll() {
+        if (this.programmaticScroll) return;
+        this.autoScrollEnabled = this.#isAtBottom();
+    }
+
+
+    #isAtBottom(threshold = 10) {
+        if (!this.scrollContainer) return false;
+
+        let scrollElement;
+        if (this.scrollContainer instanceof Document) {
+            scrollElement = this.scrollContainer.documentElement;
+        } else {
+            scrollElement = this.scrollContainer;
+        }
+
+        return scrollElement.scrollHeight - scrollElement.scrollTop - scrollElement.clientHeight <= threshold;
+    }
+
+
     #bindScrollEvents() {
+        this.scrollContainer?.addEventListener("scroll", () => this.#onScroll(), { passive: true });
         listenEvent(Events.SCROLL_TO_BOTTOM, (evt) => this.scheduleScroll(evt.detail));
     }
 
@@ -52,10 +74,6 @@ export class StreamScroller extends HTMLElement {
             if (!entry.isIntersecting && !this.programmaticScroll && this.autoScrollEnabled) {
                 this.scheduleScroll();
             }
-
-            // Update autoScrollEnabled based on visibility
-            this.autoScrollEnabled = entry.isIntersecting;
-
         }, { root: null, threshold: 0 });
 
         this._observer.observe(this._anchor);
