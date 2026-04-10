@@ -1,0 +1,71 @@
+<h3 class="govuk-heading-s govuk-!-margin-bottom-2">
+    <span class="ids-text--product">{{ tool.name }} </span>combines Data Hub and external sources to
+    help you build briefings, join up company and sector insights, and develop strong UK investment hooks
+</h3>
+
+<p class="govuk-body-s">
+    It pulls company data and interaction records from Data Hub, along with web search results and built-in investment documents.
+    It also includes citations that link back to these original sources.
+</p>
+
+<p class="govuk-body-s">
+    To get started and get the most out of the tool:
+</p>
+
+<ul class="govuk-list govuk-list--bullet govuk-body-s">
+    <li>type the name of the company and any parameters (such as date range or geography) into the message box below</li>
+    <li>specify your target audience (for example, ministerial brief, internal meeting) or refine your search terms</li>
+    <li>add more context and additional information by uploading your own documents. For example, information in SharePoint or behind subscriptions</li>
+</ul>
+
+<details class="govuk-details ids-text-s">
+    <summary class="govuk-details__summary">
+        <span class="govuk-details__summary-text">
+            How the tool works
+        </span>
+    </summary>
+    <div class="govuk-details__text">
+        <p class="govuk-body-s">The tool will:</p>
+
+        <ul class="govuk-list govuk-list--bullet govuk-body-s">
+            <li>automatically search across companies, subsidiaries, and related entities in Data Hub</li>
+            <li>(where relevant) use its built-in investment documents and a web search to pull contextual information and relevant news</li>
+            <li>provide comprehensive research summaries or briefings in a format you choose, for example a ministerial briefing</li>
+            <li>give you clear citations linking back to original Data Hub records, online sources and documents</li>
+    </div>
+</details>
+
+<details class="govuk-details ids-text-s">
+    <summary class="govuk-details__summary">
+        <span class="govuk-details__summary-text">
+            How to get more from this tool
+        </span>
+    </summary>
+    <div class="govuk-details__text">
+        <p class="govuk-body-s">You can get more from this tool by:</p>
+
+        <ul class="govuk-list govuk-list--bullet govuk-body-s">
+            <li>uploading any relevant contextual documents to the submission’s topic. Use the message box to ask Assist to consider them in its review</li>
+            <li>asking Assist to only consider specific criteria. For example, as you update your draft you can ask it to review it only for narrative flow</li>
+        </ul>
+    </div>
+</details>
+
+<details class="govuk-details ids-text-s">
+    <summary class="govuk-details__summary">
+        <span class="govuk-details__summary-text">
+            Resources that {{ tool.name }} uses
+        </span>
+    </summary>
+    <div class="govuk-details__text">
+        <p class="govuk-body-s">It uses the following documents to build briefings:</p>
+
+        <ul class="govuk-list govuk-list--bullet govuk-body-s">
+            <li>Data Hub company records</li>
+            <li>briefing templates specific to investment contexts (maintained by admins)</li>
+            <li>built-in investment documents (maintained by admins)</li>
+        </ul>
+
+        {% include "tools/tool-files.html" %}
+    </div>
+</details>

@@ -204,7 +204,7 @@ class ToolSettings(UUIDPrimaryKeyBase, TimeStampedModel):
 
     class Meta:
         ordering = ["created_at"]
-        verbose_name_plural = "Toool Settings"
+        verbose_name_plural = "Tool Settings"
 
     def __str__(self):
         return self.tool.name + " Settings"
@@ -443,20 +443,20 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
 
     class AIExperienceLevel(models.TextChoices):
         CURIOUS_NEWCOMER = "Curious Newcomer", _("I haven't used Generative AI tools")
-        CAUTIOUS_EXPLORER = "Cautious Explorer", _("I have a little experience using Generative AI tools")
+        CAUTIOUS_EXPLORER = "Cautious Explorer", _("I have a little experience using Generative AI tools.")
         ENTHUSIASTIC_EXPERIMENTER = (
             "Enthusiastic Experimenter",
-            _("I occasionally use Generative AI tools but am still experimenting with their capabilities"),
+            _("I occasionally use Generative AI tools but am still experimenting with their capabilities."),
         )
         EXPERIENCED_NAVIGATOR = (
             "Experienced Navigator",
-            _("I use Generative AI tools regularly and have a good understanding of their strengths and limitations"),
+            _("I use Generative AI tools regularly and have a good understanding of their strengths and limitations."),
         )
         AI_ALCHEMIST = (
             "AI Alchemist",
             _(
                 "I have extensive experience with Generative AI tools and can leverage them effectively in various "
-                "contexts"
+                "contexts."
             ),
         )
 

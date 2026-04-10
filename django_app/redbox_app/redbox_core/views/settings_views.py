@@ -59,9 +59,9 @@ def profile_tab_config() -> TabConfig:
         return DemographicsForm(request.POST or None, instance=request.user)
 
     return TabConfig(
-        id="my-details",
-        title="My Details",
-        template="settings/my-details.html",
+        id="profile",
+        title="Your profile",
+        template="settings/profile.html",
         get_context=lambda request: {"form": get_my_details_tab_form(request)},
         handle_post=lambda request: save_forms(get_my_details_tab_form(request)),
     )

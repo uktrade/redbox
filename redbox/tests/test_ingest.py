@@ -15,7 +15,7 @@ from requests.exceptions import RequestException
 from redbox.chains.ingest import document_loader, ingest_from_loader
 from redbox.loader import ingester
 from redbox.loader.ingester import ingest_file
-from redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader
+from redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader, parse_tabular_schema
 from redbox.models.chain import GeneratedMetadata
 
 
@@ -607,6 +607,91 @@ def test_pdf_is_image_heavy_image_heavy():
         mock_pages[2].get_images.assert_called_once_with(full=True)
 
 
+@pytest.mark.parametrize(
+    "table_name, df, expected_csv_prefix, expected_columns",
+    [
+        (
+            "users",
+            pd.DataFrame({"name": ["Alice", "Bob"], "city": ["NY", "LA"]}),
+            "<table_name>users</table_name>",
+            {"name": "TEXT", "city": "TEXT"},
+        ),
+        (
+            "orders",
+            pd.DataFrame({"id": [1, 2, 3], "quantity": [10, 20, 30]}),
+            "<table_name>orders</table_name>",
+            {"id": "INTEGER", "quantity": "INTEGER"},
+        ),
+        (
+            "metrics",
+            pd.DataFrame({"score": [1.5, 2.7], "ratio": [0.1, 0.9]}),
+            "<table_name>metrics</table_name>",
+            {"score": "REAL", "ratio": "REAL"},
+        ),
+        (
+            "products",
+            pd.DataFrame({"name": ["apple"], "price": [1.99], "stock": [100], "active": [True]}),
+            "<table_name>products</table_name>",
+            {"name": "TEXT", "price": "REAL", "stock": "INTEGER", "active": "BOOLEAN"},
+        ),
+        (
+            "labels",
+            pd.DataFrame({"label": ["a", "b", "c"]}),
+            "<table_name>labels</table_name>",
+            {"label": "TEXT"},
+        ),
+        (
+            "my table",
+            pd.DataFrame({"x": [1]}),
+            "<table_name>my table</table_name>",
+            {"x": "INTEGER"},
+        ),
+    ],
+)
+class TestParseTabularSchema:
+    def test_result_is_not_none(self, table_name, df, expected_csv_prefix, expected_columns):
+        result = parse_tabular_schema(table_name, df)
+        assert result is not None
+
+    def test_csv_text_has_correct_prefix(self, table_name, df, expected_csv_prefix, expected_columns):
+        csv_text, _ = parse_tabular_schema(table_name, df)
+        assert csv_text.startswith(expected_csv_prefix)
+
+    def test_schema_name_matches_table(self, table_name, df, expected_csv_prefix, expected_columns):
+        _, schema_dict = parse_tabular_schema(table_name, df)
+        assert schema_dict["name"] == table_name
+
+    def test_schema_columns_match_expected(self, table_name, df, expected_csv_prefix, expected_columns):
+        _, schema_dict = parse_tabular_schema(table_name, df)
+        assert schema_dict["columns"] == expected_columns
+
+    def test_csv_contains_column_headers(self, table_name, df, expected_csv_prefix, expected_columns):
+        csv_text, _ = parse_tabular_schema(table_name, df)
+        for col in df.columns:
+            assert col in csv_text
+
+
+class TestParseTabularSchemaErrors:
+    @pytest.mark.parametrize(
+        "error_target",
+        [
+            "pandas.core.frame.DataFrame.to_csv",
+            "redbox.loader.loaders.TabularSchema",
+        ],
+    )
+    def test_returns_none_on_exception(self, error_target):
+        df = pd.DataFrame({"a": [1]})
+        with patch(error_target, side_effect=Exception("mocked error")):
+            assert parse_tabular_schema("fail_table", df) is None
+
+    def test_empty_dataframe_still_returns_schema(self):
+        df = pd.DataFrame({"col1": pd.Series([], dtype="int64")})
+        result = parse_tabular_schema("empty_table", df)
+        assert result is not None
+        _, schema_dict = result
+        assert schema_dict["columns"] == {"col1": "INTEGER"}
+
+
 def test_read_csv_text_valid_file():
     # Create a valid CSV file
     csv_content = "name,age\nJohn,30\nJane,25"
@@ -616,7 +701,9 @@ def test_read_csv_text_valid_file():
 
     assert len(result) == 1
     assert "name,age\nJohn,30\nJane,25" in result[0]["text"]
-    assert result[0]["metadata"] == {}
+    assert result[0]["metadata"] == {
+        "document_schema": {"columns": {"age": "INTEGER", "name": "TEXT"}, "name": "csv", "type": "tabular"}
+    }
 
 
 def test_read_csv_text_pandas_error():
@@ -640,7 +727,13 @@ def test_read_excel_file_multiple_sheets():
 
         assert len(result) == 2
         assert "<table_name>sheet1</table_name>" in result[0]["text"]
+        assert result[0]["metadata"] == {
+            "document_schema": {"columns": {"Col1": "INTEGER", "Col2": "INTEGER"}, "name": "sheet1", "type": "tabular"}
+        }
         assert "<table_name>sheet2</table_name>" in result[1]["text"]
+        assert result[1]["metadata"] == {
+            "document_schema": {"columns": {"Col3": "INTEGER", "Col4": "INTEGER"}, "name": "sheet2", "type": "tabular"}
+        }
 
 
 def test_read_excel_file_empty_sheet():
@@ -655,6 +748,9 @@ def test_read_excel_file_empty_sheet():
 
         assert len(result) == 1
         assert "<table_name>sheet2</table_name>" in result[0]["text"]
+        assert result[0]["metadata"] == {
+            "document_schema": {"columns": {"Col1": "INTEGER", "Col2": "INTEGER"}, "name": "sheet2", "type": "tabular"}
+        }
 
 
 def test_read_excel_file_sheet_error():
@@ -670,6 +766,9 @@ def test_read_excel_file_sheet_error():
 
         assert len(result) == 1
         assert "<table_name>sheet2</table_name>" in result[0]["text"]
+        assert result[0]["metadata"] == {
+            "document_schema": {"columns": {"Col1": "INTEGER", "Col2": "INTEGER"}, "name": "sheet2", "type": "tabular"}
+        }
 
 
 def test_read_excel_file_all_empty_sheets():
