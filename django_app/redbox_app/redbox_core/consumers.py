@@ -25,8 +25,15 @@ from waffle import flag_is_active
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
-from redbox.api.health import wait_for_health
+from redbox.api.health import check_health
+from redbox.chains.components import (
+    get_all_chunks_retriever,
+    get_embeddings,
+    get_metadata_retriever,
+    get_parameterised_retriever,
+)
 from redbox.graph.agents.configs import agent_configs
+from redbox.graph.root import build_root_graph
 from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
@@ -106,6 +113,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     _mcp_monitor_tasks: ClassVar[dict[str, asyncio.Task]] = {}
     _monitor_task_lock: ClassVar[asyncio.Lock] = asyncio.Lock()
+
+    _graph: ClassVar = None
+    _graph_lock: ClassVar[asyncio.Lock] = asyncio.Lock()
+    _all_chunks_retriever: ClassVar = None
+    _parameterised_retriever: ClassVar = None
+    _metadata_retriever: ClassVar = None
+    _embedding_model: ClassVar = None
     # _tools_loaded: ClassVar[dict[str, bool]] = {}
 
     async def get_file_cached(self, ref):
@@ -640,7 +654,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self._extract_sso_token()
 
         if self.redbox is None:
-            await self._init_redbox(mcp_agents=mcp_agents)
+            await self._init_redbox()
 
         # # Reload tools for any MCP that recovered since last connect
         # for agent_name in mcp_agents:
@@ -704,12 +718,33 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 if agent.agents_max_tokens:
                     agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
 
-        active_configs = dict(agent_configs)
+        async with ChatConsumer._graph_lock:
+            if ChatConsumer._graph is None:
+                _env = ChatConsumer.env
+                ChatConsumer._all_chunks_retriever = get_all_chunks_retriever(_env)
+                ChatConsumer._parameterised_retriever = get_parameterised_retriever(_env)
+                ChatConsumer._metadata_retriever = get_metadata_retriever(_env)
+                ChatConsumer._embedding_model = get_embeddings(_env)
+
+            ChatConsumer._graph = build_root_graph(
+                all_chunks_retriever=ChatConsumer._all_chunks_retriever,
+                parameterised_retriever=ChatConsumer._parameterised_retriever,
+                metadata_retriever=ChatConsumer._metadata_retriever,
+                agent_configs=dict(agent_configs),
+                debug=ChatConsumer.debug,
+            )
+
+        # active_configs = dict(agent_configs)
         self.redbox = Redbox(
-            agents=active_configs,
+            agents=dict(agent_configs),
             env=ChatConsumer.env,
             debug=ChatConsumer.debug,
             sso_token_getter=self._extract_sso_token,
+            all_chunks_retriever=ChatConsumer._all_chunks_retriever,
+            parameterised_retriever=ChatConsumer._parameterised_retriever,
+            metadata_retriever=ChatConsumer._metadata_retriever,
+            embedding_model=ChatConsumer._embedding_model,
+            graph=ChatConsumer._graph,
         )
 
         # for agent_name in mcp_agents:
@@ -718,47 +753,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @staticmethod
     async def _mcp_monitor_loop(agent_name: str, mcp_url: str):
-        """
-        Background task - poll MCP health every 30s
-        If MCP server state changes, reinitialise Redbox tools
-
-        Inputs:
-            agent_name: str - name of the MCP agent to check
-            mcp_url: str - health endpoint URL of MCP server
-            sso_access_token: str | None - SSO access token for tool reloading
-        """
         was_healthy: bool = True
-
         while True:
             await asyncio.sleep(30)
             try:
-                logger.warning("Checking health for %s...", agent_name)
-                healthy = await wait_for_health(
+                healthy = await check_health(
                     url=mcp_url,
                     headers={"Accept": "application/json"},
                     success_codes=[200],
-                    wait_seconds=10,
-                    interval=2,
-                    request_timeout=3.0,
+                    request_timeout=5.0,
                 )
-
-                # tools_loaded = ChatConsumer._tools_loaded.get(agent_name, False)
-
-                if healthy and not was_healthy:
-                    logger.warning("%s MCP recovered", agent_name)
-                    # ChatConsumer._tools_loaded[agent_name] = False
-
-                elif not healthy and was_healthy:
-                    logger.warning("%s MCP went down, tools unavailable until recovery", agent_name)
-                    # ChatConsumer._tools_loaded[agent_name] = False
-
-                else:
-                    logger.debug("%s MCP healthy and tools loaded", agent_name)
-
+                if healthy != was_healthy:
+                    logger.warning("%s MCP is now %s", agent_name, "up" if healthy else "down")
                 was_healthy = healthy
-
             except Exception:
-                logger.exception("%s MCP monitor error, ", agent_name)
+                logger.exception("%s MCP monitor error", agent_name)
 
     # async def _reload_mcp_tools(self, agent_name: str):
     #     """Reload redbox MCP tools for a given agent in the background."""

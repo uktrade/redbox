@@ -4,6 +4,7 @@ from typing import Dict, Literal, Callable
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
+from langgraph.graph.state import CompiledStateGraph
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from redbox.chains.components import (
@@ -57,6 +58,7 @@ class Redbox:
         env: Settings | None = None,
         sso_token_getter: Callable[[], str] | None = None,
         debug: bool = False,
+        graph: CompiledStateGraph | None = None,
     ):
         _env = env or get_settings()
 
@@ -141,7 +143,7 @@ class Redbox:
         self.agent_configs["Artifact_Builder_Agent"].tools = [retrieve_specific_files_knowledge_base]
         self.load_agent_tools(agent="Datahub_Agent", sso_token_getter=sso_token_getter)
 
-        self.graph = self.setup_graph(debug)
+        self.graph = graph or self.setup_graph(debug)
 
     def setup_graph(self, debug: bool):
         return build_root_graph(
