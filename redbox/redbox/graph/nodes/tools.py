@@ -978,7 +978,6 @@ def build_legislation_search_tool():
 
 
 async def get_datahub_mcp_tools(sso_token_getter: Callable[[], str], agent_loop=True):
-    # async def _get_async_tools():
     try:
         log.warning("get_datahub_mcp_tools - Loading Datahub MCP tools...")
 
@@ -1028,13 +1027,3 @@ async def get_datahub_mcp_tools(sso_token_getter: Callable[[], str], agent_loop=
     except Exception as e:
         log.error("get_datahub_mcp_tools - Unable to connect to MCP server - %s", e)
         return []
-
-    # return _get_async_tools
-    # # Apply patch to allow nested event loops
-    # nest_asyncio.apply()
-
-    # loop = asyncio.new_event_loop()
-    # asyncio.set_event_loop(loop)
-    # tools = loop.run_until_complete(_get_async_tools())
-    # loop.close()
-    # return tools
