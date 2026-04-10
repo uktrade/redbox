@@ -43,6 +43,7 @@ from redbox.models.chain import (
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
 from redbox.models.settings import ChatLLMBackend
+from redbox.graph.nodes.tools import get_datahub_mcp_tools
 from redbox.transform import (
     combine_agents_state,
     combine_documents,
@@ -598,7 +599,13 @@ def build_datahub_agent_with_loop(
     model: ChatLLMBackend | None = None,
 ):
     @RunnableLambda
-    def _build_datahub_agent_with_loop(state: RedboxState):
+    async def _build_datahub_agent_with_loop(state: RedboxState):
+        if sso_token_getter := state.request.sso_token_getter:
+            tools = await get_datahub_mcp_tools(sso_token_getter=sso_token_getter)
+
+        if not tools:
+            log.error(f"[{agent_name}] No tools available")
+
         log.warning(f"[{agent_name}] Starting datahub_agent_with_loop run. Tools: {[t.name for t in tools]}")
 
         local_loop_condition = loop_condition
@@ -653,6 +660,16 @@ def build_datahub_agent_with_loop(
 
             # loop_condition = lambda: True
             num_iter = max_attempt - 1
+
+        if len(tools) == 0:
+            all_results = "Error. Unable to complete request the '{agent_name}' agent has no tools."
+            return {
+                "agents_results": {
+                    task.id: AIMessage(content=f"<{agent_name}_Result>{all_results}</{agent_name}_Result>")
+                },
+                "tasks_evaluator": task.task + "\n" + task.expected_output,
+                "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.FAILED),
+            }
 
         while local_loop_condition() and num_iter < max_attempt:
             num_iter += 1
