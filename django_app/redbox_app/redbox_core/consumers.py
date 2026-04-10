@@ -655,7 +655,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         async with ChatConsumer._state.get_lock():
             # Load MCP tools once per connection with this user's token
-            # self._mcp_tools: dict[str, list] = {}
             try:
                 ChatConsumer._state.agent_configs["Datahub_Agent"].tools = await get_datahub_mcp_tools(
                     sso_token_getter=self._extract_sso_token
@@ -690,8 +689,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             embedding_model=ChatConsumer._state.embedding_model,
             graph=ChatConsumer._state.graph,
         )
-        # await self.redbox.initialise(sso_token_getter=self._extract_sso_token)
-        # ChatConsumer._state.agent_configs = self.redbox.agent_configs
 
     async def handle_text(self, response: str) -> str:
         """Handle text chunks and British spelling conversion before sending to client."""

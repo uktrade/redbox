@@ -1,6 +1,6 @@
 from asyncio import CancelledError
 from logging import getLogger
-from typing import Dict, Literal, Callable
+from typing import Dict, Literal
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
@@ -23,7 +23,6 @@ from redbox.graph.nodes.tools import (
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
-    get_datahub_mcp_tools,
     build_query_tabular_file_tool,
 )
 from redbox.graph.root import build_new_route_graph, build_root_graph, get_summarise_graph
@@ -142,14 +141,6 @@ class Redbox:
         self.agent_configs["Artifact_Builder_Agent"].tools = [retrieve_specific_files_knowledge_base]
 
         self.graph = graph or self.setup_graph(debug)
-        self._initialised = False
-
-    async def initialise(self, sso_token_getter: Callable[[], str] | None = None):
-        if self._initialised:
-            return
-
-        await self.load_agent_tools(agent="Datahub_Agent", sso_token_getter=sso_token_getter)
-        self._initialised = True
 
     def setup_graph(self, debug: bool):
         return build_root_graph(
@@ -159,21 +150,6 @@ class Redbox:
             agent_configs=self.agent_configs,
             debug=debug,
         )
-
-    async def load_agent_tools(self, agent: str, sso_token_getter: Callable[[], str] | None = None) -> None:
-        logger.info(f"Loading tools for {agent}")
-
-        match agent:
-            case "Datahub_Agent":
-                if sso_token_getter is None:
-                    logger.error("No sso_token_getter callable configured for DataHub agent")
-                    return
-
-                tools = await get_datahub_mcp_tools(sso_token_getter=sso_token_getter)
-                self.agent_configs["Datahub_Agent"].tools = tools
-
-            case _:
-                logger.error(f"Loading tools for {agent} not supported")
 
     def run_sync(self, input: RedboxState):
         """
