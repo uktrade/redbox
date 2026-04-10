@@ -6,6 +6,7 @@ import random
 import re
 import threading
 import time
+import inspect
 from io import StringIO
 from typing import Annotated, Callable, Iterable, Literal, Union
 
@@ -978,11 +979,22 @@ def build_legislation_search_tool():
     return _search_legislation
 
 
-def get_datahub_mcp_tools(agent_loop=True, sso_access_token: str | None = None):
+def get_datahub_mcp_tools(sso_token_getter: Callable[[], str], agent_loop=True):
     async def _get_async_tools():
         try:
+            log.info("get_datahub_mcp_tools - Loading Datahub MCP tools...")
+
             mcp_settings = get_settings().datahub_mcp
             datahub_mcp_url = mcp_settings.url
+
+            if inspect.iscoroutinefunction(sso_token_getter):
+                sso_access_token = await sso_token_getter()
+            else:
+                sso_access_token = sso_token_getter()
+
+            if not sso_access_token:
+                log.error("get_datahub_mcp_tools - Datahub MCP sso_access_token is None")
+
             headers = _get_mcp_headers(sso_access_token)
             async with (
                 streamablehttp_client(datahub_mcp_url, headers=headers or None) as (
@@ -1001,7 +1013,7 @@ def get_datahub_mcp_tools(agent_loop=True, sso_access_token: str | None = None):
                     tool.metadata = {
                         "url": datahub_mcp_url,
                         "creator_type": ChunkCreatorType.datahub,
-                        "sso_access_token": SensitiveValue(sso_access_token),
+                        "sso_access_token": SensitiveValue(sso_token_getter),
                     }
                     if agent_loop:  # if loop is True, add intermediate steps into schema so that it is exposed to LLM
                         tool.args_schema["properties"] = tool.args_schema.get("properties", {})
@@ -1013,7 +1025,7 @@ def get_datahub_mcp_tools(agent_loop=True, sso_access_token: str | None = None):
 
                 return tools
         except Exception as e:
-            log.error("Unable to connect to MCP server - %s", e)
+            log.error("get_datahub_mcp_tools - Unable to connect to MCP server - %s", e)
             return []
 
     # Apply patch to allow nested event loops

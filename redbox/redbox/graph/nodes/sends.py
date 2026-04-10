@@ -105,6 +105,7 @@ def run_with_timeout(func, args, timeout):
 
 def _get_mcp_headers(sso_access_token: str | None = None) -> dict[str, str]:
     if not sso_access_token:
+        log.warning("_get_mcp_headers - Datahub MCP sso_access_token is None")
         return {}
     token = sso_access_token.strip()
     if not token:
@@ -134,6 +135,10 @@ def wrap_async_tool(tool, tool_name):
         mcp_url = tool.metadata["url"]
         creator_type = tool.metadata["creator_type"]
         sso_access_token = tool.metadata["sso_access_token"].get()
+
+        if not sso_access_token:
+            log.error("wrap_async_tool - MCP sso_access_token is None")
+
         headers = _get_mcp_headers(sso_access_token)
 
         try:
@@ -151,7 +156,9 @@ def wrap_async_tool(tool, tool_name):
                         server_name = init_result.serverInfo.name
                         server_version = init_result.serverInfo.version
 
-                        log.info(f"Calling tool '{tool_name}' on MCP server {server_name}@{server_version}")
+                        log.info(
+                            f"wrap_async_tool - Calling tool '{tool_name}' on MCP server {server_name}@{server_version}"
+                        )
 
                         # Get tools
                         tools = await load_mcp_tools(session)
@@ -165,22 +172,26 @@ def wrap_async_tool(tool, tool_name):
                             "is_intermediate_step"
                         ):
                             args.pop("is_intermediate_step")
-                            log.warning(f"updated args: {args}")
+                            log.warning(f"wrap_async_tool - updated args: {args}")
 
-                        log.warning(f"tool found with name '{tool_name}'")
-                        log.warning(f"args '{args}'")
+                        log.warning(f"wrap_async_tool - tool found with name '{tool_name}'")
+                        log.warning(f"wrap_async_tool - args '{args}'")
                         result = await selected_tool.ainvoke(args)
 
-                        log.warning(f"MCP Tool '{tool_name}' result: {result}")
+                        log.warning(f"wrap_async_tool - MCP Tool '{tool_name}' result: {result}")
 
                         if creator_type == ChunkCreatorType.datahub:
-                            log.warning(f"Formatting MCP tool response for creator_type='{creator_type}'")
+                            log.warning(
+                                f"wrap_async_tool - Formatting MCP tool response for creator_type='{creator_type}'"
+                            )
                             return format_mcp_tool_response(
                                 tool_response=result,
                                 creator_type=creator_type,
                             )
 
-                        log.warning(f"Returning raw MCP tool response for creator_type='{creator_type}'")
+                        log.warning(
+                            f"wrap_async_tool - Returning raw MCP tool response for creator_type='{creator_type}'"
+                        )
                         return result
 
             # Run the async function and return its result
