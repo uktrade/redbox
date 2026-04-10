@@ -1,0 +1,69 @@
+<h3 class="govuk-heading-s govuk-!-margin-bottom-2">
+    <span class="ids-text--product">The {{ tool.name }} </span>acts as a 'health check' for ministerial submission drafts.
+</h3>
+
+<p class="govuk-body-s">
+    Your submission is reviewed against 7 criteria. For each criterion, you'll receive a score along with a short
+    explanation and specific examples. Once all 7 parts are checked, you'll get an average score and summary.
+</p>
+
+<p class="govuk-body-s">
+    To use the Submissions Checker, upload your draft submission document and click the send icon.
+</p>
+
+<details class="govuk-details ids-text-s">
+    <summary class="govuk-details__summary">
+        <span class="govuk-details__summary-text">
+            How your submission is scored and reviewed
+        </span>
+    </summary>
+    <div class="govuk-details__text">
+        <p class="govuk-body-s">
+            The tool evaluates your submission against 7 key criteria and rates each one from 1 (poor) to 5 (excellent).
+        </p>
+
+        <p class="govuk-body-s">The 7 criteria are:</p>
+
+        <ul class="govuk-list govuk-list--bullet govuk-body-s">
+            <li>plain English: encourages simple language, minimises jargon and ensures acronyms are explained</li>
+            <li>clear recommendations: checks that recommendations are explicit and logically justified</li>
+            <li>context provision: confirms background information and rationale are clear</li>
+            <li>evidence support: verifies assertions are backed by facts and data with transparent sources</li>
+            <li>options analysis: examines whether multiple options are presented and compared</li>
+            <li>trade-offs articulation: assesses how competing considerations and risks are balanced</li>
+            <li>narrative flow: supports smooth, logical movement of ideas for easy understanding.</li>
+        </ul>
+    </div>
+</details>
+
+<details class="govuk-details ids-text-s">
+    <summary class="govuk-details__summary">
+        <span class="govuk-details__summary-text">
+            How to get more from this tool
+        </span>
+    </summary>
+    <div class="govuk-details__text">
+        <p class="govuk-body-s">You can get more from this tool by:</p>
+
+        <ul class="govuk-list govuk-list--bullet govuk-body-s">
+            <li>uploading any relevant contextual documents to the submission’s topic. Use the message box to ask Assist to consider them in its review</li>
+            <li>asking Assist to only consider specific criteria. For example, as you update your draft you can ask it to review it only for narrative flow</li>
+        </ul>
+    </div>
+</details>
+
+<details class="govuk-details ids-text-s">
+    <summary class="govuk-details__summary">
+        <span class="govuk-details__summary-text">
+            Resources that {{ tool.name }} uses
+        </span>
+    </summary>
+    <div class="govuk-details__text">
+        <p class="govuk-body-s">
+            You can upload additional documents to the chat,
+            such as important ministerial context or prior example submissions.
+        </p>
+
+        {% include "tools/tool-files.html" %}
+    </div>
+</details>

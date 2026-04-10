@@ -1,24 +1,14 @@
 {% if tool %}
-    <div class="govuk-grid-column-one-third govuk-!-padding-3 ids-flex-column ids-card">
-        <h3 class="govuk-heading-s govuk-!-margin-top-5">{{ tool.name }}</h3>
-        <p class="govuk-body-s">{{ tool.description }}</p>
+    <div class="ids-card--tool">
+        <div class="govuk-grid-column-one-third govuk-!-padding-4 ids-card ids-width--full">
+            <div class="ids-flex-space-between govuk-!-margin-top-2 govuk-!-margin-bottom-2">
+                <h3 class="govuk-heading-s govuk-!-margin-0">{{ tool.name }}</h3>
+                <a href="{{ tool.chat_url }}" class="govuk-link">Use this tool</a>
+            </div>
 
-        <div class="cta-navigation ids-push-bottom">
-            {% if tool.has_info_page %}
-                <p class="govuk-body-s">
-                    <a href="{{ tool.info_page_url }}"
-                        class="govuk-link">
-                        Learn more here
-                    </a>
-                </p>
-            {% endif %}
-
-            {{ govukButton(
-                text = "Use Tool",
-                href=tool.chat_url,
-                classes="ids-w-fit govuk-!-margin-bottom-0"
-            ) }}
+            <div class="ids-divider govuk-!-padding-bottom-6"></div>
+            <p class="govuk-body-s govuk-!-margin-top-2 govuk-!-margin-bottom-2">{{ tool.description }}</p>
+            <div class="ids-divider ids-push-bottom govuk-!-padding-bottom-2"></div>
         </div>
-
     </div>
 {% endif %}

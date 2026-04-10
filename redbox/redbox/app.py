@@ -1,6 +1,6 @@
 from asyncio import CancelledError
 from logging import getLogger
-from typing import Dict, Literal
+from typing import Dict, Literal, Callable
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
@@ -11,20 +11,19 @@ from redbox.chains.components import (
     get_embeddings,
     get_metadata_retriever,
     get_parameterised_retriever,
-    get_tabular_chunks_retriever,
 )
 from redbox.graph.agents.configs import AgentConfig, agent_configs
 from redbox.graph.nodes.tools import (
     build_document_from_prompt_tool,
     build_govuk_search_tool,
     build_legislation_search_tool,
-    build_query_tabular_knowledge_base_tool,
     build_retrieve_document_full_text,
     build_retrieve_knowledge_base,
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
-    execute_sql_query,
+    get_datahub_mcp_tools,
+    build_query_tabular_file_tool,
 )
 from redbox.graph.root import build_new_route_graph, build_root_graph, get_summarise_graph
 from redbox.models.chain import RedboxState
@@ -53,10 +52,10 @@ class Redbox:
         agents: Dict[str, AgentConfig] | None = None,
         all_chunks_retriever: VectorStoreRetriever | None = None,
         parameterised_retriever: VectorStoreRetriever | None = None,
-        tabular_retriever: VectorStoreRetriever | None = None,
         metadata_retriever: VectorStoreRetriever | None = None,
         embedding_model: Embeddings | None = None,
         env: Settings | None = None,
+        sso_token_getter: Callable[[], str] | None = None,
         debug: bool = False,
     ):
         _env = env or get_settings()
@@ -65,10 +64,8 @@ class Redbox:
         self.agent_configs = agents or agent_configs
 
         # Retrievers
-
         self.all_chunks_retriever = all_chunks_retriever or get_all_chunks_retriever(_env)
         self.parameterised_retriever = parameterised_retriever or get_parameterised_retriever(_env)
-        self.tabular_retriever = tabular_retriever or get_tabular_chunks_retriever(_env)
         self.metadata_retriever = metadata_retriever or get_metadata_retriever(_env)
         self.embedding_model = embedding_model or get_embeddings(_env)
 
@@ -105,21 +102,26 @@ class Redbox:
             loop=False,
             all_files=False,
         )
-        query_knowledge_base = build_query_tabular_knowledge_base_tool(
+        query_tabular_knowledge_base_file = build_query_tabular_file_tool(
             es_client=_env.elasticsearch_client(),
             index_name=_env.elastic_schematised_chunk_index,
+            knowledge_base=True,
+        )
+        query_tabular_file = build_query_tabular_file_tool(
+            es_client=_env.elasticsearch_client(),
+            index_name=_env.elastic_schematised_chunk_index,
+            knowledge_base=False,
         )
 
         search_wikipedia = build_search_wikipedia_tool()
         search_govuk = build_govuk_search_tool()
-        execute_sql = execute_sql_query()
         web_search = build_web_search_tool()
         legislation_search = build_legislation_search_tool()
         doc_from_prompt = build_document_from_prompt_tool(loop=True)
 
         self.agent_configs["Internal_Retrieval_Agent"].tools = [search_documents]
         self.agent_configs["External_Retrieval_Agent"].tools = [search_wikipedia, search_govuk]
-        self.agent_configs["Tabular_Agent"].tools = [execute_sql]
+        self.agent_configs["Tabular_Agent"].tools = [query_tabular_file]
         self.agent_configs["Web_Search_Agent"].tools = [web_search]
         self.agent_configs["Legislation_Search_Agent"].tools = [legislation_search]
         self.agent_configs["Submission_Question_Answer_Agent"].tools = [
@@ -132,17 +134,30 @@ class Redbox:
             retrieve_knowledge_base,
             doc_from_prompt,
         ]
-        self.agent_configs["Knowledge_Base_Retrieval_Agent"].tools = [query_knowledge_base, search_knowledge_base]
+        self.agent_configs["Knowledge_Base_Retrieval_Agent"].tools = [
+            query_tabular_knowledge_base_file,
+            search_knowledge_base,
+        ]
         self.agent_configs["Artifact_Builder_Agent"].tools = [retrieve_specific_files_knowledge_base]
+        self.init_datahub_agent(sso_token_getter=sso_token_getter)
 
-        self.graph = build_root_graph(
+        self.graph = self.setup_graph(debug)
+
+    def setup_graph(self, debug: bool):
+        return build_root_graph(
             all_chunks_retriever=self.all_chunks_retriever,
             parameterised_retriever=self.parameterised_retriever,
-            tabular_retriever=self.tabular_retriever,
             metadata_retriever=self.metadata_retriever,
             agent_configs=self.agent_configs,
             debug=debug,
         )
+
+    def init_datahub_agent(self, sso_token_getter: Callable[[], str] | None = None) -> None:
+        if sso_token_getter is None:
+            logger.error("No sso_token_getter callable configured for DataHub agent")
+            return
+
+        self.agent_configs["Datahub_Agent"].tools = get_datahub_mcp_tools(sso_token_getter=sso_token_getter)
 
     def run_sync(self, input: RedboxState):
         """
@@ -159,12 +174,16 @@ class Redbox:
         citations_callback=_default_callback,
         metadata_tokens_callback=_default_callback,
         activity_event_callback=_default_callback,
+        sso_token_getter: Callable[[], str] | None = None,
     ) -> RedboxState:
         final_state = None
         request_dict = input.request.model_dump()
         logger.info("Request: %s", {k: request_dict[k] for k in request_dict.keys() - {"ai_settings"}})
         is_summary_multiagent_streamed = False
         is_evaluator_output_streamed = False
+
+        if sso_token_getter:
+            self.init_datahub_agent(sso_token_getter=sso_token_getter)
 
         @retry(
             stop=stop_after_attempt(3),
@@ -238,14 +257,14 @@ class Redbox:
             )
             try:
                 _ = final_state.messages[-1].content
-            except Exception as _:
-                logger.exception("LLM Error - Blank Response")
+            except Exception as e:
+                logger.exception(f"app: LLM Error - Blank Response; {e}")
         except CancelledError:
             logger.error("All retries exhausted for CancelledError in the astream_events function")
             raise
 
-        except Exception:
-            logger.error("Generic error in run - {str(e)}")
+        except Exception as e:
+            logger.error(f"Generic error in run - {str(e)}")
             raise
 
         return final_state
@@ -265,7 +284,6 @@ class Redbox:
         elif graph_to_draw == "new_route":
             graph = build_new_route_graph(
                 all_chunks_retriever=self.all_chunks_retriever,
-                tabular_retriever=self.tabular_retriever,
                 agents=self.agents,
             ).get_graph()
         else:

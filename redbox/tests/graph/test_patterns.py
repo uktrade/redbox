@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+import copy
 import pytest
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, HumanMessage, ToolCall
@@ -12,6 +13,7 @@ from redbox.chains.components import get_structured_response_with_citations_pars
 from redbox.chains.runnables import CannedChatLLM, build_chat_prompt_from_messages_runnable, build_llm_chain
 from redbox.graph.nodes.processes import (
     build_agent_with_loop,
+    build_datahub_agent_with_loop,
     build_chat_pattern,
     build_merge_pattern,
     build_passthrough_pattern,
@@ -19,6 +21,7 @@ from redbox.graph.nodes.processes import (
     build_set_route_pattern,
     build_set_text_pattern,
     build_stuff_pattern,
+    check_if_tasks_completed,
     clear_documents_process,
     empty_process,
 )
@@ -30,6 +33,7 @@ from redbox.models.chain import (
     RedboxQuery,
     RedboxState,
     Source,
+    TaskStatus,
     configure_agent_task_plan,
 )
 from redbox.models.chat import ChatRoute
@@ -46,7 +50,13 @@ from redbox.transform import flatten_document_state, structure_documents_by_file
 LANGGRAPH_DEBUG = True
 
 CHAT_PROMPT_TEST_CASES = generate_test_cases(
-    query=RedboxQuery(question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]),
+    query=RedboxQuery(
+        question="What is AI?",
+        s3_keys=[],
+        user_uuid=uuid4(),
+        chat_history=[],
+        permitted_s3_keys=[],
+    ),
     test_data=[
         RedboxTestData(
             number_of_docs=0,
@@ -78,7 +88,13 @@ def test_build_chat_prompt_from_messages_runnable(test_case: RedboxChatTestCase,
 
 
 BUILD_LLM_TEST_CASES = generate_test_cases(
-    query=RedboxQuery(question="What is AI?", file_uuids=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]),
+    query=RedboxQuery(
+        question="What is AI?",
+        file_uuids=[],
+        user_uuid=uuid4(),
+        chat_history=[],
+        permitted_s3_keys=[],
+    ),
     test_data=[
         RedboxTestData(
             number_of_docs=2,
@@ -124,7 +140,13 @@ def test_build_llm_chain(test_case: RedboxChatTestCase):
 
 
 CHAT_TEST_CASES = generate_test_cases(
-    query=RedboxQuery(question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]),
+    query=RedboxQuery(
+        question="What is AI?",
+        s3_keys=[],
+        user_uuid=uuid4(),
+        chat_history=[],
+        permitted_s3_keys=[],
+    ),
     test_data=[
         RedboxTestData(
             number_of_docs=0,
@@ -157,7 +179,13 @@ def test_build_chat_pattern(test_case: RedboxChatTestCase, mocker: MockerFixture
 
 
 SET_ROUTE_TEST_CASES = generate_test_cases(
-    query=RedboxQuery(question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]),
+    query=RedboxQuery(
+        question="What is AI?",
+        s3_keys=[],
+        user_uuid=uuid4(),
+        chat_history=[],
+        permitted_s3_keys=[],
+    ),
     test_data=[
         RedboxTestData(
             number_of_docs=0,
@@ -363,7 +391,11 @@ def test_build_passthrough_pattern():
     passthrough = build_passthrough_pattern()
     state = RedboxState(
         request=RedboxQuery(
-            question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="What is AI?",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
         ),
     )
 
@@ -378,7 +410,11 @@ def test_build_set_text_pattern():
     set_text = build_set_text_pattern(text="An hendy hap ychabbe ychent.")
     state = RedboxState(
         request=RedboxQuery(
-            question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="What is AI?",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
         ),
     )
 
@@ -392,7 +428,11 @@ def test_empty_process():
     """Tests the empty process doesn't touch the state whatsoever."""
     state = RedboxState(
         request=RedboxQuery(
-            question="What is AI?", s3_keys=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="What is AI?",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
         ),
         documents=structure_documents_by_file_name([doc for doc in generate_docs(s3_key="s3_key")]),
         messages=[HumanMessage(content="Foo")],
@@ -414,7 +454,11 @@ def test_empty_process():
 CLEAR_DOC_TEST_CASES = [
     RedboxState(
         request=RedboxQuery(
-            question="What is AI?", file_uuids=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="What is AI?",
+            file_uuids=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
         ),
         documents=structure_documents_by_file_name([doc for doc in generate_docs(s3_key="s3_key")]),
         messages=[HumanMessage(content="Foo")],
@@ -422,7 +466,11 @@ CLEAR_DOC_TEST_CASES = [
     ),
     RedboxState(
         request=RedboxQuery(
-            question="What is AI?", file_uuids=[], user_uuid=uuid4(), chat_history=[], permitted_s3_keys=[]
+            question="What is AI?",
+            file_uuids=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
         ),
         documents={},
         messages=[HumanMessage(content="Foo")],
@@ -660,10 +708,13 @@ class TestBuildAgentLoop:
             assert mock_preprocess is None
 
         assert (
-            response.get("agents_results")
+            response.get("agents_results")["task0"].content
             == f"<Internal_Retrieval_Agent_Result>{test_name}</Internal_Retrieval_Agent_Result>"
         )
-        assert len(response) == 2
+        assert "agents_results" in response
+        assert "tasks_evaluator" in response
+        assert "agent_plans" in response
+        assert len(response) == 3
         assert mock_tool_calls.call_count == no_calls
 
     @pytest.mark.parametrize(
@@ -714,8 +765,10 @@ class TestBuildAgentLoop:
         assert response is not None
 
         agent_result = response.get("agents_results")
-        content = agent_result.replace("<Internal_Retrieval_Agent_Result>", "").replace(
-            "</Internal_Retrieval_Agent_Result>", ""
+        content = (
+            agent_result["task0"]
+            .content.replace("<Internal_Retrieval_Agent_Result>", "")
+            .replace("</Internal_Retrieval_Agent_Result>", "")
         )
         content_tokens = len(content.split())
 
@@ -729,5 +782,232 @@ class TestBuildAgentLoop:
             assert content == llm_content.strip()
 
         # Basic checks
-        assert len(response) == 2
+        assert "agents_results" in response
+        assert "tasks_evaluator" in response
+        assert "agent_plans" in response
+        assert len(response) == 3  # content, eval task, task status
         assert mock_tool_calls.call_count == 1
+
+
+class TestBuildDatahubAgentLoop:
+    def test_fail_parser_agent_task(self, fake_state, mocker: MockerFixture):
+        fake_agent = build_datahub_agent_with_loop(
+            agent_name="External_Retrieval_Agent",
+            system_prompt="Fake prompt",
+            tools=[],
+        )
+        fake_state.messages = AIMessage(content="Incorrect task format")
+        response = fake_agent.invoke(fake_state)
+        assert response is None
+
+    @pytest.mark.parametrize(
+        "test_name, pre_process, loop_condition, no_calls, tool_call_results",
+        [
+            ("no-preprocess-no-loop", None, None, 1, [AIMessage(content="no-preprocess-no-loop")]),
+            (
+                "no-preprocess-no-loop list",
+                None,
+                None,
+                1,
+                [AIMessage(content="no-preprocess-no-loop"), AIMessage(content="list")],
+            ),
+            ("no-preprocess-no-loop dict", None, None, 1, [{"type": "text", "text": "no-preprocess-no-loop dict"}]),
+            ("no-preprocess-loop", None, True, 2, (AIMessage(content="no-preprocess-loop"), "pass", "False")),
+            ("preprocess-no-loop", True, None, 1, [AIMessage(content="preprocess-no-loop")]),
+            ("preprocess-loop-pass", True, True, 2, (AIMessage(content="preprocess-loop-pass"), "pass", "False")),
+            ("preprocess-loop-fail", True, True, 2, (AIMessage(content="preprocess-loop-fail"), "fail", "True")),
+            (
+                "preprocess-loop-metadata-pass",
+                True,
+                True,
+                1,
+                (AIMessage(content="preprocess-loop-metadata-pass"), "pass", "False", "Requires user feedback"),
+            ),
+            (
+                "preprocess-loop-metadata-fail",
+                True,
+                True,
+                1,
+                (AIMessage(content="preprocess-loop-metadata-fail"), "fail", "True", "Requires user feedback"),
+            ),
+            ("There is an issue with tool call. No results returned.", None, None, 1, None),
+            ("raw-string-result", None, None, 1, "raw-string-result"),
+        ],
+    )
+    def test_preprocess_loop(
+        self, test_name, pre_process, loop_condition, no_calls, tool_call_results, fake_state, mocker: MockerFixture
+    ):
+        # patch
+        res = AIMessage(
+            content="test",
+            additional_kwargs={"tool_calls": [{"name": "test_tool", "args": {"is_intermediate_step": True}}]},
+        )
+        llm = GenericFakeChatModel(messages=iter([res]))
+        mock_llm = mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
+
+        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel")
+        mock_tool_calls.return_value = tool_call_results
+
+        mock_preprocess = None
+        if pre_process is not None:
+            mock_preprocess = mocker.Mock()
+            mock_preprocess.invoke.return_value = {"processed": True}
+
+            @RunnableLambda
+            def fake_preprocess(state: RedboxState):
+                return {"processed": True}
+
+            pre_process = fake_preprocess
+
+        if loop_condition is not None:
+            success = "fail"
+            is_intermediate_step = False
+            return lambda: success == "fail" or is_intermediate_step
+
+        # fake state
+        agent = "Internal_Retrieval_Agent"
+        agent_task, multi_agent_plan = configure_agent_task_plan({agent: agent})
+        tasks = [agent_task(task="Fake Task", expected_output="Fake output")]
+        plan = multi_agent_plan().model_copy(update={"tasks": tasks})
+
+        fake_state.user_feedback = "proceed"
+        fake_state.agent_plans = plan
+        fake_state.tasks_evaluator = ""
+        fake_state.messages = [AIMessage(content=plan.tasks[0].model_dump_json())]
+
+        fake_agent = build_datahub_agent_with_loop(
+            agent_name="Internal_Retrieval_Agent",
+            system_prompt="Fake prompt",
+            tools=[],
+            use_metadata=False,
+            max_tokens=10000,
+            pre_process=pre_process,
+            loop_condition=loop_condition,
+            max_attempt=2,
+        )
+
+        response = fake_agent.invoke(fake_state)
+
+        assert mock_llm.call_count == no_calls
+
+        if pre_process:
+            mock_preprocess.assert_called_once
+        else:
+            assert mock_preprocess is None
+
+        assert "agents_results" in response
+        assert "tasks_evaluator" in response
+        assert "agent_plans" in response
+        assert len(response) == 3
+        assert mock_tool_calls.call_count == no_calls
+
+        if tool_call_results is not None and isinstance(tool_call_results, list) and len(tool_call_results) > 3:
+            assert len(tool_call_results) == 4
+            assert response.get("agents_results")["task0"]["status"] == TaskStatus.REQUIRES_USER_FEEDBACK
+            assert (
+                response.get("agents_results")["task0"].content
+                == f"<Internal_Retrieval_Agent_Result>Ask user for feedback based on failure reason. Failure reason: {tool_call_results[4]}\n\n{test_name}</Internal_Retrieval_Agent_Result>"
+            )
+        elif tool_call_results is None:
+            assert (
+                response.get("agents_results")["task0"].content
+                == "<Internal_Retrieval_Agent_Result>Tool error: no results received.</Internal_Retrieval_Agent_Result>"
+            )
+        else:
+            assert (
+                response.get("agents_results")["task0"].content
+                == f"<Internal_Retrieval_Agent_Result>{test_name}</Internal_Retrieval_Agent_Result>"
+            )
+
+    @pytest.mark.parametrize(
+        "test_name, max_tokens, actual_tokens",
+        [
+            ("truncate-response-over-max-tokens", 50, 1000),
+            ("truncate-response-over-max-tokens2", 50, 26),
+            ("dont-truncate-response-under-max-tokens", 100, 80),
+            ("dont-truncate-response-equal-to-max-tokens", 10, 10),
+        ],
+    )
+    def test_llm_response_truncation(self, test_name, max_tokens, actual_tokens, fake_state, mocker: MockerFixture):
+        sanitised_test_name = test_name.replace("-", "")
+
+        llm_content = f"{sanitised_test_name} " * actual_tokens
+        llm_message = AIMessage(
+            content=llm_content.strip(),
+            additional_kwargs={"tool_calls": [{"name": "test_tool", "args": {"is_intermediate_step": True}}]},
+        )
+        llm = GenericFakeChatModel(messages=iter([llm_message]))
+        mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
+
+        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel")
+        mock_tool_calls.return_value = [llm_message]
+
+        agent = "Internal_Retrieval_Agent"
+        agent_task, multi_agent_plan = configure_agent_task_plan({agent: agent})
+        tasks = [agent_task(task="Fake Task", expected_output="Fake output")]
+        plan = multi_agent_plan().model_copy(update={"tasks": tasks})
+
+        fake_state.user_feedback = "proceed"
+        fake_state.agent_plans = plan
+        fake_state.tasks_evaluator = ""
+        fake_state.messages = [AIMessage(content=plan.tasks[0].model_dump_json())]
+
+        fake_agent = build_datahub_agent_with_loop(
+            agent_name="Internal_Retrieval_Agent",
+            system_prompt="Fake prompt",
+            tools=[],
+            use_metadata=False,
+            max_tokens=max_tokens,
+            pre_process=None,
+            loop_condition=None,
+            max_attempt=2,
+        )
+
+        response = fake_agent.invoke(fake_state)
+        assert response is not None
+
+        agent_result = response.get("agents_results")
+        content = (
+            agent_result["task0"]
+            .content.replace("<Internal_Retrieval_Agent_Result>", "")
+            .replace("</Internal_Retrieval_Agent_Result>", "")
+        )
+        content_tokens = len(content.split())
+
+        if actual_tokens > max_tokens:
+            # Should be truncated
+            assert content_tokens == max_tokens
+            assert content == (f"{sanitised_test_name} " * max_tokens).strip()
+        else:
+            # Should match original
+            assert content_tokens == actual_tokens
+            assert content == llm_content.strip()
+
+        # Basic checks
+        assert "agents_results" in response
+        assert "tasks_evaluator" in response
+        assert "agent_plans" in response
+        assert len(response) == 3  # content, eval task, task status
+        assert mock_tool_calls.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "task_idx, task_status, expected",
+    [
+        ([0], [TaskStatus.RUNNING], False),
+        ([0], [TaskStatus.COMPLETED], False),
+        ([0], [TaskStatus.FAILED], False),
+        ([0, 2], [TaskStatus.COMPLETED, TaskStatus.RUNNING], False),
+        ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.SCHEDULED, TaskStatus.SCHEDULED], False),
+        ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.RUNNING, TaskStatus.RUNNING], False),
+        ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.COMPLETED, TaskStatus.FAILED], True),
+        ([0, 1, 2], [TaskStatus.COMPLETED, TaskStatus.COMPLETED, TaskStatus.COMPLETED], True),
+    ],
+)
+def test_check_if_tasks_completed(task_idx, task_status, expected, fake_state_with_plan: MockerFixture):
+    fake_state = copy.deepcopy(fake_state_with_plan)
+
+    for i, idx in enumerate(task_idx):
+        fake_state.agent_plans.tasks[idx].status = task_status[i]
+    actual = check_if_tasks_completed(fake_state)
+    assert expected == actual

@@ -19,21 +19,17 @@ logger = logging.getLogger(__name__)
 class ToolsView(View):
     @method_decorator(login_required)
     def get(self, request: HttpRequest) -> HttpResponse:
-        context = chat_service.get_context(request)
-        context["tools"] = Tool.objects.all()
-
         return render(
             request,
             template_name="tools/tools.html",
-            context=context,
+            context=chat_service.get_context(request),
         )
 
 
 @require_http_methods(["GET"])
 def tool_info_page_view(request: HttpRequest, slug: str) -> HttpResponse:
     tool = get_object_or_404(Tool, slug=slug)
-    context = chat_service.get_context(request)
-    context["tool"] = tool
+    context = chat_service.get_context(request, slug=slug)
 
     if not tool.has_info_page:
         return HttpResponse(

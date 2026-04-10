@@ -2,7 +2,7 @@
 {% from "ids/components/editable-text.html" import editable_text %}
 {% from "ids/components/modal.html" import modal %}
 {% from "macros/icon.html" import ids_icon %}
-<section id="your-documents" class ="ids-card ids-card--no-border" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+<section id="your-documents" class ="ids-card ids-card--no-border" hx-swap-oob="outerHTML">
     <div class="ids-card__header">
         {{ ids_icon(icon_name="file-present.svg") }}
         <h3 class="side-panel-heading__text">Documents</h3>

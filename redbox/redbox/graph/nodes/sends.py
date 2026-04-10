@@ -1,13 +1,21 @@
-from uuid import uuid4
 import logging
-from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 import threading
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from typing import Callable
+from uuid import uuid4
 
 from langchain_core.messages import AIMessage
 from langgraph.constants import Send
 
-from redbox.models.chain import DocumentState, RedboxState
+from redbox.models.chain import DocumentState, RedboxState, TaskStatus
+from redbox.api.format import format_mcp_tool_response, MCPResponseMetadata
+
+import asyncio
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+from langchain_mcp_adapters.tools import load_mcp_tools
+
+from redbox.models.file import ChunkCreatorType
 
 log = logging.getLogger(__name__)
 
@@ -95,7 +103,115 @@ def run_with_timeout(func, args, timeout):
     return result[0]
 
 
-def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, per_tool_timeout=60, result_timeout=60):
+def _get_mcp_headers(sso_access_token: str | None = None) -> dict[str, str]:
+    if not sso_access_token:
+        log.warning("_get_mcp_headers - Datahub MCP sso_access_token is None")
+        return {}
+    token = sso_access_token.strip()
+    if not token:
+        return {}
+    if token.lower().startswith("bearer "):
+        return {"Authorization": token}
+    return {"Authorization": f"Bearer {token}"}
+
+
+def wrap_async_tool(tool, tool_name):
+    """
+    Returns a synchronous function that properly wraps an async tool
+
+    Args:
+        tool_name: The name of the tool to invoke
+
+    Returns:
+        A function that synchronously executes the async tool
+    """
+
+    def wrapper(args):
+        # Create a new event loop for this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        # get mcp tool url
+        mcp_url = tool.metadata["url"]
+        creator_type = tool.metadata["creator_type"]
+        sso_access_token = tool.metadata["sso_access_token"].get()
+
+        if not sso_access_token:
+            log.error("wrap_async_tool - MCP sso_access_token is None")
+
+        headers = _get_mcp_headers(sso_access_token)
+
+        try:
+            # Define the async operation
+            async def run_tool():
+                # tool need to be executed within the connection context manager
+                async with streamablehttp_client(mcp_url, headers=headers or None) as (
+                    read,
+                    write,
+                    _,
+                ):
+                    async with ClientSession(read, write) as session:
+                        # Initialize the connection
+                        init_result = await session.initialize()
+                        server_name = init_result.serverInfo.name
+                        server_version = init_result.serverInfo.version
+
+                        log.info(
+                            f"wrap_async_tool - Calling tool '{tool_name}' on MCP server {server_name}@{server_version}"
+                        )
+
+                        # Get tools
+                        tools = await load_mcp_tools(session)
+
+                        selected_tool = next((t for t in tools if t.name == tool_name), None)
+                        if not selected_tool:
+                            raise ValueError(f"tool with name '{tool_name}' not found")
+
+                        # remove intermediate step argument if it is not required by tool
+                        if "is_intermediate_step" not in selected_tool.args_schema["required"] and args.get(
+                            "is_intermediate_step"
+                        ):
+                            args.pop("is_intermediate_step")
+                            log.warning(f"wrap_async_tool - updated args: {args}")
+
+                        log.warning(f"wrap_async_tool - tool found with name '{tool_name}'")
+                        log.warning(f"wrap_async_tool - args '{args}'")
+                        result = await selected_tool.ainvoke(args)
+
+                        log.warning(f"wrap_async_tool - MCP Tool '{tool_name}' result: {result}")
+
+                        if creator_type == ChunkCreatorType.datahub:
+                            log.warning(
+                                f"wrap_async_tool - Formatting MCP tool response for creator_type='{creator_type}'"
+                            )
+                            return format_mcp_tool_response(
+                                tool_response=result,
+                                creator_type=creator_type,
+                            )
+
+                        log.warning(
+                            f"wrap_async_tool - Returning raw MCP tool response for creator_type='{creator_type}'"
+                        )
+                        return result
+
+            # Run the async function and return its result
+            return loop.run_until_complete(run_tool())
+        finally:
+            # Clean up resources
+            loop.close()
+
+    return wrapper
+
+
+def run_tools_parallel(
+    ai_msg,
+    tools,
+    state,
+    parallel_timeout=60,
+    per_tool_timeout=60,
+    result_timeout=60,
+    is_loop=False,
+):
     run_id = str(uuid4())[:8]
     log_stub = f"[run_tools_parallel run_id='{run_id}']"
     log.warning(f"{log_stub} Starting tool execution.")
@@ -130,24 +246,80 @@ def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, per_tool_timeo
 
                 # Get arguments and submit the tool invocation
                 args = tool_call.get("args", {})
-                args["state"] = state
-
-                future = executor.submit(run_with_timeout, selected_tool.invoke, args, per_tool_timeout)
-                futures[future] = {"name": tool_name}
+                log.warning(f"args: {args}")
+                is_intermediate_step = "False"
+                # check if tool is sync (not async). the sync tool should have sync function defined and no async coroutine
+                if selected_tool.func and not selected_tool.coroutine:
+                    args["state"] = state
+                    future = executor.submit(run_with_timeout, selected_tool.invoke, args, per_tool_timeout)
+                else:  # for async mcp tools
+                    # capture any intermediate step value decided by LLM
+                    if is_loop:
+                        is_intermediate_step = args.get("is_intermediate_step", "False")
+                        log.warning(f"intermediate step: {is_intermediate_step}")
+                    future = executor.submit(
+                        run_with_timeout,
+                        wrap_async_tool(selected_tool, tool_name),
+                        args,
+                        per_tool_timeout,
+                    )
+                futures[future] = {
+                    "name": tool_name,
+                    "intermediate_step": is_intermediate_step,
+                }
 
             # Collect responses as tools complete
             responses = []
             for future in as_completed(futures.keys(), timeout=parallel_timeout):
                 future_tool_name = futures[future]["name"]
+                is_intermediate_step = futures[future]["intermediate_step"]
 
                 try:
                     response = future.result(timeout=result_timeout)
                     log.warning(f"{log_stub} This is what I got from tool '{future_tool_name}': {response}")
-                    if response is not None:  # if response is not None, meaning tool did not fail or timeout
-                        responses.append(AIMessage(response))
-                    else:
+
+                    if response is None:
                         log.warning(f"{future_tool_name} Tool has failed or timed out")
                         continue
+
+                    log.warning("response not None")
+
+                    if not is_loop:
+                        if isinstance(response, tuple):
+                            # Response from Datahub MCP
+                            if isinstance(response[1], MCPResponseMetadata):
+                                responses.append(AIMessage(response[0]))
+                            else:
+                                responses.append(AIMessage(response))
+
+                        else:
+                            responses.append(AIMessage(response))
+                    else:
+                        if isinstance(response, tuple):
+                            if isinstance(response[1], MCPResponseMetadata):
+                                res = response[0]
+                                metadata = response[1]
+                                status = "pass" if res != "" else "fail"
+                                result = (
+                                    (
+                                        res,
+                                        status,
+                                        is_intermediate_step,
+                                        metadata.user_feedback.reason or "Requires feedback from the user.",
+                                    )
+                                    if metadata.user_feedback.required
+                                    else (res, status, is_intermediate_step)
+                                )
+                                responses.append(AIMessage(result))
+
+                                if metadata.user_feedback.required:
+                                    return responses
+
+                            else:
+                                responses.append(AIMessage(result))
+
+                        else:
+                            responses.append(AIMessage(result))
 
                     raw_res = response
                     if isinstance(raw_res, tuple):
@@ -181,15 +353,46 @@ def run_tools_parallel(ai_msg, tools, state, parallel_timeout=60, per_tool_timeo
         log.warning(f"{log_stub} Global parallel tool execution timed out after {parallel_timeout} seconds.")
         return None
     except Exception as e:
-        log.warning(f"{log_stub} Unexpected error in parallel tool execution: {str(e)}", exc_info=True)
+        log.warning(
+            f"{log_stub} Unexpected error in parallel tool execution: {str(e)}",
+            exc_info=True,
+        )
         return None
+
+
+def no_dependencies(dependencies: list[str], plan) -> bool:
+    """
+    Check if all dependencies are completed
+    return True if no dependencies i.e. []
+    return True if depencies are completed or failed e.g. ['completed']
+    return False if there are dependencies in pending, scheduled, running e.g. ['pending']
+    """
+    if dependencies:
+        deps = [
+            dep
+            for dep in dependencies
+            if plan.get_task_status(dep) in [TaskStatus.PENDING, TaskStatus.SCHEDULED, TaskStatus.RUNNING]
+        ]
+        return len(deps) == 0
+    else:
+        return True
 
 
 def sending_task_to_agent(state: RedboxState):
     plan = state.agent_plans
     if plan:
-        task_send_states: list[RedboxState] = [
-            (task.agent.value, _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]))
-            for task in plan.tasks
-        ]
+        # sending tasks that have no dependencies
+        task_send_states: list[RedboxState] = []
+        for task in plan.tasks:
+            if no_dependencies(task.dependencies, plan) and (task.status == TaskStatus.PENDING):
+                # update status
+                task.status = TaskStatus.SCHEDULED
+                state.agent_plans.update_task_status(task.id, TaskStatus.SCHEDULED)
+                task_send_states += [
+                    (
+                        task.agent.value,
+                        _copy_state(state, messages=[AIMessage(content=task.model_dump_json())]),
+                    )
+                ]
+                log.warning(f"Sending task: {task.id} to agent {task.agent}")
         return [Send(node=target, arg=state) for target, state in task_send_states]
