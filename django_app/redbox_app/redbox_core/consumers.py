@@ -25,7 +25,7 @@ from waffle import flag_is_active
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
-from redbox.api.health import wait_for_health
+from redbox.api.health import check_health, wait_for_health
 from redbox.graph.agents.configs import agent_configs
 from redbox.models.chain import (
     AISettings,
@@ -675,14 +675,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
         active_configs = dict(agent_configs)
         for agent_name, health_url in mcp_agents.items():
             if agent_name in active_configs:
-                healthy = await wait_for_health(
+                healthy = await check_health(
                     url=health_url,
                     headers={"Accept": "application/json"},
                     success_codes=[200],
-                    wait_seconds=10.0,
-                    interval=3.0,
                     request_timeout=5.0,
                 )
+                # healthy = await wait_for_health(
+                #     url=health_url,
+                #     headers={"Accept": "application/json"},
+                #     success_codes=[200],
+                #     wait_seconds=10.0,
+                #     interval=3.0,
+                #     request_timeout=5.0,
+                # )
                 if not healthy:
                     logger.warning("%s MCP unavailable at startup, agent will have no tools", agent_name)
                     ChatConsumer._tools_loaded[agent_name] = False
@@ -712,6 +718,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         while True:
             await asyncio.sleep(30)
             try:
+                logger.warning("Checking health for %s...", agent_name)
                 healthy = await wait_for_health(
                     url=mcp_url,
                     headers={"Accept": "application/json"},
@@ -723,11 +730,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
                 if healthy and not was_healthy:
                     # MCP came back up — reload tools
-                    logger.info("%s MCP recovered, reloading tools", agent_name)
+                    logger.warning("%s MCP recovered, reloading tools", agent_name)
 
                     if not ChatConsumer._tools_loaded.get(agent_name):
                         # tools never loaded — full reinit required
-                        logger.info("Tools were never loaded for %s, forcing full Redbox reinit", agent_name)
+                        logger.warning("Tools were never loaded for %s, forcing full Redbox reinit", agent_name)
                         ChatConsumer.redbox = None  # force _init_redbox on next connect
                     elif ChatConsumer.redbox is not None:
                         try:

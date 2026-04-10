@@ -5,6 +5,48 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+async def check_health(
+    url: str,
+    headers: dict,
+    success_codes: list[int],
+    request_timeout: float = 5.0,
+) -> bool:
+    """
+    Checks URL health once.
+
+    Parameters:
+        url: str - the endpoint to check
+        headers: dict - headers to embed in the endpoint call
+        success_codes: list[int] - successful response codes ie. [200]
+        request_timeout: float - the timeout for the request
+
+    Outputs:
+        bool - True if successful response, False otherwise
+    """
+    try:
+        async with (
+            aiohttp.ClientSession() as session,
+            session.get(
+                url,
+                timeout=aiohttp.ClientTimeout(total=request_timeout),
+                headers=headers,
+            ) as response,
+        ):
+            if response.status in success_codes:
+                logger.info("Health check passed")
+                return True
+            logger.debug("Health check failed: status %d", response.status)
+            return False
+    except (
+        aiohttp.ClientConnectionError,
+        aiohttp.ClientResponseError,
+        aiohttp.ServerTimeoutError,
+        TimeoutError,
+    ) as e:
+        logger.debug("Health check failed: %s", e)
+        return False
+
+
 async def wait_for_health(
     url: str,
     headers: dict,
@@ -33,26 +75,10 @@ async def wait_for_health(
 
     while loop.time() < deadline:
         attempt += 1
-        try:
-            async with (
-                aiohttp.ClientSession() as session,
-                session.get(
-                    url,
-                    timeout=aiohttp.ClientTimeout(total=request_timeout),
-                    headers=headers,
-                ) as response,
-            ):
-                if response.status in success_codes:
-                    logger.info("Health check passed after %d attempt(s)", attempt)
-                    return True
-                logger.debug("Health check attempt %d: status %d", attempt, response.status)
-        except (
-            aiohttp.ClientConnectionError,  # connection refused, DNS failure
-            aiohttp.ClientResponseError,  # bad HTTP response
-            aiohttp.ServerTimeoutError,  # per-request timeout
-            TimeoutError,  # underlying socket timeout
-        ) as e:
-            logger.debug("Health check attempt %d failed: %s", attempt, e)
+        if await check_health(url, headers, success_codes, request_timeout):
+            logger.info("Health check passed after %d attempt(s)", attempt)
+            return True
+        logger.debug("Health check attempt %d failed", attempt)
 
         remaining = deadline - loop.time()
         if remaining <= 0:

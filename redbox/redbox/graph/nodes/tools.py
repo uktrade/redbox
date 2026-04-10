@@ -982,7 +982,7 @@ def build_legislation_search_tool():
 def get_datahub_mcp_tools(sso_token_getter: Callable[[], str], agent_loop=True):
     async def _get_async_tools():
         try:
-            log.info("get_datahub_mcp_tools - Loading Datahub MCP tools...")
+            log.warning("get_datahub_mcp_tools - Loading Datahub MCP tools...")
 
             mcp_settings = get_settings().datahub_mcp
             datahub_mcp_url = mcp_settings.url
