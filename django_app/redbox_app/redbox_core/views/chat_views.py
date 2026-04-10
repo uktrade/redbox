@@ -95,7 +95,7 @@ class DeleteChat(View):
                 [
                     {"template": "side_panel/your_documents.html", "context": oob_context, "request": request},
                     {"template": "chat/cta.html", "context": oob_context, "request": request},
-                    {"template": "chat/chat_window.html", "context": oob_context, "request": request},
+                    {"template": "chat/chat_feed.html", "context": oob_context, "request": request},
                 ]
             )
 

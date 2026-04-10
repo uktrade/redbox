@@ -8,25 +8,15 @@
 
 {% block content %}
 <div class="govuk-width-container">
-    <div class="ids-banner ids-banner--neutral">
-        <div class="govuk-width-container">
-            <div class="govuk-grid-row">
-                <div class="govuk-grid-column-two-thirds govuk-!-margin-left-3 govuk-!-margin-right-3">
-                    <h1 class="govuk-heading-xl govuk-!-margin-bottom-7">
-                        Use {{ productName }} tools to complete routine and repeatable tasks more efficiently
-                    </h1>
-                    <p class="govuk-body govuk-!-margin-bottom-0">
-                        Select a tool below to get started
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
+    <h1 class="govuk-heading-m govuk-!-margin-top-7">Tools</h1>
 
-    <div class="govuk-width-container">
-        <h2 class="govuk-heading-m govuk-!-margin-top-5 govuk-!-margin-bottom-5">Available tools</h2>
+    <p class="govuk-body-s govuk-!-margin-top-7 govuk-!-margin-bottom-7">
+        Use DBT Assist's tools to complete routine and repeatable tasks more efficiently.
+    </p>
+
+    <div class="govuk-width-container govuk-!-margin-0">
         <div class="ids-justify-content-center">
-            <div class="govuk-grid-row ids-card-grid ids-card-grid--3-col govuk-!-margin-bottom-7">
+            <div class="ids-card-grid govuk-!-margin-bottom-7">
                 {% for tool in tools %}
                     {% include "tools/tool-card.html" %}
                 {% endfor %}
