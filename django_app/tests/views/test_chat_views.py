@@ -187,7 +187,7 @@ def test_recent_chats_without_chat(user_with_chats_with_messages_over_time: User
 
 
 @pytest.mark.django_db
-def test_chat_window_with_chat(chat_with_message: Chat, client: Client):
+def test_chat_feed_with_chat(chat_with_message: Chat, client: Client):
     # Given
     user = chat_with_message.user
     client.force_login(user)
@@ -209,7 +209,7 @@ def test_chat_window_with_chat(chat_with_message: Chat, client: Client):
 
 
 @pytest.mark.django_db
-def test_chat_window_without_chat(alice: User, client: Client):
+def test_chat_feed_without_chat(alice: User, client: Client):
     # Given
     client.force_login(alice)
 

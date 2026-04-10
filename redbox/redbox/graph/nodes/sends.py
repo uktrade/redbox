@@ -8,13 +8,12 @@ from langchain_core.messages import AIMessage
 from langgraph.constants import Send
 
 from redbox.models.chain import DocumentState, RedboxState, TaskStatus
-from redbox.api.format import format_mcp_tool_response
+from redbox.api.format import format_mcp_tool_response, MCPResponseMetadata
 
 import asyncio
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from langchain_mcp_adapters.tools import load_mcp_tools
-import json
 
 from redbox.models.file import ChunkCreatorType
 
@@ -106,6 +105,7 @@ def run_with_timeout(func, args, timeout):
 
 def _get_mcp_headers(sso_access_token: str | None = None) -> dict[str, str]:
     if not sso_access_token:
+        log.warning("_get_mcp_headers - Datahub MCP sso_access_token is None")
         return {}
     token = sso_access_token.strip()
     if not token:
@@ -134,7 +134,11 @@ def wrap_async_tool(tool, tool_name):
         # get mcp tool url
         mcp_url = tool.metadata["url"]
         creator_type = tool.metadata["creator_type"]
-        sso_access_token = tool.metadata["sso_access_token"]
+        sso_access_token = tool.metadata["sso_access_token"].get()
+
+        if not sso_access_token:
+            log.error("wrap_async_tool - MCP sso_access_token is None")
+
         headers = _get_mcp_headers(sso_access_token)
 
         try:
@@ -152,7 +156,9 @@ def wrap_async_tool(tool, tool_name):
                         server_name = init_result.serverInfo.name
                         server_version = init_result.serverInfo.version
 
-                        log.info(f"Calling tool '{tool_name}' on MCP server {server_name}@{server_version}")
+                        log.info(
+                            f"wrap_async_tool - Calling tool '{tool_name}' on MCP server {server_name}@{server_version}"
+                        )
 
                         # Get tools
                         tools = await load_mcp_tools(session)
@@ -166,22 +172,26 @@ def wrap_async_tool(tool, tool_name):
                             "is_intermediate_step"
                         ):
                             args.pop("is_intermediate_step")
-                            log.warning(f"updated args: {args}")
+                            log.warning(f"wrap_async_tool - updated args: {args}")
 
-                        log.warning(f"tool found with name '{tool_name}'")
-                        log.warning(f"args '{args}'")
+                        log.warning(f"wrap_async_tool - tool found with name '{tool_name}'")
+                        log.warning(f"wrap_async_tool - args '{args}'")
                         result = await selected_tool.ainvoke(args)
 
-                        log.warning(f"MCP Tool '{tool_name}' result: {result}")
+                        log.warning(f"wrap_async_tool - MCP Tool '{tool_name}' result: {result}")
 
                         if creator_type == ChunkCreatorType.datahub:
-                            log.warning(f"Formatting MCP tool response for creator_type='{creator_type}'")
+                            log.warning(
+                                f"wrap_async_tool - Formatting MCP tool response for creator_type='{creator_type}'"
+                            )
                             return format_mcp_tool_response(
                                 tool_response=result,
                                 creator_type=creator_type,
                             )
 
-                        log.warning(f"Returning raw MCP tool response for creator_type='{creator_type}'")
+                        log.warning(
+                            f"wrap_async_tool - Returning raw MCP tool response for creator_type='{creator_type}'"
+                        )
                         return result
 
             # Run the async function and return its result
@@ -274,34 +284,42 @@ def run_tools_parallel(
 
                     log.warning("response not None")
 
-                    if (not is_loop and isinstance(response, str)) or (
-                        is_loop and isinstance(response, tuple)
-                    ):  # when is_loop=True, result output should be a Tuple
-                        responses.append(AIMessage(response))
-                        log.warning("my non-transformed response")
-                        log.warning(response)
-                    elif is_loop and isinstance(response, str):
-                        try:
-                            result_dict = json.loads(response)
-                            # Check if response has no records
-                            is_empty = result_dict.get("total") == 0
-                            log.warning(f"is_empty {is_empty}")
-                        except json.JSONDecodeError:
-                            # Check if response is an empty string/None/empty array
-                            is_empty = response in ["", "None", "[]"]
+                    if not is_loop:
+                        if isinstance(response, tuple):
+                            # Response from Datahub MCP
+                            if isinstance(response[1], MCPResponseMetadata):
+                                responses.append(AIMessage(response[0]))
+                            else:
+                                responses.append(AIMessage(response))
 
-                        # Set status based on emptiness
-                        status = "fail" if is_empty else "pass"
+                        else:
+                            responses.append(AIMessage(response))
+                    else:
+                        if isinstance(response, tuple):
+                            if isinstance(response[1], MCPResponseMetadata):
+                                res = response[0]
+                                metadata = response[1]
+                                status = "pass" if res != "" else "fail"
+                                result = (
+                                    (
+                                        res,
+                                        status,
+                                        is_intermediate_step,
+                                        metadata.user_feedback.reason or "Requires feedback from the user.",
+                                    )
+                                    if metadata.user_feedback.required
+                                    else (res, status, is_intermediate_step)
+                                )
+                                responses.append(AIMessage(result))
 
-                        if is_empty:
-                            log.warning(f"No records  returned from {future_tool_name} tool")
-                            response = "Error message: Empty response"
+                                if metadata.user_feedback.required:
+                                    return responses
 
-                        # Create transformed response and append to responses
-                        transformed_response = (response, status, is_intermediate_step)
-                        log.warning("my transformed response")
-                        log.warning(transformed_response)
-                        responses.append(AIMessage(transformed_response))
+                            else:
+                                responses.append(AIMessage(result))
+
+                        else:
+                            responses.append(AIMessage(result))
 
                     raw_res = response
                     if isinstance(raw_res, tuple):

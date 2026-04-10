@@ -62,6 +62,8 @@ class ChatController extends HTMLElement {
         document.createElement("ids-chat-message")
       );
       aiMessage.setAttribute("data-role", "ai");
+      aiMessage.setAttribute("data-logout-url", this.dataset.logoutUrl || "/");
+
       messageContainer?.insertBefore(aiMessage, insertPosition);
 
       const llm =
