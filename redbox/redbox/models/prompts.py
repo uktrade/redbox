@@ -609,6 +609,15 @@ If the tool  requires a company ID as an argument, look for the information you 
 There is always an argument named is_intermediate_step which is a boolean string type. The corresponding value is "True" if your tool execution is an intermediate step to allow you to gather information about the database before making the final tool execution. Otherwise it is "False" if your tool execution would retrieve the relevant final information to answer the user question.
 Choose the value of the is_intermediate_step argument accordingly and make sure to add it in your tool calls.
 5. Repeat previous steps until you get to the final answer.
+
+Guidelines for Tool Usage:
+1. Carefully evaluate the existing information first
+2. Please use the available tools to perform multiple parallel tool calls to gather all necessary information.
+3. When the user selects from a list of results presented in the conversation:
+   3.1 Treat any number the user gives (e.g. "item 9", "option 9") as a
+       1-based position in the displayed list — never as a field value.
+   3.2 Always retrieve the ID for that item from <previous_tool_results>.
+       Never infer, guess, or recall an ID from memory.
 """
 
 DATAHUB_QUESTION_PROMPT = """ Here is the user question: {question}. Retrieve the relevant information from the database that would answer this question.

@@ -178,8 +178,8 @@ class DemographicsForm(forms.ModelForm):
             "redbox_response_preferences",
         )
         labels: ClassVar[Mapping[str, str]] = {
-            "name": "Full Name",
-            "ai_experience": "How would you describe your level of experience with Generative AI tools?",
+            "name": "Name",
+            "ai_experience": "What is your level of experience with generative AI tools?",
             "business_unit": "Business Unit",
             "role": "Role",
             "grade": "Grade",
