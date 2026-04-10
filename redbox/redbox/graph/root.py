@@ -1,7 +1,6 @@
 import logging
 from typing import Dict
 
-from ddtrace.llmobs.decorators import workflow
 from langchain_core.messages import AIMessage
 from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.graph import END, START, StateGraph
@@ -23,8 +22,8 @@ from redbox.graph.edges import (
 from redbox.graph.nodes.processes import (
     build_activity_log_node,
     build_agent_with_loop,
-    build_datahub_agent_with_loop,
     build_chat_pattern,
+    build_datahub_agent_with_loop,
     build_error_pattern,
     build_merge_pattern,
     build_passthrough_pattern,
@@ -56,7 +55,6 @@ from redbox.transform import structure_documents_by_file_name, structure_documen
 log = logging.getLogger(__name__)
 
 
-@workflow(name="app_root_graph")
 def build_root_graph(
     all_chunks_retriever,
     parameterised_retriever,
@@ -131,7 +129,6 @@ def build_root_graph(
     return builder.compile()
 
 
-@workflow(name="app_search_graph")
 def get_search_graph(
     retriever: VectorStoreRetriever,
     prompt_set: PromptSet = PromptSet.Search,
@@ -247,7 +244,6 @@ def get_search_graph(
     return builder.compile(debug=debug)
 
 
-@workflow(name="app_summarise_graph")
 def get_summarise_graph(
     all_chunks_retriever: VectorStoreRetriever, use_as_agent=False, model: ChatLLMBackend | None = None, debug=True
 ):
@@ -378,7 +374,6 @@ def get_summarise_graph(
     return builder.compile(debug=debug)
 
 
-@workflow(name="app_chat_graph")
 def get_chat_graph(
     debug: bool = False,
 ) -> CompiledGraph:
@@ -405,7 +400,6 @@ def get_chat_graph(
     return builder.compile(debug=debug)
 
 
-@workflow(name="retrieve_docs_metadata")
 def get_retrieve_metadata_graph(metadata_retriever: VectorStoreRetriever, debug: bool = False):
     builder = StateGraph(RedboxState)
 
@@ -443,7 +437,6 @@ def strip_route(state: RedboxState):
     return state
 
 
-@workflow(name="app_new_route_graph")
 def build_new_route_graph(
     all_chunks_retriever: VectorStoreRetriever,
     agent_configs: Dict[str, AgentConfig],

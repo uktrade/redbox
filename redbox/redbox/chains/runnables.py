@@ -367,18 +367,13 @@ def basic_chat_chain(
 
         output = chain.invoke(context)
         bedrock_span = tracer.current_span()
-        formatted_input_dd = prompt.format_messages(**context)
-        role_map = {"human": "user", "ai": "assistant", "system": "system"}
+        # formatted_input_dd = prompt.format_messages(**context)
+        # role_map = {"human": "user", "ai": "assistant", "system": "system"}
         LLMObs.annotate(
             span=bedrock_span,
-            input_data=[
-                {"role": role_map.get(msg.type, msg.type), "content": msg.content} for msg in formatted_input_dd
-            ],
-            output_data=output.content,
             metadata={
                 "max_tokens": (llm._default_config or {}).get("max_tokens", None),
                 "stop_reason": (output.response_metadata or {}).get("stop_reason", None),
-                "model_name": extract_model_name(output),
             },
             metrics={
                 "input_tokens": (output.usage_metadata or {}).get("input_tokens", None),
