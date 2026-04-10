@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 import re
@@ -25,7 +24,6 @@ from waffle import flag_is_active
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
-from redbox.api.health import check_health
 from redbox.chains.components import (
     get_all_chunks_retriever,
     get_embeddings,
@@ -68,6 +66,7 @@ from redbox_app.redbox_core.models import (
 from redbox_app.redbox_core.models import Agent as AgentModel
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
 from redbox_app.redbox_core.models import ChatLLMBackend as ChatLLMBackendModel
+from redbox_app.redbox_core.state import SharedConsumerState
 
 # Temporary condition before next uwotm8 release: monkey patch CONVERSION_IGNORE_LIST
 uwm8.CONVERSION_IGNORE_LIST = uwm8.CONVERSION_IGNORE_LIST | {"filters": "philtres", "connection": "connexion"}
@@ -111,15 +110,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
     redbox = None
     chat_message = None  # incrementally updating the chat stream
 
-    _mcp_monitor_tasks: ClassVar[dict[str, asyncio.Task]] = {}
-    _monitor_task_lock: ClassVar[asyncio.Lock] = asyncio.Lock()
+    _state: ClassVar[SharedConsumerState] = SharedConsumerState(agent_configs=agent_configs)
+    # _mcp_monitor_tasks: ClassVar[dict[str, asyncio.Task]] = {}
+    # _monitor_task_lock: ClassVar[asyncio.Lock] = asyncio.Lock()
 
-    _graph: ClassVar = None
-    _graph_lock: ClassVar[asyncio.Lock] = asyncio.Lock()
-    _all_chunks_retriever: ClassVar = None
-    _parameterised_retriever: ClassVar = None
-    _metadata_retriever: ClassVar = None
-    _embedding_model: ClassVar = None
+    # _graph: ClassVar = None
+    # _graph_lock: ClassVar[asyncio.Lock] = asyncio.Lock()
+    # _all_chunks_retriever: ClassVar = None
+    # _parameterised_retriever: ClassVar = None
+    # _metadata_retriever: ClassVar = None
+    # _embedding_model: ClassVar = None
     # _tools_loaded: ClassVar[dict[str, bool]] = {}
 
     async def get_file_cached(self, ref):
@@ -425,7 +425,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 citations_callback=self.handle_citations,
                 metadata_tokens_callback=self.handle_metadata,
                 activity_event_callback=self.handle_activity,
-                sso_token_getter=self._extract_sso_token,
             )
             await self.update_ai_message()
             if len(self.full_reply) == 0 or self.chat_message.text == "":
@@ -648,9 +647,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.send_to_client("error", error_messages.AUTH_REQUIRED)
             return
 
-        mcp_agents = {
-            "Datahub_Agent": f"{ChatConsumer.env.datahub_mcp.url.removesuffix('/mcp/')}/health",
-        }
+        # mcp_agents = {
+        #     "Datahub_Agent": f"{ChatConsumer.env.datahub_mcp.url.removesuffix('/mcp/')}/health",
+        # }
         await self._extract_sso_token()
 
         if self.redbox is None:
@@ -672,16 +671,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
         #         except Exception:
         #             logger.exception("Failed to reload tools for %s on connect", agent_name)
 
-        async with ChatConsumer._monitor_task_lock:
-            for agent_name, health_url in mcp_agents.items():
-                task = ChatConsumer._mcp_monitor_tasks.get(agent_name)
-                if task is None or task.done():
-                    ChatConsumer._mcp_monitor_tasks[agent_name] = asyncio.create_task(
-                        ChatConsumer._mcp_monitor_loop(
-                            agent_name=agent_name,
-                            mcp_url=health_url,
-                        )
-                    )
+        # async with ChatConsumer._monitor_task_lock:
+        #     for agent_name, health_url in mcp_agents.items():
+        #         task = ChatConsumer._mcp_monitor_tasks.get(agent_name)
+        #         if task is None or task.done():
+        #             ChatConsumer._mcp_monitor_tasks[agent_name] = asyncio.create_task(
+        #                 ChatConsumer._mcp_monitor_loop(
+        #                     agent_name=agent_name,
+        #                     mcp_url=health_url,
+        #                 )
+        #             )
 
         self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
         await self.accept()
@@ -718,56 +717,58 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 if agent.agents_max_tokens:
                     agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
 
-        async with ChatConsumer._graph_lock:
-            if ChatConsumer._graph is None:
+        async with ChatConsumer._state.get_lock():
+            if ChatConsumer._state.graph is None:
                 _env = ChatConsumer.env
-                ChatConsumer._all_chunks_retriever = get_all_chunks_retriever(_env)
-                ChatConsumer._parameterised_retriever = get_parameterised_retriever(_env)
-                ChatConsumer._metadata_retriever = get_metadata_retriever(_env)
-                ChatConsumer._embedding_model = get_embeddings(_env)
+                ChatConsumer._state.agent_configs = agent_configs
+                ChatConsumer._state.all_chunks_retriever = get_all_chunks_retriever(_env)
+                ChatConsumer._state.parameterised_retriever = get_parameterised_retriever(_env)
+                ChatConsumer._state.metadata_retriever = get_metadata_retriever(_env)
+                ChatConsumer._state.embedding_model = get_embeddings(_env)
 
-            ChatConsumer._graph = build_root_graph(
-                all_chunks_retriever=ChatConsumer._all_chunks_retriever,
-                parameterised_retriever=ChatConsumer._parameterised_retriever,
-                metadata_retriever=ChatConsumer._metadata_retriever,
-                agent_configs=dict(agent_configs),
+            ChatConsumer._state.graph = build_root_graph(
+                all_chunks_retriever=ChatConsumer._state.all_chunks_retriever,
+                parameterised_retriever=ChatConsumer._state.parameterised_retriever,
+                metadata_retriever=ChatConsumer._state.metadata_retriever,
+                agent_configs=ChatConsumer._state.agent_configs,
                 debug=ChatConsumer.debug,
             )
 
         # active_configs = dict(agent_configs)
         self.redbox = Redbox(
-            agents=dict(agent_configs),
+            agents=ChatConsumer._state.agent_configs,
             env=ChatConsumer.env,
             debug=ChatConsumer.debug,
             sso_token_getter=self._extract_sso_token,
-            all_chunks_retriever=ChatConsumer._all_chunks_retriever,
-            parameterised_retriever=ChatConsumer._parameterised_retriever,
-            metadata_retriever=ChatConsumer._metadata_retriever,
-            embedding_model=ChatConsumer._embedding_model,
-            graph=ChatConsumer._graph,
+            all_chunks_retriever=ChatConsumer._state.all_chunks_retriever,
+            parameterised_retriever=ChatConsumer._state.parameterised_retriever,
+            metadata_retriever=ChatConsumer._state.metadata_retriever,
+            embedding_model=ChatConsumer._state.embedding_model,
+            graph=ChatConsumer._state.graph,
         )
+        await self.redbox.initialise(sso_token_getter=self._extract_sso_token)
 
         # for agent_name in mcp_agents:
         #     if agent_name in agent_configs:
         #         ChatConsumer._tools_loaded[agent_name] = False
 
-    @staticmethod
-    async def _mcp_monitor_loop(agent_name: str, mcp_url: str):
-        was_healthy: bool = True
-        while True:
-            await asyncio.sleep(30)
-            try:
-                healthy = await check_health(
-                    url=mcp_url,
-                    headers={"Accept": "application/json"},
-                    success_codes=[200],
-                    request_timeout=5.0,
-                )
-                if healthy != was_healthy:
-                    logger.warning("%s MCP is now %s", agent_name, "up" if healthy else "down")
-                was_healthy = healthy
-            except Exception:
-                logger.exception("%s MCP monitor error", agent_name)
+    # @staticmethod
+    # async def _mcp_monitor_loop(agent_name: str, mcp_url: str):
+    #     was_healthy: bool = True
+    #     while True:
+    #         await asyncio.sleep(30)
+    #         try:
+    #             healthy = await check_health(
+    #                 url=mcp_url,
+    #                 headers={"Accept": "application/json"},
+    #                 success_codes=[200],
+    #                 request_timeout=5.0,
+    #             )
+    #             if healthy != was_healthy:
+    #                 logger.warning("%s MCP is now %s", agent_name, "up" if healthy else "down")
+    #             was_healthy = healthy
+    #         except Exception:
+    #             logger.exception("%s MCP monitor error", agent_name)
 
     # async def _reload_mcp_tools(self, agent_name: str):
     #     """Reload redbox MCP tools for a given agent in the background."""

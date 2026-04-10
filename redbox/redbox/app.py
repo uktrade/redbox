@@ -141,9 +141,17 @@ class Redbox:
             search_knowledge_base,
         ]
         self.agent_configs["Artifact_Builder_Agent"].tools = [retrieve_specific_files_knowledge_base]
-        self.load_agent_tools(agent="Datahub_Agent", sso_token_getter=sso_token_getter)
+        # self.load_agent_tools(agent="Datahub_Agent", sso_token_getter=sso_token_getter)
 
         self.graph = graph or self.setup_graph(debug)
+        self._initialised = False
+
+    async def initialise(self, sso_token_getter: Callable[[], str] | None = None):
+        if self._initialised:
+            return
+
+        await self.load_agent_tools(agent="Datahub_Agent", sso_token_getter=sso_token_getter)
+        self._initialised = True
 
     def setup_graph(self, debug: bool):
         return build_root_graph(
@@ -154,7 +162,7 @@ class Redbox:
             debug=debug,
         )
 
-    def load_agent_tools(self, agent: str, sso_token_getter: Callable[[], str] | None = None) -> None:
+    async def load_agent_tools(self, agent: str, sso_token_getter: Callable[[], str] | None = None) -> None:
         logger.info(f"Loading tools for {agent}")
 
         match agent:
@@ -163,7 +171,9 @@ class Redbox:
                     logger.error("No sso_token_getter callable configured for DataHub agent")
                     return
 
-                self.agent_configs["Datahub_Agent"].tools = get_datahub_mcp_tools(sso_token_getter=sso_token_getter)
+                self.agent_configs["Datahub_Agent"].tools = await get_datahub_mcp_tools(
+                    sso_token_getter=sso_token_getter
+                )
 
             case _:
                 logger.error(f"Loading tools for {agent} not supported")
@@ -183,16 +193,12 @@ class Redbox:
         citations_callback=_default_callback,
         metadata_tokens_callback=_default_callback,
         activity_event_callback=_default_callback,
-        sso_token_getter: Callable[[], str] | None = None,
     ) -> RedboxState:
         final_state = None
         request_dict = input.request.model_dump()
         logger.info("Request: %s", {k: request_dict[k] for k in request_dict.keys() - {"ai_settings"}})
         is_summary_multiagent_streamed = False
         is_evaluator_output_streamed = False
-
-        if sso_token_getter:
-            self.load_agent_tools(agent="Datahub_Agent", sso_token_getter=sso_token_getter)
 
         @retry(
             stop=stop_after_attempt(3),
