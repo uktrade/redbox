@@ -951,7 +951,10 @@ class TestBuildDatahubAgentLoop:
             ("dont-truncate-response-equal-to-max-tokens", 10, 10),
         ],
     )
-    def test_llm_response_truncation(self, test_name, max_tokens, actual_tokens, fake_state, mocker: MockerFixture):
+    @pytest.mark.asyncio
+    async def test_llm_response_truncation(
+        self, test_name, max_tokens, actual_tokens, fake_state, mocker: MockerFixture, mock_datahub_tools
+    ):
         sanitised_test_name = test_name.replace("-", "")
 
         llm_content = f"{sanitised_test_name} " * actual_tokens
@@ -974,6 +977,7 @@ class TestBuildDatahubAgentLoop:
         fake_state.agent_plans = plan
         fake_state.tasks_evaluator = ""
         fake_state.messages = [AIMessage(content=plan.tasks[0].model_dump_json())]
+        fake_state.request.sso_token_getter = lambda: "fake-token"
 
         fake_agent = build_datahub_agent_with_loop(
             agent_name="Internal_Retrieval_Agent",
@@ -986,7 +990,7 @@ class TestBuildDatahubAgentLoop:
             max_attempt=2,
         )
 
-        response = fake_agent.invoke(fake_state)
+        response = await fake_agent.ainvoke(fake_state)
         assert response is not None
 
         agent_result = response.get("agents_results")
