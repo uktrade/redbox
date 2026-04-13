@@ -600,6 +600,7 @@ def build_datahub_agent_with_loop(
 ):
     @RunnableLambda
     async def _build_datahub_agent_with_loop(state: RedboxState):
+        tools = []
         if sso_token_getter := state.request.sso_token_getter:
             tools = await get_datahub_mcp_tools(sso_token_getter=sso_token_getter)
 

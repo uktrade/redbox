@@ -8,6 +8,7 @@ from langchain_core.retrievers import BaseRetriever
 from langchain_core.runnables import RunnableLambda
 from langgraph.graph import END, START, StateGraph
 from pytest_mock import MockerFixture
+from unittest.mock import AsyncMock, patch
 
 from redbox.chains.components import get_structured_response_with_citations_parser
 from redbox.chains.runnables import CannedChatLLM, build_chat_prompt_from_messages_runnable, build_llm_chain
@@ -616,7 +617,7 @@ def test_citation_structured_output(test_case: RedboxChatTestCase, mocker: Mocke
 
 
 class TestBuildAgentLoop:
-    def test_fail_parser_agent_task(self, fake_state, mocker: MockerFixture):
+    def test_fail_parser_agent_task(self, fake_state, mock_datahub_tools):
         fake_agent = build_agent_with_loop(
             agent_name="External_Retrieval_Agent",
             system_prompt="Fake prompt",
@@ -789,15 +790,25 @@ class TestBuildAgentLoop:
         assert mock_tool_calls.call_count == 1
 
 
+@pytest.fixture
+def mock_datahub_tools(mocker: MockerFixture):
+    with patch("redbox.graph.nodes.processes.get_datahub_mcp_tools", new_callable=AsyncMock) as mock:
+        fake_tool = mocker.Mock()
+        fake_tool.name = "fake_tool"
+        mock.return_value = [fake_tool]
+        yield mock
+
+
 class TestBuildDatahubAgentLoop:
-    def test_fail_parser_agent_task(self, fake_state, mocker: MockerFixture):
+    @pytest.mark.asyncio
+    async def test_fail_parser_agent_task(self, fake_state, mock_datahub_tools):
         fake_agent = build_datahub_agent_with_loop(
             agent_name="External_Retrieval_Agent",
             system_prompt="Fake prompt",
             tools=[],
         )
         fake_state.messages = AIMessage(content="Incorrect task format")
-        response = fake_agent.invoke(fake_state)
+        response = await fake_agent.ainvoke(fake_state)
         assert response is None
 
     @pytest.mark.parametrize(
@@ -834,13 +845,24 @@ class TestBuildDatahubAgentLoop:
             ("raw-string-result", None, None, 1, "raw-string-result"),
         ],
     )
-    def test_preprocess_loop(
-        self, test_name, pre_process, loop_condition, no_calls, tool_call_results, fake_state, mocker: MockerFixture
+    @pytest.mark.asyncio
+    async def test_preprocess_loop(
+        self,
+        test_name,
+        pre_process,
+        loop_condition,
+        no_calls,
+        tool_call_results,
+        fake_state,
+        mocker: MockerFixture,
+        mock_datahub_tools,
     ):
         # patch
         res = AIMessage(
             content="test",
-            additional_kwargs={"tool_calls": [{"name": "test_tool", "args": {"is_intermediate_step": True}}]},
+            tool_calls=[
+                {"name": "test_tool", "args": {"is_intermediate_step": True}, "id": "fake-id", "type": "tool_call"}
+            ],
         )
         llm = GenericFakeChatModel(messages=iter([res]))
         mock_llm = mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
@@ -874,6 +896,7 @@ class TestBuildDatahubAgentLoop:
         fake_state.agent_plans = plan
         fake_state.tasks_evaluator = ""
         fake_state.messages = [AIMessage(content=plan.tasks[0].model_dump_json())]
+        fake_state.request.sso_token_getter = lambda: "fake-token"
 
         fake_agent = build_datahub_agent_with_loop(
             agent_name="Internal_Retrieval_Agent",
@@ -886,7 +909,7 @@ class TestBuildDatahubAgentLoop:
             max_attempt=2,
         )
 
-        response = fake_agent.invoke(fake_state)
+        response = await fake_agent.ainvoke(fake_state)
 
         assert mock_llm.call_count == no_calls
 
