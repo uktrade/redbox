@@ -7,7 +7,7 @@ from langchain_core.documents import Document
 from redbox.models.chain import RedboxQuery
 from redbox.models.file import ChunkResolution, ChunkCreatorType
 from redbox.test.data import RedboxChatTestCase, RedboxTestData, generate_test_cases
-from redbox.api.format import format_documents
+from redbox.api.format import MCPResponseMetadata, format_documents
 
 KNOWLEDGE_BASE_CASES = [
     test_case
@@ -293,7 +293,7 @@ TABULAR_RETRIEVER_CASES: list[tuple[RedboxChatTestCase, bool]] = [
     + [(False, tc) for tc in TABULAR_RETRIEVER_USER_CASES]
 ]
 
-WRAP_ASYNC_TOOL_RESULTS = [
+WRAP_ASYNC_TOOL_RESULTS: list[tuple[str, str | list[Document]]] = [
     (
         '{"status": "success"}',
         '{"status": "success"}',
@@ -333,6 +333,11 @@ WRAP_ASYNC_TOOL_RESULTS = [
                     "page": 0,
                     "page_size": 10,
                 },
+                "metadata": MCPResponseMetadata(
+                    user_feedback=MCPResponseMetadata.UserFeedback(
+                        required=True, reason="Multiple company records returned user must clarify which one they want."
+                    )
+                ).model_dump(),
             }
         ),
         [
@@ -379,6 +384,11 @@ WRAP_ASYNC_TOOL_RESULTS = [
                         }
                     },
                 },
+                "metadata": MCPResponseMetadata(
+                    user_feedback=MCPResponseMetadata.UserFeedback(
+                        required=True, reason="Multiple company records returned user must clarify which one they want."
+                    )
+                ).model_dump(),
             }
         ),
         [
@@ -459,7 +469,10 @@ WRAP_ASYNC_TOOL_RESULTS = [
     ),
 ]
 
-MCP_TOOL_RESULTS = [
-    (tool_result, format_documents(parsed_result) if isinstance(parsed_result, list) else parsed_result)
+MCP_TOOL_RESULTS: list[tuple[tuple[str, MCPResponseMetadata], str]] = [
+    (
+        (tool_result, MCPResponseMetadata.model_validate(json.loads(tool_result).get("metadata") or {})),
+        format_documents(parsed_result) if isinstance(parsed_result, list) else parsed_result,
+    )
     for tool_result, parsed_result in WRAP_ASYNC_TOOL_RESULTS
 ]

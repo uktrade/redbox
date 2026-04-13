@@ -22,6 +22,7 @@ from redbox.graph.edges import (
 from redbox.graph.nodes.processes import (
     build_activity_log_node,
     build_agent_with_loop,
+    build_datahub_agent_with_loop,
     build_chat_pattern,
     build_error_pattern,
     build_merge_pattern,
@@ -31,6 +32,7 @@ from redbox.graph.nodes.processes import (
     build_set_route_pattern,
     build_stuff_pattern,
     build_user_feedback_evaluation,
+    check_if_task_requires_user_feedback,
     check_if_tasks_completed,
     clear_documents_process,
     combine_question_evaluator,
@@ -471,6 +473,27 @@ def build_new_route_graph(
                     )
                 case "Artifact_Builder_Agent":
                     builder.add_node(config.name, ArtifactAgent(config=config).execute())
+
+                case "Datahub_Agent":
+                    success = "fail"
+                    is_intermediate_step = False
+                    builder.add_node(
+                        config.name,
+                        build_datahub_agent_with_loop(
+                            agent_name=config.name,
+                            system_prompt=config.prompt.system,
+                            tools=config.tools,
+                            max_tokens=config.agents_max_tokens,
+                            loop_condition=lambda: success == "fail" or is_intermediate_step,
+                            max_attempt=kwargs.get("max_attempt", 2),
+                            use_metadata=kwargs.get("use_metadata", False),
+                            using_chat_history=kwargs.get("using_chat_history", False),
+                            model=ChatLLMBackend(name=config.llm_backend.name, provider=config.llm_backend.provider)
+                            if config.llm_backend is not None
+                            else None,
+                        ),
+                    )
+
                 case _:
                     success = "fail"
                     is_intermediate_step = False
@@ -538,6 +561,7 @@ def build_new_route_graph(
     )
     builder.add_node("stream_suggestion", stream_suggestion())
     builder.add_node("sending_task", empty_process)
+    builder.add_node("does_task_require_user_feedback", empty_process)
     builder.add_node("has_all_task_completed", empty_process)
 
     # add all agents here
@@ -553,7 +577,6 @@ def build_new_route_graph(
         "Datahub_Agent",
         with_loop=True,
         using_chat_history=True,
-        edge_nodes=["combine_question_evaluator"],
     )
     add_agent(builder, agent_configs, "Knowledge_Base_Retrieval_Agent")
     add_agent(builder, agent_configs, "Artifact_Builder_Agent")
@@ -594,7 +617,12 @@ def build_new_route_graph(
     )
 
     builder.add_conditional_edges("sending_task", sending_task_to_agent)
-    builder.add_edge("combine_question_evaluator", "has_all_task_completed")
+    builder.add_edge("combine_question_evaluator", "does_task_require_user_feedback")
+    builder.add_conditional_edges(
+        "does_task_require_user_feedback",
+        check_if_task_requires_user_feedback,
+        {True: "Evaluator_Agent", False: "has_all_task_completed"},
+    )
     builder.add_conditional_edges(
         "has_all_task_completed", check_if_tasks_completed, {True: "Evaluator_Agent", False: "sending_task"}
     )
