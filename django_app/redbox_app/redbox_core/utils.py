@@ -28,7 +28,7 @@ def render_with_oob(templates: list[RenderTemplateItem]) -> HttpResponse:
                 "template": str,
                 "context": dict,
                 "request": HttpRequest,
-                "using": Optional[str]
+                "engine": Optional[str]
             }
     Returns:
         HttpResponse: All rendered templates concatenated into a single response.
@@ -40,6 +40,7 @@ def render_with_oob(templates: list[RenderTemplateItem]) -> HttpResponse:
         context = template_item["context"]
         request = template_item["request"]
         engine = template_item.get("engine", "jinja2")  # Default to jinja2
+
         html += render_to_string(template, context, request, using=engine)
 
     return HttpResponse(html)
