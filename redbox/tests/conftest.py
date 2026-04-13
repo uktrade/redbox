@@ -13,7 +13,7 @@ from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.messages import AIMessage
 from opensearchpy import OpenSearch
 
-from redbox.api.format import SensitiveValue
+from redbox.api.wrapper import SensitiveValue
 from redbox.models.chain import AISettings, GeneratedMetadata, RedboxQuery, RedboxState, configure_agent_task_plan
 from redbox.models.file import ChunkCreatorType
 from redbox.models.settings import Settings

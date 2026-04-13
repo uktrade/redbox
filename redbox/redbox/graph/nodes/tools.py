@@ -26,7 +26,8 @@ from opensearchpy import OpenSearch
 from sklearn.metrics.pairwise import cosine_similarity
 from waffle.decorators import waffle_flag
 
-from redbox.api.format import SensitiveValue, format_documents
+from redbox.api.wrapper import SensitiveValue
+from redbox.api.format import format_documents
 from redbox.chains.components import get_embeddings
 from redbox.graph.nodes.sends import _get_mcp_headers
 from redbox.models.chain import RedboxState

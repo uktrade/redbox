@@ -1,8 +1,7 @@
-import asyncio
 import json
 import logging
 from pydantic import BaseModel, ValidationError
-from typing import Optional, Any, Callable
+from typing import Optional
 
 from langchain_core.documents.base import Document
 
@@ -10,35 +9,6 @@ from redbox.models.file import ChunkCreatorType
 from redbox.transform import combine_documents
 
 log = logging.getLogger(__name__)
-
-
-class SensitiveValue:
-    """Wrap any metadata value you never want serialized."""
-
-    def __init__(self, value: Any | Callable[[], Any]):
-        self._value = value
-
-    def get(self) -> Any:
-        if callable(self._value):
-            result = self._value()
-            if asyncio.iscoroutine(result):
-                # Run the coroutine synchronously
-                loop = asyncio.get_event_loop()
-                return loop.run_until_complete(result)
-            return result
-        return self._value
-
-    def __repr__(self):
-        return "SensitiveValue(**redacted**)"
-
-    def __deepcopy__(self, memo):
-        # Don't deepcopy the inner value — just return a new SensitiveValue
-        # referencing the same callable/value. This prevents deepcopy from
-        # walking into bound methods and their unpicklable __self__.
-        new = SensitiveValue.__new__(SensitiveValue)
-        new._value = self._value  # shallow reference, not deepcopy
-        memo[id(self)] = new
-        return new
 
 
 def format_documents(documents: list[Document]) -> str:
