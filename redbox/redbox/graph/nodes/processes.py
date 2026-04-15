@@ -682,6 +682,7 @@ def build_datahub_agent_with_loop(
 
             elif has_loop and len(ai_msg.tool_calls) > 0:  # if loop, we need to transform results
                 collated_result = ""
+                feedback_reasons = []
                 for i, r in enumerate(result):
                     current_result = r.content  # this is a tuple
                     # format of result: (result, success, is_intermediate_step)
@@ -693,20 +694,9 @@ def build_datahub_agent_with_loop(
 
                     if len(current_result) > 3:
                         reason = current_result[3]
-                        return {
-                            "agents_results": {
-                                task.id: AIMessage(
-                                    content=f"<{agent_name}_Result>Ask user for feedback based on failure reason. Failure reason: {reason}.\n\n{result_content}</{agent_name}_Result>",
-                                    kwargs={
-                                        "reason": reason,
-                                    },
-                                )
-                            },
-                            "tasks_evaluator": task.task + "\n" + task.expected_output,
-                            "agent_plans": state.agent_plans.update_task_status(
-                                task.id, TaskStatus.REQUIRES_USER_FEEDBACK
-                            ),
-                        }
+                        feedback_reasons.append(f"Failure reason: {reason}.\n\n{result_content}")
+                    else:
+                        collated_result += f"<tool_result_{i}>{result_content}</tool_result_{i}>"
 
                     if success == "fail":
                         # pass error back if any
@@ -718,7 +708,21 @@ def build_datahub_agent_with_loop(
                                 {"previous_tool_error": "", "previous_tool_results": all_results}
                             )
 
-                    collated_result += f"<tool_result_{i}>{result_content}</tool_result_{i}>"
+                if feedback_reasons:
+                    combined_feedback = "\n\n".join(feedback_reasons)
+                    return {
+                        "agents_results": {
+                            task.id: AIMessage(
+                                content=f"<{agent_name}_Result>Ask user for feedback based on failure reason. {combined_feedback}\n\n{collated_result}</{agent_name}_Result>",
+                                kwargs={
+                                    "reason": combined_feedback,
+                                },
+                            )
+                        },
+                        "tasks_evaluator": task.task + "\n" + task.expected_output,
+                        "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.REQUIRES_USER_FEEDBACK),
+                    }
+
                 result = collated_result
 
             if isinstance(result, str):
