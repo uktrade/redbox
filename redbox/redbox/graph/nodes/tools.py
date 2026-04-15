@@ -228,7 +228,7 @@ def build_search_documents_tool(
 
         # Handle nothing found (as when no files are permitted)
         if not initial_documents:
-            return "", []
+            return "", [], metrics
 
         # Adjacent documents
         with_adjacent_query = add_document_filter_scores_to_query(
@@ -309,12 +309,22 @@ def build_search_documents_tool(
         Returns:
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
-        return search_repo(
+        document, artifact, metrics = search_repo(
             query=query,
             selected_files=state.request.knowledge_base_s3_keys,
             permitted_files=state.request.knowledge_base_s3_keys,
             ai_settings=state.request.ai_settings,
         )
+
+        LLMObs.annotate(
+            span=tracer.current_span(),
+            input_data=query,
+            output_data=document,
+            metrics=metrics,
+            tags={"func": "hello-world"},
+        )
+
+        return document, artifact
 
     return _search_documents if repository == "user_uploaded" else _search_knowledge_base
 
