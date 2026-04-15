@@ -1,33 +1,40 @@
+import asyncio
 import csv
 import hashlib
+import inspect
 import json
 import logging
 import random
 import re
 import threading
 import time
-import inspect
 from io import StringIO
 from typing import Annotated, Callable, Iterable, Literal, Union
 
 import boto3
 import duckdb
+import nest_asyncio
 import numpy as np
 import pandas as pd
 import requests
+from ddtrace.llmobs import LLMObs
+from ddtrace.trace import tracer
 from elasticsearch import Elasticsearch
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.messages import ToolCall
 from langchain_core.tools import Tool, tool
+from langchain_mcp_adapters.tools import load_mcp_tools
 from langgraph.prebuilt import InjectedState
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
 from mohawk import Sender
 from opensearchpy import OpenSearch
 from sklearn.metrics.pairwise import cosine_similarity
 from waffle.decorators import waffle_flag
 
-from redbox.api.format import format_documents, SensitiveValue
+from redbox.api.format import SensitiveValue, format_documents
 from redbox.chains.components import get_embeddings
 from redbox.graph.nodes.sends import _get_mcp_headers
 from redbox.models.chain import RedboxState
@@ -41,11 +48,6 @@ from redbox.retriever.queries import (
 )
 from redbox.retriever.retrievers import SchematisedTabularChunkRetriever, query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
-from langchain_mcp_adapters.tools import load_mcp_tools
-import asyncio
-import nest_asyncio
 
 log = logging.getLogger(__name__)
 
@@ -222,6 +224,7 @@ def build_search_documents_tool(
             "[_search_documents] Initial query using %s seconds",
             time.time() - start_time,
         )
+        metrics = {"initial_query_time": time.time() - start_time}
 
         # Handle nothing found (as when no files are permitted)
         if not initial_documents:
@@ -238,6 +241,7 @@ def build_search_documents_tool(
             "[_search_documents] Adjacent boosted query using %s seconds",
             time.time() - start_time,
         )
+        metrics["boosted_query_time"] = time.time() - metrics["initial_query_time"]
 
         # Merge and sort
         merged_documents = merge_documents(initial=initial_documents, adjacent=adjacent_boosted)
@@ -247,9 +251,11 @@ def build_search_documents_tool(
             time.time() - start_time,
         )
         log.warning("[_search_documents] Returning %s documents", len(sorted_documents))
+        metrics["merged_sort_docuemnt_time"] = time.time() - metrics["boosted_query_time"]
+        metrics["no_returned_documents"] = len(sorted_documents)
 
         # Return as state update
-        return format_documents(sorted_documents), sorted_documents
+        return format_documents(sorted_documents), sorted_documents, metrics
 
     @tool(response_format="content_and_artifact")
     def _search_documents(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
@@ -266,12 +272,27 @@ def build_search_documents_tool(
         Returns:
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
-        return search_repo(
+
+        document, artifact, metrics = search_repo(
             query=query,
             selected_files=state.request.s3_keys,
             permitted_files=state.request.permitted_s3_keys,
             ai_settings=state.request.ai_settings,
         )
+
+        LLMObs.annotate(
+            span=tracer.current_span(),
+            input_data=query,
+            output_data=document,
+            # metadata={
+            #     "max_tokens": (llm._default_config or {}).get("max_tokens", None),
+            #     "stop_reason": (output.response_metadata or {}).get("stop_reason", None),
+            # },
+            metrics=metrics,
+            tags={"func": "hello-world"},
+        )
+
+        return document, artifact
 
     @tool(response_format="content_and_artifact")
     def _search_knowledge_base(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
