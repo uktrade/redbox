@@ -1,6 +1,4 @@
-import json
 import os
-import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -14,9 +12,6 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import CommandError, call_command
 from django.utils import timezone
 from freezegun import freeze_time
-from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
-from pytest_mock import MockerFixture
-from requests_mock import Mocker
 
 from redbox_app.redbox_core.models import Chat, ChatMessage, File
 
@@ -120,120 +115,6 @@ def test_delete_expired_chats(chat: Chat, msg_1_date: datetime, msg_2_date: date
 
 
 # === reingest_files command tests ===
-
-
-@pytest.mark.django_db(transaction=True)
-def test_reingest_files(uploaded_file: File, requests_mock: Mocker, mocker: MockerFixture):
-    # Given
-    assert uploaded_file.status == File.Status.processing
-
-    # Mock the Elasticsearch or OpenSearch HEAD request
-    requests_mock.head(
-        "http://localhost:9200/_alias/redbox-data-test-chunk-current",
-        status_code=200,  # Adjust the status code as needed
-        json={},  # Adjust the response text as needed
-    )
-
-    requests_mock.head(
-        "http://localhost:9200/redbox-data-test-chat-mesage-log",
-        status_code=200,  # Adjust the status code as needed
-        json={},  # Adjust the response text as needed
-    )
-
-    requests_mock.put(
-        re.compile(r"http://localhost:9200/redbox-data-test-chunk-\d+"),
-        status_code=200,
-        json={"acknowledged": True},
-    )
-
-    # Mock the external service response
-    requests_mock.post(
-        f"http://{settings.UNSTRUCTURED_HOST}:8000/general/v0/general",
-        json=[{"text": "hello", "metadata": {"filename": "my-file.txt"}}],
-    )
-
-    # When
-    mocker.patch("redbox.chains.ingest.VectorStore.add_documents", return_value=[])
-    mocker.patch(
-        "redbox.loader.loaders.get_chat_llm",
-        return_value=GenericFakeChatModel(
-            messages=iter(
-                [
-                    json.dumps(
-                        {
-                            "name": "foo",
-                            "description": "more test",
-                            "keywords": ["hello", "world"],
-                        }
-                    )
-                ]
-            )
-        ),
-    )
-
-    call_command("reingest_files", sync=True)
-
-    # Then
-    uploaded_file.refresh_from_db()
-    assert uploaded_file.status == File.Status.complete
-
-
-@pytest.mark.django_db(transaction=True)
-def test_reingest_files_unstructured_fail(uploaded_file: File, requests_mock: Mocker, mocker):
-    # Given
-    assert uploaded_file.status == File.Status.processing
-
-    # Mock the Elasticsearch or OpenSearch HEAD request
-    requests_mock.head(
-        "http://localhost:9200/_alias/redbox-data-test-chunk-current",
-        status_code=200,  # Adjust the status code as needed
-        json={},  # Adjust the response text as needed
-    )
-
-    requests_mock.head(
-        "http://localhost:9200/redbox-data-test-chat-mesage-log",
-        status_code=200,  # Adjust the status code as needed
-        json={},  # Adjust the response text as needed
-    )
-
-    requests_mock.put(
-        re.compile(r"http://localhost:9200/redbox-data-test-chunk-\d+"),
-        status_code=200,
-        json={"acknowledged": True},
-    )
-
-    requests_mock.post(
-        f"http://{settings.UNSTRUCTURED_HOST}:8000/general/v0/general",
-        json=[],
-    )
-
-    mocker.patch(
-        "redbox.loader.loaders.get_chat_llm",
-        return_value=GenericFakeChatModel(
-            messages=iter(
-                [
-                    json.dumps(
-                        {
-                            "name": "foo",
-                            "description": "more test",
-                            "keywords": ["hello", "world"],
-                        }
-                    )
-                ]
-            )
-        ),
-    )
-
-    # When
-    with mocker.patch("redbox.chains.ingest.VectorStore.add_documents", return_value=[]):
-        call_command("reingest_files", sync=True)
-
-    # Then
-    uploaded_file.refresh_from_db()
-    assert uploaded_file.status == File.Status.errored
-    assert uploaded_file.ingest_error == "<class 'ValueError'>: Unstructured failed to extract text for this file"
-
-
 def test_delete_es_indices_no_new_index():
     # Given
 

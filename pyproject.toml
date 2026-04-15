@@ -23,7 +23,9 @@ django-requestlogs = "^0.8"
 openpyxl = "^3.1.5"
 coverage = "^7.13.5"
 duckdb = "^1.5.1"
+python-docx = "^1.2.0"
 deepeval = "^3.9.6"
+unstructured = { version = "^0.21.5", extras = ["all-docs"] }
 
 [tool.poetry.group.dev.dependencies]
 

@@ -1,22 +1,4 @@
 services:
-  redbox-unstructured:
-    build:
-      context: ./unstructured
-      dockerfile: Dockerfile
-    container_name: unstructured
-    platform: linux/amd64
-    ports:
-      - 8000:8000
-    networks:
-      - redbox-app-network
-    mem_limit: 6g
-    cpus: 2
-    environment:
-      - UNSTRUCTURED_MAX_WORKERS=2
-      - UNSTRUCTURED_TEMP_DIR=/tmp/unstructured_temp
-      - ENV=local
-    volumes:
-      - ./unstructured_temp:/tmp/unstructured_temp
   redbox-django-app:
     image: redbox-django-app:latest
     container_name: django_app
@@ -30,8 +12,6 @@ services:
         condition: service_healthy
       opensearch:
         condition: service_healthy
-      redbox-unstructured:
-        condition: service_started
     networks:
       - redbox-app-network
     env_file:
@@ -95,8 +75,6 @@ services:
     volumes:
       - .aws:/root/.aws
     depends_on:
-      redbox-unstructured:
-        condition: service_started
       opensearch:
         condition: service_healthy
       minio:
