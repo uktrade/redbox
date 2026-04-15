@@ -284,11 +284,7 @@ def build_search_documents_tool(
             span=tracer.current_span(),
             input_data=query,
             output_data=document,
-            # metadata={
-            #     "max_tokens": (llm._default_config or {}).get("max_tokens", None),
-            #     "stop_reason": (output.response_metadata or {}).get("stop_reason", None),
-            # },
-            metrics=metrics,
+            metadata=metrics,
             tags={"func": "hello-world"},
         )
 
