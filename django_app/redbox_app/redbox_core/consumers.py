@@ -4,7 +4,7 @@ import re
 from asyncio import CancelledError
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, ClassVar
 from uuid import UUID
 
 import uwotm8.convert as uwm8
@@ -24,7 +24,14 @@ from waffle import flag_is_active
 from websockets import ConnectionClosedError, WebSocketClientProtocol
 
 from redbox import Redbox
+from redbox.chains.components import (
+    get_all_chunks_retriever,
+    get_embeddings,
+    get_metadata_retriever,
+    get_parameterised_retriever,
+)
 from redbox.graph.agents.configs import agent_configs
+from redbox.graph.root import build_root_graph
 from redbox.models.chain import (
     AISettings,
     ChainChatMessage,
@@ -59,6 +66,7 @@ from redbox_app.redbox_core.models import (
 from redbox_app.redbox_core.models import Agent as AgentModel
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
 from redbox_app.redbox_core.models import ChatLLMBackend as ChatLLMBackendModel
+from redbox_app.redbox_core.state import SharedConsumerState
 
 # Temporary condition before next uwotm8 release: monkey patch CONVERSION_IGNORE_LIST
 uwm8.CONVERSION_IGNORE_LIST = uwm8.CONVERSION_IGNORE_LIST | {"filters": "philtres", "connection": "connexion"}
@@ -101,6 +109,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
     debug = not env.is_prod
     redbox = None
     chat_message = None  # incrementally updating the chat stream
+
+    _state: ClassVar[SharedConsumerState] = SharedConsumerState()
 
     async def get_file_cached(self, ref):
         if ref not in self._file_cache:
@@ -361,7 +371,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         agent_plans, question, user_feedback = await self._load_agent_plan(session, message_history)
 
         ai_settings = await self.get_ai_settings(session)
-        sso_access_token = await self._extract_sso_token()
+        await self._extract_sso_token()
 
         if selected_agent_names:
             ai_settings = ai_settings.model_copy(
@@ -369,10 +379,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     "worker_agents": [agent for agent in agent_configs.values() if agent.name in selected_agent_names]
                 }
             )
-
-        if sso_access_token:
-            # Update sso_access_token
-            self.update_chat_consumer_redbox_with_new_sso_token()
 
         state = RedboxState(
             request=RedboxQuery(
@@ -396,13 +402,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             self.final_state = await self.redbox.run(
                 state,
+                sso_token_getter=self._extract_sso_token,
                 response_tokens_callback=self.handle_text,
                 route_name_callback=self.handle_route,
                 documents_callback=self.handle_documents,
                 citations_callback=self.handle_citations,
                 metadata_tokens_callback=self.handle_metadata,
                 activity_event_callback=self.handle_activity,
-                sso_token_getter=self._extract_sso_token,
             )
             await self.update_ai_message()
             if len(self.full_reply) == 0 or self.chat_message.text == "":
@@ -626,35 +632,54 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
         await self._extract_sso_token()
-
-        if ChatConsumer.redbox is None:
-            agents = await get_all_agents()
-            for agent in agents:
-                if agent.name in list(agent_configs.keys()):
-                    if agent.llm_backend:
-                        agent_configs[agent.name].llm_backend = ChatLLMBackend(
-                            name=agent.llm_backend.name,
-                            provider=agent.llm_backend.provider,
-                            description=agent.llm_backend.description,
-                        )
-                    if agent.agents_max_tokens:
-                        agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
-            ChatConsumer.redbox = Redbox(
-                agents=agent_configs,
-                env=ChatConsumer.env,
-                debug=ChatConsumer.debug,
-                sso_token_getter=self._extract_sso_token,
-            )
-        else:
-            # Update sso_access_token
-            self.update_chat_consumer_redbox_with_new_sso_token()
+        await self._init_redbox()
 
         self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
         await self.accept()
 
-    def update_chat_consumer_redbox_with_new_sso_token(self) -> None:
-        ChatConsumer.redbox.init_datahub_agent(self._extract_sso_token)
-        ChatConsumer.redbox.setup_graph(ChatConsumer.debug)
+    async def _init_redbox(self):
+        """
+        Initialise or reinitialise Redbox
+        """
+        agents = await get_all_agents()
+        for agent in agents:
+            if agent.name in agent_configs:
+                if agent.llm_backend:
+                    agent_configs[agent.name].llm_backend = ChatLLMBackend(
+                        name=agent.llm_backend.name,
+                        provider=agent.llm_backend.provider,
+                        description=agent.llm_backend.description,
+                    )
+                if agent.agents_max_tokens:
+                    agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
+
+        async with ChatConsumer._state.get_lock():
+            if ChatConsumer._state.graph is None:
+                _env = ChatConsumer.env
+                ChatConsumer._state.agent_configs = agent_configs
+                ChatConsumer._state.all_chunks_retriever = get_all_chunks_retriever(_env)
+                ChatConsumer._state.parameterised_retriever = get_parameterised_retriever(_env)
+                ChatConsumer._state.metadata_retriever = get_metadata_retriever(_env)
+                ChatConsumer._state.embedding_model = get_embeddings(_env)
+
+            ChatConsumer._state.graph = build_root_graph(
+                all_chunks_retriever=ChatConsumer._state.all_chunks_retriever,
+                parameterised_retriever=ChatConsumer._state.parameterised_retriever,
+                metadata_retriever=ChatConsumer._state.metadata_retriever,
+                agent_configs=ChatConsumer._state.agent_configs,
+                debug=ChatConsumer.debug,
+            )
+
+        self.redbox = Redbox(
+            agents=ChatConsumer._state.agent_configs,
+            env=ChatConsumer.env,
+            debug=ChatConsumer.debug,
+            all_chunks_retriever=ChatConsumer._state.all_chunks_retriever,
+            parameterised_retriever=ChatConsumer._state.parameterised_retriever,
+            metadata_retriever=ChatConsumer._state.metadata_retriever,
+            embedding_model=ChatConsumer._state.embedding_model,
+            graph=ChatConsumer._state.graph,
+        )
 
     async def handle_text(self, response: str) -> str:
         """Handle text chunks and British spelling conversion before sending to client."""

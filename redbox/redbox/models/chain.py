@@ -25,6 +25,7 @@ from langgraph.graph.message import add_messages
 from langgraph.managed.is_last_step import RemainingStepsManager
 from pydantic import BaseModel, Field, create_model, field_validator
 
+from redbox.api.format import SensitiveValue
 from redbox.graph.agents.configs import AgentConfig, agent_configs
 from redbox.models import prompts
 from redbox.models.chat import DecisionEnum
@@ -260,6 +261,7 @@ class RedboxQuery(BaseModel):
     )
     db_location: str | None = None  # Adding db_location to state request
     knowledge_base_s3_keys: list[str] = Field(description="List of knowledge base files", default_factory=list)
+    sso_token_getter: SensitiveValue | None = Field(default=None, exclude=True)
 
 
 class LLMCallMetadata(BaseModel):

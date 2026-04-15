@@ -4,8 +4,10 @@ from typing import Dict, Literal, Callable
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
+from langgraph.graph.state import CompiledStateGraph
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+from redbox.api.format import SensitiveValue
 from redbox.chains.components import (
     get_all_chunks_retriever,
     get_embeddings,
@@ -22,7 +24,6 @@ from redbox.graph.nodes.tools import (
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
-    get_datahub_mcp_tools,
     build_query_tabular_file_tool,
 )
 from redbox.graph.root import build_new_route_graph, build_root_graph, get_summarise_graph
@@ -55,8 +56,8 @@ class Redbox:
         metadata_retriever: VectorStoreRetriever | None = None,
         embedding_model: Embeddings | None = None,
         env: Settings | None = None,
-        sso_token_getter: Callable[[], str] | None = None,
         debug: bool = False,
+        graph: CompiledStateGraph | None = None,
     ):
         _env = env or get_settings()
 
@@ -139,9 +140,8 @@ class Redbox:
             search_knowledge_base,
         ]
         self.agent_configs["Artifact_Builder_Agent"].tools = [retrieve_specific_files_knowledge_base]
-        self.init_datahub_agent(sso_token_getter=sso_token_getter)
 
-        self.graph = self.setup_graph(debug)
+        self.graph = graph or self.setup_graph(debug)
 
     def setup_graph(self, debug: bool):
         return build_root_graph(
@@ -152,13 +152,6 @@ class Redbox:
             debug=debug,
         )
 
-    def init_datahub_agent(self, sso_token_getter: Callable[[], str] | None = None) -> None:
-        if sso_token_getter is None:
-            logger.error("No sso_token_getter callable configured for DataHub agent")
-            return
-
-        self.agent_configs["Datahub_Agent"].tools = get_datahub_mcp_tools(sso_token_getter=sso_token_getter)
-
     def run_sync(self, input: RedboxState):
         """
         Run Redbox without streaming events. This simpler, synchronous execution enables use of the graph debug logging
@@ -168,13 +161,13 @@ class Redbox:
     async def run(
         self,
         input: RedboxState,
+        sso_token_getter: Callable[[], str] | None = None,
         response_tokens_callback=_default_callback,
         route_name_callback=_default_callback,
         documents_callback=_default_callback,
         citations_callback=_default_callback,
         metadata_tokens_callback=_default_callback,
         activity_event_callback=_default_callback,
-        sso_token_getter: Callable[[], str] | None = None,
     ) -> RedboxState:
         final_state = None
         request_dict = input.request.model_dump()
@@ -182,8 +175,7 @@ class Redbox:
         is_summary_multiagent_streamed = False
         is_evaluator_output_streamed = False
 
-        if sso_token_getter:
-            self.init_datahub_agent(sso_token_getter=sso_token_getter)
+        input.request.sso_token_getter = sso_token_getter
 
         @retry(
             stop=stop_after_attempt(3),
@@ -200,10 +192,15 @@ class Redbox:
             nonlocal final_state
             local_is_summary_multiagent_streamed = is_summary_multiagent_streamed
             local_is_evaluator_output_streamed = is_evaluator_output_streamed
+
+            config = {
+                "recursion_limit": input.request.ai_settings.recursion_limit,
+                "configurable": {"sso_token_getter": SensitiveValue(sso_token_getter)},
+            }
             async for event in self.graph.astream_events(
                 input=input,
                 version="v2",
-                config={"recursion_limit": input.request.ai_settings.recursion_limit},
+                config=config,
             ):
                 kind = event["event"]
                 tags = event.get("tags", [])
