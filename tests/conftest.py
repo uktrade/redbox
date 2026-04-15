@@ -2,28 +2,30 @@ import os
 
 import boto3
 import pytest
-from botocore.exceptions import ClientError
+from moto import mock_aws
 
 
 @pytest.fixture(autouse=True)
 def s3_client():
-    client = boto3.client(
-        "s3",
-        aws_access_key_id="minioadmin",
-        aws_secret_access_key="minioadmin",
-        endpoint_url="http://localhost:9000",
-    )
-
-    try:
-        client.create_bucket(
-            Bucket=os.environ["BUCKET_NAME"],
-            CreateBucketConfiguration={"LocationConstraint": "eu-west-2"},
+    with mock_aws():
+        client = boto3.client(
+            "s3",
+            region_name="eu-west-2",
+            aws_access_key_id="testing",  # pragma: allowlist secret
+            aws_secret_access_key="testing",  # pragma: allowlist secret
+            aws_session_token="testing",  # pragma: allowlist secret
         )
-    except ClientError as e:
-        if e.response["Error"]["Code"] != "BucketAlreadyOwnedByYou":
-            raise
 
-    return client
+        try:
+            client.create_bucket(
+                Bucket=os.environ["BUCKET_NAME"], CreateBucketConfiguration={"LocationConstraint": "eu-west-2"}
+            )
+        except client.exceptions.BucketAlreadyOwnedByYou:
+            pass
+        except client.exceptions.BucketAlreadyExists:
+            pass
+
+        yield client
 
 
 # store history of failures per test class name and per index in parametrize (if parametrize used)

@@ -10,6 +10,7 @@ from django.core.files.uploadedfile import InMemoryUploadedFile, UploadedFile
 
 from redbox.loader.ingester import ingest_file
 from redbox.models.settings import get_settings
+from redbox_app.redbox_core.models import InactiveFileError
 
 env = get_settings()
 
@@ -18,6 +19,9 @@ logger = logging.getLogger(__name__)
 
 def get_file_name(uploaded_file) -> str:
     """Return the correct name field for both model and file objects."""
+    if hasattr(uploaded_file, "file_name"):
+        return uploaded_file.file_name
+
     return getattr(uploaded_file, "unique_name", getattr(uploaded_file, "name", ""))
 
 
@@ -171,7 +175,14 @@ def ingest(file_id: UUID, es_index: str | None = None) -> None:
 
     logger.info("Ingesting file: %s", file)
 
-    if error := ingest_file(file.unique_name, es_index):
+    try:
+        file_name = file.unique_name
+    except InactiveFileError as e:
+        logger.warning("Skipping ingestion for inactive file %s: %s", file.id, e)
+        return
+
+    if error := ingest_file(file_name, es_index):
+        logger.error("Ingestion failed for file %s: %s", file_name, error)
         file.status = File.Status.errored
         file.ingest_error = error
     else:
