@@ -298,19 +298,11 @@ STORAGES = {
     },
 }
 
-if ENVIRONMENT.uses_minio:
-    AWS_S3_SECRET_ACCESS_KEY = env.str("AWS_SECRET_KEY")
-    AWS_ACCESS_KEY_ID = env.str("AWS_ACCESS_KEY")
-    MINIO_HOST = env.str("MINIO_HOST")
-    MINIO_PORT = env.str("MINIO_PORT")
-    MINIO_ENDPOINT = f"http://{MINIO_HOST}:{MINIO_PORT}"
-    AWS_S3_ENDPOINT_URL = MINIO_ENDPOINT
-else:
-    # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
-    # Mozilla guidance max-age 2 years
-    SECURE_HSTS_SECONDS = 2 * 365 * 24 * 60 * 60
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SESSION_COOKIE_SECURE = True
+# https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
+# Mozilla guidance max-age 2 years
+SECURE_HSTS_SECONDS = 2 * 365 * 24 * 60 * 60
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SESSION_COOKIE_SECURE = True
 
 if ENVIRONMENT.is_test:
     ALLOWED_HOSTS = ENVIRONMENT.hosts
@@ -471,7 +463,6 @@ Q_CLUSTER = {
     "error_reporter": {"sentry": {"dsn": env.str("SENTRY_DSN", " ")}},
 }
 
-UNSTRUCTURED_HOST = env.str("UNSTRUCTURED_HOST")
 
 GOOGLE_ANALYTICS_TAG = env.str("GOOGLE_ANALYTICS_TAG", " ")
 GOOGLE_ANALYTICS_LINK = env.str("GOOGLE_ANALYTICS_LINK", " ")
