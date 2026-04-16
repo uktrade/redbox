@@ -67,11 +67,9 @@ async def test_chat_consumer_with_new_session(
 
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
-
+        connected, _ = await communicator.connect()
+        assert connected
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
-            connected, _ = await communicator.connect()
-            assert connected
-
             await communicator.send_json_to({"message": "Hello Hal."})
             response1 = await communicator.receive_json_from(timeout=5)
             response2 = await communicator.receive_json_from(timeout=5)
@@ -89,10 +87,10 @@ async def test_chat_consumer_with_new_session(
             # Close
             await communicator.disconnect()
 
-    assert await get_chat_message_text(alice, ChatMessage.Role.user) == ["Hello Hal."]
-    assert await get_chat_message_route(alice, ChatMessage.Role.ai) == ["gratitude"]
+        assert await get_chat_message_text(alice, ChatMessage.Role.user) == ["Hello Hal."]
+        assert await get_chat_message_route(alice, ChatMessage.Role.ai) == ["gratitude"]
 
-    await refresh_from_db(uploaded_file)
+        await refresh_from_db(uploaded_file)
 
 
 @pytest.mark.django_db(transaction=True)
