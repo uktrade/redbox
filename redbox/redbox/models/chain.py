@@ -23,8 +23,9 @@ from langchain_core.documents import Document
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
 from langgraph.managed.is_last_step import RemainingStepsManager
-from pydantic import BaseModel, Field, create_model, field_validator
+from pydantic import BaseModel, Field, create_model, field_validator, ConfigDict
 
+from redbox.api.wrapper import NonPicklableCallable
 from redbox.graph.agents.configs import AgentConfig, agent_configs
 from redbox.models import prompts
 from redbox.models.chat import DecisionEnum
@@ -260,6 +261,9 @@ class RedboxQuery(BaseModel):
     )
     db_location: str | None = None  # Adding db_location to state request
     knowledge_base_s3_keys: list[str] = Field(description="List of knowledge base files", default_factory=list)
+    sso_token_getter: NonPicklableCallable | None = Field(default=None, exclude=True)
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class LLMCallMetadata(BaseModel):
