@@ -1,7 +1,5 @@
-import asyncio
 import csv
 import hashlib
-import inspect
 import json
 import logging
 import random
@@ -13,7 +11,6 @@ from typing import Annotated, Callable, Iterable, Literal, Union
 
 import boto3
 import duckdb
-import nest_asyncio
 import numpy as np
 import pandas as pd
 import requests
@@ -49,9 +46,6 @@ from redbox.retriever.queries import (
 )
 from redbox.retriever.retrievers import SchematisedTabularChunkRetriever, query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
-from langchain_mcp_adapters.tools import load_mcp_tools
 
 log = logging.getLogger(__name__)
 
