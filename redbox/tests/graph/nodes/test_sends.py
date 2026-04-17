@@ -561,6 +561,47 @@ class TestWrapAsyncTool:
         assert result == expected_documents
         assert metadata == expected_tool_metadata
 
+    @pytest.mark.parametrize("expected_tool_result, expected_documents", MCP_TOOL_RESULTS)
+    @patch("redbox.graph.nodes.sends.ClientSession")
+    @patch("redbox.graph.nodes.sends.streamablehttp_client")
+    @patch("redbox.graph.nodes.sends.load_mcp_tools")
+    def test_returns_expected_results_no_args(
+        self,
+        mock_load_tools,
+        mock_http_client,
+        mock_session_class,
+        fake_mcp_tool,
+        expected_tool_result,
+        expected_documents,
+    ):
+        """Test that wrap_async_tool correctly returns results from async tool invocation"""
+        expected_tool_content, expected_tool_metadata = expected_tool_result
+
+        # Mock tool with metadata
+        tool_name = "company_tool"
+        args_schema = {}
+        tool = fake_mcp_tool(tool_name, return_value=expected_tool_content, args_schema=args_schema)
+
+        # mock session with patched mcp setup
+        mock_session = self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
+
+        # create the wrapped function
+        wrapped_func = wrap_async_tool(tool, tool_name)
+
+        # rest invocation with sample args
+        test_args = {}
+        result, metadata = wrapped_func(test_args)
+
+        # verify correct interactions
+        mock_http_client.assert_called_once_with(tool.metadata["url"], headers=None)
+        mock_session.initialize.assert_called_once()
+        mock_load_tools.assert_called_once_with(mock_session)
+        tool.ainvoke.assert_called_once_with(test_args)
+
+        # assert the result matches our expected output
+        assert result == expected_documents
+        assert metadata == expected_tool_metadata
+
     @patch("redbox.graph.nodes.sends.ClientSession")
     @patch("redbox.graph.nodes.sends.streamablehttp_client")
     @patch("redbox.graph.nodes.sends.load_mcp_tools", new_callable=AsyncMock)
