@@ -704,8 +704,8 @@ def build_datahub_agent_with_loop(
                 for i, r in enumerate(result):
                     current_result = r.content  # this is a tuple
                     # format of result: (result, success, is_intermediate_step)
-                    log.warning("my-overall-result")
-                    log.warning(current_result)
+                    log.debug("my-overall-result")
+                    log.debug(current_result)
                     result_content = current_result[0]
                     success = current_result[1]
                     is_intermediate_step = eval(current_result[2])
