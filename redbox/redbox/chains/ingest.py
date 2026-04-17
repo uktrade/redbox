@@ -7,7 +7,7 @@ from langchain.vectorstores import VectorStore
 from langchain_core.documents.base import Document
 from langchain_core.runnables import Runnable, RunnableLambda, chain
 
-from redbox.loader.loaders import UnstructuredChunkLoader
+from redbox.loader.loaders import TextractChunkLoader
 from redbox.models.settings import Settings
 
 if TYPE_CHECKING:
@@ -25,24 +25,57 @@ def log_chunks(chunks: list[Document]):
     return chunks
 
 
-def document_loader(document_loader: UnstructuredChunkLoader, s3_client: S3Client, env: Settings) -> Runnable:
+def document_loader(
+    document_loader: TextractChunkLoader,
+    s3_client: S3Client,
+    env: Settings,
+) -> Runnable:
     @chain
     def wrapped(file_name: str) -> Iterator[Document]:
-        file_bytes = s3_client.get_object(Bucket=env.bucket_name, Key=file_name)["Body"].read()
-        return document_loader.lazy_load(file_name=file_name, file_bytes=BytesIO(file_bytes))
+        try:
+            log.info("wrapped START: %s", file_name)
+
+            if file_name.lower().endswith(".docx"):
+                log.info("Loading DOCX from S3")
+                obj = s3_client.get_object(Bucket=env.bucket_name, Key=file_name)
+                file_bytes = BytesIO(obj["Body"].read())
+            else:
+                file_bytes = None
+
+            docs = list(
+                document_loader.lazy_load(
+                    file_name=file_name,
+                    file_bytes=file_bytes,
+                )
+            )
+
+            if not docs:
+                raise ValueError(f"No content extracted from {file_name}")
+
+            log.info("Extracted %d documents", len(docs))
+            return docs
+
+        except Exception:
+            log.exception("wrapped() crashed for %s", file_name)
+            raise
 
     return wrapped
 
 
 def ingest_from_loader(
-    loader: UnstructuredChunkLoader,
+    loader: TextractChunkLoader,
     s3_client: S3Client,
     vectorstore: VectorStore,
     env: Settings,
 ) -> Runnable:
     return (
-        document_loader(document_loader=loader, s3_client=s3_client, env=env)
+        document_loader(loader, s3_client, env)
         | RunnableLambda(list)
         | log_chunks
-        | RunnableLambda(partial(vectorstore.add_documents, create_index_if_not_exists=False))  # type: ignore[arg-type]
+        | RunnableLambda(
+            partial(
+                vectorstore.add_documents,
+                create_index_if_not_exists=False,
+            )
+        )
     )

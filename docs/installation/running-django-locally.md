@@ -6,7 +6,7 @@ Hot reloading does not work for the Django app when run in Docker. This means ev
 
 ## **Env variables**
 
-Add or update the environment variables MINIO_HOST, POSTGRES_HOST and UNSTRUCTURED_HOST to `localhost`
+Add or update the environment variables MINIO_HOST and POSTGRES_HOST to `localhost`
 
 Set your COLLECTION_ENDPOINT to `"http://admin:Opensearch2024^@localhost:9200"`
 

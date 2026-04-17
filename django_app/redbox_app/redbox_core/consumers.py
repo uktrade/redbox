@@ -317,14 +317,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
         ids = [f.id for f in files]
         return list(File.objects.filter(id__in=ids).values_list("original_file", flat=True))
 
-    async def _extract_sso_token(self, check_expiry=False) -> str | None:
+    async def _extract_sso_token(self) -> str | None:
         try:
+            logger.info("ChatConsumer._extract_sso_token - extracting sso token...")
+
             session = self.scope.get("session")
             authbroker_token = session["_authbroker_token"]
 
-            if check_expiry and (timezone.now().timestamp() > authbroker_token["expires_at"] - AUTH_EXPIRY_BUFFER):
+            if (
+                authbroker_token.get("expires_at") is not None
+                and timezone.now().timestamp() > authbroker_token["expires_at"] - AUTH_EXPIRY_BUFFER
+            ):
+                logger.warning("ChatConsumer._extract_sso_token - auth expired")
                 await self.accept()
                 await self.send_to_client("auth_expired", error_messages.AUTH_EXPIRED)
+                return None
+
+            logger.info("ChatConsumer._extract_sso_token - valid token")
 
             return authbroker_token["access_token"]
         except (KeyError, TypeError):
@@ -352,7 +361,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         agent_plans, question, user_feedback = await self._load_agent_plan(session, message_history)
 
         ai_settings = await self.get_ai_settings(session)
-        sso_access_token = await self._extract_sso_token()
+        await self._extract_sso_token()
 
         if selected_agent_names:
             ai_settings = ai_settings.model_copy(
@@ -360,10 +369,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     "worker_agents": [agent for agent in agent_configs.values() if agent.name in selected_agent_names]
                 }
             )
-
-        if sso_access_token:
-            # Update sso_access_token
-            self.update_chat_consumer_redbox_with_new_sso_token(sso_access_token)
 
         state = RedboxState(
             request=RedboxQuery(
@@ -387,6 +392,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             self.final_state = await self.redbox.run(
                 state,
+                sso_token_getter=self._extract_sso_token,
                 response_tokens_callback=self.handle_text,
                 route_name_callback=self.handle_route,
                 documents_callback=self.handle_documents,
@@ -615,7 +621,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.send_to_client("error", error_messages.AUTH_REQUIRED)
             return
 
-        sso_access_token = await self._extract_sso_token(check_expiry=True)
+        await self._extract_sso_token()
 
         if ChatConsumer.redbox is None:
             agents = await get_all_agents()
@@ -633,18 +639,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 agents=agent_configs,
                 env=ChatConsumer.env,
                 debug=ChatConsumer.debug,
-                sso_access_token=sso_access_token,
+                sso_token_getter=self._extract_sso_token,
             )
-        else:
-            # Update sso_access_token
-            self.update_chat_consumer_redbox_with_new_sso_token(sso_access_token)
 
         self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
         await self.accept()
-
-    def update_chat_consumer_redbox_with_new_sso_token(self, sso_access_token: str) -> None:
-        ChatConsumer.redbox.init_datahub_agent(sso_access_token)
-        ChatConsumer.redbox.setup_graph(ChatConsumer.debug)
 
     async def handle_text(self, response: str) -> str:
         """Handle text chunks and British spelling conversion before sending to client."""

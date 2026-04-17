@@ -26,7 +26,8 @@ from opensearchpy import OpenSearch
 from sklearn.metrics.pairwise import cosine_similarity
 from waffle.decorators import waffle_flag
 
-from redbox.api.format import format_documents, SensitiveValue
+from redbox.api.wrapper import SensitiveValue
+from redbox.api.format import format_documents
 from redbox.chains.components import get_embeddings
 from redbox.graph.nodes.sends import _get_mcp_headers
 from redbox.models.chain import RedboxState
@@ -43,8 +44,6 @@ from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from langchain_mcp_adapters.tools import load_mcp_tools
-import asyncio
-import nest_asyncio
 
 log = logging.getLogger(__name__)
 
@@ -978,44 +977,47 @@ def build_legislation_search_tool():
     return _search_legislation
 
 
-def get_datahub_mcp_tools(agent_loop=True, sso_access_token: str | None = None):
-    async def _get_async_tools():
-        try:
-            mcp_settings = get_settings().datahub_mcp
-            datahub_mcp_url = mcp_settings.url
-            headers = _get_mcp_headers(sso_access_token)
-            async with (
-                streamablehttp_client(datahub_mcp_url, headers=headers or None) as (
-                    read,
-                    write,
-                    _,
-                ),
-                ClientSession(read, write) as session,
-            ):
-                # Initialize the connection
-                await session.initialize()
-                # Get tools
-                tools = await load_mcp_tools(session)
-                # adding URL metadata so that the agent can execute the tool later
-                for tool in tools:
-                    tool.metadata = {
-                        "url": datahub_mcp_url,
-                        "creator_type": ChunkCreatorType.datahub,
-                        "sso_access_token": SensitiveValue(sso_access_token),
-                    }
-                    if agent_loop:  # if loop is True, add intermediate steps into schema so that it is exposed to LLM
-                        tool.args_schema["properties"]["is_intermediate_step"] = {"type": "string"}
+async def get_datahub_mcp_tools(sso_token_getter: Callable[[], str] | None = None, agent_loop=True):
+    try:
+        log.info("get_datahub_mcp_tools - Loading Datahub MCP tools...")
+
+        mcp_settings = get_settings().datahub_mcp
+        datahub_mcp_url = mcp_settings.url
+
+        sso_access_token = await sso_token_getter()
+
+        if not sso_access_token:
+            log.error("get_datahub_mcp_tools - Datahub MCP sso_access_token is None")
+
+        headers = _get_mcp_headers(sso_access_token)
+        async with (
+            streamablehttp_client(datahub_mcp_url, headers=headers or None) as (
+                read,
+                write,
+                _,
+            ),
+            ClientSession(read, write) as session,
+        ):
+            # Initialize the connection
+            await session.initialize()
+            # Get tools
+            tools = await load_mcp_tools(session)
+            # adding URL metadata so that the agent can execute the tool later
+            for tool in tools:
+                tool.metadata = {
+                    "url": datahub_mcp_url,
+                    "creator_type": ChunkCreatorType.datahub,
+                    "sso_access_token": SensitiveValue(sso_access_token),
+                }
+                if agent_loop:  # if loop is True, add intermediate steps into schema so that it is exposed to LLM
+                    tool.args_schema["properties"] = tool.args_schema.get("properties", {})
+                    tool.args_schema["properties"]["is_intermediate_step"] = {"type": "string"}
+
+                    tool.args_schema["required"] = tool.args_schema.get("required", [])
+                    if "is_intermediate_step" not in tool.args_schema["required"]:
                         tool.args_schema["required"].append("is_intermediate_step")
-                return tools
-        except Exception as e:
-            log.error("Unable to connect to MCP server - %s", e)
-            return []
 
-    # Apply patch to allow nested event loops
-    nest_asyncio.apply()
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    tools = loop.run_until_complete(_get_async_tools())
-    loop.close()
-    return tools
+            return tools
+    except Exception as e:
+        log.error("get_datahub_mcp_tools - Unable to connect to MCP server - %s", e)
+        return []

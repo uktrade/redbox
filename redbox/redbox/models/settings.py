@@ -112,8 +112,6 @@ class Settings(BaseSettings):
     monitoring_internal_password: str = "redboxpass"
     beats_system_password: str = "redboxpass"
 
-    minio_host: str = "minio"
-    minio_port: int = 9000
     aws_access_key: str | None = None
     aws_secret_key: str | None = None
 
@@ -135,12 +133,10 @@ class Settings(BaseSettings):
     response_no_doc_available: str = "No available data for selected files. They may need to be removed and added again"
     response_max_content_exceeded: str = "Max content exceeded. Try smaller or fewer documents"
 
-    object_store: str = "minio"
+    object_store: str = "s3"
 
     dev_mode: bool = False
     superuser_email: str | None = None
-
-    unstructured_host: str = "unstructured"
 
     model_config = SettingsConfigDict(env_file=".env", env_nested_delimiter="__", extra="allow", frozen=True)
 
@@ -395,22 +391,11 @@ class Settings(BaseSettings):
         return client
 
     def s3_client(self):
-        if self.object_store == "minio":
-            return boto3.client(
-                "s3",
-                aws_access_key_id=self.aws_access_key or "",
-                aws_secret_access_key=self.aws_secret_key or "",
-                endpoint_url=f"http://{self.minio_host}:{self.minio_port}",
-            )
-
         if self.object_store == "s3":
             return boto3.client(
                 "s3",
-                aws_access_key_id=self.aws_access_key,
-                aws_secret_access_key=self.aws_secret_key,
                 region_name=self.aws_region,
             )
-
         if self.object_store == "moto":
             from moto import mock_aws
 

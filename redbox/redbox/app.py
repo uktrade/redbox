@@ -1,11 +1,12 @@
 from asyncio import CancelledError
 from logging import getLogger
-from typing import Dict, Literal
+from typing import Dict, Literal, Callable
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+from redbox.api.wrapper import NonPicklableCallable
 from redbox.chains.components import (
     get_all_chunks_retriever,
     get_embeddings,
@@ -22,7 +23,6 @@ from redbox.graph.nodes.tools import (
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
-    get_datahub_mcp_tools,
     build_query_tabular_file_tool,
 )
 from redbox.graph.root import build_new_route_graph, build_root_graph, get_summarise_graph
@@ -55,7 +55,7 @@ class Redbox:
         metadata_retriever: VectorStoreRetriever | None = None,
         embedding_model: Embeddings | None = None,
         env: Settings | None = None,
-        sso_access_token: str | None = None,
+        sso_token_getter: Callable[[], str] | None = None,
         debug: bool = False,
     ):
         _env = env or get_settings()
@@ -139,7 +139,6 @@ class Redbox:
             search_knowledge_base,
         ]
         self.agent_configs["Artifact_Builder_Agent"].tools = [retrieve_specific_files_knowledge_base]
-        self.init_datahub_agent(sso_access_token=sso_access_token)
 
         self.graph = self.setup_graph(debug)
 
@@ -152,9 +151,6 @@ class Redbox:
             debug=debug,
         )
 
-    def init_datahub_agent(self, sso_access_token: str) -> None:
-        self.agent_configs["Datahub_Agent"].tools = get_datahub_mcp_tools(sso_access_token=sso_access_token)
-
     def run_sync(self, input: RedboxState):
         """
         Run Redbox without streaming events. This simpler, synchronous execution enables use of the graph debug logging
@@ -164,6 +160,7 @@ class Redbox:
     async def run(
         self,
         input: RedboxState,
+        sso_token_getter: Callable[[], str] | None = None,
         response_tokens_callback=_default_callback,
         route_name_callback=_default_callback,
         documents_callback=_default_callback,
@@ -176,6 +173,8 @@ class Redbox:
         logger.info("Request: %s", {k: request_dict[k] for k in request_dict.keys() - {"ai_settings"}})
         is_summary_multiagent_streamed = False
         is_evaluator_output_streamed = False
+
+        input.request.sso_token_getter = NonPicklableCallable(sso_token_getter)
 
         @retry(
             stop=stop_after_attempt(3),
@@ -255,8 +254,8 @@ class Redbox:
             logger.error("All retries exhausted for CancelledError in the astream_events function")
             raise
 
-        except Exception:
-            logger.error("Generic error in run - {str(e)}")
+        except Exception as e:
+            logger.error(f"Generic error in run - {str(e)}")
             raise
 
         return final_state

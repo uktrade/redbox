@@ -2,7 +2,7 @@
 {% from "ids/components/show-more.html" import show_more %}
 {% from "macros/icon.html" import ids_icon %}
 
-<section id="conversations" class="ids-card ids-card--no-border" {% if oob %}hx-swap-oob="outerHTML"{% endif %}>
+<section id="conversations" class="ids-card ids-card--no-border" hx-swap-oob="outerHTML">
     <div class="ids-card__header">
         {{ ids_icon(icon_name="chat.svg") }}
         <h3 class="side-panel-heading__text">Conversations</h3>

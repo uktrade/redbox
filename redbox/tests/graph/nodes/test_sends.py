@@ -1,7 +1,6 @@
 from concurrent.futures import TimeoutError
 from unittest.mock import AsyncMock, patch, MagicMock
 from uuid import uuid4
-import json
 
 import pytest
 from httpx import ConnectError
@@ -10,6 +9,7 @@ from langchain_core.messages import AIMessage, ToolCall
 from langgraph.constants import Send
 from pytest_mock import MockerFixture
 
+from redbox.api.format import MCPResponseMetadata
 from redbox.graph.nodes.sends import (
     build_document_chunk_send,
     build_document_group_send,
@@ -309,11 +309,13 @@ class TestRunToolsParallelAsync:
         expected_tool_result,
         expected_parsed_result,
     ):
+        expected_tool_content, _ = expected_tool_result
+
         tool_name = "company_tool"
         args_schema = {"company_name": {"type": "string"}, "required": ["company_name"]}
         args = {"company_name": "BMW"}
 
-        tool = fake_mcp_tool(tool_name, expected_tool_result, args_schema=args_schema)
+        tool = fake_mcp_tool(tool_name, expected_tool_content, args_schema=args_schema)
 
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
@@ -352,14 +354,15 @@ class TestRunToolsParallelAsync:
         fake_mcp_tool,
         required_keys,
         expected_ainvoke_args,
-        expected_tool_result,
-        expected_parsed_result,
+        expected_tool_result: tuple[str, MCPResponseMetadata],
+        expected_parsed_result: str,
     ):
+        expected_tool_content, expected_tool_metadata = expected_tool_result
 
         tool_name = "company_tool"
         args_schema = {"required": required_keys}
 
-        tool = fake_mcp_tool(tool_name, expected_tool_result, args_schema=args_schema)
+        tool = fake_mcp_tool(tool_name, expected_tool_content, args_schema=args_schema)
 
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
@@ -374,25 +377,17 @@ class TestRunToolsParallelAsync:
         transformed = responses[0].content
         assert isinstance(transformed, list)
 
-        if expected_parsed_result.startswith("<Document>"):
-            assert transformed[0] == expected_parsed_result
-            expected_status = "pass"
-        else:
-            try:
-                data = json.loads(expected_parsed_result)
-                is_empty = data.get("total") == 0
-            except json.JSONDecodeError:
-                is_empty = expected_parsed_result in ["", "None", "[]"]
-
-            if is_empty:
-                assert transformed[0] == "Error message: Empty response"
-                expected_status = "fail"
-            else:
-                assert transformed[0] == expected_parsed_result
-                expected_status = "pass"
+        assert transformed[0] == expected_parsed_result
+        expected_status = "pass" if expected_parsed_result != "" else "fail"
 
         assert transformed[1] == expected_status
         assert transformed[2] == "False"
+
+        if expected_tool_metadata.user_feedback.required:
+            assert len(transformed) == 4
+            assert transformed[3] == expected_tool_metadata.user_feedback.reason
+        else:
+            assert len(transformed) == 3
 
         # Ensure ainvoke got the correct args based on whether 'is_intermediate_step' is required
         if "is_intermediate_step" not in required_keys and "is_intermediate_step" in expected_ainvoke_args.keys():
@@ -413,10 +408,12 @@ class TestRunToolsParallelAsync:
         expected_tool_result,
         expected_parsed_result,
     ):
+        expected_tool_content, _ = expected_tool_result
+
         tool_name = "company_tool"
         args_schema = {"required": []}
         args = {"company_name": "BMW"}
-        tool = fake_mcp_tool(tool_name, expected_tool_result, args_schema=args_schema)
+        tool = fake_mcp_tool(tool_name, expected_tool_content, args_schema=args_schema)
 
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
@@ -537,10 +534,12 @@ class TestWrapAsyncTool:
         expected_documents,
     ):
         """Test that wrap_async_tool correctly returns results from async tool invocation"""
+        expected_tool_content, expected_tool_metadata = expected_tool_result
+
         # Mock tool with metadata
         tool_name = "company_tool"
         args_schema = {"company_name": {"type": "string"}, "required": ["company_name"]}
-        tool = fake_mcp_tool(tool_name, return_value=expected_tool_result, args_schema=args_schema)
+        tool = fake_mcp_tool(tool_name, return_value=expected_tool_content, args_schema=args_schema)
 
         # mock session with patched mcp setup
         mock_session = self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
@@ -550,7 +549,7 @@ class TestWrapAsyncTool:
 
         # rest invocation with sample args
         test_args = {"company_name": "BMW"}
-        result = wrapped_func(test_args)
+        result, metadata = wrapped_func(test_args)
 
         # verify correct interactions
         mock_http_client.assert_called_once_with(tool.metadata["url"], headers=None)
@@ -560,6 +559,7 @@ class TestWrapAsyncTool:
 
         # assert the result matches our expected output
         assert result == expected_documents
+        assert metadata == expected_tool_metadata
 
     @patch("redbox.graph.nodes.sends.ClientSession")
     @patch("redbox.graph.nodes.sends.streamablehttp_client")
