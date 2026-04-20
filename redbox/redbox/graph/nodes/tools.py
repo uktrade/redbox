@@ -222,7 +222,14 @@ def build_search_documents_tool(
             "[_search_documents] Initial query using %s seconds",
             time.time() - start_time,
         )
-        metrics = {"initial_query_time": time.time() - start_time}
+        metrics = {
+            "initial_query_time": None,
+            "boosted_query_time": None,
+            "merged_sort_docuemnt_time": None,
+            "no_returned_documents": 0,
+        }
+
+        metrics["initial_query_time"] = time.time() - start_time
 
         # Handle nothing found (as when no files are permitted)
         if not initial_documents:
@@ -282,7 +289,8 @@ def build_search_documents_tool(
             span=tracer.current_span(),
             input_data=query,
             output_data=document,
-            metadata=metrics,
+            metadata={"custom": metrics, "test": "something"},
+            metrics=metrics,
             tags={"func": "hello-world"},
         )
 
