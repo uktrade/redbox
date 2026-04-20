@@ -2,7 +2,6 @@ import copy
 from uuid import uuid4
 
 import pytest
-from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, HumanMessage, ToolCall
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.runnables import RunnableLambda
@@ -123,7 +122,7 @@ BUILD_LLM_TEST_CASES = generate_test_cases(
 @pytest.mark.parametrize(("test_case"), BUILD_LLM_TEST_CASES, ids=[t.test_id for t in BUILD_LLM_TEST_CASES])
 def test_build_llm_chain(test_case: RedboxChatTestCase):
     """Tests a given state can update the data and metadata correctly."""
-    llm = GenericFakeChatModel(messages=iter(test_case.test_data.llm_responses))
+    llm = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
     llm._default_config = {"model": "bedrock"}
     llm_chain = build_llm_chain(PromptSet.Chat, llm)
     state = RedboxState(request=test_case.query)
@@ -164,7 +163,7 @@ CHAT_TEST_CASES = generate_test_cases(
 @pytest.mark.parametrize(("test_case"), CHAT_TEST_CASES, ids=[t.test_id for t in CHAT_TEST_CASES])
 def test_build_chat_pattern(test_case: RedboxChatTestCase, mocker: MockerFixture):
     """Tests a given state["request"] correctly changes state["text"]."""
-    llm = GenericFakeChatModel(messages=iter(test_case.test_data.llm_responses))
+    llm = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
     llm._default_config = {"model": "bedrock"}
     state = RedboxState(request=test_case.query)
 
@@ -300,7 +299,7 @@ MERGE_TEST_CASES = generate_test_cases(
 @pytest.mark.parametrize(("test_case"), MERGE_TEST_CASES, ids=[t.test_id for t in MERGE_TEST_CASES])
 def test_build_merge_pattern(test_case: RedboxChatTestCase, mocker: MockerFixture):
     """Tests a given state["request"] and state["documents"] correctly changes state["documents"]."""
-    llm = GenericFakeChatModel(messages=iter(test_case.test_data.llm_responses))
+    llm = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
     llm._default_config = {"model": "bedrock"}
     state = RedboxState(request=test_case.query, documents=structure_documents_by_file_name(test_case.docs))
 
@@ -351,7 +350,7 @@ STUFF_TEST_CASES = generate_test_cases(
 @pytest.mark.parametrize(("test_case"), STUFF_TEST_CASES, ids=[t.test_id for t in STUFF_TEST_CASES])
 def test_build_stuff_pattern(test_case: RedboxChatTestCase, mocker: MockerFixture):
     """Tests a given state["request"] and state["documents"] correctly changes state["text"]."""
-    llm = GenericFakeChatModel(messages=iter(test_case.test_data.llm_responses))
+    llm = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
     llm._default_config = {"model": "bedrock"}
     state = RedboxState(request=test_case.query, documents=structure_documents_by_file_name(test_case.docs))
 
@@ -571,7 +570,7 @@ STRUCTURED_OUTPUT_TEST_CASE = generate_test_cases(
     ("test_case"), STRUCTURED_OUTPUT_TEST_CASE, ids=[t.test_id for t in STRUCTURED_OUTPUT_TEST_CASE]
 )
 def test_citation_structured_output(test_case: RedboxChatTestCase, mocker: MockerFixture):
-    llm = GenericFakeChatModel(messages=iter(test_case.test_data.llm_responses))
+    llm = GenericFakeChatModelWithTools(messages=iter(test_case.test_data.llm_responses))
     llm._default_config = {"model": "bedrock"}
 
     mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=llm)
@@ -1099,7 +1098,7 @@ class TestBuildDatahubAgentLoop:
                 {"name": "test_tool", "args": {"is_intermediate_step": False}, "id": "fake-id", "type": "tool_call"}
             ],
         )
-        llm = GenericFakeChatModel(messages=iter([res] * 10))
+        llm = GenericFakeChatModelWithTools(messages=iter([res] * 10))
         mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
 
         mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel")

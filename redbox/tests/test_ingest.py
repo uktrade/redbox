@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 import pytest
-from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 
 from redbox.loader.loaders import MetadataLoader, parse_tabular_schema
 from redbox.models.chain import GeneratedMetadata
@@ -22,6 +21,8 @@ from redbox.models.settings import Settings
 from redbox.retriever.queries import build_query_filter
 from io import BytesIO
 import pandas as pd
+
+from redbox.test.data import GenericFakeChatModelWithTools
 
 
 if TYPE_CHECKING:
@@ -78,7 +79,7 @@ def test_extract_metadata_missing_key(
 ):
     mock_llm_response = mock_llm.return_value
     mock_llm_response.status_code = 200
-    mock_llm_response.return_value = GenericFakeChatModel(messages=iter(['{"missing_key":""}']))
+    mock_llm_response.return_value = GenericFakeChatModelWithTools(messages=iter(['{"missing_key":""}']))
 
     """
     LLM replies but without one of the keys
@@ -105,7 +106,7 @@ def test_extract_metadata_extra_key(
 ):
     mock_llm_response = mock_llm.return_value
     mock_llm_response.status_code = 200
-    mock_llm_response.return_value = GenericFakeChatModel(
+    mock_llm_response.return_value = GenericFakeChatModelWithTools(
         messages=iter(['{"extra_key": "", "name": "foo", "description": "test", "keywords": ["abc"]}'])
     )
 
