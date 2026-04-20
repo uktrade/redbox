@@ -69,6 +69,9 @@ def format_mcp_tool_response(tool_response, creator_type: ChunkCreatorType) -> t
     deep_links = []
     match result_type:
         case "nullable":
+            if isinstance(result, str):
+                return result, metadata
+
             deep_links = [(result.get("url"), result)]
         case "paged":
             deep_links = [(p.get("url"), p) for p in result.get("items", [])]
@@ -98,5 +101,8 @@ def format_mcp_tool_response(tool_response, creator_type: ChunkCreatorType) -> t
             )
         else:
             response.append(json.dumps(item))
+
+    if not response:
+        return ("No results found.", metadata)
 
     return ("\n\n".join(response), metadata)

@@ -699,22 +699,41 @@ def build_datahub_agent_with_loop(
                 result = "Tool error: no results received."
 
             elif has_loop and len(ai_msg.tool_calls) > 0:  # if loop, we need to transform results
-                result = result[-1].content  # this is a tuple
-                # format of result: (result, success, is_intermediate_step)
-                log.warning("my-overall-result")
-                log.warning(result)
-                result_content = result[0]
-                success = result[1]
-                is_intermediate_step = eval(result[2])
+                collated_result = ""
+                feedback_reasons = []
+                for i, r in enumerate(result):
+                    current_result = r.content  # this is a tuple
+                    # format of result: (result, success, is_intermediate_step)
+                    log.debug("my-overall-result")
+                    log.debug(current_result)
+                    result_content = current_result[0]
+                    success = current_result[1]
+                    is_intermediate_step = eval(current_result[2])
 
-                if len(result) > 3:
-                    reason = result[3]
+                    if len(current_result) > 3:
+                        reason = current_result[3]
+                        feedback_reasons.append(f"Failure reason: {reason}.\n\n{result_content}")
+                    else:
+                        collated_result += f"<tool_result_{i}>{result_content}</tool_result_{i}>"
+
+                    if success == "fail":
+                        # pass error back if any
+                        additional_variables.update({"previous_tool_error": result_content})
+                    else:
+                        # if success tool invocation, and intermediate steps then pass info back
+                        if is_intermediate_step:
+                            additional_variables.update(
+                                {"previous_tool_error": "", "previous_tool_results": all_results}
+                            )
+
+                if feedback_reasons:
+                    combined_feedback = "\n\n".join(feedback_reasons)
                     return {
                         "agents_results": {
                             task.id: AIMessage(
-                                content=f"<{agent_name}_Result>Ask user for feedback based on failure reason. Failure reason: {reason}.\n\n{result_content}</{agent_name}_Result>",
+                                content=f"<{agent_name}_Result>Ask user for feedback based on failure reason. {combined_feedback}\n\n{collated_result}</{agent_name}_Result>",
                                 kwargs={
-                                    "reason": reason,
+                                    "reason": combined_feedback,
                                 },
                             )
                         },
@@ -722,14 +741,7 @@ def build_datahub_agent_with_loop(
                         "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.REQUIRES_USER_FEEDBACK),
                     }
 
-                if success == "fail":
-                    # pass error back if any
-                    additional_variables.update({"previous_tool_error": result_content})
-                else:
-                    # if success tool invocation, and intermediate steps then pass info back
-                    if is_intermediate_step:
-                        additional_variables.update({"previous_tool_error": "", "previous_tool_results": all_results})
-                result = result_content
+                result = collated_result
 
             if isinstance(result, str):
                 log.warning(f"{log_stub} Using raw string result.")

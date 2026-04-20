@@ -67,7 +67,7 @@ async def test_chat_consumer_with_new_session(
 
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
-        connected, _ = await communicator.connect()
+        connected, _ = await communicator.connect(timeout=5)
         assert connected
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
             await communicator.send_json_to({"message": "Hello Hal."})
@@ -908,7 +908,7 @@ async def test_connect_with_agents_update_via_db(agents_list: list, alice: User)
         mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
-        await communicator.connect()
+        await communicator.connect(timeout=5)
         assert mock_get.call_count == 1
 
         assert "Fake_Agent" not in list(ChatConsumer.redbox.agent_configs.keys())
