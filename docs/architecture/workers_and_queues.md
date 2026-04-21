@@ -7,7 +7,7 @@ The Worker is a set of service that runs in the background and perform tasks tha
 
 The Workers are designed to be horizontally scalable. This means that we can add more instances of the Workers to handle more load. The Workers are also designed to be resilient. This means that if one instance of the Worker fails, another instance can take over.
 
-![Document Processing Pipeline](../assets/document_processing_pipeline.png)
+![Document Processing Pipeline](../assets/document_processing_pipeline.svg)
 
 ## Scaling
 

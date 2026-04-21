@@ -12,9 +12,9 @@ Some of our guiding architectural principles are:
 
 ## Document Processing Pipeline
 
-The document processing pipeline is the core of the Redbox system. It is responsible for processing documents and extracting information from them. The pipeline is broken down into two main components: Worker and Core API.
+The document processing pipeline is the core of the Redbox system. It is responsible for processing documents and extracting information from them.
 
-![Document Processing Pipeline](../assets/document_processing_pipeline.png)
+![Document Processing Pipeline](../assets/document_processing_pipeline.svg)
 
 
 ## RAG Architecture
