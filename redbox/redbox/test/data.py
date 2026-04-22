@@ -12,11 +12,10 @@ from langchain_core.retrievers import BaseRetriever
 from langchain_core.tools import BaseTool
 from pydantic.v1 import BaseModel, Field, validator
 
-from redbox.models.chain import RedboxQuery
+from redbox.models.chain import MultiAgentPlanBase, RedboxQuery
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.file import ChunkResolution, TabularSchema, UploadedFileMetadata
 from redbox.models.graph import RedboxActivityEvent
-from redbox.models.chain import MultiAgentPlanBase
 
 log = logging.getLogger()
 
@@ -242,6 +241,10 @@ class GenericFakeChatModelWithTools(GenericFakeChatModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+    @property
+    def _default_config(self):
+        return {}
 
     def bind_tools(
         self,

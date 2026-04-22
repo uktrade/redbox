@@ -22,8 +22,8 @@ from redbox.graph.edges import (
 from redbox.graph.nodes.processes import (
     build_activity_log_node,
     build_agent_with_loop,
-    build_datahub_agent_with_loop,
     build_chat_pattern,
+    build_datahub_agent_with_loop,
     build_error_pattern,
     build_merge_pattern,
     build_passthrough_pattern,

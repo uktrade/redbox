@@ -14,13 +14,18 @@ import duckdb
 import numpy as np
 import pandas as pd
 import requests
+from ddtrace.llmobs import LLMObs
+from ddtrace.trace import tracer
 from elasticsearch import Elasticsearch
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.messages import ToolCall
 from langchain_core.tools import Tool, tool
+from langchain_mcp_adapters.tools import load_mcp_tools
 from langgraph.prebuilt import InjectedState
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
 from mohawk import Sender
 from opensearchpy import OpenSearch
 from sklearn.metrics.pairwise import cosine_similarity
@@ -41,9 +46,6 @@ from redbox.retriever.queries import (
 )
 from redbox.retriever.retrievers import SchematisedTabularChunkRetriever, query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
-from langchain_mcp_adapters.tools import load_mcp_tools
 
 log = logging.getLogger(__name__)
 
@@ -203,9 +205,10 @@ def build_search_documents_tool(
 ) -> Tool:
     """Constructs a tool that searches the index and sets state.documents."""
 
-    def search_repo(query, selected_files, permitted_files, ai_settings, start_time=time.time()):
+    def search_repo(query, selected_files, permitted_files, ai_settings):
         query_vector = embedding_model.embed_query(query)
         # Initial pass
+        start_time = time.time()
         initial_query = build_document_query(
             query=query,
             query_vector=query_vector,
@@ -220,12 +223,21 @@ def build_search_documents_tool(
             "[_search_documents] Initial query using %s seconds",
             time.time() - start_time,
         )
+        metrics = {
+            "initial_query_time": None,
+            "boosted_query_time": None,
+            "merged_sort_document_time": None,
+            "no_returned_documents": 0,
+        }
+
+        metrics["initial_query_time"] = time.time() - start_time
 
         # Handle nothing found (as when no files are permitted)
         if not initial_documents:
-            return "", []
+            return "", [], metrics
 
         # Adjacent documents
+        start_time = time.time()
         with_adjacent_query = add_document_filter_scores_to_query(
             elasticsearch_query=initial_query,
             ai_settings=ai_settings,
@@ -236,8 +248,10 @@ def build_search_documents_tool(
             "[_search_documents] Adjacent boosted query using %s seconds",
             time.time() - start_time,
         )
+        metrics["boosted_query_time"] = time.time() - start_time
 
         # Merge and sort
+        start_time = time.time()
         merged_documents = merge_documents(initial=initial_documents, adjacent=adjacent_boosted)
         sorted_documents = sort_documents(documents=merged_documents)
         log.warning(
@@ -245,9 +259,11 @@ def build_search_documents_tool(
             time.time() - start_time,
         )
         log.warning("[_search_documents] Returning %s documents", len(sorted_documents))
+        metrics["merged_sort_docuemnt_time"] = time.time() - start_time
+        metrics["no_returned_documents"] = len(sorted_documents)
 
         # Return as state update
-        return format_documents(sorted_documents), sorted_documents
+        return format_documents(sorted_documents), sorted_documents, metrics
 
     @tool(response_format="content_and_artifact")
     def _search_documents(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
@@ -264,12 +280,23 @@ def build_search_documents_tool(
         Returns:
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
-        return search_repo(
+
+        document, artifact, metrics = search_repo(
             query=query,
             selected_files=state.request.s3_keys,
             permitted_files=state.request.permitted_s3_keys,
             ai_settings=state.request.ai_settings,
         )
+
+        LLMObs.annotate(
+            span=tracer.current_span(),
+            input_data=query,
+            output_data=document,
+            metrics=metrics,
+            tags={"func": "hello-world"},
+        )
+
+        return document, artifact
 
     @tool(response_format="content_and_artifact")
     def _search_knowledge_base(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
@@ -286,12 +313,22 @@ def build_search_documents_tool(
         Returns:
             dict[str, Any]: Collection of matching document snippets with metadata:
         """
-        return search_repo(
+        document, artifact, metrics = search_repo(
             query=query,
             selected_files=state.request.knowledge_base_s3_keys,
             permitted_files=state.request.knowledge_base_s3_keys,
             ai_settings=state.request.ai_settings,
         )
+
+        LLMObs.annotate(
+            span=tracer.current_span(),
+            input_data=query,
+            output_data=document,
+            metrics=metrics,
+            tags={"func": "hello-world"},
+        )
+
+        return document, artifact
 
     return _search_documents if repository == "user_uploaded" else _search_knowledge_base
 

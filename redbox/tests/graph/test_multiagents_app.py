@@ -317,14 +317,11 @@ class TestNewRoutes:
         configured_multi_agent_plan = multi_agent_plan().model_copy(update={"tasks": tasks})
         planner = configured_multi_agent_plan.model_dump_json()
         planner_response = GenericFakeChatModelWithTools(messages=iter([planner]))
-        planner_response._default_config = {"model": "bedrock"}
 
         evaluator_response = GenericFakeChatModelWithTools(messages=iter([evaluator]))
-        evaluator_response._default_config = {"model": "bedrock"}
 
         # mock response from worker agent
         worker_response = GenericFakeChatModelWithTools(messages=iter([WORKER_RESPONSE]))
-        worker_response._default_config = {"model": "bedrock"}
 
         mock_chat_chain = mocker.patch("redbox.chains.runnables.get_chat_llm")
         mock_chat_chain.side_effect = [planner_response, worker_response]
@@ -377,7 +374,6 @@ class TestNewRoutes:
     ):
         # mocking user feedback classification
         feedback_class_response = GenericFakeChatModelWithTools(messages=iter([AIMessage(content=user_feedback)]))
-        feedback_class_response._default_config = {"model": "bedrock"}
         side_effect = [feedback_class_response]
 
         # mocking planner agent with tasks
@@ -400,14 +396,12 @@ class TestNewRoutes:
             planner_response = GenericFakeChatModelWithTools(
                 messages=iter([configured_multi_agent_plan.model_dump_json()])
             )
-            planner_response._default_config = {"model": "bedrock"}
             side_effect += [planner_response]
 
         # mock response from worker agents
         tool_call_side_effect = []
         for i in range(len(agents)):
             worker_response = GenericFakeChatModelWithTools(messages=iter([WORKER_RESPONSE]))
-            worker_response._default_config = {"model": "bedrock"}
             side_effect += [worker_response]
             tool_call_side_effect += [[WORKER_TOOL_RESPONSE]]
 
@@ -420,7 +414,6 @@ class TestNewRoutes:
 
         # mock evaluator
         evaluator_response = GenericFakeChatModelWithTools(messages=iter([evaluator]))
-        evaluator_response._default_config = {"model": "bedrock"}
         mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=evaluator_response)
 
         test_case = self.create_new_route_test(

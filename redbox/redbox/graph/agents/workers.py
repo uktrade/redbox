@@ -149,5 +149,5 @@ class WorkerAgent(Agent):
         return (
             self.reading_task_info()
             | RunnableParallel(state=self.log_agent_activity(), result=self.core_task() | self.post_processing())
-            | (lambda x: x["result"])  # Return only the result
-        )
+            | (lambda x: x["result"])
+        )  # Return only the result

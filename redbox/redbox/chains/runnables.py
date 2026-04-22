@@ -2,6 +2,8 @@ import logging
 import re
 from typing import Any, Callable, Iterable, Iterator
 
+from ddtrace.llmobs import LLMObs
+from ddtrace.trace import tracer
 from langchain_core.callbacks.manager import CallbackManagerForLLMRun, dispatch_custom_event
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
@@ -344,22 +346,34 @@ def basic_chat_chain(
             "question": state.request.question,
             "chat_history": truncated_history if using_chat_history else "",
         } | _additional_variables
-        if parser:
-            if isinstance(parser, StrOutputParser):
-                prompt = ChatPromptTemplate([(system_prompt)])
-            else:
-                format_instructions = parser.get_format_instructions()
-                prompt = ChatPromptTemplate(
-                    [(system_prompt)], partial_variables={"format_instructions": format_instructions}
-                )
-            if using_only_structure:
-                chain = prompt | llm
-            else:
-                chain = prompt | llm | parser
+        if parser and not isinstance(parser, StrOutputParser):
+            format_instructions = parser.get_format_instructions()
+            prompt = ChatPromptTemplate(
+                [(system_prompt)], partial_variables={"format_instructions": format_instructions}
+            )
         else:
             prompt = ChatPromptTemplate([(system_prompt)])
-            chain = prompt | llm
-        return chain.invoke(context)
+        chain = prompt | llm
+
+        output = chain.invoke(context)
+        bedrock_span = tracer.current_span()
+        LLMObs.annotate(
+            span=bedrock_span,
+            metadata={
+                "max_tokens": (llm._default_config or {}).get("max_tokens", None),
+                "stop_reason": (output.response_metadata or {}).get("stop_reason", None),
+            },
+            metrics={
+                "input_tokens": (output.usage_metadata or {}).get("input_tokens", None),
+                "output_tokens": (output.usage_metadata or {}).get("output_tokens", None),
+                "total_tokens": (output.usage_metadata or {}).get("total_tokens", None),
+            },
+            tags={"func": "basic_chat_chain"},
+        )
+
+        if parser and not using_only_structure:
+            output = parser.invoke(output)
+        return output
 
     return _basic_chat_chain
 
