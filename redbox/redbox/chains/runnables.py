@@ -316,16 +316,6 @@ class CannedChatLLM(BaseChatModel):
         return "canned"
 
 
-def extract_model_name(llm_output) -> str:
-    model_name = (llm_output.response_metadata or {}).get("model_name", "unspecified_model")
-    if model_name:
-        if model_name.startswith("arn"):
-            # grab the last bit
-            model_name = model_name.split("/")[-1]
-        model_name = model_name.split(".")[-1]
-    return model_name
-
-
 def basic_chat_chain(
     system_prompt,
     tools=None,
@@ -367,8 +357,6 @@ def basic_chat_chain(
 
         output = chain.invoke(context)
         bedrock_span = tracer.current_span()
-        # formatted_input_dd = prompt.format_messages(**context)
-        # role_map = {"human": "user", "ai": "assistant", "system": "system"}
         LLMObs.annotate(
             span=bedrock_span,
             metadata={

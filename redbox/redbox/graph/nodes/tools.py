@@ -205,9 +205,10 @@ def build_search_documents_tool(
 ) -> Tool:
     """Constructs a tool that searches the index and sets state.documents."""
 
-    def search_repo(query, selected_files, permitted_files, ai_settings, start_time=time.time()):
+    def search_repo(query, selected_files, permitted_files, ai_settings):
         query_vector = embedding_model.embed_query(query)
         # Initial pass
+        start_time = time.time()
         initial_query = build_document_query(
             query=query,
             query_vector=query_vector,
@@ -225,7 +226,7 @@ def build_search_documents_tool(
         metrics = {
             "initial_query_time": None,
             "boosted_query_time": None,
-            "merged_sort_docuemnt_time": None,
+            "merged_sort_document_time": None,
             "no_returned_documents": 0,
         }
 
@@ -236,6 +237,7 @@ def build_search_documents_tool(
             return "", [], metrics
 
         # Adjacent documents
+        start_time = time.time()
         with_adjacent_query = add_document_filter_scores_to_query(
             elasticsearch_query=initial_query,
             ai_settings=ai_settings,
@@ -246,9 +248,10 @@ def build_search_documents_tool(
             "[_search_documents] Adjacent boosted query using %s seconds",
             time.time() - start_time,
         )
-        metrics["boosted_query_time"] = time.time() - metrics["initial_query_time"]
+        metrics["boosted_query_time"] = time.time() - start_time
 
         # Merge and sort
+        start_time = time.time()
         merged_documents = merge_documents(initial=initial_documents, adjacent=adjacent_boosted)
         sorted_documents = sort_documents(documents=merged_documents)
         log.warning(
@@ -256,7 +259,7 @@ def build_search_documents_tool(
             time.time() - start_time,
         )
         log.warning("[_search_documents] Returning %s documents", len(sorted_documents))
-        metrics["merged_sort_docuemnt_time"] = time.time() - metrics["boosted_query_time"]
+        metrics["merged_sort_docuemnt_time"] = time.time() - start_time
         metrics["no_returned_documents"] = len(sorted_documents)
 
         # Return as state update
@@ -289,7 +292,6 @@ def build_search_documents_tool(
             span=tracer.current_span(),
             input_data=query,
             output_data=document,
-            metadata={"custom": metrics, "test": "something"},
             metrics=metrics,
             tags={"func": "hello-world"},
         )
