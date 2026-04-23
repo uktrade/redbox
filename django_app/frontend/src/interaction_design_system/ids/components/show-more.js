@@ -1,7 +1,7 @@
 // @ts-check
 
 import htmx from "htmx.org";
-import { hideElement, showElement, getNumericAttr } from "../../../js/utils";
+import { hideElement, showElement, getNumericAttr, focusFirstFocusable } from "../../../js/utils";
 
 export class ShowMore extends HTMLElement {
     _visibleCount = 5;
@@ -130,15 +130,23 @@ export class ShowMore extends HTMLElement {
     ) {
         if (!items || !labelText) return;
 
-        let ClickElement = this.querySelector("a");
+        let ClickElement = this.querySelector("button");
+        let triggeredByKeyboard = false;
 
         if (!ClickElement && items.length > visibleCount) {
             ClickElement = this.#getOrCreateClickElement(labelText);
             this.appendChild(ClickElement);
 
+            ClickElement.addEventListener('keydown', (evt) => {
+                if (evt.key === ' ' || evt.key === 'Enter') {
+                    triggeredByKeyboard = true;
+                }
+            });
+
             ClickElement.addEventListener("click", (evt) => {
                 if (labelText === this.showMoreLabelText) {
                     this.#showItems(this.items, true);
+                    if (triggeredByKeyboard) focusFirstFocusable(items[this.visibleCount]);
                 } else {
                     this.#hideItems();
                 }
@@ -163,6 +171,7 @@ export class ShowMore extends HTMLElement {
     */
     #addShowMore(items=this.items, visibleCount=this.visibleCount, showMorelabelText=this.showMoreLabelText) {
         this.#addShowMoreOrLess(items, visibleCount, showMorelabelText);
+        this.title = showMorelabelText;
     }
 
 
@@ -171,6 +180,7 @@ export class ShowMore extends HTMLElement {
     */
     #addShowLess(items=this.items, visibleCount=this.visibleCount, showLessLabelText=this.showLessLabelText) {
         this.#addShowMoreOrLess(items, visibleCount, showLessLabelText);
+        this.title = showLessLabelText;
     }
 
 
@@ -206,9 +216,11 @@ export class ShowMore extends HTMLElement {
     */
     #getOrCreateClickElement(labelText) {
         // TODO: Add support for custom click element?
-        let clickElement = document.createElement("a");
+        let clickElement = document.createElement("button");
         clickElement.textContent = labelText;
+        clickElement.role = "button";
         clickElement.classList.add(
+            "ids-text-button",
             "ids-action-link",
             "govuk-link",
             "govuk-link--no-visited-state",
