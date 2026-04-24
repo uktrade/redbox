@@ -37,13 +37,22 @@ class LoggerCallbackHandler(BaseCallbackHandler):
 
 
 class TokenAnnotationCallback(BaseCallbackHandler):
+    def _extract_model_name(self, response_metadata) -> str:
+        model_name = response_metadata.get("model_name", None)
+        if model_name:
+            if model_name.startswith("arn"):
+                # grab the last bit
+                model_name = model_name.split("/")[-1]
+            model_name = model_name.split(".")[-1]
+        return model_name
+
     def on_llm_end(self, response: LLMResult, **kwargs) -> None:
         if response.generations[0]:
             usage = response.generations[0][0].message
             LLMObs.annotate(
                 span=tracer.current_span(),
                 metadata={
-                    "model_name": (usage.response_metadata or {}).get("model_name", None),
+                    "model_name": self._extract_model_name(usage.response_metadata or {}),
                     "stop_reason": (usage.response_metadata or {}).get("stop_reason", None),
                 },
                 metrics={
