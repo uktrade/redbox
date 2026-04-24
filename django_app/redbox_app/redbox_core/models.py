@@ -61,6 +61,21 @@ def sanitise_string(string: str | None) -> str | None:
     return string.replace("\x00", "\ufffd") if string else string
 
 
+class ToolQuerySet(models.QuerySet):
+    def for_user(self, user: "User"):
+        return self.filter(
+            models.Q(is_public=True) | models.Q(user_tools__user=user, user_tools__access=UserTool.AccessType.ALLOW)
+        ).distinct()
+
+
+class ToolManager(models.Manager):
+    def get_queryset(self):
+        return ToolQuerySet(self.model, using=self._db)
+
+    def for_user(self, user: "User"):
+        return self.get_queryset().for_user(user)
+
+
 class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
     """
     Tools feature model. To be used against:
@@ -76,6 +91,9 @@ class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
     slug = models.SlugField(
         max_length=100, unique=True, blank=True, help_text="Used for url routing and info page linking"
     )
+    is_public = models.BooleanField(default=True, help_text="Whether the tool is accessible by all users")
+
+    objects = ToolManager()
 
     class Meta:
         verbose_name_plural = "tools"
@@ -121,14 +139,29 @@ class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
         obj, _ = ToolSettings.objects.get_or_create(tool=self)
         return obj
 
+    @cached_property
+    def settings_url(self) -> str:
+        return url_service.get_tool_settings_url(slug=self.slug)
+
 
 class UserTool(UUIDPrimaryKeyBase, TimeStampedModel):
     """
     Junction for user/tool many-to-many relationship
     """
 
+    class AccessType(models.TextChoices):
+        ALLOW = "ALLOW", _("Allowed")
+        DENY = "DENY", _("Denied")
+
+    class RoleType(models.TextChoices):
+        MANAGER = "MANAGER", _("Manager")
+        USER = "USER", _("User")
+
     user = models.ForeignKey("User", on_delete=models.CASCADE, related_name="user_tools")
     tool = models.ForeignKey(Tool, on_delete=models.CASCADE, related_name="user_tools")
+
+    access = models.CharField(max_length=20, choices=AccessType.choices, default=AccessType.ALLOW)
+    role = models.CharField(max_length=20, choices=RoleType.choices, default=RoleType.USER)
 
     class Meta:
         unique_together = ("user", "tool")
@@ -136,6 +169,12 @@ class UserTool(UUIDPrimaryKeyBase, TimeStampedModel):
 
     def __str__(self):
         return self.user.email + " - " + self.tool.name
+
+    @property
+    def is_enabled(self) -> bool:
+        if self.tool.is_public:
+            return True
+        return self.access == self.AccessType.ALLOW
 
 
 class TeamTool(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -662,6 +701,15 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
             return first_name[0].upper() + last_name[0].upper()
         except (IndexError, AttributeError, ValueError):
             return ""
+
+    def has_tool_access(self, tool: Tool) -> bool:
+        if tool.is_public:
+            return True
+
+        return self.user_tools.filter(tool=tool, access=UserTool.AccessType.ALLOW).exists()
+
+    def can_manage_tool(self, tool: Tool) -> bool:
+        return self.user_tools.filter(tool=tool, role=UserTool.RoleType.MANAGER).exists()
 
     @property
     def first_time_user(self) -> bool:

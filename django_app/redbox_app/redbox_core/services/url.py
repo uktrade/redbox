@@ -33,3 +33,12 @@ def get_upload_url(slug: str | None = None) -> str:
         kwargs["slug"] = slug
 
     return reverse("document-upload", kwargs=kwargs)
+
+
+def get_tool_settings_url(slug: str) -> str:
+    kwargs = {}
+
+    if slug:
+        kwargs["slug"] = slug
+
+    return reverse("tool-settings", kwargs=kwargs)

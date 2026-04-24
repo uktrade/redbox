@@ -282,6 +282,13 @@ class FileToolAdmin(ExportMixin, admin.ModelAdmin):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
+class UserToolAdmin(ExportMixin, admin.ModelAdmin):
+    list_display = ["user", "tool", "created_at"]
+    list_filter = ["tool", "user"]
+    date_hierarchy = "created_at"
+    search_fields = ("user__email", "tool__name")
+
+
 class FileTeamMembershipAdmin(admin.ModelAdmin):
     list_display = ("file", "team", "visibility", "created_at")
     list_filter = ("visibility", "team")
@@ -472,4 +479,5 @@ admin.site.register(models.Tool, ToolAdmin)
 admin.site.register(models.ToolSettings, ToolSettingsAdmin)
 admin.site.register(models.AgentTool, AgentToolAdmin)
 admin.site.register(models.FileTool, FileToolAdmin)
+admin.site.register(models.UserTool, UserToolAdmin)
 admin.site.register_view("report/", view=reporting_dashboard, name="Site report")

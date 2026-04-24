@@ -49,7 +49,7 @@ from redbox_app.redbox_core.views.team_views import (
     edit_team_member_row_view,
     edit_team_member_view,
 )
-from redbox_app.redbox_core.views.tools_views import ToolsView, tool_info_page_view
+from redbox_app.redbox_core.views.tools_views import ToolSettingsView, ToolsView, tool_info_page_view
 
 __all__ = [
     "ChatsTitleView",
@@ -71,6 +71,7 @@ __all__ = [
     "Signup5",
     "Signup6",
     "Signup7",
+    "ToolSettingsView",
     "ToolsView",
     "UpdateChatFeedback",
     "UpdateDemographicsView",

@@ -38,3 +38,13 @@ def tool_info_page_view(request: HttpRequest, slug: str) -> HttpResponse:
         )
 
     return render(request, tool.info_template, context=context)
+
+
+class ToolSettingsView(View):
+    @method_decorator(login_required)
+    def get(self, request: HttpRequest, slug: str) -> HttpResponse:
+        return render(
+            request,
+            template_name="tools/settings.html",
+            context=chat_service.get_context(request, slug=slug),
+        )
