@@ -10,6 +10,7 @@ from langchain_core.embeddings import Embeddings, FakeEmbeddings
 from langchain_core.runnables import Runnable
 from langchain_core.tools import StructuredTool
 
+from redbox.api.callbacks import TokenAnnotationCallback
 from redbox.chains.parser import StreamingJsonOutputParser, StreamingPlanner
 from redbox.models.chain import (
     AISettings,
@@ -70,7 +71,7 @@ def get_chat_llm(
         )
         if tools:
             chat_model = chat_model.bind_tools(tools)
-        return chat_model
+        return chat_model.with_config(callbacks=[TokenAnnotationCallback()])
 
     cache_entry = _FALLBACK_CACHE.get(model.name)
     if cache_entry and cache_entry["until"] > time.time():
