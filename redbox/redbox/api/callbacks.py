@@ -38,17 +38,18 @@ class LoggerCallbackHandler(BaseCallbackHandler):
 
 class TokenAnnotationCallback(BaseCallbackHandler):
     def on_llm_end(self, response: LLMResult, **kwargs) -> None:
-        usage = response.generations[0][0].message
-        LLMObs.annotate(
-            span=tracer.current_span(),
-            metadata={
-                "model_name": (usage.response_metadata or {}).get("model_name", None),
-                "stop_reason": (usage.response_metadata or {}).get("stop_reason", None),
-            },
-            metrics={
-                "input_tokens": (usage.usage_metadata or {}).get("input_tokens", None),
-                "output_tokens": (usage.usage_metadata or {}).get("output_tokens", None),
-                "total_tokens": (usage.usage_metadata or {}).get("total_tokens", None),
-            },
-            tags={"func": "token_annotation_callback"},
-        )
+        if response.generations[0]:
+            usage = response.generations[0][0].message
+            LLMObs.annotate(
+                span=tracer.current_span(),
+                metadata={
+                    "model_name": (usage.response_metadata or {}).get("model_name", None),
+                    "stop_reason": (usage.response_metadata or {}).get("stop_reason", None),
+                },
+                metrics={
+                    "input_tokens": (usage.usage_metadata or {}).get("input_tokens", None),
+                    "output_tokens": (usage.usage_metadata or {}).get("output_tokens", None),
+                    "total_tokens": (usage.usage_metadata or {}).get("total_tokens", None),
+                },
+                tags={"func": "token_annotation_callback"},
+            )
