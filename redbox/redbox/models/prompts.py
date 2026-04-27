@@ -245,7 +245,6 @@ Execution Strategy:
 """
 
 PREVIOUS_AGENT_RESULTS = """<Previous_Agents_Results>{previous_agents_results}</Previous_Agents_Results>"""
-TODAYS_DATE = """<Todays_Date>{todays_date}</Todays_Date>"""
 METADATA = """<Document_Metadata>{metadata}</Document_Metadata>"""
 KNOWLEDGE_BASE_METADTA = """<Knowledge_Base_Metadata>{knowledge_base_metadata}</Knowledge_Base_Metadata> <Tabular_Knowledge_Base_Metadata>{tabular_knowledge_base_metadata}</Tabular_Knowledge_Base_Metadata>"""
 TABULAR_METADATA = """<Tabular_Document_Metadata>{tabular_metadata}</Tabular_Document_Metadata> If no tabular metadata found. Please advise user to reupload their tabular document."""

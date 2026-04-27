@@ -396,14 +396,9 @@ def chain_use_metadata(
         tabular_metadata = get_tabular_metadata_retriever(get_settings()).invoke(state)
         return tabular_metadata
 
-    # `    @chain
-    #     def get_todays_date(state: RedboxState):
-    #         return date.today().isoformat()`
-
     @chain
     def use_result(input):
         additional_variables = {}
-        # additional_variables["todays_date"] = date.today().isoformat()
         if input.get("metadata") is not None:
             additional_variables["metadata"] = input["metadata"]
         if input.get("knowledge_base_metadata") is not None:
@@ -428,7 +423,6 @@ def chain_use_metadata(
     return (
         RunnableParallel(
             state=RunnablePassthrough(),
-            # todays_date=get_todays_date,
             metadata=get_metadata,
             knowledge_base_metadata=get_knowledge_base_metadata,
             tabular_knowledge_base_metadata=get_tabular_knowledge_base_metadata,
@@ -437,7 +431,6 @@ def chain_use_metadata(
         if use_knowledge_base
         else RunnableParallel(
             state=RunnablePassthrough(),
-            # todays_date=get_todays_date,
             metadata=get_metadata,
             tabular_metadata=get_tabular_metadata,
         )
