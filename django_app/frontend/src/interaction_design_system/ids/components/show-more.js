@@ -130,20 +130,21 @@ export class ShowMore extends HTMLElement {
     ) {
         if (!items || !labelText) return;
 
-        let ClickElement = this.querySelector("button");
+        let clickElement = this.querySelector("button");
         let triggeredByKeyboard = false;
 
-        if (!ClickElement && items.length > visibleCount) {
-            ClickElement = this.#getOrCreateClickElement(labelText);
-            this.appendChild(ClickElement);
+        if (!clickElement && items.length > visibleCount) {
+            clickElement = this.#getOrCreateClickElement(labelText);
+            this.appendChild(clickElement);
 
-            ClickElement.addEventListener('keydown', (evt) => {
+            clickElement.addEventListener('keydown', (evt) => {
+                triggeredByKeyboard = false;
                 if (evt.key === ' ' || evt.key === 'Enter') {
                     triggeredByKeyboard = true;
                 }
             });
 
-            ClickElement.addEventListener("click", (evt) => {
+            clickElement.addEventListener("click", (evt) => {
                 if (labelText === this.showMoreLabelText) {
                     this.#showItems(this.items, true);
                     if (triggeredByKeyboard) focusFirstFocusable(items[this.visibleCount]);
@@ -162,7 +163,7 @@ export class ShowMore extends HTMLElement {
                 }
             });
         }
-        if (ClickElement && items.length <= visibleCount) ClickElement.remove();
+        if (clickElement && items.length <= visibleCount) clickElement.remove();
     }
 
 
