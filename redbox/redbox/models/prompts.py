@@ -212,6 +212,7 @@ AGENTIC_RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT = (
     "<User question> {question} </User question> \n\n <Context>: \n\n {agents_results} \n\n </Context> \n\n."
     "<Artifact_Criteria>{artifact_criteria}</Artifact_Criteria>"
+    "<Todays_Date>{todays_date}</Todays_Date>"
 )
 
 AGENTIC_GIVE_UP_QUESTION_PROMPT = "{question}"
@@ -244,6 +245,7 @@ Execution Strategy:
 """
 
 PREVIOUS_AGENT_RESULTS = """<Previous_Agents_Results>{previous_agents_results}</Previous_Agents_Results>"""
+TODAYS_DATE = """<Todays_Date>{todays_date}</Todays_Date>"""
 METADATA = """<Document_Metadata>{metadata}</Document_Metadata>"""
 KNOWLEDGE_BASE_METADTA = """<Knowledge_Base_Metadata>{knowledge_base_metadata}</Knowledge_Base_Metadata> <Tabular_Knowledge_Base_Metadata>{tabular_knowledge_base_metadata}</Tabular_Knowledge_Base_Metadata>"""
 TABULAR_METADATA = """<Tabular_Document_Metadata>{tabular_metadata}</Tabular_Document_Metadata> If no tabular metadata found. Please advise user to reupload their tabular document."""
@@ -469,7 +471,7 @@ If a user asks to summarise a document, ALWAYS call Summarisation_Agent and do n
 Remember that your primary value is in effective coordination and integration - your role is to ensure that the specialised capabilities of each agent are leveraged optimally to achieve the user's goal.
 
 <previous_chat_history>{chat_history}</previous_chat_history>
-
+<Todays_Date>{todays_date}</Todays_Date>
 """
 
 PLANNER_QUESTION_PROMPT = """User question: <Question>{question}</Question>.
@@ -477,6 +479,7 @@ User selected documents: {document_filenames}
 User uploaded documents metadata:<Document_Metadata>{metadata}</Document_Metadata>.
 Contain Knowledge Base: <Contain_Knowledge_Base>{knowledge_base_metadata}</Contain_Knowledge_Base>
 Artifact files: {artifact_files}
+Today's Date: <Todays_Date>{todays_date}</Todays_Date>
 """
 
 PLANNER_FORMAT_PROMPT = """## Output Format
@@ -618,6 +621,18 @@ Guidelines for Tool Usage:
        1-based position in the displayed list — never as a field value.
    3.2 Always retrieve the ID for that item from <previous_tool_results>.
        Never infer, guess, or recall an ID from memory.
+4. Temporal Questions - Date Processing: When the current date is already known, process temporal references directly:
+   4.1 Process:
+     - Use the provided current date
+     - Calculate exact date ranges for temporal references
+     - Always explicitly state the date ranges used in your response
+     - Apply these ranges to search/retrieval tools
+   4.2 Temporal references include: "last month", "this year", "last quarter", "recently", "yesterday", "next week", etc.
+       Example: Current date: 15 Jan 2025 User asks: "What happened last month?"
+     - Calculate: 1 Dec 2024 to 31 Dec 2024
+     - State in response: "Searching for events from 1 December 2024 to 31 December 2024…"
+     - Search using these specific dates
+   4.3 Critical: Always indicate the calculated date ranges in your answer so users understand the exact time period being analysed.
 """
 
 DATAHUB_QUESTION_PROMPT = """ Here is the user question: {question}. Retrieve the relevant information from the database that would answer this question.
@@ -627,4 +642,5 @@ Existing information:
 <previous_chat_history>{chat_history}</previous_chat_history>
 <previous_tool_error>{previous_tool_error}</previous_tool_error>
 <previous_tool_results>{previous_tool_results}</previous_tool_results>
+<Todays_Date>{todays_date}</Todays_Date>
 """

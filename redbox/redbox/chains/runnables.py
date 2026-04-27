@@ -1,6 +1,7 @@
 import logging
 import re
 from typing import Any, Callable, Iterable, Iterator
+from datetime import date
 
 from langchain_core.callbacks.manager import CallbackManagerForLLMRun, dispatch_custom_event
 from langchain_core.language_models import BaseChatModel
@@ -343,6 +344,7 @@ def basic_chat_chain(
         context = {
             "question": state.request.question,
             "chat_history": truncated_history if using_chat_history else "",
+            "todays_date": date.today().isoformat(),
         } | _additional_variables
         if parser:
             if isinstance(parser, StrOutputParser):
@@ -394,10 +396,16 @@ def chain_use_metadata(
         tabular_metadata = get_tabular_metadata_retriever(get_settings()).invoke(state)
         return tabular_metadata
 
+    # `    @chain
+    #     def get_todays_date(state: RedboxState):
+    #         return date.today().isoformat()`
+
     @chain
     def use_result(input):
+        additional_variables = {}
+        # additional_variables["todays_date"] = date.today().isoformat()
         if input.get("metadata") is not None:
-            additional_variables = {"metadata": input["metadata"]}
+            additional_variables["metadata"] = input["metadata"]
         if input.get("knowledge_base_metadata") is not None:
             additional_variables["knowledge_base_metadata"] = input["knowledge_base_metadata"]
         if input.get("tabular_knowledge_base_metadata") is not None:
@@ -420,6 +428,7 @@ def chain_use_metadata(
     return (
         RunnableParallel(
             state=RunnablePassthrough(),
+            # todays_date=get_todays_date,
             metadata=get_metadata,
             knowledge_base_metadata=get_knowledge_base_metadata,
             tabular_knowledge_base_metadata=get_tabular_knowledge_base_metadata,
@@ -428,6 +437,7 @@ def chain_use_metadata(
         if use_knowledge_base
         else RunnableParallel(
             state=RunnablePassthrough(),
+            # todays_date=get_todays_date,
             metadata=get_metadata,
             tabular_metadata=get_tabular_metadata,
         )

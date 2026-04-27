@@ -11,6 +11,7 @@ from io import StringIO
 from random import uniform
 from typing import Any, Iterable
 from uuid import uuid4
+from datetime import date
 
 import pandas as pd
 from botocore.exceptions import EventStreamError
@@ -777,6 +778,7 @@ def create_evaluator():
         _additional_variables = {
             "agents_results": combine_agents_state(state.agents_results),
             "artifact_criteria": state.artifact_criteria,
+            "todays_date": date.today().isoformat(),
         }
         citation_parser, format_instructions = get_structured_response_with_citations_parser()
         evaluator_agent = build_stuff_pattern(

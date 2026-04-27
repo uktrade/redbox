@@ -467,6 +467,7 @@ class RedboxState(BaseModel):
     tasks_evaluator: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
     tabular_schema: str = ""
     artifact_criteria: Annotated[str | None, artifact_criteria_reducer] = None
+    # todays_date: date = Field(default_factory=date.today().isoformat)
 
     @property
     def last_message(self) -> AnyMessage:
