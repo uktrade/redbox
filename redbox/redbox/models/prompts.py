@@ -618,6 +618,22 @@ Guidelines for Tool Usage:
        1-based position in the displayed list — never as a field value.
    3.2 Always retrieve the ID for that item from <previous_tool_results>.
        Never infer, guess, or recall an ID from memory.
+4. Temporal Questions - Always Use Date Tool First:
+   4.1 When to use the date tool: Any question containing temporal references requires using the date tool BEFORE processing the query. These include:
+     - Relative time periods: "last month", "this month", "last week", "this year", "last quarter"
+     - Comparative timeframes: "compared to last year", "versus previous month"
+     - Recent periods: "recently", "lately", "in recent weeks"
+     - Specific recent dates: "yesterday", "last Friday", "past 30 days"
+     - Future references: "next month", "upcoming quarter"
+   4.2 Why this matters: Your training data has a knowledge cutoff date, and you cannot accurately determine "today's" date or calculate relative timeframes without the date tool. Never assume or calculate dates based on your training data.
+   4.3 Process flow:
+     - FIRST: Use the date tool to get the current date
+     - SECOND: Calculate the exact date range based on the temporal reference
+     - THIRD: Use appropriate search/retrieval tools with the specific date parameters
+   4.4 Example: If a user asks "What happened last month?", you must:
+     - Call the date tool to get today's date
+     - Calculate last month's date range (e.g., if today is 15 Jan 2025, last month = 1 Dec 2024 to 31 Dec 2024)
+     - Search using those specific dates, not assumptions
 """
 
 DATAHUB_QUESTION_PROMPT = """ Here is the user question: {question}. Retrieve the relevant information from the database that would answer this question.
