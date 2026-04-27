@@ -637,7 +637,7 @@ Guidelines for Tool Usage:
    4.3 Critical: Always indicate the date ranges in your answer so users understand the exact time period being analysed.
 """
 
-DATAHUB_QUESTION_PROMPT = """ Here is the user question: {question}. Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output>. Retrieve the relevant information from the database that would answer this question.
+DATAHUB_QUESTION_PROMPT = """ Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output>. Retrieve the relevant information from the database that would complete this task.
 Expected output: Raw data retrieved from database. Output the raw data and do not output any explanation.
 Please analyse your previous actions in the chat history before you perform the next tool execution.
 Existing information:
