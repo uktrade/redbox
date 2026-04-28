@@ -2,7 +2,7 @@ import pytest
 from langchain_core.messages import AIMessage
 from pytest_mock import MockerFixture
 
-from redbox.graph.agents.configs import AgentConfig, PromptConfig, PromptVariable, agent_configs
+from redbox.graph.agents.configs import AgentConfig, PromptConfig, PromptVariable, agent_configs, prompt_configs
 from redbox.graph.agents.formats import ArtifactAgent
 from redbox.graph.agents.workers import WorkerAgent
 from redbox.graph.nodes.tools import build_search_wikipedia_tool
@@ -119,3 +119,18 @@ class TestArtifactAgent:
         response = self.agent.post_processing().invoke((fake_state_with_plan, result, task))
         assert response["artifact_criteria"] == "A result"
         assert response["agent_plans"].get_task_status(task.id) == TaskStatus.COMPLETED
+
+
+@pytest.mark.parametrize(
+    "name, prompt_cfg",
+    [
+        (key, value)
+        for key, value in prompt_configs.items()
+        if key not in ["Planner_Agent", "Replanner_Agent", "Summarisation_Agent", "Evaluator_Agent"]
+    ],
+)
+def test_prompt_configs(name, prompt_cfg: PromptConfig):
+    assert "<Task>{task}</Task>" in prompt_cfg.system, f"{name} missing <Task>"
+    assert "<Expected_Output>{expected_output}</Expected_Output>" in prompt_cfg.system, (
+        f"{name} missing <Expected_Output>"
+    )
