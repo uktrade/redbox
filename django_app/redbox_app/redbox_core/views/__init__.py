@@ -49,7 +49,15 @@ from redbox_app.redbox_core.views.team_views import (
     edit_team_member_row_view,
     edit_team_member_view,
 )
-from redbox_app.redbox_core.views.tools_views import ToolsView, tool_info_page_view
+from redbox_app.redbox_core.views.tools_views import (
+    ToolSettingsView,
+    ToolsView,
+    add_tool_user_view,
+    delete_tool_user_row_view,
+    edit_tool_user_row_view,
+    edit_tool_user_view,
+    tool_info_page_view,
+)
 
 __all__ = [
     "ChatsTitleView",
@@ -71,6 +79,7 @@ __all__ = [
     "Signup5",
     "Signup6",
     "Signup7",
+    "ToolSettingsView",
     "ToolsView",
     "UpdateChatFeedback",
     "UpdateDemographicsView",
@@ -79,13 +88,17 @@ __all__ = [
     "accessibility_statement_view",
     "add_team_member_row_view",
     "add_team_member_view",
+    "add_tool_user_view",
     "aws_credentials_api",
     "create_team_view",
     "delete_document",
     "delete_team_member_row_view",
     "delete_team_view",
+    "delete_tool_user_row_view",
     "edit_team_member_row_view",
     "edit_team_member_view",
+    "edit_tool_user_row_view",
+    "edit_tool_user_view",
     "faq_view",
     "file_icon_view",
     "file_ingest_errors_view",

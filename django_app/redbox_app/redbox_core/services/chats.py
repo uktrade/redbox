@@ -32,7 +32,7 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
     if tool and current_chat and tool.settings.deselect_documents_on_load:
         current_chat.clear_selected_files()
 
-    tools = Tool.objects.all()
+    tools = Tool.objects.for_user(request.user)
 
     # Only enable Invest Lens for OfI users
     session = request.session

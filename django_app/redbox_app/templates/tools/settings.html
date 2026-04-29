@@ -1,0 +1,40 @@
+{% set pageTitle = tool.name + " - Settings" %}
+{% set persistentSidepanel = False %}
+
+{% extends "base.html" %}
+
+{% from "macros/govuk-button.html" import govukButton %}
+{% from "macros/icon.html" import ids_icon %}
+
+{% block content %}
+
+<div class="govuk-width-container govuk-!-padding-top-7 govuk-!-padding-bottom-7">
+
+    <h1 class="govuk-heading-l govuk-!-margin-bottom-7">
+        {{ tool.name }}
+    </h1>
+
+    <table class="govuk-table">
+        <input type="hidden" name="tool_slug" value="{{ tool.slug }}">
+        <caption class="govuk-table__caption govuk-table__caption--m">
+            Access control
+            {% include 'tools/tool-user-modal.html' %}
+        </caption>
+        <thead class="govuk-table__head ids-text-s">
+            <tr class="govuk-table__row">
+                <th scope="col" class="govuk-table__header">User</th>
+                <th scope="col" class="govuk-table__header">Aliases</th>
+                <th scope="col" class="govuk-table__header" id="role-header">Role</th>
+                <th scope="col" class="govuk-table__header"></th>
+            </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+            {% for user_tool_membership in user_tool_memberships %}
+                {% include 'tools/tool-user-row.html' %}
+            {% endfor %}
+        </tbody>
+    </table>
+    {{ govukButton(text="Update", prevent_double_click=True) }}
+</div>
+
+{% endblock %}

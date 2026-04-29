@@ -77,6 +77,7 @@ tools_route_prefix = "tools/<slug:slug>/"
 tools_urlpatterns = [
     path("tools/", views.ToolsView.as_view(), name="tools"),
     path(tools_route_prefix, views.tool_info_page_view, name="tool-info"),
+    path(f"{tools_route_prefix}settings/", views.ToolSettingsView.as_view(), name="tool-settings"),
     path(f"{tools_route_prefix}chats/", views.ChatsView.as_view(), name="chats"),
     path(f"{tools_route_prefix}chats/<uuid:chat_id>/", views.ChatsView.as_view(), name="chats"),
     path(f"{tools_route_prefix}documents/upload/", views.upload_document, name="document-upload"),
@@ -84,6 +85,20 @@ tools_urlpatterns = [
         f"{tools_route_prefix}chats/<uuid:chat_id>/citations/<uuid:message_id>/",
         views.CitationsView.as_view(),
         name="citations",
+    ),
+    path(
+        f"{tools_route_prefix}settings/edit-tool-user-row/<user_tool_id>/",
+        views.edit_tool_user_row_view,
+        name="edit-tool-user-row",
+    ),
+    path(
+        f"{tools_route_prefix}settings/delete-tool-user/<user_tool_id>/",
+        views.delete_tool_user_row_view,
+        name="delete-tool-user",
+    ),
+    path(f"{tools_route_prefix}settings/add-tool-user/", views.add_tool_user_view, name="add-tool-user"),
+    path(
+        f"{tools_route_prefix}settings/edit-tool-user/<user_tool_id>/", views.edit_tool_user_view, name="edit-tool-user"
     ),
 ]
 

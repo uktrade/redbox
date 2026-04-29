@@ -1,0 +1,94 @@
+{% from "macros/govuk-button.html" import govukButton %}
+{% from "ids/components/modal.html" import modal %}
+{% from "macros/icon.html" import ids_icon %}
+{% from "macros/select-input.html" import select_input %}
+
+{% set role_choice_options %}
+  {% for value, label in user_tool_role_choices %}
+    <option value="{{ value }}">
+      {{ label }}
+    </option>
+  {% endfor %}
+{% endset %}
+
+{% set access_choice_options %}
+  {% for value, label in user_tool_access_choices %}
+    <option value="{{ value }}">
+      {{ label }}
+    </option>
+  {% endfor %}
+{% endset %}
+
+{% call modal() %}
+<button class="ids-icon-button modal-open">{{ ids_icon(icon_name="edit.html", icon_classes="link") }}</button>
+<dialog>
+    <div>
+        <h2 class="govuk-heading-m">Add Users</h2>
+
+        <form method='post' action="{{ url('add-tool-user', tool.slug) }}?next={{ url('tool-settings', tool.slug) }}">
+            <div class="govuk-form-group">
+                {{ select_input("role", id="tool-user-role", label="Role", options=role_choice_options,
+                classes="row-value") }}
+            </div>
+            <div class="govuk-form-group">
+                {{ select_input("access", id="tool-user-access", label="Access", options=access_choice_options,
+                classes="row-value") }}
+            </div>
+
+            <label class="govuk-label govuk-!-font-weight-bold ids-text-xs" for="tool-users">Users</label>
+            <ids-selectable-list id="tool-users" class="govuk-body ids-text-s" data-highlight>
+                <!-- Search -->
+                <div class="user-search">
+                    <input class="govuk-input" type="text" placeholder="Start typing to search" data-ids-search>
+                </div>
+
+                <!-- Select all -->
+                <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+                    <div class="govuk-checkboxes__item">
+                        <input class="govuk-checkboxes__input" type="checkbox" id="select-all-users"
+                            data-ids-select-all>
+                        <label class="govuk-checkboxes__label" for="select-all-users">
+                            Select all
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Scroll container -->
+                <div class="ids-scrollable">
+                    <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+
+                        {% for user in users %}
+                        <div class="govuk-checkboxes__item" data-ids-item data-id="{{ user.pk }}" data-aliases="">
+                            <input class="govuk-checkboxes__input" id="user-{{ user.pk }}" name="user_ids"
+                                type="checkbox" value="{{ user.pk }}">
+
+                            <label class="govuk-checkboxes__label" for="user-{{ user.pk }}" title="{{ user.email }}">
+                                <span data-ids-label>
+                                    {% if user.name %}
+                                    {{ user.name }}
+                                    {% else %}
+                                    {{ user.email }}
+                                    {% endif %}
+                                </span>
+                            </label>
+                        </div>
+                        {% endfor %}
+
+                    </div>
+                </div>
+            </ids-selectable-list>
+
+            <div>
+                {{ govukButton(text="Save", prevent_double_click=True, classes="govuk-!-margin-right-4
+                govuk-!-margin-bottom-0 govuk-!-margin-top-4") }}
+                <button
+                    class="govuk-button govuk-!-margin-right-4 govuk-!-margin-bottom-0 govuk-!-margin-top-4 govuk-button--secondary modal-close"
+                    data-module="govuk-button" type="button">
+                    Cancel
+                    <span class="govuk-visually-hidden">Cancel</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</dialog>
+{% endcall %}
