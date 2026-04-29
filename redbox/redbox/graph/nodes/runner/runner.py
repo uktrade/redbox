@@ -56,7 +56,7 @@ class ToolRunner:
             except tool_exceptions.ToolValidationError as e:
                 log.warning(f"{self.log_stub} Tool '{tool_name}' validation error: {e}")
 
-            except tool_exceptions.BaseToolRunnerException as e:
+            except Exception as e:
                 log.warning(f"{self.log_stub} Tool '{tool_name}' error: {e}")
 
         return futures
@@ -85,7 +85,7 @@ class ToolRunner:
                 log.warning(f"{self.log_stub} Tool '{future_tool_name}' execution error: {e}")
                 failed_tools.append(future_tool_name)
 
-            except tool_exceptions.BaseToolRunnerException as e:
+            except Exception as e:
                 log.warning(f"{self.log_stub} Tool '{future_tool_name}' error: {e}")
                 failed_tools.append(future_tool_name)
 
