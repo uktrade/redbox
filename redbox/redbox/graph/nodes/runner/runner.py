@@ -1,7 +1,8 @@
 import logging
 from uuid import uuid4
-from typing import Optional
-from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed, Future
+from typing import Optional, List
+from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, Future
 
 from langchain_core.messages import AIMessage, ToolCall
 from langchain.tools import StructuredTool
@@ -12,6 +13,22 @@ from redbox.graph.nodes.runner import exceptions as tool_exceptions
 from redbox.graph.nodes.runner.wrap_async import wrap_async_tool
 
 log = logging.getLogger(__name__)
+
+
+@dataclass
+class ToolExecutionResult:
+    """Result of parallel tool execution."""
+
+    responses: List[AIMessage]
+    failed_tools: List[str]
+
+    @property
+    def is_success(self) -> bool:
+        return len(self.responses) > 0
+
+    @property
+    def is_complete_failure(self) -> bool:
+        return len(self.responses) == 0
 
 
 class ToolRunner:
@@ -32,10 +49,20 @@ class ToolRunner:
         self.parallel_timeout = parallel_timeout
         self.log_stub = f"[run_tools_parallel run_id='{str(uuid4())[:8]}']"
 
-    def run(self, tool_calls: list[ToolCall]) -> list[AIMessage] | None:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.executor.shutdown(wait=True)
+        return False
+
+    def run(self, tool_calls: list[ToolCall]) -> ToolExecutionResult:
         """Submit all tool calls, collect results, and return aggregated responses or None on total failure."""
-        futures = self._submit_all(tool_calls=tool_calls)
-        return self._collect(futures=futures)
+        try:
+            futures = self._submit_all(tool_calls=tool_calls)
+            return self._collect(futures=futures)
+        finally:
+            self.executor.shutdown(wait=True)
 
     def _submit_all(self, tool_calls: list[ToolCall]) -> dict[Future, dict]:
         """Submit every tool call to the executor, skipping and logging any that fail to launch."""
@@ -56,17 +83,21 @@ class ToolRunner:
             except tool_exceptions.ToolValidationError as e:
                 log.warning(f"{self.log_stub} Tool '{tool_name}' validation error: {e}")
 
+            except tool_exceptions.ToolExecutionError as e:
+                log.warning(f"{self.log_stub} Tool '{tool_name}' execution error: {e}")
+
             except Exception as e:
-                log.warning(f"{self.log_stub} Tool '{tool_name}' error: {e}")
+                # Log unexpected exceptions with full traceback
+                log.error(f"{self.log_stub} Unexpected error submitting tool '{tool_name}': {e}", exc_info=True)
 
         return futures
 
-    def _collect(self, futures: dict[Future, dict]) -> list[AIMessage] | None:
+    def _collect(self, futures: dict[Future, dict]) -> ToolExecutionResult:
         """Wait for all futures, parse results, and return responses or None if everything failed."""
-        responses = []
+        responses: list[AIMessage] = []
         failed_tools: list[str] = []
 
-        for future in as_completed(futures.keys(), timeout=self.parallel_timeout):
+        for future in futures.keys():
             future_tool_name = futures[future]["name"]
             try:
                 response = self.parse(future=future, metadata=futures[future])
@@ -90,20 +121,20 @@ class ToolRunner:
                 failed_tools.append(future_tool_name)
 
         if failed_tools:
-            log.warning(f"{self.log_stub} {len(failed_tools)} tool(s) failed: {', '.join(failed_tools)}")
+            log.error(f"{self.log_stub} {len(failed_tools)} tool(s) failed: {', '.join(failed_tools)}")
 
         if not responses:
-            log.warning(
+            log.error(
                 f"{self.log_stub} Every tool execution has failed or timed out. "
                 f"Failed tools: {', '.join(failed_tools) or 'unknown'}."
             )
-            return None
+        else:
+            log.warning(
+                f"{self.log_stub} Completed. Successful: {len(responses)}, "
+                f"Failed: {len(failed_tools)}. Responses: {responses}"
+            )
 
-        log.warning(
-            f"{self.log_stub} Completed. Successful: {len(responses)}, "
-            f"Failed: {len(failed_tools)}. Responses: {responses}"
-        )
-        return responses
+        return ToolExecutionResult(responses=responses, failed_tools=failed_tools)
 
     def submit(self, tool_call: ToolCall) -> tuple[Future, dict] | None:
         """Find, validate, and submit a tool call to the executor. Returns (future, metadata) or None."""
@@ -147,7 +178,7 @@ class ToolRunner:
         is_intermediate_step = metadata["intermediate_step"]
 
         try:
-            response = future.result()
+            response = future.result(timeout=self.parallel_timeout)
         except TimeoutError as e:
             raise tool_exceptions.ToolTimeoutError(
                 f"Tool '{future_tool_name}' timed out after {self.parallel_timeout:.1f}s"
@@ -186,7 +217,18 @@ class ToolRunner:
                 )
 
         raw_res = result[0] if isinstance(result, tuple) else result
-        if not raw_res or not isinstance(raw_res, str) or not raw_res.strip():
-            raise tool_exceptions.ToolValidationError(f"empty or whitespace-only response body: {repr(raw_res)}")
+
+        if raw_res is None:
+            raise tool_exceptions.ToolValidationError(f"Tool '{future_tool_name}' returned None")
+
+        if not isinstance(raw_res, str):
+            raise tool_exceptions.ToolValidationError(
+                f"Tool '{future_tool_name}' returned non-string type: {type(raw_res).__name__}"
+            )
+
+        if not raw_res.strip:
+            raise tool_exceptions.ToolValidationError(
+                f"Tool '{future_tool_name}' returned empty or whitespace-only response"
+            )
 
         return AIMessage(result)

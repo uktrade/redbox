@@ -88,7 +88,11 @@ def run_tools_parallel(
             parallel_timeout=parallel_timeout,
         )
 
-        return runner.run(tool_calls=ai_msg.tool_calls)
+        try:
+            result = runner.run(tool_calls=ai_msg.tool_calls)
+            return result.responses
+        finally:
+            runner.executor.shutdown(wait=True)
 
     except Exception as e:
         log.warning(

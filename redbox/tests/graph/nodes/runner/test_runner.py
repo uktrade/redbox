@@ -1,5 +1,7 @@
 import pytest
 import logging
+import time
+from asyncio import CancelledError
 from unittest.mock import Mock, patch
 from concurrent.futures import Future, TimeoutError as FuturesTimeoutError
 from langchain_core.messages import AIMessage
@@ -344,3 +346,65 @@ class TestToolRunner:
 
         assert "This is what I got from tool" in caplog.text
         assert "response not None" in caplog.text
+
+    def test_executor_cleanup_on_success(self, tool_runner):
+        """Test that executor is properly shut down after successful execution."""
+        tool_calls = [{"name": "test_tool", "args": {}}]
+
+        with patch.object(tool_runner.executor, "shutdown") as mock_shutdown:
+            tool_runner.run(tool_calls)
+            mock_shutdown.assert_called_once_with(wait=True)
+
+    def test_executor_cleanup_on_exception(self, tool_runner):
+        """Test that executor is shut down even when exceptions occur."""
+        tool_calls = [{"name": "test_tool", "args": {}}]
+
+        with patch.object(tool_runner, "_submit_all", side_effect=Exception("Test error")):
+            with patch.object(tool_runner.executor, "shutdown") as mock_shutdown:
+                with pytest.raises(Exception):
+                    tool_runner.run(tool_calls)
+                mock_shutdown.assert_called_once_with(wait=True)
+
+    def test_true_parallel_execution(self, mock_state):
+        """Test that tools actually execute in parallel."""
+
+        def slow_tool(args):
+            time.sleep(0.1)
+            return "result"
+
+        tool = Mock(spec=StructuredTool)
+        tool.name = "slow_tool"
+        tool.func = slow_tool
+        tool.coroutine = None
+        tool.invoke = Mock(side_effect=slow_tool)
+
+        runner = ToolRunner(tools=[tool], state=mock_state, max_workers=3, is_loop=False, parallel_timeout=5.0)
+
+        tool_calls = [
+            {"name": "slow_tool", "args": {}},
+            {"name": "slow_tool", "args": {}},
+            {"name": "slow_tool", "args": {}},
+        ]
+
+        start = time.time()
+        result = runner.run(tool_calls)
+        duration = time.time() - start
+
+        # Should take ~0.1s with parallelism, not 0.3s
+        assert duration < 0.2
+        assert len(result.responses) == 3
+
+    def test_submit_with_none_args(self, tool_runner):
+        """Test handling of tool call with None args."""
+        tool_call = {"name": "test_tool", "args": None}
+        with pytest.raises(tool_exceptions.ToolValidationError):
+            tool_runner.submit(tool_call)
+
+    def test_collect_with_cancelled_future(self, tool_runner):
+        """Test handling of cancelled futures."""
+        future = Mock(spec=Future)
+        future.result.side_effect = CancelledError()
+        metadata = {"name": "test_tool", "intermediate_step": "False"}
+
+        with pytest.raises(tool_exceptions.ToolExecutionError):
+            tool_runner.parse(future, metadata)
