@@ -686,7 +686,7 @@ class TestWrapAsyncTool:
         # is_intermediate_step should be preserved
         tool.ainvoke.assert_called_once_with({"company_name": "BMW", "is_intermediate_step": True})
 
-    @patch("redbox.graph.nodes.sends.asyncio")
+    @patch("redbox.graph.nodes.runner.wrap_async.asyncio")
     def test_asyncio_run_failure(self, mock_asyncio, fake_mcp_tool):
         """Test that wrap_async_tool re-raises when asyncio.run itself fails."""
         tool = fake_mcp_tool("dummy_tool", return_value=None)
