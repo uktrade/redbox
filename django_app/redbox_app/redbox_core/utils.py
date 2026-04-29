@@ -108,6 +108,11 @@ def user_has_ofi_email(token: str) -> bool:
         return False
 
     data = resp.json()
-    related_emails = data.get("related_emails", [])
 
-    return any(email.endswith("@officeforinvestment.gov.uk") for email in related_emails)
+    # all emails
+    related_emails = data.get("related_emails", [])
+    main_email = data.get("email", [])
+    contact_email = data.get("contact_email", [])
+    all_emails = [*related_emails, main_email, contact_email]
+
+    return any(email.endswith("@officeforinvestment.gov.uk") for email in all_emails)
