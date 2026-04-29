@@ -1,21 +1,11 @@
-import json
 from pathlib import Path
+
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch, call, ANY
-
+from unittest.mock import MagicMock, patch
 import pytest
-from _pytest.monkeypatch import MonkeyPatch
-from opensearchpy import OpenSearch
-from opensearchpy.helpers import scan
-from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
-from langchain_community.vectorstores import OpenSearchVectorSearch
-from requests.exceptions import RequestException
 
-from redbox.chains.ingest import document_loader, ingest_from_loader
-from redbox.loader import ingester
-from redbox.loader.ingester import ingest_file
-from redbox.loader.loaders import MetadataLoader, UnstructuredChunkLoader, parse_tabular_schema
+from redbox.loader.loaders import MetadataLoader, parse_tabular_schema
 from redbox.models.chain import GeneratedMetadata
 
 
@@ -25,6 +15,7 @@ from redbox.loader.loaders import (
     read_csv_text,
     read_excel_file,
     _pdf_is_image_heavy,
+    TextractChunkLoader,
 )
 from redbox.models.file import ChunkResolution
 from redbox.models.settings import Settings
@@ -89,11 +80,6 @@ def test_extract_metadata_missing_key(
     mock_llm_response.status_code = 200
     mock_llm_response.return_value = GenericFakeChatModel(messages=iter(['{"missing_key":""}']))
 
-    requests_mock.post(
-        f"http://{env.unstructured_host}:8000/general/v0/general",
-        json=[{"text": "hello", "metadata": {}}],
-    )
-
     """
     LLM replies but without one of the keys
     """
@@ -123,11 +109,6 @@ def test_extract_metadata_extra_key(
         messages=iter(['{"extra_key": "", "name": "foo", "description": "test", "keywords": ["abc"]}'])
     )
 
-    requests_mock.post(
-        f"http://{env.unstructured_host}:8000/general/v0/general",
-        json=[{"text": "hello", "metadata": {"filename": "something"}}],
-    )
-
     """
     LLM replies with an extra key
     """
@@ -142,283 +123,6 @@ def test_extract_metadata_extra_key(
     assert metadata.name == "foo"
     assert metadata.description == "test"
     assert metadata.keywords == ["abc"]
-
-
-@patch("redbox.loader.loaders.get_chat_llm")
-@patch("redbox.loader.loaders.requests.post")
-def test_document_loader(
-    mock_post: MagicMock,
-    mock_llm: MagicMock,
-    s3_client: S3Client,
-    env: Settings,
-):
-    """
-    Given that I have written a text File to s3
-    When I call document_loader
-    I Expect to see this file chunked and embedded if appropriate
-    """
-    # Mock call to Unstructured
-    mock_response = mock_post.return_value
-    mock_response.status_code = 200
-    mock_response.json.return_value = [
-        {
-            "type": "CompositeElement",
-            "element_id": "1c493e1166a6e59ebe9e054c9c6c03db",
-            "text": "Routing enables us to create bespoke responses according to user intent. Examples include:\n\n* RAG\n* Summarization\n* Plain chat",
-            "metadata": {
-                "languages": ["eng"],
-                "orig_elements": "eJwVjsFOwzAQRH9l5SMiCEVtSXrjxI0D4lZVaGNPgtV4HdlrVKj679iXXe3szOidbgYrAkS/vDNHMnY89NPezd2Be9ft+mHfjfM4dOwwvDg4O++ezSOZAGXHyjVzMyvLUnhBrtfJQBZzvleP4qqtM8WiXhaC8LQiU8mkkWwCK2hC3uIFlNqWXN9sbUyuBaqrZCTyopXwiXDlsLUGL3YtDkd6oI/XtzpzCYET+z9WH6UK28peyH6zNlr93dBI3jml6vjBZ0O7n/8BhxNVfA==",
-                "filename": "example.html",
-                "filetype": "text/html",
-            },
-        }
-    ]
-
-    mock_llm_response = mock_llm.return_value
-    mock_llm_response.status_code = 200
-    mock_llm_response.return_value = GenericFakeChatModel(messages=iter([json.dumps(fake_llm_response())]))
-
-    # Upload file
-    file = file_to_s3("html/example.html", s3_client, env)
-
-    metadata_loader = MetadataLoader(env=env, s3_client=s3_client, file_name=file)
-    metadata = metadata_loader.extract_metadata()
-
-    loader = UnstructuredChunkLoader(
-        chunk_resolution=ChunkResolution.normal,
-        env=env,
-        min_chunk_size=env.worker_ingest_min_chunk_size,
-        max_chunk_size=env.worker_ingest_max_chunk_size,
-        metadata=metadata,
-    )
-
-    # Call loader
-    loader = document_loader(loader, s3_client, env)
-    chunks = list(loader.invoke(file))
-
-    assert len(chunks) > 0
-
-    # Verify that metadata has been attached to object
-    for chuck in chunks:
-        llm_response = fake_llm_response()
-        assert chuck.metadata["name"] == llm_response["name"]
-        assert chuck.metadata["description"] == llm_response["description"]
-        assert chuck.metadata["keywords"] == llm_response["keywords"]
-
-
-@patch("redbox.loader.loaders.get_chat_llm")
-@patch("redbox.loader.loaders.requests.post")
-@pytest.mark.parametrize(
-    "resolution, has_embeddings",
-    [
-        (ChunkResolution.largest, False),
-        (ChunkResolution.normal, True),
-    ],
-)
-def test_ingest_from_loader(
-    mock_post: MagicMock,
-    mock_llm: MagicMock,
-    resolution: ChunkResolution,
-    has_embeddings: bool,
-    monkeypatch: MonkeyPatch,
-    es_client: OpenSearch,
-    es_vector_store: OpenSearchVectorSearch,
-    es_index: str,
-    s3_client: S3Client,
-    env: Settings,
-):
-    """
-    Given that I have written a text File to s3
-    When I call ingest_from_loader
-    I Expect to see this file chunked and embedded if appropriate
-    """
-
-    # Mock call to Unstructured
-    mock_response = mock_post.return_value
-    mock_response.status_code = 200
-    mock_response.json.return_value = [
-        {
-            "type": "CompositeElement",
-            "element_id": "1c493e1166a6e59ebe9e054c9c6c03db",
-            "text": "Routing enables us to create bespoke responses according to user intent. Examples include:\n\n* RAG\n* Summarization\n* Plain chat",
-            "metadata": {
-                "languages": ["eng"],
-                "orig_elements": "eJwVjsFOwzAQRH9l5SMiCEVtSXrjxI0D4lZVaGNPgtV4HdlrVKj679iXXe3szOidbgYrAkS/vDNHMnY89NPezd2Be9ft+mHfjfM4dOwwvDg4O++ezSOZAGXHyjVzMyvLUnhBrtfJQBZzvleP4qqtM8WiXhaC8LQiU8mkkWwCK2hC3uIFlNqWXN9sbUyuBaqrZCTyopXwiXDlsLUGL3YtDkd6oI/XtzpzCYET+z9WH6UK28peyH6zNlr93dBI3jml6vjBZ0O7n/8BhxNVfA==",
-                "filename": "example.html",
-                "filetype": "text/html",
-            },
-        }
-    ]
-
-    mock_llm_response = mock_llm.return_value
-    mock_llm_response.status_code = 200
-    mock_llm_response.return_value = GenericFakeChatModel(messages=iter([json.dumps(fake_llm_response())]))
-
-    # Upload file and call
-    file_name = file_to_s3(filename="html/example.html", s3_client=s3_client, env=env)
-
-    # Extract metadata
-    metadata_loader = MetadataLoader(env=env, s3_client=s3_client, file_name=file_name)
-    metadata = metadata_loader.extract_metadata()
-
-    loader = UnstructuredChunkLoader(
-        chunk_resolution=resolution,
-        env=env,
-        min_chunk_size=env.worker_ingest_min_chunk_size,
-        max_chunk_size=env.worker_ingest_max_chunk_size,
-        metadata=metadata,
-    )
-
-    mapping = {"properties": {"embedding": {"type": "knn_vector", "dimension": 1024}}}
-
-    # Check if the index already exists and delete it if it does
-    if es_client.indices.exists(index="my_index"):
-        es_client.indices.delete(index="my_index")
-
-    es_client.indices.create(index="my_index", body={"mappings": mapping})
-
-    # Mock embeddings
-    monkeypatch.setattr(ingester, "get_embeddings", lambda _: fake_embedding)
-
-    ingest_chain = ingest_from_loader(loader=loader, s3_client=s3_client, vectorstore=es_vector_store, env=env)
-
-    _ = ingest_chain.invoke(file_name)
-
-    # Test it's written to Elastic
-    file_query = make_file_query(file_name=file_name, resolution=resolution)
-
-    chunks = list(scan(client=es_client, index=f"{es_index}-current", query=file_query))
-    assert len(chunks) > 0
-
-    # Debugging: Print chunks to inspect the output
-    for chunk in chunks:
-        print(chunk)
-
-    def get_metadata(chunk: dict) -> dict:
-        return chunk["_source"]["metadata"]
-
-    # Verify that metadata has been attached to object
-    if has_embeddings:
-        for chunk in chunks:
-            metadata = get_metadata(chunk)
-            assert metadata["name"] == fake_llm_response()["name"]
-            assert metadata["description"] == fake_llm_response()["description"]
-            assert metadata["keywords"] == fake_llm_response()["keywords"]
-
-    if has_embeddings:
-        embeddings = chunks[0]["_source"].get("vector_field")
-        print("Embeddings:", embeddings)  # Debugging: Print embeddings to inspect the output
-        assert embeddings is not None
-        assert len(embeddings) > 0
-
-    # Teardown
-    es_client.delete_by_query(index=es_index, body=file_query)
-
-
-@patch("redbox.loader.loaders.get_chat_llm")
-@patch("redbox.loader.loaders.requests.post")
-@pytest.mark.parametrize(
-    ("filename", "is_complete", "mock_json"),
-    [
-        (
-            "html/example.html",
-            True,
-            [
-                {
-                    "type": "CompositeElement",
-                    "element_id": "1c493e1166a6e59ebe9e054c9c6c03db",
-                    "text": "Routing enables us to create bespoke responses according to user intent. Examples include:\n\n* RAG\n* Summarization\n* Plain chat",
-                    "metadata": {
-                        "languages": ["eng"],
-                        "orig_elements": "eJwVjsFOwzAQRH9l5SMiCEVtSXrjxI0D4lZVaGNPgtV4HdlrVKj679iXXe3szOidbgYrAkS/vDNHMnY89NPezd2Be9ft+mHfjfM4dOwwvDg4O++ezSOZAGXHyjVzMyvLUnhBrtfJQBZzvleP4qqtM8WiXhaC8LQiU8mkkWwCK2hC3uIFlNqWXN9sbUyuBaqrZCTyopXwiXDlsLUGL3YtDkd6oI/XtzpzCYET+z9WH6UK28peyH6zNlr93dBI3jml6vjBZ0O7n/8BhxNVfA==",
-                        "filename": "example.html",
-                        "filetype": "text/html",
-                    },
-                }
-            ],
-        ),
-        ("html/corrupt.html", False, None),
-    ],
-)
-def test_ingest_file(
-    mock_post: MagicMock,
-    mock_llm: MagicMock,
-    es_client: OpenSearch,
-    s3_client: S3Client,
-    monkeypatch: MonkeyPatch,
-    env: Settings,
-    es_index: str,
-    filename: str,
-    is_complete: bool,
-    mock_json: list | None,
-):
-    """
-    Given that I have written a text File to s3
-    When I call ingest_file
-    I Expect to see this file to be:
-    1. chunked
-    2. written to OpenSearch
-    """
-    # Mock call to Unstructured
-    mock_response = mock_post.return_value
-    mock_response.status_code = 200
-    mock_response.json.return_value = mock_json
-
-    # Mock embeddings
-    monkeypatch.setattr(ingester, "get_embeddings", lambda _: FakeEmbeddings(size=1024))
-
-    # Upload file and call
-    filename = file_to_s3(filename=filename, s3_client=s3_client, env=env)
-
-    # Mock llm
-    mock_llm_response = mock_llm.return_value
-    mock_llm_response.status_code = 200
-    mock_llm_response.return_value = GenericFakeChatModel(messages=iter([json.dumps(fake_llm_response())]))
-
-    try:
-        res = ingest_file(filename)
-    except Exception as e:
-        print(f"Exception occurred: {e}")
-        raise
-
-    if not is_complete:
-        assert isinstance(res, str)
-    else:
-        assert res is None
-
-        # Test it's written to Elastic
-        file_query = make_file_query(file_name=filename)
-
-        try:
-            chunks = list(scan(client=es_client, index=f"{es_index}-current", query=file_query, _source=True))
-        except Exception as e:
-            print(f"Exception during scanning: {e}")
-            raise
-
-        assert len(chunks) > 0
-
-        def get_metadata(chunk: dict) -> dict:
-            return chunk["_source"]["metadata"]
-
-        # Verify that metadata has been attached to document.
-        for chunk in chunks:
-            metadata = get_metadata(chunk)
-            llm_response = fake_llm_response()
-            assert metadata["name"] == llm_response["name"]
-            assert metadata["description"] == llm_response["description"]
-            assert metadata["keywords"] == llm_response["keywords"]
-
-        def get_chunk_resolution(chunk: dict) -> str:
-            return chunk["_source"]["metadata"]["chunk_resolution"]
-
-        normal_resolution = [chunk for chunk in chunks if get_chunk_resolution(chunk) == "normal"]
-        largest_resolution = [chunk for chunk in chunks if get_chunk_resolution(chunk) == "largest"]
-
-        assert len(normal_resolution) > 0
-        assert len(largest_resolution) > 0
-
-        # Teardown
-        es_client.delete_by_query(index=es_index, body=file_query)
 
 
 def test_is_large_pdf_small_file():
@@ -712,7 +416,7 @@ def test_read_csv_text_pandas_error():
 
     with patch("pandas.read_csv", side_effect=Exception("CSV parsing error")):
         result = read_csv_text(file_bytes)
-        assert result is None
+        assert result == [{"metadata": {}, "text": "invalid csv content"}]
 
 
 def test_read_excel_file_multiple_sheets():
@@ -790,276 +494,430 @@ def test_read_excel_file_pandas_error():
         file_bytes = BytesIO(b"mock excel content")
         result = read_excel_file(file_bytes)
 
-        assert result is None
+        assert result == [{"metadata": {}, "text": "mock excel content"}]
 
 
-def test_unstructured_chunk_loader_large_pdf_path(mock_env, mock_metadata):
-    file_name = "large_test.pdf"
-    file_bytes = BytesIO(b"mock pdf content")
-    mock_elements_chunk1 = [{"text": "chunk1"}]
-    mock_elements_chunk2 = [{"text": "chunk2"}]
-    mock_pdf_chunks = [BytesIO(b"chunk1"), BytesIO(b"chunk2")]
+class TestTextractChunkLoaderInit:
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_init_default_parameters(self, mock_boto_client: MagicMock):
 
-    with (
-        patch("redbox.loader.loaders.is_large_pdf", return_value=(True, 200)),
-        patch("redbox.loader.loaders.split_pdf", return_value=mock_pdf_chunks),
-        patch("redbox.loader.loaders.UnstructuredChunkLoader._post_files_with_fallback") as mock_post,
-        patch("redbox.loader.loaders.logger") as mock_logger,
-    ):
-        mock_post.side_effect = [mock_elements_chunk1, mock_elements_chunk2]
+        loader = TextractChunkLoader(bucket="test-bucket")
 
-        loader = UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
-            env=mock_env,
-            min_chunk_size=100,
-            max_chunk_size=1000,
-            metadata=mock_metadata,
-            pages_per_pdf_chunk=75,
-        )
-        elements = list(loader._get_chunks(file_name, file_bytes))
+        assert loader.bucket == "test-bucket"
+        assert loader.min_chunk_size == 500
+        assert loader.max_chunk_size == 2000
+        assert loader.overlap_chars == 200
+        assert loader.metadata.name == ""
+        assert loader.metadata.description == ""
+        assert loader.metadata.keywords == []
+        mock_boto_client.assert_called()
 
-        assert len(elements) == 2
-        assert elements[0]["text"] == "chunk1"
-        assert elements[1]["text"] == "chunk2"
-        mock_logger.info.assert_called_once_with(
-            "Large PDF with (%d pages) - splitting into chunks with %d pages", 200, 75
-        )
-        mock_post.assert_has_calls(
-            [
-                call(
-                    url=ANY,
-                    files={"files": (file_name, mock_pdf_chunks[0])},
-                    file_name=file_name,
-                    file_bytes=mock_pdf_chunks[0],
-                ),
-                call(
-                    url=ANY,
-                    files={"files": (file_name, mock_pdf_chunks[1])},
-                    file_name=file_name,
-                    file_bytes=mock_pdf_chunks[1],
-                ),
-            ]
-        )
-        mock_logger.debug.assert_called_once_with("Unstructured returned %d elements", 2)
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_init_custom_parameters(self, mock_boto_client: MagicMock):
 
+        custom_metadata = MagicMock(name="test.pdf", description="Test file", keywords=["test"])
 
-def test_unstructured_chunk_loader_large_pdf_chunk_failure(mock_env, mock_metadata):
-    file_name = "large_test.pdf"
-    file_bytes = BytesIO(b"mock pdf content")
-    mock_pdf_chunks = [BytesIO(b"chunk1"), BytesIO(b"chunk2")]
-
-    with (
-        patch("redbox.loader.loaders.is_large_pdf", return_value=(True, 200)),
-        patch("redbox.loader.loaders.split_pdf", return_value=mock_pdf_chunks),
-        patch(
-            "redbox.loader.loaders.UnstructuredChunkLoader._post_files_with_fallback",
-            side_effect=[{"text": "chunk1"}, Exception("chunk fail")],
-        ),
-        patch("redbox.loader.loaders.logger") as mock_logger,
-    ):
-        loader = UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
-            env=mock_env,
-            min_chunk_size=100,
-            max_chunk_size=1000,
-            metadata=mock_metadata,
-            pages_per_pdf_chunk=75,
+        loader = TextractChunkLoader(
+            bucket="custom-bucket",
+            min_chunk_size=300,
+            max_chunk_size=3000,
+            overlap_chars=100,
+            region="eu-west-2",
+            metadata=custom_metadata,
         )
 
-        with pytest.raises(ValueError, match="Chunk 2 failed: chunk fail"):
-            list(loader._get_chunks(file_name, file_bytes))
+        assert loader.bucket == "custom-bucket"
+        assert loader.min_chunk_size == 300
+        assert loader.max_chunk_size == 3000
+        assert loader.overlap_chars == 100
+        assert loader.metadata == custom_metadata
 
-        mock_logger.exception.assert_called_once_with("Chunk 2 failed: chunk fail")
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_init_creates_boto_clients(self, mock_boto_client: MagicMock):
 
+        TextractChunkLoader(bucket="test-bucket")
 
-def test_unstructured_chunk_loader_tabular_path(mock_env, mock_metadata):
-    file_name = "test.csv"
-    file_bytes = BytesIO(b"mock csv")
-    mock_elements = [{"text": "tabular chunk"}]
-
-    with (
-        patch("redbox.loader.loaders.load_tabular_file", return_value=mock_elements),
-        patch("redbox.loader.loaders.logger") as mock_logger,
-    ):
-        loader = UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.tabular,
-            env=mock_env,
-            min_chunk_size=100,
-            max_chunk_size=1000,
-            metadata=mock_metadata,
-        )
-        elements = list(loader._get_chunks(file_name, file_bytes))
-
-        assert elements == mock_elements
-        mock_logger.debug.assert_called_once_with("Unstructured returned %d elements", 1)
+        assert mock_boto_client.call_count >= 2
 
 
-def test_unstructured_chunk_loader_empty_elements_raise(mock_env, mock_metadata):
-    file_name = "test.txt"
-    file_bytes = BytesIO(b"mock")
+class TestWaitForJob:
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("time.sleep")
+    def test_wait_for_job_success(self, mock_sleep: MagicMock, mock_boto_client: MagicMock):
 
-    with patch("redbox.loader.loaders.UnstructuredChunkLoader._post_files_with_fallback", return_value=[]):
-        loader = UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
-            env=mock_env,
-            min_chunk_size=100,
-            max_chunk_size=1000,
-            metadata=mock_metadata,
-        )
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.return_value = {"JobStatus": "SUCCEEDED"}
+        mock_boto_client.return_value = mock_textract
 
-        with pytest.raises(ValueError, match="Unstructured failed to extract text for this file"):
-            list(loader._get_chunks(file_name, file_bytes))
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
 
+        result = loader._wait_for_job("test-job-id")
 
-def test_unstructured_chunk_loader_post_seek_warning(mock_env, mock_metadata):
-    file_name = "test.pdf"
-    file_bytes = MagicMock(spec=BytesIO)
-    file_bytes.seek.side_effect = Exception("seek fail")
+        assert result == "SUCCEEDED"
+        mock_textract.get_document_text_detection.assert_called_once_with(JobId="test-job-id")
 
-    with (
-        patch("redbox.loader.loaders.UnstructuredChunkLoader._post_files_with_fallback") as mock_post,
-        patch("redbox.loader.loaders.logger") as mock_logger,
-        patch("redbox.loader.loaders.is_large_pdf", return_value=(False, 0)),
-        patch("redbox.loader.loaders._pdf_is_image_heavy", return_value=False),
-    ):
-        mock_post.return_value = [{"text": "ok"}]
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("time.sleep")
+    def test_wait_for_job_failed(self, mock_sleep: MagicMock, mock_boto_client: MagicMock):
 
-        loader = UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
-            env=mock_env,
-            min_chunk_size=100,
-            max_chunk_size=1000,
-            metadata=mock_metadata,
-        )
-        elements = list(loader._get_chunks(file_name, file_bytes))
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.return_value = {"JobStatus": "FAILED"}
+        mock_boto_client.return_value = mock_textract
 
-        assert len(elements) == 1
-        mock_logger.warning.assert_called_once_with("Unable to seek file %s before upload - %s", file_name, "seek fail")
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
 
+        result = loader._wait_for_job("test-job-id")
 
-def test_unstructured_chunk_loader_pdf_image_heavy_exception(mock_env, mock_metadata):
-    file_name = "test.pdf"
-    file_bytes = BytesIO(b"mock")
+        assert result == "FAILED"
 
-    with (
-        patch("redbox.loader.loaders._pdf_is_image_heavy", side_effect=Exception("image detect fail")),
-        patch("redbox.loader.loaders.UnstructuredChunkLoader._post_files_with_fallback", return_value=[{"text": "ok"}]),
-        patch("redbox.loader.loaders.is_large_pdf", return_value=(False, 0)),
-    ):
-        loader = UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
-            env=mock_env,
-            min_chunk_size=100,
-            max_chunk_size=1000,
-            metadata=mock_metadata,
-        )
-        elements = list(loader._get_chunks(file_name, file_bytes))
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("time.sleep")
+    def test_wait_for_job_polling(self, mock_sleep: MagicMock, mock_boto_client: MagicMock):
 
-        assert len(elements) == 1
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.side_effect = [
+            {"JobStatus": "IN_PROGRESS"},
+            {"JobStatus": "IN_PROGRESS"},
+            {"JobStatus": "SUCCEEDED"},
+        ]
+        mock_boto_client.return_value = mock_textract
 
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
 
-def test_unstructured_chunk_loader_post_json_parse_exception(mock_env, mock_metadata):
-    file_name = "test.txt"
-    file_bytes = BytesIO(b"mock")
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.json.side_effect = ValueError("Unexpected payload from Unstructured")
-    mock_resp.text = '{"text": "ok"}'
+        result = loader._wait_for_job("test-job-id")
 
-    with (
-        patch("redbox.loader.loaders.requests.post", return_value=mock_resp),
-        patch("redbox.loader.loaders.is_large_pdf", return_value=(False, 0)),
-        patch("redbox.loader.loaders._pdf_is_image_heavy", return_value=False),
-    ):
-        loader = UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
-            env=mock_env,
-            min_chunk_size=100,
-            max_chunk_size=1000,
-            metadata=mock_metadata,
-        )
-        try:
-            elements = loader._post_files_with_fallback(
-                url="http://test", files={}, file_name=file_name, file_bytes=file_bytes
-            )
-            assert isinstance(elements, list)
-        except ValueError as e:
-            assert str(e) == "Unexpected payload from Unstructured"
+        assert result == "SUCCEEDED"
+        assert mock_textract.get_document_text_detection.call_count == 3
+        assert mock_sleep.call_count == 2
+
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_wait_for_job_api_error(self, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.side_effect = Exception("API Error")
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        with pytest.raises(Exception):
+            loader._wait_for_job("test-job-id")
 
 
-@pytest.mark.parametrize(
-    "error_type, status, text_contains, expected_exc_type",
-    [
-        ("server_error", 500, "server error", RequestException),
-    ],
-)
-def test_unstructured_chunk_loader_post_errors(
-    mock_env, mock_metadata, error_type, status, text_contains, expected_exc_type
-):
-    file_name = "test.txt"
-    file_bytes = BytesIO(b"mock")
-    mock_resp = MagicMock()
-    mock_resp.status_code = status
-    mock_resp.text = text_contains
-    mock_resp.json.return_value = (
-        {"detail": text_contains} if error_type != "fast_strategy" else {"error": text_contains}
-    )
+class TestGetTextractResults:
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_get_textract_results_single_page(self, mock_boto_client: MagicMock):
 
-    mock_request_exc = RequestException("request fail")
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.return_value = {
+            "Blocks": [
+                {"BlockType": "LINE", "Text": "Line 1", "Page": 1},
+                {"BlockType": "LINE", "Text": "Line 2", "Page": 1},
+            ],
+            "NextToken": None,
+        }
+        mock_boto_client.return_value = mock_textract
 
-    side_effects = []
-    if error_type == "server_error":
-        side_effects = [mock_resp] * (mock_env.max_retries + 1)
-    else:
-        side_effects = [mock_resp]
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
 
-    with (
-        patch("redbox.loader.loaders.requests.post", side_effect=side_effects),
-        patch("redbox.loader.loaders._time") as mock_time,
-        patch("redbox.loader.loaders.is_large_pdf", return_value=(False, 0)),
-        patch("redbox.loader.loaders._pdf_is_image_heavy", return_value=False),
-        patch("redbox.loader.loaders.logger") as mock_logger,
-    ):
-        mock_time.sleep = MagicMock()
+        result = loader._get_textract_results("test-job-id")
 
-        loader = UnstructuredChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
-            env=mock_env,
-            min_chunk_size=100,
-            max_chunk_size=1000,
-            metadata=mock_metadata,
-            max_retries=1,
-        )
+        assert len(result) == 1
+        assert "Line 1" in result[0]
+        assert "Line 2" in result[0]
 
-        if error_type == "request_exception":
-            with patch("redbox.loader.loaders.requests.post", side_effect=mock_request_exc):
-                with pytest.raises(RequestException, match="request fail"):
-                    loader._post_files_with_fallback(
-                        url="http://test", files={}, file_name=file_name, file_bytes=file_bytes
-                    )
-            mock_logger.warning.assert_called_with(
-                "RequestException communicating with Unstructured - %s", mock_request_exc
-            )
-            mock_time.sleep.assert_called_once_with(0.5)  # 2**0 * 0.5
-            return
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_get_textract_results_multiple_pages(self, mock_boto_client: MagicMock):
 
-        with pytest.raises(expected_exc_type):
-            loader._post_files_with_fallback(url="http://test", files={}, file_name=file_name, file_bytes=file_bytes)
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.side_effect = [
+            {
+                "Blocks": [
+                    {"BlockType": "LINE", "Text": "Page 1 Line 1", "Page": 1},
+                    {"BlockType": "LINE", "Text": "Page 1 Line 2", "Page": 1},
+                ],
+                "NextToken": "token123",
+            },
+            {
+                "Blocks": [
+                    {"BlockType": "LINE", "Text": "Page 2 Line 1", "Page": 2},
+                    {"BlockType": "LINE", "Text": "Page 2 Line 2", "Page": 2},
+                ],
+                "NextToken": None,
+            },
+        ]
+        mock_boto_client.return_value = mock_textract
 
-        if error_type == "fast_strategy":
-            mock_logger.warning.assert_called_with(
-                "Unstructured server reported fast strategy unavailable so trying fallback payloads"
-            )
-        if error_type == "client_error":
-            mock_logger.error.assert_called_once_with(
-                "Unstructured returned client error %d - %s", status, text_contains
-            )
-        if error_type == "server_error":
-            mock_logger.warning.assert_called_with(
-                "Server error %d from Unstructured, will retry - response was: %s", status, text_contains[:200]
-            )
-            assert mock_time.sleep.call_count >= 1  # Retries with exponential backoff
-        mock_logger.debug.assert_called_with("Exhausted retries for payload moving to next approach")
-        mock_logger.exception.assert_called_with(
-            "All Unstructured requests failed for file %s. Last exception: %s", file_name, ANY
-        )
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        result = loader._get_textract_results("test-job-id")
+
+        assert len(result) == 2
+        assert "Page 1 Line 1" in result[0]
+        assert "Page 2 Line 1" in result[1]
+
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_get_textract_results_no_blocks(self, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.return_value = {
+            "Blocks": [],
+            "NextToken": None,
+        }
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        result = loader._get_textract_results("test-job-id")
+
+        assert result == []
+
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_get_textract_results_ignores_non_line_blocks(self, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.return_value = {
+            "Blocks": [
+                {"BlockType": "LINE", "Text": "Valid Line", "Page": 1},
+                {"BlockType": "WORD", "Text": "Word Block", "Page": 1},
+                {"BlockType": "PAGE", "Text": "Page Block", "Page": 1},
+            ],
+            "NextToken": None,
+        }
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        result = loader._get_textract_results("test-job-id")
+
+        assert len(result) == 1
+        assert result[0] == "Valid Line"
+
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_get_textract_results_pagination(self, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.side_effect = [
+            {
+                "Blocks": [{"BlockType": "LINE", "Text": "Batch 1", "Page": 1}],
+                "NextToken": "token1",
+            },
+            {
+                "Blocks": [{"BlockType": "LINE", "Text": "Batch 2", "Page": 1}],
+                "NextToken": "token2",
+            },
+            {
+                "Blocks": [{"BlockType": "LINE", "Text": "Batch 3", "Page": 1}],
+                "NextToken": None,
+            },
+        ]
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        result = loader._get_textract_results("test-job-id")
+
+        assert mock_textract.get_document_text_detection.call_count == 3
+        assert "Batch 1" in result[0]
+        assert "Batch 2" in result[0]
+        assert "Batch 3" in result[0]
+
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_get_textract_results_api_error(self, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.get_document_text_detection.side_effect = Exception("API Error")
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        with pytest.raises(Exception):
+            loader._get_textract_results("test-job-id")
+
+
+class TestExtractDocx:
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("redbox.loader.loaders.partition_docx")
+    def test_extract_docx_single_page(self, mock_partition: MagicMock, mock_boto_client: MagicMock):
+
+        mock_element = MagicMock()
+        mock_element.__str__.return_value = "Test content"
+        mock_element.metadata.page_number = 1
+
+        mock_partition.return_value = [mock_element]
+        mock_boto_client.return_value = MagicMock()
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        result = loader._extract_docx(BytesIO(b"fake docx content"))
+
+        assert len(result) == 1
+        assert "Test content" in result[0]
+
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("redbox.loader.loaders.partition_docx")
+    def test_extract_docx_multiple_pages(self, mock_partition: MagicMock, mock_boto_client: MagicMock):
+
+        mock_elements = []
+        for page in [1, 1, 2, 2, 3]:
+            el = MagicMock()
+            el.__str__.return_value = f"Content page {page}"
+            el.metadata.page_number = page
+            mock_elements.append(el)
+
+        mock_partition.return_value = mock_elements
+        mock_boto_client.return_value = MagicMock()
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        result = loader._extract_docx(BytesIO(b"fake docx content"))
+
+        assert len(result) == 3
+
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("redbox.loader.loaders.partition_docx")
+    def test_extract_docx_no_elements(self, mock_partition: MagicMock, mock_boto_client: MagicMock):
+
+        mock_partition.return_value = []
+        mock_boto_client.return_value = MagicMock()
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+
+        with pytest.raises(ValueError, match="unstructured returned no elements"):
+            loader._extract_docx(BytesIO(b"fake docx content"))
+
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("redbox.loader.loaders.partition_docx")
+    def test_extract_docx_partition_error(self, mock_partition: MagicMock, mock_boto_client: MagicMock):
+
+        mock_partition.side_effect = Exception("Partition failed")
+        mock_boto_client.return_value = MagicMock()
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+
+        with pytest.raises(Exception):
+            loader._extract_docx(BytesIO(b"fake docx content"))
+
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("redbox.loader.loaders.partition_docx")
+    def test_extract_docx_element_without_page_number(self, mock_partition: MagicMock, mock_boto_client: MagicMock):
+
+        mock_element = MagicMock()
+        mock_element.__str__.return_value = "Test content"
+        mock_element.metadata.page_number = None
+
+        mock_partition.return_value = [mock_element]
+        mock_boto_client.return_value = MagicMock()
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        result = loader._extract_docx(BytesIO(b"fake docx content"))
+
+        assert len(result) == 1
+        assert "Test content" in result[0]
+
+
+class TestExtractPdfFromS3:
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_extract_pdf_success(self, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.start_document_text_detection.return_value = {"JobId": "job-123"}
+        mock_textract.get_document_text_detection.return_value = {"JobStatus": "SUCCEEDED"}
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+        loader._wait_for_job = MagicMock(return_value="SUCCEEDED")
+        loader._get_textract_results = MagicMock(return_value=["Page 1 content"])
+
+        result = loader._extract_pdf_from_s3("test-bucket", "test.pdf")
+
+        assert result == ["Page 1 content"]
+        mock_textract.start_document_text_detection.assert_called_once()
+        loader._wait_for_job.assert_called_once_with("job-123")
+        loader._get_textract_results.assert_called_once_with("job-123")
+
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_extract_pdf_job_failed(self, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.start_document_text_detection.return_value = {"JobId": "job-123"}
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+        loader._wait_for_job = MagicMock(return_value="FAILED")
+
+        with pytest.raises(RuntimeError, match="Textract failed"):
+            loader._extract_pdf_from_s3("test-bucket", "test.pdf")
+
+    @patch("redbox.loader.loaders.boto3.client")
+    def test_extract_pdf_api_error(self, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        mock_textract.start_document_text_detection.side_effect = Exception("API Error")
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        with pytest.raises(Exception):
+            loader._extract_pdf_from_s3("test-bucket", "test.pdf")
+
+
+class TestLazyLoad:
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("redbox.loader.loaders.load_tabular_file")
+    def test_lazy_load_csv_file(self, mock_load_tabular: MagicMock, mock_boto_client: MagicMock):
+
+        mock_load_tabular.return_value = [
+            {
+                "text": "<table_name>test</table_name>col1,col2\n1,2",
+                "metadata": {"document_schema": {"name": "test", "type": "tabular", "columns": {}}},
+            }
+        ]
+        mock_boto_client.return_value = MagicMock()
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        docs = list(loader.lazy_load("test.csv", BytesIO(b"csv content")))
+
+        assert len(docs) == 1
+        assert docs[0].page_content.startswith("<table_name>")
+        assert docs[0].metadata["chunk_resolution"] == ChunkResolution.tabular
+
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("redbox.loader.loaders.load_tabular_file")
+    def test_lazy_load_excel_file(self, mock_load_tabular: MagicMock, mock_boto_client: MagicMock):
+
+        mock_load_tabular.return_value = [
+            {
+                "text": "<table_name>Sheet1</table_name>col1,col2\n1,2",
+                "metadata": {"document_schema": {"name": "Sheet1"}},
+            }
+        ]
+        mock_boto_client.return_value = MagicMock()
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        docs = list(loader.lazy_load("test.xlsx", BytesIO(b"excel content")))
+
+        assert len(docs) == 1
+        assert docs[0].metadata["chunk_resolution"] == ChunkResolution.tabular
+
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("redbox.loader.loaders.load_tabular_file")
+    def test_lazy_load_empty_tabular_file(self, mock_load_tabular: MagicMock, mock_boto_client: MagicMock):
+
+        mock_load_tabular.return_value = []
+        mock_boto_client.return_value = MagicMock()
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        docs = list(loader.lazy_load("test.csv", BytesIO(b"csv content")))
+
+        assert len(docs) == 0

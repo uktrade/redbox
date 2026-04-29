@@ -54,20 +54,6 @@ def get_token_use_count(use_type: str) -> int:
     return ChatMessageTokenUse.objects.filter(use_type=use_type).latest("created_at").token_count
 
 
-@pytest.fixture
-def mock_sso():
-    with patch.object(ChatConsumer, "_extract_sso_token", new_callable=AsyncMock) as mock:
-        mock.return_value = "fake-token"
-        yield mock
-
-
-@pytest.fixture
-def mock_datahub_tools():
-    with patch("redbox.app.get_datahub_mcp_tools", new_callable=AsyncMock) as mock:
-        mock.return_value = []
-        yield mock
-
-
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_chat_consumer_with_new_session(
@@ -81,7 +67,7 @@ async def test_chat_consumer_with_new_session(
 
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
-        connected, _ = await communicator.connect()
+        connected, _ = await communicator.connect(timeout=5)
         assert connected
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
             await communicator.send_json_to({"message": "Hello Hal."})
@@ -521,7 +507,6 @@ async def test_chat_consumer_get_ai_settings(
 ):
     with (
         patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get,
-        patch("redbox.app.get_datahub_mcp_tools", return_value=[]),
     ):
         mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
@@ -886,8 +871,6 @@ def refresh_from_db(obj: Model) -> None:
 
 @pytest.mark.asyncio
 async def test_connect_with_agents_cache(
-    mock_sso,  # noqa: ARG001
-    mock_datahub_tools,  # noqa: ARG001
     agents_list: list,
     alice: User,
     staff_user: User,
@@ -925,7 +908,7 @@ async def test_connect_with_agents_update_via_db(agents_list: list, alice: User)
         mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
-        await communicator.connect()
+        await communicator.connect(timeout=5)
         assert mock_get.call_count == 1
 
         assert "Fake_Agent" not in list(ChatConsumer.redbox.agent_configs.keys())
@@ -1015,9 +998,6 @@ async def test_connect_updates_sso_token_and_rebuilds_graph_if_redbox_exists(moc
 
     await consumer.connect()
 
-    mock_redbox_instance.init_datahub_agent.assert_called_once_with(consumer._extract_sso_token)  # noqa: SLF001
-    mock_redbox_instance.setup_graph.assert_called_once_with(True)
-
     consumer.accept.assert_called_once()
     ChatConsumer.redbox = None
 
@@ -1086,7 +1066,6 @@ async def test_llm_conversation_updates_sso_token():
     with (
         patch("redbox_app.redbox_core.consumers.ChatMessage.objects.filter") as mock_filter,
         patch.object(ChatConsumer, "get_ai_settings", new_callable=AsyncMock) as mock_get_settings,
-        patch.object(ChatConsumer, "update_chat_consumer_redbox_with_new_sso_token") as mock_update_token,
         patch.object(ChatConsumer, "update_ai_message", new_callable=AsyncMock),
         patch.object(ChatConsumer, "_files_to_s3_keys", return_value=[]),
         patch.object(ChatConsumer, "_load_agent_plan", new_callable=AsyncMock) as mock_load_plan,
@@ -1105,8 +1084,6 @@ async def test_llm_conversation_updates_sso_token():
             knowledge_files=[],
             selected_agent_names=None,
         )
-
-        mock_update_token.assert_called_once_with()
 
         assert consumer.redbox.run.called
 

@@ -8,6 +8,7 @@ from langchain_core.retrievers import BaseRetriever
 from langchain_core.runnables import RunnableLambda
 from langgraph.graph import END, START, StateGraph
 from pytest_mock import MockerFixture
+from unittest.mock import AsyncMock, patch
 
 from redbox.chains.components import get_structured_response_with_citations_parser
 from redbox.chains.runnables import CannedChatLLM, build_chat_prompt_from_messages_runnable, build_llm_chain
@@ -616,7 +617,7 @@ def test_citation_structured_output(test_case: RedboxChatTestCase, mocker: Mocke
 
 
 class TestBuildAgentLoop:
-    def test_fail_parser_agent_task(self, fake_state, mocker: MockerFixture):
+    def test_fail_parser_agent_task(self, fake_state, mock_datahub_tools):
         fake_agent = build_agent_with_loop(
             agent_name="External_Retrieval_Agent",
             system_prompt="Fake prompt",
@@ -789,15 +790,25 @@ class TestBuildAgentLoop:
         assert mock_tool_calls.call_count == 1
 
 
+@pytest.fixture
+def mock_datahub_tools(mocker: MockerFixture):
+    with patch("redbox.graph.nodes.processes.get_datahub_mcp_tools", new_callable=AsyncMock) as mock:
+        fake_tool = mocker.Mock()
+        fake_tool.name = "fake_tool"
+        mock.return_value = [fake_tool]
+        yield mock
+
+
 class TestBuildDatahubAgentLoop:
-    def test_fail_parser_agent_task(self, fake_state, mocker: MockerFixture):
+    @pytest.mark.asyncio
+    async def test_fail_parser_agent_task(self, fake_state, mock_datahub_tools):
         fake_agent = build_datahub_agent_with_loop(
             agent_name="External_Retrieval_Agent",
             system_prompt="Fake prompt",
             tools=[],
         )
         fake_state.messages = AIMessage(content="Incorrect task format")
-        response = fake_agent.invoke(fake_state)
+        response = await fake_agent.ainvoke(fake_state)
         assert response is None
 
     @pytest.mark.parametrize(
@@ -834,13 +845,24 @@ class TestBuildDatahubAgentLoop:
             ("raw-string-result", None, None, 1, "raw-string-result"),
         ],
     )
-    def test_preprocess_loop(
-        self, test_name, pre_process, loop_condition, no_calls, tool_call_results, fake_state, mocker: MockerFixture
+    @pytest.mark.asyncio
+    async def test_preprocess_loop(
+        self,
+        test_name,
+        pre_process,
+        loop_condition,
+        no_calls,
+        tool_call_results,
+        fake_state,
+        mocker: MockerFixture,
+        mock_datahub_tools,
     ):
         # patch
         res = AIMessage(
             content="test",
-            additional_kwargs={"tool_calls": [{"name": "test_tool", "args": {"is_intermediate_step": True}}]},
+            tool_calls=[
+                {"name": "test_tool", "args": {"is_intermediate_step": True}, "id": "fake-id", "type": "tool_call"}
+            ],
         )
         llm = GenericFakeChatModel(messages=iter([res]))
         mock_llm = mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
@@ -874,6 +896,7 @@ class TestBuildDatahubAgentLoop:
         fake_state.agent_plans = plan
         fake_state.tasks_evaluator = ""
         fake_state.messages = [AIMessage(content=plan.tasks[0].model_dump_json())]
+        fake_state.request.sso_token_getter = lambda: "fake-token"
 
         fake_agent = build_datahub_agent_with_loop(
             agent_name="Internal_Retrieval_Agent",
@@ -886,7 +909,7 @@ class TestBuildDatahubAgentLoop:
             max_attempt=2,
         )
 
-        response = fake_agent.invoke(fake_state)
+        response = await fake_agent.ainvoke(fake_state)
 
         assert mock_llm.call_count == no_calls
 
@@ -928,7 +951,10 @@ class TestBuildDatahubAgentLoop:
             ("dont-truncate-response-equal-to-max-tokens", 10, 10),
         ],
     )
-    def test_llm_response_truncation(self, test_name, max_tokens, actual_tokens, fake_state, mocker: MockerFixture):
+    @pytest.mark.asyncio
+    async def test_llm_response_truncation(
+        self, test_name, max_tokens, actual_tokens, fake_state, mocker: MockerFixture, mock_datahub_tools
+    ):
         sanitised_test_name = test_name.replace("-", "")
 
         llm_content = f"{sanitised_test_name} " * actual_tokens
@@ -951,6 +977,7 @@ class TestBuildDatahubAgentLoop:
         fake_state.agent_plans = plan
         fake_state.tasks_evaluator = ""
         fake_state.messages = [AIMessage(content=plan.tasks[0].model_dump_json())]
+        fake_state.request.sso_token_getter = lambda: "fake-token"
 
         fake_agent = build_datahub_agent_with_loop(
             agent_name="Internal_Retrieval_Agent",
@@ -963,7 +990,7 @@ class TestBuildDatahubAgentLoop:
             max_attempt=2,
         )
 
-        response = fake_agent.invoke(fake_state)
+        response = await fake_agent.ainvoke(fake_state)
         assert response is not None
 
         agent_result = response.get("agents_results")
@@ -989,6 +1016,158 @@ class TestBuildDatahubAgentLoop:
         assert "agent_plans" in response
         assert len(response) == 3  # content, eval task, task status
         assert mock_tool_calls.call_count == 1
+
+    @pytest.mark.parametrize(
+        "test_name, tool_results, expect_feedback, expected_reasons",
+        [
+            (
+                "feedback-required-single-tool",
+                [
+                    AIMessage(
+                        content=(
+                            "some results",
+                            "pass",
+                            "False",
+                            "Multiple company records returned user must clarify which one they want.",
+                        )
+                    )
+                ],
+                True,
+                ["Multiple company records returned user must clarify which one they want."],
+            ),
+            (
+                "feedback-required-multiple-tools",
+                [
+                    AIMessage(content=("results-1", "pass", "False", "Multiple companies found, clarify which.")),
+                    AIMessage(content=("results-2", "pass", "False", "Multiple interactions found, clarify which.")),
+                ],
+                True,
+                ["Multiple companies found, clarify which.", "Multiple interactions found, clarify which."],
+            ),
+            (
+                "feedback-required-mixed-tools",
+                [
+                    AIMessage(content=("results-1", "pass", "False", "Clarification needed.")),
+                    AIMessage(content=("results-2", "pass", "False")),
+                ],
+                True,
+                ["Clarification needed."],
+            ),
+            (
+                "no-feedback-pass",
+                [
+                    AIMessage(content=("clean result", "pass", "False")),
+                ],
+                False,
+                [],
+            ),
+            (
+                "no-feedback-fail-no-reason",
+                [
+                    AIMessage(content=("failed result", "fail", "False")),
+                ],
+                False,
+                [],
+            ),
+            (
+                "no-feedback-multiple-pass",
+                [
+                    AIMessage(content=("result-1", "pass", "False")),
+                    AIMessage(content=("result-2", "pass", "False")),
+                ],
+                False,
+                [],
+            ),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_feedback_required_vs_not(
+        self,
+        test_name,
+        tool_results,
+        expect_feedback,
+        expected_reasons,
+        fake_state,
+        mocker: MockerFixture,
+        mock_datahub_tools,
+    ):
+        """Test agent returns REQUIRES_USER_FEEDBACK when any tool result has a reason, otherwise COMPLETED."""
+        res = AIMessage(
+            content="test",
+            tool_calls=[
+                {"name": "test_tool", "args": {"is_intermediate_step": False}, "id": "fake-id", "type": "tool_call"}
+            ],
+        )
+        llm = GenericFakeChatModel(messages=iter([res] * 10))
+        mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
+
+        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel")
+        mock_tool_calls.return_value = tool_results
+
+        agent_name = "Internal_Retrieval_Agent"
+        agent_task, multi_agent_plan = configure_agent_task_plan({agent_name: agent_name})
+        tasks = [agent_task(task="Fake Task", expected_output="Fake output")]
+        plan = multi_agent_plan().model_copy(update={"tasks": tasks})
+
+        fake_state.user_feedback = "proceed"
+        fake_state.agent_plans = plan
+        fake_state.tasks_evaluator = ""
+        fake_state.messages = [AIMessage(content=plan.tasks[0].model_dump_json())]
+        fake_state.request.sso_token_getter = lambda: "fake-token"
+
+        fake_agent = build_datahub_agent_with_loop(
+            agent_name=agent_name,
+            system_prompt="Fake prompt",
+            tools=[],
+            use_metadata=False,
+            max_tokens=10000,
+            pre_process=None,
+            loop_condition=lambda: True,
+            max_attempt=2,
+        )
+
+        response = await fake_agent.ainvoke(fake_state)
+
+        assert response is not None
+        assert "agents_results" in response
+        assert "agent_plans" in response
+
+        result_message = response["agents_results"]["task0"]
+
+        if expect_feedback:
+            assert response["agent_plans"].get_task_status("task0") == TaskStatus.REQUIRES_USER_FEEDBACK
+            assert "Ask user for feedback based on failure reason" in result_message.content
+            for reason in expected_reasons:
+                assert reason in result_message.content
+
+            collated_result = ""
+            feedback_reasons = []
+            for i, tr in enumerate(tool_results):
+                if len(tr.content) > 3:
+                    reason = tr.content[3]
+                    feedback_reasons.append(f"Failure reason: {reason}.\n\n{tr.content[0]}")
+                else:
+                    collated_result += f"<tool_result_{i}>{tr.content[0]}</tool_result_{i}>"
+
+            combined_feedback = "\n\n".join(feedback_reasons)
+
+            assert (
+                result_message.content
+                == f"<{agent_name}_Result>Ask user for feedback based on failure reason. {combined_feedback}\n\n{collated_result}</{agent_name}_Result>"
+            )
+        else:
+            assert response["agent_plans"].get_task_status("task0") == TaskStatus.COMPLETED
+            assert "Ask user for feedback based on failure reason" not in result_message.content
+
+            for tr in tool_results:
+                assert tr.content[0] in result_message.content
+
+            collated_result = ""
+            for i, tr in enumerate(tool_results):
+                collated_result += f"<tool_result_{i}>{tr.content[0]}</tool_result_{i}>"
+            loop_result = " ".join([collated_result, collated_result])
+
+            assert result_message.content == f"<{agent_name}_Result>{loop_result}</{agent_name}_Result>"
 
 
 @pytest.mark.parametrize(

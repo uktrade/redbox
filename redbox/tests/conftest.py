@@ -13,7 +13,7 @@ from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.messages import AIMessage
 from opensearchpy import OpenSearch
 
-from redbox.api.format import SensitiveValue
+from redbox.api.wrapper import SensitiveValue
 from redbox.models.chain import AISettings, GeneratedMetadata, RedboxQuery, RedboxState, configure_agent_task_plan
 from redbox.models.file import ChunkCreatorType
 from redbox.models.settings import Settings
@@ -326,7 +326,6 @@ def sample_csv():
 @pytest.fixture
 def mock_env():
     mock_env = MagicMock(spec=Settings)
-    mock_env.unstructured_host = "localhost"
     mock_env.worker_ingest_min_chunk_size = 100
     mock_env.worker_ingest_max_chunk_size = 1000
     mock_env.bucket_name = "test-bucket"

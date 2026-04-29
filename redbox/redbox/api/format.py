@@ -1,8 +1,7 @@
 import json
 import logging
-import asyncio
 from pydantic import BaseModel, ValidationError
-from typing import Any, Optional, Callable
+from typing import Optional
 
 from langchain_core.documents.base import Document
 
@@ -10,35 +9,6 @@ from redbox.models.file import ChunkCreatorType
 from redbox.transform import combine_documents
 
 log = logging.getLogger(__name__)
-
-
-class SensitiveValue:
-    """Wrap any metadata value you never want serialized."""
-
-    def __init__(self, value: Any | Callable[[], Any]):
-        self._value = value
-
-    def get(self) -> Any:
-        if callable(self._value):
-            result = self._value()
-            if asyncio.iscoroutine(result):
-                # Run the coroutine synchronously
-                loop = asyncio.get_event_loop()
-                return loop.run_until_complete(result)
-            return result
-        return self._value
-
-    def __repr__(self):
-        return "SensitiveValue(**redacted**)"
-
-    def __deepcopy__(self, memo):
-        # Don't deepcopy the inner value — just return a new SensitiveValue
-        # referencing the same callable/value. This prevents deepcopy from
-        # walking into bound methods and their unpicklable __self__.
-        new = SensitiveValue.__new__(SensitiveValue)
-        new._value = self._value  # shallow reference, not deepcopy
-        memo[id(self)] = new
-        return new
 
 
 def format_documents(documents: list[Document]) -> str:
@@ -99,6 +69,9 @@ def format_mcp_tool_response(tool_response, creator_type: ChunkCreatorType) -> t
     deep_links = []
     match result_type:
         case "nullable":
+            if isinstance(result, str):
+                return result, metadata
+
             deep_links = [(result.get("url"), result)]
         case "paged":
             deep_links = [(p.get("url"), p) for p in result.get("items", [])]
@@ -128,5 +101,8 @@ def format_mcp_tool_response(tool_response, creator_type: ChunkCreatorType) -> t
             )
         else:
             response.append(json.dumps(item))
+
+    if not response:
+        return ("No results found.", metadata)
 
     return ("\n\n".join(response), metadata)

@@ -11,6 +11,7 @@ from io import StringIO
 from random import uniform
 from typing import Any, Iterable
 from uuid import uuid4
+from datetime import date
 
 import pandas as pd
 from botocore.exceptions import EventStreamError
@@ -43,6 +44,7 @@ from redbox.models.chain import (
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
 from redbox.models.settings import ChatLLMBackend
+from redbox.graph.nodes.tools import get_datahub_mcp_tools
 from redbox.transform import (
     combine_agents_state,
     combine_documents,
@@ -598,7 +600,14 @@ def build_datahub_agent_with_loop(
     model: ChatLLMBackend | None = None,
 ):
     @RunnableLambda
-    def _build_datahub_agent_with_loop(state: RedboxState):
+    async def _build_datahub_agent_with_loop(state: RedboxState):
+        tools = []
+        if sso_token_getter := state.request.sso_token_getter:
+            tools = await get_datahub_mcp_tools(sso_token_getter=sso_token_getter)
+
+        if not tools:
+            log.error(f"[{agent_name}] No tools available")
+
         log.warning(f"[{agent_name}] Starting datahub_agent_with_loop run. Tools: {[t.name for t in tools]}")
 
         local_loop_condition = loop_condition
@@ -654,6 +663,16 @@ def build_datahub_agent_with_loop(
             # loop_condition = lambda: True
             num_iter = max_attempt - 1
 
+        if len(tools) == 0:
+            all_results = "Error. Unable to complete request the '{agent_name}' agent has no tools."
+            return {
+                "agents_results": {
+                    task.id: AIMessage(content=f"<{agent_name}_Result>{all_results}</{agent_name}_Result>")
+                },
+                "tasks_evaluator": task.task + "\n" + task.expected_output,
+                "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.FAILED),
+            }
+
         while local_loop_condition() and num_iter < max_attempt:
             num_iter += 1
             log_stub = f"[{agent_name}] Loop Iteration={num_iter}/{max_attempt}."
@@ -681,22 +700,41 @@ def build_datahub_agent_with_loop(
                 result = "Tool error: no results received."
 
             elif has_loop and len(ai_msg.tool_calls) > 0:  # if loop, we need to transform results
-                result = result[-1].content  # this is a tuple
-                # format of result: (result, success, is_intermediate_step)
-                log.warning("my-overall-result")
-                log.warning(result)
-                result_content = result[0]
-                success = result[1]
-                is_intermediate_step = eval(result[2])
+                collated_result = ""
+                feedback_reasons = []
+                for i, r in enumerate(result):
+                    current_result = r.content  # this is a tuple
+                    # format of result: (result, success, is_intermediate_step)
+                    log.debug("my-overall-result")
+                    log.debug(current_result)
+                    result_content = current_result[0]
+                    success = current_result[1]
+                    is_intermediate_step = eval(current_result[2])
 
-                if len(result) > 3:
-                    reason = result[3]
+                    if len(current_result) > 3:
+                        reason = current_result[3]
+                        feedback_reasons.append(f"Failure reason: {reason}.\n\n{result_content}")
+                    else:
+                        collated_result += f"<tool_result_{i}>{result_content}</tool_result_{i}>"
+
+                    if success == "fail":
+                        # pass error back if any
+                        additional_variables.update({"previous_tool_error": result_content})
+                    else:
+                        # if success tool invocation, and intermediate steps then pass info back
+                        if is_intermediate_step:
+                            additional_variables.update(
+                                {"previous_tool_error": "", "previous_tool_results": all_results}
+                            )
+
+                if feedback_reasons:
+                    combined_feedback = "\n\n".join(feedback_reasons)
                     return {
                         "agents_results": {
                             task.id: AIMessage(
-                                content=f"<{agent_name}_Result>Ask user for feedback based on failure reason. Failure reason: {reason}.\n\n{result_content}</{agent_name}_Result>",
+                                content=f"<{agent_name}_Result>Ask user for feedback based on failure reason. {combined_feedback}\n\n{collated_result}</{agent_name}_Result>",
                                 kwargs={
-                                    "reason": reason,
+                                    "reason": combined_feedback,
                                 },
                             )
                         },
@@ -704,14 +742,7 @@ def build_datahub_agent_with_loop(
                         "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.REQUIRES_USER_FEEDBACK),
                     }
 
-                if success == "fail":
-                    # pass error back if any
-                    additional_variables.update({"previous_tool_error": result_content})
-                else:
-                    # if success tool invocation, and intermediate steps then pass info back
-                    if is_intermediate_step:
-                        additional_variables.update({"previous_tool_error": "", "previous_tool_results": all_results})
-                result = result_content
+                result = collated_result
 
             if isinstance(result, str):
                 log.warning(f"{log_stub} Using raw string result.")
@@ -747,6 +778,7 @@ def create_evaluator():
         _additional_variables = {
             "agents_results": combine_agents_state(state.agents_results),
             "artifact_criteria": state.artifact_criteria,
+            "todays_date": date.today().isoformat(),
         }
         citation_parser, format_instructions = get_structured_response_with_citations_parser()
         evaluator_agent = build_stuff_pattern(

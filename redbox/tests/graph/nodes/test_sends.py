@@ -560,6 +560,47 @@ class TestWrapAsyncTool:
         assert result == expected_documents
         assert metadata == expected_tool_metadata
 
+    @pytest.mark.parametrize("expected_tool_result, expected_documents", MCP_TOOL_RESULTS)
+    @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
+    @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
+    @patch("redbox.graph.nodes.runner.wrap_async.load_mcp_tools")
+    def test_returns_expected_results_no_args(
+        self,
+        mock_load_tools,
+        mock_http_client,
+        mock_session_class,
+        fake_mcp_tool,
+        expected_tool_result,
+        expected_documents,
+    ):
+        """Test that wrap_async_tool correctly returns results from async tool invocation"""
+        expected_tool_content, expected_tool_metadata = expected_tool_result
+
+        # Mock tool with metadata
+        tool_name = "company_tool"
+        args_schema = {}
+        tool = fake_mcp_tool(tool_name, return_value=expected_tool_content, args_schema=args_schema)
+
+        # mock session with patched mcp setup
+        mock_session = self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
+
+        # create the wrapped function
+        wrapped_func = wrap_async_tool(tool, tool_name)
+
+        # rest invocation with sample args
+        test_args = {}
+        result, metadata = wrapped_func(test_args)
+
+        # verify correct interactions
+        mock_http_client.assert_called_once_with(tool.metadata["url"], headers=None)
+        mock_session.initialize.assert_called_once()
+        mock_load_tools.assert_called_once_with(mock_session)
+        tool.ainvoke.assert_called_once_with(test_args)
+
+        # assert the result matches our expected output
+        assert result == expected_documents
+        assert metadata == expected_tool_metadata
+
     @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
     @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
     @patch("redbox.graph.nodes.runner.wrap_async.load_mcp_tools", new_callable=AsyncMock)
@@ -573,6 +614,87 @@ class TestWrapAsyncTool:
 
         # assert ValueError is raised
         with pytest.raises(ValueError, match="tool with name 'missing_tool' not found"):
+            wrapped_func({"foo": "bar"})
+
+    def test_sso_token_retrieval_failure(self, fake_mcp_tool):
+        """Test that wrap_async_tool raises when sso_access_token.get() fails."""
+        tool = fake_mcp_tool("dummy_tool", return_value=None)
+        tool.metadata["sso_access_token"] = MagicMock()
+        tool.metadata["sso_access_token"].get.side_effect = RuntimeError("vault unavailable")
+
+        wrapped_func = wrap_async_tool(tool, "dummy_tool")
+
+        with pytest.raises(RuntimeError, match="vault unavailable"):
+            wrapped_func({"foo": "bar"})
+
+    @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
+    @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
+    @patch("redbox.graph.nodes.runner.wrap_async.load_mcp_tools")
+    def test_intermediate_step_stripped_when_not_in_schema(
+        self,
+        mock_load_tools,
+        mock_http_client,
+        mock_session_class,
+        fake_mcp_tool,
+    ):
+        """Test that is_intermediate_step is removed from args when not required by the tool schema."""
+        return_value = "some content"
+        tool_name = "company_tool"
+        args_schema = {"company_name": {"type": "string"}, "required": ["company_name"]}
+        tool = fake_mcp_tool(tool_name, return_value=return_value, args_schema=args_schema)
+
+        # make ainvoke return something format_mcp_tool_response can handle, or use a non-datahub type
+        tool.metadata["creator_type"] = MagicMock()  # non-datahub, returns raw result
+        tool.ainvoke = AsyncMock(return_value=return_value)
+
+        self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
+
+        wrapped_func = wrap_async_tool(tool, tool_name)
+
+        test_args = {"company_name": "BMW", "is_intermediate_step": True}
+        wrapped_func(test_args)
+
+        # is_intermediate_step should have been popped before ainvoke was called
+        tool.ainvoke.assert_called_once_with({"company_name": "BMW"})
+
+    @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
+    @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
+    @patch("redbox.graph.nodes.runner.wrap_async.load_mcp_tools")
+    def test_intermediate_step_retained_when_in_schema(
+        self,
+        mock_load_tools,
+        mock_http_client,
+        mock_session_class,
+        fake_mcp_tool,
+    ):
+        """Test that is_intermediate_step is kept in args when the tool schema requires it."""
+        return_value = "some content"
+        tool_name = "company_tool"
+        args_schema = {"company_name": {"type": "string"}, "required": ["company_name", "is_intermediate_step"]}
+        tool = fake_mcp_tool(tool_name, return_value=return_value, args_schema=args_schema)
+
+        tool.metadata["creator_type"] = MagicMock()
+        tool.ainvoke = AsyncMock(return_value=return_value)
+
+        self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
+
+        wrapped_func = wrap_async_tool(tool, tool_name)
+
+        test_args = {"company_name": "BMW", "is_intermediate_step": True}
+        wrapped_func(test_args)
+
+        # is_intermediate_step should be preserved
+        tool.ainvoke.assert_called_once_with({"company_name": "BMW", "is_intermediate_step": True})
+
+    @patch("redbox.graph.nodes.sends.asyncio")
+    def test_asyncio_run_failure(self, mock_asyncio, fake_mcp_tool):
+        """Test that wrap_async_tool re-raises when asyncio.run itself fails."""
+        tool = fake_mcp_tool("dummy_tool", return_value=None)
+        mock_asyncio.run.side_effect = RuntimeError("event loop closed")
+
+        wrapped_func = wrap_async_tool(tool, "dummy_tool")
+
+        with pytest.raises(RuntimeError, match="event loop closed"):
             wrapped_func({"foo": "bar"})
 
 

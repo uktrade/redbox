@@ -1,13 +1,19 @@
+import logging
 import uuid
 from datetime import date
+from http import HTTPStatus
 
+import requests
 from django import forms
+from django.conf import settings
 from django.core.exceptions import FieldError
 from django.http import Http404, HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
 
 from redbox_app.redbox_core.types import RenderTemplateItem
+
+logger = logging.getLogger(__name__)
 
 
 def get_date_group(on: date) -> str:
@@ -87,3 +93,21 @@ def parse_uuid(value: str | uuid.UUID | None) -> uuid.UUID | None:
         return uuid.UUID(value)
     except (ValueError, TypeError):
         return None
+
+
+def user_has_ofi_email(token: str) -> bool:
+    url = f"{settings.AUTHBROKER_URL}/api/v1/user/me/"
+    headers = {
+        "Authorization": f"Bearer {token}",
+    }
+
+    resp = requests.get(url, headers=headers, timeout=3)
+
+    if resp.status_code != HTTPStatus.OK:
+        logger.warning("SSO check failed: %s %s", resp.status_code, resp.text)
+        return False
+
+    data = resp.json()
+    related_emails = data.get("related_emails", [])
+
+    return any(email.endswith("@officeforinvestment.gov.uk") for email in related_emails)
