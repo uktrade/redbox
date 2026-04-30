@@ -10,17 +10,11 @@ from waffle import flag_is_active
 from yarl import URL
 
 from redbox_app.redbox_core import flags
-from redbox_app.redbox_core.models import (
-    Chat,
-    ChatLLMBackend,
-    ChatMessage,
-    Tool,
-    UserTeamMembership,
-)
+from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, Tool, UserTeamMembership
 from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.services import message as message_service
 from redbox_app.redbox_core.services import url as url_service
-from redbox_app.redbox_core.utils import resolve_instance
+from redbox_app.redbox_core.utils import resolve_instance, user_has_ofi_email
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -40,9 +34,20 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
 
     tools = Tool.objects.all()
 
-    # Only enable Invest Lens for specified users until launch
-    # On release - TODO: implement permissions into tool model for future trials
-    if not flag_is_active(request, flags.ENABLE_INVEST_LENS):
+    # Only enable Invest Lens for OfI users
+    session = request.session
+    authbroker_token = session.get("_authbroker_token", {}) or {}
+
+    access_token = authbroker_token.get("access_token")
+
+    has_access = False
+    has_ofi_email = False
+
+    has_ofi_email = user_has_ofi_email(access_token)
+
+    has_access = has_ofi_email or request.user.is_superuser or flag_is_active(request, flags.ENABLE_INVEST_LENS)
+
+    if not has_access:
         tools = tools.exclude(slug="invest-lens")
 
     messages = ChatMessage.get_messages_ordered_by_citation_priority(chat_id) if current_chat else []

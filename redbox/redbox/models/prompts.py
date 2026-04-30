@@ -212,6 +212,7 @@ AGENTIC_RETRIEVAL_QUESTION_PROMPT = "<User question>{question}</User question>"
 NEW_ROUTE_RETRIEVAL_QUESTION_PROMPT = (
     "<User question> {question} </User question> \n\n <Context>: \n\n {agents_results} \n\n </Context> \n\n."
     "<Artifact_Criteria>{artifact_criteria}</Artifact_Criteria>"
+    "<Todays_Date>{todays_date}</Todays_Date>"
 )
 
 AGENTIC_GIVE_UP_QUESTION_PROMPT = "{question}"
@@ -465,11 +466,15 @@ If a user asks to summarise a document, ALWAYS call Summarisation_Agent and do n
 5. If a user request cannot be fulfilled with the available agents, explain the limitations and suggest an alternative approach.
 6. Always verify that the final integrated response fully addresses the user's original request.
 7. Adapt your plan based on the quality and relevance of each agent's output.
+8. For temporal questions, when a date range is provided in the agent context, pass that exact date range
+   to each task. Do not calculate or interpret temporal references — use the provided range as-is so all
+   tasks operate on the same time period (e.g., "last year" could refer to the last calendar year, or
+   year from today, so the range must be pre-calculated and passed explicitly).
 
 Remember that your primary value is in effective coordination and integration - your role is to ensure that the specialised capabilities of each agent are leveraged optimally to achieve the user's goal.
 
 <previous_chat_history>{chat_history}</previous_chat_history>
-
+<Todays_Date>{todays_date}</Todays_Date>
 """
 
 PLANNER_QUESTION_PROMPT = """User question: <Question>{question}</Question>.
@@ -477,6 +482,7 @@ User selected documents: {document_filenames}
 User uploaded documents metadata:<Document_Metadata>{metadata}</Document_Metadata>.
 Contain Knowledge Base: <Contain_Knowledge_Base>{knowledge_base_metadata}</Contain_Knowledge_Base>
 Artifact files: {artifact_files}
+Today's Date: <Todays_Date>{todays_date}</Todays_Date>
 """
 
 PLANNER_FORMAT_PROMPT = """## Output Format
@@ -618,13 +624,25 @@ Guidelines for Tool Usage:
        1-based position in the displayed list — never as a field value.
    3.2 Always retrieve the ID for that item from <previous_tool_results>.
        Never infer, guess, or recall an ID from memory.
+4. Temporal Questions - Date Processing:
+   4.1 Process:
+     - When a date range is provided in the task information, use that range directly
+     - Do not calculate or derive date ranges from temporal references
+     - Always explicitly state the date ranges used in your response
+     - Apply these ranges to search/retrieval tools
+   4.2 Temporal references include: "last month", "this year", "last quarter", "recently", "yesterday", "next week", etc.
+       Example: Task provides date range: 1 Dec 2024 to 31 Dec 2024
+     - State in response: "Searching for events from 1 December 2024 to 31 December 2024…"
+     - Search using these specific dates
+   4.3 Critical: Always indicate the date ranges in your answer so users understand the exact time period being analysed.
 """
 
-DATAHUB_QUESTION_PROMPT = """ Here is the user question: {question}. Retrieve the relevant information from the database that would answer this question.
+DATAHUB_QUESTION_PROMPT = """ Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output>. Retrieve the relevant information from the database that would complete this task.
 Expected output: Raw data retrieved from database. Output the raw data and do not output any explanation.
 Please analyse your previous actions in the chat history before you perform the next tool execution.
 Existing information:
 <previous_chat_history>{chat_history}</previous_chat_history>
 <previous_tool_error>{previous_tool_error}</previous_tool_error>
 <previous_tool_results>{previous_tool_results}</previous_tool_results>
+<Todays_Date>{todays_date}</Todays_Date>
 """
