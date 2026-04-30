@@ -9,6 +9,7 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django_q.tasks import async_task
 from import_export.admin import ExportMixin, ImportExportMixin
+from waffle.admin import FlagAdmin
 
 from redbox_app.worker import ingest
 
@@ -452,6 +453,29 @@ class AgentPlanAdmin(admin.ModelAdmin):
         "created_at",
     ]
     ordering = ["-created_at"]
+
+
+class CustomFlagAdmin(FlagAdmin):
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+
+        extra_fieldset = (
+            "Extra Settings",
+            {
+                "fields": ("extra_allowed_emails",),
+                "classes": ("wide",),
+                "description": (
+                    "Enter emails that should always have access to Invest Lens. "
+                    "One email per line or comma-separated. "
+                    "These take priority even if the flag is turned off."
+                ),
+            },
+        )
+
+        return [*list(fieldsets), extra_fieldset]
+
+
+admin.site.register(models.CustomFlag, CustomFlagAdmin)
 
 
 admin.site.register(User, UserAdmin)
