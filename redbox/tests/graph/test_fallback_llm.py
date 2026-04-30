@@ -1,10 +1,11 @@
 import time
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 from botocore.exceptions import ClientError
 
-from redbox.models.chain import ChatLLMBackend, AISettings
-from redbox.chains.components import get_chat_llm, _FALLBACK_CACHE
+from redbox.chains.components import _FALLBACK_CACHE, get_chat_llm
+from redbox.models.chain import AISettings, ChatLLMBackend
 
 pytestmark = pytest.mark.usefixtures("clear_fallback_cache")
 
@@ -43,7 +44,20 @@ def test_get_chat_llm_primary_success(mocker, fake_model_backend, fake_ai_settin
 
     result = get_chat_llm(fake_model_backend, fake_ai_settings)
 
-    assert result == fake_model
+    assert result == fake_model.with_config.return_value
+    assert fake_model.bind_tools not in (None,)
+
+
+def test_get_chat_llm_token_call_back(mocker, fake_model_backend, fake_ai_settings):
+    fake_callback = MagicMock()
+    mocker.patch("redbox.chains.components.TokenAnnotationCallback", return_value=fake_callback)
+
+    fake_model = MagicMock(name="FakeChatModel")
+    mocker.patch("redbox.chains.components.init_chat_model", return_value=fake_model)
+
+    result = get_chat_llm(fake_model_backend, fake_ai_settings)
+    assert result == fake_model.with_config.return_value
+    fake_model.with_config.assert_called_once_with(callbacks=[fake_callback])
     assert fake_model.bind_tools not in (None,)
 
 

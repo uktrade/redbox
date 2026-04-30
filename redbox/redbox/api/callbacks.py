@@ -1,6 +1,8 @@
 from logging import Logger
 from typing import Any
 
+from ddtrace.llmobs import LLMObs
+from ddtrace.trace import tracer
 from langchain_core.callbacks.base import BaseCallbackHandler
 from langchain_core.outputs.llm_result import LLMResult
 
@@ -32,3 +34,21 @@ class LoggerCallbackHandler(BaseCallbackHandler):
     def on_text(self, text: str, **kwargs: Any) -> None:  # noqa:ARG002
         """Run on arbitrary text."""
         self.logger.info("Text: %s", text)
+
+
+class TokenAnnotationCallback(BaseCallbackHandler):
+    def on_llm_end(self, response: LLMResult, **kwargs) -> None:
+        if response.generations[0]:
+            usage = response.generations[0][0].message
+            LLMObs.annotate(
+                span=tracer.current_span(),
+                metadata={
+                    "stop_reason": (usage.response_metadata or {}).get("stop_reason", None),
+                },
+                metrics={
+                    "input_tokens": (usage.usage_metadata or {}).get("input_tokens", None),
+                    "output_tokens": (usage.usage_metadata or {}).get("output_tokens", None),
+                    "total_tokens": (usage.usage_metadata or {}).get("total_tokens", None),
+                },
+                tags={"func": "token_annotation_callback"},
+            )
