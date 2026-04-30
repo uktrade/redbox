@@ -23,13 +23,20 @@
                 "pattern": "Starting development server",
                 "action": "openExternally",
                 "uriFormat": "http://localhost:8080"
-            },
-            "postDebugTask": "docker-compose down deps"
+            }
         }
     ],
     "compounds": [
         {
             "name": "Full Stack Dev (Frontend + Django)",
+            "type": "compound",
+            "configurations": [
+                "Django: Runserver"
+            ],
+            "preLaunchTask": "start-dev"
+        },
+        {
+            "name": "Full Stack Dev (Frontend + Django) [WITH TEARDOWN]",
             "type": "compound",
             "configurations": [
                 "Django: Runserver"
