@@ -287,41 +287,34 @@ def run_tools_parallel(
                     log.warning("response not None")
 
                     if not is_loop:
-                        if isinstance(response, tuple):
+                        if isinstance(response, tuple) and isinstance(response[1], MCPResponseMetadata):
                             # Response from Datahub MCP
-                            if isinstance(response[1], MCPResponseMetadata):
-                                responses.append(AIMessage(response[0]))
-                            else:
-                                responses.append(AIMessage(response))
+                            responses.append(AIMessage(response[0]))
 
                         else:
                             responses.append(AIMessage(response))
                     else:
-                        if isinstance(response, tuple):
-                            if isinstance(response[1], MCPResponseMetadata):
-                                res = response[0]
-                                metadata = response[1]
-                                status = "pass" if res != "" else "fail"
-                                result = (
-                                    (
-                                        res,
-                                        status,
-                                        is_intermediate_step,
-                                        metadata.user_feedback.reason or "Requires feedback from the user.",
-                                    )
-                                    if metadata.user_feedback.required
-                                    else (res, status, is_intermediate_step)
+                        if isinstance(response, tuple) and isinstance(response[1], MCPResponseMetadata):
+                            res = response[0]
+                            metadata = response[1]
+                            status = "pass" if res != "" else "fail"
+                            result = (
+                                (
+                                    res,
+                                    status,
+                                    is_intermediate_step,
+                                    metadata.user_feedback.reason or "Requires feedback from the user.",
                                 )
-                                responses.append(AIMessage(result))
+                                if metadata.user_feedback.required
+                                else (res, status, is_intermediate_step)
+                            )
+                            responses.append(AIMessage(result))
 
-                                if metadata.user_feedback.required:
-                                    return responses
-
-                            else:
-                                responses.append(AIMessage(result))
+                            if metadata.user_feedback.required:
+                                return responses
 
                         else:
-                            responses.append(AIMessage(result))
+                            responses.append(AIMessage(response))
 
                     raw_res = response
                     if isinstance(raw_res, tuple):
