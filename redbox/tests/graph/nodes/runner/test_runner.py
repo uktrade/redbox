@@ -36,7 +36,6 @@ class TestToolRunner:
         """Create a ToolRunner instance with default settings."""
         return ToolRunner(tools=[mock_tool], state=mock_state, max_workers=2, is_loop=False, parallel_timeout=30.0)
 
-    # Test initialization
     def test_init_creates_executor(self, mock_tool, mock_state):
         """Test that initialization creates ThreadPoolExecutor."""
         runner = ToolRunner(tools=[mock_tool], state=mock_state, max_workers=4, is_loop=True, parallel_timeout=60.0)
@@ -47,7 +46,6 @@ class TestToolRunner:
         assert runner.parallel_timeout == 60.0
         assert runner.log_stub.startswith("[run_tools_parallel run_id=")
 
-    # Test submit method
     @pytest.mark.parametrize(
         "tool_call,expected_args_key",
         [
@@ -112,7 +110,6 @@ class TestToolRunner:
         with pytest.raises(tool_exceptions.ToolExecutionError, match="Failed to submit tool"):
             tool_runner.submit(tool_call)
 
-    # Test parse method
     @pytest.mark.parametrize(
         "response,is_loop,expected_result",
         [
@@ -223,7 +220,6 @@ class TestToolRunner:
         assert "not found" in caplog.text
         assert "validation error" in caplog.text
 
-    # Test _collect method
     def test_collect_all_success(self, tool_runner):
         """Test collecting all successful futures."""
         future1 = Mock(spec=Future)
@@ -237,12 +233,11 @@ class TestToolRunner:
             future2: {"name": "tool2", "intermediate_step": "False"},
         }
 
-        with patch("redbox.graph.nodes.runner.runner.as_completed", return_value=[future1, future2]):
-            responses = tool_runner._collect(futures)
+        result = tool_runner._collect(futures)
 
-        assert responses is not None
-        assert len(responses) == 2
-        assert all(isinstance(r, AIMessage) for r in responses)
+        assert result is not None
+        assert result.failed_tools == []
+        assert result.responses == [AIMessage(content="result1"), AIMessage(content="result2")]
 
     def test_collect_all_failures(self, tool_runner, caplog):
         """Test that _collect returns None when all tools fail."""
@@ -251,11 +246,12 @@ class TestToolRunner:
 
         futures = {future1: {"name": "tool1", "intermediate_step": "False"}}
 
-        with patch("redbox.graph.nodes.runner.runner.as_completed", return_value=[future1]):
-            with caplog.at_level(logging.WARNING):
-                responses = tool_runner._collect(futures)
+        with caplog.at_level(logging.WARNING):
+            result = tool_runner._collect(futures)
 
-        assert responses is None
+        assert result is not None
+        assert result.responses == []
+        assert result.failed_tools == ["tool1"]
         assert "Every tool execution has failed" in caplog.text
 
     def test_collect_partial_success(self, tool_runner, caplog):
@@ -271,16 +267,16 @@ class TestToolRunner:
             future2: {"name": "tool2", "intermediate_step": "False"},
         }
 
-        with patch("redbox.graph.nodes.runner.runner.as_completed", return_value=[future1, future2]):
-            with caplog.at_level(logging.WARNING):
-                responses = tool_runner._collect(futures)
+        with caplog.at_level(logging.WARNING):
+            result = tool_runner._collect(futures)
 
-        assert responses is not None
-        assert len(responses) == 1
+        assert result is not None
+        assert result.responses == [AIMessage(content="success")]
+        assert result.failed_tools == ["tool2"]
         assert "timed out" in caplog.text
         assert "1 tool(s) failed" in caplog.text
 
-    # Test run method (integration)
+    #
     def test_run_end_to_end(self, tool_runner):
         """Test complete run flow from submission to collection."""
         tool_calls = [{"name": "test_tool", "args": {"param": "value"}}]
@@ -301,8 +297,8 @@ class TestToolRunner:
     def test_run_with_no_tool_calls(self, tool_runner):
         """Test run with empty tool calls list."""
         result = tool_runner.run(tool_calls=[])
-        # Should return None or empty list depending on implementation
-        assert result is None or result == []
+        assert result.responses == []
+        assert result.failed_tools == []
 
     @pytest.mark.parametrize(
         "max_workers,parallel_timeout",
@@ -325,7 +321,6 @@ class TestToolRunner:
         assert runner.executor._max_workers == max_workers
         assert runner.parallel_timeout == parallel_timeout
 
-    # Test logging behaviour
     def test_logging_on_tool_not_found(self, tool_runner, caplog):
         """Test that appropriate warnings are logged for tool not found."""
         tool_calls = [{"name": "missing_tool", "args": {}}]

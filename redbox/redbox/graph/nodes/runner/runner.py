@@ -1,3 +1,4 @@
+from asyncio import CancelledError
 import logging
 from uuid import uuid4
 from typing import Optional, List
@@ -87,7 +88,6 @@ class ToolRunner:
                 log.warning(f"{self.log_stub} Tool '{tool_name}' execution error: {e}")
 
             except Exception as e:
-                # Log unexpected exceptions with full traceback
                 log.error(f"{self.log_stub} Unexpected error submitting tool '{tool_name}': {e}", exc_info=True)
 
         return futures
@@ -183,7 +183,7 @@ class ToolRunner:
             raise tool_exceptions.ToolTimeoutError(
                 f"Tool '{future_tool_name}' timed out after {self.parallel_timeout:.1f}s"
             ) from e
-        except Exception as e:
+        except (Exception, CancelledError) as e:
             raise tool_exceptions.ToolExecutionError(f"Tool '{future_tool_name}' failed: {str(e)}") from e
 
         log.warning(f"{self.log_stub} This is what I got from tool '{future_tool_name}': {response}")
@@ -226,7 +226,7 @@ class ToolRunner:
                 f"Tool '{future_tool_name}' returned non-string type: {type(raw_res).__name__}"
             )
 
-        if not raw_res.strip:
+        if not raw_res.strip():
             raise tool_exceptions.ToolValidationError(
                 f"Tool '{future_tool_name}' returned empty or whitespace-only response"
             )
