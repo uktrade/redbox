@@ -90,11 +90,11 @@ prompt_configs: Dict[str, PromptConfig] = {
     ),
     "Web_Search_Agent": PromptConfig(
         system=prompts.WEB_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
-        prompt_var=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
+        prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
     ),
     "Legislation_Search_Agent": PromptConfig(
         system=prompts.LEGISLATION_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
-        prompt_var=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
+        prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
     ),
     "Summarisation_Agent": PromptConfig(
         system=prompts.CHAT_WITH_DOCS_SYSTEM_PROMPT,
