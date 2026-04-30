@@ -29,7 +29,7 @@ from waffle.decorators import waffle_flag
 from redbox.api.wrapper import SensitiveValue
 from redbox.api.format import format_documents
 from redbox.chains.components import get_embeddings
-from redbox.graph.nodes.sends import _get_mcp_headers
+from redbox.graph.nodes.runner.wrap_async import _get_mcp_headers
 from redbox.models.chain import RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution, TabularSchema
 from redbox.models.settings import get_settings
