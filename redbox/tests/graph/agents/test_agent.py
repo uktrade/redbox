@@ -141,7 +141,7 @@ def test_prompt_config_has_prompt_vars(name, prompt_cfg: PromptConfig):
     assert isinstance(prompt_cfg.prompt_vars, PromptVariable, f"{name}: prompt_vars is not a PromptVariable instance")
 
 
-@pytest.mark.parametrize("name", "prompt_cfg", list(prompt_configs.items()))
+@pytest.mark.parametrize(("name", "prompt_cfg"), list(prompt_configs.items()))
 def test_prompt_config_fields(name, prompt_cfg: PromptConfig):
     prompt_text = prompt_cfg.system + prompt_cfg.question
     expected_vars = [
