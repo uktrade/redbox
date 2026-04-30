@@ -138,7 +138,12 @@ prompt_configs: Dict[str, PromptConfig] = {
     "Datahub_Agent": PromptConfig(
         system=prompts.DATAHUB_PROMPT + prompts.DATAHUB_QUESTION_PROMPT,
         prompt_vars=PromptVariable(
-            question=True, chat_history=True, previous_tool_error=True, previous_tool_results=True
+            task=True,
+            expected_output=True,
+            question=True,
+            chat_history=True,
+            previous_tool_error=True,
+            previous_tool_results=True,
         ),
     ),
     "Knowledge_Base_Retrieval_Agent": PromptConfig(
