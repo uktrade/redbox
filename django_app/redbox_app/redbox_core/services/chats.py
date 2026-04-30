@@ -36,14 +36,18 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
 
     # Only enable Invest Lens for OfI users
     session = request.session
-    token = session.session_key
+    authbroker_token = session.get("_authbroker_token", {}) or {}
+
+    access_token = authbroker_token.get("access_token")
 
     has_access = False
+    has_ofi_email = False
 
-    if token:
-        has_access = user_has_ofi_email(token) or request.user.is_superuser
+    has_ofi_email = user_has_ofi_email(access_token)
 
-    if not has_access or not flag_is_active(request, flags.ENABLE_INVEST_LENS):
+    has_access = has_ofi_email or request.user.is_superuser or flag_is_active(request, flags.ENABLE_INVEST_LENS)
+
+    if not has_access:
         tools = tools.exclude(slug="invest-lens")
 
     messages = ChatMessage.get_messages_ordered_by_citation_priority(chat_id) if current_chat else []

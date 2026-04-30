@@ -96,18 +96,31 @@ def parse_uuid(value: str | uuid.UUID | None) -> uuid.UUID | None:
 
 
 def user_has_ofi_email(token: str) -> bool:
+    if not token:
+        return False
+
     url = f"{settings.AUTHBROKER_URL}/api/v1/user/me/"
     headers = {
         "Authorization": f"Bearer {token}",
     }
 
-    resp = requests.get(url, headers=headers, timeout=3)
+    try:
+        resp = requests.get(url, headers=headers, timeout=5)
 
-    if resp.status_code != HTTPStatus.OK:
-        logger.warning("SSO check failed: %s %s", resp.status_code, resp.text)
+        if resp.status_code != HTTPStatus.OK:
+            logger.warning("SSO check failed: %s %s", resp.status_code, resp.text[:500])
+            return False
+
+        data = resp.json()
+
+        # all emails
+        related_emails = data.get("related_emails", []) or []
+        main_email = data.get("email") or ""
+        contact_email = data.get("contact_email") or ""
+        all_emails = [*related_emails, main_email, contact_email]
+
+        return any(email and str(email).lower().endswith("@officeforinvestment.gov.uk") for email in all_emails)
+
+    except Exception:
+        logger.exception("Failed to call authbroker endpoint")
         return False
-
-    data = resp.json()
-    related_emails = data.get("related_emails", [])
-
-    return any(email.endswith("@officeforinvestment.gov.uk") for email in related_emails)
