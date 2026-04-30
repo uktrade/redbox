@@ -266,7 +266,7 @@ agent_configs: Dict[str, AgentConfig] = {
         prompt=prompt_configs["Datahub_Agent"],
         parser=None,
         agents_max_tokens=10000,
-        default_agent=False,
+        default_agent=True,
     ),
     "Knowledge_Base_Retrieval_Agent": AgentConfig(
         name="Knowledge_Base_Retrieval_Agent",

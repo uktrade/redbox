@@ -30,6 +30,7 @@ class TestNewRouteGraphs:
             ("Summarisation_Agent", None),
             ("Submission_Checker_Agent", ["update_submission_eval", "combine_question_evaluator"]),
             ("Submission_Question_Answer_Agent", ["update_submission_qa", "combine_question_evaluator"]),
+            ("Datahub_Agent", ["combine_question_evaluator"]),
         ],
     )
     def test_new_route_graph(self, agent_name, edges):
