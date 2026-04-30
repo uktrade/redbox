@@ -505,3 +505,5 @@ FEEDBACK_LINK = env.str(
 )
 
 PRODUCT_NAME = env.str("PRODUCT_NAME", "Redbox at DBT")
+
+WAFFLE_FLAG_MODEL = "redbox_core.CustomFlag"

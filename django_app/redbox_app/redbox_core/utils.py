@@ -4,6 +4,7 @@ from datetime import date
 from http import HTTPStatus
 
 import requests
+import waffle
 from django import forms
 from django.conf import settings
 from django.core.exceptions import FieldError
@@ -11,6 +12,7 @@ from django.http import Http404, HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
 
+from redbox_app.redbox_core import flags
 from redbox_app.redbox_core.types import RenderTemplateItem
 
 logger = logging.getLogger(__name__)
@@ -124,3 +126,33 @@ def user_has_ofi_email(token: str) -> bool:
     except Exception:
         logger.exception("Failed to call authbroker endpoint")
         return False
+
+
+def user_has_invest_lens_access(request) -> bool:
+    if not request.user.is_authenticated:
+        return False
+
+    if request.user.is_superuser:
+        return True
+
+    session = request.session
+    authbroker_token = session.get("_authbroker_token", {}) or {}
+    access_token = authbroker_token.get("access_token")
+
+    if user_has_ofi_email(access_token):
+        return True
+
+    flag_name = flags.ENABLE_INVEST_LENS
+
+    if waffle.flag_is_active(request, flag_name):
+        return True
+
+    flag = waffle.get_waffle_flag_model().objects.get(name=flag_name)
+
+    if hasattr(flag, "get_extra_emails"):
+        user_email = getattr(request.user, "email", None)
+        if user_email:
+            extra_emails = flag.get_extra_emails()
+            return user_email.strip().lower() in extra_emails
+
+    return False

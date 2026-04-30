@@ -14,7 +14,7 @@ from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, Too
 from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.services import message as message_service
 from redbox_app.redbox_core.services import url as url_service
-from redbox_app.redbox_core.utils import resolve_instance, user_has_ofi_email
+from redbox_app.redbox_core.utils import resolve_instance, user_has_invest_lens_access
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -34,18 +34,9 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
 
     tools = Tool.objects.all()
 
-    # Only enable Invest Lens for OfI users
-    session = request.session
-    authbroker_token = session.get("_authbroker_token", {}) or {}
+    # Only enable Invest Lens for specific users (OFI and custom)
 
-    access_token = authbroker_token.get("access_token")
-
-    has_access = False
-    has_ofi_email = False
-
-    has_ofi_email = user_has_ofi_email(access_token)
-
-    has_access = has_ofi_email or request.user.is_superuser or flag_is_active(request, flags.ENABLE_INVEST_LENS)
+    has_access = user_has_invest_lens_access(request)
 
     if not has_access:
         tools = tools.exclude(slug="invest-lens")

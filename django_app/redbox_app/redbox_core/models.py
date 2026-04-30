@@ -25,6 +25,7 @@ from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from slugify import slugify
+from waffle.models import AbstractUserFlag
 from yarl import URL
 
 from redbox.models.settings import get_settings
@@ -1273,3 +1274,26 @@ class Agent(UUIDPrimaryKeyBase, TimeStampedModel):
 
     def __str__(self):
         return self.name
+
+
+class CustomFlag(AbstractUserFlag):
+    """
+    Extending the waffle flag to have a textfield for additional allowed emails
+    """
+
+    extra_allowed_emails = models.TextField(
+        blank=True,
+        null=True,
+        help_text="List of emails that should have access to this flag"
+        "these are checked in addition to other users against the flag",
+    )
+
+    class Meta:
+        verbose_name = "Flag"
+        verbose_name_plural = "Flags"
+
+    def get_extra_emails(self):
+        if not self.extra_allowed_emails:
+            return set()
+        emails = self.extra_allowed_emails.replace("\n", ",").split(",")
+        return {email.strip().lower() for email in emails if email.strip()}
