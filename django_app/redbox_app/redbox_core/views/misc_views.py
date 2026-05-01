@@ -11,6 +11,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.generic.base import RedirectView
 
 from redbox_app.redbox_core.services import chats as chat_service
+from redbox_app.redbox_core.services.sso import sync_sso_data
 from redbox_app.redbox_core.types import FRAGMENTS, RenderTemplateItem
 from redbox_app.redbox_core.utils import parse_uuid, render_with_oob
 
@@ -26,6 +27,7 @@ def homepage_view(request):
             context={"request": request, "allow_sign_ups": settings.ALLOW_SIGN_UPS},
         )
 
+    sync_sso_data(request)
     return redirect("chats")
 
 
