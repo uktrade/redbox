@@ -749,6 +749,59 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
         return not Chat.objects.filter(user=self).first()
 
 
+class UserSSO(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="sso")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    payload = models.JSONField(blank=True, null=True)
+
+    email = models.EmailField(blank=True)
+    email_user_id = models.EmailField(blank=True)
+    contact_email = models.EmailField(blank=True)
+
+    first_name = models.CharField(max_length=48, blank=True)
+    last_name = models.CharField(max_length=48, blank=True)
+
+    class Meta:
+        verbose_name = "User SSO"
+        verbose_name_plural = "User SSO"
+
+    def __str__(self):
+        return f"{self.user} SSO"
+
+    @property
+    def related_emails(self) -> list:
+        return list(
+            self.attributes.filter(type=UserSSOAttribute.AttributeType.RELATED_EMAILS).values_list("value", flat=True)
+        )
+
+    @property
+    def related_emails_display(self) -> str:
+        return ", ".join(self.related_emails)
+
+
+class UserSSOAttribute(models.Model):
+    class AttributeType(models.TextChoices):
+        RELATED_EMAILS = "related_emails", _("Related Emails")
+        OTHER = "other", _("Other")
+
+    sso = models.ForeignKey(UserSSO, on_delete=models.CASCADE, related_name="attributes")
+    value = models.CharField(max_length=2048)
+    type = models.CharField(max_length=100, choices=AttributeType.choices, db_index=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("sso", "value", "type")
+        indexes = [
+            models.Index(fields=["type", "value"]),
+        ]
+
+    def __str__(self):
+        return f"{self.sso.user} ({self.type}) -> {self.value}"
+
+
 class Team(UUIDPrimaryKeyBase):
     team_name = models.CharField(max_length=100, unique=True, blank=False, null=False)
     directorate = models.CharField(max_length=100, blank=False, null=False)
