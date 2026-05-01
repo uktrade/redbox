@@ -16,6 +16,7 @@ from django.core.management import call_command
 from django.utils import timezone
 from freezegun import freeze_time
 from moto import mock_aws
+from waffle.models import get_waffle_flag_model
 
 from redbox_app.redbox_core.models import (
     Agent,
@@ -438,3 +439,40 @@ def default_agent() -> Agent:
     )
     agent.save()
     return agent
+
+
+CustomFlag = get_waffle_flag_model()
+
+
+@pytest.fixture(scope="session")
+def django_db_setup(django_db_setup, django_db_blocker):  # noqa: ARG001
+    with django_db_blocker.unblock():
+        call_command("migrate", "--run-syncdb", verbosity=0)
+
+        call_command("migrate", "waffle", fake=True, verbosity=0)
+
+        call_command("migrate", "redbox_core", verbosity=0)
+
+        call_command("migrate", verbosity=0)
+
+        ensure_critical_flags()
+
+
+def ensure_critical_flags():
+    flag_names = [
+        "Internal_Retrieval_Agent",
+    ]
+
+    for name in flag_names:
+        CustomFlag.objects.get_or_create(name=name, defaults={"active": False, "note": "Auto-created for tests"})
+
+
+@pytest.fixture(autouse=True, scope="session")
+def configure_waffle_for_tests():
+    settings.WAFFLE_CREATE_MISSING_FLAGS = True
+    settings.WAFFLE_FLAG_MODEL = "redbox_core.CustomFlag"
+
+
+@pytest.fixture(autouse=True)
+def clean_internal_retrieval_agent(db):  # noqa: ARG001
+    Agent.objects.filter(name="Internal_Retrieval_Agent").delete()
