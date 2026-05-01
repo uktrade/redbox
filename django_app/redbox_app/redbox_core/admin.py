@@ -290,6 +290,23 @@ class UserToolAdmin(ExportMixin, admin.ModelAdmin):
     search_fields = ("user__email", "tool__name")
 
 
+class UserSSOAdmin(ExportMixin, admin.ModelAdmin):
+    list_display = ["user", "email_user_id", "created_at", "updated_at", "related_emails", "all_emails"]
+
+    list_filter = ["user", "updated_at"]
+    date_hierarchy = "updated_at"
+    search_fields = ("user__email", "email_user_id")
+
+    def related_emails_display(self, obj: models.UserSSO):
+        return obj.related_emails_display
+
+    def all_emails_display(self, obj: models.UserSSO):
+        return obj.all_emails_display
+
+    related_emails_display.short_description = "Related Emails"
+    all_emails_display.short_description = "All Emails"
+
+
 class FileTeamMembershipAdmin(admin.ModelAdmin):
     list_display = ("file", "team", "visibility", "created_at")
     list_filter = ("visibility", "team")
@@ -504,4 +521,5 @@ admin.site.register(models.ToolSettings, ToolSettingsAdmin)
 admin.site.register(models.AgentTool, AgentToolAdmin)
 admin.site.register(models.FileTool, FileToolAdmin)
 admin.site.register(models.UserTool, UserToolAdmin)
+admin.site.register(models.UserSSO, UserSSOAdmin)
 admin.site.register_view("report/", view=reporting_dashboard, name="Site report")

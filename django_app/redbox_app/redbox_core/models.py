@@ -784,6 +784,14 @@ class UserSSO(models.Model):
     def all_emails(self) -> set:
         return {*self.related_emails, self.email, self.contact_email}
 
+    @property
+    def all_emails_display(self) -> str:
+        return ", ".join(self.all_emails)
+
+    @property
+    def name(self) -> str:
+        return f"{self.first_name} {self.last_name}"
+
 
 class UserSSOAttribute(models.Model):
     class AttributeType(models.TextChoices):
