@@ -4,6 +4,7 @@ from datetime import date
 from http import HTTPStatus
 
 import requests
+import waffle
 from django import forms
 from django.conf import settings
 from django.core.exceptions import FieldError
@@ -11,6 +12,7 @@ from django.http import Http404, HttpResponse
 from django.template.loader import render_to_string
 from django.utils import timezone
 
+from redbox_app.redbox_core import flags
 from redbox_app.redbox_core.types import RenderTemplateItem
 
 logger = logging.getLogger(__name__)
@@ -96,23 +98,61 @@ def parse_uuid(value: str | uuid.UUID | None) -> uuid.UUID | None:
 
 
 def user_has_ofi_email(token: str) -> bool:
+    if not token:
+        return False
+
     url = f"{settings.AUTHBROKER_URL}/api/v1/user/me/"
     headers = {
         "Authorization": f"Bearer {token}",
     }
 
-    resp = requests.get(url, headers=headers, timeout=3)
+    try:
+        resp = requests.get(url, headers=headers, timeout=5)
 
-    if resp.status_code != HTTPStatus.OK:
-        logger.warning("SSO check failed: %s %s", resp.status_code, resp.text)
+        if resp.status_code != HTTPStatus.OK:
+            logger.warning("SSO check failed: %s %s", resp.status_code, resp.text[:500])
+            return False
+
+        data = resp.json()
+
+        # all emails
+        related_emails = data.get("related_emails", []) or []
+        main_email = data.get("email") or ""
+        contact_email = data.get("contact_email") or ""
+        all_emails = [*related_emails, main_email, contact_email]
+
+        return any(email and str(email).lower().endswith("@officeforinvestment.gov.uk") for email in all_emails)
+
+    except Exception:
+        logger.exception("Failed to call authbroker endpoint")
         return False
 
-    data = resp.json()
 
-    # all emails
-    related_emails = data.get("related_emails", [])
-    main_email = data.get("email", [])
-    contact_email = data.get("contact_email", [])
-    all_emails = [*related_emails, main_email, contact_email]
+def user_has_invest_lens_access(request) -> bool:
+    if not request.user.is_authenticated:
+        return False
 
-    return any(email.endswith("@officeforinvestment.gov.uk") for email in all_emails)
+    if request.user.is_superuser:
+        return True
+
+    session = request.session
+    authbroker_token = session.get("_authbroker_token", {}) or {}
+    access_token = authbroker_token.get("access_token")
+
+    if user_has_ofi_email(access_token):
+        return True
+
+    flag_name = flags.ENABLE_INVEST_LENS
+
+    if waffle.flag_is_active(request, flag_name):
+        return True
+
+    flag = waffle.get_waffle_flag_model().objects.get(name=flag_name)
+
+    if hasattr(flag, "get_extra_emails"):
+        user_email = getattr(request.user, "email", None)
+        if user_email:
+            extra_emails = flag.get_extra_emails()
+            return user_email.strip().lower() in extra_emails
+
+    return False
