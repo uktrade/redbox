@@ -464,7 +464,13 @@ def ensure_critical_flags():
     ]
 
     for name in flag_names:
-        CustomFlag.objects.get_or_create(name=name, defaults={"active": False, "note": "Auto-created for tests"})
+        CustomFlag.objects.get_or_create(
+            name=name,
+            defaults={
+                "everyone": False,
+                "note": "Auto-created for tests",
+            },
+        )
 
 
 @pytest.fixture(autouse=True, scope="session")
