@@ -69,9 +69,32 @@ def sanitise_string(string: str | None) -> str | None:
 
 class ToolQuerySet(models.QuerySet):
     def for_user(self, user: User):
-        return self.filter(
-            models.Q(is_public=True) | models.Q(user_tools__user=user, user_tools__access=UserTool.AccessType.ALLOW)
-        ).distinct()
+        try:
+            email_domains = user.sso.email_domains
+        except UserSSO.DoesNotExist:
+            email_domains = None
+
+        allow_filters = models.Q(
+            access_rules__rule_type=ToolAccessRule.RuleType.DOMAIN,
+            access_rules__value__in=email_domains,
+            access_rules__access_type=ToolAccessRule.AccessType.ALLOW,
+        )
+
+        deny_filters = models.Q(
+            access_rules__rule_type=ToolAccessRule.RuleType.DOMAIN,
+            access_rules__value__in=email_domains,
+            access_rules__access_type=ToolAccessRule.AccessType.DENY,
+        )
+
+        return (
+            self.filter(
+                models.Q(is_public=True)
+                | models.Q(user_tools__user=user, user_tools__access_type=UserTool.AccessType.ALLOW)
+                | allow_filters
+            )
+            .exclude(deny_filters)
+            .distinct()
+        )
 
 
 class ToolManager(models.Manager):
@@ -160,17 +183,44 @@ class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
 
         return False if not user_tool else user_tool.is_enabled
 
-    def add_user(self, user: User | uuid.UUID, role: UserTool.RoleType | None, access: UserTool.AccessType | None):
+    def add_user(self, user: User | uuid.UUID, role: UserTool.RoleType | None, access_type: UserTool.AccessType | None):
         user = resolve_instance(value=user, model=User, raise_404=True)
 
         user_tool_member = UserTool(
             user=user,
             tool=self,
             role=role or UserTool.RoleType.USER,
-            access=access or UserTool.AccessType.ALLOW,
+            access_type=access_type or UserTool.AccessType.ALLOW,
         )
         user_tool_member.save()
         return user_tool_member
+
+
+class ToolAccessRule(TimeStampedModel):
+    """
+    Tool access rules for specified criteria
+    """
+
+    class RuleType(models.TextChoices):
+        DOMAIN = "DOMAIN", _("Domain")
+
+    class AccessType(models.TextChoices):
+        ALLOW = "ALLOW", _("Allowed")
+        DENY = "DENY", _("Denied")
+
+    tool = models.ForeignKey(Tool, on_delete=models.CASCADE, related_name="access_rules")
+    rule_type = models.CharField(max_length=100, choices=RuleType.choices)
+    value = models.CharField(max_length=100)
+    access_type = models.CharField(max_length=100, choices=AccessType.choices)
+
+    class Meta:
+        constraints = [UniqueConstraint(fields=["tool", "rule_type", "value"], name="unique_tool_access_rule")]
+        ordering = ["created_at"]
+        verbose_name = "Tool Access Rule"
+        verbose_name_plural = "Tool Access Rules"
+
+    def __str__(self):
+        return f"{self.tool} ({self.rule_type}) - {self.value}"
 
 
 class UserTool(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -189,12 +239,14 @@ class UserTool(UUIDPrimaryKeyBase, TimeStampedModel):
     user = models.ForeignKey("User", on_delete=models.CASCADE, related_name="user_tools")
     tool = models.ForeignKey(Tool, on_delete=models.CASCADE, related_name="user_tools")
 
-    access = models.CharField(max_length=20, choices=AccessType.choices, default=AccessType.ALLOW)
+    access_type = models.CharField(max_length=20, choices=AccessType.choices, default=AccessType.ALLOW)
     role = models.CharField(max_length=20, choices=RoleType.choices, default=RoleType.USER)
 
     class Meta:
         unique_together = ("user", "tool")
         ordering = ["created_at"]
+        verbose_name = "User Tool"
+        verbose_name_plural = "User Tools"
 
     def __str__(self):
         return self.user.email + " - " + self.tool.name
@@ -203,7 +255,7 @@ class UserTool(UUIDPrimaryKeyBase, TimeStampedModel):
     def is_enabled(self) -> bool:
         if self.tool.is_public:
             return True
-        return self.access == self.AccessType.ALLOW
+        return self.access_type == self.AccessType.ALLOW
 
     @cached_property
     def role_choices(self) -> Sequence[tuple[RoleType, str]]:
@@ -736,10 +788,7 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
             return ""
 
     def has_tool_access(self, tool: Tool) -> bool:
-        if tool.is_public:
-            return True
-
-        return self.user_tools.filter(tool=tool, access=UserTool.AccessType.ALLOW).exists()
+        return tool in Tool.objects.for_user(self)
 
     def can_manage_tool(self, tool: Tool) -> bool:
         return self.user_tools.filter(tool=tool, role=UserTool.RoleType.MANAGER).exists()
@@ -749,10 +798,8 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
         return not Chat.objects.filter(user=self).first()
 
 
-class UserSSO(models.Model):
+class UserSSO(TimeStampedModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="sso")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     payload = models.JSONField(blank=True, null=True)
 
@@ -773,7 +820,9 @@ class UserSSO(models.Model):
     @property
     def related_emails(self) -> list:
         return list(
-            self.attributes.filter(type=UserSSOAttribute.AttributeType.RELATED_EMAILS).values_list("value", flat=True)
+            self.attributes.filter(attribute_type=UserSSOAttribute.AttributeType.RELATED_EMAILS).values_list(
+                "value", flat=True
+            )
         )
 
     @property
@@ -792,26 +841,28 @@ class UserSSO(models.Model):
     def name(self) -> str:
         return f"{self.first_name} {self.last_name}"
 
+    @property
+    def email_domains(self) -> list:
+        return [email.split("@")[-1] for email in self.all_emails if email]
 
-class UserSSOAttribute(models.Model):
+
+class UserSSOAttribute(TimeStampedModel):
     class AttributeType(models.TextChoices):
         RELATED_EMAILS = "related_emails", _("Related Emails")
         OTHER = "other", _("Other")
 
     sso = models.ForeignKey(UserSSO, on_delete=models.CASCADE, related_name="attributes")
     value = models.CharField(max_length=2048)
-    type = models.CharField(max_length=100, choices=AttributeType.choices, db_index=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
+    attribute_type = models.CharField(max_length=100, choices=AttributeType.choices, db_index=True)
 
     class Meta:
-        unique_together = ("sso", "value", "type")
+        unique_together = ("sso", "value", "attribute_type")
         indexes = [
-            models.Index(fields=["type", "value"]),
+            models.Index(fields=["attribute_type", "value"]),
         ]
 
     def __str__(self):
-        return f"{self.sso.user} ({self.type}) -> {self.value}"
+        return f"{self.sso.user} ({self.attribute_type}) -> {self.value}"
 
 
 class Team(UUIDPrimaryKeyBase):

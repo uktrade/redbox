@@ -68,6 +68,8 @@ def sync_sso_data(request: HttpRequest) -> bool:
     sso.first_name = data.get("first_name") or ""
     sso.last_name = data.get("last_name") or ""
 
+    sso.payload = data
+
     sso.save()
     logger.info("Synced UserSSO data for: %s", request.user)
 
@@ -75,13 +77,13 @@ def sync_sso_data(request: HttpRequest) -> bool:
 
 
 def sync_related_emails(sso: UserSSO, related_emails):
-    UserSSOAttribute.objects.filter(sso=sso, type=UserSSOAttribute.AttributeType.RELATED_EMAILS).delete()
+    UserSSOAttribute.objects.filter(sso=sso, attribute_type=UserSSOAttribute.AttributeType.RELATED_EMAILS).delete()
 
     UserSSOAttribute.objects.bulk_create(
         [
             UserSSOAttribute(
                 sso=sso,
-                type=UserSSOAttribute.AttributeType.RELATED_EMAILS,
+                attribute_type=UserSSOAttribute.AttributeType.RELATED_EMAILS,
                 value=email,
             )
             for email in related_emails

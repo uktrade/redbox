@@ -136,12 +136,12 @@ def add_tool_user_view(request: HttpRequest, slug: str):
 
     user_ids = request.POST.getlist("user_ids")
     role = request.POST.get("role")
-    access = request.POST.get("access")
+    access_type = request.POST.get("access")
     next_url = request.GET.get("next")
 
     for user_id in user_ids:
         try:
-            tool.add_user(user=user_id, role=role, access=access)
+            tool.add_user(user=user_id, role=role, access_type=access_type)
         except Exception as e:
             error = "Failed to add tool user"
             error_exception = f"{error}: {e}"

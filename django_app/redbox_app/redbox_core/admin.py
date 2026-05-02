@@ -58,6 +58,21 @@ class ToolSettingsAdmin(admin.ModelAdmin):
         model = models.ToolSettings
 
 
+class ToolAccessRuleAdmin(admin.ModelAdmin):
+    list_display = [
+        "tool",
+        "rule_type",
+        "value",
+        "created_at",
+    ]
+
+    search_fields = ["tool__name", "rule_type", "value"]
+    readonly_fields = ["modified_at", "created_at"]
+
+    class Meta:
+        model = models.ToolAccessRule
+
+
 class AgentToolAdmin(admin.ModelAdmin):
     list_display = [
         "agent__name",
@@ -291,10 +306,9 @@ class UserToolAdmin(ExportMixin, admin.ModelAdmin):
 
 
 class UserSSOAdmin(ExportMixin, admin.ModelAdmin):
-    list_display = ["user", "email_user_id", "created_at", "updated_at", "related_emails", "all_emails"]
-
-    list_filter = ["user", "updated_at"]
-    date_hierarchy = "updated_at"
+    list_display = ["user", "email_user_id", "created_at", "modified_at", "related_emails", "all_emails"]
+    list_filter = ["user", "modified_at"]
+    date_hierarchy = "modified_at"
     search_fields = ("user__email", "email_user_id")
 
     def related_emails_display(self, obj: models.UserSSO):
@@ -518,6 +532,7 @@ admin.site.register(models.FileTeamMembership, FileTeamMembershipAdmin)
 admin.site.register(models.Agent, AgentAdmin)
 admin.site.register(models.Tool, ToolAdmin)
 admin.site.register(models.ToolSettings, ToolSettingsAdmin)
+admin.site.register(models.ToolAccessRule, ToolAccessRuleAdmin)
 admin.site.register(models.AgentTool, AgentToolAdmin)
 admin.site.register(models.FileTool, FileToolAdmin)
 admin.site.register(models.UserTool, UserToolAdmin)
