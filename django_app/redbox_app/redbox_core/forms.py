@@ -4,6 +4,9 @@ from typing import ClassVar
 from django import forms
 from django.contrib.auth import get_user_model
 
+from redbox_app.redbox_core.models import Tool, ToolAccessRule, UserTool
+from redbox_app.redbox_core.services import url as url_service
+
 User = get_user_model()
 
 
@@ -201,3 +204,195 @@ class DemographicsForm(forms.ModelForm):
                 attrs={"class": "govuk-textarea govuk-!-width-one-half", "rows": "5"}
             ),
         }
+
+
+class GovUKModelForm(forms.ModelForm):
+    """
+    Base form to ensure consistent GOV.UK styling.
+    Only lightly applied to avoid over-engineering.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        field_width_class = "govuk-!-width-two-thirds"
+
+        for field in self.fields.values():
+            widget = field.widget
+
+            # Only set defaults if not already explicitly defined
+            if isinstance(widget, forms.TextInput):
+                widget.attrs.setdefault("class", f"govuk-input {field_width_class}")
+            elif isinstance(widget, forms.Textarea):
+                widget.attrs.setdefault("class", f"govuk-textarea {field_width_class}")
+            elif isinstance(widget, forms.Select):
+                widget.attrs.setdefault("class", f"govuk-select {field_width_class}")
+            elif isinstance(widget, forms.RadioSelect):
+                widget.attrs.setdefault("class", "govuk-radios__item")
+            elif isinstance(widget, forms.CheckboxInput):
+                widget.attrs.setdefault("class", "govuk-checkboxes__input")
+
+
+class ToolSettingsForm(GovUKModelForm):
+    class Meta:
+        model = Tool
+        fields = (
+            "name",
+            "description",
+            "is_public",
+        )
+
+        labels: ClassVar[Mapping[str, str]] = {
+            "name": "Name",
+            "description": "Description",
+            "is_public": "Public access",
+        }
+
+        help_texts: ClassVar[Mapping[str, str]] = {
+            "is_public": "If enabled, all users can access this tool unless explicitly denied by a rule.",
+        }
+
+        widgets: ClassVar[Mapping[str, forms.Widget]] = {
+            "name": forms.TextInput(),
+            "description": forms.Textarea(
+                attrs={
+                    "rows": "3",
+                }
+            ),
+            "is_public": forms.CheckboxInput(),
+        }
+
+
+class ToolAccessRuleForm(GovUKModelForm):
+    class Meta:
+        model = ToolAccessRule
+        fields = (
+            "rule_type",
+            "value",
+            "access_type",
+        )
+
+        labels: ClassVar[Mapping[str, str]] = {
+            "rule_type": "Rule type",
+            "value": "Value",
+            "access_type": "Access",
+        }
+
+        help_texts: ClassVar[Mapping[str, str]] = {
+            "rule_type": "Select how this rule determines access (e.g. domain or group).",
+            "value": "Enter a domain (example.com) or group name depending on the rule type.",
+            "access_type": "Allow grants access, deny overrides all other access methods.",
+        }
+
+        widgets: ClassVar[Mapping[str, forms.Widget]] = {
+            "rule_type": forms.Select(),
+            "value": forms.TextInput(
+                attrs={
+                    "placeholder": "e.g. example.com",
+                }
+            ),
+            "access_type": forms.RadioSelect(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["rule_type"].widget.attrs.update(
+            {
+                "hx-get": url_service.get_tool_access_rule_value_input_url(),
+                "hx-target": "#id_value",
+                "hx-trigger": "change",
+                "hx-include": "[name='rule_type']",
+                "hx-swap": "outerHTML",
+            }
+        )
+
+        initial_rule_type = self.initial.get("rule_type") or self.data.get("rule_type")
+        placeholder = ToolAccessRule.get_value_placeholder(initial_rule_type)
+
+        self.fields["value"].widget.attrs["placeholder"] = placeholder
+
+    def clean(self):
+        cleaned_data = super().clean()
+        rule_type = cleaned_data.get("rule_type")
+        value = cleaned_data.get("value")
+
+        if value:
+            value = value.strip().lower()
+            cleaned_data["value"] = value
+
+        if rule_type == "domain" and value and "@" in value:
+            msg = "Enter a domain like example.com, not an email address."
+            raise forms.ValidationError(msg)
+
+        return cleaned_data
+
+
+class UserToolForm(GovUKModelForm):
+    class Meta:
+        model = UserTool
+        fields = (
+            "user",
+            "role",
+            "access_type",
+        )
+
+        labels: ClassVar[Mapping[str, str]] = {
+            "user": "User",
+            "role": "Role",
+            "access_type": "Access",
+        }
+
+        help_texts: ClassVar[Mapping[str, str]] = {
+            "role": "Admins can manage access to this tool.",
+        }
+
+        widgets: ClassVar[Mapping[str, forms.Widget]] = {
+            "user": forms.Select(),
+            "role": forms.Select(),
+            "access_type": forms.Select(),
+        }
+
+
+class UserToolBulkAddForm(GovUKModelForm):
+    class Meta:
+        model = UserTool
+        fields = (
+            "role",
+            "access_type",
+        )
+
+        labels: ClassVar[Mapping[str, str]] = {
+            "role": "Role",
+            "access_type": "Access",
+        }
+
+        help_texts: ClassVar[Mapping[str, str]] = {
+            "role": "Admins can manage access to this tool.",
+        }
+
+        widgets: ClassVar[Mapping[str, forms.Widget]] = {
+            "role": forms.Select(),
+            "access_type": forms.Select(),
+        }
+
+    user_ids = forms.ModelMultipleChoiceField(queryset=User.objects.none())
+
+    def __init__(self, *args, **kwargs):
+        eligible_users = kwargs.pop("eligible_users")
+        super().__init__(*args, **kwargs)
+
+        self.eligible_users = eligible_users
+
+        self.fields["user_ids"].queryset = eligible_users
+
+    def clean_user_ids(self):
+        user_ids = self.cleaned_data["user_ids"]
+
+        users = self.eligible_users.filter(pk__in=user_ids)
+
+        if not users.exists():
+            msg = "No valid users selected."
+            raise forms.ValidationError(msg)
+
+        return users

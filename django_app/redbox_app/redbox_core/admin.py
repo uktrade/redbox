@@ -36,6 +36,7 @@ class ToolAdmin(admin.ModelAdmin):
         "name",
         "description",
         "slug",
+        "is_public",
     ]
 
     search_fields = ["name"]
@@ -299,14 +300,21 @@ class FileToolAdmin(ExportMixin, admin.ModelAdmin):
 
 
 class UserToolAdmin(ExportMixin, admin.ModelAdmin):
-    list_display = ["user", "tool", "created_at"]
-    list_filter = ["tool", "user"]
+    list_display = ["user", "tool", "role", "created_at"]
+    list_filter = ["tool", "user", "role"]
     date_hierarchy = "created_at"
     search_fields = ("user__email", "tool__name")
 
 
 class UserSSOAdmin(ExportMixin, admin.ModelAdmin):
-    list_display = ["user", "email_user_id", "created_at", "modified_at", "related_emails", "all_emails"]
+    list_display = [
+        "user",
+        "email_user_id",
+        "related_emails",
+        "all_emails",
+        "created_at",
+        "modified_at",
+    ]
     list_filter = ["user", "modified_at"]
     date_hierarchy = "modified_at"
     search_fields = ("user__email", "email_user_id")

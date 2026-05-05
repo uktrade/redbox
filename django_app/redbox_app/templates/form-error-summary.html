@@ -1,0 +1,13 @@
+{% if form.errors %}
+    <div class="govuk-error-summary" data-module="govuk-error-summary govuk-!-padding-bottom-7">
+        <div role="alert">
+            <div class="govuk-error-summary__body">
+                <ul class="govuk-list govuk-error-summary__list">
+                    {% for error in form.errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+{% endif %}

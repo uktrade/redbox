@@ -9,7 +9,7 @@
                     <h3 class="govuk-heading-s govuk-!-margin-0">{{ tool.name }}</h3>
                     {% if request.user.can_manage_tool(tool) %}
                         {{ govukButton(
-                            text=ids_icon(icon_name="edit.html"),
+                            text=ids_icon(icon_name="edit.html", icon_classes="link"),
                             href=tool.settings_url,
                             classes="govuk-button--secondary govuk-!-margin-0 ids-icon-button"
                         ) }}

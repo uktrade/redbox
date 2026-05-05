@@ -22,7 +22,7 @@ from django.contrib.auth.models import AbstractBaseUser, Group, PermissionsMixin
 from django.contrib.postgres.fields import ArrayField
 from django.core import validators
 from django.db import models
-from django.db.models import Max, Min, Prefetch, Q, UniqueConstraint
+from django.db.models import Exists, Max, Min, OuterRef, Prefetch, Q, UniqueConstraint
 from django.template import TemplateDoesNotExist
 from django.template.loader import get_template
 from django.urls import reverse
@@ -72,27 +72,33 @@ class ToolQuerySet(models.QuerySet):
         try:
             email_domains = user.sso.email_domains
         except UserSSO.DoesNotExist:
-            email_domains = None
+            email_domains = []
 
-        allow_filters = models.Q(
-            access_rules__rule_type=ToolAccessRule.RuleType.DOMAIN,
-            access_rules__value__in=email_domains,
-            access_rules__access_type=ToolAccessRule.AccessType.ALLOW,
+        allow_rules = ToolAccessRule.objects.filter(
+            tool=OuterRef("pk"),
+            rule_type=ToolAccessRule.RuleType.DOMAIN,
+            value__in=email_domains,
+            access_type=ToolAccessRule.AccessType.ALLOW,
         )
 
-        deny_filters = models.Q(
-            access_rules__rule_type=ToolAccessRule.RuleType.DOMAIN,
-            access_rules__value__in=email_domains,
-            access_rules__access_type=ToolAccessRule.AccessType.DENY,
+        deny_rules = ToolAccessRule.objects.filter(
+            tool=OuterRef("pk"),
+            rule_type=ToolAccessRule.RuleType.DOMAIN,
+            value__in=email_domains,
+            access_type=ToolAccessRule.AccessType.DENY,
         )
 
         return (
-            self.filter(
+            self.annotate(
+                has_allow_rule=Exists(allow_rules),
+                has_deny_rule=Exists(deny_rules),
+            )
+            .filter(
                 models.Q(is_public=True)
                 | models.Q(user_tools__user=user, user_tools__access_type=UserTool.AccessType.ALLOW)
-                | allow_filters
+                | models.Q(has_allow_rule=True)
             )
-            .exclude(deny_filters)
+            .filter(has_deny_rule=False)
             .distinct()
         )
 
@@ -195,6 +201,15 @@ class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
         user_tool_member.save()
         return user_tool_member
 
+    def get_eligible_users(self):
+        """
+        Users who can be added to this tool:
+        - not already assigned
+        - includes SSO-prefetched data
+        """
+
+        return User.objects.exclude(user_tools__tool=self).select_related("sso").prefetch_related("sso__attributes")
+
 
 class ToolAccessRule(TimeStampedModel):
     """
@@ -211,7 +226,7 @@ class ToolAccessRule(TimeStampedModel):
     tool = models.ForeignKey(Tool, on_delete=models.CASCADE, related_name="access_rules")
     rule_type = models.CharField(max_length=100, choices=RuleType.choices)
     value = models.CharField(max_length=100)
-    access_type = models.CharField(max_length=100, choices=AccessType.choices)
+    access_type = models.CharField(max_length=100, choices=AccessType.choices, default=AccessType.ALLOW)
 
     class Meta:
         constraints = [UniqueConstraint(fields=["tool", "rule_type", "value"], name="unique_tool_access_rule")]
@@ -221,6 +236,45 @@ class ToolAccessRule(TimeStampedModel):
 
     def __str__(self):
         return f"{self.tool} ({self.rule_type}) - {self.value}"
+
+    def save(self, *args, **kwargs):
+        if self.rule_type == self.RuleType.DOMAIN and self.value:
+            self.value = (self.value or "").strip().lower().lstrip("@")
+
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_value_placeholder(cls, rule_type: str | None) -> str:
+        return {cls.RuleType.DOMAIN: "e.g. example.com"}.get(rule_type, "Enter a value")
+
+    @cached_property
+    def edit_url(self) -> str | None:
+        return url_service.get_edit_tool_access_rule_url(slug=self.tool.slug, rule_id=self.pk)
+
+    @cached_property
+    def delete_url(self) -> str | None:
+        return url_service.get_delete_tool_access_rule_url(slug=self.tool.slug, rule_id=self.pk)
+
+    def _matching_domain_users(self):
+        domain = (self.value or "").strip().lower().lstrip("@")
+
+        return (
+            User.objects.filter(
+                Q(sso__email__endswith=f"@{domain}")
+                | Q(sso__contact_email__endswith=f"@{domain}")
+                | Q(
+                    sso__attributes__attribute_type=UserSSOAttribute.AttributeType.RELATED_EMAILS,
+                    sso__attributes__value__endswith=f"@{domain}",
+                )
+            )
+            .select_related("sso")
+            .distinct()
+        )
+
+    def get_matching_users(self):
+        qs = self._matching_domain_users() if self.rule_type == self.RuleType.DOMAIN else User.objects.none()
+
+        return qs.select_related("sso").distinct()
 
 
 class UserTool(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -797,6 +851,34 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
     def first_time_user(self) -> bool:
         return not Chat.objects.filter(user=self).first()
 
+    @cached_property
+    def all_emails(self) -> set:
+        emails = set()
+
+        if self.email:
+            emails.add(self.email)
+
+        try:
+            emails.update(self.sso.all_emails)
+        except UserSSO.DoesNotExist:
+            logger.warning("UserSSO record not found for %s", self.display_name)
+
+        return emails
+
+    @property
+    def display_name(self) -> str:
+        if self.name:
+            return self.name
+
+        sso = getattr(self, "sso", None)
+        if sso and sso.name:
+            return sso.name
+
+        if self.email:
+            return self.email
+
+        return self.username
+
 
 class UserSSO(TimeStampedModel):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="sso")
@@ -819,11 +901,11 @@ class UserSSO(TimeStampedModel):
 
     @property
     def related_emails(self) -> list:
-        return list(
-            self.attributes.filter(attribute_type=UserSSOAttribute.AttributeType.RELATED_EMAILS).values_list(
-                "value", flat=True
-            )
-        )
+        return [
+            attr.value
+            for attr in self.attributes.all()
+            if attr.attribute_type == UserSSOAttribute.AttributeType.RELATED_EMAILS
+        ]
 
     @property
     def related_emails_display(self) -> str:
@@ -831,7 +913,15 @@ class UserSSO(TimeStampedModel):
 
     @property
     def all_emails(self) -> set:
-        return {*self.related_emails, self.email, self.contact_email}
+        return {
+            email
+            for email in (
+                *self.related_emails,
+                self.email,
+                self.contact_email,
+            )
+            if email
+        }
 
     @property
     def all_emails_display(self) -> str:
@@ -842,8 +932,8 @@ class UserSSO(TimeStampedModel):
         return f"{self.first_name} {self.last_name}"
 
     @property
-    def email_domains(self) -> list:
-        return [email.split("@")[-1] for email in self.all_emails if email]
+    def email_domains(self) -> set:
+        return {email.split("@")[-1] for email in self.all_emails}
 
 
 class UserSSOAttribute(TimeStampedModel):

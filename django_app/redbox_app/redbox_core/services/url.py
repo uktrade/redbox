@@ -42,3 +42,82 @@ def get_tool_settings_url(slug: str) -> str:
         kwargs["slug"] = slug
 
     return reverse("tool-settings", kwargs=kwargs)
+
+
+def get_add_tool_access_rule_url(slug: str) -> str:
+    kwargs = {}
+
+    if slug:
+        kwargs["slug"] = slug
+
+    return reverse("add-tool-access-rule", kwargs=kwargs)
+
+
+def get_edit_tool_access_rule_url(slug: str, rule_id) -> str:
+    kwargs = {}
+
+    if slug:
+        kwargs["slug"] = slug
+
+    if rule_id:
+        kwargs["rule_id"] = rule_id
+
+    return reverse("edit-tool-access-rule", kwargs=kwargs)
+
+
+def get_delete_tool_access_rule_url(slug: str, rule_id) -> str:
+    kwargs = {}
+
+    if slug:
+        kwargs["slug"] = slug
+
+    if rule_id:
+        kwargs["rule_id"] = rule_id
+
+    return reverse("delete-tool-access-rule", kwargs=kwargs)
+
+
+def get_bulk_add_user_tool_url(slug: str) -> str:
+    kwargs = {}
+
+    if slug:
+        kwargs["slug"] = slug
+
+    return reverse("bulk-add-user-tool", kwargs=kwargs)
+
+
+def get_affected_users_preview_url(slug: str) -> str:
+    kwargs = {}
+
+    if slug:
+        kwargs["slug"] = slug
+
+    return reverse("tool-access-rule-preview", kwargs=kwargs)
+
+
+def get_tool_access_rule_value_input_url() -> str:
+    return reverse("tool-access-rule-value-input")
+
+
+def get_edit_user_tool_row_url(slug: str, user_tool_id: uuid.UUID) -> str:
+    kwargs = {}
+
+    if slug:
+        kwargs["slug"] = slug
+
+    if slug:
+        kwargs["user_tool_id"] = user_tool_id
+
+    return reverse("edit-user-tool-row", kwargs=kwargs)
+
+
+def get_edit_user_tool_url(slug: str, user_tool_id: uuid.UUID) -> str:
+    kwargs = {}
+
+    if slug:
+        kwargs["slug"] = slug
+
+    if slug:
+        kwargs["user_tool_id"] = user_tool_id
+
+    return reverse("edit-user-tool", kwargs=kwargs)

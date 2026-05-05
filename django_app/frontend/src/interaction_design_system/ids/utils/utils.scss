@@ -50,6 +50,14 @@
   width: 100%;
 }
 
+.ids-width--one-fifth {
+  width: 20%;
+}
+
+.ids-min-height-0 {
+  min-height: 0;
+}
+
 .ids-height--full {
   height: 100%;
 }
@@ -96,4 +104,22 @@
 
 .ids-highlight {
   background: var(--color-focus);
+}
+
+.ids-highlight--grey {
+  background: var(--color-border-light);
+}
+
+.ids-float-right {
+  float: right;
+}
+
+tr.ids-expanded-row {
+  background-color: var(--color-background-white);
+  box-shadow: 0px 0px 10px var(--color-border-light);
+  border-bottom: 1px solid var(--color-border);
+  // border-left: var(--header-border-width) solid var(--redbox-red);
+  td {
+    padding: 20px;
+  }
 }
