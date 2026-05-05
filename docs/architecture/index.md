@@ -196,8 +196,8 @@ flowchart LR
     Exec -->|call| Server
     Exec -->|needs user input| User
     
-    classDef invisible fill:none,stroke:none,color:transparent
-    class section1,section2 invisible 
+    style section1 fill:transparent,stroke:transparent
+    style section2 fill:transparent,stroke:transparent
 ```
 
 ## Document ingestion
