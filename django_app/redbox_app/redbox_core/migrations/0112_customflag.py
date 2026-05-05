@@ -9,6 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("auth", "0012_alter_user_first_name_max_length"),
+        ("waffle", "0004_update_everyone_nullbooleanfield"),
         ("redbox_core", "0111_alter_user_ai_experience"),
     ]
 
