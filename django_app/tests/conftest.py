@@ -18,6 +18,7 @@ from freezegun import freeze_time
 from moto import mock_aws
 from waffle.models import get_waffle_flag_model
 
+from redbox_app.redbox_core import flags
 from redbox_app.redbox_core.models import (
     Agent,
     AISettings,
@@ -462,3 +463,14 @@ def ensure_critical_flags():
 def configure_waffle_for_tests():
     settings.WAFFLE_CREATE_MISSING_FLAGS = True
     settings.WAFFLE_FLAG_MODEL = "redbox_core.CustomFlag"
+
+
+@pytest.fixture(autouse=True)
+def ensure_flags():
+    CustomFlag.objects.get_or_create(
+        name=flags.ENABLE_INVEST_LENS,
+        defaults={
+            "everyone": False,
+            "note": "test default",
+        },
+    )

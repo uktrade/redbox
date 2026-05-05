@@ -147,9 +147,11 @@ def user_has_invest_lens_access(request) -> bool:
     if waffle.flag_is_active(request, flag_name):
         return True
 
-    flag = waffle.get_waffle_flag_model().objects.get(name=flag_name)
+    flag_model = waffle.get_waffle_flag_model().objects.get(name=flag_name)
 
-    if hasattr(flag, "get_extra_emails"):
+    flag = flag_model.objects.filter(name=flag_name).first()
+
+    if flag and hasattr(flag, "get_extra_emails"):
         user_email = getattr(request.user, "email", None)
         if user_email:
             extra_emails = flag.get_extra_emails()
