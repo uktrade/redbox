@@ -147,7 +147,7 @@ def user_has_invest_lens_access(request) -> bool:
     if waffle.flag_is_active(request, flag_name):
         return True
 
-    flag_model = waffle.get_waffle_flag_model().objects.get(name=flag_name)
+    flag_model = waffle.get_waffle_flag_model().objects.filter(name=flag_name).first()
 
     flag = flag_model.objects.filter(name=flag_name).first()
 

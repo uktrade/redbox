@@ -636,7 +636,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     if agent.agents_max_tokens:
                         agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
             ChatConsumer.redbox = Redbox(
-                agents=agent_configs,
+                agents=list(agent_configs.values()),
                 env=ChatConsumer.env,
                 debug=ChatConsumer.debug,
                 sso_token_getter=self._extract_sso_token,
