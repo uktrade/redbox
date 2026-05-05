@@ -96,7 +96,6 @@ tools_urlpatterns = [
         views.delete_tool_user_row_view,
         name="delete-tool-user",
     ),
-    path(f"{tools_route_prefix}settings/add-tool-user/", views.add_tool_user_view, name="add-tool-user"),
     path(f"{tools_route_prefix}settings/users/<user_tool_id>/edit/", views.edit_tool_user_view, name="edit-user-tool"),
     path(
         f"{tools_route_prefix}settings/rules/add/",

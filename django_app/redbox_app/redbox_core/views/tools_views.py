@@ -345,28 +345,3 @@ def edit_tool_user_view(request: HttpRequest, slug: str, user_tool_id: uuid.UUID
         },
         status=HTTPStatus.OK,
     )
-
-
-@require_http_methods(["POST"])
-@login_required
-def add_tool_user_view(request: HttpRequest, slug: str):
-    tool = get_object_or_404(Tool, slug=slug)
-
-    user_ids = request.POST.getlist("user_ids")
-    role = request.POST.get("role")
-    access_type = request.POST.get("access")
-    next_url = request.GET.get("next")
-
-    for user_id in user_ids:
-        try:
-            tool.add_user(user=user_id, role=role, access_type=access_type)
-        except Exception as e:
-            error = "Failed to add tool user"
-            error_exception = f"{error}: {e}"
-            logger.exception(error_exception)
-            return HttpResponse(error, status=HTTPStatus.INTERNAL_SERVER_ERROR)
-
-    if next_url:
-        return redirect(next_url)
-
-    return HttpResponse(status=HTTPStatus.OK)

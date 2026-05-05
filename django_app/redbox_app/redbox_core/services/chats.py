@@ -20,9 +20,14 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
-def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | None = None) -> dict:
+def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | None = None, **kwargs) -> dict:
     if not request.user.is_authenticated:
         return {"request": request, "contact_email": settings.CONTACT_EMAIL}
+
+    if kwargs:
+        slug = kwargs.get("slug", slug)
+        chat_id = kwargs.get("chat_id", chat_id)
+
     current_chat = _get_valid_chat(request.user, chat_id)
     chat_id = current_chat.id if current_chat else None
     tool = (
