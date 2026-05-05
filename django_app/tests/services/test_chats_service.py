@@ -3,6 +3,7 @@ from http import HTTPStatus
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import Client, RequestFactory
 
 from redbox_app.redbox_core.models import Chat, ChatMessage, File
@@ -24,6 +25,10 @@ def test_get_context(
     factory = RequestFactory()
     request = factory.get("/chats/")
     request.user = alice
+
+    middleware = SessionMiddleware(lambda _: None)
+    middleware.process_request(request)
+    request.session.save()
 
     # When
     context = chats_service.get_context(request)
@@ -55,6 +60,11 @@ def test_render_chats(
     factory = RequestFactory()
     request = factory.get("/chats/")
     request.user = alice
+
+    middleware = SessionMiddleware(lambda _: None)
+    middleware.process_request(request)
+    request.session.save()
+
     context = chats_service.get_context(request)
     chat_context = chats_service.get_context(request, chat_with_files.id)
 
@@ -82,6 +92,11 @@ def test_render_conversations(
     factory = RequestFactory()
     request = factory.get("/chats/")
     request.user = alice
+
+    middleware = SessionMiddleware(lambda _: None)
+    middleware.process_request(request)
+    request.session.save()
+
     chat_context = chats_service.get_context(request, chat_with_files.id)
 
     # When

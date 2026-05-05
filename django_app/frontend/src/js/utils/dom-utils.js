@@ -54,3 +54,36 @@ export function getCsrfToken() {
         document.querySelector('[name="csrfmiddlewaretoken"]')
     )?.value || "";
 }
+
+
+/**
+ * Focuses the first focusable element in a container/element
+ * @param {HTMLElement} container - Element/Container
+*/
+export function focusFirstFocusable(container) {
+    if (!container) return;
+
+    const selectors = [
+        'a[href]',
+        'button:not([disabled])',
+        'input:not([disabled])',
+        'select:not([disabled])',
+        'textarea:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])'
+    ];
+
+    const elements = Array.from(
+        container.querySelectorAll(selectors.join(','))
+    );
+
+    const visible = /** @type {HTMLElement} */ (elements.find(el => {
+        const htmlEl = /** @type {HTMLElement} */ (el);
+        return (
+            htmlEl.offsetParent !== null && // visible in layout
+            !htmlEl.hasAttribute('hidden') &&
+            getComputedStyle(htmlEl).visibility !== 'hidden'
+        );
+    }));
+
+    if (visible) visible.focus();
+}

@@ -23,7 +23,10 @@
                         <span class="govuk-visually-hidden"> edit chat: {{ chat.name }}</span>
                     </button>
                     {% call modal() %}
-                        <button class="ids-icon-button modal-open">{{ ids_icon(icon_name="delete.html", icon_classes="link") }}</button>
+                        <button class="ids-icon-button modal-open">
+                            {{ ids_icon(icon_name="delete.html", icon_classes="link") }}
+                            <span class="govuk-visually-hidden"> delete chat: {{ chat.name }}</span>
+                        </button>
                         <dialog>
                             <div>
                                 <h2 class="govuk-heading-m">Are you sure you want to delete this chat?</h2>

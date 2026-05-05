@@ -11,6 +11,7 @@ from io import StringIO
 from random import uniform
 from typing import Any, Iterable
 from uuid import uuid4
+from datetime import date
 
 import pandas as pd
 from botocore.exceptions import EventStreamError
@@ -539,7 +540,10 @@ def build_agent_with_loop(
             log.warning(f"{log_stub} Running tools via run_tools_parallel...")
             result = run_tools_parallel(ai_msg, tools, state, is_loop=True)  # this agent runs with loop
 
-            if has_loop and len(ai_msg.tool_calls) > 0:  # if loop, we need to transform results
+            if not result:
+                log.error("[build_agent_with_loop] Result from run_tools_parallel is None")
+
+            elif has_loop and len(ai_msg.tool_calls) > 0:  # if loop, we need to transform results
                 result = result[-1].content  # this is a tuple
                 # format of result: (result, success, is_intermediate_step)
                 log.warning("my-overall-result")
@@ -777,6 +781,7 @@ def create_evaluator():
         _additional_variables = {
             "agents_results": combine_agents_state(state.agents_results),
             "artifact_criteria": state.artifact_criteria,
+            "todays_date": date.today().isoformat(),
         }
         citation_parser, format_instructions = get_structured_response_with_citations_parser()
         evaluator_agent = build_stuff_pattern(
