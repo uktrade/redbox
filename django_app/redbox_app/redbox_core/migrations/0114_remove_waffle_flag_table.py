@@ -9,7 +9,11 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunSQL(
-            sql="DROP TABLE IF EXISTS waffle_flag CASCADE;",
+            sql="""
+                DROP TABLE IF EXISTS waffle_flag_users CASCADE;
+                DROP TABLE IF EXISTS waffle_flag_groups CASCADE;
+                DROP TABLE IF EXISTS waffle_flag CASCADE;
+            """,
             reverse_sql=migrations.RunSQL.noop,
         ),
     ]
