@@ -144,17 +144,8 @@ def test_prompt_config_has_prompt_vars(name, prompt_cfg: PromptConfig):
 @pytest.mark.parametrize(("name", "prompt_cfg"), list(prompt_configs.items()))
 def test_prompt_config_fields(name, prompt_cfg: PromptConfig):
     prompt_text = prompt_cfg.system + prompt_cfg.question
-    expected_vars = [
-        "task",
-        "expected_output",
-        "chat_history",
-        "question",
-        "metadata",
-        "previous_tool_error",
-        "previous_tool_results",
-        "previous_agents_results",
-    ]
-    for field in expected_vars:
+
+    for field in PromptVariable.model_fields:
         if "{" + field + "}" in prompt_text:
             assert getattr(prompt_cfg.prompt_vars, field), (
                 f"{name}: '{field}' is used in the prompt but not set in prompt_vars"
