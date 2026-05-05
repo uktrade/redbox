@@ -91,7 +91,7 @@ def get_latest_complete_file(ref: str) -> File:
 
 @database_sync_to_async
 def get_all_agents():
-    return AgentModel.objects.select_related("llm_backend").all()
+    return tuple(AgentModel.objects.select_related("llm_backend").all())
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
@@ -636,7 +636,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     if agent.agents_max_tokens:
                         agent_configs[agent.name].agents_max_tokens = agent.agents_max_tokens
             ChatConsumer.redbox = Redbox(
-                agents=list(agent_configs.values()),
+                agents=agent_configs,
                 env=ChatConsumer.env,
                 debug=ChatConsumer.debug,
                 sso_token_getter=self._extract_sso_token,
