@@ -18,6 +18,7 @@ from redbox_app.redbox_core.forms import ToolAccessRuleForm, ToolSettingsForm, U
 from redbox_app.redbox_core.models import Tool, ToolAccessRule, UserTool
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.services import url as url_service
+from redbox_app.redbox_core.utils import is_htmx_request
 from redbox_app.redbox_core.views.mixins import AppContextMixin
 
 User = get_user_model()
@@ -150,7 +151,7 @@ class ToolAccessRuleDeleteView(LoginRequiredMixin, View):
 
         rule.delete()
 
-        if request.headers.get("HX-Request"):
+        if is_htmx_request(request):
             return HttpResponse(status=HTTPStatus.OK)
 
         return redirect(reverse("tool-settings", kwargs={"slug": kwargs["slug"]}, fragment="access-rules"))
@@ -317,7 +318,7 @@ def edit_tool_user_view(request: HttpRequest, slug: str, user_tool_id: uuid.UUID
         obj.user = user
         obj.save()
 
-        if request.headers.get("HX-Request"):
+        if is_htmx_request(request):
             return render(
                 request,
                 "tools/tool-user-row.html",
@@ -340,7 +341,7 @@ def edit_tool_user_view(request: HttpRequest, slug: str, user_tool_id: uuid.UUID
             "form": form,
             "user_tool": user_tool,
             "tool": user_tool.tool,
-            "htmx": request.headers.get("HX-Request") == "true",
+            "htmx": is_htmx_request(request),
             "errors": errors,
         },
         status=HTTPStatus.OK,

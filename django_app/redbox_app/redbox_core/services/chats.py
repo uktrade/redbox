@@ -14,7 +14,7 @@ from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, Too
 from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.services import message as message_service
 from redbox_app.redbox_core.services import url as url_service
-from redbox_app.redbox_core.utils import resolve_instance, user_has_invest_lens_access
+from redbox_app.redbox_core.utils import resolve_instance
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -38,13 +38,6 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
         current_chat.clear_selected_files()
 
     tools = Tool.objects.for_user(request.user)
-
-    # Only enable Invest Lens for specific users (OFI and custom)
-
-    has_access = user_has_invest_lens_access(request)
-
-    if not has_access:
-        tools = tools.exclude(slug="invest-lens")
 
     messages = ChatMessage.get_messages_ordered_by_citation_priority(chat_id) if current_chat else []
     endpoint = _build_ws_endpoint(request)

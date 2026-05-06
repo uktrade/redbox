@@ -30,7 +30,6 @@ from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from slugify import slugify
-from waffle.models import AbstractUserFlag
 from yarl import URL
 
 from redbox.models.settings import get_settings
@@ -69,10 +68,7 @@ def sanitise_string(string: str | None) -> str | None:
 
 class ToolQuerySet(models.QuerySet):
     def for_user(self, user: User):
-        try:
-            email_domains = user.sso.email_domains
-        except UserSSO.DoesNotExist:
-            email_domains = []
+        email_domains = user.sso.email_domains if user.sso else []
 
         allow_rules = ToolAccessRule.objects.filter(
             tool=OuterRef("pk"),
@@ -208,7 +204,7 @@ class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
         - includes SSO-prefetched data
         """
 
-        return User.objects.exclude(user_tools__tool=self).select_related("sso").prefetch_related("sso__attributes")
+        return User.objects.exclude(user_tools__tool=self).select_related("_sso").prefetch_related("sso__attributes")
 
 
 class ToolAccessRule(TimeStampedModel):
@@ -260,21 +256,21 @@ class ToolAccessRule(TimeStampedModel):
 
         return (
             User.objects.filter(
-                Q(sso__email__endswith=f"@{domain}")
-                | Q(sso__contact_email__endswith=f"@{domain}")
+                Q(_sso__email__endswith=f"@{domain}")
+                | Q(_sso__contact_email__endswith=f"@{domain}")
                 | Q(
-                    sso__attributes__attribute_type=UserSSOAttribute.AttributeType.RELATED_EMAILS,
-                    sso__attributes__value__endswith=f"@{domain}",
+                    _sso__attributes__attribute_type=UserSSOAttribute.AttributeType.RELATED_EMAILS,
+                    _sso__attributes__value__endswith=f"@{domain}",
                 )
             )
-            .select_related("sso")
+            .select_related("_sso")
             .distinct()
         )
 
     def get_matching_users(self):
         qs = self._matching_domain_users() if self.rule_type == self.RuleType.DOMAIN else User.objects.none()
 
-        return qs.select_related("sso").distinct()
+        return qs.select_related("_sso").distinct()
 
 
 class UserTool(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -858,9 +854,9 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
         if self.email:
             emails.add(self.email)
 
-        try:
+        if self.soo:
             emails.update(self.sso.all_emails)
-        except UserSSO.DoesNotExist:
+        else:
             logger.warning("UserSSO record not found for %s", self.display_name)
 
         return emails
@@ -870,18 +866,24 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
         if self.name:
             return self.name
 
-        sso = getattr(self, "sso", None)
-        if sso and sso.name:
-            return sso.name
+        if self.sso and self.sso.name:
+            return self.sso.name
 
         if self.email:
             return self.email
 
         return self.username
 
+    @property
+    def sso(self) -> bool:
+        try:
+            return self._sso
+        except UserSSO.DoesNotExist:
+            return None
+
 
 class UserSSO(TimeStampedModel):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="sso")
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="_sso")
 
     payload = models.JSONField(blank=True, null=True)
 
@@ -1560,26 +1562,3 @@ class Agent(UUIDPrimaryKeyBase, TimeStampedModel):
 
     def __str__(self):
         return self.name
-
-
-class CustomFlag(AbstractUserFlag):
-    """
-    Extending the waffle flag to have a textfield for additional allowed emails
-    """
-
-    extra_allowed_emails = models.TextField(
-        blank=True,
-        null=True,
-        help_text="List of emails that should have access to this flag"
-        "these are checked in addition to other users against the flag",
-    )
-
-    class Meta:
-        verbose_name = "Flag"
-        verbose_name_plural = "Flags"
-
-    def get_extra_emails(self):
-        if not self.extra_allowed_emails:
-            return set()
-        emails = self.extra_allowed_emails.replace("\n", ",").split(",")
-        return {email.strip().lower() for email in emails if email.strip()}
