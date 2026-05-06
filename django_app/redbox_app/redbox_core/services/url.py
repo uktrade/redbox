@@ -105,7 +105,7 @@ def get_edit_user_tool_row_url(slug: str, user_tool_id: uuid.UUID) -> str:
     if slug:
         kwargs["slug"] = slug
 
-    if slug:
+    if user_tool_id:
         kwargs["user_tool_id"] = user_tool_id
 
     return reverse("edit-user-tool-row", kwargs=kwargs)
@@ -117,7 +117,7 @@ def get_edit_user_tool_url(slug: str, user_tool_id: uuid.UUID) -> str:
     if slug:
         kwargs["slug"] = slug
 
-    if slug:
+    if user_tool_id:
         kwargs["user_tool_id"] = user_tool_id
 
     return reverse("edit-user-tool", kwargs=kwargs)

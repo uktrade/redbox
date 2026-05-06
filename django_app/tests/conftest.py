@@ -438,3 +438,21 @@ def default_agent() -> Agent:
     )
     agent.save()
     return agent
+
+
+@pytest.fixture
+def sso_user_me_payload_factory():
+    def make_payload(user: User):
+        return {
+            "related_emails": [
+                "user@related1.com",
+                "user@related2.com",
+            ],
+            "email": user.email,
+            "contact_email": user.email,
+            "email_user_id": f"email-user-id-{user.email}",
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+        }
+
+    return make_payload

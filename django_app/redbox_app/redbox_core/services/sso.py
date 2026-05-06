@@ -42,8 +42,8 @@ def fetch_sso_payload(request: HttpRequest):
 
         return response.json()
 
-    except Exception:
-        logger.exception("%s: %s", error_message, "Failed to call authbroker endpoint")
+    except Exception as e:
+        logger.exception(error_message, exc_info=e)
         return data
 
 
