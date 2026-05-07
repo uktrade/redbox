@@ -503,16 +503,15 @@ async def test_chat_consumer_with_explicit_no_document_selected_error(
 @pytest.mark.django_db
 @pytest.mark.asyncio
 async def test_chat_consumer_get_ai_settings(
-    agents_list: list, chat_with_alice: Chat, mocked_connect_with_explicit_no_document_selected_error: Connect
+    agents_list: list,
+    chat_with_alice: Chat,
+    mocked_connect_with_explicit_no_document_selected_error: Connect,
 ):
-    with (
-        patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get,
-    ):
+    with patch(
+        "redbox_app.redbox_core.consumers.get_all_agents",
+        new_callable=AsyncMock,
+    ) as mock_get:
         mock_get.return_value = agents_list
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = chat_with_alice.user
-        connected, _ = await communicator.connect()
-        assert connected
 
         with patch(
             "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph",
@@ -524,9 +523,6 @@ async def test_chat_consumer_get_ai_settings(
             assert ai_settings.chat_backend.name == chat_with_alice.chat_backend.name
             assert ai_settings.chat_backend.provider == chat_with_alice.chat_backend.provider
             assert not hasattr(ai_settings, "label")
-
-            # Close
-            await communicator.disconnect()
 
 
 @pytest.mark.django_db(transaction=True)
