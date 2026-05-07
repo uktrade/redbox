@@ -838,7 +838,7 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
             return ""
 
     def has_tool_access(self, tool: Tool) -> bool:
-        return tool in Tool.objects.for_user(self)
+        return Tool.objects.for_user(self).filter(pk=tool.pk).exists()
 
     def can_manage_tool(self, tool: Tool) -> bool:
         return self.user_tools.filter(tool=tool, role=UserTool.RoleType.MANAGER).exists()
@@ -854,7 +854,7 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
         if self.email:
             emails.add(self.email)
 
-        if self.soo:
+        if self.sso:
             emails.update(self.sso.all_emails)
         else:
             logger.warning("UserSSO record not found for %s", self.display_name)
@@ -931,7 +931,7 @@ class UserSSO(TimeStampedModel):
 
     @property
     def name(self) -> str:
-        return f"{self.first_name} {self.last_name}"
+        return f"{self.first_name} {self.last_name}".strip()
 
     @property
     def email_domains(self) -> set:
