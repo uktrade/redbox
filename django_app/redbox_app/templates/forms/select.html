@@ -1,0 +1,6 @@
+{% macro form_select(form_field) %}
+    <label class="govuk-label govuk-!-font-weight-bold ids-text-s" for="{{ form_field.id_for_label }}">
+        {{ form_field.label }}
+    </label>
+    {{ form_field }}
+{% endmacro %}

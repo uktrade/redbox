@@ -1,0 +1,45 @@
+{% from "macros/select-input.html" import select_input %}
+{% from "macros/icon.html" import ids_icon %}
+{% from "components/editable-row.html" import editable_row %}
+
+{% set row_id = "tool-user-row-" ~ user_tool.pk %}
+
+{% if user_tool.access_type == user_tool.AccessType.ALLOW %}
+    {% set tag_color_class = "green" %}
+{% else %}
+    {% set tag_color_class = "red" %}
+{% endif %}
+
+{% set cells %}
+
+    <!-- Email -->
+    <th scope="row" class="govuk-table__header ids-align-middle">
+        {{ user_tool.user.email }}
+    </th>
+
+    <!-- Role -->
+    <td class="govuk-table__cell ids-align-middle">
+        <div class="min-cell-height">
+            {{ user_tool.get_role_display() }}
+        </div>
+    </td>
+
+    <!-- Access -->
+    <td class="govuk-table__cell ids-align-middle">
+        <div class="min-cell-height">
+            <strong class="ids-text-xs govuk-tag govuk-tag--{{ tag_color_class }}">
+                {{ user_tool.access_type }}
+            </strong>
+        </div>
+    </td>
+
+{% endset %}
+
+{{ editable_row(
+    row_id=row_id,
+    cells=cells,
+    edit_url=url('edit-user-tool-row', tool.slug, user_tool.pk),
+    delete_url=url('delete-tool-user', tool.slug, user_tool.pk),
+    highlight=request.user==user_tool.user,
+    htmx=True
+) }}

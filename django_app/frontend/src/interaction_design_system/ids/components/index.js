@@ -5,6 +5,7 @@ export * from './first-time-upload-form.js';
 export * from './loading-message.js';
 export * from './modal.js';
 export * from './no-scroll.js';
+export * from './selectable-list.js';
 export * from './show-more.js';
 export * from './side-panel-toggle.js';
 export * from './side-panel.js';

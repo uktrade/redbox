@@ -85,6 +85,46 @@ tools_urlpatterns = [
         views.CitationsView.as_view(),
         name="citations",
     ),
+    path(f"{tools_route_prefix}settings/", views.ToolSettingsView.as_view(), name="tool-settings"),
+    path(
+        f"{tools_route_prefix}settings/users/<user_tool_id>/edit-row/",
+        views.edit_tool_user_row_view,
+        name="edit-user-tool-row",
+    ),
+    path(
+        f"{tools_route_prefix}settings/delete-tool-user/<user_tool_id>/",
+        views.delete_tool_user_row_view,
+        name="delete-tool-user",
+    ),
+    path(f"{tools_route_prefix}settings/users/<user_tool_id>/edit/", views.edit_tool_user_view, name="edit-user-tool"),
+    path(
+        f"{tools_route_prefix}settings/rules/add/",
+        views.ToolAccessRuleCreateView.as_view(),
+        name="add-tool-access-rule",
+    ),
+    path(
+        f"{tools_route_prefix}settings/rules/<rule_id>/edit/",
+        views.ToolAccessRuleUpdateView.as_view(),
+        name="edit-tool-access-rule",
+    ),
+    path(
+        f"{tools_route_prefix}settings/rules/<rule_id>/delete/",
+        views.ToolAccessRuleDeleteView.as_view(),
+        name="delete-tool-access-rule",
+    ),
+    path(
+        f"{tools_route_prefix}settings/users/bulk-add/", views.UserToolBulkAddView.as_view(), name="bulk-add-user-tool"
+    ),
+    path(
+        f"{tools_route_prefix}settings/rules/tool-access-rule-preview/",
+        views.tool_access_rule_preview,
+        name="tool-access-rule-preview",
+    ),
+    path(
+        "tools/rules/tool-access-rule-value-input/",
+        views.tool_access_rule_value_input_view,
+        name="tool-access-rule-value-input",
+    ),
 ]
 
 admin_urlpatterns = [

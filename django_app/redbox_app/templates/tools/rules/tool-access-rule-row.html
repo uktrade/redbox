@@ -1,0 +1,39 @@
+{% from "macros/select-input.html" import select_input %}
+{% from "macros/icon.html" import ids_icon %}
+{% from "components/editable-row.html" import editable_row %}
+
+{% set row_id = "tool-access-rule-row-" ~ tool_access_rule.pk %}
+
+{% if tool_access_rule.access_type == tool_access_rule.AccessType.ALLOW %}
+    {% set tag_color_class = "green" %}
+{% else %}
+    {% set tag_color_class = "red" %}
+{% endif %}
+
+{% set cells %}
+
+    <!-- Rule Type -->
+    <th class="govuk-table__cell ids-align-middle">
+        {{ tool_access_rule.get_rule_type_display() }}
+    </th>
+
+    <!-- Value -->
+    <td class="govuk-table__cell ids-align-middle">
+        {{ tool_access_rule.value }}
+    </td>
+
+    <!-- Access Type -->
+    <td class="govuk-table__cell ids-align-middle">
+        <strong class="ids-text-xs govuk-tag govuk-tag--{{ tag_color_class }}">
+            {{ tool_access_rule.access_type }}
+        </strong>
+    </td>
+
+{% endset %}
+
+{{ editable_row(
+    row_id=row_id,
+    cells=cells,
+    edit_url=tool_access_rule.edit_url,
+    delete_url=tool_access_rule.delete_url
+) }}
