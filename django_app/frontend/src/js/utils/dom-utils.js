@@ -21,6 +21,17 @@ export function showElement(element) {
 
 
 /**
+ * Checks whether an element is hidden
+ * @param {Element | undefined | null} element - Element
+*/
+export function isHidden(element) {
+    if (!element) return true;
+
+    return element.classList.contains(VISUALLY_HIDDEN_CLASS);
+}
+
+
+/**
  * Add a fallback parameter to getAttribute()
  * @param {HTMLElement} elem - element
  * @param {string} attr - attribute name

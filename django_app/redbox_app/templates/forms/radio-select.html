@@ -1,0 +1,20 @@
+{% macro radio_select(form_field) %}
+    <div class="ids-radio-groups-container">
+        <div class="govuk-radios govuk-radios--small" data-module="govuk-radios">
+            {% for value, label in form_field.field.choices %}
+                {% if value %}
+                    <div class="govuk-radios__item ids-radios__item">
+                    <input class="govuk-radios__input" type="radio"
+                            id="{{ form_field.name }}_{{ loop.index0 }}"
+                            name="{{ form_field.name }}"
+                            value="{{ value }}"
+                            {% if value|string == form_field.value()|string %}checked{% endif %}>
+                    <label class="govuk-radios__label ids-text-s ids-fit-content-width" for="{{ form_field.name }}_{{ loop.index0 }}">
+                        {{ label }}
+                    </label>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+{% endmacro %}
