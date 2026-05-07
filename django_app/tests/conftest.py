@@ -28,6 +28,8 @@ from redbox_app.redbox_core.models import (
     File,
     Team,
     Tool,
+    UserSSO,
+    UserSSOAttribute,
 )
 
 User = get_user_model()
@@ -456,3 +458,35 @@ def sso_user_me_payload_factory():
         }
 
     return make_payload
+
+
+@pytest.fixture
+def sso_factory():
+    def create_sso(
+        user: User,
+        related_emails: list[str] | None = None,
+        **kwargs,
+    ) -> UserSSO:
+        sso = UserSSO.objects.create(
+            user=user,
+            email=kwargs.get("email", user.email),
+            contact_email=kwargs.get("contact_email", user.email),
+            email_user_id=kwargs.get(
+                "email_user_id",
+                f"{user.email}-id",
+            ),
+            first_name=kwargs.get("first_name", user.first_name),
+            last_name=kwargs.get("last_name", user.last_name),
+            payload=kwargs.get("payload", {}),
+        )
+
+        for email in related_emails or []:
+            UserSSOAttribute.objects.create(
+                sso=sso,
+                attribute_type=UserSSOAttribute.AttributeType.RELATED_EMAILS,
+                value=email,
+            )
+
+        return sso
+
+    return create_sso

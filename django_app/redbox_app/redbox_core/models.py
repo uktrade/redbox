@@ -181,9 +181,9 @@ class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
         if self.is_public:
             return True
 
-        user_tool = UserTool.objects.filter(user=user, tool=self)
+        user_tool = UserTool.objects.filter(user=user, tool=self).first()
 
-        return False if not user_tool else user_tool.is_enabled
+        return user_tool.is_enabled if user_tool else False
 
     def add_user(self, user: User | uuid.UUID, role: UserTool.RoleType | None, access_type: UserTool.AccessType | None):
         user = resolve_instance(value=user, model=User, raise_404=True)
