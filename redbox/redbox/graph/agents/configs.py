@@ -60,7 +60,7 @@ prompt_configs: Dict[str, PromptConfig] = {
             question=True,
             document_filenames=True,
             metadata=True,
-            format_instruction=True,
+            format_instructions=True,
             knowledge_base_metadata=True,
             artifact_files=True,
         ),
@@ -75,7 +75,7 @@ prompt_configs: Dict[str, PromptConfig] = {
             question=True,
             document_filenames=True,
             metadata=True,
-            format_instruction=True,
+            format_instructions=True,
             knowledge_base_metadata=True,
             artifact_files=True,
         ),
@@ -90,11 +90,11 @@ prompt_configs: Dict[str, PromptConfig] = {
     ),
     "Web_Search_Agent": PromptConfig(
         system=prompts.WEB_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
-        prompt_var=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
+        prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
     ),
     "Legislation_Search_Agent": PromptConfig(
         system=prompts.LEGISLATION_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
-        prompt_var=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
+        prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
     ),
     "Summarisation_Agent": PromptConfig(
         system=prompts.CHAT_WITH_DOCS_SYSTEM_PROMPT,
@@ -137,17 +137,25 @@ prompt_configs: Dict[str, PromptConfig] = {
     ),
     "Datahub_Agent": PromptConfig(
         system=prompts.DATAHUB_PROMPT + prompts.DATAHUB_QUESTION_PROMPT,
-        prompt_vars=PromptVariable(question=True),
-        chat_history=True,
-        previous_tool_error=True,
-        previous_tool_results=True,
+        prompt_vars=PromptVariable(
+            task=True,
+            expected_output=True,
+            question=True,
+            chat_history=True,
+            previous_tool_error=True,
+            previous_tool_results=True,
+        ),
     ),
     "Knowledge_Base_Retrieval_Agent": PromptConfig(
         system=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT
         + prompts.KNOWLEDGE_BASE_METADTA
         + prompts.PREVIOUS_AGENT_RESULTS,
-        prompt_vars=PromptVariable(task=True, expected_output=True, knowledge_base_metadata=True),
-        previous_agents_results=True,
+        prompt_vars=PromptVariable(
+            task=True,
+            expected_output=True,
+            knowledge_base_metadata=True,
+            previous_agents_results=True,
+        ),
     ),
     "Artifact_Builder_Agent": PromptConfig(
         system=prompts.ARTIFACT_BUILDER_AGENT_PROMPT + prompts.KNOWLEDGE_BASE_METADTA,
