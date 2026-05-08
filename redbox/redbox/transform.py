@@ -65,19 +65,20 @@ def join_result_with_token_limit(result: list, max_tokens: int, log_stub: str) -
     current_token_counts = 0
 
     for res in result:
-        token_count = bedrock_tokeniser(res.content)
+        content = res if isinstance(res, str) else res.content
+        token_count = bedrock_tokeniser(content)
         log.warning(f"{log_stub} Tool response token count: {token_count}")
 
         # If adding this whole piece still fits, append normally
         if current_token_counts + token_count <= max_tokens:
-            result_content.append(res.content)
+            result_content.append(content)
             current_token_counts += token_count
         else:
             # If no room, add only what fits
             remaining_tokens = max_tokens - current_token_counts
             if remaining_tokens > 0:
                 log.warning(f"{log_stub} Truncating tool output to fit remaining token budget ({remaining_tokens}).")
-                truncated, truncated_token_count = truncate_to_tokens(res.content, remaining_tokens)
+                truncated, truncated_token_count = truncate_to_tokens(content, remaining_tokens)
                 result_content.append(truncated)
                 current_token_counts += truncated_token_count
             else:

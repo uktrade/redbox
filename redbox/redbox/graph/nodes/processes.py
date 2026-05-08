@@ -580,7 +580,7 @@ def build_agent_with_loop(
             log.warning(f"{log_stub} Completed agent run.")
 
         log.warning(f"[{agent_name}] Completed agent_with_loop run.")
-        all_results = " ".join(all_results)
+        all_results = join_result_with_token_limit(result=all_results, max_tokens=max_tokens, log_stub=log_stub)
         return {
             "agents_results": {task.id: AIMessage(content=f"<{agent_name}_Result>{all_results}</{agent_name}_Result>")},
             "tasks_evaluator": task.task + "\n" + task.expected_output,
@@ -766,7 +766,7 @@ def build_datahub_agent_with_loop(
             log.warning(f"{log_stub} Completed agent run.")
 
         log.warning(f"[{agent_name}] Completed agent_with_loop run.")
-        all_results = " ".join(all_results)
+        all_results = join_result_with_token_limit(result=all_results, max_tokens=max_tokens, log_stub=log_stub)
         return {
             "agents_results": {task.id: AIMessage(content=f"<{agent_name}_Result>{all_results}</{agent_name}_Result>")},
             "tasks_evaluator": task.task + "\n" + task.expected_output,
