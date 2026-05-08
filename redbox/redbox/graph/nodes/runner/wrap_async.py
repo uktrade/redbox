@@ -4,7 +4,6 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from langchain_mcp_adapters.tools import load_mcp_tools
 
-# from redbox.graph.nodes.sends import _get_mcp_headers
 from redbox.models.file import ChunkCreatorType
 from redbox.api.format import format_mcp_tool_response
 
