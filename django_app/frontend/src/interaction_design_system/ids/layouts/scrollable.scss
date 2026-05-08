@@ -14,3 +14,10 @@
     overflow-y: auto;
   }
 }
+
+.ids-scrollable thead th {
+    position: sticky;
+    top: 0;
+    background: var(--color-background-white);
+    z-index: 2;
+}

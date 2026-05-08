@@ -1,0 +1,117 @@
+{% set pageTitle = tool.name + " - Add user" %}
+{% set hideFooter = True %}
+
+{% set persistentSidepanel = False %}
+
+{% extends "base.html" %}
+
+{% from "macros/govuk-button.html" import govukButton %}
+{% from "macros/icon.html" import ids_icon %}
+
+{% block content %}
+
+<div class="bulk-add-form">
+    <h1 class="govuk-heading-l govuk-!-padding-top-7 govuk-!-margin-bottom-7">Add tool users</h1>
+    <p class="govuk-body-s">Add users for {{ tool.name }}.</p>
+
+    <form method='post'>
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
+        <div class="govuk-form-group govuk-!-margin-bottom-7">
+            <label class="govuk-label govuk-!-font-weight-bold ids-text-s" for="{{ form.role.id_for_label }}">
+                {{ form.role.label }}
+            </label>
+            {{ form.role }}
+        </div>
+
+        <div class="govuk-form-group govuk-!-margin-bottom-7">
+            <label class="govuk-label govuk-!-font-weight-bold ids-text-s" for="{{ form.access_type.id_for_label }}">
+                {{ form.access_type.label }}
+            </label>
+            {{ form.access_type }}
+        </div>
+
+        <fieldset class="govuk-fieldset govuk-!-margin-bottom-7">
+            <ids-selectable-list id="tool-users" class="govuk-body ids-text-s" data-highlight>
+
+                <legend class="govuk-label govuk-!-font-weight-bold ids-text-s">
+                    Users
+                    <span class="govuk-hint govuk-!-margin-bottom-0 govuk-!-margin-right-2 ids-text-xs ids-float-right">
+                        <span data-ids-selected-count>0</span> users selected
+                    </span>
+                </legend>
+
+                <!-- Search -->
+                <div class="govuk-form-group govuk-!-margin-bottom-1 ids-flex-space-between user-search">
+                    <input class="govuk-input govuk-!-margin-right-2" type="text" placeholder="Start typing to search" name="search_users" data-ids-search>
+                </div>
+
+                <!-- Users -->
+                <div id="users" class="govuk-form-group govuk-!-margin-bottom-0 ids-scrollable">
+                    <table class="govuk-table govuk-!-margin-bottom-2">
+
+                        <thead class="govuk-table__head ids-text-s">
+                            <tr class="govuk-table__row">
+                                <th scope="col" class="govuk-table__header govuk-!-padding-0">
+                                    <!-- Select all -->
+                                    <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+                                        <div class="govuk-checkboxes__item">
+                                            <input class="govuk-checkboxes__input" type="checkbox" id="select-all-users"
+                                                data-ids-select-all>
+                                            <label class="govuk-checkboxes__label" for="select-all-users">
+                                                <span class="govuk-visually-hidden">Select all</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th scope="col" class="govuk-table__header" id="user-access-header">User</th>
+                                <th scope="col" class="govuk-table__header" id="role-header">Emails</th>
+                            </tr>
+                        </thead>
+
+                        <tbody class="govuk-table__body">
+                            {% for user in eligible_users %}
+                                <tr id="tool-user-row-{{ user.pk }}" class="govuk-table__row ids-text-xs">
+                                    <th scope="row" class="govuk-table__header govuk-!-padding-0">
+                                        <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+                                            <div class="govuk-checkboxes__item" data-ids-item data-id="{{ user.pk }}" data-aliases="{{ user.all_emails | join('|') }}">
+                                                <input class="govuk-checkboxes__input"
+                                                        id="user-{{ user.pk }}"
+                                                        name="user_ids"
+                                                        type="checkbox"
+                                                        value="{{ user.pk }}">
+                                                <label class="govuk-checkboxes__label" for="user-{{ user.pk }}" title="{{ user.display_name }}">
+                                                    <span class="govuk-visually-hidden" data-ids-label>
+                                                        {{ user.display_name }}
+                                                    </span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </th>
+                                    <td class="govuk-table__cell">
+                                        <span data-ids-label>{{ user.display_name }}</span>
+                                    </td>
+                                    <td class="govuk-table__cell">
+                                        <span data-ids-label>{{ user.all_emails | join(' ') }}</span>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+
+                    </table>
+                    <p class="govuk-body-s govuk-!-text-align-centre govuk-!-display-none" data-ids-empty>
+                        No users match your search
+                    </p>
+                </div>
+            </ids-selectable-list>
+        </fieldset>
+
+        <div class="govuk-button-group govuk-!-margin-0 govuk-!-padding-bottom-7">
+            {{ govukButton(text="Add", classes="govuk-!-margin-0") }}
+        </div>
+    </form>
+
+    {% include 'form-error-summary.html' %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,7 @@
+{% macro expanded_table_row(row_id='', colspan=1) %}
+    <tr id="{{ row_id }}" class="govuk-table__row ids-expanded-row">
+        <td colspan="{{ colspan }}">
+            {{ caller() }}
+        </td>
+    </tr>
+{% endmacro %}

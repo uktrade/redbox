@@ -1,0 +1,5 @@
+{% from "ids/components/expanded-table-row.html" import expanded_table_row %}
+
+{% call expanded_table_row(row_id="tool-user-row-{{ user_tool.pk }}", colspan=4) %}
+    {% include 'tools/users/form.html' %}
+{% endcall %}

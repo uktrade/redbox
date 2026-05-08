@@ -25,8 +25,7 @@ class ChatsView(View):
     def get(self, request: HttpRequest, chat_id: uuid.UUID | None = None, slug: str | None = None) -> HttpResponse:
         context = chat_service.get_context(request, chat_id, slug)
 
-        # Chats page specific context - TODO: remove flag after testing and
-        # split chat context now that side-panel is persistent across all pages?
+        # Chats page specific context
         if flag_is_active(request, flags.ENABLE_FIRST_TIME_USER):
             context["is_first_time_user"] = True
         else:
@@ -34,6 +33,11 @@ class ChatsView(View):
 
         if chat_id != context["chat_id"]:
             return redirect(reverse("chats"))
+
+        tool = context["tool"]
+
+        if tool and (tool not in context["tools"]):
+            return HttpResponse(status=HTTPStatus.UNAUTHORIZED)
 
         return chat_service.render_chats(request, context)
 
