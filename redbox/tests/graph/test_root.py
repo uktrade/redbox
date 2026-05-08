@@ -30,6 +30,7 @@ class TestNewRouteGraphs:
             ("Summarisation_Agent", None),
             ("Submission_Checker_Agent", ["update_submission_eval", "combine_question_evaluator"]),
             ("Submission_Question_Answer_Agent", ["update_submission_qa", "combine_question_evaluator"]),
+            ("Datahub_Agent", ["combine_question_evaluator"]),
         ],
     )
     def test_new_route_graph(self, agent_name, edges):
@@ -56,3 +57,9 @@ class TestNewRouteGraphs:
             ).get_graph()
 
             assert "Fake_Agent" not in graph.nodes
+
+    def test_datahub_agent_prompt_variables(self):
+        variables = self.agent_configs["Datahub_Agent"].prompt.prompt_vars
+        assert variables.chat_history is True
+        assert variables.previous_tool_error is True
+        assert variables.previous_tool_results is True

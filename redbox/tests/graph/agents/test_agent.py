@@ -134,3 +134,19 @@ def test_prompt_configs(name, prompt_cfg: PromptConfig):
     assert "<Expected_Output>{expected_output}</Expected_Output>" in prompt_cfg.system, (
         f"{name} missing <Expected_Output>"
     )
+
+
+@pytest.mark.parametrize(("name", "prompt_cfg"), list(prompt_configs.items()))
+def test_prompt_config_has_prompt_vars(name, prompt_cfg: PromptConfig):
+    assert isinstance(prompt_cfg.prompt_vars, PromptVariable), f"{name}: prompt_vars is not a PromptVariable instance"
+
+
+@pytest.mark.parametrize(("name", "prompt_cfg"), list(prompt_configs.items()))
+def test_prompt_config_fields(name, prompt_cfg: PromptConfig):
+    prompt_text = prompt_cfg.system + prompt_cfg.question
+
+    for field in PromptVariable.model_fields:
+        if "{" + field + "}" in prompt_text:
+            assert getattr(prompt_cfg.prompt_vars, field), (
+                f"{name}: '{field}' is used in the prompt but not set in prompt_vars"
+            )
