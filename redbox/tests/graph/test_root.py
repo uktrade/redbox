@@ -58,8 +58,8 @@ class TestNewRouteGraphs:
 
             assert "Fake_Agent" not in graph.nodes
 
-    def test_datahub_agent_prompt_variables():
-        variables = agent_configs["Datahub_Agent"].prompt.prompt_vars
+    def test_datahub_agent_prompt_variables(self):
+        variables = self.agent_configs["Datahub_Agent"].prompt.prompt_vars
         assert variables.chat_history is True
         assert variables.previous_tool_error is True
         assert variables.previous_tool_results is True
