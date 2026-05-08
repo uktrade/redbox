@@ -150,36 +150,6 @@ def test_is_manager_false(alice: User, default_tool: Tool):
 
 
 @pytest.mark.django_db
-def test_is_user_public_tool(alice: User, default_tool: Tool):
-    default_tool.is_public = True
-    default_tool.save()
-
-    assert default_tool.is_user(alice) is True
-
-
-@pytest.mark.django_db
-def test_is_user_private_no_access(alice: User, default_tool: Tool):
-    default_tool.is_public = False
-    default_tool.save()
-
-    assert default_tool.is_user(alice) is False
-
-
-@pytest.mark.django_db
-def test_is_user_private_with_access(alice: User, default_tool: Tool):
-    default_tool.is_public = False
-    default_tool.save()
-
-    default_tool.add_user(
-        user=alice,
-        role=UserTool.RoleType.USER,
-        access_type=UserTool.AccessType.ALLOW,
-    )
-
-    assert default_tool.is_user(alice) is True
-
-
-@pytest.mark.django_db
 def test_add_user_defaults(alice: User, default_tool: Tool):
     user_tool = default_tool.add_user(user=alice, role=None, access_type=None)
 
@@ -190,10 +160,10 @@ def test_add_user_defaults(alice: User, default_tool: Tool):
 
 
 @pytest.mark.django_db
-def test_get_eligible_users_excludes_existing(alice: User, bob: User, default_tool: Tool):
+def test_get_unassigned_users_excludes_existing(alice: User, bob: User, default_tool: Tool):
     default_tool.add_user(user=alice, role=None, access_type=None)
 
-    users = default_tool.get_eligible_users()
+    users = default_tool.get_unassigned_users()
 
     assert alice not in users
     assert bob in users

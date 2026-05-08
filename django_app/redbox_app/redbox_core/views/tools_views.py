@@ -171,7 +171,7 @@ class UserToolBulkAddView(LoginRequiredMixin, AppContextMixin, FormView):
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
 
-        kwargs["eligible_users"] = self.tool.get_eligible_users()
+        kwargs["unassigned_users"] = self.tool.get_unassigned_users()
 
         return kwargs
 
@@ -197,7 +197,7 @@ class UserToolBulkAddView(LoginRequiredMixin, AppContextMixin, FormView):
         context.update(
             {
                 "tool": self.tool,
-                "eligible_users": self.tool.get_eligible_users(),
+                "unassigned_users": self.tool.get_unassigned_users(),
             }
         )
 
@@ -209,7 +209,7 @@ class UserToolBulkAddView(LoginRequiredMixin, AppContextMixin, FormView):
 def tool_access_rule_preview(request: HttpRequest, slug: str):
     tool = get_object_or_404(Tool, slug=slug)
     rule = ToolAccessRule(
-        tool_id=tool.id,
+        tool=tool,
         rule_type=request.POST.get("rule_type"),
         value=request.POST.get("value"),
         access_type=request.POST.get("access_type"),
