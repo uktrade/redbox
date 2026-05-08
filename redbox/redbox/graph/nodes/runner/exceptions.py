@@ -17,7 +17,3 @@ class ToolExecutionError(BaseToolRunnerException):
 
 class ToolTimeoutError(BaseToolRunnerException):
     pass
-
-
-class ToolRegistryError(BaseToolRunnerException):
-    pass
