@@ -19,7 +19,7 @@ from redbox_app.redbox_core.models import Tool, ToolAccessRule, UserTool
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.services import url as url_service
 from redbox_app.redbox_core.utils import is_htmx_request
-from redbox_app.redbox_core.views.mixins import AppContextMixin
+from redbox_app.redbox_core.views.mixins import AppContextMixin, ToolManagerRequiredMixin
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ def tool_info_page_view(request: HttpRequest, slug: str) -> HttpResponse:
     return render(request, tool.info_template, context=context)
 
 
-class ToolSettingsView(LoginRequiredMixin, AppContextMixin, UpdateView):
+class ToolSettingsView(LoginRequiredMixin, ToolManagerRequiredMixin, AppContextMixin, UpdateView):
     model = Tool
     form_class = ToolSettingsForm
     template_name = "tools/settings.html"
@@ -76,7 +76,7 @@ class ToolSettingsView(LoginRequiredMixin, AppContextMixin, UpdateView):
         return context
 
 
-class ToolAccessRuleCreateView(LoginRequiredMixin, AppContextMixin, CreateView):
+class ToolAccessRuleCreateView(LoginRequiredMixin, ToolManagerRequiredMixin, AppContextMixin, CreateView):
     model = ToolAccessRule
     form_class = ToolAccessRuleForm
     template_name = "tools/rules/form.html"
@@ -106,7 +106,7 @@ class ToolAccessRuleCreateView(LoginRequiredMixin, AppContextMixin, CreateView):
         return context
 
 
-class ToolAccessRuleUpdateView(LoginRequiredMixin, AppContextMixin, UpdateView):
+class ToolAccessRuleUpdateView(LoginRequiredMixin, ToolManagerRequiredMixin, AppContextMixin, UpdateView):
     model = ToolAccessRule
     form_class = ToolAccessRuleForm
     template_name = "tools/rules/form.html"
@@ -141,7 +141,7 @@ class ToolAccessRuleUpdateView(LoginRequiredMixin, AppContextMixin, UpdateView):
         return context
 
 
-class ToolAccessRuleDeleteView(LoginRequiredMixin, View):
+class ToolAccessRuleDeleteView(LoginRequiredMixin, ToolManagerRequiredMixin, View):
     def delete(self, request, **kwargs):
         rule = get_object_or_404(
             ToolAccessRule,
@@ -160,7 +160,7 @@ class ToolAccessRuleDeleteView(LoginRequiredMixin, View):
         return self.delete(request, *args, **kwargs)
 
 
-class UserToolBulkAddView(LoginRequiredMixin, AppContextMixin, FormView):
+class UserToolBulkAddView(LoginRequiredMixin, ToolManagerRequiredMixin, AppContextMixin, FormView):
     template_name = "tools/users/bulk-add-form.html"
     form_class = UserToolBulkAddForm
 

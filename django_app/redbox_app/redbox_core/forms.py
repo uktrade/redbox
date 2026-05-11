@@ -321,7 +321,7 @@ class ToolAccessRuleForm(GovUKModelForm):
             value = value.strip().lower()
             cleaned_data["value"] = value
 
-        if rule_type == "domain" and value and "@" in value:
+        if rule_type == ToolAccessRule.RuleType.DOMAIN and value and "@" in value:
             msg = "Enter a domain like example.com, not an email address."
             raise forms.ValidationError(msg)
 

@@ -252,3 +252,110 @@ def test_tool_access_rule_str(client: Client, alice: User, default_tool: Tool):
 
     # Then
     assert rule.__str__() == "Default Tool (DOMAIN) - example.com"
+
+
+@pytest.mark.django_db
+def test_tool_access_rule_edit_url(default_tool: Tool):
+    rule = ToolAccessRule.objects.create(
+        tool=default_tool,
+        rule_type=ToolAccessRule.RuleType.DOMAIN,
+        value="example.com",
+        access_type=ToolAccessRule.AccessType.ALLOW,
+    )
+
+    expected = f"/tools/{default_tool.slug}/settings/rules/{rule.id}/edit/"
+
+    assert rule.edit_url == expected
+
+
+@pytest.mark.django_db
+def test_tool_access_rule_delete_url(default_tool: Tool):
+    rule = ToolAccessRule.objects.create(
+        tool=default_tool,
+        rule_type=ToolAccessRule.RuleType.DOMAIN,
+        value="example.com",
+        access_type=ToolAccessRule.AccessType.ALLOW,
+    )
+
+    expected = f"/tools/{default_tool.slug}/settings/rules/{rule.id}/delete/"
+
+    assert rule.delete_url == expected
+
+
+@pytest.mark.django_db
+def test_matching_domain_users(default_tool: Tool, alice: User, bob: User, sso_factory):
+    # Given
+    bob.email = "bob@other.com"
+    bob.save()
+
+    sso_factory(
+        alice,
+        email="alice@example.com",
+        contact_email="alice-contact@example.com",
+        related_emails=["alice-related@example.com"],
+    )
+
+    rule = ToolAccessRule.objects.create(
+        tool=default_tool,
+        rule_type=ToolAccessRule.RuleType.DOMAIN,
+        value="example.com",
+        access_type=ToolAccessRule.AccessType.ALLOW,
+    )
+
+    # When
+    users = rule.matching_domain_users()
+
+    # Then
+    assert alice in users
+    assert bob not in users
+
+
+@pytest.mark.django_db
+def test_matching_domain_users_matches_user_email(default_tool: Tool, alice: User):
+    # Given
+    alice.email = "alice@example.com"
+    alice.save()
+
+    rule = ToolAccessRule.objects.create(
+        tool=default_tool,
+        rule_type=ToolAccessRule.RuleType.DOMAIN,
+        value="example.com",
+        access_type=ToolAccessRule.AccessType.ALLOW,
+    )
+
+    # When
+    users = rule.matching_domain_users()
+
+    # Then
+    assert alice in users
+
+
+@pytest.mark.django_db
+def test_get_matching_users_domain_rule(default_tool: Tool, alice: User):
+    alice.email = "alice@example.com"
+    alice.save()
+
+    rule = ToolAccessRule.objects.create(
+        tool=default_tool,
+        rule_type=ToolAccessRule.RuleType.DOMAIN,
+        value="example.com",
+        access_type=ToolAccessRule.AccessType.ALLOW,
+    )
+
+    users = rule.get_matching_users()
+
+    assert alice in users
+
+
+@pytest.mark.django_db
+def test_get_matching_users_unknown_rule_type_returns_none_queryset(default_tool: Tool):
+    rule = ToolAccessRule(
+        tool=default_tool,
+        rule_type="UNKNOWN",
+        value="example.com",
+        access_type=ToolAccessRule.AccessType.ALLOW,
+    )
+
+    users = rule.get_matching_users()
+
+    assert users.count() == 0

@@ -300,14 +300,13 @@ class ToolAccessRule(TimeStampedModel):
     def delete_url(self) -> str | None:
         return url_service.get_delete_tool_access_rule_url(slug=self.tool.slug, rule_id=self.pk)
 
-    def _matching_domain_users(self):
-        # return User.objects.matching_email_domain(self.value).with_sso()
+    def matching_domain_users(self):
         return User.objects.matching_email_domain(self.value)
 
     def get_matching_users(self):
         match self.rule_type:
             case self.RuleType.DOMAIN:
-                return self._matching_domain_users()
+                return self.matching_domain_users()
 
         return User.objects.none()
 
