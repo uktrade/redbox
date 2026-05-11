@@ -350,6 +350,14 @@ class UserTool(UUIDPrimaryKeyBase, TimeStampedModel):
     def role_choices(self) -> Sequence[tuple[RoleType, str]]:
         return self.RoleType.choices
 
+    @cached_property
+    def edit_url(self) -> str | None:
+        return url_service.get_edit_user_tool_url(slug=self.tool.slug, user_tool_id=self.pk)
+
+    @cached_property
+    def delete_url(self) -> str | None:
+        return url_service.get_delete_user_tool_url(slug=self.tool.slug, user_tool_id=self.pk)
+
 
 class TeamTool(UUIDPrimaryKeyBase, TimeStampedModel):
     """

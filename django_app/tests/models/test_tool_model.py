@@ -235,3 +235,20 @@ def test_for_user_deny_rule(alice: User, default_tool: Tool, sso_factory):
     qs = Tool.objects.for_user(alice)
 
     assert default_tool not in qs
+
+
+@pytest.mark.django_db(transaction=True)
+def test_tool_access_rule_str(client: Client, alice: User, default_tool: Tool):
+    # Given
+    client.force_login(alice)
+
+    # When
+    rule = ToolAccessRule.objects.create(
+        tool=default_tool,
+        rule_type=ToolAccessRule.RuleType.DOMAIN,
+        value="example.com",
+        access_type=ToolAccessRule.AccessType.ALLOW,
+    )
+
+    # Then
+    assert rule.__str__() == "Default Tool (DOMAIN) - example.com"

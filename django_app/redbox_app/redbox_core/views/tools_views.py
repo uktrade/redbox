@@ -178,12 +178,16 @@ class UserToolBulkAddView(LoginRequiredMixin, AppContextMixin, FormView):
     def form_valid(self, form):
         users = form.cleaned_data["user_ids"]
         role = form.cleaned_data["role"]
+        access_type = form.cleaned_data["access_type"]
 
         for user in users:
             UserTool.objects.update_or_create(
                 user=user,
                 tool=self.tool,
-                defaults={"role": role},
+                defaults={
+                    "role": role,
+                    "access_type": access_type,
+                },
             )
 
         return super().form_valid(form)
@@ -266,10 +270,6 @@ def edit_tool_user_row_view(request, slug, user_tool_id):
         slug=slug,
         user_tool_id=user_tool.pk,
     )
-    save_url = url_service.get_edit_user_tool_url(
-        slug=tool.slug,
-        user_tool_id=user_tool.pk,
-    )
 
     return render(
         request,
@@ -279,8 +279,8 @@ def edit_tool_user_row_view(request, slug, user_tool_id):
             "user_tool": user_tool,
             "tool": tool,
             "htmx": True,
+            "save_url": user_tool.edit_url,
             "cancel_url": cancel_url,
-            "save_url": save_url,
         },
     )
 

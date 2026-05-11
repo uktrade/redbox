@@ -111,3 +111,6 @@ def test_user_tool_urls(default_tool: Tool):
     assert url_service.get_edit_user_tool_url(slug, user_tool_id) == reverse(
         "edit-user-tool", kwargs={"slug": slug, "user_tool_id": user_tool_id}
     )
+    assert url_service.get_delete_user_tool_url(slug, user_tool_id) == reverse(
+        "delete-user-tool", kwargs={"slug": slug, "user_tool_id": user_tool_id}
+    )
