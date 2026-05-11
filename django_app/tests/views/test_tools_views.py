@@ -141,6 +141,12 @@ def test_tool_settings_view(
 ):
     client.force_login(alice)
 
+    UserTool.objects.create(
+        user=alice,
+        tool=default_tool,
+        role=UserTool.RoleType.MANAGER,
+    )
+
     response = client.get(reverse("tool-settings", kwargs={"slug": default_tool.slug}))
 
     assert response.status_code == HTTPStatus.OK
@@ -150,6 +156,12 @@ def test_tool_settings_view(
 @pytest.mark.django_db
 def test_create_tool_access_rule(client: Client, alice: User, default_tool: Tool):
     client.force_login(alice)
+
+    UserTool.objects.create(
+        user=alice,
+        tool=default_tool,
+        role=UserTool.RoleType.MANAGER,
+    )
 
     response = client.post(
         reverse(
@@ -174,6 +186,12 @@ def test_create_tool_access_rule(client: Client, alice: User, default_tool: Tool
 @pytest.mark.django_db
 def test_update_tool_access_rule(client: Client, alice: User, default_tool: Tool):
     client.force_login(alice)
+
+    UserTool.objects.create(
+        user=alice,
+        tool=default_tool,
+        role=UserTool.RoleType.MANAGER,
+    )
 
     rule = ToolAccessRule.objects.create(
         tool=default_tool,
@@ -208,6 +226,12 @@ def test_update_tool_access_rule(client: Client, alice: User, default_tool: Tool
 def test_delete_tool_access_rule(client: Client, alice: User, default_tool: Tool):
     client.force_login(alice)
 
+    UserTool.objects.create(
+        user=alice,
+        tool=default_tool,
+        role=UserTool.RoleType.MANAGER,
+    )
+
     rule = ToolAccessRule.objects.create(
         tool=default_tool,
         rule_type=ToolAccessRule.RuleType.DOMAIN,
@@ -234,6 +258,12 @@ def test_delete_tool_access_rule(client: Client, alice: User, default_tool: Tool
 def test_delete_tool_access_rule_htmx(client: Client, alice: User, default_tool: Tool):
     client.force_login(alice)
 
+    UserTool.objects.create(
+        user=alice,
+        tool=default_tool,
+        role=UserTool.RoleType.MANAGER,
+    )
+
     rule = ToolAccessRule.objects.create(
         tool=default_tool,
         rule_type=ToolAccessRule.RuleType.DOMAIN,
@@ -258,6 +288,12 @@ def test_delete_tool_access_rule_htmx(client: Client, alice: User, default_tool:
 @pytest.mark.django_db
 def test_bulk_add_user_tool(client: Client, alice: User, bob: User, default_tool: Tool):
     client.force_login(alice)
+
+    UserTool.objects.create(
+        user=alice,
+        tool=default_tool,
+        role=UserTool.RoleType.MANAGER,
+    )
 
     response = client.post(
         reverse(
