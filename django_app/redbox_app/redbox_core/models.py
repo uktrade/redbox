@@ -205,14 +205,6 @@ class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
 
         return User.objects.exclude(user_tools__tool=self).select_related("_sso").prefetch_related("_sso__attributes")
 
-    def get_rule_affected_users(self):
-        users = User.objects.none()
-
-        for rule in self.access_rules.all():
-            users |= rule.get_affected_users()
-
-        return users.distinct()
-
 
 class ToolAccessRule(TimeStampedModel):
     """
