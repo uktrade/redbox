@@ -22,8 +22,6 @@ from redbox.graph.nodes.tools import (
     build_govuk_search_tool,
     build_legislation_search_tool,
     build_query_tabular_file_tool,
-    write_duckdb_table,
-    query_duckdb_db,
     build_retrieve_document_full_text,
     build_retrieve_knowledge_base,
     build_search_documents_tool,
@@ -31,8 +29,10 @@ from redbox.graph.nodes.tools import (
     build_web_search_tool,
     format_result,
     kagi_response_to_documents,
+    query_duckdb_db,
     web_search_call,
     web_search_with_retry,
+    write_duckdb_table,
 )
 from redbox.models.chain import AISettings, RedboxQuery, RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution, TabularSchema
@@ -505,6 +505,15 @@ class TestGovTool:
                 [
                     {"description": "", "indexable_content": "AI", "link": "test", "format": "html", "title": "fake"},
                     {"description": "foo", "title": "fake", "indexable_content": "foo"},
+                ],
+                1,
+            ),
+            (
+                "no desc and content",
+                "test query",
+                [
+                    {"link": "test", "format": "html", "title": "fake"},
+                    {"description": "", "indexable_content": "AI", "link": "test", "format": "html", "title": "fake"},
                 ],
                 1,
             ),
