@@ -66,8 +66,6 @@ class ToolRunner:
             tool_name = tool_call.get("name")
             try:
                 res = self.submit(tool_call=tool_call)
-                if res is None:
-                    continue
                 future, metadata = res
                 futures[future] = metadata
 
@@ -129,8 +127,8 @@ class ToolRunner:
 
         return ToolExecutionResult(responses=responses, failed_tools=failed_tools)
 
-    def submit(self, tool_call: ToolCall) -> tuple[Future, dict] | None:
-        """Find, validate, and submit a tool call to the executor. Returns (future, metadata) or None."""
+    def submit(self, tool_call: ToolCall) -> tuple[Future, dict]:
+        """Find, validate, and submit a tool call to the executor. Returns (future, metadata)"""
         tool_name = tool_call.get("name")
         selected_tool: Optional[StructuredTool] = next((tool for tool in self.tools if tool.name == tool_name), None)
 
