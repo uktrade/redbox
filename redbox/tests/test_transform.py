@@ -12,14 +12,16 @@ from redbox.models.chain import DocumentState, LLMCallMetadata, RequestMetadata
 from redbox.retriever.retrievers import filter_by_elbow
 from redbox.test.data import generate_docs
 from redbox.transform import (
+    bedrock_tokeniser,
+    combine_agents_state,
     combine_documents,
+    join_result_with_token_limit,
     merge_documents,
     sort_documents,
     structure_documents_by_file_name,
     structure_documents_by_group_and_indices,
     to_request_metadata,
     truncate_to_tokens,
-    join_result_with_token_limit,
 )
 
 document_created = datetime.now(UTC)
@@ -481,3 +483,45 @@ def test_join_result_with_token_limit(
 ):
     result = join_result_with_token_limit(result=input_result_list, max_tokens=input_max_tokens, log_stub="")
     assert result == expected_result, f"{test_name} - Expected Text: {expected_result!r}, Got: {result!r}"
+
+
+CONTEXT_WINDOW = 128000
+LLM_MAX_TOKENS = 1024
+PROMPT_SCAFFOLDING_MAX = 8000
+EVALUATOR_AGENT_RESULT_MAX = CONTEXT_WINDOW - LLM_MAX_TOKENS - PROMPT_SCAFFOLDING_MAX
+
+
+@pytest.mark.parametrize(
+    ("test_name", "agents_results"),
+    [
+        (
+            "single-huge-agent-output--exceeds-context-window",
+            {"DataHub_Agent": AIMessage(" ".join(["word"] * 130000))},
+        ),
+        (
+            "multiple-medium-agent-outputs--aggregate-exceeds-context-window",
+            {f"Agent_{i}": AIMessage(" ".join(["filler"] * 15000)) for i in range(10)},
+        ),
+        (
+            "mixed-small-and-huge-agent-outputs--combined-exceeds-context-window",
+            {"Small_Agent": AIMessage("Short result"), "Huge_Agent": AIMessage(" ".join(["x"] * 200000))},
+        ),
+    ],
+)
+def test_combine_agents_state_fits_within_eval_agent_max(test_name, agents_results):
+    combined = combine_agents_state(agents_results)
+    output_tokens = bedrock_tokeniser(combined["all_results"])
+    assert output_tokens <= EVALUATOR_AGENT_RESULT_MAX
+
+
+def test_combine_agents_small_inputs_pass_through_unchanged():
+    agents_results = {
+        "Agent_A": AIMessage("result a"),
+        "Agent_B": AIMessage("result b"),
+    }
+    combined = combine_agents_state(agents_results)
+    assert combined == {"all_result": "result a\n\nresult b"}
+
+
+def test_combine_agents_state_empty_input_returns_empty_dict():
+    assert combine_agents_state({}) == {}
