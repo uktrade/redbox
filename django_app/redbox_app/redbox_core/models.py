@@ -22,7 +22,7 @@ from django.contrib.auth.models import AbstractBaseUser, Group, PermissionsMixin
 from django.contrib.postgres.fields import ArrayField
 from django.core import validators
 from django.db import models
-from django.db.models import Max, Min, Prefetch, Q, UniqueConstraint
+from django.db.models import Exists, Max, Min, OuterRef, Prefetch, Q, UniqueConstraint
 from django.template import TemplateDoesNotExist
 from django.template.loader import get_template
 from django.urls import reverse
@@ -68,32 +68,35 @@ def sanitise_string(string: str | None) -> str | None:
 
 class ToolQuerySet(models.QuerySet):
     def for_user(self, user: User):
-        allow_filters = ToolAccessRule.build_access_q(
+        allow_rule_filters = ToolAccessRule.build_access_q(
             user=user,
             access_type=ToolAccessRule.AccessType.ALLOW,
         )
 
-        deny_filters = ToolAccessRule.build_access_q(
+        deny_rule_filters = ToolAccessRule.build_access_q(
             user=user,
             access_type=ToolAccessRule.AccessType.DENY,
         )
 
+        allow_user_tool = UserTool.objects.filter(
+            tool=OuterRef("pk"),
+            user=user,
+            access_type=UserTool.AccessType.ALLOW,
+        )
+
+        deny_user_tool = UserTool.objects.filter(
+            tool=OuterRef("pk"),
+            user=user,
+            access_type=UserTool.AccessType.DENY,
+        )
+
         return (
-            self.filter(
-                models.Q(is_public=True)
-                | models.Q(
-                    user_tools__user=user,
-                    user_tools__access_type=UserTool.AccessType.ALLOW,
-                )
-                | allow_filters
+            self.annotate(
+                has_allowed_user=Exists(allow_user_tool),
+                has_denied_user=Exists(deny_user_tool),
             )
-            .exclude(
-                models.Q(
-                    user_tools__user=user,
-                    user_tools__access_type=UserTool.AccessType.DENY,
-                )
-                | deny_filters
-            )
+            .filter(models.Q(is_public=True) | models.Q(has_allowed_user=True) | allow_rule_filters)
+            .exclude(models.Q(has_denied_user=True) | deny_rule_filters)
             .distinct()
         )
 

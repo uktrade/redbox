@@ -78,11 +78,18 @@
     </p>
 
     <section id="users">
-        <h3 id="permissions" class="govuk-heading-s govuk-!-margin-bottom-2 govuk-!-margin-top-7">
+        <h3 id="permissions" class="govuk-heading-s govuk-!-margin-top-7">
             Users
         </h3>
 
-        <div class="ids-scrollable">
+        {{ govukButton(
+            text="Add users",
+            href=bulk_add_user_tool_url,
+            classes="govuk-button--secondary",
+            prevent_double_click=True
+        ) }}
+
+        <div class="ids-scrollable ids-max-height-content--two-thirds">
             <table class="govuk-table">
 
                 <thead class="govuk-table__head ids-text-s">
@@ -102,21 +109,21 @@
 
             </table>
         </div>
-
-        {{ govukButton(
-            text="Add users",
-            href=bulk_add_user_tool_url,
-            classes="govuk-!-margin-0",
-            prevent_double_click=True
-        ) }}
     </section>
 
     <section id="access-rules">
-        <h3 id="permissions" class="govuk-heading-s govuk-!-margin-bottom-2 govuk-!-margin-top-7">
-            Rules
+        <h3 id="permissions" class="govuk-heading-s govuk-!-margin-top-7">
+            Access Rules
         </h3>
 
-        <div class="ids-scrollable">
+        {{ govukButton(
+            text="Add rule",
+            href=add_tool_access_rule_url,
+            classes="govuk-button--secondary",
+            prevent_double_click=True
+        ) }}
+
+        <div class="ids-scrollable ids-max-height-content--two-thirds">
             <table class="govuk-table">
 
                 <thead class="govuk-table__head ids-text-s">
@@ -136,13 +143,6 @@
 
             </table>
         </div>
-
-        {{ govukButton(
-            text="Add access rule",
-            href=add_tool_access_rule_url,
-            classes="govuk-!-margin-0",
-            prevent_double_click=True
-        ) }}
     </section>
 </div>
 
