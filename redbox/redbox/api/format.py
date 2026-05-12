@@ -51,6 +51,7 @@ class MCPResponseMetadata(BaseModel):
         reason: Optional[str] = None
 
     user_feedback: UserFeedback = UserFeedback()
+    prompt_suggestion: Optional[str] = None
 
 
 def format_mcp_tool_response(tool_response, creator_type: ChunkCreatorType) -> tuple[str, MCPResponseMetadata]:

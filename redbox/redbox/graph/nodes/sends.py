@@ -298,15 +298,17 @@ def run_tools_parallel(
                             res = response[0]
                             metadata = response[1]
                             status = "pass" if res != "" else "fail"
+                            reason = metadata.user_feedback.reason or "Requires feedback from the user."
                             result = (
-                                (
-                                    res,
-                                    status,
-                                    is_intermediate_step,
-                                    metadata.user_feedback.reason or "Requires feedback from the user.",
-                                )
-                                if metadata.user_feedback.required
-                                else (res, status, is_intermediate_step)
+                                # (
+                                res,
+                                status,
+                                is_intermediate_step,
+                                reason if metadata.user_feedback.required else None,
+                                metadata.prompt_suggestion,
+                                # )
+                                # if metadata.user_feedback.required
+                                # else (res, status, is_intermediate_step)
                             )
                             responses.append(AIMessage(result))
 

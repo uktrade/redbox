@@ -714,11 +714,13 @@ def build_datahub_agent_with_loop(
                     success = current_result[1]
                     is_intermediate_step = eval(current_result[2])
 
-                    if len(current_result) > 3:
-                        reason = current_result[3]
+                    if reason := current_result[3]:
                         feedback_reasons.append(f"Failure reason: {reason}.\n\n{result_content}")
                     else:
                         collated_result += f"<tool_result_{i}>{result_content}</tool_result_{i}>"
+
+                    if prompt_suggestion := current_result[4]:
+                        collated_result += f"<prompt_suggestion>{prompt_suggestion}</prompt_suggestion>"
 
                     if success == "fail":
                         # pass error back if any
