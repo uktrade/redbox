@@ -2,8 +2,8 @@ from asyncio import CancelledError
 import logging
 from uuid import uuid4
 from typing import Optional, List
-from dataclasses import dataclass
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, Future
+from pydantic import BaseModel, Field
 
 from langchain_core.messages import AIMessage, ToolCall
 from langchain.tools import StructuredTool
@@ -16,20 +16,13 @@ from redbox.graph.nodes.runner.wrap_async import wrap_async_tool
 log = logging.getLogger(__name__)
 
 
-@dataclass
-class ToolExecutionResult:
+class ToolExecutionResult(BaseModel):
     """Result of parallel tool execution."""
 
-    responses: List[AIMessage]
-    failed_tools: List[str]
-
-    @property
-    def is_success(self) -> bool:
-        return len(self.responses) > 0
-
-    @property
-    def is_complete_failure(self) -> bool:
-        return len(self.responses) == 0
+    responses: List[AIMessage] = Field(
+        default=[], description="List of AIMessage responses generated from tool executions."
+    )
+    failed_tools: List[str] = Field(default=[], description="List of tool names that failed to execute.")
 
 
 class ToolRunner:
@@ -94,8 +87,8 @@ class ToolRunner:
 
     def _collect(self, futures: dict[Future, dict]) -> ToolExecutionResult:
         """Wait for all futures, parse results, and return responses or None if everything failed."""
-        responses: list[AIMessage] = []
-        failed_tools: list[str] = []
+        responses: List[AIMessage] = []
+        failed_tools: List[str] = []
 
         for future in futures.keys():
             future_tool_name = futures[future]["name"]
