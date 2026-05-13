@@ -70,7 +70,7 @@
                         </thead>
 
                         <tbody class="govuk-table__body">
-                            {% for user in eligible_users %}
+                            {% for user in unassigned_users %}
                                 <tr id="tool-user-row-{{ user.pk }}" class="govuk-table__row ids-text-xs">
                                     <th scope="row" class="govuk-table__header govuk-!-padding-0">
                                         <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">

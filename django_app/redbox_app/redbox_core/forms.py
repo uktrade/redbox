@@ -321,7 +321,7 @@ class ToolAccessRuleForm(GovUKModelForm):
             value = value.strip().lower()
             cleaned_data["value"] = value
 
-        if rule_type == "domain" and value and "@" in value:
+        if rule_type == ToolAccessRule.RuleType.DOMAIN and value and "@" in value:
             msg = "Enter a domain like example.com, not an email address."
             raise forms.ValidationError(msg)
 
@@ -379,17 +379,17 @@ class UserToolBulkAddForm(GovUKModelForm):
     user_ids = forms.ModelMultipleChoiceField(queryset=User.objects.none())
 
     def __init__(self, *args, **kwargs):
-        eligible_users = kwargs.pop("eligible_users")
+        unassigned_users = kwargs.pop("unassigned_users")
         super().__init__(*args, **kwargs)
 
-        self.eligible_users = eligible_users
+        self.unassigned_users = unassigned_users
 
-        self.fields["user_ids"].queryset = eligible_users
+        self.fields["user_ids"].queryset = unassigned_users
 
     def clean_user_ids(self):
         user_ids = self.cleaned_data["user_ids"]
 
-        users = self.eligible_users.filter(pk__in=user_ids)
+        users = self.unassigned_users.filter(pk__in=user_ids)
 
         if not users.exists():
             msg = "No valid users selected."

@@ -39,7 +39,7 @@
     row_id=row_id,
     cells=cells,
     edit_url=url('edit-user-tool-row', tool.slug, user_tool.pk),
-    delete_url=url('delete-tool-user', tool.slug, user_tool.pk),
+    delete_url=url('delete-user-tool', tool.slug, user_tool.pk),
     highlight=request.user==user_tool.user,
     htmx=True
 ) }}

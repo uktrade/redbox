@@ -19,7 +19,7 @@ from redbox_app.redbox_core.models import Tool, ToolAccessRule, UserTool
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.services import url as url_service
 from redbox_app.redbox_core.utils import is_htmx_request
-from redbox_app.redbox_core.views.mixins import AppContextMixin
+from redbox_app.redbox_core.views.mixins import AppContextMixin, ToolManagerRequiredMixin
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ def tool_info_page_view(request: HttpRequest, slug: str) -> HttpResponse:
     return render(request, tool.info_template, context=context)
 
 
-class ToolSettingsView(LoginRequiredMixin, AppContextMixin, UpdateView):
+class ToolSettingsView(LoginRequiredMixin, ToolManagerRequiredMixin, AppContextMixin, UpdateView):
     model = Tool
     form_class = ToolSettingsForm
     template_name = "tools/settings.html"
@@ -76,7 +76,7 @@ class ToolSettingsView(LoginRequiredMixin, AppContextMixin, UpdateView):
         return context
 
 
-class ToolAccessRuleCreateView(LoginRequiredMixin, AppContextMixin, CreateView):
+class ToolAccessRuleCreateView(LoginRequiredMixin, ToolManagerRequiredMixin, AppContextMixin, CreateView):
     model = ToolAccessRule
     form_class = ToolAccessRuleForm
     template_name = "tools/rules/form.html"
@@ -106,7 +106,7 @@ class ToolAccessRuleCreateView(LoginRequiredMixin, AppContextMixin, CreateView):
         return context
 
 
-class ToolAccessRuleUpdateView(LoginRequiredMixin, AppContextMixin, UpdateView):
+class ToolAccessRuleUpdateView(LoginRequiredMixin, ToolManagerRequiredMixin, AppContextMixin, UpdateView):
     model = ToolAccessRule
     form_class = ToolAccessRuleForm
     template_name = "tools/rules/form.html"
@@ -141,7 +141,7 @@ class ToolAccessRuleUpdateView(LoginRequiredMixin, AppContextMixin, UpdateView):
         return context
 
 
-class ToolAccessRuleDeleteView(LoginRequiredMixin, View):
+class ToolAccessRuleDeleteView(LoginRequiredMixin, ToolManagerRequiredMixin, View):
     def delete(self, request, **kwargs):
         rule = get_object_or_404(
             ToolAccessRule,
@@ -160,7 +160,7 @@ class ToolAccessRuleDeleteView(LoginRequiredMixin, View):
         return self.delete(request, *args, **kwargs)
 
 
-class UserToolBulkAddView(LoginRequiredMixin, AppContextMixin, FormView):
+class UserToolBulkAddView(LoginRequiredMixin, ToolManagerRequiredMixin, AppContextMixin, FormView):
     template_name = "tools/users/bulk-add-form.html"
     form_class = UserToolBulkAddForm
 
@@ -171,19 +171,23 @@ class UserToolBulkAddView(LoginRequiredMixin, AppContextMixin, FormView):
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
 
-        kwargs["eligible_users"] = self.tool.get_eligible_users()
+        kwargs["unassigned_users"] = self.tool.get_unassigned_users()
 
         return kwargs
 
     def form_valid(self, form):
         users = form.cleaned_data["user_ids"]
         role = form.cleaned_data["role"]
+        access_type = form.cleaned_data["access_type"]
 
         for user in users:
             UserTool.objects.update_or_create(
                 user=user,
                 tool=self.tool,
-                defaults={"role": role},
+                defaults={
+                    "role": role,
+                    "access_type": access_type,
+                },
             )
 
         return super().form_valid(form)
@@ -197,7 +201,7 @@ class UserToolBulkAddView(LoginRequiredMixin, AppContextMixin, FormView):
         context.update(
             {
                 "tool": self.tool,
-                "eligible_users": self.tool.get_eligible_users(),
+                "unassigned_users": self.tool.get_unassigned_users(),
             }
         )
 
@@ -209,7 +213,7 @@ class UserToolBulkAddView(LoginRequiredMixin, AppContextMixin, FormView):
 def tool_access_rule_preview(request: HttpRequest, slug: str):
     tool = get_object_or_404(Tool, slug=slug)
     rule = ToolAccessRule(
-        tool_id=tool.id,
+        tool=tool,
         rule_type=request.POST.get("rule_type"),
         value=request.POST.get("value"),
         access_type=request.POST.get("access_type"),
@@ -266,10 +270,6 @@ def edit_tool_user_row_view(request, slug, user_tool_id):
         slug=slug,
         user_tool_id=user_tool.pk,
     )
-    save_url = url_service.get_edit_user_tool_url(
-        slug=tool.slug,
-        user_tool_id=user_tool.pk,
-    )
 
     return render(
         request,
@@ -279,8 +279,8 @@ def edit_tool_user_row_view(request, slug, user_tool_id):
             "user_tool": user_tool,
             "tool": tool,
             "htmx": True,
+            "save_url": user_tool.edit_url,
             "cancel_url": cancel_url,
-            "save_url": save_url,
         },
     )
 

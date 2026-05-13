@@ -23,10 +23,12 @@
             {{ form_mode_text }} tool user
         </h1>
 
-        <p class="govuk-body-s">
-            {{ form_mode_text }} <strong>{{ tool.name }}</strong> access configuration
-            for <strong>{{ form.instance.user.display_name }}</strong>.
-        </p>
+        {% if form.instance.user %}
+            <p class="govuk-body-s">
+                {{ form_mode_text }} <strong>{{ tool.name }}</strong> access configuration
+                for <strong>{{ form.instance.user.display_name }}</strong>.
+            </p>
+        {% endif %}
 
         {% if not form.instance.user %}
             <div class="govuk-form-group">

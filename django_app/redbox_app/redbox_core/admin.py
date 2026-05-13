@@ -309,8 +309,8 @@ class UserSSOAdmin(ExportMixin, admin.ModelAdmin):
     list_display = [
         "user",
         "email_user_id",
-        "related_emails",
-        "all_emails",
+        "related_emails_display",
+        "all_emails_display",
         "created_at",
         "modified_at",
     ]
