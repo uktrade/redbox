@@ -509,7 +509,7 @@ EVALUATOR_AGENT_RESULT_MAX = CONTEXT_WINDOW - LLM_MAX_TOKENS - PROMPT_SCAFFOLDIN
     ],
 )
 def test_combine_agents_state_fits_within_eval_agent_max(test_name, agents_results):
-    combined = combine_agents_state(agents_results)
+    combined = combine_agents_state(agents_results, max_tokens=EVALUATOR_AGENT_RESULT_MAX)
     output_tokens = bedrock_tokeniser(combined["all_results"])
     assert output_tokens <= EVALUATOR_AGENT_RESULT_MAX
 
@@ -519,9 +519,9 @@ def test_combine_agents_small_inputs_pass_through_unchanged():
         "Agent_A": AIMessage("result a"),
         "Agent_B": AIMessage("result b"),
     }
-    combined = combine_agents_state(agents_results)
+    combined = combine_agents_state(agents_results, max_tokens=EVALUATOR_AGENT_RESULT_MAX)
     assert combined == {"all_result": "result a\n\nresult b"}
 
 
 def test_combine_agents_state_empty_input_returns_empty_dict():
-    assert combine_agents_state({}) == {}
+    assert combine_agents_state({}, max_tokens=EVALUATOR_AGENT_RESULT_MAX) == {}

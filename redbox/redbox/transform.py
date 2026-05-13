@@ -343,9 +343,41 @@ def sort_documents(documents: list[Document]) -> list[Document]:
     return list(itertools.chain.from_iterable(all_sorted_blocks_by_max_score))
 
 
-def combine_agents_state(agents_results: Dict[str, AnyMessage]):
-    """Combine a list of agent results into a string."""
+TRUNCATION_MARKER = " ...[truncated]"
+
+
+def combine_agents_state(agents_results: Dict[str, AnyMessage], max_tokens: int) -> dict:
+    """
+    Combine a list of agent results into a string.
+    OR if it is over the max amount, truncating proportially
+    A truncation marker is appended to any block, so the downstream LLM knows that the content is incomplete
+    """
     if not agents_results:
         return {}
-    flatten_agent_results = "\n\n".join([msg.content for msg in agents_results.values()])
-    return {"all_result": flatten_agent_results}
+    sizes = {aid: bedrock_tokeniser(msg.content) for aid, msg in agents_results.values()}
+    total_tokens = sum(sizes.valuesU())
+
+    if max_tokens <= 0:
+        log.warning("combine_agents_state: non-positive token budget, returning empty result!")
+
+    if total_tokens <= max_tokens:
+        flatten_agent_results = "\n\n".join([msg.content for msg in agents_results.values()])
+        return {"all_result": flatten_agent_results}
+
+    marker_cost = bedrock_tokeniser(TRUNCATION_MARKER)
+    parts: list[str] = []
+    for agent_id, msg in agents_results.items():
+        original_tokens = sizes[agent_id]
+        share = max(1, int(max_tokens * original_tokens / total_tokens))
+        if original_tokens <= share:
+            parts.append(msg.content)
+        else:
+            budget = max(1, share - marker_cost)
+            truncated, _ = truncate_to_tokens(msg.content, budget)
+            parts.append(truncated + TRUNCATION_MARKER)
+            log.warning(
+                "combine_agents_state: truncated agent %s from %d to ~%d tokens.",
+                agent_id,
+                original_tokens,
+                share,
+            )

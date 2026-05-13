@@ -6,12 +6,12 @@ import re
 import sqlite3
 import time
 from collections.abc import Callable
+from datetime import date
 from functools import reduce
 from io import StringIO
 from random import uniform
 from typing import Any, Iterable
 from uuid import uuid4
-from datetime import date
 
 import pandas as pd
 from botocore.exceptions import EventStreamError
@@ -29,6 +29,7 @@ from redbox.chains.components import get_chat_llm, get_structured_response_with_
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_metadata, create_chain_agent
 from redbox.graph.nodes.sends import run_tools_parallel
+from redbox.graph.nodes.tools import get_datahub_mcp_tools
 from redbox.models import ChatRoute
 from redbox.models.chain import (
     DocumentState,
@@ -40,12 +41,13 @@ from redbox.models.chain import (
     configure_agent_task_plan,
     get_plan_fix_prompts,
     get_plan_fix_suggestion_prompts,
+    get_prompts,
 )
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
 from redbox.models.settings import ChatLLMBackend
-from redbox.graph.nodes.tools import get_datahub_mcp_tools
 from redbox.transform import (
+    bedrock_tokeniser,
     combine_agents_state,
     combine_documents,
     flatten_document_state,
@@ -778,8 +780,26 @@ def build_datahub_agent_with_loop(
 
 def create_evaluator():
     def _create_evaluator(state: RedboxState):
+        ai_settings = state.request.ai_settings
+        system_prompt, question_prompt, _ = get_prompts(state, PromptSet.NewRoute)
+        chat_history_tokens = sum(bedrock_tokeniser(m["text"]) for m in state.request.chat_history)
+
+        other_vars_token = bedrock_tokeniser((state.artifact_criteria or "") + date.today().isoformat())
+
+        safety_margin = 2000
+
+        agents_budget = (
+            ai_settings.context_window_size
+            - ai_settings.llm_max_tokens
+            - bedrock_tokeniser(system_prompt)
+            - bedrock_tokeniser(question_prompt)
+            - chat_history_tokens
+            - other_vars_token
+            - safety_margin
+        )
+
         _additional_variables = {
-            "agents_results": combine_agents_state(state.agents_results),
+            "agents_results": combine_agents_state(state.agents_results, max_tokens=agents_budget),
             "artifact_criteria": state.artifact_criteria,
             "todays_date": date.today().isoformat(),
         }
