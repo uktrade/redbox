@@ -34,6 +34,8 @@ def wrap_async_tool(tool, tool_name):
         A function that synchronously executes the async tool
     """
 
+    INIT_TIMEOUT, TOOL_LOADING_TIMEOUT, INVOKE_TIMEOUT = 10, 15, 60
+
     def wrapper(args):
         # get mcp tool url
         mcp_url = tool.metadata["url"]
@@ -59,7 +61,7 @@ def wrap_async_tool(tool, tool_name):
                 ):
                     async with ClientSession(read, write) as session:
                         # Initialize the connection
-                        init_result = await session.initialize()
+                        init_result = await asyncio.wait_for(session.initialize(), timeout=INIT_TIMEOUT)
                         server_name = init_result.serverInfo.name
                         server_version = init_result.serverInfo.version
 
@@ -68,7 +70,7 @@ def wrap_async_tool(tool, tool_name):
                         )
 
                         # Get tools
-                        tools = await load_mcp_tools(session)
+                        tools = await asyncio.wait_for(load_mcp_tools(session), timeout=TOOL_LOADING_TIMEOUT)
 
                         selected_tool = next((t for t in tools if t.name == tool_name), None)
                         if not selected_tool:
@@ -83,7 +85,7 @@ def wrap_async_tool(tool, tool_name):
 
                         log.warning(f"wrap_async_tool - tool found with name '{tool_name}'")
                         log.warning(f"wrap_async_tool - args '{args}'")
-                        result = await selected_tool.ainvoke(args)
+                        result = await asyncio.wait_for(selected_tool.ainvoke(args), timeout=INVOKE_TIMEOUT)
 
                         log.warning(f"wrap_async_tool - MCP Tool '{tool_name}' result: {result}")
 
@@ -100,8 +102,20 @@ def wrap_async_tool(tool, tool_name):
                             f"wrap_async_tool - Returning raw MCP tool response for creator_type='{creator_type}'"
                         )
                         return result
+
+            except asyncio.TimeoutError:
+                log.error(f"wrap_async_tool - Tool '{tool_name}' timed out")
+                raise
+
+            except asyncio.CancelledError:
+                log.warning(f"wrap_async_tool - Tool '{tool_name}' cancelled")
+                raise
+
             except Exception as e:
-                log.error(f"wrap_async_tool - Failed to connect to MCP server at '{mcp_url}': {e}")
+                log.error(
+                    f"wrap_async_tool - MCP execution failed for '{tool_name}' at '{mcp_url}': {e}",
+                    exc_info=True,
+                )
                 raise
 
         try:
