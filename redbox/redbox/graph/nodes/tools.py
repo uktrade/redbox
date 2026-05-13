@@ -499,7 +499,7 @@ def build_govuk_search_tool(filter=True) -> Tool:
         embedding_model = get_embeddings(get_settings())
         em_query = embedding_model.embed_query(query)
         for r in response.get("results"):
-            text_compare = r.get("description", "") if r.get("description") else r.get("indexable_content", "")[:500]
+            text_compare = r.get("description") or r.get("indexable_content", "")[:500]
             if text_compare:
                 em_des = embedding_model.embed_query(text_compare)
                 r["similarity"] = cosine_similarity(np.array(em_query).reshape(1, -1), np.array(em_des).reshape(1, -1))[
