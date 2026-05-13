@@ -90,9 +90,7 @@ def run_tools_parallel(
 
         try:
             result = runner.run(tool_calls=ai_msg.tool_calls)
-            if len(result.responses) > 0:
-                return result.responses
-            return None
+            return result
         finally:
             runner.executor.shutdown(wait=True)
 

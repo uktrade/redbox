@@ -19,10 +19,16 @@ log = logging.getLogger(__name__)
 class ToolExecutionResult(BaseModel):
     """Result of parallel tool execution."""
 
-    responses: List[AIMessage] = Field(
-        default=[], description="List of AIMessage responses generated from tool executions."
+    tool_name: str = Field(description="The name of the executed tool.")
+    response: Optional[AIMessage] = Field(default=None, description="AIMessage response generated from tool execution.")
+    error: Optional[str] = Field(default=None, description="Error from tool execution.")
+    metadata: dict = Field(default={}, description="Metadata from tool execution.")
+
+
+class ToolRunnerResult(BaseModel):
+    results: List[ToolExecutionResult] = Field(
+        default=[], description="List of ToolExecutionResult responses generated from tool executions."
     )
-    failed_tools: List[str] = Field(default=[], description="List of tool names that failed to execute.")
 
 
 class ToolRunner:
@@ -50,7 +56,7 @@ class ToolRunner:
         self.executor.shutdown(wait=True)
         return False
 
-    def run(self, tool_calls: list[ToolCall]) -> ToolExecutionResult:
+    def run(self, tool_calls: list[ToolCall]) -> ToolRunnerResult:
         """Submit all tool calls, collect results, and return aggregated responses or None on total failure."""
         try:
             futures = self._submit_all(tool_calls=tool_calls)
@@ -83,49 +89,57 @@ class ToolRunner:
 
         return futures
 
-    def _collect(self, futures: dict[Future, dict]) -> ToolExecutionResult:
+    def _collect(self, futures: dict[Future, dict]) -> ToolRunnerResult:
         """Wait for all futures, parse results, and return responses or None if everything failed."""
-        responses: List[AIMessage] = []
-        failed_tools: List[str] = []
+        results: List[ToolExecutionResult] = []
 
         for future in futures.keys():
             future_tool_name = futures[future]["name"]
             try:
                 response = self.parse(future=future, metadata=futures[future])
                 if response is not None:
-                    responses.append(response)
+                    results.append(
+                        ToolExecutionResult(
+                            tool_name=future_tool_name, response=response, metadata={"args": futures[future]}
+                        )
+                    )
 
             except tool_exceptions.ToolTimeoutError as e:
-                log.warning(f"{self.log_stub} Tool '{future_tool_name}' timed out: {e}")
-                failed_tools.append(future_tool_name)
+                err = f"{self.log_stub} Tool '{future_tool_name}' timed out: {e}"
+                log.warning(err)
+                results.append(ToolExecutionResult(tool_name=future_tool_name, error=err))
 
             except tool_exceptions.ToolValidationError as e:
-                log.warning(f"{self.log_stub} Tool '{future_tool_name}' validation error: {e}")
-                failed_tools.append(future_tool_name)
+                err = f"{self.log_stub} Tool '{future_tool_name}' validation error: {e}"
+                log.warning(err)
+                results.append(ToolExecutionResult(tool_name=future_tool_name, error=err))
 
             except tool_exceptions.ToolExecutionError as e:
-                log.warning(f"{self.log_stub} Tool '{future_tool_name}' execution error: {e}")
-                failed_tools.append(future_tool_name)
+                err = f"{self.log_stub} Tool '{future_tool_name}' execution error: {e}"
+                log.warning(err)
+                results.append(ToolExecutionResult(tool_name=future_tool_name, error=err))
 
             except Exception as e:
-                log.warning(f"{self.log_stub} Tool '{future_tool_name}' error: {e}")
-                failed_tools.append(future_tool_name)
+                err = f"{self.log_stub} Tool '{future_tool_name}' error: {e}"
+                log.warning(err)
+                results.append(ToolExecutionResult(tool_name=future_tool_name, error=err))
 
+        failed_tools = [result.tool_name for result in results if result.error is not None]
         if failed_tools:
             log.error(f"{self.log_stub} {len(failed_tools)} tool(s) failed: {', '.join(failed_tools)}")
 
-        if not responses:
+        if not results:
             log.error(
                 f"{self.log_stub} Every tool execution has failed or timed out. "
                 f"Failed tools: {', '.join(failed_tools) or 'unknown'}."
             )
         else:
             log.warning(
-                f"{self.log_stub} Completed. Successful: {len(responses)}, "
-                f"Failed: {len(failed_tools)}. Responses: {responses}"
+                f"{self.log_stub} Completed. Successful: {len(results)}, "
+                f"Failed: {len(failed_tools)}. Responses: {results}"
             )
 
-        return ToolExecutionResult(responses=responses, failed_tools=failed_tools)
+        return ToolRunnerResult(results=results)
 
     def submit(self, tool_call: ToolCall) -> tuple[Future, dict]:
         """Find, validate, and submit a tool call to the executor. Returns (future, metadata)"""
