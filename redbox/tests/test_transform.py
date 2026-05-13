@@ -510,7 +510,7 @@ EVALUATOR_AGENT_RESULT_MAX = CONTEXT_WINDOW - LLM_MAX_TOKENS - PROMPT_SCAFFOLDIN
 )
 def test_combine_agents_state_fits_within_eval_agent_max(test_name, agents_results):
     combined = combine_agents_state(agents_results, max_tokens=EVALUATOR_AGENT_RESULT_MAX)
-    output_tokens = bedrock_tokeniser(combined["all_results"])
+    output_tokens = bedrock_tokeniser(combined["all_result"])
     assert output_tokens <= EVALUATOR_AGENT_RESULT_MAX
 
 

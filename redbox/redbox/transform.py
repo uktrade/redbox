@@ -354,11 +354,12 @@ def combine_agents_state(agents_results: Dict[str, AnyMessage], max_tokens: int)
     """
     if not agents_results:
         return {}
-    sizes = {aid: bedrock_tokeniser(msg.content) for aid, msg in agents_results.values()}
-    total_tokens = sum(sizes.valuesU())
+    sizes = {aid: bedrock_tokeniser(msg.content) for aid, msg in agents_results.items()}
+    total_tokens = sum(sizes.values())
 
     if max_tokens <= 0:
         log.warning("combine_agents_state: non-positive token budget, returning empty result!")
+        return {}
 
     if total_tokens <= max_tokens:
         flatten_agent_results = "\n\n".join([msg.content for msg in agents_results.values()])
@@ -381,3 +382,4 @@ def combine_agents_state(agents_results: Dict[str, AnyMessage], max_tokens: int)
                 original_tokens,
                 share,
             )
+    return {"all_result": "\n\n".join(parts)}
