@@ -33,6 +33,8 @@ class ToolResult:
 
 
 class ToolRunnerResult(BaseModel):
+    """Result of parallel tool execution."""
+
     results: List[ToolResult.Success] = Field(
         default=[], description="List of responses generated from tool executions."
     )
