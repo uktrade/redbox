@@ -16,19 +16,27 @@ from redbox.graph.nodes.runner.wrap_async import wrap_async_tool
 log = logging.getLogger(__name__)
 
 
-class ToolExecutionResult(BaseModel):
-    """Result of parallel tool execution."""
+class ToolResult:
+    class Base(BaseModel):
+        tool_name: str = Field(description="The name of the executed tool.")
 
-    tool_name: str = Field(description="The name of the executed tool.")
-    response: Optional[AIMessage] = Field(default=None, description="AIMessage response generated from tool execution.")
-    error: Optional[str] = Field(default=None, description="Error from tool execution.")
-    metadata: dict = Field(default={}, description="Metadata from tool execution.")
+    class Success(Base):
+        """Successful result of tool execution."""
+
+        response: AIMessage = Field(description="AIMessage response generated from tool execution.")
+        metadata: dict = Field(default={}, description="Metadata from tool execution.")
+
+    class Failure(Base):
+        """Failed result of tool execution."""
+
+        error: str = Field(default=None, description="Error from tool execution.")
 
 
 class ToolRunnerResult(BaseModel):
-    results: List[ToolExecutionResult] = Field(
-        default=[], description="List of ToolExecutionResult responses generated from tool executions."
+    results: List[ToolResult.Success] = Field(
+        default=[], description="List of responses generated from tool executions."
     )
+    failures: List[ToolResult.Failure] = Field(default=[], description="List of failures from tool executions.")
 
 
 class ToolRunner:
@@ -59,14 +67,15 @@ class ToolRunner:
     def run(self, tool_calls: list[ToolCall]) -> ToolRunnerResult:
         """Submit all tool calls, collect results, and return aggregated responses or None on total failure."""
         try:
-            futures = self._submit_all(tool_calls=tool_calls)
-            return self._collect(futures=futures)
+            futures, failures = self._submit_all(tool_calls=tool_calls)
+            return self._collect(futures=futures, failures=failures)
         finally:
             self.executor.shutdown(wait=True)
 
-    def _submit_all(self, tool_calls: list[ToolCall]) -> dict[Future, dict]:
+    def _submit_all(self, tool_calls: list[ToolCall]) -> tuple[dict[Future, dict], list[ToolResult.Failure]]:
         """Submit every tool call to the executor, skipping and logging any that fail to launch."""
         futures = {}
+        failures: list[ToolResult.Failure] = []
 
         for tool_call in tool_calls:
             tool_name = tool_call.get("name")
@@ -75,56 +84,50 @@ class ToolRunner:
                 future, metadata = res
                 futures[future] = metadata
 
-            except tool_exceptions.ToolNotFoundError as e:
-                log.warning(f"{self.log_stub} Tool '{tool_name}' not found: {e}")
-
-            except tool_exceptions.ToolValidationError as e:
-                log.warning(f"{self.log_stub} Tool '{tool_name}' validation error: {e}")
-
-            except tool_exceptions.ToolExecutionError as e:
-                log.warning(f"{self.log_stub} Tool '{tool_name}' execution error: {e}")
+            except (
+                tool_exceptions.ToolTimeoutError,
+                tool_exceptions.ToolValidationError,
+                tool_exceptions.ToolExecutionError,
+                tool_exceptions.ToolNotFoundError,
+            ) as e:
+                log.warning(f"{self.log_stub} {e}")
+                failures.append(ToolResult.Failure(tool_name=tool_name, error=str(e)))
 
             except Exception as e:
-                log.error(f"{self.log_stub} Unexpected error submitting tool '{tool_name}': {e}", exc_info=True)
+                err = f"Unexpected error submitting tool '{tool_name}': {e}"
+                log.error(f"{self.log_stub} {err}", exc_info=True)
+                failures.append(ToolResult.Failure(tool_name=tool_name, error=err))
 
-        return futures
+        return futures, failures
 
-    def _collect(self, futures: dict[Future, dict]) -> ToolRunnerResult:
+    def _collect(self, futures: dict[Future, dict], failures: list[ToolResult.Failure]) -> ToolRunnerResult:
         """Wait for all futures, parse results, and return responses or None if everything failed."""
-        results: List[ToolExecutionResult] = []
+        results: List[ToolResult.Success] = []
 
         for future in futures.keys():
             future_tool_name = futures[future]["name"]
             try:
                 response = self.parse(future=future, metadata=futures[future])
                 if response is not None:
-                    results.append(
-                        ToolExecutionResult(
-                            tool_name=future_tool_name, response=response, metadata={"args": futures[future]}
-                        )
-                    )
+                    metadata = futures[future]
+                    metadata.pop("name", None)
+                    results.append(ToolResult.Success(tool_name=future_tool_name, response=response, metadata=metadata))
 
-            except tool_exceptions.ToolTimeoutError as e:
-                err = f"{self.log_stub} Tool '{future_tool_name}' timed out: {e}"
-                log.warning(err)
-                results.append(ToolExecutionResult(tool_name=future_tool_name, error=err))
-
-            except tool_exceptions.ToolValidationError as e:
-                err = f"{self.log_stub} Tool '{future_tool_name}' validation error: {e}"
-                log.warning(err)
-                results.append(ToolExecutionResult(tool_name=future_tool_name, error=err))
-
-            except tool_exceptions.ToolExecutionError as e:
-                err = f"{self.log_stub} Tool '{future_tool_name}' execution error: {e}"
-                log.warning(err)
-                results.append(ToolExecutionResult(tool_name=future_tool_name, error=err))
+            except (
+                tool_exceptions.ToolTimeoutError,
+                tool_exceptions.ToolValidationError,
+                tool_exceptions.ToolExecutionError,
+                tool_exceptions.ToolNotFoundError,
+            ) as e:
+                log.warning(f"{self.log_stub} {e}")
+                failures.append(ToolResult.Failure(tool_name=future_tool_name, error=str(e)))
 
             except Exception as e:
-                err = f"{self.log_stub} Tool '{future_tool_name}' error: {e}"
-                log.warning(err)
-                results.append(ToolExecutionResult(tool_name=future_tool_name, error=err))
+                err = f"Tool '{future_tool_name}' error: {e}"
+                log.warning(f"{self.log_stub} {err}")
+                failures.append(ToolResult.Failure(tool_name=future_tool_name, error=err))
 
-        failed_tools = [result.tool_name for result in results if result.error is not None]
+        failed_tools = [f"{fr.tool_name} - {fr.error}" for fr in failures]
         if failed_tools:
             log.error(f"{self.log_stub} {len(failed_tools)} tool(s) failed: {', '.join(failed_tools)}")
 
@@ -135,11 +138,10 @@ class ToolRunner:
             )
         else:
             log.warning(
-                f"{self.log_stub} Completed. Successful: {len(results)}, "
-                f"Failed: {len(failed_tools)}. Responses: {results}"
+                f"{self.log_stub} Completed. Successful: {len(results)}, Failed: {len(failures)}. Responses: {results}"
             )
 
-        return ToolRunnerResult(results=results)
+        return ToolRunnerResult(results=results, failures=failures)
 
     def submit(self, tool_call: ToolCall) -> tuple[Future, dict]:
         """Find, validate, and submit a tool call to the executor. Returns (future, metadata)"""
@@ -175,7 +177,7 @@ class ToolRunner:
                 f"Failed to submit tool '{tool_name}' for execution: {str(e)}"
             ) from e
 
-        return future, {"name": tool_name, "intermediate_step": is_intermediate_step}
+        return future, {"name": tool_name, "intermediate_step": is_intermediate_step, "tool_args": raw_args}
 
     def parse(self, future: Future, metadata: dict) -> Optional[AIMessage]:
         """Resolve a completed future and transform its result into an AIMessage."""

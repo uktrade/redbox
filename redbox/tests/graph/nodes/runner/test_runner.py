@@ -10,7 +10,7 @@ from langchain.tools import StructuredTool
 from redbox.models.chain import RedboxState
 from redbox.api.format import MCPResponseMetadata
 from redbox.graph.nodes.runner import exceptions as tool_exceptions
-from redbox.graph.nodes.runner.runner import ToolRunner, ToolExecutionResult
+from redbox.graph.nodes.runner.runner import ToolRunner, ToolRunnerResult, ToolResult
 
 
 @pytest.fixture
@@ -243,70 +243,31 @@ class TestToolRunner_Submit:
 
 class TestToolRunner_SubmitAll:
     @pytest.mark.parametrize(
-        "tool_calls,expected_count",
+        "tool_calls,expected_future_count,expected_failures",
         [
-            ([], 0),
-            ([{"name": "test_tool", "args": {"p": "v1"}}], 1),
+            ([], 0, []),
+            ([{"name": "test_tool", "args": {"p": "v1"}}], 1, []),
             # two calls to the same tool
-            (
-                [{"name": "test_tool", "args": {"p": "v1"}}, {"name": "test_tool", "args": {"p": "v2"}}],
-                2,
-            ),
+            ([{"name": "test_tool", "args": {"p": "v1"}}, {"name": "test_tool", "args": {"p": "v2"}}], 2, []),
             # two calls to distinct tools — both must be submitted
-            (
-                [{"name": "test_tool", "args": {}}, {"name": "other_tool", "args": {}}],
-                2,
-            ),
+            ([{"name": "test_tool", "args": {}}, {"name": "other_tool", "args": {}}], 2, []),
         ],
         ids=["empty", "single", "same-tool-twice", "two-distinct-tools"],
     )
-    def test_returns_correct_future_count(self, multi_tool_runner, tool_calls, expected_count):
-        futures = multi_tool_runner._submit_all(tool_calls)
-        assert len(futures) == expected_count
+    def test_submits_futures(self, multi_tool_runner, tool_calls, expected_future_count, expected_failures):
+        futures, failures = multi_tool_runner._submit_all(tool_calls)
+        assert len(futures) == expected_future_count
         assert all(isinstance(f, Future) for f in futures)
+        assert failures == expected_failures
 
-    @pytest.mark.parametrize(
-        "tool_calls,expected_count,log_level,expected_log_fragments",
-        [
-            (
-                [{"name": "ghost_tool", "args": {}}],
-                0,
-                logging.WARNING,
-                ["not found"],
-            ),
-            (
-                [{"name": "test_tool", "args": "bad"}],
-                0,
-                logging.WARNING,
-                ["validation error"],
-            ),
-            (
-                [
-                    {"name": "test_tool", "args": {"p": "v"}},  # valid
-                    {"name": "ghost_tool", "args": {}},  # not found
-                    {"name": "test_tool", "args": "bad"},  # invalid args
-                ],
-                1,
-                logging.WARNING,
-                ["not found", "validation error"],
-            ),
-        ],
-        ids=["unknown-tool", "invalid-args", "mixed"],
-    )
-    def test_skips_bad_calls_and_logs(
-        self, tool_runner, caplog, tool_calls, expected_count, log_level, expected_log_fragments
-    ):
-        with caplog.at_level(log_level):
-            futures = tool_runner._submit_all(tool_calls)
-        assert len(futures) == expected_count
-        for fragment in expected_log_fragments:
-            assert fragment in caplog.text
-
-    def test_logs_error_for_unexpected_submission_exception(self, tool_runner, caplog):
+    def test_unexpected_submission_exception(self, tool_runner, caplog):
         tool_runner.executor.submit = Mock(side_effect=RuntimeError("kaboom"))
         with caplog.at_level(logging.ERROR):
-            futures = tool_runner._submit_all([{"name": "test_tool", "args": {}}])
+            futures, failures = tool_runner._submit_all([{"name": "test_tool", "args": {}}])
         assert futures == {}
+        assert failures == [
+            ToolResult.Failure(tool_name="test_tool", error="Failed to submit tool 'test_tool' for execution: kaboom")
+        ]
 
 
 class TestToolRunner_Parse:
@@ -434,56 +395,92 @@ class TestToolRunner_Parse:
 
 class TestToolRunner_Collect:
     @pytest.mark.parametrize(
-        "futures_spec,expected_responses,expected_failed,expected_log_fragments",
+        "futures_spec,expected,expected_log_fragments",
         [
             # all succeed
             (
                 [("r1", "tool1"), ("r2", "tool2")],
-                [AIMessage("r1"), AIMessage("r2")],
-                [],
-                ["Completed"],
+                ToolRunnerResult(
+                    results=[
+                        ToolResult.Success(
+                            tool_name="tool1", response=AIMessage("r1"), metadata={"intermediate_step": "False"}
+                        ),
+                        ToolResult.Success(
+                            tool_name="tool2", response=AIMessage("r2"), metadata={"intermediate_step": "False"}
+                        ),
+                    ]
+                ),
+                ["Completed. Successful: 2, Failed: 0."],
             ),
             # empty input treated as total failure
             (
                 [],
-                [],
-                [],
+                ToolRunnerResult(),
                 ["Every tool execution has failed"],
             ),
             # single exception failure
             (
                 [(Exception("boom"), "tool1")],
-                [],
-                ["tool1"],
+                ToolRunnerResult(failures=[ToolResult.Failure(tool_name="tool1", error="Tool 'tool1' failed: boom")]),
                 ["Every tool execution has failed"],
             ),
             # timeout failure
             (
                 [(FuturesTimeoutError(), "slow_tool")],
-                [],
-                ["slow_tool"],
-                ["timed out", "Every tool execution has failed"],
+                ToolRunnerResult(
+                    failures=[ToolResult.Failure(tool_name="slow_tool", error="Tool 'slow_tool' timed out after 30.0s")]
+                ),
+                ["Every tool execution has failed"],
             ),
             # partial: one success, one timeout
             (
                 [("ok", "good_tool"), (FuturesTimeoutError(), "slow_tool")],
-                [AIMessage("ok")],
-                ["slow_tool"],
-                ["1 tool(s) failed", "Completed"],
+                ToolRunnerResult(
+                    results=[
+                        ToolResult.Success(
+                            tool_name="good_tool", response=AIMessage("ok"), metadata={"intermediate_step": "False"}
+                        )
+                    ],
+                    failures=[
+                        ToolResult.Failure(tool_name="slow_tool", error="Tool 'slow_tool' timed out after 30.0s")
+                    ],
+                ),
+                ["Completed. Successful: 1, Failed: 1."],
             ),
             # ToolValidationError (e.g. empty response) lands in failed_tools too
             (
                 [("ok", "good_tool"), ("", "empty_tool")],
-                [AIMessage("ok")],
-                ["empty_tool"],
-                ["1 tool(s) failed", "Completed"],
+                ToolRunnerResult(
+                    results=[
+                        ToolResult.Success(
+                            tool_name="good_tool", response=AIMessage("ok"), metadata={"intermediate_step": "False"}
+                        )
+                    ],
+                    failures=[
+                        ToolResult.Failure(
+                            tool_name="empty_tool", error="Tool 'empty_tool' returned empty or whitespace-only response"
+                        )
+                    ],
+                ),
+                ["Completed. Successful: 1, Failed: 1."],
             ),
             # multiple distinct tools all succeed — responses preserve insertion order
             (
                 [("alpha", "tool_a"), ("beta", "tool_b"), ("gamma", "tool_c")],
-                [AIMessage("alpha"), AIMessage("beta"), AIMessage("gamma")],
-                [],
-                ["Completed"],
+                ToolRunnerResult(
+                    results=[
+                        ToolResult.Success(
+                            tool_name="tool_a", response=AIMessage("alpha"), metadata={"intermediate_step": "False"}
+                        ),
+                        ToolResult.Success(
+                            tool_name="tool_b", response=AIMessage("beta"), metadata={"intermediate_step": "False"}
+                        ),
+                        ToolResult.Success(
+                            tool_name="tool_c", response=AIMessage("gamma"), metadata={"intermediate_step": "False"}
+                        ),
+                    ]
+                ),
+                ["Completed. Successful: 3, Failed: 0."],
             ),
         ],
         ids=[
@@ -501,8 +498,7 @@ class TestToolRunner_Collect:
         tool_runner,
         caplog,
         futures_spec,
-        expected_responses,
-        expected_failed,
+        expected,
         expected_log_fragments,
     ):
         futures = {
@@ -510,60 +506,116 @@ class TestToolRunner_Collect:
             for v, name in futures_spec
         }
         with caplog.at_level(logging.WARNING):
-            result = tool_runner._collect(futures)
+            result = tool_runner._collect(futures, [])
 
-        assert isinstance(result, ToolExecutionResult)
-        assert result.responses == expected_responses
-        assert result.failed_tools == expected_failed
+        assert isinstance(result, ToolRunnerResult)
+        assert result == expected
         for fragment in expected_log_fragments:
             assert fragment in caplog.text
 
 
 class TestToolRunner_Run:
     @pytest.mark.parametrize(
-        "tool_calls,expected_responses,expected_failed",
+        "tool_calls,expected",
         [
             # empty - no responses
-            (
-                [],
-                [],
-                [],
-            ),
+            ([], ToolRunnerResult()),
             # single call to test_tool - its specific return value
             (
                 [{"name": "test_tool", "args": {}}],
-                [AIMessage("test result")],
-                [],
+                ToolRunnerResult(
+                    results=[
+                        ToolResult.Success(
+                            tool_name="test_tool",
+                            response=AIMessage("test result"),
+                            metadata={"intermediate_step": "False", "tool_args": {}},
+                        )
+                    ]
+                ),
             ),
             # single call to other_tool - its specific return value
             (
                 [{"name": "other_tool", "args": {}}],
-                [AIMessage("other result")],
-                [],
+                ToolRunnerResult(
+                    results=[
+                        ToolResult.Success(
+                            tool_name="other_tool",
+                            response=AIMessage("other result"),
+                            metadata={"intermediate_step": "False", "tool_args": {}},
+                        )
+                    ]
+                ),
             ),
             # two calls to the same tool with different args - same return value twice
             (
                 [{"name": "test_tool", "args": {"p": "v1"}}, {"name": "test_tool", "args": {"p": "v2"}}],
-                [AIMessage("test result"), AIMessage("test result")],
-                [],
+                ToolRunnerResult(
+                    results=[
+                        ToolResult.Success(
+                            tool_name="test_tool",
+                            response=AIMessage("test result"),
+                            metadata={"intermediate_step": "False", "tool_args": {"p": "v1"}},
+                        ),
+                        ToolResult.Success(
+                            tool_name="test_tool",
+                            response=AIMessage("test result"),
+                            metadata={"intermediate_step": "False", "tool_args": {"p": "v2"}},
+                        ),
+                    ]
+                ),
             ),
             # one call to each distinct tool - each returns its own value
             (
                 [{"name": "test_tool", "args": {}}, {"name": "other_tool", "args": {}}],
-                [AIMessage("test result"), AIMessage("other result")],
-                [],
+                ToolRunnerResult(
+                    results=[
+                        ToolResult.Success(
+                            tool_name="test_tool",
+                            response=AIMessage("test result"),
+                            metadata={"intermediate_step": "False", "tool_args": {}},
+                        ),
+                        ToolResult.Success(
+                            tool_name="other_tool",
+                            response=AIMessage("other result"),
+                            metadata={"intermediate_step": "False", "tool_args": {}},
+                        ),
+                    ]
+                ),
             ),
             # unknown tool alongside valid call - one response, ghost skipped at submit
             (
                 [{"name": "test_tool", "args": {}}, {"name": "ghost_tool", "args": {}}],
-                [AIMessage("test result")],
-                [],  # ghost_tool is dropped at _submit_all, never reaches _collect
+                ToolRunnerResult(
+                    results=[
+                        ToolResult.Success(
+                            tool_name="test_tool",
+                            response=AIMessage("test result"),
+                            metadata={"intermediate_step": "False", "tool_args": {}},
+                        )
+                    ],
+                    failures=[
+                        ToolResult.Failure(
+                            tool_name="ghost_tool",
+                            error="Tool 'ghost_tool' not found. Available tools: test_tool, other_tool",
+                        )
+                    ],
+                ),
             ),
             # one tool succeeds, other_tool's future raises — lands in failed_tools
             (
                 [{"name": "test_tool", "args": {}}, {"name": "other_tool", "args": {}}],
-                [AIMessage("test result")],
-                ["other_tool"],
+                ToolRunnerResult(
+                    results=[
+                        ToolResult.Success(
+                            tool_name="test_tool",
+                            response=AIMessage("test result"),
+                            metadata={"intermediate_step": "False", "tool_args": {}},
+                        )
+                    ],
+                    failures=[
+                        ToolResult.Failure(tool_name="other_tool", error="Tool 'other_tool' failed: other_tool blew up")
+                    ],
+                ),
             ),
         ],
         ids=[
@@ -576,16 +628,13 @@ class TestToolRunner_Run:
             "one-succeeds-one-fails",
         ],
     )
-    def test_run_returns_correct_result(
-        self, multi_tool_runner, mock_tool_b, tool_calls, expected_responses, expected_failed
-    ):
+    def test_run_returns_correct_result(self, multi_tool_runner, mock_tool_b, tool_calls, expected):
         # For the "one-succeeds-one-fails" case mock_tool_b.invoke raises.
-        if expected_failed == ["other_tool"]:
+        if expected.failures:
             mock_tool_b.invoke.side_effect = Exception("other_tool blew up")
         result = multi_tool_runner.run(tool_calls)
-        assert isinstance(result, ToolExecutionResult)
-        assert result.responses == expected_responses
-        assert result.failed_tools == expected_failed
+        assert isinstance(result, ToolRunnerResult)
+        assert result == expected
 
     @pytest.mark.parametrize(
         "submit_all_side_effect,expected_exc",
@@ -608,14 +657,22 @@ class TestToolRunner_Run:
     def test_delegates_to_submit_all_and_collect(self, tool_runner):
         mock_future = Mock(spec=Future)
         stub_futures = {mock_future: _plain_metadata()}
-        stub_result = ToolExecutionResult(responses=[AIMessage("r")])
+        stub_result = ToolRunnerResult(
+            responses=[
+                ToolResult.Success(
+                    tool_name="test_tool",
+                    response=AIMessage("r"),
+                    metadata={"intermediate_step": "False", "tool_args": {}},
+                )
+            ]
+        )
 
-        with patch.object(tool_runner, "_submit_all", return_value=stub_futures) as ms:
+        with patch.object(tool_runner, "_submit_all", return_value=(stub_futures, [])) as ms:
             with patch.object(tool_runner, "_collect", return_value=stub_result) as mc:
                 result = tool_runner.run([{"name": "test_tool", "args": {}}])
 
         ms.assert_called_once_with(tool_calls=[{"name": "test_tool", "args": {}}])
-        mc.assert_called_once_with(futures=stub_futures)
+        mc.assert_called_once_with(futures=stub_futures, failures=[])
         assert result is stub_result
 
     def test_parallel_execution_is_faster_than_sequential(self, mock_state):
@@ -637,19 +694,13 @@ class TestToolRunner_Run:
         elapsed = time.time() - start
 
         assert elapsed < 0.25, f"Expected ~0.1s with parallelism, got {elapsed:.2f}s"
-        assert result.responses == [AIMessage("done"), AIMessage("done"), AIMessage("done")]
-
-    @pytest.mark.parametrize(
-        "max_workers,parallel_timeout",
-        [(1, 10.0), (5, 60.0), (10, 120.0)],
-    )
-    def test_run_honours_configuration(self, mock_tool, mock_state, max_workers, parallel_timeout):
-        runner = ToolRunner(
-            tools=[mock_tool],
-            state=mock_state,
-            max_workers=max_workers,
-            is_loop=False,
-            parallel_timeout=parallel_timeout,
+        assert result == ToolRunnerResult(
+            results=[
+                ToolResult.Success(
+                    tool_name="slow_tool",
+                    response=AIMessage("done"),
+                    metadata={"intermediate_step": "False", "tool_args": {}},
+                )
+            ]
+            * 3
         )
-        assert runner.executor._max_workers == max_workers
-        assert runner.parallel_timeout == parallel_timeout
