@@ -121,3 +121,15 @@ def get_edit_user_tool_url(slug: str, user_tool_id: uuid.UUID) -> str:
         kwargs["user_tool_id"] = user_tool_id
 
     return reverse("edit-user-tool", kwargs=kwargs)
+
+
+def get_delete_user_tool_url(slug: str, user_tool_id: uuid.UUID) -> str:
+    kwargs = {}
+
+    if slug:
+        kwargs["slug"] = slug
+
+    if user_tool_id:
+        kwargs["user_tool_id"] = user_tool_id
+
+    return reverse("delete-user-tool", kwargs=kwargs)

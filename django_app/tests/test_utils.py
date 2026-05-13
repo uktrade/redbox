@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from django.http import Http404, HttpRequest, HttpResponse
 from django.utils import timezone
 
-from redbox_app.redbox_core.utils import get_date_group, parse_uuid, render_with_oob, resolve_instance
+from redbox_app.redbox_core.utils import get_date_group, is_htmx_request, parse_uuid, render_with_oob, resolve_instance
 
 User = get_user_model()
 
@@ -152,3 +152,20 @@ def test_parse_uuid():
     assert valid_result == valid_uuid
     assert str(valid_str_result) == valid_str_uuid
     assert invalid_result is None
+
+
+class FakeRequest:
+    def __init__(self, headers=None):
+        self.headers = headers or {}
+
+
+def test_is_htmx_request_true():
+    request = FakeRequest(headers={"HX-Request": "true"})
+
+    assert is_htmx_request(request) is True
+
+
+def test_is_htmx_request_false():
+    request = FakeRequest(headers={})
+
+    assert is_htmx_request(request) is False
