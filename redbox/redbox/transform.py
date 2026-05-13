@@ -382,4 +382,7 @@ def combine_agents_state(agents_results: Dict[str, AnyMessage], max_tokens: int)
                 original_tokens,
                 share,
             )
-    return {"all_result": "\n\n".join(parts)}
+    joined = "/n/n".join(parts)
+    if bedrock_tokeniser(joined) > max_tokens:
+        joined, _ = truncate_to_tokens(joined, max_tokens)
+    return {"all_result": joined}
