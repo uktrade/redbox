@@ -19,12 +19,12 @@ log = logging.getLogger(__name__)
 class ToolResult:
     class Base(BaseModel):
         tool_name: str = Field(description="The name of the executed tool.")
+        metadata: dict = Field(default={}, description="Metadata from tool execution.")
 
     class Success(Base):
         """Successful result of tool execution."""
 
         response: AIMessage = Field(description="AIMessage response generated from tool execution.")
-        metadata: dict = Field(default={}, description="Metadata from tool execution.")
 
     class Failure(Base):
         """Failed result of tool execution."""
@@ -81,6 +81,9 @@ class ToolRunner:
 
         for tool_call in tool_calls:
             tool_name = tool_call.get("name")
+            raw_args = tool_call.get("args", {})
+            raw_args.pop("name", None)
+
             try:
                 res = self.submit(tool_call=tool_call)
                 future, metadata = res
@@ -93,12 +96,12 @@ class ToolRunner:
                 tool_exceptions.ToolNotFoundError,
             ) as e:
                 log.warning(f"{self.log_stub} {e}")
-                failures.append(ToolResult.Failure(tool_name=tool_name, error=str(e)))
+                failures.append(ToolResult.Failure(tool_name=tool_name, error=str(e), metadata={"tool_args": raw_args}))
 
             except Exception as e:
                 err = f"Unexpected error submitting tool '{tool_name}': {e}"
                 log.error(f"{self.log_stub} {err}", exc_info=True)
-                failures.append(ToolResult.Failure(tool_name=tool_name, error=err))
+                failures.append(ToolResult.Failure(tool_name=tool_name, error=err, metadata={"tool_args": raw_args}))
 
         return futures, failures
 
@@ -109,10 +112,11 @@ class ToolRunner:
         for future in futures.keys():
             future_tool_name = futures[future]["name"]
             try:
+                metadata = dict(futures[future])
+                metadata.pop("name", None)
+
                 response = self.parse(future=future, metadata=futures[future])
                 if response is not None:
-                    metadata = futures[future]
-                    metadata.pop("name", None)
                     results.append(ToolResult.Success(tool_name=future_tool_name, response=response, metadata=metadata))
 
             except (
@@ -122,12 +126,12 @@ class ToolRunner:
                 tool_exceptions.ToolNotFoundError,
             ) as e:
                 log.warning(f"{self.log_stub} {e}")
-                failures.append(ToolResult.Failure(tool_name=future_tool_name, error=str(e)))
+                failures.append(ToolResult.Failure(tool_name=future_tool_name, error=str(e), metadata=metadata))
 
             except Exception as e:
                 err = f"Tool '{future_tool_name}' error: {e}"
                 log.warning(f"{self.log_stub} {err}")
-                failures.append(ToolResult.Failure(tool_name=future_tool_name, error=err))
+                failures.append(ToolResult.Failure(tool_name=future_tool_name, error=err, metadata=metadata))
 
         failed_tools = [f"{fr.tool_name} - {fr.error}" for fr in failures]
         if failed_tools:

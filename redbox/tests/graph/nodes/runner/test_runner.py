@@ -263,10 +263,14 @@ class TestToolRunner_SubmitAll:
     def test_unexpected_submission_exception(self, tool_runner, caplog):
         tool_runner.executor.submit = Mock(side_effect=RuntimeError("kaboom"))
         with caplog.at_level(logging.ERROR):
-            futures, failures = tool_runner._submit_all([{"name": "test_tool", "args": {}}])
+            futures, failures = tool_runner._submit_all([{"name": "test_tool", "args": {"a": "B"}}])
         assert futures == {}
         assert failures == [
-            ToolResult.Failure(tool_name="test_tool", error="Failed to submit tool 'test_tool' for execution: kaboom")
+            ToolResult.Failure(
+                tool_name="test_tool",
+                error="Failed to submit tool 'test_tool' for execution: kaboom",
+                metadata={"tool_args": {"a": "B"}},
+            )
         ]
 
 
@@ -421,14 +425,28 @@ class TestToolRunner_Collect:
             # single exception failure
             (
                 [(Exception("boom"), "tool1")],
-                ToolRunnerResult(failures=[ToolResult.Failure(tool_name="tool1", error="Tool 'tool1' failed: boom")]),
+                ToolRunnerResult(
+                    failures=[
+                        ToolResult.Failure(
+                            tool_name="tool1",
+                            error="Tool 'tool1' failed: boom",
+                            metadata={"intermediate_step": "False"},
+                        )
+                    ]
+                ),
                 ["Every tool execution has failed"],
             ),
             # timeout failure
             (
                 [(FuturesTimeoutError(), "slow_tool")],
                 ToolRunnerResult(
-                    failures=[ToolResult.Failure(tool_name="slow_tool", error="Tool 'slow_tool' timed out after 30.0s")]
+                    failures=[
+                        ToolResult.Failure(
+                            tool_name="slow_tool",
+                            error="Tool 'slow_tool' timed out after 30.0s",
+                            metadata={"intermediate_step": "False"},
+                        )
+                    ]
                 ),
                 ["Every tool execution has failed"],
             ),
@@ -442,7 +460,11 @@ class TestToolRunner_Collect:
                         )
                     ],
                     failures=[
-                        ToolResult.Failure(tool_name="slow_tool", error="Tool 'slow_tool' timed out after 30.0s")
+                        ToolResult.Failure(
+                            tool_name="slow_tool",
+                            error="Tool 'slow_tool' timed out after 30.0s",
+                            metadata={"intermediate_step": "False"},
+                        )
                     ],
                 ),
                 ["Completed. Successful: 1, Failed: 1."],
@@ -458,7 +480,9 @@ class TestToolRunner_Collect:
                     ],
                     failures=[
                         ToolResult.Failure(
-                            tool_name="empty_tool", error="Tool 'empty_tool' returned empty or whitespace-only response"
+                            tool_name="empty_tool",
+                            error="Tool 'empty_tool' returned empty or whitespace-only response",
+                            metadata={"intermediate_step": "False"},
                         )
                     ],
                 ),
@@ -509,6 +533,7 @@ class TestToolRunner_Collect:
             result = tool_runner._collect(futures, [])
 
         assert isinstance(result, ToolRunnerResult)
+        assert result.failures == expected.failures
         assert result == expected
         for fragment in expected_log_fragments:
             assert fragment in caplog.text
@@ -584,7 +609,7 @@ class TestToolRunner_Run:
             ),
             # unknown tool alongside valid call - one response, ghost skipped at submit
             (
-                [{"name": "test_tool", "args": {}}, {"name": "ghost_tool", "args": {}}],
+                [{"name": "test_tool", "args": {}}, {"name": "ghost_tool", "args": {"fake": "fakeval"}}],
                 ToolRunnerResult(
                     results=[
                         ToolResult.Success(
@@ -597,6 +622,7 @@ class TestToolRunner_Run:
                         ToolResult.Failure(
                             tool_name="ghost_tool",
                             error="Tool 'ghost_tool' not found. Available tools: test_tool, other_tool",
+                            metadata={"tool_args": {"fake": "fakeval"}},
                         )
                     ],
                 ),
@@ -613,7 +639,31 @@ class TestToolRunner_Run:
                         )
                     ],
                     failures=[
-                        ToolResult.Failure(tool_name="other_tool", error="Tool 'other_tool' failed: other_tool blew up")
+                        ToolResult.Failure(
+                            tool_name="other_tool",
+                            error="Tool 'other_tool' failed: other_tool blew up",
+                            metadata={"intermediate_step": "False", "tool_args": {}},
+                        )
+                    ],
+                ),
+            ),
+            # one tool succeeds, other_tool's future raises — lands in failed_tools with args
+            (
+                [{"name": "test_tool", "args": {}}, {"name": "other_tool", "args": {"veg": "carrot"}}],
+                ToolRunnerResult(
+                    results=[
+                        ToolResult.Success(
+                            tool_name="test_tool",
+                            response=AIMessage("test result"),
+                            metadata={"intermediate_step": "False", "tool_args": {}},
+                        )
+                    ],
+                    failures=[
+                        ToolResult.Failure(
+                            tool_name="other_tool",
+                            error="Tool 'other_tool' failed: other_tool blew up",
+                            metadata={"intermediate_step": "False", "tool_args": {"veg": "carrot"}},
+                        )
                     ],
                 ),
             ),
@@ -626,6 +676,7 @@ class TestToolRunner_Run:
             "two-distinct-tools",
             "valid-plus-unknown",
             "one-succeeds-one-fails",
+            "one-succeeds-one-fails-with-args",
         ],
     )
     def test_run_returns_correct_result(self, multi_tool_runner, mock_tool_b, tool_calls, expected):
@@ -634,6 +685,8 @@ class TestToolRunner_Run:
             mock_tool_b.invoke.side_effect = Exception("other_tool blew up")
         result = multi_tool_runner.run(tool_calls)
         assert isinstance(result, ToolRunnerResult)
+        assert result.results == expected.results
+        assert result.failures == expected.failures
         assert result == expected
 
     @pytest.mark.parametrize(
