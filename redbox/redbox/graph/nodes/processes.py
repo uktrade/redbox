@@ -41,18 +41,11 @@ from redbox.models.chain import (
     configure_agent_task_plan,
     get_plan_fix_prompts,
     get_plan_fix_suggestion_prompts,
-    get_prompts,
 )
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
 from redbox.models.settings import ChatLLMBackend
-from redbox.transform import (
-    bedrock_tokeniser,
-    combine_agents_state,
-    combine_documents,
-    flatten_document_state,
-    join_result_with_token_limit,
-)
+from redbox.transform import combine_documents, flatten_document_state, join_result_with_token_limit
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
@@ -780,29 +773,6 @@ def build_datahub_agent_with_loop(
 
 def create_evaluator():
     def _create_evaluator(state: RedboxState):
-        ai_settings = state.request.ai_settings
-        system_prompt, question_prompt, _ = get_prompts(state, PromptSet.NewRoute)
-        chat_history_tokens = sum(bedrock_tokeniser(m["text"]) for m in state.request.chat_history)
-
-        other_vars_token = bedrock_tokeniser((state.artifact_criteria or "") + date.today().isoformat())
-
-        safety_margin = 2000
-
-        agents_budget = (
-            ai_settings.context_window_size
-            - ai_settings.llm_max_tokens
-            - bedrock_tokeniser(system_prompt)
-            - bedrock_tokeniser(question_prompt)
-            - chat_history_tokens
-            - other_vars_token
-            - safety_margin
-        )
-
-        _additional_variables = {
-            "agents_results": combine_agents_state(state.agents_results, max_tokens=agents_budget),
-            "artifact_criteria": state.artifact_criteria,
-            "todays_date": date.today().isoformat(),
-        }
         citation_parser, format_instructions = get_structured_response_with_citations_parser()
         evaluator_agent = build_stuff_pattern(
             prompt_set=PromptSet.NewRoute,
@@ -810,7 +780,11 @@ def create_evaluator():
             output_parser=citation_parser,
             format_instructions=format_instructions,
             final_response_chain=False,
-            additional_variables=_additional_variables,
+            additional_variables={
+                "agents_results": None,
+                "artifact_criteria": state.artifact_criteria,
+                "todays_date": date.today().isoformat(),
+            },
         )
         return evaluator_agent
 

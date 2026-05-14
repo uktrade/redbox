@@ -1,7 +1,7 @@
 import logging
 import re
-from typing import Any, Callable, Iterable, Iterator
 from datetime import date
+from typing import Any, Callable, Iterable, Iterator
 
 from langchain_core.callbacks.manager import CallbackManagerForLLMRun, dispatch_custom_event
 from langchain_core.language_models import BaseChatModel
@@ -25,7 +25,7 @@ from redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_pr
 from redbox.models.errors import QuestionLengthError
 from redbox.models.graph import RedboxEventType
 from redbox.models.settings import ChatLLMBackend, get_settings
-from redbox.transform import bedrock_tokeniser, flatten_document_state, get_all_metadata
+from redbox.transform import bedrock_tokeniser, combine_agents_state, flatten_document_state, get_all_metadata
 
 log = logging.getLogger()
 re_string_pattern = re.compile(r"(\S+)")
@@ -105,6 +105,26 @@ def build_chat_prompt_from_messages_runnable(
         prompts_budget = bedrock_tokeniser(task_system_prompt) + bedrock_tokeniser(task_question_prompt)
 
         truncated_history = truncate_chat_history(state=state, prompts_budget=prompts_budget, tokeniser=_tokeniser)
+
+        if "agents_results" in _additional_variables:
+            chat_history_tokens = sum(_tokeniser(m["text"]) for m in truncated_history)
+            other_vars_token = _tokeniser(
+                (_additional_variables.get("artifact_criteria") or "") + _additional_variables.get("todays_date", "")
+            )
+
+            safety_margin = 2000
+            agents_budget = (
+                ai_settings.context_window_size
+                - ai_settings.llm_max_tokens
+                - prompts_budget
+                - chat_history_tokens
+                - other_vars_token
+                - safety_margin
+            )
+            _additional_variables = {
+                **additional_variables,
+                "agents_results": combine_agents_state(state.agents_results, max_tokens=agents_budget),
+            }
 
         prompt_template_context = (
             state.request.model_dump()
