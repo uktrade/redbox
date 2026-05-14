@@ -104,10 +104,11 @@ def build_chat_prompt_from_messages_runnable(
             """
         prompts_budget = bedrock_tokeniser(task_system_prompt) + bedrock_tokeniser(task_question_prompt)
 
-        truncated_history = truncate_chat_history(state=state, prompts_budget=prompts_budget, tokeniser=_tokeniser)
+        # Agent results take priority over chat history
+        # Size the agent results first against the available budget, then chat history fits into the remainder
+        history_reservation = prompts_budget
 
         if "agents_results" in _additional_variables:
-            chat_history_tokens = sum(_tokeniser(m["text"]) for m in truncated_history)
             other_vars_token = _tokeniser(
                 (_additional_variables.get("artifact_criteria") or "") + _additional_variables.get("todays_date", "")
             )
@@ -117,14 +118,21 @@ def build_chat_prompt_from_messages_runnable(
                 ai_settings.context_window_size
                 - ai_settings.llm_max_tokens
                 - prompts_budget
-                - chat_history_tokens
                 - other_vars_token
                 - safety_margin
             )
+            combine_agents_results = combine_agents_state(state.agents_results, max_tokens=agents_budget)
+
             _additional_variables = {
                 **additional_variables,
-                "agents_results": combine_agents_state(state.agents_results, max_tokens=agents_budget),
+                "agents_results": combine_agents_results,
             }
+            agent_results_tokens = (
+                _tokeniser(combine_agents_results.get("all_result", "")) if combine_agents_results else 0
+            )
+            history_reservation += agent_results_tokens + other_vars_token + safety_margin
+
+        truncated_history = truncate_chat_history(state=state, prompts_budget=history_reservation, tokeniser=_tokeniser)
 
         prompt_template_context = (
             state.request.model_dump()
