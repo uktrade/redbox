@@ -94,3 +94,7 @@ def parse_uuid(value: str | uuid.UUID | None) -> uuid.UUID | None:
 
 def is_htmx_request(request: HttpRequest):
     return request.headers.get("HX-Request") == "true"
+
+
+def strip_domain(email: str) -> str:
+    return email.rsplit("@", maxsplit=1)[-1]

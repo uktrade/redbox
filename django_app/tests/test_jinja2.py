@@ -18,6 +18,7 @@ from redbox_app.jinja2 import (
     humanize_timedelta,
     markdown,
     remove_refs,
+    show_all_attrs,
     to_user_timezone,
     url,
 )
@@ -173,6 +174,7 @@ class TestEnvironment:
         assert "to_user_timezone" in env.filters
         assert "environment" in env.filters
         assert "security" in env.filters
+        assert "show_all_attrs" in env.filters
 
         # Test that globals are registered
         assert "static" in env.globals
@@ -236,3 +238,14 @@ def test_get_product_name(alice: User, client: Client):
 
     assert flagged_product_name_authenticated == "DBT Assist"
     assert flagged_product_name_not_authenticated == "DBT Assist"
+
+
+def test_show_all_attrs():
+    # Given
+    obj = "str_object"
+
+    # When
+    result = show_all_attrs(obj)
+
+    # Then
+    assert "<class 'str'>" in result

@@ -27,26 +27,28 @@ def test_first_time_user(client: Client, bob: User, chat_with_alice: Chat):
 
 
 @pytest.mark.django_db
-def test_has_tool_access_public_tool(alice: User):
-    tool = Tool.objects.create(
-        name="Public Tool",
-        is_public=True,
-    )
+def test_has_tool_access_public_tool(alice: User, default_tool: Tool):
+    default_tool.is_public = True
+    default_tool.save()
 
-    assert alice.has_tool_access(tool) is True
+    assert alice.has_tool_access(default_tool) is True
 
 
 @pytest.mark.django_db
-def test_has_tool_access_explicit_allow(
-    alice: User,
-    default_tool: Tool,
-):
+def test_has_tool_access_private_no_access(alice: User, default_tool: Tool):
     default_tool.is_public = False
     default_tool.save()
 
-    UserTool.objects.create(
+    assert alice.has_tool_access(default_tool) is False
+
+
+@pytest.mark.django_db
+def test_has_tool_access_private_with_access(alice: User, default_tool: Tool):
+    default_tool.is_public = False
+    default_tool.save()
+
+    default_tool.add_user(
         user=alice,
-        tool=default_tool,
         role=UserTool.RoleType.USER,
         access_type=UserTool.AccessType.ALLOW,
     )
@@ -74,17 +76,6 @@ def test_has_tool_access_deny_rule(
         value="example.com",
         access_type=ToolAccessRule.AccessType.DENY,
     )
-
-    assert alice.has_tool_access(default_tool) is False
-
-
-@pytest.mark.django_db
-def test_has_tool_access_no_access(
-    alice: User,
-    default_tool: Tool,
-):
-    default_tool.is_public = False
-    default_tool.save()
 
     assert alice.has_tool_access(default_tool) is False
 
@@ -197,3 +188,19 @@ def test_all_emails_without_sso(alice: User):
     emails = alice.all_emails
 
     assert emails == {alice.email}
+
+
+@pytest.mark.django_db
+def test_email_domains(alice, sso_factory):
+    sso_factory(
+        alice,
+        related_emails=[
+            "a@example.com",
+            "b@test.com",
+        ],
+    )
+
+    domains = alice.email_domains
+
+    assert "example.com" in domains
+    assert "test.com" in domains

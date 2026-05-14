@@ -1,14 +1,20 @@
 import asyncio
 import json
+from datetime import timedelta
 
 import sentry_sdk
 from asgiref.sync import iscoroutinefunction, sync_to_async
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpRequest, HttpResponse
+from django.utils import timezone
 from django.utils.decorators import sync_and_async_middleware
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
+from waffle import flag_is_active
+
+from redbox_app.redbox_core import flags
+from redbox_app.redbox_core.services import sso as sso_service
 
 User = get_user_model()
 
@@ -136,3 +142,29 @@ def sentry_user_middleware(get_response):
             return get_response(request)
 
     return middleware
+
+
+class SSOSyncMiddleware:
+    SESSION_KEY = "sso_last_synced"
+    SYNC_INTERVAL = timedelta(hours=1).total_seconds()
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.user.is_authenticated:
+            if flag_is_active(request, flags.RESET_SSO_SYNC_SESSION):
+                request.session.pop(self.SESSION_KEY, None)
+
+            last_synced = request.session.get(self.SESSION_KEY)
+            now_timestamp = timezone.now().timestamp()
+
+            should_sync = not last_synced or (now_timestamp - last_synced) > self.SYNC_INTERVAL
+
+            if should_sync:
+                synced = sso_service.sync_sso_data(request)
+
+                if synced:
+                    request.session[self.SESSION_KEY] = now_timestamp
+
+        return self.get_response(request)
