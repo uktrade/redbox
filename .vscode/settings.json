@@ -15,5 +15,7 @@
         "titleBar.activeBackground": "#911212",
         "titleBar.activeForeground": "#fbfbec"
     },
-    "terminal.integrated.scrollback": 100000
+    "terminal.integrated.scrollback": 100000,
+    "python-envs.defaultEnvManager": "ms-python.python:poetry",
+    "python-envs.defaultPackageManager": "ms-python.python:poetry"
 }
