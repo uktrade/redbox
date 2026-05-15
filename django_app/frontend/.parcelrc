@@ -13,5 +13,8 @@
     "*.css": [
       "@parcel/transformer-postcss"
     ]
+  },
+  "optimizers": {
+    "*.js": []
   }
 }
