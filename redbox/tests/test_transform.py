@@ -12,6 +12,7 @@ from redbox.models.chain import DocumentState, LLMCallMetadata, RequestMetadata
 from redbox.retriever.retrievers import filter_by_elbow
 from redbox.test.data import generate_docs
 from redbox.transform import (
+    TRUNCATION_MARKER,
     bedrock_tokeniser,
     combine_agents_state,
     combine_documents,
@@ -525,3 +526,15 @@ def test_combine_agents_small_inputs_pass_through_unchanged():
 
 def test_combine_agents_state_empty_input_returns_empty_dict():
     assert combine_agents_state({}, max_tokens=EVALUATOR_AGENT_RESULT_MAX) == {}
+
+
+def test_combine_agents_state_marks_truncated():
+    agents_results = {"Huge": AIMessage(" ".join(["x"] * 2000000))}
+    combined = combine_agents_state(agents_results, max_tokens=EVALUATOR_AGENT_RESULT_MAX)
+    assert TRUNCATION_MARKER in combined["all_result"]
+
+
+def test_combine_agents_state_marks_not_truncated():
+    agents_results = {"Small": AIMessage("Hello world!")}
+    combined = combine_agents_state(agents_results, max_tokens=EVALUATOR_AGENT_RESULT_MAX)
+    assert TRUNCATION_MARKER not in combined["all_result"]
