@@ -1,6 +1,7 @@
 import itertools
 import logging
 import re
+import math
 from typing import Dict, Iterable
 from uuid import NAMESPACE_DNS, UUID, uuid5
 
@@ -369,7 +370,7 @@ def combine_agents_state(agents_results: Dict[str, AnyMessage], max_tokens: int)
     parts: list[str] = []
     for agent_id, msg in agents_results.items():
         original_tokens = sizes[agent_id]
-        share = max(1, int(max_tokens * original_tokens / total_tokens))
+        share = max(1, math.floor(max_tokens * original_tokens / total_tokens))
         if original_tokens <= share:
             parts.append(msg.content)
         else:
