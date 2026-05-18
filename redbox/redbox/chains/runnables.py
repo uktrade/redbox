@@ -113,7 +113,7 @@ def build_chat_prompt_from_messages_runnable(
                 (_additional_variables.get("artifact_criteria") or "") + _additional_variables.get("todays_date", "")
             )
 
-            safety_margin = 2000
+            safety_margin = 2000  # Buffer for chat template scaffolding and a difference in the token count from bedrock's and the models tokeniser
             agents_budget = (
                 ai_settings.context_window_size
                 - ai_settings.llm_max_tokens
