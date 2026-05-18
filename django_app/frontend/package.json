@@ -39,7 +39,7 @@
   },
   "author": "",
   "dependencies": {
-    "@aws-sdk/client-transcribe-streaming": "^3.787.0",
+    "@aws-sdk/client-transcribe-streaming": "3.637.0",
     "@parcel/config-default": "^2.13.1",
     "@parcel/transformer-typescript-tsc": "^2.13.1",
     "accessible-autocomplete": "^3.0.1",
@@ -49,6 +49,7 @@
     "readable-stream": "^4.7.0"
   },
   "devDependencies": {
+    "@parcel/optimizer-terser": "^2.16.4",
     "@parcel/transformer-sass": "^2.12.0",
     "@playwright/test": "^1.48.2",
     "@types/dompurify": "^3.0.5",
@@ -58,7 +59,7 @@
     "dotenv": "^16.4.5",
     "events": "^3.3.0",
     "os-browserify": "^0.3.0",
-    "parcel": "^2.12.0",
+    "parcel": "^2.3.0",
     "parcel-reporter-static-files-copy": "^1.5.3",
     "path-browserify": "^1.0.1",
     "postcss": "^8.4.39",

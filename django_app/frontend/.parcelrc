@@ -13,8 +13,8 @@
     "*.css": [
       "@parcel/transformer-postcss"
     ]
-  },
-  "optimizers": {
-    "*.js": []
   }
+  // "optimizers": {
+  //   "*.js": ["@parcel/optimizer-terser"]
+  // }
 }
