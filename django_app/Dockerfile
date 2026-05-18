@@ -3,8 +3,8 @@ FROM node:20 AS npm-packages
 
 WORKDIR /src
 
-COPY django_app/frontend/package.json .
-RUN npm install
+COPY django_app/frontend/package.json django_app/frontend/package-lock.json .
+RUN npm ci
 
 COPY django_app/frontend/staticfiles.json django_app/frontend/.parcelrc django_app/frontend/*.js ./
 COPY django_app/frontend/src/ ./src/
