@@ -1,6 +1,4 @@
 // @ts-check
-import { TranscribeStreamingClient, StartStreamTranscriptionCommand } from "@aws-sdk/client-transcribe-streaming";
-import { Readable } from 'readable-stream'
 import { hideElement, showElement } from "../../utils";
 import { MessageInput } from "./message-input";
 
