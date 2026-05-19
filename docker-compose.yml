@@ -12,6 +12,8 @@ services:
         condition: service_healthy
       opensearch:
         condition: service_healthy
+      sso:
+        condition: service_started
     networks:
       - redbox-app-network
     env_file:
@@ -152,6 +154,17 @@ services:
       opensearch:
         condition: service_healthy
     restart: unless-stopped
+
+  sso:
+    image: public.ecr.aws/uktrade/mock-sso:branch-main
+    environment:
+      - MOCK_SSO_PORT=8001
+      - MOCK_SSO_TOKEN=local.token
+      - MOCK_SSO_CODE=local.code
+    ports:
+      - "8001:8001"
+    networks:
+      - redbox-app-network
 
 networks:
   redbox-app-network:
