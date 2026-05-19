@@ -10,6 +10,7 @@ from typing import Any
 from uuid import UUID
 
 import uwotm8.convert as uwm8
+from amazon_transcribe.auth import StaticCredentialResolver
 from amazon_transcribe.client import TranscribeStreamingClient
 from amazon_transcribe.model import TranscriptEvent
 from asgiref.sync import sync_to_async
@@ -826,17 +827,29 @@ class TranscriptionConsumer(AsyncWebsocketConsumer):
         if self.transcribe_client is not None:
             return
 
-        credentials = await self._get_credentials()
+        try:
+            creds_dict = await self._get_credentials()
 
-        self.transcribe_client = TranscribeStreamingClient(region="eu-west-2", credentials=credentials)
+            self.transcribe_client = TranscribeStreamingClient(
+                region="eu-west-2",
+                credential_resolver=StaticCredentialResolver(
+                    access_key_id=creds_dict["access_key_id"],
+                    secret_access_key=creds_dict["secret_access_key"],
+                    session_token=creds_dict.get("session_token"),
+                ),
+            )
 
-        self.stream = await self.transcribe_client.start_stream_transcription(
-            language_code="en-GB",
-            media_sample_rate_hz=16000,
-            media_encoding="pcm",
-        )
+            self.stream = await self.transcribe_client.start_stream_transcription(
+                language_code="en-GB",
+                media_sample_rate_hz=16000,
+                media_encoding="pcm",
+            )
 
-        self.transcript_task = asyncio.create_task(self._handle_transcripts())
+            self.transcript_task = asyncio.create_task(self._handle_transcripts())
+
+        except Exception:
+            logger.exception("Failed to start transcription client because")
+            await self.send(json.dumps({"type": "error", "message": "Failed to initialise transcription service"}))
 
     @database_sync_to_async
     def _get_credentials(self):
