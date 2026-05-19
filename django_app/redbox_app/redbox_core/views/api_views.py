@@ -1,5 +1,5 @@
 import logging
-import uuid
+from uuid import uuid4
 
 import boto3
 from django.conf import settings
@@ -50,31 +50,40 @@ def message_view_pre_alpha(request):
     return paginator.get_paginated_response(serializer.data)
 
 
+def get_transcribe_credentials():
+    client = boto3.client("sts")
+    role_arn = settings.AWS_TRANSCRIBE_ROLE_ARN
+
+    credentials = client.assume_role(
+        RoleArn=role_arn,
+        RoleSessionName=f"redbox_{uuid4()}",
+        DurationSeconds=60 * 15,
+    )["Credentials"]
+
+    return {
+        "access_key_id": credentials["AccessKeyId"],
+        "secret_access_key": credentials["SecretAccessKey"],
+        "session_token": credentials["SessionToken"],
+    }
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def aws_credentials_api(request):
     """Get credentials for AWS (used for transcription so far)"""
     if request.user.is_authenticated:
-        client = boto3.client("sts")
-        role_arn = settings.AWS_TRANSCRIBE_ROLE_ARN
-
         try:
-            credentials = client.assume_role(
-                RoleArn=role_arn,
-                RoleSessionName="redbox_" + str(uuid.uuid4()),
-                DurationSeconds=60 * 15,
-            )["Credentials"]
-        except Exception as e:
-            logger.exception("Failed to assume role:", exc_info=e)
-
-        return JsonResponse(
-            {
-                "AccessKeyId": credentials["AccessKeyId"],
-                "SecretAccessKey": credentials["SecretAccessKey"],
-                "SessionToken": credentials["SessionToken"],
-                "Expiration": credentials["Expiration"],
-            },
-            status=200,
-        )
+            creds = get_transcribe_credentials()
+            return JsonResponse(
+                {
+                    "AccessKeyId": creds["access_key_id"],
+                    "SecretAccessKey": creds["secret_access_key"],
+                    "SessionToken": creds["session_token"],
+                    "Expiration": creds.get("Expiration"),
+                }
+            )
+        except Exception:
+            logger.exception("Failed to assume role")
+            return JsonResponse({"error": "Failed to get credentials"}, status=500)
     else:
         return JsonResponse(403, safe=False)

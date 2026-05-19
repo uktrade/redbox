@@ -93,24 +93,41 @@ export class SendMessageWithDictation extends HTMLElement {
     this.isRecording = true;
     this.isStreaming = true;
     this.hideRecordButton();
+    this.lastFinalTranscript = "";
 
-    const client = new TranscribeStreamingClient({
-      region: "eu-west-2",
-      credentials: async () => {
-        const response = await (await fetch('/api/v0/aws-credentials', {
-          method: 'GET',
-          headers: {
-              'X-API-KEY': this._apiKey || "",
-              'Content-Type': 'application/json'
-          }
-        })).json();
-        return {
-          accessKeyId: response.AccessKeyId,
-          secretAccessKey: response.SecretAccessKey,
-          sessionToken: response.SessionToken || undefined,
-        };
-      },
-    });
+    const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws/transcribe/`;
+    this.ws = new WebSocket(wsUrl);
+
+    this.ws.onopen = () => {
+      console.log("Transcription WS connected");
+    };
+
+    this.ws.onmessage = (event) => {
+      console.log("WS Received raw:", event.data);
+      try {
+        const data = JSON.parse(event.data);
+        console.log("Parsed transcript data:", data);
+        if (data.type === "transcript") {
+          console.log(`Got transcript: ${data.is_partial ? 'PARTIAL' : 'FINAL'} ${data.text}`);
+          this._updateTranscript(data.text, data.is_partial);
+        } else if (data.type === "error") {
+          console.error(data.message);
+          this.stopResponse();
+        }
+      }
+      catch (e) {
+        console.error("Failed to parse WS message", e);
+      }
+    };
+
+    this.ws.onerror = (err) => {
+      console.error("Transcription WS error", err);
+      this.stopResponse();
+    };
+
+    this.ws.onclose = () => {
+      this.isStreaming = false;
+    };
 
     try {
       this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -121,68 +138,39 @@ export class SendMessageWithDictation extends HTMLElement {
       input.connect(processor);
       processor.connect(audioContext.destination);
 
-      const readableStream = new Readable();
       processor.onaudioprocess = (e) => {
+        if (!this.isStreaming || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
         const float32Array = e.inputBuffer.getChannelData(0);
         const int16Array = new Int16Array(float32Array.length);
-        float32Array.forEach((val, idx) => {
-          int16Array[idx] = val < 0 ? val * 0x8000 : val * 0x7fff;
-        });
-        readableStream.emit("audioData", new Int8Array(int16Array.buffer));
+
+        for (let i = 0; i < float32Array.length; i++) {
+          int16Array[i] = float32Array[i] < 0
+            ? float32Array[i] * 0x8000
+            : float32Array[i] * 0x7fff;
+        }
+
+        this.ws.send(int16Array.buffer);
       };
+    } catch (err) {
+      console.error(err);
+      this.stopResponse();
+    }
+  }
 
-      const audioStream = async function* () {
-        while (this.isStreaming) {
-          const chunk = await new Promise((resolve) =>
-            readableStream.once("audioData", resolve)
-          );
-          yield { AudioEvent: { AudioChunk: chunk } };
-        }
-      }.bind(this);
+  _updateTranscript(transcript, isPartial) {
+    const textArea = this.messageInput?.textarea;
+    if (!textArea) return;
 
-      const command = new StartStreamTranscriptionCommand({
-        LanguageCode: "en-GB",
-        MediaSampleRateHertz: 16000,
-        MediaEncoding: "pcm",
-        AudioStream: audioStream(),
-      });
+    this.messageInput?.reset();
 
-      const response = await client.send(command);
-      const textArea = this.messageInput?.textarea;
-
-      let lastFinalTranscript = "";
-      let partialTranscript = "";
-
-      if (!response.TranscriptResultStream) throw new Error("No TranscriptResultStream returned from AWS");
-
-      for await (const event of response.TranscriptResultStream) {
-        if (event.TranscriptEvent) {
-          const results = event.TranscriptEvent.Transcript?.Results;
-
-          results?.forEach((result) => {
-            const transcript = (result.Alternatives || [])
-              .map((alt) => alt.Transcript)
-              .join(" ");
-
-            if (result.IsPartial) {
-              partialTranscript = transcript;
-              this.messageInput?.reset();
-              textArea?.appendChild(document.createTextNode(`${lastFinalTranscript} ${partialTranscript}`));
-            } else {
-              lastFinalTranscript += ` ${transcript}`;
-              partialTranscript = "";
-              this.messageInput?.reset();
-              textArea?.appendChild(document.createTextNode(lastFinalTranscript.trim()));
-            }
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Error starting streaming:", error);
-      this.isStreaming = false;
-      this.showRecordButton();
-      this.showSendButton();
-      alert("Microphone usage is not permitted");
+    if (isPartial) {
+      textArea.appendChild(document.createTextNode(
+        `${this.lastFinalTranscript} ${transcript}`
+      ));
+    } else {
+      this.lastFinalTranscript += ` ${transcript}`.trim();
+      textArea.appendChild(document.createTextNode(this.lastFinalTranscript));
     }
   }
 
@@ -193,6 +181,10 @@ export class SendMessageWithDictation extends HTMLElement {
       document.dispatchEvent(new CustomEvent("stop-streaming"));
       this.isStreaming = false;
       this.enableSubmit();
+      if (this.ws) {
+        this.ws.close();
+        this.ws = null;
+      }
     }
   }
 
@@ -209,6 +201,10 @@ export class SendMessageWithDictation extends HTMLElement {
         track.stop();
       });
       this.audioStream = null;
+      if (this.ws) {
+        this.ws.close();
+        this.ws = null;
+      }
     }
   }
 
