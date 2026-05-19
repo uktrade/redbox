@@ -693,7 +693,7 @@ def build_datahub_agent_with_loop(
                     "agent": agent_name,
                     "outcome": "failed_no_tools",
                     "iterations": 0,
-                    "duration": int(time.monotonic - started_at),
+                    "duration": int(time.monotonic() - started_at),
                 },
             )
             return {
@@ -767,7 +767,7 @@ def build_datahub_agent_with_loop(
                             "agent": agent_name,
                             "outcome": "requires_user_feedback",
                             "iterations": num_iter,
-                            "duration": int(time.monotonic - started_at),
+                            "duration": int(time.monotonic() - started_at),
                         },
                     )
                     return {
@@ -811,7 +811,7 @@ def build_datahub_agent_with_loop(
                 "agent": agent_name,
                 "outcome": "completed",
                 "iterations": num_iter,
-                "duration": int(time.monotonic - started_at),
+                "duration": int(time.monotonic() - started_at),
             },
         )
         all_results = join_result_with_token_limit(result=all_results, max_tokens=max_tokens, log_stub=log_stub)
