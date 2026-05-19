@@ -6,15 +6,16 @@ import re
 import sqlite3
 import time
 from collections.abc import Callable
+from datetime import date
 from functools import reduce
 from io import StringIO
 from random import uniform
 from typing import Any, Iterable
 from uuid import uuid4
-from datetime import date
 
 import pandas as pd
 from botocore.exceptions import EventStreamError
+from ddtrace import tracer
 from langchain.schema import StrOutputParser
 from langchain_core.callbacks.manager import dispatch_custom_event
 from langchain_core.documents import Document
@@ -29,6 +30,7 @@ from redbox.chains.components import get_chat_llm, get_structured_response_with_
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_metadata, create_chain_agent
 from redbox.graph.nodes.sends import run_tools_parallel
+from redbox.graph.nodes.tools import get_datahub_mcp_tools
 from redbox.models import ChatRoute
 from redbox.models.chain import (
     DocumentState,
@@ -44,7 +46,6 @@ from redbox.models.chain import (
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
 from redbox.models.settings import ChatLLMBackend
-from redbox.graph.nodes.tools import get_datahub_mcp_tools
 from redbox.transform import (
     combine_agents_state,
     combine_documents,
@@ -604,14 +605,31 @@ def build_datahub_agent_with_loop(
 ):
     @RunnableLambda
     async def _build_datahub_agent_with_loop(state: RedboxState):
-        tools = []
-        if sso_token_getter := state.request.sso_token_getter:
-            tools = await get_datahub_mcp_tools(sso_token_getter=sso_token_getter)
+        started_at = time.monotonic()
+        # DataDog spam - will give latency, error rate and throughput
+        with tracer.trace("assist.datahub_agent.run", service="assist", resource=agent_name) as span:
+            span.set_tag("assist.agent", agent_name)
+            span.set_tag("assist.user_uuid", str(getattr(state.request, "user_uuid", "")))
 
-        if not tools:
-            log.error(f"[{agent_name}] No tools available")
+            tools = []
+            if sso_token_getter := state.request.sso_token_getter:
+                tools = await get_datahub_mcp_tools(sso_token_getter=sso_token_getter)
 
-        log.warning(f"[{agent_name}] Starting datahub_agent_with_loop run. Tools: {[t.name for t in tools]}")
+            log.info(
+                "datahub_agent.invoked",
+                extra={
+                    "event": "datahub_agent.invoked",
+                    "agent": agent_name,
+                    "tool_count": len(tools),
+                    "user_uuid": str(getattr(state.request, "user_uuid", "")),
+                },
+            )
+            span.set_tag("assist.tool_count", len(tools))
+
+            if not tools:
+                log.error(f"[{agent_name}] No tools available")
+
+            log.warning(f"[{agent_name}] Starting datahub_agent_with_loop run. Tools: {[t.name for t in tools]}")
 
         local_loop_condition = loop_condition
         agent_options = state.request.ai_settings.get_worker_agents_options
@@ -668,6 +686,16 @@ def build_datahub_agent_with_loop(
 
         if len(tools) == 0:
             all_results = "Error. Unable to complete request the '{agent_name}' agent has no tools."
+            log.warning(
+                "datahub_agent.completed",
+                extra={
+                    "event": "datahub_agent.completed",
+                    "agent": agent_name,
+                    "outcome": "failed_no_tools",
+                    "iterations": 0,
+                    "duration": int(time.monotonic - started_at),
+                },
+            )
             return {
                 "agents_results": {
                     task.id: AIMessage(content=f"<{agent_name}_Result>{all_results}</{agent_name}_Result>")
@@ -732,6 +760,16 @@ def build_datahub_agent_with_loop(
 
                 if feedback_reasons:
                     combined_feedback = "\n\n".join(feedback_reasons)
+                    log.info(
+                        "datahub_agent.completed",
+                        extra={
+                            "event": "datahub_agent.completed",
+                            "agent": agent_name,
+                            "outcome": "requires_user_feedback",
+                            "iterations": num_iter,
+                            "duration": int(time.monotonic - started_at),
+                        },
+                    )
                     return {
                         "agents_results": {
                             task.id: AIMessage(
@@ -766,6 +804,16 @@ def build_datahub_agent_with_loop(
             log.warning(f"{log_stub} Completed agent run.")
 
         log.warning(f"[{agent_name}] Completed agent_with_loop run.")
+        log.info(
+            "datahub_agent.completed",
+            extra={
+                "event": "datahub_agent.completed",
+                "agent": agent_name,
+                "outcome": "completed",
+                "iterations": num_iter,
+                "duration": int(time.monotonic - started_at),
+            },
+        )
         all_results = join_result_with_token_limit(result=all_results, max_tokens=max_tokens, log_stub=log_stub)
         return {
             "agents_results": {task.id: AIMessage(content=f"<{agent_name}_Result>{all_results}</{agent_name}_Result>")},

@@ -982,7 +982,7 @@ def build_legislation_search_tool():
 
 async def get_datahub_mcp_tools(sso_token_getter: Callable[[], str] | None = None, agent_loop=True):
     try:
-        log.info("get_datahub_mcp_tools - Loading Datahub MCP tools...")
+        log.info("datahub_mcp.connect.started", extra={"event": "datahub_mcp.connect.started"})
 
         mcp_settings = get_settings().datahub_mcp
         datahub_mcp_url = mcp_settings.url
@@ -1020,7 +1020,11 @@ async def get_datahub_mcp_tools(sso_token_getter: Callable[[], str] | None = Non
                     if "is_intermediate_step" not in tool.args_schema["required"]:
                         tool.args_schema["required"].append("is_intermediate_step")
 
+            log.info(
+                "datahub_mcp.connect.suceeded",
+                extra={"event": "datahub_mcp.connect.suceeded", "tool_count": len(tools)},
+            )
             return tools
     except Exception as e:
-        log.error("get_datahub_mcp_tools - Unable to connect to MCP server - %s", e)
+        log.error("datahub_mcp.connect.failed", extra={"event": "datahub_mcp.connect.failed", "error": str(e)})
         return []
