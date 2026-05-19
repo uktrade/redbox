@@ -1021,8 +1021,8 @@ async def get_datahub_mcp_tools(sso_token_getter: Callable[[], str] | None = Non
                         tool.args_schema["required"].append("is_intermediate_step")
 
             log.info(
-                "datahub_mcp.connect.suceeded",
-                extra={"event": "datahub_mcp.connect.suceeded", "tool_count": len(tools)},
+                "datahub_mcp.connect.succeeded",
+                extra={"event": "datahub_mcp.connect.succeeded", "tool_count": len(tools)},
             )
             return tools
     except Exception as e:
