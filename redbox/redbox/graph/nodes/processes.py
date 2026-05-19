@@ -6,12 +6,12 @@ import re
 import sqlite3
 import time
 from collections.abc import Callable
+from datetime import date
 from functools import reduce
 from io import StringIO
 from random import uniform
 from typing import Any, Iterable
 from uuid import uuid4
-from datetime import date
 
 import pandas as pd
 from botocore.exceptions import EventStreamError
@@ -27,8 +27,9 @@ from langgraph.types import Command
 from redbox.chains.activity import log_activity
 from redbox.chains.components import get_chat_llm, get_structured_response_with_citations_parser, get_tokeniser
 from redbox.chains.parser import ClaudeParser
-from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_metadata, create_chain_agent
+from redbox.chains.runnables import CannedChatLLM, build_llm_chain, create_chain_agent
 from redbox.graph.nodes.sends import run_tools_parallel
+from redbox.graph.nodes.tools import get_datahub_mcp_tools
 from redbox.models import ChatRoute
 from redbox.models.chain import (
     DocumentState,
@@ -44,7 +45,6 @@ from redbox.models.chain import (
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
 from redbox.models.settings import ChatLLMBackend
-from redbox.graph.nodes.tools import get_datahub_mcp_tools
 from redbox.transform import (
     combine_agents_state,
     combine_documents,
@@ -315,15 +315,6 @@ def build_activity_log_node(
         return None
 
     return _activity_log_node
-
-
-def lm_choose_route(state: RedboxState, parser: ClaudeParser):
-    """
-    LLM choose the route (search/summarise) based on user question and file metadata
-    """
-    chain = chain_use_metadata(system_prompt=state.request.ai_settings.llm_decide_route_prompt, parser=parser)
-    res = chain.invoke(state)
-    return res.next.value
 
 
 def create_planner(is_streamed=False):
