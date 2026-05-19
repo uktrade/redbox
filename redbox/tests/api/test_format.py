@@ -115,6 +115,50 @@ class TestFormatMCPToolResponse:
                     ("https://g.com", {"url": "https://g.com"}),
                 ],
             ),
+            (
+                {
+                    "result_type": "paged_composite",
+                    "result": {
+                        "items": [
+                            (
+                                {"url": "https://parent.com", "title": "Parent"},
+                                {
+                                    "interactions": {
+                                        "result": {
+                                            "items": [{"url": "https://f.com"}, {"url": "https://g.com"}],
+                                            "total": 2,
+                                            "page": 0,
+                                            "page_size": 10,
+                                        }
+                                    }
+                                },
+                            ),
+                            (
+                                {"url": "https://parent2.com", "title": "Parent2"},
+                                {
+                                    "interactions": {
+                                        "result": {
+                                            "items": [{"url": "https://f2.com"}, {"url": "https://g2.com"}],
+                                            "total": 2,
+                                            "page": 0,
+                                            "page_size": 10,
+                                        }
+                                    }
+                                },
+                            ),
+                        ]
+                    },
+                    "metadata": MCPResponseMetadata().model_dump(),
+                },
+                [
+                    ("https://parent.com", {"url": "https://parent.com", "title": "Parent"}),
+                    ("https://f.com", {"url": "https://f.com"}),
+                    ("https://g.com", {"url": "https://g.com"}),
+                    ("https://parent2.com", {"url": "https://parent2.com", "title": "Parent2"}),
+                    ("https://f2.com", {"url": "https://f2.com"}),
+                    ("https://g2.com", {"url": "https://g2.com"}),
+                ],
+            ),
         ],
     )
     def test_documents_metadata(self, data, expected):
