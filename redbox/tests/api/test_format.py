@@ -93,6 +93,27 @@ class TestFormatMCPToolResponse:
             ),
             (
                 {
+                    "result_type": "multipaged",
+                    "result": {
+                        "companies": {
+                            "result": {
+                                "items": [{"url": "https://c.com"}, {"url": "https://d.com"}],
+                                "total": 2,
+                                "page": 0,
+                                "page_size": 10,
+                            }
+                        },
+                        "interactions": None,
+                    },
+                    "metadata": MCPResponseMetadata().model_dump(),
+                },
+                [
+                    ("https://c.com", {"url": "https://c.com"}),
+                    ("https://d.com", {"url": "https://d.com"}),
+                ],
+            ),
+            (
+                {
                     "result_type": "composite",
                     "result": [
                         {"url": "https://parent.com", "title": "Parent"},
@@ -192,6 +213,20 @@ class TestFormatMCPToolResponse:
                                     "projects": None,
                                 },
                             ),
+                            (
+                                {"url": "https://parent3.com", "title": "Parent3"},
+                                {
+                                    "interactions": {
+                                        "result": {
+                                            "items": [],
+                                            "total": 0,
+                                            "page": 0,
+                                            "page_size": 10,
+                                        }
+                                    },
+                                    "projects": None,
+                                },
+                            ),
                         ]
                     },
                     "metadata": MCPResponseMetadata().model_dump(),
@@ -203,6 +238,7 @@ class TestFormatMCPToolResponse:
                     ("https://parent2.com", {"url": "https://parent2.com", "title": "Parent2"}),
                     ("https://f2.com", {"url": "https://f2.com"}),
                     ("https://g2.com", {"url": "https://g2.com"}),
+                    ("https://parent3.com", {"url": "https://parent3.com", "title": "Parent3"}),
                 ],
             ),
         ],
