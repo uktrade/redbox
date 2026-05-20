@@ -7,7 +7,7 @@
             <ids-message-input>
                 <div class="govuk-textarea ids-message-input ids-border {% if not messages and not is_first_time_user %}ids-message-input__expanded {% endif %}ids-drop-zone"
                     id="message" name="message" contenteditable="true" role="textbox" aria-multiline="true"
-                    data-text="Type your message here..." aria-label="Text input field for typing and submitting your message"></div>
+                    data-text="Type your message here..." aria-label="Text input field for typing and submitting your message">{{ prepopulated_query or "" }}</div>
                 <div class="ids-message-input__actions">
                     <!-- Upload Button -->
                     <file-upload upload-url="{{ urls.upload_url }}">

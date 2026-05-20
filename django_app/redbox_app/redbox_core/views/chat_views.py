@@ -39,6 +39,9 @@ class ChatsView(View):
         if tool and (tool not in context["tools"]):
             return HttpResponse(status=HTTPStatus.UNAUTHORIZED)
 
+        if not chat_id:
+            context["prepopulated_query"] = request.GET.get("q", "")
+
         return chat_service.render_chats(request, context)
 
 
