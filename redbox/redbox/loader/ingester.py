@@ -126,6 +126,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             max_chunk_size=env.worker_ingest_max_chunk_size,
             overlap_chars=0,
             metadata=metadata,
+            include_schema_metadata=True,
         ),
         s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store_without_embeddings(es, env.elastic_schematised_chunk_index),
