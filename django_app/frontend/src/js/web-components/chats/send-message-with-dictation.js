@@ -3,6 +3,8 @@ import { hideElement, showElement } from "../../utils";
 import { MessageInput } from "./message-input";
 
 export class SendMessageWithDictation extends HTMLElement {
+  lastFinalTranscript = "";
+
   connectedCallback() {
     this._apiKey = this.getAttribute("data-api-key");
     this.removeAttribute("data-api-key");
@@ -136,19 +138,35 @@ export class SendMessageWithDictation extends HTMLElement {
       input.connect(processor);
       processor.connect(audioContext.destination);
 
-      processor.onaudioprocess = (e) => {
-        if (!this.isStreaming || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+      function convertFloat32ToPCM16(floatSamples) {
+        const PCM16_NEGATIVE_SCALE = 32768;
+        const PCM16_POSITIVE_SCALE = 32767;
+        const pcm16Samples = new Int16Array(floatSamples.length);
 
-        const float32Array = e.inputBuffer.getChannelData(0);
-        const int16Array = new Int16Array(float32Array.length);
+        for (let i = 0; i < floatSamples.length; i++) {
+          // Web Audio API provides Float32 samples in the range [-1.0, 1.0]
+          const sample = Math.max(-1, Math.min(1, floatSamples[i]));
 
-        for (let i = 0; i < float32Array.length; i++) {
-          int16Array[i] = float32Array[i] < 0
-            ? float32Array[i] * 0x8000
-            : float32Array[i] * 0x7fff;
+          // Convert Float32 audio into signed 16-bit PCM
+          pcm16Samples[i] =
+            sample < 0
+              ? sample * PCM16_NEGATIVE_SCALE
+              : sample * PCM16_POSITIVE_SCALE;
         }
 
-        this.ws.send(int16Array.buffer);
+        return pcm16Samples;
+      }
+
+      processor.onaudioprocess = (event) => {
+        if (!this.isStreaming || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+          return;
+        }
+
+        const floatSamples = event.inputBuffer.getChannelData(0);
+        const pcm16Samples = convertFloat32ToPCM16(floatSamples);
+
+        // Send raw PCM16 audio bytes to the transcription websocket
+        this.ws.send(pcm16Samples.buffer);
       };
     } catch (err) {
       console.error(err);
@@ -167,8 +185,8 @@ export class SendMessageWithDictation extends HTMLElement {
         `${this.lastFinalTranscript} ${transcript}`
       ));
     } else {
-      this.lastFinalTranscript += ` ${transcript}`.trim();
-      textArea.appendChild(document.createTextNode(this.lastFinalTranscript));
+      this.lastFinalTranscript += ` ${transcript}`;
+      textArea.appendChild(document.createTextNode(this.lastFinalTranscript.trim()));
     }
   }
 
