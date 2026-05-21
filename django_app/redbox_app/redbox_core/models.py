@@ -1219,7 +1219,7 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
 
         # could have a stronger (regex?) way of stripping the users email address?
         if self.original_file and "/" in self.original_file.name:
-            return self.original_file.name.split("/")[1]
+            return self.original_file.name.split("/")[-1]
 
         if self.original_file:
             return self.original_file.name
