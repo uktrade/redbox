@@ -301,7 +301,7 @@ class FileAdmin(ExportMixin, admin.ModelAdmin):
     list_filter = ["user", "status"]
     date_hierarchy = "created_at"
     actions = ["reupload", "backfill_original_file_names"]
-    search_fields = ["original_file_name"]
+    search_fields = ["user__email", "original_file_name"]
 
 
 class FileToolAdmin(ExportMixin, admin.ModelAdmin):
