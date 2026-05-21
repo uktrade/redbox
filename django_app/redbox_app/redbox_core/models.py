@@ -260,48 +260,6 @@ class ToolAccessRule(TimeStampedModel):
         super().save(*args, **kwargs)
 
     @classmethod
-    def get_rule_q(
-        cls,
-        user: User,
-        rule_type: str,
-        access_type: str,
-    ) -> models.Q | None:
-        match rule_type:
-            case cls.RuleType.DOMAIN:
-                return cls._domain_rule_q(user, access_type)
-
-        return None
-
-    @classmethod
-    def build_access_q(cls, user: User, access_type: str) -> models.Q:
-        q = models.Q(pk__in=[])
-
-        for rule_type in cls.RuleType.values:
-            rule_q = cls.get_rule_q(
-                user=user,
-                rule_type=rule_type,
-                access_type=access_type,
-            )
-
-            if rule_q:
-                q |= rule_q
-
-        return q
-
-    @classmethod
-    def _domain_rule_q(cls, user: User, access_type: str):
-        domains = user.email_domains or set()
-
-        if not domains:
-            return None
-
-        return models.Q(
-            access_rules__rule_type=cls.RuleType.DOMAIN,
-            access_rules__value__in=domains,
-            access_rules__access_type=access_type,
-        )
-
-    @classmethod
     def exists_for_user(cls, user, access_type: str):
         """
         Returns a list of Exists() expressions, one per rule type.
