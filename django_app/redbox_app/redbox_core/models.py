@@ -68,10 +68,10 @@ def sanitise_string(string: str | None) -> str | None:
 
 
 class ToolQuerySet(models.QuerySet):
-    def for_user(self, user):
-        # ----------------------------
+    def for_user(self, user: User):
+        # -------------------------------------------------
         # User-based access
-        # ----------------------------
+        # -------------------------------------------------
         allow_user_tool = UserTool.objects.filter(
             tool=OuterRef("pk"),
             user=user,
@@ -84,9 +84,9 @@ class ToolQuerySet(models.QuerySet):
             access_type=UserTool.AccessType.DENY,
         )
 
-        # ----------------------------
+        # -------------------------------------------------
         # Rule-based access
-        # ----------------------------
+        # -------------------------------------------------
         allow_rule_exprs = ToolAccessRule.exists_for_user(
             user,
             ToolAccessRule.AccessType.ALLOW,
@@ -260,7 +260,7 @@ class ToolAccessRule(TimeStampedModel):
         super().save(*args, **kwargs)
 
     @classmethod
-    def exists_for_user(cls, user, access_type: str):
+    def exists_for_user(cls, user: User, access_type: str):
         """
         Returns a list of Exists() expressions, one per rule type.
         """
@@ -278,7 +278,7 @@ class ToolAccessRule(TimeStampedModel):
         return expressions
 
     @classmethod
-    def get_rule_exists(cls, user, rule_type: str, access_type: str):
+    def get_rule_exists(cls, user: User, rule_type: str, access_type: str):
         match rule_type:
             case cls.RuleType.DOMAIN:
                 return cls._domain_exists(user, access_type)
@@ -286,7 +286,7 @@ class ToolAccessRule(TimeStampedModel):
         return None
 
     @classmethod
-    def _domain_exists(cls, user, access_type: str):
+    def _domain_exists(cls, user: User, access_type: str):
         domains = user.email_domains or set()
 
         if not domains:
@@ -1177,7 +1177,7 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
                 self.last_referenced = timezone.now()
 
         if self.original_file and not self.original_file_name:
-            self.original_file_name = self.original_file.name.split("/")[1]
+            self.original_file_name = self.original_file.name.split("/")[-1]
 
         super().save(*args, **kwargs)
 
