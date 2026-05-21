@@ -4,7 +4,7 @@
 {% from "macros/icon.html" import ids_icon %}
 {% from "macros/upload_form.html" import upload_form %}
 
-<div id="chat-feed" class="ids-chat-feed" hx-swap-oob="outerHTML">
+<div id="chat-feed" class="ids-chat-feed" hx-swap-oob="outerHTML" aria-busy="false">
 
     {% if not messages %}
         <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1" security-classification="{{ security }}">
@@ -33,7 +33,7 @@
                             data-tool-id="{{ tool.id }}"
                             data-tool-slug="{{ tool.slug }}"
                         {% endif %}>
-            <div class="ids-chat-message__container ids-flex-column js-message-container">
+            <div role="log" class="ids-chat-message__container ids-flex-column js-message-container">
 
                 <template id="template-route-display">
                     {{ route_display() }}

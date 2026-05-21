@@ -21,6 +21,13 @@ import { syncUrlWithContent, refreshUI } from "./services";
 import { ChatHistory } from "./web-components/chats/chat-history.js";
 import { getActiveChatId } from "./utils/active-chat.js";
 
+document.addEventListener("chat-response-start", (evt) => {
+  document.getElementById("chat-feed")?.setAttribute("aria-busy","true")
+})
+
+document.addEventListener("chat-response-error", (evt) => {
+  document.getElementById("chat-feed")?.setAttribute("aria-busy","false")
+})
 
 document.addEventListener("chat-response-end", (evt) => {
   const event = /** @type {CustomEvent} */ (evt);
