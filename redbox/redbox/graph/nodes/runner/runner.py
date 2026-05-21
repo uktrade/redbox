@@ -11,7 +11,7 @@ from langchain.tools import StructuredTool
 from redbox.models.chain import RedboxState
 from redbox.api.format import MCPResponseMetadata
 from redbox.graph.nodes.runner import exceptions as tool_exceptions
-from redbox.graph.nodes.runner.wrap_async import wrap_async_tool
+from redbox.graph.nodes.runner.wrap_async import wrap_async_tool, execute_mcp_tools
 from redbox.graph.nodes.runner.tool_calls import group_tool_calls, RunnerToolCall
 
 log = logging.getLogger(__name__)
@@ -72,7 +72,9 @@ class ToolRunner:
         try:
             sync_calls, async_mcp_calls = group_tool_calls(tool_calls=tool_calls, tools=self.tools)
 
-            futures, failures = self._submit_all(tool_calls=tool_calls)
+            futures, failures = self._submit_all(
+                sync_calls=sync_calls, async_mcp_calls=async_mcp_calls
+            )  # tool_calls=tool_calls)
             return self._collect(futures=futures, failures=failures)
         finally:
             self.executor.shutdown(wait=True)
@@ -109,7 +111,29 @@ class ToolRunner:
                 log.error(f"{self.log_stub} {err}", exc_info=True)
                 failures.append(ToolResult.Failure(tool_name=tool_name, error=err, metadata={"tool_args": raw_args}))
 
-        # for async_mcp_call in async_mcp_calls:
+        for async_mcp_call in async_mcp_calls:
+            try:
+                res = self.submit_mcp_async(mcp_server=async_mcp_call.mcp_server, tool_call=async_mcp_call)
+                future, metadata = res
+                futures[future] = metadata
+
+            except (
+                tool_exceptions.ToolTimeoutError,
+                tool_exceptions.ToolValidationError,
+                tool_exceptions.ToolExecutionError,
+                tool_exceptions.ToolNotFoundError,
+            ) as e:
+                log.warning(f"{self.log_stub} {e}")
+                failures.append(
+                    ToolResult.Failure(tool_name=async_mcp_call.mcp_server, error=str(e), metadata={"tool_args": {}})
+                )
+
+            except Exception as e:
+                err = f"Unexpected error submitting Async MCP Server tool calls '{async_mcp_call.mcp_server}': {e}"
+                log.error(f"{self.log_stub} {err}", exc_info=True)
+                failures.append(
+                    ToolResult.Failure(tool_name=async_mcp_call.mcp_server, error=err, metadata={"tool_args": {}})
+                )
 
         return futures, failures
 
@@ -177,23 +201,7 @@ class ToolRunner:
 
     def submit(self, tool_call: ToolCall) -> tuple[Future, dict]:
         """Find, validate, and submit a tool call to the executor. Returns (future, metadata)"""
-
         tool_name, selected_tool, raw_args = self.validate(tool_call=tool_call)
-        # tool_name = tool_call.get("name")
-        # selected_tool: Optional[StructuredTool] = next((tool for tool in self.tools if tool.name == tool_name), None)
-
-        # if selected_tool is None:
-        #     available = [tool.name for tool in self.tools]
-        #     raise tool_exceptions.ToolNotFoundError(
-        #         f"Tool '{tool_name}' not found. Available tools: {', '.join(available)}"
-        #     )
-
-        # raw_args = tool_call.get("args", {})
-        # if not isinstance(raw_args, dict):
-        #     raise tool_exceptions.ToolValidationError(
-        #         f"Invalid input for tool '{tool_name}': expected dict, got {type(raw_args).__name__!r}"
-        #     )
-
         is_intermediate_step = "False"
 
         try:
@@ -212,6 +220,17 @@ class ToolRunner:
             ) from e
 
         return future, {"name": tool_name, "intermediate_step": is_intermediate_step, "tool_args": raw_args}
+
+    def submit_mcp_async(self, mcp_server: str, tool_call: RunnerToolCall.MCPAsync) -> tuple[Future, dict]:
+        """Find, validate, and submit a tool call to the executor. Returns (future, metadata)"""
+        try:
+            future = self.executor.submit(execute_mcp_tools(mcp_input=tool_call))
+        except Exception as e:
+            raise tool_exceptions.ToolExecutionError(
+                f"Failed to submit tool 'MCP_{mcp_server}' for execution: {str(e)}"
+            ) from e
+
+        return future, {"name": f"MCP_{mcp_server}", "intermediate_step": "False", "tool_args": {}}
 
     def parse(self, future: Future, metadata: dict) -> Optional[AIMessage]:
         """Resolve a completed future and transform its result into an AIMessage."""
