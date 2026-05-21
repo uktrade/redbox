@@ -9,7 +9,8 @@
             {% call editable_text(chat_edit_url, 'chat-title-change', 'chat-title', current_chat.id) %}
                 <div class="ids-chat-title__heading-container-inner display">
                     {% if current_chat.name %}
-                        <h1 class="ids-chat-title__heading govuk-heading-s title-text">{{ current_chat.name }}</h1>
+                        <h1 class="govuk-visually-hidden">Chat for {{ current_chat.name }}</h1>
+                        <h2 class="ids-chat-title__heading govuk-heading-s title-text">{{ current_chat.name }}</h2>
                         <button id="chat-title-edit-button" class="edit-trigger ids-icon-button" type="button">
                             {{ ids_icon(icon_name="edit.html") }}
                             <span class="govuk-visually-hidden">Chat Title</span>
