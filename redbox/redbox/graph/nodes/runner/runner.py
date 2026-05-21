@@ -12,6 +12,7 @@ from redbox.models.chain import RedboxState
 from redbox.api.format import MCPResponseMetadata
 from redbox.graph.nodes.runner import exceptions as tool_exceptions
 from redbox.graph.nodes.runner.wrap_async import wrap_async_tool
+from redbox.graph.nodes.runner.tool_calls import group_tool_calls, RunnerToolCall
 
 log = logging.getLogger(__name__)
 
@@ -69,17 +70,22 @@ class ToolRunner:
     def run(self, tool_calls: list[ToolCall]) -> ToolRunnerResult:
         """Submit all tool calls, collect results, and return aggregated responses or None on total failure."""
         try:
+            sync_calls, async_mcp_calls = group_tool_calls(tool_calls=tool_calls, tools=self.tools)
+
             futures, failures = self._submit_all(tool_calls=tool_calls)
             return self._collect(futures=futures, failures=failures)
         finally:
             self.executor.shutdown(wait=True)
 
-    def _submit_all(self, tool_calls: list[ToolCall]) -> tuple[dict[Future, dict], list[ToolResult.Failure]]:
+    def _submit_all(
+        self, sync_calls: list[RunnerToolCall.Sync], async_mcp_calls: list[RunnerToolCall.MCPAsync]
+    ) -> tuple[dict[Future, dict], list[ToolResult.Failure]]:
         """Submit every tool call to the executor, skipping and logging any that fail to launch."""
         futures = {}
         failures: list[ToolResult.Failure] = []
 
-        for tool_call in tool_calls:
+        for sync_call in sync_calls:
+            tool_call = sync_call.tool_call
             tool_name = tool_call.get("name")
             raw_args = tool_call.get("args", {})
             raw_args.pop("name", None)
@@ -102,6 +108,8 @@ class ToolRunner:
                 err = f"Unexpected error submitting tool '{tool_name}': {e}"
                 log.error(f"{self.log_stub} {err}", exc_info=True)
                 failures.append(ToolResult.Failure(tool_name=tool_name, error=err, metadata={"tool_args": raw_args}))
+
+        # for async_mcp_call in async_mcp_calls:
 
         return futures, failures
 
@@ -149,8 +157,7 @@ class ToolRunner:
 
         return ToolRunnerResult(results=results, failures=failures)
 
-    def submit(self, tool_call: ToolCall) -> tuple[Future, dict]:
-        """Find, validate, and submit a tool call to the executor. Returns (future, metadata)"""
+    def validate(self, tool_call: ToolCall) -> tuple[str, StructuredTool, dict]:
         tool_name = tool_call.get("name")
         selected_tool: Optional[StructuredTool] = next((tool for tool in self.tools if tool.name == tool_name), None)
 
@@ -165,6 +172,27 @@ class ToolRunner:
             raise tool_exceptions.ToolValidationError(
                 f"Invalid input for tool '{tool_name}': expected dict, got {type(raw_args).__name__!r}"
             )
+
+        return tool_name, selected_tool, raw_args
+
+    def submit(self, tool_call: ToolCall) -> tuple[Future, dict]:
+        """Find, validate, and submit a tool call to the executor. Returns (future, metadata)"""
+
+        tool_name, selected_tool, raw_args = self.validate(tool_call=tool_call)
+        # tool_name = tool_call.get("name")
+        # selected_tool: Optional[StructuredTool] = next((tool for tool in self.tools if tool.name == tool_name), None)
+
+        # if selected_tool is None:
+        #     available = [tool.name for tool in self.tools]
+        #     raise tool_exceptions.ToolNotFoundError(
+        #         f"Tool '{tool_name}' not found. Available tools: {', '.join(available)}"
+        #     )
+
+        # raw_args = tool_call.get("args", {})
+        # if not isinstance(raw_args, dict):
+        #     raise tool_exceptions.ToolValidationError(
+        #         f"Invalid input for tool '{tool_name}': expected dict, got {type(raw_args).__name__!r}"
+        #     )
 
         is_intermediate_step = "False"
 
