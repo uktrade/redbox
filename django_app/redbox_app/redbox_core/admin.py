@@ -283,7 +283,7 @@ class FileAdmin(ExportMixin, admin.ModelAdmin):
     list_filter = ["user", "status"]
     date_hierarchy = "created_at"
     actions = ["reupload"]
-    search_fields = ["user__email"]
+    search_fields = ["original_file_name"]
 
 
 class FileToolAdmin(ExportMixin, admin.ModelAdmin):
@@ -291,6 +291,7 @@ class FileToolAdmin(ExportMixin, admin.ModelAdmin):
     list_filter = ["tool", "file_type"]
     date_hierarchy = "created_at"
     search_fields = ("file__file_name", "tool__name")
+    raw_id_fields = ["file"]
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "file":

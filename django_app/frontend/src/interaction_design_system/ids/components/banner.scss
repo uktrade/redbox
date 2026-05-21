@@ -1,6 +1,6 @@
 .ids-banner {
   --banner-text-color: var(--color-text-secondary);
-  --banner-background-color: var(--color-background);
+  --banner-background-color: var(--color-background-secondary);
 
   background-color: var(--banner-background-color);
   color: var(--banner-text-color);
@@ -32,7 +32,7 @@
 
 .ids-banner--brand {
   --banner-text-color: var(--color-text-secondary);
-  --banner-background-color: var(---color-background);
+  --banner-background-color: var(---color-background-secondary);
 }
 
 
