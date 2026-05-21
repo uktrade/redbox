@@ -5,9 +5,12 @@
 {% from "macros/upload_form.html" import upload_form %}
 
 <div id="chat-feed" class="ids-chat-feed" hx-swap-oob="outerHTML">
+
     {% if not messages %}
         <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1" security-classification="{{ security }}">
+            <h1 class="govuk-visually-hidden">New chat for {{ tool if tool else product_name(request) }}</h1>
             {% if tool %}
+
                 {% include ["tools/canned_prompts/" ~ tool.slug ~ ".html", "chat/default_canned_prompt.html"] %}
             {% else %}
                 {% include "chat/default_canned_prompt.html" %}
