@@ -33,14 +33,14 @@
                             data-tool-id="{{ tool.id }}"
                             data-tool-slug="{{ tool.slug }}"
                         {% endif %}>
-            <div role="log" class="ids-chat-message__container ids-flex-column js-message-container">
+            <div role="log">
 
                 <template id="template-route-display">
                     {{ route_display() }}
                 </template>
 
                 {# SSR messages #}
-                <ol id="chat-message-list" aria-label="AI agent conversation" class="govuk-list">
+                <ol id="chat-message-list" aria-label="AI agent conversation" class="govuk-list ids-chat-message__container ids-flex-column">
                   {% for message in messages %}
                   <li data-role="chat-message-list-item">
                     {{ message_box(message=message) }}
