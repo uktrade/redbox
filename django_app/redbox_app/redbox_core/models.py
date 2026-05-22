@@ -1212,17 +1212,15 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
     def url(self) -> str:
         return self.original_file.url if self.original_file else ""
 
+    # NOTE: Change to model field once orignal_file_name has been backfilled
     @property
     def file_name(self) -> str:
         if self.original_file_name:  # delete me?
             return self.original_file_name
 
         # could have a stronger (regex?) way of stripping the users email address?
-        if self.original_file and "/" in self.original_file.name:
+        if self.original_file and self.original_file.name:
             return self.original_file.name.split("/")[-1]
-
-        if self.original_file:
-            return self.original_file.name
 
         return ""
 

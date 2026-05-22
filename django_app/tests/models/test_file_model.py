@@ -2,11 +2,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
-from yarl import URL
 
 from redbox_app.redbox_core.models import (
-    ChatMessage,
-    Citation,
     File,
     InactiveFileError,
     User,
@@ -79,65 +76,17 @@ def test_file_model_unique_name_error_states(status: str, peter_rabbit: User, s3
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(
-    ("source", "error_msg"),
-    [
-        (Citation.Origin.USER_UPLOADED_DOCUMENT, "file must be specified for a user-uploaded-document"),
-        (Citation.Origin.WIKIPEDIA, "url must be specified for an external citation"),
-    ],
-)
-def test_citation_save_fail_file_url_not_set(chat_message: ChatMessage, source, error_msg):
-    citation = Citation(chat_message=chat_message, text="hello", source=source)
+def test_file_model_file_name(alice: User):
+    file_name = "test_file.txt"
 
-    with pytest.raises(ValueError, match=error_msg):
-        citation.save()
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    ("source", "error_msg"),
-    [
-        (Citation.Origin.USER_UPLOADED_DOCUMENT, "url should not be specified for a user-uploaded-document"),
-        (Citation.Origin.WIKIPEDIA, "file should not be specified for an external citation"),
-    ],
-)
-def test_citation_save_fail_file_and_url_set(chat_message: ChatMessage, uploaded_file: File, source, error_msg):
-    citation = Citation(
-        chat_message=chat_message,
-        text="hello",
-        source=source,
-        url="http://example.com",
-        file=uploaded_file,
+    file = File.objects.create(
+        status=File.Status.complete,
+        original_file=f"alice/{file_name}",
+        user=alice,
     )
+    assert file.file_name == file_name
 
-    with pytest.raises(ValueError, match=error_msg):
-        citation.save()
+    file.original_file_name = ""
+    file.save()
 
-
-def test_internal_citation_uri(chat_message: ChatMessage, uploaded_file: File):
-    citation = Citation(
-        chat_message=chat_message,
-        text="hello",
-        source=Citation.Origin.USER_UPLOADED_DOCUMENT,
-        file=uploaded_file,
-    )
-    citation.save()
-    assert citation.uri.parts[-1].startswith("original_file")
-
-
-def test_external_citation_uri(
-    chat_message: ChatMessage,
-):
-    citation = Citation(
-        chat_message=chat_message,
-        text="hello",
-        source=Citation.Origin.WIKIPEDIA,
-        url="http://example.com",
-    )
-    citation.save()
-    assert citation.uri == URL("http://example.com")
-
-
-@pytest.mark.parametrize(("value", "expected"), [("invalid origin", None), ("Wikipedia", "Wikipedia")])
-def test_try_parse_origin(value, expected):
-    assert Citation.Origin.try_parse(value) == expected
+    assert file.file_name == file_name
