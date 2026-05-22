@@ -35,6 +35,8 @@ ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+logging.getLogger("unstructured").setLevel(logging.WARNING)
+
 tokeniser = bedrock_tokeniser
 
 if TYPE_CHECKING:
@@ -441,7 +443,8 @@ class TextractChunkLoader:
     def _extract_with_unstructured(self, file_bytes: BytesIO, file_name: str) -> List[str]:
         file_bytes.seek(0)
 
-        elements = partition(file=file_bytes)
+        elements = partition(file=file_bytes, metadata_filename=file_name)
+
 
         if not elements:
             raise ValueError(f"unstructured returned no elements from {file_name}")
