@@ -28,15 +28,15 @@
 {% macro message_box(message) %}
 
 
-{% set role_text = message.role %}
+{% set role_text = "System response" %}
 {% if message.role == "ai" %}
-{% set role_text = "Redbox" %}
+{% set role_text = "AI Response" %}
 {% elif message.role == "user" %}
-{% set role_text = "You" %}
+{% set role_text = "User message" %}
 {% endif %}
 
 
-<div class="ids-message-container govuk-body" data-role="{{ message.role }}" tabindex="-1" id="chat-message-{{ message.id }}">
+<section class="ids-message-container govuk-body" aria-label="{{role_text }}" data-role="{{ message.role }}" tabindex="-1" id="chat-message-{{ message.id }}">
   <div class="{% if message.role == "user" %}ids-message-container__right ids-border{% else %}ids-message-container__left{% endif %}">
     <markdown-converter class="ids-chat-message__text">{{ message.text }}</markdown-converter>
     {% set citations = message.get_citations() %}
@@ -81,5 +81,5 @@
     </div>
   {% endif %}
 
-</div>
+</section>
 {% endmacro %}

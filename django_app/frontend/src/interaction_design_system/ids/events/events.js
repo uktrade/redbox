@@ -10,6 +10,9 @@ export const Events = /** @type {const} */ ({
     /** When the stream "end" event is sent from the server **/
     CHAT_RESPONSE_END: "chat-response-end",
 
+    /** When the streaming connection errors **/
+    CHAT_RESPONSE_ERROR: "chat-response-error",
+
     /** When a document status changes to "complete" **/
     DOC_COMPLETE: "doc-complete",
 
@@ -51,6 +54,7 @@ export const Events = /** @type {const} */ ({
  * @typedef {{
  *  "chat-response-start": undefined,
  *  "chat-response-end": {title:string, session_id:string, is_new_chat:boolean},
+ *  "chat-response-error": undefined,
  *  "doc-complete": {fileStatus:HTMLElement},
  *  "selected-docs-change": {id:string, name:string}[],
  *  "start-streaming": undefined,
