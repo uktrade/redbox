@@ -5,7 +5,7 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from langchain_mcp_adapters.tools import load_mcp_tools
 
-from redbox.graph.nodes.runner.tool_calls import RunnerToolCall
+import redbox.graph.nodes.runner.models as tr_models
 from redbox.models.file import ChunkCreatorType
 from redbox.api.format import format_mcp_tool_response
 
@@ -129,7 +129,7 @@ def wrap_async_tool(tool, tool_name):
     return wrapper
 
 
-async def execute_mcp_tools_async(mcp_input: RunnerToolCall.MCPAsync) -> List[Any]:
+async def execute_mcp_tools_async(mcp_input: tr_models.ToolCallWrapper.MCPAsync) -> List[Any]:
     """
     Execute multiple MCP tools in a single session.
 
@@ -248,7 +248,7 @@ async def execute_mcp_tools_async(mcp_input: RunnerToolCall.MCPAsync) -> List[An
     return results
 
 
-def execute_mcp_tools(mcp_input: RunnerToolCall.MCPAsync) -> List[Any]:
+def execute_mcp_tools(mcp_input: tr_models.ToolCallWrapper.MCPAsync) -> List[Any]:
     """
     Synchronous wrapper for executing multiple MCP tools.
 
