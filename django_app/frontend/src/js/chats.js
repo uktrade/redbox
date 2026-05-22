@@ -20,14 +20,14 @@ import "./web-components/documents/file-upload.js";
 import { syncUrlWithContent, refreshUI } from "./services";
 import { ChatHistory } from "./web-components/chats/chat-history.js";
 import { getActiveChatId } from "./utils/active-chat.js";
+import { Events, listenEvent } from "../interaction_design_system/ids/events/events.js";
 
-document.addEventListener("chat-response-start", (evt) => {
-  document.getElementById("chat-feed")?.setAttribute("aria-busy","true")
-})
+listenEvent(Events.CHAT_RESPONSE_START, (evt) => setAriaBusy(true));
+listenEvent(Events.CHAT_RESPONSE_ERROR, (evt) => setAriaBusy(false));
 
-document.addEventListener("chat-response-error", (evt) => {
-  document.getElementById("chat-feed")?.setAttribute("aria-busy","false")
-})
+const setAriaBusy = (val) => {
+  document.getElementById("chat-feed")?.setAttribute("aria-busy",val)
+}
 
 document.addEventListener("chat-response-end", (evt) => {
   const event = /** @type {CustomEvent} */ (evt);
