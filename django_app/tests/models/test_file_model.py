@@ -90,3 +90,8 @@ def test_file_model_file_name(alice: User):
     file.save()
 
     assert file.file_name == file_name
+
+    file.original_file.name = ""
+    file.save()
+
+    assert file.file_name == ""

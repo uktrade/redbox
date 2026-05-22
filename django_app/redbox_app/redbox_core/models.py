@@ -260,7 +260,7 @@ class ToolAccessRule(TimeStampedModel):
         super().save(*args, **kwargs)
 
     @classmethod
-    def exists_for_user(cls, user: User, access_type: str):
+    def exists_for_user(cls, user: User, access_type: str) -> list[Exists]:
         """
         Returns a list of Exists() expressions, one per rule type.
         """
@@ -278,7 +278,7 @@ class ToolAccessRule(TimeStampedModel):
         return expressions
 
     @classmethod
-    def get_rule_exists(cls, user: User, rule_type: str, access_type: str):
+    def get_rule_exists(cls, user: User, rule_type: str, access_type: str) -> Exists | None:
         match rule_type:
             case cls.RuleType.DOMAIN:
                 return cls._domain_exists(user, access_type)
@@ -286,7 +286,7 @@ class ToolAccessRule(TimeStampedModel):
         return None
 
     @classmethod
-    def _domain_exists(cls, user: User, access_type: str):
+    def _domain_exists(cls, user: User, access_type: str) -> Exists | None:
         domains = user.email_domains or set()
 
         if not domains:
