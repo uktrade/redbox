@@ -17,8 +17,8 @@ class FutureResultType(StrEnum):
     MCP_ASYNC = "mcp_async"
 
 
-class ToolRunnerToolCall:
-    """ToolRunner tool call."""
+class ToolCallWrapper:
+    """ToolRunner grouped tool call objects."""
 
     class Base(BaseModel):
         future_result_type: FutureResultType = FutureResultType.UNKNOWN
@@ -41,7 +41,7 @@ class ToolRunnerToolCall:
 # Output
 
 
-class ToolResult:
+class ToolCallResult:
     """Result of tool execution."""
 
     class Base(BaseModel):
@@ -59,10 +59,10 @@ class ToolResult:
         error: str = Field(default=None, description="Error from tool execution.")
 
 
-class ToolRunnerResult(BaseModel):
+class Result(BaseModel):
     """Result of parallel tool execution."""
 
-    results: List[ToolResult.Success] = Field(
+    results: List[ToolCallResult.Success] = Field(
         default=[], description="List of responses generated from tool executions."
     )
-    failures: List[ToolResult.Failure] = Field(default=[], description="List of failures from tool executions.")
+    failures: List[ToolCallResult.Failure] = Field(default=[], description="List of failures from tool executions.")

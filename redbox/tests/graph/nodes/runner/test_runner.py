@@ -10,7 +10,7 @@ from langchain.tools import StructuredTool
 from redbox.models.chain import RedboxState
 from redbox.api.format import MCPResponseMetadata
 from redbox.graph.nodes.runner import exceptions as tool_exceptions
-from redbox.graph.nodes.runner.runner import ToolRunner, ToolRunnerResult, ToolResult
+from redbox.graph.nodes.runner.runner import ToolRunner, ToolRunnerResult, ToolCallResult
 
 
 @pytest.fixture
@@ -266,7 +266,7 @@ class TestToolRunner_SubmitAll:
             futures, failures = tool_runner._submit_all([{"name": "test_tool", "args": {"a": "B"}}])
         assert futures == {}
         assert failures == [
-            ToolResult.Failure(
+            ToolCallResult.Failure(
                 tool_name="test_tool",
                 error="Failed to submit tool 'test_tool' for execution: kaboom",
                 metadata={"tool_args": {"a": "B"}},
@@ -406,10 +406,10 @@ class TestToolRunner_Collect:
                 [("r1", "tool1"), ("r2", "tool2")],
                 ToolRunnerResult(
                     results=[
-                        ToolResult.Success(
+                        ToolCallResult.Success(
                             tool_name="tool1", response=AIMessage("r1"), metadata={"intermediate_step": "False"}
                         ),
-                        ToolResult.Success(
+                        ToolCallResult.Success(
                             tool_name="tool2", response=AIMessage("r2"), metadata={"intermediate_step": "False"}
                         ),
                     ]
@@ -427,7 +427,7 @@ class TestToolRunner_Collect:
                 [(Exception("boom"), "tool1")],
                 ToolRunnerResult(
                     failures=[
-                        ToolResult.Failure(
+                        ToolCallResult.Failure(
                             tool_name="tool1",
                             error="Tool 'tool1' failed: boom",
                             metadata={"intermediate_step": "False"},
@@ -441,7 +441,7 @@ class TestToolRunner_Collect:
                 [(FuturesTimeoutError(), "slow_tool")],
                 ToolRunnerResult(
                     failures=[
-                        ToolResult.Failure(
+                        ToolCallResult.Failure(
                             tool_name="slow_tool",
                             error="Tool 'slow_tool' timed out after 30.0s",
                             metadata={"intermediate_step": "False"},
@@ -455,12 +455,12 @@ class TestToolRunner_Collect:
                 [("ok", "good_tool"), (FuturesTimeoutError(), "slow_tool")],
                 ToolRunnerResult(
                     results=[
-                        ToolResult.Success(
+                        ToolCallResult.Success(
                             tool_name="good_tool", response=AIMessage("ok"), metadata={"intermediate_step": "False"}
                         )
                     ],
                     failures=[
-                        ToolResult.Failure(
+                        ToolCallResult.Failure(
                             tool_name="slow_tool",
                             error="Tool 'slow_tool' timed out after 30.0s",
                             metadata={"intermediate_step": "False"},
@@ -474,12 +474,12 @@ class TestToolRunner_Collect:
                 [("ok", "good_tool"), ("", "empty_tool")],
                 ToolRunnerResult(
                     results=[
-                        ToolResult.Success(
+                        ToolCallResult.Success(
                             tool_name="good_tool", response=AIMessage("ok"), metadata={"intermediate_step": "False"}
                         )
                     ],
                     failures=[
-                        ToolResult.Failure(
+                        ToolCallResult.Failure(
                             tool_name="empty_tool",
                             error="Tool 'empty_tool' returned empty or whitespace-only response",
                             metadata={"intermediate_step": "False"},
@@ -493,13 +493,13 @@ class TestToolRunner_Collect:
                 [("alpha", "tool_a"), ("beta", "tool_b"), ("gamma", "tool_c")],
                 ToolRunnerResult(
                     results=[
-                        ToolResult.Success(
+                        ToolCallResult.Success(
                             tool_name="tool_a", response=AIMessage("alpha"), metadata={"intermediate_step": "False"}
                         ),
-                        ToolResult.Success(
+                        ToolCallResult.Success(
                             tool_name="tool_b", response=AIMessage("beta"), metadata={"intermediate_step": "False"}
                         ),
-                        ToolResult.Success(
+                        ToolCallResult.Success(
                             tool_name="tool_c", response=AIMessage("gamma"), metadata={"intermediate_step": "False"}
                         ),
                     ]
@@ -550,7 +550,7 @@ class TestToolRunner_Run:
                 [{"name": "test_tool", "args": {}}],
                 ToolRunnerResult(
                     results=[
-                        ToolResult.Success(
+                        ToolCallResult.Success(
                             tool_name="test_tool",
                             response=AIMessage("test result"),
                             metadata={"intermediate_step": "False", "tool_args": {}},
@@ -563,7 +563,7 @@ class TestToolRunner_Run:
                 [{"name": "other_tool", "args": {}}],
                 ToolRunnerResult(
                     results=[
-                        ToolResult.Success(
+                        ToolCallResult.Success(
                             tool_name="other_tool",
                             response=AIMessage("other result"),
                             metadata={"intermediate_step": "False", "tool_args": {}},
@@ -576,12 +576,12 @@ class TestToolRunner_Run:
                 [{"name": "test_tool", "args": {"p": "v1"}}, {"name": "test_tool", "args": {"p": "v2"}}],
                 ToolRunnerResult(
                     results=[
-                        ToolResult.Success(
+                        ToolCallResult.Success(
                             tool_name="test_tool",
                             response=AIMessage("test result"),
                             metadata={"intermediate_step": "False", "tool_args": {"p": "v1"}},
                         ),
-                        ToolResult.Success(
+                        ToolCallResult.Success(
                             tool_name="test_tool",
                             response=AIMessage("test result"),
                             metadata={"intermediate_step": "False", "tool_args": {"p": "v2"}},
@@ -594,12 +594,12 @@ class TestToolRunner_Run:
                 [{"name": "test_tool", "args": {}}, {"name": "other_tool", "args": {}}],
                 ToolRunnerResult(
                     results=[
-                        ToolResult.Success(
+                        ToolCallResult.Success(
                             tool_name="test_tool",
                             response=AIMessage("test result"),
                             metadata={"intermediate_step": "False", "tool_args": {}},
                         ),
-                        ToolResult.Success(
+                        ToolCallResult.Success(
                             tool_name="other_tool",
                             response=AIMessage("other result"),
                             metadata={"intermediate_step": "False", "tool_args": {}},
@@ -612,14 +612,14 @@ class TestToolRunner_Run:
                 [{"name": "test_tool", "args": {}}, {"name": "ghost_tool", "args": {"fake": "fakeval"}}],
                 ToolRunnerResult(
                     results=[
-                        ToolResult.Success(
+                        ToolCallResult.Success(
                             tool_name="test_tool",
                             response=AIMessage("test result"),
                             metadata={"intermediate_step": "False", "tool_args": {}},
                         )
                     ],
                     failures=[
-                        ToolResult.Failure(
+                        ToolCallResult.Failure(
                             tool_name="ghost_tool",
                             error="Tool 'ghost_tool' not found. Available tools: test_tool, other_tool",
                             metadata={"tool_args": {"fake": "fakeval"}},
@@ -632,14 +632,14 @@ class TestToolRunner_Run:
                 [{"name": "test_tool", "args": {}}, {"name": "other_tool", "args": {}}],
                 ToolRunnerResult(
                     results=[
-                        ToolResult.Success(
+                        ToolCallResult.Success(
                             tool_name="test_tool",
                             response=AIMessage("test result"),
                             metadata={"intermediate_step": "False", "tool_args": {}},
                         )
                     ],
                     failures=[
-                        ToolResult.Failure(
+                        ToolCallResult.Failure(
                             tool_name="other_tool",
                             error="Tool 'other_tool' failed: other_tool blew up",
                             metadata={"intermediate_step": "False", "tool_args": {}},
@@ -652,14 +652,14 @@ class TestToolRunner_Run:
                 [{"name": "test_tool", "args": {}}, {"name": "other_tool", "args": {"veg": "carrot"}}],
                 ToolRunnerResult(
                     results=[
-                        ToolResult.Success(
+                        ToolCallResult.Success(
                             tool_name="test_tool",
                             response=AIMessage("test result"),
                             metadata={"intermediate_step": "False", "tool_args": {}},
                         )
                     ],
                     failures=[
-                        ToolResult.Failure(
+                        ToolCallResult.Failure(
                             tool_name="other_tool",
                             error="Tool 'other_tool' failed: other_tool blew up",
                             metadata={"intermediate_step": "False", "tool_args": {"veg": "carrot"}},
@@ -712,7 +712,7 @@ class TestToolRunner_Run:
         stub_futures = {mock_future: _plain_metadata()}
         stub_result = ToolRunnerResult(
             responses=[
-                ToolResult.Success(
+                ToolCallResult.Success(
                     tool_name="test_tool",
                     response=AIMessage("r"),
                     metadata={"intermediate_step": "False", "tool_args": {}},
@@ -749,7 +749,7 @@ class TestToolRunner_Run:
         assert elapsed < 0.25, f"Expected ~0.1s with parallelism, got {elapsed:.2f}s"
         assert result == ToolRunnerResult(
             results=[
-                ToolResult.Success(
+                ToolCallResult.Success(
                     tool_name="slow_tool",
                     response=AIMessage("done"),
                     metadata={"intermediate_step": "False", "tool_args": {}},
