@@ -28,8 +28,10 @@
 {% macro message_box(message) %}
 
 
-{% set role_text = "AI response" %}
+{% set role_text = "System response" %}
 {% if message.role == "ai" %}
+{% set role_text = "AI Response" %}
+{% elif message.role == "user" %}
 {% set role_text = "User message" %}
 {% endif %}
 
