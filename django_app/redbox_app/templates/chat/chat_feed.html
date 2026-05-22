@@ -40,9 +40,13 @@
                 </template>
 
                 {# SSR messages #}
-                    {% for message in messages %}
+                <ol id="chat-message-list" aria-label="AI agent conversation" class="govuk-list">
+                  {% for message in messages %}
+                  <li data-role="chat-message-list-item">
                     {{ message_box(message=message) }}
-                    {% endfor %}
+                  </li>
+                  {% endfor %}
+                </ol>
                 {# CSR messages are inserted here #}
 
             </div>
