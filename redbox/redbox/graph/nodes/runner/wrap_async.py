@@ -179,8 +179,8 @@ async def execute_mcp_tools_async(mcp_input: RunnerToolCall.MCPAsync) -> List[An
 
                 # Execute each tool call in sequence
                 for i, tool_call in enumerate(mcp_input.tool_calls):
-                    tool_name = tool_call.tool_name
-                    args = tool_call.args.copy()
+                    tool_name = tool_call.get("name")
+                    args = tool_call.get("args").copy()
 
                     log.info(
                         f"execute_mcp_tools_async - Executing tool {i + 1}/{len(mcp_input.tool_calls)}: '{tool_name}'"
