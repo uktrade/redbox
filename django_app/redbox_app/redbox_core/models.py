@@ -1149,7 +1149,7 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         upload_to=build_s3_key,
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    original_file_name = models.TextField(max_length=2048, blank=True, null=True, db_index=True)
+    original_file_name = models.TextField(max_length=2048, blank=True, null=True)
     last_referenced = models.DateTimeField(blank=True, null=True)
     ingest_error = models.TextField(
         max_length=2048,
@@ -1176,7 +1176,7 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
             else:
                 self.last_referenced = timezone.now()
 
-        if self.original_file and not self.original_file_name:
+        if self._state.adding and self.original_file and not self.original_file_name:
             self.original_file_name = self.original_file.name.split("/")[-1]
 
         super().save(*args, **kwargs)

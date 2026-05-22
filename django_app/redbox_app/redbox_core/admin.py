@@ -7,10 +7,9 @@ from django.contrib.auth import get_user_model
 from django.db.models import QuerySet
 from django.http import HttpResponse
 from django.shortcuts import render
-from django_q.tasks import async_task
 from import_export.admin import ExportMixin, ImportExportMixin
 
-from redbox_app.worker import ingest
+from redbox_app.redbox_core.actions import backfill_original_file_names, reupload
 
 from . import models
 from .serializers import UserSerializer
@@ -273,34 +272,10 @@ class UserTeamMembershipAdmin(admin.ModelAdmin):
 
 
 class FileAdmin(ExportMixin, admin.ModelAdmin):
-    def reupload(self, _request, queryset):
-        for file in queryset:
-            logger.info("Re-uploading file to core-api: %s", file)
-            async_task(ingest, file.id)
-            logger.info("Successfully reuploaded file %s.", file)
-
-    @admin.action(description="Backfill original file names")
-    def backfill_original_file_names(self, request, queryset):
-        files = []
-        updated = 0
-
-        for file in queryset:
-            if not file.original_file_name and file.original_file:
-                file.original_file_name = file.original_file.name.split("/")[-1]
-                files.append(file)
-                updated += 1
-
-        models.File.objects.bulk_update(files, ["original_file_name"])
-
-        self.message_user(
-            request,
-            f"Updated {updated} files.",
-        )
-
     list_display = ["file_name", "user", "status", "created_at", "last_referenced"]
     list_filter = ["user", "status"]
     date_hierarchy = "created_at"
-    actions = ["reupload", "backfill_original_file_names"]
+    actions = [reupload, backfill_original_file_names]
     search_fields = ["user__email", "original_file_name"]
 
 
@@ -310,11 +285,6 @@ class FileToolAdmin(ExportMixin, admin.ModelAdmin):
     date_hierarchy = "created_at"
     search_fields = ("file__original_file_name", "tool__name")
     raw_id_fields = ["file"]
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "file":
-            kwargs["queryset"] = models.File.objects.order_by("original_file")
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 class UserToolAdmin(ExportMixin, admin.ModelAdmin):
