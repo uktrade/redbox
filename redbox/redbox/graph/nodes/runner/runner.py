@@ -1,8 +1,7 @@
-from enum import StrEnum
 from asyncio import CancelledError
 import logging
 from uuid import uuid4
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Tuple
 from concurrent.futures import ThreadPoolExecutor, TimeoutError, Future
 from pydantic import BaseModel, Field
 
@@ -12,17 +11,10 @@ from langchain.tools import StructuredTool
 from redbox.models.chain import RedboxState
 from redbox.api.format import MCPResponseMetadata
 from redbox.graph.nodes.runner import exceptions as tool_exceptions
-from redbox.graph.nodes.runner.wrap_async import wrap_async_tool, execute_mcp_tools
-from redbox.graph.nodes.runner.tool_calls import group_tool_calls, RunnerToolCall
+from redbox.graph.nodes.runner.wrap_async import execute_mcp_tools
+from redbox.graph.nodes.runner.tool_calls import RunnerToolCall
 
 log = logging.getLogger(__name__)
-
-
-class FutureResultType(StrEnum):
-    UNKNOWN = "unknown"
-    SYNC = "sync"
-    ASYNC = "async"
-    ASYNC_MCP = "async_mcp"
 
 
 class ToolResult:
@@ -78,19 +70,45 @@ class ToolRunner:
     def run(self, tool_calls: list[ToolCall]) -> ToolRunnerResult:
         """Submit all tool calls, collect results, and return aggregated responses or None on total failure."""
         try:
-            sync_calls, async_mcp_calls = group_tool_calls(tool_calls=tool_calls, tools=self.tools)
-
-            futures, failures = self._submit_all(
-                sync_calls=sync_calls, async_mcp_calls=async_mcp_calls
-            )  # tool_calls=tool_calls)
+            futures, failures = self._submit_all(tool_calls=tool_calls)
             return self._collect(futures=futures, failures=failures)
         finally:
             self.executor.shutdown(wait=True)
 
-    def _submit_all(
-        self, sync_calls: list[RunnerToolCall.Sync], async_mcp_calls: list[RunnerToolCall.MCPAsync]
-    ) -> tuple[dict[Future, dict], list[ToolResult.Failure]]:
+    def group_tool_calls(self, tool_calls: list[ToolCall]) -> Tuple[RunnerToolCall.Sync, RunnerToolCall.MCPAsync]:
+        sync_tools: list[RunnerToolCall.Sync] = []
+        mcp_async_tools: dict[str, RunnerToolCall.MCPAsync] = {}
+
+        for tool_call in tool_calls:
+            tool_name = tool_call.get("name")
+            selected_tool: Optional[StructuredTool] = next(
+                (tool for tool in self.tools if tool.name == tool_name), None
+            )
+
+            if selected_tool.func and not selected_tool.coroutine:
+                sync_tools.append(RunnerToolCall.Sync(tool_call=tool_call))
+            else:
+                mcp_url = selected_tool.metadata["url"]
+                creator_type = selected_tool.metadata["creator_type"]
+                sso_access_token = selected_tool.metadata["sso_access_token"]
+
+                if mcp_url:
+                    if mcp_url in mcp_async_tools.keys():
+                        mcp_async_tools[mcp_url].tool_calls.append(tool_call)
+                    else:
+                        mcp_async_tools[mcp_url] = RunnerToolCall.MCPAsync(
+                            mcp_server=mcp_url,
+                            access_token=sso_access_token,
+                            creator_type=creator_type,
+                            tool_calls=[tool_call],
+                        )
+
+        return sync_tools, mcp_async_tools.values()
+
+    def _submit_all(self, tool_calls: list[ToolCall]) -> tuple[dict[Future, dict], list[ToolResult.Failure]]:
         """Submit every tool call to the executor, skipping and logging any that fail to launch."""
+        sync_calls, async_mcp_calls = self.group_tool_calls(tool_calls=tool_calls)
+
         futures = {}
         failures: list[ToolResult.Failure] = []
 
@@ -101,7 +119,7 @@ class ToolRunner:
             raw_args.pop("name", None)
 
             try:
-                res = self.submit(tool_call=tool_call)
+                res = self.submit_sync(tool_call=tool_call)
                 future, metadata = res
                 futures[future] = metadata
 
@@ -215,24 +233,14 @@ class ToolRunner:
 
         return tool_name, selected_tool, raw_args
 
-    def submit(self, tool_call: ToolCall) -> tuple[Future, dict]:
+    def submit_sync(self, tool_call: RunnerToolCall.Sync) -> tuple[Future, dict]:
         """Find, validate, and submit a tool call to the executor. Returns (future, metadata)"""
         tool_name, selected_tool, raw_args = self.validate(tool_call=tool_call)
         is_intermediate_step = "False"
-        future_type = FutureResultType.UNKNOWN
 
         try:
-            if selected_tool.func and not selected_tool.coroutine:
-                args = {**raw_args, "state": self.state}
-                future = self.executor.submit(selected_tool.invoke, args)
-                future_type = FutureResultType.SYNC
-            else:
-                args = {**raw_args}
-                if self.is_loop:
-                    is_intermediate_step = args.get("is_intermediate_step", "False")
-                    log.warning(f"intermediate step: {is_intermediate_step}")
-                future = self.executor.submit(wrap_async_tool(selected_tool, tool_name), args)
-                future_type = FutureResultType.ASYNC
+            args = {**raw_args, "state": self.state}
+            future = self.executor.submit(selected_tool.invoke, args)
         except Exception as e:
             raise tool_exceptions.ToolExecutionError(
                 f"Failed to submit tool '{tool_name}' for execution: {str(e)}"
@@ -242,8 +250,36 @@ class ToolRunner:
             "name": tool_name,
             "intermediate_step": is_intermediate_step,
             "tool_args": raw_args,
-            "future_type": future_type,
+            "future_result_type": tool_call.future_result_type,
         }
+
+    # def submit_async(self, tool_call: RunnerToolCall.Sync) -> tuple[Future, dict]:
+    #     """Find, validate, and submit a tool call to the executor. Returns (future, metadata)"""
+    #     tool_name, selected_tool, raw_args = self.validate(tool_call=tool_call)
+    #     is_intermediate_step = "False"
+
+    #     try:
+    #         # if selected_tool.func and not selected_tool.coroutine:
+    #         args = {**raw_args, "state": self.state}
+    #         future = self.executor.submit(selected_tool.invoke, args)
+    #         # else:
+    #         #     args = {**raw_args}
+    #         #     if self.is_loop:
+    #         #         is_intermediate_step = args.get("is_intermediate_step", "False")
+    #         #         log.warning(f"intermediate step: {is_intermediate_step}")
+    #         #     future = self.executor.submit(wrap_async_tool(selected_tool, tool_name), args)
+    #         #     future_type = FutureResultType.ASYNC
+    #     except Exception as e:
+    #         raise tool_exceptions.ToolExecutionError(
+    #             f"Failed to submit tool '{tool_name}' for execution: {str(e)}"
+    #         ) from e
+
+    #     return future, {
+    #         "name": tool_name,
+    #         "intermediate_step": is_intermediate_step,
+    #         "tool_args": raw_args,
+    #         "future_result_type": tool_call.future_result_type,
+    #     }
 
     def submit_mcp_async(self, mcp_server: str, tool_call: RunnerToolCall.MCPAsync) -> tuple[Future, dict]:
         """Find, validate, and submit a tool call to the executor. Returns (future, metadata)"""
@@ -258,14 +294,13 @@ class ToolRunner:
             "name": f"MCP_{mcp_server}",
             "intermediate_step": "False",
             "tool_args": {},
-            "future_type": FutureResultType.ASYNC_MCP,
+            "future_result_type": tool_call.future_result_type,
         }
 
     def parse(self, future: Future, metadata: dict) -> AIMessage | list[AIMessage]:
         """Resolve a completed future and transform its result into an AIMessage."""
         future_tool_name = metadata["name"]
         is_intermediate_step = metadata["intermediate_step"]
-        # is_mcp_async = metadata.get("future_type") == FutureResultType.ASYNC_MCP
 
         try:
             response = future.result(timeout=self.parallel_timeout)
@@ -299,44 +334,6 @@ class ToolRunner:
         return self.parse_response(
             future_tool_name=future_tool_name, response=response, is_intermediate_step=is_intermediate_step
         )
-
-        # result = response
-        # if not self.is_loop:
-        #     if isinstance(response, tuple) and isinstance(response[1], MCPResponseMetadata):
-        #         result = response[0]
-
-        # else:
-        #     if isinstance(response, tuple) and isinstance(response[1], MCPResponseMetadata):
-        #         res = response[0]
-        #         metadata: MCPResponseMetadata = response[1]
-        #         status = "pass" if res != "" else "fail"
-        #         result = (
-        #             (
-        #                 res,
-        #                 status,
-        #                 is_intermediate_step,
-        #                 metadata.user_feedback.reason or "Requires feedback from the user.",
-        #             )
-        #             if metadata.user_feedback.required
-        #             else (res, status, is_intermediate_step)
-        #         )
-
-        # raw_res = result[0] if isinstance(result, tuple) else result
-
-        # if raw_res is None:
-        #     raise tool_exceptions.ToolValidationError(f"Tool '{future_tool_name}' returned None")
-
-        # if not isinstance(raw_res, str):
-        #     raise tool_exceptions.ToolValidationError(
-        #         f"Tool '{future_tool_name}' returned non-string type: {type(raw_res).__name__}"
-        #     )
-
-        # if not raw_res.strip():
-        #     raise tool_exceptions.ToolValidationError(
-        #         f"Tool '{future_tool_name}' returned empty or whitespace-only response"
-        #     )
-
-        # return AIMessage(result)
 
     def parse_response(self, future_tool_name: str, response: Any, is_intermediate_step: str) -> AIMessage:
         result = response

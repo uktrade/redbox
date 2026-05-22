@@ -1,3 +1,4 @@
+from enum import StrEnum
 import logging
 from typing import Tuple, Optional
 from pydantic import BaseModel, ConfigDict
@@ -9,11 +10,23 @@ from langchain.tools import StructuredTool
 log = logging.getLogger(__name__)
 
 
+class FutureResultType(StrEnum):
+    UNKNOWN = "unknown"
+    SYNC = "sync"
+    MCP_ASYNC = "mcp_async"
+
+
 class RunnerToolCall:
-    class Sync(BaseModel):
+    class Base(BaseModel):
+        future_result_type: FutureResultType = FutureResultType.UNKNOWN
+
+    class Sync(Base):
+        future_result_type: FutureResultType = FutureResultType.SYNC
         tool_call: ToolCall
 
     class MCPAsync(BaseModel):
+        future_result_type: FutureResultType = FutureResultType.MCP_ASYNC
+
         mcp_server: str
         access_token: SensitiveValue
         creator_type: ChunkCreatorType
