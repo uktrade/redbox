@@ -1,9 +1,11 @@
 from enum import StrEnum
 from typing import List
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 from redbox.api.wrapper import SensitiveValue
 from redbox.models.file import ChunkCreatorType
 from langchain_core.messages import AIMessage, ToolCall
+from langchain.tools import StructuredTool
+from concurrent.futures import Future
 
 
 # Input
@@ -17,7 +19,7 @@ class FutureResultType(StrEnum):
     MCP_ASYNC = "mcp_async"
 
 
-class ToolCallWrapper:
+class ToolCallRequest:
     """ToolRunner grouped tool call objects."""
 
     class Base(BaseModel):
@@ -35,7 +37,25 @@ class ToolCallWrapper:
         creator_type: ChunkCreatorType
         tool_calls: list[ToolCall]
 
-        model_config = ConfigDict(arbitrary_types_allowed=True)
+        class Config:
+            arbitrary_types_allowed = True
+
+
+class GroupedToolCallRequests(BaseModel):
+    sync_calls: List[ToolCallRequest.Sync]
+    mcp_async_server_calls: List[ToolCallRequest.MCPAsync]
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
+class ValidatedToolCall(BaseModel):
+    name: str
+    tool: StructuredTool
+    args: dict
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 # Output
@@ -57,6 +77,22 @@ class ToolCallResult:
         """Failed result of tool execution."""
 
         error: str = Field(default=None, description="Error from tool execution.")
+
+
+class SubmittedToolCallRequest(BaseModel):
+    name: str
+    result_type: FutureResultType
+    future: Future
+    future_args: dict
+    metadata: dict
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
+class SubmittedToolCallRequests(BaseModel):
+    futures: list[SubmittedToolCallRequest]
+    failures: list[ToolCallResult.Failure]
 
 
 class Result(BaseModel):

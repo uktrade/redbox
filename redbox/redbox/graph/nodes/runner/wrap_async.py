@@ -129,7 +129,7 @@ def wrap_async_tool(tool, tool_name):
     return wrapper
 
 
-async def execute_mcp_tools_async(mcp_input: tr_models.ToolCallWrapper.MCPAsync) -> List[Any]:
+async def execute_mcp_tools_async(mcp_input: tr_models.ToolCallRequest.MCPAsync) -> List[Any]:
     """
     Execute multiple MCP tools in a single session.
 
@@ -248,7 +248,7 @@ async def execute_mcp_tools_async(mcp_input: tr_models.ToolCallWrapper.MCPAsync)
     return results
 
 
-def execute_mcp_tools(mcp_input: tr_models.ToolCallWrapper.MCPAsync) -> List[Any]:
+def execute_mcp_tools(mcp_input: tr_models.ToolCallRequest.MCPAsync) -> List[Any]:
     """
     Synchronous wrapper for executing multiple MCP tools.
 
