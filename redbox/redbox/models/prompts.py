@@ -453,7 +453,7 @@ PLANNER_PROMPT_BOTTOM = """
 1. When a user query involves finding information within selected documents (not summarising the documents), ALWAYS route to the Internal_Retrieval_Agent.
 2. Only use External_Retrieval_Agent if the query specifically requests external data sources.
 3. Only use Artifact_Builder_Agent if there is specific artifact file that match user request.
-4. The Evaluator_Agent must be used for every multi-agent response to ensure consistency and quality in the final output delivered to the user.
+4. The Evaluator_Agent must be used for exactly once in the plan, and it must be the final task. Never insert Evaluator_Agent as an intermediate step. The Evaluator_Agent at the end ensures consistency and quality in the final output delivered to the user.
 
 If a user asks to summarise a document, ALWAYS call Summarisation_Agent and do not call other agents.
 
