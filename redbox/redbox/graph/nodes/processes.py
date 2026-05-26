@@ -368,12 +368,12 @@ def remove_evaluator_task(state: RedboxState):
     if not state.agent_plans or not state.agent_plans.tasks:
         return state
 
-    evaluator_tasks = [t for t in state.agent_plans.tasks if t.agent_value == "Evaluator_Agent"]
+    evaluator_tasks = [t for t in state.agent_plans.tasks if t.agent.value == "Evaluator_Agent"]
 
     if evaluator_tasks:
         last = evaluator_tasks[-1]
         state.tasks_evaluator = f"{last.task} {last.expected_output}"
-        state.agent_plans.tasks = [t for t in state.agent_plans.tasks if t.agent_value != "Evaluator_Agent"]
+        state.agent_plans.tasks = [t for t in state.agent_plans.tasks if t.agent.value != "Evaluator_Agent"]
     return state
 
 
