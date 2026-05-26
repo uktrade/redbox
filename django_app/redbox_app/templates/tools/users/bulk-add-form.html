@@ -47,7 +47,7 @@
                 </div>
 
                 <!-- Users -->
-                <div id="users" class="govuk-form-group govuk-!-margin-bottom-0 ids-scrollable">
+                <div id="users" class="govuk-form-group govuk-!-margin-bottom-0 ids-scrollable ids-max-height-content--two-thirds">
                     <table class="govuk-table govuk-!-margin-bottom-2">
 
                         <thead class="govuk-table__head ids-text-s">
@@ -70,7 +70,7 @@
                         </thead>
 
                         <tbody class="govuk-table__body">
-                            {% for user in eligible_users %}
+                            {% for user in unassigned_users %}
                                 <tr id="tool-user-row-{{ user.pk }}" class="govuk-table__row ids-text-xs">
                                     <th scope="row" class="govuk-table__header govuk-!-padding-0">
                                         <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
@@ -106,7 +106,7 @@
             </ids-selectable-list>
         </fieldset>
 
-        <div class="govuk-button-group govuk-!-margin-0 govuk-!-padding-bottom-7">
+        <div class="govuk-button-group govuk-!-margin-0 govuk-!-padding-top-6 govuk-!-padding-bottom-7 ids-push-bottom--sticky">
             {{ govukButton(text="Add", classes="govuk-!-margin-0") }}
         </div>
     </form>

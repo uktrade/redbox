@@ -7,10 +7,9 @@ from django.contrib.auth import get_user_model
 from django.db.models import QuerySet
 from django.http import HttpResponse
 from django.shortcuts import render
-from django_q.tasks import async_task
 from import_export.admin import ExportMixin, ImportExportMixin
 
-from redbox_app.worker import ingest
+from redbox_app.redbox_core.actions import backfill_original_file_names, reupload
 
 from . import models
 from .serializers import UserSerializer
@@ -273,29 +272,19 @@ class UserTeamMembershipAdmin(admin.ModelAdmin):
 
 
 class FileAdmin(ExportMixin, admin.ModelAdmin):
-    def reupload(self, _request, queryset):
-        for file in queryset:
-            logger.info("Re-uploading file to core-api: %s", file)
-            async_task(ingest, file.id)
-            logger.info("Successfully reuploaded file %s.", file)
-
     list_display = ["file_name", "user", "status", "created_at", "last_referenced"]
     list_filter = ["user", "status"]
     date_hierarchy = "created_at"
-    actions = ["reupload"]
-    search_fields = ["user__email"]
+    actions = [reupload, backfill_original_file_names]
+    search_fields = ["user__email", "original_file_name"]
 
 
 class FileToolAdmin(ExportMixin, admin.ModelAdmin):
     list_display = ["file", "tool", "file_type", "created_at"]
     list_filter = ["tool", "file_type"]
     date_hierarchy = "created_at"
-    search_fields = ("file__file_name", "tool__name")
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "file":
-            kwargs["queryset"] = models.File.objects.order_by("original_file")
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    search_fields = ("file__original_file_name", "tool__name")
+    raw_id_fields = ["file"]
 
 
 class UserToolAdmin(ExportMixin, admin.ModelAdmin):
@@ -303,14 +292,16 @@ class UserToolAdmin(ExportMixin, admin.ModelAdmin):
     list_filter = ["tool", "user", "role"]
     date_hierarchy = "created_at"
     search_fields = ("user__email", "tool__name")
+    raw_id_fields = ["user"]
+    autocomplete_fields = ["user"]
 
 
 class UserSSOAdmin(ExportMixin, admin.ModelAdmin):
     list_display = [
         "user",
         "email_user_id",
-        "related_emails",
-        "all_emails",
+        "related_emails_display",
+        "all_emails_display",
         "created_at",
         "modified_at",
     ]

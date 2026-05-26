@@ -107,12 +107,12 @@ def get_csrf_token(request):
     return get_token(request)
 
 
-def show_all_attrs(value):
+def show_all_attrs(value) -> str:
     result = []
     for key in dir(value):
         result.append(f"{key}: {getattr(value, key)}")
 
-    return "\n".join(result)
+    return str("\n".join(result))
 
 
 def environment(**options):

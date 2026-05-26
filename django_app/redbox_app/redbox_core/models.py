@@ -7,6 +7,7 @@ import textwrap
 import uuid
 from collections.abc import Collection
 from datetime import UTC, date, datetime, timedelta
+from functools import reduce
 from pathlib import Path
 from typing import TYPE_CHECKING, override
 
@@ -22,7 +23,7 @@ from django.contrib.auth.models import AbstractBaseUser, Group, PermissionsMixin
 from django.contrib.postgres.fields import ArrayField
 from django.core import validators
 from django.db import models
-from django.db.models import Exists, Max, Min, OuterRef, Prefetch, Q, UniqueConstraint
+from django.db.models import BooleanField, Exists, Max, Min, OuterRef, Prefetch, Q, UniqueConstraint, Value
 from django.template import TemplateDoesNotExist
 from django.template.loader import get_template
 from django.urls import reverse
@@ -34,7 +35,7 @@ from yarl import URL
 
 from redbox.models.settings import get_settings
 from redbox_app.redbox_core.services import url as url_service
-from redbox_app.redbox_core.utils import get_date_group, resolve_instance
+from redbox_app.redbox_core.utils import get_date_group, resolve_instance, strip_domain
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
@@ -68,33 +69,52 @@ def sanitise_string(string: str | None) -> str | None:
 
 class ToolQuerySet(models.QuerySet):
     def for_user(self, user: User):
-        email_domains = user.sso.email_domains if user.sso else []
-
-        allow_rules = ToolAccessRule.objects.filter(
+        # -------------------------------------------------
+        # User-based access
+        # -------------------------------------------------
+        allow_user_tool = UserTool.objects.filter(
             tool=OuterRef("pk"),
-            rule_type=ToolAccessRule.RuleType.DOMAIN,
-            value__in=email_domains,
-            access_type=ToolAccessRule.AccessType.ALLOW,
+            user=user,
+            access_type=UserTool.AccessType.ALLOW,
         )
 
-        deny_rules = ToolAccessRule.objects.filter(
+        deny_user_tool = UserTool.objects.filter(
             tool=OuterRef("pk"),
-            rule_type=ToolAccessRule.RuleType.DOMAIN,
-            value__in=email_domains,
-            access_type=ToolAccessRule.AccessType.DENY,
+            user=user,
+            access_type=UserTool.AccessType.DENY,
         )
+
+        # -------------------------------------------------
+        # Rule-based access
+        # -------------------------------------------------
+        allow_rule_exprs = ToolAccessRule.exists_for_user(
+            user,
+            ToolAccessRule.AccessType.ALLOW,
+        )
+
+        deny_rule_exprs = ToolAccessRule.exists_for_user(
+            user,
+            ToolAccessRule.AccessType.DENY,
+        )
+
+        # Combine EXISTS expressions safely
+        def combine(exprs):
+            if not exprs:
+                return Value(False, output_field=BooleanField())
+            return reduce(lambda a, b: a | b, exprs)
 
         return (
             self.annotate(
-                has_allow_rule=Exists(allow_rules),
-                has_deny_rule=Exists(deny_rules),
+                has_allowed_user=Exists(allow_user_tool),
+                has_denied_user=Exists(deny_user_tool),
+                has_allowed_rule=combine(allow_rule_exprs),
+                has_denied_rule=combine(deny_rule_exprs),
             )
-            .filter(
-                models.Q(is_public=True)
-                | models.Q(user_tools__user=user, user_tools__access_type=UserTool.AccessType.ALLOW)
-                | models.Q(has_allow_rule=True)
+            .filter(Q(is_public=True) | Q(has_allowed_user=True) | Q(has_allowed_rule=True))
+            .exclude(Q(has_denied_user=True))  # always wins
+            .exclude(
+                Q(has_denied_rule=True) & ~Q(has_allowed_user=True)  # user allow overrides rule deny
             )
-            .filter(has_deny_rule=False)
             .distinct()
         )
 
@@ -197,14 +217,14 @@ class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
         user_tool_member.save()
         return user_tool_member
 
-    def get_eligible_users(self):
+    def get_unassigned_users(self):
         """
         Users who can be added to this tool:
         - not already assigned
         - includes SSO-prefetched data
         """
 
-        return User.objects.exclude(user_tools__tool=self).select_related("_sso").prefetch_related("sso__attributes")
+        return User.objects.exclude(user_tools__tool=self).select_related("_sso").prefetch_related("_sso__attributes")
 
 
 class ToolAccessRule(TimeStampedModel):
@@ -240,6 +260,48 @@ class ToolAccessRule(TimeStampedModel):
         super().save(*args, **kwargs)
 
     @classmethod
+    def exists_for_user(cls, user: User, access_type: str) -> list[Exists]:
+        """
+        Returns a list of Exists() expressions, one per rule type.
+        """
+        expressions = []
+
+        for rule_type in cls.RuleType.values:
+            expr = cls.get_rule_exists(
+                user=user,
+                rule_type=rule_type,
+                access_type=access_type,
+            )
+            if expr is not None:
+                expressions.append(expr)
+
+        return expressions
+
+    @classmethod
+    def get_rule_exists(cls, user: User, rule_type: str, access_type: str) -> Exists | None:
+        match rule_type:
+            case cls.RuleType.DOMAIN:
+                return cls._domain_exists(user, access_type)
+
+        return None
+
+    @classmethod
+    def _domain_exists(cls, user: User, access_type: str) -> Exists | None:
+        domains = user.email_domains or set()
+
+        if not domains:
+            return None
+
+        return Exists(
+            cls.objects.filter(
+                tool=OuterRef("pk"),
+                access_type=access_type,
+                rule_type=cls.RuleType.DOMAIN,
+                value__in=domains,
+            )
+        )
+
+    @classmethod
     def get_value_placeholder(cls, rule_type: str | None) -> str:
         return {cls.RuleType.DOMAIN: "e.g. example.com"}.get(rule_type, "Enter a value")
 
@@ -251,26 +313,15 @@ class ToolAccessRule(TimeStampedModel):
     def delete_url(self) -> str | None:
         return url_service.get_delete_tool_access_rule_url(slug=self.tool.slug, rule_id=self.pk)
 
-    def _matching_domain_users(self):
-        domain = (self.value or "").strip().lower().lstrip("@")
-
-        return (
-            User.objects.filter(
-                Q(_sso__email__endswith=f"@{domain}")
-                | Q(_sso__contact_email__endswith=f"@{domain}")
-                | Q(
-                    _sso__attributes__attribute_type=UserSSOAttribute.AttributeType.RELATED_EMAILS,
-                    _sso__attributes__value__endswith=f"@{domain}",
-                )
-            )
-            .select_related("_sso")
-            .distinct()
-        )
+    def matching_domain_users(self):
+        return User.objects.matching_email_domain(self.value)
 
     def get_matching_users(self):
-        qs = self._matching_domain_users() if self.rule_type == self.RuleType.DOMAIN else User.objects.none()
+        match self.rule_type:
+            case self.RuleType.DOMAIN:
+                return self.matching_domain_users()
 
-        return qs.select_related("_sso").distinct()
+        return User.objects.none()
 
 
 class UserTool(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -310,6 +361,14 @@ class UserTool(UUIDPrimaryKeyBase, TimeStampedModel):
     @cached_property
     def role_choices(self) -> Sequence[tuple[RoleType, str]]:
         return self.RoleType.choices
+
+    @cached_property
+    def edit_url(self) -> str | None:
+        return url_service.get_edit_user_tool_url(slug=self.tool.slug, user_tool_id=self.pk)
+
+    @cached_property
+    def delete_url(self) -> str | None:
+        return url_service.get_delete_user_tool_url(slug=self.tool.slug, user_tool_id=self.pk)
 
 
 class TeamTool(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -517,7 +576,25 @@ class AISettings(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
         return str(self.label)
 
 
-class SSOUserManager(BaseSSOUserManager):
+class UserQuerySet(models.QuerySet):
+    def matching_email_domain(self, domain: str):
+        domain = (domain or "").strip().lower().lstrip("@")
+
+        return self.filter(
+            models.Q(email__iendswith=f"@{domain}")
+            | models.Q(_sso__email__iendswith=f"@{domain}")
+            | models.Q(_sso__contact_email__iendswith=f"@{domain}")
+            | models.Q(
+                _sso__attributes__attribute_type=UserSSOAttribute.AttributeType.RELATED_EMAILS,
+                _sso__attributes__value__iendswith=f"@{domain}",
+            )
+        ).distinct()
+
+    def with_sso(self):
+        return self.select_related("_sso").prefetch_related("_sso__attributes")
+
+
+class SSOUserManager(BaseSSOUserManager.from_queryset(UserQuerySet)):
     use_in_migrations = True
 
     def _create_user(self, username, password, **extra_fields):
@@ -851,15 +928,20 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
     def all_emails(self) -> set:
         emails = set()
 
+        if self.username:
+            emails.add(self.username)
+
         if self.email:
             emails.add(self.email)
 
         if self.sso:
             emails.update(self.sso.all_emails)
-        else:
-            logger.warning("UserSSO record not found for %s", self.display_name)
 
         return emails
+
+    @property
+    def email_domains(self) -> set:
+        return {strip_domain(email) for email in self.all_emails}
 
     @property
     def display_name(self) -> str:
@@ -875,10 +957,11 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
         return self.username
 
     @property
-    def sso(self) -> bool:
+    def sso(self) -> UserSSO | None:
         try:
             return self._sso
-        except UserSSO.DoesNotExist:
+        except UserSSO.DoesNotExist as e:
+            logger.exception("UserSSO record not found for %s", self, exc_info=e)
             return None
 
 
@@ -932,10 +1015,6 @@ class UserSSO(TimeStampedModel):
     @property
     def name(self) -> str:
         return f"{self.first_name} {self.last_name}".strip()
-
-    @property
-    def email_domains(self) -> set:
-        return {email.split("@")[-1] for email in self.all_emails}
 
 
 class UserSSOAttribute(TimeStampedModel):
@@ -1070,7 +1149,7 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         upload_to=build_s3_key,
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    original_file_name = models.TextField(max_length=2048, blank=True, null=True)  # delete me
+    original_file_name = models.TextField(max_length=2048, blank=True, null=True)
     last_referenced = models.DateTimeField(blank=True, null=True)
     ingest_error = models.TextField(
         max_length=2048,
@@ -1096,6 +1175,10 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
                 self.last_referenced = self.created_at
             else:
                 self.last_referenced = timezone.now()
+
+        if self._state.adding and self.original_file and not self.original_file_name:
+            self.original_file_name = self.original_file.name.split("/")[-1]
+
         super().save(*args, **kwargs)
 
     @override
@@ -1129,17 +1212,15 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
     def url(self) -> str:
         return self.original_file.url if self.original_file else ""
 
+    # NOTE: Change to model field once orignal_file_name has been backfilled
     @property
     def file_name(self) -> str:
         if self.original_file_name:  # delete me?
             return self.original_file_name
 
         # could have a stronger (regex?) way of stripping the users email address?
-        if self.original_file and "/" in self.original_file.name:
-            return self.original_file.name.split("/")[1]
-
-        if self.original_file:
-            return self.original_file.name
+        if self.original_file and self.original_file.name:
+            return self.original_file.name.split("/")[-1]
 
         return ""
 

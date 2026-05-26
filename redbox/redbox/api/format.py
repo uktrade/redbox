@@ -85,6 +85,14 @@ def format_mcp_tool_response(tool_response, creator_type: ChunkCreatorType) -> t
             paged_results = [v for v in paged_data.values() if v is not None]
             for page in paged_results:
                 deep_links += [(item.get("url"), item) for item in page.get("result", {}).get("items", [])]
+        case "paged_composite":
+            for company, paged_activity_data in result.get("items", []):
+                deep_links.append((company.get("url"), company))
+                for paged_activity in paged_activity_data.values():
+                    if paged_activity:
+                        deep_links += [
+                            (item.get("url"), item) for item in paged_activity.get("result", {}).get("items", [])
+                        ]
 
     response = []
     for link, item in deep_links:

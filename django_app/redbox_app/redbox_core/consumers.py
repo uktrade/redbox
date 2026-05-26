@@ -1,13 +1,18 @@
+import asyncio
 import json
 import logging
 import re
 from asyncio import CancelledError
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
+from contextlib import suppress
 from typing import Any
 from uuid import UUID
 
 import uwotm8.convert as uwm8
+from amazon_transcribe.auth import StaticCredentialResolver
+from amazon_transcribe.client import TranscribeStreamingClient
+from amazon_transcribe.model import TranscriptEvent
 from asgiref.sync import sync_to_async
 from botocore.exceptions import ClientError
 from channels.db import database_sync_to_async
@@ -59,6 +64,7 @@ from redbox_app.redbox_core.models import (
 from redbox_app.redbox_core.models import Agent as AgentModel
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
 from redbox_app.redbox_core.models import ChatLLMBackend as ChatLLMBackendModel
+from redbox_app.redbox_core.views.api_views import get_transcribe_credentials
 
 # Temporary condition before next uwotm8 release: monkey patch CONVERSION_IGNORE_LIST
 uwm8.CONVERSION_IGNORE_LIST = uwm8.CONVERSION_IGNORE_LIST | {"filters": "philtres", "connection": "connexion"}
@@ -773,3 +779,110 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         ),
                     )
                 )
+
+
+class TranscriptionConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        user = self.scope.get("user")
+        if not user or not user.is_authenticated:
+            await self.close(code=4001)
+            return
+
+        await self.accept()
+        self.is_streaming = True
+        self.transcribe_client = None
+        self.stream = None
+        self.transcript_task = None
+
+    async def disconnect(self, close_code: int | None) -> None:  # noqa: ARG002
+        self.is_streaming = False
+
+        if self.transcript_task:
+            self.transcript_task.cancel()
+
+        if self.stream:
+            with suppress(Exception):
+                await self.stream.input_stream.end_stream()
+
+    async def receive(self, bytes_data=None, text_data=None):
+        if bytes_data:
+            if not self.transcribe_client:
+                await self._start_transcription()
+
+            if self.stream:
+                try:
+                    await self.stream.input_stream.send_audio_event(audio_chunk=bytes_data)
+                except Exception as e:  # noqa: BLE001 - have to be broad, could be any network or streaming error
+                    logger.warning("failed to send audio chunk: %s", e)
+
+        elif text_data:
+            try:
+                data = json.loads(text_data)
+                if data.get("action") == "stop":
+                    await self._stop_transcription()
+            except Exception as e:  # noqa: BLE001 - fallback
+                logger.warning("failed to handle text message: %s", e)
+
+    async def _start_transcription(self):
+        if self.transcribe_client is not None:
+            return
+
+        try:
+            creds_dict = await self._get_credentials()
+
+            self.transcribe_client = TranscribeStreamingClient(
+                region="eu-west-2",
+                credential_resolver=StaticCredentialResolver(
+                    access_key_id=creds_dict["access_key_id"],
+                    secret_access_key=creds_dict["secret_access_key"],
+                    session_token=creds_dict.get("session_token"),
+                ),
+            )
+
+            self.stream = await self.transcribe_client.start_stream_transcription(
+                language_code="en-GB",
+                media_sample_rate_hz=16000,
+                media_encoding="pcm",
+            )
+
+            self.transcript_task = asyncio.create_task(self._handle_transcripts())
+
+        except Exception:
+            logger.exception("Failed to start transcription client because")
+            await self.send(json.dumps({"type": "error", "message": "Failed to initialise transcription service"}))
+
+    @database_sync_to_async
+    def _get_credentials(self):
+        return get_transcribe_credentials()
+
+    async def _stop_transcription(self):
+        self.is_streaming = False
+        if self.stream:
+            with suppress(Exception):
+                await self.stream.input_stream.end_stream()
+
+    async def _handle_transcripts(self):
+        try:
+            async for event in self.stream.output_stream:
+                if isinstance(event, TranscriptEvent):
+                    for result in event.transcript.results:
+                        if not result.alternatives:
+                            continue
+
+                        transcript = result.alternatives[0].transcript
+
+                        await self.send(
+                            json.dumps(
+                                {
+                                    "type": "transcript",
+                                    "text": transcript,
+                                    "is_partial": result.is_partial,
+                                    "final": not result.is_partial,
+                                }
+                            )
+                        )
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logger.exception("Transcription error")
+            await self.send(json.dumps({"type": "error", "message": "Transcription error occurred"}))

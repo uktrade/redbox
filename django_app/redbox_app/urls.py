@@ -92,9 +92,9 @@ tools_urlpatterns = [
         name="edit-user-tool-row",
     ),
     path(
-        f"{tools_route_prefix}settings/delete-tool-user/<user_tool_id>/",
+        f"{tools_route_prefix}settings/users/<user_tool_id>/delete/",
         views.delete_tool_user_row_view,
-        name="delete-tool-user",
+        name="delete-user-tool",
     ),
     path(f"{tools_route_prefix}settings/users/<user_tool_id>/edit/", views.edit_tool_user_view, name="edit-user-tool"),
     path(

@@ -80,7 +80,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
 }
 
 .feedback__submit-btn {
-  background-color: var(--color-background);
+  background-color: var(--color-background-secondary);
   border: none;
   border-radius: 0.25rem;
   color: var(--color-background-white);
@@ -162,7 +162,7 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 }
 .exit-feedback__thumb-icon--down:hover,
 .exit-feedback input:checked + label .exit-feedback__thumb-icon--down {
-  color: var(--color-background);
+  color: var(--color-background-secondary);
 }
 .exit-feedback
   input:checked

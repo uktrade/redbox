@@ -17,12 +17,12 @@ watchdog = {extras = ["watchmedo"], version = "^6.0.0"}
 jinja2 = "3.1.6"
 django-environ = "^0.12.1"
 django-use-email-as-username = "^1.4.0"
-markdown-it-py = "^3.0.0"
+markdown-it-py = ">=3,<5"
 psycopg2-binary = "^2.9.11"
 pyyaml = "^6.0.3"
 pytz = "^2024.1"
 django-permissions-policy = "^4.29.0"
-django-csp = "^3.7"
+django-csp = ">=3.7,<5.0"
 django-single-session = "^0.2.0"
 sentry-sdk = {extras = ["django"], version = "^2.57.0"}
 django-storages = "^1.14.2"
@@ -65,6 +65,7 @@ opentelemetry-api = "1.25.0"
 opentelemetry-sdk = "1.25.0"
 python-docx = "^1.2.0"
 unstructured = { version = "^0.21.5", extras = ["all-docs"] }
+amazon-transcribe = "^0.6.4"
 
 
 [tool.poetry.group.dev.dependencies]

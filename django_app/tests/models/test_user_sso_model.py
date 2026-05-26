@@ -87,22 +87,6 @@ def test_sso_name(alice, sso_factory):
 
 
 @pytest.mark.django_db
-def test_email_domains(alice, sso_factory):
-    sso = sso_factory(
-        alice,
-        related_emails=[
-            "a@example.com",
-            "b@test.com",
-        ],
-    )
-
-    domains = sso.email_domains
-
-    assert "example.com" in domains
-    assert "test.com" in domains
-
-
-@pytest.mark.django_db
 def test_user_sso_attribute_str(alice, sso_factory):
     sso = sso_factory(alice)
 

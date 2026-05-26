@@ -4,54 +4,50 @@
 
     <!-- Domain -->
     {% if rule.rule_type == rule.RuleType.DOMAIN %}
-        <div class="govuk-inset-text ids-text-s">
-            <!-- Summary -->
+        <div class="govuk-body-s">
             Users with email domain: <strong>{{ rule.value }}</strong>
-
-            <!-- Count -->
-            {% if users %}
-                <p class="govuk-body ids-text-s">
-                    Showing {{ users|length }} of {{ total_count }} matching users
-                </p>
-            {% endif %}
-
-            {% if total_count > users|length %}
-                <p class="govuk-hint ids-text-s">
-                    Showing first {{ users|length }} users only
-                </p>
-            {% endif %}
         </div>
+
+        {% if users %}
+            <details class="govuk-details">
+                <summary class="govuk-details__summary">
+                    <span class="govuk-details__summary-text ids-text-s">
+                        {{ users|length }} of {{ total_count }} matching users
+                    </span>
+                </summary>
+                <div class="govuk-details__text">
+                    <div class="govuk-table-container govuk-!-width-two-thirds govuk-!-margin-bottom-7 ids-scrollable">
+                        <table class="govuk-table">
+                            <thead class="govuk-table__head">
+                                <tr class="govuk-table__row ids-text-s">
+                                    <th class="govuk-table__header">Name</th>
+                                    <th class="govuk-table__header">Email</th>
+                                </tr>
+                            </thead>
+                            <tbody class="govuk-table__body">
+                                {% for user in users %}
+                                    <tr class="govuk-table__row ids-text-xs">
+                                        <td class="govuk-table__cell">
+                                            {{ user.display_name }}
+                                        </td>
+                                        <td class="govuk-table__cell">
+                                            {{ user.email }}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </details>
+        {% endif %}
     {% endif %}
 
     {% if total_count > 200 %}
         {{ govuk_warning("This rule will affect a large number of users.") }}
     {% endif %}
 
-    <!-- Table -->
-    {% if users %}
-        <div class="govuk-table-container govuk-!-width-two-thirds govuk-!-margin-bottom-7 ids-scrollable">
-            <table class="govuk-table">
-                <thead class="govuk-table__head">
-                    <tr class="govuk-table__row ids-text-s">
-                        <th class="govuk-table__header">Name</th>
-                        <th class="govuk-table__header">Email</th>
-                    </tr>
-                </thead>
-                <tbody class="govuk-table__body">
-                    {% for user in users %}
-                        <tr class="govuk-table__row ids-text-xs">
-                            <td class="govuk-table__cell">
-                                {{ user.display_name }}
-                            </td>
-                            <td class="govuk-table__cell">
-                                {{ user.email }}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
+    {% if not users %}
         {{ govuk_warning("No users match this rule.") }}
     {% endif %}
 

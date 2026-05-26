@@ -20,16 +20,19 @@ from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.messages import ToolCall
 from langchain_core.tools import Tool, tool
+from langchain_mcp_adapters.tools import load_mcp_tools
 from langgraph.prebuilt import InjectedState
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
 from mohawk import Sender
 from opensearchpy import OpenSearch
 from sklearn.metrics.pairwise import cosine_similarity
 from waffle.decorators import waffle_flag
 
-from redbox.api.wrapper import SensitiveValue
 from redbox.api.format import format_documents
+from redbox.api.wrapper import SensitiveValue
 from redbox.chains.components import get_embeddings
-from redbox.graph.nodes.sends import _get_mcp_headers
+from redbox.graph.nodes.runner.wrap_async import _get_mcp_headers
 from redbox.models.chain import RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution, TabularSchema
 from redbox.models.settings import get_settings
@@ -41,9 +44,6 @@ from redbox.retriever.queries import (
 )
 from redbox.retriever.retrievers import SchematisedTabularChunkRetriever, query_to_documents
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
-from langchain_mcp_adapters.tools import load_mcp_tools
 
 log = logging.getLogger(__name__)
 
@@ -499,11 +499,14 @@ def build_govuk_search_tool(filter=True) -> Tool:
         embedding_model = get_embeddings(get_settings())
         em_query = embedding_model.embed_query(query)
         for r in response.get("results"):
-            text_compare = r.get("description") if r.get("description") else r.get("indexable_content")[:500]
-            em_des = embedding_model.embed_query(text_compare)
-            r["similarity"] = cosine_similarity(np.array(em_query).reshape(1, -1), np.array(em_des).reshape(1, -1))[0][
-                0
-            ]
+            text_compare = r.get("description") or r.get("indexable_content", "")[:500]
+            if text_compare:
+                em_des = embedding_model.embed_query(text_compare)
+                r["similarity"] = cosine_similarity(np.array(em_query).reshape(1, -1), np.array(em_des).reshape(1, -1))[
+                    0
+                ][0]
+            else:
+                r["similarity"] = 0  # for no similarity
         response["results"] = sorted(response.get("results"), key=lambda x: x["similarity"], reverse=True)[:num_results]
         return response
 

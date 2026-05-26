@@ -1,10 +1,10 @@
 // @ts-check
-import { TranscribeStreamingClient, StartStreamTranscriptionCommand } from "@aws-sdk/client-transcribe-streaming";
-import { Readable } from 'readable-stream'
 import { hideElement, showElement } from "../../utils";
 import { MessageInput } from "./message-input";
 
 export class SendMessageWithDictation extends HTMLElement {
+  lastFinalTranscript = "";
+
   connectedCallback() {
     this._apiKey = this.getAttribute("data-api-key");
     this.removeAttribute("data-api-key");
@@ -93,24 +93,41 @@ export class SendMessageWithDictation extends HTMLElement {
     this.isRecording = true;
     this.isStreaming = true;
     this.hideRecordButton();
+    this.lastFinalTranscript = "";
 
-    const client = new TranscribeStreamingClient({
-      region: "eu-west-2",
-      credentials: async () => {
-        const response = await (await fetch('/api/v0/aws-credentials', {
-          method: 'GET',
-          headers: {
-              'X-API-KEY': this._apiKey || "",
-              'Content-Type': 'application/json'
-          }
-        })).json();
-        return {
-          accessKeyId: response.AccessKeyId,
-          secretAccessKey: response.SecretAccessKey,
-          sessionToken: response.SessionToken || undefined,
-        };
-      },
-    });
+    const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws/transcribe/`;
+    this.ws = new WebSocket(wsUrl);
+
+    this.ws.onopen = () => {
+      console.log("Transcription WS connected");
+    };
+
+    this.ws.onmessage = (event) => {
+      console.log("WS Received raw:", event.data);
+      try {
+        const data = JSON.parse(event.data);
+        console.log("Parsed transcript data:", data);
+        if (data.type === "transcript") {
+          console.log(`Got transcript: ${data.is_partial ? 'PARTIAL' : 'FINAL'} ${data.text}`);
+          this._updateTranscript(data.text, data.is_partial);
+        } else if (data.type === "error") {
+          console.error(data.message);
+          this.stopResponse();
+        }
+      }
+      catch (e) {
+        console.error("Failed to parse WS message", e);
+      }
+    };
+
+    this.ws.onerror = (err) => {
+      console.error("Transcription WS error", err);
+      this.stopResponse();
+    };
+
+    this.ws.onclose = () => {
+      this.isStreaming = false;
+    };
 
     try {
       this.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -121,68 +138,55 @@ export class SendMessageWithDictation extends HTMLElement {
       input.connect(processor);
       processor.connect(audioContext.destination);
 
-      const readableStream = new Readable();
-      processor.onaudioprocess = (e) => {
-        const float32Array = e.inputBuffer.getChannelData(0);
-        const int16Array = new Int16Array(float32Array.length);
-        float32Array.forEach((val, idx) => {
-          int16Array[idx] = val < 0 ? val * 0x8000 : val * 0x7fff;
-        });
-        readableStream.emit("audioData", new Int8Array(int16Array.buffer));
-      };
+      function convertFloat32ToPCM16(floatSamples) {
+        const PCM16_NEGATIVE_SCALE = 32768;
+        const PCM16_POSITIVE_SCALE = 32767;
+        const pcm16Samples = new Int16Array(floatSamples.length);
 
-      const audioStream = async function* () {
-        while (this.isStreaming) {
-          const chunk = await new Promise((resolve) =>
-            readableStream.once("audioData", resolve)
-          );
-          yield { AudioEvent: { AudioChunk: chunk } };
+        for (let i = 0; i < floatSamples.length; i++) {
+          // Web Audio API provides Float32 samples in the range [-1.0, 1.0]
+          const sample = Math.max(-1, Math.min(1, floatSamples[i]));
+
+          // Convert Float32 audio into signed 16-bit PCM
+          pcm16Samples[i] =
+            sample < 0
+              ? sample * PCM16_NEGATIVE_SCALE
+              : sample * PCM16_POSITIVE_SCALE;
         }
-      }.bind(this);
 
-      const command = new StartStreamTranscriptionCommand({
-        LanguageCode: "en-GB",
-        MediaSampleRateHertz: 16000,
-        MediaEncoding: "pcm",
-        AudioStream: audioStream(),
-      });
-
-      const response = await client.send(command);
-      const textArea = this.messageInput?.textarea;
-
-      let lastFinalTranscript = "";
-      let partialTranscript = "";
-
-      if (!response.TranscriptResultStream) throw new Error("No TranscriptResultStream returned from AWS");
-
-      for await (const event of response.TranscriptResultStream) {
-        if (event.TranscriptEvent) {
-          const results = event.TranscriptEvent.Transcript?.Results;
-
-          results?.forEach((result) => {
-            const transcript = (result.Alternatives || [])
-              .map((alt) => alt.Transcript)
-              .join(" ");
-
-            if (result.IsPartial) {
-              partialTranscript = transcript;
-              this.messageInput?.reset();
-              textArea?.appendChild(document.createTextNode(`${lastFinalTranscript} ${partialTranscript}`));
-            } else {
-              lastFinalTranscript += ` ${transcript}`;
-              partialTranscript = "";
-              this.messageInput?.reset();
-              textArea?.appendChild(document.createTextNode(lastFinalTranscript.trim()));
-            }
-          });
-        }
+        return pcm16Samples;
       }
-    } catch (error) {
-      console.error("Error starting streaming:", error);
-      this.isStreaming = false;
-      this.showRecordButton();
-      this.showSendButton();
-      alert("Microphone usage is not permitted");
+
+      processor.onaudioprocess = (event) => {
+        if (!this.isStreaming || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+          return;
+        }
+
+        const floatSamples = event.inputBuffer.getChannelData(0);
+        const pcm16Samples = convertFloat32ToPCM16(floatSamples);
+
+        // Send raw PCM16 audio bytes to the transcription websocket
+        this.ws.send(pcm16Samples.buffer);
+      };
+    } catch (err) {
+      console.error(err);
+      this.stopResponse();
+    }
+  }
+
+  _updateTranscript(transcript, isPartial) {
+    const textArea = this.messageInput?.textarea;
+    if (!textArea) return;
+
+    this.messageInput?.reset();
+
+    if (isPartial) {
+      textArea.appendChild(document.createTextNode(
+        `${this.lastFinalTranscript} ${transcript}`
+      ));
+    } else {
+      this.lastFinalTranscript += ` ${transcript}`;
+      textArea.appendChild(document.createTextNode(this.lastFinalTranscript.trim()));
     }
   }
 
@@ -193,6 +197,10 @@ export class SendMessageWithDictation extends HTMLElement {
       document.dispatchEvent(new CustomEvent("stop-streaming"));
       this.isStreaming = false;
       this.enableSubmit();
+      if (this.ws) {
+        this.ws.close();
+        this.ws = null;
+      }
     }
   }
 
@@ -209,6 +217,10 @@ export class SendMessageWithDictation extends HTMLElement {
         track.stop();
       });
       this.audioStream = null;
+      if (this.ws) {
+        this.ws.close();
+        this.ws = null;
+      }
     }
   }
 

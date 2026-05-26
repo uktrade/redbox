@@ -6,12 +6,12 @@ import re
 import sqlite3
 import time
 from collections.abc import Callable
+from datetime import date
 from functools import reduce
 from io import StringIO
 from random import uniform
 from typing import Any, Iterable
 from uuid import uuid4
-from datetime import date
 
 import pandas as pd
 from botocore.exceptions import EventStreamError
@@ -29,6 +29,7 @@ from redbox.chains.components import get_chat_llm, get_structured_response_with_
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_metadata, create_chain_agent
 from redbox.graph.nodes.sends import run_tools_parallel
+from redbox.graph.nodes.tools import get_datahub_mcp_tools
 from redbox.models import ChatRoute
 from redbox.models.chain import (
     DocumentState,
@@ -44,13 +45,7 @@ from redbox.models.chain import (
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
 from redbox.models.settings import ChatLLMBackend
-from redbox.graph.nodes.tools import get_datahub_mcp_tools
-from redbox.transform import (
-    combine_agents_state,
-    combine_documents,
-    flatten_document_state,
-    join_result_with_token_limit,
-)
+from redbox.transform import combine_documents, flatten_document_state, join_result_with_token_limit
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
@@ -580,7 +575,7 @@ def build_agent_with_loop(
             log.warning(f"{log_stub} Completed agent run.")
 
         log.warning(f"[{agent_name}] Completed agent_with_loop run.")
-        all_results = " ".join(all_results)
+        all_results = join_result_with_token_limit(result=all_results, max_tokens=max_tokens, log_stub=log_stub)
         return {
             "agents_results": {task.id: AIMessage(content=f"<{agent_name}_Result>{all_results}</{agent_name}_Result>")},
             "tasks_evaluator": task.task + "\n" + task.expected_output,
@@ -766,7 +761,7 @@ def build_datahub_agent_with_loop(
             log.warning(f"{log_stub} Completed agent run.")
 
         log.warning(f"[{agent_name}] Completed agent_with_loop run.")
-        all_results = " ".join(all_results)
+        all_results = join_result_with_token_limit(result=all_results, max_tokens=max_tokens, log_stub=log_stub)
         return {
             "agents_results": {task.id: AIMessage(content=f"<{agent_name}_Result>{all_results}</{agent_name}_Result>")},
             "tasks_evaluator": task.task + "\n" + task.expected_output,
@@ -778,11 +773,6 @@ def build_datahub_agent_with_loop(
 
 def create_evaluator():
     def _create_evaluator(state: RedboxState):
-        _additional_variables = {
-            "agents_results": combine_agents_state(state.agents_results),
-            "artifact_criteria": state.artifact_criteria,
-            "todays_date": date.today().isoformat(),
-        }
         citation_parser, format_instructions = get_structured_response_with_citations_parser()
         evaluator_agent = build_stuff_pattern(
             prompt_set=PromptSet.NewRoute,
@@ -790,7 +780,11 @@ def create_evaluator():
             output_parser=citation_parser,
             format_instructions=format_instructions,
             final_response_chain=False,
-            additional_variables=_additional_variables,
+            additional_variables={
+                "agents_results": None,
+                "artifact_criteria": state.artifact_criteria,
+                "todays_date": date.today().isoformat(),
+            },
         )
         return evaluator_agent
 

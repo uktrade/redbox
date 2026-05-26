@@ -4,20 +4,20 @@
 <section class="ids-card ids-card--no-border">
     <div class="ids-card__header">
         {{ ids_icon(icon_name="menu.svg") }}
-        <h3 class="side-panel-heading__text">Menu</h3>
+        <h2 class="side-panel-heading__text govuk-heading-s govuk-!-margin-bottom-0">Menu</h2>
     </div>
 
     <div class="ids-card__content">
         <ul class="ids-card__list">
             {% for menu_item in get_menu_items(request.user) %}
-                <div class="ids-list-row">
+                <li class="ids-list-row">
                     <div class="ids-card__item">
                         <a class="govuk-link govuk-link--no-visited-state govuk-link--no-underline"
                            href="{{ menu_item.href }}">
                             {{ menu_item.text }}
                         </a>
                     </div>
-                </div>
+                </li>
             {% endfor %}
         </ul>
     </div>

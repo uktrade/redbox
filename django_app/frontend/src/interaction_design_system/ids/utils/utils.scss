@@ -36,6 +36,13 @@
   margin-top: auto;
 }
 
+.ids-push-bottom--sticky {
+  position: sticky;
+  bottom: 0;
+  background-color: var(--color-background);
+  z-index: 100;
+}
+
 .ids-text-ellipses {
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -60,6 +67,18 @@
 
 .ids-height--full {
   height: 100%;
+}
+
+.ids-max-height-content--full {
+  max-height: var(--content-max-vh);
+}
+
+.ids-max-height-content--two-thirds {
+  max-height: calc(var(--content-max-vh) / 3 * 2);
+}
+
+.ids-max-height-content--half {
+  max-height: calc(var(--content-max-vh) / 2);
 }
 
 .ids-width--max-content {
