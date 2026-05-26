@@ -301,10 +301,14 @@ class ToolRunner:
             ) from e
 
         return tr_models.SubmittedToolCallRequest(
-            name=f"MCP_async_{mcp_async_call.creator_type}_{mcp_async_call.mcp_server}",
+            name=f"MCP_async__{mcp_async_call.creator_type}__{mcp_async_call.mcp_server}",
             result_type=mcp_async_call.future_result_type,
             future=future,
-            future_args={},
+            future_args={
+                "mcp_server": mcp_async_call.mcp_server,
+                "creator_type": mcp_async_call.creator_type,
+                "tool_calls": [{"name": tc.get("name"), "args": tc.get("args")} for tc in mcp_async_call.tool_calls],
+            },
             metadata={"intermediate_step": is_intermediate_step},
         )
 
