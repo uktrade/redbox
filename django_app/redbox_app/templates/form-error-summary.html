@@ -3,6 +3,8 @@
         <div role="alert">
             <div class="govuk-error-summary__body">
                 <ul class="govuk-list govuk-error-summary__list">
+
+                    {# FIELD ERRORS #}
                     {% for field in form %}
                         {% if field.errors %}
                             <li>
@@ -16,6 +18,14 @@
                             </li>
                         {% endif %}
                     {% endfor %}
+
+                    {# NON FIELD ERRORS #}
+                    {% for error in form.non_field_errors() %}
+                        <li>
+                            <strong>{{ error|escape }}</strong>
+                        </li>
+                    {% endfor %}
+
                 </ul>
             </div>
         </div>

@@ -385,6 +385,10 @@ class UserToolBulkAddForm(GovUKModelForm):
 
         raw_user_ids = self.data.getlist("user_ids")
 
+        if not raw_user_ids:
+            msg = "Please select at least one user"
+            raise forms.ValidationError(msg)
+
         self.cleaned_data["user_ids"] = raw_user_ids
 
         return cleaned_data
