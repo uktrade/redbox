@@ -75,7 +75,8 @@ $screen-widths: (
   --color-background-red: var(--redbox-red);
   --color-background-black: var(--dbt-black);
   --color-background-grey: var(--redbox-light-grey);
-  --color-background: var(--color-background-blue);
+  --color-background: var(--color-background-white);
+  --color-background-secondary: var(--color-background-blue);
   --color-border-light: var(--redbox-light-grey);
   --color-border: var(--redbox-grey);
   --color-border-dark: var(--dbt-black);

@@ -7,6 +7,7 @@ import textwrap
 import uuid
 from collections.abc import Collection
 from datetime import UTC, date, datetime, timedelta
+from functools import reduce
 from pathlib import Path
 from typing import TYPE_CHECKING, override
 
@@ -22,7 +23,7 @@ from django.contrib.auth.models import AbstractBaseUser, Group, PermissionsMixin
 from django.contrib.postgres.fields import ArrayField
 from django.core import validators
 from django.db import models
-from django.db.models import Exists, Max, Min, OuterRef, Prefetch, Q, UniqueConstraint
+from django.db.models import BooleanField, Exists, Max, Min, OuterRef, Prefetch, Q, UniqueConstraint, Value
 from django.template import TemplateDoesNotExist
 from django.template.loader import get_template
 from django.urls import reverse
@@ -68,16 +69,9 @@ def sanitise_string(string: str | None) -> str | None:
 
 class ToolQuerySet(models.QuerySet):
     def for_user(self, user: User):
-        allow_rule_filters = ToolAccessRule.build_access_q(
-            user=user,
-            access_type=ToolAccessRule.AccessType.ALLOW,
-        )
-
-        deny_rule_filters = ToolAccessRule.build_access_q(
-            user=user,
-            access_type=ToolAccessRule.AccessType.DENY,
-        )
-
+        # -------------------------------------------------
+        # User-based access
+        # -------------------------------------------------
         allow_user_tool = UserTool.objects.filter(
             tool=OuterRef("pk"),
             user=user,
@@ -90,13 +84,37 @@ class ToolQuerySet(models.QuerySet):
             access_type=UserTool.AccessType.DENY,
         )
 
+        # -------------------------------------------------
+        # Rule-based access
+        # -------------------------------------------------
+        allow_rule_exprs = ToolAccessRule.exists_for_user(
+            user,
+            ToolAccessRule.AccessType.ALLOW,
+        )
+
+        deny_rule_exprs = ToolAccessRule.exists_for_user(
+            user,
+            ToolAccessRule.AccessType.DENY,
+        )
+
+        # Combine EXISTS expressions safely
+        def combine(exprs):
+            if not exprs:
+                return Value(False, output_field=BooleanField())
+            return reduce(lambda a, b: a | b, exprs)
+
         return (
             self.annotate(
                 has_allowed_user=Exists(allow_user_tool),
                 has_denied_user=Exists(deny_user_tool),
+                has_allowed_rule=combine(allow_rule_exprs),
+                has_denied_rule=combine(deny_rule_exprs),
             )
-            .filter(models.Q(is_public=True) | models.Q(has_allowed_user=True) | allow_rule_filters)
-            .exclude(models.Q(has_denied_user=True) | deny_rule_filters)
+            .filter(Q(is_public=True) | Q(has_allowed_user=True) | Q(has_allowed_rule=True))
+            .exclude(Q(has_denied_user=True))  # always wins
+            .exclude(
+                Q(has_denied_rule=True) & ~Q(has_allowed_user=True)  # user allow overrides rule deny
+            )
             .distinct()
         )
 
@@ -242,45 +260,45 @@ class ToolAccessRule(TimeStampedModel):
         super().save(*args, **kwargs)
 
     @classmethod
-    def get_rule_q(
-        cls,
-        user: User,
-        rule_type: str,
-        access_type: str,
-    ) -> models.Q | None:
-        match rule_type:
-            case cls.RuleType.DOMAIN:
-                return cls._domain_rule_q(user, access_type)
-
-        return None
-
-    @classmethod
-    def build_access_q(cls, user: User, access_type: str) -> models.Q:
-        q = models.Q()
+    def exists_for_user(cls, user: User, access_type: str) -> list[Exists]:
+        """
+        Returns a list of Exists() expressions, one per rule type.
+        """
+        expressions = []
 
         for rule_type in cls.RuleType.values:
-            rule_q = cls.get_rule_q(
+            expr = cls.get_rule_exists(
                 user=user,
                 rule_type=rule_type,
                 access_type=access_type,
             )
+            if expr is not None:
+                expressions.append(expr)
 
-            if rule_q:
-                q |= rule_q
-
-        return q
+        return expressions
 
     @classmethod
-    def _domain_rule_q(cls, user: User, access_type: str):
+    def get_rule_exists(cls, user: User, rule_type: str, access_type: str) -> Exists | None:
+        match rule_type:
+            case cls.RuleType.DOMAIN:
+                return cls._domain_exists(user, access_type)
+
+        return None
+
+    @classmethod
+    def _domain_exists(cls, user: User, access_type: str) -> Exists | None:
         domains = user.email_domains or set()
 
         if not domains:
             return None
 
-        return models.Q(
-            access_rules__rule_type=cls.RuleType.DOMAIN,
-            access_rules__value__in=domains,
-            access_rules__access_type=access_type,
+        return Exists(
+            cls.objects.filter(
+                tool=OuterRef("pk"),
+                access_type=access_type,
+                rule_type=cls.RuleType.DOMAIN,
+                value__in=domains,
+            )
         )
 
     @classmethod
@@ -1131,7 +1149,7 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         upload_to=build_s3_key,
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    original_file_name = models.TextField(max_length=2048, blank=True, null=True)  # delete me
+    original_file_name = models.TextField(max_length=2048, blank=True, null=True)
     last_referenced = models.DateTimeField(blank=True, null=True)
     ingest_error = models.TextField(
         max_length=2048,
@@ -1157,6 +1175,10 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
                 self.last_referenced = self.created_at
             else:
                 self.last_referenced = timezone.now()
+
+        if self._state.adding and self.original_file and not self.original_file_name:
+            self.original_file_name = self.original_file.name.split("/")[-1]
+
         super().save(*args, **kwargs)
 
     @override
@@ -1190,17 +1212,15 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
     def url(self) -> str:
         return self.original_file.url if self.original_file else ""
 
+    # NOTE: Change to model field once orignal_file_name has been backfilled
     @property
     def file_name(self) -> str:
         if self.original_file_name:  # delete me?
             return self.original_file_name
 
         # could have a stronger (regex?) way of stripping the users email address?
-        if self.original_file and "/" in self.original_file.name:
-            return self.original_file.name.split("/")[1]
-
-        if self.original_file:
-            return self.original_file.name
+        if self.original_file and self.original_file.name:
+            return self.original_file.name.split("/")[-1]
 
         return ""
 
