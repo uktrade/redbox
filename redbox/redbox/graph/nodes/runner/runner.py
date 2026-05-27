@@ -313,7 +313,7 @@ class ToolRunner:
 
     def parse(self, request: tr_models.SubmittedToolCallRequest) -> AIMessage | list[AIMessage]:
         """Resolve a completed future and transform its result into an AIMessage."""
-        future_tool_name = request.name  # metadata["name"]
+        future_tool_name = request.name
         is_intermediate_step = request.metadata["intermediate_step"]
 
         try:
