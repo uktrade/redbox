@@ -175,13 +175,17 @@ class ToolRunner:
                         for item in response:
                             results.append(
                                 tr_models.ToolCallResult.Success(
-                                    tool_name=request.name, response=item, metadata=request.metadata
+                                    tool_name=request.name,
+                                    response=item,
+                                    metadata={**request.metadata, "tool_args": request.future_args},
                                 )
                             )
                     else:
                         results.append(
                             tr_models.ToolCallResult.Success(
-                                tool_name=request.name, response=response, metadata=request.metadata
+                                tool_name=request.name,
+                                response=response,
+                                metadata={**request.metadata, "tool_args": request.future_args},
                             )
                         )
 

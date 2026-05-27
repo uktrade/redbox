@@ -227,26 +227,44 @@ class TestToolRunner_SubmitAll:
         "tool_calls,expected_future_count,expected_failures",
         [
             ([], 0, []),
-            ([{"name": "test_tool", "args": {"p": "v1"}}], 1, []),
+            ([{"id": "test_tool_1", "name": "test_tool", "args": {"p": "v1"}}], 1, []),
             # two calls to the same tool
-            ([{"name": "test_tool", "args": {"p": "v1"}}, {"name": "test_tool", "args": {"p": "v2"}}], 2, []),
+            (
+                [
+                    {"id": "test_tool_1", "name": "test_tool", "args": {"p": "v1"}},
+                    {"id": "test_tool_2", "name": "test_tool", "args": {"p": "v2"}},
+                ],
+                2,
+                [],
+            ),
             # two calls to distinct tools — both must be submitted
-            ([{"name": "test_tool", "args": {}}, {"name": "other_tool", "args": {}}], 2, []),
+            (
+                [
+                    {"id": "test_tool_1", "name": "test_tool", "args": {}},
+                    {"id": "other_tool_1", "name": "other_tool", "args": {}},
+                ],
+                2,
+                [],
+            ),
         ],
         ids=["empty", "single", "same-tool-twice", "two-distinct-tools"],
     )
-    def test_submits_futures(self, multi_tool_runner, tool_calls, expected_future_count, expected_failures):
-        futures, failures = multi_tool_runner._submit_all(tool_calls)
-        assert len(futures) == expected_future_count
-        assert all(isinstance(f, Future) for f in futures)
-        assert failures == expected_failures
+    def test_submits_futures(self, multi_tool_runner: ToolRunner, tool_calls, expected_future_count, expected_failures):
+        requests = multi_tool_runner._submit_all(tool_calls)
+        assert len(requests.futures) == expected_future_count
+        assert all(isinstance(f, tr_models.SubmittedToolCallRequest) for f in requests.futures)
+        for tc, request in zip(tool_calls, requests.futures):
+            assert request.result_type == tr_models.FutureResultType.SYNC
+            assert request.name == tc.get("name")
+            assert request.future_args == tc.get("args")
+        assert requests.failures == expected_failures
 
-    def test_unexpected_submission_exception(self, tool_runner, caplog):
+    def test_unexpected_submission_exception(self, tool_runner: ToolRunner, caplog):
         tool_runner.executor.submit = Mock(side_effect=RuntimeError("kaboom"))
         with caplog.at_level(logging.ERROR):
-            futures, failures = tool_runner._submit_all([{"name": "test_tool", "args": {"a": "B"}}])
-        assert futures == {}
-        assert failures == [
+            requests = tool_runner._submit_all([{"id": "test_tool_1", "name": "test_tool", "args": {"a": "B"}}])
+        assert requests.futures == []
+        assert requests.failures == [
             tr_models.ToolCallResult.Failure(
                 tool_name="test_tool",
                 error="Failed to submit tool 'test_tool' for execution: kaboom",
@@ -304,19 +322,64 @@ class TestToolRunner_Parse:
         ],
     )
     def test_successful_parse_returns_ai_message(
-        self, tool_runner, loop_runner, response, is_loop, metadata_override, expected_content
+        self, tool_runner: ToolRunner, loop_runner: ToolRunner, response, is_loop, metadata_override, expected_content
     ):
         runner = loop_runner if is_loop else tool_runner
         metadata = metadata_override or _plain_metadata()
-        result = runner.parse(_future_returning(response), metadata)
+
+        submitted_request = tr_models.SubmittedToolCallRequest(
+            name="test_tool",
+            result_type=tr_models.FutureResultType.SYNC,
+            future=_future_returning(response),
+            future_args=metadata,
+            metadata={"intermediate_step": metadata.get("intermediate_step", "False")},
+        )
+
+        result = runner.parse(submitted_request)
         assert isinstance(result, AIMessage)
         assert result.content == expected_content
 
-    def test_logs_receipt_and_non_none_on_success(self, tool_runner, caplog):
+    @pytest.mark.parametrize(
+        "future_result_type,tool_name,args,metadata,response",
+        [
+            (
+                tr_models.FutureResultType.SYNC,
+                "test_tool",
+                {
+                    "p": 1,
+                },
+                {"intermediate_step": "False"},
+                "hello from sync tool",
+            ),
+            (
+                tr_models.FutureResultType.MCP_ASYNC,
+                "test_mcp_async_tool",
+                {
+                    "tool_calls": [
+                        {"id": "test_tool_1", "name": "test_tool", "args": {}},
+                        {"id": "other_tool_1", "name": "other_tool", "args": {}},
+                    ],
+                },
+                {"intermediate_step": "False"},
+                "hello from mcp async tool",
+            ),
+        ],
+    )
+    def test_logs_receipt_and_non_none_on_success(
+        self, tool_runner: ToolRunner, caplog, future_result_type, tool_name, args, metadata, response
+    ):
+        submitted_request = tr_models.SubmittedToolCallRequest(
+            name=tool_name,
+            result_type=future_result_type,
+            future=_future_returning(response),
+            future_args=args,
+            metadata=metadata,
+        )
+
         with caplog.at_level(logging.WARNING):
-            tool_runner.parse(_future_returning("hello"), _plain_metadata())
-        assert "This is what I got from tool" in caplog.text
-        assert "response not None" in caplog.text
+            tool_runner.parse(submitted_request)
+        assert f"This is what I got from tool '{tool_name}': {response}" in caplog.text
+        assert f"{tool_name} response not None" in caplog.text
 
     @pytest.mark.parametrize(
         "future,exc_type,match",
@@ -373,9 +436,18 @@ class TestToolRunner_Parse:
             "empty-mcp-tuple",
         ],
     )
-    def test_raises_on_bad_future_or_response(self, tool_runner, future, exc_type, match):
+    def test_raises_on_bad_future_or_response(self, tool_runner: ToolRunner, future, exc_type, match):
+        metadata = _plain_metadata()
+        submitted_request = tr_models.SubmittedToolCallRequest(
+            name="test_tool",
+            result_type=tr_models.FutureResultType.SYNC,
+            future=future,
+            future_args=metadata,
+            metadata={"intermediate_step": metadata.get("intermediate_step", "False")},
+        )
+
         with pytest.raises(exc_type, match=match):
-            tool_runner.parse(future, _plain_metadata())
+            tool_runner.parse(submitted_request)
 
 
 class TestToolRunner_Collect:
@@ -500,18 +572,26 @@ class TestToolRunner_Collect:
     )
     def test_collect(
         self,
-        tool_runner,
+        tool_runner: ToolRunner,
         caplog,
         futures_spec,
         expected,
         expected_log_fragments,
     ):
-        futures = {
-            (_future_raising(v) if isinstance(v, Exception) else _future_returning(v)): _plain_metadata(name)
+        submitted_requests = [
+            tr_models.SubmittedToolCallRequest(
+                name=name,
+                result_type=tr_models.FutureResultType.SYNC,
+                future=_future_raising(v) if isinstance(v, Exception) else _future_returning(v),
+                future_args=_plain_metadata(name),
+                metadata={"intermediate_step": _plain_metadata(name).get("intermediate_step")},
+            )
             for v, name in futures_spec
-        }
+        ]
+        submitted = tr_models.SubmittedToolCallRequests(futures=submitted_requests, failures=[])
+
         with caplog.at_level(logging.WARNING):
-            result = tool_runner._collect(futures, [])
+            result = tool_runner._collect(submitted)
 
         assert isinstance(result, tr_models.Result)
         assert result.failures == expected.failures
@@ -528,7 +608,7 @@ class TestToolRunner_Run:
             ([], tr_models.Result()),
             # single call to test_tool - its specific return value
             (
-                [{"name": "test_tool", "args": {}}],
+                [{"id": "test_tool_1", "name": "test_tool", "args": {}}],
                 tr_models.Result(
                     results=[
                         tr_models.ToolCallResult.Success(
@@ -541,7 +621,7 @@ class TestToolRunner_Run:
             ),
             # single call to other_tool - its specific return value
             (
-                [{"name": "other_tool", "args": {}}],
+                [{"id": "other_tool_1", "name": "other_tool", "args": {}}],
                 tr_models.Result(
                     results=[
                         tr_models.ToolCallResult.Success(
@@ -554,7 +634,10 @@ class TestToolRunner_Run:
             ),
             # two calls to the same tool with different args - same return value twice
             (
-                [{"name": "test_tool", "args": {"p": "v1"}}, {"name": "test_tool", "args": {"p": "v2"}}],
+                [
+                    {"id": "test_tool_1", "name": "test_tool", "args": {"p": "v1"}},
+                    {"id": "test_tool_2", "name": "test_tool", "args": {"p": "v2"}},
+                ],
                 tr_models.Result(
                     results=[
                         tr_models.ToolCallResult.Success(
@@ -572,7 +655,10 @@ class TestToolRunner_Run:
             ),
             # one call to each distinct tool - each returns its own value
             (
-                [{"name": "test_tool", "args": {}}, {"name": "other_tool", "args": {}}],
+                [
+                    {"id": "test_tool_1", "name": "test_tool", "args": {}},
+                    {"id": "other_tool_1", "name": "other_tool", "args": {}},
+                ],
                 tr_models.Result(
                     results=[
                         tr_models.ToolCallResult.Success(
@@ -590,7 +676,10 @@ class TestToolRunner_Run:
             ),
             # unknown tool alongside valid call - one response, ghost skipped at submit
             (
-                [{"name": "test_tool", "args": {}}, {"name": "ghost_tool", "args": {"fake": "fakeval"}}],
+                [
+                    {"id": "test_tool_1", "name": "test_tool", "args": {}},
+                    {"id": "ghost_tool_1", "name": "ghost_tool", "args": {"fake": "fakeval"}},
+                ],
                 tr_models.Result(
                     results=[
                         tr_models.ToolCallResult.Success(
@@ -610,7 +699,10 @@ class TestToolRunner_Run:
             ),
             # one tool succeeds, other_tool's future raises — lands in failed_tools
             (
-                [{"name": "test_tool", "args": {}}, {"name": "other_tool", "args": {}}],
+                [
+                    {"id": "test_tool_1", "name": "test_tool", "args": {}},
+                    {"id": "other_tool_1", "name": "other_tool", "args": {}},
+                ],
                 tr_models.Result(
                     results=[
                         tr_models.ToolCallResult.Success(
@@ -630,7 +722,10 @@ class TestToolRunner_Run:
             ),
             # one tool succeeds, other_tool's future raises — lands in failed_tools with args
             (
-                [{"name": "test_tool", "args": {}}, {"name": "other_tool", "args": {"veg": "carrot"}}],
+                [
+                    {"id": "test_tool_1", "name": "test_tool", "args": {}},
+                    {"id": "other_tool_1", "name": "other_tool", "args": {"veg": "carrot"}},
+                ],
                 tr_models.Result(
                     results=[
                         tr_models.ToolCallResult.Success(
@@ -660,7 +755,7 @@ class TestToolRunner_Run:
             "one-succeeds-one-fails-with-args",
         ],
     )
-    def test_run_returns_correct_result(self, multi_tool_runner, mock_tool_b, tool_calls, expected):
+    def test_run_returns_correct_result(self, multi_tool_runner: ToolRunner, mock_tool_b, tool_calls, expected):
         # For the "one-succeeds-one-fails" case mock_tool_b.invoke raises.
         if expected.failures:
             mock_tool_b.invoke.side_effect = Exception("other_tool blew up")
