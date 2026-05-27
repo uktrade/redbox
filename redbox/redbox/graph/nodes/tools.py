@@ -206,12 +206,17 @@ def build_search_documents_tool(
     no_selection_msg = (
         "No documents have been selected, so no search was performed. Ask the user to select at least one document."
     )
-
     no_results_msg = "No relevant information was found in the selected documents. Try to rephrase your prompt or proceed without information from the selected document(s)"
+    no_permission_msg = (
+        "User does not have permission to access documents. Ask the user to select a document they are permitted to use"
+    )
 
     def search_repo(query, selected_files, permitted_files, ai_settings, start_time=time.time()):
         if not selected_files:
             return no_selection_msg, []
+
+        if not permitted_files:
+            return no_permission_msg, []
 
         query_vector = embedding_model.embed_query(query)
         # Initial pass

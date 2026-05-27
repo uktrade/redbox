@@ -296,7 +296,7 @@ def test_search_documents_tool(
 
     if not permission:
         # Documents selected but none are permitted - tool must return a non-empty message
-        assert "No relevant information was found in" in result_state["messages"][0].content
+        assert "does not have permission" in result_state["messages"][0].content
         assert result_state["messages"][0].artifact == []
     elif not selected:
         # No documents selected - must short circuit before hitting Opensearch and return non-empty message
