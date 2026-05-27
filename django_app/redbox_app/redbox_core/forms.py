@@ -388,13 +388,3 @@ class UserToolBulkAddForm(GovUKModelForm):
         self.cleaned_data["user_ids"] = raw_user_ids
 
         return cleaned_data
-
-    def clean_user_ids(self):
-        user_ids = self.data.getlist("user_ids")
-        users = User.objects.filter(pk__in=user_ids).distinct()
-
-        if not users.exists():
-            msg = "No valid users selected."
-            raise forms.ValidationError(msg)
-
-        return users

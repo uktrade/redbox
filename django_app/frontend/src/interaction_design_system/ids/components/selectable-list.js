@@ -7,6 +7,7 @@ export class SelectableList extends HTMLElement {
         this.selectedIds = new Set();
     }
 
+
     connectedCallback() {
         this.cacheDom();
         this.bindEvents();
@@ -15,18 +16,24 @@ export class SelectableList extends HTMLElement {
         this.updateSelectAllState();
     }
 
-    // -----------------------------
-    // DOM update hook (HTMX)
-    // -----------------------------
+
+    get rows() {
+        return /** @type {NodeListOf<HTMLElement>} */ (
+            this.querySelectorAll("[data-user-row]")
+        );
+    }
+
+
+    /**
+     * DOM update hook (HTMX)
+     */
     onDomUpdated() {
         this.restoreSelections();
         this.updateSelectAllState();
         this.updateSelectedCount();
     }
 
-    // -----------------------------
-    // Cache DOM refs
-    // -----------------------------
+
     cacheDom() {
         this.selectedCountEls = /** @type {NodeListOf<HTMLElement>} */ (
             this.querySelectorAll("[data-selected-count]")
@@ -39,9 +46,7 @@ export class SelectableList extends HTMLElement {
         );
     }
 
-    // -----------------------------
-    // Events
-    // -----------------------------
+
     bindEvents() {
 
         // Individual checkbox changes
@@ -85,11 +90,7 @@ export class SelectableList extends HTMLElement {
             const target = /** @type {HTMLInputElement} */ (evt.target);
             const checked = target.checked;
 
-            const rows = /** @type {NodeListOf<HTMLElement>} */ (
-                this.querySelectorAll("[data-user-row]")
-            );
-
-            rows.forEach(row => {
+            this.rows?.forEach(row => {
                 const checkbox = /** @type {HTMLInputElement} */ (
                     row.querySelector('input[type="checkbox"]')
                 );
@@ -113,14 +114,12 @@ export class SelectableList extends HTMLElement {
         });
     }
 
-    // -----------------------------
-    // Restore state after HTMX swaps
-    // -----------------------------
+
+    /**
+     * Restore state after HTMX swaps
+     */
     restoreSelections() {
-        const rows = /** @type {NodeListOf<HTMLElement>} */ (
-            this.querySelectorAll("[data-user-row]")
-        );
-        rows.forEach(row => {
+        this.rows?.forEach(row => {
             const userId = row.dataset.userId;
             const checkbox = /** @type {HTMLInputElement} */ (
                 row.querySelector('input[type="checkbox"]')
@@ -132,21 +131,15 @@ export class SelectableList extends HTMLElement {
         });
     }
 
-    // -----------------------------
-    // Select all state
-    // -----------------------------
+
     updateSelectAllState() {
         const selectAll = this.selectAll;
         if (!selectAll) return;
 
-        const rows = /** @type {NodeListOf<HTMLElement>} */ (
-            this.querySelectorAll("[data-user-row]")
-        );
-
         let checked = 0;
         let total = 0;
 
-        rows.forEach(row => {
+        this.rows?.forEach(row => {
             const checkbox = row.querySelector('input[type="checkbox"]');
             const userId = row.dataset.userId;
 
@@ -163,9 +156,7 @@ export class SelectableList extends HTMLElement {
         selectAll.indeterminate = checked > 0 && checked < total;
     }
 
-    // -----------------------------
-    // Hidden inputs sync
-    // -----------------------------
+
     syncHiddenInputs() {
         if (!this.selectedInputsContainer) return;
 
@@ -181,9 +172,7 @@ export class SelectableList extends HTMLElement {
         });
     }
 
-    // -----------------------------
-    // UI count
-    // -----------------------------
+
     updateSelectedCount() {
         const count = this.selectedIds.size;
 
