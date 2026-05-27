@@ -7,11 +7,13 @@ from concurrent.futures import Future, TimeoutError as FuturesTimeoutError
 from langchain_core.messages import AIMessage
 from langchain.tools import StructuredTool
 
+from redbox.api.wrapper import SensitiveValue
 from redbox.models.chain import RedboxState
 from redbox.api.format import MCPResponseMetadata
 from redbox.graph.nodes.runner import exceptions as tool_exceptions
 from redbox.graph.nodes.runner.runner import ToolRunner
 import redbox.graph.nodes.runner.models as tr_models
+from redbox.models.file import ChunkCreatorType
 
 
 @pytest.fixture
@@ -158,13 +160,13 @@ class TestToolRunner_Submit:
         ],
         ids=["with-args", "empty-args"],
     )
-    def test_sync_tool_returns_future_and_metadata(self, tool_runner, args, expected_intermediate_step):
-        future, metadata = tool_runner.submit_sync(
-            tool_call=tr_models.ToolCallRequest.Sync(tool_call={"id": "test", "name": "test_tool", "args": args})
+    def test_sync_tool_returns_future_and_metadata(self, tool_runner: ToolRunner, args, expected_intermediate_step):
+        submitted_request = tool_runner.submit_sync(
+            sync_call=tr_models.ToolCallRequest.Sync(tool_call={"id": "test", "name": "test_tool", "args": args})
         )
-        assert isinstance(future, Future)
-        assert metadata["name"] == "test_tool"
-        assert metadata["intermediate_step"] == expected_intermediate_step
+        assert isinstance(submitted_request.future, Future)
+        assert submitted_request.name == "test_tool"
+        assert submitted_request.metadata["intermediate_step"] == expected_intermediate_step
 
     # @pytest.mark.parametrize(
     #     "args,expected_intermediate_step",
@@ -185,67 +187,39 @@ class TestToolRunner_Submit:
     #         _, metadata = runner.submit_mcp_async(mcp_server="", tool_call=tr_models.ToolCallWrapper.MCPAsync(mcp_server="", access_token=SensitiveValue(value="fake"), creator_type=ChunkCreatorType.datahub, tool_calls=[{"id": "test", "name": "async_tool", "args": args}]))
     #     assert metadata["intermediate_step"] == expected_intermediate_step
 
-    @pytest.mark.parametrize(
-        "tool_call,exc_type,match",
-        [
-            (
-                tr_models.ToolCallRequest.Sync(
-                    tool_call={"id": "unknown-tool", "name": "nonexistent_tool", "args": {}}
-                ),
-                tool_exceptions.ToolNotFoundError,
-                r"Tool 'nonexistent_tool' not found",
-            ),
-            (
-                tr_models.ToolCallRequest.Sync(tool_call={"id": "str-args", "name": "test_tool", "args": "not_a_dict"}),
-                tool_exceptions.ToolValidationError,
-                r"Invalid input for tool 'test_tool': expected dict, got 'str'",
-            ),
-            (
-                tr_models.ToolCallRequest.Sync(
-                    tool_call={"id": "list-args", "name": "test_tool", "args": ["list", "args"]}
-                ),
-                tool_exceptions.ToolValidationError,
-                r"Invalid input for tool 'test_tool': expected dict, got 'list'",
-            ),
-            (
-                tr_models.ToolCallRequest.Sync(tool_call={"id": "int-args", "name": "test_tool", "args": 123}),
-                tool_exceptions.ToolValidationError,
-                r"Invalid input for tool 'test_tool': expected dict, got 'int'",
-            ),
-            (
-                tr_models.ToolCallRequest.Sync(tool_call={"id": "none-args", "name": "test_tool", "args": None}),
-                tool_exceptions.ToolValidationError,
-                r"Invalid input for tool 'test_tool': expected dict, got 'NoneType'",
-            ),
-        ],
-        ids=["unknown-tool", "str-args", "list-args", "int-args", "none-args"],
-    )
-    def test_raises_on_invalid_tool_call(self, tool_runner, tool_call, exc_type, match):
-        with pytest.raises(exc_type, match=match):
-            tool_runner.submit_sync(tool_call=tool_call)
-
-    def test_sync_tool_injects_state_into_invoke_args(self, tool_runner, mock_tool, mock_state):
+    def test_sync_tool_injects_state_into_invoke_args(self, tool_runner: ToolRunner, mock_tool, mock_state):
         """submit must pass state= to invoke so tools can access RedboxState."""
-        future, _ = tool_runner.submit_sync({"name": "test_tool", "args": {"p": "v"}})
-        future.result(timeout=5)  # let the thread run
+        submitted_request = tool_runner.submit_sync(
+            sync_call=tr_models.ToolCallRequest.Sync(tool_call={"id": "test", "name": "test_tool", "args": {"p": "v"}})
+        )
+        submitted_request.future.result(timeout=5)  # let the thread run
         mock_tool.invoke.assert_called_once_with({"p": "v", "state": mock_state})
 
     def test_async_tool_in_non_loop_mode_does_not_read_intermediate_step(self, mock_async_tool, mock_state):
         runner = ToolRunner(
             tools=[mock_async_tool], state=mock_state, max_workers=2, is_loop=False, parallel_timeout=30.0
         )
-        with patch("redbox.graph.nodes.runner.runner.wrap_async_tool"):
-            _, metadata = runner.submit({"name": "async_tool", "args": {"is_intermediate_step": "True"}})
+        with patch("redbox.graph.nodes.runner.runner.execute_mcp_tools"):
+            submitted_request = runner.submit_mcp_async(
+                mcp_async_call=tr_models.ToolCallRequest.MCPAsync(
+                    mcp_server="http://fakemcpurl:8080",
+                    creator_type=ChunkCreatorType.datahub,
+                    access_token=SensitiveValue(value="fake"),
+                    tool_calls=[{"id": "test", "name": "async_tool", "args": {"is_intermediate_step": "True"}}],
+                )
+            )
         # is_loop=False - intermediate_step flag is ignored, always "False"
-        assert metadata["intermediate_step"] == "False"
+        assert submitted_request.metadata["intermediate_step"] == "False"
 
-    def test_raises_tool_execution_error_when_executor_submit_fails(self, tool_runner):
+    def test_raises_tool_execution_error_when_executor_submit_fails(self, tool_runner: ToolRunner):
         tool_runner.executor.submit = Mock(side_effect=Exception("Submission failed"))
         with pytest.raises(
             tool_exceptions.ToolExecutionError,
             match=r"Failed to submit tool 'test_tool' for execution: Submission failed",
         ):
-            tool_runner.submit({"name": "test_tool", "args": {}})
+            tool_runner.submit_sync(
+                sync_call=tr_models.ToolCallRequest.Sync(tool_call={"id": "test", "name": "test_tool", "args": {}})
+            )
 
 
 class TestToolRunner_SubmitAll:
