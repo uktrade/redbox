@@ -363,11 +363,17 @@ def create_planner(is_streamed=False):
 def remove_evaluator_task(state: RedboxState):
     """
     Removing evaluator task from a plan and update the task for evaluator
+    In the case where there are multiple evaluator tasks, all of them are removed, and tasks_evaluator is populated from the last evaluator task
     """
-    if len(state.agent_plans.tasks) > 0:
-        if state.agent_plans.tasks[-1].agent.value == "Evaluator_Agent":
-            state.tasks_evaluator = state.agent_plans.tasks[-1].task + " " + state.agent_plans.tasks[-1].expected_output
-            state.agent_plans.tasks.pop(-1)
+    if not state.agent_plans or not state.agent_plans.tasks:
+        return state
+
+    evaluator_tasks = [t for t in state.agent_plans.tasks if t.agent.value == "Evaluator_Agent"]
+
+    if evaluator_tasks:
+        last = evaluator_tasks[-1]
+        state.tasks_evaluator = f"{last.task} {last.expected_output}"
+        state.agent_plans.tasks = [t for t in state.agent_plans.tasks if t.agent.value != "Evaluator_Agent"]
     return state
 
 
