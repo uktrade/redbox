@@ -5,13 +5,12 @@
     {% if download %}download{% endif %} {% if id %}id="{{ id }}"{% endif %}>
     {{ text | safe }}
   </a>
-{% elif dont_submit %}
-  <button type="button" class="govuk-button {{ classes }}" data-module="govuk-button" {% if prevent_double_click %}data-prevent-double-click="true"{% endif %} {% if id %}id="{{ id }}"{% endif %}>
-    {{ text | safe }}
-  </button>
 {% else %}
-  <button type="submit" class="govuk-button {{ classes }}" data-module="govuk-button" {% if prevent_double_click %}data-prevent-double-click="true"{% endif %} {% if id %}id="{{ id }}"{% endif %}>
+  <button type="{{ 'button' if dont_submit else 'submit' }}" class="govuk-button {{ classes }}" data-module="govuk-button" {% if prevent_double_click %}data-prevent-double-click="true"{% endif %} {% if id %}id="{{ id }}"{% endif %}>
     {{ text | safe }}
+    {% if caller %}
+      {{ caller() }}
+    {% endif %}
   </button>
 {% endif %}
 
