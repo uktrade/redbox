@@ -8,11 +8,11 @@ from langchain.tools import StructuredTool
 from concurrent.futures import Future
 
 
-# Input
+# -- ToolCall Requests & Results --
 
 
 class FutureResultType(StrEnum):
-    """Future result type of tool call."""
+    """Future result type of tool call request."""
 
     UNKNOWN = "unknown"
     SYNC = "sync"
@@ -20,16 +20,20 @@ class FutureResultType(StrEnum):
 
 
 class ToolCallRequest:
-    """ToolRunner grouped tool call objects."""
+    """Tool call request objects."""
 
     class Base(BaseModel):
         future_result_type: FutureResultType = FutureResultType.UNKNOWN
 
     class Sync(Base):
+        """Sync tool call requests."""
+
         future_result_type: FutureResultType = FutureResultType.SYNC
         tool_call: ToolCall
 
     class MCPAsync(BaseModel):
+        """MCP Async tool call requests."""
+
         future_result_type: FutureResultType = FutureResultType.MCP_ASYNC
 
         mcp_server: str
@@ -42,6 +46,8 @@ class ToolCallRequest:
 
 
 class GroupedToolCallRequests(BaseModel):
+    """Grouped tool call request objects."""
+
     sync_calls: List[ToolCallRequest.Sync]
     mcp_async_server_calls: List[ToolCallRequest.MCPAsync]
 
@@ -50,6 +56,8 @@ class GroupedToolCallRequests(BaseModel):
 
 
 class ValidatedToolCall(BaseModel):
+    """Validated tool call with matching StructuredTool."""
+
     name: str
     tool: StructuredTool
     args: dict
@@ -58,28 +66,27 @@ class ValidatedToolCall(BaseModel):
         arbitrary_types_allowed = True
 
 
-# Output
-
-
 class ToolCallResult:
-    """Result of tool execution."""
+    """Result of single tool execution."""
 
     class Base(BaseModel):
         tool_name: str = Field(description="The name of the executed tool.")
         metadata: dict = Field(default={}, description="Metadata from tool execution.")
 
     class Success(Base):
-        """Successful result of tool execution."""
+        """Successful result of single tool execution."""
 
         response: AIMessage = Field(description="AIMessage response generated from tool execution.")
 
     class Failure(Base):
-        """Failed result of tool execution."""
+        """Failed result of single tool execution."""
 
         error: str = Field(default=None, description="Error from tool execution.")
 
 
 class SubmittedToolCallRequest(BaseModel):
+    """Submitted tool call future."""
+
     name: str
     result_type: FutureResultType
     future: Future
@@ -91,8 +98,13 @@ class SubmittedToolCallRequest(BaseModel):
 
 
 class SubmittedToolCallRequests(BaseModel):
+    """Submitted tool call futures and failures."""
+
     futures: list[SubmittedToolCallRequest]
     failures: list[ToolCallResult.Failure]
+
+
+# -- ToolRunner Result --
 
 
 class Result(BaseModel):
