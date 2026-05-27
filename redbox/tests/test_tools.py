@@ -39,7 +39,6 @@ from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution,
 from redbox.models.settings import Settings
 from redbox.test.data import RedboxChatTestCase
 from redbox.transform import bedrock_tokeniser, combine_documents, flatten_document_state
-from tests.conftest import es_client
 from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
 
 
@@ -391,7 +390,7 @@ def test_search_documents_tool_no_s3_key_skip_opensearch(mocker: MockerFixture, 
     embed_spy = mocker.spy(embedding_model, "embed_query")
 
     search = build_search_documents_tool(
-        es_client=es_client,
+        es_client=mock_es_client,
         index_name="index",
         embedding_model=embedding_model,
         embedding_field_name=env.embedding_document_field_name,
@@ -400,7 +399,7 @@ def test_search_documents_tool_no_s3_key_skip_opensearch(mocker: MockerFixture, 
 
     tool_node = ToolNode(tools=[search])
     result_state = tool_node.invoke(
-        _make_search_tool_state("example question", s3_keys=["s3_key"], permitted_s3_keys=["s3_key"])
+        _make_search_tool_state("example question", s3_keys=[], permitted_s3_keys=["s3_key"])
     )
 
     message = result_state["messages"][0]
@@ -414,13 +413,13 @@ def test_search_documents_tool_no_s3_key_skip_opensearch(mocker: MockerFixture, 
 
 def test_search_knowledge_base_tool_no_keys_skip_opensearch(mocker: MockerFixture, env: Settings):
     """
-    When the knowledge_base_s3_keys is emptry, the tool must NOT call opensearch and respond with a non-empty message
+    When the knowledge_base_s3_keys is empty, the tool must NOT call opensearch and respond with a non-empty message
     """
     mock_es_client = mocker.MagicMock(spec=OpenSearch)
     embedding_model = FakeEmbeddings(size=1024)
 
     knowledge_base_search = build_search_documents_tool(
-        es_client=es_client,
+        es_client=mock_es_client,
         index_name="index",
         embedding_model=embedding_model,
         embedding_field_name=env.embedding_document_field_name,
