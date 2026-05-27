@@ -354,7 +354,9 @@ else:
     }
 
 LOG_LEVEL = env.str("DJANGO_LOG_LEVEL", "WARNING")
-LOG_FORMAT = env.str("DJANGO_LOG_FORMAT", "asim_formatter")
+IS_LOCAL = ENVIRONMENT.is_local or DEBUG
+
+LOG_FORMAT = "verbose" if IS_LOCAL else "asim_formatter"
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -455,7 +457,7 @@ REDBOX_VERSION = os.environ.get("REDBOX_VERSION", "not set")
 Q_CLUSTER = {
     "name": "redbox_django",
     "recycle": env.int("Q_RECYCLE", 500),
-    "timeout": env.int("Q_TIMEOUT", 600),
+    "timeout": env.int("Q_TIMEOUT", 14400),
     "retry": env.int("Q_RETRY", 60),
     "max_attempts": env.int("Q_MAX_ATTEMPTS", 3),
     "catch_up": False,
