@@ -7,6 +7,7 @@ from langchain_core.messages import AIMessage
 from pytest_mock import MockerFixture
 
 from redbox import Redbox
+from redbox.graph.nodes.processes import remove_evaluator_task
 from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models.chain import (
     ChainChatMessage,
@@ -548,3 +549,66 @@ class TestNewRoutes:
         result = run_tools_parallel(ai_msg, [tool1, tool2], state)
         assert len(result) == 4
         assert result == "test"
+
+
+class TestRemoveEvaluatorTask:
+    @staticmethod
+    def _agent_classes():
+        agent_options = {
+            "Web_Search_Agent": "Web_Search_agent",
+            "Internam_Retrieval_Agent": "Internal_Retrieval_Agent",
+            "Evaluator_Agent": "Evaluator_Agent",
+        }
+        return configure_agent_task_plan(agent_options)
+
+    @staticmethod
+    def _state_with_plan(plan):
+        request = RedboxQuery(
+            question="Ask this question?",
+            s3_keys=[],
+            user_uuid=uuid4(),
+            chat_history=[],
+            permitted_s3_keys=[],
+        )
+        return RedboxState(request=request, agent_plans=plan)
+
+    def test_single_trailing_evaluator_is_removed(self):
+        AgentTask, AgentPlan = self._agent_classes()
+        tasks = [
+            AgentTask(id="task0", task="search", expected_output="hits", agent="Web_Search_Agent"),
+            AgentTask(id="task1", task="evaluate", expected_output="final answer", agent="Evaluator_Agent"),
+        ]
+
+        state = self._state_with_plan(AgentPlan(tasks=tasks))
+        result = remove_evaluator_task(state)
+
+        # Assertions
+        assert [t.agent.value for t in result.agent_plans.tasks] == ["Web_Search_Agent"]
+        assert "evaluate" in result.tasks_evaluator
+        assert "final answer" in result.tasks_evaluator
+
+    def test_multiples_evaluator_tasks_removed(self):
+        AgentTask, AgentPlan = self._agent_classes()
+        tasks = [
+            AgentTask(id="task0", task="search 0", expected_output="0", agent="Web_Search_Agent"),
+            AgentTask(id="task1", task="mid eval", expected_output="mid", agent="Evaluator_Agent"),
+            AgentTask(id="task2", task="search 1", expected_output="1", agent="Internal_Retrieval_Agent"),
+            AgentTask(id="task3", task="final eval", expected_output="final", agent="Evaluator_Agent"),
+        ]
+
+        state = self._state_with_plan(AgentPlan(tasks=tasks))
+        result = remove_evaluator_task(state)
+        remaining = [t.agent.value for t in result.agent_plans.tasks]
+
+        assert "Evaluator_Agent" not in remaining
+        assert remaining == ["Web_Search_Agent", "Internal_Retrieval_Agent"]
+        assert "final eval" in result.tasks_evaluator
+
+    def test_plan_no_eval_unchanged(self):
+        AgentTask, AgentPlan = self._agent_classes()
+        tasks = [AgentTask(id="task", task="search", expected_output="hits", agent="Web_Search_Agent")]
+
+        state = self._state_with_plan(AgentPlan(tasks=tasks))
+        result = remove_evaluator_task(state)
+
+        assert [t.agent.value for t in result.agent_plans.tasks] == ["Web_Search_Agent"]
