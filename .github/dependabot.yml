@@ -15,9 +15,6 @@ updates:
     schedule:
       interval: "daily"
     groups:
-      all-dependencies:
-        patterns:
-          - "*"
       minor-patch:
         update-types:
           - "minor"
