@@ -217,10 +217,10 @@ class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
         user_tool_member.save()
         return user_tool_member
 
-    def search_unassigned_users(self, query: str, limit: int = 50, min_query_length: int = 2):
+    def search_unassigned_users(self, query: str, limit: int = 50, minimum_query_length: int = 2):
         query = query.strip()
 
-        if len(query) < min_query_length:
+        if len(query) < minimum_query_length:
             return User.objects.none()
 
         related_email_attrs = Prefetch(

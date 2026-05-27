@@ -222,7 +222,12 @@ class ToolUserSearchView(LoginRequiredMixin, ToolManagerRequiredMixin, View):
     def get(self, request, slug):
         tool = get_object_or_404(Tool, slug=slug)
         query = request.GET.get("q", "")
-        users = tool.search_unassigned_users(query)
+        minimum_query_length = 2
+
+        users = tool.search_unassigned_users(
+            query=query,
+            minimum_query_length=minimum_query_length,
+        )
 
         return render(
             request,
@@ -230,6 +235,7 @@ class ToolUserSearchView(LoginRequiredMixin, ToolManagerRequiredMixin, View):
             {
                 "users": users,
                 "query": query,
+                "minimum_query_length": minimum_query_length,
             },
         )
 

@@ -38,12 +38,14 @@
 {% else %}
 
     <tr class="govuk-table__row">
-        <td colspan="3" class="govuk-table__cell govuk-body-s govuk-!-text-align-centre">
-            {% if query|length < 2 %}
-                Start typing to search users
-            {% else %}
-                No matching users found
-            {% endif %}
+        <td colspan="3" class="govuk-table__cell govuk-!-text-align-centre">
+            <span class="govuk-hint ids-text-s">
+                {% if query|length < (minimum_query_length or 2) %}
+                    Start typing to search users
+                {% else %}
+                    No matching users found
+                {% endif %}
+            </span>
         </td>
     </tr>
 
