@@ -39,6 +39,7 @@ from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution,
 from redbox.models.settings import Settings
 from redbox.test.data import RedboxChatTestCase
 from redbox.transform import bedrock_tokeniser, combine_documents, flatten_document_state
+from tests.conftest import es_client
 from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
 
 
@@ -352,7 +353,7 @@ def _make_search_tool_state(
     )
 
 
-def test_search_documents_tool_empty_opensearch_reponse_returns_text(mocker: MockerFixture, env: Settings):
+def test_search_documents_tool_empty_opensearch_response_returns_text(mocker: MockerFixture, env: Settings):
     """
     When Opensearch returns no chunks, tool must return non-empty string.
     """
@@ -371,6 +372,106 @@ def test_search_documents_tool_empty_opensearch_reponse_returns_text(mocker: Moc
     tool_node = ToolNode(tools=[search])
     result_state = tool_node.invoke(
         _make_search_tool_state("example question", s3_keys=["s3_key"], permitted_s3_keys=["s3_key"])
+    )
+
+    message = result_state["messages"][0]
+
+    assert message.content
+    assert "No relevant information was found" in message.content
+    assert message.artifact == []
+    mock_es_client.search.assert_called()
+
+
+def test_search_documents_tool_no_s3_key_skip_opensearch(mocker: MockerFixture, env: Settings):
+    """
+    When there is no s3 key, the tool should short circuit and Opensearch should NOT be called, and a non-empty message returned
+    """
+    mock_es_client = mocker.MagicMock(spec=OpenSearch)
+    embedding_model = FakeEmbeddings(size=1024)
+    embed_spy = mocker.spy(embedding_model, "embed_query")
+
+    search = build_search_documents_tool(
+        es_client=es_client,
+        index_name="index",
+        embedding_model=embedding_model,
+        embedding_field_name=env.embedding_document_field_name,
+        chunk_resolution=ChunkResolution.normal,
+    )
+
+    tool_node = ToolNode(tools=[search])
+    result_state = tool_node.invoke(
+        _make_search_tool_state("example question", s3_keys=["s3_key"], permitted_s3_keys=["s3_key"])
+    )
+
+    message = result_state["messages"][0]
+
+    assert message.content
+    assert "No documents have been selected" in message.content
+    assert message.artifact == []
+    mock_es_client.search.assert_not_called()
+    embed_spy.assert_not_called()
+
+
+def test_search_knowledge_base_tool_no_keys_skip_opensearch(mocker: MockerFixture, env: Settings):
+    """
+    When the knowledge_base_s3_keys is emptry, the tool must NOT call opensearch and respond with a non-empty message
+    """
+    mock_es_client = mocker.MagicMock(spec=OpenSearch)
+    embedding_model = FakeEmbeddings(size=1024)
+
+    knowledge_base_search = build_search_documents_tool(
+        es_client=es_client,
+        index_name="index",
+        embedding_model=embedding_model,
+        embedding_field_name=env.embedding_document_field_name,
+        chunk_resolution=ChunkResolution.normal,
+        repository="knowledge_base",
+    )
+
+    tool_node = ToolNode(tools=[knowledge_base_search])
+    result_state = tool_node.invoke(
+        _make_search_tool_state(
+            "example question",
+            s3_keys=["s3_key"],
+            permitted_s3_keys=["s3_key"],
+            knowledge_base_s3_keys=[],
+            tool_name="_search_knowledge_base",
+        )
+    )
+
+    message = result_state["messages"][0]
+
+    assert "No documents have been selected" in message.content
+    assert message.artifact == []
+    mock_es_client.search.assert_not_called()
+
+
+def test_search_knowledge_base_tool_empty_opensearch_response_returns_text(mocker: MockerFixture, env: Settings):
+    """
+    When Opensearch returns no matching documents / hits, the tool must return non-empty string.
+    """
+    mock_es_client = mocker.MagicMock(spec=OpenSearch)
+    mock_es_client.search.return_value = {"hits": {"hits": []}}
+    embedding_model = FakeEmbeddings(size=1024)
+
+    knowledge_base_search = build_search_documents_tool(
+        es_client=mock_es_client,
+        index_name="index",
+        embedding_model=embedding_model,
+        embedding_field_name=env.embedding_document_field_name,
+        chunk_resolution=ChunkResolution.normal,
+        repository="knowledge_base",
+    )
+
+    tool_node = ToolNode(tools=[knowledge_base_search])
+    result_state = tool_node.invoke(
+        _make_search_tool_state(
+            "example question",
+            s3_keys=[],
+            permitted_s3_keys=[],
+            knowledge_base_s3_keys=["knowledge_base_key"],
+            tool_name="_search_knowledge_base",
+        )
     )
 
     message = result_state["messages"][0]
