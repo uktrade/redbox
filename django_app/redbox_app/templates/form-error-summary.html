@@ -3,8 +3,18 @@
         <div role="alert">
             <div class="govuk-error-summary__body">
                 <ul class="govuk-list govuk-error-summary__list">
-                    {% for error in form.errors %}
-                    <li>{{ error }}</li>
+                    {% for field in form %}
+                        {% if field.errors %}
+                            <li>
+                                <strong>{{ field.label }} ({{ field.name }})</strong>
+
+                                {% for error in field.errors %}
+                                    <p class="govuk-body-s">
+                                        {{ error|escape }}
+                                    </p>
+                                {% endfor %}
+                            </li>
+                        {% endif %}
                     {% endfor %}
                 </ul>
             </div>

@@ -217,14 +217,38 @@ class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
         user_tool_member.save()
         return user_tool_member
 
-    def get_unassigned_users(self):
-        """
-        Users who can be added to this tool:
-        - not already assigned
-        - includes SSO-prefetched data
-        """
+    def search_unassigned_users(self, query: str, limit: int = 50, min_query_length: int = 2):
+        query = query.strip()
 
-        return User.objects.exclude(user_tools__tool=self).select_related("_sso").prefetch_related("_sso__attributes")
+        if len(query) < min_query_length:
+            return User.objects.none()
+
+        related_email_attrs = Prefetch(
+            "_sso__attributes",
+            queryset=UserSSOAttribute.objects.filter(attribute_type=UserSSOAttribute.AttributeType.RELATED_EMAILS).only(
+                "sso_id", "value"
+            ),
+        )
+
+        return (
+            User.objects.exclude(user_tools__tool=self)
+            .filter(
+                Q(email__icontains=query)
+                | Q(username__icontains=query)
+                | Q(first_name__icontains=query)
+                | Q(last_name__icontains=query)
+                | Q(_sso__email__icontains=query)
+                | Q(_sso__contact_email__icontains=query)
+                | Q(
+                    _sso__attributes__attribute_type=UserSSOAttribute.AttributeType.RELATED_EMAILS,
+                    _sso__attributes__value__icontains=query,
+                )
+            )
+            .select_related("_sso")
+            .prefetch_related(related_email_attrs)
+            .distinct()
+            .order_by("first_name", "last_name")[:limit]
+        )
 
 
 class ToolAccessRule(TimeStampedModel):
@@ -984,7 +1008,7 @@ class UserSSO(TimeStampedModel):
     def __str__(self):
         return f"{self.user} SSO"
 
-    @property
+    @cached_property
     def related_emails(self) -> list:
         return [
             attr.value

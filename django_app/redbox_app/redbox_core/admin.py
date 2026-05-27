@@ -58,13 +58,8 @@ class ToolSettingsAdmin(admin.ModelAdmin):
 
 
 class ToolAccessRuleAdmin(admin.ModelAdmin):
-    list_display = [
-        "tool",
-        "rule_type",
-        "value",
-        "created_at",
-    ]
-
+    list_display = ["tool", "rule_type", "value", "created_at"]
+    list_filter = ["tool", "rule_type"]
     search_fields = ["tool__name", "rule_type", "value"]
     readonly_fields = ["modified_at", "created_at"]
 

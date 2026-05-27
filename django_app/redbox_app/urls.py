@@ -125,6 +125,11 @@ tools_urlpatterns = [
         views.tool_access_rule_value_input_view,
         name="tool-access-rule-value-input",
     ),
+    path(
+        f"{tools_route_prefix}settings/users/search/",
+        views.ToolUserSearchView.as_view(),
+        name="tool-user-search",
+    ),
 ]
 
 admin_urlpatterns = [

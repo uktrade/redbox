@@ -171,24 +171,33 @@ class UserToolBulkAddView(LoginRequiredMixin, ToolManagerRequiredMixin, AppConte
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
 
-        kwargs["unassigned_users"] = self.tool.get_unassigned_users()
+        kwargs["tool"] = self.tool
 
         return kwargs
 
     def form_valid(self, form):
-        users = form.cleaned_data["user_ids"]
+        raw_user_ids = self.request.POST.getlist("user_ids")
+        users = User.objects.filter(pk__in=raw_user_ids).distinct()
+
         role = form.cleaned_data["role"]
         access_type = form.cleaned_data["access_type"]
 
-        for user in users:
-            UserTool.objects.update_or_create(
-                user=user,
-                tool=self.tool,
-                defaults={
-                    "role": role,
-                    "access_type": access_type,
-                },
-            )
+        existing_user_tools = UserTool.objects.filter(tool=self.tool, user_id__in=raw_user_ids)
+        existing_user_ids = set(existing_user_tools.values_list("user_id", flat=True))
+        existing_user_tools.update(role=role, access_type=access_type)
+
+        UserTool.objects.bulk_create(
+            [
+                UserTool(
+                    user=user,
+                    tool=self.tool,
+                    role=role,
+                    access_type=access_type,
+                )
+                for user in users
+                if user.pk not in existing_user_ids
+            ]
+        )
 
         return super().form_valid(form)
 
@@ -201,11 +210,28 @@ class UserToolBulkAddView(LoginRequiredMixin, ToolManagerRequiredMixin, AppConte
         context.update(
             {
                 "tool": self.tool,
-                "unassigned_users": self.tool.get_unassigned_users(),
             }
         )
 
         return context
+
+
+class ToolUserSearchView(LoginRequiredMixin, ToolManagerRequiredMixin, View):
+    template_name = "tools/users/user-search-rows.html"
+
+    def get(self, request, slug):
+        tool = get_object_or_404(Tool, slug=slug)
+        query = request.GET.get("q", "")
+        users = tool.search_unassigned_users(query)
+
+        return render(
+            request,
+            self.template_name,
+            {
+                "users": users,
+                "query": query,
+            },
+        )
 
 
 @require_http_methods(["POST"])

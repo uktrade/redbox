@@ -376,20 +376,22 @@ class UserToolBulkAddForm(GovUKModelForm):
             "access_type": forms.Select(),
         }
 
-    user_ids = forms.ModelMultipleChoiceField(queryset=User.objects.none())
-
     def __init__(self, *args, **kwargs):
-        unassigned_users = kwargs.pop("unassigned_users")
+        self.tool = kwargs.pop("tool")
         super().__init__(*args, **kwargs)
 
-        self.unassigned_users = unassigned_users
+    def clean(self):
+        cleaned_data = super().clean()
 
-        self.fields["user_ids"].queryset = unassigned_users
+        raw_user_ids = self.data.getlist("user_ids")
+
+        self.cleaned_data["user_ids"] = raw_user_ids
+
+        return cleaned_data
 
     def clean_user_ids(self):
-        user_ids = self.cleaned_data["user_ids"]
-
-        users = self.unassigned_users.filter(pk__in=user_ids)
+        user_ids = self.data.getlist("user_ids")
+        users = User.objects.filter(pk__in=user_ids).distinct()
 
         if not users.exists():
             msg = "No valid users selected."
