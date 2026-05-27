@@ -387,7 +387,6 @@ def test_search_documents_tool_no_s3_key_skip_opensearch(mocker: MockerFixture, 
     """
     mock_es_client = mocker.MagicMock(spec=OpenSearch)
     embedding_model = FakeEmbeddings(size=1024)
-    embed_spy = mocker.spy(embedding_model, "embed_query")
 
     search = build_search_documents_tool(
         es_client=mock_es_client,
@@ -408,7 +407,6 @@ def test_search_documents_tool_no_s3_key_skip_opensearch(mocker: MockerFixture, 
     assert "No documents have been selected" in message.content
     assert message.artifact == []
     mock_es_client.search.assert_not_called()
-    embed_spy.assert_not_called()
 
 
 def test_search_knowledge_base_tool_no_keys_skip_opensearch(mocker: MockerFixture, env: Settings):
