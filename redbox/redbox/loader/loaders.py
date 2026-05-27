@@ -1,3 +1,4 @@
+import environ
 import logging
 import os
 import time
@@ -6,7 +7,6 @@ from io import BytesIO
 from typing import Iterator
 
 import boto3
-import environ
 import pandas as pd
 from langchain_core.documents import Document
 from langchain_core.prompts import PromptTemplate
@@ -31,11 +31,11 @@ env = environ.Env()
 
 logger = logging.getLogger(__name__)
 
+
 tokeniser = bedrock_tokeniser
 
 
 def infer_sqlite_type(dtype) -> str:
-
     if pd.api.types.is_integer_dtype(dtype):
         return "INTEGER"
 
@@ -52,7 +52,6 @@ def parse_tabular_schema(
     table_name: str,
     df: pd.DataFrame,
 ):
-
     csv_text = f"<table_name>{table_name}</table_name>\n" + df.to_csv(index=False)
 
     schema = TabularSchema(
@@ -64,13 +63,6 @@ def parse_tabular_schema(
 
 
 class TextractChunkLoader:
-    """
-    Load, partition and chunk a document using:
-    - Textract for PDFs
-    - python-docx for DOCX.
-    - Pandas for CSV/Excel
-    """
-
     def __init__(
         self,
         bucket: str,
@@ -139,11 +131,9 @@ class TextractChunkLoader:
         self,
         job_id: str,
     ) -> Iterator[str]:
-
         next_token = None
 
         current_page = None
-
         current_lines = []
 
         while True:
@@ -154,17 +144,11 @@ class TextractChunkLoader:
 
             response = self.textract.get_document_text_detection(**kwargs)
 
-            for block in response.get(
-                "Blocks",
-                [],
-            ):
+            for block in response.get("Blocks", []):
                 if block["BlockType"] != "LINE":
                     continue
 
-                page = block.get(
-                    "Page",
-                    1,
-                )
+                page = block.get("Page", 1)
 
                 if current_page is None:
                     current_page = page
@@ -173,7 +157,6 @@ class TextractChunkLoader:
                     yield "\n".join(current_lines)
 
                     current_lines = []
-
                     current_page = page
 
                 current_lines.append(block["Text"])
@@ -191,7 +174,6 @@ class TextractChunkLoader:
         bucket: str,
         key: str,
     ) -> Iterator[str]:
-
         response = self.textract.start_document_text_detection(
             DocumentLocation={
                 "S3Object": {
@@ -214,20 +196,40 @@ class TextractChunkLoader:
         self,
         file_bytes: BytesIO,
     ) -> Iterator[str]:
-
         file_bytes.seek(0)
 
         elements = partition_docx(file=file_bytes)
 
-        text = "\n".join(str(el).strip() for el in elements if str(el).strip())
+        current_page = []
+        last_page = None
 
-        yield text
+        for el in elements:
+            page_number = getattr(el.metadata, "page_number", None)
+
+            text = str(el).strip()
+
+            if not text:
+                continue
+
+            if page_number is not None:
+                if last_page is None:
+                    last_page = page_number
+
+                if page_number != last_page:
+                    yield "\n".join(current_page)
+
+                    current_page = []
+                    last_page = page_number
+
+            current_page.append(text)
+
+        if current_page:
+            yield "\n".join(current_page)
 
     def _extract_pptx(
         self,
         file_bytes: BytesIO,
     ) -> Iterator[str]:
-
         file_bytes.seek(0)
 
         elements = partition_pptx(file=file_bytes)
@@ -244,10 +246,7 @@ class TextractChunkLoader:
             text = str(el).strip()
 
             if text:
-                slides.setdefault(
-                    slide_number,
-                    [],
-                ).append(text)
+                slides.setdefault(slide_number, []).append(text)
 
         for slide_num in sorted(slides):
             yield "\n".join(slides[slide_num])
@@ -256,14 +255,35 @@ class TextractChunkLoader:
         self,
         file_bytes: BytesIO,
     ) -> Iterator[str]:
-
         file_bytes.seek(0)
 
         elements = partition(file=file_bytes)
 
-        text = "\n".join(str(el).strip() for el in elements if str(el).strip())
+        current_page = []
+        last_page = None
 
-        yield text
+        for el in elements:
+            page_number = getattr(el.metadata, "page_number", None) or getattr(el.metadata, "slide_number", None)
+
+            text = str(el).strip()
+
+            if not text:
+                continue
+
+            if page_number is not None:
+                if last_page is None:
+                    last_page = page_number
+
+                if page_number != last_page:
+                    yield "\n".join(current_page)
+
+                    current_page = []
+                    last_page = page_number
+
+            current_page.append(text)
+
+        if current_page:
+            yield "\n".join(current_page)
 
     def _extract_tabular(
         self,
@@ -321,17 +341,10 @@ class TextractChunkLoader:
 
         if display_name.endswith(".docx"):
             yield from self._extract_docx(file_bytes)
-
             return
 
-        if display_name.endswith(
-            (
-                ".ppt",
-                ".pptx",
-            )
-        ):
+        if display_name.endswith((".ppt", ".pptx")):
             yield from self._extract_pptx(file_bytes)
-
             return
 
         yield from self._extract_with_unstructured(file_bytes)
@@ -340,12 +353,10 @@ class TextractChunkLoader:
         self,
         text: str,
     ) -> Iterator[str]:
-
         if not text:
             return
 
         start = 0
-
         length = len(text)
 
         while start < length:
@@ -356,12 +367,15 @@ class TextractChunkLoader:
 
             chunk = text[start:end]
 
-            if len(chunk) >= self.min_chunk_size:
+            if len(chunk) >= self.min_chunk_size or start == 0:
                 yield chunk
 
+            if end >= length:
+                break
+
             start = max(
+                0,
                 end - self.overlap_chars,
-                end,
             )
 
     def pages_to_documents(
@@ -370,7 +384,6 @@ class TextractChunkLoader:
         s3_key: str,
         chunk_resolution: ChunkResolution,
     ) -> Iterator[Document]:
-
         idx = 0
 
         for page_num, page_text in enumerate(
@@ -403,7 +416,6 @@ class TextractChunkLoader:
         file_bytes: BytesIO | None = None,
         chunk_resolution: ChunkResolution = ChunkResolution.normal,
     ) -> Iterator[Document]:
-
         display_name = os.path.basename(file_name).lower()
 
         if file_bytes is None:
@@ -442,11 +454,6 @@ class TextractChunkLoader:
 
 
 class MetadataLoader:
-    """
-    Extract metadata from a file using a TextractChunkLoader and LLM.
-    Preserves trimming and robust handling from old loader.
-    """
-
     def __init__(
         self,
         env: Settings,
@@ -459,10 +466,7 @@ class MetadataLoader:
 
         self.llm = get_chat_llm(env.metadata_extraction_llm)
 
-    def extract_metadata(
-        self,
-    ) -> GeneratedMetadata:
-
+    def extract_metadata(self) -> GeneratedMetadata:
         loader = TextractChunkLoader(
             bucket=self.env.bucket_name,
             min_chunk_size=200,
@@ -473,7 +477,6 @@ class MetadataLoader:
         docs_iter = loader.lazy_load(file_name=self.file_name)
 
         collected = []
-
         current_size = 0
 
         for doc in docs_iter:
@@ -495,13 +498,24 @@ class MetadataLoader:
         metadata_prompt = PromptTemplate(
             template="".join(self.env.metadata_prompt) + "\n\n{format_instructions}\n\n{page_content}",
             input_variables=["page_content"],
-            partial_variables={"format_instructions": (parser.get_format_instructions())},
+            partial_variables={
+                "format_instructions": parser.get_format_instructions(),
+            },
         )
 
         metadata_chain = metadata_prompt | self.llm | parser
 
         try:
-            return metadata_chain.invoke({"page_content": first_10k_chars})
+            metadata = metadata_chain.invoke(
+                {
+                    "page_content": first_10k_chars,
+                }
+            )
+
+            if not metadata.name:
+                metadata.name = self.file_name
+
+            return metadata
 
         except ValidationError:
             return GeneratedMetadata(name=self.file_name)

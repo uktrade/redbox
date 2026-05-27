@@ -8,9 +8,9 @@ from langchain_core.embeddings import FakeEmbeddings
 from langchain_core.runnables import RunnableParallel
 
 from redbox.chains.components import get_embeddings
+from redbox.chains.ingest import ingest_from_loader
 from redbox.loader.loaders import TextractChunkLoader, MetadataLoader
 from redbox.models.settings import get_settings
-from redbox.chains.ingest import ingest_from_loader
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -18,7 +18,7 @@ else:
     S3Client = object
 
 logging.basicConfig(level=logging.INFO)
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
 env = get_settings()
 alias = env.elastic_chunk_alias
@@ -103,7 +103,6 @@ def _ingest_file(
     file_name: str,
     es_index_name: str = alias,
 ):
-
     start = time.time()
 
     es = env.elasticsearch_client()
