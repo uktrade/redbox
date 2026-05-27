@@ -555,8 +555,8 @@ class TestRemoveEvaluatorTask:
     @staticmethod
     def _agent_classes():
         agent_options = {
-            "Web_Search_Agent": "Web_Search_agent",
-            "Internam_Retrieval_Agent": "Internal_Retrieval_Agent",
+            "Web_Search_Agent": "Web_Search_Agent",
+            "Internal_Retrieval_Agent": "Internal_Retrieval_Agent",
             "Evaluator_Agent": "Evaluator_Agent",
         }
         return configure_agent_task_plan(agent_options)
