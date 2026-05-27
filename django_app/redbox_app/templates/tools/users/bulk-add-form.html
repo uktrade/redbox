@@ -53,7 +53,7 @@
                         hx-target="#users-table-body"
                         hx-swap="innerHTML"
                         autocomplete="off"
-                        hx-indicator="#loading-spinner"
+                        data-min-length-search="{{ minimum_query_length or 2 }}"
                     >
                 </div>
 

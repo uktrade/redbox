@@ -177,7 +177,6 @@ class UserToolBulkAddView(LoginRequiredMixin, ToolManagerRequiredMixin, AppConte
 
     def form_valid(self, form):
         raw_user_ids = self.request.POST.getlist("user_ids")
-        users = User.objects.filter(pk__in=raw_user_ids).distinct()
 
         role = form.cleaned_data["role"]
         access_type = form.cleaned_data["access_type"]
@@ -189,13 +188,13 @@ class UserToolBulkAddView(LoginRequiredMixin, ToolManagerRequiredMixin, AppConte
         UserTool.objects.bulk_create(
             [
                 UserTool(
-                    user=user,
+                    user_id=user_id,
                     tool=self.tool,
                     role=role,
                     access_type=access_type,
                 )
-                for user in users
-                if user.pk not in existing_user_ids
+                for user_id in raw_user_ids
+                if user_id not in existing_user_ids
             ]
         )
 
