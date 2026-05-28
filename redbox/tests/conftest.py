@@ -198,10 +198,7 @@ def fake_state_fixture(request):
     return request.getfixturevalue(request.param)
 
 
-@pytest.fixture
-def fake_mcp_tool():
-    """Fixture providing a fake passing async MCP tool class."""
-
+class MCPTool:
     class Passing:
         """Simulates a normal async MCP tool."""
 
@@ -216,13 +213,6 @@ def fake_mcp_tool():
             self.func = None
             self.coroutine = True
             self.ainvoke = AsyncMock(return_value=return_value)
-
-    return Passing
-
-
-@pytest.fixture
-def fake_mcp_tool_failing():
-    """Fixture providing a fake failing async MCP tool class."""
 
     class Failing:
         """Simulates an async MCP tool that fails."""
@@ -239,7 +229,19 @@ def fake_mcp_tool_failing():
             self.coroutine = True
             self.ainvoke = AsyncMock(side_effect=exception)
 
-    return Failing
+
+@pytest.fixture
+def fake_mcp_tool():
+    """Fixture providing a fake passing async MCP tool class."""
+
+    return MCPTool.Passing
+
+
+@pytest.fixture
+def fake_mcp_tool_failing():
+    """Fixture providing a fake failing async MCP tool class."""
+
+    return MCPTool.Failing
 
 
 # -----#
