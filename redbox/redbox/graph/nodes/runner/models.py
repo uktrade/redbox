@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field
 from redbox.api.wrapper import SensitiveValue
 from redbox.models.file import ChunkCreatorType
 from langchain_core.messages import AIMessage, ToolCall
-from langchain.tools import StructuredTool
 from concurrent.futures import Future
 
 
@@ -55,17 +54,6 @@ class RunRequestCalls(BaseModel):
         arbitrary_types_allowed = True
 
 
-class ValidatedToolCall(BaseModel):
-    """Validated tool call with matching StructuredTool."""
-
-    name: str
-    tool: StructuredTool
-    args: dict
-
-    class Config:
-        arbitrary_types_allowed = True
-
-
 class ToolCallResult:
     """Result of single tool execution."""
 
@@ -84,7 +72,7 @@ class ToolCallResult:
         error: str = Field(default=None, description="Error from tool execution.")
 
 
-class RunRequest(BaseModel):
+class ParsedRunRequest(BaseModel):
     calls: RunRequestCalls
     failures: list[ToolCallResult.Failure]
 

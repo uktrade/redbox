@@ -49,56 +49,57 @@ class ToolRunner:
         finally:
             self.executor.shutdown(wait=True)
 
-    def parse_tool_calls(self, tool_calls: list[ToolCall]) -> tr_models.RunRequest:
+    def parse_tool_calls(self, tool_calls: list[ToolCall]) -> tr_models.ParsedRunRequest:
         failures: list[tr_models.ToolCallResult.Failure] = []
         sync_calls: list[tr_models.ToolCallRequest.Sync] = []
         mcp_async_server_calls: dict[str, tr_models.ToolCallRequest.MCPAsync] = {}
 
         for tool_call in tool_calls:
-            tool_name = tool_call.get("name")
-            selected_tool: Optional[StructuredTool] = next(
-                (tool for tool in self.tools if tool.name == tool_name), None
-            )
+            try:
+                tool_name, selected_tool, _ = self.validate_tool_call(tool_call=tool_call)
 
-            if not selected_tool:
-                available = [tool.name for tool in self.tools]
+                if selected_tool.func and not selected_tool.coroutine:
+                    sync_calls.append(tr_models.ToolCallRequest.Sync(tool_call=tool_call))
+
+                else:
+                    mcp_url = selected_tool.metadata["url"]
+                    creator_type = selected_tool.metadata["creator_type"]
+                    sso_access_token = selected_tool.metadata["sso_access_token"]
+
+                    if mcp_url:
+                        if mcp_url in mcp_async_server_calls.keys():
+                            mcp_async_server_calls[mcp_url].tool_calls.append(tool_call)
+                        else:
+                            mcp_async_server_calls[mcp_url] = tr_models.ToolCallRequest.MCPAsync(
+                                mcp_server=mcp_url,
+                                access_token=sso_access_token,
+                                creator_type=creator_type,
+                                tool_calls=[tool_call],
+                            )
+
+                    else:
+                        failures.append(
+                            tr_models.ToolCallResult.Failure(
+                                tool_name=tool_name,
+                                metadata={"tool_args": tool_call.get("args")},
+                                error=f"Unrecognised tool configuration for '{tool_name}'.",
+                            )
+                        )
+
+            except (
+                tool_exceptions.ToolTimeoutError,
+                tool_exceptions.ToolValidationError,
+                tool_exceptions.ToolExecutionError,
+                tool_exceptions.ToolNotFoundError,
+            ) as e:
+                log.warning(f"{self.log_stub} {e}")
                 failures.append(
                     tr_models.ToolCallResult.Failure(
-                        tool_name=tool_name,
-                        metadata={"tool_args": tool_call.get("args")},
-                        error=f"Tool '{tool_name}' not found. Available tools: {', '.join(available)}",
+                        tool_name=tool_call.get("name"), error=str(e), metadata={"tool_args": tool_call.get("args")}
                     )
                 )
 
-            elif selected_tool.func and not selected_tool.coroutine:
-                sync_calls.append(tr_models.ToolCallRequest.Sync(tool_call=tool_call))
-
-            else:
-                mcp_url = selected_tool.metadata["url"]
-                creator_type = selected_tool.metadata["creator_type"]
-                sso_access_token = selected_tool.metadata["sso_access_token"]
-
-                if mcp_url:
-                    if mcp_url in mcp_async_server_calls.keys():
-                        mcp_async_server_calls[mcp_url].tool_calls.append(tool_call)
-                    else:
-                        mcp_async_server_calls[mcp_url] = tr_models.ToolCallRequest.MCPAsync(
-                            mcp_server=mcp_url,
-                            access_token=sso_access_token,
-                            creator_type=creator_type,
-                            tool_calls=[tool_call],
-                        )
-
-                else:
-                    failures.append(
-                        tr_models.ToolCallResult.Failure(
-                            tool_name=tool_name,
-                            metadata={"tool_args": tool_call.get("args")},
-                            error=f"Unrecognised tool configuration for '{tool_name}'.",
-                        )
-                    )
-
-        return tr_models.RunRequest(
+        return tr_models.ParsedRunRequest(
             calls=tr_models.RunRequestCalls(sync=sync_calls, mcp_async=mcp_async_server_calls.values()),
             failures=failures,
         )
@@ -253,7 +254,7 @@ class ToolRunner:
 
         return tr_models.Result(results=results, failures=failures)
 
-    def validate(self, tool_call: ToolCall) -> tr_models.ValidatedToolCall:
+    def validate_tool_call(self, tool_call: ToolCall) -> tuple[str, StructuredTool, dict]:
         tool_name = tool_call.get("name")
         selected_tool: Optional[StructuredTool] = next((tool for tool in self.tools if tool.name == tool_name), None)
 
@@ -269,26 +270,26 @@ class ToolRunner:
                 f"Invalid input for tool '{tool_name}': expected dict, got {type(raw_args).__name__!r}"
             )
 
-        return tr_models.ValidatedToolCall(name=tool_name, tool=selected_tool, args=raw_args)
+        return tool_name, selected_tool, raw_args
 
     def submit_sync(self, sync_call: tr_models.ToolCallRequest.Sync) -> tr_models.SubmittedToolCallRequest:
-        """Find, validate, and submit a sync tool call to the executor. Returns (future, metadata)"""
-        validated_call = self.validate(tool_call=sync_call.tool_call)
+        """Find, validate, and submit a sync tool call to the executor."""
+        tool_name, selected_tool, tool_args = self.validate_tool_call(tool_call=sync_call.tool_call)
         is_intermediate_step = "False"
 
         try:
-            args = {**validated_call.args, "state": self.state}
-            future = self.executor.submit(validated_call.tool.invoke, args)
+            args = {**tool_args, "state": self.state}
+            future = self.executor.submit(selected_tool.invoke, args)
         except Exception as e:
             raise tool_exceptions.ToolExecutionError(
-                f"Failed to submit tool '{validated_call.name}' for execution: {str(e)}"
+                f"Failed to submit tool '{tool_name}' for execution: {str(e)}"
             ) from e
 
         return tr_models.SubmittedToolCallRequest(
-            name=validated_call.name,
+            name=tool_name,
             result_type=sync_call.future_result_type,
             future=future,
-            future_args=validated_call.args,
+            future_args=tool_args,
             metadata={"intermediate_step": is_intermediate_step},
         )
 
