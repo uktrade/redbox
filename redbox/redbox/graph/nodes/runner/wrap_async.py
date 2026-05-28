@@ -1,6 +1,6 @@
 import logging
 import asyncio
-from typing import List, Any
+from typing import List, Any, Tuple
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from langchain_mcp_adapters.tools import load_mcp_tools
@@ -129,7 +129,9 @@ def wrap_async_tool(tool, tool_name):
     return wrapper
 
 
-async def execute_mcp_tools_async(mcp_input: tr_models.ToolCallRequest.MCPAsync) -> List[Any]:
+async def execute_mcp_tools_async(
+    mcp_input: tr_models.ToolCallRequest.MCPAsync,
+) -> Tuple[List[Any], List[tr_models.ToolCallResult.Failure]]:
     """
     Execute multiple MCP tools in a single session.
 
@@ -139,6 +141,8 @@ async def execute_mcp_tools_async(mcp_input: tr_models.ToolCallRequest.MCPAsync)
     Returns:
         List of results from each tool call in order
     """
+    failures: list[tr_models.ToolCallResult.Failure] = []
+
     INIT_TIMEOUT, TOOL_LOADING_TIMEOUT, INVOKE_TIMEOUT = 10, 15, 60
 
     mcp_url = mcp_input.mcp_server
@@ -190,7 +194,14 @@ async def execute_mcp_tools_async(mcp_input: tr_models.ToolCallRequest.MCPAsync)
                     if not selected_tool:
                         error_msg = f"Tool '{tool_name}' not found on server"
                         log.error(f"execute_mcp_tools_async - {error_msg}")
-                        results.append({"error": error_msg, "tool_name": tool_name})
+                        failures.append(
+                            tr_models.ToolCallResult.Failure(
+                                tool_name=tool_name,
+                                metadata={"tool_args": args},
+                                error=f"MCP Async tool '{tool_name}' not found on server '{mcp_url}'",
+                            )
+                        )
+                        # {"error": error_msg, "tool_name": tool_name})
                         continue
 
                     # Remove intermediate step argument if not required by tool
@@ -245,10 +256,12 @@ async def execute_mcp_tools_async(mcp_input: tr_models.ToolCallRequest.MCPAsync)
         )
         raise
 
-    return results
+    return results, failures
 
 
-def execute_mcp_tools(mcp_input: tr_models.ToolCallRequest.MCPAsync) -> List[Any]:
+def execute_mcp_tools(
+    mcp_input: tr_models.ToolCallRequest.MCPAsync,
+) -> Tuple[List[Any], List[tr_models.ToolCallResult.Failure]]:
     """
     Synchronous wrapper for executing multiple MCP tools.
 

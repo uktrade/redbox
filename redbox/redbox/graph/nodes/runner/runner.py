@@ -192,9 +192,14 @@ class ToolRunner:
 
         for request in submitted_request.futures:
             try:
-                response = self.execute_request(request=request)
-                if response is not None:
-                    if isinstance(response, list):
+                response, request_failures = self.execute_request(request=request)
+                failures += request_failures
+
+                match request.result_type:
+                    case tr_models.FutureResultType.MCP_ASYNC:
+                        # mcp_results, mcp_failures = response
+                        # failures += mcp_failures
+
                         for item in response:
                             results.append(
                                 tr_models.ToolCallResult.Success(
@@ -203,7 +208,8 @@ class ToolRunner:
                                     metadata={**request.metadata, "tool_args": request.future_args},
                                 )
                             )
-                    else:
+
+                    case _:
                         results.append(
                             tr_models.ToolCallResult.Success(
                                 tool_name=request.name,
@@ -346,8 +352,12 @@ class ToolRunner:
             metadata={"intermediate_step": is_intermediate_step},
         )
 
-    def execute_request(self, request: tr_models.SubmittedToolCallRequest) -> AIMessage | list[AIMessage]:
+    def execute_request(
+        self, request: tr_models.SubmittedToolCallRequest
+    ) -> tuple[AIMessage | list[AIMessage], list[tr_models.ToolCallResult.Failure]]:
         """Resolve a completed future and transform its result into an AIMessage."""
+        failures: list[tr_models.ToolCallResult.Failure] = []
+
         future_tool_name = request.name
         is_intermediate_step = request.metadata["intermediate_step"]
 
@@ -369,20 +379,25 @@ class ToolRunner:
 
         log.warning(f"{self.log_stub} {future_tool_name} response not None")
 
-        if isinstance(response, list):
-            results = []
-            for item in response:
-                results.append(
-                    self.parse_response(
-                        future_tool_name=future_tool_name, response=item, is_intermediate_step=is_intermediate_step
+        match request.result_type:
+            case tr_models.FutureResultType.MCP_ASYNC:
+                mcp_results, mcp_failures = response
+
+                results = []
+                for item in mcp_results:
+                    results.append(
+                        self.parse_response(
+                            future_tool_name=future_tool_name, response=item, is_intermediate_step=is_intermediate_step
+                        )
                     )
+
+                return results, mcp_failures
+            case _:
+                result = self.parse_response(
+                    future_tool_name=future_tool_name, response=response, is_intermediate_step=is_intermediate_step
                 )
 
-            return results
-
-        return self.parse_response(
-            future_tool_name=future_tool_name, response=response, is_intermediate_step=is_intermediate_step
-        )
+                return result, failures
 
     def parse_response(self, future_tool_name: str, response: Any, is_intermediate_step: str) -> AIMessage:
         result = response
