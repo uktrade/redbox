@@ -97,3 +97,20 @@ def test_bulk_add_form_accepts_valid_users(alice: User, default_tool: Tool):
     form = UserToolBulkAddForm(tool=default_tool, data=data)
 
     assert form.is_valid()
+
+
+@pytest.mark.django_db
+def test_bulk_add_form_requires_valid_users(default_tool: Tool):
+    data = QueryDict(mutable=True)
+
+    data.setlist("user_ids", [])
+
+    data.update(
+        {
+            "role": UserTool.RoleType.USER,
+            "access_type": UserTool.AccessType.ALLOW,
+        }
+    )
+
+    form = UserToolBulkAddForm(tool=default_tool, data=data)
+    assert not form.is_valid()
