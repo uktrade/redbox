@@ -210,7 +210,7 @@ def fake_mcp_tool():
             self.metadata = {
                 "url": "http://mock-mcp-url.com/tools",
                 "creator_type": ChunkCreatorType.datahub,
-                "sso_access_token": SensitiveValue(None),
+                "sso_access_token": SensitiveValue(value="fake"),
             }
             self.args_schema = args_schema or {"required": []}
             self.func = None
@@ -232,7 +232,7 @@ def fake_mcp_tool_failing():
             self.metadata = {
                 "url": "http://mock-mcp-url.com/tools",
                 "creator_type": ChunkCreatorType.datahub,
-                "sso_access_token": SensitiveValue(None),
+                "sso_access_token": SensitiveValue(value="test"),
             }
             self.args_schema = args_schema or {"required": []}
             self.func = None
