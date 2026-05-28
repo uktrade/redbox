@@ -13,7 +13,6 @@ from concurrent.futures import Future
 class FutureResultType(StrEnum):
     """Future result type of tool call request."""
 
-    UNKNOWN = "unknown"
     SYNC = "sync"
     MCP_ASYNC = "mcp_async"
 
@@ -22,7 +21,7 @@ class ToolCallRequest:
     """Tool call request objects."""
 
     class Base(BaseModel):
-        future_result_type: FutureResultType = FutureResultType.UNKNOWN
+        future_result_type: FutureResultType
 
     class Sync(Base):
         """Sync tool call requests."""
