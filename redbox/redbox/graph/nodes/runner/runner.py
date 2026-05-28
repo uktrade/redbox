@@ -49,7 +49,7 @@ class ToolRunner:
         finally:
             self.executor.shutdown(wait=True)
 
-    def _parse(self, tool_calls: list[ToolCall]) -> tr_models.RunRequest:
+    def parse_tool_calls(self, tool_calls: list[ToolCall]) -> tr_models.RunRequest:
         failures: list[tr_models.ToolCallResult.Failure] = []
         sync_calls: list[tr_models.ToolCallRequest.Sync] = []
         mcp_async_server_calls: dict[str, tr_models.ToolCallRequest.MCPAsync] = {}
@@ -105,7 +105,7 @@ class ToolRunner:
 
     def _submit_all(self, tool_calls: list[ToolCall]) -> tr_models.SubmittedRunRequest:
         """Submit every tool call to the executor, skipping and logging any that fail to launch."""
-        run_request = self._parse(tool_calls=tool_calls)
+        run_request = self.parse_tool_calls(tool_calls=tool_calls)
 
         futures: list[tr_models.SubmittedToolCallRequest] = []
         failures: list[tr_models.ToolCallResult.Failure] = run_request.failures
@@ -191,7 +191,7 @@ class ToolRunner:
 
         for request in submitted_request.futures:
             try:
-                response = self.parse(request=request)
+                response = self.execute_request(request=request)
                 if response is not None:
                     if isinstance(response, list):
                         for item in response:
@@ -345,7 +345,7 @@ class ToolRunner:
             metadata={"intermediate_step": is_intermediate_step},
         )
 
-    def parse(self, request: tr_models.SubmittedToolCallRequest) -> AIMessage | list[AIMessage]:
+    def execute_request(self, request: tr_models.SubmittedToolCallRequest) -> AIMessage | list[AIMessage]:
         """Resolve a completed future and transform its result into an AIMessage."""
         future_tool_name = request.name
         is_intermediate_step = request.metadata["intermediate_step"]

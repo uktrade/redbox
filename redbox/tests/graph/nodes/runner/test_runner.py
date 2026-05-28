@@ -335,7 +335,7 @@ class TestToolRunner_Parse:
             metadata={"intermediate_step": metadata.get("intermediate_step", "False")},
         )
 
-        result = runner.parse(submitted_request)
+        result = runner.execute_request(submitted_request)
         assert isinstance(result, AIMessage)
         assert result.content == expected_content
 
@@ -377,7 +377,7 @@ class TestToolRunner_Parse:
         )
 
         with caplog.at_level(logging.WARNING):
-            tool_runner.parse(submitted_request)
+            tool_runner.execute_request(submitted_request)
         assert f"This is what I got from tool '{tool_name}': {response}" in caplog.text
         assert f"{tool_name} response not None" in caplog.text
 
@@ -447,7 +447,7 @@ class TestToolRunner_Parse:
         )
 
         with pytest.raises(exc_type, match=match):
-            tool_runner.parse(submitted_request)
+            tool_runner.execute_request(submitted_request)
 
 
 class TestToolRunner_Collect:
