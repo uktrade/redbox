@@ -44,12 +44,13 @@ class ToolRunner:
     def run(self, tool_calls: list[ToolCall]) -> tr_models.Result:
         """Submit all tool calls, collect results, and return aggregated responses or None on total failure."""
         try:
-            submitted_requests = self._submit_all(tool_calls=tool_calls)
-            return self._collect(submitted_requests=submitted_requests)
+            submitted_request = self._submit_all(tool_calls=tool_calls)
+            return self._collect(submitted_request=submitted_request)
         finally:
             self.executor.shutdown(wait=True)
 
-    def group_tool_calls(self, tool_calls: list[ToolCall]) -> tr_models.GroupedToolCallRequests:
+    def _parse(self, tool_calls: list[ToolCall]) -> tr_models.RunRequest:
+        failures: list[tr_models.ToolCallResult.Failure] = []
         sync_calls: list[tr_models.ToolCallRequest.Sync] = []
         mcp_async_server_calls: dict[str, tr_models.ToolCallRequest.MCPAsync] = {}
 
@@ -59,8 +60,19 @@ class ToolRunner:
                 (tool for tool in self.tools if tool.name == tool_name), None
             )
 
-            if selected_tool.func and not selected_tool.coroutine:
+            if not selected_tool:
+                available = [tool.name for tool in self.tools]
+                failures.append(
+                    tr_models.ToolCallResult.Failure(
+                        tool_name=tool_name,
+                        metadata={"tool_args": tool_call.get("args")},
+                        error=f"Tool '{tool_name}' not found. Available tools: {', '.join(available)}",
+                    )
+                )
+
+            elif selected_tool.func and not selected_tool.coroutine:
                 sync_calls.append(tr_models.ToolCallRequest.Sync(tool_call=tool_call))
+
             else:
                 mcp_url = selected_tool.metadata["url"]
                 creator_type = selected_tool.metadata["creator_type"]
@@ -77,18 +89,28 @@ class ToolRunner:
                             tool_calls=[tool_call],
                         )
 
-        return tr_models.GroupedToolCallRequests(
-            sync_calls=sync_calls, mcp_async_server_calls=mcp_async_server_calls.values()
+                else:
+                    failures.append(
+                        tr_models.ToolCallResult.Failure(
+                            tool_name=tool_name,
+                            metadata={"tool_args": tool_call.get("args")},
+                            error=f"Unrecognised tool configuration for '{tool_name}'.",
+                        )
+                    )
+
+        return tr_models.RunRequest(
+            calls=tr_models.RunRequestCalls(sync=sync_calls, mcp_async=mcp_async_server_calls.values()),
+            failures=failures,
         )
 
-    def _submit_all(self, tool_calls: list[ToolCall]) -> tr_models.SubmittedToolCallRequests:
+    def _submit_all(self, tool_calls: list[ToolCall]) -> tr_models.SubmittedRunRequest:
         """Submit every tool call to the executor, skipping and logging any that fail to launch."""
-        grouped_calls = self.group_tool_calls(tool_calls=tool_calls)
+        run_request = self._parse(tool_calls=tool_calls)
 
         futures: list[tr_models.SubmittedToolCallRequest] = []
-        failures: list[tr_models.ToolCallResult.Failure] = []
+        failures: list[tr_models.ToolCallResult.Failure] = run_request.failures
 
-        for sync_call in grouped_calls.sync_calls:
+        for sync_call in run_request.calls.sync:
             tool_name = sync_call.tool_call.get("name")
             raw_args = sync_call.tool_call.get("args", {})
             raw_args.pop("name", None)
@@ -117,7 +139,7 @@ class ToolRunner:
                     tr_models.ToolCallResult.Failure(tool_name=tool_name, error=err, metadata={"tool_args": raw_args})
                 )
 
-        for mcp_async_call in grouped_calls.mcp_async_server_calls:
+        for mcp_async_call in run_request.calls.mcp_async:
             try:
                 res = self.submit_mcp_async(mcp_async_call=mcp_async_call)
                 futures.append(res)
@@ -160,14 +182,14 @@ class ToolRunner:
                     )
                 )
 
-        return tr_models.SubmittedToolCallRequests(futures=futures, failures=failures)
+        return tr_models.SubmittedRunRequest(futures=futures, failures=failures)
 
-    def _collect(self, submitted_requests: tr_models.SubmittedToolCallRequests) -> tr_models.Result:
+    def _collect(self, submitted_request: tr_models.SubmittedRunRequest) -> tr_models.Result:
         """Wait for all futures, parse results, and return responses or None if everything failed."""
         results: List[tr_models.ToolCallResult.Success] = []
-        failures: List[tr_models.ToolCallResult.Failure] = submitted_requests.failures
+        failures: List[tr_models.ToolCallResult.Failure] = submitted_request.failures
 
-        for request in submitted_requests.futures:
+        for request in submitted_request.futures:
             try:
                 response = self.parse(request=request)
                 if response is not None:
@@ -197,14 +219,22 @@ class ToolRunner:
             ) as e:
                 log.warning(f"{self.log_stub} {e}")
                 failures.append(
-                    tr_models.ToolCallResult.Failure(tool_name=request.name, error=str(e), metadata=request.metadata)
+                    tr_models.ToolCallResult.Failure(
+                        tool_name=request.name,
+                        error=str(e),
+                        metadata={**request.metadata, "tool_args": request.future_args},
+                    )
                 )
 
             except Exception as e:
                 err = f"Tool '{request.name}' error: {e}"
                 log.warning(f"{self.log_stub} {err}")
                 failures.append(
-                    tr_models.ToolCallResult.Failure(tool_name=request.name, error=err, metadata=request.metadata)
+                    tr_models.ToolCallResult.Failure(
+                        tool_name=request.name,
+                        error=err,
+                        metadata={**request.metadata, "tool_args": request.future_args},
+                    )
                 )
 
         failed_tools = [f"{fr.tool_name} - {fr.error}" for fr in failures]

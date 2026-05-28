@@ -460,10 +460,14 @@ class TestToolRunner_Collect:
                 tr_models.Result(
                     results=[
                         tr_models.ToolCallResult.Success(
-                            tool_name="tool1", response=AIMessage("r1"), metadata={"intermediate_step": "False"}
+                            tool_name="tool1",
+                            response=AIMessage("r1"),
+                            metadata={"intermediate_step": "False", "tool_args": {}},
                         ),
                         tr_models.ToolCallResult.Success(
-                            tool_name="tool2", response=AIMessage("r2"), metadata={"intermediate_step": "False"}
+                            tool_name="tool2",
+                            response=AIMessage("r2"),
+                            metadata={"intermediate_step": "False", "tool_args": {}},
                         ),
                     ]
                 ),
@@ -483,7 +487,7 @@ class TestToolRunner_Collect:
                         tr_models.ToolCallResult.Failure(
                             tool_name="tool1",
                             error="Tool 'tool1' failed: boom",
-                            metadata={"intermediate_step": "False"},
+                            metadata={"intermediate_step": "False", "tool_args": {}},
                         )
                     ]
                 ),
@@ -497,7 +501,7 @@ class TestToolRunner_Collect:
                         tr_models.ToolCallResult.Failure(
                             tool_name="slow_tool",
                             error="Tool 'slow_tool' timed out after 30.0s",
-                            metadata={"intermediate_step": "False"},
+                            metadata={"intermediate_step": "False", "tool_args": {}},
                         )
                     ]
                 ),
@@ -509,14 +513,16 @@ class TestToolRunner_Collect:
                 tr_models.Result(
                     results=[
                         tr_models.ToolCallResult.Success(
-                            tool_name="good_tool", response=AIMessage("ok"), metadata={"intermediate_step": "False"}
+                            tool_name="good_tool",
+                            response=AIMessage("ok"),
+                            metadata={"intermediate_step": "False", "tool_args": {}},
                         )
                     ],
                     failures=[
                         tr_models.ToolCallResult.Failure(
                             tool_name="slow_tool",
                             error="Tool 'slow_tool' timed out after 30.0s",
-                            metadata={"intermediate_step": "False"},
+                            metadata={"intermediate_step": "False", "tool_args": {}},
                         )
                     ],
                 ),
@@ -528,14 +534,16 @@ class TestToolRunner_Collect:
                 tr_models.Result(
                     results=[
                         tr_models.ToolCallResult.Success(
-                            tool_name="good_tool", response=AIMessage("ok"), metadata={"intermediate_step": "False"}
+                            tool_name="good_tool",
+                            response=AIMessage("ok"),
+                            metadata={"intermediate_step": "False", "tool_args": {}},
                         )
                     ],
                     failures=[
                         tr_models.ToolCallResult.Failure(
                             tool_name="empty_tool",
                             error="Tool 'empty_tool' returned empty or whitespace-only response",
-                            metadata={"intermediate_step": "False"},
+                            metadata={"intermediate_step": "False", "tool_args": {}},
                         )
                     ],
                 ),
@@ -547,13 +555,19 @@ class TestToolRunner_Collect:
                 tr_models.Result(
                     results=[
                         tr_models.ToolCallResult.Success(
-                            tool_name="tool_a", response=AIMessage("alpha"), metadata={"intermediate_step": "False"}
+                            tool_name="tool_a",
+                            response=AIMessage("alpha"),
+                            metadata={"intermediate_step": "False", "tool_args": {}},
                         ),
                         tr_models.ToolCallResult.Success(
-                            tool_name="tool_b", response=AIMessage("beta"), metadata={"intermediate_step": "False"}
+                            tool_name="tool_b",
+                            response=AIMessage("beta"),
+                            metadata={"intermediate_step": "False", "tool_args": {}},
                         ),
                         tr_models.ToolCallResult.Success(
-                            tool_name="tool_c", response=AIMessage("gamma"), metadata={"intermediate_step": "False"}
+                            tool_name="tool_c",
+                            response=AIMessage("gamma"),
+                            metadata={"intermediate_step": "False", "tool_args": {}},
                         ),
                     ]
                 ),
@@ -578,23 +592,27 @@ class TestToolRunner_Collect:
         expected,
         expected_log_fragments,
     ):
-        submitted_requests = [
-            tr_models.SubmittedToolCallRequest(
-                name=name,
-                result_type=tr_models.FutureResultType.SYNC,
-                future=_future_raising(v) if isinstance(v, Exception) else _future_returning(v),
-                future_args=_plain_metadata(name),
-                metadata={"intermediate_step": _plain_metadata(name).get("intermediate_step")},
+        submitted_requests = []
+
+        for v, name in futures_spec:
+            metadata = _plain_metadata(name)
+            submitted_requests.append(
+                tr_models.SubmittedToolCallRequest(
+                    name=name,
+                    result_type=tr_models.FutureResultType.SYNC,
+                    future=_future_raising(v) if isinstance(v, Exception) else _future_returning(v),
+                    future_args={},
+                    metadata={"intermediate_step": metadata.get("intermediate_step")},
+                )
             )
-            for v, name in futures_spec
-        ]
-        submitted = tr_models.SubmittedToolCallRequests(futures=submitted_requests, failures=[])
+        submitted = tr_models.SubmittedRunRequest(futures=submitted_requests, failures=[])
 
         with caplog.at_level(logging.WARNING):
             result = tool_runner._collect(submitted)
 
         assert isinstance(result, tr_models.Result)
         assert result.failures == expected.failures
+        assert result.results == expected.results
         assert result == expected
         for fragment in expected_log_fragments:
             assert fragment in caplog.text
@@ -773,19 +791,30 @@ class TestToolRunner_Run:
         ],
         ids=["success", "exception"],
     )
-    def test_executor_always_shuts_down(self, tool_runner, submit_all_side_effect, expected_exc):
+    def test_executor_always_shuts_down(self, tool_runner: ToolRunner, submit_all_side_effect, expected_exc):
         with patch.object(tool_runner.executor, "shutdown") as mock_shutdown:
             if submit_all_side_effect:
                 with patch.object(tool_runner, "_submit_all", side_effect=submit_all_side_effect):
                     with pytest.raises(expected_exc):
-                        tool_runner.run([{"name": "test_tool", "args": {}}])
+                        tool_runner.run([{"id": "test_tool_1", "name": "test_tool", "args": {}}])
             else:
-                tool_runner.run([{"name": "test_tool", "args": {}}])
+                tool_runner.run([{"id": "test_tool_1", "name": "test_tool", "args": {}}])
         mock_shutdown.assert_called_once_with(wait=True)
 
-    def test_delegates_to_submit_all_and_collect(self, tool_runner):
+    def test_delegates_to_submit_all_and_collect(self, tool_runner: ToolRunner):
         mock_future = Mock(spec=Future)
-        stub_futures = {mock_future: _plain_metadata()}
+        stub_request = tr_models.SubmittedRunRequest(
+            futures=[
+                tr_models.SubmittedToolCallRequest(
+                    name="test_tool",
+                    result_type=tr_models.FutureResultType.SYNC,
+                    future=mock_future,
+                    future_args={},
+                    metadata={"intermediate_step": "False"},
+                )
+            ],
+            failures=[],
+        )
         stub_result = tr_models.Result(
             responses=[
                 tr_models.ToolCallResult.Success(
@@ -796,12 +825,12 @@ class TestToolRunner_Run:
             ]
         )
 
-        with patch.object(tool_runner, "_submit_all", return_value=(stub_futures, [])) as ms:
+        with patch.object(tool_runner, "_submit_all", return_value=stub_request) as ms:
             with patch.object(tool_runner, "_collect", return_value=stub_result) as mc:
                 result = tool_runner.run([{"name": "test_tool", "args": {}}])
 
         ms.assert_called_once_with(tool_calls=[{"name": "test_tool", "args": {}}])
-        mc.assert_called_once_with(futures=stub_futures, failures=[])
+        mc.assert_called_once_with(submitted_request=stub_request)
         assert result is stub_result
 
     def test_parallel_execution_is_faster_than_sequential(self, mock_state):
@@ -819,7 +848,7 @@ class TestToolRunner_Run:
 
         runner = ToolRunner(tools=[tool], state=mock_state, max_workers=3, is_loop=False, parallel_timeout=5.0)
         start = time.time()
-        result = runner.run([{"name": "slow_tool", "args": {}} for _ in range(3)])
+        result = runner.run([{"id": "slow_tool_1", "name": "slow_tool", "args": {}} for _ in range(3)])
         elapsed = time.time() - start
 
         assert elapsed < 0.25, f"Expected ~0.1s with parallelism, got {elapsed:.2f}s"

@@ -45,11 +45,11 @@ class ToolCallRequest:
             arbitrary_types_allowed = True
 
 
-class GroupedToolCallRequests(BaseModel):
+class RunRequestCalls(BaseModel):
     """Grouped tool call request objects."""
 
-    sync_calls: List[ToolCallRequest.Sync]
-    mcp_async_server_calls: List[ToolCallRequest.MCPAsync]
+    sync: List[ToolCallRequest.Sync]
+    mcp_async: List[ToolCallRequest.MCPAsync]
 
     class Config:
         arbitrary_types_allowed = True
@@ -84,6 +84,11 @@ class ToolCallResult:
         error: str = Field(default=None, description="Error from tool execution.")
 
 
+class RunRequest(BaseModel):
+    calls: RunRequestCalls
+    failures: list[ToolCallResult.Failure]
+
+
 class SubmittedToolCallRequest(BaseModel):
     """Submitted tool call future."""
 
@@ -97,7 +102,7 @@ class SubmittedToolCallRequest(BaseModel):
         arbitrary_types_allowed = True
 
 
-class SubmittedToolCallRequests(BaseModel):
+class SubmittedRunRequest(BaseModel):
     """Submitted tool call futures and failures."""
 
     futures: list[SubmittedToolCallRequest]
