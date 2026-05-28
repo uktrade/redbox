@@ -290,14 +290,10 @@ class TestExecuteMCPTools:
     )
     def test_connection_failure(
         self,
-        fake_mcp_tool: type[MCPTool.Passing],
         url: Literal["http://fake-mcp-url"] | Literal["http://127.0.0.1:59999"],
         expected_exceptions: ConnectError,
     ):
         """Test wrap_async_tool fails when MCP server cannot be reached."""
-        # tool = fake_mcp_tool("dummy_tool", return_value=None)
-        # tool.metadata["url"] = url
-
         wrapped = execute_mcp_tools(
             mcp_input=tr_models.ToolCallRequest.MCPAsync(
                 mcp_server=url,
@@ -335,7 +331,8 @@ class TestExecuteMCPTools:
         args_schema = {"company_name": {"type": "string"}, "required": ["company_name"]}
         tool = fake_mcp_tool(tool_name, return_value=expected_tool_content, args_schema=args_schema)
 
-        tool_calls = [{"id": "company_tool_1", "name": tool_name, "args": {"company_name": "fake company"}}]
+        test_args = {"company_name": "BMW"}
+        tool_calls = [{"id": "company_tool_1", "name": tool_name, "args": test_args}]
 
         mcp_input = tr_models.ToolCallRequest.MCPAsync(
             mcp_server=tool.metadata["url"],
@@ -351,14 +348,13 @@ class TestExecuteMCPTools:
         wrapped_func = execute_mcp_tools(mcp_input=mcp_input)
 
         # rest invocation with sample args
-        # test_args = {"company_name": "BMW"}
         result = wrapped_func()
 
         # verify correct interactions
         mock_http_client.assert_called_once_with(tool.metadata["url"], headers={"Authorization": "Bearer fake"})
         mock_session.initialize.assert_called_once()
         mock_load_tools.assert_called_once_with(mock_session)
-        # tool.ainvoke.assert_called_once_with()
+        tool.ainvoke.assert_called_once_with(test_args)
 
         # assert the result matches our expected output
         for item, expected in zip(result, [expected_documents]):
@@ -366,8 +362,6 @@ class TestExecuteMCPTools:
 
         assert len(result) == len([expected_documents])
         assert len(result) == len(tool_calls)
-        # assert result == [expected_documents] # [{"error": error_msg, "tool_name": tool_name}]
-        # assert metadata == expected_tool_metadata
 
     @pytest.mark.parametrize("expected_tool_result, expected_documents", MCP_TOOL_RESULTS)
     @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
@@ -390,7 +384,8 @@ class TestExecuteMCPTools:
         args_schema = {}
         tool = fake_mcp_tool(tool_name, return_value=expected_tool_content, args_schema=args_schema)
 
-        tool_calls = [{"id": "company_tool_1", "name": tool_name, "args": {"company_name": "fake company"}}]
+        tool_args = {"company_name": "fake company"}
+        tool_calls = [{"id": "company_tool_1", "name": tool_name, "args": tool_args}]
 
         mcp_input = tr_models.ToolCallRequest.MCPAsync(
             mcp_server=tool.metadata["url"],
@@ -403,17 +398,16 @@ class TestExecuteMCPTools:
         mock_session = self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
         # create the wrapped function
-        wrapped_func = execute_mcp_tools(mcp_input=mcp_input)  # wrap_async_tool(tool, tool_name)
+        wrapped_func = execute_mcp_tools(mcp_input=mcp_input)
 
         # rest invocation with sample args
-        # test_args = {}
         result = wrapped_func()
 
         # verify correct interactions
         mock_http_client.assert_called_once_with(tool.metadata["url"], headers={"Authorization": "Bearer fake"})
         mock_session.initialize.assert_called_once()
         mock_load_tools.assert_called_once_with(mock_session)
-        # tool.ainvoke.assert_called_once_with()
+        tool.ainvoke.assert_called_once_with(tool_args)
 
         # assert the result matches our expected output
         for item, expected in zip(result, [expected_documents]):
@@ -421,8 +415,6 @@ class TestExecuteMCPTools:
 
         assert len(result) == len([expected_documents])
         assert len(result) == len(tool_calls)
-        # assert result == expected_documents
-        # assert metadata == expected_tool_metadata
 
     @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
     @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
@@ -448,7 +440,7 @@ class TestExecuteMCPTools:
 
         # assert ValueError is raised
         # with pytest.raises(ValueError, match="tool with name 'missing_tool' not found"):
-        result = wrapped_func()  # {"foo": "bar"})
+        result = wrapped_func()
 
         assert result == [{"error": "Tool 'missing_tool' not found on server", "tool_name": "missing_tool"}]
 
@@ -467,7 +459,7 @@ class TestExecuteMCPTools:
             tool_calls=tool_calls,
         )
 
-        wrapped_func = execute_mcp_tools(mcp_input=mcp_input)  # wrap_async_tool(tool, "dummy_tool")
+        wrapped_func = execute_mcp_tools(mcp_input=mcp_input)
 
         with pytest.raises(RuntimeError, match="vault unavailable"):
             wrapped_func()
@@ -492,11 +484,12 @@ class TestExecuteMCPTools:
         tool.metadata["creator_type"] = MagicMock()  # non-datahub, returns raw result
         tool.ainvoke = AsyncMock(return_value=return_value)
 
+        tool_args = {"company_name": "BMW"}
         tool_calls = [
             {
                 "id": "company_tool_1",
                 "name": "company_tool",
-                "args": {"company_name": "BMW", "is_intermediate_step": True},
+                "args": {**tool_args, "is_intermediate_step": True},
             }
         ]
 
@@ -509,13 +502,11 @@ class TestExecuteMCPTools:
 
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
-        wrapped_func = execute_mcp_tools(mcp_input=mcp_input)  # wrap_async_tool(tool, tool_name)
-
-        # test_args = {"company_name": "BMW", "is_intermediate_step": True}
-        wrapped_func()  # test_args)
+        wrapped_func = execute_mcp_tools(mcp_input=mcp_input)
+        wrapped_func()
 
         # is_intermediate_step should have been popped before ainvoke was called
-        tool.ainvoke.assert_called_once_with({"company_name": "BMW"})
+        tool.ainvoke.assert_called_once_with(tool_args)
 
     @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
     @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
@@ -536,11 +527,12 @@ class TestExecuteMCPTools:
         tool.metadata["creator_type"] = MagicMock()
         tool.ainvoke = AsyncMock(return_value=return_value)
 
+        tool_args = {"company_name": "BMW", "is_intermediate_step": True}
         tool_calls = [
             {
                 "id": "company_tool_1",
                 "name": "company_tool",
-                "args": {"company_name": "BMW", "is_intermediate_step": True},
+                "args": tool_args,
             }
         ]
 
@@ -553,13 +545,11 @@ class TestExecuteMCPTools:
 
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
-        wrapped_func = execute_mcp_tools(mcp_input=mcp_input)  # wrap_async_tool(tool, tool_name)
-
-        # test_args = {"company_name": "BMW", "is_intermediate_step": True}
-        wrapped_func()  # test_args)
+        wrapped_func = execute_mcp_tools(mcp_input=mcp_input)
+        wrapped_func()
 
         # is_intermediate_step should be preserved
-        tool.ainvoke.assert_called_once_with({"company_name": "BMW", "is_intermediate_step": True})
+        tool.ainvoke.assert_called_once_with(tool_args)
 
     @patch("redbox.graph.nodes.runner.wrap_async.asyncio")
     def test_asyncio_run_failure(self, mock_asyncio, fake_mcp_tool: type[MCPTool.Passing]):
@@ -578,7 +568,7 @@ class TestExecuteMCPTools:
             tool_calls=tool_calls,
         )
 
-        wrapped_func = execute_mcp_tools(mcp_input=mcp_input)  # wrap_async_tool(tool, "dummy_tool")
+        wrapped_func = execute_mcp_tools(mcp_input=mcp_input)
 
         with pytest.raises(RuntimeError, match="event loop closed"):
             wrapped_func()
