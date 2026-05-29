@@ -266,7 +266,7 @@ def test_no_dependencies(dependencies, expected):
 
 class TestRunToolsParallelAsync:
     def _patch_mcp_env(self, mock_load_tools, mock_http_client, mock_session_class, tools):
-        """Patch MCP networking to allow wrap_async_tool to succeed."""
+        """Patch MCP networking to allow execute_mcp_tools to succeed."""
         # streamablehttp_client mock
         mock_read, mock_write = AsyncMock(), AsyncMock()
         mock_http_cm = AsyncMock()

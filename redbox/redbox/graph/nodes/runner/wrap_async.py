@@ -189,7 +189,10 @@ def execute_mcp_tools(
         try:
             return asyncio.run(execute_mcp_tools_async(mcp_input))
         except Exception as e:
-            log.error(f"execute_mcp_tools - Unhandled error: {e}", exc_info=True)
+            log.error(
+                f"execute_mcp_tools - Unhandled error when calling MCP server '{mcp_input.mcp_server}': {e}",
+                exc_info=True,
+            )
             raise
 
     return wrapper
