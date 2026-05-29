@@ -89,8 +89,10 @@ export class UploadedFile extends HTMLElement {
      */
     set fileName(value) {
         this._fileName = value;
-        this.nameElement.innerText = value;
-        this.nameElement.title = value;
+        this.nameElements.forEach((nameElement) => {
+            nameElement.innerText = value;
+            nameElement.title = value;
+        })
         this.#updateIconDisplay();
     }
 
@@ -118,11 +120,9 @@ export class UploadedFile extends HTMLElement {
         return /** @type {HTMLElement} */ (this.querySelector('[data-icon]'));
     }
 
-
-    get nameElement() {
-        return /** @type {HTMLElement} */ (this.querySelector('[data-name]'));
+    get nameElements() {
+        return /** @type {NodeListOf<HTMLElement>} */ (this.querySelectorAll('[data-name]'));
     }
-
 
     get statusTextElement() {
         return /** @type {HTMLElement} */ (this.querySelector('[data-status-text]'));
