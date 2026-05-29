@@ -3,7 +3,7 @@
 
 {% extends "base.html" %}
 
-{% from "macros/govuk-button.html" import govukButton %}
+{% from "macros/govuk-link.html" import govukLink %}
 
 
 {% block content %}
@@ -21,13 +21,13 @@
                     </p>
                     <div class="ids-banner__links">
                         {% if not request.user.is_authenticated %}
-                            {{ govukButton(
+                            {{ govukLink(
                                 text="Sign in",
                                 href=url('sign-in'),
                                 classes="govuk-button--secondary govuk-!-margin-bottom-3"
                             ) }}
                         {% else %}
-                            {{ govukButton(
+                            {{ govukLink(
                                 text = "Start a chat",
                                 href=url('chats'),
                                 classes="govuk-button--secondary govuk-!-margin-bottom-0"

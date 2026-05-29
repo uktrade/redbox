@@ -1,0 +1,14 @@
+{% macro govukLink(text=None, href=None, classes=None, download=False, id=None) %}
+
+<a
+  href="{{ href }}"
+  role="button"
+  draggable="false"
+  class="govuk-button ids-text-xs {{ classes }}"
+  data-module="govuk-button"
+  {% if download %}download{% endif %}
+  {% if id %}id="{{ id }}"{% endif %}>
+    {{ text | safe }}
+</a>
+
+{% endmacro %}
