@@ -1,6 +1,6 @@
 import logging
 import asyncio
-from typing import List, Any, Tuple
+from typing import List, Any, Tuple, Dict
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from langchain_mcp_adapters.tools import load_mcp_tools
@@ -131,7 +131,7 @@ def wrap_async_tool(tool, tool_name):
 
 async def execute_mcp_tools_async(
     mcp_input: tr_models.ToolCallRequest.MCPAsync,
-) -> Tuple[List[Any], List[tr_models.ToolCallResult.Failure]]:
+) -> Tuple[Dict[str, Any], List[tr_models.ToolCallResult.Failure]]:
     """
     Execute multiple MCP tools in a single session.
 
@@ -141,7 +141,8 @@ async def execute_mcp_tools_async(
     Returns:
         List of results from each tool call in order
     """
-    failures: list[tr_models.ToolCallResult.Failure] = []
+    results: Dict[str, Any] = {}
+    failures: List[tr_models.ToolCallResult.Failure] = []
 
     INIT_TIMEOUT, TOOL_LOADING_TIMEOUT, INVOKE_TIMEOUT = 10, 15, 60
 
@@ -159,7 +160,7 @@ async def execute_mcp_tools_async(
         raise ValueError("MCP sso_access_token is required")
 
     headers = _get_mcp_headers(sso_access_token)
-    results = []
+    # results = []
 
     try:
         async with streamablehttp_client(mcp_url, headers=headers or None) as (
@@ -183,6 +184,7 @@ async def execute_mcp_tools_async(
 
                 # Execute each tool call in sequence
                 for i, tool_call in enumerate(mcp_input.tool_calls):
+                    tool_call_id = tool_call.get("id")
                     tool_name = tool_call.get("name")
                     args = tool_call.get("args").copy()
 
@@ -194,6 +196,7 @@ async def execute_mcp_tools_async(
                     if not selected_tool:
                         error_msg = f"Tool '{tool_name}' not found on server"
                         log.error(f"execute_mcp_tools_async - {error_msg}")
+
                         failures.append(
                             tr_models.ToolCallResult.Failure(
                                 tool_name=tool_name,
@@ -201,7 +204,6 @@ async def execute_mcp_tools_async(
                                 error=f"MCP Async tool '{tool_name}' not found on server '{mcp_url}'",
                             )
                         )
-                        # {"error": error_msg, "tool_name": tool_name})
                         continue
 
                     # Remove intermediate step argument if not required by tool
@@ -227,19 +229,34 @@ async def execute_mcp_tools_async(
                                 tool_response=result,
                                 creator_type=creator_type,
                             )
-                            results.append(formatted_result)
+                            results[tool_call_id] = formatted_result
+
                         else:
-                            results.append(result)
+                            results[tool_call_id] = result
 
                     except asyncio.TimeoutError:
                         error_msg = f"Tool '{tool_name}' timed out after {INVOKE_TIMEOUT}s"
                         log.error(f"execute_mcp_tools_async - {error_msg}")
-                        results.append({"error": error_msg, "tool_name": tool_name})
+
+                        failures.append(
+                            tr_models.ToolCallResult.Failure(
+                                tool_name=tool_name,
+                                metadata={"tool_args": args},
+                                error=f"MCP Async tool '{tool_name}' timed out on server '{mcp_url}' - asyncio.TimeoutError",
+                            )
+                        )
 
                     except Exception as e:
                         error_msg = f"Tool '{tool_name}' failed: {str(e)}"
                         log.error(f"execute_mcp_tools_async - {error_msg}", exc_info=True)
-                        results.append({"error": error_msg, "tool_name": tool_name})
+
+                        failures.append(
+                            tr_models.ToolCallResult.Failure(
+                                tool_name=tool_name,
+                                metadata={"tool_args": args},
+                                error=f"MCP Async tool '{tool_name}' got an unknown exception server '{mcp_url}' - {e}",
+                            )
+                        )
 
     except asyncio.TimeoutError as e:
         log.error(f"execute_mcp_tools_async - Session initialization/setup timed out: {e}")
@@ -261,7 +278,7 @@ async def execute_mcp_tools_async(
 
 def execute_mcp_tools(
     mcp_input: tr_models.ToolCallRequest.MCPAsync,
-) -> Tuple[List[Any], List[tr_models.ToolCallResult.Failure]]:
+) -> Tuple[Dict[str, Any], List[tr_models.ToolCallResult.Failure]]:
     """
     Synchronous wrapper for executing multiple MCP tools.
 

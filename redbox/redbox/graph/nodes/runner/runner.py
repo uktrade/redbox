@@ -199,13 +199,25 @@ class ToolRunner:
                     case tr_models.FutureResultType.MCP_ASYNC:
                         # mcp_results, mcp_failures = response
                         # failures += mcp_failures
+                        tool_calls = request.future_args.get("tool_calls", [])
 
-                        for item in response:
+                        future_args = request.future_args
+                        future_args.pop("tool_calls")
+
+                        for tool_call_id, item in response.items():
+                            tool_call = next((tc for tc in tool_calls if tc.get("id") == tool_call_id), None)
+                            tool_name = tool_call.get("name") if tool_call else f"{tool_call_id}_{request.name}"
+                            tool_call_args = tool_call.get("args") if tool_call else {}
+
                             results.append(
                                 tr_models.ToolCallResult.Success(
-                                    tool_name=request.name,
+                                    tool_name=tool_name,
                                     response=item,
-                                    metadata={**request.metadata, "tool_args": request.future_args},
+                                    metadata={
+                                        **request.metadata,
+                                        "future_args": future_args,
+                                        "tool_args": tool_call_args,
+                                    },
                                 )
                             )
 
@@ -347,14 +359,17 @@ class ToolRunner:
             future_args={
                 "mcp_server": mcp_async_call.mcp_server,
                 "creator_type": mcp_async_call.creator_type,
-                "tool_calls": [{"name": tc.get("name"), "args": tc.get("args")} for tc in mcp_async_call.tool_calls],
+                "tool_calls": [
+                    {"id": tc.get("id"), "name": tc.get("name"), "args": tc.get("args")}
+                    for tc in mcp_async_call.tool_calls
+                ],
             },
             metadata={"intermediate_step": is_intermediate_step},
         )
 
     def execute_request(
         self, request: tr_models.SubmittedToolCallRequest
-    ) -> tuple[AIMessage | list[AIMessage], list[tr_models.ToolCallResult.Failure]]:
+    ) -> tuple[AIMessage | dict[str, AIMessage], list[tr_models.ToolCallResult.Failure]]:
         """Resolve a completed future and transform its result into an AIMessage."""
         failures: list[tr_models.ToolCallResult.Failure] = []
 
@@ -383,12 +398,10 @@ class ToolRunner:
             case tr_models.FutureResultType.MCP_ASYNC:
                 mcp_results, mcp_failures = response
 
-                results = []
-                for item in mcp_results:
-                    results.append(
-                        self.parse_response(
-                            future_tool_name=future_tool_name, response=item, is_intermediate_step=is_intermediate_step
-                        )
+                results = {}
+                for tool_id, item in mcp_results.items():
+                    results[tool_id] = self.parse_response(
+                        future_tool_name=future_tool_name, response=item, is_intermediate_step=is_intermediate_step
                     )
 
                 return results, mcp_failures
