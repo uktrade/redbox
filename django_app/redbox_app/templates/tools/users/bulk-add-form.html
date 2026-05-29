@@ -37,17 +37,31 @@
                 <legend class="govuk-label govuk-!-font-weight-bold ids-text-s">
                     Users
                     <span class="govuk-hint govuk-!-margin-bottom-0 govuk-!-margin-right-2 ids-text-xs ids-float-right">
-                        <span data-ids-selected-count>0</span> users selected
+                        <span data-selected-count>0</span> users selected
                     </span>
                 </legend>
 
                 <!-- Search -->
                 <div class="govuk-form-group govuk-!-margin-bottom-1 ids-flex-space-between user-search">
-                    <input class="govuk-input govuk-!-margin-right-2" type="text" placeholder="Start typing to search" name="search_users" data-ids-search>
+                    <input
+                        class="govuk-input govuk-!-margin-right-2"
+                        type="text"
+                        placeholder="Search users by name or email"
+                        name="q"
+                        hx-get="{{ url('tool-user-search', tool.slug) }}"
+                        hx-trigger="keyup changed delay:300ms"
+                        hx-target="#users-table-body"
+                        hx-swap="innerHTML"
+                        autocomplete="off"
+                        data-min-length-search="{{ minimum_query_length or 2 }}"
+                    >
                 </div>
 
+                <!-- Hidden selected inputs -->
+                <div data-selected-inputs></div>
+
                 <!-- Users -->
-                <div id="users" class="govuk-form-group govuk-!-margin-bottom-0 ids-scrollable">
+                <div id="users" class="govuk-form-group govuk-!-margin-bottom-0 ids-scrollable ids-max-height-content--two-thirds">
                     <table class="govuk-table govuk-!-margin-bottom-2">
 
                         <thead class="govuk-table__head ids-text-s">
@@ -57,7 +71,7 @@
                                     <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
                                         <div class="govuk-checkboxes__item">
                                             <input class="govuk-checkboxes__input" type="checkbox" id="select-all-users"
-                                                data-ids-select-all>
+                                                data-select-all>
                                             <label class="govuk-checkboxes__label" for="select-all-users">
                                                 <span class="govuk-visually-hidden">Select all</span>
                                             </label>
@@ -69,44 +83,16 @@
                             </tr>
                         </thead>
 
-                        <tbody class="govuk-table__body">
-                            {% for user in unassigned_users %}
-                                <tr id="tool-user-row-{{ user.pk }}" class="govuk-table__row ids-text-xs">
-                                    <th scope="row" class="govuk-table__header govuk-!-padding-0">
-                                        <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
-                                            <div class="govuk-checkboxes__item" data-ids-item data-id="{{ user.pk }}" data-aliases="{{ user.all_emails | join('|') }}">
-                                                <input class="govuk-checkboxes__input"
-                                                        id="user-{{ user.pk }}"
-                                                        name="user_ids"
-                                                        type="checkbox"
-                                                        value="{{ user.pk }}">
-                                                <label class="govuk-checkboxes__label" for="user-{{ user.pk }}" title="{{ user.display_name }}">
-                                                    <span class="govuk-visually-hidden" data-ids-label>
-                                                        {{ user.display_name }}
-                                                    </span>
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </th>
-                                    <td class="govuk-table__cell">
-                                        <span data-ids-label>{{ user.display_name }}</span>
-                                    </td>
-                                    <td class="govuk-table__cell">
-                                        <span data-ids-label>{{ user.all_emails | join(' ') }}</span>
-                                    </td>
-                                </tr>
-                            {% endfor %}
+                        <tbody id="users-table-body" class="govuk-table__body">
+                            {% include 'tools/users/user-search-rows.html' %}
                         </tbody>
 
                     </table>
-                    <p class="govuk-body-s govuk-!-text-align-centre govuk-!-display-none" data-ids-empty>
-                        No users match your search
-                    </p>
                 </div>
             </ids-selectable-list>
         </fieldset>
 
-        <div class="govuk-button-group govuk-!-margin-0 govuk-!-padding-bottom-7">
+        <div class="govuk-button-group govuk-!-margin-0 govuk-!-padding-top-6 govuk-!-padding-bottom-7 ids-push-bottom--sticky">
             {{ govukButton(text="Add", classes="govuk-!-margin-0") }}
         </div>
     </form>

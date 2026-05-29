@@ -220,6 +220,7 @@ class TextractChunkLoader:
         overlap_chars: int = 200,
         region: str = "eu-west-2",
         metadata: GeneratedMetadata | None = None,
+        include_schema_metadata: bool = False,
     ):
         self.bucket = bucket
         self.textract = boto3.client("textract", region_name=region)
@@ -228,6 +229,7 @@ class TextractChunkLoader:
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
         self.overlap_chars = overlap_chars
+        self.include_schema_metadata = include_schema_metadata
 
         logger.info(
             "Initialised TextractChunkLoader (bucket=%s, region=%s, min_chunk=%s, max_chunk=%s, overlap=%s)",
@@ -506,7 +508,12 @@ class TextractChunkLoader:
                     description=self.metadata.description,
                     keywords=self.metadata.keywords,
                 ).model_dump()
-                yield Document(page_content=el["text"], metadata={**metadata, **el.get("metadata", {})})
+
+                merged_metadata = metadata
+                if self.include_schema_metadata:
+                    merged_metadata = {**metadata, **el.get("metadata", {})}
+
+                yield Document(page_content=el["text"], metadata=merged_metadata)
             return
 
         if display_name.lower().endswith(".pptx"):

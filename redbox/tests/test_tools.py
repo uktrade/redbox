@@ -210,7 +210,12 @@ def test_knowledge_base_search_documents_tool(
         )
     )
 
-    print(result_state["messages"][0])
+    # Tool must return non-empty list so downstream calls do NOT fail
+    message = result_state["messages"][0]
+    assert message.content
+    if not stored_file_knowledge_base.query.knowledge_base_s3_keys:
+        assert "No documents have been selected" in message.content
+        assert message.artifact == []
 
 
 @pytest.mark.parametrize("chain_params", TEST_CHAIN_PARAMETERS)
@@ -290,10 +295,12 @@ def test_search_documents_tool(
     )
 
     if not permission:
-        assert result_state["messages"][0].content == ""
+        # Documents selected but none are permitted - tool must return a non-empty message
+        assert "does not have permission" in result_state["messages"][0].content
         assert result_state["messages"][0].artifact == []
     elif not selected:
-        assert result_state["messages"][0].content == ""
+        # No documents selected - must short circuit before hitting Opensearch and return non-empty message
+        assert "No documents have been selected" in result_state["messages"][0].content
         assert result_state["messages"][0].artifact == []
     else:
         print(result_state["messages"][0])
@@ -312,6 +319,164 @@ def test_search_documents_tool(
         if selected:
             assert {c.page_content for c in result_flat} <= {c.page_content for c in selected_docs}
             assert {c.metadata["uri"] for c in result_flat} <= set(stored_file_parameterised.query.s3_keys)
+
+
+def _make_search_tool_state(
+    question: str, *, s3_keys, permitted_s3_keys, knowledge_base_s3_keys=None, tool_name="_search_documents"
+):
+    """
+    Helper function to build RedboxState invoking a search tool by name
+    """
+    return RedboxState(
+        request=RedboxQuery(
+            question=question,
+            s3_keys=s3_keys,
+            user_uuid=uuid4(),
+            chat_history=[],
+            ai_settings=AISettings(),
+            permitted_s3_keys=permitted_s3_keys,
+            knowledge_base_s3_keys=knowledge_base_s3_keys or [],
+        ),
+        messages=[
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": tool_name,
+                        "args": {"query": question},
+                        "id": "1",
+                    }
+                ],
+            )
+        ],
+    )
+
+
+def test_search_documents_tool_empty_opensearch_response_returns_text(mocker: MockerFixture, env: Settings):
+    """
+    When Opensearch returns no chunks, tool must return non-empty string.
+    """
+    mock_es_client = mocker.MagicMock(spec=OpenSearch)
+    mock_es_client.search.return_value = {"hits": {"hits": []}}
+    embedding_model = FakeEmbeddings(size=1024)
+
+    search = build_search_documents_tool(
+        es_client=mock_es_client,
+        index_name="index",
+        embedding_model=embedding_model,
+        embedding_field_name=env.embedding_document_field_name,
+        chunk_resolution=ChunkResolution.normal,
+    )
+
+    tool_node = ToolNode(tools=[search])
+    result_state = tool_node.invoke(
+        _make_search_tool_state("example question", s3_keys=["s3_key"], permitted_s3_keys=["s3_key"])
+    )
+
+    message = result_state["messages"][0]
+
+    assert message.content
+    assert "No relevant information was found" in message.content
+    assert message.artifact == []
+    mock_es_client.search.assert_called()
+
+
+def test_search_documents_tool_no_s3_key_skip_opensearch(mocker: MockerFixture, env: Settings):
+    """
+    When there is no s3 key, the tool should short circuit and Opensearch should NOT be called, and a non-empty message returned
+    """
+    mock_es_client = mocker.MagicMock(spec=OpenSearch)
+    embedding_model = FakeEmbeddings(size=1024)
+
+    search = build_search_documents_tool(
+        es_client=mock_es_client,
+        index_name="index",
+        embedding_model=embedding_model,
+        embedding_field_name=env.embedding_document_field_name,
+        chunk_resolution=ChunkResolution.normal,
+    )
+
+    tool_node = ToolNode(tools=[search])
+    result_state = tool_node.invoke(
+        _make_search_tool_state("example question", s3_keys=[], permitted_s3_keys=["s3_key"])
+    )
+
+    message = result_state["messages"][0]
+
+    assert message.content
+    assert "No documents have been selected" in message.content
+    assert message.artifact == []
+    mock_es_client.search.assert_not_called()
+
+
+def test_search_knowledge_base_tool_no_keys_skip_opensearch(mocker: MockerFixture, env: Settings):
+    """
+    When the knowledge_base_s3_keys is empty, the tool must NOT call opensearch and respond with a non-empty message
+    """
+    mock_es_client = mocker.MagicMock(spec=OpenSearch)
+    embedding_model = FakeEmbeddings(size=1024)
+
+    knowledge_base_search = build_search_documents_tool(
+        es_client=mock_es_client,
+        index_name="index",
+        embedding_model=embedding_model,
+        embedding_field_name=env.embedding_document_field_name,
+        chunk_resolution=ChunkResolution.normal,
+        repository="knowledge_base",
+    )
+
+    tool_node = ToolNode(tools=[knowledge_base_search])
+    result_state = tool_node.invoke(
+        _make_search_tool_state(
+            "example question",
+            s3_keys=["s3_key"],
+            permitted_s3_keys=["s3_key"],
+            knowledge_base_s3_keys=[],
+            tool_name="_search_knowledge_base",
+        )
+    )
+
+    message = result_state["messages"][0]
+
+    assert "No documents have been selected" in message.content
+    assert message.artifact == []
+    mock_es_client.search.assert_not_called()
+
+
+def test_search_knowledge_base_tool_empty_opensearch_response_returns_text(mocker: MockerFixture, env: Settings):
+    """
+    When Opensearch returns no matching documents / hits, the tool must return non-empty string.
+    """
+    mock_es_client = mocker.MagicMock(spec=OpenSearch)
+    mock_es_client.search.return_value = {"hits": {"hits": []}}
+    embedding_model = FakeEmbeddings(size=1024)
+
+    knowledge_base_search = build_search_documents_tool(
+        es_client=mock_es_client,
+        index_name="index",
+        embedding_model=embedding_model,
+        embedding_field_name=env.embedding_document_field_name,
+        chunk_resolution=ChunkResolution.normal,
+        repository="knowledge_base",
+    )
+
+    tool_node = ToolNode(tools=[knowledge_base_search])
+    result_state = tool_node.invoke(
+        _make_search_tool_state(
+            "example question",
+            s3_keys=[],
+            permitted_s3_keys=[],
+            knowledge_base_s3_keys=["knowledge_base_key"],
+            tool_name="_search_knowledge_base",
+        )
+    )
+
+    message = result_state["messages"][0]
+
+    assert message.content
+    assert "No relevant information was found" in message.content
+    assert message.artifact == []
+    mock_es_client.search.assert_called()
 
 
 @pytest.mark.xfail(reason="calls api")

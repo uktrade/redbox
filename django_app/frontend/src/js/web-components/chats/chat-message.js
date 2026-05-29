@@ -266,6 +266,7 @@ export class ChatMessage extends HTMLElement {
         })
 
       } else if (response.type === "error") {
+        emitEvent(Events.CHAT_RESPONSE_ERROR);
         this.showError(response.data);
       } else if (response.type === "auth_expired") {
         if (this.LOGOUT_URL) {

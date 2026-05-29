@@ -36,6 +36,13 @@
   margin-top: auto;
 }
 
+.ids-push-bottom--sticky {
+  position: sticky;
+  bottom: 0;
+  background-color: var(--color-background);
+  z-index: 100;
+}
+
 .ids-text-ellipses {
   white-space: nowrap;
   text-overflow: ellipsis;
