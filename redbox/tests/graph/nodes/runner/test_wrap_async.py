@@ -332,7 +332,8 @@ class TestExecuteMCPTools:
         tool = fake_mcp_tool(tool_name, return_value=expected_tool_content, args_schema=args_schema)
 
         test_args = {"company_name": "BMW"}
-        tool_calls = [{"id": "company_tool_1", "name": tool_name, "args": test_args}]
+        tool_call_id = "company_tool_1"
+        tool_calls = [{"id": tool_call_id, "name": tool_name, "args": test_args}]
 
         mcp_input = tr_models.ToolCallRequest.MCPAsync(
             mcp_server=tool.metadata["url"],
@@ -348,7 +349,7 @@ class TestExecuteMCPTools:
         wrapped_func = execute_mcp_tools(mcp_input=mcp_input)
 
         # rest invocation with sample args
-        result = wrapped_func()
+        result, failures = wrapped_func()
 
         # verify correct interactions
         mock_http_client.assert_called_once_with(tool.metadata["url"], headers={"Authorization": "Bearer fake"})
@@ -357,11 +358,13 @@ class TestExecuteMCPTools:
         tool.ainvoke.assert_called_once_with(test_args)
 
         # assert the result matches our expected output
-        for item, expected in zip(result, [expected_documents]):
-            assert item[0] == expected
+        assert failures == []
 
-        assert len(result) == len([expected_documents])
-        assert len(result) == len(tool_calls)
+        tool_result = result.get(tool_call_id)
+        assert tool_result is not None
+        assert isinstance(tool_result, tuple)
+        assert tool_result[0] == expected_documents
+        assert tool_result[1] == expected_tool_metadata
 
     @pytest.mark.parametrize("expected_tool_result, expected_documents", MCP_TOOL_RESULTS)
     @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
@@ -385,7 +388,8 @@ class TestExecuteMCPTools:
         tool = fake_mcp_tool(tool_name, return_value=expected_tool_content, args_schema=args_schema)
 
         tool_args = {"company_name": "fake company"}
-        tool_calls = [{"id": "company_tool_1", "name": tool_name, "args": tool_args}]
+        tool_call_id = "company_tool_1"
+        tool_calls = [{"id": tool_call_id, "name": tool_name, "args": tool_args}]
 
         mcp_input = tr_models.ToolCallRequest.MCPAsync(
             mcp_server=tool.metadata["url"],
@@ -401,7 +405,7 @@ class TestExecuteMCPTools:
         wrapped_func = execute_mcp_tools(mcp_input=mcp_input)
 
         # rest invocation with sample args
-        result = wrapped_func()
+        result, failures = wrapped_func()
 
         # verify correct interactions
         mock_http_client.assert_called_once_with(tool.metadata["url"], headers={"Authorization": "Bearer fake"})
@@ -409,12 +413,13 @@ class TestExecuteMCPTools:
         mock_load_tools.assert_called_once_with(mock_session)
         tool.ainvoke.assert_called_once_with(tool_args)
 
-        # assert the result matches our expected output
-        for item, expected in zip(result, [expected_documents]):
-            assert item[0] == expected
+        assert failures == []
 
-        assert len(result) == len([expected_documents])
-        assert len(result) == len(tool_calls)
+        tool_result = result.get(tool_call_id)
+        assert tool_result is not None
+        assert isinstance(tool_result, tuple)
+        assert tool_result[0] == expected_documents
+        assert tool_result[1] == expected_tool_metadata
 
     @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
     @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
@@ -434,15 +439,20 @@ class TestExecuteMCPTools:
             tool_calls=tool_calls,
         )
 
-        wrapped_func = execute_mcp_tools(mcp_input=mcp_input)  # wrap_async_tool(tool, "missing_tool")
+        wrapped_func = execute_mcp_tools(mcp_input=mcp_input)
 
         self._patch_mcp_env(mock_load_tools, mock_http_client, mock_session_class, [tool])
 
-        # assert ValueError is raised
-        # with pytest.raises(ValueError, match="tool with name 'missing_tool' not found"):
-        result = wrapped_func()
+        result, failures = wrapped_func()
 
-        assert result == [{"error": "Tool 'missing_tool' not found on server", "tool_name": "missing_tool"}]
+        assert result == {}
+        assert failures == [
+            tr_models.ToolCallResult.Failure(
+                tool_name="missing_tool",
+                metadata={"tool_args": {}},
+                error=f"MCP Async tool 'missing_tool' not found on server '{tool.metadata['url']}'",
+            )
+        ]
 
     def test_sso_token_retrieval_failure(self, fake_mcp_tool: type[MCPTool.Passing]):
         """Test that wrap_async_tool raises when sso_access_token.get() fails."""
