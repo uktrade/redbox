@@ -335,9 +335,10 @@ class TestToolRunner_Parse:
             metadata={"intermediate_step": metadata.get("intermediate_step", "False")},
         )
 
-        result = runner.execute_request(submitted_request)
+        result, failures = runner.execute_request(submitted_request)
         assert isinstance(result, AIMessage)
         assert result.content == expected_content
+        assert failures == []
 
     @pytest.mark.parametrize(
         "future_result_type,tool_name,args,metadata,response",
@@ -355,13 +356,15 @@ class TestToolRunner_Parse:
                 tr_models.FutureResultType.MCP_ASYNC,
                 "test_mcp_async_tool",
                 {
+                    "creator_type": ChunkCreatorType.datahub,
+                    "mcp_url": "http://localhost:59999/mcp",
                     "tool_calls": [
                         {"id": "test_tool_1", "name": "test_tool", "args": {}},
                         {"id": "other_tool_1", "name": "other_tool", "args": {}},
                     ],
                 },
                 {"intermediate_step": "False"},
-                "hello from mcp async tool",
+                ({"test_tool_1": "hello from mcp async tool", "other_tool_1": "hello from other mcp async tool"}, []),
             ),
         ],
     )
