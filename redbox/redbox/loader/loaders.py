@@ -2,7 +2,7 @@ import logging
 import os
 
 from io import BytesIO
-from typing import Iterator
+from typing import Iterator, Tuple
 
 import boto3
 
@@ -128,7 +128,10 @@ class DocumentLoader:
         if current:
             yield current_page, "\n".join(current)
 
-    def iter_pages(self, file_name: str, file_bytes: BytesIO | None = None) -> Iterator[tuple[int, str]]:
+    def iter_pages(self, file_name: str, file_bytes: BytesIO | None = None) -> Iterator[Tuple[int, str, dict]]:
+        """
+        Yields: (page_num, page_text, extra_metadata)
+        """
         display_name = os.path.basename(file_name).lower()
 
         if file_bytes is None:
@@ -137,27 +140,30 @@ class DocumentLoader:
 
         if display_name.endswith((".csv", ".tsv", ".xls", ".xlsx")):
             elements = load_tabular_file(display_name, file_bytes)
-            for idx, el in enumerate(elements or []):
-                yield 1, el["text"]
+            for el in elements or []:
+                yield 1, el["text"], el.get("metadata", {})
             return
 
         if display_name.endswith(".pdf"):
             output_prefix = f"textract-output/{file_name}/"
-            yield from self.textract_service.iter_output_pages(
-                output_bucket=self.bucket,
-                output_prefix=output_prefix,
-            )
+            for page_num, page_text in self.textract_service.iter_output_pages(
+                output_bucket=self.bucket, output_prefix=output_prefix
+            ):
+                yield page_num, page_text, {}
             return
 
         if display_name.endswith(".docx"):
-            yield from self._extract_docx(file_bytes)
+            for page_num, page_text in self._extract_docx(file_bytes):
+                yield page_num, page_text, {}
             return
 
         if display_name.endswith((".ppt", ".pptx")):
-            yield from self._extract_pptx(file_bytes)
+            for page_num, page_text in self._extract_pptx(file_bytes):
+                yield page_num, page_text, {}
             return
 
-        yield from self._extract_unstructured(file_bytes)
+        for page_num, page_text in self._extract_unstructured(file_bytes):
+            yield page_num, page_text, {}
 
 
 class MetadataLoader:
@@ -175,27 +181,38 @@ class MetadataLoader:
 
     def extract_metadata(self) -> GeneratedMetadata:
         start_time = time.time()
-
         display_name = os.path.basename(self.file_name).lower()
 
+        sample_text = ""
+
         if display_name.endswith((".csv", ".tsv", ".xls", ".xlsx")):
-            file_bytes = self._get_file_bytes(self.file_name)
-            elements = load_tabular_file(display_name, file_bytes)
-            sample_text = elements[0]["text"] if elements else ""
+            try:
+                file_bytes = self._get_file_bytes(self.file_name)
+                elements = load_tabular_file(display_name, file_bytes)
+                if elements:
+                    sample_text = elements[0]["text"][:15000]  # generous sample for metadata
+            except Exception as e:
+                logger.error("Tabular metadata sample failed: %s", e)
 
         else:
             pages_text = []
             char_count = 0
-            MAX_CHARS = 10_000
+            MAX_CHARS = 12000  # increased a bit
 
-            for page_num, page_text in self.document_loader.iter_pages(self.file_name):
-                pages_text.append(page_text)
-                char_count += len(page_text)
+            try:
+                for page_num, page_text, _ in self.document_loader.iter_pages(self.file_name):
+                    pages_text.append(page_text)
+                    char_count += len(page_text)
+                    if char_count >= MAX_CHARS or len(pages_text) >= 10:
+                        break
+                sample_text = "\n".join(pages_text)[:MAX_CHARS]
+            except Exception as e:
+                logger.exception("Failed to extract sample text: %s", e)
 
-                if char_count >= MAX_CHARS or len(pages_text) >= 8:
-                    break
-
-            sample_text = "\n".join(pages_text)[:MAX_CHARS]
+        # Fallback if we got nothing
+        if not sample_text.strip():
+            logger.warning("No sample text extracted for %s — using filename only", self.file_name)
+            sample_text = f"Document filename: {self.file_name}"
 
         file_type = self._infer_file_type()
 
@@ -207,13 +224,14 @@ class MetadataLoader:
         try:
             metadata = self.create_file_metadata(sample_text, original_metadata)
         except Exception as e:
-            logger.exception("Metadata extraction failed: %s", e)
+            logger.exception("Metadata LLM call failed: %s", e)
             metadata = GeneratedMetadata(name=self.file_name)
 
         logger.info(
-            "Metadata extraction for [%s] took %.2fs",
+            "Metadata extraction for [%s] took %.2fs | Sample length: %d chars",
             self.file_name,
             time.time() - start_time,
+            len(sample_text),
         )
 
         return metadata

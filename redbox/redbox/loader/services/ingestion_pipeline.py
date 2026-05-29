@@ -39,27 +39,22 @@ class IngestionPipeline:
         file_name: str,
         file_bytes: BytesIO | None = None,
     ) -> Iterator[Document]:
-        """
-        Yield Document objects with proper metadata, including document_schema for tabular files.
-        """
         idx = 0
         display_name = file_name.lower()
-
         is_tabular = display_name.endswith((".csv", ".tsv", ".xls", ".xlsx"))
 
-        for page_num, page_text in self.loader.iter_pages(
-            file_name=file_name,
-            file_bytes=file_bytes,
-        ):
+        for page_num, page_text, extra_meta in self.loader.iter_pages(file_name=file_name, file_bytes=file_bytes):
             if is_tabular:
                 chunks = [page_text]
                 chunk_resolution = ChunkResolution.tabular
+                schema_meta = extra_meta.get("document_schema")
             else:
                 chunks = list(self.chunker.chunk(page_text))
                 chunk_resolution = ChunkResolution.normal
+                schema_meta = None
 
             for chunk in chunks:
-                metadata_dict = UploadedFileMetadata(
+                base_meta = UploadedFileMetadata(
                     index=idx,
                     uri=file_name,
                     page_number=page_num,
@@ -71,15 +66,13 @@ class IngestionPipeline:
                     keywords=self.metadata.keywords,
                 ).model_dump()
 
-                if is_tabular and "document_schema" in page_text:  # crude but works
-                    try:
-                        pass
-                    except:  # noqa: E722
-                        pass
+                final_metadata = base_meta
+                if schema_meta:
+                    final_metadata = {**base_meta, "document_schema": schema_meta}
 
                 yield Document(
                     page_content=chunk,
-                    metadata=metadata_dict,
+                    metadata=final_metadata,
                 )
                 idx += 1
 
