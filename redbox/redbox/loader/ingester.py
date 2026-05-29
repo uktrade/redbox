@@ -68,25 +68,29 @@ def ingest_file(file_name: str):
             batch_size=64,
         )
 
-        indexer = OpenSearchBulkIndexer(
+        normal_indexer = OpenSearchBulkIndexer(
             client=env.elasticsearch_client(),
             index_name=env.elastic_chunk_alias,
+        )
+
+        schematised_indexer = OpenSearchBulkIndexer(
+            client=env.elasticsearch_client(),
+            index_name=env.elastic_schematised_chunk_index,
         )
 
         pipeline = IngestionPipeline(
             loader=loader,
             chunker=chunker,
             embedding_batcher=embedding_batcher,
-            indexer=indexer,
+            indexer=normal_indexer,
+            schematised_indexer=schematised_indexer,
             metadata=metadata,
         )
 
         pipeline.ingest(file_name)
 
-    except Exception:
-        logger.exception(
-            "Error ingesting file %s",
-            file_name,
-        )
+        logger.info("Successfully ingested %s", file_name)
 
+    except Exception:
+        logger.exception("Error ingesting file %s", file_name)
         return traceback.format_exc()
