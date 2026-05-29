@@ -106,7 +106,15 @@ class ToolRunner:
 
     def _submit_all(self, tool_calls: list[ToolCall]) -> tr_models.SubmittedRunRequest:
         """Submit every tool call to the executor, skipping and logging any that fail to launch."""
+        log.warning(
+            f"{self.log_stub} Starting run with {len(tool_calls)} tool_calls: {', '.join([tc.get('name') for tc in tool_calls])}"
+        )
+
         run_request = self.parse_tool_calls(tool_calls=tool_calls)
+
+        log.warning(
+            f"{self.log_stub} Parsed tool calls. Calls: {len(run_request.calls.sync) + len(run_request.calls.mcp_async)} (Sync: {len(run_request.calls.sync)}, MCP_Async: {len(run_request.calls.mcp_async)}). Failed: {len(run_request.failures)}."
+        )
 
         futures: list[tr_models.SubmittedToolCallRequest] = []
         failures: list[tr_models.ToolCallResult.Failure] = run_request.failures
