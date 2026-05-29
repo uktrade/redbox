@@ -202,7 +202,7 @@ export class ShowMore extends HTMLElement {
 
     /**
      * Function to show all items in the container
-     * @param {boolean | null | undefined} expanded - aria-expanded value
+     * @param {boolean | null | undefined} expanded - data-expanded value
     */
     #showItems(items=this.items, expanded=true) {
         this.isExpanded = expanded;
@@ -232,24 +232,24 @@ export class ShowMore extends HTMLElement {
 
 
     /**
-     * Getter for isExpanded property for aria-expanded
+     * Getter for isExpanded property for data-expanded
     */
     get isExpanded() {
-        const value = this.getAttribute("aria-expanded");
+        const value = this.getAttribute("data-expanded");
         if (value == null) return null;
         return value === "true";
     }
 
 
     /**
-     * Setter for isExpanded property for aria-expanded
+     * Setter for isExpanded property for data-expanded
      * @param {boolean | null | undefined} value - Name of attribute
     */
     set isExpanded(value) {
         if (value === null || value === undefined) {
-            this.removeAttribute("aria-expanded");
+            this.removeAttribute("data-expanded");
         } else {
-            this.setAttribute("aria-expanded", value ? "true" : "false");
+            this.setAttribute("data-expanded", value ? "true" : "false");
         }
     }
 }
