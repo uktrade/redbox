@@ -79,9 +79,11 @@ def test_load_tabular_file_csv():
     assert "document_schema" in result[0]["metadata"]
 
 
-def test_ingestion_pipeline_tabular(env: Settings, s3_client: S3Client):
+@patch("redbox.loader.loaders.partition_docx")
+def test_ingestion_pipeline_tabular(mock_partition_docx, env: Settings, s3_client: S3Client):
     file_name = "airports.csv"
-    s3_client.put_object(Bucket=env.bucket_name, Key=file_name, Body=make_test_csv().getvalue())
+    csv_bytes = make_test_csv()
+    s3_client.put_object(Bucket=env.bucket_name, Key=file_name, Body=csv_bytes.getvalue())
 
     textract_service = TextractService()
     loader = DocumentLoader(bucket=env.bucket_name, textract_service=textract_service)
@@ -91,11 +93,11 @@ def test_ingestion_pipeline_tabular(env: Settings, s3_client: S3Client):
     ).extract_metadata()
 
     chunker = TextChunker(min_chunk_size=100, max_chunk_size=2000, overlap_chars=0)
-
     embedding_batcher = EmbeddingBatcher(embedding_model=MagicMock(), batch_size=64)
 
-    normal_indexer = OpenSearchBulkIndexer(client=MagicMock(), index_name="test-chunks")
-    schematised_indexer = OpenSearchBulkIndexer(client=MagicMock(), index_name="test-schematised")
+    # Mock the indexers
+    normal_indexer = MagicMock(spec=OpenSearchBulkIndexer)
+    schematised_indexer = MagicMock(spec=OpenSearchBulkIndexer)
 
     pipeline = IngestionPipeline(
         loader=loader,
@@ -106,14 +108,22 @@ def test_ingestion_pipeline_tabular(env: Settings, s3_client: S3Client):
         metadata=metadata,
     )
 
-    pipeline.ingest(file_name=file_name, file_bytes=make_test_csv())
+    pipeline.ingest(file_name=file_name, file_bytes=csv_bytes)
 
     schematised_indexer.bulk_index.assert_called_once()
+    normal_indexer.bulk_index.assert_called_once()
 
 
-def test_ingestion_pipeline_docx(env: Settings, s3_client: S3Client):
+@patch("redbox.loader.loaders.partition_docx")
+def test_ingestion_pipeline_docx(mock_partition_docx, env: Settings, s3_client: S3Client):
+    mock_element = MagicMock()
+    mock_element.__str__.return_value = "This is test document content."
+    mock_element.metadata.page_number = 1
+    mock_partition_docx.return_value = [mock_element]
+
     file_name = "test-document.docx"
-    s3_client.put_object(Bucket=env.bucket_name, Key=file_name, Body=make_test_docx_content().getvalue())
+    docx_bytes = make_test_docx_content()
+    s3_client.put_object(Bucket=env.bucket_name, Key=file_name, Body=docx_bytes.getvalue())
 
     textract_service = TextractService()
     loader = DocumentLoader(bucket=env.bucket_name, textract_service=textract_service)
@@ -125,7 +135,7 @@ def test_ingestion_pipeline_docx(env: Settings, s3_client: S3Client):
     chunker = TextChunker(min_chunk_size=500, max_chunk_size=2000, overlap_chars=0)
     embedding_batcher = EmbeddingBatcher(embedding_model=MagicMock(), batch_size=64)
 
-    normal_indexer = OpenSearchBulkIndexer(client=MagicMock(), index_name="test-chunks")
+    normal_indexer = MagicMock(spec=OpenSearchBulkIndexer)
 
     pipeline = IngestionPipeline(
         loader=loader,
@@ -136,6 +146,6 @@ def test_ingestion_pipeline_docx(env: Settings, s3_client: S3Client):
         metadata=metadata,
     )
 
-    pipeline.ingest(file_name=file_name, file_bytes=make_test_docx_content())
+    pipeline.ingest(file_name=file_name, file_bytes=docx_bytes)
 
-    normal_indexer.bulk_index.assert_called()
+    normal_indexer.bulk_index.assert_called_once()
