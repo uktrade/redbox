@@ -1,335 +1,139 @@
-import environ
 import logging
 import os
-import time
-from datetime import UTC, datetime
+
 from io import BytesIO
 from typing import Iterator
 
 import boto3
-import pandas as pd
-from langchain_core.documents import Document
-from langchain_core.prompts import PromptTemplate
-from pydantic import ValidationError
+
 from unstructured.partition.auto import partition
 from unstructured.partition.docx import partition_docx
 from unstructured.partition.pptx import partition_pptx
 
-from redbox.chains.components import get_chat_llm
-from redbox.chains.parser import ClaudeParser
-from redbox.models.chain import GeneratedMetadata
-from redbox.models.file import (
-    ChunkResolution,
-    TabularSchema,
-    UploadedFileMetadata,
+from redbox.loader.services.textract_service import (
+    TextractService,
 )
-from redbox.models.settings import Settings
-from redbox.transform import bedrock_tokeniser
-from redbox.loader.loaders import load_tabular_file
 
-env = environ.Env()
+import time
+
+from redbox.chains.components import get_chat_llm
+from langchain_core.prompts import PromptTemplate
+from pydantic import ValidationError
+
+from redbox.models.chain import GeneratedMetadata
+from redbox.chains.parser import ClaudeParser
+
 
 logger = logging.getLogger(__name__)
 
 
-tokeniser = bedrock_tokeniser
-
-
-def infer_sqlite_type(dtype) -> str:
-    if pd.api.types.is_integer_dtype(dtype):
-        return "INTEGER"
-
-    if pd.api.types.is_float_dtype(dtype):
-        return "REAL"
-
-    if pd.api.types.is_bool_dtype(dtype):
-        return "BOOLEAN"
-
-    return "TEXT"
-
-
-def parse_tabular_schema(
-    table_name: str,
-    df: pd.DataFrame,
-):
-    csv_text = f"<table_name>{table_name}</table_name>\n" + df.to_csv(index=False)
-
-    schema = TabularSchema(
-        name=table_name,
-        columns={col: infer_sqlite_type(df[col].dtype) for col in df.columns},
-    )
-
-    return csv_text, schema.model_dump()
-
-
-class TextractChunkLoader:
+class DocumentLoader:
     def __init__(
         self,
         bucket: str,
-        min_chunk_size: int = 500,
-        max_chunk_size: int = 2000,
-        overlap_chars: int = 200,
+        textract_service: TextractService,
         region: str = "eu-west-2",
-        metadata: GeneratedMetadata | None = None,
-        include_schema_metadata: bool = False,
     ):
-        self.bucket = bucket
 
-        self.textract = boto3.client(
-            "textract",
-            region_name=region,
-        )
+        self.bucket = bucket
+        self.textract_service = textract_service
 
         self.s3 = boto3.client(
             "s3",
             region_name=region,
         )
 
-        self.metadata = metadata or GeneratedMetadata(
-            name="",
-            description="",
-            keywords=[],
-        )
-
-        self.min_chunk_size = min_chunk_size
-        self.max_chunk_size = max_chunk_size
-        self.overlap_chars = overlap_chars
-        self.include_schema_metadata = include_schema_metadata
-
-        logger.info(
-            "Initialised TextractChunkLoader (bucket=%s, region=%s, min_chunk=%s, max_chunk=%s, overlap=%s)",
-            bucket,
-            region,
-            min_chunk_size,
-            max_chunk_size,
-            overlap_chars,
-        )
-
-    def _wait_for_job(self, job_id: str):
-        logger.info("Waiting for Textract job %s to complete", job_id)
-
-        while True:
-            response = self.textract.get_document_text_detection(JobId=job_id)
-
-            status = response["JobStatus"]
-
-            logger.info(
-                "Textract job %s status=%s",
-                job_id,
-                status,
-            )
-
-            if status in [
-                "SUCCEEDED",
-                "FAILED",
-            ]:
-                return status
-
-            time.sleep(3)
-
-    def _stream_textract_pages(
-        self,
-        job_id: str,
-    ) -> Iterator[str]:
-        next_token = None
-
-        current_page = None
-        current_lines = []
-
-        while True:
-            kwargs = {"JobId": job_id}
-
-            if next_token:
-                kwargs["NextToken"] = next_token
-
-            response = self.textract.get_document_text_detection(**kwargs)
-
-            for block in response.get("Blocks", []):
-                if block["BlockType"] != "LINE":
-                    continue
-
-                page = block.get("Page", 1)
-
-                if current_page is None:
-                    current_page = page
-
-                if page != current_page:
-                    yield "\n".join(current_lines)
-
-                    current_lines = []
-                    current_page = page
-
-                current_lines.append(block["Text"])
-
-            next_token = response.get("NextToken")
-
-            if not next_token:
-                break
-
-        if current_lines:
-            yield "\n".join(current_lines)
-
-    def _extract_pdf_from_s3(
-        self,
-        bucket: str,
-        key: str,
-    ) -> Iterator[str]:
-        response = self.textract.start_document_text_detection(
-            DocumentLocation={
-                "S3Object": {
-                    "Bucket": bucket,
-                    "Name": key,
-                }
-            }
-        )
-
-        job_id = response["JobId"]
-
-        status = self._wait_for_job(job_id)
-
-        if status != "SUCCEEDED":
-            raise RuntimeError(f"Textract failed for s3://{bucket}/{key}")
-
-        yield from self._stream_textract_pages(job_id)
-
     def _extract_docx(
         self,
         file_bytes: BytesIO,
-    ) -> Iterator[str]:
-        file_bytes.seek(0)
+    ) -> Iterator[tuple[int, str]]:
 
         elements = partition_docx(file=file_bytes)
 
-        current_page = []
-        last_page = None
+        current = []
+        current_page = 1
 
         for el in elements:
-            page_number = getattr(el.metadata, "page_number", None)
+            page = getattr(
+                el.metadata,
+                "page_number",
+                1,
+            )
 
-            text = str(el).strip()
+            if page != current_page:
+                yield current_page, "\n".join(current)
 
-            if not text:
-                continue
+                current = []
+                current_page = page
 
-            if page_number is not None:
-                if last_page is None:
-                    last_page = page_number
+            current.append(str(el).strip())
 
-                if page_number != last_page:
-                    yield "\n".join(current_page)
-
-                    current_page = []
-                    last_page = page_number
-
-            current_page.append(text)
-
-        if current_page:
-            yield "\n".join(current_page)
+        if current:
+            yield current_page, "\n".join(current)
 
     def _extract_pptx(
         self,
         file_bytes: BytesIO,
-    ) -> Iterator[str]:
-        file_bytes.seek(0)
+    ) -> Iterator[tuple[int, str]]:
 
         elements = partition_pptx(file=file_bytes)
 
-        slides = {}
+        current = []
+        current_page = 1
 
         for el in elements:
-            slide_number = getattr(
+            page = getattr(
                 el.metadata,
-                "slide_number",
+                "page_number",
                 1,
             )
 
-            text = str(el).strip()
+            if page != current_page:
+                yield current_page, "\n".join(current)
 
-            if text:
-                slides.setdefault(slide_number, []).append(text)
+                current = []
+                current_page = page
 
-        for slide_num in sorted(slides):
-            yield "\n".join(slides[slide_num])
+            current.append(str(el).strip())
 
-    def _extract_with_unstructured(
+        if current:
+            yield current_page, "\n".join(current)
+
+    def _extract_unstructured(
         self,
         file_bytes: BytesIO,
-    ) -> Iterator[str]:
-        file_bytes.seek(0)
+    ) -> Iterator[tuple[int, str]]:
 
         elements = partition(file=file_bytes)
 
-        current_page = []
-        last_page = None
+        current = []
+        current_page = 1
 
         for el in elements:
-            page_number = getattr(el.metadata, "page_number", None) or getattr(el.metadata, "slide_number", None)
-
-            text = str(el).strip()
-
-            if not text:
-                continue
-
-            if page_number is not None:
-                if last_page is None:
-                    last_page = page_number
-
-                if page_number != last_page:
-                    yield "\n".join(current_page)
-
-                    current_page = []
-                    last_page = page_number
-
-            current_page.append(text)
-
-        if current_page:
-            yield "\n".join(current_page)
-
-    def _extract_tabular(
-        self,
-        file_name: str,
-        file_bytes: BytesIO,
-    ) -> Iterator[Document]:
-
-        logger.info("lazy_load called for %s", file_name)
-
-        s3_key = file_name
-        display_name = os.path.basename(file_name).lower()
-        logger.info("File type detected: %s", display_name)
-
-        if file_bytes is None:
-            obj = self.s3.get_object(Bucket=self.bucket, Key=s3_key)
-            file_bytes = BytesIO(obj["Body"].read())
-
-        if display_name.endswith((".csv", ".tsv", ".xls", ".xlsx")):
-            tabular_elements = load_tabular_file(display_name, file_bytes)
-            for idx, el in enumerate(tabular_elements or []):
-                metadata = UploadedFileMetadata(
-                    index=idx,
-                    uri=s3_key,
-                    page_number=1,
-                    created_datetime=datetime.now(UTC),
-                    token_count=tokeniser(el["text"]),
-                    chunk_resolution=ChunkResolution.tabular,
-                    name=self.metadata.name,
-                    description=self.metadata.description,
-                    keywords=self.metadata.keywords,
-                ).model_dump()
-
-                merged_metadata = metadata
-                if self.include_schema_metadata:
-                    merged_metadata = {**metadata, **el.get("metadata", {})}
-
-                yield Document(page_content=el["text"], metadata=merged_metadata)
-            return
-
-        if display_name.endswith(".pdf"):
-            yield from self._extract_pdf_from_s3(
-                bucket=self.bucket,
-                key=file_name,
+            page = getattr(
+                el.metadata,
+                "page_number",
+                1,
             )
 
-            return
+            if page != current_page:
+                yield current_page, "\n".join(current)
+
+                current = []
+                current_page = page
+
+            current.append(str(el).strip())
+
+        if current:
+            yield current_page, "\n".join(current)
+
+    def iter_pages(
+        self,
+        file_name: str,
+        file_bytes: BytesIO | None = None,
+    ) -> Iterator[tuple[int, str]]:
+
+        display_name = os.path.basename(file_name).lower()
 
         if file_bytes is None:
             obj = self.s3.get_object(
@@ -339,183 +143,115 @@ class TextractChunkLoader:
 
             file_bytes = BytesIO(obj["Body"].read())
 
+        if display_name.endswith(".pdf"):
+            output_prefix = f"textract-output/{file_name}/"
+
+            yield from (
+                self.textract_service.iter_output_pages(
+                    output_bucket=self.bucket,
+                    output_prefix=output_prefix,
+                )
+            )
+
+            return
+
         if display_name.endswith(".docx"):
             yield from self._extract_docx(file_bytes)
+
             return
 
         if display_name.endswith((".ppt", ".pptx")):
             yield from self._extract_pptx(file_bytes)
-            return
-
-        yield from self._extract_with_unstructured(file_bytes)
-
-    def _chunk_text(
-        self,
-        text: str,
-    ) -> Iterator[str]:
-        if not text:
-            return
-
-        start = 0
-        length = len(text)
-
-        while start < length:
-            end = min(
-                start + self.max_chunk_size,
-                length,
-            )
-
-            chunk = text[start:end]
-
-            if len(chunk) >= self.min_chunk_size or start == 0:
-                yield chunk
-
-            if end >= length:
-                break
-
-            start = max(
-                0,
-                end - self.overlap_chars,
-            )
-
-    def pages_to_documents(
-        self,
-        pages: Iterator[str],
-        s3_key: str,
-        chunk_resolution: ChunkResolution,
-    ) -> Iterator[Document]:
-        idx = 0
-
-        for page_num, page_text in enumerate(
-            pages,
-            start=1,
-        ):
-            for chunk in self._chunk_text(page_text):
-                metadata = UploadedFileMetadata(
-                    index=idx,
-                    uri=s3_key,
-                    page_number=page_num,
-                    created_datetime=datetime.now(UTC),
-                    token_count=tokeniser(chunk),
-                    chunk_resolution=chunk_resolution,
-                    name=self.metadata.name,
-                    description=self.metadata.description,
-                    keywords=self.metadata.keywords,
-                ).model_dump()
-
-                yield Document(
-                    page_content=chunk,
-                    metadata=metadata,
-                )
-
-                idx += 1
-
-    def lazy_load(
-        self,
-        file_name: str,
-        file_bytes: BytesIO | None = None,
-        chunk_resolution: ChunkResolution = ChunkResolution.normal,
-    ) -> Iterator[Document]:
-        display_name = os.path.basename(file_name).lower()
-
-        if file_bytes is None:
-            obj = self.s3.get_object(
-                Bucket=self.bucket,
-                Key=file_name,
-            )
-
-            file_bytes = BytesIO(obj["Body"].read())
-
-        if display_name.endswith(
-            (
-                ".csv",
-                ".tsv",
-                ".xls",
-                ".xlsx",
-            )
-        ):
-            yield from self._extract_tabular(
-                file_name=file_name,
-                file_bytes=file_bytes,
-            )
 
             return
 
-        pages = self.extract_pages(
-            file_name=file_name,
-            file_bytes=file_bytes,
-        )
-
-        yield from self.pages_to_documents(
-            pages=pages,
-            s3_key=file_name,
-            chunk_resolution=chunk_resolution,
-        )
+        yield from self._extract_unstructured(file_bytes)
 
 
 class MetadataLoader:
-    def __init__(
-        self,
-        env: Settings,
-        s3_client,
-        file_name: str,
-    ):
+    def __init__(self, env, s3_client, file_name: str, document_loader: DocumentLoader):
         self.env = env
         self.s3_client = s3_client
         self.file_name = file_name
-
         self.llm = get_chat_llm(env.metadata_extraction_llm)
 
+        self.document_loader = document_loader
+
     def extract_metadata(self) -> GeneratedMetadata:
-        loader = TextractChunkLoader(
-            bucket=self.env.bucket_name,
-            min_chunk_size=200,
-            max_chunk_size=2000,
-            overlap_chars=0,
-        )
+        start_time = time.time()
 
-        docs_iter = loader.lazy_load(file_name=self.file_name)
+        pages_text = []
+        char_count = 0
+        MAX_CHARS = 10_000
 
-        collected = []
-        current_size = 0
+        for page_num, page_text in self.document_loader.iter_pages(self.file_name):
+            pages_text.append(page_text)
+            char_count += len(page_text)
 
-        for doc in docs_iter:
-            remaining = 10_000 - current_size
-
-            if remaining <= 0:
+            if char_count >= MAX_CHARS or len(pages_text) >= 8:
                 break
 
-            text = doc.page_content[:remaining]
+        sample_text = "\n".join(pages_text)[:MAX_CHARS]
 
-            collected.append(text)
+        file_type = self._infer_file_type()
 
-            current_size += len(text)
+        original_metadata = {
+            "file_type": file_type,
+            "filename": self.file_name,
+        }
 
-        first_10k_chars = "".join(collected)
+        try:
+            metadata = self.create_file_metadata(sample_text, original_metadata)
+        except Exception as e:
+            logger.exception("Metadata extraction failed: %s", e)
+            metadata = GeneratedMetadata(name=self.file_name)
 
+        logger.info(
+            "Metadata extraction for [%s] took %.2fs",
+            self.file_name,
+            time.time() - start_time,
+        )
+
+        return metadata
+
+    def _infer_file_type(self):
+        name = self.file_name.lower()
+
+        if name.endswith(".docx"):
+            return "DOCX"
+        if name.endswith(".csv"):
+            return "CSV"
+        if name.endswith((".xlsx", ".xls")):
+            return "Excel"
+        if name.endswith(".pdf"):
+            return "PDF"
+        if name.endswith((".ppt", ".pptx")):
+            return "PPT"
+        return "unknown"
+
+    def create_file_metadata(self, page_content: str, original_metadata: dict):
         parser = ClaudeParser(pydantic_object=GeneratedMetadata)
 
         metadata_prompt = PromptTemplate(
-            template="".join(self.env.metadata_prompt) + "\n\n{format_instructions}\n\n{page_content}",
+            template="".join(self.env.metadata_prompt)
+            + "\n\n{format_instructions}\n\n{page_content}\n\n{original_metadata}",
             input_variables=["page_content"],
             partial_variables={
                 "format_instructions": parser.get_format_instructions(),
+                "original_metadata": original_metadata,
             },
         )
 
-        metadata_chain = metadata_prompt | self.llm | parser
+        chain = metadata_prompt | self.llm | parser
 
         try:
-            metadata = metadata_chain.invoke(
-                {
-                    "page_content": first_10k_chars,
-                }
-            )
+            metadata = chain.invoke({"page_content": page_content})
 
             if not metadata.name:
-                metadata.name = self.file_name
+                metadata.name = original_metadata.get("filename", self.file_name)
 
             return metadata
 
-        except ValidationError:
+        except ValidationError as e:
+            logger.warning("Metadata validation failed: %s", e)
             return GeneratedMetadata(name=self.file_name)

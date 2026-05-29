@@ -7,7 +7,7 @@ from langchain.vectorstores import VectorStore
 from langchain_core.documents.base import Document
 from langchain_core.runnables import Runnable, RunnableLambda, chain
 
-from redbox.loader.loaders import TextractChunkLoader
+from redbox.loader.loaders import DocumentLoader
 from redbox.models.settings import Settings
 
 if TYPE_CHECKING:
@@ -26,7 +26,7 @@ def log_chunks(chunks: list[Document]):
 
 
 def document_loader(
-    document_loader: TextractChunkLoader,
+    document_loader: DocumentLoader,
     s3_client: S3Client,
     env: Settings,
 ) -> Runnable:
@@ -63,7 +63,7 @@ def document_loader(
 
 
 def ingest_from_loader(
-    loader: TextractChunkLoader,
+    loader: DocumentLoader,
     s3_client: S3Client,
     vectorstore: VectorStore,
     env: Settings,
