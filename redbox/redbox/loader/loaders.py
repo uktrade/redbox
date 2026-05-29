@@ -13,6 +13,7 @@ from unstructured.partition.pptx import partition_pptx
 from redbox.loader.services.textract_service import (
     TextractService,
 )
+from redbox.loader.services.tabular import load_tabular_file
 
 import time
 
@@ -127,42 +128,33 @@ class DocumentLoader:
         if current:
             yield current_page, "\n".join(current)
 
-    def iter_pages(
-        self,
-        file_name: str,
-        file_bytes: BytesIO | None = None,
-    ) -> Iterator[tuple[int, str]]:
-
+    def iter_pages(self, file_name: str, file_bytes: BytesIO | None = None) -> Iterator[tuple[int, str]]:
         display_name = os.path.basename(file_name).lower()
 
         if file_bytes is None:
-            obj = self.s3.get_object(
-                Bucket=self.bucket,
-                Key=file_name,
-            )
-
+            obj = self.s3.get_object(Bucket=self.bucket, Key=file_name)
             file_bytes = BytesIO(obj["Body"].read())
+
+        if display_name.endswith((".csv", ".tsv", ".xls", ".xlsx")):
+            elements = load_tabular_file(display_name, file_bytes)
+            for idx, el in enumerate(elements or []):
+                yield 1, el["text"]
+            return
 
         if display_name.endswith(".pdf"):
             output_prefix = f"textract-output/{file_name}/"
-
-            yield from (
-                self.textract_service.iter_output_pages(
-                    output_bucket=self.bucket,
-                    output_prefix=output_prefix,
-                )
+            yield from self.textract_service.iter_output_pages(
+                output_bucket=self.bucket,
+                output_prefix=output_prefix,
             )
-
             return
 
         if display_name.endswith(".docx"):
             yield from self._extract_docx(file_bytes)
-
             return
 
         if display_name.endswith((".ppt", ".pptx")):
             yield from self._extract_pptx(file_bytes)
-
             return
 
         yield from self._extract_unstructured(file_bytes)
@@ -177,21 +169,33 @@ class MetadataLoader:
 
         self.document_loader = document_loader
 
+    def _get_file_bytes(self, file_name: str) -> BytesIO:
+        obj = self.s3_client.get_object(Bucket=self.env.bucket_name, Key=file_name)
+        return BytesIO(obj["Body"].read())
+
     def extract_metadata(self) -> GeneratedMetadata:
         start_time = time.time()
 
-        pages_text = []
-        char_count = 0
-        MAX_CHARS = 10_000
+        display_name = os.path.basename(self.file_name).lower()
 
-        for page_num, page_text in self.document_loader.iter_pages(self.file_name):
-            pages_text.append(page_text)
-            char_count += len(page_text)
+        if display_name.endswith((".csv", ".tsv", ".xls", ".xlsx")):
+            file_bytes = self._get_file_bytes(self.file_name)
+            elements = load_tabular_file(display_name, file_bytes)
+            sample_text = elements[0]["text"] if elements else ""
 
-            if char_count >= MAX_CHARS or len(pages_text) >= 8:
-                break
+        else:
+            pages_text = []
+            char_count = 0
+            MAX_CHARS = 10_000
 
-        sample_text = "\n".join(pages_text)[:MAX_CHARS]
+            for page_num, page_text in self.document_loader.iter_pages(self.file_name):
+                pages_text.append(page_text)
+                char_count += len(page_text)
+
+                if char_count >= MAX_CHARS or len(pages_text) >= 8:
+                    break
+
+            sample_text = "\n".join(pages_text)[:MAX_CHARS]
 
         file_type = self._infer_file_type()
 
