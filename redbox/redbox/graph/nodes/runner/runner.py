@@ -408,9 +408,24 @@ class ToolRunner:
 
                 results = {}
                 for tool_id, item in mcp_results.items():
-                    results[tool_id] = self.parse_response(
-                        future_tool_name=future_tool_name, response=item, is_intermediate_step=is_intermediate_step
-                    )
+                    try:
+                        results[tool_id] = self.parse_response(
+                            future_tool_name=future_tool_name, response=item, is_intermediate_step=is_intermediate_step
+                        )
+                    except (
+                        tool_exceptions.ToolTimeoutError,
+                        tool_exceptions.ToolValidationError,
+                        tool_exceptions.ToolExecutionError,
+                        tool_exceptions.ToolNotFoundError,
+                    ) as e:
+                        log.warning(f"{self.log_stub} {e}")
+                        mcp_failures.append(
+                            tr_models.ToolCallResult.Failure(
+                                tool_name=future_tool_name,
+                                error=str(e),
+                                metadata={**request.metadata, "tool_args": request.future_args},
+                            )
+                        )
 
                 return results, mcp_failures
             case _:
