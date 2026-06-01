@@ -631,12 +631,15 @@ def build_datahub_agent_with_loop(
             previous_agents_results += [state.agents_results[dep].content]
         previous_agents_results = " ".join(previous_agents_results)
 
+        mcp_tools = "\n\n".join([f"# {t.name}:\n{t.description}" for t in tools])
+
         additional_variables = {
             "task": task.task,
             "expected_output": task.expected_output,
             "previous_agents_results": previous_agents_results,
             "previous_tool_error": "",
             "previous_tool_results": "",
+            "mcp_tools": mcp_tools,
         }
 
         # has pre_process

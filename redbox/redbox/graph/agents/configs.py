@@ -27,6 +27,7 @@ class PromptVariable(BaseModel):
     formatted_documents: bool = Field(description="Document content", default=False)
     previous_tool_error: bool = Field(description="Message from previous tool error", default=False)
     previous_tool_results: bool = Field(description="Results from previous tool call", default=False)
+    mcp_tools: bool = Field(description="Tools available on MCP server", default=False)
     knowledge_base_metadata: bool = Field(description="Knowledge base files metadata", default=False)
     previous_agents_results: bool = Field(
         description="Results from dependent agents required as input for this task", default=False
@@ -144,6 +145,7 @@ prompt_configs: Dict[str, PromptConfig] = {
             chat_history=True,
             previous_tool_error=True,
             previous_tool_results=True,
+            mcp_tools=True,
         ),
     ),
     "Knowledge_Base_Retrieval_Agent": PromptConfig(
