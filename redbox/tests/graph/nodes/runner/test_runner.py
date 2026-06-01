@@ -819,7 +819,7 @@ class TestToolRunner_Run:
             failures=[],
         )
         stub_result = tr_models.Result(
-            responses=[
+            results=[
                 tr_models.ToolCallResult.Success(
                     tool_name="test_tool",
                     response=AIMessage("r"),
