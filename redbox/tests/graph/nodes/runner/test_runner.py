@@ -828,12 +828,16 @@ class TestToolRunner_Run:
             ]
         )
 
+        tool_calls = [{"name": "test_tool", "args": {}}]
+
         with patch.object(tool_runner, "_submit_all", return_value=stub_request) as ms:
             with patch.object(tool_runner, "_collect", return_value=stub_result) as mc:
-                result = tool_runner.run([{"name": "test_tool", "args": {}}])
+                result = tool_runner.run(tool_calls)
 
-        ms.assert_called_once_with(tool_calls=[{"name": "test_tool", "args": {}}])
+        ms.assert_called_once_with(tool_calls=tool_calls)
         mc.assert_called_once_with(submitted_request=stub_request)
+        assert result.results == stub_result.results
+        assert result.failures == stub_result.failures
         assert result is stub_result
 
     def test_parallel_execution_is_faster_than_sequential(self, mock_state):
