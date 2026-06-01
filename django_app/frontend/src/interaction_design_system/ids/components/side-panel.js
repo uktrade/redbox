@@ -100,9 +100,6 @@ export class SidePanel extends HTMLElement {
         // Enable no-scroll
         this.sidepanelId = enableNoScroll(this.noScrollSource);
 
-        // Update aria
-        this.setAttribute('aria-expanded', 'true');
-
         // Persist state
         localStorage.setItem(this.storageKey, "false");
 
@@ -118,9 +115,6 @@ export class SidePanel extends HTMLElement {
 
         // Disable no-scroll
         if (this.sidepanelId) disableNoScroll(this.sidepanelId);
-
-        // Update aria
-        this.setAttribute('aria-expanded', 'false');
 
         // Persist state
         localStorage.setItem(this.storageKey, "true");
