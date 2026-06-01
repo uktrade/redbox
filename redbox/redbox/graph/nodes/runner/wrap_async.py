@@ -34,8 +34,11 @@ async def execute_mcp_tools_async(
     Args:
         mcp_input: MCPAsync object containing server URL, credentials, and tool calls
 
-    Returns:
-        List of results from each tool call in order
+    Returns: Tuple[Dict[str, Any], List[tr_models.ToolCallResult.Failure]]
+        Tuple of tool results and failures.
+
+        Result[0] - a dictionary of tool results, with tool_call ID as key and result as value.
+        Result[1] - a list of tool call failures.
     """
     results: Dict[str, Any] = {}
     failures: List[tr_models.ToolCallResult.Failure] = []
@@ -181,8 +184,11 @@ def execute_mcp_tools(
     Args:
         mcp_input: MCPAsync object containing server URL, credentials, and tool calls
 
-    Returns:
-        List of results from each tool call in order
+    Returns: Tuple[Dict[str, Any], List[tr_models.ToolCallResult.Failure]]
+        Tuple of tool results and failures.
+
+        Result[0] - a dictionary of tool results, with tool_call ID as key and result as value.
+        Result[1] - a list of tool call failures.
     """
 
     def wrapper():
