@@ -59,8 +59,6 @@ async def execute_mcp_tools_async(
         raise ValueError("MCP sso_access_token is required")
 
     headers = _get_mcp_headers(sso_access_token)
-    # results = []
-
     try:
         async with streamablehttp_client(mcp_url, headers=headers or None) as (
             read,
