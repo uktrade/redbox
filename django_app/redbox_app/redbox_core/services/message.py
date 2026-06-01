@@ -7,11 +7,16 @@ from redbox_app.redbox_core.models import ChatMessage, Citation, File
 logger = logging.getLogger(__name__)
 
 
+def citation_link(citation: Citation, footnote_counter: int) -> str:
+    return f"""<a class="rb-footnote-link" href="{citation.internal_url}">
+                <span class="govuk-visually-hidden">Citation </span>{footnote_counter}</a>"""
+
+
 def replace_ref(message_text: str, citation: Citation, footnote_counter: int) -> str:
     pattern = rf"[\[\(\{{<]{citation.citation_name}[\]\)\}}>]|\b{citation.citation_name}\b"
     message_text = re.sub(
         pattern,
-        f'<a class="rb-footnote-link" href="{citation.internal_url}">{footnote_counter}</a>',
+        citation_link(citation, footnote_counter),
         message_text,
         # count=1,
     )
@@ -21,7 +26,7 @@ def replace_ref(message_text: str, citation: Citation, footnote_counter: int) ->
 def replace_text_in_answer(message_text: str, citation: Citation, footnote_counter: int) -> str:
     return message_text.replace(
         citation.text_in_answer,
-        f'{citation.text_in_answer}<a class="rb-footnote-link" href="{citation.internal_url}">{footnote_counter}</a>',
+        f"{citation.text_in_answer}{citation_link(citation, footnote_counter)}",
     )
 
 
@@ -37,7 +42,7 @@ def remove_dangling_citation(message_text: str) -> str:
 
 
 def citation_not_inserted(message_text: str, citation: Citation, footnote_counter: int) -> bool:
-    return f'<a class="rb-footnote-link" href="{citation.internal_url}">{footnote_counter}</a>' not in message_text
+    return citation_link(citation, footnote_counter) not in message_text
 
 
 def check_ref_ids_unique(message: ChatMessage) -> bool:

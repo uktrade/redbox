@@ -23,12 +23,11 @@ def test_replace_ref(client: Client, alice: User, chat_message_with_citation: Ch
         citation=citation,
         footnote_counter=footnote_counter,
     )
-    expceted_result = (
-        f'{citation.text} <a class="rb-footnote-link" href="{citation.internal_url}">{footnote_counter}</a>'
-    )
+    expected_result = f"""{citation.text} <a class="rb-footnote-link" href="{citation.internal_url}">
+                <span class="govuk-visually-hidden">Citation </span>{footnote_counter}</a>"""
 
     # Then
-    assert message_text == expceted_result
+    assert message_text == expected_result
 
 
 @pytest.mark.django_db(transaction=True)
@@ -46,12 +45,11 @@ def test_replace_text_in_answer(client: Client, alice: User, chat_message_with_c
         citation=citation,
         footnote_counter=footnote_counter,
     )
-    expceted_result = (
-        f'{citation.text}<a class="rb-footnote-link" href="{citation.internal_url}">{footnote_counter}</a>'
-    )
+    expected_result = f"""{citation.text}<a class="rb-footnote-link" href="{citation.internal_url}">
+                <span class="govuk-visually-hidden">Citation </span>{footnote_counter}</a>"""
 
     # Then
-    assert message_text == expceted_result
+    assert message_text == expected_result
 
 
 @pytest.mark.django_db(transaction=True)
@@ -62,9 +60,8 @@ def test_citation_not_inserted(client: Client, alice: User, chat_message_with_ci
     footnote_counter = 1
 
     # When
-    message_with_citation = (
-        f'{citation.text} <a class="rb-footnote-link" href="{citation.internal_url}">{footnote_counter}</a>'
-    )
+    message_with_citation = f"""{citation.text} <a class="rb-footnote-link" href="{citation.internal_url}">
+                <span class="govuk-visually-hidden">Citation </span>{footnote_counter}</a>"""
 
     # Then
     assert not message_service.citation_not_inserted(
