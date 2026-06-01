@@ -5,6 +5,7 @@
 {% extends "base.html" %}
 
 {% from "macros/govuk-button.html" import govukButton %}
+{% from "macros/govuk-link.html" import govukLink %}
 {% from "macros/icon.html" import ids_icon %}
 
 {% block content %}
@@ -89,11 +90,10 @@
             Users
         </h3>
 
-        {{ govukButton(
+        {{ govukLink(
             text="Add users",
             href=bulk_add_user_tool_url,
-            classes="govuk-button--secondary",
-            prevent_double_click=True
+            classes="govuk-button--secondary"
         ) }}
 
         <div class="ids-scrollable ids-max-height-content--two-thirds">
@@ -123,11 +123,10 @@
             Access Rules
         </h3>
 
-        {{ govukButton(
+        {{ govukLink(
             text="Add rule",
             href=add_tool_access_rule_url,
-            classes="govuk-button--secondary",
-            prevent_double_click=True
+            classes="govuk-button--secondary"
         ) }}
 
         <div class="ids-scrollable ids-max-height-content--two-thirds">

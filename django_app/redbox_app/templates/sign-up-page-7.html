@@ -2,7 +2,7 @@
 
 {% extends "base.html" %}
 
-{% from "macros/govuk-button.html" import govukButton %}
+{% from "macros/govuk-link.html" import govukLink %}
 
 
 {% block content %}
@@ -44,7 +44,7 @@
         </ul>
 
         <div class="govuk-button-group govuk-!-margin-top-6">
-          {{ govukButton(text="Sign in to your Redbox", href=url('sign-in')) }}
+          {{ govukLink(text="Sign in to your Redbox", href=url('sign-in')) }}
         </div>
 
       </div>
