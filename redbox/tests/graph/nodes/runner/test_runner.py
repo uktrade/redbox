@@ -195,7 +195,7 @@ class TestToolRunner_Submit:
         submitted_request.future.result(timeout=5)  # let the thread run
         mock_tool.invoke.assert_called_once_with({"p": "v", "state": mock_state})
 
-    def test_async_tool_in_non_loop_mode_does_not_read_intermediate_step(self, mock_async_tool, mock_state):
+    def test_async_tool_non_loop_intermediate_step(self, mock_async_tool, mock_state):
         runner = ToolRunner(
             tools=[mock_async_tool], state=mock_state, max_workers=2, is_loop=False, parallel_timeout=30.0
         )
@@ -208,8 +208,22 @@ class TestToolRunner_Submit:
                     tool_calls=[{"id": "test", "name": "async_tool", "args": {"is_intermediate_step": "True"}}],
                 )
             )
-        # is_loop=False - intermediate_step flag is ignored, always "False"
-        assert submitted_request.metadata["intermediate_step"] == "False"
+        assert submitted_request.metadata["intermediate_step"] == "True"
+
+    def test_async_tool_loop_intermediate_step(self, mock_async_tool, mock_state):
+        runner = ToolRunner(
+            tools=[mock_async_tool], state=mock_state, max_workers=2, is_loop=True, parallel_timeout=30.0
+        )
+        with patch("redbox.graph.nodes.runner.runner.execute_mcp_tools"):
+            submitted_request = runner.submit_mcp_async(
+                mcp_async_call=tr_models.ToolCallRequest.MCPAsync(
+                    mcp_server="http://fakemcpurl:8080",
+                    creator_type=ChunkCreatorType.datahub,
+                    access_token=SensitiveValue(value="fake"),
+                    tool_calls=[{"id": "test", "name": "async_tool", "args": {"is_intermediate_step": "True"}}],
+                )
+            )
+        assert submitted_request.metadata["intermediate_step"] == "True"
 
     def test_raises_tool_execution_error_when_executor_submit_fails(self, tool_runner: ToolRunner):
         tool_runner.executor.submit = Mock(side_effect=Exception("Submission failed"))

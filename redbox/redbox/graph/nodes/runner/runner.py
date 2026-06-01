@@ -301,7 +301,7 @@ class ToolRunner:
     def submit_sync(self, sync_call: tr_models.ToolCallRequest.Sync) -> tr_models.SubmittedToolCallRequest:
         """Find, validate, and submit a sync tool call to the executor."""
         tool_name, selected_tool, tool_args = self.validate_tool_call(tool_call=sync_call.tool_call)
-        is_intermediate_step = "False"
+        is_intermediate_step = tool_args.get("is_intermediate_step", "False")
 
         try:
             args = {**tool_args, "state": self.state}
@@ -319,39 +319,16 @@ class ToolRunner:
             metadata={"intermediate_step": is_intermediate_step},
         )
 
-    # def submit_async(self, tool_call: RunnerToolCall.Sync) -> tuple[Future, dict]:
-    #     """Find, validate, and submit a tool call to the executor. Returns (future, metadata)"""
-    #     tool_name, selected_tool, raw_args = self.validate(tool_call=tool_call)
-    #     is_intermediate_step = "False"
-
-    #     try:
-    #         # if selected_tool.func and not selected_tool.coroutine:
-    #         args = {**raw_args, "state": self.state}
-    #         future = self.executor.submit(selected_tool.invoke, args)
-    #         # else:
-    #         #     args = {**raw_args}
-    #         #     if self.is_loop:
-    #         #         is_intermediate_step = args.get("is_intermediate_step", "False")
-    #         #         log.warning(f"intermediate step: {is_intermediate_step}")
-    #         #     future = self.executor.submit(wrap_async_tool(selected_tool, tool_name), args)
-    #         #     future_type = FutureResultType.ASYNC
-    #     except Exception as e:
-    #         raise tool_exceptions.ToolExecutionError(
-    #             f"Failed to submit tool '{tool_name}' for execution: {str(e)}"
-    #         ) from e
-
-    #     return future, {
-    #         "name": tool_name,
-    #         "intermediate_step": is_intermediate_step,
-    #         "tool_args": raw_args,
-    #         "future_result_type": tool_call.future_result_type,
-    #     }
-
     def submit_mcp_async(
         self, mcp_async_call: tr_models.ToolCallRequest.MCPAsync
     ) -> tr_models.SubmittedToolCallRequest:
         """Find, validate, and submit a grouped MCP async tool call to the executor. Returns (future, metadata)"""
-        is_intermediate_step = "False"
+        tc_is_intermediate_step = [
+            tc.get("args", {}).get("is_intermediate_step")
+            for tc in mcp_async_call.tool_calls
+            if tc.get("args", {}).get("is_intermediate_step")
+        ]
+        is_intermediate_step = "True" if "True" in tc_is_intermediate_step else "False"
 
         try:
             future = self.executor.submit(execute_mcp_tools(mcp_input=mcp_async_call))
