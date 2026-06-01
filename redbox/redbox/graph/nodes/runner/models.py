@@ -68,7 +68,7 @@ class ToolCallResult:
     class Failure(Base):
         """Failed result of single tool execution."""
 
-        error: str = Field(default=None, description="Error from tool execution.")
+        error: str = Field(description="Error from tool execution.")
 
 
 class ParsedRunRequest(BaseModel):
