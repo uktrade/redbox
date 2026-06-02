@@ -1,5 +1,6 @@
 // @ts-check
 
+import { emitEvent, Events, listenEvent } from "../events";
 import { UploadedFile } from "./uploaded-file";
 
 export class UploadedFiles extends HTMLElement {
@@ -62,11 +63,28 @@ export class UploadedFiles extends HTMLElement {
         this.files.splice(index, 1); // Remove file from array
         if (uploadedFile.parentNode === this.container) this.container.removeChild(uploadedFile);
         if (this.allProcessed()) this.#emitProcessedEvent();
+        this.setFocus(index);
         if (this.isEmpty()) {
             this.remove();
             this.#emitRemovedEvent();
         }
         return true;
+    }
+
+
+    /**
+     * Sets the focus state according to the file index passed
+     * @param {number} index - UploadedFile files index
+     */
+    setFocus(index) {
+        // Focus parent container if no files
+        if (this.isEmpty()) return this.parentElement?.focus();
+
+        // Focus file at current index
+        if (this.files[index]) return this.files[index].removeElement.focus();
+
+        // Focus file at previous index (if current index was last in the list and removed)
+        if (this.files[index-1]) return this.files[index-1].removeElement.focus();
     }
 
 
@@ -97,7 +115,7 @@ export class UploadedFiles extends HTMLElement {
 
 
     /**
-     * Checks if the files lsit is empty
+     * Checks if the files list is empty
      * @returns {boolean} Flag indicating if files array is empty
      */
     isEmpty() {
@@ -108,7 +126,7 @@ export class UploadedFiles extends HTMLElement {
      * Emits an event to signify that all uploads have finished processing
      */
     #emitProcessedEvent() {
-        document.body.dispatchEvent(new CustomEvent("file-uploads-processed"));
+        emitEvent(Events.FILE_UPLOADS_PROCESSED);
     }
 
 
@@ -116,7 +134,7 @@ export class UploadedFiles extends HTMLElement {
      * Emits an event to signify that the element has been removed
      */
     #emitRemovedEvent() {
-        document.body.dispatchEvent(new CustomEvent("file-uploads-removed"));
+        emitEvent(Events.FILE_UPLOADS_REMOVED);
     }
 
 
@@ -124,7 +142,7 @@ export class UploadedFiles extends HTMLElement {
      * Monitors the processing status of each uploaded file
      */
     #monitorProcessingStatus() {
-        document.body.addEventListener("file-upload-processed", (evt) => {
+        listenEvent(Events.FILE_UPLOAD_PROCESSED, (evt) => {
             const uploadedFile = /** @type {CustomEvent} */ (evt).detail;
             if (uploadedFile.parentNode !== this.container) return;
             if (this.allProcessed()) this.#emitProcessedEvent();

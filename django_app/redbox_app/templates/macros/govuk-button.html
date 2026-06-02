@@ -1,11 +1,14 @@
-{% macro govukButton(text=None, classes=None, prevent_double_click=False, dont_submit=False, id=None) %}
+{% from "macros/attributes.html" import renderAttributes %}
+
+{% macro govukButton(text=None, classes=None, prevent_double_click=False, dont_submit=False, id=None, attributes=None) %}
 
 <button
   type="{{ 'button' if dont_submit else 'submit' }}"
   class="govuk-button {{ classes }}"
   data-module="govuk-button"
   {% if prevent_double_click %}data-prevent-double-click="true"{% endif %}
-  {% if id %}id="{{ id }}"{% endif %}>
+  {% if id %}id="{{ id }}"{% endif %}
+  {{ renderAttributes(attributes) }}>
     {{ text | safe }}
     {% if caller %}
       {{ caller() }}
