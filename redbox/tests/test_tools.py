@@ -479,6 +479,73 @@ def test_search_knowledge_base_tool_empty_opensearch_response_returns_text(mocke
     mock_es_client.search.assert_called()
 
 
+def test_search_documents_tool_merge_produces_empty_returns_text(mocker: MockerFixture, env: Settings):
+    """
+    If  merge_documents returns empty or whitespace only, despite documents existing, the tool must return a non-empty string
+    """
+    mock_es_client = mocker.MagicMock(spec=OpenSearch)
+    mock_es_client.search.return_value = {
+        "hits": {"hits": [{"_id": "1", "_score": 1.0, "source": {"text": "hello world", "metadata": {"uri": "abc"}}}]}
+    }
+    mocker.patch("redbox.graph.nodes.tools.merge_documents", return_value=[])
+    embedding_model = FakeEmbeddings(size=1024)
+
+    search = build_search_documents_tool(
+        es_client=mock_es_client,
+        index_name="index",
+        embedding_model=embedding_model,
+        embedding_field_name=env.embedding_document_field_name,
+        chunk_resolution=ChunkResolution.normal,
+    )
+
+    tool_node = ToolNode(tools=[search])
+    result_state = tool_node.invoke(
+        _make_search_tool_state("example prompt", s3_keys=["s3_key"], permitted_s3_keys=["s3_key"])
+    )
+
+    message = result_state["messages"][0]
+
+    assert message.content
+    assert message.artifact == []
+
+
+def test_search_knowledge_base_tool_merge_produces_empty_returns_text(mocker: MockerFixture, env: Settings):
+    """
+    If  merge_documents returns empty or whitespace only, despite documents existing, the tool must return a non-empty string, for knowledge base
+    """
+    mock_es_client = mocker.MagicMock(spec=OpenSearch)
+    mock_es_client.search.return_value = {
+        "hits": {"hits": [{"_id": "1", "_score": 1.0, "source": {"text": "hello world", "metadata": {"uri": "abc"}}}]}
+    }
+    mocker.patch("redbox.graph.nodes.tools.merge_documents", return_value=[])
+    embedding_model = FakeEmbeddings(size=1024)
+
+    knowledge_base_search = build_search_documents_tool(
+        es_client=mock_es_client,
+        index_name="index",
+        embedding_model=embedding_model,
+        embedding_field_name=env.embedding_document_field_name,
+        chunk_resolution=ChunkResolution.normal,
+        repository="knowledge_base",
+    )
+
+    tool_node = ToolNode(tools=[knowledge_base_search])
+    result_state = tool_node.invoke(
+        _make_search_tool_state(
+            "example prompt",
+            s3_keys=["s3_key"],
+            permitted_s3_keys=["s3_key"],
+            knowledge_base_s3_keys=["s3_key"],
+            tool_name="_search_knowledge_base",
+        )
+    )
+
+    message = result_state["messages"][0]
+
+    assert message.content
+    assert message.artifact == []
+
+
 @pytest.mark.xfail(reason="calls api")
 def test_govuk_search_tool():
     tool = build_govuk_search_tool()
