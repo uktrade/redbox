@@ -50,7 +50,12 @@ document.addEventListener("chat-response-end", (evt) => {
 
   // Refresh chat window to fix citation references
   fragmentsToRefresh.push("chat-feed");
-  refreshUI(fragmentsToRefresh, chatId);
+  refreshUI(fragmentsToRefresh, chatId).then(_ => {
+    const latestMessage = document.querySelectorAll("[data-role='chat-message-list-item']:last-child")[0];
+      if(latestMessage){
+        latestMessage.focus()
+      }
+    })
 });
 
 syncUrlWithContent();
