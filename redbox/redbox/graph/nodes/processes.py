@@ -28,6 +28,7 @@ from redbox.chains.activity import log_activity
 from redbox.chains.components import get_chat_llm, get_structured_response_with_citations_parser, get_tokeniser
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, build_llm_chain, create_chain_agent
+from redbox.graph.agents.configs import agent_configs
 from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.graph.nodes.tools import get_datahub_mcp_tools
 from redbox.models import ChatRoute
@@ -338,6 +339,15 @@ def create_planner(is_streamed=False):
         # dynamically generate agent plan based on state
         agent_options = state.request.ai_settings.get_worker_agents_options
         _, ConfiguredAgentPlan = configure_agent_task_plan(agent_options)
+        orchestration_agent = create_chain_agent(
+            config=agent_configs["Planner_Agent"],
+            _additional_variables={
+                "document_filenames": document_filenames,
+                "artifact_files": artifact_files,
+            },
+            using_only_structure=False,
+        )
+
         orchestration_agent = create_chain_agent(
             system_prompt=planner_prompt,
             use_metadata=True,

@@ -124,18 +124,12 @@ class WorkerAgent(Agent):
                 previous_agents_results += [state.agents_results[dep].content]
             previous_agents_results = " ".join(previous_agents_results)
             worker_agent = create_chain_agent(
-                system_prompt=self.config.prompt.get_prompt,
-                use_metadata=self.config.prompt.prompt_vars.metadata,
-                using_chat_history=self.config.prompt.prompt_vars.chat_history,
-                parser=self.config.parser,
-                tools=self.config.tools,
+                config=self.config,
                 _additional_variables={
                     "task": task.task,
                     "expected_output": task.expected_output,
                     "previous_agents_results": previous_agents_results,
                 },
-                model=self.config.llm_backend,
-                use_knowledge_base=self.config.prompt.prompt_vars.knowledge_base_metadata,
             )
             result = self._agent_invocation(agent=worker_agent, state=state)
             return (state, result, task)

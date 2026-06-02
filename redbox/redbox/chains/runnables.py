@@ -28,10 +28,11 @@ from redbox.chains.components import (
     get_tabular_metadata_retriever,
     get_tokeniser,
 )
+from redbox.graph.agents.configs import AgentConfig
 from redbox.models.chain import ChainChatMessage, PromptSet, RedboxState, get_prompts
 from redbox.models.errors import QuestionLengthError
 from redbox.models.graph import RedboxEventType
-from redbox.models.settings import ChatLLMBackend, get_settings
+from redbox.models.settings import get_settings
 from redbox.transform import bedrock_tokeniser, flatten_document_state, get_all_metadata
 
 log = logging.getLogger()
@@ -323,14 +324,14 @@ class CannedChatLLM(BaseChatModel):
 
 
 def basic_chat_chain(
-    system_prompt,
-    tools=None,
-    _additional_variables: dict = {},
-    parser=None,
-    using_only_structure: bool = False,
-    using_chat_history: bool = False,
-    model: ChatLLMBackend | None = None,
+    config: AgentConfig, _additional_variables: dict = {}, using_only_structure: bool = False, **kwarg
 ):
+    system_prompt = config.prompt.get_prompt
+    using_chat_history = config.prompt.prompt_vars.chat_history
+    parser = config.parser
+    tools = config.tools
+    model = config.llm_backend
+
     @chain
     def _basic_chat_chain(state: RedboxState):
         nonlocal parser
@@ -373,17 +374,7 @@ def basic_chat_chain(
     return _basic_chat_chain
 
 
-def create_chain_agent(
-    system_prompt,
-    use_metadata=False,
-    tools=None,
-    parser=None,
-    _additional_variables: dict = {},
-    using_only_structure=False,
-    using_chat_history=False,
-    model: ChatLLMBackend | None = None,
-    use_knowledge_base=False,
-):
+def create_chain_agent(config: AgentConfig, _additional_variables: dict = {}, using_only_structure: bool = False):
     @chain
     def _get_metadata(state: RedboxState):
         metadata = get_basic_metadata_retriever(get_settings()).invoke(state)
@@ -432,11 +423,11 @@ def create_chain_agent(
 
     branch = RunnableBranch(
         (
-            lambda _: use_knowledge_base,  # Route 2: need use_knowledge_base
+            lambda _: config.prompt.prompt_vars.knowledge_base_metadata,  # Route 2: need use_knowledge_base
             knowledgebase_chain | _use_result,
         ),
         (
-            lambda _: use_metadata,  # Route 1: need use_metadata ONLY
+            lambda _: config.prompt.prompt_vars.metadata,  # Route 1: need use_metadata ONLY
             metadata_chain | _use_result,
         ),
         RunnablePassthrough(),  # Route 3: no extraction needed
@@ -444,13 +435,9 @@ def create_chain_agent(
 
     run_function = RunnableLambda(
         lambda vars: basic_chat_chain(
-            system_prompt=system_prompt,
-            tools=tools,
-            parser=parser,
+            config=config,
             _additional_variables=vars.get("additional_variables", {}),
             using_only_structure=using_only_structure,
-            using_chat_history=using_chat_history,
-            model=model,
         ).invoke(vars["state"])
     )
 
