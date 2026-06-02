@@ -12,7 +12,7 @@
                         <h2 class="ids-chat-title__heading govuk-heading-s title-text">{{ current_chat.name }}</h2>
                         <button id="chat-title-edit-button" class="edit-trigger ids-icon-button" type="button">
                             {{ ids_icon(icon_name="edit.html") }}
-                            <span class="govuk-visually-hidden">Chat Title</span>
+                            <span class="govuk-visually-hidden">Edit chat: {{ current_chat.name }}</span>
                         </button>
                     {% endif %}
                 </div>
