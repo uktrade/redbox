@@ -191,7 +191,7 @@ class FileUpload extends HTMLElement {
             }
         });
 
-        listenEvent(Events.FILE_UPLOAD_PROCESSED, this.messageInput?.enableSubmit);
+        listenEvent(Events.FILE_UPLOADS_PROCESSED, this.messageInput?.enableSubmit);
         listenEvent(Events.FILE_UPLOADS_REMOVED, () => {
             if (!this.messageInput?.getValue()) this.messageInput.reset();
             this.messageInput?.enableSubmit();

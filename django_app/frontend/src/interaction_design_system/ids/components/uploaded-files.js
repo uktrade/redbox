@@ -126,7 +126,7 @@ export class UploadedFiles extends HTMLElement {
      * Emits an event to signify that all uploads have finished processing
      */
     #emitProcessedEvent() {
-        emitEvent(Events.FILE_UPLOAD_PROCESSED);
+        emitEvent(Events.FILE_UPLOADS_PROCESSED);
     }
 
 
@@ -142,7 +142,7 @@ export class UploadedFiles extends HTMLElement {
      * Monitors the processing status of each uploaded file
      */
     #monitorProcessingStatus() {
-        listenEvent(Events.FILE_UPLOADS_PROCESSED, (evt) => {
+        listenEvent(Events.FILE_UPLOAD_PROCESSED, (evt) => {
             const uploadedFile = /** @type {CustomEvent} */ (evt).detail;
             if (uploadedFile.parentNode !== this.container) return;
             if (this.allProcessed()) this.#emitProcessedEvent();
