@@ -51,12 +51,16 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   color: #6b7280;
   display: flex;
   flex-wrap: wrap;
+  border:none;
+  gap:15px;
+  padding: 0px;;
 }
 
 .feedback__heading {
   color: var(--color-text);
   margin: 0;
   margin-right: 1rem;
+  display: contents;
 }
 
 .thumb_feedback-btn {
@@ -64,7 +68,6 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   background: none;
   padding: 2px;
   cursor: pointer;
-  margin-right: 8px;
 }
 
 .feedback__text-area {
@@ -304,8 +307,13 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 10px;
+  gap: 18px;
   font-size: 14px;
+}
+
+.feedback-button-container {
+  display: flex;
+  gap: 8px;
 }
 
 .ids-message-container,
