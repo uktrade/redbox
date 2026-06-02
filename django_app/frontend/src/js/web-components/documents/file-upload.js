@@ -1,6 +1,7 @@
 // @ts-check
 
 import { UploadedFiles, UploadedFile } from "../../../interaction_design_system/ids/components";
+import { Events, listenEvent } from "../../../interaction_design_system/ids/events";
 import { pollFileStatus, refreshUI } from "../../services";
 import { getCsrfToken } from "../../utils";
 import { MessageInput } from "../chats/message-input";
@@ -190,9 +191,10 @@ class FileUpload extends HTMLElement {
             }
         });
 
-        document.body.addEventListener("file-uploads-processed", this.messageInput?.enableSubmit);
-        document.body.addEventListener("file-uploads-removed", () => {
+        listenEvent(Events.FILE_UPLOAD_PROCESSED, this.messageInput?.enableSubmit);
+        listenEvent(Events.FILE_UPLOADS_REMOVED, () => {
             if (!this.messageInput?.getValue()) this.messageInput.reset();
+            this.messageInput?.enableSubmit();
         });
     }
 
