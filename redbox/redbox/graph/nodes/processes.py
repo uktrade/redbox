@@ -743,7 +743,10 @@ def build_datahub_agent_with_loop(
                         "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.REQUIRES_USER_FEEDBACK),
                     }
 
-                result = collated_result + " Provide a list of recommended follow-up prompts at end of response."
+                result = (
+                    collated_result
+                    + " At the end of your answer provide recommendations to user for follow-up prompts based on result and available tools by carefully reviewing <mcp_tools>."
+                )  # " Provide a list of recommended follow-up prompts at end of response."
 
             if isinstance(result, str):
                 log.warning(f"{log_stub} Using raw string result.")
