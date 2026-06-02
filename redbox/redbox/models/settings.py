@@ -96,7 +96,7 @@ class Settings(BaseSettings):
     embedding_retry_min_seconds: int = 120  # Azure uses 60s
     embedding_retry_max_seconds: int = 300
     embedding_max_batch_size: int = 512
-    embedding_document_field_name: str = "embedding"
+    embedding_document_field_name: str = "vector_field"
 
     partition_strategy: Literal["auto", "fast", "ocr_only", "hi_res"] = "fast"
     clustering_strategy: Literal["full"] | None = None
@@ -194,120 +194,124 @@ class Settings(BaseSettings):
     )
 
     # Define index mapping for Opensearch - this is important so that KNN search works
-    index_mapping: Dict = {
-        "settings": {"index.knn": True},
-        "mappings": {
-            "properties": {
-                "metadata": {
-                    "properties": {
-                        "chunk_resolution": {
-                            "type": "text",
-                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
-                        },
-                        "created_datetime": {"type": "date"},
-                        "creator_type": {
-                            "type": "text",
-                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
-                        },
-                        "description": {
-                            "type": "text",
-                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
-                        },
-                        "index": {"type": "long"},
-                        "keywords": {
-                            "type": "text",
-                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
-                        },
-                        "name": {
-                            "type": "text",
-                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
-                        },
-                        "page_number": {"type": "long"},
-                        "token_count": {"type": "long"},
-                        "uri": {
-                            "type": "text",
-                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
-                        },
-                        "uuid": {
-                            "type": "text",
-                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
-                        },
-                    }
-                },
-                "text": {
-                    "type": "text",
-                    "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
-                },
-                "vector_field": {
-                    "type": "knn_vector",
-                    "dimension": embedding_backend_vector_size,
-                    "method": {
-                        "name": "hnsw",
-                        "space_type": "cosinesimil",
-                        "engine": "lucene",
+    @property
+    def index_mapping(self) -> Dict:
+        return {
+            "settings": {"index.knn": True},
+            "mappings": {
+                "properties": {
+                    "metadata": {
+                        "properties": {
+                            "chunk_resolution": {
+                                "type": "text",
+                                "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                            },
+                            "created_datetime": {"type": "date"},
+                            "creator_type": {
+                                "type": "text",
+                                "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                            },
+                            "description": {
+                                "type": "text",
+                                "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                            },
+                            "index": {"type": "long"},
+                            "keywords": {
+                                "type": "text",
+                                "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                            },
+                            "name": {
+                                "type": "text",
+                                "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                            },
+                            "page_number": {"type": "long"},
+                            "token_count": {"type": "long"},
+                            "uri": {
+                                "type": "text",
+                                "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                            },
+                            "uuid": {
+                                "type": "text",
+                                "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                            },
+                        }
                     },
-                },
-            }
-        },
-    }
+                    "text": {
+                        "type": "text",
+                        "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                    },
+                    self.embedding_document_field_name: {
+                        "type": "knn_vector",
+                        "dimension": self.embedding_backend_vector_size,
+                        "method": {
+                            "name": "hnsw",
+                            "space_type": "cosinesimil",
+                            "engine": "lucene",
+                        },
+                    },
+                }
+            },
+        }
 
-    index_mapping_schematised: Dict = {
-        "settings": {"index.knn": True},
-        "mappings": {
-            "properties": {
-                "metadata": {
-                    "properties": {
-                        "chunk_resolution": {
-                            "type": "text",
-                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
-                        },
-                        "created_datetime": {"type": "date"},
-                        "creator_type": {
-                            "type": "text",
-                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
-                        },
-                        "description": {
-                            "type": "text",
-                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
-                        },
-                        "index": {"type": "long"},
-                        "keywords": {
-                            "type": "text",
-                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
-                        },
-                        "name": {
-                            "type": "text",
-                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
-                        },
-                        "page_number": {"type": "long"},
-                        "token_count": {"type": "long"},
-                        "uri": {
-                            "type": "text",
-                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
-                        },
-                        "uuid": {
-                            "type": "text",
-                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
-                        },
-                        "document_schema": {"type": "object", "enabled": False},
-                    }
-                },
-                "text": {
-                    "type": "text",
-                    "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
-                },
-                "vector_field": {
-                    "type": "knn_vector",
-                    "dimension": embedding_backend_vector_size,
-                    "method": {
-                        "name": "hnsw",
-                        "space_type": "cosinesimil",
-                        "engine": "lucene",
+    @property
+    def index_mapping_schematised(self) -> Dict:
+        return {
+            "settings": {"index.knn": True},
+            "mappings": {
+                "properties": {
+                    "metadata": {
+                        "properties": {
+                            "chunk_resolution": {
+                                "type": "text",
+                                "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                            },
+                            "created_datetime": {"type": "date"},
+                            "creator_type": {
+                                "type": "text",
+                                "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                            },
+                            "description": {
+                                "type": "text",
+                                "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                            },
+                            "index": {"type": "long"},
+                            "keywords": {
+                                "type": "text",
+                                "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                            },
+                            "name": {
+                                "type": "text",
+                                "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                            },
+                            "page_number": {"type": "long"},
+                            "token_count": {"type": "long"},
+                            "uri": {
+                                "type": "text",
+                                "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                            },
+                            "uuid": {
+                                "type": "text",
+                                "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                            },
+                            "document_schema": {"type": "object", "enabled": False},
+                        }
                     },
-                },
-            }
-        },
-    }
+                    "text": {
+                        "type": "text",
+                        "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                    },
+                    self.embedding_document_field_name: {
+                        "type": "knn_vector",
+                        "dimension": self.embedding_backend_vector_size,
+                        "method": {
+                            "name": "hnsw",
+                            "space_type": "cosinesimil",
+                            "engine": "lucene",
+                        },
+                    },
+                }
+            },
+        }
 
     @property
     def elastic_chat_mesage_index(self):

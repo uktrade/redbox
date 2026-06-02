@@ -283,7 +283,7 @@ def build_document_query(
         "min_score": 0.6,
         "query": {
             "knn": {
-                "vector_field": {
+                embedding_field_name: {
                     "vector": query_vector,
                     "k": k_value,
                     # "boost": ai_settings.knn_boost,
@@ -291,7 +291,7 @@ def build_document_query(
                 }
             }
         },
-        "_source": {"excludes": ["vector_field"]},
+        "_source": {"excludes": [embedding_field_name]},
     }
 
 

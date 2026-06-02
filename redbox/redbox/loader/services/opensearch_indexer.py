@@ -13,10 +13,12 @@ class OpenSearchBulkIndexer:
         client: OpenSearch,
         index_name: str,
         max_retries: int = 5,
+        vector_field_name: str = "vector_field",
     ):
         self.client = client
         self.index_name = index_name
         self.max_retries = max_retries
+        self.vector_field_name = vector_field_name
 
     def bulk_index(
         self,
@@ -33,7 +35,7 @@ class OpenSearchBulkIndexer:
                     "_source": {
                         "text": doc.page_content,
                         "metadata": doc.metadata,
-                        "vector_field": embedding,
+                        self.vector_field_name: embedding,
                     },
                 }
             )

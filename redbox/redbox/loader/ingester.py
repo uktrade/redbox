@@ -71,11 +71,13 @@ def ingest_file(file_name: str):
         normal_indexer = OpenSearchBulkIndexer(
             client=env.elasticsearch_client(),
             index_name=env.elastic_chunk_alias,
+            vector_field_name=env.embedding_document_field_name,
         )
 
         schematised_indexer = OpenSearchBulkIndexer(
             client=env.elasticsearch_client(),
             index_name=env.elastic_schematised_chunk_index,
+            vector_field_name=env.embedding_document_field_name,
         )
 
         pipeline = IngestionPipeline(

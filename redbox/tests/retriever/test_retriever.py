@@ -1,12 +1,13 @@
 import pytest
 from langchain_core.messages import HumanMessage
 
-from redbox.models.chain import RedboxState
+from redbox.models.chain import AISettings, RedboxState
 from redbox.retriever import (
     AllElasticsearchRetriever,
     MetadataRetriever,
     ParameterisedElasticsearchRetriever,
 )
+from redbox.retriever.queries import build_document_query
 from redbox.retriever.retrievers import KnowledgeBaseTabularMetadataRetriever
 from redbox.test.data import RedboxChatTestCase
 
@@ -90,6 +91,25 @@ def test_parameterised_retriever(
         if selected:
             assert {c.page_content for c in result} <= {c.page_content for c in selected_docs}
             assert {c.metadata["uri"] for c in result} <= set(stored_file_parameterised.query.s3_keys)
+
+
+def test_build_document_query_uses_embedding_field_name():
+    query = "hello"
+    query_vector = [0.1] * 1024
+    ai_settings = AISettings()
+
+    result = build_document_query(
+        query=query,
+        query_vector=query_vector,
+        embedding_field_name="custom_vector",
+        ai_settings=ai_settings,
+        permitted_files=["file.pdf"],
+        selected_files=["file.pdf"],
+        chunk_resolution=None,
+    )
+
+    assert "custom_vector" in result["query"]["knn"]
+    assert result["_source"]["excludes"] == ["custom_vector"]
 
 
 def test_all_chunks_retriever(
