@@ -52,6 +52,7 @@ class IngestionPipeline:
                 schema_meta = None
 
             for chunk in chunks:
+                logger.info("CHUNK: %s chars", len(chunk))
                 base_meta = UploadedFileMetadata(
                     index=idx,
                     uri=file_name,

@@ -144,26 +144,41 @@ class DocumentLoader:
                 yield 1, el["text"], el.get("metadata", {})
             return
 
-        if display_name.endswith(".pdf"):
-            output_prefix = f"textract-output/{file_name}/"
+        elif display_name.endswith(".pdf"):
+            import hashlib
+
+            safe_id = hashlib.md5(file_name.encode()).hexdigest()
+            output_prefix = f"textract-output/{safe_id}/"
+
+            self.textract_service.run_and_wait(
+                bucket=self.bucket,
+                key=file_name,
+                output_bucket=self.bucket,
+                output_prefix=output_prefix,
+            )
+
             for page_num, page_text in self.textract_service.iter_output_pages(
-                output_bucket=self.bucket, output_prefix=output_prefix
+                output_bucket=self.bucket,
+                output_prefix=output_prefix,
             ):
                 yield page_num, page_text, {}
             return
 
-        if display_name.endswith(".docx"):
+        elif display_name.endswith(".docx"):
             for page_num, page_text in self._extract_docx(file_bytes):
+                logger.info("PAGE %s chars=%s", page_num, len(page_text))
                 yield page_num, page_text, {}
             return
 
-        if display_name.endswith((".ppt", ".pptx")):
+        elif display_name.endswith((".ppt", ".pptx")):
             for page_num, page_text in self._extract_pptx(file_bytes):
                 yield page_num, page_text, {}
             return
 
-        for page_num, page_text in self._extract_unstructured(file_bytes):
-            yield page_num, page_text, {}
+        else:
+            for page_num, page_text in self._extract_unstructured(file_bytes):
+                yield page_num, page_text, {}
+            return
 
 
 class MetadataLoader:

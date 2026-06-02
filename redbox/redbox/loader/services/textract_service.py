@@ -4,6 +4,7 @@ from typing import Iterator
 
 import boto3
 from botocore.config import Config
+import time
 
 
 logger = logging.getLogger(__name__)
@@ -109,3 +110,25 @@ class TextractService:
 
                 for page_num in sorted(pages):
                     yield page_num, "\n".join(pages[page_num])
+
+    def run_and_wait(self, bucket: str, key: str, output_bucket: str, output_prefix: str) -> str:
+        job_id = self.submit_job(
+            bucket=bucket,
+            key=key,
+            output_bucket=output_bucket,
+            output_prefix=output_prefix,
+        )
+
+        # poll status
+        while True:
+            status = self.get_job_status(job_id)
+
+            if status in ("SUCCEEDED", "FAILED"):
+                break
+
+            time.sleep(5)
+
+        if status != "SUCCEEDED":
+            raise RuntimeError(f"Textract failed for {key}: {status}")
+
+        return job_id

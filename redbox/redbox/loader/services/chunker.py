@@ -21,14 +21,15 @@ class TextChunker:
         length = len(text)
 
         while start < length:
-            end = min(
-                start + self.max_chunk_size,
-                length,
-            )
+            end = min(start + self.max_chunk_size, length)
 
             chunk = text[start:end]
 
-            if len(chunk) >= self.min_chunk_size:
+            is_last = end == length
+
+            # Yield chunk if it's large enough, or if it's the final chunk
+            # (so we don't drop short pages such as PDF pages).
+            if len(chunk) >= self.min_chunk_size or is_last:
                 yield chunk
 
             start = end - self.overlap_chars

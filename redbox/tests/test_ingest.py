@@ -149,3 +149,12 @@ def test_ingestion_pipeline_docx(mock_partition_docx, env: Settings, s3_client: 
     pipeline.ingest(file_name=file_name, file_bytes=docx_bytes)
 
     normal_indexer.bulk_index.assert_called_once()
+
+
+def test_text_chunker_yields_final_short_chunk():
+    text = "a" * 900
+    chunker = TextChunker(min_chunk_size=1000, max_chunk_size=2000, overlap_chars=0)
+
+    chunks = list(chunker.chunk(text))
+
+    assert chunks == [text]
