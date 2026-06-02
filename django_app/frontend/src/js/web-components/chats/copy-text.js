@@ -17,6 +17,7 @@ class CopyText extends HTMLElement {
           </defs>
           </svg>
           Copy
+          <span class="govuk-visually-hidden"> message content</span>
         </button>
     `;
 
