@@ -16,6 +16,7 @@ export class UploadedFile extends HTMLElement {
         ERROR: "error",
     });
 
+    /** @type {Readonly<Record<string, string>>} */
     static FileStatusDisplay = Object.freeze({
         [UploadedFile.StatusTypes.COMPLETE]: "Ready to use",
         [UploadedFile.StatusTypes.PROCESSING]: "Processing",
