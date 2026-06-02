@@ -39,7 +39,7 @@ export class ChatMessage extends HTMLElement {
                     </div>
                 </div>
             ${this.dataset.role == 'ai' ?
-        `<div class="chat-actions-container">
+        `<div class="chat-actions-container chat-actions-container__feedback">
             </div>`
         : ''}
 

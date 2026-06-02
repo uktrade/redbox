@@ -51,8 +51,8 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   color: #6b7280;
   display: flex;
   flex-wrap: wrap;
-  border:none;
-  gap:15px;
+  border: none;
+  gap: 15px;
   padding: 0px;;
 }
 
@@ -307,9 +307,14 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 18px;
+  gap: 10px;
   font-size: 14px;
 }
+
+.chat-actions-container__feedback{
+  gap: 18px;
+}
+
 
 .feedback-button-container {
   display: flex;
