@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 import pytest
+from botocore.exceptions import ClientError
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 
 from redbox.loader.loaders import MetadataLoader, parse_tabular_schema
@@ -594,6 +595,29 @@ class TestWaitForJob:
         assert mock_sleep.call_count == 2
 
     @patch("redbox.loader.loaders.boto3.client")
+    @patch("time.sleep")
+    def test_wait_for_job_retries_on_throttling(self, mock_sleep: MagicMock, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        error = ClientError(
+            {"Error": {"Code": "ProvisionedThroughputExceededException", "Message": "Rate exceeded"}},
+            "GetDocumentTextDetection",
+        )
+        mock_textract.get_document_text_detection.side_effect = [
+            error,
+            {"JobStatus": "SUCCEEDED"},
+        ]
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        result = loader._wait_for_job("test-job-id")
+
+        assert result == "SUCCEEDED"
+        assert mock_textract.get_document_text_detection.call_count == 2
+
+    @patch("redbox.loader.loaders.boto3.client")
     def test_wait_for_job_api_error(self, mock_boto_client: MagicMock):
 
         mock_textract = MagicMock()
@@ -742,6 +766,35 @@ class TestGetTextractResults:
 
         with pytest.raises(Exception):
             loader._get_textract_results("test-job-id")
+
+    @patch("redbox.loader.loaders.boto3.client")
+    @patch("time.sleep")
+    def test_get_textract_results_retries_on_throttling(self, mock_sleep: MagicMock, mock_boto_client: MagicMock):
+
+        mock_textract = MagicMock()
+        error = ClientError(
+            {"Error": {"Code": "ProvisionedThroughputExceededException", "Message": "Rate exceeded"}},
+            "GetDocumentTextDetection",
+        )
+        mock_textract.get_document_text_detection.side_effect = [
+            error,
+            {
+                "Blocks": [
+                    {"BlockType": "LINE", "Text": "Retry line", "Page": 1},
+                ],
+                "NextToken": None,
+            },
+        ]
+        mock_boto_client.return_value = mock_textract
+
+        loader = TextractChunkLoader(bucket="test-bucket")
+        loader.textract = mock_textract
+
+        result = loader._get_textract_results("test-job-id")
+
+        assert len(result) == 1
+        assert "Retry line" in result[0]
+        assert mock_textract.get_document_text_detection.call_count == 2
 
 
 class TestExtractDocx:
