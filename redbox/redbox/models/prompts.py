@@ -73,8 +73,6 @@ RETRIEVAL_QUESTION_PROMPT = "<User_question>From the provided documents, {questi
 NEW_ROUTE_RETRIEVAL_SYSTEM_PROMPT = """Answer user question using the provided context.
 When analysing results from the tabular agent, only synthesise or summarise the provided information to answer the question. Do not derive new statistics from the tabular agent results.
 
-At the end of your answer provide recommendations to user for follow-up prompts.
-
 IMPORTANT: Your response MUST strictly follow these <Artifact_Criteria>. Violating any criterion is not acceptable:"""
 
 AGENTIC_RETRIEVAL_SYSTEM_PROMPT = (
