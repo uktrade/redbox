@@ -14,7 +14,7 @@
                     data-module="govuk-checkboxes">
                     {% for file in completed_files %}
                     <div class="ids-list-row govuk-!-display-none">
-                        {% set document_edit_url = url('document-titles', doc_id=file.id) %}
+                        {% set document_edit_url = url('edit-document-title', doc_id=file.id) %}
                         {% call editable_text(document_edit_url, 'document-title-change', 'your-documents', file.id) %}
                             <div class="govuk-checkboxes__item item-checkbox-container display">
                                 <input class="govuk-checkboxes__input ids-item-checkbox__input" id="file-{{ file.id }}" name="file-{{ file.id }}" type="checkbox"

@@ -371,7 +371,7 @@ def test_documents_title_view(alice, client):
 
     # Login and make the request
     client.force_login(alice)
-    url = reverse("document-titles", kwargs={"doc_id": str(file.id)})
+    url = reverse("edit-document-title", kwargs={"doc_id": str(file.id)})
     response = client.post(url, data='{"value": "updated.pdf"}', content_type="application/json")
 
     # Verify the response and changes
