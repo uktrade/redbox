@@ -43,7 +43,11 @@ from redbox.models.chain import (
     get_plan_fix_suggestion_prompts,
 )
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
-from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
+from redbox.models.prompts import (
+    USER_FEEDBACK_EVAL_PROMPT,
+    DATAHUB_USER_FEEDBACK,
+    DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS,
+)
 from redbox.models.settings import ChatLLMBackend
 from redbox.transform import combine_documents, flatten_document_state, join_result_with_token_limit
 
@@ -733,7 +737,7 @@ def build_datahub_agent_with_loop(
                     return {
                         "agents_results": {
                             task.id: AIMessage(
-                                content=f"<{agent_name}_Result>Ask user for feedback based on failure reason. {combined_feedback}\n\n{collated_result}</{agent_name}_Result>",
+                                content=f"<{agent_name}_Result>{DATAHUB_USER_FEEDBACK} {combined_feedback}\n\n{collated_result}</{agent_name}_Result>",
                                 kwargs={
                                     "reason": combined_feedback,
                                 },
@@ -743,10 +747,7 @@ def build_datahub_agent_with_loop(
                         "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.REQUIRES_USER_FEEDBACK),
                     }
 
-                result = (
-                    collated_result
-                    + " At the end of your answer provide recommendations to user for follow-up prompts based on result and available tools by carefully reviewing <mcp_tools>."
-                )
+                result = collated_result + DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS
 
             if isinstance(result, str):
                 log.warning(f"{log_stub} Using raw string result.")
