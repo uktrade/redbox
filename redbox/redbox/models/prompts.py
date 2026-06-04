@@ -640,7 +640,7 @@ Guidelines for Tool Usage:
 """
 
 DATAHUB_QUESTION_PROMPT = """ Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output>. Retrieve the relevant information from the database that would complete this task.
-Expected output: Raw data retrieved from database. Output the raw data and do not output any explanation. At the end of your answer provide recommendations to user for follow-up prompts based on result and available tools by carefully reviewing <mcp_tools>.
+Expected output: Raw data retrieved from database. Output the raw data and do not output any explanation.
 Please analyse your previous actions in the chat history before you perform the next tool execution.
 Existing information:
 <previous_chat_history>{chat_history}</previous_chat_history>
