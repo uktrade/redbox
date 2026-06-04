@@ -485,7 +485,7 @@ def test_search_documents_tool_merge_produces_empty_returns_text(mocker: MockerF
     """
     mock_es_client = mocker.MagicMock(spec=OpenSearch)
     mock_es_client.search.return_value = {
-        "hits": {"hits": [{"_id": "1", "_score": 1.0, "source": {"text": "hello world", "metadata": {"uri": "abc"}}}]}
+        "hits": {"hits": [{"_id": "1", "_score": 1.0, "_source": {"text": "hello world", "metadata": {"uri": "abc"}}}]}
     }
     mocker.patch("redbox.graph.nodes.tools.merge_documents", return_value=[])
     embedding_model = FakeEmbeddings(size=1024)
@@ -515,7 +515,7 @@ def test_search_knowledge_base_tool_merge_produces_empty_returns_text(mocker: Mo
     """
     mock_es_client = mocker.MagicMock(spec=OpenSearch)
     mock_es_client.search.return_value = {
-        "hits": {"hits": [{"_id": "1", "_score": 1.0, "source": {"text": "hello world", "metadata": {"uri": "abc"}}}]}
+        "hits": {"hits": [{"_id": "1", "_score": 1.0, "_source": {"text": "hello world", "metadata": {"uri": "abc"}}}]}
     }
     mocker.patch("redbox.graph.nodes.tools.merge_documents", return_value=[])
     embedding_model = FakeEmbeddings(size=1024)
