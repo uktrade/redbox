@@ -4,6 +4,8 @@
  * Central event registry
  */
 export const Events = /** @type {const} */ ({
+    // Project Events
+
     /** When the streaming connection is opened **/
     CHAT_RESPONSE_START: "chat-response-start",
 
@@ -15,6 +17,9 @@ export const Events = /** @type {const} */ ({
 
     /** When a document status changes to "complete" **/
     DOC_COMPLETE: "doc-complete",
+
+    /** When a document status changes to "errored" **/
+    DOC_ERROR: "doc-error",
 
     /** When a user selects or deselects a document **/
     SELECTED_DOCS_CHANGE: "selected-docs-change",
@@ -31,6 +36,16 @@ export const Events = /** @type {const} */ ({
     /** When the chat title is changed by the user **/
     CHAT_TITLE_CHANGE: "chat-title-change",
 
+    /** When a document has been selected/deselected in the side panel **/
+    DOC_SELECTION_CHANGE: "doc-selection-change",
+
+    /** When the FileStatus element is complete **/
+    FILE_STATUS_COMPLETE: "file-status-complete",
+
+
+
+    // IDS Events
+
     /** When a individual file has finished processing **/
     FILE_UPLOAD_PROCESSED: "file-upload-processed",
 
@@ -40,32 +55,32 @@ export const Events = /** @type {const} */ ({
     /** When all file uploads have been removed **/
     FILE_UPLOADS_REMOVED: "file-uploads-removed",
 
-    /** When a document has been selected/deselected in the side panel **/
-    DOC_SELECTION_CHANGE: "doc-selection-change",
-
     /** When the side-panel has been toggled **/
     SIDE_PANEL_TOGGLE: "side-panel-toggle",
 
     /** Trigger a page scroll to bottom **/
     SCROLL_TO_BOTTOM: "scroll-to-bottom",
-})
+});
 
 /**
  * @typedef {{
  *  "chat-response-start": undefined,
  *  "chat-response-end": {title:string, session_id:string, is_new_chat:boolean},
  *  "chat-response-error": undefined,
- *  "doc-complete": {fileStatus:HTMLElement},
+ *  "doc-complete": {id:string, status:string},
+ *  "doc-error": {id:string, status:string},
  *  "selected-docs-change": {id:string, name:string}[],
  *  "start-streaming": undefined,
  *  "stop-streaming": undefined,
  *  "chat-title-change": {title:string, session_id:string, sender:string},
- *  "file-upload-processed": undefined,
- *  "file-uploads-processed": undefined,
- *  "file-uploads-removed": undefined,
  *  "doc-selection-change": {id:string, name:string, checked:boolean},
+ *  "file-status-complete": {fileStatus:HTMLElement},
+ *  "file-status-error": {id:string, status:string},
+ *  "file-upload-processed": {uploadedFile:HTMLElement},
+ *  "file-uploads-processed": {uploadedFiles:HTMLElement},
+ *  "file-uploads-removed": {uploadedFiles:HTMLElement},
  *  "side-panel-toggle": undefined,
- * "scroll-to-bottom": {source:HTMLElement, force?:boolean},
+ *  "scroll-to-bottom": {source:HTMLElement, force?:boolean},
  * }} EventMap
  */
 

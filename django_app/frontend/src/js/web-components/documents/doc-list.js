@@ -1,5 +1,7 @@
 // @ts-check
 
+import { Events, listenEvent } from "../../../interaction_design_system/ids/events";
+
 /** So completed docs can be added to this list */
 class DocList extends HTMLElement {
   connectedCallback() {
@@ -12,18 +14,19 @@ class DocList extends HTMLElement {
     screenReaderAnnouncements.classList.add("govuk-visually-hidden");
     this.appendChild(screenReaderAnnouncements);
 
-    document.body.addEventListener("doc-complete", (evt) => {
+    listenEvent(Events.FILE_STATUS_COMPLETE, (evt) => {
       // Move completed doc to this list
-      const completedDoc = /** @type{CustomEvent} */ (evt).detail.closest(
+      const completedDoc = evt.detail.fileStatus.closest(
         ".govuk-table__row"
       );
-      completedDoc.querySelector("file-status").remove();
+      if (!completedDoc) return;
+      completedDoc.querySelector("file-status")?.remove();
       this.querySelector("tbody")?.appendChild(completedDoc);
 
       // Announce doc is ready to screen-reader users
       const docName = completedDoc.querySelector(
         ".iai-doc-list__cell--file-name"
-      ).textContent;
+      )?.textContent;
       screenReaderAnnouncements.textContent = `Processing Complete: ${docName}`;
       clearTimeout(screenReaderAnnouncementsTimer);
       screenReaderAnnouncementsTimer = window.setTimeout(() => {

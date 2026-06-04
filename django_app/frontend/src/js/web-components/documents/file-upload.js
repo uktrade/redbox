@@ -139,8 +139,8 @@ class FileUpload extends HTMLElement {
             target.value = "";
         });
 
-        document.body.addEventListener("doc-complete", (evt) => {
-            const id = /** @type {CustomEvent} */ (evt).detail.id;
+       listenEvent(Events.DOC_COMPLETE, (evt) => {
+            const id = evt.detail.id;
             if (!id) return;
 
             const uploadedFile = this.uploadedFiles?.getFileById(id);
@@ -151,7 +151,7 @@ class FileUpload extends HTMLElement {
             refreshUI(["your-documents"]).finally(() => this.#checkDocuments(id));
         });
 
-        document.body.addEventListener("doc-error", (evt) => {
+        listenEvent(Events.DOC_ERROR, (evt) => {
             const id = /** @type {CustomEvent} */ (evt).detail.id;
             if (!id) return;
 
@@ -161,8 +161,8 @@ class FileUpload extends HTMLElement {
             uploadedFile.status = UploadedFile.StatusTypes.ERROR;
         });
 
-        document.body.addEventListener("doc-selection-change", (evt) => {
-            const detail = /** @type{CustomEvent} */ (evt).detail;
+        listenEvent(Events.DOC_SELECTION_CHANGE, (evt) => {
+            const detail = evt.detail;
             let uploadedDocument = this.uploadedFiles?.getFileById(detail.id);
 
             if (uploadedDocument && !detail.checked) {
@@ -197,6 +197,7 @@ class FileUpload extends HTMLElement {
             this.messageInput?.enableSubmit();
         });
     }
+
 
     /**
      * Create a uploadedFile element

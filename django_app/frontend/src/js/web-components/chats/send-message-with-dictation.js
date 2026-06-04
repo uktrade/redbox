@@ -1,4 +1,5 @@
 // @ts-check
+import { Events, listenEvent } from "../../../interaction_design_system/ids/events";
 import { hideElement, showElement } from "../../utils";
 import { MessageInput } from "./message-input";
 
@@ -55,21 +56,21 @@ export class SendMessageWithDictation extends HTMLElement {
       }
     });
 
-    document.addEventListener("chat-response-start", () => {
+    listenEvent(Events.CHAT_RESPONSE_START, () => {
       this.isStreaming = true;
       if (this.isRecording) this.stopRecording();
       this.disableSubmit();
       this.hideSendButton();
     });
 
-    document.addEventListener("chat-response-end", () => {
+    listenEvent(Events.CHAT_RESPONSE_END, () => {
       this.isStreaming = false;
       this.enableSubmit();
       this.showRecordButton();
       this.showSendButton();
     });
 
-    document.addEventListener("stop-streaming", () => {
+    listenEvent(Events.STOP_STREAMING, () => {
       this.isStreaming = false;
       this.enableSubmit();
       this.showRecordButton();

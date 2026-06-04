@@ -1,5 +1,6 @@
 // @ts-check
 
+import { Events, listenEvent } from "../../../interaction_design_system/ids/events";
 import { getActiveToolId, hideElement } from "../../utils";
 import { ChatMessage } from "./chat-message";
 
@@ -98,8 +99,8 @@ class ChatController extends HTMLElement {
       messageInput.reset(true);
     });
 
-    document.body.addEventListener("selected-docs-change", (evt) => {
-      selectedDocuments = /** @type{CustomEvent} */ (evt).detail;
+    listenEvent(Events.SELECTED_DOCS_CHANGE, (evt) => {
+      selectedDocuments = evt.detail;
     });
   }
 }
