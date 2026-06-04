@@ -259,9 +259,16 @@ def build_search_documents_tool(
             time.time() - start_time,
         )
         log.warning("[_search_documents] Returning %s documents", len(sorted_documents))
+        formatted_docs = format_documents(sort_documents)
+        if not formatted_docs.strip():
+            log.warning(
+                "[_search_documents] Formatted result was empty despite %s hit(s); returning no_results_msg",
+                len(initial_documents),
+            )
+            return no_results_msg, []
 
         # Return as state update
-        return format_documents(sorted_documents), sorted_documents
+        return formatted_docs, sorted_documents
 
     @tool(response_format="content_and_artifact")
     def _search_documents(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
