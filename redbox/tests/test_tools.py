@@ -509,15 +509,38 @@ def test_search_documents_tool_merge_produces_empty_returns_text(mocker: MockerF
     assert message.artifact == []
 
 
-def test_search_knowledge_base_tool_merge_produces_empty_returns_text(mocker: MockerFixture, env: Settings):
+def test_search_knowledge_base_tool_merge_produces_empty_returns_text(
+    mocker: MockerFixture,
+    env: Settings,
+):
     """
-    If  merge_documents returns empty or whitespace only, despite documents existing, the tool must return a non-empty string, for knowledge base
+    If merge_documents returns empty or whitespace only, despite documents
+    existing, the tool must return a non-empty string, for knowledge base.
     """
     mock_es_client = mocker.MagicMock(spec=OpenSearch)
     mock_es_client.search.return_value = {
-        "hits": {"hits": [{"_id": "1", "_score": 1.0, "_source": {"text": "hello world", "metadata": {"uri": "abc"}}}]}
+        "hits": {
+            "hits": [
+                {
+                    "_index": "index",
+                    "_id": "1",
+                    "_score": 1.0,
+                    "_source": {
+                        "text": "hello world",
+                        "metadata": {
+                            "uri": "abc",
+                        },
+                    },
+                }
+            ]
+        }
     }
-    mocker.patch("redbox.graph.nodes.tools.merge_documents", return_value=[])
+
+    mocker.patch(
+        "redbox.graph.nodes.tools.merge_documents",
+        return_value=[],
+    )
+
     embedding_model = FakeEmbeddings(size=1024)
 
     knowledge_base_search = build_search_documents_tool(
@@ -530,6 +553,7 @@ def test_search_knowledge_base_tool_merge_produces_empty_returns_text(mocker: Mo
     )
 
     tool_node = ToolNode(tools=[knowledge_base_search])
+
     result_state = tool_node.invoke(
         _make_search_tool_state(
             "example prompt",
