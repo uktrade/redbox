@@ -259,7 +259,7 @@ def build_search_documents_tool(
             time.time() - start_time,
         )
         log.warning("[_search_documents] Returning %s documents", len(sorted_documents))
-        formatted_docs = format_documents(sort_documents)
+        formatted_docs = format_documents(sorted_documents)
         if not formatted_docs.strip():
             log.warning(
                 "[_search_documents] Formatted result was empty despite %s hit(s); returning no_results_msg",
