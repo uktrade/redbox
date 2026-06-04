@@ -33,18 +33,19 @@ export const Events = /** @type {const} */ ({
     **/
     STOP_STREAMING: "stop-streaming",
 
-    /** When the chat title is changed by the user **/
-    CHAT_TITLE_CHANGE: "chat-title-change",
-
     /** When a document has been selected/deselected in the side panel **/
     DOC_SELECTION_CHANGE: "doc-selection-change",
 
     /** When the FileStatus element is complete **/
     FILE_STATUS_COMPLETE: "file-status-complete",
 
-
-
     // IDS Events
+
+    /** When an editable-text element is changed by the user **/
+    EDITABLE_TEXT_CHANGE: "editable-text-change",
+
+    /** When an editable-text element is deleted **/
+    EDITABLE_TEXT_DELETE: "editable-text-delete",
 
     /** When a individual file has finished processing **/
     FILE_UPLOAD_PROCESSED: "file-upload-processed",
@@ -72,14 +73,15 @@ export const Events = /** @type {const} */ ({
  *  "selected-docs-change": {id:string, name:string}[],
  *  "start-streaming": undefined,
  *  "stop-streaming": undefined,
- *  "chat-title-change": {title:string, session_id:string, sender:string},
+ *  "editable-text-change": {sender_id:string, object_id?:string, value:string},
+ *  "editable-text-delete": {sender_id:string, object_id?:string},
  *  "doc-selection-change": {id:string, name:string, checked:boolean},
  *  "file-status-complete": {fileStatus:HTMLElement},
  *  "file-status-error": {id:string, status:string},
  *  "file-upload-processed": {uploadedFile:HTMLElement},
  *  "file-uploads-processed": {uploadedFiles:HTMLElement},
  *  "file-uploads-removed": {uploadedFiles:HTMLElement},
- *  "side-panel-toggle": undefined,
+ *  "side-panel-toggle": {SidePanelToggle:HTMLElement},
  *  "scroll-to-bottom": {source:HTMLElement, force?:boolean},
  * }} EventMap
  */

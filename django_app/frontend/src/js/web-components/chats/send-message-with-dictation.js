@@ -1,5 +1,5 @@
 // @ts-check
-import { Events, listenEvent } from "../../../interaction_design_system/ids/events";
+import { emitEvent, Events, listenEvent } from "../../../interaction_design_system/ids/events";
 import { hideElement, showElement } from "../../utils";
 import { MessageInput } from "./message-input";
 
@@ -195,7 +195,7 @@ export class SendMessageWithDictation extends HTMLElement {
     this.stopRecording();
     if (this.isStreaming) {
       console.log("Stopping response stream");
-      document.dispatchEvent(new CustomEvent("stop-streaming"));
+      emitEvent(Events.STOP_STREAMING);
       this.isStreaming = false;
       this.enableSubmit();
       if (this.ws) {

@@ -1,6 +1,6 @@
 // @ts-check
 
-import { Events, listenEvent } from "../../../interaction_design_system/ids/events";
+import { emitEvent, Events, listenEvent } from "../../../interaction_design_system/ids/events";
 
 // DEPRECIATED - TODO: Complete delete confirmation functinoality and move to editable-text or a standalone component
 class ChatHistoryItem extends HTMLElement {
@@ -178,14 +178,11 @@ class ChatHistoryItem extends HTMLElement {
       body: JSON.stringify({name: newTitle}),
     });
     if (publishChanges) {
-      const chatTitleChangeEvent = new CustomEvent("chat-title-change", {
-        detail: {
-          title: newTitle,
-          session_id: this.dataset.chatid,
-          sender: "chat-history-item"
-        },
+      emitEvent(Events.CHAT_TITLE_CHANGE, {
+        title: newTitle,
+        session_id: this.dataset.chatid,
+        sender: "chat-history-item",
       });
-      document.dispatchEvent(chatTitleChangeEvent);
     }
   };
 
