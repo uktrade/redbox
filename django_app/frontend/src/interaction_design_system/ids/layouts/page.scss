@@ -107,6 +107,7 @@
         &:has(.ids-side-panel-wrapper--expanded) .ids-page-content {
             pointer-events: all;
             touch-action: auto;
+            interactivity: auto;
         }
     }
 }
