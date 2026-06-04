@@ -67,7 +67,7 @@
 
       position: fixed;
 
-      &[aria-expanded="true"] {
+      &.ids-side-panel-wrapper--expanded {
         box-shadow: var(--side-panel-box-shadow);
       }
 
@@ -123,7 +123,7 @@
       --side-panel-width: var(--side-panel-width--m);
       position: sticky;
 
-      &[aria-expanded="true"] {
+      &.ids-side-panel-wrapper--expanded {
         box-shadow: none;
       }
 
