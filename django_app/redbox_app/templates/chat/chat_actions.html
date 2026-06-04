@@ -1,5 +1,5 @@
 {% from "macros/icon.html" import ids_icon %}
-{% from "macros/govuk-button.html" import govukButton %}
+{% from "macros/govuk-link.html" import govukLink %}
 
 <div class="ids-chat-title__actions">
     {% if not flag_is_active(request, flags.DISABLE_TOOLS) %}
@@ -20,7 +20,7 @@
                 <div class="ids-collapsible-menu__panel">
                     {% for tool_obj in tools %}
                         {% if tool_obj != tool %}
-                            {{ govukButton(
+                            {{ govukLink(
                                 text=tool_obj.name,
                                 classes="govuk-button--secondary ids-tools-button",
                                 href=tool_obj.chat_url
@@ -37,7 +37,7 @@
         <span class='cta-text'>New conversation</span>
     {% endset %}
 
-    {{ govukButton(
+    {{ govukLink(
         text=new_chat_text,
         href=urls.new_chat_url,
         classes="govuk-button--secondary govuk-!-margin-0 ids-icon-text-button"

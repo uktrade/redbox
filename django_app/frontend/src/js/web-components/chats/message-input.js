@@ -160,6 +160,7 @@ export class MessageInput extends HTMLElement {
     if (hasUploadedFiles) this.textarea.appendChild(document.createElement("br"));
     this.textarea.blur();
     this.textarea.classList.remove(this.expandedClass);
+    this.textarea.focus();
   };
 
 

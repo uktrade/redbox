@@ -5,7 +5,7 @@
 <section id="your-documents" class ="ids-card ids-card--no-border" hx-swap-oob="outerHTML">
     <div class="ids-card__header">
         {{ ids_icon(icon_name="file-present.svg") }}
-        <h3 class="side-panel-heading__text">Documents</h3>
+        <h2 class="side-panel-heading__text govuk-heading-s govuk-!-margin-bottom-0">Documents</h2>
     </div>
     <div class="ids-card__content">
         <document-selector id="document-selector" class="ids-width--full">
@@ -37,7 +37,13 @@
                                     <span class="govuk-visually-hidden"> edit document: {{ file.file_name }}</span>
                                 </button>
                                 {% call modal() %}
-                                    <button class="ids-icon-button modal-open">{{ ids_icon(icon_name="delete.html", icon_classes="link") }}</button>
+                                    <button class="ids-icon-button modal-open">
+                                      {{ ids_icon(icon_name="delete.html", icon_classes="link") }}
+                                      <span class="govuk-visually-hidden">
+                                        Delete document:
+                                        {{ file.file_name }}</span
+                                      >
+                                    </button>
                                     <dialog>
                                         <div>
                                             <h2 class="govuk-heading-m">Are you sure you want to delete this file?</h2>

@@ -2,13 +2,14 @@ import logging
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.http import QueryDict
 
 from redbox_app.redbox_core.forms import (
     ToolAccessRuleForm,
     ToolSettingsForm,
     UserToolBulkAddForm,
 )
-from redbox_app.redbox_core.models import ToolAccessRule, UserTool
+from redbox_app.redbox_core.models import Tool, ToolAccessRule, UserTool
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -81,27 +82,35 @@ def test_tool_access_rule_form_rejects_email_address():
 
 
 @pytest.mark.django_db
-def test_bulk_add_form_sets_queryset(alice: User):
-    qs = User.objects.filter(pk=alice.pk)
+def test_bulk_add_form_accepts_valid_users(alice: User, default_tool: Tool):
+    data = QueryDict(mutable=True)
 
-    form = UserToolBulkAddForm(
-        unassigned_users=qs,
+    data.setlist("user_ids", [str(alice.pk)])
+
+    data.update(
+        {
+            "role": UserTool.RoleType.USER,
+            "access_type": UserTool.AccessType.ALLOW,
+        }
     )
 
-    assert list(form.fields["user_ids"].queryset) == [alice]
+    form = UserToolBulkAddForm(tool=default_tool, data=data)
+
+    assert form.is_valid()
 
 
 @pytest.mark.django_db
-def test_bulk_add_form_accepts_valid_users(alice: User):
-    qs = User.objects.filter(pk=alice.pk)
+def test_bulk_add_form_requires_valid_users(default_tool: Tool):
+    data = QueryDict(mutable=True)
 
-    form = UserToolBulkAddForm(
-        data={
-            "user_ids": [alice.pk],
+    data.setlist("user_ids", [])
+
+    data.update(
+        {
             "role": UserTool.RoleType.USER,
             "access_type": UserTool.AccessType.ALLOW,
-        },
-        unassigned_users=qs,
+        }
     )
 
-    assert form.is_valid()
+    form = UserToolBulkAddForm(tool=default_tool, data=data)
+    assert not form.is_valid()

@@ -22,15 +22,17 @@ export class FeedbackButtons extends HTMLElement {
     this.dataset.id = messageId;
 
     this.innerHTML = `
-    <div class="feedback-container feedback-container--1" tabindex="-1">
-      <p class="feedback__heading">Is this response useful?</p>
+    <fieldset class="feedback-container feedback-container--1" tabindex="-1">
+      <legend class="feedback__heading">Is this response useful?</legend>
+      <div class="feedback-button-container">
       <button class="thumb_feedback-btn thumb_feedback-btn--up" type="button">
-        <img src="/static/icons/thumbs-up.svg" alt="Thumbs Up" aria-labelledby="feedback-heading" />
+        <img src="/static/icons/thumbs-up.svg" alt="Yes" />
       </button>
       <button class="thumb_feedback-btn thumb_feedback-btn--down" type="button">
-        <img src="/static/icons/thumbs-down.svg" alt="Thumbs down" aria-labelledby="feedback-heading"/>
+        <img src="/static/icons/thumbs-down.svg" alt="No" />
       </button>
-    </div>
+      </div>
+    </fieldset>
      `;
 
     // 1 Thumbs up, 2 Thumbs down

@@ -1,9 +1,8 @@
 from asyncio import CancelledError
 import logging
 from uuid import uuid4
-from typing import Optional, List
-from concurrent.futures import ThreadPoolExecutor, TimeoutError, Future
-from pydantic import BaseModel, Field
+from typing import Optional, List, Any
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
 from langchain_core.messages import AIMessage, ToolCall
 from langchain.tools import StructuredTool
@@ -11,34 +10,10 @@ from langchain.tools import StructuredTool
 from redbox.models.chain import RedboxState
 from redbox.api.format import MCPResponseMetadata
 from redbox.graph.nodes.runner import exceptions as tool_exceptions
-from redbox.graph.nodes.runner.wrap_async import wrap_async_tool
+from redbox.graph.nodes.runner.wrap_async import execute_mcp_tools
+import redbox.graph.nodes.runner.models as tr_models
 
 log = logging.getLogger(__name__)
-
-
-class ToolResult:
-    class Base(BaseModel):
-        tool_name: str = Field(description="The name of the executed tool.")
-        metadata: dict = Field(default={}, description="Metadata from tool execution.")
-
-    class Success(Base):
-        """Successful result of tool execution."""
-
-        response: AIMessage = Field(description="AIMessage response generated from tool execution.")
-
-    class Failure(Base):
-        """Failed result of tool execution."""
-
-        error: str = Field(default=None, description="Error from tool execution.")
-
-
-class ToolRunnerResult(BaseModel):
-    """Result of parallel tool execution."""
-
-    results: List[ToolResult.Success] = Field(
-        default=[], description="List of responses generated from tool executions."
-    )
-    failures: List[ToolResult.Failure] = Field(default=[], description="List of failures from tool executions.")
 
 
 class ToolRunner:
@@ -66,28 +41,50 @@ class ToolRunner:
         self.executor.shutdown(wait=True)
         return False
 
-    def run(self, tool_calls: list[ToolCall]) -> ToolRunnerResult:
+    def run(self, tool_calls: list[ToolCall]) -> tr_models.Result:
         """Submit all tool calls, collect results, and return aggregated responses or None on total failure."""
         try:
-            futures, failures = self._submit_all(tool_calls=tool_calls)
-            return self._collect(futures=futures, failures=failures)
+            submitted_request = self._submit_all(tool_calls=tool_calls)
+            return self._collect(submitted_request=submitted_request)
         finally:
             self.executor.shutdown(wait=True)
 
-    def _submit_all(self, tool_calls: list[ToolCall]) -> tuple[dict[Future, dict], list[ToolResult.Failure]]:
-        """Submit every tool call to the executor, skipping and logging any that fail to launch."""
-        futures = {}
-        failures: list[ToolResult.Failure] = []
+    def parse_tool_calls(self, tool_calls: list[ToolCall]) -> tr_models.ParsedRunRequest:
+        failures: list[tr_models.ToolCallResult.Failure] = []
+        sync_calls: list[tr_models.ToolCallRequest.Sync] = []
+        mcp_async_server_calls: dict[str, tr_models.ToolCallRequest.MCPAsync] = {}
 
         for tool_call in tool_calls:
-            tool_name = tool_call.get("name")
-            raw_args = tool_call.get("args", {})
-            raw_args.pop("name", None)
-
             try:
-                res = self.submit(tool_call=tool_call)
-                future, metadata = res
-                futures[future] = metadata
+                tool_name, selected_tool, _ = self.validate_tool_call(tool_call=tool_call)
+
+                if selected_tool.func and not selected_tool.coroutine:
+                    sync_calls.append(tr_models.ToolCallRequest.Sync(tool_call=tool_call))
+
+                else:
+                    mcp_url = selected_tool.metadata["url"]
+                    creator_type = selected_tool.metadata["creator_type"]
+                    sso_access_token = selected_tool.metadata["sso_access_token"]
+
+                    if mcp_url:
+                        if mcp_url in mcp_async_server_calls.keys():
+                            mcp_async_server_calls[mcp_url].tool_calls.append(tool_call)
+                        else:
+                            mcp_async_server_calls[mcp_url] = tr_models.ToolCallRequest.MCPAsync(
+                                mcp_server=mcp_url,
+                                access_token=sso_access_token,
+                                creator_type=creator_type,
+                                tool_calls=[tool_call],
+                            )
+
+                    else:
+                        failures.append(
+                            tr_models.ToolCallResult.Failure(
+                                tool_name=tool_name,
+                                metadata={"tool_args": tool_call.get("args")},
+                                error=f"Unrecognised tool configuration for '{tool_name}'.",
+                            )
+                        )
 
             except (
                 tool_exceptions.ToolTimeoutError,
@@ -96,28 +93,65 @@ class ToolRunner:
                 tool_exceptions.ToolNotFoundError,
             ) as e:
                 log.warning(f"{self.log_stub} {e}")
-                failures.append(ToolResult.Failure(tool_name=tool_name, error=str(e), metadata={"tool_args": raw_args}))
+                failures.append(
+                    tr_models.ToolCallResult.Failure(
+                        tool_name=tool_call.get("name"), error=str(e), metadata={"tool_args": tool_call.get("args")}
+                    )
+                )
+
+        return tr_models.ParsedRunRequest(
+            calls=tr_models.RunRequestCalls(sync=sync_calls, mcp_async=mcp_async_server_calls.values()),
+            failures=failures,
+        )
+
+    def _submit_all(self, tool_calls: list[ToolCall]) -> tr_models.SubmittedRunRequest:
+        """Submit every tool call to the executor, skipping and logging any that fail to launch."""
+        log.warning(
+            f"{self.log_stub} Starting run with {len(tool_calls)} tool_calls: {', '.join([tc.get('name') for tc in tool_calls])}"
+        )
+
+        run_request = self.parse_tool_calls(tool_calls=tool_calls)
+
+        log.warning(
+            f"{self.log_stub} Parsed tool calls. Calls: {len(run_request.calls.sync) + len(run_request.calls.mcp_async)} (Sync: {len(run_request.calls.sync)}, MCP_Async: {len(run_request.calls.mcp_async)}). Failed: {len(run_request.failures)}."
+        )
+
+        futures: list[tr_models.SubmittedToolCallRequest] = []
+        failures: list[tr_models.ToolCallResult.Failure] = run_request.failures
+
+        for sync_call in run_request.calls.sync:
+            tool_name = sync_call.tool_call.get("name")
+            raw_args = sync_call.tool_call.get("args", {})
+            raw_args.pop("name", None)
+
+            try:
+                res = self.submit_sync(sync_call=sync_call)
+                futures.append(res)
+
+            except (
+                tool_exceptions.ToolTimeoutError,
+                tool_exceptions.ToolValidationError,
+                tool_exceptions.ToolExecutionError,
+                tool_exceptions.ToolNotFoundError,
+            ) as e:
+                log.warning(f"{self.log_stub} {e}")
+                failures.append(
+                    tr_models.ToolCallResult.Failure(
+                        tool_name=tool_name, error=str(e), metadata={"tool_args": raw_args}
+                    )
+                )
 
             except Exception as e:
                 err = f"Unexpected error submitting tool '{tool_name}': {e}"
                 log.error(f"{self.log_stub} {err}", exc_info=True)
-                failures.append(ToolResult.Failure(tool_name=tool_name, error=err, metadata={"tool_args": raw_args}))
+                failures.append(
+                    tr_models.ToolCallResult.Failure(tool_name=tool_name, error=err, metadata={"tool_args": raw_args})
+                )
 
-        return futures, failures
-
-    def _collect(self, futures: dict[Future, dict], failures: list[ToolResult.Failure]) -> ToolRunnerResult:
-        """Wait for all futures, parse results, and return responses or None if everything failed."""
-        results: List[ToolResult.Success] = []
-
-        for future in futures.keys():
-            future_tool_name = futures[future]["name"]
+        for mcp_async_call in run_request.calls.mcp_async:
             try:
-                metadata = dict(futures[future])
-                metadata.pop("name", None)
-
-                response = self.parse(future=future, metadata=futures[future])
-                if response is not None:
-                    results.append(ToolResult.Success(tool_name=future_tool_name, response=response, metadata=metadata))
+                res = self.submit_mcp_async(mcp_async_call=mcp_async_call)
+                futures.append(res)
 
             except (
                 tool_exceptions.ToolTimeoutError,
@@ -126,12 +160,109 @@ class ToolRunner:
                 tool_exceptions.ToolNotFoundError,
             ) as e:
                 log.warning(f"{self.log_stub} {e}")
-                failures.append(ToolResult.Failure(tool_name=future_tool_name, error=str(e), metadata=metadata))
+                failures.append(
+                    tr_models.ToolCallResult.Failure(
+                        tool_name=f"MCP_async__{mcp_async_call.creator_type}__{mcp_async_call.mcp_server}",
+                        error=str(e),
+                        metadata={
+                            "mcp_server": mcp_async_call.mcp_server,
+                            "creator_type": mcp_async_call.creator_type,
+                            "tool_calls": [
+                                {"name": tc.get("name"), "args": tc.get("args")} for tc in mcp_async_call.tool_calls
+                            ],
+                        },
+                    )
+                )
 
             except Exception as e:
-                err = f"Tool '{future_tool_name}' error: {e}"
+                err = f"Unexpected error submitting Async MCP Server tool calls '{mcp_async_call.mcp_server}': {e}"
+                log.error(f"{self.log_stub} {err}", exc_info=True)
+                failures.append(
+                    tr_models.ToolCallResult.Failure(
+                        tool_name=f"MCP_async__{mcp_async_call.creator_type}__{mcp_async_call.mcp_server}",
+                        error=err,
+                        metadata={
+                            "mcp_server": mcp_async_call.mcp_server,
+                            "creator_type": mcp_async_call.creator_type,
+                            "tool_calls": [
+                                {"name": tc.get("name"), "args": tc.get("args")} for tc in mcp_async_call.tool_calls
+                            ],
+                        },
+                    )
+                )
+
+        return tr_models.SubmittedRunRequest(futures=futures, failures=failures)
+
+    def _collect(self, submitted_request: tr_models.SubmittedRunRequest) -> tr_models.Result:
+        """Wait for all futures, parse results, and return responses or None if everything failed."""
+        results: List[tr_models.ToolCallResult.Success] = []
+        failures: List[tr_models.ToolCallResult.Failure] = submitted_request.failures
+
+        for request in submitted_request.futures:
+            try:
+                response, request_failures = self.execute_request(request=request)
+                failures += request_failures
+
+                match request.result_type:
+                    case tr_models.FutureResultType.MCP_ASYNC:
+                        # mcp_results, mcp_failures = response
+                        # failures += mcp_failures
+                        tool_calls = request.future_args.get("tool_calls", [])
+
+                        future_args = request.future_args
+                        future_args.pop("tool_calls")
+
+                        for tool_call_id, item in response.items():
+                            tool_call = next((tc for tc in tool_calls if tc.get("id") == tool_call_id), None)
+                            tool_name = tool_call.get("name") if tool_call else f"{tool_call_id}_{request.name}"
+                            tool_call_args = tool_call.get("args") if tool_call else {}
+
+                            results.append(
+                                tr_models.ToolCallResult.Success(
+                                    tool_name=tool_name,
+                                    response=item,
+                                    metadata={
+                                        **request.metadata,
+                                        "future_args": future_args,
+                                        "tool_args": tool_call_args,
+                                    },
+                                )
+                            )
+
+                    case _:
+                        results.append(
+                            tr_models.ToolCallResult.Success(
+                                tool_name=request.name,
+                                response=response,
+                                metadata={**request.metadata, "tool_args": request.future_args},
+                            )
+                        )
+
+            except (
+                tool_exceptions.ToolTimeoutError,
+                tool_exceptions.ToolValidationError,
+                tool_exceptions.ToolExecutionError,
+                tool_exceptions.ToolNotFoundError,
+            ) as e:
+                log.warning(f"{self.log_stub} {e}")
+                failures.append(
+                    tr_models.ToolCallResult.Failure(
+                        tool_name=request.name,
+                        error=str(e),
+                        metadata={**request.metadata, "tool_args": request.future_args},
+                    )
+                )
+
+            except Exception as e:
+                err = f"Tool '{request.name}' error: {e}"
                 log.warning(f"{self.log_stub} {err}")
-                failures.append(ToolResult.Failure(tool_name=future_tool_name, error=err, metadata=metadata))
+                failures.append(
+                    tr_models.ToolCallResult.Failure(
+                        tool_name=request.name,
+                        error=err,
+                        metadata={**request.metadata, "tool_args": request.future_args},
+                    )
+                )
 
         failed_tools = [f"{fr.tool_name} - {fr.error}" for fr in failures]
         if failed_tools:
@@ -147,10 +278,9 @@ class ToolRunner:
                 f"{self.log_stub} Completed. Successful: {len(results)}, Failed: {len(failures)}. Responses: {results}"
             )
 
-        return ToolRunnerResult(results=results, failures=failures)
+        return tr_models.Result(results=results, failures=failures)
 
-    def submit(self, tool_call: ToolCall) -> tuple[Future, dict]:
-        """Find, validate, and submit a tool call to the executor. Returns (future, metadata)"""
+    def validate_tool_call(self, tool_call: ToolCall) -> tuple[str, StructuredTool, dict]:
         tool_name = tool_call.get("name")
         selected_tool: Optional[StructuredTool] = next((tool for tool in self.tools if tool.name == tool_name), None)
 
@@ -166,32 +296,73 @@ class ToolRunner:
                 f"Invalid input for tool '{tool_name}': expected dict, got {type(raw_args).__name__!r}"
             )
 
-        is_intermediate_step = "False"
+        return tool_name, selected_tool, raw_args
+
+    def submit_sync(self, sync_call: tr_models.ToolCallRequest.Sync) -> tr_models.SubmittedToolCallRequest:
+        """Find, validate, and submit a sync tool call to the executor."""
+        tool_name, selected_tool, tool_args = self.validate_tool_call(tool_call=sync_call.tool_call)
+        is_intermediate_step = tool_args.get("is_intermediate_step", "False")
 
         try:
-            if selected_tool.func and not selected_tool.coroutine:
-                args = {**raw_args, "state": self.state}
-                future = self.executor.submit(selected_tool.invoke, args)
-            else:
-                args = {**raw_args}
-                if self.is_loop:
-                    is_intermediate_step = args.get("is_intermediate_step", "False")
-                    log.warning(f"intermediate step: {is_intermediate_step}")
-                future = self.executor.submit(wrap_async_tool(selected_tool, tool_name), args)
+            args = {**tool_args, "state": self.state}
+            future = self.executor.submit(selected_tool.invoke, args)
         except Exception as e:
             raise tool_exceptions.ToolExecutionError(
                 f"Failed to submit tool '{tool_name}' for execution: {str(e)}"
             ) from e
 
-        return future, {"name": tool_name, "intermediate_step": is_intermediate_step, "tool_args": raw_args}
+        return tr_models.SubmittedToolCallRequest(
+            name=tool_name,
+            result_type=sync_call.future_result_type,
+            future=future,
+            future_args=tool_args,
+            metadata={"intermediate_step": is_intermediate_step},
+        )
 
-    def parse(self, future: Future, metadata: dict) -> Optional[AIMessage]:
-        """Resolve a completed future and transform its result into an AIMessage."""
-        future_tool_name = metadata["name"]
-        is_intermediate_step = metadata["intermediate_step"]
+    def submit_mcp_async(
+        self, mcp_async_call: tr_models.ToolCallRequest.MCPAsync
+    ) -> tr_models.SubmittedToolCallRequest:
+        """Find, validate, and submit a grouped MCP async tool call to the executor. Returns (future, metadata)"""
+        tc_is_intermediate_step = [
+            tc.get("args", {}).get("is_intermediate_step")
+            for tc in mcp_async_call.tool_calls
+            if tc.get("args", {}).get("is_intermediate_step")
+        ]
+        is_intermediate_step = "True" if "True" in tc_is_intermediate_step else "False"
 
         try:
-            response = future.result(timeout=self.parallel_timeout)
+            future = self.executor.submit(execute_mcp_tools(mcp_input=mcp_async_call))
+        except Exception as e:
+            raise tool_exceptions.ToolExecutionError(
+                f"Failed to submit MCP async calls to server '{mcp_async_call.mcp_server}' with creator_type '{mcp_async_call.creator_type}' for execution: {str(e)}"
+            ) from e
+
+        return tr_models.SubmittedToolCallRequest(
+            name=f"MCP_async__{mcp_async_call.creator_type}__{mcp_async_call.mcp_server}",
+            result_type=mcp_async_call.future_result_type,
+            future=future,
+            future_args={
+                "mcp_server": mcp_async_call.mcp_server,
+                "creator_type": mcp_async_call.creator_type,
+                "tool_calls": [
+                    {"id": tc.get("id"), "name": tc.get("name"), "args": tc.get("args")}
+                    for tc in mcp_async_call.tool_calls
+                ],
+            },
+            metadata={"intermediate_step": is_intermediate_step},
+        )
+
+    def execute_request(
+        self, request: tr_models.SubmittedToolCallRequest
+    ) -> tuple[AIMessage | dict[str, AIMessage], list[tr_models.ToolCallResult.Failure]]:
+        """Resolve a completed future and transform its result into an AIMessage."""
+        failures: list[tr_models.ToolCallResult.Failure] = []
+
+        future_tool_name = request.name
+        is_intermediate_step = request.metadata["intermediate_step"]
+
+        try:
+            response = request.future.result(timeout=self.parallel_timeout)
         except TimeoutError as e:
             raise tool_exceptions.ToolTimeoutError(
                 f"Tool '{future_tool_name}' timed out after {self.parallel_timeout:.1f}s"
@@ -208,6 +379,40 @@ class ToolRunner:
 
         log.warning(f"{self.log_stub} {future_tool_name} response not None")
 
+        match request.result_type:
+            case tr_models.FutureResultType.MCP_ASYNC:
+                mcp_results, mcp_failures = response
+
+                results = {}
+                for tool_id, item in mcp_results.items():
+                    try:
+                        results[tool_id] = self.parse_response(
+                            future_tool_name=future_tool_name, response=item, is_intermediate_step=is_intermediate_step
+                        )
+                    except (
+                        tool_exceptions.ToolTimeoutError,
+                        tool_exceptions.ToolValidationError,
+                        tool_exceptions.ToolExecutionError,
+                        tool_exceptions.ToolNotFoundError,
+                    ) as e:
+                        log.warning(f"{self.log_stub} {e}")
+                        mcp_failures.append(
+                            tr_models.ToolCallResult.Failure(
+                                tool_name=future_tool_name,
+                                error=str(e),
+                                metadata={**request.metadata, "tool_args": request.future_args},
+                            )
+                        )
+
+                return results, mcp_failures
+            case _:
+                result = self.parse_response(
+                    future_tool_name=future_tool_name, response=response, is_intermediate_step=is_intermediate_step
+                )
+
+                return result, failures
+
+    def parse_response(self, future_tool_name: str, response: Any, is_intermediate_step: str) -> AIMessage:
         result = response
         if not self.is_loop:
             if isinstance(response, tuple) and isinstance(response[1], MCPResponseMetadata):

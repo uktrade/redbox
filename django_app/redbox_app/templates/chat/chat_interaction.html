@@ -7,17 +7,18 @@
             <ids-message-input>
                 <div class="govuk-textarea ids-message-input ids-border {% if not messages and not is_first_time_user %}ids-message-input__expanded {% endif %}ids-drop-zone"
                     id="message" name="message" contenteditable="true" role="textbox" aria-multiline="true"
-                    data-text="Type your message here..."></div>
+                    data-text="Type your message here..." aria-label="Text input field for typing and submitting your message"></div>
                 <div class="ids-message-input__actions">
                     <!-- Upload Button -->
                     <file-upload upload-url="{{ urls.upload_url }}">
                         <input class="govuk-file-upload govuk-!-display-none" multiple id="upload-docs" name="uploadDocs"
                             type="file" aria-describedby="upload-docs-notification upload-docs-filetypes">
-                        {{ govukButton(
-                        text=ids_icon(icon_name="attach-file.svg", icon_classes=""),
-                        classes="upload-button govuk-button--secondary ids-icon-button",
-                        id="upload-button"
-                        ) }}
+                            {% call govukButton(
+                                      text=ids_icon(icon_name="attach-file.svg", icon_classes=""),
+                                      classes="upload-button govuk-button--secondary ids-icon-button",
+                                      id="upload-button") %}
+                                <span class="govuk-visually-hidden">Upload file to chat</span>
+                            {% endcall %}
                     </file-upload>
 
                     <!-- Dictate and Send Buttons -->
@@ -26,6 +27,7 @@
                         <button type="submit" class="govuk-button govuk-button--secondary ids-icon-button dictate-button"
                             data-module="govuk-button">
                             {{ ids_icon(icon_name="mic.svg", icon_classes="") }}
+                            <span class="govuk-visually-hidden">Provide a dictation to chat</span>
                         </button>
 
                         {{ govukButton(
@@ -34,10 +36,11 @@
                         dont_submit=True
                         ) }}
 
-                        {{ govukButton(
-                        text=ids_icon(icon_name="send.svg", icon_classes="success"),
-                        classes="send-button ids-icon-button"
-                        ) }}
+                        {% call govukButton(
+                                  text=ids_icon(icon_name="send.svg", icon_classes="success"),
+                                  classes="send-button ids-icon-button") %}
+                            <span class="govuk-visually-hidden">Send message to chat</span>
+                        {% endcall %}
 
                         {{ govukButton(
                         text=ids_icon(icon_name="stop-circle.svg", icon_classes="error"),
@@ -46,11 +49,11 @@
                     </send-message-with-dictation>
                     {% else %}
                     <send-message>
-                        {{ govukButton(
-                        text=ids_icon(icon_name="send.svg", icon_classes="success"),
-                        classes="send-button ids-icon-button"
-                        ) }}
-                        <span class="govuk-visually-hidden">Send Message</span>
+                        {% call govukButton(
+                                  text=ids_icon(icon_name="send.svg", icon_classes="success"),
+                                  classes="send-button ids-icon-button") %}
+                            <span class="govuk-visually-hidden">Send message to chat</span>
+                        {% endcall %}
 
                         {{ govukButton(
                         text=ids_icon(icon_name="send.svg", icon_classes="success"),

@@ -1,5 +1,5 @@
 {% from "macros/icon.html" import ids_icon %}
-{% from "macros/govuk-button.html" import govukButton %}
+{% from "macros/govuk-link.html" import govukLink %}
 
 {% if tool %}
     <div class="ids-card ids-card--tool govuk-!-padding-4 ids-width--full">
@@ -8,7 +8,7 @@
                 <div class="ids-item-actions">
                     <h3 class="govuk-heading-s govuk-!-margin-0">{{ tool.name }}</h3>
                     {% if request.user.can_manage_tool(tool) %}
-                        {{ govukButton(
+                        {{ govukLink(
                             text=ids_icon(icon_name="edit.html", icon_classes="link"),
                             href=tool.settings_url,
                             classes="govuk-button--secondary govuk-!-margin-0 ids-icon-button"

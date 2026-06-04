@@ -160,13 +160,14 @@ def test_add_user_defaults(alice: User, default_tool: Tool):
 
 
 @pytest.mark.django_db
-def test_get_unassigned_users_excludes_existing(alice: User, bob: User, default_tool: Tool):
+def test_search_unassigned_users(alice: User, bob: User, default_tool: Tool):
     default_tool.add_user(user=alice, role=None, access_type=None)
 
-    users = default_tool.get_unassigned_users()
+    alice_search = default_tool.search_unassigned_users("alice")
+    bob_search = default_tool.search_unassigned_users("bob")
 
-    assert alice not in users
-    assert bob in users
+    assert alice not in alice_search
+    assert bob in bob_search
 
 
 @pytest.mark.django_db

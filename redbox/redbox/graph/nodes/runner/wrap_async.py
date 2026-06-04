@@ -1,9 +1,11 @@
 import logging
 import asyncio
+from typing import List, Any, Tuple, Dict
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 from langchain_mcp_adapters.tools import load_mcp_tools
 
+import redbox.graph.nodes.runner.models as tr_models
 from redbox.models.file import ChunkCreatorType
 from redbox.api.format import format_mcp_tool_response
 
@@ -23,105 +25,178 @@ def _get_mcp_headers(sso_access_token: str | None = None) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def wrap_async_tool(tool, tool_name):
+async def execute_mcp_tools_async(
+    mcp_input: tr_models.ToolCallRequest.MCPAsync,
+) -> Tuple[Dict[str, Any], List[tr_models.ToolCallResult.Failure]]:
     """
-    Returns a synchronous function that properly wraps an async tool
+    Execute multiple MCP tools in a single session.
 
     Args:
-        tool_name: The name of the tool to invoke
+        mcp_input: MCPAsync object containing server URL, credentials, and tool calls
 
-    Returns:
-        A function that synchronously executes the async tool
+    Returns: Tuple[Dict[str, Any], List[tr_models.ToolCallResult.Failure]]
+        Tuple of tool results and failures.
+
+        Result[0] - a dictionary of tool results, with tool_call ID as key and result as value.
+        Result[1] - a list of tool call failures.
     """
+    results: Dict[str, Any] = {}
+    failures: List[tr_models.ToolCallResult.Failure] = []
 
     INIT_TIMEOUT, TOOL_LOADING_TIMEOUT, INVOKE_TIMEOUT = 10, 15, 60
 
-    def wrapper(args):
-        # get mcp tool url
-        mcp_url = tool.metadata["url"]
-        creator_type = tool.metadata["creator_type"]
+    mcp_url = mcp_input.mcp_server
+    creator_type = mcp_input.creator_type
 
-        try:
-            sso_access_token = tool.metadata["sso_access_token"].get()
-        except Exception as e:
-            log.error(f"wrap_async_tool - Failed to retrieve sso_access_token: {e}")
-            raise
+    try:
+        sso_access_token = mcp_input.access_token.get()
+    except Exception as e:
+        log.error(f"execute_mcp_tools_async - Failed to retrieve sso_access_token: {e}")
+        raise
 
-        if not sso_access_token:
-            log.error("wrap_async_tool - MCP sso_access_token is None")
+    if not sso_access_token:
+        log.error("execute_mcp_tools_async - MCP sso_access_token is None")
+        raise ValueError("MCP sso_access_token is required")
 
-        headers = _get_mcp_headers(sso_access_token)
+    headers = _get_mcp_headers(sso_access_token)
+    try:
+        async with streamablehttp_client(mcp_url, headers=headers or None) as (
+            read,
+            write,
+            _,
+        ):
+            async with ClientSession(read, write) as session:
+                # Initialize the connection once
+                init_result = await asyncio.wait_for(session.initialize(), timeout=INIT_TIMEOUT)
+                server_name = init_result.serverInfo.name
+                server_version = init_result.serverInfo.version
 
-        async def run_tool():
-            try:
-                async with streamablehttp_client(mcp_url, headers=headers or None) as (
-                    read,
-                    write,
-                    _,
-                ):
-                    async with ClientSession(read, write) as session:
-                        # Initialize the connection
-                        init_result = await asyncio.wait_for(session.initialize(), timeout=INIT_TIMEOUT)
-                        server_name = init_result.serverInfo.name
-                        server_version = init_result.serverInfo.version
+                log.info(f"execute_mcp_tools_async - Connected to MCP server {server_name}@{server_version}")
 
-                        log.info(
-                            f"wrap_async_tool - Calling tool '{tool_name}' on MCP server {server_name}@{server_version}"
+                # Load tools once
+                tools = await asyncio.wait_for(load_mcp_tools(session), timeout=TOOL_LOADING_TIMEOUT)
+
+                # Create a lookup map for faster access
+                tools_map = {t.name: t for t in tools}
+
+                # Execute each tool call in sequence
+                for i, tool_call in enumerate(mcp_input.tool_calls):
+                    tool_call_id = tool_call.get("id")
+                    tool_name = tool_call.get("name")
+                    args = tool_call.get("args").copy()
+
+                    log.info(
+                        f"execute_mcp_tools_async - Executing tool {i + 1}/{len(mcp_input.tool_calls)}: '{tool_name}'"
+                    )
+
+                    selected_tool = tools_map.get(tool_name)
+                    if not selected_tool:
+                        error_msg = f"Tool '{tool_name}' not found on server"
+                        log.error(f"execute_mcp_tools_async - {error_msg}")
+
+                        failures.append(
+                            tr_models.ToolCallResult.Failure(
+                                tool_name=tool_name,
+                                metadata={"tool_args": args},
+                                error=f"MCP Async tool '{tool_name}' not found on server '{mcp_url}'",
+                            )
                         )
+                        continue
 
-                        # Get tools
-                        tools = await asyncio.wait_for(load_mcp_tools(session), timeout=TOOL_LOADING_TIMEOUT)
+                    # Remove intermediate step argument if not required by tool
+                    if "is_intermediate_step" not in selected_tool.args_schema.get("required", []) and args.get(
+                        "is_intermediate_step"
+                    ):
+                        args.pop("is_intermediate_step")
+                        log.debug("execute_mcp_tools_async - Removed is_intermediate_step from args")
 
-                        selected_tool = next((t for t in tools if t.name == tool_name), None)
-                        if not selected_tool:
-                            raise ValueError(f"tool with name '{tool_name}' not found")
+                    log.debug(f"execute_mcp_tools_async - Invoking '{tool_name}' with args: {args}")
 
-                        # remove intermediate step argument if it is not required by tool
-                        if "is_intermediate_step" not in selected_tool.args_schema.get("required", []) and args.get(
-                            "is_intermediate_step"
-                        ):
-                            args.pop("is_intermediate_step")
-                            log.warning(f"wrap_async_tool - updated args: {args}")
-
-                        log.warning(f"wrap_async_tool - tool found with name '{tool_name}'")
-                        log.warning(f"wrap_async_tool - args '{args}'")
+                    try:
                         result = await asyncio.wait_for(selected_tool.ainvoke(args), timeout=INVOKE_TIMEOUT)
 
-                        log.warning(f"wrap_async_tool - MCP Tool '{tool_name}' result: {result}")
+                        log.info(f"execute_mcp_tools_async - Tool '{tool_name}' completed successfully")
 
+                        # Format result if needed
                         if creator_type == ChunkCreatorType.datahub:
-                            log.warning(
-                                f"wrap_async_tool - Formatting MCP tool response for creator_type='{creator_type}'"
+                            log.debug(
+                                f"execute_mcp_tools_async - Formatting response for creator_type='{creator_type}'"
                             )
-                            return format_mcp_tool_response(
+                            formatted_result = format_mcp_tool_response(
                                 tool_response=result,
                                 creator_type=creator_type,
                             )
+                            results[tool_call_id] = formatted_result
 
-                        log.warning(
-                            f"wrap_async_tool - Returning raw MCP tool response for creator_type='{creator_type}'"
+                        else:
+                            results[tool_call_id] = result
+
+                    except asyncio.TimeoutError:
+                        error_msg = f"Tool '{tool_name}' timed out after {INVOKE_TIMEOUT}s"
+                        log.error(f"execute_mcp_tools_async - {error_msg}")
+
+                        failures.append(
+                            tr_models.ToolCallResult.Failure(
+                                tool_name=tool_name,
+                                metadata={"tool_args": args},
+                                error=f"MCP Async tool '{tool_name}' timed out on server '{mcp_url}' - asyncio.TimeoutError",
+                            )
                         )
-                        return result
 
-            except asyncio.TimeoutError:
-                log.error(f"wrap_async_tool - Tool '{tool_name}' timed out")
-                raise
+                    except Exception as e:
+                        error_msg = f"Tool '{tool_name}' failed: {str(e)}"
+                        log.error(f"execute_mcp_tools_async - {error_msg}", exc_info=True)
 
-            except asyncio.CancelledError:
-                log.warning(f"wrap_async_tool - Tool '{tool_name}' cancelled")
-                raise
+                        failures.append(
+                            tr_models.ToolCallResult.Failure(
+                                tool_name=tool_name,
+                                metadata={"tool_args": args},
+                                error=f"MCP Async tool '{tool_name}' got an unknown exception server '{mcp_url}' - {e}",
+                            )
+                        )
 
-            except Exception as e:
-                log.error(
-                    f"wrap_async_tool - MCP execution failed for '{tool_name}' at '{mcp_url}': {e}",
-                    exc_info=True,
-                )
-                raise
+    except asyncio.TimeoutError as e:
+        log.error(f"execute_mcp_tools_async - Session initialization/setup timed out: {e}")
+        raise
 
+    except asyncio.CancelledError:
+        log.warning("execute_mcp_tools_async - Session cancelled")
+        raise
+
+    except Exception as e:
+        log.error(
+            f"execute_mcp_tools_async - MCP session failed for '{mcp_url}': {e}",
+            exc_info=True,
+        )
+        raise
+
+    return results, failures
+
+
+def execute_mcp_tools(
+    mcp_input: tr_models.ToolCallRequest.MCPAsync,
+) -> Tuple[Dict[str, Any], List[tr_models.ToolCallResult.Failure]]:
+    """
+    Synchronous wrapper for executing multiple MCP tools.
+
+    Args:
+        mcp_input: MCPAsync object containing server URL, credentials, and tool calls
+
+    Returns: Tuple[Dict[str, Any], List[tr_models.ToolCallResult.Failure]]
+        Tuple of tool results and failures.
+
+        Result[0] - a dictionary of tool results, with tool_call ID as key and result as value.
+        Result[1] - a list of tool call failures.
+    """
+
+    def wrapper():
         try:
-            return asyncio.run(run_tool())
+            return asyncio.run(execute_mcp_tools_async(mcp_input))
         except Exception as e:
-            log.error(f"wrap_async_tool - Unhandled error running tool '{tool_name}': {e}", exc_info=True)
+            log.error(
+                f"execute_mcp_tools - Unhandled error when calling MCP server '{mcp_input.mcp_server}': {e}",
+                exc_info=True,
+            )
             raise
 
     return wrapper

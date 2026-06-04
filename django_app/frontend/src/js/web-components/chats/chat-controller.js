@@ -21,9 +21,9 @@ class ChatController extends HTMLElement {
         document.querySelector("chat-controller")
       );
 
-      const messageContainer = chatController.querySelector(".js-message-container");
+      const messageContainer = chatController.querySelector("#chat-message-list");
       messageContainer?.classList.add("test-update-dom");
-      const insertPosition = chatController.querySelector(".js-response-feedback");
+      const insertPosition = messageContainer?.querySelector("li[data-role='chat-message-list-item']:last-child")
       const feedbackButtons = /** @type {HTMLElement | null} */ (
         chatController.querySelector("feedback-buttons")
       );
@@ -47,7 +47,10 @@ class ChatController extends HTMLElement {
       );
       userMessage.setAttribute("data-text", userText);
       userMessage.setAttribute("data-role", "user");
-      messageContainer?.insertBefore(userMessage, insertPosition);
+      userMessage.setAttribute("aria-label", "User message");
+      userMessage.setAttribute("role", "listitem");
+
+      messageContainer?.appendChild(userMessage);
 
       let documents = [];
       if (selectedDocuments.length) {
@@ -63,8 +66,10 @@ class ChatController extends HTMLElement {
       );
       aiMessage.setAttribute("data-role", "ai");
       aiMessage.setAttribute("data-logout-url", this.dataset.logoutUrl || "/");
+      aiMessage.setAttribute("aria-label", "AI response");
+      aiMessage.setAttribute("role", "listitem");
 
-      messageContainer?.insertBefore(aiMessage, insertPosition);
+      messageContainer?.appendChild(aiMessage);
 
       const llm =
         /** @type {HTMLInputElement | null}*/ (

@@ -318,6 +318,87 @@ def test_bulk_add_user_tool(client: Client, alice: User, bob: User, default_tool
 
 
 @pytest.mark.django_db
+def test_tool_user_search_returns_match(client: Client, alice: User, bob: User, peter_rabbit: User, default_tool: Tool):
+    client.force_login(alice)
+
+    UserTool.objects.create(
+        user=alice,
+        tool=default_tool,
+        role=UserTool.RoleType.MANAGER,
+    )
+
+    response = client.get(
+        reverse(
+            "tool-user-search",
+            kwargs={"slug": default_tool.slug},
+        ),
+        {
+            "q": "bob",
+        },
+    )
+    result = response.content.decode()
+
+    assert response.status_code == HTTPStatus.OK
+    assert str(bob.pk) in result
+    assert str(alice.pk) not in result
+    assert str(peter_rabbit.pk) not in result
+
+
+@pytest.mark.django_db
+def test_tool_user_search_no_matches(client: Client, alice: User, bob: User, peter_rabbit: User, default_tool: Tool):
+    client.force_login(alice)
+
+    UserTool.objects.create(
+        user=alice,
+        tool=default_tool,
+        role=UserTool.RoleType.MANAGER,
+    )
+
+    response = client.get(
+        reverse(
+            "tool-user-search",
+            kwargs={"slug": default_tool.slug},
+        ),
+        {
+            "q": "xyz",
+        },
+    )
+    result = response.content.decode()
+
+    assert response.status_code == HTTPStatus.OK
+    assert str(bob.pk) not in result
+    assert str(alice.pk) not in result
+    assert str(peter_rabbit.pk) not in result
+
+
+@pytest.mark.django_db
+def test_tool_user_search_min_query(client: Client, alice: User, bob: User, peter_rabbit: User, default_tool: Tool):
+    client.force_login(alice)
+
+    UserTool.objects.create(
+        user=alice,
+        tool=default_tool,
+        role=UserTool.RoleType.MANAGER,
+    )
+
+    response = client.get(
+        reverse(
+            "tool-user-search",
+            kwargs={"slug": default_tool.slug},
+        ),
+        {
+            "q": "b",
+        },
+    )
+    result = response.content.decode()
+
+    assert response.status_code == HTTPStatus.OK
+    assert str(bob.pk) not in result
+    assert str(alice.pk) not in result
+    assert str(peter_rabbit.pk) not in result
+
+
+@pytest.mark.django_db
 def test_tool_access_rule_preview(client: Client, alice: User, bob: User, default_tool: Tool, sso_factory):
     client.force_login(alice)
 

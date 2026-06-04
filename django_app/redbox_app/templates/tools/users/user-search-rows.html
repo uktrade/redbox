@@ -1,0 +1,52 @@
+{% if users %}
+
+    {% for user in users %}
+        <tr class="govuk-table__row ids-text-xs">
+
+            <!-- Checkbox -->
+            <th scope="row" class="govuk-table__header govuk-!-padding-0">
+                <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+                    <div class="govuk-checkboxes__item" data-user-row data-user-id="{{ user.pk }}">
+                        <input
+                            class="govuk-checkboxes__input"
+                            id="user-{{ user.pk }}"
+                            type="checkbox"
+                            value="{{ user.pk }}"
+                        >
+                    <label class="govuk-checkboxes__label" for="user-{{ user.pk }}" title="{{ user.display_name }}">
+                            <span class="govuk-visually-hidden" data-ids-label>
+                                {{ user.display_name }}
+                            </span>
+                        </label>
+                    </div>
+                </div>
+            </th>
+
+            <!-- User -->
+            <td class="govuk-table__cell">
+                {{ user.display_name }}
+            </td>
+
+            <!-- Emails -->
+            <td class="govuk-table__cell">
+                {{ user.all_emails | join(', ') }}
+            </td>
+
+        </tr>
+    {% endfor %}
+
+{% else %}
+
+    <tr class="govuk-table__row">
+        <td colspan="3" class="govuk-table__cell govuk-!-text-align-centre">
+            <span class="govuk-hint ids-text-s">
+                {% if query|length < (minimum_query_length or 2) %}
+                    Start typing to search users
+                {% else %}
+                    No matching users found
+                {% endif %}
+            </span>
+        </td>
+    </tr>
+
+{% endif %}
