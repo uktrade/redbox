@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 def test_upload_view(alice, client, file_pdf_path: Path, s3_client, remove_file_from_bucket):
     """
     Given that the object store does not have a file with our test file in it
-    When we POST our test file to /upload/
+    When we POST our test file to /documents/upload/
     We Expect to see this file in the object store
     """
     file_name = f"{alice.email}/{file_pdf_path.name.rstrip(file_pdf_path.name[-4:])}"
@@ -35,13 +35,13 @@ def test_upload_view(alice, client, file_pdf_path: Path, s3_client, remove_file_
     assert not file_exists(s3_client, file_name)
 
     client.force_login(alice)
+    url = reverse("document-upload")
 
     with file_pdf_path.open("rb") as f:
-        response = client.post("/upload/", {"uploadDocs": f})
+        response = client.post(url, {"files": f})
 
         assert file_exists(s3_client, file_name)
-        assert response.status_code == HTTPStatus.FOUND
-        assert response.url == "/documents/"
+        assert response.status_code == HTTPStatus.OK
 
 
 @pytest.mark.django_db
@@ -51,13 +51,14 @@ def test_document_upload_status(client, alice, file_pdf_path: Path, s3_client, r
 
     assert not file_exists(s3_client, file_name)
     client.force_login(alice)
+    url = reverse("document-upload")
+
     previous_count = count_s3_objects(s3_client)
 
     with file_pdf_path.open("rb") as f:
-        response = client.post("/upload/", {"uploadDocs": f})
+        response = client.post(url, {"files": f})
 
-        assert response.status_code == HTTPStatus.FOUND
-        assert response.url == "/documents/"
+        assert response.status_code == HTTPStatus.OK
         assert count_s3_objects(s3_client) == previous_count + 1
         uploaded_file = File.objects.filter(user=alice).order_by("-created_at")[0]
         assert uploaded_file.status == File.Status.processing
@@ -67,9 +68,10 @@ def test_document_upload_status(client, alice, file_pdf_path: Path, s3_client, r
 def test_upload_view_bad_data(alice, client, file_py_path: Path, s3_client):
     previous_count = count_s3_objects(s3_client)
     client.force_login(alice)
+    url = reverse("document-upload")
 
     with file_py_path.open("rb") as f:
-        response = client.post("/upload/", {"uploadDocs": f})
+        response = client.post(url, {"files": f})
 
         assert response.status_code == HTTPStatus.OK
         assert "File type .py not supported" in str(response.content)
@@ -79,8 +81,9 @@ def test_upload_view_bad_data(alice, client, file_py_path: Path, s3_client):
 @pytest.mark.django_db
 def test_upload_view_no_file(alice, client):
     client.force_login(alice)
+    url = reverse("document-upload")
 
-    response = client.post("/upload/")
+    response = client.post(url)
 
     assert response.status_code == HTTPStatus.OK
     assert "No document selected" in str(response.content)
@@ -91,13 +94,14 @@ def test_remove_doc_view(client: Client, alice: User, file_pdf_path: Path, s3_cl
     file_name = f"{alice.email}/{file_pdf_path.name.rstrip(file_pdf_path.name[-4:])}"
 
     client.force_login(alice)
+    url = reverse("document-upload")
     remove_file_from_bucket(file_name)
 
     previous_count = count_s3_objects(s3_client)
 
     with file_pdf_path.open("rb") as f:
         # create file before testing deletion
-        client.post("/upload/", {"uploadDocs": f})
+        client.post(url, {"files": f})
         assert file_exists(s3_client, file_name)
         assert count_s3_objects(s3_client) == previous_count + 1
 
@@ -163,8 +167,10 @@ def test_upload_document_endpoint_invalid_file(alice, client, file_py_path: Path
     Test document upload with an invalid file type.
     """
     client.force_login(alice)
+    url = reverse("document-upload")
+
     with file_py_path.open("rb") as f:
-        response = client.post("/upload/", {"uploadDocs": f})
+        response = client.post(url, {"files": f})
 
     assert response.status_code == HTTPStatus.OK
 
@@ -177,8 +183,10 @@ def test_upload_document_endpoint_multiple_files(alice, client, file_pdf_path: P
     Test the document upload with multiple files, one valid and one invalid.
     """
     client.force_login(alice)
+    url = reverse("document-upload")
+
     with file_pdf_path.open("rb") as pdf, file_py_path.open("rb") as py:
-        response = client.post("/upload/", {"uploadDocs": [pdf, py]})
+        response = client.post(url, {"files": [pdf, py]})
 
     assert response.status_code == HTTPStatus.OK
 
@@ -190,8 +198,10 @@ def test_upload_document_endpoint_unauthenticated(client, file_pdf_path: Path):
     """
     Test the document upload when user is not authenticated.
     """
+    url = reverse("document-upload")
+
     with file_pdf_path.open("rb") as f:
-        response = client.post("/upload/", {"uploadDocs": f})
+        response = client.post(url, {"files": f})
 
     # Should redirect to login or return 403
     assert response.status_code in (HTTPStatus.FOUND, HTTPStatus.FORBIDDEN)
@@ -203,13 +213,14 @@ def test_upload_document_endpoint_empty_file(alice, client, tmp_path):
     Test the document upload with an empty file.
     """
     client.force_login(alice)
+    url = reverse("document-upload")
     empty_file = tmp_path / "empty.pdf"
     empty_file.write_bytes(b"")
 
     with empty_file.open("rb") as f:
-        response = client.post("/upload/", {"uploadDocs": f})
+        response = client.post(url, {"files": f})
 
-    assert response.status_code == HTTPStatus.FOUND
+    assert response.status_code == HTTPStatus.OK
 
 
 @pytest.mark.django_db
@@ -584,13 +595,12 @@ def test_upload_document_api_endpoint(alice, client, file_pdf_path, s3_client, r
 
     client.force_login(alice)
     previous_count = count_s3_objects(s3_client)
+    url = reverse("document-upload")
 
     with file_pdf_path.open("rb") as f:
-        response = client.post("/upload/", {"uploadDocs": f})
+        response = client.post(url, {"files": f})
 
-    # For successful uploads, the view redirects to /documents/
-    assert response.status_code == HTTPStatus.FOUND
-    assert response.url == "/documents/"
+    assert response.status_code == HTTPStatus.OK
     assert count_s3_objects(s3_client) == previous_count + 1
 
     # Verify a file was created in the database
@@ -604,9 +614,10 @@ def test_upload_document_api_invalid_file(alice, client, file_py_path):
     Test the API endpoint with invalid file type.
     """
     client.force_login(alice)
+    url = reverse("document-upload")
 
     with file_py_path.open("rb") as f:
-        response = client.post("/upload/", {"uploadDocs": f})
+        response = client.post(url, {"files": f})
 
     assert response.status_code == HTTPStatus.OK
     content = str(response.content)
@@ -627,7 +638,7 @@ def test_upload_document_to_tool(alice, client, original_file, default_tool, s3_
     # When
     assert not file_exists(s3_client, file_name)
     previous_count = count_s3_objects(s3_client)
-    response = client.post(url, {"file": original_file})
+    response = client.post(url, {"files": original_file})
     uploaded_file = File.objects.filter(user=alice).order_by("-created_at")[0]
 
     # Then
@@ -648,7 +659,7 @@ def test_upload_invalid_document(alice, client, original_file, default_tool):
 
     original_file.name = "invalid"
     # When
-    response = client.post(url, {"file": original_file})
+    response = client.post(url, {"files": original_file})
     response_content = response.content.decode()
 
     # Then

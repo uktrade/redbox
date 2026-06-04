@@ -46,6 +46,7 @@ class DocumentView(View):
         return documents_service.handle_post_upload(request)
 
 
+# Depreciated
 class UploadView(View):
     @method_decorator(login_required)
     def get(self, request: HttpRequest) -> HttpResponse:
@@ -95,11 +96,8 @@ class UploadView(View):
 def upload_document(request, slug: str | None = None):
     errors: MutableSequence[str] = []
 
-    uploaded_file: UploadedFile = request.FILES.get("file")
+    uploaded_file: UploadedFile = request.FILES.get("files")
     response = {}
-
-    if not uploaded_file:
-        errors.append("No document selected")
 
     errors += documents_service.validate_uploaded_file(uploaded_file)
 

@@ -76,7 +76,7 @@ def render_your_documents(request, active_chat_id, slug: str | None = None) -> T
 
 def handle_post_upload(request: HttpRequest, errors: Sequence[str] | None = None) -> HttpResponse:
     errors: MutableSequence[str] = []
-    uploaded_files: MutableSequence[UploadedFile] = request.FILES.getlist("uploadDocs")
+    uploaded_files: MutableSequence[UploadedFile] = request.FILES.getlist("files")
 
     if not uploaded_files:
         errors.append("No document selected")
@@ -136,6 +136,11 @@ def build_upload_response(request: HttpRequest, errors: Sequence[str] | None = N
 
 def validate_uploaded_file(uploaded_file: UploadedFile) -> Sequence[str]:
     errors: MutableSequence[str] = []
+
+    if not uploaded_file:
+        errors.append("No document selected")
+        return errors
+
     if not uploaded_file.name:
         errors.append("File has no name")
     else:
