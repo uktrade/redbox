@@ -5,6 +5,7 @@ import { disableNoScroll, enableNoScroll } from "./no-scroll";
 
 export class SidePanel extends HTMLElement {
     storageKey = "ids-side-panel-collapsed";
+    expandedClass = "ids-side-panel-wrapper--expanded";
     collapsedClass = "ids-side-panel-wrapper--collapsed";
     noScrollSource = "side-panel";
     toggleSlot = "toggle-side-panel";
@@ -96,6 +97,7 @@ export class SidePanel extends HTMLElement {
 
     open() {
         this.classList.remove(this.collapsedClass);
+        this.classList.add(this.expandedClass);
 
         // Enable no-scroll
         this.sidepanelId = enableNoScroll(this.noScrollSource);
@@ -111,6 +113,7 @@ export class SidePanel extends HTMLElement {
 
 
     close() {
+        this.classList.remove(this.expandedClass);
         this.classList.add(this.collapsedClass);
 
         // Disable no-scroll
