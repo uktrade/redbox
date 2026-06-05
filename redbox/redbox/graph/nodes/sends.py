@@ -8,6 +8,7 @@ from redbox.models.chain import DocumentState, RedboxState, TaskStatus
 
 
 from redbox.graph.nodes.runner.runner import ToolRunner
+from redbox.graph.nodes.runner.models import Result
 
 log = logging.getLogger(__name__)
 
@@ -66,13 +67,13 @@ def build_tool_send(target: str) -> Callable[[RedboxState], list[Send]]:
     return _tool_send
 
 
-def run_tools_parallel(
+def run_tools_parallel_extended(
     ai_msg,
     tools,
     state,
     parallel_timeout=60,
     is_loop=False,
-) -> list[AIMessage] | None:
+) -> Result | None:
 
     if not ai_msg.tool_calls:
         log.warning("No tool calls detected. Returning agent content.")
@@ -90,9 +91,7 @@ def run_tools_parallel(
 
         try:
             result = runner.run(tool_calls=ai_msg.tool_calls)
-            if result.results:
-                return [r.response for r in result.results]
-            return None
+            return result
         finally:
             runner.executor.shutdown(wait=True)
 
@@ -102,6 +101,28 @@ def run_tools_parallel(
             exc_info=True,
         )
         return None
+
+
+def run_tools_parallel(
+    ai_msg,
+    tools,
+    state,
+    parallel_timeout=60,
+    is_loop=False,
+) -> list[AIMessage] | None:
+
+    result = run_tools_parallel_extended(
+        ai_msg=ai_msg,
+        tools=tools,
+        state=state,
+        parallel_timeout=parallel_timeout,
+        is_loop=is_loop,
+    )
+
+    if result is None:
+        return None
+
+    return [r.response for r in result.results] if result.results else None
 
 
 def no_dependencies(dependencies: list[str], plan) -> bool:
