@@ -753,7 +753,7 @@ def build_datahub_agent_with_loop(
                         "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.REQUIRES_USER_FEEDBACK),
                     }
 
-                result = collated_result + DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS
+                result = collated_result
 
             if isinstance(result, str):
                 log.warning(f"{log_stub} Using raw string result.")
@@ -772,6 +772,8 @@ def build_datahub_agent_with_loop(
                 result_content = "There is an issue with tool call. No results returned."
             all_results.append(result_content)
             log.warning(f"{log_stub} Completed agent run.")
+
+        all_results.append(DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS)
 
         log.warning(f"[{agent_name}] Completed agent_with_loop run.")
         all_results = join_result_with_token_limit(result=all_results, max_tokens=max_tokens, log_stub=log_stub)

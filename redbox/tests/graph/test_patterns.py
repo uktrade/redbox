@@ -37,6 +37,7 @@ from redbox.models.chain import (
     TaskStatus,
     configure_agent_task_plan,
 )
+from redbox.models.prompts import DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS
 from redbox.models.chat import ChatRoute
 from redbox.test.data import (
     RedboxChatTestCase,
@@ -1167,7 +1168,10 @@ class TestBuildDatahubAgentLoop:
                 collated_result += f"<tool_result_{i}>{tr.content[0]}</tool_result_{i}>"
             loop_result = " ".join([collated_result, collated_result])
 
-            assert result_message.content == f"<{agent_name}_Result>{loop_result}</{agent_name}_Result>"
+            assert (
+                result_message.content
+                == f"<{agent_name}_Result>{loop_result} {DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS}</{agent_name}_Result>"
+            )
 
 
 @pytest.mark.parametrize(
