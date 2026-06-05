@@ -30,6 +30,10 @@
     .ids-side-panel--collapsed__content {
       display: flex;
     }
+    .ids-side-panel__toggle {
+      padding:10px;
+    }
+
   }
 }
 
@@ -57,7 +61,7 @@
 .ids-side-panel__toggle {
   align-items: center;
   justify-content: center;
-  padding: 10px;
+  padding: 0px 10px;
 }
 
 @media (min-width: bp(xs)) {

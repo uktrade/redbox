@@ -9,5 +9,17 @@
         background-color: transparent;
         box-shadow: none;
     }
-    padding-top: 5px !important;
+    .button-content{
+      line-height: 0;
+    }
+    &:focus > .button-content {
+        outline: 3px solid var(--color-focus);
+        outline-offset: 0;
+        background-color: var(--color-focus);
+    }
+    &:hover > .button-content {
+        background-color: transparent;
+        box-shadow: none;
+        outline:none;
+    }
 }
