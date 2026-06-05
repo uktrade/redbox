@@ -9,7 +9,7 @@ from redbox.graph.nodes.tools import get_datahub_mcp_tools
 
 class CacheEntry(BaseModel):
     value: Any
-    expires_at: float = Field(default_factory=lambda: time.monotonic() + 60)
+    expires_at: float = Field(default_factory=lambda: time.monotonic() + 300)
 
     def is_expired(self) -> bool:
         return time.monotonic() >= self.expires_at
