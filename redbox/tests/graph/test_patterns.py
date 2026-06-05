@@ -1195,8 +1195,8 @@ def test_check_if_tasks_completed(task_idx, task_status, expected, fake_state_wi
     assert expected == actual
 
 
-def test_stream_plan_saves_to_messages(state_with_plan):
-    state = state_with_plan
+def test_stream_plan_saves_to_messages(fake_state_with_plan):
+    state = fake_state_with_plan
     result = stream_plan().invoke(state)
 
     # Assertions
