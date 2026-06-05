@@ -773,7 +773,8 @@ def build_datahub_agent_with_loop(
             all_results.append(result_content)
             log.warning(f"{log_stub} Completed agent run.")
 
-        all_results.append(DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS)
+        if len(tools) > 0:
+            all_results.append(DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS)
 
         log.warning(f"[{agent_name}] Completed agent_with_loop run.")
         all_results = join_result_with_token_limit(result=all_results, max_tokens=max_tokens, log_stub=log_stub)
