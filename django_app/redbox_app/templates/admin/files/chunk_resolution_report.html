@@ -5,23 +5,24 @@
 <table>
     <thead>
         <tr>
-            <th>File ID</th>
-            <th>File Name</th>
+            <th style="cursor:pointer" onclick="sortTable(0)">
+                Created ↕
+            </th>
             <th>User</th>
+            <th>File Name</th>
             <th>Stored Name</th>
             <th>Resolutions</th>
+            <th style="cursor:pointer" onclick="sortTable(5)">
+                Health ↕
+            </th>
             <th>Error</th>
         </tr>
     </thead>
     <tbody>
     {% for result in results %}
         <tr>
-            <td>
-                <code>{{ result.file_id }}</code>
-            </td>
-
-            <td>
-                {{ result.file_name }}
+            <td data-sort="{{ result.created_at_ts }}">
+                {{ result.created_at }}
             </td>
 
             <td>
@@ -29,7 +30,17 @@
             </td>
 
             <td>
-                {{ result.stored_name }}
+                <a href="/admin/redbox_core/file/{{ result.file_id }}/change/">
+                    {{ result.file_name }}
+                </a>
+            </td>
+
+            <td>
+                {% if result.stored_name %}
+                    {{ result.stored_name }}
+                {% else %}
+                    —
+                {% endif %}
             </td>
 
             <td>
@@ -41,6 +52,16 @@
                     </ul>
                 {% elif not result.error %}
                     No chunks found
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+
+            <td data-sort="{% if result.healthy %}1{% else %}0{% endif %}">
+                {% if result.healthy %}
+                    <span style="color: green; font-weight: bold;">✓</span>
+                {% else %}
+                    <span style="color: red; font-weight: bold;">✗</span>
                 {% endif %}
             </td>
 
@@ -61,4 +82,41 @@
 <p>
     <a href="javascript:history.back()">← Back</a>
 </p>
+
+<script>
+let sortDirection = {};
+
+function sortTable(columnIndex) {
+    const table = document.querySelector("table");
+    const tbody = table.querySelector("tbody");
+
+    const rows = Array.from(tbody.querySelectorAll("tr"));
+
+    sortDirection[columnIndex] = !sortDirection[columnIndex];
+
+    rows.sort((a, b) => {
+        const aCell = a.children[columnIndex];
+        const bCell = b.children[columnIndex];
+
+        const aVal = aCell.dataset.sort ?? aCell.innerText.trim();
+        const bVal = bCell.dataset.sort ?? bCell.innerText.trim();
+
+        const aNum = Number(aVal);
+        const bNum = Number(bVal);
+
+        let result;
+
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+            result = aNum - bNum;
+        } else {
+            result = aVal.localeCompare(bVal);
+        }
+
+        return sortDirection[columnIndex] ? result : -result;
+    });
+
+    rows.forEach(row => tbody.appendChild(row));
+}
+</script>
+
 {% endblock %}

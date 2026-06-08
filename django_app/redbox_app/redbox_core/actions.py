@@ -89,28 +89,52 @@ def check_chunk_resolutions(_, request, queryset):
 
     for file in queryset:
         try:
-            resolutions = _get_resolutions_for_file(
-                file_uri=file.unique_name,
-                index_name=env.elastic_alias,
-            )
+            if file.status == "complete":
+                resolutions = _get_resolutions_for_file(
+                    file_uri=file.unique_name,
+                    index_name=env.elastic_alias,
+                )
 
-            results.append(
-                {
-                    "file_id": str(file.pk),
-                    "file_name": file.file_name,
-                    "user": file.user.email,
-                    "stored_name": file.unique_name,
-                    "resolutions": resolutions,
-                    "error": None,
-                }
-            )
+                counts = list(resolutions.values())
+                healthy = len(counts) > 0 and len(set(counts)) == 1
+
+                results.append(
+                    {
+                        "created_at_ts": int(file.created_at.timestamp()),
+                        "created_at": file.created_at.strftime("%d %b %Y %H:%M"),
+                        "file_id": str(file.pk),
+                        "file_name": file.file_name,
+                        "user": file.user.email,
+                        "healthy": healthy,
+                        "stored_name": file.unique_name,
+                        "resolutions": resolutions,
+                        "error": None,
+                    }
+                )
+            else:
+                results.append(
+                    {
+                        "created_at_ts": int(file.created_at.timestamp()),
+                        "created_at": file.created_at.strftime("%d %b %Y %H:%M"),
+                        "file_id": str(file.pk),
+                        "file_name": file.file_name,
+                        "user": file.user.email,
+                        "healthy": False,
+                        "stored_name": None,
+                        "resolutions": None,
+                        "error": f'Unable to evaluate has an invalid file status "{file.status}"',
+                    }
+                )
 
         except Exception as exc:  # noqa: BLE001
             results.append(
                 {
+                    "created_at_ts": int(file.created_at.timestamp()),
+                    "created_at": file.created_at.strftime("%d %b %Y %H:%M"),
                     "file_id": str(file.pk),
                     "file_name": file.file_name,
                     "user": file.user.email,
+                    "healthy": False,
                     "stored_name": file.unique_name,
                     "resolutions": None,
                     "error": str(exc),
