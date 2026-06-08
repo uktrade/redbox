@@ -881,7 +881,8 @@ def stream_plan():
         plan_parts.append(f"\n\n{suffix}")
         dispatch_custom_event(RedboxEventType.response_tokens, data=plan_parts[-1])
 
-        return {"messages": [AIMessage(content="".join(plan_parts))]}
+        state.messages = state.messages + [AIMessage(content="".join(plan_parts))]
+        return state
 
     return _stream_plan
 
