@@ -7,9 +7,11 @@ from django.contrib.auth import get_user_model
 from django.db.models import QuerySet
 from django.http import HttpResponse
 from django.shortcuts import render
+from django.template.response import TemplateResponse
+from django.urls import path
 from import_export.admin import ExportMixin, ImportExportMixin
 
-from redbox_app.redbox_core.actions import backfill_original_file_names, reupload
+from redbox_app.redbox_core.actions import backfill_original_file_names, check_chunk_resolutions, reupload
 
 from . import models
 from .serializers import UserSerializer
@@ -270,8 +272,34 @@ class FileAdmin(ExportMixin, admin.ModelAdmin):
     list_display = ["file_name", "user", "status", "created_at", "last_referenced"]
     list_filter = ["user", "status"]
     date_hierarchy = "created_at"
-    actions = [reupload, backfill_original_file_names]
+    actions = [reupload, backfill_original_file_names, check_chunk_resolutions]
     search_fields = ["user__email", "original_file_name"]
+
+    def get_urls(self):
+        urls = super().get_urls()
+
+        custom_urls = [
+            path(
+                "chunk-resolution-report/",
+                self.admin_site.admin_view(self.chunk_resolution_report_view),
+                name="files_chunk_resolution_report",
+            ),
+        ]
+
+        return custom_urls + urls
+
+    def chunk_resolution_report_view(self, request):
+        results = request.session.pop("chunk_resolution_results", [])
+
+        return TemplateResponse(
+            request,
+            "admin/files/chunk_resolution_report.html",
+            {
+                "title": "Chunk Resolution Report",
+                "results": results,
+            },
+            using="django",
+        )
 
 
 class FileToolAdmin(ExportMixin, admin.ModelAdmin):

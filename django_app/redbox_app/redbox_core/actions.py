@@ -2,13 +2,18 @@ import logging
 
 from django.contrib import admin
 from django.contrib.auth import get_user_model
+from django.http import HttpResponseRedirect
+from django.urls import reverse
 from django_q.tasks import async_task
 
+from redbox.models.settings import get_settings
 from redbox_app.redbox_core.models import File
 from redbox_app.worker import ingest
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
+
+env = get_settings()
 
 
 def reupload(_self, _request, queryset):
@@ -35,3 +40,83 @@ def backfill_original_file_names(self, request, queryset):
         request,
         f"Updated {updated} files.",
     )
+
+
+# Opensearch Files
+
+
+def _es_client():
+    return env.elasticsearch_client()
+
+
+def _get_resolutions_for_file(file_uri: str, index_name: str) -> dict[str, int]:
+    """Return chunk_resolution -> count for *file_uri* across the main alias index."""
+    es = _es_client()
+    resp = es.search(
+        index=index_name,
+        body={
+            "size": 0,
+            "query": {"term": {"metadata.uri.keyword": file_uri}},
+            "aggs": {"resolutions": {"terms": {"field": "metadata.chunk_resolution.keyword"}}},
+        },
+    )
+    return {bucket["key"]: bucket["doc_count"] for bucket in resp["aggregations"]["resolutions"]["buckets"]}
+
+
+def _file_has_largest_chunks(file_uri: str, index_name: str) -> bool:
+    """Return True if any 'largest' chunks already exist for *file_id*."""
+    es = _es_client()
+    resp = es.search(
+        index=index_name,
+        body={
+            "size": 1,
+            "query": {
+                "bool": {
+                    "must": [
+                        {"term": {"metadata.uri": file_uri}},
+                        {"term": {"metadata.chunk_resolution": "largest"}},
+                    ]
+                }
+            },
+        },
+    )
+    return resp["hits"]["total"]["value"] > 0
+
+
+@admin.action(description="OpenSearch: check which chunk resolutions exist")
+def check_chunk_resolutions(_, request, queryset):
+    results = []
+
+    for file in queryset:
+        try:
+            resolutions = _get_resolutions_for_file(
+                file_uri=file.unique_name,
+                index_name=env.elastic_alias,
+            )
+
+            results.append(
+                {
+                    "file_id": str(file.pk),
+                    "file_name": file.file_name,
+                    "user": file.user.email,
+                    "stored_name": file.unique_name,
+                    "resolutions": resolutions,
+                    "error": None,
+                }
+            )
+
+        except Exception as exc:  # noqa: BLE001
+            results.append(
+                {
+                    "file_id": str(file.pk),
+                    "file_name": file.file_name,
+                    "user": file.user.email,
+                    "stored_name": file.unique_name,
+                    "resolutions": None,
+                    "error": str(exc),
+                }
+            )
+
+    request.session["chunk_resolution_results"] = results
+
+    return HttpResponseRedirect(reverse("admin:files_chunk_resolution_report"))

@@ -1,0 +1,64 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+
+<table>
+    <thead>
+        <tr>
+            <th>File ID</th>
+            <th>File Name</th>
+            <th>User</th>
+            <th>Stored Name</th>
+            <th>Resolutions</th>
+            <th>Error</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for result in results %}
+        <tr>
+            <td>
+                <code>{{ result.file_id }}</code>
+            </td>
+
+            <td>
+                {{ result.file_name }}
+            </td>
+
+            <td>
+                {{ result.user }}
+            </td>
+
+            <td>
+                {{ result.stored_name }}
+            </td>
+
+            <td>
+                {% if result.resolutions %}
+                    <ul>
+                    {% for resolution, count in result.resolutions.items %}
+                        <li>{{ resolution }}: {{ count }}</li>
+                    {% endfor %}
+                    </ul>
+                {% elif not result.error %}
+                    No chunks found
+                {% endif %}
+            </td>
+
+            <td>
+                {% if result.error %}
+                    <span style="color:red">
+                        {{ result.error }}
+                    </span>
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<p>
+    <a href="javascript:history.back()">← Back</a>
+</p>
+{% endblock %}
