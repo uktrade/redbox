@@ -74,10 +74,16 @@
         .ids-page-content {
             pointer-events: none;
             touch-action: none;
+            interactivity: inert;
         }
     }
-    .ids-page-layout:has(.ids-side-panel-wrapper--collapsed)::after {
-        background: rgba(0, 0, 0, 0);
+    .ids-page-layout:has(.ids-side-panel-wrapper--collapsed) {
+        &::after{
+            background: rgba(0, 0, 0, 0);
+        }
+        .ids-page-content {
+            interactivity: auto;
+        }
     }
 }
 
@@ -101,6 +107,7 @@
         &:has(.ids-side-panel-wrapper--expanded) .ids-page-content {
             pointer-events: all;
             touch-action: auto;
+            interactivity: auto;
         }
     }
 }

@@ -646,5 +646,10 @@ Existing information:
 <previous_chat_history>{chat_history}</previous_chat_history>
 <previous_tool_error>{previous_tool_error}</previous_tool_error>
 <previous_tool_results>{previous_tool_results}</previous_tool_results>
+<mcp_tools>{mcp_tools}</mcp_tools>
 <Todays_Date>{todays_date}</Todays_Date>
 """
+
+DATAHUB_USER_FEEDBACK = "Ask user for feedback based on failure reason."
+
+DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS = "At the end of your answer provide 3 recommendations to user for follow-up prompts based on result and available tools by carefully reviewing <mcp_tools>."

@@ -30,6 +30,7 @@ export class SidePanel extends HTMLElement {
             evt.stopPropagation();
             this.togglePanel();
         });
+
     }
 
 
@@ -39,6 +40,9 @@ export class SidePanel extends HTMLElement {
         } else {
             document.addEventListener("click", this.handleOutsideClick);
         }
+
+        this.handleScreenOverlay();
+
     }
 
 
@@ -55,6 +59,18 @@ export class SidePanel extends HTMLElement {
         this.close();
     }
 
+
+    handleScreenOverlay() {
+        //background is blurred
+        if (!this.noOverlap && this.expanded) {
+            this.setAttribute("role", "dialog");
+            this.setAttribute("aria-modal", "true");
+        }
+        else {
+            this.removeAttribute("role");
+            this.removeAttribute("aria-modal");
+        }
+    }
 
     /**
      * Returns the sidepanel ID
@@ -109,6 +125,8 @@ export class SidePanel extends HTMLElement {
         document.cookie = `${this.storageKey}=false; path=/`;
 
         if (!this.noOverlap) document.addEventListener("click", this.handleOutsideClick);
+
+        this.handleScreenOverlay();
     }
 
 
@@ -126,6 +144,8 @@ export class SidePanel extends HTMLElement {
         document.cookie = `${this.storageKey}=true; path=/`;
 
         document.removeEventListener("click", this.handleOutsideClick);
+
+        this.handleScreenOverlay();
     }
 }
 customElements.define("ids-side-panel", SidePanel);
