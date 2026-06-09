@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
+from django.urls import reverse
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -53,7 +55,7 @@ class DocumentView(View):
         request.session["ingest_errors"] = result.ingest_errors
 
         if not result.errors:
-            return redirect(request.path)
+            return redirect(reverse("documents"))
 
         context = chat_service.get_context(request)
         context["errors"] = {"upload_doc": result.errors or []}
