@@ -74,16 +74,16 @@ th.sortable {
                 File
             </th>
 
-            <th>
-                Chunk Resolutions
-            </th>
-
             <th class="sortable" onclick="sortTable(4, this)">
                 Ingestion <span class="sort-indicator"></span>
             </th>
 
+            <th>
+                Chunk Resolutions
+            </th>
+
             <th class="sortable" onclick="sortTable(5, this)">
-                Chunks <span class="sort-indicator"></span>
+                Chunk Status <span class="sort-indicator"></span>
             </th>
 
             <th>
@@ -123,6 +123,18 @@ th.sortable {
                 </div>
             </td>
 
+            <td data-sort="{% if result.status == 'complete' %}1{% else %}0{% endif %}">
+                {% if result.status == "complete" %}
+                    <span style="color: green; font-weight: bold;">
+                        {{ result.status }}
+                    </span>
+                {% else %}
+                    <span style="color: red; font-weight: bold;">
+                        {{ result.status }}
+                    </span>
+                {% endif %}
+            </td>
+
             <td>
                 {% if result.resolutions %}
                     <div class="resolution-list">
@@ -150,18 +162,6 @@ th.sortable {
                     </span>
                 {% else %}
                     —
-                {% endif %}
-            </td>
-
-            <td data-sort="{% if result.status == 'complete' %}1{% else %}0{% endif %}">
-                {% if result.status == "complete" %}
-                    <span style="color: green; font-weight: bold;">
-                        {{ result.status }}
-                    </span>
-                {% else %}
-                    <span style="color: red; font-weight: bold;">
-                        {{ result.status }}
-                    </span>
                 {% endif %}
             </td>
 
