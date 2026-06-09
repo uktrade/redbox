@@ -146,9 +146,12 @@ class FileUpload extends HTMLElement {
             const uploadedFile = this.uploadedFiles?.getFileById(id);
             if (!uploadedFile) return;
 
+            const currentStatus = uploadedFile.status;
             uploadedFile.status = UploadedFile.StatusTypes.COMPLETE;
 
-            refreshUI(["your-documents"]).finally(() => this.#checkDocuments(id));
+            if (currentStatus != UploadedFile.StatusTypes.COMPLETE) {
+                refreshUI(["your-documents"]).finally(() => this.#checkDocuments(id));
+            }
         });
 
         listenEvent(Events.DOC_ERROR, (evt) => {
@@ -272,7 +275,7 @@ class FileUpload extends HTMLElement {
                     UploadedFile.StatusTypes.PROCESSING,
                 ].includes(responseStatus);
 
-                if (response.errors || errorStatus) {
+                if (response.errors.length || errorStatus) {
                     uploadedFile.status = UploadedFile.StatusTypes.ERROR;
                     console.error(response.errors);
                 }
@@ -294,7 +297,7 @@ class FileUpload extends HTMLElement {
         xhr.onerror = () => uploadedFile.status = UploadedFile.StatusTypes.ERROR;
 
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append("files", file);
         xhr.send(formData);
     }
 

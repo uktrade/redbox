@@ -2,13 +2,14 @@ import logging
 import uuid
 from http import HTTPStatus
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from botocore.exceptions import ClientError
 from bs4 import BeautifulSoup
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import UploadedFile
 from django.test import Client, RequestFactory
 from django.urls import reverse
 
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.django_db
-def test_upload_view(alice, client, file_pdf_path: Path, s3_client, remove_file_from_bucket):
+def test_document_upload_view(alice, client, file_pdf_path: Path, s3_client, remove_file_from_bucket):
     """
     Given that the object store does not have a file with our test file in it
     When we POST our test file to /documents/upload/
@@ -42,6 +43,33 @@ def test_upload_view(alice, client, file_pdf_path: Path, s3_client, remove_file_
 
         assert file_exists(s3_client, file_name)
         assert response.status_code == HTTPStatus.OK
+
+
+@pytest.mark.django_db
+def test_documents_post_without_files_renders_error(client, alice):
+    # Given
+    client.force_login(alice)
+
+    # When
+    response = client.post(reverse("documents"))
+
+    # Then
+    assert response.status_code == 200
+    assert b"No document selected" in response.content
+
+
+@pytest.mark.django_db
+@patch("redbox_app.redbox_core.services.documents.ingest_file")
+@patch("redbox_app.redbox_core.services.documents.validate_uploaded_file")
+def test_documents_post_redirects_after_upload(mock_validate, mock_ingest, client, alice, original_file: UploadedFile):
+    client.force_login(alice)
+    url = reverse("documents")
+    mock_validate.return_value = []
+    mock_ingest.return_value = ([], Mock())
+
+    response = client.post(url, {"files": original_file})
+
+    assert response.status_code == 302
 
 
 @pytest.mark.django_db

@@ -1,5 +1,9 @@
+import uuid
+from unittest.mock import Mock, patch
+
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile, UploadedFile
 from django.test import Client, RequestFactory
 
 from redbox_app.redbox_core.models import Chat, File, FileTool, Tool
@@ -41,3 +45,66 @@ def test_get_file_context_with_tool(client: Client, chat_with_files: Chat, defau
     # Then
     assert len(files["completed_files"]) == 0
     assert len(files["processing_files"]) == 1
+
+
+@pytest.mark.django_db
+def test_process_uploads_no_files(alice):
+    result = documents_service.process_uploads([], alice)
+
+    assert result.errors == ["No document selected"]
+    assert result.files == []
+
+
+@pytest.mark.django_db
+def test_process_uploads_invalid_file_type(alice):
+    file = SimpleUploadedFile("test.exe", b"data")
+    result = documents_service.process_uploads([file], alice)
+
+    assert any("not supported" in e for e in result.errors)
+    assert result.files == []
+
+
+@pytest.mark.django_db
+@patch("redbox_app.redbox_core.services.documents.ingest_file")
+def test_process_uploads_success(mock_ingest, alice, original_file: UploadedFile):
+    file_obj = Mock()
+    file_obj.id = 1
+    file_obj.status = "processing"
+    file_obj.file_name = original_file.name
+
+    mock_ingest.return_value = ([], file_obj)
+
+    result = documents_service.process_uploads([original_file], alice)
+
+    assert result.errors == []
+    assert len(result.files) == 1
+    assert result.files[0] == file_obj
+
+
+@pytest.mark.django_db
+@patch("redbox_app.redbox_core.services.documents.ingest_file")
+def test_process_uploads_team_membership_created(mock_ingest, alice, redbox_team, original_file: UploadedFile):
+    mock_ingest.return_value = ([], original_file)
+
+    result = documents_service.process_uploads(
+        [original_file],
+        alice,
+        team_id=redbox_team.id,
+        visibility="TEAM",
+    )
+
+    assert original_file in result.files
+
+
+@pytest.mark.django_db
+@patch("redbox_app.redbox_core.services.documents.ingest_file")
+def test_process_uploads_invalid_team(mock_ingest, alice, original_file: UploadedFile):
+    mock_ingest.return_value = ([], original_file)
+
+    result = documents_service.process_uploads(
+        [original_file],
+        alice,
+        team_id=str(uuid.uuid4()),
+    )
+
+    assert any("does not exist" in e for e in result.ingest_errors)

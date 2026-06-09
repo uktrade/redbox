@@ -1,6 +1,7 @@
 // @ts-check
 
 import { emitEvent, Events } from "../../../interaction_design_system/ids/events";
+import { FileStatusTypes } from "./file-status-types";
 
 class FileStatus extends HTMLElement {
   FILE_STATUS_ENDPOINT = "/file-status";

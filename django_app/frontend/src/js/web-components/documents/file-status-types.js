@@ -1,4 +1,4 @@
-const FileStatusTypes = Object.freeze({
+export const FileStatusTypes = Object.freeze({
     COMPLETE: "complete",
     DELETED: "deleted",
     ERRORED: "errored",
