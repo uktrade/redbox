@@ -1,6 +1,7 @@
 // @ts-check
 
 import { loadIcon } from "../../../js/services";
+import { emitEvent, Events } from "../events";
 
 export class UploadedFile extends HTMLElement {
     constructor() {
@@ -169,7 +170,7 @@ export class UploadedFile extends HTMLElement {
      * Emits an event when the file has finished processing
      */
     #emitProcessedEvent() {
-        document.body.dispatchEvent(new CustomEvent("file-upload-processed", {detail: this}));
+        emitEvent(Events.FILE_UPLOAD_PROCESSED, {uploadedFile: this});
     }
 }
 customElements.define("ids-uploaded-file", UploadedFile);
