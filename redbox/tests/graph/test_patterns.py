@@ -1205,7 +1205,7 @@ def test_stream_plan_saves_to_messages(fake_state_with_plan):
     assert isinstance(result, RedboxState)
     assert len(result.messages) == pre_existing + 1
 
-    message = result["messages"][0]
+    message = result.messages[-1]
     assert isinstance(message, AIMessage)
 
     assert message.content.strip() != ""
