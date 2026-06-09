@@ -1,12 +1,12 @@
 import uuid
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile, UploadedFile
 from django.test import Client, RequestFactory
 
-from redbox_app.redbox_core.models import Chat, File, FileTool, Tool
+from redbox_app.redbox_core.models import Chat, File, FileTeamMembership, FileTool, Tool, UserTeamMembership
 from redbox_app.redbox_core.services import documents as documents_service
 
 User = get_user_model()
@@ -65,25 +65,56 @@ def test_process_uploads_invalid_file_type(alice):
 
 
 @pytest.mark.django_db
+def test_process_uploads_invalid_file_name(alice, original_file: UploadedFile):
+    original_file.name = None
+    result = documents_service.process_uploads([original_file], alice)
+
+    assert any("File has no name" in e for e in result.errors)
+    assert result.files == []
+
+
+@pytest.mark.django_db
 @patch("redbox_app.redbox_core.services.documents.ingest_file")
 def test_process_uploads_success(mock_ingest, alice, original_file: UploadedFile):
-    file_obj = Mock()
-    file_obj.id = 1
-    file_obj.status = "processing"
-    file_obj.file_name = original_file.name
-
-    mock_ingest.return_value = ([], file_obj)
+    mock_ingest.return_value = ([], original_file)
 
     result = documents_service.process_uploads([original_file], alice)
 
     assert result.errors == []
     assert len(result.files) == 1
-    assert result.files[0] == file_obj
+    assert result.files[0] == original_file
 
 
 @pytest.mark.django_db
 @patch("redbox_app.redbox_core.services.documents.ingest_file")
-def test_process_uploads_team_membership_created(mock_ingest, alice, redbox_team, original_file: UploadedFile):
+def test_process_uploads_team_membership_created(
+    mock_ingest, alice, redbox_team, original_file: UploadedFile, uploaded_file: File
+):
+    mock_ingest.return_value = ([], uploaded_file)
+
+    UserTeamMembership.objects.create(
+        user=alice,
+        team=redbox_team,
+        role_type=UserTeamMembership.RoleType.ADMIN,
+    )
+
+    result = documents_service.process_uploads(
+        [original_file],
+        alice,
+        team_id=redbox_team.id,
+        visibility="TEAM",
+    )
+
+    file_team = FileTeamMembership.objects.filter(file=uploaded_file, team=redbox_team).first()
+
+    assert result.errors == []
+    assert uploaded_file in result.files
+    assert file_team
+
+
+@pytest.mark.django_db
+@patch("redbox_app.redbox_core.services.documents.ingest_file")
+def test_process_uploads_team_membership_no_permissions(mock_ingest, alice, redbox_team, original_file: UploadedFile):
     mock_ingest.return_value = ([], original_file)
 
     result = documents_service.process_uploads(
@@ -94,6 +125,7 @@ def test_process_uploads_team_membership_created(mock_ingest, alice, redbox_team
     )
 
     assert original_file in result.files
+    assert any("You are not a lead for the selected team" in e for e in result.ingest_errors)
 
 
 @pytest.mark.django_db
@@ -108,3 +140,15 @@ def test_process_uploads_invalid_team(mock_ingest, alice, original_file: Uploade
     )
 
     assert any("does not exist" in e for e in result.ingest_errors)
+
+
+@pytest.mark.django_db
+@patch("redbox_app.redbox_core.services.documents.ingest_file")
+def test_process_uploads_skips_none_file_obj(mock_ingest, alice, original_file: UploadedFile):
+    mock_ingest.return_value = (["ingest failed"], None)
+
+    result = documents_service.process_uploads([original_file], alice)
+
+    assert result.files == []
+    assert result.ingest_errors == ["ingest failed"]
+    assert result.errors == []

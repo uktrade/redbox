@@ -78,10 +78,6 @@ def render_your_documents(request, active_chat_id, slug: str | None = None) -> T
 def validate_uploaded_file(uploaded_file: UploadedFile) -> Sequence[str]:
     errors: MutableSequence[str] = []
 
-    if not uploaded_file:
-        errors.append("No document selected")
-        return errors
-
     if not uploaded_file.name:
         errors.append("File has no name")
     else:
