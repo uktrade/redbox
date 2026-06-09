@@ -97,6 +97,17 @@ def check_chunk_resolutions(_, request, queryset):
 
                 counts = list(resolutions.values())
                 healthy = len(counts) > 0 and len(set(counts)) == 1
+                max_count = max(counts) if counts else 0
+
+                formatted_resolutions = [
+                    {
+                        "name": resolution,
+                        "count": count,
+                        "is_low": count < max_count,
+                        "missing": max_count - count,
+                    }
+                    for resolution, count in sorted(resolutions.items())
+                ]
 
                 results.append(
                     {
@@ -105,9 +116,11 @@ def check_chunk_resolutions(_, request, queryset):
                         "file_id": str(file.pk),
                         "file_name": file.file_name,
                         "user": file.user.email,
+                        "status": file.status,
                         "healthy": healthy,
+                        "overall_ok": healthy and file.status == "complete",
                         "stored_name": file.unique_name,
-                        "resolutions": resolutions,
+                        "resolutions": formatted_resolutions,
                         "error": None,
                     }
                 )
@@ -119,10 +132,12 @@ def check_chunk_resolutions(_, request, queryset):
                         "file_id": str(file.pk),
                         "file_name": file.file_name,
                         "user": file.user.email,
+                        "status": file.status,
                         "healthy": False,
+                        "overall_ok": False,
                         "stored_name": None,
                         "resolutions": None,
-                        "error": f'Unable to evaluate has an invalid file status "{file.status}"',
+                        "error": None,
                     }
                 )
 
@@ -134,7 +149,9 @@ def check_chunk_resolutions(_, request, queryset):
                     "file_id": str(file.pk),
                     "file_name": file.file_name,
                     "user": file.user.email,
+                    "status": file.status,
                     "healthy": False,
+                    "overall_ok": False,
                     "stored_name": file.unique_name,
                     "resolutions": None,
                     "error": str(exc),

@@ -2,22 +2,100 @@
 
 {% block content %}
 
+<style>
+th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.sort-indicator {
+    display: inline-block;
+    width: 1em;
+    margin-left: 0.25rem;
+    color: #666;
+}
+
+.file-cell {
+    line-height: 1.4;
+}
+
+.file-user {
+    font-weight: bold;
+}
+
+.file-stored-name {
+    color: #666;
+    font-size: 0.9em;
+    font-family: monospace;
+}
+.resolution-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.resolution-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid #d0d7de;
+    background: #f6f8fa;
+    color: #24292f;
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+
+.resolution-badge-low {
+    background: #fff1f2;
+    border-color: #d1242f;
+    color: #8a1c23;
+    font-weight: 600;
+}
+
+.resolution-name {
+    font-weight: 600;
+}
+
+.resolution-missing {
+    opacity: 0.8;
+}
+</style>
+
 <table>
     <thead>
         <tr>
-            <th style="cursor:pointer" onclick="sortTable(0)">
-                Created ↕
+            <th class="sortable" onclick="sortTable(0, this)">
+                Created <span class="sort-indicator"></span>
             </th>
-            <th>User</th>
-            <th>File Name</th>
-            <th>Stored Name</th>
-            <th>Resolutions</th>
-            <th style="cursor:pointer" onclick="sortTable(5)">
-                Health ↕
+
+            <th>
+                File
             </th>
-            <th>Error</th>
+
+            <th>
+                Chunk Resolutions
+            </th>
+
+            <th class="sortable" onclick="sortTable(4, this)">
+                Ingestion <span class="sort-indicator"></span>
+            </th>
+
+            <th class="sortable" onclick="sortTable(5, this)">
+                Chunks <span class="sort-indicator"></span>
+            </th>
+
+            <th>
+                Error
+            </th>
+
+            <th class="sortable" onclick="sortTable(6, this)">
+                Overall <span class="sort-indicator"></span>
+            </th>
         </tr>
     </thead>
+
     <tbody>
     {% for result in results %}
         <tr>
@@ -25,35 +103,65 @@
                 {{ result.created_at }}
             </td>
 
-            <td>
-                {{ result.user }}
+            <td class="file-cell">
+                <div class="file-user">
+                    {{ result.user }}
+                </div>
+
+                <div>
+                    <a href="/admin/redbox_core/file/{{ result.file_id }}/change/">
+                        {{ result.file_name }}
+                    </a>
+                </div>
+
+                <div class="file-stored-name">
+                    {% if result.stored_name %}
+                        {{ result.stored_name }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </div>
             </td>
 
             <td>
-                <a href="/admin/redbox_core/file/{{ result.file_id }}/change/">
-                    {{ result.file_name }}
-                </a>
-            </td>
+                {% if result.resolutions %}
+                    <div class="resolution-list">
+                        {% for resolution in result.resolutions %}
+                            <span class="resolution-badge {% if resolution.is_low %}resolution-badge-low{% endif %}">
+                                <span class="resolution-name">
+                                    {{ resolution.name }}
+                                </span>
 
-            <td>
-                {% if result.stored_name %}
-                    {{ result.stored_name }}
+                                <span>
+                                    {{ resolution.count }}
+                                </span>
+
+                                {% if resolution.is_low %}
+                                    <span class="resolution-missing">
+                                        (-{{ resolution.missing }})
+                                    </span>
+                                {% endif %}
+                            </span>
+                        {% endfor %}
+                    </div>
+                {% elif not result.error %}
+                    <span style="color:#666">
+                        No chunks found
+                    </span>
                 {% else %}
                     —
                 {% endif %}
             </td>
 
-            <td>
-                {% if result.resolutions %}
-                    <ul>
-                    {% for resolution, count in result.resolutions.items %}
-                        <li>{{ resolution }}: {{ count }}</li>
-                    {% endfor %}
-                    </ul>
-                {% elif not result.error %}
-                    No chunks found
+            <td data-sort="{% if result.status == 'complete' %}1{% else %}0{% endif %}">
+                {% if result.status == "complete" %}
+                    <span style="color: green; font-weight: bold;">
+                        {{ result.status }}
+                    </span>
                 {% else %}
-                    -
+                    <span style="color: red; font-weight: bold;">
+                        {{ result.status }}
+                    </span>
                 {% endif %}
             </td>
 
@@ -74,6 +182,14 @@
                     —
                 {% endif %}
             </td>
+
+            <td data-sort="{% if result.overall_ok %}1{% else %}0{% endif %}">
+                {% if result.overall_ok %}
+                    <span style="color: green; font-weight: bold;">✓</span>
+                {% else %}
+                    <span style="color: red; font-weight: bold;">✗</span>
+                {% endif %}
+            </td>
         </tr>
     {% endfor %}
     </tbody>
@@ -84,15 +200,20 @@
 </p>
 
 <script>
-let sortDirection = {};
+let currentSortColumn = null;
+let sortAscending = true;
 
-function sortTable(columnIndex) {
+function sortTable(columnIndex, header) {
     const table = document.querySelector("table");
     const tbody = table.querySelector("tbody");
-
     const rows = Array.from(tbody.querySelectorAll("tr"));
 
-    sortDirection[columnIndex] = !sortDirection[columnIndex];
+    if (currentSortColumn === columnIndex) {
+        sortAscending = !sortAscending;
+    } else {
+        currentSortColumn = columnIndex;
+        sortAscending = true;
+    }
 
     rows.sort((a, b) => {
         const aCell = a.children[columnIndex];
@@ -112,11 +233,27 @@ function sortTable(columnIndex) {
             result = aVal.localeCompare(bVal);
         }
 
-        return sortDirection[columnIndex] ? result : -result;
+        return sortAscending ? result : -result;
     });
 
     rows.forEach(row => tbody.appendChild(row));
+
+    document.querySelectorAll(".sort-indicator").forEach(el => {
+        el.textContent = "";
+    });
+
+    header.querySelector(".sort-indicator").textContent =
+        sortAscending ? "↑" : "↓";
 }
+
+// Default sort by Created descending (newest first)
+window.addEventListener("load", () => {
+    const createdHeader =
+        document.querySelectorAll("th.sortable")[0];
+
+    sortTable(0, createdHeader);
+    sortTable(0, createdHeader);
+});
 </script>
 
 {% endblock %}
