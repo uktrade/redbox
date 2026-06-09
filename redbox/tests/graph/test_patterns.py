@@ -1196,12 +1196,14 @@ def test_check_if_tasks_completed(task_idx, task_status, expected, fake_state_wi
 
 
 def test_stream_plan_saves_to_messages(fake_state_with_plan):
-    state = fake_state_with_plan
+    state = copy.deepcopy(fake_state_with_plan)
+    pre_existing = len(state.messages)
+
     result = stream_plan().invoke(state)
 
     # Assertions
-    assert "messages" in result
-    assert len(result["messages"]) == 1
+    assert isinstance(result, RedboxState)
+    assert len(result.messages) == pre_existing + 1
 
     message = result["messages"][0]
     assert isinstance(message, AIMessage)
