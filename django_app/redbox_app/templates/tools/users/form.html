@@ -1,0 +1,77 @@
+{% from "forms/select.html" import form_select %}
+
+{% set form_mode_text %}
+    {% if form.instance.user %}Edit{% else %}Add{% endif %}
+{% endset %}
+
+<form
+    method="post"
+    action="{{ save_url }}"
+    {% if htmx %}
+        hx-post="{{ save_url }}"
+        hx-target="{{ hx_target }}"
+        hx-swap="outerHTML"
+    {% endif %}
+>
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
+    {% include "form-error-summary.html" %}
+
+    <fieldset class="govuk-fieldset">
+
+        <h1 class="govuk-heading-l govuk-!-margin-bottom-7">
+            {{ form_mode_text }} tool user
+        </h1>
+
+        {% if form.instance.user %}
+            <p class="govuk-body-s">
+                {{ form_mode_text }} <strong>{{ tool.name }}</strong> access configuration
+                for <strong>{{ form.instance.user.display_name }}</strong>.
+            </p>
+        {% endif %}
+
+        {% if not form.instance.user %}
+            <div class="govuk-form-group">
+                {{ form_select(form.role) }}
+            </div>
+        {% endif %}
+
+        <div class="govuk-form-group">
+            {{ form_select(form.role) }}
+        </div>
+
+        <div class="govuk-form-group">
+            {{ form_select(form.access_type) }}
+        </div>
+
+    </fieldset>
+
+    <div class="govuk-button-group ids-item-actions">
+        <button
+            type="submit"
+            class="govuk-button govuk-!-margin-bottom-0"
+            {% if htmx %}
+                hx-post="{{ save_url }}"
+                hx-target="closest tr"
+                hx-swap="outerHTML"
+            {% endif %}
+        >
+            Save
+        </button>
+
+        <button
+            type="button"
+            class="govuk-button govuk-button--secondary govuk-!-margin-bottom-0"
+            {% if htmx %}
+                hx-get="{{ cancel_url }}"
+                hx-target="closest tr"
+                hx-swap="outerHTML"
+                hx-vals='{"cancel": "true"}'
+            {% else %}
+                onclick="window.location.href='{{ cancel_url }}'"
+            {% endif %}
+        >
+            Cancel
+        </button>
+    </div>
+</form>

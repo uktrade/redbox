@@ -20,13 +20,20 @@ import "./web-components/documents/file-upload.js";
 import { syncUrlWithContent, refreshUI } from "./services";
 import { ChatHistory } from "./web-components/chats/chat-history.js";
 import { getActiveChatId } from "./utils/active-chat.js";
+import { Events, listenEvent } from "../interaction_design_system/ids/events/events.js";
 
+listenEvent(Events.CHAT_RESPONSE_START, (evt) => setAriaBusy(true));
+listenEvent(Events.CHAT_RESPONSE_ERROR, (evt) => setAriaBusy(false));
 
-document.addEventListener("chat-response-end", (evt) => {
-  const event = /** @type {CustomEvent} */ (evt);
+const setAriaBusy = (val) => {
+  document.getElementById("chat-feed")?.setAttribute("aria-busy",val)
+}
 
-  const sessionId = event.detail.session_id;
-  const isNewChat = event.detail.is_new_chat;
+listenEvent(Events.CHAT_RESPONSE_END, (evt) => {
+  const detail = evt.detail;
+
+  const sessionId = detail.session_id;
+  const isNewChat = detail.is_new_chat;
   let chatId = getActiveChatId();
   let fragmentsToRefresh = [];
 

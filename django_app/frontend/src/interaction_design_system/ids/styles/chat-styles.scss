@@ -51,12 +51,16 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   color: #6b7280;
   display: flex;
   flex-wrap: wrap;
+  border: none;
+  gap: 15px;
+  padding: 0px;;
 }
 
 .feedback__heading {
   color: var(--color-text);
   margin: 0;
   margin-right: 1rem;
+  display: contents;
 }
 
 .thumb_feedback-btn {
@@ -64,7 +68,6 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   background: none;
   padding: 2px;
   cursor: pointer;
-  margin-right: 8px;
 }
 
 .feedback__text-area {
@@ -80,7 +83,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
 }
 
 .feedback__submit-btn {
-  background-color: var(--color-background);
+  background-color: var(--color-background-secondary);
   border: none;
   border-radius: 0.25rem;
   color: var(--color-background-white);
@@ -162,7 +165,7 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 }
 .exit-feedback__thumb-icon--down:hover,
 .exit-feedback input:checked + label .exit-feedback__thumb-icon--down {
-  color: var(--color-background);
+  color: var(--color-background-secondary);
 }
 .exit-feedback
   input:checked
@@ -306,6 +309,16 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   align-items: center;
   gap: 10px;
   font-size: 14px;
+}
+
+.chat-actions-container__feedback{
+  gap: 18px;
+}
+
+
+.feedback-button-container {
+  display: flex;
+  gap: 8px;
 }
 
 .ids-message-container,

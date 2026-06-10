@@ -1,6 +1,7 @@
 // @ts-check
 
 import { loadIcon } from "../../../js/services";
+import { emitEvent, Events } from "../events";
 
 export class UploadedFile extends HTMLElement {
     constructor() {
@@ -16,6 +17,7 @@ export class UploadedFile extends HTMLElement {
         ERROR: "error",
     });
 
+    /** @type {Readonly<Record<string, string>>} */
     static FileStatusDisplay = Object.freeze({
         [UploadedFile.StatusTypes.COMPLETE]: "Ready to use",
         [UploadedFile.StatusTypes.PROCESSING]: "Processing",
@@ -89,8 +91,10 @@ export class UploadedFile extends HTMLElement {
      */
     set fileName(value) {
         this._fileName = value;
-        this.nameElement.innerText = value;
-        this.nameElement.title = value;
+        this.nameElements.forEach((nameElement) => {
+            nameElement.innerText = value;
+            nameElement.title = value;
+        })
         this.#updateIconDisplay();
     }
 
@@ -118,11 +122,9 @@ export class UploadedFile extends HTMLElement {
         return /** @type {HTMLElement} */ (this.querySelector('[data-icon]'));
     }
 
-
-    get nameElement() {
-        return /** @type {HTMLElement} */ (this.querySelector('[data-name]'));
+    get nameElements() {
+        return /** @type {NodeListOf<HTMLElement>} */ (this.querySelectorAll('[data-name]'));
     }
-
 
     get statusTextElement() {
         return /** @type {HTMLElement} */ (this.querySelector('[data-status-text]'));
@@ -168,7 +170,7 @@ export class UploadedFile extends HTMLElement {
      * Emits an event when the file has finished processing
      */
     #emitProcessedEvent() {
-        document.body.dispatchEvent(new CustomEvent("file-upload-processed", {detail: this}));
+        emitEvent(Events.FILE_UPLOAD_PROCESSED, {uploadedFile: this});
     }
 }
 customElements.define("ids-uploaded-file", UploadedFile);

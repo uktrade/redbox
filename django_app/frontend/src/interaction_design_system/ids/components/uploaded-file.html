@@ -1,9 +1,22 @@
+{% from "macros/govuk-button.html" import govukButton %}
+{% from "macros/icon.html" import ids_icon %}
+
 <template id="ids-uploaded-file-template">
     <div class="uploaded-file-wrapper" data-id="">
         <div class="uploaded-file" contenteditable="false" aria-readonly="true" tabindex="-1">
             <div data-icon></div>
             <span class="file-name" title="" data-name></span>
-            <a class="ids-action-link govuk-link govuk-link--no-visited-state govuk-link--no-underline" data-remove>Remove</a>
+            {% call govukButton(
+                text=ids_icon(icon_name="close.svg", icon_classes="link"),
+                classes="govuk-button--secondary ids-icon-button",
+                prevent_double_click=True,
+                dont_submit=True,
+                attributes={"data-remove":""}
+            ) %}
+                <span class="govuk-visually-hidden">
+                    Remove document: <span data-name></span>
+                </span>
+            {% endcall %}
         </div>
         <div class="upload-progress">
             <div class="upload-progress-text" data-status-text>Processing...</div>

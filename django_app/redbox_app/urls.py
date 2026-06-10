@@ -40,9 +40,8 @@ info_urlpatterns = [
 document_urlpatterns = [
     path("documents/", views.DocumentView.as_view(), name="documents"),
     path("documents/<uuid:doc_id>/delete-document/", views.delete_document, name="delete-document"),
-    path("documents/<uuid:doc_id>/title/", views.DocumentsTitleView.as_view(), name="document-titles"),
+    path("documents/<uuid:doc_id>/edit-title/", views.DocumentsTitleView.as_view(), name="edit-document-title"),
     path("documents/upload/", views.upload_document, name="document-upload"),
-    path("upload/", views.UploadView.as_view(), name="upload"),
     path("remove-doc/<uuid:doc_id>", views.remove_doc_view, name="remove-doc"),
     path("remove-all-docs", views.remove_all_docs_view, name="remove-all-docs"),
     path("documents/your-documents/", views.YourDocuments.as_view(), name="your-documents"),
@@ -84,6 +83,51 @@ tools_urlpatterns = [
         f"{tools_route_prefix}chats/<uuid:chat_id>/citations/<uuid:message_id>/",
         views.CitationsView.as_view(),
         name="citations",
+    ),
+    path(f"{tools_route_prefix}settings/", views.ToolSettingsView.as_view(), name="tool-settings"),
+    path(
+        f"{tools_route_prefix}settings/users/<user_tool_id>/edit-row/",
+        views.edit_tool_user_row_view,
+        name="edit-user-tool-row",
+    ),
+    path(
+        f"{tools_route_prefix}settings/users/<user_tool_id>/delete/",
+        views.delete_tool_user_row_view,
+        name="delete-user-tool",
+    ),
+    path(f"{tools_route_prefix}settings/users/<user_tool_id>/edit/", views.edit_tool_user_view, name="edit-user-tool"),
+    path(
+        f"{tools_route_prefix}settings/rules/add/",
+        views.ToolAccessRuleCreateView.as_view(),
+        name="add-tool-access-rule",
+    ),
+    path(
+        f"{tools_route_prefix}settings/rules/<rule_id>/edit/",
+        views.ToolAccessRuleUpdateView.as_view(),
+        name="edit-tool-access-rule",
+    ),
+    path(
+        f"{tools_route_prefix}settings/rules/<rule_id>/delete/",
+        views.ToolAccessRuleDeleteView.as_view(),
+        name="delete-tool-access-rule",
+    ),
+    path(
+        f"{tools_route_prefix}settings/users/bulk-add/", views.UserToolBulkAddView.as_view(), name="bulk-add-user-tool"
+    ),
+    path(
+        f"{tools_route_prefix}settings/rules/tool-access-rule-preview/",
+        views.tool_access_rule_preview,
+        name="tool-access-rule-preview",
+    ),
+    path(
+        "tools/rules/tool-access-rule-value-input/",
+        views.tool_access_rule_value_input_view,
+        name="tool-access-rule-value-input",
+    ),
+    path(
+        f"{tools_route_prefix}settings/users/search/",
+        views.ToolUserSearchView.as_view(),
+        name="tool-user-search",
     ),
 ]
 

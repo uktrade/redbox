@@ -27,6 +27,7 @@ class PromptVariable(BaseModel):
     formatted_documents: bool = Field(description="Document content", default=False)
     previous_tool_error: bool = Field(description="Message from previous tool error", default=False)
     previous_tool_results: bool = Field(description="Results from previous tool call", default=False)
+    mcp_tools: bool = Field(description="Tools available on MCP server", default=False)
     knowledge_base_metadata: bool = Field(description="Knowledge base files metadata", default=False)
     previous_agents_results: bool = Field(
         description="Results from dependent agents required as input for this task", default=False
@@ -60,7 +61,7 @@ prompt_configs: Dict[str, PromptConfig] = {
             question=True,
             document_filenames=True,
             metadata=True,
-            format_instruction=True,
+            format_instructions=True,
             knowledge_base_metadata=True,
             artifact_files=True,
         ),
@@ -75,7 +76,7 @@ prompt_configs: Dict[str, PromptConfig] = {
             question=True,
             document_filenames=True,
             metadata=True,
-            format_instruction=True,
+            format_instructions=True,
             knowledge_base_metadata=True,
             artifact_files=True,
         ),
@@ -90,11 +91,11 @@ prompt_configs: Dict[str, PromptConfig] = {
     ),
     "Web_Search_Agent": PromptConfig(
         system=prompts.WEB_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
-        prompt_var=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
+        prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
     ),
     "Legislation_Search_Agent": PromptConfig(
         system=prompts.LEGISLATION_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
-        prompt_var=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
+        prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
     ),
     "Summarisation_Agent": PromptConfig(
         system=prompts.CHAT_WITH_DOCS_SYSTEM_PROMPT,
@@ -137,17 +138,26 @@ prompt_configs: Dict[str, PromptConfig] = {
     ),
     "Datahub_Agent": PromptConfig(
         system=prompts.DATAHUB_PROMPT + prompts.DATAHUB_QUESTION_PROMPT,
-        prompt_vars=PromptVariable(question=True),
-        chat_history=True,
-        previous_tool_error=True,
-        previous_tool_results=True,
+        prompt_vars=PromptVariable(
+            task=True,
+            expected_output=True,
+            question=True,
+            chat_history=True,
+            previous_tool_error=True,
+            previous_tool_results=True,
+            mcp_tools=True,
+        ),
     ),
     "Knowledge_Base_Retrieval_Agent": PromptConfig(
         system=prompts.INTERNAL_RETRIEVAL_AGENT_PROMPT
         + prompts.KNOWLEDGE_BASE_METADTA
         + prompts.PREVIOUS_AGENT_RESULTS,
-        prompt_vars=PromptVariable(task=True, expected_output=True, knowledge_base_metadata=True),
-        previous_agents_results=True,
+        prompt_vars=PromptVariable(
+            task=True,
+            expected_output=True,
+            knowledge_base_metadata=True,
+            previous_agents_results=True,
+        ),
     ),
     "Artifact_Builder_Agent": PromptConfig(
         system=prompts.ARTIFACT_BUILDER_AGENT_PROMPT + prompts.KNOWLEDGE_BASE_METADTA,
@@ -258,7 +268,7 @@ agent_configs: Dict[str, AgentConfig] = {
         prompt=prompt_configs["Datahub_Agent"],
         parser=None,
         agents_max_tokens=10000,
-        default_agent=False,
+        default_agent=True,
     ),
     "Knowledge_Base_Retrieval_Agent": AgentConfig(
         name="Knowledge_Base_Retrieval_Agent",

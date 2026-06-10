@@ -1,6 +1,7 @@
 import itertools
 import logging
 import re
+import math
 from typing import Dict, Iterable
 from uuid import NAMESPACE_DNS, UUID, uuid5
 
@@ -65,19 +66,20 @@ def join_result_with_token_limit(result: list, max_tokens: int, log_stub: str) -
     current_token_counts = 0
 
     for res in result:
-        token_count = bedrock_tokeniser(res.content)
+        content = res if isinstance(res, str) else res.content
+        token_count = bedrock_tokeniser(content)
         log.warning(f"{log_stub} Tool response token count: {token_count}")
 
         # If adding this whole piece still fits, append normally
         if current_token_counts + token_count <= max_tokens:
-            result_content.append(res.content)
+            result_content.append(content)
             current_token_counts += token_count
         else:
             # If no room, add only what fits
             remaining_tokens = max_tokens - current_token_counts
             if remaining_tokens > 0:
                 log.warning(f"{log_stub} Truncating tool output to fit remaining token budget ({remaining_tokens}).")
-                truncated, truncated_token_count = truncate_to_tokens(res.content, remaining_tokens)
+                truncated, truncated_token_count = truncate_to_tokens(content, remaining_tokens)
                 result_content.append(truncated)
                 current_token_counts += truncated_token_count
             else:
@@ -342,9 +344,46 @@ def sort_documents(documents: list[Document]) -> list[Document]:
     return list(itertools.chain.from_iterable(all_sorted_blocks_by_max_score))
 
 
-def combine_agents_state(agents_results: Dict[str, AnyMessage]):
-    """Combine a list of agent results into a string."""
+TRUNCATION_MARKER = " ...[truncated]"
+
+
+def combine_agents_state(agents_results: Dict[str, AnyMessage], max_tokens: int) -> dict:
+    """
+    Combine a list of agent results into a string.
+    OR if it is over the max amount, truncating proportially
+    A truncation marker is appended to any block, so the downstream LLM knows that the content is incomplete
+    """
     if not agents_results:
         return {}
-    flatten_agent_results = "\n\n".join([msg.content for msg in agents_results.values()])
-    return {"all_result": flatten_agent_results}
+    sizes = {aid: bedrock_tokeniser(msg.content) for aid, msg in agents_results.items()}
+    total_tokens = sum(sizes.values())
+
+    if max_tokens <= 0:
+        log.warning("combine_agents_state: non-positive token budget, returning empty result!")
+        return {}
+
+    if total_tokens <= max_tokens:
+        flatten_agent_results = "\n\n".join([msg.content for msg in agents_results.values()])
+        return {"all_result": flatten_agent_results}
+
+    marker_cost = bedrock_tokeniser(TRUNCATION_MARKER)
+    parts: list[str] = []
+    for agent_id, msg in agents_results.items():
+        original_tokens = sizes[agent_id]
+        share = max(1, math.floor(max_tokens * original_tokens / total_tokens))
+        if original_tokens <= share:
+            parts.append(msg.content)
+        else:
+            budget = max(1, share - marker_cost)
+            truncated, _ = truncate_to_tokens(msg.content, budget)
+            parts.append(truncated + TRUNCATION_MARKER)
+            log.warning(
+                "combine_agents_state: truncated agent %s from %d to ~%d tokens.",
+                agent_id,
+                original_tokens,
+                share,
+            )
+    joined = "\n\n".join(parts)
+    if bedrock_tokeniser(joined) > max_tokens:
+        joined, _ = truncate_to_tokens(joined, max_tokens)
+    return {"all_result": joined}

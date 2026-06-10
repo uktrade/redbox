@@ -1,0 +1,103 @@
+{% set pageTitle = tool.name + " - Add user" %}
+{% set hideFooter = True %}
+
+{% set persistentSidepanel = False %}
+
+{% extends "base.html" %}
+
+{% from "macros/govuk-button.html" import govukButton %}
+{% from "macros/icon.html" import ids_icon %}
+
+{% block content %}
+
+<div class="bulk-add-form">
+    <h1 class="govuk-heading-l govuk-!-padding-top-7 govuk-!-margin-bottom-7">Add tool users</h1>
+    <p class="govuk-body-s">Add users for {{ tool.name }}.</p>
+
+    <form method='post'>
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
+        <div class="govuk-form-group govuk-!-margin-bottom-7">
+            <label class="govuk-label govuk-!-font-weight-bold ids-text-s" for="{{ form.role.id_for_label }}">
+                {{ form.role.label }}
+            </label>
+            {{ form.role }}
+        </div>
+
+        <div class="govuk-form-group govuk-!-margin-bottom-7">
+            <label class="govuk-label govuk-!-font-weight-bold ids-text-s" for="{{ form.access_type.id_for_label }}">
+                {{ form.access_type.label }}
+            </label>
+            {{ form.access_type }}
+        </div>
+
+        <fieldset class="govuk-fieldset govuk-!-margin-bottom-7">
+            <ids-selectable-list id="tool-users" class="govuk-body ids-text-s" data-highlight>
+
+                <legend class="govuk-label govuk-!-font-weight-bold ids-text-s">
+                    Users
+                    <span class="govuk-hint govuk-!-margin-bottom-0 govuk-!-margin-right-2 ids-text-xs ids-float-right">
+                        <span data-selected-count>0</span> users selected
+                    </span>
+                </legend>
+
+                <!-- Search -->
+                <div class="govuk-form-group govuk-!-margin-bottom-1 ids-flex-space-between user-search">
+                    <input
+                        class="govuk-input govuk-!-margin-right-2"
+                        type="text"
+                        placeholder="Search users by name or email"
+                        name="q"
+                        hx-get="{{ url('tool-user-search', tool.slug) }}"
+                        hx-trigger="keyup changed delay:300ms"
+                        hx-target="#users-table-body"
+                        hx-swap="innerHTML"
+                        autocomplete="off"
+                        data-min-length-search="{{ minimum_query_length or 2 }}"
+                    >
+                </div>
+
+                <!-- Hidden selected inputs -->
+                <div data-selected-inputs></div>
+
+                <!-- Users -->
+                <div id="users" class="govuk-form-group govuk-!-margin-bottom-0 ids-scrollable ids-max-height-content--two-thirds">
+                    <table class="govuk-table govuk-!-margin-bottom-2">
+
+                        <thead class="govuk-table__head ids-text-s">
+                            <tr class="govuk-table__row">
+                                <th scope="col" class="govuk-table__header govuk-!-padding-0">
+                                    <!-- Select all -->
+                                    <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+                                        <div class="govuk-checkboxes__item">
+                                            <input class="govuk-checkboxes__input" type="checkbox" id="select-all-users"
+                                                data-select-all>
+                                            <label class="govuk-checkboxes__label" for="select-all-users">
+                                                <span class="govuk-visually-hidden">Select all</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </th>
+                                <th scope="col" class="govuk-table__header" id="user-access-header">User</th>
+                                <th scope="col" class="govuk-table__header" id="role-header">Emails</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="users-table-body" class="govuk-table__body">
+                            {% include 'tools/users/user-search-rows.html' %}
+                        </tbody>
+
+                    </table>
+                </div>
+            </ids-selectable-list>
+        </fieldset>
+
+        <div class="govuk-button-group govuk-!-margin-0 govuk-!-padding-top-6 govuk-!-padding-bottom-7 ids-push-bottom--sticky">
+            {{ govukButton(text="Add", classes="govuk-!-margin-0") }}
+        </div>
+    </form>
+
+    {% include 'form-error-summary.html' %}
+</div>
+
+{% endblock %}

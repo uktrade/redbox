@@ -1,6 +1,6 @@
 // @ts-check
 
-class IdsCollapsibleMenu extends HTMLElement {
+class CollapsibleMenu extends HTMLElement {
     constructor() {
         super();
         this.onDocumentClick = this.onDocumentClick.bind(this);
@@ -64,4 +64,4 @@ class IdsCollapsibleMenu extends HTMLElement {
         }
     }
 }
-customElements.define('ids-collapsible-menu', IdsCollapsibleMenu);
+customElements.define('ids-collapsible-menu', CollapsibleMenu);

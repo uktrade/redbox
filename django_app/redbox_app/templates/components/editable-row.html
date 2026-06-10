@@ -1,0 +1,43 @@
+{% from "macros/icon.html" import ids_icon %}
+
+
+{% macro editable_row(
+    row_id,
+    cells,
+    edit_url,
+    delete_url,
+    highlight=False,
+    htmx=False
+) %}
+    <tr id="{{ row_id }}" class="govuk-table__row ids-text-xs {% if highlight %}ids-highlight--grey{% endif %}">
+
+        {{ cells|safe }}
+
+        <td class="govuk-table__cell">
+            <div class="ids-item-actions">
+                <form action="{{ edit_url }}">
+                    <button class="ids-icon-button govuk-button govuk-button--secondary govuk-!-margin-0"
+                            type="submit"
+                            {% if htmx %}
+                                hx-get="{{ edit_url }}"
+                                hx-target="closest tr"
+                                hx-swap="outerHTML"
+                            {% endif %}
+                    >
+                        {{ ids_icon(icon_name="edit.html", icon_classes="link") }}
+                    </button>
+                </form>
+
+                <button class="govuk-button govuk-button--secondary govuk-!-margin-0 ids-icon-button"
+                        type="button"
+                        hx-delete="{{ delete_url }}"
+                        hx-target="closest tr"
+                        hx-swap="delete">
+                    {{ ids_icon(icon_name="delete.html", icon_classes="link") }}
+                </button>
+
+            </div>
+        </td>
+
+    </tr>
+{% endmacro %}

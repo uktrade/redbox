@@ -75,7 +75,8 @@ $screen-widths: (
   --color-background-red: var(--redbox-red);
   --color-background-black: var(--dbt-black);
   --color-background-grey: var(--redbox-light-grey);
-  --color-background: var(--color-background-blue);
+  --color-background: var(--color-background-white);
+  --color-background-secondary: var(--color-background-blue);
   --color-border-light: var(--redbox-light-grey);
   --color-border: var(--redbox-grey);
   --color-border-dark: var(--dbt-black);
@@ -114,6 +115,8 @@ $screen-widths: (
   --header-height: 111px;
   --border-radius: 5px;
   --header-border-width: 5px;
+  --cta-container-height: 35px;
+  --content-max-vh: calc(100vh - var(--cta-container-height) - var(--interaction-container-height, 0px));
 
   // Layout
   --desktop-width: 1020px;

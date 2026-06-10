@@ -1,0 +1,33 @@
+{% if form.errors %}
+    <div class="govuk-error-summary" data-module="govuk-error-summary govuk-!-padding-bottom-7">
+        <div role="alert">
+            <div class="govuk-error-summary__body">
+                <ul class="govuk-list govuk-error-summary__list">
+
+                    {# FIELD ERRORS #}
+                    {% for field in form %}
+                        {% if field.errors %}
+                            <li>
+                                <strong>{{ field.label }} ({{ field.name }})</strong>
+
+                                {% for error in field.errors %}
+                                    <p class="govuk-body-s">
+                                        {{ error|escape }}
+                                    </p>
+                                {% endfor %}
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {# NON FIELD ERRORS #}
+                    {% for error in form.non_field_errors() %}
+                        <li>
+                            <strong>{{ error|escape }}</strong>
+                        </li>
+                    {% endfor %}
+
+                </ul>
+            </div>
+        </div>
+    </div>
+{% endif %}

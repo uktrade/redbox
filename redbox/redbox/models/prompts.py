@@ -453,7 +453,9 @@ PLANNER_PROMPT_BOTTOM = """
 1. When a user query involves finding information within selected documents (not summarising the documents), ALWAYS route to the Internal_Retrieval_Agent.
 2. Only use External_Retrieval_Agent if the query specifically requests external data sources.
 3. Only use Artifact_Builder_Agent if there is specific artifact file that match user request.
-4. The Evaluator_Agent must be used for every multi-agent response to ensure consistency and quality in the final output delivered to the user.
+4. The Evaluator_Agent must be used for exactly once in the plan, and it must be the final task. Never insert Evaluator_Agent as an intermediate step. The Evaluator_Agent at the end ensures consistency and quality in the final output delivered to the user.
+5. If the user has not selected any documents; do NOT route to Internal_Retrieval_Agent, Tabular_Agent or Summarisation_Agent. Instead ask Evaluator_Agent to inform the user that they have not selected any documents, and will need to if they want to use these agents.
+6. If the knowledge base is empty; do NOT route to Knowledge_Base_Retrieval_Agent or Artifact_Builder_Agent.
 
 If a user asks to summarise a document, ALWAYS call Summarisation_Agent and do not call other agents.
 
@@ -644,5 +646,10 @@ Existing information:
 <previous_chat_history>{chat_history}</previous_chat_history>
 <previous_tool_error>{previous_tool_error}</previous_tool_error>
 <previous_tool_results>{previous_tool_results}</previous_tool_results>
+<mcp_tools>{mcp_tools}</mcp_tools>
 <Todays_Date>{todays_date}</Todays_Date>
 """
+
+DATAHUB_USER_FEEDBACK = "Ask user for feedback based on failure reason."
+
+DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS = "At the end of your answer provide 3 recommendations to user for follow-up prompts based on result and available tools by carefully reviewing <mcp_tools>."

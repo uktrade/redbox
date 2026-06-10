@@ -350,6 +350,9 @@ class AgentTaskBase(BaseModel):
         default=TaskStatus.PENDING,
     )
 
+    def content_equals(self, other: "AgentTaskBase") -> bool:
+        return self.model_dump(exclude={"status"}) == other.model_dump(exclude={"status"})
+
 
 # Base class definition for multi agent plan
 class MultiAgentPlanBase(BaseModel):
@@ -430,8 +433,16 @@ def agent_plan_reducer(
 ) -> Optional[MultiAgentPlanBase]:
     if current is None:
         return update
-    if update is None:
+    if update is None or not update.tasks:
         return current
+
+    # If current and updated tasks don't match implies replan - return update
+    if len(current.tasks) != len(update.tasks):
+        return update
+    for update_task in update.tasks:
+        respective_current_task = next((task for task in current.tasks if task.id == update_task.id), None)
+        if respective_current_task is None or not respective_current_task.content_equals(update_task):
+            return update
 
     # Update with the highest status
     for i, (current_task, update_task) in enumerate(zip(current.tasks, update.tasks)):

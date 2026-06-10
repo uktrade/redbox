@@ -113,6 +113,7 @@ MIDDLEWARE = [
     "django_plotly_dash.middleware.BaseMiddleware",
     "waffle.middleware.WaffleMiddleware",
     "redbox_app.redbox_core.middleware.sentry_user_middleware",
+    "redbox_app.redbox_core.middleware.SSOSyncMiddleware",
 ]
 
 ROOT_URLCONF = "redbox_app.urls"
@@ -281,7 +282,7 @@ SESSION_ENGINE = "django.contrib.sessions.backends.db"
 LOG_ROOT = "."
 LOG_HANDLER = "asim"
 BUCKET_NAME = env.str("BUCKET_NAME")
-AWS_S3_REGION_NAME = env.str("AWS_REGION")
+AWS_REGION = env.str("AWS_REGION")
 APPEND_SLASH = True
 
 #  Property added to each S3 file to make them downloadable by default
@@ -483,8 +484,6 @@ REDBOX_API_KEY = env.str("REDBOX_API_KEY")
 
 ENABLE_METADATA_EXTRACTION = env.bool("ENABLE_METADATA_EXTRACTION", default=True)
 
-CHUNK_UPLOADER_AWS_REGION = env.str("AWS_REGION", " ")
-
 AWS_TRANSCRIBE_ROLE_ARN = env.str("AWS_TRANSCRIBE_ROLE_ARN", "")
 
 DATAHUB_REDBOX_URL = env.str("DATAHUB_REDBOX_URL", "")
@@ -505,5 +504,3 @@ FEEDBACK_LINK = env.str(
 )
 
 PRODUCT_NAME = env.str("PRODUCT_NAME", "Redbox at DBT")
-
-WAFFLE_FLAG_MODEL = "redbox_core.CustomFlag"

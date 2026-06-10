@@ -1,13 +1,15 @@
 {% from "macros/chat-macros.html" import message_box, route_display %}
-{% from "macros/govuk-button.html" import govukButton %}
 {% from "macros/govuk-warning.html" import govuk_warning %}
 {% from "macros/icon.html" import ids_icon %}
 {% from "macros/upload_form.html" import upload_form %}
 
-<div id="chat-feed" class="ids-chat-feed" hx-swap-oob="outerHTML">
+<div id="chat-feed" class="ids-chat-feed" hx-swap-oob="outerHTML" aria-busy="false">
+
     {% if not messages %}
         <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1" security-classification="{{ security }}">
+            <h1 class="govuk-visually-hidden">New chat for {{ tool if tool else product_name(request) }}</h1>
             {% if tool %}
+
                 {% include ["tools/canned_prompts/" ~ tool.slug ~ ".html", "chat/default_canned_prompt.html"] %}
             {% else %}
                 {% include "chat/default_canned_prompt.html" %}
@@ -30,16 +32,20 @@
                             data-tool-id="{{ tool.id }}"
                             data-tool-slug="{{ tool.slug }}"
                         {% endif %}>
-            <div class="ids-chat-message__container ids-flex-column js-message-container">
+            <div role="log">
 
                 <template id="template-route-display">
                     {{ route_display() }}
                 </template>
 
                 {# SSR messages #}
-                    {% for message in messages %}
+                <ol id="chat-message-list" aria-label="AI agent conversation" class="govuk-list ids-chat-message__container ids-flex-column">
+                  {% for message in messages %}
+                  <li data-role="chat-message-list-item">
                     {{ message_box(message=message) }}
-                    {% endfor %}
+                  </li>
+                  {% endfor %}
+                </ol>
                 {# CSR messages are inserted here #}
 
             </div>

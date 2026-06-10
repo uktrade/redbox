@@ -7,11 +7,9 @@ from django.contrib.auth import get_user_model
 from django.db.models import QuerySet
 from django.http import HttpResponse
 from django.shortcuts import render
-from django_q.tasks import async_task
 from import_export.admin import ExportMixin, ImportExportMixin
-from waffle.admin import FlagAdmin
 
-from redbox_app.worker import ingest
+from redbox_app.redbox_core.actions import backfill_original_file_names, reupload
 
 from . import models
 from .serializers import UserSerializer
@@ -36,6 +34,7 @@ class ToolAdmin(admin.ModelAdmin):
         "name",
         "description",
         "slug",
+        "is_public",
     ]
 
     search_fields = ["name"]
@@ -56,6 +55,16 @@ class ToolSettingsAdmin(admin.ModelAdmin):
 
     class Meta:
         model = models.ToolSettings
+
+
+class ToolAccessRuleAdmin(admin.ModelAdmin):
+    list_display = ["tool", "rule_type", "value", "created_at"]
+    list_filter = ["tool", "rule_type"]
+    search_fields = ["tool__name", "rule_type", "value"]
+    readonly_fields = ["modified_at", "created_at"]
+
+    class Meta:
+        model = models.ToolAccessRule
 
 
 class AgentToolAdmin(admin.ModelAdmin):
@@ -258,29 +267,51 @@ class UserTeamMembershipAdmin(admin.ModelAdmin):
 
 
 class FileAdmin(ExportMixin, admin.ModelAdmin):
-    def reupload(self, _request, queryset):
-        for file in queryset:
-            logger.info("Re-uploading file to core-api: %s", file)
-            async_task(ingest, file.id)
-            logger.info("Successfully reuploaded file %s.", file)
-
     list_display = ["file_name", "user", "status", "created_at", "last_referenced"]
     list_filter = ["user", "status"]
     date_hierarchy = "created_at"
-    actions = ["reupload"]
-    search_fields = ["user__email"]
+    actions = [reupload, backfill_original_file_names]
+    search_fields = ["user__email", "original_file_name"]
 
 
 class FileToolAdmin(ExportMixin, admin.ModelAdmin):
     list_display = ["file", "tool", "file_type", "created_at"]
     list_filter = ["tool", "file_type"]
     date_hierarchy = "created_at"
-    search_fields = ("file__file_name", "tool__name")
+    search_fields = ("file__original_file_name", "tool__name")
+    raw_id_fields = ["file"]
 
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "file":
-            kwargs["queryset"] = models.File.objects.order_by("original_file")
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+class UserToolAdmin(ExportMixin, admin.ModelAdmin):
+    list_display = ["user", "tool", "role", "created_at"]
+    list_filter = ["tool", "user", "role"]
+    date_hierarchy = "created_at"
+    search_fields = ("user__email", "tool__name")
+    raw_id_fields = ["user"]
+    autocomplete_fields = ["user"]
+
+
+class UserSSOAdmin(ExportMixin, admin.ModelAdmin):
+    list_display = [
+        "user",
+        "email_user_id",
+        "related_emails_display",
+        "all_emails_display",
+        "created_at",
+        "modified_at",
+    ]
+    list_filter = ["user", "modified_at"]
+    date_hierarchy = "modified_at"
+    search_fields = ("user__email", "email_user_id")
+
+    def related_emails_display(self, obj: models.UserSSO):
+        return obj.related_emails_display
+
+    def all_emails_display(self, obj: models.UserSSO):
+        return obj.all_emails_display
+
+    related_emails_display.short_description = "Related Emails"
+    all_emails_display.short_description = "All Emails"
 
 
 class FileTeamMembershipAdmin(admin.ModelAdmin):
@@ -455,29 +486,6 @@ class AgentPlanAdmin(admin.ModelAdmin):
     ordering = ["-created_at"]
 
 
-class CustomFlagAdmin(FlagAdmin):
-    def get_fieldsets(self, request, obj=None):
-        fieldsets = super().get_fieldsets(request, obj)
-
-        extra_fieldset = (
-            "Extra Settings",
-            {
-                "fields": ("extra_allowed_emails",),
-                "classes": ("wide",),
-                "description": (
-                    "Enter emails that should always have access to Invest Lens. "
-                    "One email per line or comma-separated. "
-                    "These take priority even if the flag is turned off."
-                ),
-            },
-        )
-
-        return [*list(fieldsets), extra_fieldset]
-
-
-admin.site.register(models.CustomFlag, CustomFlagAdmin)
-
-
 admin.site.register(User, UserAdmin)
 admin.site.register(models.File, FileAdmin)
 admin.site.register(models.Chat, ChatAdmin)
@@ -494,6 +502,9 @@ admin.site.register(models.FileTeamMembership, FileTeamMembershipAdmin)
 admin.site.register(models.Agent, AgentAdmin)
 admin.site.register(models.Tool, ToolAdmin)
 admin.site.register(models.ToolSettings, ToolSettingsAdmin)
+admin.site.register(models.ToolAccessRule, ToolAccessRuleAdmin)
 admin.site.register(models.AgentTool, AgentToolAdmin)
 admin.site.register(models.FileTool, FileToolAdmin)
+admin.site.register(models.UserTool, UserToolAdmin)
+admin.site.register(models.UserSSO, UserSSOAdmin)
 admin.site.register_view("report/", view=reporting_dashboard, name="Site report")

@@ -14,3 +14,16 @@
     overflow-y: auto;
   }
 }
+
+// table
+.ids-scrollable thead th {
+    position: sticky;
+    top: 0;
+    background: var(--color-background-white);
+    z-index: 2;
+}
+
+// Allows auto-scrolling to found element when using the find/search browser tool
+.ids-scrollable:has(>table:first-child) {
+  overflow: auto;
+}

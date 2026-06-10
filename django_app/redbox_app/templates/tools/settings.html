@@ -1,0 +1,155 @@
+{% set pageTitle = tool.name + " - Settings" %}
+{% set persistentSidepanel = False %}
+{% set hideFooter = True %}
+
+{% extends "base.html" %}
+
+{% from "macros/govuk-button.html" import govukButton %}
+{% from "macros/govuk-link.html" import govukLink %}
+{% from "macros/icon.html" import ids_icon %}
+
+{% block content %}
+
+<div class="govuk-!-padding-top-7 govuk-!-padding-bottom-7">
+    <h1 class="govuk-heading-l govuk-!-margin-bottom-7">{{ tool.name }}</h1>
+    <p class="govuk-body-s">
+        Manage tool configuration and
+        <a class="govuk-link govuk-link--no-visited-state govuk-link--no-underline" href="#permissions">
+            permissions.
+        </a>
+    </p>
+
+    <form method='post'>
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
+        <div class="govuk-form-group govuk-!-margin-bottom-7">
+            <label class="govuk-label govuk-!-font-weight-bold ids-text-s" for="{{ form.name.id_for_label }}">
+                {{ form.name.label }}
+            </label>
+            {{ form.name }}
+        </div>
+
+        <div class="govuk-form-group govuk-!-margin-bottom-7">
+            <label class="govuk-label govuk-!-font-weight-bold ids-text-s" for="{{ form.description.id_for_label }}">
+                {{ form.description.label }}
+            </label>
+            {{ form.description }}
+        </div>
+
+        <div class="govuk-form-group govuk-!-margin-bottom-7">
+            <div class="govuk-checkboxes govuk-checkboxes--small" data-module="govuk-checkboxes">
+                <div class="govuk-checkboxes__item">
+                    {{ form.is_public }}
+                    <label class="govuk-checkboxes__label govuk-label govuk-!-font-weight-bold ids-text-s"
+                        for="{{ form.is_public.id_for_label }}">
+                        {{ form.is_public.label }}
+                    </label>
+                </div>
+                <div id="tool_is_public-hint" class="govuk-hint ids-text-s">
+                    {{ form.is_public.help_text }}
+                </div>
+            </div>
+        </div>
+
+        <div class="govuk-button-group govuk-!-margin-0">
+            {{ govukButton(text="Update", classes="govuk-!-margin-0") }}
+        </div>
+    </form>
+
+    <!-- standardise and extract to template -->
+    {% if form.errors %}
+        <div class="govuk-error-summary" data-module="govuk-error-summary">
+            <div role="alert">
+                <div class="govuk-error-summary__body">
+                    <ul class="govuk-list govuk-error-summary__list">
+                        {% for error in form.errors %}
+                        <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <h2 id="permissions" class="govuk-heading-m govuk-!-margin-bottom-0 govuk-!-margin-top-7">
+        Permissions
+    </h2>
+    <p class="govuk-body-s ids-text-s">
+        Configure tool access per
+        <a class="govuk-link govuk-link--no-visited-state govuk-link--no-underline" href="#users">
+            user
+        </a>
+        or via
+        <a class="govuk-link govuk-link--no-visited-state govuk-link--no-underline" href="#access-rules">
+            access rules.
+        </a>
+    </p>
+
+    <section id="users">
+        <h3 id="permissions" class="govuk-heading-s govuk-!-margin-top-7">
+            Users
+        </h3>
+
+        {{ govukLink(
+            text="Add users",
+            href=bulk_add_user_tool_url,
+            classes="govuk-button--secondary"
+        ) }}
+
+        <div class="ids-scrollable ids-max-height-content--two-thirds">
+            <table class="govuk-table">
+
+                <thead class="govuk-table__head ids-text-s">
+                    <tr class="govuk-table__row">
+                        <th scope="col" class="govuk-table__header">Email</th>
+                        <th scope="col" class="govuk-table__header ids-width--one-fifth">Role</th>
+                        <th scope="col" class="govuk-table__header ids-width--one-fifth">Access</th>
+                        <th scope="col" class="govuk-table__header">Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody class="govuk-table__body">
+                    {% for user_tool in user_tools %}
+                        {% include 'tools/tool-user-row.html' %}
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+    </section>
+
+    <section id="access-rules">
+        <h3 id="permissions" class="govuk-heading-s govuk-!-margin-top-7">
+            Access Rules
+        </h3>
+
+        {{ govukLink(
+            text="Add rule",
+            href=add_tool_access_rule_url,
+            classes="govuk-button--secondary"
+        ) }}
+
+        <div class="ids-scrollable ids-max-height-content--two-thirds">
+            <table class="govuk-table">
+
+                <thead class="govuk-table__head ids-text-s">
+                    <tr class="govuk-table__row">
+                        <th scope="col" class="govuk-table__header">Type</th>
+                        <th scope="col" class="govuk-table__header">Value</th>
+                        <th scope="col" class="govuk-table__header">Access</th>
+                        <th scope="col" class="govuk-table__header">Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody class="govuk-table__body">
+                    {% for tool_access_rule in tool_access_rules %}
+                        {% include 'tools/rules/tool-access-rule-row.html' %}
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+    </section>
+</div>
+
+{% endblock %}

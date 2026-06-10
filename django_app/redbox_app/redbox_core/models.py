@@ -1,12 +1,18 @@
+from __future__ import annotations
+
 import logging
 import os
 import re
 import textwrap
 import uuid
-from collections.abc import Collection, Sequence
+from collections.abc import Collection
 from datetime import UTC, date, datetime, timedelta
+from functools import reduce
 from pathlib import Path
-from typing import Optional, override
+from typing import TYPE_CHECKING, override
+
+if TYPE_CHECKING:
+    from collections.abc import Collection, Sequence
 
 import jwt
 from django.conf import settings
@@ -17,7 +23,7 @@ from django.contrib.auth.models import AbstractBaseUser, Group, PermissionsMixin
 from django.contrib.postgres.fields import ArrayField
 from django.core import validators
 from django.db import models
-from django.db.models import Max, Min, Prefetch, Q, UniqueConstraint
+from django.db.models import BooleanField, Exists, Max, Min, OuterRef, Prefetch, Q, UniqueConstraint, Value
 from django.template import TemplateDoesNotExist
 from django.template.loader import get_template
 from django.urls import reverse
@@ -25,12 +31,11 @@ from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from slugify import slugify
-from waffle.models import AbstractUserFlag
 from yarl import URL
 
 from redbox.models.settings import get_settings
 from redbox_app.redbox_core.services import url as url_service
-from redbox_app.redbox_core.utils import get_date_group
+from redbox_app.redbox_core.utils import get_date_group, resolve_instance, strip_domain
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
@@ -62,6 +67,66 @@ def sanitise_string(string: str | None) -> str | None:
     return string.replace("\x00", "\ufffd") if string else string
 
 
+class ToolQuerySet(models.QuerySet):
+    def for_user(self, user: User):
+        # -------------------------------------------------
+        # User-based access
+        # -------------------------------------------------
+        allow_user_tool = UserTool.objects.filter(
+            tool=OuterRef("pk"),
+            user=user,
+            access_type=UserTool.AccessType.ALLOW,
+        )
+
+        deny_user_tool = UserTool.objects.filter(
+            tool=OuterRef("pk"),
+            user=user,
+            access_type=UserTool.AccessType.DENY,
+        )
+
+        # -------------------------------------------------
+        # Rule-based access
+        # -------------------------------------------------
+        allow_rule_exprs = ToolAccessRule.exists_for_user(
+            user,
+            ToolAccessRule.AccessType.ALLOW,
+        )
+
+        deny_rule_exprs = ToolAccessRule.exists_for_user(
+            user,
+            ToolAccessRule.AccessType.DENY,
+        )
+
+        # Combine EXISTS expressions safely
+        def combine(exprs):
+            if not exprs:
+                return Value(False, output_field=BooleanField())
+            return reduce(lambda a, b: a | b, exprs)
+
+        return (
+            self.annotate(
+                has_allowed_user=Exists(allow_user_tool),
+                has_denied_user=Exists(deny_user_tool),
+                has_allowed_rule=combine(allow_rule_exprs),
+                has_denied_rule=combine(deny_rule_exprs),
+            )
+            .filter(Q(is_public=True) | Q(has_allowed_user=True) | Q(has_allowed_rule=True))
+            .exclude(Q(has_denied_user=True))  # always wins
+            .exclude(
+                Q(has_denied_rule=True) & ~Q(has_allowed_user=True)  # user allow overrides rule deny
+            )
+            .distinct()
+        )
+
+
+class ToolManager(models.Manager):
+    def get_queryset(self):
+        return ToolQuerySet(self.model, using=self._db)
+
+    def for_user(self, user: User):
+        return self.get_queryset().for_user(user)
+
+
 class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
     """
     Tools feature model. To be used against:
@@ -77,6 +142,9 @@ class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
     slug = models.SlugField(
         max_length=100, unique=True, blank=True, help_text="Used for url routing and info page linking"
     )
+    is_public = models.BooleanField(default=True, help_text="Whether the tool is accessible by all users")
+
+    objects = ToolManager()
 
     class Meta:
         verbose_name_plural = "tools"
@@ -113,14 +181,171 @@ class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
     def chat_url(self) -> str:
         return url_service.get_chat_url(slug=self.slug)
 
-    def get_files(self, file_type: Optional["FileTool.FileType"] = None) -> Sequence["File"]:
+    def get_files(self, file_type: FileTool.FileType | None = None) -> Sequence[File]:
         file_type = file_type or FileTool.FileType.MEMBER
         return File.objects.filter(file_tools__tool=self, file_tools__file_type=file_type)
 
     @property
-    def settings(self) -> "ToolSettings":
+    def settings(self) -> ToolSettings:
         obj, _ = ToolSettings.objects.get_or_create(tool=self)
         return obj
+
+    @cached_property
+    def settings_url(self) -> str:
+        return url_service.get_tool_settings_url(slug=self.slug)
+
+    def is_manager(self, user: User):
+        return UserTool.objects.filter(user=user, tool=self, role=UserTool.RoleType.MANAGER).exists()
+
+    def is_user(self, user: User):
+        if self.is_public:
+            return True
+
+        user_tool = UserTool.objects.filter(user=user, tool=self).first()
+
+        return user_tool.is_enabled if user_tool else False
+
+    def add_user(self, user: User | uuid.UUID, role: UserTool.RoleType | None, access_type: UserTool.AccessType | None):
+        user = resolve_instance(value=user, model=User, raise_404=True)
+
+        user_tool_member = UserTool(
+            user=user,
+            tool=self,
+            role=role or UserTool.RoleType.USER,
+            access_type=access_type or UserTool.AccessType.ALLOW,
+        )
+        user_tool_member.save()
+        return user_tool_member
+
+    def search_unassigned_users(self, query: str, limit: int = 50, minimum_query_length: int = 2):
+        query = query.strip()
+
+        if len(query) < minimum_query_length:
+            return User.objects.none()
+
+        related_email_attrs = Prefetch(
+            "_sso__attributes",
+            queryset=UserSSOAttribute.objects.filter(attribute_type=UserSSOAttribute.AttributeType.RELATED_EMAILS).only(
+                "sso_id", "value"
+            ),
+        )
+
+        return (
+            User.objects.exclude(user_tools__tool=self)
+            .filter(
+                Q(email__icontains=query)
+                | Q(username__icontains=query)
+                | Q(first_name__icontains=query)
+                | Q(last_name__icontains=query)
+                | Q(_sso__email__icontains=query)
+                | Q(_sso__contact_email__icontains=query)
+                | Q(
+                    _sso__attributes__attribute_type=UserSSOAttribute.AttributeType.RELATED_EMAILS,
+                    _sso__attributes__value__icontains=query,
+                )
+            )
+            .select_related("_sso")
+            .prefetch_related(related_email_attrs)
+            .distinct()
+            .order_by("first_name", "last_name")[:limit]
+        )
+
+
+class ToolAccessRule(TimeStampedModel):
+    """
+    Tool access rules for specified criteria
+    """
+
+    class RuleType(models.TextChoices):
+        DOMAIN = "DOMAIN", _("Domain")
+
+    class AccessType(models.TextChoices):
+        ALLOW = "ALLOW", _("Allowed")
+        DENY = "DENY", _("Denied")
+
+    tool = models.ForeignKey(Tool, on_delete=models.CASCADE, related_name="access_rules")
+    rule_type = models.CharField(max_length=100, choices=RuleType.choices)
+    value = models.CharField(max_length=100)
+    access_type = models.CharField(max_length=100, choices=AccessType.choices, default=AccessType.ALLOW)
+
+    class Meta:
+        constraints = [UniqueConstraint(fields=["tool", "rule_type", "value"], name="unique_tool_access_rule")]
+        ordering = ["created_at"]
+        verbose_name = "Tool Access Rule"
+        verbose_name_plural = "Tool Access Rules"
+
+    def __str__(self):
+        return f"{self.tool} ({self.rule_type}) - {self.value}"
+
+    def save(self, *args, **kwargs):
+        if self.rule_type == self.RuleType.DOMAIN and self.value:
+            self.value = (self.value or "").strip().lower().lstrip("@")
+
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def exists_for_user(cls, user: User, access_type: str) -> list[Exists]:
+        """
+        Returns a list of Exists() expressions, one per rule type.
+        """
+        expressions = []
+
+        for rule_type in cls.RuleType.values:
+            expr = cls.get_rule_exists(
+                user=user,
+                rule_type=rule_type,
+                access_type=access_type,
+            )
+            if expr is not None:
+                expressions.append(expr)
+
+        return expressions
+
+    @classmethod
+    def get_rule_exists(cls, user: User, rule_type: str, access_type: str) -> Exists | None:
+        match rule_type:
+            case cls.RuleType.DOMAIN:
+                return cls._domain_exists(user, access_type)
+
+        return None
+
+    @classmethod
+    def _domain_exists(cls, user: User, access_type: str) -> Exists | None:
+        domains = user.email_domains or set()
+
+        if not domains:
+            return None
+
+        return Exists(
+            cls.objects.filter(
+                tool=OuterRef("pk"),
+                access_type=access_type,
+                rule_type=cls.RuleType.DOMAIN,
+                value__in=domains,
+            )
+        )
+
+    @classmethod
+    def get_value_placeholder(cls, rule_type: str | None) -> str:
+        return {cls.RuleType.DOMAIN: "e.g. example.com"}.get(rule_type, "Enter a value")
+
+    @cached_property
+    def edit_url(self) -> str | None:
+        return url_service.get_edit_tool_access_rule_url(slug=self.tool.slug, rule_id=self.pk)
+
+    @cached_property
+    def delete_url(self) -> str | None:
+        return url_service.get_delete_tool_access_rule_url(slug=self.tool.slug, rule_id=self.pk)
+
+    def matching_domain_users(self):
+        return User.objects.matching_email_domain(self.value)
+
+    def get_matching_users(self):
+        match self.rule_type:
+            case self.RuleType.DOMAIN:
+                return self.matching_domain_users()
+
+        return User.objects.none()
 
 
 class UserTool(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -128,15 +353,46 @@ class UserTool(UUIDPrimaryKeyBase, TimeStampedModel):
     Junction for user/tool many-to-many relationship
     """
 
+    class AccessType(models.TextChoices):
+        ALLOW = "ALLOW", _("Allowed")
+        DENY = "DENY", _("Denied")
+
+    class RoleType(models.TextChoices):
+        MANAGER = "MANAGER", _("Manager")
+        USER = "USER", _("User")
+
     user = models.ForeignKey("User", on_delete=models.CASCADE, related_name="user_tools")
     tool = models.ForeignKey(Tool, on_delete=models.CASCADE, related_name="user_tools")
+
+    access_type = models.CharField(max_length=20, choices=AccessType.choices, default=AccessType.ALLOW)
+    role = models.CharField(max_length=20, choices=RoleType.choices, default=RoleType.USER)
 
     class Meta:
         unique_together = ("user", "tool")
         ordering = ["created_at"]
+        verbose_name = "User Tool"
+        verbose_name_plural = "User Tools"
 
     def __str__(self):
         return self.user.email + " - " + self.tool.name
+
+    @property
+    def is_enabled(self) -> bool:
+        if self.tool.is_public:
+            return True
+        return self.access_type == self.AccessType.ALLOW
+
+    @cached_property
+    def role_choices(self) -> Sequence[tuple[RoleType, str]]:
+        return self.RoleType.choices
+
+    @cached_property
+    def edit_url(self) -> str | None:
+        return url_service.get_edit_user_tool_url(slug=self.tool.slug, user_tool_id=self.pk)
+
+    @cached_property
+    def delete_url(self) -> str | None:
+        return url_service.get_delete_user_tool_url(slug=self.tool.slug, user_tool_id=self.pk)
 
 
 class TeamTool(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -344,7 +600,25 @@ class AISettings(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
         return str(self.label)
 
 
-class SSOUserManager(BaseSSOUserManager):
+class UserQuerySet(models.QuerySet):
+    def matching_email_domain(self, domain: str):
+        domain = (domain or "").strip().lower().lstrip("@")
+
+        return self.filter(
+            models.Q(email__iendswith=f"@{domain}")
+            | models.Q(_sso__email__iendswith=f"@{domain}")
+            | models.Q(_sso__contact_email__iendswith=f"@{domain}")
+            | models.Q(
+                _sso__attributes__attribute_type=UserSSOAttribute.AttributeType.RELATED_EMAILS,
+                _sso__attributes__value__iendswith=f"@{domain}",
+            )
+        ).distinct()
+
+    def with_sso(self):
+        return self.select_related("_sso").prefetch_related("_sso__attributes")
+
+
+class SSOUserManager(BaseSSOUserManager.from_queryset(UserQuerySet)):
     use_in_migrations = True
 
     def _create_user(self, username, password, **extra_fields):
@@ -664,9 +938,126 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
         except (IndexError, AttributeError, ValueError):
             return ""
 
+    def has_tool_access(self, tool: Tool) -> bool:
+        return Tool.objects.for_user(self).filter(pk=tool.pk).exists()
+
+    def can_manage_tool(self, tool: Tool) -> bool:
+        return self.user_tools.filter(tool=tool, role=UserTool.RoleType.MANAGER).exists()
+
     @property
     def first_time_user(self) -> bool:
         return not Chat.objects.filter(user=self).first()
+
+    @cached_property
+    def all_emails(self) -> set:
+        emails = set()
+
+        if self.username:
+            emails.add(self.username)
+
+        if self.email:
+            emails.add(self.email)
+
+        if self.sso:
+            emails.update(self.sso.all_emails)
+
+        return emails
+
+    @property
+    def email_domains(self) -> set:
+        return {strip_domain(email) for email in self.all_emails}
+
+    @property
+    def display_name(self) -> str:
+        if self.name:
+            return self.name
+
+        if self.sso and self.sso.name:
+            return self.sso.name
+
+        if self.email:
+            return self.email
+
+        return self.username
+
+    @property
+    def sso(self) -> UserSSO | None:
+        try:
+            return self._sso
+        except UserSSO.DoesNotExist as e:
+            logger.exception("UserSSO record not found for %s", self, exc_info=e)
+            return None
+
+
+class UserSSO(TimeStampedModel):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="_sso")
+
+    payload = models.JSONField(blank=True, null=True)
+
+    email = models.EmailField(blank=True)
+    email_user_id = models.EmailField(blank=True)
+    contact_email = models.EmailField(blank=True)
+
+    first_name = models.CharField(max_length=48, blank=True)
+    last_name = models.CharField(max_length=48, blank=True)
+
+    class Meta:
+        verbose_name = "User SSO"
+        verbose_name_plural = "User SSO"
+
+    def __str__(self):
+        return f"{self.user} SSO"
+
+    @cached_property
+    def related_emails(self) -> list:
+        return [
+            attr.value
+            for attr in self.attributes.all()
+            if attr.attribute_type == UserSSOAttribute.AttributeType.RELATED_EMAILS
+        ]
+
+    @property
+    def related_emails_display(self) -> str:
+        return ", ".join(self.related_emails)
+
+    @property
+    def all_emails(self) -> set:
+        return {
+            email
+            for email in (
+                *self.related_emails,
+                self.email,
+                self.contact_email,
+            )
+            if email
+        }
+
+    @property
+    def all_emails_display(self) -> str:
+        return ", ".join(self.all_emails)
+
+    @property
+    def name(self) -> str:
+        return f"{self.first_name} {self.last_name}".strip()
+
+
+class UserSSOAttribute(TimeStampedModel):
+    class AttributeType(models.TextChoices):
+        RELATED_EMAILS = "related_emails", _("Related Emails")
+        OTHER = "other", _("Other")
+
+    sso = models.ForeignKey(UserSSO, on_delete=models.CASCADE, related_name="attributes")
+    value = models.CharField(max_length=2048)
+    attribute_type = models.CharField(max_length=100, choices=AttributeType.choices, db_index=True)
+
+    class Meta:
+        unique_together = ("sso", "value", "attribute_type")
+        indexes = [
+            models.Index(fields=["attribute_type", "value"]),
+        ]
+
+    def __str__(self):
+        return f"{self.sso.user} ({self.attribute_type}) -> {self.value}"
 
 
 class Team(UUIDPrimaryKeyBase):
@@ -696,7 +1087,7 @@ class Team(UUIDPrimaryKeyBase):
         member_ids = list(self.members.values_list("user_id", flat=True))
         return User.objects.exclude(id__in=member_ids)
 
-    def add_member(self, user: User, role_type: Optional["UserTeamMembership.RoleType"] = None):
+    def add_member(self, user: User, role_type: UserTeamMembership.RoleType | None = None):
         member = UserTeamMembership(user=user, team=self, role_type=role_type or UserTeamMembership.RoleType.MEMBER)
         member.save()
         return member
@@ -782,7 +1173,7 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         upload_to=build_s3_key,
     )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    original_file_name = models.TextField(max_length=2048, blank=True, null=True)  # delete me
+    original_file_name = models.TextField(max_length=2048, blank=True, null=True)
     last_referenced = models.DateTimeField(blank=True, null=True)
     ingest_error = models.TextField(
         max_length=2048,
@@ -808,6 +1199,10 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
                 self.last_referenced = self.created_at
             else:
                 self.last_referenced = timezone.now()
+
+        if self._state.adding and self.original_file and not self.original_file_name:
+            self.original_file_name = self.original_file.name.split("/")[-1]
+
         super().save(*args, **kwargs)
 
     @override
@@ -841,17 +1236,15 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
     def url(self) -> str:
         return self.original_file.url if self.original_file else ""
 
+    # NOTE: Change to model field once orignal_file_name has been backfilled
     @property
     def file_name(self) -> str:
         if self.original_file_name:  # delete me?
             return self.original_file_name
 
         # could have a stronger (regex?) way of stripping the users email address?
-        if self.original_file and "/" in self.original_file.name:
-            return self.original_file.name.split("/")[1]
-
-        if self.original_file:
-            return self.original_file.name
+        if self.original_file and self.original_file.name:
+            return self.original_file.name.split("/")[-1]
 
         return ""
 
@@ -889,7 +1282,7 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
     @classmethod
     def get_completed_and_processing_files(
         cls, user: User, tool: Tool | None = None
-    ) -> tuple[Sequence["File"], Sequence["File"]]:
+    ) -> tuple[Sequence[File], Sequence[File]]:
         """Returns all files that are completed and processing for a given user."""
         base_filter = Q(user=user)
         tool_filter = (
@@ -905,7 +1298,7 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         return completed_files, processing_files
 
     @classmethod
-    def get_ordered_by_citation_priority(cls, chat_message_id: uuid.UUID) -> Sequence["File"]:
+    def get_ordered_by_citation_priority(cls, chat_message_id: uuid.UUID) -> Sequence[File]:
         """Returns all files that are cited in a given chat message, ordered by citation priority."""
         return (
             cls.objects.filter(citation__chat_message_id=chat_message_id)
@@ -956,7 +1349,7 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
     @classmethod
     def get_ordered_by_last_message_date(
         cls, user: User, tool: Tool | None = None, exclude_chat_ids: Collection[uuid.UUID] | None = None
-    ) -> Sequence["Chat"]:
+    ) -> Sequence[Chat]:
         """Returns all chat histories for a given user, ordered by the date of the latest message."""
         exclude_chat_ids = exclude_chat_ids or []
         return (
@@ -983,7 +1376,7 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
         )
 
     @property
-    def last_user_message(self) -> Optional["ChatMessage"]:
+    def last_user_message(self) -> ChatMessage | None:
         messages = ChatMessage.get_messages_ordered_by_citation_priority(self.id)
         user_message_history = [m for m in messages if m.role == ChatMessage.Role.user]
         return user_message_history[-1] if user_message_history else None
@@ -1145,7 +1538,7 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
         super().save(*args, force_insert, force_update, using, update_fields)
 
     @classmethod
-    def get_messages_ordered_by_citation_priority(cls, chat_id: uuid.UUID) -> Sequence["ChatMessage"]:
+    def get_messages_ordered_by_citation_priority(cls, chat_id: uuid.UUID) -> Sequence[ChatMessage]:
         """Returns all chat messages for a given chat history, ordered by citation priority."""
         return (
             cls.objects.filter(chat_id=chat_id)
@@ -1274,26 +1667,3 @@ class Agent(UUIDPrimaryKeyBase, TimeStampedModel):
 
     def __str__(self):
         return self.name
-
-
-class CustomFlag(AbstractUserFlag):
-    """
-    Extending the waffle flag to have a textfield for additional allowed emails
-    """
-
-    extra_allowed_emails = models.TextField(
-        blank=True,
-        null=True,
-        help_text="List of emails that should have access to this flag"
-        "these are checked in addition to other users against the flag",
-    )
-
-    class Meta:
-        verbose_name = "Flag"
-        verbose_name_plural = "Flags"
-
-    def get_extra_emails(self):
-        if not self.extra_allowed_emails:
-            return set()
-        emails = self.extra_allowed_emails.replace("\n", ",").split(",")
-        return {email.strip().lower() for email in emails if email.strip()}

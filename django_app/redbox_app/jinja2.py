@@ -107,6 +107,14 @@ def get_csrf_token(request):
     return get_token(request)
 
 
+def show_all_attrs(value) -> str:
+    result = []
+    for key in dir(value):
+        result.append(f"{key}: {getattr(value, key)}")
+
+    return str("\n".join(result))
+
+
 def environment(**options):
     extra_options = {}
 
@@ -127,6 +135,7 @@ def environment(**options):
             "to_user_timezone": to_user_timezone,
             "environment": settings.ENVIRONMENT.value,
             "security": settings.MAX_SECURITY_CLASSIFICATION.value,
+            "show_all_attrs": show_all_attrs,
         }
     )
     env.globals.update(

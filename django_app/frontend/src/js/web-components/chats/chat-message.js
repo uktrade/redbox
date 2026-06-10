@@ -39,7 +39,7 @@ export class ChatMessage extends HTMLElement {
                     </div>
                 </div>
             ${this.dataset.role == 'ai' ?
-        `<div class="chat-actions-container">
+        `<div class="chat-actions-container chat-actions-container__feedback">
             </div>`
         : ''}
 
@@ -266,6 +266,7 @@ export class ChatMessage extends HTMLElement {
         })
 
       } else if (response.type === "error") {
+        emitEvent(Events.CHAT_RESPONSE_ERROR);
         this.showError(response.data);
       } else if (response.type === "auth_expired") {
         if (this.LOGOUT_URL) {

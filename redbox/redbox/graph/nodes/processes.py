@@ -6,12 +6,12 @@ import re
 import sqlite3
 import time
 from collections.abc import Callable
+from datetime import date
 from functools import reduce
 from io import StringIO
 from random import uniform
 from typing import Any, Iterable
 from uuid import uuid4
-from datetime import date
 
 import pandas as pd
 from botocore.exceptions import EventStreamError
@@ -29,6 +29,7 @@ from redbox.chains.components import get_chat_llm, get_structured_response_with_
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_metadata, create_chain_agent
 from redbox.graph.nodes.sends import run_tools_parallel
+from redbox.graph.nodes.tools import get_datahub_mcp_tools
 from redbox.models import ChatRoute
 from redbox.models.chain import (
     DocumentState,
@@ -42,15 +43,13 @@ from redbox.models.chain import (
     get_plan_fix_suggestion_prompts,
 )
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
-from redbox.models.prompts import USER_FEEDBACK_EVAL_PROMPT
-from redbox.models.settings import ChatLLMBackend
-from redbox.graph.nodes.tools import get_datahub_mcp_tools
-from redbox.transform import (
-    combine_agents_state,
-    combine_documents,
-    flatten_document_state,
-    join_result_with_token_limit,
+from redbox.models.prompts import (
+    USER_FEEDBACK_EVAL_PROMPT,
+    DATAHUB_USER_FEEDBACK,
+    DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS,
 )
+from redbox.models.settings import ChatLLMBackend
+from redbox.transform import combine_documents, flatten_document_state, join_result_with_token_limit
 
 log = logging.getLogger(__name__)
 re_keyword_pattern = re.compile(r"@(\w+)")
@@ -368,11 +367,17 @@ def create_planner(is_streamed=False):
 def remove_evaluator_task(state: RedboxState):
     """
     Removing evaluator task from a plan and update the task for evaluator
+    In the case where there are multiple evaluator tasks, all of them are removed, and tasks_evaluator is populated from the last evaluator task
     """
-    if len(state.agent_plans.tasks) > 0:
-        if state.agent_plans.tasks[-1].agent.value == "Evaluator_Agent":
-            state.tasks_evaluator = state.agent_plans.tasks[-1].task + " " + state.agent_plans.tasks[-1].expected_output
-            state.agent_plans.tasks.pop(-1)
+    if not state.agent_plans or not state.agent_plans.tasks:
+        return state
+
+    evaluator_tasks = [t for t in state.agent_plans.tasks if t.agent.value == "Evaluator_Agent"]
+
+    if evaluator_tasks:
+        last = evaluator_tasks[-1]
+        state.tasks_evaluator = f"{last.task} {last.expected_output}"
+        state.agent_plans.tasks = [t for t in state.agent_plans.tasks if t.agent.value != "Evaluator_Agent"]
     return state
 
 
@@ -580,7 +585,7 @@ def build_agent_with_loop(
             log.warning(f"{log_stub} Completed agent run.")
 
         log.warning(f"[{agent_name}] Completed agent_with_loop run.")
-        all_results = " ".join(all_results)
+        all_results = join_result_with_token_limit(result=all_results, max_tokens=max_tokens, log_stub=log_stub)
         return {
             "agents_results": {task.id: AIMessage(content=f"<{agent_name}_Result>{all_results}</{agent_name}_Result>")},
             "tasks_evaluator": task.task + "\n" + task.expected_output,
@@ -636,12 +641,15 @@ def build_datahub_agent_with_loop(
             previous_agents_results += [state.agents_results[dep].content]
         previous_agents_results = " ".join(previous_agents_results)
 
+        mcp_tools = "\n\n".join([f"# {t.name}:\n{t.description}" for t in tools])
+
         additional_variables = {
             "task": task.task,
             "expected_output": task.expected_output,
             "previous_agents_results": previous_agents_results,
             "previous_tool_error": "",
             "previous_tool_results": "",
+            "mcp_tools": mcp_tools,
         }
 
         # has pre_process
@@ -735,7 +743,7 @@ def build_datahub_agent_with_loop(
                     return {
                         "agents_results": {
                             task.id: AIMessage(
-                                content=f"<{agent_name}_Result>Ask user for feedback based on failure reason. {combined_feedback}\n\n{collated_result}</{agent_name}_Result>",
+                                content=f"<{agent_name}_Result>{DATAHUB_USER_FEEDBACK} {combined_feedback}\n\n{collated_result}</{agent_name}_Result>",
                                 kwargs={
                                     "reason": combined_feedback,
                                 },
@@ -745,7 +753,7 @@ def build_datahub_agent_with_loop(
                         "agent_plans": state.agent_plans.update_task_status(task.id, TaskStatus.REQUIRES_USER_FEEDBACK),
                     }
 
-                result = collated_result
+                result = collated_result + DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS
 
             if isinstance(result, str):
                 log.warning(f"{log_stub} Using raw string result.")
@@ -766,7 +774,7 @@ def build_datahub_agent_with_loop(
             log.warning(f"{log_stub} Completed agent run.")
 
         log.warning(f"[{agent_name}] Completed agent_with_loop run.")
-        all_results = " ".join(all_results)
+        all_results = join_result_with_token_limit(result=all_results, max_tokens=max_tokens, log_stub=log_stub)
         return {
             "agents_results": {task.id: AIMessage(content=f"<{agent_name}_Result>{all_results}</{agent_name}_Result>")},
             "tasks_evaluator": task.task + "\n" + task.expected_output,
@@ -778,11 +786,6 @@ def build_datahub_agent_with_loop(
 
 def create_evaluator():
     def _create_evaluator(state: RedboxState):
-        _additional_variables = {
-            "agents_results": combine_agents_state(state.agents_results),
-            "artifact_criteria": state.artifact_criteria,
-            "todays_date": date.today().isoformat(),
-        }
         citation_parser, format_instructions = get_structured_response_with_citations_parser()
         evaluator_agent = build_stuff_pattern(
             prompt_set=PromptSet.NewRoute,
@@ -790,7 +793,11 @@ def create_evaluator():
             output_parser=citation_parser,
             format_instructions=format_instructions,
             final_response_chain=False,
-            additional_variables=_additional_variables,
+            additional_variables={
+                "agents_results": None,
+                "artifact_criteria": state.artifact_criteria,
+                "todays_date": date.today().isoformat(),
+            },
         )
         return evaluator_agent
 
