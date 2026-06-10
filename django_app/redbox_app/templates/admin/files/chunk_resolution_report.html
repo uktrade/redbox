@@ -63,137 +63,175 @@ th.sortable {
 }
 </style>
 
-<table>
-    <thead>
-        <tr>
-            <th class="sortable" onclick="sortTable(0, this)">
-                Created <span class="sort-indicator"></span>
-            </th>
+<form method="post" action="{% url 'admin:files_reingest_selected' %}">
+    {% csrf_token %}
 
-            <th>
-                File
-            </th>
+    <button type="submit">
+        Reingest selected files
+    </button>
 
-            <th class="sortable" onclick="sortTable(4, this)">
-                Ingestion <span class="sort-indicator"></span>
-            </th>
+    <table>
+        <thead>
+            <tr>
+                <th>
+                    <input type="checkbox" id="select-all">
+                </th>
 
-            <th>
-                Chunk Resolutions
-            </th>
+                <th class="sortable" onclick="sortTable(1, this)">
+                    Created <span class="sort-indicator"></span>
+                </th>
 
-            <th class="sortable" onclick="sortTable(5, this)">
-                Chunk Status <span class="sort-indicator"></span>
-            </th>
+                <th>
+                    File
+                </th>
 
-            <th>
-                Error
-            </th>
+                <th class="sortable" onclick="sortTable(3, this)">
+                    Ingestion <span class="sort-indicator"></span>
+                </th>
 
-            <th class="sortable" onclick="sortTable(6, this)">
-                Overall <span class="sort-indicator"></span>
-            </th>
-        </tr>
-    </thead>
+                <th>
+                    Chunk Resolutions
+                </th>
 
-    <tbody>
-    {% for result in results %}
-        <tr>
-            <td data-sort="{{ result.created_at_ts }}">
-                {{ result.created_at }}
-            </td>
+                <th class="sortable" onclick="sortTable(5, this)">
+                    Chunk Status <span class="sort-indicator"></span>
+                </th>
 
-            <td class="file-cell">
-                <div class="file-user">
-                    {{ result.user }}
-                </div>
+                <th>
+                    Error
+                </th>
 
-                <div>
-                    <a href="/admin/redbox_core/file/{{ result.file_id }}/change/">
-                        {{ result.file_name }}
-                    </a>
-                </div>
+                <th class="sortable" onclick="sortTable(7, this)">
+                    Overall <span class="sort-indicator"></span>
+                </th>
 
-                <div class="file-stored-name">
-                    {% if result.stored_name %}
-                        {{ result.stored_name }}
+                <th>Actions</th>
+            </tr>
+        </thead>
+
+        <tbody>
+        {% for result in results %}
+            <tr>
+                <td>
+                    {% if not result.overall_ok %}
+                        <input
+                            type="checkbox"
+                            name="file_ids"
+                            value="{{ result.file_id }}"
+                        >
+                    {% endif %}
+                </td>
+
+                <td data-sort="{{ result.created_at_ts }}">
+                    {{ result.created_at }}
+                </td>
+
+                <td class="file-cell">
+                    <div class="file-user">
+                        {{ result.user }}
+                    </div>
+
+                    <div>
+                        <a href="/admin/redbox_core/file/{{ result.file_id }}/change/">
+                            {{ result.file_name }}
+                        </a>
+                    </div>
+
+                    <div class="file-stored-name">
+                        {% if result.stored_name %}
+                            {{ result.stored_name }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </div>
+                </td>
+
+                <td data-sort="{% if result.status == 'complete' %}1{% else %}0{% endif %}">
+                    {% if result.status == "complete" %}
+                        <span style="color: green; font-weight: bold;">
+                            {{ result.status }}
+                        </span>
+                    {% else %}
+                        <span style="color: red; font-weight: bold;">
+                            {{ result.status }}
+                        </span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    {% if result.resolutions %}
+                        <div class="resolution-list">
+                            {% for resolution in result.resolutions %}
+                                <span class="resolution-badge {% if resolution.is_low %}resolution-badge-low{% endif %}">
+                                    <span class="resolution-name">
+                                        {{ resolution.name }}
+                                    </span>
+
+                                    <span>
+                                        {{ resolution.count }}
+                                    </span>
+
+                                    {% if resolution.is_low %}
+                                        <span class="resolution-missing">
+                                            (-{{ resolution.missing }})
+                                        </span>
+                                    {% endif %}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    {% elif not result.error %}
+                        <span style="color:#666">
+                            No chunks found
+                        </span>
                     {% else %}
                         —
                     {% endif %}
-                </div>
-            </td>
+                </td>
 
-            <td data-sort="{% if result.status == 'complete' %}1{% else %}0{% endif %}">
-                {% if result.status == "complete" %}
-                    <span style="color: green; font-weight: bold;">
-                        {{ result.status }}
-                    </span>
-                {% else %}
-                    <span style="color: red; font-weight: bold;">
-                        {{ result.status }}
-                    </span>
-                {% endif %}
-            </td>
+                <td data-sort="{% if result.healthy %}1{% else %}0{% endif %}">
+                    {% if result.healthy %}
+                        <span style="color: green; font-weight: bold;">✓</span>
+                    {% else %}
+                        <span style="color: red; font-weight: bold;">✗</span>
+                    {% endif %}
+                </td>
 
-            <td>
-                {% if result.resolutions %}
-                    <div class="resolution-list">
-                        {% for resolution in result.resolutions %}
-                            <span class="resolution-badge {% if resolution.is_low %}resolution-badge-low{% endif %}">
-                                <span class="resolution-name">
-                                    {{ resolution.name }}
-                                </span>
+                <td>
+                    {% if result.error %}
+                        <span style="color:red">
+                            {{ result.error }}
+                        </span>
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
 
-                                <span>
-                                    {{ resolution.count }}
-                                </span>
+                <td data-sort="{% if result.overall_ok %}1{% else %}0{% endif %}">
+                    {% if result.overall_ok %}
+                        <span style="color: green; font-weight: bold;">✓</span>
+                    {% else %}
+                        <span style="color: red; font-weight: bold;">✗</span>
+                    {% endif %}
+                </td>
 
-                                {% if resolution.is_low %}
-                                    <span class="resolution-missing">
-                                        (-{{ resolution.missing }})
-                                    </span>
-                                {% endif %}
-                            </span>
-                        {% endfor %}
-                    </div>
-                {% elif not result.error %}
-                    <span style="color:#666">
-                        No chunks found
-                    </span>
-                {% else %}
-                    —
-                {% endif %}
-            </td>
-
-            <td data-sort="{% if result.healthy %}1{% else %}0{% endif %}">
-                {% if result.healthy %}
-                    <span style="color: green; font-weight: bold;">✓</span>
-                {% else %}
-                    <span style="color: red; font-weight: bold;">✗</span>
-                {% endif %}
-            </td>
-
-            <td>
-                {% if result.error %}
-                    <span style="color:red">
-                        {{ result.error }}
-                    </span>
-                {% else %}
-                    —
-                {% endif %}
-            </td>
-
-            <td data-sort="{% if result.overall_ok %}1{% else %}0{% endif %}">
-                {% if result.overall_ok %}
-                    <span style="color: green; font-weight: bold;">✓</span>
-                {% else %}
-                    <span style="color: red; font-weight: bold;">✗</span>
-                {% endif %}
-            </td>
-        </tr>
-    {% endfor %}
-    </tbody>
-</table>
+                <td>
+                    {% if not result.overall_ok %}
+                        <button
+                            type="submit"
+                            name="file_ids"
+                            value="{{ result.file_id }}"
+                        >
+                            Reingest
+                        </button>
+                    {% else %}
+                        ✓
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</form>
 
 <p>
     <a href="javascript:history.back()">← Back</a>
@@ -253,6 +291,16 @@ window.addEventListener("load", () => {
 
     sortTable(0, createdHeader);
     sortTable(0, createdHeader);
+});
+
+const selectAll = document.getElementById("select-all");
+
+selectAll.addEventListener("change", () => {
+    document
+        .querySelectorAll('input[name="file_ids"]')
+        .forEach(cb => {
+            cb.checked = selectAll.checked;
+        });
 });
 </script>
 

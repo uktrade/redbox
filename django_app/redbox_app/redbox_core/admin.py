@@ -5,13 +5,19 @@ import logging
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.db.models import QuerySet
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseRedirect
 from django.shortcuts import render
 from django.template.response import TemplateResponse
-from django.urls import path
+from django.urls import path, reverse
 from import_export.admin import ExportMixin, ImportExportMixin
 
-from redbox_app.redbox_core.actions import backfill_original_file_names, check_chunk_resolutions, reupload
+from redbox_app.redbox_core.actions import (
+    backfill_original_file_names,
+    check_chunk_resolutions,
+    # reingest,
+    enqueue_reingest,
+    reupload,
+)
 
 from . import models
 from .serializers import UserSerializer
@@ -284,12 +290,17 @@ class FileAdmin(ExportMixin, admin.ModelAdmin):
                 self.admin_site.admin_view(self.chunk_resolution_report_view),
                 name="files_chunk_resolution_report",
             ),
+            path(
+                "reingest-selected/",
+                self.admin_site.admin_view(self.reingest_selected_view),
+                name="files_reingest_selected",
+            ),
         ]
 
         return custom_urls + urls
 
     def chunk_resolution_report_view(self, request):
-        results = request.session.pop("chunk_resolution_results", [])
+        results = request.session.get("chunk_resolution_results", [])
 
         return TemplateResponse(
             request,
@@ -300,6 +311,24 @@ class FileAdmin(ExportMixin, admin.ModelAdmin):
             },
             using="django",
         )
+
+    def reingest_selected_view(self, request):
+        if request.method != "POST":
+            return HttpResponseNotAllowed(["POST"])
+
+        file_ids = request.POST.getlist("file_ids")
+
+        files = models.File.objects.filter(pk__in=file_ids)
+
+        for file in files:
+            enqueue_reingest(self, request, file)
+
+        self.message_user(
+            request,
+            f"Queued {files.count()} file(s) for reingestion.",
+        )
+
+        return HttpResponseRedirect(reverse("admin:files_chunk_resolution_report"))
 
 
 class FileToolAdmin(ExportMixin, admin.ModelAdmin):
