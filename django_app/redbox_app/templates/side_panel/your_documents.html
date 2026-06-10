@@ -3,13 +3,13 @@
 {% from "ids/components/modal.html" import modal %}
 {% from "macros/icon.html" import ids_icon %}
 <section id="your-documents" class ="ids-card ids-card--no-border" hx-swap-oob="outerHTML">
-    <div class="ids-card__header">
-        {{ ids_icon(icon_name="file-present.svg") }}
-        <h2 class="side-panel-heading__text govuk-heading-s govuk-!-margin-bottom-0">Documents</h2>
-    </div>
+
     <div class="ids-card__content">
         <document-selector id="document-selector" class="ids-width--full">
             <fieldset class="govuk-fieldset">
+                <legend class="ids-card__header">{{ ids_icon(icon_name="file-present.svg") }}
+                  <h2 class="side-panel-heading__text govuk-heading-s govuk-!-margin-bottom-0">Documents</h2>
+                </legend>
                 <div class="ids-card__list govuk-checkboxes govuk-checkboxes--small ids-checkbox ids-checkbox--side-panel"
                     data-module="govuk-checkboxes">
                     {% for file in completed_files %}
