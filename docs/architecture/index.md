@@ -107,7 +107,7 @@ flowchart LR
     Tool -.->|"scoped URL"| Daphne
     User -->|"chat message"| Daphne
     User -->|"file upload"| Daphne
-   
+
     Daphne -->|HTTP| Views
     Daphne -->|WebSocket| ChatConsumer
 
@@ -169,7 +169,7 @@ flowchart LR
         LLM([AWS Bedrock])
         Session[Django session]
     end
-    
+
     subgraph DatahubAgent[Datahub_Agent]
         subgraph Loop[tool-call loop]
             Select[Select and invoke tools]
@@ -195,7 +195,7 @@ flowchart LR
     Exec -->|formatted result| Select
     Exec -->|call| Server
     Exec -->|needs user input| User
-    
+
     style section1 fill:transparent,stroke:transparent
     style section2 fill:transparent,stroke:transparent
 ```
