@@ -166,3 +166,36 @@ def ingest_file(file_name: str, es_index_name: str = alias) -> str | None:
     except Exception:
         logging.exception("Error while processing file [%s]", file_name)
         return traceback.format_exc()
+
+
+def remove_duplicate_chunks(file_uri: str, index_name: str) -> None:
+    es = env.elasticsearch_client()
+    log.info("Using Elasticsearch client: %s", es)
+
+    resp = es.search(
+        index=index_name,
+        body={
+            "size": 1000,
+            "query": {"term": {"metadata.uri.keyword": file_uri}},
+            "sort": [{"metadata.chunk_resolution.keyword": "asc"}, {"metadata.page_number": "asc"}],
+        },
+    )
+
+    seen: set[tuple] = set()
+    ids_to_delete: list[str] = []
+
+    for hit in resp["hits"]["hits"]:
+        meta = hit["_source"]["metadata"]
+        key = (meta["uri"], meta["chunk_resolution"], meta["page_number"])
+        if key in seen:
+            ids_to_delete.append(hit["_id"])
+        else:
+            seen.add(key)
+
+    if not ids_to_delete:
+        log.info("No duplicate chunks found for file %s", file_uri)
+        return
+
+    log.info("Deleting %d duplicate chunks for file %s", len(ids_to_delete), file_uri)
+    for doc_id in ids_to_delete:
+        es.delete(index=index_name, id=doc_id)

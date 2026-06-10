@@ -8,7 +8,7 @@ from uuid import UUID
 
 from django.core.files.uploadedfile import InMemoryUploadedFile, UploadedFile
 
-from redbox.loader.ingester import ingest_file
+from redbox.loader.ingester import ingest_file, remove_duplicate_chunks
 from redbox.models.settings import get_settings
 from redbox_app.redbox_core.models import InactiveFileError
 
@@ -189,3 +189,9 @@ def ingest(file_id: UUID, es_index: str | None = None) -> None:
         file.status = File.Status.complete
 
     file.save()
+
+
+def deduplicate_chunks(file_uri: str, index_name: str) -> None:
+    logger.info("Removing duplicate chunks for file %s", file_uri)
+    remove_duplicate_chunks(file_uri, index_name)
+    logger.info("Deduplication complete for file %s", file_uri)

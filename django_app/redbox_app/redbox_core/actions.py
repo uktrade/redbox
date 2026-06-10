@@ -9,7 +9,7 @@ from django_q.tasks import async_task
 from redbox.admin.models import FileChunkResolutionResult
 from redbox.models.settings import get_settings
 from redbox_app.redbox_core.models import File
-from redbox_app.worker import ingest
+from redbox_app.worker import deduplicate_chunks, ingest
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -73,11 +73,18 @@ def enqueue_reingest(self, request, file: File) -> None:
             file=file,
             index_name=env.elastic_alias,
         )
-        if not result.chunk_resolution_ok:
-            self.message_user(request, f"Reingesting '{file.unique_name}'...")
+        if result.file_ingestion_ok and not result.overall_ok:
+            self.message_user(request, f"Starting reingest '{file.unique_name}'...")
 
-            async_task(ingest, file.id, env.elastic_alias)
-            logger.info("Successfully queued file %s.", file)
+            if not result.chunk_resolution_ok:
+                self.message_user(request, f"Reingesting chunks '{file.unique_name}'...")
+                async_task(ingest, file.unique_name, env.elastic_alias)
+                logger.info("Successfully queued file ingest %s.", file)
+
+            if not result.chunk_duplicates_ok:
+                self.message_user(request, f"Deduplicating chunks '{file.unique_name}'...")
+                async_task(deduplicate_chunks, file.unique_name, env.elastic_alias)
+                logger.info("Successfully queued chunk deduplication %s.", file)
 
         else:
             logger.info("Failed to queue file %s - already healthy.", file)
