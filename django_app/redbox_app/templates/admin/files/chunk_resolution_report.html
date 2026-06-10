@@ -85,24 +85,24 @@ th.sortable {
                     File
                 </th>
 
-                <th class="sortable" onclick="sortTable(3, this)">
-                    Ingestion <span class="sort-indicator"></span>
-                </th>
-
                 <th>
                     Chunk Resolutions
-                </th>
-
-                <th class="sortable" onclick="sortTable(5, this)">
-                    Chunk Status <span class="sort-indicator"></span>
                 </th>
 
                 <th>
                     Error
                 </th>
 
+                <th class="sortable" onclick="sortTable(5, this)">
+                    File OK <span class="sort-indicator"></span>
+                </th>
+
+                <th class="sortable" onclick="sortTable(6, this)">
+                    Chunk OK <span class="sort-indicator"></span>
+                </th>
+
                 <th class="sortable" onclick="sortTable(7, this)">
-                    Overall <span class="sort-indicator"></span>
+                    Overall OK<span class="sort-indicator"></span>
                 </th>
 
                 <th>Actions</th>
@@ -113,7 +113,7 @@ th.sortable {
         {% for result in results %}
             <tr>
                 <td>
-                    {% if not result.overall_ok %}
+                    {% if not result.overall_ok and result.file_ingestion_ok %}
                         <input
                             type="checkbox"
                             name="file_ids"
@@ -144,18 +144,18 @@ th.sortable {
                             —
                         {% endif %}
                     </div>
-                </td>
 
-                <td data-sort="{% if result.status == 'complete' %}1{% else %}0{% endif %}">
-                    {% if result.status == "complete" %}
-                        <span style="color: green; font-weight: bold;">
-                            {{ result.status }}
-                        </span>
-                    {% else %}
-                        <span style="color: red; font-weight: bold;">
-                            {{ result.status }}
-                        </span>
-                    {% endif %}
+                    <div>
+                        {% if result.file_ingestion_status == "complete" %}
+                            <span style="color: green; font-weight: bold;">
+                                {{ result.file_ingestion_status }}
+                            </span>
+                        {% else %}
+                            <span style="color: red; font-weight: bold;">
+                                {{ result.file_ingestion_status }}
+                            </span>
+                        {% endif %}
+                    </div>
                 </td>
 
                 <td>
@@ -188,14 +188,6 @@ th.sortable {
                     {% endif %}
                 </td>
 
-                <td data-sort="{% if result.healthy %}1{% else %}0{% endif %}">
-                    {% if result.healthy %}
-                        <span style="color: green; font-weight: bold;">✓</span>
-                    {% else %}
-                        <span style="color: red; font-weight: bold;">✗</span>
-                    {% endif %}
-                </td>
-
                 <td>
                     {% if result.error %}
                         <span style="color:red">
@@ -203,6 +195,22 @@ th.sortable {
                         </span>
                     {% else %}
                         —
+                    {% endif %}
+                </td>
+
+                <td data-sort="{% if result.file_ingestion_ok %}1{% else %}0{% endif %}">
+                    {% if result.file_ingestion_ok %}
+                        <span style="color: green; font-weight: bold;">✓</span>
+                    {% else %}
+                        <span style="color: red; font-weight: bold;">✗</span>
+                    {% endif %}
+                </td>
+
+                <td data-sort="{% if result.chunk_resolution_ok %}1{% else %}0{% endif %}">
+                    {% if result.chunk_resolution_ok %}
+                        <span style="color: green; font-weight: bold;">✓</span>
+                    {% else %}
+                        <span style="color: red; font-weight: bold;">✗</span>
                     {% endif %}
                 </td>
 
@@ -215,7 +223,7 @@ th.sortable {
                 </td>
 
                 <td>
-                    {% if not result.overall_ok %}
+                    {% if not result.overall_ok and result.file_ingestion_ok %}
                         <button
                             type="submit"
                             name="file_ids"
@@ -223,6 +231,8 @@ th.sortable {
                         >
                             Reingest
                         </button>
+                    {% elif not result.file_ingestion_ok %}
+                        ✗
                     {% else %}
                         ✓
                     {% endif %}

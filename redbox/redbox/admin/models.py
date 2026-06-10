@@ -16,9 +16,12 @@ class FileChunkResolutionResult:
     file_id: str
     file_name: str
     user: str
-    status: str
-    healthy: bool
+
+    file_ingestion_status: str
+    file_ingestion_ok: bool
+    chunk_resolution_ok: bool
     overall_ok: bool
+
     stored_name: str | None = None
     resolutions: list[ChunkResolutionDetail] | None = None
     error: str | None = None
@@ -26,7 +29,8 @@ class FileChunkResolutionResult:
     @classmethod
     def from_complete_file(cls, file, resolutions: dict[str, int]) -> "FileChunkResolutionResult":
         counts = list(resolutions.values())
-        healthy = len(counts) > 0 and len(set(counts)) == 1
+        chunk_resolution_ok = len(counts) > 0 and len(set(counts)) == 1
+        file_ingestion_ok = file.status == "complete"
         max_count = max(counts) if counts else 0
 
         return cls(
@@ -35,9 +39,10 @@ class FileChunkResolutionResult:
             file_id=str(file.pk),
             file_name=file.file_name,
             user=file.user.email,
-            status=file.status,
-            healthy=healthy,
-            overall_ok=healthy and file.status == "complete",
+            file_ingestion_status=file.status,
+            file_ingestion_ok=file_ingestion_ok,
+            chunk_resolution_ok=chunk_resolution_ok,
+            overall_ok=chunk_resolution_ok and file_ingestion_ok,
             stored_name=file.unique_name,
             resolutions=[
                 ChunkResolutionDetail(
@@ -58,8 +63,9 @@ class FileChunkResolutionResult:
             file_id=str(file.pk),
             file_name=file.file_name,
             user=file.user.email,
-            status=file.status,
-            healthy=False,
+            file_ingestion_status=file.status,
+            file_ingestion_ok=False,
+            chunk_resolution_ok=False,
             overall_ok=False,
         )
 
@@ -71,8 +77,9 @@ class FileChunkResolutionResult:
             file_id=str(file.pk),
             file_name=file.file_name,
             user=file.user.email,
-            status=file.status,
-            healthy=False,
+            file_ingestion_status=file.status,
+            file_ingestion_ok=False,
+            chunk_resolution_ok=False,
             overall_ok=False,
             stored_name=file.unique_name,
             error=str(exc),
