@@ -72,12 +72,17 @@ export class FeedbackButtons extends HTMLElement {
 
   #highlightButton(selectedButton, otherButton) {
     selectedButton.style.opacity = 1;
+    selectedButton.setAttribute("aria-pressed", "true");
     otherButton.style.opacity = 0.2;
+    otherButton.setAttribute("aria-pressed", "false");
   }
 
   #resetButtons(button1, button2) {
     button1.style.opacity = 1;
+    button1.setAttribute("aria-pressed", "false");
+
     button2.style.opacity = 1;
+    button2.setAttribute("aria-pressed", "false");
   }
 
   async #sendFeedback(retry = 0) {
