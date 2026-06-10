@@ -402,6 +402,7 @@ Consistent branch names help maintain a clean and predictable workflow. CI will 
 - `hotfix/<name>` — Urgent fixes for production issues
 - `dependabot/<name>` — Automated dependency updates
 - `security/<name>` — Security-related changes
+- `revert<name>` — For when git creates a branch to revert a PR
 
 ### Pre-commit hooks
 
