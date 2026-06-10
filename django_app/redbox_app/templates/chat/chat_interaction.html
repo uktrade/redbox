@@ -1,6 +1,5 @@
 {% from "macros/govuk-button.html" import govukButton %}
 {% from "macros/icon.html" import ids_icon %}
-
 <div class="ids-chat-interaction">
     <div class="ids-chat-interaction__inner">
         <form id="chats-form" class="js-message-input" action="/submit" method="post">
@@ -12,7 +11,7 @@
                     <!-- Upload Button -->
                     <file-upload upload-url="{{ urls.upload_url }}">
                         <input class="govuk-file-upload govuk-!-display-none" multiple id="upload-docs" name="files"
-                            type="file" aria-describedby="upload-docs-notification upload-docs-filetypes">
+                            type="file">
                             {% call govukButton(
                                       text=ids_icon(icon_name="attach-file.svg", icon_classes=""),
                                       classes="upload-button govuk-button--secondary ids-icon-button",
