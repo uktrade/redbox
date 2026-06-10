@@ -306,7 +306,7 @@ class FileAdmin(ExportMixin, admin.ModelAdmin):
             request,
             "admin/files/chunk_resolution_report.html",
             {
-                "title": "Chunk Resolution Report",
+                "title": "File Ingestion Health Check",
                 "results": results,
             },
             using="django",

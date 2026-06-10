@@ -46,7 +46,7 @@ def backfill_original_file_names(self, request, queryset):
 # Opensearch Files
 
 
-@admin.action(description="OpenSearch: check which chunk resolutions exist")
+@admin.action(description="File Ingestion Health Check")
 def check_chunk_resolutions(_, request, queryset):
     results = []
 
