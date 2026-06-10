@@ -117,11 +117,11 @@ th.sortable {
         <tbody>
         {% for result in results %}
             {% if not result.file_ingestion_ok %}
-            <tr style="background-color: #ffeded;">
+            <tr style="background-color: #fff7f7;">
             {% elif result.overall_ok %}
-            <tr style="background-color: rgb(235, 255, 235);">
+            <tr style="background-color: rgb(248, 255, 248);">
             {% else %}
-            <tr>
+            <tr style="background-color: rgb(255, 239, 206);">
             {% endif %}
                 <td>
                     {% if not result.overall_ok and result.file_ingestion_ok %}
