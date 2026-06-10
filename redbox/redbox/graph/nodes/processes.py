@@ -44,9 +44,9 @@ from redbox.models.chain import (
 )
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import (
-    DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS,
-    DATAHUB_USER_FEEDBACK,
     USER_FEEDBACK_EVAL_PROMPT,
+    DATAHUB_USER_FEEDBACK,
+    DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS,
 )
 from redbox.models.settings import ChatLLMBackend
 from redbox.transform import combine_documents, flatten_document_state, join_result_with_token_limit
@@ -871,17 +871,10 @@ def stream_plan():
     @RunnableLambda
     def _stream_plan(state: RedboxState):
         prefix_texts, suffix_texts = get_plan_fix_prompts()
-        prefix = random.choice(prefix_texts)
-        suffix = random.choice(suffix_texts)
-        plan_parts = [f"{prefix}\n\n"]
-        dispatch_custom_event(RedboxEventType.response_tokens, data=plan_parts[-1])
+        dispatch_custom_event(RedboxEventType.response_tokens, data=f"{random.choice(prefix_texts)}\n\n")
         for i, t in enumerate(state.agent_plans.tasks):
-            plan_parts.append(f"{i + 1}. {t.task}\n\n")
-            dispatch_custom_event(RedboxEventType.response_tokens, data=plan_parts[-1])
-        plan_parts.append(f"\n\n{suffix}")
-        dispatch_custom_event(RedboxEventType.response_tokens, data=plan_parts[-1])
-
-        state.messages = state.messages + [AIMessage(content="".join(plan_parts))]
+            dispatch_custom_event(RedboxEventType.response_tokens, data=f"{i + 1}. {t.task}\n\n")
+        dispatch_custom_event(RedboxEventType.response_tokens, data=f"\n\n{random.choice(suffix_texts)}")
         return state
 
     return _stream_plan
