@@ -11,6 +11,7 @@ from redbox.chains.components import get_embeddings
 from redbox.chains.ingest import ingest_from_loader
 from redbox.loader.loaders import TextractChunkLoader, MetadataLoader
 from redbox.models.settings import get_settings
+from redbox.models.file import ChunkResolution
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -82,6 +83,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
 
     chunk_ingest_chain = ingest_from_loader(
         loader=TextractChunkLoader(
+            chunk_resolution=ChunkResolution.normal,
             bucket=env.bucket_name,
             min_chunk_size=env.worker_ingest_min_chunk_size,
             max_chunk_size=env.worker_ingest_max_chunk_size,
@@ -95,10 +97,11 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
 
     large_chunk_ingest_chain = ingest_from_loader(
         loader=TextractChunkLoader(
+            chunk_resolution=ChunkResolution.largest,
             bucket=env.bucket_name,
-            min_chunk_size=env.worker_ingest_min_chunk_size,
-            max_chunk_size=env.worker_ingest_max_chunk_size,
-            overlap_chars=0,
+            min_chunk_size=env.worker_ingest_largest_chunk_size,
+            max_chunk_size=env.worker_ingest_largest_chunk_size,
+            overlap_chars=env.worker_ingest_largest_chunk_overlap,
             metadata=metadata,
         ),
         s3_client=env.s3_client(),
@@ -108,10 +111,11 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
 
     tabular_chunk_ingest_chain = ingest_from_loader(
         loader=TextractChunkLoader(
+            chunk_resolution=ChunkResolution.tabular,
             bucket=env.bucket_name,
-            min_chunk_size=env.worker_ingest_min_chunk_size,
-            max_chunk_size=env.worker_ingest_max_chunk_size,
-            overlap_chars=0,
+            min_chunk_size=env.worker_ingest_largest_chunk_size,
+            max_chunk_size=env.worker_ingest_largest_chunk_size,
+            overlap_chars=env.worker_ingest_largest_chunk_overlap,
             metadata=metadata,
         ),
         s3_client=env.s3_client(),
@@ -121,10 +125,11 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
 
     tabular_schema_chunk_ingest_chain = ingest_from_loader(
         loader=TextractChunkLoader(
+            chunk_resolution=ChunkResolution.tabular,
             bucket=env.bucket_name,
-            min_chunk_size=env.worker_ingest_min_chunk_size,
-            max_chunk_size=env.worker_ingest_max_chunk_size,
-            overlap_chars=0,
+            min_chunk_size=env.worker_ingest_largest_chunk_size,
+            max_chunk_size=env.worker_ingest_largest_chunk_size,
+            overlap_chars=env.worker_ingest_largest_chunk_overlap,
             metadata=metadata,
             include_schema_metadata=True,
         ),

@@ -217,6 +217,7 @@ class TextractChunkLoader:
 
     def __init__(
         self,
+        chunk_resolution: ChunkResolution,
         bucket: str,
         min_chunk_size: int = 500,
         max_chunk_size: int = 2000,
@@ -225,6 +226,7 @@ class TextractChunkLoader:
         metadata: GeneratedMetadata | None = None,
         include_schema_metadata: bool = False,
     ):
+        self.chunk_resolution = chunk_resolution
         self.bucket = bucket
         textract_config = Config(
             retries={"mode": "adaptive", "max_attempts": 10},
@@ -630,7 +632,7 @@ class TextractChunkLoader:
                     page_number=page_num,
                     created_datetime=datetime.now(UTC),
                     token_count=tokeniser(chunk),
-                    chunk_resolution=ChunkResolution.normal,
+                    chunk_resolution=self.chunk_resolution,
                     name=self.metadata.name,
                     description=self.metadata.description,
                     keywords=self.metadata.keywords,
@@ -659,6 +661,7 @@ class MetadataLoader:
         start_time = time.time()
 
         loader = TextractChunkLoader(
+            chunk_resolution=ChunkResolution.normal,
             bucket=self.env.bucket_name,
             min_chunk_size=200,
             max_chunk_size=2000,

@@ -86,13 +86,14 @@ def check_chunk_resolutions(_, request, queryset):
 def enqueue_reingest(self, request, file: File) -> None:
     logger.info("Queueing file for reingestion: %s", file)
 
-    if True:  # file.status == "complete":
+    if file.status == "complete":
+        resolutions = _get_resolutions_for_file(
+            file_uri=file.unique_name,
+            index_name=env.elastic_alias,
+        )
         result = FileChunkResolutionResult.from_complete_file(
-            file,
-            _get_resolutions_for_file(
-                file_uri=file.unique_name,
-                index_name=env.elastic_alias,
-            ),
+            file=file,
+            resolutions=resolutions,
         )
         if not result.healthy:
             problematic = [r.name for r in result.resolutions if r.is_low]
