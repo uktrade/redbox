@@ -61,6 +61,7 @@ th.sortable {
 .resolution-missing {
     opacity: 0.8;
 }
+
 </style>
 
 <form method="post" action="{% url 'admin:files_reingest_selected' %}">
@@ -193,19 +194,23 @@ th.sortable {
                 </td>
 
                 <td>
-                    {% if result.duplicates %}
-                        <div class="resolution-list">
-                            {{ result.duplicates }}
-                        </div>
-                    {% elif not result.error %}
-                        <span style="color:#666">
-                            No chunks found
-                        </span>
-                    {% else %}
+                    {% if result.error %}
                         —
+                    {% elif result.duplicates %}
+                        <div>
+                            {% for resolution, summary in result.duplicates.items %}
+                                <div style="color:red" {% if summary.avg_duplicates_per_page > 2 %}duplicate-high{% else %}duplicate-low{% endif %}">
+                                    <code>{{ resolution }}</code>
+                                    <span title="avg duplicates per page">~{{ summary.avg_duplicates_per_page }} duplicates</span>
+                                    <span title="affected pages">across {{ summary.affected_pages }} pages</span>
+                                    <span title="total duplicate chunks">({{ summary.total_duplicate_chunks }})</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <span class="no-data">No duplicates</span>
                     {% endif %}
                 </td>
-
 
                 <td>
                     {% if result.error %}
