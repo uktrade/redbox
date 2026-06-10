@@ -1,19 +1,24 @@
 from dataclasses import dataclass
-from redbox.admin.ingest import _get_resolutions_for_file, _get_duplicate_chunks
+from redbox.admin.ingest import (
+    _get_resolutions_for_file,
+    _get_duplicate_chunks,
+    ChunkResolutionDetail,
+    ChunkDuplicateDetail,
+)
 
 
-@dataclass
-class ChunkResolutionDetail:
-    name: str
-    count: int
+# @dataclass
+# class ChunkResolutionDetail:
+#     name: str
+#     count: int
 
 
-@dataclass
-class ChunkDuplicateDetail:
-    name: str
-    avg_duplicates_per_page: float
-    affected_pages: int
-    total_duplicate_chunks: int
+# @dataclass
+# class ChunkDuplicateDetail:
+#     name: str
+#     avg_duplicates_per_page: float
+#     affected_pages: int
+#     total_duplicate_chunks: int
 
 
 @dataclass
@@ -31,7 +36,7 @@ class FileChunkResolutionResult:
 
     stored_name: str | None = None
     resolutions: list[ChunkResolutionDetail] | None = None
-    duplicates: dict | None = None
+    duplicates: list[ChunkDuplicateDetail] | None = None
     error: str | None = None
 
     @classmethod
@@ -45,9 +50,12 @@ class FileChunkResolutionResult:
             index_name=index_name,
         )
 
-        counts = list(resolutions.values())
+        counts = [r.count for r in resolutions]
+
         chunk_resolution_ok = len(counts) > 0 and len(set(counts)) == 1
+        # chunk_duplicate_ok =
         file_ingestion_ok = file.status == "complete"
+        overall_ok = chunk_resolution_ok and file_ingestion_ok
 
         return cls(
             created_at_ts=int(file.created_at.timestamp()),
@@ -58,15 +66,9 @@ class FileChunkResolutionResult:
             file_ingestion_status=file.status,
             file_ingestion_ok=file_ingestion_ok,
             chunk_resolution_ok=chunk_resolution_ok,
-            overall_ok=chunk_resolution_ok and file_ingestion_ok,
+            overall_ok=overall_ok,
             stored_name=file.unique_name,
-            resolutions=[
-                ChunkResolutionDetail(
-                    name=resolution,
-                    count=count,
-                )
-                for resolution, count in sorted(resolutions.items())
-            ],
+            resolutions=resolutions,
             duplicates=duplicates,
         )
 
@@ -104,4 +106,5 @@ class FileChunkResolutionResult:
         return {
             **self.__dict__,
             "resolutions": [r.__dict__ for r in self.resolutions] if self.resolutions else None,
+            "duplicates": [d.__dict__ for d in self.duplicates] if self.duplicates else None,
         }

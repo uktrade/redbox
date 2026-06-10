@@ -198,12 +198,12 @@ th.sortable {
                         —
                     {% elif result.duplicates %}
                         <div>
-                            {% for resolution, summary in result.duplicates.items %}
+                            {% for duplicate in result.duplicates %}
                                 <div style="color:red" {% if summary.avg_duplicates_per_page > 2 %}duplicate-high{% else %}duplicate-low{% endif %}">
-                                    <code>{{ resolution }}</code>
-                                    <span title="avg duplicates per page">~{{ summary.avg_duplicates_per_page }} duplicates</span>
-                                    <span title="affected pages">across {{ summary.affected_pages }} pages</span>
-                                    <span title="total duplicate chunks">({{ summary.total_duplicate_chunks }})</span>
+                                    <code>{{ duplicate.name }}</code>
+                                    <span title="avg duplicates per page">~{{ duplicate.avg_duplicates_per_page }} duplicates</span>
+                                    <span title="affected pages">across {{ duplicate.affected_pages }} pages</span>
+                                    <span title="total duplicate chunks">({{ duplicate.total_duplicate_chunks }})</span>
                                 </div>
                             {% endfor %}
                         </div>

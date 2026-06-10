@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from collections import defaultdict
 
 from redbox.models.settings import get_settings
@@ -6,11 +7,25 @@ from redbox.models.file import ChunkResolution
 env = get_settings()
 
 
+@dataclass
+class ChunkResolutionDetail:
+    name: str
+    count: int
+
+
+@dataclass
+class ChunkDuplicateDetail:
+    name: str
+    avg_duplicates_per_page: float
+    affected_pages: int
+    total_duplicate_chunks: int
+
+
 def _es_client():
     return env.elasticsearch_client()
 
 
-def _get_resolutions_for_file(file_uri: str, index_name: str) -> dict[str, int]:
+def _get_resolutions_for_file(file_uri: str, index_name: str) -> list[ChunkResolutionDetail]:
     """Return chunk_resolution -> count for *file_uri* across the main alias index."""
     es = _es_client()
     resp = es.search(
@@ -21,7 +36,10 @@ def _get_resolutions_for_file(file_uri: str, index_name: str) -> dict[str, int]:
             "aggs": {"resolutions": {"terms": {"field": "metadata.chunk_resolution.keyword"}}},
         },
     )
-    resolutions = {bucket["key"]: bucket["doc_count"] for bucket in resp["aggregations"]["resolutions"]["buckets"]}
+    resolutions = {
+        bucket["key"]: ChunkResolutionDetail(name=bucket["key"], count=bucket["doc_count"])
+        for bucket in resp["aggregations"]["resolutions"]["buckets"]
+    }
 
     is_tabular = file_uri.endswith((".csv", ".tsv", ".xls", ".xlsx"))
     expected_resolutions = (
@@ -29,18 +47,14 @@ def _get_resolutions_for_file(file_uri: str, index_name: str) -> dict[str, int]:
     )
     for res in expected_resolutions:
         if res not in resolutions.keys():
-            resolutions[res] = 0
+            resolutions[res] = ChunkResolutionDetail(name=res, count=0)
 
-    return resolutions
+    return resolutions.values()
 
 
-def _get_duplicate_chunks(file_uri: str, index_name: str) -> dict[str, dict]:
+def _get_duplicate_chunks(file_uri: str, index_name: str) -> list[ChunkDuplicateDetail]:
     """
-    Returns per-resolution duplicate summary:
-    {
-        "large": {"avg_duplicates_per_page": 2.5, "affected_pages": 4, "total_duplicate_chunks": 10},
-        ...
-    }
+    Returns per-resolution duplicate summary
     """
     es = _es_client()
     # resolution -> list of per-page doc_counts
@@ -89,10 +103,11 @@ def _get_duplicate_chunks(file_uri: str, index_name: str) -> dict[str, dict]:
             break
 
     return {
-        resolution: {
-            "avg_duplicates_per_page": round(sum(counts) / len(counts), 2),
-            "affected_pages": len(counts),
-            "total_duplicate_chunks": sum(counts),
-        }
+        resolution: ChunkDuplicateDetail(
+            name=resolution,
+            avg_duplicates_per_page=round(sum(counts) / len(counts), 2),
+            affected_pages=len(counts),
+            total_duplicate_chunks=sum(counts),
+        )
         for resolution, counts in resolution_page_counts.items()
-    }
+    }.values()
