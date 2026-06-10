@@ -6,7 +6,6 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django_q.tasks import async_task
 
-from redbox.admin.ingest import _get_duplicate_chunks, _get_resolutions_for_file
 from redbox.admin.models import FileChunkResolutionResult
 from redbox.models.settings import get_settings
 from redbox_app.redbox_core.models import File
@@ -54,12 +53,7 @@ def check_chunk_resolutions(_, request, queryset):
     for file in queryset:
         try:
             if file.status == "complete":
-                resolutions = _get_resolutions_for_file(
-                    file_uri=file.unique_name,
-                    index_name=env.elastic_alias,
-                )
-                duplicates = _get_duplicate_chunks(file_uri=file.unique_name, index_name=env.elastic_alias)
-                result = FileChunkResolutionResult.from_complete_file(file, resolutions, duplicates)
+                result = FileChunkResolutionResult.from_complete_file(file, env.elastic_alias)
             else:
                 result = FileChunkResolutionResult.from_incomplete_file(file)
         except Exception as exc:  # noqa: BLE001
@@ -71,36 +65,16 @@ def check_chunk_resolutions(_, request, queryset):
     return HttpResponseRedirect(reverse("admin:files_chunk_resolution_report"))
 
 
-# def opensearch_ingest(file: File):
-#     if file.status == "complete":
-#         resolutions = _get_resolutions_for_file(
-#             file_uri=file.unique_name,
-#             index_name=env.elastic_alias,
-#         )
-#         result = FileChunkResolutionResult.from_complete_file(file, resolutions)
-#         if not result.healthy:
-#             problematic = [r.name for r in resolutions if r.is_low]
-#             return problematic
-#     return []
-
-
 def enqueue_reingest(self, request, file: File) -> None:
     logger.info("Queueing file for reingestion: %s", file)
 
     if file.status == "complete":
-        resolutions = _get_resolutions_for_file(
-            file_uri=file.unique_name,
-            index_name=env.elastic_alias,
-        )
-        duplicates = _get_duplicate_chunks(file_uri=file.unique_name, index_name=env.elastic_alias)
         result = FileChunkResolutionResult.from_complete_file(
             file=file,
-            resolutions=resolutions,
-            duplicates=duplicates,
+            index_name=env.elastic_alias,
         )
         if not result.chunk_resolution_ok:
-            problematic = [r.name for r in result.resolutions if r.is_low]
-            self.message_user(request, f"Reingesting '{file.unique_name}' to resolutions: {', '.join(problematic)}")
+            self.message_user(request, f"Reingesting '{file.unique_name}'...")
 
             async_task(ingest, file.id, env.elastic_alias)
             logger.info("Successfully queued file %s.", file)

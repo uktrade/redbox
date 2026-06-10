@@ -1,12 +1,19 @@
 from dataclasses import dataclass
+from redbox.admin.ingest import _get_resolutions_for_file, _get_duplicate_chunks
 
 
 @dataclass
 class ChunkResolutionDetail:
     name: str
     count: int
-    is_low: bool
-    missing: int
+
+
+@dataclass
+class ChunkDuplicateDetail:
+    name: str
+    avg_duplicates_per_page: float
+    affected_pages: int
+    total_duplicate_chunks: int
 
 
 @dataclass
@@ -28,11 +35,19 @@ class FileChunkResolutionResult:
     error: str | None = None
 
     @classmethod
-    def from_complete_file(cls, file, resolutions: dict[str, int], duplicates: dict) -> "FileChunkResolutionResult":
+    def from_complete_file(cls, file, index_name: str) -> "FileChunkResolutionResult":
+        resolutions = _get_resolutions_for_file(
+            file_uri=file.unique_name,
+            index_name=index_name,
+        )
+        duplicates = _get_duplicate_chunks(
+            file_uri=file.unique_name,
+            index_name=index_name,
+        )
+
         counts = list(resolutions.values())
         chunk_resolution_ok = len(counts) > 0 and len(set(counts)) == 1
         file_ingestion_ok = file.status == "complete"
-        max_count = max(counts) if counts else 0
 
         return cls(
             created_at_ts=int(file.created_at.timestamp()),
@@ -49,8 +64,6 @@ class FileChunkResolutionResult:
                 ChunkResolutionDetail(
                     name=resolution,
                     count=count,
-                    is_low=count < max_count,
-                    missing=max_count - count,
                 )
                 for resolution, count in sorted(resolutions.items())
             ],

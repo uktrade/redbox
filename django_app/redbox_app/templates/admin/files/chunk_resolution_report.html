@@ -167,7 +167,7 @@ th.sortable {
                     {% if result.resolutions %}
                         <div class="resolution-list">
                             {% for resolution in result.resolutions %}
-                                <span class="resolution-badge {% if resolution.is_low %}resolution-badge-low{% endif %}">
+                                <span class="resolution-badge {% if not result.chunk_resolution_ok %}resolution-badge-low{% endif %}">
                                     <span class="resolution-name">
                                         {{ resolution.name }}
                                     </span>
@@ -175,12 +175,6 @@ th.sortable {
                                     <span>
                                         {{ resolution.count }}
                                     </span>
-
-                                    {% if resolution.is_low %}
-                                        <span class="resolution-missing">
-                                            (-{{ resolution.missing }})
-                                        </span>
-                                    {% endif %}
                                 </span>
                             {% endfor %}
                         </div>
