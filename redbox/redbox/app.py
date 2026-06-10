@@ -246,12 +246,6 @@ class Redbox:
                 is_summary_multiagent_streamed=is_summary_multiagent_streamed,
                 is_evaluator_output_streamed=is_evaluator_output_streamed,
             )
-            if final_state is None:
-                logger.error("app: LLM Error - Blank Response; graph produced no final state")
-            elif not final_state.messages:
-                logger.error("app: LLM Error - Blank Response; final state has no messages")
-            elif not (final_state.messages[-1].content or "").strip():
-                logger.error("app: LLM Error - Blank Response; final message content is empty")
 
         except CancelledError:
             logger.error("All retries exhausted for CancelledError in the astream_events function")
