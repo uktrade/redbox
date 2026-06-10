@@ -1,5 +1,7 @@
 // @ts-check
 
+import { emitEvent, Events } from "../../interaction_design_system/ids/events";
+
 /**
  * Checks the status of a uploaded document at regular intervals
  * @param {string} id - Document ID
@@ -16,9 +18,7 @@
 
     switch(responseStatus) {
         case "complete":
-            document.body.dispatchEvent(new CustomEvent("doc-complete", {
-                detail: {id, status: responseStatus},
-            }));
+            emitEvent(Events.DOC_COMPLETE, {id, status: responseStatus});
             break;
         case "processing":
             if (retries >= MAX_RETRIES) break;
@@ -27,9 +27,7 @@
             }, CHECK_INTERVAL_MS);
             break;
         default:
-            document.body.dispatchEvent(new CustomEvent("doc-error", {
-                detail: {id, status: responseStatus},
-            }));
+            emitEvent(Events.DOC_ERROR, {id, status: responseStatus});
             break;
     }
 }
