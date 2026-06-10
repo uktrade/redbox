@@ -90,6 +90,10 @@ th.sortable {
                 </th>
 
                 <th>
+                    Chunk Duplicates
+                </th>
+
+                <th>
                     Error
                 </th>
 
@@ -187,6 +191,21 @@ th.sortable {
                         —
                     {% endif %}
                 </td>
+
+                <td>
+                    {% if result.duplicates %}
+                        <div class="resolution-list">
+                            {{ result.duplicates }}
+                        </div>
+                    {% elif not result.error %}
+                        <span style="color:#666">
+                            No chunks found
+                        </span>
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+
 
                 <td>
                     {% if result.error %}

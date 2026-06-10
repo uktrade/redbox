@@ -6,7 +6,7 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django_q.tasks import async_task
 
-from redbox.admin.ingest import _get_resolutions_for_file
+from redbox.admin.ingest import _get_duplicate_chunks, _get_resolutions_for_file
 from redbox.admin.models import FileChunkResolutionResult
 from redbox.models.settings import get_settings
 from redbox_app.redbox_core.models import File
@@ -58,7 +58,8 @@ def check_chunk_resolutions(_, request, queryset):
                     file_uri=file.unique_name,
                     index_name=env.elastic_alias,
                 )
-                result = FileChunkResolutionResult.from_complete_file(file, resolutions)
+                duplicates = _get_duplicate_chunks(file_uri=file.unique_name, index_name=env.elastic_alias)
+                result = FileChunkResolutionResult.from_complete_file(file, resolutions, duplicates)
             else:
                 result = FileChunkResolutionResult.from_incomplete_file(file)
         except Exception as exc:  # noqa: BLE001
@@ -91,9 +92,11 @@ def enqueue_reingest(self, request, file: File) -> None:
             file_uri=file.unique_name,
             index_name=env.elastic_alias,
         )
+        duplicates = _get_duplicate_chunks(file_uri=file.unique_name, index_name=env.elastic_alias)
         result = FileChunkResolutionResult.from_complete_file(
             file=file,
             resolutions=resolutions,
+            duplicates=duplicates,
         )
         if not result.chunk_resolution_ok:
             problematic = [r.name for r in result.resolutions if r.is_low]

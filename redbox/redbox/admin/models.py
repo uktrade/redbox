@@ -24,10 +24,11 @@ class FileChunkResolutionResult:
 
     stored_name: str | None = None
     resolutions: list[ChunkResolutionDetail] | None = None
+    duplicates: dict | None = None
     error: str | None = None
 
     @classmethod
-    def from_complete_file(cls, file, resolutions: dict[str, int]) -> "FileChunkResolutionResult":
+    def from_complete_file(cls, file, resolutions: dict[str, int], duplicates: dict) -> "FileChunkResolutionResult":
         counts = list(resolutions.values())
         chunk_resolution_ok = len(counts) > 0 and len(set(counts)) == 1
         file_ingestion_ok = file.status == "complete"
@@ -53,6 +54,7 @@ class FileChunkResolutionResult:
                 )
                 for resolution, count in sorted(resolutions.items())
             ],
+            duplicates=duplicates,
         )
 
     @classmethod
