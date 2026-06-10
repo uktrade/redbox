@@ -126,7 +126,7 @@ th.sortable {
             <tr style="background-color: rgb(255, 239, 206);">
             {% endif %}
                 <td>
-                    {% if not result.overall_ok and result.file_ingestion_ok %}
+                    {% if not result.overall_ok and result.file_ingestion_ok and not result.reingestion_queued %}
                         <input
                             type="checkbox"
                             name="file_ids"
@@ -249,12 +249,10 @@ th.sortable {
                 </td>
 
                 <td data-sort="{% if not result.overall_ok and result.file_ingestion_ok %}0{% elif not result.file_ingestion_ok %}-1{% else %}1{% endif %}">
-                    {% if not result.overall_ok and result.file_ingestion_ok %}
-                        <button
-                            type="submit"
-                            name="file_ids"
-                            value="{{ result.file_id }}"
-                        >
+                    {% if result.reingestion_queued %}
+                        <span style="color: #7a5800">⏳ Queued</span>
+                    {% elif not result.overall_ok and result.file_ingestion_ok %}
+                        <button type="submit" name="file_ids" value="{{ result.file_id }}">
                             Reingest
                         </button>
                     {% elif not result.file_ingestion_ok %}

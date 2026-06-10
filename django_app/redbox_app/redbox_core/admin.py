@@ -323,11 +323,15 @@ class FileAdmin(ExportMixin, admin.ModelAdmin):
         for file in files:
             enqueue_reingest(self, request, file)
 
-        self.message_user(
-            request,
-            f"Queued {files.count()} file(s) for reingestion.",
-        )
+        results = request.session.get("chunk_resolution_results", [])
+        queued_ids = {str(f.pk) for f in files}
+        for result in results:
+            if result["file_id"] in queued_ids:
+                result["reingestion_queued"] = True
+        request.session["chunk_resolution_results"] = results
+        request.session.modified = True
 
+        self.message_user(request, f"Queued {files.count()} file(s) for reingestion.")
         return HttpResponseRedirect(reverse("admin:files_chunk_resolution_report"))
 
 

@@ -25,6 +25,7 @@ class FileChunkResolutionResult:
     resolutions: list[ChunkResolutionDetail] | None = None
     duplicates: list[ChunkDuplicateDetail] | None = None
     error: str | None = None
+    reingestion_queued: bool | None = None
 
     @classmethod
     def from_complete_file(cls, file, index_name: str) -> "FileChunkResolutionResult":
