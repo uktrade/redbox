@@ -217,8 +217,8 @@ class TextractChunkLoader:
 
     def __init__(
         self,
-        chunk_resolution: ChunkResolution,
         bucket: str,
+        chunk_resolution: ChunkResolution = ChunkResolution.normal,
         min_chunk_size: int = 500,
         max_chunk_size: int = 2000,
         overlap_chars: int = 200,
@@ -661,8 +661,8 @@ class MetadataLoader:
         start_time = time.time()
 
         loader = TextractChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
             bucket=self.env.bucket_name,
+            chunk_resolution=ChunkResolution.normal,
             min_chunk_size=200,
             max_chunk_size=2000,
             overlap_chars=0,

@@ -83,8 +83,8 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
 
     chunk_ingest_chain = ingest_from_loader(
         loader=TextractChunkLoader(
-            chunk_resolution=ChunkResolution.normal,
             bucket=env.bucket_name,
+            chunk_resolution=ChunkResolution.normal,
             min_chunk_size=env.worker_ingest_min_chunk_size,
             max_chunk_size=env.worker_ingest_max_chunk_size,
             overlap_chars=0,
@@ -97,8 +97,8 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
 
     large_chunk_ingest_chain = ingest_from_loader(
         loader=TextractChunkLoader(
-            chunk_resolution=ChunkResolution.largest,
             bucket=env.bucket_name,
+            chunk_resolution=ChunkResolution.largest,
             min_chunk_size=env.worker_ingest_largest_chunk_size,
             max_chunk_size=env.worker_ingest_largest_chunk_size,
             overlap_chars=env.worker_ingest_largest_chunk_overlap,
@@ -111,8 +111,8 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
 
     tabular_chunk_ingest_chain = ingest_from_loader(
         loader=TextractChunkLoader(
-            chunk_resolution=ChunkResolution.tabular,
             bucket=env.bucket_name,
+            chunk_resolution=ChunkResolution.tabular,
             min_chunk_size=env.worker_ingest_largest_chunk_size,
             max_chunk_size=env.worker_ingest_largest_chunk_size,
             overlap_chars=env.worker_ingest_largest_chunk_overlap,
@@ -125,8 +125,8 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
 
     tabular_schema_chunk_ingest_chain = ingest_from_loader(
         loader=TextractChunkLoader(
-            chunk_resolution=ChunkResolution.tabular,
             bucket=env.bucket_name,
+            chunk_resolution=ChunkResolution.tabular,
             min_chunk_size=env.worker_ingest_largest_chunk_size,
             max_chunk_size=env.worker_ingest_largest_chunk_size,
             overlap_chars=env.worker_ingest_largest_chunk_overlap,
