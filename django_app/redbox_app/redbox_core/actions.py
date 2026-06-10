@@ -95,7 +95,7 @@ def enqueue_reingest(self, request, file: File) -> None:
             file=file,
             resolutions=resolutions,
         )
-        if not result.chunk_resolution_status:
+        if not result.chunk_resolution_ok:
             problematic = [r.name for r in result.resolutions if r.is_low]
             self.message_user(request, f"Reingesting '{file.unique_name}' to resolutions: {', '.join(problematic)}")
 
