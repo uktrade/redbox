@@ -7,20 +7,6 @@ from redbox.admin.ingest import (
 )
 
 
-# @dataclass
-# class ChunkResolutionDetail:
-#     name: str
-#     count: int
-
-
-# @dataclass
-# class ChunkDuplicateDetail:
-#     name: str
-#     avg_duplicates_per_page: float
-#     affected_pages: int
-#     total_duplicate_chunks: int
-
-
 @dataclass
 class FileChunkResolutionResult:
     created_at_ts: int
@@ -30,9 +16,10 @@ class FileChunkResolutionResult:
     user: str
 
     file_ingestion_status: str
-    file_ingestion_ok: bool
-    chunk_resolution_ok: bool
-    overall_ok: bool
+    file_ingestion_ok: bool = False
+    chunk_resolution_ok: bool = False
+    chunk_duplicates_ok: bool = False
+    overall_ok: bool = False
 
     stored_name: str | None = None
     resolutions: list[ChunkResolutionDetail] | None = None
@@ -53,9 +40,12 @@ class FileChunkResolutionResult:
         counts = [r.count for r in resolutions]
 
         chunk_resolution_ok = len(counts) > 0 and len(set(counts)) == 1
-        # chunk_duplicate_ok =
+        chunk_duplicate_ok = len(duplicates) == 0
+        chunk_ok = chunk_resolution_ok and chunk_duplicate_ok
+
         file_ingestion_ok = file.status == "complete"
-        overall_ok = chunk_resolution_ok and file_ingestion_ok
+
+        overall_ok = chunk_ok and file_ingestion_ok
 
         return cls(
             created_at_ts=int(file.created_at.timestamp()),
@@ -66,6 +56,7 @@ class FileChunkResolutionResult:
             file_ingestion_status=file.status,
             file_ingestion_ok=file_ingestion_ok,
             chunk_resolution_ok=chunk_resolution_ok,
+            chunk_duplicates_ok=chunk_duplicate_ok,
             overall_ok=overall_ok,
             stored_name=file.unique_name,
             resolutions=resolutions,
@@ -81,9 +72,6 @@ class FileChunkResolutionResult:
             file_name=file.file_name,
             user=file.user.email,
             file_ingestion_status=file.status,
-            file_ingestion_ok=False,
-            chunk_resolution_ok=False,
-            overall_ok=False,
         )
 
     @classmethod
@@ -95,9 +83,6 @@ class FileChunkResolutionResult:
             file_name=file.file_name,
             user=file.user.email,
             file_ingestion_status=file.status,
-            file_ingestion_ok=False,
-            chunk_resolution_ok=False,
-            overall_ok=False,
             stored_name=file.unique_name,
             error=str(exc),
         )
