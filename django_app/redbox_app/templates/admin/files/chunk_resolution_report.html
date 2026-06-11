@@ -318,25 +318,28 @@ function sortTable(columnIndex, header) {
         sortAscending ? "↑" : "↓";
 }
 
-sortTable(9, this)
-
 // Default sort by Created descending (newest first)
 window.addEventListener("load", () => {
     const createdHeader =
         document.querySelectorAll("th.sortable")[0];
 
-    sortTable(0, createdHeader);
-    sortTable(0, createdHeader);
-});
+    sortTable(1, createdHeader);
+    sortTable(1, createdHeader);
 
-const selectAll = document.getElementById("select-all");
+    const selectAll = document.getElementById("select-all");
 
-selectAll.addEventListener("change", () => {
-    document
-        .querySelectorAll('input[name="file_ids"]')
-        .forEach(cb => {
-            cb.checked = selectAll.checked;
-        });
+    if (!selectAll) {
+        console.error("select-all checkbox not found");
+        return;
+    }
+
+    selectAll.addEventListener("change", () => {
+        document
+            .querySelectorAll('input[name="file_ids"]')
+            .forEach(cb => {
+                cb.checked = selectAll.checked;
+            });
+    });
 });
 </script>
 
