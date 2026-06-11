@@ -186,7 +186,7 @@ def remove_duplicate_chunks(file_uri: str, index_name: str) -> None:
 
     for hit in resp["hits"]["hits"]:
         meta = hit["_source"]["metadata"]
-        key = (meta["uri"], meta["chunk_resolution"], meta["page_number"])
+        key = (meta["uri"], meta["chunk_resolution"], meta["page_number"], hit["_source"]["text"])
         if key in seen:
             ids_to_delete.append(hit["_id"])
         else:

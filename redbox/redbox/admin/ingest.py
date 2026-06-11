@@ -52,62 +52,76 @@ def _get_resolutions_for_file(file_uri: str, index_name: str) -> list[ChunkResol
     return resolutions.values()
 
 
-def _get_duplicate_chunks(file_uri: str, index_name: str) -> list[ChunkDuplicateDetail]:
+def _get_duplicate_chunks(
+    file_uri: str,
+    index_name: str,
+) -> list[ChunkDuplicateDetail]:
     """
-    Returns per-resolution duplicate summary
+    Returns per-resolution duplicate summary.
+
+    A duplicate is defined as chunks having the same:
+        (chunk_resolution, page_number, text)
+
+    Metrics:
+        affected_pages         = unique pages containing duplicates
+        total_duplicate_chunks = extra duplicate chunks beyond the first
+        avg_duplicates_per_page = total_duplicate_chunks / affected_pages
     """
     es = _es_client()
-    # resolution -> list of per-page doc_counts
-    resolution_page_counts: dict[str, list[int]] = defaultdict(list)
-    after = None
 
-    while True:
-        composite = {
-            "sources": [
-                {"uri": {"terms": {"field": "metadata.uri.keyword"}}},
-                {"resolution": {"terms": {"field": "metadata.chunk_resolution.keyword"}}},
-                {"page_number": {"terms": {"field": "metadata.page_number"}}},
-            ],
-            "size": 1000,
-        }
-        if after:
-            composite["after"] = after
-
-        resp = es.search(
-            index=index_name,
-            body={
-                "size": 0,
-                "query": {"term": {"metadata.uri.keyword": file_uri}},
-                "aggs": {
-                    "duplicate_groups": {
-                        "composite": composite,
-                        "aggs": {
-                            "is_duplicate": {
-                                "bucket_selector": {
-                                    "buckets_path": {"count": "_count"},
-                                    "script": "params.count > 1",
-                                }
-                            }
-                        },
-                    }
-                },
+    resp = es.search(
+        index=index_name,
+        body={
+            "size": 10000,
+            "query": {
+                "term": {
+                    "metadata.uri.keyword": file_uri,
+                }
             },
+            "_source": [
+                "text",
+                "metadata.chunk_resolution",
+                "metadata.page_number",
+            ],
+        },
+    )
+
+    seen: set[tuple[str, int, str]] = set()
+
+    resolution_pages: dict[str, set[int]] = defaultdict(set)
+    resolution_duplicate_counts: dict[str, int] = defaultdict(int)
+
+    for hit in resp["hits"]["hits"]:
+        source = hit["_source"]
+        metadata = source["metadata"]
+
+        resolution = metadata["chunk_resolution"]
+        page_number = metadata["page_number"]
+        text = (source.get("text") or "").strip()
+
+        key = (
+            resolution,
+            page_number,
+            text,
         )
 
-        buckets = resp["aggregations"]["duplicate_groups"]["buckets"]
-        for b in buckets:
-            resolution_page_counts[b["key"]["resolution"]].append(b["doc_count"])
+        if key in seen:
+            resolution_duplicate_counts[resolution] += 1
+            resolution_pages[resolution].add(page_number)
+        else:
+            seen.add(key)
 
-        after = resp["aggregations"]["duplicate_groups"].get("after_key")
-        if not after:
-            break
-
-    return {
-        resolution: ChunkDuplicateDetail(
+    return [
+        ChunkDuplicateDetail(
             name=resolution,
-            avg_duplicates_per_page=round(sum(counts) / len(counts), 2),
-            affected_pages=len(counts),
-            total_duplicate_chunks=sum(counts),
+            affected_pages=len(resolution_pages[resolution]),
+            total_duplicate_chunks=resolution_duplicate_counts[resolution],
+            avg_duplicates_per_page=round(
+                resolution_duplicate_counts[resolution] / len(resolution_pages[resolution]),
+                2,
+            )
+            if resolution_pages[resolution]
+            else 0,
         )
-        for resolution, counts in resolution_page_counts.items()
-    }.values()
+        for resolution in sorted(resolution_duplicate_counts)
+    ]
