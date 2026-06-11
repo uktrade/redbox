@@ -12,6 +12,7 @@ from redbox.chains.ingest import ingest_from_loader
 from redbox.loader.loaders import TextractChunkLoader, MetadataLoader
 from redbox.models.settings import get_settings
 from redbox.models.file import ChunkResolution
+from redbox.admin.ingest import _chunk_dedupe_key
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -185,8 +186,7 @@ def remove_duplicate_chunks(file_uri: str, index_name: str) -> None:
     ids_to_delete: list[str] = []
 
     for hit in resp["hits"]["hits"]:
-        meta = hit["_source"]["metadata"]
-        key = (meta["uri"], meta["chunk_resolution"], meta["page_number"], hit["_source"]["text"])
+        key = _chunk_dedupe_key(hit)
         if key in seen:
             ids_to_delete.append(hit["_id"])
         else:

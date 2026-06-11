@@ -52,6 +52,17 @@ def _get_resolutions_for_file(file_uri: str, index_name: str) -> list[ChunkResol
     return resolutions.values()
 
 
+def _chunk_dedupe_key(hit: dict) -> tuple:
+    meta = hit["_source"]["metadata"]
+
+    return (
+        meta["uri"],
+        meta["chunk_resolution"],
+        meta["page_number"],
+        hit["_source"]["text"],
+    )
+
+
 def _get_duplicate_chunks(
     file_uri: str,
     index_name: str,
@@ -80,6 +91,7 @@ def _get_duplicate_chunks(
             },
             "_source": [
                 "text",
+                "metadata.uri",
                 "metadata.chunk_resolution",
                 "metadata.page_number",
             ],
@@ -92,24 +104,19 @@ def _get_duplicate_chunks(
     resolution_duplicate_counts: dict[str, int] = defaultdict(int)
 
     for hit in resp["hits"]["hits"]:
-        source = hit["_source"]
-        metadata = source["metadata"]
+        key = _chunk_dedupe_key(hit)
 
-        resolution = metadata["chunk_resolution"]
-        page_number = metadata["page_number"]
-        text = (source.get("text") or "").strip()
-
-        key = (
-            resolution,
-            page_number,
-            text,
-        )
-
-        if key in seen:
-            resolution_duplicate_counts[resolution] += 1
-            resolution_pages[resolution].add(page_number)
-        else:
+        if key not in seen:
             seen.add(key)
+            continue
+
+        meta = hit["_source"]["metadata"]
+
+        resolution = meta["chunk_resolution"]
+        page_number = meta["page_number"]
+
+        resolution_duplicate_counts[resolution] += 1
+        resolution_pages[resolution].add(page_number)
 
     return [
         ChunkDuplicateDetail(
