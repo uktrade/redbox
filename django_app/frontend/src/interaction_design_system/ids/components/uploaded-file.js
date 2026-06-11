@@ -31,6 +31,8 @@ export class UploadedFile extends HTMLElement {
         const uploadedFileWrapper = /** @type {HTMLDivElement} */ (
             this.template.content.firstElementChild?.cloneNode(true)
         );
+        uploadedFileWrapper.setAttribute("role", "alert")
+        uploadedFileWrapper.setAttribute("aria-atomic", "true")
         this.appendChild(uploadedFileWrapper);
     }
 
