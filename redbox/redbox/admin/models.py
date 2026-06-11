@@ -40,7 +40,7 @@ class FileChunkResolutionResult:
 
         counts = [r.count for r in resolutions]
 
-        chunk_resolution_ok = len(counts) > 0 and len(set(counts)) == 1
+        chunk_resolution_ok = len(counts) > 0 and 0 not in counts
         chunk_duplicate_ok = len(duplicates) == 0
         chunk_ok = chunk_resolution_ok and chunk_duplicate_ok
 

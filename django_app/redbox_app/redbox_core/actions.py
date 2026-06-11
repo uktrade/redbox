@@ -78,7 +78,7 @@ def enqueue_reingest(self, request, file: File) -> None:
 
             if not result.chunk_resolution_ok:
                 self.message_user(request, f"Reingesting chunks '{file.unique_name}'...")
-                async_task(ingest, file.unique_name, env.elastic_alias)
+                async_task(ingest, file.id, env.elastic_alias)
                 logger.info("Successfully queued file ingest %s.", file)
 
             if not result.chunk_duplicates_ok:
