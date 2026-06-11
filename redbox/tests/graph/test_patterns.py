@@ -1,7 +1,6 @@
-import copy
-from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
+import copy
 import pytest
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, HumanMessage, ToolCall
@@ -9,13 +8,14 @@ from langchain_core.retrievers import BaseRetriever
 from langchain_core.runnables import RunnableLambda
 from langgraph.graph import END, START, StateGraph
 from pytest_mock import MockerFixture
+from unittest.mock import AsyncMock, patch
 
 from redbox.chains.components import get_structured_response_with_citations_parser
 from redbox.chains.runnables import CannedChatLLM, build_chat_prompt_from_messages_runnable, build_llm_chain
 from redbox.graph.nodes.processes import (
     build_agent_with_loop,
-    build_chat_pattern,
     build_datahub_agent_with_loop,
+    build_chat_pattern,
     build_merge_pattern,
     build_passthrough_pattern,
     build_retrieve_pattern,
@@ -25,7 +25,6 @@ from redbox.graph.nodes.processes import (
     check_if_tasks_completed,
     clear_documents_process,
     empty_process,
-    stream_plan,
 )
 from redbox.models.chain import (
     AISettings,
@@ -38,8 +37,8 @@ from redbox.models.chain import (
     TaskStatus,
     configure_agent_task_plan,
 )
-from redbox.models.chat import ChatRoute
 from redbox.models.prompts import DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS
+from redbox.models.chat import ChatRoute
 from redbox.test.data import (
     RedboxChatTestCase,
     RedboxTestData,
@@ -1193,21 +1192,3 @@ def test_check_if_tasks_completed(task_idx, task_status, expected, fake_state_wi
         fake_state.agent_plans.tasks[idx].status = task_status[i]
     actual = check_if_tasks_completed(fake_state)
     assert expected == actual
-
-
-def test_stream_plan_saves_to_messages(fake_state_with_plan):
-    state = copy.deepcopy(fake_state_with_plan)
-    pre_existing = len(state.messages)
-
-    result = stream_plan().invoke(state)
-
-    # Assertions
-    assert isinstance(result, RedboxState)
-    assert len(result.messages) == pre_existing + 1
-
-    message = result.messages[-1]
-    assert isinstance(message, AIMessage)
-
-    assert message.content.strip() != ""
-    for task in state.agent_plans.tasks:
-        assert task.task in message.content

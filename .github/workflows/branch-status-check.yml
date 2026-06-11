@@ -30,7 +30,7 @@ jobs:
           echo "Checking branch name: $BRANCH_NAME"
 
           # Define allowed naming patterns (Regex for feature, bugfix, etc.)
-          if [[ ! "$BRANCH_NAME" =~ ^(main|feature/.*|chore/.*|bugfix/.*|hotfix/.*|dependabot/.*|security/.*|dev)$ ]]; then
+          if [[ ! "$BRANCH_NAME" =~ ^(main|feature/.*|chore/.*|bugfix/.*|hotfix/.*|dependabot/.*|security/.*|dev|revert.*)$ ]]; then
             echo "Error: Invalid branch name '$BRANCH_NAME'. It must follow one of the following patterns:"
             echo "- main"
             echo "- feature/*"
@@ -40,6 +40,7 @@ jobs:
             echo "- dependabot/*"
             echo "- security/*"
             echo "- dev"
+            echo "- revert*"
             exit 1
           fi
 
