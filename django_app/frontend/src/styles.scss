@@ -37,6 +37,9 @@ button,
   border-radius: 0px !important; // make the element have square borders when focussed
   &:focus{
     @include govuk-focused-text;
+    &.dark{
+        box-shadow: 0 -2px var(--color-focus), 0 4px var(--color-background-white)!important;
+    }
   }
 }
 
