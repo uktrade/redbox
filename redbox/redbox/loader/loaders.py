@@ -218,7 +218,7 @@ class TextractChunkLoader:
     def __init__(
         self,
         bucket: str,
-        chunk_resolution: ChunkResolution.normal,
+        chunk_resolution: ChunkResolution = ChunkResolution.normal,
         min_chunk_size: int = 500,
         max_chunk_size: int = 2000,
         overlap_chars: int = 200,
@@ -540,6 +540,39 @@ class TextractChunkLoader:
         text = file_bytes.read().decode("utf-8", errors="replace")
         return [text] if text.strip() else []
 
+    def _extract_pages(self, display_name: str, file_bytes: BytesIO, s3_key: str) -> list[tuple[int, str]]:
+        """Returns list of (page_num, text) tuples."""
+        if display_name.endswith((".pptx", ".ppt")):
+            logger.info("Extracting PPTX: %s", display_name)
+            raw = self._extract_pptx(file_bytes)
+
+        elif display_name.endswith(".docx"):
+            logger.info("Extracting DOCX: %s", display_name)
+            raw = self._extract_docx(file_bytes)
+
+        elif display_name.endswith(".pdf"):
+            logger.info("Extracting PDF: %s", display_name)
+            large_pdf, page_count = is_large_pdf(display_name, file_bytes)
+            if large_pdf:
+                if _pdf_is_image_heavy(file_bytes):
+                    logger.info("Large image-heavy PDF (%d pages); using Textract", page_count)
+                    raw = self._extract_pdf_from_s3(bucket=self.bucket, key=s3_key)
+                else:
+                    logger.info("Large PDF (%d pages); using direct text extraction", page_count)
+                    raw = self._extract_pdf_text_direct(file_bytes)
+            else:
+                try:
+                    raw = self._extract_pdf_from_s3(bucket=self.bucket, key=s3_key)
+                except Exception:
+                    logger.warning("Textract failed for %s; falling back to direct extraction", display_name)
+                    raw = self._extract_pdf_text_direct(file_bytes)
+
+        else:
+            logger.info("Processing with unstructured: %s", display_name)
+            raw = self._extract_with_unstructured(file_bytes, display_name)
+
+        return [(page_num, text) for page_num, text in enumerate(raw, start=1)]
+
     def lazy_load(
         self,
         file_name: str,
@@ -578,68 +611,50 @@ class TextractChunkLoader:
                 yield Document(page_content=el["text"], metadata=merged_metadata)
             return
 
-        if display_name.lower().endswith(".pptx"):
-            logger.info("This is a PPTX file: %s", display_name)
-            pages = self._extract_pptx(file_bytes)
+        # Non-tabular: extract pages, then chunk across full document
+        pages = self._extract_pages(display_name, file_bytes, s3_key)
 
-        if display_name.lower().endswith(".ppt"):
-            logger.info("This is a legacy PowerPoint file: %s", display_name)
-            pages = self._extract_pptx(file_bytes)
+        full_text_parts = []
+        page_offsets: list[tuple[int, int]] = []  # (char_offset, page_num)
+        cursor = 0
+        for page_num, text in pages:
+            page_offsets.append((cursor, page_num))
+            full_text_parts.append(text)
+            cursor += len(text) + 1
 
-        if display_name.lower().endswith(".docx"):
-            logger.info("This is a document file: %s", display_name)
-            pages = self._extract_docx(file_bytes)
+        full_text = "\n".join(full_text_parts)
 
-        if display_name.endswith(".pdf"):
-            logger.info("This is a PDF file: %s", display_name)
-            large_pdf, page_count = is_large_pdf(display_name, file_bytes)
-            if large_pdf:
-                if _pdf_is_image_heavy(file_bytes):
-                    logger.info(
-                        "Large image-heavy PDF detected (%d pages); using Textract with adaptive backoff",
-                        page_count,
-                    )
-                    pages = self._extract_pdf_from_s3(bucket=self.bucket, key=s3_key)
-                else:
-                    logger.info(
-                        "Large PDF detected (%d pages); extracting text directly instead of Textract",
-                        page_count,
-                    )
-                    pages = self._extract_pdf_text_direct(file_bytes)
-            else:
-                try:
-                    pages = self._extract_pdf_from_s3(bucket=self.bucket, key=s3_key)
-                except Exception:
-                    logger.warning(
-                        "Textract failed for %s; falling back to direct PDF text extraction",
-                        display_name,
-                    )
-                    pages = self._extract_pdf_text_direct(file_bytes)
-
-        else:
-            logger.info("Processing with unstructured: %s", display_name)
-            pages = self._extract_with_unstructured(file_bytes, file_name)
+        # Chunk across the full document — overlap now works across page boundaries
+        chunks = self._chunk_text(full_text)
 
         idx = 0
-        for page_num, page_text in enumerate(pages, start=1):
-            chunks = self._chunk_text(page_text)
-            if not chunks:
-                logger.warning("No chunks produced for page %s", page_num)
-                continue
-            for chunk in chunks:
-                metadata = UploadedFileMetadata(
-                    index=idx,
-                    uri=s3_key,
-                    page_number=page_num,
-                    created_datetime=datetime.now(UTC),
-                    token_count=tokeniser(chunk),
-                    chunk_resolution=self.chunk_resolution,
-                    name=self.metadata.name,
-                    description=self.metadata.description,
-                    keywords=self.metadata.keywords,
-                ).model_dump()
-                yield Document(page_content=chunk, metadata=metadata)
-                idx += 1
+        cursor = 0
+        for chunk in chunks:
+            # Find which page this chunk starts on via binary search
+            lo, hi = 0, len(page_offsets) - 1
+            while lo < hi:
+                mid = (lo + hi + 1) // 2
+                if page_offsets[mid][0] <= cursor:
+                    lo = mid
+                else:
+                    hi = mid - 1
+            page_number = page_offsets[lo][1]
+
+            metadata = UploadedFileMetadata(
+                index=idx,
+                uri=s3_key,
+                page_number=page_number,
+                created_datetime=datetime.now(UTC),
+                token_count=tokeniser(chunk),
+                chunk_resolution=self.chunk_resolution,
+                name=self.metadata.name,
+                description=self.metadata.description,
+                keywords=self.metadata.keywords,
+            ).model_dump()
+            yield Document(page_content=chunk, metadata=metadata)
+
+            idx += 1
+            cursor += len(chunk) - self.overlap_chars  # mirror _chunk_text's advance
 
 
 class MetadataLoader:
