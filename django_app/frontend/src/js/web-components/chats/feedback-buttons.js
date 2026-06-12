@@ -25,10 +25,10 @@ export class FeedbackButtons extends HTMLElement {
     <fieldset class="feedback-container feedback-container--1" tabindex="-1">
       <legend class="feedback__heading">Is this response useful?</legend>
       <div class="feedback-button-container">
-      <button class="thumb_feedback-btn thumb_feedback-btn--up" type="button">
+      <button class="thumb_feedback-btn thumb_feedback-btn--up focusable" type="button">
         <img src="/static/icons/thumbs-up.svg" alt="Yes" />
       </button>
-      <button class="thumb_feedback-btn thumb_feedback-btn--down" type="button">
+      <button class="thumb_feedback-btn thumb_feedback-btn--down focusable" type="button">
         <img src="/static/icons/thumbs-down.svg" alt="No" />
       </button>
       </div>
