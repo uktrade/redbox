@@ -1001,6 +1001,25 @@ def build_legislation_search_tool():
     return _search_legislation
 
 
+def build_negotiation_planner_search_tool():
+    @tool(response_format="content_and_artifact")
+    def _search_negotiation_planner(query: str):
+        """
+        Web search with preference for reputable sources relevant to negotiation planning.
+
+        Args:
+            query (str): The search query to pass to negotiation planning search engine.
+            - Can be natural language, keywords, or phrases
+            - More specific queries yield more precise results
+            - Query length should be 1-500 characters
+        Returns:
+            dict[str, Any]: Collection of matching document snippets with metadata:
+        """
+        return web_search_call(query=query)
+
+    return _search_negotiation_planner
+
+
 async def get_datahub_mcp_tools(sso_token_getter: Callable[[], str] | None = None, agent_loop=True):
     try:
         log.info("get_datahub_mcp_tools - Loading Datahub MCP tools...")

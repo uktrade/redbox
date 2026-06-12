@@ -18,6 +18,7 @@ from redbox.graph.nodes.tools import (
     build_document_from_prompt_tool,
     build_govuk_search_tool,
     build_legislation_search_tool,
+    build_negotiation_planner_search_tool,
     build_query_tabular_file_tool,
     build_retrieve_document_full_text,
     build_retrieve_knowledge_base,
@@ -117,6 +118,7 @@ class Redbox:
         search_govuk = build_govuk_search_tool()
         web_search = build_web_search_tool()
         legislation_search = build_legislation_search_tool()
+        negotiation_planner_search = build_negotiation_planner_search_tool()
         doc_from_prompt = build_document_from_prompt_tool(loop=True)
 
         self.agent_configs["Internal_Retrieval_Agent"].tools = [search_documents]
@@ -124,6 +126,7 @@ class Redbox:
         self.agent_configs["Tabular_Agent"].tools = [query_tabular_file]
         self.agent_configs["Web_Search_Agent"].tools = [web_search]
         self.agent_configs["Legislation_Search_Agent"].tools = [legislation_search]
+        self.agent_configs["Negotiation_Planner_Search_Agent"].tools = [negotiation_planner_search]
         self.agent_configs["Submission_Question_Answer_Agent"].tools = [
             retrieve_full_text,
             retrieve_knowledge_base,

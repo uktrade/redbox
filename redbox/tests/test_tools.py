@@ -21,6 +21,7 @@ from redbox.graph.nodes.tools import (
     build_document_from_prompt_tool,
     build_govuk_search_tool,
     build_legislation_search_tool,
+    build_negotiation_planner_search_tool,
     build_query_tabular_file_tool,
     build_retrieve_document_full_text,
     build_retrieve_knowledge_base,
@@ -941,6 +942,41 @@ def test_legislation_search_tool(query, no_search_results):
     for res in response["messages"][0].artifact:
         netloc = urlparse(res.metadata["uri"]).netloc
         assert "www.legislation.gov.uk" == netloc
+
+
+@pytest.mark.parametrize(
+    "query, no_search_results, search_url",
+    [
+        ("Tell me about the CPTPP", 20, None),
+        ("What current events may affect agricultural imports and exports to switzerland", 20, None),
+        (
+            "What are Switzerland's current economic priorities according to the Swiss State Secretariat for Economic Affairs (seco.admin.sh)",
+            20,
+            "www.seco.admin.sh",
+        ),
+    ],
+)
+@pytest.mark.vcr
+@pytest.mark.xfail(reason="calls api")
+def test_negotiation_planner_search_tool(query, no_search_results, search_url):
+    tool = build_negotiation_planner_search_tool()
+    tool_node = ToolNode(tools=[tool])
+    response = tool_node.invoke(
+        [
+            {
+                "name": "_search_negotiation_planner",
+                "args": {"query": query},
+                "id": "1",
+                "type": "tool_call",
+            }
+        ]
+    )
+    assert response["messages"][0].content != ""
+    assert len(response["messages"][0].artifact) <= no_search_results
+    if search_url:
+        for res in response["messages"][0].artifact:
+            netloc = urlparse(res.metadata["uri"]).netloc
+            assert "www.seco.admin.sh" == netloc
 
 
 def test_reduce_chunks_by_tokens_empty_chunks():
