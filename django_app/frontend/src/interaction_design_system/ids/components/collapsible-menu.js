@@ -7,7 +7,10 @@ class CollapsibleMenu extends HTMLElement {
         this.onEscapeKey = this.onEscapeKey.bind(this);
         this.onToggle = this.onToggle.bind(this);
     }
+
     connectedCallback() {
+        this.addEventListener("focusout", this.onFocusOut)
+
         this.details = this.querySelector('details');
         if (!this.details) return;
 
@@ -47,6 +50,17 @@ class CollapsibleMenu extends HTMLElement {
 
         // Close if click outside this component
         if (!this.contains(target)) this.details.open = false;
+    }
+
+    /**
+     * Handle focus out events
+     * @param {FocusEvent} event event object
+     */
+    onFocusOut(event){
+        if (!event || !this.details || !this.details.open) return;
+        if (!this.contains(event.relatedTarget)){
+            this.details.open = false;
+        }
     }
 
     /**
