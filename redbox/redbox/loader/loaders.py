@@ -1,35 +1,20 @@
-import os
 import logging
-import time
-from datetime import UTC, datetime
 from io import BytesIO
-from typing import TYPE_CHECKING, List, Tuple
-from unstructured.partition.docx import partition_docx
-from unstructured.partition.auto import partition
-from unstructured.partition.pptx import partition_pptx
+from typing import List, Tuple
 
 import environ
 import fitz
-from redbox.chains.parser import ClaudeParser
 
-from langchain_core.documents import Document
-from langchain_core.prompts import PromptTemplate
 
 from pydantic import ValidationError
 from redbox_app.setting_enums import Environment
 
-from redbox.chains.components import get_chat_llm
-from redbox.models.chain import GeneratedMetadata
-from redbox.models.file import TabularSchema, UploadedFileMetadata, ChunkResolution
-from redbox.models.settings import Settings
+from redbox.models.file import TabularSchema
+
+# from redbox.loader.textract import TextractChunkLoader
 from redbox.transform import bedrock_tokeniser
 import pandas as pd
 import math
-import random
-import boto3
-from botocore.config import Config
-from botocore.exceptions import ClientError
-from typing import Iterator
 
 
 env = environ.Env()
@@ -40,10 +25,10 @@ logger = logging.getLogger(__name__)
 
 tokeniser = bedrock_tokeniser
 
-if TYPE_CHECKING:
-    from mypy_boto3_s3.client import S3Client
-else:
-    S3Client = object
+# if TYPE_CHECKING:
+#     from mypy_boto3_s3.client import S3Client
+# else:
+#     S3Client = object
 
 
 def is_large_pdf(file_name: str, filebytes: BytesIO, page_threshold: int = 150) -> Tuple[bool, int]:
@@ -207,563 +192,839 @@ def parse_tabular_schema(table_name: str, df: pd.DataFrame) -> tuple[str, dict] 
         return None
 
 
-class TextractChunkLoader:
-    """
-    Load, partition and chunk a document using:
-    - Textract for PDFs
-    - python-docx for DOCX.
-    - Pandas for CSV/Excel
-    """
-
-    def __init__(
-        self,
-        bucket: str,
-        chunk_resolution: ChunkResolution = ChunkResolution.normal,
-        min_chunk_size: int = 500,
-        max_chunk_size: int = 2000,
-        overlap_chars: int = 200,
-        region: str = "eu-west-2",
-        metadata: GeneratedMetadata | None = None,
-        include_schema_metadata: bool = False,
-    ):
-        self.bucket = bucket
-        self.chunk_resolution = chunk_resolution
-        textract_config = Config(
-            retries={"mode": "adaptive", "max_attempts": 10},
-            connect_timeout=20,
-            read_timeout=70,
-        )
-        self.textract = boto3.client("textract", region_name=region, config=textract_config)
-        self.s3 = boto3.client("s3", region_name=region)
-        self.metadata = metadata or GeneratedMetadata(name="", description="", keywords=[])
-        self.min_chunk_size = min_chunk_size
-        self.max_chunk_size = max_chunk_size
-        self.overlap_chars = overlap_chars
-        self.include_schema_metadata = include_schema_metadata
-
-        logger.info(
-            "Initialised TextractChunkLoader (bucket=%s, chunk_resolution=%s, region=%s, min_chunk=%s, max_chunk=%s, overlap=%s)",
-            bucket,
-            chunk_resolution,
-            region,
-            min_chunk_size,
-            max_chunk_size,
-            overlap_chars,
-        )
-
-    def _is_retryable_textract_error(self, error: Exception) -> bool:
-        if not isinstance(error, ClientError):
-            return False
-
-        error_code = error.response.get("Error", {}).get("Code", "")
-        return error_code in {
-            "ProvisionedThroughputExceededException",
-            "ThrottlingException",
-            "Throttling",
-            "RequestLimitExceeded",
-        }
-
-    def _retry_textract_request(self, func, *args, max_attempts: int = 6, base_delay: float = 3.0, **kwargs):
-        attempt = 0
-        while True:
-            attempt += 1
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                if self._is_retryable_textract_error(e) and attempt < max_attempts:
-                    sleep_time = base_delay * (2 ** (attempt - 1)) + random.random()
-                    logger.warning(
-                        "Textract throttled on attempt %s/%s for %s; sleeping %.1fs before retrying",
-                        attempt,
-                        max_attempts,
-                        getattr(func, "__name__", str(func)),
-                        sleep_time,
-                    )
-                    time.sleep(sleep_time)
-                    continue
-                logger.exception("Textract API error on %s: %s", getattr(func, "__name__", str(func)), e)
-                raise
-
-    def _wait_for_job(self, job_id: str):
-        logger.info("Waiting for Textract job %s to complete", job_id)
-
-        while True:
-            try:
-                response = self._retry_textract_request(self.textract.get_document_text_detection, JobId=job_id)
-                status = response["JobStatus"]
-
-                logger.debug("Textract job %s current status: %s", job_id, status)
-
-                if status in ["SUCCEEDED", "FAILED"]:
-                    logger.info("Textract job %s finished with status: %s", job_id, status)
-                    return status
-
-                time.sleep(5)
-
-            except Exception as e:
-                logger.exception("Error while polling Textract job %s: %s", job_id, e)
-                raise
-
-    def _get_textract_results(self, job_id: str) -> List[str]:
-        logger.info("Fetching Textract results for job %s", job_id)
-
-        pages: dict[int, List[str]] = {}
-        next_token = None
-        api_calls = 0
-
-        while True:
-            try:
-                kwargs = {"JobId": job_id}
-                if next_token:
-                    kwargs["NextToken"] = next_token
-
-                response = self._retry_textract_request(self.textract.get_document_text_detection, **kwargs)
-                api_calls += 1
-
-                for block in response.get("Blocks", []):
-                    if block["BlockType"] == "LINE":
-                        page = block.get("Page", 1)
-                        pages.setdefault(page, []).append(block["Text"])
-
-                next_token = response.get("NextToken")
-                if not next_token:
-                    break
-
-            except Exception as e:
-                logger.exception("Error retrieving Textract results for job %s: %s", job_id, e)
-                raise
-
-        logger.info(
-            "Retrieved Textract results for job %s: %d pages via %d API calls",
-            job_id,
-            len(pages),
-            api_calls,
-        )
+# @dataclass
+# class LayoutBlock:
+#     text: str
+#     block_type: str
+#     page_number: int
+#     is_title: bool
+
+# @dataclass
+# class Section:
+#     title: str
+#     blocks: list[LayoutBlock]
+
+
+# _LAYOUT_TITLE_TYPES = {"LAYOUT_TITLE", "LAYOUT_SECTION_HEADER"}
+
+# _LAYOUT_SKIP_TYPES = {"LAYOUT_HEADER", "LAYOUT_FOOTER", "LAYOUT_PAGE_NUMBER", "LAYOUT_FIGURE"}
+
+# class TextractChunkLoader:
+#     """
+#     Load, partition and chunk a document using:
+#     - Textract for PDFs
+#     - python-docx for DOCX.
+#     - Pandas for CSV/Excel
+#     """
+
+#     def __init__(
+#         self,
+#         bucket: str,
+#         chunk_resolution: ChunkResolution = ChunkResolution.normal,
+#         min_chunk_size: int = 500,
+#         max_chunk_size: int = 2000,
+#         overlap_chars: int = 200,
+#         region: str = "eu-west-2",
+#         metadata: GeneratedMetadata | None = None,
+#         include_schema_metadata: bool = False,
+#     ):
+#         self.bucket = bucket
+#         self.chunk_resolution = chunk_resolution
+#         textract_config = Config(
+#             retries={"mode": "adaptive", "max_attempts": 10},
+#             connect_timeout=20,
+#             read_timeout=70,
+#         )
+#         self.textract = boto3.client("textract", region_name=region, config=textract_config)
+#         self.s3 = boto3.client("s3", region_name=region)
+#         self.metadata = metadata or GeneratedMetadata(name="", description="", keywords=[])
+#         self.min_chunk_size = min_chunk_size
+#         self.max_chunk_size = max_chunk_size
+#         self.overlap_chars = overlap_chars
+#         self.include_schema_metadata = include_schema_metadata
+
+#         logger.info(
+#             "Initialised TextractChunkLoader (bucket=%s, chunk_resolution=%s, region=%s, min_chunk=%s, max_chunk=%s, overlap=%s)",
+#             bucket,
+#             chunk_resolution,
+#             region,
+#             min_chunk_size,
+#             max_chunk_size,
+#             overlap_chars,
+#         )
+
+#     def _is_retryable_textract_error(self, error: Exception) -> bool:
+#         if not isinstance(error, ClientError):
+#             return False
+
+#         error_code = error.response.get("Error", {}).get("Code", "")
+#         return error_code in {
+#             "ProvisionedThroughputExceededException",
+#             "ThrottlingException",
+#             "Throttling",
+#             "RequestLimitExceeded",
+#         }
+
+#     def _retry_textract_request(self, func, *args, max_attempts: int = 6, base_delay: float = 3.0, **kwargs):
+#         attempt = 0
+#         while True:
+#             attempt += 1
+#             try:
+#                 return func(*args, **kwargs)
+#             except Exception as e:
+#                 if self._is_retryable_textract_error(e) and attempt < max_attempts:
+#                     sleep_time = base_delay * (2 ** (attempt - 1)) + random.random()
+#                     logger.warning(
+#                         "Textract throttled on attempt %s/%s for %s; sleeping %.1fs before retrying",
+#                         attempt,
+#                         max_attempts,
+#                         getattr(func, "__name__", str(func)),
+#                         sleep_time,
+#                     )
+#                     time.sleep(sleep_time)
+#                     continue
+#                 logger.exception("Textract API error on %s: %s", getattr(func, "__name__", str(func)), e)
+#                 raise
+
+#     def _wait_for_job(self, job_id: str):
+#         logger.info("Waiting for Textract job %s to complete", job_id)
+
+#         while True:
+#             try:
+#                 response = self._retry_textract_request(self.textract.get_document_text_detection, JobId=job_id)
+#                 status = response["JobStatus"]
+
+#                 logger.debug("Textract job %s current status: %s", job_id, status)
+
+#                 if status in ["SUCCEEDED", "FAILED"]:
+#                     logger.info("Textract job %s finished with status: %s", job_id, status)
+#                     return status
+
+#                 time.sleep(5)
+
+#             except Exception as e:
+#                 logger.exception("Error while polling Textract job %s: %s", job_id, e)
+#                 raise
+
+#     def _get_textract_results(self, job_id: str) -> List[str]:
+#         logger.info("Fetching Textract results for job %s", job_id)
+
+#         pages: dict[int, List[str]] = {}
+#         next_token = None
+#         api_calls = 0
+
+#         while True:
+#             try:
+#                 kwargs = {"JobId": job_id}
+#                 if next_token:
+#                     kwargs["NextToken"] = next_token
+
+#                 response = self._retry_textract_request(self.textract.get_document_text_detection, **kwargs)
+#                 api_calls += 1
+
+#                 for block in response.get("Blocks", []):
+#                     if block["BlockType"] == "LINE":
+#                         page = block.get("Page", 1)
+#                         pages.setdefault(page, []).append(block["Text"])
+
+#                 next_token = response.get("NextToken")
+#                 if not next_token:
+#                     break
+
+#             except Exception as e:
+#                 logger.exception("Error retrieving Textract results for job %s: %s", job_id, e)
+#                 raise
+
+#         logger.info(
+#             "Retrieved Textract results for job %s: %d pages via %d API calls",
+#             job_id,
+#             len(pages),
+#             api_calls,
+#         )
+
+#         return ["\n".join(pages[p]) for p in sorted(pages)]
+
+#     def _get_textract_layout_results(self, job_id: str) -> list[LayoutBlock]:
+#         """
+#         Fetches results from a LAYOUT analysis job.
+#         Returns LayoutBlock objects preserving block type and page number.
+#         """
+#         logger.info("Fetching Textract LAYOUT results for job %s", job_id)
+
+#         blocks: list[LayoutBlock] = []
+#         next_token = None
+#         api_calls = 0
+
+#         while True:
+#             kwargs = {"JobId": job_id}
+#             if next_token:
+#                 kwargs["NextToken"] = next_token
+
+#             response = self._retry_textract_request(
+#                 self.textract.get_document_analysis, **kwargs
+#             )
+#             api_calls += 1
+
+#             for block in response.get("Blocks", []):
+#                 block_type = block.get("BlockType", "")
+#                 text = block.get("Text", "").strip()
+#                 page = block.get("Page", 1)
+
+#                 if not text or block_type in _LAYOUT_SKIP_TYPES:
+#                     continue
+
+#                 # Only emit semantic layout blocks — not LINE/WORD which are sub-blocks
+#                 if not block_type.startswith("LAYOUT_"):
+#                     continue
+
+#                 blocks.append(LayoutBlock(
+#                     text=text,
+#                     block_type=block_type,
+#                     page_number=page,
+#                     is_title=block_type in _LAYOUT_TITLE_TYPES,
+#                 ))
+
+#             next_token = response.get("NextToken")
+#             if not next_token:
+#                 break
+
+#         logger.info(
+#             "Retrieved %d layout blocks for job %s via %d API calls",
+#             len(blocks), job_id, api_calls,
+#         )
+#         return blocks
+
+
+#     def _extract_pdf_layout_from_s3(self, bucket: str, key: str) -> list[LayoutBlock]:
+#         """
+#         Runs a Textract LAYOUT analysis job on a PDF in S3.
+#         Uses start_document_analysis (not start_document_text_detection)
+#         with FeatureTypes=["LAYOUT"].
+#         """
+#         logger.info("Starting Textract LAYOUT analysis for s3://%s/%s", bucket, key)
+
+#         try:
+#             response = self._retry_textract_request(
+#                 self.textract.start_document_analysis,
+#                 DocumentLocation={"S3Object": {"Bucket": bucket, "Name": key}},
+#                 FeatureTypes=["LAYOUT"],
+#             )
+
+#             job_id = response["JobId"]
+#             logger.info("Started Textract LAYOUT job %s", job_id)
+
+#             # Reuse existing polling logic but call get_document_analysis
+#             status = self._wait_for_layout_job(job_id)
+
+#             if status != "SUCCEEDED":
+#                 raise RuntimeError(f"Textract LAYOUT job failed for s3://{bucket}/{key}")
+
+#             return self._get_textract_layout_results(job_id)
+
+#         except Exception as e:
+#             logger.exception("Textract LAYOUT extraction failed for s3://%s/%s: %s", bucket, key, e)
+#             raise
+
+
+#     def _wait_for_layout_job(self, job_id: str) -> str:
+#         """Polls get_document_analysis (mirrors _wait_for_job but for analysis jobs)."""
+#         logger.info("Waiting for Textract LAYOUT job %s", job_id)
+
+#         while True:
+#             response = self._retry_textract_request(
+#                 self.textract.get_document_analysis, JobId=job_id
+#             )
+#             status = response["JobStatus"]
+#             logger.debug("Textract LAYOUT job %s status: %s", job_id, status)
+
+#             if status in ("SUCCEEDED", "FAILED"):
+#                 logger.info("Textract LAYOUT job %s finished: %s", job_id, status)
+#                 return status
+
+#             time.sleep(5)
+
+
+#     def _chunk_layout_blocks(self, blocks: list[LayoutBlock]) -> Iterator[Document]:
+#         """
+#         Groups LayoutBlocks by title boundaries, then chunks oversized groups.
+#         This is the by_title strategy using Textract's own semantic classification
+#         rather than regex — titles are whatever Textract labelled LAYOUT_TITLE
+#         or LAYOUT_SECTION_HEADER.
+#         """
+#         if not blocks:
+#             return
+
+#         # Group blocks under their nearest preceding title
+#         groups: list[list[LayoutBlock]] = []
+#         current_group: list[LayoutBlock] = []
+
+#         for block in blocks:
+#             if block.is_title and current_group:
+#                 groups.append(current_group)
+#                 current_group = [block]
+#             else:
+#                 current_group.append(block)
+
+#         if current_group:
+#             groups.append(current_group)
+
+#         for idx, group in enumerate(groups):
+#             group_text = "\n\n".join(b.text for b in group)
+#             page_number = group[0].page_number
+
+#             if len(group_text) <= self.max_chunk_size:
+#                 yield group_text, page_number
+#             else:
+#                 # Section too large — fall back to character-based chunking with overlap
+#                 for chunk in self._chunk_text(group_text):
+#                     yield chunk, page_number
+
+#     def _build_sections(
+#         self,
+#         blocks: list[LayoutBlock],
+#     ) -> list[Section]:
+
+#         if not blocks:
+#             return []
+
+#         sections: list[Section] = []
+
+#         current_title = "Document Start"
+#         current_blocks: list[LayoutBlock] = []
+
+#         for block in blocks:
+
+#             if block.is_title:
+
+#                 if current_blocks:
+#                     sections.append(
+#                         Section(
+#                             title=current_title,
+#                             blocks=current_blocks,
+#                         )
+#                     )
+
+#                 current_title = block.text
+#                 current_blocks = [block]
+
+#             else:
+#                 current_blocks.append(block)
+
+#         if current_blocks:
+#             sections.append(
+#                 Section(
+#                     title=current_title,
+#                     blocks=current_blocks,
+#                 )
+#             )
+
+#         return sections
+
+#     def _chunk_sections(
+#         self,
+#         sections: list[Section],
+#     ):
+#         for section in sections:
+
+#             section_text = "\n\n".join(
+#                 block.text
+#                 for block in section.blocks
+#             )
+
+#             start_page = section.blocks[0].page_number
+#             end_page = section.blocks[-1].page_number
+
+#             if len(section_text) <= self.max_chunk_size:
+
+#                 yield {
+#                     "text": section_text,
+#                     "title": section.title,
+#                     "page_start": start_page,
+#                     "page_end": end_page,
+#                 }
+
+#             else:
+
+#                 for chunk in self._chunk_text(section_text):
+
+#                     yield {
+#                         "text": chunk,
+#                         "title": section.title,
+#                         "page_start": start_page,
+#                         "page_end": end_page,
+#                     }
+
+#     def _extract_pdf_text_direct(self, file_bytes: BytesIO) -> List[str]:
+#         logger.info("Extracting PDF text directly with PyMuPDF")
+#         file_bytes.seek(0)
+#         doc = fitz.open(stream=file_bytes.getvalue(), filetype="pdf")
+#         pages: List[str] = []
+
+#         for page in doc:
+#             text = page.get_text().strip()
+#             if text:
+#                 pages.append(text)
+
+#         if not pages:
+#             raise ValueError("PDF contains no extractable text")
+
+#         logger.info("Extracted %d page(s) directly from PDF", len(pages))
+#         return pages
+
+#     # def _extract_pdf_from_s3(self, bucket: str, key: str) -> list[str]:
+#     #     logger.info("Starting Textract extraction directly from S3: s3://%s/%s", bucket, key)
+
+#     #     try:
+#     #         response = self._retry_textract_request(
+#     #             self.textract.start_document_text_detection,
+#     #             DocumentLocation={
+#     #                 "S3Object": {
+#     #                     "Bucket": bucket,
+#     #                     "Name": key,
+#     #                 }
+#     #             },
+#     #         )
+
+#     #         job_id = response["JobId"]
+#     #         logger.info("Started Textract job %s for s3://%s/%s", job_id, bucket, key)
+
+#     #         status = self._wait_for_job(job_id)
+
+#     #         if status != "SUCCEEDED":
+#     #             logger.error("Textract job %s failed for s3://%s/%s", job_id, bucket, key)
+#     #             raise RuntimeError(f"Textract failed for s3://{bucket}/{key}")
+
+#     #         return self._get_textract_results(job_id)
+
+#     #     except Exception as e:
+#     #         logger.exception("Textract extraction failed for s3://%s/%s: %s", bucket, key, e)
+#     #         raise
+
+#     def _extract_docx(self, file_bytes: BytesIO) -> List[str]:
+#         logger.info("Extracting DOCX with unstructured")
+
+#         file_bytes.seek(0)
+
+#         try:
+#             elements = partition_docx(file=file_bytes)
+
+#             if not elements:
+#                 raise ValueError("unstructured returned no elements from DOCX")
+
+#             text_pages = []
+#             current_page = []
+#             last_page = None
+
+#             for el in elements:
+#                 page_number = getattr(el.metadata, "page_number", None)
+
+#                 if page_number is not None:
+#                     if last_page is None:
+#                         last_page = page_number
+#                     if page_number != last_page:
+#                         if current_page:
+#                             text_pages.append("\n".join(current_page))
+#                         current_page = []
+#                         last_page = page_number
+
+#                 current_page.append(str(el).strip())
+
+#             if current_page:
+#                 text_pages.append("\n".join(current_page))
+
+#             if not text_pages:
+#                 raise ValueError("unstructured extracted no readable text from DOCX")
+
+#             logger.info("Extracted %d page(s) from DOCX using unstructured", len(text_pages))
+#             return text_pages
+
+#         except Exception as e:
+#             logger.exception("unstructured failed to process DOCX: %s", str(e))
+#             raise
+
+#     def _extract_pptx(self, file_bytes: BytesIO) -> List[str]:
+#         logger.info("Extracting PPTX with unstructured.partition.pptx")
+#         file_bytes.seek(0)
+
+#         try:
+#             elements = partition_pptx(file=file_bytes)
 
-        return ["\n".join(pages[p]) for p in sorted(pages)]
-
-    def _extract_pdf_text_direct(self, file_bytes: BytesIO) -> List[str]:
-        logger.info("Extracting PDF text directly with PyMuPDF")
-        file_bytes.seek(0)
-        doc = fitz.open(stream=file_bytes.getvalue(), filetype="pdf")
-        pages: List[str] = []
-
-        for page in doc:
-            text = page.get_text().strip()
-            if text:
-                pages.append(text)
-
-        if not pages:
-            raise ValueError("PDF contains no extractable text")
-
-        logger.info("Extracted %d page(s) directly from PDF", len(pages))
-        return pages
-
-    def _extract_pdf_from_s3(self, bucket: str, key: str) -> list[str]:
-        logger.info("Starting Textract extraction directly from S3: s3://%s/%s", bucket, key)
-
-        try:
-            response = self._retry_textract_request(
-                self.textract.start_document_text_detection,
-                DocumentLocation={
-                    "S3Object": {
-                        "Bucket": bucket,
-                        "Name": key,
-                    }
-                },
-            )
-
-            job_id = response["JobId"]
-            logger.info("Started Textract job %s for s3://%s/%s", job_id, bucket, key)
-
-            status = self._wait_for_job(job_id)
-
-            if status != "SUCCEEDED":
-                logger.error("Textract job %s failed for s3://%s/%s", job_id, bucket, key)
-                raise RuntimeError(f"Textract failed for s3://{bucket}/{key}")
-
-            return self._get_textract_results(job_id)
-
-        except Exception as e:
-            logger.exception("Textract extraction failed for s3://%s/%s: %s", bucket, key, e)
-            raise
-
-    def _extract_docx(self, file_bytes: BytesIO) -> List[str]:
-        logger.info("Extracting DOCX with unstructured")
-
-        file_bytes.seek(0)
-
-        try:
-            elements = partition_docx(file=file_bytes)
-
-            if not elements:
-                raise ValueError("unstructured returned no elements from DOCX")
-
-            text_pages = []
-            current_page = []
-            last_page = None
-
-            for el in elements:
-                page_number = getattr(el.metadata, "page_number", None)
-
-                if page_number is not None:
-                    if last_page is None:
-                        last_page = page_number
-                    if page_number != last_page:
-                        if current_page:
-                            text_pages.append("\n".join(current_page))
-                        current_page = []
-                        last_page = page_number
-
-                current_page.append(str(el).strip())
-
-            if current_page:
-                text_pages.append("\n".join(current_page))
-
-            if not text_pages:
-                raise ValueError("unstructured extracted no readable text from DOCX")
-
-            logger.info("Extracted %d page(s) from DOCX using unstructured", len(text_pages))
-            return text_pages
-
-        except Exception as e:
-            logger.exception("unstructured failed to process DOCX: %s", str(e))
-            raise
-
-    def _extract_pptx(self, file_bytes: BytesIO) -> List[str]:
-        logger.info("Extracting PPTX with unstructured.partition.pptx")
-        file_bytes.seek(0)
-
-        try:
-            elements = partition_pptx(file=file_bytes)
-
-            logger.info("partition_pptx returned %d elements", len(elements))
-            if elements:
-                logger.info("First element: %s", repr(elements[0]))
-                logger.info("Has slide_number? %s", hasattr(elements[0].metadata, "slide_number"))
-                slide_nums = {getattr(el.metadata, "slide_number", None) for el in elements}
-                logger.info("Unique slide numbers found: %s", sorted(slide_nums - {None}))
-            else:
-                logger.warning("partition_pptx returned ZERO elements!")
-
-            if not elements:
-                raise ValueError("unstructured.partition.pptx returned no elements")
-
-            text_pages = []
-            current_page = []
-            last_page = None
-
-            for el in elements:
-                page_number = getattr(el.metadata, "page_number", None)
-
-                if page_number is not None:
-                    if last_page is None:
-                        last_page = page_number
-                    if page_number != last_page:
-                        if current_page:
-                            text_pages.append("\n".join(current_page))
-                        current_page = []
-                        last_page = page_number
-
-                current_page.append(str(el).strip())
-
-            if current_page:
-                text_pages.append("\n".join(current_page))
-
-            if not text_pages:
-                text_pages = ["\n".join(str(el).strip() for el in elements)]
-
-            logger.info("Extracted %d slide(s) from PPTX", len(text_pages))
-            return text_pages
-
-        except ImportError:
-            logger.error("unstructured[pptx] extra not installed")
-            raise
-        except Exception as e:
-            logger.exception("PPTX extraction failed: %s", e)
-            raise
-
-    def _chunk_text(self, text: str) -> List[str]:
-        if not text:
-            return []
-
-        chunks = []
-        start = 0
-        length = len(text)
-
-        while start < length:
-            end = min(start + self.max_chunk_size, length)
-            chunk = text[start:end]
-
-            if len(chunk) >= self.min_chunk_size or not chunks:
-                chunks.append(chunk)
-
-            start = end - self.overlap_chars
-
-        return chunks
-
-    def _extract_with_unstructured(self, file_bytes: BytesIO, file_name: str) -> List[str]:
-        file_bytes.seek(0)
-
-        elements = partition(file=file_bytes)
-
-        if not elements:
-            raise ValueError(f"unstructured returned no elements from {file_name}")
-
-        text_pages: List[str] = []
-        current_page: List[str] = []
-        last_page = None
-
-        for el in elements:
-            page_number = getattr(el.metadata, "page_number", None) or getattr(el.metadata, "slide_number", None)
-
-            if page_number is not None:
-                if last_page is None or page_number != last_page:
-                    if current_page:
-                        text_pages.append("\n".join(current_page))
-                    current_page = []
-                    last_page = page_number
-
-            current_page.append(str(el).strip())
-
-        if current_page:
-            text_pages.append("\n".join(current_page))
-
-        if not text_pages:
-            text_pages = ["\n".join(str(el).strip() for el in elements)]
-
-        logger.info("Extracted %d page(s) from %s using unstructured", len(text_pages), file_name)
-        return text_pages
-
-    def _extract_simple_text(self, file_bytes: BytesIO) -> List[str]:
-        file_bytes.seek(0)
-        text = file_bytes.read().decode("utf-8", errors="replace")
-        return [text] if text.strip() else []
-
-    def _extract_pages(self, display_name: str, file_bytes: BytesIO, s3_key: str) -> list[tuple[int, str]]:
-        """Returns list of (page_num, text) tuples."""
-        if display_name.endswith((".pptx", ".ppt")):
-            logger.info("Extracting PPTX: %s", display_name)
-            raw = self._extract_pptx(file_bytes)
-
-        elif display_name.endswith(".docx"):
-            logger.info("Extracting DOCX: %s", display_name)
-            raw = self._extract_docx(file_bytes)
-
-        elif display_name.endswith(".pdf"):
-            logger.info("Extracting PDF: %s", display_name)
-            large_pdf, page_count = is_large_pdf(display_name, file_bytes)
-            if large_pdf:
-                if _pdf_is_image_heavy(file_bytes):
-                    logger.info("Large image-heavy PDF (%d pages); using Textract", page_count)
-                    raw = self._extract_pdf_from_s3(bucket=self.bucket, key=s3_key)
-                else:
-                    logger.info("Large PDF (%d pages); using direct text extraction", page_count)
-                    raw = self._extract_pdf_text_direct(file_bytes)
-            else:
-                try:
-                    raw = self._extract_pdf_from_s3(bucket=self.bucket, key=s3_key)
-                except Exception:
-                    logger.warning("Textract failed for %s; falling back to direct extraction", display_name)
-                    raw = self._extract_pdf_text_direct(file_bytes)
-
-        else:
-            logger.info("Processing with unstructured: %s", display_name)
-            raw = self._extract_with_unstructured(file_bytes, display_name)
-
-        return [(page_num, text) for page_num, text in enumerate(raw, start=1)]
-
-    def lazy_load(
-        self,
-        file_name: str,
-        file_bytes: BytesIO | None = None,
-    ) -> Iterator[Document]:
-
-        logger.info("lazy_load called for %s", file_name)
-
-        s3_key = file_name
-        display_name = os.path.basename(file_name).lower()
-        logger.info("File type detected: %s", display_name)
-
-        if file_bytes is None:
-            obj = self.s3.get_object(Bucket=self.bucket, Key=s3_key)
-            file_bytes = BytesIO(obj["Body"].read())
-
-        if display_name.endswith((".csv", ".tsv", ".xls", ".xlsx")):
-            tabular_elements = load_tabular_file(display_name, file_bytes)
-            for idx, el in enumerate(tabular_elements or []):
-                metadata = UploadedFileMetadata(
-                    index=idx,
-                    uri=s3_key,
-                    page_number=1,
-                    created_datetime=datetime.now(UTC),
-                    token_count=tokeniser(el["text"]),
-                    chunk_resolution=ChunkResolution.tabular,
-                    name=self.metadata.name,
-                    description=self.metadata.description,
-                    keywords=self.metadata.keywords,
-                ).model_dump()
-
-                merged_metadata = metadata
-                if self.include_schema_metadata:
-                    merged_metadata = {**metadata, **el.get("metadata", {})}
-
-                yield Document(page_content=el["text"], metadata=merged_metadata)
-            return
-
-        # Non-tabular: extract pages, then chunk across full document
-        pages = self._extract_pages(display_name, file_bytes, s3_key)
-
-        full_text_parts = []
-        page_offsets: list[tuple[int, int]] = []  # (char_offset, page_num)
-        cursor = 0
-        for page_num, text in pages:
-            page_offsets.append((cursor, page_num))
-            full_text_parts.append(text)
-            cursor += len(text) + 1
-
-        full_text = "\n".join(full_text_parts)
-
-        # Chunk across the full document — overlap now works across page boundaries
-        chunks = self._chunk_text(full_text)
-
-        idx = 0
-        cursor = 0
-        for chunk in chunks:
-            # Find which page this chunk starts on via binary search
-            lo, hi = 0, len(page_offsets) - 1
-            while lo < hi:
-                mid = (lo + hi + 1) // 2
-                if page_offsets[mid][0] <= cursor:
-                    lo = mid
-                else:
-                    hi = mid - 1
-            page_number = page_offsets[lo][1]
-
-            metadata = UploadedFileMetadata(
-                index=idx,
-                uri=s3_key,
-                page_number=page_number,
-                created_datetime=datetime.now(UTC),
-                token_count=tokeniser(chunk),
-                chunk_resolution=self.chunk_resolution,
-                name=self.metadata.name,
-                description=self.metadata.description,
-                keywords=self.metadata.keywords,
-            ).model_dump()
-            yield Document(page_content=chunk, metadata=metadata)
-
-            idx += 1
-            cursor += len(chunk) - self.overlap_chars  # mirror _chunk_text's advance
-
-
-class MetadataLoader:
-    """
-    Extract metadata from a file using a TextractChunkLoader and LLM.
-    Preserves trimming and robust handling from old loader.
-    """
-
-    def __init__(self, env: Settings, s3_client: S3Client, file_name: str):
-        self.env = env
-        self.s3_client = s3_client
-        self.llm = get_chat_llm(env.metadata_extraction_llm)
-        self.file_name = file_name
-
-    def _get_file_bytes(self, file_name: str) -> BytesIO:
-        obj = self.s3_client.get_object(Bucket=self.env.bucket_name, Key=file_name)
-        return BytesIO(obj["Body"].read())
-
-    def extract_metadata(self) -> GeneratedMetadata:
-        start_time = time.time()
-
-        loader = TextractChunkLoader(
-            bucket=self.env.bucket_name,
-            min_chunk_size=200,
-            max_chunk_size=2000,
-            overlap_chars=0,
-        )
-
-        file_bytes = None
-        if self.file_name.lower().endswith(".docx"):
-            file_bytes = self._get_file_bytes(self.file_name)
-
-        chunks = []
-
-        try:
-            for c in loader.lazy_load(
-                file_name=self.file_name,
-                file_bytes=file_bytes,
-            ):
-                chunks.append(c)
-        except Exception:
-            logger.exception("Lazy loader crashed during metadata extraction")
-            raise
-
-        first_10k_chars = "".join(c.page_content for c in chunks)[:10_000]
-
-        # Determine file type for metadata extraction
-        file_type = "unknown"
-        if self.file_name.lower().endswith(".docx"):
-            file_type = "DOCX"
-        elif self.file_name.lower().endswith(".csv"):
-            file_type = "CSV"
-        elif self.file_name.lower().endswith((".xlsx", ".xls")):
-            file_type = "Excel"
-        elif self.file_name.lower().endswith(".pdf"):
-            file_type = "PDF"
-
-        original_metadata = {"file_type": file_type, "filename": self.file_name}
-
-        try:
-            metadata = self.create_file_metadata(first_10k_chars, original_metadata=original_metadata)
-        except Exception as e:
-            logger.info(e)
-            metadata = GeneratedMetadata(name=self.file_name)
-
-        logger.info(
-            "Total metadata extraction for file [%s] took %.2f seconds",
-            self.file_name,
-            time.time() - start_time,
-        )
-
-        return metadata
-
-    def create_file_metadata(self, page_content: str, original_metadata: dict | None = None) -> GeneratedMetadata:
-        """Trim original metadata and invoke LLM chain"""
-        if not original_metadata:
-            original_metadata = {}
-
-        def trim(obj, max_length=1000):
-            if isinstance(obj, dict):
-                return {k: trim(v, max_length) for k, v in obj.items()}
-            if isinstance(obj, list):
-                return [trim(v, max_length) for v in obj]
-            if isinstance(obj, str):
-                return obj[:max_length]
-            return obj
-
-        original_metadata = trim(original_metadata)
-
-        parser = ClaudeParser(pydantic_object=GeneratedMetadata)
-
-        metadata_prompt = PromptTemplate(
-            template="".join(self.env.metadata_prompt)
-            + "\n\n{format_instructions}\n\n{page_content}\n\n{original_metadata}",
-            input_variables=["page_content"],
-            partial_variables={
-                "format_instructions": parser.get_format_instructions(),
-                "original_metadata": original_metadata,
-            },
-        )
-        metadata_chain = metadata_prompt | self.llm | parser
-
-        try:
-            metadata = metadata_chain.invoke({"page_content": page_content})
-
-            if not metadata.name:
-                metadata.name = original_metadata.get("filename") or self.file_name
-
-            return metadata
-        except ValidationError as e:
-            logger.info(e.errors())
-            return GeneratedMetadata(name=original_metadata.get("filename") or self.file_name)
+#             logger.info("partition_pptx returned %d elements", len(elements))
+#             if elements:
+#                 logger.info("First element: %s", repr(elements[0]))
+#                 logger.info("Has slide_number? %s", hasattr(elements[0].metadata, "slide_number"))
+#                 slide_nums = {getattr(el.metadata, "slide_number", None) for el in elements}
+#                 logger.info("Unique slide numbers found: %s", sorted(slide_nums - {None}))
+#             else:
+#                 logger.warning("partition_pptx returned ZERO elements!")
+
+#             if not elements:
+#                 raise ValueError("unstructured.partition.pptx returned no elements")
+
+#             text_pages = []
+#             current_page = []
+#             last_page = None
+
+#             for el in elements:
+#                 page_number = getattr(el.metadata, "page_number", None)
+
+#                 if page_number is not None:
+#                     if last_page is None:
+#                         last_page = page_number
+#                     if page_number != last_page:
+#                         if current_page:
+#                             text_pages.append("\n".join(current_page))
+#                         current_page = []
+#                         last_page = page_number
+
+#                 current_page.append(str(el).strip())
+
+#             if current_page:
+#                 text_pages.append("\n".join(current_page))
+
+#             if not text_pages:
+#                 text_pages = ["\n".join(str(el).strip() for el in elements)]
+
+#             logger.info("Extracted %d slide(s) from PPTX", len(text_pages))
+#             return text_pages
+
+#         except ImportError:
+#             logger.error("unstructured[pptx] extra not installed")
+#             raise
+#         except Exception as e:
+#             logger.exception("PPTX extraction failed: %s", e)
+#             raise
+
+#     def _chunk_text(self, text: str) -> List[str]:
+#         if not text:
+#             return []
+
+#         chunks = []
+#         start = 0
+#         length = len(text)
+
+#         while start < length:
+#             end = min(start + self.max_chunk_size, length)
+#             chunk = text[start:end]
+
+#             if len(chunk) >= self.min_chunk_size or not chunks:
+#                 chunks.append(chunk)
+
+#             start = end - self.overlap_chars
+
+#         return chunks
+
+#     def _extract_with_unstructured(self, file_bytes: BytesIO, file_name: str) -> List[str]:
+#         file_bytes.seek(0)
+
+#         elements = partition(file=file_bytes)
+
+#         if not elements:
+#             raise ValueError(f"unstructured returned no elements from {file_name}")
+
+#         text_pages: List[str] = []
+#         current_page: List[str] = []
+#         last_page = None
+
+#         for el in elements:
+#             page_number = getattr(el.metadata, "page_number", None) or getattr(el.metadata, "slide_number", None)
+
+#             if page_number is not None:
+#                 if last_page is None or page_number != last_page:
+#                     if current_page:
+#                         text_pages.append("\n".join(current_page))
+#                     current_page = []
+#                     last_page = page_number
+
+#             current_page.append(str(el).strip())
+
+#         if current_page:
+#             text_pages.append("\n".join(current_page))
+
+#         if not text_pages:
+#             text_pages = ["\n".join(str(el).strip() for el in elements)]
+
+#         logger.info("Extracted %d page(s) from %s using unstructured", len(text_pages), file_name)
+#         return text_pages
+
+#     def _extract_simple_text(self, file_bytes: BytesIO) -> List[str]:
+#         file_bytes.seek(0)
+#         text = file_bytes.read().decode("utf-8", errors="replace")
+#         return [text] if text.strip() else []
+
+#     def _extract_pdf_layout(
+#         self, file_bytes: BytesIO, s3_key: str, display_name: str
+#     ) -> list[LayoutBlock]:
+#         """
+#         Routes PDF to LAYOUT analysis where possible, falls back to direct
+#         text extraction (returning plain LayoutBlocks with no title signal).
+#         """
+#         # large_pdf, page_count = is_large_pdf(display_name, file_bytes)
+
+#         # if large_pdf and not _pdf_is_image_heavy(file_bytes):
+#         #     # Direct extraction for large text-heavy PDFs — no LAYOUT signal available
+#         #     logger.info("Large text-heavy PDF (%d pages); using direct extraction (no layout)", page_count)
+#         #     raw_pages = self._extract_pdf_text_direct(file_bytes)
+#         #     return [
+#         #         LayoutBlock(text=text, block_type="LAYOUT_TEXT", page_number=i + 1, is_title=False)
+#         #         for i, text in enumerate(raw_pages) if text.strip()
+#         #     ]
+
+#         try:
+#             return self._extract_pdf_layout_from_s3(bucket=self.bucket, key=s3_key)
+#         except Exception:
+#             logger.warning(
+#                 "Textract LAYOUT failed for %s; falling back to direct extraction", display_name
+#             )
+#             raw_pages = self._extract_pdf_text_direct(file_bytes)
+#             return [
+#                 LayoutBlock(text=text, block_type="LAYOUT_TEXT", page_number=i + 1, is_title=False)
+#                 for i, text in enumerate(raw_pages) if text.strip()
+#             ]
+
+#     def _extract_pages(self, display_name: str, file_bytes: BytesIO, s3_key: str) -> list[tuple[int, str]]:
+#         """Returns list of (page_num, text) tuples."""
+#         if display_name.endswith((".pptx", ".ppt")):
+#             logger.info("Extracting PPTX: %s", display_name)
+#             raw = self._extract_pptx(file_bytes)
+
+#         elif display_name.endswith(".docx"):
+#             logger.info("Extracting DOCX: %s", display_name)
+#             raw = self._extract_docx(file_bytes)
+
+#         # elif display_name.endswith(".pdf"):
+#         #     logger.info("Extracting PDF: %s", display_name)
+#         #     large_pdf, page_count = is_large_pdf(display_name, file_bytes)
+#         #     if large_pdf:
+#         #         if _pdf_is_image_heavy(file_bytes):
+#         #             logger.info("Large image-heavy PDF (%d pages); using Textract", page_count)
+#         #             raw = self._extract_pdf_from_s3(bucket=self.bucket, key=s3_key)
+#         #         else:
+#         #             logger.info("Large PDF (%d pages); using direct text extraction", page_count)
+#         #             raw = self._extract_pdf_text_direct(file_bytes)
+#         #     else:
+#         #         try:
+#         #             raw = self._extract_pdf_from_s3(bucket=self.bucket, key=s3_key)
+#         #         except Exception:
+#         #             logger.warning("Textract failed for %s; falling back to direct extraction", display_name)
+#         #             raw = self._extract_pdf_text_direct(file_bytes)
+
+#         else:
+#             logger.info("Processing with unstructured: %s", display_name)
+#             raw = self._extract_with_unstructured(file_bytes, display_name)
+
+#         return [(page_num, text) for page_num, text in enumerate(raw, start=1)]
+
+#     def lazy_load(
+#         self,
+#         file_name: str,
+#         file_bytes: BytesIO | None = None,
+#     ) -> Iterator[Document]:
+
+#         logger.info("lazy_load called for %s", file_name)
+
+#         s3_key = file_name
+#         display_name = os.path.basename(file_name).lower()
+#         logger.info("File type detected: %s", display_name)
+
+#         if file_bytes is None:
+#             obj = self.s3.get_object(Bucket=self.bucket, Key=s3_key)
+#             file_bytes = BytesIO(obj["Body"].read())
+
+#         if display_name.endswith((".csv", ".tsv", ".xls", ".xlsx")):
+#             tabular_elements = load_tabular_file(display_name, file_bytes)
+#             for idx, el in enumerate(tabular_elements or []):
+#                 metadata = UploadedFileMetadata(
+#                     index=idx,
+#                     uri=s3_key,
+#                     page_number=1,
+#                     created_datetime=datetime.now(UTC),
+#                     token_count=tokeniser(el["text"]),
+#                     chunk_resolution=ChunkResolution.tabular,
+#                     name=self.metadata.name,
+#                     description=self.metadata.description,
+#                     keywords=self.metadata.keywords,
+#                 ).model_dump()
+
+#                 merged_metadata = metadata
+#                 if self.include_schema_metadata:
+#                     merged_metadata = {**metadata, **el.get("metadata", {})}
+
+#                 yield Document(page_content=el["text"], metadata=merged_metadata)
+#             return
+
+#         # --- PDF: use LAYOUT analysis for by_title chunking ---
+#         if display_name.endswith(".pdf"):
+#             layout_blocks = self._extract_pdf_layout(file_bytes, s3_key, display_name)
+
+#             for idx, (chunk_text, page_number) in enumerate(self._chunk_layout_blocks(layout_blocks)):
+#                 metadata = UploadedFileMetadata(
+#                     index=idx,
+#                     uri=s3_key,
+#                     page_number=page_number,
+#                     created_datetime=datetime.now(UTC),
+#                     token_count=tokeniser(chunk_text),
+#                     chunk_resolution=self.chunk_resolution,
+#                     name=self.metadata.name,
+#                     description=self.metadata.description,
+#                     keywords=self.metadata.keywords,
+#                 ).model_dump()
+#                 yield Document(page_content=chunk_text, metadata=metadata)
+#             return
+
+#         # Non-tabular: extract pages, then chunk across full document
+#         pages = self._extract_pages(display_name, file_bytes, s3_key)
+
+#         full_text_parts = []
+#         page_offsets: list[tuple[int, int]] = []  # (char_offset, page_num)
+#         cursor = 0
+#         for page_num, text in pages:
+#             page_offsets.append((cursor, page_num))
+#             full_text_parts.append(text)
+#             cursor += len(text) + 1
+
+#         full_text = "\n".join(full_text_parts)
+
+#         # Chunk across the full document — overlap now works across page boundaries
+#         chunks = self._chunk_text(full_text)
+
+#         idx = 0
+#         cursor = 0
+#         for chunk in chunks:
+#             # Find which page this chunk starts on via binary search
+#             lo, hi = 0, len(page_offsets) - 1
+#             while lo < hi:
+#                 mid = (lo + hi + 1) // 2
+#                 if page_offsets[mid][0] <= cursor:
+#                     lo = mid
+#                 else:
+#                     hi = mid - 1
+#             page_number = page_offsets[lo][1]
+
+#             metadata = UploadedFileMetadata(
+#                 index=idx,
+#                 uri=s3_key,
+#                 page_number=page_number,
+#                 created_datetime=datetime.now(UTC),
+#                 token_count=tokeniser(chunk),
+#                 chunk_resolution=self.chunk_resolution,
+#                 name=self.metadata.name,
+#                 description=self.metadata.description,
+#                 keywords=self.metadata.keywords,
+#             ).model_dump()
+#             yield Document(page_content=chunk, metadata=metadata)
+
+#             idx += 1
+#             cursor += len(chunk) - self.overlap_chars  # mirror _chunk_text's advance
+
+
+# class MetadataLoader:
+#     """
+#     Extract metadata from a file using a TextractChunkLoader and LLM.
+#     Preserves trimming and robust handling from old loader.
+#     """
+
+#     def __init__(self, env: Settings, s3_client: S3Client, file_name: str):
+#         self.env = env
+#         self.s3_client = s3_client
+#         self.llm = get_chat_llm(env.metadata_extraction_llm)
+#         self.file_name = file_name
+
+#     def _get_file_bytes(self, file_name: str) -> BytesIO:
+#         obj = self.s3_client.get_object(Bucket=self.env.bucket_name, Key=file_name)
+#         return BytesIO(obj["Body"].read())
+
+#     def extract_metadata(self) -> GeneratedMetadata:
+#         start_time = time.time()
+
+#         loader = TextractChunkLoader(
+#             bucket=self.env.bucket_name,
+#             min_chunk_size=200,
+#             max_chunk_size=2000,
+#             overlap_chars=0,
+#         )
+
+#         file_bytes = None
+#         if self.file_name.lower().endswith(".docx"):
+#             file_bytes = self._get_file_bytes(self.file_name)
+
+#         chunks = []
+
+#         try:
+#             for c in loader.lazy_load(
+#                 file_name=self.file_name,
+#                 file_bytes=file_bytes,
+#             ):
+#                 chunks.append(c)
+#         except Exception:
+#             logger.exception("Lazy loader crashed during metadata extraction")
+#             raise
+
+#         first_10k_chars = "".join(c.page_content for c in chunks)[:10_000]
+
+#         # Determine file type for metadata extraction
+#         file_type = "unknown"
+#         if self.file_name.lower().endswith(".docx"):
+#             file_type = "DOCX"
+#         elif self.file_name.lower().endswith(".csv"):
+#             file_type = "CSV"
+#         elif self.file_name.lower().endswith((".xlsx", ".xls")):
+#             file_type = "Excel"
+#         elif self.file_name.lower().endswith(".pdf"):
+#             file_type = "PDF"
+
+#         original_metadata = {"file_type": file_type, "filename": self.file_name}
+
+#         try:
+#             metadata = self.create_file_metadata(first_10k_chars, original_metadata=original_metadata)
+#         except Exception as e:
+#             logger.info(e)
+#             metadata = GeneratedMetadata(name=self.file_name)
+
+#         logger.info(
+#             "Total metadata extraction for file [%s] took %.2f seconds",
+#             self.file_name,
+#             time.time() - start_time,
+#         )
+
+#         return metadata
+
+#     def create_file_metadata(self, page_content: str, original_metadata: dict | None = None) -> GeneratedMetadata:
+#         """Trim original metadata and invoke LLM chain"""
+#         if not original_metadata:
+#             original_metadata = {}
+
+#         def trim(obj, max_length=1000):
+#             if isinstance(obj, dict):
+#                 return {k: trim(v, max_length) for k, v in obj.items()}
+#             if isinstance(obj, list):
+#                 return [trim(v, max_length) for v in obj]
+#             if isinstance(obj, str):
+#                 return obj[:max_length]
+#             return obj
+
+#         original_metadata = trim(original_metadata)
+
+#         parser = ClaudeParser(pydantic_object=GeneratedMetadata)
+
+#         metadata_prompt = PromptTemplate(
+#             template="".join(self.env.metadata_prompt)
+#             + "\n\n{format_instructions}\n\n{page_content}\n\n{original_metadata}",
+#             input_variables=["page_content"],
+#             partial_variables={
+#                 "format_instructions": parser.get_format_instructions(),
+#                 "original_metadata": original_metadata,
+#             },
+#         )
+#         metadata_chain = metadata_prompt | self.llm | parser
+
+#         try:
+#             metadata = metadata_chain.invoke({"page_content": page_content})
+
+#             if not metadata.name:
+#                 metadata.name = original_metadata.get("filename") or self.file_name
+
+#             return metadata
+#         except ValidationError as e:
+#             logger.info(e.errors())
+#             return GeneratedMetadata(name=original_metadata.get("filename") or self.file_name)

@@ -7,7 +7,7 @@ from langchain.vectorstores import VectorStore
 from langchain_core.documents.base import Document
 from langchain_core.runnables import Runnable, RunnableLambda, chain
 
-from redbox.loader.loaders import TextractChunkLoader
+from redbox.loader.textract import TextractChunkLoader
 from redbox.models.settings import Settings
 
 if TYPE_CHECKING:

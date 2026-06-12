@@ -9,7 +9,8 @@ from langchain_core.runnables import RunnableParallel
 
 from redbox.chains.components import get_embeddings
 from redbox.chains.ingest import ingest_from_loader
-from redbox.loader.loaders import TextractChunkLoader, MetadataLoader
+from redbox.loader.textract import TextractChunkLoader
+from redbox.loader.metadata import MetadataLoader
 from redbox.models.file import ChunkResolution
 from redbox.models.settings import get_settings
 
