@@ -433,7 +433,7 @@ class TestLayoutBlockExtraction:
     def test_falls_back_to_unstructured(self, loader):
         loader._extract_with_unstructured = MagicMock(return_value=["one"])
 
-        result = loader._extract_layout_blocks("file.md", BytesIO(), "key")
+        result = loader._extract_layout_blocks("file.py", BytesIO(), "key")
 
         loader._extract_with_unstructured.assert_called_once()
         assert isinstance(result, list)

@@ -7,7 +7,6 @@ import os
 
 from io import BytesIO
 from datetime import UTC, datetime
-from dataclasses import dataclass
 from botocore.config import Config
 from botocore.exceptions import ClientError
 from typing import List, Iterator
@@ -20,26 +19,13 @@ from redbox.models.chain import GeneratedMetadata
 from redbox.models.file import UploadedFileMetadata, ChunkResolution
 from redbox.transform import bedrock_tokeniser
 from redbox.loader.loaders import load_tabular_file
-from redbox.loader.chunker import DocumentChunker
+from redbox.loader.chunker import DocumentChunker, LayoutBlock
+from redbox.loader.parsers.markdown import _MarkdownLayoutParser
+
 
 logger = logging.getLogger(__name__)
 
 tokeniser = bedrock_tokeniser
-
-
-@dataclass
-class LayoutBlock:
-    text: str
-    block_type: str
-    page_number: int
-    is_title: bool
-
-
-@dataclass
-class Section:
-    title: str
-    blocks: list[LayoutBlock]
-
 
 _LAYOUT_TITLE_TYPES = {"LAYOUT_TITLE", "LAYOUT_SECTION_HEADER"}
 
@@ -50,7 +36,9 @@ class TextractChunkLoader:
     """
     Load, partition and chunk a document using:
     - Textract for PDFs
-    - python-docx for DOCX.
+    - python-docx for DOCX
+    - html.parser for HTML
+    - regex-based parser for Markdown
     - Pandas for CSV/Excel
     """
 
@@ -75,9 +63,6 @@ class TextractChunkLoader:
         self.textract = boto3.client("textract", region_name=region, config=textract_config)
         self.s3 = boto3.client("s3", region_name=region)
         self.metadata = metadata or GeneratedMetadata(name="", description="", keywords=[])
-        # self.min_chunk_size = min_chunk_size
-        # self.max_chunk_size = max_chunk_size
-        # self.overlap_chars = overlap_chars
         self.include_schema_metadata = include_schema_metadata
         self.chunker = DocumentChunker(
             min_chunk_size=min_chunk_size,
@@ -98,7 +83,6 @@ class TextractChunkLoader:
     def _is_retryable_textract_error(self, error: Exception) -> bool:
         if not isinstance(error, ClientError):
             return False
-
         error_code = error.response.get("Error", {}).get("Code", "")
         return error_code in {
             "ProvisionedThroughputExceededException",
@@ -129,10 +113,6 @@ class TextractChunkLoader:
                 raise
 
     def _get_textract_layout_results(self, job_id: str) -> list[LayoutBlock]:
-        """
-        Fetches results from a LAYOUT analysis job.
-        Returns LayoutBlock objects preserving block type and page number.
-        """
         logger.info("Fetching Textract LAYOUT results for job %s", job_id)
 
         blocks: list[LayoutBlock] = []
@@ -154,8 +134,6 @@ class TextractChunkLoader:
 
                 if not text or block_type in _LAYOUT_SKIP_TYPES:
                     continue
-
-                # Only emit semantic layout blocks — not LINE/WORD which are sub-blocks
                 if not block_type.startswith("LAYOUT_"):
                     continue
 
@@ -181,11 +159,6 @@ class TextractChunkLoader:
         return blocks
 
     def _extract_pdf_layout_from_s3(self, bucket: str, key: str) -> list[LayoutBlock]:
-        """
-        Runs a Textract LAYOUT analysis job on a PDF in S3.
-        Uses start_document_analysis (not start_document_text_detection)
-        with FeatureTypes=["LAYOUT"].
-        """
         logger.info("Starting Textract LAYOUT analysis for s3://%s/%s", bucket, key)
 
         try:
@@ -197,8 +170,6 @@ class TextractChunkLoader:
 
             job_id = response["JobId"]
             logger.info("Started Textract LAYOUT job %s", job_id)
-
-            # Reuse existing polling logic but call get_document_analysis
             status = self._wait_for_layout_job(job_id)
 
             if status != "SUCCEEDED":
@@ -211,7 +182,6 @@ class TextractChunkLoader:
             raise
 
     def _wait_for_layout_job(self, job_id: str) -> str:
-        """Polls get_document_analysis (mirrors _wait_for_job but for analysis jobs)."""
         logger.info("Waiting for Textract LAYOUT job %s", job_id)
 
         while True:
@@ -242,9 +212,42 @@ class TextractChunkLoader:
         logger.info("Extracted %d page(s) directly from PDF", len(pages))
         return pages
 
+    def _extract_markdown(
+        self,
+        file_bytes: BytesIO,
+    ) -> list[LayoutBlock]:
+        """
+        Parses Markdown into LayoutBlocks.
+
+        Headings become title blocks.
+        Paragraphs become text blocks.
+        """
+
+        logger.info("Extracting Markdown")
+
+        file_bytes.seek(0)
+
+        raw = file_bytes.read().decode(
+            "utf-8",
+            errors="replace",
+        )
+
+        parser = _MarkdownLayoutParser()
+
+        blocks = parser.parse(raw)
+
+        if not blocks:
+            raise ValueError("Markdown document contains no extractable text")
+
+        logger.info(
+            "Extracted %d layout blocks from Markdown",
+            len(blocks),
+        )
+
+        return blocks
+
     def _extract_docx(self, file_bytes: BytesIO) -> List[str]:
         logger.info("Extracting DOCX with unstructured")
-
         file_bytes.seek(0)
 
         try:
@@ -292,14 +295,6 @@ class TextractChunkLoader:
             elements = partition_pptx(file=file_bytes)
 
             logger.info("partition_pptx returned %d elements", len(elements))
-            if elements:
-                logger.info("First element: %s", repr(elements[0]))
-                logger.info("Has slide_number? %s", hasattr(elements[0].metadata, "slide_number"))
-                slide_nums = {getattr(el.metadata, "slide_number", None) for el in elements}
-                logger.info("Unique slide numbers found: %s", sorted(slide_nums - {None}))
-            else:
-                logger.warning("partition_pptx returned ZERO elements!")
-
             if not elements:
                 raise ValueError("unstructured.partition.pptx returned no elements")
 
@@ -370,15 +365,7 @@ class TextractChunkLoader:
         logger.info("Extracted %d page(s) from %s using unstructured", len(text_pages), file_name)
         return text_pages
 
-    # def _extract_simple_text(self, file_bytes: BytesIO) -> List[str]:
-    #     file_bytes.seek(0)
-    #     text = file_bytes.read().decode("utf-8", errors="replace")
-    #     return [text] if text.strip() else []
-
     def _extract_pdf_layout(self, file_bytes: BytesIO, s3_key: str, display_name: str) -> list[LayoutBlock]:
-        """
-        Routes PDF to LAYOUT analysis, falls back to direct text extraction (returning plain LayoutBlocks with no title signal).
-        """
         try:
             return self._extract_pdf_layout_from_s3(bucket=self.bucket, key=s3_key)
         except Exception as e:
@@ -398,22 +385,31 @@ class TextractChunkLoader:
     ) -> list[LayoutBlock]:
 
         if display_name.endswith(".pdf"):
-            return self._extract_pdf_layout(
-                file_bytes,
-                s3_key,
-                display_name,
-            )
+            return self._extract_pdf_layout(file_bytes, s3_key, display_name)
+
+        if display_name.endswith((".md", ".markdown")):
+            return self._extract_markdown(file_bytes)
 
         if display_name.endswith(".docx"):
-            return self._extract_docx(file_bytes)
+            # _extract_docx returns List[str]; wrap each page into a LayoutBlock.
+            pages = self._extract_docx(file_bytes)
+            return [
+                LayoutBlock(text=text, block_type="LAYOUT_TEXT", page_number=i + 1, is_title=False)
+                for i, text in enumerate(pages)
+            ]
 
         if display_name.endswith((".pptx", ".ppt")):
-            return self._extract_pptx(file_bytes)
+            pages = self._extract_pptx(file_bytes)
+            return [
+                LayoutBlock(text=text, block_type="LAYOUT_TEXT", page_number=i + 1, is_title=False)
+                for i, text in enumerate(pages)
+            ]
 
-        return self._extract_with_unstructured(
-            file_bytes,
-            display_name,
-        )
+        pages = self._extract_with_unstructured(file_bytes, display_name)
+        return [
+            LayoutBlock(text=text, block_type="LAYOUT_TEXT", page_number=i + 1, is_title=False)
+            for i, text in enumerate(pages)
+        ]
 
     def lazy_load(
         self,
@@ -471,14 +467,6 @@ class TextractChunkLoader:
                 description=self.metadata.description,
                 keywords=self.metadata.keywords,
             ).model_dump()
-
-            # metadata.update(
-            #     {
-            #         "section_title": chunk.section_title,
-            #         "page_start": chunk.page_start,
-            #         "page_end": chunk.page_end,
-            #     }
-            # )
 
             yield Document(
                 page_content=chunk.text,
