@@ -26,21 +26,7 @@ class Chunk:
 
 class DocumentChunker:
     """
-    Converts:
-
-        LayoutBlock[]
-            ↓
-         Section[]
-            ↓
-          Chunk[]
-
-    regardless of whether blocks came from:
-      - Textract Layout
-      - Unstructured DOCX
-      - Unstructured PPTX
-      - Unstructured HTML
-      - Unstructured Markdown
-      - etc.
+    Converts: LayoutBlock[] -> Section[] -> Chunk[]
     """
 
     def __init__(
@@ -60,8 +46,8 @@ class DocumentChunker:
         """
         LayoutBlocks -> Sections -> Chunks
         """
-        sections = self.build_sections(blocks)
-        yield from self.chunk_sections(sections)
+        sections = self.build_sections(blocks=blocks)
+        yield from self.build_chunks(sections=sections)
 
     def build_sections(
         self,
@@ -89,7 +75,7 @@ class DocumentChunker:
 
         sections: list[Section] = []
 
-        current_title = "Document Start"
+        current_title = ""
         current_blocks: list[LayoutBlock] = []
 
         for block in blocks:
@@ -118,7 +104,7 @@ class DocumentChunker:
 
         return sections
 
-    def chunk_sections(
+    def build_chunks(
         self,
         sections: list[Section],
     ) -> Iterator[Chunk]:
@@ -127,21 +113,25 @@ class DocumentChunker:
             if not section.blocks:
                 continue
 
-            content_blocks = [block.text for block in section.blocks if not block.is_title]
+            body = "\n\n".join(block.text for block in section.blocks if block.text.strip())
 
-            body = "\n\n".join(content_blocks)
-
-            if not body.strip():
+            if not body:
                 continue
-
-            section_text = f"{section.title}\n\n{body}"
 
             start_page = section.blocks[0].page_number
             end_page = section.blocks[-1].page_number
 
-            if len(section_text) <= self.max_chunk_size:
+            title_prefix = f"{section.title}\n\n" if section.title else ""
+
+            available_body_size = max(
+                self.min_chunk_size,
+                self.max_chunk_size - len(title_prefix),
+            )
+
+            # Section fits into one chunk
+            if len(body) <= available_body_size:
                 yield Chunk(
-                    text=section_text,
+                    text=f"{title_prefix}{body}",
                     section_title=section.title,
                     page_start=start_page,
                     page_end=end_page,
@@ -149,9 +139,13 @@ class DocumentChunker:
 
                 continue
 
-            for chunk_text in self.chunk_text(section_text):
+            # Large section -> split body while repeating title
+            for chunk_body in self.chunk_text(
+                body,
+                max_size=available_body_size,
+            ):
                 yield Chunk(
-                    text=chunk_text,
+                    text=f"{title_prefix}{chunk_body}",
                     section_title=section.title,
                     page_start=start_page,
                     page_end=end_page,
@@ -160,36 +154,94 @@ class DocumentChunker:
     def chunk_text(
         self,
         text: str,
-    ) -> list[str]:
+        max_size: int | None = None,
+    ) -> Iterator[str]:
         """
-        Character chunking with overlap.
+        Prefer: paragraph boundary -> sentence boundary -> line boundary -> word boundary -> hard split
 
-        Used only when a section exceeds max_chunk_size.
+        while preserving overlap.
         """
+
         if not text:
-            return []
+            return
 
-        chunks: list[str] = []
+        max_size = max_size or self.max_chunk_size
 
         start = 0
         length = len(text)
 
         while start < length:
-            end = min(
-                start + self.max_chunk_size,
+            target_end = min(
+                start + max_size,
                 length,
             )
-            chunk = text[start:end]
 
-            if len(chunk) >= self.min_chunk_size or not chunks:
-                chunks.append(chunk)
+            # final chunk
+            if target_end >= length:
+                chunk = text[start:].strip()
 
-            if end >= length:
+                if chunk:
+                    yield chunk
+
                 break
 
+            candidate = text[start:target_end]
+
+            split_at = self._find_split_point(candidate)
+
+            chunk = candidate[:split_at].strip()
+
+            if chunk:
+                yield chunk
+
+            next_start = start + split_at
+
+            # guarantee forward progress
             start = max(
-                end - self.overlap_chars,
+                next_start - self.overlap_chars,
                 start + 1,
             )
 
-        return chunks
+    def _find_split_point(
+        self,
+        text: str,
+    ) -> int:
+        """
+        Find best semantic split location.
+
+        Search only after min_chunk_size so we don't
+        create tiny chunks.
+        """
+
+        if len(text) <= self.min_chunk_size:
+            return len(text)
+
+        min_pos = self.min_chunk_size
+
+        # Paragraph break
+        idx = text.rfind("\n\n", min_pos)
+
+        if idx != -1:
+            return idx
+
+        # Sentence break
+        for delimiter in (". ", "! ", "? "):
+            idx = text.rfind(delimiter, min_pos)
+
+            if idx != -1:
+                return idx + len(delimiter)
+
+        # Single newline
+        idx = text.rfind("\n", min_pos)
+
+        if idx != -1:
+            return idx
+
+        # Whitespace
+        idx = text.rfind(" ", min_pos)
+
+        if idx != -1:
+            return idx
+
+        # Hard split fallback
+        return len(text)

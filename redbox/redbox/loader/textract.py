@@ -381,8 +381,8 @@ class TextractChunkLoader:
         """
         try:
             return self._extract_pdf_layout_from_s3(bucket=self.bucket, key=s3_key)
-        except Exception:
-            logger.warning("Textract LAYOUT failed for %s; falling back to direct extraction", display_name)
+        except Exception as e:
+            logger.warning("Textract LAYOUT failed for %s; falling back to direct extraction - %s", display_name, e)
             raw_pages = self._extract_pdf_text_direct(file_bytes)
             return [
                 LayoutBlock(text=text, block_type="LAYOUT_TEXT", page_number=i + 1, is_title=False)
