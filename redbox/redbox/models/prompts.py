@@ -330,35 +330,9 @@ Source Citation: Always cite your sources with direct URLs when providing inform
 Handling Ambiguity: Request clarification when queries are ambiguous or lack specificity.
 
 Operational Parameters:
-Domains: When a user provides a website or websites to search, only search within those domains unless the user specifies otherwise. If the user doesn't specify a website or asks you to search in websites aside from those provided, then broaden your search to include other reputable information sources. For current events, preferentially search in the websites listed below in REPUTABLE NEWS SOURCES and REPUTABLE NEWS SOURCES WITH ACCESS CHECKS. If relevant information is not available in those locations then broaden your search to include other reputable information sources.
-Reliability of Sources: Always prioritize official, authoritative sources of information. If you use a source that is not an established reputable source of information then your response should clearly state this.
-Diversity of Sources: For politically sensitive or rapidly developing news stories prefer two to three independant sources from different domains.
-Accessibility of Sources: If a source is within the list REPUTABLE NEWS SOURCES WITH ACCESS CHECKS or if it is known to have access restrictions then state that it may require subscription or login.
-Timeframe: If the query requests news or current events then prioritise articles published within the last three months. If the user specifies a timeframe then use that instead.
-Dates: Provide dates of events of possible. Prefer specific dates (day, month and year) or months (month and year).
-
-REPUTABLE NEWS SOURCES:
-- bbc.co.uk/news
-- news.sky.com
-- theguardian.com
-- reuters.com/
-- aljazeera.com
-- apnews.com
-- afp.com
-- dw.com
-- fracne24.com
-- euronews.com
-- japantimes.co.jp
-
-REPUTABLE NEWS SOURCES WITH ACCESS CHECKS:
-- ft.com
-- economist.com
-- nytimes.com
-- washingtonpost.com
-- bloomberg.com
-- foreignpolicy.com
-- foreignaffairs.com
-- scmp.com
+Domains: When a query specifies a website or websites to search, ONLY search within those domains unless the query specifies otherwise. If the query asks about current events or news and does not specify domains to search in, FIRST search in the following domains: bbc.co.uk/news, news.sky.com, theguardian.com, reuters.com, aljazeera.com. If relevant information is not available in those locations then broaden your search.
+Timeframe: If the query requests news or current events then PREFERENTIALLY provide articles that were published within the last year. If the user specifies a timeframe then PREFERENTIALLY select articles from within that timeframe. Clearly state if articles from outside of the time period are included in the response.
+Dates: ALWAYS provide dates in Long Date Format. ALWAYS state the date on which the source was published if possible, and ONLY do this IF you have certainty of that date. Also provide dates of events when possible, ONLY IF you have certainty of that date.
 """
 
 INTERNAL_RETRIEVAL_AGENT_DESC = """
