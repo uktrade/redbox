@@ -27,9 +27,9 @@ logger = logging.getLogger(__name__)
 
 tokeniser = bedrock_tokeniser
 
-_LAYOUT_TITLE_TYPES = {"LAYOUT_TITLE", "LAYOUT_SECTION_HEADER"}
+_LAYOUT_TITLE_TYPES = {"LAYOUT_TITLE", "LAYOUT_SECTION_HEADER", "LAYOUT_HEADER"}
 
-_LAYOUT_SKIP_TYPES = {"LAYOUT_HEADER", "LAYOUT_FOOTER", "LAYOUT_PAGE_NUMBER", "LAYOUT_FIGURE"}
+_LAYOUT_SKIP_TYPES = {"LAYOUT_PAGE_NUMBER"}
 
 
 class TextractChunkLoader:
@@ -70,7 +70,7 @@ class TextractChunkLoader:
             overlap_chars=overlap_chars,
         )
 
-        logger.info(
+        logger.warning(
             "Initialised TextractChunkLoader (bucket=%s, chunk_resolution=%s, region=%s, min_chunk=%s, max_chunk=%s, overlap=%s)",
             bucket,
             chunk_resolution,
@@ -112,91 +112,255 @@ class TextractChunkLoader:
                 logger.exception("Textract API error on %s: %s", getattr(func, "__name__", str(func)), e)
                 raise
 
-    def _get_textract_layout_results(self, job_id: str) -> list[LayoutBlock]:
-        logger.info("Fetching Textract LAYOUT results for job %s", job_id)
+    def _extract_layout_text(
+        self,
+        layout_block: dict,
+        block_map: dict[str, dict],
+    ) -> str:
+        """
+        Resolve text for a Textract LAYOUT block.
 
-        blocks: list[LayoutBlock] = []
-        next_token = None
+        Textract LAYOUT blocks typically do not contain a direct
+        Text field. Text is reconstructed from descendant LINE
+        blocks referenced via Relationships.
+        """
+
+        lines: list[str] = []
+
+        def walk(block_id: str) -> None:
+            block = block_map.get(block_id)
+
+            if not block:
+                return
+
+            if block.get("BlockType") == "LINE":
+                text = block.get("Text", "").strip()
+
+                if text:
+                    lines.append(text)
+
+            for relationship in block.get(
+                "Relationships",
+                [],
+            ):
+                if relationship.get("Type") != "CHILD":
+                    continue
+
+                for child_id in relationship.get(
+                    "Ids",
+                    [],
+                ):
+                    walk(child_id)
+
+        for relationship in layout_block.get(
+            "Relationships",
+            [],
+        ):
+            if relationship.get("Type") != "CHILD":
+                continue
+
+            for child_id in relationship.get(
+                "Ids",
+                [],
+            ):
+                walk(child_id)
+
+        return "\n".join(lines).strip()
+
+    def _get_textract_layout_results(
+        self,
+        job_id: str,
+    ) -> list[LayoutBlock]:
+        logger.warning(
+            "Fetching Textract LAYOUT results for job %s",
+            job_id,
+        )
+
+        all_blocks: list[dict] = []
+        next_token: str | None = None
         api_calls = 0
 
+        # Retrieve all pages first
         while True:
             kwargs = {"JobId": job_id}
+
             if next_token:
                 kwargs["NextToken"] = next_token
 
-            response = self._retry_textract_request(self.textract.get_document_analysis, **kwargs)
+            response = self._retry_textract_request(
+                self.textract.get_document_analysis,
+                **kwargs,
+            )
+
             api_calls += 1
 
-            for block in response.get("Blocks", []):
-                block_type = block.get("BlockType", "")
-                text = block.get("Text", "").strip()
-                page = block.get("Page", 1)
+            page_blocks = response.get(
+                "Blocks",
+                [],
+            )
 
-                if not text or block_type in _LAYOUT_SKIP_TYPES:
-                    continue
-                if not block_type.startswith("LAYOUT_"):
-                    continue
-
-                blocks.append(
-                    LayoutBlock(
-                        text=text,
-                        block_type=block_type,
-                        page_number=page,
-                        is_title=block_type in _LAYOUT_TITLE_TYPES,
-                    )
-                )
+            all_blocks.extend(page_blocks)
 
             next_token = response.get("NextToken")
+
             if not next_token:
                 break
 
-        logger.info(
-            "Retrieved %d layout blocks for job %s via %d API calls",
-            len(blocks),
-            job_id,
+        logger.warning(
+            "Retrieved %d Textract blocks across %d API calls",
+            len(all_blocks),
             api_calls,
         )
-        return blocks
 
-    def _extract_pdf_layout_from_s3(self, bucket: str, key: str) -> list[LayoutBlock]:
-        logger.info("Starting Textract LAYOUT analysis for s3://%s/%s", bucket, key)
+        #
+        # Helpful diagnostics
+        #
+        from collections import Counter
 
-        try:
-            response = self._retry_textract_request(
-                self.textract.start_document_analysis,
-                DocumentLocation={"S3Object": {"Bucket": bucket, "Name": key}},
-                FeatureTypes=["LAYOUT"],
+        block_type_counts = Counter(block.get("BlockType", "UNKNOWN") for block in all_blocks)
+
+        logger.warning(
+            "Textract block types: %s",
+            dict(block_type_counts),
+        )
+
+        #
+        # Build lookup table
+        #
+        block_map = {block["Id"]: block for block in all_blocks if "Id" in block}
+
+        layout_blocks: list[LayoutBlock] = []
+
+        #
+        # Preserve Textract ordering exactly
+        #
+        for block in all_blocks:
+            block_type = block.get(
+                "BlockType",
+                "",
             )
 
-            job_id = response["JobId"]
-            logger.info("Started Textract LAYOUT job %s", job_id)
-            status = self._wait_for_layout_job(job_id)
+            if not block_type.startswith("LAYOUT_"):
+                continue
 
-            if status != "SUCCEEDED":
-                raise RuntimeError(f"Textract LAYOUT job failed for s3://{bucket}/{key}")
+            if block_type in _LAYOUT_SKIP_TYPES:
+                continue
 
-            return self._get_textract_layout_results(job_id)
+            text = self._extract_layout_text(
+                layout_block=block,
+                block_map=block_map,
+            )
 
-        except Exception as e:
-            logger.exception("Textract LAYOUT extraction failed for s3://%s/%s: %s", bucket, key, e)
-            raise
+            if not text:
+                continue
 
-    def _wait_for_layout_job(self, job_id: str) -> str:
-        logger.info("Waiting for Textract LAYOUT job %s", job_id)
+            layout_blocks.append(
+                LayoutBlock(
+                    text=text,
+                    block_type=block_type,
+                    page_number=block.get("Page", 1),
+                    is_title=block_type in _LAYOUT_TITLE_TYPES,
+                )
+            )
+
+        logger.warning(
+            "Extracted %d layout blocks from Textract output",
+            len(layout_blocks),
+        )
+
+        if not layout_blocks:
+            logger.warning("Textract returned LAYOUT blocks but none contained extractable text")
+
+        return layout_blocks
+
+    def _extract_pdf_layout_from_s3(
+        self,
+        bucket: str,
+        key: str,
+    ) -> list[LayoutBlock]:
+        logger.warning(
+            "Starting Textract LAYOUT analysis for s3://%s/%s",
+            bucket,
+            key,
+        )
+
+        response = self._retry_textract_request(
+            self.textract.start_document_analysis,
+            DocumentLocation={
+                "S3Object": {
+                    "Bucket": bucket,
+                    "Name": key,
+                }
+            },
+            FeatureTypes=["LAYOUT"],
+        )
+
+        job_id = response["JobId"]
+
+        logger.warning(
+            "Started Textract LAYOUT job %s",
+            job_id,
+        )
+
+        status = self._wait_for_layout_job(job_id)
+
+        if status != "SUCCEEDED":
+            raise RuntimeError(f"Textract LAYOUT job failed with status={status}")
+
+        layout_blocks = self._get_textract_layout_results(
+            job_id,
+        )
+
+        if not layout_blocks:
+            raise ValueError(f"Textract returned no usable layout blocks for {key}")
+
+        return layout_blocks
+
+    def _wait_for_layout_job(
+        self,
+        job_id: str,
+        timeout_seconds: int = 600,
+    ) -> str:
+        logger.warning(
+            "Waiting for Textract LAYOUT job %s",
+            job_id,
+        )
+
+        start_time = time.monotonic()
 
         while True:
-            response = self._retry_textract_request(self.textract.get_document_analysis, JobId=job_id)
-            status = response["JobStatus"]
-            logger.debug("Textract LAYOUT job %s status: %s", job_id, status)
+            if time.monotonic() - start_time > timeout_seconds:
+                raise TimeoutError(f"Textract job {job_id} exceeded {timeout_seconds}s timeout")
 
-            if status in ("SUCCEEDED", "FAILED"):
-                logger.info("Textract LAYOUT job %s finished: %s", job_id, status)
+            response = self._retry_textract_request(
+                self.textract.get_document_analysis,
+                JobId=job_id,
+            )
+
+            status = response["JobStatus"]
+
+            logger.debug(
+                "Textract job %s status=%s",
+                job_id,
+                status,
+            )
+
+            if status in {
+                "SUCCEEDED",
+                "FAILED",
+                "PARTIAL_SUCCESS",
+            }:
+                logger.warning(
+                    "Textract LAYOUT job %s finished: %s",
+                    job_id,
+                    status,
+                )
                 return status
 
             time.sleep(5)
 
     def _extract_pdf_text_direct(self, file_bytes: BytesIO) -> List[str]:
-        logger.info("Extracting PDF text directly with PyMuPDF")
+        logger.warning("Extracting PDF text directly with PyMuPDF")
         file_bytes.seek(0)
         doc = fitz.open(stream=file_bytes.getvalue(), filetype="pdf")
         pages: List[str] = []
@@ -209,7 +373,7 @@ class TextractChunkLoader:
         if not pages:
             raise ValueError("PDF contains no extractable text")
 
-        logger.info("Extracted %d page(s) directly from PDF", len(pages))
+        logger.warning("Extracted %d page(s) directly from PDF", len(pages))
         return pages
 
     def _extract_markdown(
@@ -223,7 +387,7 @@ class TextractChunkLoader:
         Paragraphs become text blocks.
         """
 
-        logger.info("Extracting Markdown")
+        logger.warning("Extracting Markdown")
 
         file_bytes.seek(0)
 
@@ -239,7 +403,7 @@ class TextractChunkLoader:
         if not blocks:
             raise ValueError("Markdown document contains no extractable text")
 
-        logger.info(
+        logger.warning(
             "Extracted %d layout blocks from Markdown",
             len(blocks),
         )
@@ -247,7 +411,7 @@ class TextractChunkLoader:
         return blocks
 
     def _extract_docx(self, file_bytes: BytesIO) -> List[str]:
-        logger.info("Extracting DOCX with unstructured")
+        logger.warning("Extracting DOCX with unstructured")
         file_bytes.seek(0)
 
         try:
@@ -280,7 +444,7 @@ class TextractChunkLoader:
             if not text_pages:
                 raise ValueError("unstructured extracted no readable text from DOCX")
 
-            logger.info("Extracted %d page(s) from DOCX using unstructured", len(text_pages))
+            logger.warning("Extracted %d page(s) from DOCX using unstructured", len(text_pages))
             return text_pages
 
         except Exception as e:
@@ -288,13 +452,13 @@ class TextractChunkLoader:
             raise
 
     def _extract_pptx(self, file_bytes: BytesIO) -> List[str]:
-        logger.info("Extracting PPTX with unstructured.partition.pptx")
+        logger.warning("Extracting PPTX with unstructured.partition.pptx")
         file_bytes.seek(0)
 
         try:
             elements = partition_pptx(file=file_bytes)
 
-            logger.info("partition_pptx returned %d elements", len(elements))
+            logger.warning("partition_pptx returned %d elements", len(elements))
             if not elements:
                 raise ValueError("unstructured.partition.pptx returned no elements")
 
@@ -322,7 +486,7 @@ class TextractChunkLoader:
             if not text_pages:
                 text_pages = ["\n".join(str(el).strip() for el in elements)]
 
-            logger.info("Extracted %d slide(s) from PPTX", len(text_pages))
+            logger.warning("Extracted %d slide(s) from PPTX", len(text_pages))
             return text_pages
 
         except ImportError:
@@ -362,10 +526,11 @@ class TextractChunkLoader:
         if not text_pages:
             text_pages = ["\n".join(str(el).strip() for el in elements)]
 
-        logger.info("Extracted %d page(s) from %s using unstructured", len(text_pages), file_name)
+        logger.warning("Extracted %d page(s) from %s using unstructured", len(text_pages), file_name)
         return text_pages
 
     def _extract_pdf_layout(self, file_bytes: BytesIO, s3_key: str, display_name: str) -> list[LayoutBlock]:
+        logger.warning("Extracting PDF layout for %s...", display_name)
         try:
             return self._extract_pdf_layout_from_s3(bucket=self.bucket, key=s3_key)
         except Exception as e:
@@ -417,11 +582,11 @@ class TextractChunkLoader:
         file_bytes: BytesIO | None = None,
     ) -> Iterator[Document]:
 
-        logger.info("lazy_load called for %s", file_name)
+        logger.warning("lazy_load called for %s", file_name)
 
         s3_key = file_name
         display_name = os.path.basename(file_name).lower()
-        logger.info("File type detected: %s", display_name)
+        logger.warning("File type detected: %s", display_name)
 
         if file_bytes is None:
             obj = self.s3.get_object(Bucket=self.bucket, Key=s3_key)
