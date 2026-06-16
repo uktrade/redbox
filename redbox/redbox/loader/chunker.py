@@ -1,202 +1,99 @@
-from dataclasses import dataclass
-from typing import Iterator, Callable
+import logging
+from typing import List, Iterator
+from datetime import UTC, datetime
+
+from langchain_core.documents import Document
+
+from redbox.models.chain import GeneratedMetadata
+from redbox.models.file import UploadedFileMetadata, ChunkResolution
+from redbox.transform import bedrock_tokeniser
 
 
-@dataclass
-class LayoutBlock:
-    text: str
-    block_type: str
-    page_number: int
-    is_title: bool
+logger = logging.getLogger(__name__)
 
-
-@dataclass
-class Section:
-    title: str
-    blocks: list[LayoutBlock]
-
-
-@dataclass
-class Chunk:
-    text: str
-    section_title: str
-    page_start: int
-    page_end: int
+tokeniser = bedrock_tokeniser
 
 
 class DocumentChunker:
-    """
-    Converts: LayoutBlock[] -> Section[] -> Chunk[]
-    All size comparisons are in tokens, not characters.
-    """
-
     def __init__(
         self,
         min_chunk_size: int = 500,
         max_chunk_size: int = 2000,
         overlap_chars: int = 200,
-        tokeniser: Callable[[str], int] = len,  # fallback to char count if not provided
+        include_schema_metadata: bool = False,
     ):
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
         self.overlap_chars = overlap_chars
-        self.tokeniser = tokeniser
+        self.include_schema_metadata = include_schema_metadata
 
-    def _token_count(self, text: str) -> int:
-        return self.tokeniser(text)
+        logger.info(
+            "Initialised DocumentChunker (min_chunk_size=%s, max_chunk_size=%s, overlap_chars=%s, include_schema_metadata=%s)",
+            min_chunk_size,
+            max_chunk_size,
+            overlap_chars,
+            include_schema_metadata,
+        )
 
-    def chunk(self, blocks: list[LayoutBlock]) -> Iterator[Chunk]:
-        sections = self.build_sections(blocks=blocks)
-        yield from self.build_chunks(sections=sections)
-
-    def build_sections(self, blocks: list[LayoutBlock]) -> list[Section]:
-        if not blocks:
+    def _chunk_text(self, text: str) -> List[str]:
+        if not text:
             return []
 
-        sections: list[Section] = []
-        current_title = ""
-        current_blocks: list[LayoutBlock] = []
-
-        for block in blocks:
-            if block.is_title:
-                if current_blocks:
-                    sections.append(Section(title=current_title, blocks=current_blocks))
-                current_title = block.text
-                current_blocks = []  # fix: don't include title block in body
-
-            else:
-                current_blocks.append(block)
-
-        if current_blocks:
-            sections.append(Section(title=current_title, blocks=current_blocks))
-
-        return sections
-
-    def build_chunks(self, sections: list[Section]) -> Iterator[Chunk]:
-        for section in sections:
-            if not section.blocks:
-                continue
-
-            body = "\n\n".join(block.text for block in section.blocks if block.text.strip())
-
-            if not body:
-                continue
-
-            start_page = section.blocks[0].page_number
-            end_page = section.blocks[-1].page_number
-
-            title_prefix = f"{section.title}\n\n" if section.title else ""
-            title_tokens = self._token_count(title_prefix)
-
-            available_body_tokens = max(
-                self.min_chunk_size,
-                self.max_chunk_size - title_tokens,  # token-aware budget
-            )
-
-            # Section fits into one chunk
-            if self._token_count(body) <= available_body_tokens:
-                yield Chunk(
-                    text=f"{title_prefix}{body}",
-                    section_title=section.title,
-                    page_start=start_page,
-                    page_end=end_page,
-                )
-                continue
-
-            # Large section -> split body while repeating title
-            for chunk_body in self.chunk_text(body, max_token_size=available_body_tokens):
-                yield Chunk(
-                    text=f"{title_prefix}{chunk_body}",
-                    section_title=section.title,
-                    page_start=start_page,
-                    page_end=end_page,
-                )
-
-    def chunk_text(
-        self,
-        text: str,
-        max_token_size: int | None = None,
-    ) -> Iterator[str]:
-        """
-        Split text respecting token budget.
-        Prefer: paragraph -> sentence -> line -> word -> hard split.
-        """
-        if not text:
-            return
-
-        max_token_size = max_token_size or self.max_chunk_size
-
+        chunks = []
         start = 0
         length = len(text)
 
         while start < length:
-            remaining = text[start:]
-            remaining_tokens = self._token_count(remaining)
+            end = min(start + self.max_chunk_size, length)
+            chunk = text[start:end]
 
-            # Everything remaining fits
-            if remaining_tokens <= max_token_size:
-                chunk = remaining.strip()
-                if chunk:
-                    yield chunk
-                break
+            if len(chunk) >= self.min_chunk_size or not chunks:
+                chunks.append(chunk)
 
-            # Binary search for the char index where token count ~ max_token_size.
-            # Tokens are sub-linear in chars so this converges quickly.
-            lo, hi = 0, len(remaining)
-            while lo < hi:
-                mid = (lo + hi + 1) // 2
-                if self._token_count(remaining[:mid]) <= max_token_size:
-                    lo = mid
-                else:
-                    hi = mid - 1
+            start = end - self.overlap_chars
 
-            candidate = remaining[:lo]
+        return chunks
 
-            # lookahead: if what's left after this split is too small, absorb it
-            leftover = remaining[lo:]
-            if self._token_count(leftover) < self.min_chunk_size:
-                chunk = remaining.strip()
-                if chunk:
-                    yield chunk
-                break
+    def tabular_chunks(
+        self, s3_key: str, tabular_elements: list[dict[str, str]], generated_metadata: GeneratedMetadata
+    ) -> Iterator[Document]:
+        for idx, el in enumerate(tabular_elements or []):
+            metadata = UploadedFileMetadata(
+                index=idx,
+                uri=s3_key,
+                page_number=1,
+                created_datetime=datetime.now(UTC),
+                token_count=tokeniser(el["text"]),
+                chunk_resolution=ChunkResolution.tabular,
+                name=generated_metadata.name,
+                description=generated_metadata.description,
+                keywords=generated_metadata.keywords,
+            ).model_dump()
 
-            split_at = self._find_split_point(candidate)
-            chunk = candidate[:split_at].strip()
+            merged_metadata = metadata
+            if self.include_schema_metadata:
+                merged_metadata = {**metadata, **el.get("metadata", {})}
 
-            if chunk:
-                yield chunk
+            yield Document(page_content=el["text"], metadata=merged_metadata)
 
-            next_start = start + split_at
-            start = max(next_start - self.overlap_chars, start + 1)
-
-    def _find_split_point(self, text: str) -> int:
-        """
-        Find best semantic split within a char-bounded candidate.
-        Min position guard uses char length as a proxy — the candidate
-        is already token-bounded so this is just for semantic quality.
-        """
-        if not text:
-            return 0
-
-        # Use char-based min_pos as a rough guard to avoid tiny leading chunks.
-        # Exact token enforcement is handled by the caller.
-        min_pos = len(text) // 2  # search only in the second half
-
-        idx = text.rfind("\n\n", min_pos)
-        if idx != -1:
-            return idx
-
-        for delimiter in (". ", "! ", "? "):
-            idx = text.rfind(delimiter, min_pos)
-            if idx != -1:
-                return idx + len(delimiter)
-
-        idx = text.rfind("\n", min_pos)
-        if idx != -1:
-            return idx
-
-        idx = text.rfind(" ", min_pos)
-        if idx != -1:
-            return idx
-
-        return len(text)
+    def chunks(self, s3_key: str, pages: list[str], generated_metadata: GeneratedMetadata) -> Iterator[Document]:
+        idx = 0
+        for page_num, page_text in enumerate(pages, start=1):
+            chunks = self._chunk_text(page_text)
+            if not chunks:
+                logger.warning("No chunks produced for page %s", page_num)
+                continue
+            for chunk in chunks:
+                metadata = UploadedFileMetadata(
+                    index=idx,
+                    uri=s3_key,
+                    page_number=page_num,
+                    created_datetime=datetime.now(UTC),
+                    token_count=tokeniser(chunk),
+                    chunk_resolution=ChunkResolution.normal,
+                    name=generated_metadata.name,
+                    description=generated_metadata.description,
+                    keywords=generated_metadata.keywords,
+                ).model_dump()
+                yield Document(page_content=chunk, metadata=metadata)
+                idx += 1

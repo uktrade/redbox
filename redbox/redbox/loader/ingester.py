@@ -8,9 +8,12 @@ from langchain_core.embeddings import FakeEmbeddings
 from langchain_core.runnables import RunnableParallel
 
 from redbox.chains.components import get_embeddings
-from redbox.chains.ingest import ingest_from_loader
-from redbox.loader.loaders import TextractChunkLoader, MetadataLoader
+from redbox.loader.loaders import MetadataLoader
 from redbox.models.settings import get_settings
+
+from redbox.loader.extraction.base import DocumentExtractionService
+from redbox.chains.ingest import ingest_chunks, DocumentChunker
+
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -80,70 +83,62 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             log.info("Creating index %s", es_index_name)
             es.indices.create(index=es_index_name, body=env.index_mapping, ignore=400)
 
-    # extraction_service = DocumentExtractionService(
-    #     bucket=env.bucket_name,
-    # )
-    # pages = extraction_service.extract(file_name=file_name)
+    extraction_service = DocumentExtractionService(
+        bucket=env.bucket_name,
+    )
+    pages = extraction_service.extract(file_name=file_name)
 
-    # textract = TextractService(
-    #     bucket=env.bucket_name,
-    # )
-    # pages = textract.document_analysis(key=file_name)
-
-    chunk_ingest_chain = ingest_from_loader(
-        loader=TextractChunkLoader(
-            bucket=env.bucket_name,
+    chunk_ingest_chain = ingest_chunks(
+        chunker=DocumentChunker(
             min_chunk_size=env.worker_ingest_min_chunk_size,
             max_chunk_size=env.worker_ingest_max_chunk_size,
             overlap_chars=0,
-            metadata=metadata,
         ),
-        s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store(es, es_index_name),
-        env=env,
+        pages=pages,
+        metadata=metadata,
     )
 
-    large_chunk_ingest_chain = ingest_from_loader(
-        loader=TextractChunkLoader(
-            bucket=env.bucket_name,
+    large_chunk_ingest_chain = ingest_chunks(
+        chunker=DocumentChunker(
             min_chunk_size=env.worker_ingest_min_chunk_size,
             max_chunk_size=env.worker_ingest_max_chunk_size,
             overlap_chars=0,
-            metadata=metadata,
+            # metadata=metadata,
         ),
-        s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
-        env=env,
+        pages=pages,
+        metadata=metadata,
     )
 
-    tabular_chunk_ingest_chain = ingest_from_loader(
-        loader=TextractChunkLoader(
-            bucket=env.bucket_name,
+    tabular_chunk_ingest_chain = ingest_chunks(
+        chunker=DocumentChunker(
             min_chunk_size=env.worker_ingest_min_chunk_size,
             max_chunk_size=env.worker_ingest_max_chunk_size,
             overlap_chars=0,
-            metadata=metadata,
+            # metadata=metadata,
         ),
-        s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
-        env=env,
+        pages=pages,
+        metadata=metadata,
+        tabular=True,
     )
 
-    tabular_schema_chunk_ingest_chain = ingest_from_loader(
-        loader=TextractChunkLoader(
-            bucket=env.bucket_name,
+    tabular_schema_chunk_ingest_chain = ingest_chunks(
+        chunker=DocumentChunker(
             min_chunk_size=env.worker_ingest_min_chunk_size,
             max_chunk_size=env.worker_ingest_max_chunk_size,
             overlap_chars=0,
-            metadata=metadata,
+            # metadata=metadata,
             include_schema_metadata=True,
         ),
-        s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store_without_embeddings(es, env.elastic_schematised_chunk_index),
-        env=env,
+        pages=pages,
+        metadata=metadata,
+        tabular=True,
     )
 
-    if file_name.endswith((".csv", ".xls", "xlsx")):
+    if file_name.endswith((".csv", ".xls", ".xlsx", ".tsv")):
         new_ids = RunnableParallel(
             {
                 "normal": chunk_ingest_chain,
@@ -151,7 +146,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
                 "tabular": tabular_chunk_ingest_chain,
                 "schematised_tabular": tabular_schema_chunk_ingest_chain,
             }
-        ).invoke(file_name)  # Run an additional tabular process if a tabular file is ingested
+        ).invoke(file_name, pages)  # Run an additional tabular process if a tabular file is ingested
     else:
         new_ids = RunnableParallel({"normal": chunk_ingest_chain, "largest": large_chunk_ingest_chain}).invoke(
             file_name

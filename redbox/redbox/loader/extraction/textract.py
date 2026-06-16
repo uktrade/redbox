@@ -37,7 +37,7 @@ class TextractService:
         # self.overlap_chars = overlap_chars
         # self.include_schema_metadata = include_schema_metadata
 
-        logger.info(
+        logger.warning(
             "Initialised TextractService (bucket=%s, region=%s)",
             bucket,
             region,
@@ -80,7 +80,7 @@ class TextractService:
                 raise
 
     def _wait_for_job(self, job_id: str, getter: Any):
-        logger.info("Waiting for Textract job %s to complete", job_id)
+        logger.warning("Waiting for Textract job %s to complete", job_id)
 
         while True:
             try:
@@ -90,7 +90,7 @@ class TextractService:
                 logger.debug("Textract job %s current status: %s", job_id, status)
 
                 if status in ["SUCCEEDED", "FAILED"]:
-                    logger.info("Textract job %s finished with status: %s", job_id, status)
+                    logger.warning("Textract job %s finished with status: %s", job_id, status)
                     return status
 
                 time.sleep(5)
@@ -100,7 +100,7 @@ class TextractService:
                 raise
 
     def _get_textract_results(self, job_id: str, getter: Any) -> List[str]:
-        logger.info("Fetching Textract results for job %s", job_id)
+        logger.warning("Fetching Textract results for job %s", job_id)
 
         pages: dict[int, List[str]] = {}
         next_token = None
@@ -128,7 +128,7 @@ class TextractService:
                 logger.exception("Error retrieving Textract results for job %s: %s", job_id, e)
                 raise
 
-        logger.info(
+        logger.warning(
             "Retrieved Textract results for job %s: %d pages via %d API calls",
             job_id,
             len(pages),
@@ -138,7 +138,7 @@ class TextractService:
         return ["\n".join(pages[p]) for p in sorted(pages)]
 
     def document_text_detection(self, key: str) -> list[str]:
-        logger.info(
+        logger.warning(
             "Starting Textract 'document_text_detection' extraction directly from S3: s3://%s/%s", self.bucket, key
         )
 
@@ -154,7 +154,7 @@ class TextractService:
             )
 
             job_id = response["JobId"]
-            logger.info("Started 'document_text_detection' Textract job %s for s3://%s/%s", job_id, self.bucket, key)
+            logger.warning("Started 'document_text_detection' Textract job %s for s3://%s/%s", job_id, self.bucket, key)
 
             status = self._wait_for_job(job_id=job_id, getter=self.textract.get_document_text_detection)
 
@@ -173,7 +173,9 @@ class TextractService:
             raise
 
     def document_analysis(self, key: str) -> list[str]:
-        logger.info("Starting Textract 'document_analysis' extraction directly from S3: s3://%s/%s", self.bucket, key)
+        logger.warning(
+            "Starting Textract 'document_analysis' extraction directly from S3: s3://%s/%s", self.bucket, key
+        )
 
         try:
             response = self._retry_textract_request(
@@ -184,10 +186,11 @@ class TextractService:
                         "Name": key,
                     }
                 },
+                FeatureTypes=["LAYOUT"],
             )
 
             job_id = response["JobId"]
-            logger.info("Started 'document_analysis' Textract job %s for s3://%s/%s", job_id, self.bucket, key)
+            logger.warning("Started 'document_analysis' Textract job %s for s3://%s/%s", job_id, self.bucket, key)
 
             status = self._wait_for_job(job_id=job_id, getter=self.textract.get_document_analysis)
 
