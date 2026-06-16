@@ -80,6 +80,11 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             log.info("Creating index %s", es_index_name)
             es.indices.create(index=es_index_name, body=env.index_mapping, ignore=400)
 
+    # extraction_service = DocumentExtractionService(
+    #     bucket=env.bucket_name,
+    # )
+    # pages = extraction_service.extract(file_name=file_name)
+
     # textract = TextractService(
     #     bucket=env.bucket_name,
     # )

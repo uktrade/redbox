@@ -8,6 +8,7 @@ import boto3
 from redbox.loader.extraction.checks import is_large_pdf, _pdf_is_image_heavy
 from redbox.loader.extraction.textract import TextractService
 from redbox.loader.extraction.unstructured import UnstructuredService
+from redbox.loader.extraction.tabular import load_tabular_file
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ class DocumentExtractionService:
         logger.info("Extracted %d page(s) directly from PDF", len(pages))
         return pages
 
-    def extract(self, file_name: str) -> list[str]:
+    def extract(self, file_name: str) -> list[str] | list[dict[str, str]]:
         logger.info("DocumentExtractionService.extract() called for %s", file_name)
 
         s3_key = file_name
@@ -58,6 +59,9 @@ class DocumentExtractionService:
 
         obj = self.s3.get_object(Bucket=self.bucket, Key=s3_key)
         file_bytes = BytesIO(obj["Body"].read())
+
+        if display_name.endswith((".csv", ".tsv", ".xls", ".xlsx")):
+            return load_tabular_file(display_name, file_bytes)
 
         if display_name.lower().endswith(".pptx"):
             logger.info("This is a PPTX file: %s", display_name)
@@ -90,7 +94,7 @@ class DocumentExtractionService:
                     pages = self._extract_pdf_text_direct(file_bytes)
             else:
                 try:
-                    pages = self._extract_pdf_from_s3(bucket=self.bucket, key=s3_key)
+                    pages = self.textract.document_analysis(key=s3_key)
                 except Exception:
                     logger.warning(
                         "Textract failed for %s; falling back to direct PDF text extraction",
