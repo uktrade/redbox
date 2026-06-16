@@ -7,7 +7,8 @@ from langchain.vectorstores import VectorStore
 from langchain_core.documents.base import Document
 from langchain_core.runnables import Runnable, RunnableLambda, chain
 
-from redbox.loader.textract import TextractChunkLoader
+# from redbox.loader.textract2 import TextractChunkLoader
+from redbox.loader.textract.chunker import TextractChunkLoader
 from redbox.models.settings import Settings
 
 if TYPE_CHECKING:
@@ -60,6 +61,15 @@ def document_loader(
             raise
 
     return wrapped
+
+
+def ingest_from_documents(
+    docs: list[Document],
+    vectorstore: VectorStore,
+) -> list:
+    """Ingest pre-loaded documents directly, skipping extraction."""
+    log.info("Processing %s chunks", len(docs))
+    return vectorstore.add_documents(docs, create_index_if_not_exists=False)
 
 
 def ingest_from_loader(

@@ -8,9 +8,13 @@ from pydantic import ValidationError
 
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.components import get_chat_llm
+from redbox.loader.chunker import LayoutBlock
 from redbox.models.chain import GeneratedMetadata
+from redbox.models.file import ChunkResolution
 from redbox.models.settings import Settings
-from redbox.loader.textract import TextractChunkLoader
+
+# from redbox.loader.textract2 import TextractChunkLoader
+from redbox.loader.textract.chunker import TextractChunkLoader
 
 logger = logging.getLogger(__name__)
 
@@ -36,26 +40,27 @@ class MetadataLoader:
         obj = self.s3_client.get_object(Bucket=self.env.bucket_name, Key=file_name)
         return BytesIO(obj["Body"].read())
 
-    def extract_metadata(self) -> GeneratedMetadata:
+    def extract_metadata(
+        self, layout_blocks: list[LayoutBlock] | None, tabular_elements: list[dict] | None
+    ) -> GeneratedMetadata:
         start_time = time.time()
 
         loader = TextractChunkLoader(
-            bucket=self.env.bucket_name,
+            chunk_resolution=ChunkResolution.normal,
             min_chunk_size=200,
             max_chunk_size=2000,
             overlap_chars=0,
         )
 
-        file_bytes = None
-        if self.file_name.lower().endswith(".docx"):
-            file_bytes = self._get_file_bytes(self.file_name)
+        # file_bytes = None
+        # if self.file_name.lower().endswith(".docx"):
+        #     file_bytes = self._get_file_bytes(self.file_name)
 
         chunks = []
 
         try:
-            for c in loader.lazy_load(
-                file_name=self.file_name,
-                file_bytes=file_bytes,
+            for c in loader.lazy_load_from_blocks(
+                file_name=self.file_name, layout_blocks=layout_blocks, tabular_elements=tabular_elements
             ):
                 chunks.append(c)
         except Exception:

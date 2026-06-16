@@ -6,20 +6,16 @@ import fitz
 import os
 
 from io import BytesIO
-from datetime import UTC, datetime
 from botocore.config import Config
 from botocore.exceptions import ClientError
-from typing import List, Iterator
-from langchain_core.documents import Document
+from typing import List
 from unstructured.partition.docx import partition_docx
 from unstructured.partition.auto import partition
 from unstructured.partition.pptx import partition_pptx
 
-from redbox.models.chain import GeneratedMetadata
-from redbox.models.file import UploadedFileMetadata, ChunkResolution
 from redbox.transform import bedrock_tokeniser
 from redbox.loader.loaders import load_tabular_file
-from redbox.loader.chunker import DocumentChunker, LayoutBlock
+from redbox.loader.chunker import LayoutBlock
 from redbox.loader.parsers.markdown import _MarkdownLayoutParser
 
 
@@ -32,29 +28,11 @@ _LAYOUT_TITLE_TYPES = {"LAYOUT_TITLE", "LAYOUT_SECTION_HEADER", "LAYOUT_HEADER"}
 _LAYOUT_SKIP_TYPES = {"LAYOUT_PAGE_NUMBER"}
 
 
-class TextractChunkLoader:
-    """
-    Load, partition and chunk a document using:
-    - Textract for PDFs
-    - python-docx for DOCX
-    - html.parser for HTML
-    - regex-based parser for Markdown
-    - Pandas for CSV/Excel
-    """
+class TextractExtractor:
+    """Extracts layout blocks from a file exactly once."""
 
-    def __init__(
-        self,
-        bucket: str,
-        chunk_resolution: ChunkResolution = ChunkResolution.normal,
-        min_chunk_size: int = 500,
-        max_chunk_size: int = 2000,
-        overlap_chars: int = 200,
-        region: str = "eu-west-2",
-        metadata: GeneratedMetadata | None = None,
-        include_schema_metadata: bool = False,
-    ):
+    def __init__(self, bucket: str, region: str = "eu-west-2"):
         self.bucket = bucket
-        self.chunk_resolution = chunk_resolution
         textract_config = Config(
             retries={"mode": "adaptive", "max_attempts": 10},
             connect_timeout=20,
@@ -62,23 +40,176 @@ class TextractChunkLoader:
         )
         self.textract = boto3.client("textract", region_name=region, config=textract_config)
         self.s3 = boto3.client("s3", region_name=region)
-        self.metadata = metadata or GeneratedMetadata(name="", description="", keywords=[])
-        self.include_schema_metadata = include_schema_metadata
-        self.chunker = DocumentChunker(
-            min_chunk_size=min_chunk_size,
-            max_chunk_size=max_chunk_size,
-            overlap_chars=overlap_chars,
+
+    def _extract_with_unstructured(self, file_bytes: BytesIO, file_name: str) -> List[str]:
+        file_bytes.seek(0)
+
+        elements = partition(file=file_bytes)
+
+        if not elements:
+            raise ValueError(f"unstructured returned no elements from {file_name}")
+
+        text_pages: List[str] = []
+        current_page: List[str] = []
+        last_page = None
+
+        for el in elements:
+            page_number = getattr(el.metadata, "page_number", None) or getattr(el.metadata, "slide_number", None)
+
+            if page_number is not None:
+                if last_page is None or page_number != last_page:
+                    if current_page:
+                        text_pages.append("\n".join(current_page))
+                    current_page = []
+                    last_page = page_number
+
+            current_page.append(str(el).strip())
+
+        if current_page:
+            text_pages.append("\n".join(current_page))
+
+        if not text_pages:
+            text_pages = ["\n".join(str(el).strip() for el in elements)]
+
+        logger.warning("Extracted %d page(s) from %s using unstructured", len(text_pages), file_name)
+        return text_pages
+
+    def _extract_pptx(self, file_bytes: BytesIO) -> List[str]:
+        logger.warning("Extracting PPTX with unstructured.partition.pptx")
+        file_bytes.seek(0)
+
+        try:
+            elements = partition_pptx(file=file_bytes)
+
+            logger.warning("partition_pptx returned %d elements", len(elements))
+            if not elements:
+                raise ValueError("unstructured.partition.pptx returned no elements")
+
+            text_pages = []
+            current_page = []
+            last_page = None
+
+            for el in elements:
+                page_number = getattr(el.metadata, "page_number", None)
+
+                if page_number is not None:
+                    if last_page is None:
+                        last_page = page_number
+                    if page_number != last_page:
+                        if current_page:
+                            text_pages.append("\n".join(current_page))
+                        current_page = []
+                        last_page = page_number
+
+                current_page.append(str(el).strip())
+
+            if current_page:
+                text_pages.append("\n".join(current_page))
+
+            if not text_pages:
+                text_pages = ["\n".join(str(el).strip() for el in elements)]
+
+            logger.warning("Extracted %d slide(s) from PPTX", len(text_pages))
+            return text_pages
+
+        except ImportError:
+            logger.error("unstructured[pptx] extra not installed")
+            raise
+        except Exception as e:
+            logger.exception("PPTX extraction failed: %s", e)
+            raise
+
+    def _extract_docx(self, file_bytes: BytesIO) -> List[str]:
+        logger.warning("Extracting DOCX with unstructured")
+        file_bytes.seek(0)
+
+        try:
+            elements = partition_docx(file=file_bytes)
+
+            if not elements:
+                raise ValueError("unstructured returned no elements from DOCX")
+
+            text_pages = []
+            current_page = []
+            last_page = None
+
+            for el in elements:
+                page_number = getattr(el.metadata, "page_number", None)
+
+                if page_number is not None:
+                    if last_page is None:
+                        last_page = page_number
+                    if page_number != last_page:
+                        if current_page:
+                            text_pages.append("\n".join(current_page))
+                        current_page = []
+                        last_page = page_number
+
+                current_page.append(str(el).strip())
+
+            if current_page:
+                text_pages.append("\n".join(current_page))
+
+            if not text_pages:
+                raise ValueError("unstructured extracted no readable text from DOCX")
+
+            logger.warning("Extracted %d page(s) from DOCX using unstructured", len(text_pages))
+            return text_pages
+
+        except Exception as e:
+            logger.exception("unstructured failed to process DOCX: %s", str(e))
+            raise
+
+    def _extract_markdown(
+        self,
+        file_bytes: BytesIO,
+    ) -> list[LayoutBlock]:
+        """
+        Parses Markdown into LayoutBlocks.
+
+        Headings become title blocks.
+        Paragraphs become text blocks.
+        """
+
+        logger.warning("Extracting Markdown")
+
+        file_bytes.seek(0)
+
+        raw = file_bytes.read().decode(
+            "utf-8",
+            errors="replace",
         )
 
+        parser = _MarkdownLayoutParser()
+
+        blocks = parser.parse(raw)
+
+        if not blocks:
+            raise ValueError("Markdown document contains no extractable text")
+
         logger.warning(
-            "Initialised TextractChunkLoader (bucket=%s, chunk_resolution=%s, region=%s, min_chunk=%s, max_chunk=%s, overlap=%s)",
-            bucket,
-            chunk_resolution,
-            region,
-            min_chunk_size,
-            max_chunk_size,
-            overlap_chars,
+            "Extracted %d layout blocks from Markdown",
+            len(blocks),
         )
+
+        return blocks
+
+    def _extract_pdf_text_direct(self, file_bytes: BytesIO) -> List[str]:
+        logger.warning("Extracting PDF text directly with PyMuPDF")
+        file_bytes.seek(0)
+        doc = fitz.open(stream=file_bytes.getvalue(), filetype="pdf")
+        pages: List[str] = []
+
+        for page in doc:
+            text = page.get_text().strip()
+            if text:
+                pages.append(text)
+
+        if not pages:
+            raise ValueError("PDF contains no extractable text")
+
+        logger.warning("Extracted %d page(s) directly from PDF", len(pages))
+        return pages
 
     def _is_retryable_textract_error(self, error: Exception) -> bool:
         if not isinstance(error, ClientError):
@@ -273,49 +404,6 @@ class TextractChunkLoader:
 
         return layout_blocks
 
-    def _extract_pdf_layout_from_s3(
-        self,
-        bucket: str,
-        key: str,
-    ) -> list[LayoutBlock]:
-        logger.warning(
-            "Starting Textract LAYOUT analysis for s3://%s/%s",
-            bucket,
-            key,
-        )
-
-        response = self._retry_textract_request(
-            self.textract.start_document_analysis,
-            DocumentLocation={
-                "S3Object": {
-                    "Bucket": bucket,
-                    "Name": key,
-                }
-            },
-            FeatureTypes=["LAYOUT"],
-        )
-
-        job_id = response["JobId"]
-
-        logger.warning(
-            "Started Textract LAYOUT job %s",
-            job_id,
-        )
-
-        status = self._wait_for_layout_job(job_id)
-
-        if status != "SUCCEEDED":
-            raise RuntimeError(f"Textract LAYOUT job failed with status={status}")
-
-        layout_blocks = self._get_textract_layout_results(
-            job_id,
-        )
-
-        if not layout_blocks:
-            raise ValueError(f"Textract returned no usable layout blocks for {key}")
-
-        return layout_blocks
-
     def _wait_for_layout_job(
         self,
         job_id: str,
@@ -359,175 +447,48 @@ class TextractChunkLoader:
 
             time.sleep(5)
 
-    def _extract_pdf_text_direct(self, file_bytes: BytesIO) -> List[str]:
-        logger.warning("Extracting PDF text directly with PyMuPDF")
-        file_bytes.seek(0)
-        doc = fitz.open(stream=file_bytes.getvalue(), filetype="pdf")
-        pages: List[str] = []
-
-        for page in doc:
-            text = page.get_text().strip()
-            if text:
-                pages.append(text)
-
-        if not pages:
-            raise ValueError("PDF contains no extractable text")
-
-        logger.warning("Extracted %d page(s) directly from PDF", len(pages))
-        return pages
-
-    def _extract_markdown(
+    def _extract_pdf_layout_from_s3(
         self,
-        file_bytes: BytesIO,
+        bucket: str,
+        key: str,
     ) -> list[LayoutBlock]:
-        """
-        Parses Markdown into LayoutBlocks.
-
-        Headings become title blocks.
-        Paragraphs become text blocks.
-        """
-
-        logger.warning("Extracting Markdown")
-
-        file_bytes.seek(0)
-
-        raw = file_bytes.read().decode(
-            "utf-8",
-            errors="replace",
+        logger.warning(
+            "Starting Textract LAYOUT analysis for s3://%s/%s",
+            bucket,
+            key,
         )
 
-        parser = _MarkdownLayoutParser()
+        response = self._retry_textract_request(
+            self.textract.start_document_analysis,
+            DocumentLocation={
+                "S3Object": {
+                    "Bucket": bucket,
+                    "Name": key,
+                }
+            },
+            FeatureTypes=["LAYOUT"],
+        )
 
-        blocks = parser.parse(raw)
-
-        if not blocks:
-            raise ValueError("Markdown document contains no extractable text")
+        job_id = response["JobId"]
 
         logger.warning(
-            "Extracted %d layout blocks from Markdown",
-            len(blocks),
+            "Started Textract LAYOUT job %s",
+            job_id,
         )
 
-        return blocks
+        status = self._wait_for_layout_job(job_id)
 
-    def _extract_docx(self, file_bytes: BytesIO) -> List[str]:
-        logger.warning("Extracting DOCX with unstructured")
-        file_bytes.seek(0)
+        if status != "SUCCEEDED":
+            raise RuntimeError(f"Textract LAYOUT job failed with status={status}")
 
-        try:
-            elements = partition_docx(file=file_bytes)
+        layout_blocks = self._get_textract_layout_results(
+            job_id,
+        )
 
-            if not elements:
-                raise ValueError("unstructured returned no elements from DOCX")
+        if not layout_blocks:
+            raise ValueError(f"Textract returned no usable layout blocks for {key}")
 
-            text_pages = []
-            current_page = []
-            last_page = None
-
-            for el in elements:
-                page_number = getattr(el.metadata, "page_number", None)
-
-                if page_number is not None:
-                    if last_page is None:
-                        last_page = page_number
-                    if page_number != last_page:
-                        if current_page:
-                            text_pages.append("\n".join(current_page))
-                        current_page = []
-                        last_page = page_number
-
-                current_page.append(str(el).strip())
-
-            if current_page:
-                text_pages.append("\n".join(current_page))
-
-            if not text_pages:
-                raise ValueError("unstructured extracted no readable text from DOCX")
-
-            logger.warning("Extracted %d page(s) from DOCX using unstructured", len(text_pages))
-            return text_pages
-
-        except Exception as e:
-            logger.exception("unstructured failed to process DOCX: %s", str(e))
-            raise
-
-    def _extract_pptx(self, file_bytes: BytesIO) -> List[str]:
-        logger.warning("Extracting PPTX with unstructured.partition.pptx")
-        file_bytes.seek(0)
-
-        try:
-            elements = partition_pptx(file=file_bytes)
-
-            logger.warning("partition_pptx returned %d elements", len(elements))
-            if not elements:
-                raise ValueError("unstructured.partition.pptx returned no elements")
-
-            text_pages = []
-            current_page = []
-            last_page = None
-
-            for el in elements:
-                page_number = getattr(el.metadata, "page_number", None)
-
-                if page_number is not None:
-                    if last_page is None:
-                        last_page = page_number
-                    if page_number != last_page:
-                        if current_page:
-                            text_pages.append("\n".join(current_page))
-                        current_page = []
-                        last_page = page_number
-
-                current_page.append(str(el).strip())
-
-            if current_page:
-                text_pages.append("\n".join(current_page))
-
-            if not text_pages:
-                text_pages = ["\n".join(str(el).strip() for el in elements)]
-
-            logger.warning("Extracted %d slide(s) from PPTX", len(text_pages))
-            return text_pages
-
-        except ImportError:
-            logger.error("unstructured[pptx] extra not installed")
-            raise
-        except Exception as e:
-            logger.exception("PPTX extraction failed: %s", e)
-            raise
-
-    def _extract_with_unstructured(self, file_bytes: BytesIO, file_name: str) -> List[str]:
-        file_bytes.seek(0)
-
-        elements = partition(file=file_bytes)
-
-        if not elements:
-            raise ValueError(f"unstructured returned no elements from {file_name}")
-
-        text_pages: List[str] = []
-        current_page: List[str] = []
-        last_page = None
-
-        for el in elements:
-            page_number = getattr(el.metadata, "page_number", None) or getattr(el.metadata, "slide_number", None)
-
-            if page_number is not None:
-                if last_page is None or page_number != last_page:
-                    if current_page:
-                        text_pages.append("\n".join(current_page))
-                    current_page = []
-                    last_page = page_number
-
-            current_page.append(str(el).strip())
-
-        if current_page:
-            text_pages.append("\n".join(current_page))
-
-        if not text_pages:
-            text_pages = ["\n".join(str(el).strip() for el in elements)]
-
-        logger.warning("Extracted %d page(s) from %s using unstructured", len(text_pages), file_name)
-        return text_pages
+        return layout_blocks
 
     def _extract_pdf_layout(self, file_bytes: BytesIO, s3_key: str, display_name: str) -> list[LayoutBlock]:
         logger.warning("Extracting PDF layout for %s...", display_name)
@@ -576,17 +537,15 @@ class TextractChunkLoader:
             for i, text in enumerate(pages)
         ]
 
-    def lazy_load(
-        self,
-        file_name: str,
-        file_bytes: BytesIO | None = None,
-    ) -> Iterator[Document]:
-
-        logger.warning("lazy_load called for %s", file_name)
-
+    def extract(
+        self, file_name: str, file_bytes: BytesIO | None = None
+    ) -> tuple[list[LayoutBlock] | None, list[dict] | None, BytesIO]:
+        """
+        Returns (layout_blocks, tabular_elements, file_bytes).
+        Exactly one of layout_blocks or tabular_elements will be non-None.
+        """
         s3_key = file_name
         display_name = os.path.basename(file_name).lower()
-        logger.warning("File type detected: %s", display_name)
 
         if file_bytes is None:
             obj = self.s3.get_object(Bucket=self.bucket, Key=s3_key)
@@ -594,46 +553,7 @@ class TextractChunkLoader:
 
         if display_name.endswith((".csv", ".tsv", ".xls", ".xlsx")):
             tabular_elements = load_tabular_file(display_name, file_bytes)
-            for idx, el in enumerate(tabular_elements or []):
-                metadata = UploadedFileMetadata(
-                    index=idx,
-                    uri=s3_key,
-                    page_number=1,
-                    created_datetime=datetime.now(UTC),
-                    token_count=tokeniser(el["text"]),
-                    chunk_resolution=ChunkResolution.tabular,
-                    name=self.metadata.name,
-                    description=self.metadata.description,
-                    keywords=self.metadata.keywords,
-                ).model_dump()
+            return None, tabular_elements, file_bytes
 
-                merged_metadata = metadata
-                if self.include_schema_metadata:
-                    merged_metadata = {**metadata, **el.get("metadata", {})}
-
-                yield Document(page_content=el["text"], metadata=merged_metadata)
-            return
-
-        layout_blocks = self._extract_layout_blocks(
-            display_name=display_name,
-            file_bytes=file_bytes,
-            s3_key=s3_key,
-        )
-
-        for idx, chunk in enumerate(self.chunker.chunk(layout_blocks)):
-            metadata = UploadedFileMetadata(
-                index=idx,
-                uri=s3_key,
-                page_number=chunk.page_start,
-                created_datetime=datetime.now(UTC),
-                token_count=tokeniser(chunk.text),
-                chunk_resolution=self.chunk_resolution,
-                name=self.metadata.name,
-                description=self.metadata.description,
-                keywords=self.metadata.keywords,
-            ).model_dump()
-
-            yield Document(
-                page_content=chunk.text,
-                metadata=metadata,
-            )
+        layout_blocks = self._extract_layout_blocks(display_name, file_bytes, s3_key)
+        return layout_blocks, None, file_bytes

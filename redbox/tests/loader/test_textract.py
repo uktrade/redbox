@@ -2,7 +2,7 @@ import pytest
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
-from redbox.loader.textract import (
+from redbox.loader.textract.chunker import (
     TextractChunkLoader,
     LayoutBlock,
 )
