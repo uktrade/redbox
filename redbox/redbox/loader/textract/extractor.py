@@ -343,9 +343,7 @@ class TextractExtractor:
             api_calls,
         )
 
-        #
         # Helpful diagnostics
-        #
         from collections import Counter
 
         block_type_counts = Counter(block.get("BlockType", "UNKNOWN") for block in all_blocks)
@@ -407,7 +405,7 @@ class TextractExtractor:
     def _wait_for_layout_job(
         self,
         job_id: str,
-        timeout_seconds: int = 600,
+        timeout_seconds: int = 120,
     ) -> str:
         logger.warning(
             "Waiting for Textract LAYOUT job %s",

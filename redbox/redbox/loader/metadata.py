@@ -52,12 +52,7 @@ class MetadataLoader:
             overlap_chars=0,
         )
 
-        # file_bytes = None
-        # if self.file_name.lower().endswith(".docx"):
-        #     file_bytes = self._get_file_bytes(self.file_name)
-
         chunks = []
-
         try:
             for c in loader.lazy_load_from_blocks(
                 file_name=self.file_name, layout_blocks=layout_blocks, tabular_elements=tabular_elements
