@@ -164,7 +164,7 @@ class TextractService:
                 )
                 raise RuntimeError(f"Textract 'document_text_detection' failed for s3://{self.bucket}/{key}")
 
-            return self._get_textract_results(job_id)
+            return self._get_textract_results(job_id=job_id, getter=self.textract.get_document_text_detection)
 
         except Exception as e:
             logger.exception(
@@ -198,7 +198,7 @@ class TextractService:
                 logger.error("Textract 'document_analysis' job %s failed for s3://%s/%s", job_id, self.bucket, key)
                 raise RuntimeError(f"Textract 'document_analysis' failed for s3://{self.bucket}/{key}")
 
-            return self._get_textract_results(job_id)
+            return self._get_textract_results(job_id=job_id, getter=self.textract.get_document_analysis)
 
         except Exception as e:
             logger.exception("Textract 'document_analysis' extraction failed for s3://%s/%s: %s", self.bucket, key, e)
