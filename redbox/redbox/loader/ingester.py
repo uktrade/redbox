@@ -106,9 +106,9 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
 
     large_chunk_ingest_chain = ingest_chunks(
         chunker=DocumentChunker(
-            min_chunk_size=env.worker_ingest_min_chunk_size,
-            max_chunk_size=env.worker_ingest_max_chunk_size,
-            overlap_chars=0,
+            min_chunk_size=env.worker_ingest_largest_chunk_size,
+            max_chunk_size=env.worker_ingest_largest_chunk_size,
+            overlap_chars=env.worker_ingest_largest_chunk_overlap,
         ),
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
         pages=pages,
@@ -117,9 +117,9 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
 
     tabular_chunk_ingest_chain = ingest_chunks(
         chunker=DocumentChunker(
-            min_chunk_size=env.worker_ingest_min_chunk_size,
-            max_chunk_size=env.worker_ingest_max_chunk_size,
-            overlap_chars=0,
+            min_chunk_size=env.worker_ingest_largest_chunk_size,
+            max_chunk_size=env.worker_ingest_largest_chunk_size,
+            overlap_chars=env.worker_ingest_largest_chunk_overlap,
         ),
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
         pages=pages,
@@ -129,9 +129,9 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
 
     tabular_schema_chunk_ingest_chain = ingest_chunks(
         chunker=DocumentChunker(
-            min_chunk_size=env.worker_ingest_min_chunk_size,
-            max_chunk_size=env.worker_ingest_max_chunk_size,
-            overlap_chars=0,
+            min_chunk_size=env.worker_ingest_largest_chunk_size,
+            max_chunk_size=env.worker_ingest_largest_chunk_size,
+            overlap_chars=env.worker_ingest_largest_chunk_overlap,
             include_schema_metadata=True,
         ),
         vectorstore=get_elasticsearch_store_without_embeddings(es, env.elastic_schematised_chunk_index),
