@@ -8,10 +8,10 @@ from langchain_core.embeddings import FakeEmbeddings
 from langchain_core.runnables import RunnableParallel
 
 from redbox.chains.components import get_embeddings
-from redbox.loader.loaders import MetadataLoader
 from redbox.models.settings import get_settings
 
 from redbox.loader.extraction.base import DocumentExtractionService
+from redbox.loader.extraction.metadata import MetadataExtraction
 from redbox.chains.ingest import ingest_chunks, DocumentChunker
 
 
@@ -66,7 +66,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
     logging.info("Ingesting file: %s", file_name)
     start_time = time.time()
 
-    metadata = MetadataLoader(env, env.s3_client(), file_name).extract_metadata()
+    is_tabular = file_name.endswith((".csv", ".xls", ".xlsx", ".tsv"))
 
     es = env.elasticsearch_client()
     log.info("Using Elasticsearch client: %s", es)
@@ -88,6 +88,11 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
     )
     pages = extraction_service.extract(file_name=file_name)
 
+    if is_tabular:
+        metadata = MetadataExtraction(env=env).extract_tabular(file_name=file_name, tabular_elements=pages)
+    else:
+        metadata = MetadataExtraction(env=env).extract(file_name=file_name, pages=pages)
+
     chunk_ingest_chain = ingest_chunks(
         chunker=DocumentChunker(
             min_chunk_size=env.worker_ingest_min_chunk_size,
@@ -104,7 +109,6 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             min_chunk_size=env.worker_ingest_min_chunk_size,
             max_chunk_size=env.worker_ingest_max_chunk_size,
             overlap_chars=0,
-            # metadata=metadata,
         ),
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
         pages=pages,
@@ -116,7 +120,6 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             min_chunk_size=env.worker_ingest_min_chunk_size,
             max_chunk_size=env.worker_ingest_max_chunk_size,
             overlap_chars=0,
-            # metadata=metadata,
         ),
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
         pages=pages,
@@ -129,7 +132,6 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             min_chunk_size=env.worker_ingest_min_chunk_size,
             max_chunk_size=env.worker_ingest_max_chunk_size,
             overlap_chars=0,
-            # metadata=metadata,
             include_schema_metadata=True,
         ),
         vectorstore=get_elasticsearch_store_without_embeddings(es, env.elastic_schematised_chunk_index),
@@ -138,7 +140,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
         tabular=True,
     )
 
-    if file_name.endswith((".csv", ".xls", ".xlsx", ".tsv")):
+    if is_tabular:
         new_ids = RunnableParallel(
             {
                 "normal": chunk_ingest_chain,
