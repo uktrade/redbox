@@ -159,3 +159,7 @@ only screen and (min-resolution:192dpi) {
     background-image: url(/static/govuk-frontend/assets/images/govuk-crest-2x.png)
   }
 }
+
+:is(html, body):has(.ids-chat-interaction) {
+  scroll-padding-bottom: 250px;
+}
