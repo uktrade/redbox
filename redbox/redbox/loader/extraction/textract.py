@@ -16,12 +16,7 @@ class TextractService:
     def __init__(
         self,
         bucket: str,
-        # min_chunk_size: int = 500,
-        # max_chunk_size: int = 2000,
-        # overlap_chars: int = 200,
         region: str = "eu-west-2",
-        # metadata: GeneratedMetadata | None = None,
-        # include_schema_metadata: bool = False,
     ):
         self.bucket = bucket
         textract_config = Config(
@@ -31,19 +26,11 @@ class TextractService:
         )
         self.textract = boto3.client("textract", region_name=region, config=textract_config)
         self.s3 = boto3.client("s3", region_name=region)
-        # self.metadata = metadata or GeneratedMetadata(name="", description="", keywords=[])
-        # self.min_chunk_size = min_chunk_size
-        # self.max_chunk_size = max_chunk_size
-        # self.overlap_chars = overlap_chars
-        # self.include_schema_metadata = include_schema_metadata
 
         logger.warning(
             "Initialised TextractService (bucket=%s, region=%s)",
             bucket,
             region,
-            # min_chunk_size,
-            # max_chunk_size,
-            # overlap_chars,
         )
 
     def _is_retryable_textract_error(self, error: Exception) -> bool:
