@@ -5,10 +5,9 @@ from typing import List
 import fitz
 import boto3
 
-from redbox.loader.extraction.checks import is_large_pdf, _pdf_is_image_heavy
+from redbox.loader.loaders import is_large_pdf, _pdf_is_image_heavy, load_tabular_file
 from redbox.loader.extraction.textract import TextractService
 from redbox.loader.extraction.unstructured import UnstructuredService
-from redbox.loader.extraction.tabular import load_tabular_file
 
 logger = logging.getLogger(__name__)
 
