@@ -18,18 +18,21 @@ tokeniser = bedrock_tokeniser
 class DocumentChunker:
     def __init__(
         self,
+        chunk_resolution: ChunkResolution,
         min_chunk_size: int = 500,
         max_chunk_size: int = 2000,
         overlap_chars: int = 200,
         include_schema_metadata: bool = False,
     ):
+        self.chunk_resolution = chunk_resolution
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
         self.overlap_chars = overlap_chars
         self.include_schema_metadata = include_schema_metadata
 
         logger.info(
-            "Initialised DocumentChunker (min_chunk_size=%s, max_chunk_size=%s, overlap_chars=%s, include_schema_metadata=%s)",
+            "Initialised DocumentChunker (chunk_resolution=%s, min_chunk_size=%s, max_chunk_size=%s, overlap_chars=%s, include_schema_metadata=%s)",
+            chunk_resolution,
             min_chunk_size,
             max_chunk_size,
             overlap_chars,
@@ -37,8 +40,8 @@ class DocumentChunker:
         )
 
     def _page_for_offset(self, offset: int, page_offsets: list[int]) -> int:
-        """Return the 0-indexed page number containing the given offset."""
-        return bisect.bisect_right(page_offsets, offset) - 1
+        """Return the 1-indexed page number containing the given offset."""
+        return bisect.bisect_right(page_offsets, offset)
 
     def _parse_pages(self, pages: list[str]) -> tuple[str, list[int]]:
         """Combine pages into one string, tracking each page's start offset."""
@@ -111,7 +114,7 @@ class DocumentChunker:
                 page_number=page_num,
                 created_datetime=datetime.now(UTC),
                 token_count=tokeniser(chunk),
-                chunk_resolution=ChunkResolution.normal,
+                chunk_resolution=self.chunk_resolution,
                 name=generated_metadata.name,
                 description=generated_metadata.description,
                 keywords=generated_metadata.keywords,
