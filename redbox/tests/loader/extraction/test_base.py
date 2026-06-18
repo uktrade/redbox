@@ -1,6 +1,6 @@
 import pytest
 from io import BytesIO
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, ANY, call
 
 from redbox.loader.extraction.base import DocumentExtractionService
 
@@ -27,6 +27,48 @@ def make_s3_body(content: bytes = b"fake") -> MagicMock:
 
 def patch_s3(svc: DocumentExtractionService, content: bytes = b"fake"):
     svc.s3.get_object = MagicMock(return_value={"Body": make_s3_body(content)})
+
+
+class TestExtractInit:
+    @patch("redbox.loader.extraction.base.boto3.client")
+    def test_init_default_parameters(self, mock_boto_client: MagicMock):
+        extractor = DocumentExtractionService(bucket="test-bucket")
+
+        assert extractor.bucket == "test-bucket"
+        assert extractor.region == "eu-west-2"
+
+        assert extractor.textract.bucket == extractor.bucket
+        assert extractor.textract.region == extractor.region
+
+        assert mock_boto_client.call_count == 2
+        mock_boto_client.assert_has_calls(
+            [
+                call("s3", region_name="eu-west-2"),
+                call("textract", region_name="eu-west-2", config=ANY),
+            ]
+        )
+
+    @patch("redbox.loader.extraction.base.boto3.client")
+    def test_init_custom_parameters(self, mock_boto_client: MagicMock):
+        bucket, region = "test-bucket-2", "eu-west-1"
+        extractor = DocumentExtractionService(
+            bucket=bucket,
+            region=region,
+        )
+
+        assert extractor.bucket == bucket
+        assert extractor.region == region
+
+        assert extractor.textract.bucket == extractor.bucket
+        assert extractor.textract.region == extractor.region
+
+        assert mock_boto_client.call_count == 2
+        mock_boto_client.assert_has_calls(
+            [
+                call("s3", region_name=region),
+                call("textract", region_name=region, config=ANY),
+            ]
+        )
 
 
 class TestExtractPdfTextDirect:

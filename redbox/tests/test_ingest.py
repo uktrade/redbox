@@ -495,49 +495,6 @@ def test_read_excel_file_pandas_error():
         assert result == [{"metadata": {}, "text": "mock excel content"}]
 
 
-# class TestTextractChunkLoaderInit:
-#     @patch("redbox.loader.loaders.boto3.client")
-#     def test_init_default_parameters(self, mock_boto_client: MagicMock):
-
-#         loader = TextractChunkLoader(bucket="test-bucket")
-
-#         assert loader.bucket == "test-bucket"
-#         assert loader.min_chunk_size == 500
-#         assert loader.max_chunk_size == 2000
-#         assert loader.overlap_chars == 200
-#         assert loader.metadata.name == ""
-#         assert loader.metadata.description == ""
-#         assert loader.metadata.keywords == []
-#         mock_boto_client.assert_called()
-
-#     @patch("redbox.loader.loaders.boto3.client")
-#     def test_init_custom_parameters(self, mock_boto_client: MagicMock):
-
-#         custom_metadata = MagicMock(name="test.pdf", description="Test file", keywords=["test"])
-
-#         loader = TextractChunkLoader(
-#             bucket="custom-bucket",
-#             min_chunk_size=300,
-#             max_chunk_size=3000,
-#             overlap_chars=100,
-#             region="eu-west-2",
-#             metadata=custom_metadata,
-#         )
-
-#         assert loader.bucket == "custom-bucket"
-#         assert loader.min_chunk_size == 300
-#         assert loader.max_chunk_size == 3000
-#         assert loader.overlap_chars == 100
-#         assert loader.metadata == custom_metadata
-
-#     @patch("redbox.loader.loaders.boto3.client")
-#     def test_init_creates_boto_clients(self, mock_boto_client: MagicMock):
-
-#         TextractChunkLoader(bucket="test-bucket")
-
-#         assert mock_boto_client.call_count >= 2
-
-
 # class TestWaitForJob:
 #     @patch("redbox.loader.loaders.boto3.client")
 #     @patch("time.sleep")

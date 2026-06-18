@@ -19,13 +19,13 @@ class TextractService:
         region: str = "eu-west-2",
     ):
         self.bucket = bucket
+        self.region = region
         textract_config = Config(
             retries={"mode": "adaptive", "max_attempts": 10},
             connect_timeout=20,
             read_timeout=70,
         )
         self.textract = boto3.client("textract", region_name=region, config=textract_config)
-        self.s3 = boto3.client("s3", region_name=region)
 
         logger.warning(
             "Initialised TextractService (bucket=%s, region=%s)",
