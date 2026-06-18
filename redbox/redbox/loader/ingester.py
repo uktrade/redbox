@@ -64,7 +64,7 @@ def create_alias(alias: str):
 
 
 def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_extraction=env.enable_metadata_extraction):
-    logging.info("Ingesting file: %s", file_name)
+    logging.warning("Ingesting file: %s", file_name)
     start_time = time.time()
 
     is_tabular = file_name.endswith((".csv", ".xls", ".xlsx", ".tsv"))
