@@ -64,15 +64,15 @@ class DocumentExtractionService:
 
         if display_name.lower().endswith(".pptx"):
             logger.warning("This is a PPTX file: %s", display_name)
-            pages = self.unstructured._extract_pptx(file_bytes)
+            return self.unstructured._extract_pptx(file_bytes)
 
         if display_name.lower().endswith(".ppt"):
             logger.warning("This is a legacy PowerPoint file: %s", display_name)
-            pages = self.unstructured._extract_pptx(file_bytes)
+            return self.unstructured._extract_pptx(file_bytes)
 
         if display_name.lower().endswith(".docx"):
             logger.warning("This is a document file: %s", display_name)
-            pages = self.unstructured._extract_docx(file_bytes)
+            return self.unstructured._extract_docx(file_bytes)
 
         if display_name.endswith(".pdf"):
             logger.warning("This is a PDF file: %s", display_name)
@@ -84,25 +84,23 @@ class DocumentExtractionService:
                         page_count,
                     )
 
-                    pages = self.textract.document_analysis(key=s3_key)
+                    return self.textract.document_analysis(key=s3_key)
                 else:
                     logger.warning(
                         "Large PDF detected (%d pages); extracting text directly instead of Textract",
                         page_count,
                     )
-                    pages = self._extract_pdf_text_direct(file_bytes)
+                    return self._extract_pdf_text_direct(file_bytes)
             else:
                 try:
-                    pages = self.textract.document_analysis(key=s3_key)
+                    return self.textract.document_analysis(key=s3_key)
                 except Exception:
                     logger.warning(
                         "Textract failed for %s; falling back to direct PDF text extraction",
                         display_name,
                     )
-                    pages = self._extract_pdf_text_direct(file_bytes)
+                    return self._extract_pdf_text_direct(file_bytes)
 
-        else:
-            logger.warning("Processing with unstructured: %s", display_name)
-            pages = self.unstructured._extract(file_bytes, file_name)
-
-        return pages
+        logger.warning("No file type matched - defaulting to generic extraction...")
+        logger.warning("Processing with unstructured: %s", display_name)
+        return self.unstructured._extract(file_bytes, file_name)
