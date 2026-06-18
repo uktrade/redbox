@@ -61,6 +61,12 @@ class DocumentChunker:
         if not text:
             return []
 
+        advance = self.max_chunk_size - self.overlap_chars
+        if advance <= 0:
+            raise ValueError(
+                f"overlap_chars ({self.overlap_chars}) must be less than max_chunk_size ({self.max_chunk_size})"
+            )
+
         chunks = []
         start = 0
         length = len(text)
@@ -72,7 +78,7 @@ class DocumentChunker:
             if len(chunk) >= self.min_chunk_size or not chunks:
                 chunks.append((chunk, start))
 
-            start = end - self.overlap_chars
+            start += advance
 
         return chunks
 
