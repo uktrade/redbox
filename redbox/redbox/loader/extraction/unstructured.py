@@ -39,12 +39,14 @@ class UnstructuredService:
                         current_page = []
                         last_page = page_number
 
-                current_page.append(str(el).strip())
+                text = str(el).strip()
+                if text:
+                    current_page.append(text)
 
             if current_page:
                 text_pages.append("\n".join(current_page))
 
-            if not text_pages:
+            if not any(p.strip() for p in text_pages):
                 raise ValueError("unstructured extracted no readable text from DOCX")
 
             logger.info("Extracted %d page(s) from DOCX using unstructured", len(text_pages))
