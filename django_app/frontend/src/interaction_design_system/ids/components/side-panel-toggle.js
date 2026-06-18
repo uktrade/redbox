@@ -1,15 +1,11 @@
 // @ts-check
 
+import { emitEvent, Events } from "../events";
+
 export class SidePanelToggle extends HTMLElement {
-    toggleEventId = "side-panel-toggle";
-
     connectedCallback() {
-        const toggleEvent = new CustomEvent(this.toggleEventId, {
-            detail: this,
-        });
-
-        this.toggleElement?.addEventListener("click", (evt) => {
-            document.dispatchEvent(toggleEvent);
+        this.toggleElement?.addEventListener("click", () => {
+            emitEvent(Events.SIDE_PANEL_TOGGLE, {SidePanelToggle:this});
         });
     }
 

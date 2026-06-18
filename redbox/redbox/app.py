@@ -1,6 +1,6 @@
 from asyncio import CancelledError
 from logging import getLogger
-from typing import Dict, Literal, Callable
+from typing import Callable, Dict, Literal
 
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
@@ -18,12 +18,12 @@ from redbox.graph.nodes.tools import (
     build_document_from_prompt_tool,
     build_govuk_search_tool,
     build_legislation_search_tool,
+    build_query_tabular_file_tool,
     build_retrieve_document_full_text,
     build_retrieve_knowledge_base,
     build_search_documents_tool,
     build_search_wikipedia_tool,
     build_web_search_tool,
-    build_query_tabular_file_tool,
 )
 from redbox.graph.root import build_new_route_graph, build_root_graph, get_summarise_graph
 from redbox.models.chain import RedboxState
@@ -246,10 +246,7 @@ class Redbox:
                 is_summary_multiagent_streamed=is_summary_multiagent_streamed,
                 is_evaluator_output_streamed=is_evaluator_output_streamed,
             )
-            try:
-                _ = final_state.messages[-1].content
-            except Exception as e:
-                logger.exception(f"app: LLM Error - Blank Response; {e}")
+
         except CancelledError:
             logger.error("All retries exhausted for CancelledError in the astream_events function")
             raise

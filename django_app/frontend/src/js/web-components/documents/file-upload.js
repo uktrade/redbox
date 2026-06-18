@@ -139,19 +139,22 @@ class FileUpload extends HTMLElement {
             target.value = "";
         });
 
-        document.body.addEventListener("doc-complete", (evt) => {
-            const id = /** @type {CustomEvent} */ (evt).detail.id;
+       listenEvent(Events.DOC_COMPLETE, (evt) => {
+            const id = evt.detail.id;
             if (!id) return;
 
             const uploadedFile = this.uploadedFiles?.getFileById(id);
             if (!uploadedFile) return;
 
+            const currentStatus = uploadedFile.status;
             uploadedFile.status = UploadedFile.StatusTypes.COMPLETE;
 
-            refreshUI(["your-documents"]).finally(() => this.#checkDocuments(id));
+            if (currentStatus != UploadedFile.StatusTypes.COMPLETE) {
+                refreshUI(["your-documents"]).finally(() => this.#checkDocuments(id));
+            }
         });
 
-        document.body.addEventListener("doc-error", (evt) => {
+        listenEvent(Events.DOC_ERROR, (evt) => {
             const id = /** @type {CustomEvent} */ (evt).detail.id;
             if (!id) return;
 
@@ -161,8 +164,8 @@ class FileUpload extends HTMLElement {
             uploadedFile.status = UploadedFile.StatusTypes.ERROR;
         });
 
-        document.body.addEventListener("doc-selection-change", (evt) => {
-            const detail = /** @type{CustomEvent} */ (evt).detail;
+        listenEvent(Events.DOC_SELECTION_CHANGE, (evt) => {
+            const detail = evt.detail;
             let uploadedDocument = this.uploadedFiles?.getFileById(detail.id);
 
             if (uploadedDocument && !detail.checked) {
@@ -197,6 +200,7 @@ class FileUpload extends HTMLElement {
             this.messageInput?.enableSubmit();
         });
     }
+
 
     /**
      * Create a uploadedFile element
@@ -271,7 +275,7 @@ class FileUpload extends HTMLElement {
                     UploadedFile.StatusTypes.PROCESSING,
                 ].includes(responseStatus);
 
-                if (response.errors || errorStatus) {
+                if (response.errors.length || errorStatus) {
                     uploadedFile.status = UploadedFile.StatusTypes.ERROR;
                     console.error(response.errors);
                 }
@@ -293,7 +297,7 @@ class FileUpload extends HTMLElement {
         xhr.onerror = () => uploadedFile.status = UploadedFile.StatusTypes.ERROR;
 
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append("files", file);
         xhr.send(formData);
     }
 

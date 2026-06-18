@@ -63,3 +63,4 @@ class TestNewRouteGraphs:
         assert variables.chat_history is True
         assert variables.previous_tool_error is True
         assert variables.previous_tool_results is True
+        assert variables.mcp_tools is True
