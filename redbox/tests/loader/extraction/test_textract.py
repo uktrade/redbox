@@ -116,7 +116,7 @@ class TestWaitForJob:
     def test_polls_until_terminal_status(self, mock_sleep, status_sequence, expected_status):
         svc = make_service()
         getter = MagicMock(side_effect=[{"JobStatus": s} for s in status_sequence])
-        result = svc._wait_for_job(JOB_ID, getter)
+        result, _ = svc._wait_for_job(JOB_ID, getter)
         assert result == expected_status
         assert getter.call_count == len(status_sequence)
 
@@ -139,6 +139,32 @@ class TestWaitForJob:
         getter = MagicMock(side_effect=RuntimeError("poll failed"))
         with pytest.raises(RuntimeError, match="poll failed"):
             svc._wait_for_job(JOB_ID, getter)
+
+    @patch("time.sleep")
+    def test_retries_on_throttling(self, mock_sleep):
+        svc = make_service()
+
+        throttling_error = ClientError(
+            {
+                "Error": {
+                    "Code": "ProvisionedThroughputExceededException",
+                    "Message": "Rate exceeded",
+                }
+            },
+            "GetDocumentTextDetection",
+        )
+
+        getter = MagicMock(
+            side_effect=[
+                throttling_error,
+                {"JobStatus": "SUCCEEDED"},
+            ]
+        )
+
+        result, _ = svc._wait_for_job(JOB_ID, getter)
+
+        assert result == "SUCCEEDED"
+        assert getter.call_count == 2
 
 
 class TestGetTextractResults:
@@ -185,54 +211,119 @@ class TestGetTextractResults:
     )
     def test_assembles_pages(self, responses, expected_pages):
         svc = make_service()
-        getter = MagicMock(side_effect=responses)
-        result = svc._get_textract_results(JOB_ID, getter)
+
+        first_response = responses[0]
+        getter = MagicMock(side_effect=responses[1:])
+
+        result = svc._get_textract_results(
+            JOB_ID,
+            getter,
+            first_response,
+        )
+
         assert result == expected_pages
 
     def test_pages_sorted_by_page_number(self):
         svc = make_service()
-        # Return blocks out of order — page 3, then 1, then 2
-        getter = MagicMock(
-            return_value={
-                "Blocks": make_blocks((3, ["C"]), (1, ["A"]), (2, ["B"])),
-                "NextToken": None,
-            }
-        )
-        assert svc._get_textract_results(JOB_ID, getter) == ["A", "B", "C"]
+
+        first_response = {
+            "Blocks": make_blocks((3, ["C"]), (1, ["A"]), (2, ["B"])),
+            "NextToken": None,
+        }
+
+        getter = MagicMock()
+
+        assert svc._get_textract_results(
+            JOB_ID,
+            getter,
+            first_response,
+        ) == ["A", "B", "C"]
 
     def test_passes_next_token_in_subsequent_calls(self):
         svc = make_service()
+
+        first_response = {
+            "Blocks": [],
+            "NextToken": "page2token",
+        }
+
         getter = MagicMock(
             side_effect=[
-                {"Blocks": [], "NextToken": "page2token"},
                 {"Blocks": [], "NextToken": None},
             ]
         )
-        svc._get_textract_results(JOB_ID, getter)
+
+        svc._get_textract_results(
+            JOB_ID,
+            getter,
+            first_response,
+        )
+
         assert getter.call_args_list == [
-            call(JobId=JOB_ID),
             call(JobId=JOB_ID, NextToken="page2token"),
+        ]
+
+    def test_multiple_next_tokens_are_chained(self):
+        svc = make_service()
+
+        first_response = {
+            "Blocks": [],
+            "NextToken": "tok1",
+        }
+
+        getter = MagicMock(
+            side_effect=[
+                {"Blocks": [], "NextToken": "tok2"},
+                {"Blocks": [], "NextToken": None},
+            ]
+        )
+
+        svc._get_textract_results(
+            JOB_ID,
+            getter,
+            first_response,
+        )
+
+        assert getter.call_args_list == [
+            call(JobId=JOB_ID, NextToken="tok1"),
+            call(JobId=JOB_ID, NextToken="tok2"),
         ]
 
     def test_propagates_getter_exception(self):
         svc = make_service()
+
+        first_response = {
+            "Blocks": [],
+            "NextToken": "page2token",
+        }
+
         getter = MagicMock(side_effect=RuntimeError("fetch failed"))
+
         with pytest.raises(RuntimeError, match="fetch failed"):
-            svc._get_textract_results(JOB_ID, getter)
+            svc._get_textract_results(
+                JOB_ID,
+                getter,
+                first_response,
+            )
 
 
 class TestDocumentTextDetection:
     @patch("time.sleep")
     def test_success_returns_pages(self, _mock_sleep):
         svc = make_service()
+
         svc.textract.start_document_text_detection = MagicMock(return_value={"JobId": JOB_ID})
+
         svc.textract.get_document_text_detection = MagicMock(
-            side_effect=[
-                {"JobStatus": "SUCCEEDED"},
-                {"Blocks": make_blocks((1, ["Hello"])), "NextToken": None},
-            ]
+            return_value={
+                "JobStatus": "SUCCEEDED",
+                "Blocks": make_blocks((1, ["Hello"])),
+                "NextToken": None,
+            }
         )
+
         result = svc.document_text_detection(KEY)
+
         assert result == ["Hello"]
 
     @patch("time.sleep")
@@ -264,19 +355,73 @@ class TestDocumentTextDetection:
         with pytest.raises(ClientError):
             svc.document_text_detection(KEY)
 
+    @patch("time.sleep")
+    def test_orchestrates_wait_and_results_correctly(self, _mock_sleep):
+        svc = make_service()
+
+        svc.textract.start_document_text_detection = MagicMock(return_value={"JobId": JOB_ID})
+
+        svc.textract.get_document_text_detection = MagicMock(
+            return_value={
+                "JobStatus": "SUCCEEDED",
+                "Blocks": make_blocks((1, ["Hello"])),
+                "NextToken": None,
+            }
+        )
+
+        svc._wait_for_job = MagicMock(
+            return_value=(
+                "SUCCEEDED",
+                {"JobStatus": "SUCCEEDED", "Blocks": [], "NextToken": None},
+            )
+        )
+
+        svc._get_textract_results = MagicMock(return_value=["Hello"])
+
+        result = svc.document_text_detection(KEY)
+
+        assert result == ["Hello"]
+
+        svc._wait_for_job.assert_called_once_with(
+            job_id=JOB_ID,
+            getter=svc.textract.get_document_text_detection,
+        )
+
+        svc._get_textract_results.assert_called_once()
+
+    @patch("time.sleep")
+    def test_does_not_fetch_results_if_job_failed(self, _mock_sleep):
+        svc = make_service()
+
+        svc.textract.start_document_text_detection = MagicMock(return_value={"JobId": JOB_ID})
+
+        svc.textract.get_document_text_detection = MagicMock(return_value={"JobStatus": "FAILED"})
+
+        svc._get_textract_results = MagicMock()
+
+        with pytest.raises(RuntimeError):
+            svc.document_text_detection(KEY)
+
+        svc._get_textract_results.assert_not_called()
+
 
 class TestDocumentAnalysis:
     @patch("time.sleep")
     def test_success_returns_pages(self, _mock_sleep):
         svc = make_service()
+
         svc.textract.start_document_analysis = MagicMock(return_value={"JobId": JOB_ID})
+
         svc.textract.get_document_analysis = MagicMock(
-            side_effect=[
-                {"JobStatus": "SUCCEEDED"},
-                {"Blocks": make_blocks((1, ["Line 1"]), (2, ["Line 2"])), "NextToken": None},
-            ]
+            return_value={
+                "JobStatus": "SUCCEEDED",
+                "Blocks": make_blocks((1, ["Line 1"]), (2, ["Line 2"])),
+                "NextToken": None,
+            }
         )
+
         result = svc.document_analysis(KEY)
+
         assert result == ["Line 1", "Line 2"]
 
     @patch("time.sleep")

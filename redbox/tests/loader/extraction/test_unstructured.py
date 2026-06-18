@@ -66,6 +66,21 @@ class TestExtractDocx:
         mock_partition.assert_called_once()
         assert mock_partition.call_args.kwargs["file"].read() == b"data"
 
+    @patch("redbox.loader.extraction.unstructured.partition_docx")
+    def test_preserves_element_order_within_page(self, mock_partition):
+        elements = make_elements(
+            ("A1", 1),
+            ("A2", 1),
+            ("A3", 1),
+        )
+
+        mock_partition.return_value = elements
+
+        buf = BytesIO(b"fake docx content")
+        result = SERVICE._extract_docx(buf)
+
+        assert result == ["A1\nA2\nA3"]
+
 
 class TestExtractPptx:
     @pytest.mark.parametrize(
