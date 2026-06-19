@@ -571,7 +571,7 @@ def build_new_route_graph(
     add_agent(builder, agent_configs, "Tabular_Agent")
     add_agent(builder, agent_configs, "Web_Search_Agent")
     add_agent(builder, agent_configs, "Legislation_Search_Agent")
-    add_agent(builder, agent_configs, "Negotiation_Planner_Search_Agent")
+    add_agent(builder, agent_configs, "News_Search_Agent")
     add_agent(
         builder,
         agent_configs,
