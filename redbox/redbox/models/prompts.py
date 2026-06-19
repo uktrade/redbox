@@ -391,7 +391,7 @@ Use when the user wants to:
 
 NEWS_SEARCH_AGENT_DESC = """
 **News_Search_Agent**:
-Purpose: Perform searches in specific pre-defined news websites that are considered to be reputable sources based on user research for Negotiation Planner
+Purpose: Perform searches on specific pre-defined news websites
 Use when the user wants to:
 - Search for news information
 - Search for current affairs information
