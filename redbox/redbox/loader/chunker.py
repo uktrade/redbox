@@ -1,5 +1,4 @@
 import logging
-import bisect
 from typing import List, Iterator
 from datetime import UTC, datetime
 
@@ -24,6 +23,17 @@ class DocumentChunker:
         overlap_chars: int = 200,
         include_schema_metadata: bool = False,
     ):
+        if min_chunk_size <= 0:
+            raise ValueError(f"{__name__} - min_chunk_size ({min_chunk_size}) must be >= 0")
+
+        if max_chunk_size < min_chunk_size:
+            raise ValueError(
+                f"{__name__} - max_chunk_size ({max_chunk_size}) must be >= min_chunk_size ({min_chunk_size})"
+            )
+
+        if overlap_chars < 0:
+            raise ValueError(f"{__name__} - overlap_chars ({overlap_chars}) must be >= 0")
+
         self.chunk_resolution = chunk_resolution
         self.min_chunk_size = min_chunk_size
         self.max_chunk_size = max_chunk_size
@@ -39,26 +49,8 @@ class DocumentChunker:
             include_schema_metadata,
         )
 
-    def _page_for_offset(self, offset: int, page_offsets: list[int]) -> int:
-        """Return the 1-indexed page number containing the given offset."""
-        return bisect.bisect_right(page_offsets, offset)
-
-    def _parse_pages(self, pages: list[str]) -> tuple[str, list[int]]:
-        """Combine pages into one string, tracking each page's start offset."""
-        full_text = ""
-        page_offsets: list[int] = []
-        separator = "\n\n"
-
-        for i, page in enumerate(pages):
-            page_offsets.append(len(full_text))
-            full_text += page
-            if i < len(pages) - 1:
-                full_text += separator
-
-        return full_text, page_offsets
-
-    def _chunk_text(self, text: str) -> List[tuple[str, int]]:
-        if not text:
+    def _chunk_text(self, text: str) -> List[str]:
+        if not text.strip():
             return []
 
         advance = self.max_chunk_size - self.overlap_chars
@@ -67,7 +59,7 @@ class DocumentChunker:
                 f"overlap_chars ({self.overlap_chars}) must be less than max_chunk_size ({self.max_chunk_size})"
             )
 
-        chunks = []
+        chunks: list[str] = []
         start = 0
         length = len(text)
 
@@ -76,7 +68,7 @@ class DocumentChunker:
             chunk = text[start:end]
 
             if len(chunk) >= self.min_chunk_size or not chunks:
-                chunks.append((chunk, start))
+                chunks.append(chunk)
 
             start += advance
 
@@ -85,12 +77,14 @@ class DocumentChunker:
     def tabular_chunks(
         self, s3_key: str, tabular_elements: list[dict[str, str]], generated_metadata: GeneratedMetadata
     ) -> Iterator[Document]:
+        created_datetime = datetime.now(UTC)
+
         for idx, el in enumerate(tabular_elements or []):
             metadata = UploadedFileMetadata(
                 index=idx,
                 uri=s3_key,
                 page_number=1,
-                created_datetime=datetime.now(UTC),
+                created_datetime=created_datetime,
                 token_count=tokeniser(el["text"]),
                 chunk_resolution=ChunkResolution.tabular,
                 name=generated_metadata.name,
@@ -104,25 +98,43 @@ class DocumentChunker:
 
             yield Document(page_content=el["text"], metadata=merged_metadata)
 
-    def chunks(self, s3_key: str, pages: list[str], generated_metadata: GeneratedMetadata) -> Iterator[Document]:
-        full_text, page_offsets = self._parse_pages(pages)
-        chunks = self._chunk_text(full_text)
+    def chunks(
+        self,
+        s3_key: str,
+        pages: list[str],
+        generated_metadata: GeneratedMetadata,
+    ) -> Iterator[Document]:
+        chunk_idx = 0
 
-        if not chunks:
-            logger.warning("No chunks produced for s3_key %s", s3_key)
-            return
+        created_datetime = datetime.now(UTC)
 
-        for idx, (chunk, start_offset) in enumerate(chunks):
-            page_num = self._page_for_offset(start_offset, page_offsets)
-            metadata = UploadedFileMetadata(
-                index=idx,
-                uri=s3_key,
-                page_number=page_num,
-                created_datetime=datetime.now(UTC),
-                token_count=tokeniser(chunk),
-                chunk_resolution=self.chunk_resolution,
-                name=generated_metadata.name,
-                description=generated_metadata.description,
-                keywords=generated_metadata.keywords,
-            ).model_dump()
-            yield Document(page_content=chunk, metadata=metadata)
+        for page_num, page_text in enumerate(pages, start=1):
+            page_chunks = self._chunk_text(page_text)
+
+            if not page_chunks:
+                logger.debug(
+                    "No chunks produced for s3_key=%s page=%s",
+                    s3_key,
+                    page_num,
+                )
+                continue
+
+            for chunk in page_chunks:
+                metadata = UploadedFileMetadata(
+                    index=chunk_idx,
+                    uri=s3_key,
+                    page_number=page_num,
+                    created_datetime=created_datetime,
+                    token_count=tokeniser(chunk),
+                    chunk_resolution=self.chunk_resolution,
+                    name=generated_metadata.name,
+                    description=generated_metadata.description,
+                    keywords=generated_metadata.keywords,
+                ).model_dump()
+
+                yield Document(
+                    page_content=chunk,
+                    metadata=metadata,
+                )
+
+                chunk_idx += 1
