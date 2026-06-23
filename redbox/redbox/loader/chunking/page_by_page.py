@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 tokeniser = bedrock_tokeniser
 
 
-class DocumentChunker:
+class PageByPageDocumentChunker:
     def __init__(
         self,
         chunk_resolution: ChunkResolution,
@@ -41,7 +41,7 @@ class DocumentChunker:
         self.include_schema_metadata = include_schema_metadata
 
         logger.info(
-            "Initialised DocumentChunker (chunk_resolution=%s, min_chunk_size=%s, max_chunk_size=%s, overlap_chars=%s, include_schema_metadata=%s)",
+            "Initialised PageByPageDocumentChunker (chunk_resolution=%s, min_chunk_size=%s, max_chunk_size=%s, overlap_chars=%s, include_schema_metadata=%s)",
             chunk_resolution,
             min_chunk_size,
             max_chunk_size,

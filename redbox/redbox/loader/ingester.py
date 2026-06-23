@@ -13,7 +13,7 @@ from redbox.models.settings import get_settings
 
 from redbox.loader.extraction.base import DocumentExtractionService
 from redbox.loader.extraction.metadata import MetadataExtraction
-from redbox.chains.ingest import ingest_chunks, ingest_tabular_chunks, DocumentChunker, UnstructuredDocumentChunker
+from redbox.chains.ingest import ingest_chunks, ingest_tabular_chunks, DocumentChunkingService
 
 
 if TYPE_CHECKING:
@@ -95,7 +95,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
         metadata = MetadataExtraction(env=env).extract(file_name=file_name, elements=elements)
 
     chunk_ingest_chain = ingest_chunks(
-        chunker=UnstructuredDocumentChunker(
+        chunker=DocumentChunkingService(
             chunk_resolution=ChunkResolution.normal,
             min_chunk_size=env.worker_ingest_min_chunk_size,
             max_chunk_size=env.worker_ingest_max_chunk_size,
@@ -107,7 +107,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
     )
 
     large_chunk_ingest_chain = ingest_chunks(
-        chunker=UnstructuredDocumentChunker(
+        chunker=DocumentChunkingService(
             chunk_resolution=ChunkResolution.largest,
             min_chunk_size=env.worker_ingest_largest_chunk_size,
             max_chunk_size=env.worker_ingest_largest_chunk_size,
@@ -119,7 +119,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
     )
 
     tabular_chunk_ingest_chain = ingest_tabular_chunks(
-        chunker=DocumentChunker(
+        chunker=DocumentChunkingService(
             chunk_resolution=ChunkResolution.tabular,
             min_chunk_size=env.worker_ingest_largest_chunk_size,
             max_chunk_size=env.worker_ingest_largest_chunk_size,
@@ -131,7 +131,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
     )
 
     tabular_schema_chunk_ingest_chain = ingest_tabular_chunks(
-        chunker=DocumentChunker(
+        chunker=DocumentChunkingService(
             chunk_resolution=ChunkResolution.tabular,
             min_chunk_size=env.worker_ingest_largest_chunk_size,
             max_chunk_size=env.worker_ingest_largest_chunk_size,

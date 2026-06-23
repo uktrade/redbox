@@ -69,7 +69,7 @@ class UnstructuredDocumentChunker:
             new_after_n_chars=self.max_chunk_size,
             overlap=self.overlap_chars,
             multipage_sections=True,
-            overlap_all=env.unstructured_chunking_overlap_all,
+            overlap_all=env.document_chunking_unstructured_overlap_all,
             include_orig_elements=True,
         )
 
@@ -86,11 +86,6 @@ class UnstructuredDocumentChunker:
         generated_metadata: GeneratedMetadata,
     ) -> Iterator[Document]:
         created_datetime = datetime.now(UTC)
-
-        for el in elements:
-            page = getattr(el.metadata, "page_number", None)
-            if page in (2, 3, 4):  # wherever your TOC actually sits
-                logger.warning(page, el.category, repr(str(el))[:80])
 
         chunks = self._chunk_elements(elements)
 

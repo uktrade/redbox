@@ -1,18 +1,18 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from redbox.loader.chunking.chunker import DocumentChunker
+from redbox.loader.chunking.page_by_page import PageByPageDocumentChunker
 from redbox.models.file import ChunkResolution
 
 
-def make_chunker(**kwargs) -> DocumentChunker:
+def make_chunker(**kwargs) -> PageByPageDocumentChunker:
     defaults = dict(
         chunk_resolution=ChunkResolution.normal,
         min_chunk_size=10,
         max_chunk_size=50,
         overlap_chars=5,
     )
-    return DocumentChunker(**{**defaults, **kwargs})
+    return PageByPageDocumentChunker(**{**defaults, **kwargs})
 
 
 def make_generated_metadata(

@@ -7,8 +7,10 @@ from langchain_core.documents.base import Document
 from langchain_core.runnables import Runnable, RunnableLambda, chain
 from unstructured.documents.elements import Element
 
-from redbox.loader.chunking.chunker import DocumentChunker
-from redbox.loader.chunking.unstructured import UnstructuredDocumentChunker
+from redbox.loader.chunking.base import DocumentChunkingService
+
+# from redbox.loader.chunking.page_by_page import PageByPageDocumentChunker
+# from redbox.loader.chunking.unstructured import UnstructuredDocumentChunker
 from redbox.models.chain import GeneratedMetadata
 
 
@@ -23,8 +25,8 @@ def log_chunks(chunks: list[Document]):
 
 
 def chunk_loader(
-    chunker: UnstructuredDocumentChunker,
-    elements: list[Element],
+    chunker: DocumentChunkingService,
+    elements: list[str] | list[Element],
     metadata: GeneratedMetadata,
 ) -> Runnable:
     @chain
@@ -54,7 +56,7 @@ def chunk_loader(
 
 
 def chunk_loader_tabular(
-    chunker: DocumentChunker,
+    chunker: DocumentChunkingService,
     tabular_elements: list[dict[str, str]],
     metadata: GeneratedMetadata,
 ) -> Runnable:
@@ -85,9 +87,9 @@ def chunk_loader_tabular(
 
 
 def ingest_chunks(
-    chunker: UnstructuredDocumentChunker,
+    chunker: DocumentChunkingService,
     vectorstore: VectorStore,
-    elements: list[Element],
+    elements: list[str] | list[Element],
     metadata: GeneratedMetadata,
 ) -> Runnable:
     return (
@@ -108,7 +110,7 @@ def ingest_chunks(
 
 
 def ingest_tabular_chunks(
-    chunker: DocumentChunker,
+    chunker: DocumentChunkingService,
     vectorstore: VectorStore,
     tabular_elements: list[dict[str, str]],
     metadata: GeneratedMetadata,

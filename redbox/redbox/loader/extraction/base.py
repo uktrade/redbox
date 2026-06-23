@@ -4,7 +4,10 @@ import logging
 from typing import List
 import fitz
 import boto3
+import signal
+from contextlib import contextmanager
 
+from redbox.models.settings import get_settings
 from unstructured.documents.elements import Element
 
 from redbox.loader.loaders import load_tabular_file
@@ -12,6 +15,26 @@ from redbox.loader.extraction.textract import TextractService
 from redbox.loader.extraction.unstructured import UnstructuredService
 
 logger = logging.getLogger(__name__)
+
+env = get_settings()
+
+
+class TimeoutException(Exception):
+    pass
+
+
+@contextmanager
+def time_limit(seconds: int):
+    def signal_handler(signum, frame):
+        raise TimeoutException()
+
+    signal.signal(signal.SIGALRM, signal_handler)
+    signal.alarm(seconds)
+
+    try:
+        yield
+    finally:
+        signal.alarm(0)
 
 
 class DocumentExtractionService:
@@ -50,31 +73,78 @@ class DocumentExtractionService:
         logger.warning("Extracted %d page(s) directly from PDF", len(pages))
         return pages
 
-    def extract(self, file_name: str) -> list[Element] | list[dict[str, str]]:
+    def _run_with_fallbacks(
+        self,
+        file_bytes,
+        s3_key: str,
+    ):
+        timeout_map = {
+            "auto": env.document_pdf_extraction_default_timeout,
+            "fast": env.document_pdf_extraction_fallback_one_timeout,
+            "textract": env.document_pdf_extraction_fallback_two_timeout,
+        }
+
+        for strategy in ["auto", "fast", "textract"]:
+            try:
+                logger.warning("Trying extraction strategy=%s", strategy)
+
+                with time_limit(timeout_map.get(strategy, 20)):
+                    if strategy == "auto":
+                        return self.unstructured._extract(file_bytes, s3_key, strategy="auto")
+
+                    if strategy == "fast":
+                        return self.unstructured._extract(file_bytes, s3_key, strategy="fast")
+
+                    if strategy == "textract":
+                        return self.textract.document_analysis(key=s3_key)
+
+            except Exception as e:
+                logger.warning(
+                    "Strategy %s failed: %s. Falling back...",
+                    strategy,
+                    str(e),
+                )
+                continue
+
+        try:
+            logger.warning("All strategies failed. Using direct PDF text extraction fallback.")
+            return self._extract_pdf_text_direct(file_bytes)
+        except Exception as e:
+            logger.error("Final fallback (_extract_pdf_text_direct) also failed: %s", str(e))
+            raise RuntimeError("All extraction strategies including final fallback failed") from e
+
+        # raise RuntimeError("All extraction strategies failed")
+
+    def extract(self, file_name: str) -> list[Element] | list[str] | list[dict[str, str]]:
         logger.warning("DocumentExtractionService.extract() called for %s", file_name)
 
         s3_key = file_name
-
         display_name = os.path.basename(file_name).lower()
+
         logger.warning("File type detected: %s", display_name)
 
         obj = self.s3.get_object(Bucket=self.bucket, Key=s3_key)
         file_bytes = BytesIO(obj["Body"].read())
 
         if display_name.endswith((".csv", ".tsv", ".xls", ".xlsx")):
+            logger.warning("Tabular detected: %s", display_name)
             return load_tabular_file(display_name, file_bytes)
 
-        if display_name.lower().endswith(".pptx"):
-            logger.warning("This is a PPTX file: %s", display_name)
-            return self.unstructured._extract_pptx(file_bytes)
-
-        if display_name.lower().endswith(".ppt"):
-            logger.warning("This is a legacy PowerPoint file: %s", display_name)
+        if display_name.lower().endswith((".pptx", ".ppt")):
+            logger.warning("PowerPoint detected: %s", display_name)
             return self.unstructured._extract_pptx(file_bytes)
 
         if display_name.lower().endswith(".docx"):
-            logger.warning("This is a document file: %s", display_name)
+            logger.warning("DOCX detected: %s", display_name)
             return self.unstructured._extract_docx(file_bytes)
+
+        if display_name.endswith(".pdf"):
+            logger.warning("PDF detected: %s", display_name)
+
+            return self._run_with_fallbacks(
+                file_bytes=file_bytes,
+                s3_key=s3_key,
+            )
 
         # if display_name.endswith(".pdf"):
         #     logger.warning("This is a PDF file: %s", display_name)
