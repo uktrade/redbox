@@ -98,6 +98,8 @@ class Settings(BaseSettings):
     embedding_max_batch_size: int = 512
     embedding_document_field_name: str = "embedding"
 
+    unstructured_chunking_overlap_all: bool = os.environ.get("UNSTRUCTURED_CHUNKING_OVERLAP_ALL", True)
+
     partition_strategy: Literal["auto", "fast", "ocr_only", "hi_res"] = "fast"
     clustering_strategy: Literal["full"] | None = None
 
