@@ -24,32 +24,25 @@ SERVICE = UnstructuredService()
 
 class TestExtractDocx:
     @pytest.mark.parametrize(
-        "elements, expected_pages",
+        "elements",
         [
-            # single page
-            (make_elements(("Hello", 1), ("World", 1)), ["Hello\nWorld"]),
-            # two pages
-            (make_elements(("Page1", 1), ("Page2", 2)), ["Page1", "Page2"]),
-            # three pages, multiple elements per page
-            (make_elements(("A", 1), ("B", 1), ("C", 2), ("D", 3)), ["A\nB", "C", "D"]),
-            # elements with no page metadata all land on one page
-            (make_elements(("X", None), ("Y", None)), ["X\nY"]),
+            make_elements(("Hello", 1), ("World", 1)),
+            make_elements(("Page1", 1), ("Page2", 2)),
+            make_elements(("A", 1), ("B", 1), ("C", 2), ("D", 3)),
+            make_elements(("X", None), ("Y", None)),
         ],
     )
     @patch("redbox.loader.extraction.unstructured.partition_docx")
-    def test_page_grouping(self, mock_partition, elements, expected_pages):
+    def test_returns_elements(self, mock_partition, elements):
         mock_partition.return_value = elements
+
         result = SERVICE._extract_docx(DUMMY_BYTES)
-        assert result == expected_pages
+
+        assert result is elements
 
     @patch("redbox.loader.extraction.unstructured.partition_docx", return_value=[])
     def test_raises_on_no_elements(self, _mock):
         with pytest.raises(ValueError, match="no elements"):
-            SERVICE._extract_docx(DUMMY_BYTES)
-
-    @patch("redbox.loader.extraction.unstructured.partition_docx", return_value=[make_element("   ", 1)])
-    def test_raises_on_no_readable_text(self, _mock):
-        with pytest.raises(ValueError, match="no readable text"):
             SERVICE._extract_docx(DUMMY_BYTES)
 
     @patch("redbox.loader.extraction.unstructured.partition_docx", side_effect=RuntimeError("corrupt"))
@@ -67,7 +60,7 @@ class TestExtractDocx:
         assert mock_partition.call_args.kwargs["file"].read() == b"data"
 
     @patch("redbox.loader.extraction.unstructured.partition_docx")
-    def test_preserves_element_order_within_page(self, mock_partition):
+    def test_preserves_element_order(self, mock_partition):
         elements = make_elements(
             ("A1", 1),
             ("A2", 1),
@@ -76,41 +69,32 @@ class TestExtractDocx:
 
         mock_partition.return_value = elements
 
-        buf = BytesIO(b"fake docx content")
-        result = SERVICE._extract_docx(buf)
+        result = SERVICE._extract_docx(DUMMY_BYTES)
 
-        assert result == ["A1\nA2\nA3"]
+        assert result == elements
 
 
 class TestExtractPptx:
     @pytest.mark.parametrize(
-        "elements, expected_pages",
+        "elements",
         [
-            # single slide
-            (make_elements(("Title", 1), ("Body", 1)), ["Title\nBody"]),
-            # two slides
-            (make_elements(("Slide1", 1), ("Slide2", 2)), ["Slide1", "Slide2"]),
-            # multiple elements per slide across three slides
-            (make_elements(("A", 1), ("B", 1), ("C", 2), ("D", 3)), ["A\nB", "C", "D"]),
+            make_elements(("Title", 1), ("Body", 1)),
+            make_elements(("Slide1", 1), ("Slide2", 2)),
+            make_elements(("A", 1), ("B", 1), ("C", 2), ("D", 3)),
         ],
     )
     @patch("redbox.loader.extraction.unstructured.partition_pptx")
-    def test_slide_grouping(self, mock_partition, elements, expected_pages):
+    def test_returns_elements(self, mock_partition, elements):
         mock_partition.return_value = elements
+
         result = SERVICE._extract_pptx(DUMMY_BYTES)
-        assert result == expected_pages
+
+        assert result is elements
 
     @patch("redbox.loader.extraction.unstructured.partition_pptx", return_value=[])
     def test_raises_on_no_elements(self, _mock):
         with pytest.raises(ValueError, match="no elements"):
             SERVICE._extract_pptx(DUMMY_BYTES)
-
-    @patch("redbox.loader.extraction.unstructured.partition_pptx")
-    def test_no_page_metadata_falls_back_to_single_page(self, mock_partition):
-        # Elements with no page_number -> all joined as one page
-        mock_partition.return_value = make_elements(("A", None), ("B", None))
-        result = SERVICE._extract_pptx(DUMMY_BYTES)
-        assert result == ["A\nB"]
 
     @patch("redbox.loader.extraction.unstructured.partition_pptx", side_effect=ImportError("missing extra"))
     def test_raises_import_error_for_missing_extra(self, _mock):
@@ -125,30 +109,27 @@ class TestExtractPptx:
 
 class TestExtract:
     @pytest.mark.parametrize(
-        "elements, file_name, expected_pages",
+        "elements, file_name",
         [
-            # page_number used for grouping
-            (make_elements(("A", 1), ("B", 1), ("C", 2)), "doc.pdf", ["A\nB", "C"]),
-            # single page document
-            (make_elements(("Only", 1)), "doc.pdf", ["Only"]),
-            # no page metadata -> single fallback page
-            (make_elements(("X", None), ("Y", None)), "doc.txt", ["X\nY"]),
-            # slide_number used when page_number absent
+            (make_elements(("A", 1), ("B", 1), ("C", 2)), "doc.pdf"),
+            (make_elements(("Only", 1)), "doc.pdf"),
+            (make_elements(("X", None), ("Y", None)), "doc.txt"),
             (
                 [
                     make_element("S1", page_number=None, slide_number=1),
                     make_element("S2", page_number=None, slide_number=2),
                 ],
                 "deck.pptx",
-                ["S1", "S2"],
             ),
         ],
     )
     @patch("redbox.loader.extraction.unstructured.partition")
-    def test_page_grouping(self, mock_partition, elements, file_name, expected_pages):
+    def test_returns_elements(self, mock_partition, elements, file_name):
         mock_partition.return_value = elements
+
         result = SERVICE._extract(DUMMY_BYTES, file_name)
-        assert result == expected_pages
+
+        assert result is elements
 
     @patch("redbox.loader.extraction.unstructured.partition", return_value=[])
     def test_raises_on_no_elements(self, _mock):
@@ -165,9 +146,10 @@ class TestExtract:
         assert mock_partition.call_args.kwargs["file"].read() == b"data"
 
     @patch("redbox.loader.extraction.unstructured.partition")
-    def test_page_number_takes_precedence_over_slide_number(self, mock_partition):
-        # element has both; page_number should win (it's checked first in _extract)
-        el = make_element("content", page_number=2, slide_number=99)
-        mock_partition.return_value = [make_element("first", page_number=1), el]
-        result = SERVICE._extract(DUMMY_BYTES, "mixed.pptx")
-        assert len(result) == 2  # grouped by page_number (1 and 2), not slide_number
+    def test_returns_same_elements_from_partition(self, mock_partition):
+        elements = make_elements(("A", 1), ("B", 2))
+        mock_partition.return_value = elements
+
+        result = SERVICE._extract(DUMMY_BYTES, "file.pdf")
+
+        assert result is elements

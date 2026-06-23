@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
@@ -253,7 +254,9 @@ class TestExtract:
 
         svc.create_file_metadata = capturing_create
 
-        svc.extract("doc.pdf", pages)
+        elements = [SimpleNamespace(text=p) for p in pages]
+
+        svc.extract("doc.pdf", elements)
 
         assert len(captured["page_content"]) <= 10_000
         assert captured["page_content"].startswith(expected_prefix[:100])
