@@ -5,8 +5,10 @@ from typing import Iterator
 from langchain.vectorstores import VectorStore
 from langchain_core.documents.base import Document
 from langchain_core.runnables import Runnable, RunnableLambda, chain
+from unstructured.documents.elements import Element
 
-from redbox.loader.chunker import DocumentChunker
+from redbox.loader.chunking.chunker import DocumentChunker
+from redbox.loader.chunking.unstructured import UnstructuredDocumentChunker
 from redbox.models.chain import GeneratedMetadata
 
 
@@ -21,8 +23,8 @@ def log_chunks(chunks: list[Document]):
 
 
 def chunk_loader(
-    chunker: DocumentChunker,
-    pages: list[str],
+    chunker: UnstructuredDocumentChunker,
+    elements: list[Element],
     metadata: GeneratedMetadata,
 ) -> Runnable:
     @chain
@@ -33,7 +35,7 @@ def chunk_loader(
             docs = list(
                 chunker.chunks(
                     s3_key=file_name,
-                    pages=pages,
+                    elements=elements,
                     generated_metadata=metadata,
                 )
             )
@@ -83,27 +85,40 @@ def chunk_loader_tabular(
 
 
 def ingest_chunks(
-    chunker: DocumentChunker,
+    chunker: UnstructuredDocumentChunker,
     vectorstore: VectorStore,
-    pages: list[str] | list[dict[str, str]],
+    elements: list[Element],
     metadata: GeneratedMetadata,
-    tabular: bool = False,
 ) -> Runnable:
-    if tabular:
-        return (
-            chunk_loader_tabular(chunker=chunker, tabular_elements=pages, metadata=metadata)
-            | RunnableLambda(list)
-            | log_chunks
-            | RunnableLambda(
-                partial(
-                    vectorstore.add_documents,
-                    create_index_if_not_exists=False,
-                )
+    return (
+        chunk_loader(
+            chunker=chunker,
+            elements=elements,
+            metadata=metadata,
+        )
+        | RunnableLambda(list)
+        | log_chunks
+        | RunnableLambda(
+            partial(
+                vectorstore.add_documents,
+                create_index_if_not_exists=False,
             )
         )
+    )
 
+
+def ingest_tabular_chunks(
+    chunker: DocumentChunker,
+    vectorstore: VectorStore,
+    tabular_elements: list[dict[str, str]],
+    metadata: GeneratedMetadata,
+) -> Runnable:
     return (
-        chunk_loader(chunker=chunker, pages=pages, metadata=metadata)
+        chunk_loader_tabular(
+            chunker=chunker,
+            tabular_elements=tabular_elements,
+            metadata=metadata,
+        )
         | RunnableLambda(list)
         | log_chunks
         | RunnableLambda(

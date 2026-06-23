@@ -4,6 +4,8 @@ import logging
 from pydantic import ValidationError
 from langchain_core.prompts import PromptTemplate
 
+from unstructured.documents.elements import Element
+
 from redbox.chains.components import get_chat_llm
 from redbox.models.chain import GeneratedMetadata
 from redbox.chains.parser import ClaudeParser
@@ -59,9 +61,11 @@ class MetadataExtraction:
             logger.warning(e.errors())
             return GeneratedMetadata(name=original_metadata.get("filename") or file_name)
 
-    def extract(self, file_name: str, pages: list[str]) -> GeneratedMetadata:
+    def extract(self, file_name: str, elements: list[Element]) -> GeneratedMetadata:
         start_time = time.time()
-        first_10k_chars = "".join(p for p in pages)[:10_000]
+        # first_10k_chars = "".join(p for p in pages)[:10_000]
+
+        first_10k_chars = "".join(el.text for el in elements if getattr(el, "text", None))[:10_000]
 
         # Determine file type for metadata extraction
         file_type = "unknown"

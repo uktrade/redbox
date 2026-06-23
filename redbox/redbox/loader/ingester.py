@@ -13,7 +13,7 @@ from redbox.models.settings import get_settings
 
 from redbox.loader.extraction.base import DocumentExtractionService
 from redbox.loader.extraction.metadata import MetadataExtraction
-from redbox.chains.ingest import ingest_chunks, DocumentChunker
+from redbox.chains.ingest import ingest_chunks, ingest_tabular_chunks, DocumentChunker, UnstructuredDocumentChunker
 
 
 if TYPE_CHECKING:
@@ -87,38 +87,38 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
     extraction_service = DocumentExtractionService(
         bucket=env.bucket_name,
     )
-    pages = extraction_service.extract(file_name=file_name)
+    elements = extraction_service.extract(file_name=file_name)
 
     if is_tabular:
-        metadata = MetadataExtraction(env=env).extract_tabular(file_name=file_name, tabular_elements=pages)
+        metadata = MetadataExtraction(env=env).extract_tabular(file_name=file_name, tabular_elements=elements)
     else:
-        metadata = MetadataExtraction(env=env).extract(file_name=file_name, pages=pages)
+        metadata = MetadataExtraction(env=env).extract(file_name=file_name, elements=elements)
 
     chunk_ingest_chain = ingest_chunks(
-        chunker=DocumentChunker(
+        chunker=UnstructuredDocumentChunker(
             chunk_resolution=ChunkResolution.normal,
             min_chunk_size=env.worker_ingest_min_chunk_size,
             max_chunk_size=env.worker_ingest_max_chunk_size,
             overlap_chars=0,
         ),
         vectorstore=get_elasticsearch_store(es, es_index_name),
-        pages=pages,
+        elements=elements,
         metadata=metadata,
     )
 
     large_chunk_ingest_chain = ingest_chunks(
-        chunker=DocumentChunker(
+        chunker=UnstructuredDocumentChunker(
             chunk_resolution=ChunkResolution.largest,
             min_chunk_size=env.worker_ingest_largest_chunk_size,
             max_chunk_size=env.worker_ingest_largest_chunk_size,
             overlap_chars=env.worker_ingest_largest_chunk_overlap,
         ),
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
-        pages=pages,
+        elements=elements,
         metadata=metadata,
     )
 
-    tabular_chunk_ingest_chain = ingest_chunks(
+    tabular_chunk_ingest_chain = ingest_tabular_chunks(
         chunker=DocumentChunker(
             chunk_resolution=ChunkResolution.tabular,
             min_chunk_size=env.worker_ingest_largest_chunk_size,
@@ -126,12 +126,11 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             overlap_chars=env.worker_ingest_largest_chunk_overlap,
         ),
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
-        pages=pages,
+        tabular_elements=elements,
         metadata=metadata,
-        tabular=True,
     )
 
-    tabular_schema_chunk_ingest_chain = ingest_chunks(
+    tabular_schema_chunk_ingest_chain = ingest_tabular_chunks(
         chunker=DocumentChunker(
             chunk_resolution=ChunkResolution.tabular,
             min_chunk_size=env.worker_ingest_largest_chunk_size,
@@ -140,9 +139,8 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             include_schema_metadata=True,
         ),
         vectorstore=get_elasticsearch_store_without_embeddings(es, env.elastic_schematised_chunk_index),
-        pages=pages,
+        tabular_elements=elements,
         metadata=metadata,
-        tabular=True,
     )
 
     if is_tabular:
@@ -153,7 +151,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
                 "tabular": tabular_chunk_ingest_chain,
                 "schematised_tabular": tabular_schema_chunk_ingest_chain,
             }
-        ).invoke(file_name, pages)  # Run an additional tabular process if a tabular file is ingested
+        ).invoke(file_name)  # Run an additional tabular process if a tabular file is ingested
     else:
         new_ids = RunnableParallel({"normal": chunk_ingest_chain, "largest": large_chunk_ingest_chain}).invoke(
             file_name

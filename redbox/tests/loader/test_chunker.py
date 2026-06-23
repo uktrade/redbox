@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from redbox.loader.chunker import DocumentChunker
+from redbox.loader.chunking.chunker import DocumentChunker
 from redbox.models.file import ChunkResolution
 
 

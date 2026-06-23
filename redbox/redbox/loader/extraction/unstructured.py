@@ -2,7 +2,7 @@ from io import BytesIO
 import logging
 from typing import List
 
-
+from unstructured.documents.elements import Element
 from unstructured.partition.docx import partition_docx
 from unstructured.partition.auto import partition
 from unstructured.partition.pptx import partition_pptx
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class UnstructuredService:
-    def _extract_docx(self, file_bytes: BytesIO) -> List[str]:
+    def _extract_docx(self, file_bytes: BytesIO) -> List[Element]:
         logger.info("Extracting DOCX with unstructured")
 
         file_bytes.seek(0)
@@ -23,40 +23,42 @@ class UnstructuredService:
             if not elements:
                 raise ValueError("unstructured returned no elements from DOCX")
 
-            text_pages = []
-            current_page = []
-            last_page = None
+            return elements
 
-            for el in elements:
-                page_number = getattr(el.metadata, "page_number", None)
+            # text_pages = []
+            # current_page = []
+            # last_page = None
 
-                if page_number is not None:
-                    if last_page is None:
-                        last_page = page_number
-                    if page_number != last_page:
-                        if current_page:
-                            text_pages.append("\n".join(current_page))
-                        current_page = []
-                        last_page = page_number
+            # for el in elements:
+            #     page_number = getattr(el.metadata, "page_number", None)
 
-                text = str(el).strip()
-                if text:
-                    current_page.append(text)
+            #     if page_number is not None:
+            #         if last_page is None:
+            #             last_page = page_number
+            #         if page_number != last_page:
+            #             if current_page:
+            #                 text_pages.append("\n".join(current_page))
+            #             current_page = []
+            #             last_page = page_number
 
-            if current_page:
-                text_pages.append("\n".join(current_page))
+            #     text = str(el).strip()
+            #     if text:
+            #         current_page.append(text)
 
-            if not any(p.strip() for p in text_pages):
-                raise ValueError("unstructured extracted no readable text from DOCX")
+            # if current_page:
+            #     text_pages.append("\n".join(current_page))
 
-            logger.info("Extracted %d page(s) from DOCX using unstructured", len(text_pages))
-            return text_pages
+            # if not any(p.strip() for p in text_pages):
+            #     raise ValueError("unstructured extracted no readable text from DOCX")
+
+            # logger.info("Extracted %d page(s) from DOCX using unstructured", len(text_pages))
+            # return text_pages
 
         except Exception as e:
             logger.exception("unstructured failed to process DOCX: %s", str(e))
             raise
 
-    def _extract_pptx(self, file_bytes: BytesIO) -> List[str]:
+    def _extract_pptx(self, file_bytes: BytesIO) -> List[Element]:
         logger.info("Extracting PPTX with unstructured.partition.pptx")
         file_bytes.seek(0)
 
@@ -75,32 +77,34 @@ class UnstructuredService:
             if not elements:
                 raise ValueError("unstructured.partition.pptx returned no elements")
 
-            text_pages = []
-            current_page = []
-            last_page = None
+            return elements
 
-            for el in elements:
-                page_number = getattr(el.metadata, "page_number", None)
+            # text_pages = []
+            # current_page = []
+            # last_page = None
 
-                if page_number is not None:
-                    if last_page is None:
-                        last_page = page_number
-                    if page_number != last_page:
-                        if current_page:
-                            text_pages.append("\n".join(current_page))
-                        current_page = []
-                        last_page = page_number
+            # for el in elements:
+            #     page_number = getattr(el.metadata, "page_number", None)
 
-                current_page.append(str(el).strip())
+            #     if page_number is not None:
+            #         if last_page is None:
+            #             last_page = page_number
+            #         if page_number != last_page:
+            #             if current_page:
+            #                 text_pages.append("\n".join(current_page))
+            #             current_page = []
+            #             last_page = page_number
 
-            if current_page:
-                text_pages.append("\n".join(current_page))
+            #     current_page.append(str(el).strip())
 
-            if not text_pages:
-                text_pages = ["\n".join(str(el).strip() for el in elements)]
+            # if current_page:
+            #     text_pages.append("\n".join(current_page))
 
-            logger.info("Extracted %d slide(s) from PPTX", len(text_pages))
-            return text_pages
+            # if not text_pages:
+            #     text_pages = ["\n".join(str(el).strip() for el in elements)]
+
+            # logger.info("Extracted %d slide(s) from PPTX", len(text_pages))
+            # return text_pages
 
         except ImportError:
             logger.error("unstructured[pptx] extra not installed")
@@ -109,7 +113,7 @@ class UnstructuredService:
             logger.exception("PPTX extraction failed: %s", e)
             raise
 
-    def _extract(self, file_bytes: BytesIO, file_name: str) -> List[str]:
+    def _extract(self, file_bytes: BytesIO, file_name: str) -> List[Element]:
         file_bytes.seek(0)
 
         elements = partition(file=file_bytes)
@@ -117,27 +121,29 @@ class UnstructuredService:
         if not elements:
             raise ValueError(f"unstructured returned no elements from {file_name}")
 
-        text_pages: List[str] = []
-        current_page: List[str] = []
-        last_page = None
+        return elements
 
-        for el in elements:
-            page_number = getattr(el.metadata, "page_number", None) or getattr(el.metadata, "slide_number", None)
+        # text_pages: List[str] = []
+        # current_page: List[str] = []
+        # last_page = None
 
-            if page_number is not None:
-                if last_page is None or page_number != last_page:
-                    if current_page:
-                        text_pages.append("\n".join(current_page))
-                    current_page = []
-                    last_page = page_number
+        # for el in elements:
+        #     page_number = getattr(el.metadata, "page_number", None) or getattr(el.metadata, "slide_number", None)
 
-            current_page.append(str(el).strip())
+        #     if page_number is not None:
+        #         if last_page is None or page_number != last_page:
+        #             if current_page:
+        #                 text_pages.append("\n".join(current_page))
+        #             current_page = []
+        #             last_page = page_number
 
-        if current_page:
-            text_pages.append("\n".join(current_page))
+        #     current_page.append(str(el).strip())
 
-        if not text_pages:
-            text_pages = ["\n".join(str(el).strip() for el in elements)]
+        # if current_page:
+        #     text_pages.append("\n".join(current_page))
 
-        logger.info("Extracted %d page(s) from %s using unstructured", len(text_pages), file_name)
-        return text_pages
+        # if not text_pages:
+        #     text_pages = ["\n".join(str(el).strip() for el in elements)]
+
+        # logger.info("Extracted %d page(s) from %s using unstructured", len(text_pages), file_name)
+        # return text_pages

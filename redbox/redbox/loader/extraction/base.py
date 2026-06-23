@@ -5,7 +5,9 @@ from typing import List
 import fitz
 import boto3
 
-from redbox.loader.loaders import is_large_pdf, _pdf_is_image_heavy, load_tabular_file
+from unstructured.documents.elements import Element
+
+from redbox.loader.loaders import load_tabular_file
 from redbox.loader.extraction.textract import TextractService
 from redbox.loader.extraction.unstructured import UnstructuredService
 
@@ -48,7 +50,7 @@ class DocumentExtractionService:
         logger.warning("Extracted %d page(s) directly from PDF", len(pages))
         return pages
 
-    def extract(self, file_name: str) -> list[str] | list[dict[str, str]]:
+    def extract(self, file_name: str) -> list[Element] | list[dict[str, str]]:
         logger.warning("DocumentExtractionService.extract() called for %s", file_name)
 
         s3_key = file_name
@@ -74,32 +76,32 @@ class DocumentExtractionService:
             logger.warning("This is a document file: %s", display_name)
             return self.unstructured._extract_docx(file_bytes)
 
-        if display_name.endswith(".pdf"):
-            logger.warning("This is a PDF file: %s", display_name)
-            large_pdf, page_count = is_large_pdf(display_name, file_bytes)
-            if large_pdf:
-                if _pdf_is_image_heavy(file_bytes):
-                    logger.warning(
-                        "Large image-heavy PDF detected (%d pages); using Textract with adaptive backoff",
-                        page_count,
-                    )
+        # if display_name.endswith(".pdf"):
+        #     logger.warning("This is a PDF file: %s", display_name)
+        #     large_pdf, page_count = is_large_pdf(display_name, file_bytes)
+        #     if large_pdf:
+        #         if _pdf_is_image_heavy(file_bytes):
+        #             logger.warning(
+        #                 "Large image-heavy PDF detected (%d pages); using Textract with adaptive backoff",
+        #                 page_count,
+        #             )
 
-                    return self.textract.document_analysis(key=s3_key)
-                else:
-                    logger.warning(
-                        "Large PDF detected (%d pages); extracting text directly instead of Textract",
-                        page_count,
-                    )
-                    return self._extract_pdf_text_direct(file_bytes)
-            else:
-                try:
-                    return self.textract.document_analysis(key=s3_key)
-                except Exception:
-                    logger.warning(
-                        "Textract failed for %s; falling back to direct PDF text extraction",
-                        display_name,
-                    )
-                    return self._extract_pdf_text_direct(file_bytes)
+        #             return self.textract.document_analysis(key=s3_key)
+        #         else:
+        #             logger.warning(
+        #                 "Large PDF detected (%d pages); extracting text directly instead of Textract",
+        #                 page_count,
+        #             )
+        #             return self._extract_pdf_text_direct(file_bytes)
+        #     else:
+        #         try:
+        #             return self.textract.document_analysis(key=s3_key)
+        #         except Exception:
+        #             logger.warning(
+        #                 "Textract failed for %s; falling back to direct PDF text extraction",
+        #                 display_name,
+        #             )
+        #             return self._extract_pdf_text_direct(file_bytes)
 
         logger.warning("No file type matched - defaulting to generic extraction...")
         logger.warning("Processing with unstructured: %s", display_name)
