@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from langchain_core.documents import Document
 
+from redbox.models.settings import get_settings
 from unstructured.chunking.title import chunk_by_title
 from unstructured.documents.elements import Element
 
@@ -16,6 +17,8 @@ from redbox.transform import bedrock_tokeniser
 logger = logging.getLogger(__name__)
 
 tokeniser = bedrock_tokeniser
+
+env = get_settings()
 
 
 class UnstructuredDocumentChunker:
@@ -65,9 +68,8 @@ class UnstructuredDocumentChunker:
             max_characters=self.max_chunk_size,
             new_after_n_chars=self.max_chunk_size,
             overlap=self.overlap_chars,
-            combine_text_under_n_chars=self.min_chunk_size,
             multipage_sections=True,
-            overlap_all=True,
+            overlap_all=env.unstructured_chunking_overlap_all,
             include_orig_elements=True,
         )
 
