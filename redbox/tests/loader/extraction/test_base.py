@@ -2,7 +2,7 @@ import pytest
 from io import BytesIO
 from unittest.mock import patch, MagicMock, ANY, call
 
-from redbox.loader.extraction.base import DocumentExtractionService
+from redbox.loader.extraction.service import DocumentExtractionService
 
 
 BUCKET = "test-bucket"

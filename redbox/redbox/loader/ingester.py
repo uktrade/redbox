@@ -11,7 +11,7 @@ from redbox.chains.components import get_embeddings
 from redbox.models.file import ChunkResolution
 from redbox.models.settings import get_settings
 
-from redbox.loader.extraction.base import DocumentExtractionService
+from redbox.loader.extraction.service import DocumentExtractionService
 from redbox.loader.extraction.metadata import MetadataExtraction
 from redbox.chains.ingest import ingest_chunks, ingest_tabular_chunks, DocumentChunkingService
 
@@ -136,7 +136,6 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             min_chunk_size=env.worker_ingest_largest_chunk_size,
             max_chunk_size=env.worker_ingest_largest_chunk_size,
             overlap_chars=env.worker_ingest_largest_chunk_overlap,
-            include_schema_metadata=True,
         ),
         vectorstore=get_elasticsearch_store_without_embeddings(es, env.elastic_schematised_chunk_index),
         tabular_elements=elements,

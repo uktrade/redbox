@@ -7,10 +7,7 @@ from langchain_core.documents.base import Document
 from langchain_core.runnables import Runnable, RunnableLambda, chain
 from unstructured.documents.elements import Element
 
-from redbox.loader.chunking.base import DocumentChunkingService
-
-# from redbox.loader.chunking.page_by_page import PageByPageDocumentChunker
-# from redbox.loader.chunking.unstructured import UnstructuredDocumentChunker
+from redbox.loader.chunking.service import DocumentChunkingService
 from redbox.models.chain import GeneratedMetadata
 
 
