@@ -61,11 +61,22 @@ class MetadataExtraction:
             logger.warning(e.errors())
             return GeneratedMetadata(name=original_metadata.get("filename") or file_name)
 
-    def extract(self, file_name: str, elements: list[Element]) -> GeneratedMetadata:
-        start_time = time.time()
-        # first_10k_chars = "".join(p for p in pages)[:10_000]
+    def get_first_10k_chars(self, elements: list[Element] | list[str] | list[dict]) -> str:
+        if all(isinstance(p, str) for p in elements):
+            return "".join(p for p in elements)[:10_000]
 
-        first_10k_chars = "".join(el.text for el in elements if getattr(el, "text", None))[:10_000]
+        if all(isinstance(p, dict) for p in elements):
+            pages = [e.get("text", "") for e in elements]
+            return "".join(p for p in pages)[:10_000]
+
+        if all(isinstance(p, Element) for p in elements):
+            return "".join(el.text for el in elements if getattr(el, "text", None))[:10_000]
+
+        raise TypeError("pages must be either list[str] or list[Element] or list[dict], not mixed")
+
+    def extract(self, file_name: str, elements: list[Element] | list[str] | list[dict]) -> GeneratedMetadata:
+        start_time = time.time()
+        first_10k_chars = self.get_first_10k_chars(elements=elements)
 
         # Determine file type for metadata extraction
         file_type = "unknown"
@@ -95,8 +106,3 @@ class MetadataExtraction:
         )
 
         return metadata
-
-    def extract_tabular(self, file_name: str, tabular_elements: list[dict]) -> GeneratedMetadata:
-        pages = [te.get("text", "") for te in tabular_elements]
-
-        return self.extract(file_name=file_name, pages=pages)

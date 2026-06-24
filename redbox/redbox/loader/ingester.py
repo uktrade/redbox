@@ -68,8 +68,6 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
     logging.warning("Ingesting file: %s", file_name)
     start_time = time.time()
 
-    is_tabular = file_name.endswith((".csv", ".xls", ".xlsx", ".tsv"))
-
     es = env.elasticsearch_client()
     log.info("Using Elasticsearch client: %s", es)
 
@@ -88,17 +86,21 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
     extraction_service = DocumentExtractionService(
         bucket=env.bucket_name,
     )
+
+    # -- extraction --
+    # normal chunk
     elements = extraction_service.extract(file_name=file_name)
+
+    # largest chunk
     largest_elements = elements
-    # if PDF - extract largest chunks with direct extraction
-    if os.path.basename(file_name).lower().endswith(".pdf"):
+    if os.path.basename(file_name).lower().endswith(".pdf"):  # if PDF - extract largest chunks with direct extraction
         largest_elements = extraction_service.extract(file_name=file_name, use_direct_extraction=True)
 
-    if is_tabular:
-        metadata = MetadataExtraction(env=env).extract_tabular(file_name=file_name, tabular_elements=elements)
-    else:
-        metadata = MetadataExtraction(env=env).extract(file_name=file_name, elements=elements)
+    # metadata
+    metadata = MetadataExtraction(env=env).extract(file_name=file_name, elements=elements)
 
+    # -- chunking and opensearch ingestion --
+    # normal chunk
     chunk_ingest_chain = ingest_chunks(
         chunker=DocumentChunkingService(
             chunk_resolution=ChunkResolution.normal,
@@ -111,6 +113,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
         metadata=metadata,
     )
 
+    # largest chunk
     large_chunk_ingest_chain = ingest_chunks(
         chunker=DocumentChunkingService(
             chunk_resolution=ChunkResolution.largest,
@@ -124,6 +127,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
         chunks_overlap_pages=True,
     )
 
+    # tabular chunk
     tabular_chunk_ingest_chain = ingest_tabular_chunks(
         chunker=DocumentChunkingService(
             chunk_resolution=ChunkResolution.tabular,
@@ -136,6 +140,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
         metadata=metadata,
     )
 
+    # tabular chunk (with metadata.document_schema in schematised index)
     tabular_schema_chunk_ingest_chain = ingest_tabular_chunks(
         chunker=DocumentChunkingService(
             chunk_resolution=ChunkResolution.tabular,
@@ -149,7 +154,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
         include_schema_metadata=True,
     )
 
-    if is_tabular:
+    if file_name.endswith((".csv", ".xls", ".xlsx", ".tsv")):
         new_ids = RunnableParallel(
             {
                 "normal": chunk_ingest_chain,
