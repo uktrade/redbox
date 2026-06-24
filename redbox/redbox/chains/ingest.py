@@ -25,6 +25,7 @@ def chunk_loader(
     chunker: DocumentChunkingService,
     elements: list[str] | list[Element],
     metadata: GeneratedMetadata,
+    chunks_overlap_pages: bool,
 ) -> Runnable:
     @chain
     def wrapped(file_name: str) -> Iterator[Document]:
@@ -36,6 +37,7 @@ def chunk_loader(
                     s3_key=file_name,
                     elements=elements,
                     generated_metadata=metadata,
+                    chunks_overlap_pages=chunks_overlap_pages,
                 )
             )
 
@@ -90,12 +92,14 @@ def ingest_chunks(
     vectorstore: VectorStore,
     elements: list[str] | list[Element],
     metadata: GeneratedMetadata,
+    chunks_overlap_pages: bool = False,
 ) -> Runnable:
     return (
         chunk_loader(
             chunker=chunker,
             elements=elements,
             metadata=metadata,
+            chunks_overlap_pages=chunks_overlap_pages,
         )
         | RunnableLambda(list)
         | log_chunks

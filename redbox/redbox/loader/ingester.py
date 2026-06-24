@@ -1,5 +1,6 @@
 import logging
 import time
+import os
 import traceback
 from typing import TYPE_CHECKING
 
@@ -88,6 +89,10 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
         bucket=env.bucket_name,
     )
     elements = extraction_service.extract(file_name=file_name)
+    largest_elements = elements
+    # if PDF - extract largest chunks with direct extraction
+    if os.path.basename(file_name).lower().endswith(".pdf"):
+        largest_elements = extraction_service.extract(file_name=file_name, use_direct_extraction=True)
 
     if is_tabular:
         metadata = MetadataExtraction(env=env).extract_tabular(file_name=file_name, tabular_elements=elements)
@@ -114,8 +119,9 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             overlap_chars=env.worker_ingest_largest_chunk_overlap,
         ),
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
-        elements=elements,
+        elements=largest_elements,
         metadata=metadata,
+        chunks_overlap_pages=True,
     )
 
     tabular_chunk_ingest_chain = ingest_tabular_chunks(

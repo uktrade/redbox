@@ -5,6 +5,7 @@ from langchain_core.documents import Document
 from unstructured.documents.elements import Element
 
 from redbox.loader.chunking.chunkers.page_by_page import PageByPageDocumentChunker
+from redbox.loader.chunking.chunkers.joined_pages import JoinedPagesDocumentChunker
 from redbox.loader.chunking.chunkers.unstructured import UnstructuredDocumentChunker
 from redbox.loader.chunking.chunkers.tabular import TabularDocumentChunker
 from redbox.models.chain import GeneratedMetadata
@@ -22,6 +23,12 @@ class DocumentChunkingService:
         overlap_chars: int = 200,
     ):
         self.chunker_page_by_page = PageByPageDocumentChunker(
+            chunk_resolution=chunk_resolution,
+            min_chunk_size=min_chunk_size,
+            max_chunk_size=max_chunk_size,
+            overlap_chars=overlap_chars,
+        )
+        self.chunker_joined_pages = JoinedPagesDocumentChunker(
             chunk_resolution=chunk_resolution,
             min_chunk_size=min_chunk_size,
             max_chunk_size=max_chunk_size,
@@ -64,6 +71,7 @@ class DocumentChunkingService:
         s3_key: str,
         elements: list[str] | list[Element],
         generated_metadata: GeneratedMetadata,
+        chunks_overlap_pages: bool,
     ) -> Iterator[Document]:
         if not elements:
             logger.error("No extracted content passed to chunker...")
@@ -71,6 +79,13 @@ class DocumentChunkingService:
 
         # list[str] if using textract or pymupdf for extraction
         if all(isinstance(p, str) for p in elements):
+            if chunks_overlap_pages:
+                return self.chunker_joined_pages.chunks(
+                    s3_key=s3_key,
+                    pages=elements,
+                    generated_metadata=generated_metadata,
+                )
+
             return self.chunker_page_by_page.chunks(
                 s3_key=s3_key,
                 pages=elements,

@@ -118,7 +118,9 @@ class DocumentExtractionService:
 
         # raise RuntimeError("All extraction strategies failed")
 
-    def extract(self, file_name: str) -> list[Element] | list[str] | list[dict[str, str]]:
+    def extract(
+        self, file_name: str, use_direct_extraction: bool = False
+    ) -> list[Element] | list[str] | list[dict[str, str]]:
         logger.warning("DocumentExtractionService.extract() called for %s", file_name)
 
         s3_key = file_name
@@ -143,6 +145,10 @@ class DocumentExtractionService:
 
         if display_name.endswith(".pdf"):
             logger.warning("PDF detected: %s", display_name)
+
+            if use_direct_extraction:
+                logger.warning("Using direct PDF text extraction.")
+                return self._extract_pdf_text_direct(file_bytes)
 
             return self._run_with_fallbacks(
                 file_bytes=file_bytes,
