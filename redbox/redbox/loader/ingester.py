@@ -140,6 +140,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
         vectorstore=get_elasticsearch_store_without_embeddings(es, env.elastic_schematised_chunk_index),
         tabular_elements=elements,
         metadata=metadata,
+        include_schema_metadata=True,
     )
 
     if is_tabular:

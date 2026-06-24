@@ -46,12 +46,17 @@ class DocumentChunkingService:
         )
 
     def tabular_chunks(
-        self, s3_key: str, tabular_elements: list[dict[str, str]], generated_metadata: GeneratedMetadata
+        self,
+        s3_key: str,
+        tabular_elements: list[dict[str, str]],
+        generated_metadata: GeneratedMetadata,
+        include_schema_metadata: bool,
     ) -> Iterator[Document]:
         return self.chunker_tabular.tabular_chunks(
             s3_key=s3_key,
             tabular_elements=tabular_elements,
             generated_metadata=generated_metadata,
+            include_schema_metadata=include_schema_metadata,
         )
 
     def chunks(

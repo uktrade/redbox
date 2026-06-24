@@ -56,6 +56,7 @@ def chunk_loader_tabular(
     chunker: DocumentChunkingService,
     tabular_elements: list[dict[str, str]],
     metadata: GeneratedMetadata,
+    include_schema_metadata: bool,
 ) -> Runnable:
     @chain
     def wrapped(file_name: str) -> Iterator[Document]:
@@ -67,6 +68,7 @@ def chunk_loader_tabular(
                     s3_key=file_name,
                     tabular_elements=tabular_elements,
                     generated_metadata=metadata,
+                    include_schema_metadata=include_schema_metadata,
                 )
             )
 
@@ -111,12 +113,14 @@ def ingest_tabular_chunks(
     vectorstore: VectorStore,
     tabular_elements: list[dict[str, str]],
     metadata: GeneratedMetadata,
+    include_schema_metadata: bool = False,
 ) -> Runnable:
     return (
         chunk_loader_tabular(
             chunker=chunker,
             tabular_elements=tabular_elements,
             metadata=metadata,
+            include_schema_metadata=include_schema_metadata,
         )
         | RunnableLambda(list)
         | log_chunks
