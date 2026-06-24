@@ -38,42 +38,6 @@ Download and install [pre-commit](https://pre-commit.com) to benefit from pre-co
 - At this time integration test(s) take 10+ mins to run so are triggered manually in CI
 - Run `make help` to see all the available build activities.
 
-# Dependencies
-
-This project is in two parts:
-
-- A https://langchain-ai.github.io/langgraph/ based AI class library called redbox
-- A django app to expose redbox to users over the web
-
-The project is structured approximately like this:
-
-```txt
-redbox/
-├── django_app
-│  ├── redbox_app/
-│  ├── static/
-│  ├── tests/
-│  ├── manage.py
-│  ├── pyproject.toml
-│  └── Dockerfile
-├── redbox/
-│  ├── redbox
-│  │  ├── api/
-│  │  ├── chains/
-│  │  ├── graph/
-│  │  ├── loader/
-│  │  ├── models/
-│  │  ├── retriever/
-│  │  └── storage/
-│  ├── tests/
-│  ├── pyproject.toml
-│  └── Dockerfile
-├── docker-compose.yaml
-├── pyproject.toml
-├── Makefile
-└── README.md
-```
-
 ## Configuration
 
 System-wide, static, settings are defined [Settings.py](redbox/redbox/models/settings.py), these are set via environment file .env
