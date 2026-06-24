@@ -88,7 +88,12 @@ class DocumentExtractionService:
             try:
                 logger.warning("Trying extraction strategy=%s", strategy)
 
-                with time_limit(timeout_map.get(strategy, 20)):
+                timeout = timeout_map.get(strategy, 20)
+                if timeout == 0:
+                    logger.warning("Skipping strategy=%s because timeout=0", strategy)
+                    continue
+
+                with time_limit(timeout):
                     if strategy == "auto":
                         return self.unstructured._extract(file_bytes, s3_key, strategy="auto")
 
@@ -98,13 +103,11 @@ class DocumentExtractionService:
                     if strategy == "textract":
                         return self.textract.document_analysis(key=s3_key)
 
-            except Exception as e:
-                logger.warning(
-                    "Strategy %s failed: %s. Falling back...",
+            except Exception:
+                logger.exception(
+                    "Strategy %s failed. Falling back...",
                     strategy,
-                    str(e),
                 )
-                continue
 
         try:
             logger.warning("All strategies failed. Using direct PDF text extraction fallback.")
