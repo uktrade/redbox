@@ -116,8 +116,6 @@ class DocumentExtractionService:
             logger.error("Final fallback (_extract_pdf_text_direct) also failed: %s", str(e))
             raise RuntimeError("All extraction strategies including final fallback failed") from e
 
-        # raise RuntimeError("All extraction strategies failed")
-
     def extract(
         self, file_name: str, use_direct_extraction: bool = False
     ) -> list[Element] | list[str] | list[dict[str, str]]:
@@ -150,37 +148,11 @@ class DocumentExtractionService:
                 logger.warning("Using direct PDF text extraction.")
                 return self._extract_pdf_text_direct(file_bytes)
 
+            logger.warning("Starting PDF extraction with fallbacks...")
             return self._run_with_fallbacks(
                 file_bytes=file_bytes,
                 s3_key=s3_key,
             )
-
-        # if display_name.endswith(".pdf"):
-        #     logger.warning("This is a PDF file: %s", display_name)
-        #     large_pdf, page_count = is_large_pdf(display_name, file_bytes)
-        #     if large_pdf:
-        #         if _pdf_is_image_heavy(file_bytes):
-        #             logger.warning(
-        #                 "Large image-heavy PDF detected (%d pages); using Textract with adaptive backoff",
-        #                 page_count,
-        #             )
-
-        #             return self.textract.document_analysis(key=s3_key)
-        #         else:
-        #             logger.warning(
-        #                 "Large PDF detected (%d pages); extracting text directly instead of Textract",
-        #                 page_count,
-        #             )
-        #             return self._extract_pdf_text_direct(file_bytes)
-        #     else:
-        #         try:
-        #             return self.textract.document_analysis(key=s3_key)
-        #         except Exception:
-        #             logger.warning(
-        #                 "Textract failed for %s; falling back to direct PDF text extraction",
-        #                 display_name,
-        #             )
-        #             return self._extract_pdf_text_direct(file_bytes)
 
         logger.warning("No file type matched - defaulting to generic extraction...")
         logger.warning("Processing with unstructured: %s", display_name)
