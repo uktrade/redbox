@@ -89,12 +89,12 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
 
     # -- extraction --
     # normal chunk
-    elements = extraction_service.extract(file_name=file_name)
+    elements = extraction_service.extract(file_name=file_name, chunk_resolution=ChunkResolution.normal)
 
     # largest chunk
     largest_elements = elements
     if os.path.basename(file_name).lower().endswith(".pdf"):  # if PDF - extract largest chunks with direct extraction
-        largest_elements = extraction_service.extract(file_name=file_name, use_direct_extraction=True)
+        largest_elements = extraction_service.extract(file_name=file_name, chunk_resolution=ChunkResolution.largest)
 
     # metadata
     metadata = MetadataExtraction(env=env).extract(file_name=file_name, elements=elements)
