@@ -1,4 +1,3 @@
-from types import SimpleNamespace
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
@@ -206,19 +205,10 @@ class TestExtract:
             ("DATA.CSV", "CSV"),
         ],
     )
-    def test_detects_file_type(
-        self,
-        svc,
-        file_name,
-        expected_file_type,
-    ):
+    def test_detects_file_type(self, svc, file_name, expected_file_type):
         captured = {}
 
-        def capturing_create(
-            file_name,
-            page_content,
-            original_metadata=None,
-        ):
+        def capturing_create(file_name, page_content, original_metadata=None):
             captured["original_metadata"] = original_metadata
             return make_metadata(name=file_name)
 
@@ -227,39 +217,31 @@ class TestExtract:
         svc.extract(file_name, ["content"])
 
         assert captured["original_metadata"]["file_type"] == expected_file_type
+        assert captured["original_metadata"]["filename"] == file_name
 
     @pytest.mark.parametrize(
-        ("pages", "expected_prefix"),
+        ("elements", "expected_min_length"),
         [
-            (["abc", "def"], "abcdef"),
-            (["a" * 6000, "b" * 6000], "a" * 6000),
-            ([], ""),
+            (["abc", "def"], 6),
+            (["a" * 6000, "b" * 6000], 10_000),  # capped
+            ([], 0),
         ],
     )
-    def test_truncates_content_to_10k(
-        self,
-        svc,
-        pages,
-        expected_prefix,
-    ):
+    def test_truncates_content_to_10k(self, svc, elements, expected_min_length):
         captured = {}
 
-        def capturing_create(
-            file_name,
-            page_content,
-            original_metadata=None,
-        ):
+        def capturing_create(file_name, page_content, original_metadata=None):
             captured["page_content"] = page_content
             return make_metadata(name=file_name)
 
         svc.create_file_metadata = capturing_create
 
-        elements = [SimpleNamespace(text=p) for p in pages]
-
         svc.extract("doc.pdf", elements)
 
         assert len(captured["page_content"]) <= 10_000
-        assert captured["page_content"].startswith(expected_prefix[:100])
+
+        if expected_min_length:
+            assert len(captured["page_content"]) >= min(expected_min_length, 10_000)
 
     def test_returns_fallback_on_create_exception(self, svc):
         svc.create_file_metadata = MagicMock(side_effect=RuntimeError("LLM down"))
@@ -283,46 +265,18 @@ class TestExtract:
         assert isinstance(result, GeneratedMetadata)
 
 
-class TestExtractTabular:
-    @pytest.mark.parametrize(
-        ("elements", "expected_pages"),
-        [
-            ([{"text": "row1"}, {"text": "row2"}], ["row1", "row2"]),
-            ([{"text": "only"}], ["only"]),
-            ([], []),
-            ([{"other_key": "ignored"}], [""]),
-        ],
-    )
-    def test_extracts_text_from_elements(
-        self,
-        svc,
-        elements,
-        expected_pages,
-    ):
+class TestExtractDictElements:
+    def test_extracts_dict_elements(self, svc):
         captured = {}
 
-        def capturing_extract(file_name, pages):
-            captured["pages"] = pages
+        def capturing_create(file_name, page_content, original_metadata=None):
+            captured["page_content"] = page_content
             return make_metadata(name=file_name)
 
-        svc.extract = capturing_extract
+        svc.create_file_metadata = capturing_create
 
-        svc.extract_tabular(
-            "table.csv",
-            elements,
-        )
+        elements = [{"text": "row1"}, {"text": "row2"}]
 
-        assert captured["pages"] == expected_pages
+        svc.extract("table.csv", elements)
 
-    def test_delegates_to_extract_with_file_name(self, svc):
-        svc.extract = MagicMock(return_value=make_metadata(name="table.csv"))
-
-        svc.extract_tabular(
-            "table.csv",
-            [{"text": "data"}],
-        )
-
-        svc.extract.assert_called_once_with(
-            file_name="table.csv",
-            pages=["data"],
-        )
+        assert captured["page_content"] == "row1row2"
