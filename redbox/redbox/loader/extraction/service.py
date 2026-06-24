@@ -1,5 +1,6 @@
 from io import BytesIO
 import os
+from uuid import uuid4
 import logging
 from typing import List
 import fitz
@@ -49,15 +50,17 @@ class DocumentExtractionService:
         self.s3 = boto3.client("s3", region_name=region)
         self.textract = TextractService(bucket=bucket, region=region)
         self.unstructured = UnstructuredService()
+        self.log_stub = f"[DocumentExtractionService run_id='{str(uuid4())[:8]}']"
 
         logger.warning(
-            "Initialised DocumentExtractionService (bucket=%s, region=%s)",
+            "%s Initialised (bucket=%s, region=%s)",
+            self.log_stub,
             bucket,
             region,
         )
 
     def _extract_pdf_text_direct(self, file_bytes: BytesIO) -> List[str]:
-        logger.warning("Extracting PDF text directly with PyMuPDF")
+        logger.warning("%s Extracting PDF text directly with PyMuPDF", self.log_stub)
         file_bytes.seek(0)
         doc = fitz.open(stream=file_bytes.getvalue(), filetype="pdf")
         pages: List[str] = []
@@ -70,7 +73,7 @@ class DocumentExtractionService:
         if not pages:
             raise ValueError("PDF contains no extractable text")
 
-        logger.warning("Extracted %d page(s) directly from PDF", len(pages))
+        logger.warning("%s Extracted %d page(s) directly from PDF", self.log_stub, len(pages))
         return pages
 
     def _run_with_fallbacks(
@@ -86,74 +89,83 @@ class DocumentExtractionService:
 
         for strategy in ["auto", "fast", "textract"]:
             try:
-                logger.warning("Trying extraction strategy=%s", strategy)
+                logger.warning("%s Trying extraction strategy=%s", self.log_stub, strategy)
 
                 timeout = timeout_map.get(strategy, 20)
                 if timeout == 0:
-                    logger.warning("Skipping strategy=%s because timeout=0", strategy)
+                    logger.warning("%s Skipping strategy=%s because timeout=0", self.log_stub, strategy)
                     continue
 
                 with time_limit(timeout):
                     if strategy == "auto":
+                        logger.warning("%s Trying Unstructured strategy=auto", self.log_stub)
                         return self.unstructured._extract(file_bytes, s3_key, strategy="auto")
 
                     if strategy == "fast":
+                        logger.warning("%s Trying Unstructured strategy=fast", self.log_stub)
                         return self.unstructured._extract(file_bytes, s3_key, strategy="fast")
 
                     if strategy == "textract":
+                        logger.warning("%s Trying Textract document_analysis", self.log_stub)
                         return self.textract.document_analysis(key=s3_key)
 
             except Exception:
                 logger.exception(
-                    "Strategy %s failed. Falling back...",
+                    "%s Strategy %s failed. Falling back...",
+                    self.log_stub,
                     strategy,
                 )
 
         try:
-            logger.warning("All strategies failed. Using direct PDF text extraction fallback.")
+            logger.warning("%s All strategies failed. Using direct PDF text extraction fallback.", self.log_stub)
             return self._extract_pdf_text_direct(file_bytes)
         except Exception as e:
-            logger.error("Final fallback (_extract_pdf_text_direct) also failed: %s", str(e))
+            logger.error("%s Final fallback (_extract_pdf_text_direct) also failed: %s", self.log_stub, str(e))
             raise RuntimeError("All extraction strategies including final fallback failed") from e
 
     def extract(
         self, file_name: str, use_direct_extraction: bool = False
     ) -> list[Element] | list[str] | list[dict[str, str]]:
-        logger.warning("DocumentExtractionService.extract() called for %s", file_name)
+        logger.warning(
+            "%s .extract() called for %s, %s",
+            self.log_stub,
+            file_name,
+            "for largest" if use_direct_extraction else "for normal",
+        )
 
         s3_key = file_name
         display_name = os.path.basename(file_name).lower()
 
-        logger.warning("File type detected: %s", display_name)
+        logger.warning("%s File type detected: %s", self.log_stub, display_name)
 
         obj = self.s3.get_object(Bucket=self.bucket, Key=s3_key)
         file_bytes = BytesIO(obj["Body"].read())
 
         if display_name.endswith((".csv", ".tsv", ".xls", ".xlsx")):
-            logger.warning("Tabular detected: %s", display_name)
+            logger.warning("%s Tabular detected: %s", self.log_stub, display_name)
             return load_tabular_file(display_name, file_bytes)
 
         if display_name.lower().endswith((".pptx", ".ppt")):
-            logger.warning("PowerPoint detected: %s", display_name)
+            logger.warning("%s PowerPoint detected: %s", self.log_stub, display_name)
             return self.unstructured._extract_pptx(file_bytes)
 
         if display_name.lower().endswith(".docx"):
-            logger.warning("DOCX detected: %s", display_name)
+            logger.warning("%s DOCX detected: %s", self.log_stub, display_name)
             return self.unstructured._extract_docx(file_bytes)
 
         if display_name.endswith(".pdf"):
-            logger.warning("PDF detected: %s", display_name)
+            logger.warning("%s PDF detected: %s", self.log_stub, display_name)
 
             if use_direct_extraction:
-                logger.warning("Using direct PDF text extraction.")
+                logger.warning("%s Using direct PDF text extraction.", self.log_stub)
                 return self._extract_pdf_text_direct(file_bytes)
 
-            logger.warning("Starting PDF extraction with fallbacks...")
+            logger.warning("%s Starting PDF extraction with fallbacks...", self.log_stub)
             return self._run_with_fallbacks(
                 file_bytes=file_bytes,
                 s3_key=s3_key,
             )
 
-        logger.warning("No file type matched - defaulting to generic extraction...")
-        logger.warning("Processing with unstructured: %s", display_name)
+        logger.warning("%s No file type matched - defaulting to generic extraction...", self.log_stub)
+        logger.warning("%s Processing with unstructured: %s", self.log_stub, display_name)
         return self.unstructured._extract(file_bytes, file_name)

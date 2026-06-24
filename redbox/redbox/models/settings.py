@@ -98,9 +98,9 @@ class Settings(BaseSettings):
     embedding_max_batch_size: int = 512
     embedding_document_field_name: str = "embedding"
 
-    document_pdf_extraction_default_timeout: int = os.environ.get("DOCUMENT_PDF_EXTRACTION_DEFAULT_TIMEOUT", 45)
+    document_pdf_extraction_default_timeout: int = os.environ.get("DOCUMENT_PDF_EXTRACTION_DEFAULT_TIMEOUT", 300)
     document_pdf_extraction_fallback_one_timeout: int = os.environ.get(
-        "DOCUMENT_PDF_EXTRACTION_FALLBACK_ONE_TIMEOUT", 90
+        "DOCUMENT_PDF_EXTRACTION_FALLBACK_ONE_TIMEOUT", 120
     )
     document_pdf_extraction_fallback_two_timeout: int = os.environ.get(
         "DOCUMENT_PDF_EXTRACTION_FALLBACK_TWO_TIMEOUT", 120
