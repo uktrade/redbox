@@ -5,6 +5,19 @@ from unittest.mock import patch, MagicMock, ANY, call
 from redbox.loader.extraction.service import DocumentExtractionService
 
 
+def make_element(text: str, page_number: int | None = None, slide_number: int | None = None) -> MagicMock:
+    el = MagicMock()
+    el.__str__ = lambda self: text
+    el.metadata.page_number = page_number
+    el.metadata.slide_number = slide_number
+    return el
+
+
+def make_elements(*specs: tuple) -> list:
+    """specs: (text, page_number) tuples."""
+    return [make_element(text, page) for text, page in specs]
+
+
 BUCKET = "test-bucket"
 PAGES = ["page one", "page two"]
 TABULAR = [{"text": "col1,col2", "metadata": {}}]
@@ -12,9 +25,9 @@ TABULAR = [{"text": "col1,col2", "metadata": {}}]
 
 def make_service() -> DocumentExtractionService:
     with (
-        patch("redbox.loader.extraction.base.boto3.client"),
-        patch("redbox.loader.extraction.base.TextractService"),
-        patch("redbox.loader.extraction.base.UnstructuredService"),
+        patch("redbox.loader.extraction.service.boto3.client"),
+        patch("redbox.loader.extraction.service.TextractService"),
+        patch("redbox.loader.extraction.service.UnstructuredService"),
     ):
         return DocumentExtractionService(bucket=BUCKET)
 
@@ -30,7 +43,7 @@ def patch_s3(svc: DocumentExtractionService, content: bytes = b"fake"):
 
 
 class TestExtractInit:
-    @patch("redbox.loader.extraction.base.boto3.client")
+    @patch("redbox.loader.extraction.service.boto3.client")
     def test_init_default_parameters(self, mock_boto_client: MagicMock):
         extractor = DocumentExtractionService(bucket="test-bucket")
 
@@ -48,7 +61,7 @@ class TestExtractInit:
             ]
         )
 
-    @patch("redbox.loader.extraction.base.boto3.client")
+    @patch("redbox.loader.extraction.service.boto3.client")
     def test_init_custom_parameters(self, mock_boto_client: MagicMock):
         bucket, region = "test-bucket-2", "eu-west-1"
         extractor = DocumentExtractionService(
@@ -72,7 +85,7 @@ class TestExtractInit:
 
 
 class TestExtractPdfTextDirect:
-    @patch("redbox.loader.extraction.base.fitz.open")
+    @patch("redbox.loader.extraction.service.fitz.open")
     def test_returns_non_empty_pages(self, mock_fitz):
         mock_page = MagicMock()
         mock_page.get_text.return_value = "  page text  "
@@ -80,7 +93,7 @@ class TestExtractPdfTextDirect:
         result = make_service()._extract_pdf_text_direct(BytesIO(b"pdf"))
         assert result == ["page text", "page text"]
 
-    @patch("redbox.loader.extraction.base.fitz.open")
+    @patch("redbox.loader.extraction.service.fitz.open")
     def test_skips_blank_pages(self, mock_fitz):
         pages = [MagicMock(), MagicMock(), MagicMock()]
         pages[0].get_text.return_value = "real text"
@@ -90,7 +103,7 @@ class TestExtractPdfTextDirect:
         result = make_service()._extract_pdf_text_direct(BytesIO(b"pdf"))
         assert result == ["real text", "more text"]
 
-    @patch("redbox.loader.extraction.base.fitz.open")
+    @patch("redbox.loader.extraction.service.fitz.open")
     def test_raises_when_all_pages_blank(self, mock_fitz):
         page = MagicMock()
         page.get_text.return_value = "   "
@@ -98,7 +111,7 @@ class TestExtractPdfTextDirect:
         with pytest.raises(ValueError, match="no extractable text"):
             make_service()._extract_pdf_text_direct(BytesIO(b"pdf"))
 
-    @patch("redbox.loader.extraction.base.fitz.open")
+    @patch("redbox.loader.extraction.service.fitz.open")
     def test_raises_when_no_pages(self, mock_fitz):
         mock_fitz.return_value.__iter__ = MagicMock(return_value=iter([]))
         with pytest.raises(ValueError, match="no extractable text"):
@@ -115,7 +128,7 @@ class TestExtractTabular:
             "data/report.xlsx",
         ],
     )
-    @patch("redbox.loader.extraction.base.load_tabular_file", return_value=TABULAR)
+    @patch("redbox.loader.extraction.service.load_tabular_file", return_value=TABULAR)
     def test_routes_to_load_tabular(self, mock_load, file_name):
         svc = make_service()
         patch_s3(svc)
@@ -144,66 +157,78 @@ class TestExtractOffice:
 
 class TestExtractPdf:
     @pytest.mark.parametrize(
-        "is_image_heavy, expected_method",
+        "auto, fast, textract, direct, expected, raises",
         [
-            (True, "document_analysis"),  # large + image-heavy -> Textract analysis
-            (False, None),  # large + text -> direct PyMuPDF
+            # auto success
+            ([make_element(text="auto-page")], None, None, None, [make_element(text="auto-page")], False),
+            # fast success
+            (
+                RuntimeError("auto"),
+                [make_element(text="fast-page")],
+                None,
+                None,
+                [make_element(text="fast-page")],
+                False,
+            ),
+            # textract success
+            (RuntimeError("auto"), RuntimeError("fast"), ["textract-page"], None, ["textract-page"], False),
+            # direct fallback success
+            (
+                RuntimeError("auto"),
+                RuntimeError("fast"),
+                RuntimeError("textract"),
+                ["direct-page"],
+                ["direct-page"],
+                False,
+            ),
+            # direct fails -> FINAL raise
+            (RuntimeError("auto"), RuntimeError("fast"), RuntimeError("textract"), RuntimeError("direct"), None, True),
         ],
     )
-    @patch("redbox.loader.extraction.base._pdf_is_image_heavy")
-    @patch("redbox.loader.extraction.base.is_large_pdf", return_value=(True, 200))
-    @patch("redbox.loader.extraction.base.fitz.open")
-    def test_large_pdf_routing(self, mock_fitz, _mock_large, mock_image_heavy, is_image_heavy, expected_method):
-        mock_image_heavy.return_value = is_image_heavy
-        page = MagicMock()
-        page.get_text.return_value = "text"
-        mock_fitz.return_value.__iter__ = MagicMock(return_value=iter([page]))
+    def test_pdf_matrix(self, auto, fast, textract, direct, expected, raises):
 
         svc = make_service()
         patch_s3(svc)
-        svc.textract.document_analysis.return_value = PAGES
 
-        result = svc.extract("report.pdf")
+        # unstructured mock behaviour (auto + fast)
+        def unstructured_mock(file_bytes, key, strategy):
+            if strategy == "auto":
+                if isinstance(auto, Exception):
+                    raise auto
+                return auto
+            if strategy == "fast":
+                if isinstance(fast, Exception):
+                    raise fast
+                return fast
 
-        if expected_method:
-            svc.textract.document_analysis.assert_called_once_with(key="report.pdf")
-            assert result == PAGES
+        svc.unstructured._extract.side_effect = unstructured_mock
+
+        # textract
+        if isinstance(textract, Exception):
+            svc.textract.document_analysis.side_effect = textract
         else:
-            svc.textract.document_analysis.assert_not_called()
-            assert result == ["text"]
+            svc.textract.document_analysis.return_value = textract
 
-    @patch("redbox.loader.extraction.base.is_large_pdf", return_value=(False, 5))
-    def test_small_pdf_tries_textract_first(self, _mock_large):
-        svc = make_service()
-        patch_s3(svc)
-        svc.textract.document_analysis.return_value = PAGES
-        result = svc.extract("small.pdf")
-        svc.textract.document_analysis.assert_called_once_with(key="small.pdf")
-        assert result == PAGES
+        # direct fallback
+        direct_patch = patch.object(
+            svc,
+            "_extract_pdf_text_direct",
+            side_effect=(direct if isinstance(direct, Exception) else None),
+            return_value=None if isinstance(direct, Exception) else direct,
+        )
 
-    @patch("redbox.loader.extraction.base.is_large_pdf", return_value=(False, 5))
-    @patch("redbox.loader.extraction.base.fitz.open")
-    def test_small_pdf_falls_back_to_direct_on_textract_failure(self, mock_fitz, _mock_large):
-        page = MagicMock()
-        page.get_text.return_value = "fallback text"
-        mock_fitz.return_value.__iter__ = MagicMock(return_value=iter([page]))
+        with direct_patch as mock_direct:
+            if raises:
+                with pytest.raises(RuntimeError, match="All extraction strategies"):
+                    svc.extract("file.pdf")
+                return
 
-        svc = make_service()
-        patch_s3(svc)
-        svc.textract.document_analysis.side_effect = RuntimeError("textract down")
+            result = svc.extract("file.pdf")
 
-        result = svc.extract("small.pdf")
-        assert result == ["fallback text"]
+            assert [str(r) for r in result] == [str(e) for e in expected]
 
-    @patch("redbox.loader.extraction.base.is_large_pdf", return_value=(False, 5))
-    @patch("redbox.loader.extraction.base.fitz.open")
-    def test_fallback_raises_if_direct_also_fails(self, mock_fitz, _mock_large):
-        mock_fitz.side_effect = RuntimeError("fitz broken")
-        svc = make_service()
-        patch_s3(svc)
-        svc.textract.document_analysis.side_effect = RuntimeError("textract down")
-        with pytest.raises(RuntimeError, match="fitz broken"):
-            svc.extract("small.pdf")
+            if direct == "direct-page":
+                mock_direct.assert_called_once()
 
 
 class TestExtractGeneric:
@@ -225,16 +250,37 @@ class TestExtractGeneric:
 
 
 class TestExtractS3:
-    @patch("redbox.loader.extraction.base.is_large_pdf", return_value=(False, 5))
-    def test_fetches_from_correct_bucket_and_key(self, _mock_large):
+    @pytest.mark.parametrize(
+        "s3_error, body_bytes, expected_exception",
+        [
+            # happy path - S3 returns bytes
+            (None, b"pdf-bytes", None),
+            # S3 failure propagates
+            (RuntimeError("S3 unavailable"), None, RuntimeError),
+        ],
+    )
+    def test_s3_fetch_matrix(self, s3_error, body_bytes, expected_exception):
         svc = make_service()
-        patch_s3(svc)
-        svc.textract.document_analysis.return_value = PAGES
-        svc.extract("path/to/report.pdf")
-        svc.s3.get_object.assert_called_once_with(Bucket=BUCKET, Key="path/to/report.pdf")
 
-    def test_propagates_s3_exception(self):
-        svc = make_service()
-        svc.s3.get_object = MagicMock(side_effect=RuntimeError("S3 unavailable"))
-        with pytest.raises(RuntimeError, match="S3 unavailable"):
-            svc.extract("any/file.pdf")
+        if s3_error:
+            svc.s3.get_object = MagicMock(side_effect=s3_error)
+        else:
+            body = MagicMock()
+            body.read.return_value = body_bytes
+            svc.s3.get_object = MagicMock(return_value={"Body": body})
+
+        if expected_exception:
+            with pytest.raises(RuntimeError, match="S3 unavailable"):
+                svc.extract("any/file.pdf")
+            return
+
+        # we just verify extraction runs without S3 error
+        svc.unstructured._extract.return_value = ["ok"]
+
+        result = svc.extract("any/file.pdf")
+        assert result == ["ok"]
+
+        svc.s3.get_object.assert_called_once_with(
+            Bucket=BUCKET,
+            Key="any/file.pdf",
+        )
