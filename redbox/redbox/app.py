@@ -124,6 +124,7 @@ class Redbox:
         self.agent_configs["Tabular_Agent"].tools = [query_tabular_file]
         self.agent_configs["Web_Search_Agent"].tools = [web_search]
         self.agent_configs["Legislation_Search_Agent"].tools = [legislation_search]
+        self.agent_configs["News_Search_Agent"].tools = [web_search]
         self.agent_configs["Submission_Question_Answer_Agent"].tools = [
             retrieve_full_text,
             retrieve_knowledge_base,
@@ -246,12 +247,6 @@ class Redbox:
                 is_summary_multiagent_streamed=is_summary_multiagent_streamed,
                 is_evaluator_output_streamed=is_evaluator_output_streamed,
             )
-            if final_state is None:
-                logger.error("app: LLM Error - Blank Response; graph produced no final state")
-            elif not final_state.messages:
-                logger.error("app: LLM Error - Blank Response; final state has no messages")
-            elif not (final_state.messages[-1].content or "").strip():
-                logger.error("app: LLM Error - Blank Response; final message content is empty")
 
         except CancelledError:
             logger.error("All retries exhausted for CancelledError in the astream_events function")
