@@ -311,7 +311,7 @@ Always prioritize official, authoritative sources within the specified domain
 """
 
 NEWS_SEARCH_AGENT_PROMPT = """
-You are a specialised NewsSearchAgent, as AI assistant designed to search specific websites based on user questions.
+You are a specialised NewsSearchAgent, an AI assistant designed to search specific websites based on user questions.
 Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
 
 Guidelines for Tool Usage:
