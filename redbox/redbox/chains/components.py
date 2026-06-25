@@ -1,11 +1,13 @@
 import logging
 import time
 from functools import cache
+from typing import Any
 
 from botocore.exceptions import ClientError, ConnectTimeoutError, EndpointConnectionError, ReadTimeoutError
 from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langchain_community.embeddings import BedrockEmbeddings
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.embeddings import Embeddings, FakeEmbeddings
 from langchain_core.runnables import Runnable
 from langchain_core.tools import StructuredTool
@@ -39,6 +41,41 @@ load_dotenv()
 _FALLBACK_CACHE = {}
 
 FALLBACK_COOLDOWN_SECS = 420  # 7 mins feels ok
+
+_THROTTLING_CODES = frozenset(
+    {"ServiceUnavailableException", "Throttling_Exeption", "RateLimitExceed", "TooManyRequestsException"}
+)
+
+_CONNECTION_EXCEPTIONS = (TimeoutError, ConnectionError, EndpointConnectionError, ConnectTimeoutError, ReadTimeoutError)
+
+
+def _is_throttling_error(error: Exception) -> bool:
+    if isinstance(error, ClientError):
+        return error.response["Error"].get("Code", "") in _THROTTLING_CODES
+    return isinstance(error, _CONNECTION_EXCEPTIONS)
+
+
+class _FallbackCacheCallback(BaseCallbackHandler):
+    """
+    Updates _FALLBACK_CACHE when the primary LLM fails with a throttling error
+    """
+
+    def __init__(self, model_name: str, fallback_backend: ChatLLMBackend):
+        self._model_name = model_name
+        self._fallback_backend = fallback_backend
+
+    def on_llm_error(self, error: Exception, **kwargs: Any) -> None:
+        if _is_throttling_error(error):
+            logger.warning(
+                "Runtime throttling (%s) with %s - caching fallback for %ds",
+                type(error).__name__,
+                self._model_name,
+                FALLBACK_COOLDOWN_SECS,
+            )
+            _FALLBACK_CACHE[self._model_name] = {
+                "until": time.time() + FALLBACK_COOLDOWN_SECS,
+                "backend": self._fallback_backend,
+            }
 
 
 def get_chat_llm(

@@ -2,9 +2,10 @@ import time
 from unittest.mock import MagicMock
 
 import pytest
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, ConnectTimeoutError, EndpointConnectionError, ReadTimeoutError
 
-from redbox.chains.components import get_chat_llm
+import redbox.chains.components as components
+from redbox.chains.components import _FallbackCacheCallback, get_chat_llm
 from redbox.models.chain import AISettings, ChatLLMBackend
 
 pytestmark = pytest.mark.usefixtures("clear_fallback_cache")
@@ -65,8 +66,6 @@ def test_get_chat_llm_fallback_on_throttling(mocker, fake_model_backend, fake_ai
 
 
 def test_get_chat_llm_wires_connection_error_fallback(mocker, fake_model_backend, fake_ai_settings):
-    from botocore.exceptions import ConnectTimeoutError, EndpointConnectionError, ReadTimeoutError
-
     primary_mock = MagicMock(name="PrimaryModel")
     fallback_mock = MagicMock(name="FallbackModel")
     mocker.patch("redbox.chains.components.init_chat_model", side_effect=[primary_mock, fallback_mock])
@@ -83,8 +82,6 @@ def test_get_chat_llm_wires_connection_error_fallback(mocker, fake_model_backend
 
 
 def test_get_chat_llm_uses_cached_fallback(mocker, fake_model_backend, fake_ai_settings):
-    import redbox.chains.components as components
-
     fallback_backend = ChatLLMBackend(name="anthropic.fallback", provider="bedrock")
     components._FALLBACK_CACHE[fake_model_backend.name] = {
         "until": time.time() + 60,
@@ -104,8 +101,6 @@ def test_get_chat_llm_uses_cached_fallback(mocker, fake_model_backend, fake_ai_s
 
 
 def test_get_chat_llm_cache_expires_and_returns_to_primary(mocker, fake_model_backend, fake_ai_settings):
-    import redbox.chains.components as components
-
     components._FALLBACK_CACHE[fake_model_backend.name] = {
         "until": time.time() - 1,  # expired
         "backend": ChatLLMBackend(name="anthropic.fallback", provider="bedrock"),
@@ -116,3 +111,26 @@ def test_get_chat_llm_cache_expires_and_returns_to_primary(mocker, fake_model_ba
 
     # once the cache has expired; the primary model should be the first call
     assert init_mock.call_args_list[0].kwargs["model"] == fake_model_backend.name
+
+
+def test_fallback_cache_callback_updates_cache_on_throttling():
+    components._FALLBACK_CACHE
+    fallback_backend = ChatLLMBackend(name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock")
+    cb = _FallbackCacheCallback("primary-model", fallback_backend)
+
+    cb.on_llm_error(_make_client_error("ServiceUnavailableeException"))
+
+    assert "primary-model" in components._FALLBACK_CACHE
+    entry = components._FALLBACK_CACHE["primary-model"]
+    assert entry["until"] > time.time()
+    assert entry["backend"] == fallback_backend
+
+
+def test_fallback_cache_callback_ignores_non_throttling_error():
+    components._FALLBACK_CACHE.clear()
+    fallback_backend = ChatLLMBackend(name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock")
+    cb = _FallbackCacheCallback("primary-model", fallback_backend)
+
+    cb.on_llm_error(_make_client_error("ValidationException"))
+
+    assert "primary-model" not in components._FALLBACK_CACHE
