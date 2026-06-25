@@ -13,8 +13,6 @@ pytestmark = pytest.mark.usefixtures("clear_fallback_cache")
 
 @pytest.fixture(autouse=True)
 def clear_fallback_cache():
-    import redbox.chains.components as components
-
     if hasattr(components, "_FALLBACK_CACHE"):
         components._FALLBACK_CACHE.clear()
     yield
@@ -114,11 +112,11 @@ def test_get_chat_llm_cache_expires_and_returns_to_primary(mocker, fake_model_ba
 
 
 def test_fallback_cache_callback_updates_cache_on_throttling():
-    components._FALLBACK_CACHE
+    components._FALLBACK_CACHE.clear()
     fallback_backend = ChatLLMBackend(name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock")
     cb = _FallbackCacheCallback("primary-model", fallback_backend)
 
-    cb.on_llm_error(_make_client_error("ServiceUnavailableeException"))
+    cb.on_llm_error(_make_client_error("ServiceUnavailableException"))
 
     assert "primary-model" in components._FALLBACK_CACHE
     entry = components._FALLBACK_CACHE["primary-model"]
