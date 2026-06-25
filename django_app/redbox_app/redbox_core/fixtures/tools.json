@@ -1,0 +1,26 @@
+[
+    {
+        "model": "redbox_core.tool",
+        "pk": "370c09fa-30a8-43a1-9c3d-701d51857097",
+        "fields": {
+            "created_at": "2026-05-21T12:13:14.052Z",
+            "modified_at": "2026-05-21T12:13:14.052Z",
+            "name": "Invest Lens",
+            "description": "Create investment briefings and company overviews from Data Hub information and external sources.",
+            "slug": "invest-lens",
+            "is_public": true
+        }
+    },
+    {
+        "model": "redbox_core.tool",
+        "pk": "3fd68cdd-16ae-4175-a026-ad50a2426517",
+        "fields": {
+            "created_at": "2026-05-21T12:13:29.090Z",
+            "modified_at": "2026-05-21T12:13:29.090Z",
+            "name": "Submissions Checker",
+            "description": "Get feedback on the quality of your ministerial submission draft, with clear explanations and scores to help you improve it.",
+            "slug": "submissions-checker",
+            "is_public": true
+        }
+    }
+]

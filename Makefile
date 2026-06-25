@@ -303,3 +303,7 @@ aws-login: # Login to AWS
 .PHONY: shell
 shell: # Launch python shell
 	cd django_app && python manage.py shell
+
+.PHONY: local_db_init
+local_db_init: # Run initial set up of the db in local
+	cd django_app && poetry run python manage.py local_db_init
