@@ -43,7 +43,7 @@ _FALLBACK_CACHE = {}
 FALLBACK_COOLDOWN_SECS = 420  # 7 mins feels ok
 
 _THROTTLING_CODES = frozenset(
-    {"ServiceUnavailableException", "Throttling_Exeption", "RateLimitExceed", "TooManyRequestsException"}
+    {"ServiceUnavailableException", "Throttling_Exeption", "RateLimitExceeded", "TooManyRequestsException"}
 )
 
 _CONNECTION_EXCEPTIONS = (TimeoutError, ConnectionError, EndpointConnectionError, ConnectTimeoutError, ReadTimeoutError)
@@ -118,43 +118,14 @@ def get_chat_llm(
         )
         return _init_model(cache_entry["backend"])
 
-    try:
-        return _init_model(model)
+    primary = _init_model(model)
+    fallback_llm = _init_model(fallback_backend)
 
-    except ClientError as e:
-        error_code = e.response["Error"].get("Code", "")
-        if error_code in (
-            "ServiceUnavailableException",
-            "ThrottlingException",
-            "RateLimitExceeded",
-            "TooManyRequestsException",
-        ):
-            logger.warning(
-                "Rate/service limit (%s) encountered with %s. Falling back to %s",
-                error_code,
-                model.name,
-                fallback_backend.name,
-            )
-            _FALLBACK_CACHE[model.name] = {
-                "until": time.time() + FALLBACK_COOLDOWN_SECS,
-                "backend": fallback_backend,
-            }
-            return _init_model(fallback_backend)
-        else:
-            raise e
-
-    except (TimeoutError, ConnectionError, EndpointConnectionError, ConnectTimeoutError, ReadTimeoutError) as e:
-        logger.warning(
-            "Connection issue (%s) with %s. Falling back to %s",
-            str(e),
-            model.name,
-            fallback_backend.name,
-        )
-        _FALLBACK_CACHE[model.name] = {
-            "until": time.time() + FALLBACK_COOLDOWN_SECS,
-            "backend": fallback_backend,
-        }
-        return _init_model(fallback_backend)
+    primary_with_cache_callback = primary.with_config(callbacks=[_FallbackCacheCallback(model.name, fallback_backend)])
+    return primary_with_cache_callback.with_fallbacks(
+        [fallback_llm],
+        exceptions_to_handle=(ClientError, *_CONNECTION_EXCEPTIONS),
+    )
 
 
 @cache
