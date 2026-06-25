@@ -462,6 +462,7 @@ Q_CLUSTER = {
     "orm": "default",
     "workers": env.int("Q_WORKERS", 5),
     "error_reporter": {"sentry": {"dsn": env.str("SENTRY_DSN", " ")}},
+    "ack_failures": env.bool("Q_ACK_FAILURES", default=True),
 }
 
 
