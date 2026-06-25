@@ -7,7 +7,7 @@ from langchain_core.documents.base import Document
 from langchain_core.runnables import Runnable, RunnableLambda, chain, RunnableParallel
 from unstructured.documents.elements import Element
 
-from redbox_app.redbox_core.models import File
+from redbox_app.redbox_core.enums import IngestChunkingStrategy
 
 from redbox.loader.chunking.service import DocumentChunkingService
 from redbox.models.chain import GeneratedMetadata
@@ -30,7 +30,7 @@ def chunk_loader(
     chunks_overlap_pages: bool,
 ) -> Runnable:
     @chain
-    def wrapped(file_name: str) -> tuple[File.IngestChunkingStrategy, Iterator[Document]]:
+    def wrapped(file_name: str) -> tuple[IngestChunkingStrategy, Iterator[Document]]:
         try:
             log.info("wrapped START: %s", file_name)
 
@@ -62,7 +62,7 @@ def chunk_loader_tabular(
     include_schema_metadata: bool,
 ) -> Runnable:
     @chain
-    def wrapped(file_name: str) -> tuple[File.IngestChunkingStrategy, Iterator[Document]]:
+    def wrapped(file_name: str) -> tuple[IngestChunkingStrategy, Iterator[Document]]:
         try:
             log.info("wrapped START: %s", file_name)
 

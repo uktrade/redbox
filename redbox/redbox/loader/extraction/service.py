@@ -10,7 +10,7 @@ import boto3
 import signal
 from contextlib import contextmanager
 
-from redbox_app.redbox_core.models import File
+from redbox_app.redbox_core.enums import IngestExtractionStrategy
 from redbox.models.file import ChunkResolution
 from redbox.models.settings import get_settings
 from unstructured.documents.elements import Element
@@ -44,7 +44,7 @@ def time_limit(seconds: int):
 
 @dataclass
 class ExtractionStrategyConfig:
-    name: File.IngestExtractionStrategy
+    name: IngestExtractionStrategy
     ingestion_fn: Callable[[], None]
 
 
@@ -177,18 +177,18 @@ class DocumentExtractionService:
         file_bytes: BytesIO,
         s3_key: str,
         log_stub: str,
-    ) -> tuple[File.IngestExtractionStrategy, list[Element] | list[str]]:
+    ) -> tuple[IngestExtractionStrategy, list[Element] | list[str]]:
         strategy_map: dict[str, ExtractionStrategyConfig] = {
             "unstructured_auto": ExtractionStrategyConfig(
-                name=File.IngestExtractionStrategy.unstructured_auto,
+                name=IngestExtractionStrategy.unstructured_auto,
                 ingestion_fn=partial(self.unstructured._extract, file_bytes, s3_key, strategy="auto"),
             ),
             "unstructured_fast": ExtractionStrategyConfig(
-                name=File.IngestExtractionStrategy.unstructured_fast,
+                name=IngestExtractionStrategy.unstructured_fast,
                 ingestion_fn=partial(self.unstructured._extract, file_bytes, s3_key, strategy="fast"),
             ),
             "textract_document_analysis": ExtractionStrategyConfig(
-                name=File.IngestExtractionStrategy.textract_document_analysis,
+                name=IngestExtractionStrategy.textract_document_analysis,
                 ingestion_fn=partial(
                     self.textract.document_analysis,
                     key=s3_key,
@@ -249,14 +249,14 @@ class DocumentExtractionService:
             logger.warning("%s All strategies failed. Using direct PDF text extraction fallback.", log_stub)
             result = self._extract_pdf_text_direct(file_bytes, log_stub)
             logger.warning("%s Successfully extracted with fallback direct PDF text extraction", log_stub)
-            return File.IngestExtractionStrategy.pymupdf, result
+            return IngestExtractionStrategy.pymupdf, result
         except Exception as e:
             logger.error("%s Final fallback (_extract_pdf_text_direct) also failed: %s", log_stub, str(e))
             raise RuntimeError("All extraction strategies including final fallback failed") from e
 
     def extract(
         self, file_name: str, chunk_resolution: ChunkResolution
-    ) -> tuple[File.IngestExtractionStrategy, list[Element] | list[str] | list[dict[str, str]]]:
+    ) -> tuple[IngestExtractionStrategy, list[Element] | list[str] | list[dict[str, str]]]:
         self.extract_calls += 1
         extract_log_stub = f"{self.log_stub} (call {self.extract_calls}) {chunk_resolution} - "
 
@@ -278,19 +278,19 @@ class DocumentExtractionService:
             logger.warning("%s Tabular detected: %s", extract_log_stub, display_name)
             result = load_tabular_file(display_name, file_bytes)
             logger.warning("%s Successfully extracted tabular file: %s", extract_log_stub, display_name)
-            return File.IngestExtractionStrategy.tabular, result
+            return IngestExtractionStrategy.tabular, result
 
         if display_name.lower().endswith((".pptx", ".ppt")):
             logger.warning("%s PowerPoint detected: %s", extract_log_stub, display_name)
             result = self.unstructured._extract_pptx(file_bytes)
             logger.warning("%s Successfully extracted PowerPoint: %s", extract_log_stub, display_name)
-            return File.IngestExtractionStrategy.unstructured, result
+            return IngestExtractionStrategy.unstructured, result
 
         if display_name.lower().endswith(".docx"):
             logger.warning("%s DOCX detected: %s", extract_log_stub, display_name)
             result = self.unstructured._extract_docx(file_bytes)
             logger.warning("%s Successfully extracted DOCX: %s", extract_log_stub, display_name)
-            return File.IngestExtractionStrategy.unstructured, result
+            return IngestExtractionStrategy.unstructured, result
 
         if display_name.endswith(".pdf"):
             logger.warning("%s PDF detected: %s", extract_log_stub, display_name)
@@ -299,7 +299,7 @@ class DocumentExtractionService:
                 logger.warning("%s Using direct PDF text extraction.", extract_log_stub)
                 result = self._extract_pdf_text_direct(file_bytes, extract_log_stub)
                 logger.warning("%s Successfully extracted PDF via direct text extraction", extract_log_stub)
-                return File.IngestExtractionStrategy.pymupdf, result
+                return IngestExtractionStrategy.pymupdf, result
 
             logger.warning("%s Starting PDF extraction with fallbacks...", extract_log_stub)
             strategy, result = self._run_with_fallbacks(
@@ -317,4 +317,4 @@ class DocumentExtractionService:
         logger.warning(
             "%s Successfully extracted via generic unstructured extraction: %s", extract_log_stub, display_name
         )
-        return File.IngestExtractionStrategy.unstructured_auto, result
+        return IngestExtractionStrategy.unstructured_auto, result

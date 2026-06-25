@@ -34,6 +34,7 @@ from slugify import slugify
 from yarl import URL
 
 from redbox.models.settings import get_settings
+from redbox_app.redbox_core.enums import IngestChunkingStrategy, IngestExtractionStrategy
 from redbox_app.redbox_core.services import url as url_service
 from redbox_app.redbox_core.utils import get_date_group, resolve_instance, strip_domain
 
@@ -1164,22 +1165,6 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         MEMBER = "OFFICIAL_SENSITIVE", _("Official Sensitive")
         SECRET = "SECRET", _("Secret")  # pragma: allowlist secret
         TOP_SECRET = "TOP_SECRET", _("Top Secret")  # pragma: allowlist secret
-
-    class IngestExtractionStrategy(models.TextChoices):
-        unstructured = "unstructured"
-        unstructured_auto = "unstructured_auto"
-        unstructured_fast = "unstructured_fast"
-        textract_document_analysis = "textract_document_analysis"
-        pymupdf = "pymupdf"
-        tabular = "tabular"
-        unspecified = "unspecified"
-
-    class IngestChunkingStrategy(models.TextChoices):
-        overlapping_pages = "overlapping_pages"
-        page_by_page = "page_by_page"
-        tabular = "tabular"
-        unstructured_chunk_by_title = "unstructured_chunk_by_title"
-        unspecified = "unspecified"
 
     INACTIVE_STATUSES = [Status.deleted, Status.errored]
 

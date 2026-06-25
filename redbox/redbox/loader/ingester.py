@@ -9,7 +9,7 @@ from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.embeddings import FakeEmbeddings
 from langchain_core.runnables import RunnableParallel
 
-from redbox_app.redbox_core.models import File
+from redbox_app.redbox_core.enums import IngestChunkingStrategy, IngestExtractionStrategy
 from redbox.chains.components import get_embeddings
 from redbox.models.file import ChunkResolution
 from redbox.models.settings import get_settings
@@ -67,10 +67,10 @@ def create_alias(alias: str):
 
 
 class FileIngestionResponse(BaseModel):
-    normal_extraction_strategy: File.IngestExtractionStrategy
-    normal_chunking_strategy: File.IngestChunkingStrategy
-    largest_extraction_strategy: File.IngestExtractionStrategy
-    largest_chunking_strategy: File.IngestChunkingStrategy
+    normal_extraction_strategy: IngestExtractionStrategy
+    normal_chunking_strategy: IngestChunkingStrategy
+    largest_extraction_strategy: IngestExtractionStrategy
+    largest_chunking_strategy: IngestChunkingStrategy
 
 
 def _ingest_file(
@@ -105,7 +105,7 @@ def _ingest_file(
     )
 
     # largest chunk
-    largest_elements = normal_elements
+    largest_extraction_strategy, largest_elements = normal_extraction_strategy, normal_elements
     if os.path.basename(file_name).lower().endswith(".pdf"):  # if PDF - extract largest chunks with direct extraction
         largest_extraction_strategy, largest_elements = extraction_service.extract(
             file_name=file_name, chunk_resolution=ChunkResolution.largest

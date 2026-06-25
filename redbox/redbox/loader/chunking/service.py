@@ -4,7 +4,7 @@ from typing import Iterator
 from langchain_core.documents import Document
 from unstructured.documents.elements import Element
 
-from redbox_app.redbox_core.models import File
+from redbox_app.redbox_core.enums import IngestChunkingStrategy
 
 from redbox.loader.chunking.chunkers.page_by_page import PageByPageDocumentChunker
 from redbox.loader.chunking.chunkers.joined_pages import JoinedPagesDocumentChunker
@@ -103,7 +103,7 @@ class DocumentChunkingService:
         tabular_elements: list[dict[str, str]],
         generated_metadata: GeneratedMetadata,
         include_schema_metadata: bool,
-    ) -> tuple[File.IngestChunkingStrategy, Iterator[Document]]:
+    ) -> tuple[IngestChunkingStrategy, Iterator[Document]]:
         logger.warning("%s Loading tabular chunks for %s...", self.log_stub, s3_key)
         result = self.chunker_tabular.tabular_chunks(
             s3_key=s3_key,
@@ -112,7 +112,7 @@ class DocumentChunkingService:
             include_schema_metadata=include_schema_metadata,
         )
         logger.warning("%s Successfully loaded tabular chunks for %s", self.log_stub, s3_key)
-        return File.IngestChunkingStrategy.tabular, result
+        return IngestChunkingStrategy.tabular, result
 
     def chunks(
         self,
@@ -120,7 +120,7 @@ class DocumentChunkingService:
         elements: list[str] | list[Element],
         generated_metadata: GeneratedMetadata,
         chunks_overlap_pages: bool,
-    ) -> tuple[File.IngestChunkingStrategy, Iterator[Document]]:
+    ) -> tuple[IngestChunkingStrategy, Iterator[Document]]:
         logger.warning("%s Loading chunks for %s...", self.log_stub, s3_key)
         if not elements:
             logger.error("No extracted content passed to chunker...")
@@ -135,7 +135,7 @@ class DocumentChunkingService:
                     generated_metadata=generated_metadata,
                 )
                 logger.warning("%s Successfully loaded overlapping-page chunks for %s...", self.log_stub, s3_key)
-                return File.IngestChunkingStrategy.overlapping_pages, result
+                return IngestChunkingStrategy.overlapping_pages, result
 
             result = self.chunker_page_by_page.chunks(
                 s3_key=s3_key,
@@ -143,7 +143,7 @@ class DocumentChunkingService:
                 generated_metadata=generated_metadata,
             )
             logger.warning("%s Successfully loaded page-by-page chunks for %s...", self.log_stub, s3_key)
-            return File.IngestChunkingStrategy.page_by_page, result
+            return IngestChunkingStrategy.page_by_page, result
 
         # list[Element] if using unstructured
         if all(isinstance(p, Element) for p in elements):
@@ -153,6 +153,6 @@ class DocumentChunkingService:
                 generated_metadata=generated_metadata,
             )
             logger.warning("%s Successfully loaded unstructured chunks for %s...", self.log_stub, s3_key)
-            return File.IngestChunkingStrategy.unstructured_chunk_by_title, result
+            return IngestChunkingStrategy.unstructured_chunk_by_title, result
 
         raise TypeError("pages must be either list[str] or list[Element], not mixed")

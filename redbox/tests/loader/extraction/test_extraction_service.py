@@ -4,7 +4,7 @@ from unittest.mock import patch, MagicMock, ANY, call
 
 from redbox.loader.extraction.service import DocumentExtractionService
 from redbox.models.file import ChunkResolution
-from redbox_app.redbox_core.models import File
+from redbox_app.redbox_core.enums import IngestExtractionStrategy
 
 
 def make_element(text: str, page_number: int | None = None, slide_number: int | None = None) -> MagicMock:
@@ -147,7 +147,7 @@ class TestExtractTabular:
         svc = make_service()
         patch_s3(svc)
         strategy, result = svc.extract(file_name, ChunkResolution.tabular)
-        assert strategy == File.IngestExtractionStrategy.tabular
+        assert strategy == IngestExtractionStrategy.tabular
         assert result == TABULAR
         mock_load.assert_called_once()
 
@@ -166,7 +166,7 @@ class TestExtractOffice:
         patch_s3(svc)
         getattr(svc.unstructured, method).return_value = PAGES
         strategy, result = svc.extract(file_name, ChunkResolution.normal)
-        assert strategy == File.IngestExtractionStrategy.unstructured
+        assert strategy == IngestExtractionStrategy.unstructured
         assert result == PAGES
         getattr(svc.unstructured, method).assert_called_once()
 
@@ -182,7 +182,7 @@ class TestExtractPdf:
                 None,
                 None,
                 [make_element(text="auto-page")],
-                File.IngestExtractionStrategy.unstructured_auto,
+                IngestExtractionStrategy.unstructured_auto,
                 False,
             ),
             # fast success
@@ -192,7 +192,7 @@ class TestExtractPdf:
                 None,
                 None,
                 [make_element(text="fast-page")],
-                File.IngestExtractionStrategy.unstructured_fast,
+                IngestExtractionStrategy.unstructured_fast,
                 False,
             ),
             # textract success
@@ -202,7 +202,7 @@ class TestExtractPdf:
                 ["textract-page"],
                 None,
                 ["textract-page"],
-                File.IngestExtractionStrategy.textract_document_analysis,
+                IngestExtractionStrategy.textract_document_analysis,
                 False,
             ),
             # direct fallback success
@@ -212,7 +212,7 @@ class TestExtractPdf:
                 RuntimeError("textract"),
                 ["direct-page"],
                 ["direct-page"],
-                File.IngestExtractionStrategy.pymupdf,
+                IngestExtractionStrategy.pymupdf,
                 False,
             ),
             # direct fails -> FINAL raise
@@ -289,7 +289,7 @@ class TestExtractPdf:
                 patch_s3(svc)
                 strategy, result = svc.extract(file_name, ChunkResolution.largest)
 
-                assert strategy == File.IngestExtractionStrategy.pymupdf
+                assert strategy == IngestExtractionStrategy.pymupdf
                 assert result == [expected_page] * pages
                 mock_direct.assert_called_once()
                 mock_fallback.assert_not_called()
@@ -309,7 +309,7 @@ class TestExtractGeneric:
         patch_s3(svc)
         svc.unstructured._extract.return_value = PAGES
         strategy, result = svc.extract(file_name, ChunkResolution.normal)
-        assert strategy == File.IngestExtractionStrategy.unstructured_auto
+        assert strategy == IngestExtractionStrategy.unstructured_auto
         assert result == PAGES
         svc.unstructured._extract.assert_called_once()
 
@@ -343,7 +343,7 @@ class TestExtractS3:
         svc.unstructured._extract.return_value = ["ok"]
 
         strategy, result = svc.extract("any/file.pdf", ChunkResolution.normal)
-        assert strategy == File.IngestExtractionStrategy.unstructured_auto
+        assert strategy == IngestExtractionStrategy.unstructured_auto
         assert result == ["ok"]
 
         svc.s3.get_object.assert_called_once_with(
