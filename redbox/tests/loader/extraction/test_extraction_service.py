@@ -3,6 +3,8 @@ from io import BytesIO
 from unittest.mock import patch, MagicMock, ANY, call
 
 from redbox.loader.extraction.service import DocumentExtractionService
+from redbox.models.file import ChunkResolution
+from redbox_app.redbox_core.models import File
 
 
 def make_element(text: str, page_number: int | None = None, slide_number: int | None = None) -> MagicMock:
@@ -89,8 +91,11 @@ class TestExtractPdfTextDirect:
     def test_returns_non_empty_pages(self, mock_fitz):
         mock_page = MagicMock()
         mock_page.get_text.return_value = "  page text  "
-        mock_fitz.return_value.__iter__ = MagicMock(return_value=iter([mock_page, mock_page]))
-        result = make_service()._extract_pdf_text_direct(BytesIO(b"pdf"))
+        mock_doc = MagicMock()
+        mock_doc.__iter__.return_value = iter([mock_page, mock_page])
+        mock_fitz.return_value.__enter__.return_value = mock_doc
+
+        result = make_service()._extract_pdf_text_direct(BytesIO(b"pdf"), "[log]")
         assert result == ["page text", "page text"]
 
     @patch("redbox.loader.extraction.service.fitz.open")
@@ -99,23 +104,32 @@ class TestExtractPdfTextDirect:
         pages[0].get_text.return_value = "real text"
         pages[1].get_text.return_value = "   "  # blank
         pages[2].get_text.return_value = "more text"
-        mock_fitz.return_value.__iter__ = MagicMock(return_value=iter(pages))
-        result = make_service()._extract_pdf_text_direct(BytesIO(b"pdf"))
+        mock_doc = MagicMock()
+        mock_doc.__iter__.return_value = iter(pages)
+        mock_fitz.return_value.__enter__.return_value = mock_doc
+
+        result = make_service()._extract_pdf_text_direct(BytesIO(b"pdf"), "[log]")
         assert result == ["real text", "more text"]
 
     @patch("redbox.loader.extraction.service.fitz.open")
     def test_raises_when_all_pages_blank(self, mock_fitz):
         page = MagicMock()
         page.get_text.return_value = "   "
-        mock_fitz.return_value.__iter__ = MagicMock(return_value=iter([page]))
+        mock_doc = MagicMock()
+        mock_doc.__iter__.return_value = iter([page])
+        mock_fitz.return_value.__enter__.return_value = mock_doc
+
         with pytest.raises(ValueError, match="no extractable text"):
-            make_service()._extract_pdf_text_direct(BytesIO(b"pdf"))
+            make_service()._extract_pdf_text_direct(BytesIO(b"pdf"), "[log]")
 
     @patch("redbox.loader.extraction.service.fitz.open")
     def test_raises_when_no_pages(self, mock_fitz):
-        mock_fitz.return_value.__iter__ = MagicMock(return_value=iter([]))
+        mock_doc = MagicMock()
+        mock_doc.__iter__.return_value = iter([])
+        mock_fitz.return_value.__enter__.return_value = mock_doc
+
         with pytest.raises(ValueError, match="no extractable text"):
-            make_service()._extract_pdf_text_direct(BytesIO(b"pdf"))
+            make_service()._extract_pdf_text_direct(BytesIO(b"pdf"), "[log]")
 
 
 class TestExtractTabular:
@@ -132,7 +146,8 @@ class TestExtractTabular:
     def test_routes_to_load_tabular(self, mock_load, file_name):
         svc = make_service()
         patch_s3(svc)
-        result = svc.extract(file_name)
+        strategy, result = svc.extract(file_name, ChunkResolution.tabular)
+        assert strategy == File.IngestExtractionStrategy.tabular
         assert result == TABULAR
         mock_load.assert_called_once()
 
@@ -150,17 +165,26 @@ class TestExtractOffice:
         svc = make_service()
         patch_s3(svc)
         getattr(svc.unstructured, method).return_value = PAGES
-        result = svc.extract(file_name)
+        strategy, result = svc.extract(file_name, ChunkResolution.normal)
+        assert strategy == File.IngestExtractionStrategy.unstructured
         assert result == PAGES
         getattr(svc.unstructured, method).assert_called_once()
 
 
 class TestExtractPdf:
     @pytest.mark.parametrize(
-        "auto, fast, textract, direct, expected, raises",
+        "auto, fast, textract, direct, expected, expected_strategy, raises",
         [
             # auto success
-            ([make_element(text="auto-page")], None, None, None, [make_element(text="auto-page")], False),
+            (
+                [make_element(text="auto-page")],
+                None,
+                None,
+                None,
+                [make_element(text="auto-page")],
+                File.IngestExtractionStrategy.unstructured_auto,
+                False,
+            ),
             # fast success
             (
                 RuntimeError("auto"),
@@ -168,10 +192,19 @@ class TestExtractPdf:
                 None,
                 None,
                 [make_element(text="fast-page")],
+                File.IngestExtractionStrategy.unstructured_fast,
                 False,
             ),
             # textract success
-            (RuntimeError("auto"), RuntimeError("fast"), ["textract-page"], None, ["textract-page"], False),
+            (
+                RuntimeError("auto"),
+                RuntimeError("fast"),
+                ["textract-page"],
+                None,
+                ["textract-page"],
+                File.IngestExtractionStrategy.textract_document_analysis,
+                False,
+            ),
             # direct fallback success
             (
                 RuntimeError("auto"),
@@ -179,13 +212,24 @@ class TestExtractPdf:
                 RuntimeError("textract"),
                 ["direct-page"],
                 ["direct-page"],
+                File.IngestExtractionStrategy.pymupdf,
                 False,
             ),
             # direct fails -> FINAL raise
-            (RuntimeError("auto"), RuntimeError("fast"), RuntimeError("textract"), RuntimeError("direct"), None, True),
+            (
+                RuntimeError("auto"),
+                RuntimeError("fast"),
+                RuntimeError("textract"),
+                RuntimeError("direct"),
+                None,
+                None,
+                True,
+            ),
         ],
     )
-    def test_pdf_matrix(self, auto, fast, textract, direct, expected, raises):
+    def test_pdf_fallbacks_on_normal_resolution(
+        self, auto, fast, textract, direct, expected, expected_strategy, raises
+    ):
 
         svc = make_service()
         patch_s3(svc)
@@ -220,15 +264,35 @@ class TestExtractPdf:
         with direct_patch as mock_direct:
             if raises:
                 with pytest.raises(RuntimeError, match="All extraction strategies"):
-                    svc.extract("file.pdf")
+                    svc.extract("file.pdf", ChunkResolution.normal)
                 return
 
-            result = svc.extract("file.pdf")
+            strategy, result = svc.extract("file.pdf", ChunkResolution.normal)
 
+            assert strategy == expected_strategy
             assert [str(r) for r in result] == [str(e) for e in expected]
 
             if direct == "direct-page":
                 mock_direct.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "file_name, pages",
+        [("notes.pdf", 2), ("file.PDF", 1), ("file.PDF", 0)],
+    )
+    def test_pdf_on_largest_resolution(self, file_name, pages):
+        expected_page = "page text"
+
+        svc = make_service()
+
+        with patch.object(svc, "_extract_pdf_text_direct", return_value=[expected_page] * pages) as mock_direct:
+            with patch.object(svc, "_run_with_fallbacks", return_value=[expected_page] * pages) as mock_fallback:
+                patch_s3(svc)
+                strategy, result = svc.extract(file_name, ChunkResolution.largest)
+
+                assert strategy == File.IngestExtractionStrategy.pymupdf
+                assert result == [expected_page] * pages
+                mock_direct.assert_called_once()
+                mock_fallback.assert_not_called()
 
 
 class TestExtractGeneric:
@@ -244,7 +308,8 @@ class TestExtractGeneric:
         svc = make_service()
         patch_s3(svc)
         svc.unstructured._extract.return_value = PAGES
-        result = svc.extract(file_name)
+        strategy, result = svc.extract(file_name, ChunkResolution.normal)
+        assert strategy == File.IngestExtractionStrategy.unstructured_auto
         assert result == PAGES
         svc.unstructured._extract.assert_called_once()
 
@@ -271,13 +336,14 @@ class TestExtractS3:
 
         if expected_exception:
             with pytest.raises(RuntimeError, match="S3 unavailable"):
-                svc.extract("any/file.pdf")
+                svc.extract("any/file.pdf", ChunkResolution.normal)
             return
 
         # we just verify extraction runs without S3 error
         svc.unstructured._extract.return_value = ["ok"]
 
-        result = svc.extract("any/file.pdf")
+        strategy, result = svc.extract("any/file.pdf", ChunkResolution.normal)
+        assert strategy == File.IngestExtractionStrategy.unstructured_auto
         assert result == ["ok"]
 
         svc.s3.get_object.assert_called_once_with(

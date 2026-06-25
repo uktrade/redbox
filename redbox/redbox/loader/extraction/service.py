@@ -237,6 +237,14 @@ class DocumentExtractionService:
                     timeout,
                 )
 
+            except Exception as e:
+                logger.exception(
+                    "%s Strategy '%s' failed: %s",
+                    log_stub,
+                    strategy,
+                    str(e),
+                )
+
         try:
             logger.warning("%s All strategies failed. Using direct PDF text extraction fallback.", log_stub)
             result = self._extract_pdf_text_direct(file_bytes, log_stub)
