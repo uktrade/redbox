@@ -2,7 +2,9 @@ from io import BytesIO
 import os
 from uuid import uuid4
 import logging
-from typing import List
+from typing import Callable
+from functools import partial
+from dataclasses import dataclass
 import fitz
 import boto3
 import signal
@@ -22,22 +24,40 @@ logger = logging.getLogger(__name__)
 env = get_settings()
 
 
-class TimeoutException(Exception):
+class TimeoutException(TimeoutError):
     pass
 
 
 @contextmanager
 def time_limit(seconds: int):
     def signal_handler(signum, frame):
-        raise TimeoutException()
+        raise TimeoutException(f"Timed out after {seconds}s")
 
-    signal.signal(signal.SIGALRM, signal_handler)
-    signal.alarm(seconds)
-
+    old_handler = signal.signal(signal.SIGALRM, signal_handler)
+    signal.setitimer(signal.ITIMER_REAL, seconds)
     try:
         yield
     finally:
-        signal.alarm(0)
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, old_handler)
+
+
+@dataclass
+class ExtractionStrategyConfig:
+    name: File.IngestExtractionStrategy
+    ingestion_fn: Callable[[], None]
+
+
+STRATEGY_TIMEOUT_MAP = {
+    env.document_pdf_extraction_default_strategy: env.document_pdf_extraction_default_timeout,
+    env.document_pdf_extraction_fallback_one_strategy: env.document_pdf_extraction_fallback_one_timeout,
+    env.document_pdf_extraction_fallback_two_strategy: env.document_pdf_extraction_fallback_two_timeout,
+}
+STRATEGIES = [
+    env.document_pdf_extraction_default_strategy,
+    env.document_pdf_extraction_fallback_one_strategy,
+    env.document_pdf_extraction_fallback_two_strategy,
+]
 
 
 class DocumentExtractionService:
@@ -117,81 +137,104 @@ class DocumentExtractionService:
             region,
         )
 
-    def _extract_pdf_text_direct(self, file_bytes: BytesIO, log_stub: str) -> List[str]:
-        logger.warning("%s Extracting PDF text directly with PyMuPDF", log_stub)
-        file_bytes.seek(0)
-        doc = fitz.open(stream=file_bytes.getvalue(), filetype="pdf")
-        pages: List[str] = []
+    def _extract_pdf_text_direct(
+        self,
+        file_bytes: BytesIO,
+        log_stub: str,
+    ) -> list[str]:
 
-        for page in doc:
-            text = page.get_text().strip()
-            if text:
-                pages.append(text)
+        logger.warning(
+            "%s Extracting PDF text directly with PyMuPDF",
+            log_stub,
+        )
+
+        file_bytes.seek(0)
+
+        with fitz.open(
+            stream=file_bytes.getvalue(),
+            filetype="pdf",
+        ) as doc:
+            pages = []
+            for page in doc:
+                text = page.get_text().strip()
+
+                if text:
+                    pages.append(text)
 
         if not pages:
             raise ValueError("PDF contains no extractable text")
 
-        logger.warning("%s Extracted %d page(s) directly from PDF", log_stub, len(pages))
+        logger.warning(
+            "%s Extracted %d page(s) directly from PDF",
+            log_stub,
+            len(pages),
+        )
+
         return pages
 
     def _run_with_fallbacks(
         self,
-        file_bytes,
+        file_bytes: BytesIO,
         s3_key: str,
         log_stub: str,
     ) -> tuple[File.IngestExtractionStrategy, list[Element] | list[str]]:
-        timeout_map = {
-            env.document_pdf_extraction_default_strategy: env.document_pdf_extraction_default_timeout,
-            env.document_pdf_extraction_fallback_one_strategy: env.document_pdf_extraction_fallback_one_timeout,
-            env.document_pdf_extraction_fallback_two_strategy: env.document_pdf_extraction_fallback_two_timeout,
+        strategy_map: dict[str, ExtractionStrategyConfig] = {
+            "unstructured_auto": ExtractionStrategyConfig(
+                name=File.IngestExtractionStrategy.unstructured_auto,
+                ingestion_fn=partial(self.unstructured._extract, file_bytes, s3_key, strategy="auto"),
+            ),
+            "unstructured_fast": ExtractionStrategyConfig(
+                name=File.IngestExtractionStrategy.unstructured_fast,
+                ingestion_fn=partial(self.unstructured._extract, file_bytes, s3_key, strategy="fast"),
+            ),
+            "textract_document_analysis": ExtractionStrategyConfig(
+                name=File.IngestExtractionStrategy.textract_document_analysis,
+                ingestion_fn=partial(
+                    self.textract.document_analysis,
+                    key=s3_key,
+                ),
+            ),
         }
-        strategies = [
-            env.document_pdf_extraction_default_strategy,
-            env.document_pdf_extraction_fallback_one_strategy,
-            env.document_pdf_extraction_fallback_two_strategy,
-        ]
 
-        for i, strategy in enumerate(strategies, start=1):
+        for i, strategy in enumerate(STRATEGIES, start=1):
+            config = strategy_map.get(strategy)
+            if config is None:
+                logger.error("%s Skipping unsupported strategy=%s, config could not be found", log_stub, strategy)
+                continue
+
+            timeout = STRATEGY_TIMEOUT_MAP.get(strategy, 20)
+
+            logger.warning(
+                "%s Trying extraction strategy %s/%s '%s' with timeout=%ss",
+                log_stub,
+                i,
+                len(STRATEGIES),
+                strategy,
+                timeout,
+            )
+
+            if timeout == 0:
+                logger.warning("%s Skipping strategy=%s because timeout=0", log_stub, strategy)
+                continue
+
             try:
-                timeout = timeout_map.get(strategy, 20)
+                with time_limit(seconds=timeout):
+                    result = config.ingestion_fn()
 
+                    logger.warning(
+                        "%s Strategy '%s' succeeded",
+                        log_stub,
+                        strategy,
+                    )
+
+                    return config.name, result
+
+            except TimeoutException:
                 logger.warning(
-                    "%s Trying extraction strategy %s/%s '%s' with timeout=%ss",
+                    "%s Strategy '%s' timed out after %ss",
                     log_stub,
-                    i,
-                    len(strategies),
                     strategy,
                     timeout,
-                )
-
-                if timeout == 0:
-                    logger.warning("%s Skipping strategy=%s because timeout=0", log_stub, strategy)
-                    continue
-
-                with time_limit(timeout):
-                    if strategy == "unstructured_auto":
-                        logger.warning("%s Trying Unstructured strategy=auto", log_stub)
-                        result = self.unstructured._extract(file_bytes, s3_key, strategy="auto")
-                        logger.warning("%s Successfully extracted with Unstructured strategy=auto", log_stub)
-                        return File.IngestExtractionStrategy.unstructured_auto, result
-
-                    if strategy == "unstructured_fast":
-                        logger.warning("%s Trying Unstructured strategy=fast", log_stub)
-                        result = self.unstructured._extract(file_bytes, s3_key, strategy="fast")
-                        logger.warning("%s Successfully extracted with Unstructured strategy=fast", log_stub)
-                        return File.IngestExtractionStrategy.unstructured_fast, result
-
-                    if strategy == "textract_document_analysis":
-                        logger.warning("%s Trying Textract document_analysis", log_stub)
-                        result = self.textract.document_analysis(key=s3_key)
-                        logger.warning("%s Successfully extracted with Textract document_analysis", log_stub)
-                        return File.IngestExtractionStrategy.textract_document_analysis, result
-
-            except Exception:
-                logger.exception(
-                    "%s Strategy %s failed. Falling back...",
-                    log_stub,
-                    strategy,
                 )
 
         try:
