@@ -4,6 +4,10 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 import pytest
 
+from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
+
+from redbox.models.chain import GeneratedMetadata
+from redbox.loader.extraction.metadata import MetadataExtraction
 from redbox.loader.loaders import parse_tabular_schema
 
 
@@ -67,60 +71,60 @@ def fake_llm_response():
     }
 
 
-# @patch("redbox.loader.loaders.get_chat_llm")
-# def test_extract_metadata_missing_key(
-#     mock_llm: MagicMock,
-#     env: Settings,
-#     s3_client: S3Client,
-#     requests_mock,
-# ):
-#     mock_llm_response = mock_llm.return_value
-#     mock_llm_response.status_code = 200
-#     mock_llm_response.return_value = GenericFakeChatModel(messages=iter(['{"missing_key":""}']))
+@patch("redbox.loader.extraction.metadata.get_chat_llm")
+def test_extract_metadata_missing_key(
+    mock_llm: MagicMock,
+    env: Settings,
+    s3_client: S3Client,
+    requests_mock,
+):
+    mock_llm_response = mock_llm.return_value
+    mock_llm_response.status_code = 200
+    mock_llm_response.return_value = GenericFakeChatModel(messages=iter(['{"missing_key":""}']))
 
-#     """
-#     LLM replies but without one of the keys
-#     """
+    """
+    LLM replies but without one of the keys
+    """
 
-#     # Upload file
-#     file_name = file_to_s3("html/example.html", s3_client, env)
+    # Upload file
+    file_name = file_to_s3("html/example.html", s3_client, env)
 
-#     metadata_loader = MetadataLoader(env=env, s3_client=s3_client, file_name=file_name)
-#     metadata = metadata_loader.extract_metadata()
+    metadata_loader = MetadataExtraction(env=env)
+    metadata = metadata_loader.extract(file_name=file_name, elements=[])
 
-#     if not metadata.name:
-#         metadata.name = file_name
+    if not metadata.name:
+        metadata.name = file_name
 
-#     assert metadata == GeneratedMetadata(name="example.html")
+    assert metadata == GeneratedMetadata(name="example.html")
 
 
-# @patch("redbox.loader.loaders.get_chat_llm")
-# def test_extract_metadata_extra_key(
-#     mock_llm: MagicMock,
-#     env: Settings,
-#     s3_client: S3Client,
-#     requests_mock,
-# ):
-#     mock_llm_response = mock_llm.return_value
-#     mock_llm_response.status_code = 200
-#     mock_llm_response.return_value = GenericFakeChatModel(
-#         messages=iter(['{"extra_key": "", "name": "foo", "description": "test", "keywords": ["abc"]}'])
-#     )
+@patch("redbox.loader.extraction.metadata.get_chat_llm")
+def test_extract_metadata_extra_key(
+    mock_llm: MagicMock,
+    env: Settings,
+    s3_client: S3Client,
+    requests_mock,
+):
+    mock_llm_response = mock_llm.return_value
+    mock_llm_response.status_code = 200
+    mock_llm_response.return_value = GenericFakeChatModel(
+        messages=iter(['{"extra_key": "", "name": "foo", "description": "test", "keywords": ["abc"]}'])
+    )
 
-#     """
-#     LLM replies with an extra key
-#     """
+    """
+    LLM replies with an extra key
+    """
 
-#     # Upload file
-#     file_name = file_to_s3("html/example.html", s3_client, env)
+    # Upload file
+    file_name = file_to_s3("html/example.html", s3_client, env)
 
-#     metadata_loader = MetadataLoader(env=env, s3_client=s3_client, file_name=file_name)
-#     metadata = metadata_loader.extract_metadata()
+    metadata_loader = MetadataExtraction(env=env)
+    metadata = metadata_loader.extract(file_name=file_name, elements=[])
 
-#     assert metadata is not None
-#     assert metadata.name == "foo"
-#     assert metadata.description == "test"
-#     assert metadata.keywords == ["abc"]
+    assert metadata is not None
+    assert metadata.name == "foo"
+    assert metadata.description == "test"
+    assert metadata.keywords == ["abc"]
 
 
 def test_is_large_pdf_small_file():
