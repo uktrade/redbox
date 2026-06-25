@@ -41,6 +41,61 @@ def time_limit(seconds: int):
 
 
 class DocumentExtractionService:
+    """
+    Orchestrates document extraction from S3-backed files using multiple
+    extraction engines with fallback and timeout-aware execution.
+
+    This service provides a unified interface for extracting structured or
+    semi-structured content from a variety of file types including PDFs,
+    DOCX, PPTX, and tabular formats. It dynamically selects the appropriate
+    extraction strategy based on file type and configuration, and applies
+    progressive fallback mechanisms to maximise extraction success.
+
+    Extraction strategies include:
+        - Unstructured-based parsing (auto/fast modes)
+        - AWS Textract (document analysis)
+        - PyMuPDF direct text extraction (PDF fallback)
+        - Tabular file loader for structured datasets
+
+    A timeout mechanism is used to prevent long-running extractions from
+    blocking the pipeline, and each strategy is attempted in sequence until
+    a successful extraction is achieved.
+
+    Attributes:
+        bucket (str):
+            S3 bucket from which documents are retrieved.
+        region (str):
+            AWS region for S3 and Textract services.
+        s3 (boto3.client):
+            S3 client used to fetch raw file bytes.
+        textract (TextractService):
+            Wrapper service for AWS Textract extraction workflows.
+        unstructured (UnstructuredService):
+            Wrapper around `unstructured` parsing library.
+        log_stub (str):
+            Unique identifier prefix for structured logging.
+        extract_calls (int):
+            Counter tracking number of extraction calls made.
+
+    Methods:
+        _extract_pdf_text_direct(file_bytes, log_stub):
+            Extracts text directly from PDFs using PyMuPDF when structured
+            extraction is unnecessary or has failed.
+
+        _run_with_fallbacks(file_bytes, s3_key, log_stub):
+            Executes a sequence of extraction strategies with configurable
+            timeouts and fallback behaviour:
+                1. Unstructured (auto)
+                2. Unstructured (fast)
+                3. Textract (document analysis)
+                4. PyMuPDF direct extraction (final fallback)
+
+        extract(file_name, chunk_resolution):
+            Main entry point for document extraction. Fetches file from S3,
+            detects file type, selects appropriate extraction strategy, and
+            returns extracted content along with the strategy used.
+    """
+
     def __init__(
         self,
         bucket: str,

@@ -17,6 +17,46 @@ logger = logging.getLogger(__name__)
 
 
 class DocumentChunkingService:
+    """
+    High-level service responsible for orchestrating document chunking strategies.
+
+    This service acts as a unified interface over multiple chunking implementations,
+    selecting and delegating to the appropriate chunker based on input data type
+    and configuration options.
+
+    It supports multiple ingestion strategies, including:
+    - Page-by-page chunking
+    - Joined/overlapping page chunking
+    - Unstructured element-based chunking
+    - Tabular data chunking
+
+    The service ensures consistent configuration across chunkers and provides a
+    single entry point for converting raw extracted content into LangChain `Document`
+    chunks for downstream processing.
+
+    Attributes:
+        chunker_page_by_page (PageByPageDocumentChunker):
+            Chunker that processes documents one page at a time.
+        chunker_joined_pages (JoinedPagesDocumentChunker):
+            Chunker that creates overlapping chunks across adjacent pages.
+        chunker_unstructured (UnstructuredDocumentChunker):
+            Chunker for unstructured elements (e.g. from Unstructured.io).
+        chunker_tabular (TabularDocumentChunker):
+            Chunker for structured/tabular data sources.
+        log_stub (str):
+            Logging prefix used for consistent log formatting.
+
+    Methods:
+        tabular_chunks(s3_key, tabular_elements, generated_metadata, include_schema_metadata):
+            Generates chunks for tabular data sources and returns them with the
+            associated ingestion strategy.
+
+        chunks(s3_key, elements, generated_metadata, chunks_overlap_pages):
+            Main entry point for document chunking. Routes input to the correct
+            chunker based on element type (string pages vs unstructured Elements)
+            and configuration flags.
+    """
+
     def __init__(
         self,
         chunk_resolution: ChunkResolution,

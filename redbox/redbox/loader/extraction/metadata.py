@@ -15,6 +15,30 @@ logger = logging.getLogger(__name__)
 
 
 class MetadataExtraction:
+    """
+    Service responsible for generating structured file metadata using a
+    combination of heuristic preprocessing and LLM-based extraction.
+
+    Attributes:
+        env (Settings):
+            Application configuration containing metadata extraction settings.
+        llm:
+            Chat LLM instance used for metadata inference.
+
+    Methods:
+        create_file_metadata(file_name, page_content, original_metadata):
+            Uses an LLM pipeline to generate structured metadata from document content,
+            optionally enriched with existing metadata.
+
+        get_first_10k_chars(elements):
+            Extracts up to 10,000 characters of text from heterogeneous document
+            representations (strings, dicts, or unstructured Elements).
+
+        extract(file_name, elements):
+            High-level entry point that determines file type, builds input context,
+            and returns generated metadata with timing/logging instrumentation.
+    """
+
     def __init__(self, env: Settings):
         self.env = env
         self.llm = get_chat_llm(env.metadata_extraction_llm)

@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from typing import Iterator
-from datetime import UTC, datetime
 import logging
 
 from langchain_core.documents import Document
@@ -15,6 +14,22 @@ tokeniser = bedrock_tokeniser
 
 
 class BaseChunker(ABC):
+    """
+    Abstract base class defining a generic interface for chunking operations.
+
+    Subclasses are expected to implement specific chunking strategies while relying
+    on the shared utilities provided here.
+
+    Attributes:
+        chunk_resolution (ChunkResolution):
+            Configuration defining how input data should be segmented into chunks.
+
+    Methods:
+        _build_metadata(...):
+            Constructs a standardized metadata dictionary for an uploaded chunk,
+            including source information, token counts, and generated metadata.
+    """
+
     def __init__(
         self,
         chunk_resolution: ChunkResolution,
@@ -22,9 +37,6 @@ class BaseChunker(ABC):
         self.chunk_resolution = chunk_resolution
 
         logger.info("Initialised %s", self.__class__.__name__)
-
-    def _now(self):
-        return datetime.now(UTC)
 
     def _build_metadata(
         self,
@@ -50,6 +62,40 @@ class BaseChunker(ABC):
 
 
 class BaseDocumentChunker(BaseChunker):
+    """
+    Abstract base class for document-based chunking implementations.
+
+    Extends BaseChunker with additional configuration and contracts required
+    for chunking unstructured or semi-structured documents into smaller
+    retrievable units.
+
+    This class enforces constraints on chunk sizing and overlap, ensuring
+    consistency across all document chunking strategies. Subclasses are
+    responsible for implementing the actual chunking logic via the `chunks`
+    method.
+
+    Attributes:
+        chunk_resolution (ChunkResolution):
+            Defines the granularity or strategy used for chunking.
+        min_chunk_size (int):
+            Minimum allowed size of a chunk (must be > 0).
+        max_chunk_size (int):
+            Maximum allowed size of a chunk (must be >= min_chunk_size).
+        overlap_chars (int):
+            Number of overlapping characters between consecutive chunks
+            (must be >= 0).
+
+    Methods:
+        _chunk(*args, **kwargs):
+            Optional helper hook for chunking strategies that naturally
+            operate on intermediate structures (e.g., pages, sections).
+            Not required for all implementations.
+
+        chunks(s3_key, data, generated_metadata):
+            Abstract method that converts input document data into an
+            iterator of Document chunks. Must be implemented by subclasses.
+    """
+
     def __init__(
         self,
         chunk_resolution: ChunkResolution,

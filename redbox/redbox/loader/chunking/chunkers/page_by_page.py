@@ -10,6 +10,11 @@ logger = logging.getLogger(__name__)
 
 
 class PageByPageDocumentChunker(BaseDocumentChunker):
+    """
+    Chunker that performs sliding-window chunking over each
+    page in the document (chunks do not overlap over pages).
+    """
+
     def _chunk(self, pages: list[str]):
         for page_num, page_text in enumerate(pages, start=1):
             yield from self._chunk_text(page_text, page_num)

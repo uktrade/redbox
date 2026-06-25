@@ -14,6 +14,10 @@ tokeniser = bedrock_tokeniser
 
 
 class TabularDocumentChunker(BaseChunker):
+    """
+    Chunker that loads pre-processed tabular elements
+    """
+
     def tabular_chunks(
         self,
         s3_key: str,

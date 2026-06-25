@@ -13,6 +13,44 @@ logger = logging.getLogger(__name__)
 
 
 class TextractService:
+    """
+    Service wrapper around AWS Textract for extracting text from documents
+    stored in S3, with built-in retry, polling, and result aggregation logic.
+
+    The service supports two Textract workflows:
+        - document_text_detection:
+            Basic text extraction from documents in S3.
+        - document_analysis:
+            Enhanced extraction using Textract LAYOUT feature type.
+
+    Attributes:
+        bucket (str):
+            S3 bucket name containing input documents.
+        region (str):
+            AWS region used for Textract client.
+        textract (boto3.client):
+            Configured boto3 Textract client with retry and timeout settings.
+
+    Methods:
+        _is_retryable_textract_error(error):
+            Determines whether an AWS ClientError is retryable (e.g. throttling).
+
+        _retry_textract_request(__func, *args, **kwargs):
+            Executes a Textract API call with exponential backoff retry logic.
+
+        _wait_for_job(job_id, getter):
+            Polls Textract job until completion (SUCCEEDED or FAILED).
+
+        _get_textract_results(job_id, getter, first_response):
+            Retrieves and aggregates paginated Textract results into ordered page text.
+
+        document_text_detection(key):
+            Runs basic Textract text detection on an S3 object and returns extracted text.
+
+        document_analysis(key):
+            Runs Textract document analysis (LAYOUT feature) on an S3 object and returns extracted text.
+    """
+
     def __init__(
         self,
         bucket: str,

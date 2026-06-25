@@ -12,6 +12,28 @@ logger = logging.getLogger(__name__)
 
 
 class UnstructuredService:
+    """
+    Service layer wrapper around the `unstructured` library for extracting
+    structured elements from binary document formats.
+
+    Supported formats:
+        - DOCX via `partition_docx`
+        - PPTX via `partition_pptx`
+        - Generic formats via `partition` (auto strategy or custom strategies)
+
+    Methods:
+        _extract_docx(file_bytes):
+            Extracts elements from a DOCX file using `unstructured.partition.docx`.
+
+        _extract_pptx(file_bytes):
+            Extracts elements from a PPTX file using `unstructured.partition.pptx`,
+            with additional logging for slide-level metadata debugging.
+
+        _extract(file_bytes, file_name, strategy):
+            Generic extraction method using `unstructured.partition`, supporting
+            configurable parsing strategies (default: "auto").
+    """
+
     def _extract_docx(self, file_bytes: BytesIO) -> List[Element]:
         logger.info("Extracting DOCX with unstructured")
 

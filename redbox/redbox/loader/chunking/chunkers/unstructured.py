@@ -17,6 +17,11 @@ env = get_settings()
 
 
 class UnstructuredDocumentChunker(BaseDocumentChunker):
+    """
+    Chunker that leverages unstructured Element objects from extraction and uses
+    unstructured chunk_by_title for layout-aware chunking.
+    """
+
     def _chunk(self, elements: list[Element]):
         if not elements:
             return
