@@ -181,11 +181,14 @@ def ingest(file_id: UUID, es_index: str | None = None) -> None:
         logger.warning("Skipping ingestion for inactive file %s: %s", file.id, e)
         return
 
-    if error := ingest_file(file_name, es_index):
+    response, error = ingest_file(file_name, es_index)
+    if error:
         logger.error("Ingestion failed for file %s: %s", file_name, error)
         file.status = File.Status.errored
         file.ingest_error = error
     else:
         file.status = File.Status.complete
+        file.ingest_extraction_strategy_normal = response.normal_extraction_strategy
+        file.ingest_extraction_strategy_largest = response.largest_extraction_strategy
 
     file.save()

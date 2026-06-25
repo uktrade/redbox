@@ -1165,6 +1165,22 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         SECRET = "SECRET", _("Secret")  # pragma: allowlist secret
         TOP_SECRET = "TOP_SECRET", _("Top Secret")  # pragma: allowlist secret
 
+    class IngestExtractionStrategy(models.TextChoices):
+        unstructured = "unstructured"
+        unstructured_auto = "unstructured_auto"
+        unstructured_fast = "unstructured_fast"
+        textract_document_analysis = "textract_document_analysis"
+        pymupdf = "pymupdf"
+        tabular = "tabular"
+        unspecified = "unspecified"
+
+    class IngestChunkingStrategy(models.TextChoices):
+        overlapping_pages = "overlapping_pages"
+        page_by_page = "page_by_page"
+        tabular = "tabular"
+        unstructured_chunk_by_title = "unstructured_chunk_by_title"
+        unspecified = "unspecified"
+
     INACTIVE_STATUSES = [Status.deleted, Status.errored]
 
     status = models.CharField(choices=Status.choices, null=False, blank=False)
@@ -1181,6 +1197,29 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         null=True,
         help_text="error, if any, encountered during ingest",
     )
+    ingest_extraction_strategy_normal = models.CharField(
+        max_length=64,
+        choices=IngestExtractionStrategy.choices,
+        default=IngestExtractionStrategy.unspecified,
+        null=True,
+    )
+    # ingest_chunking_strategy_normal = models.CharField(
+    #     max_length=20,
+    #     choices=IngestChunkingStrategy.choices,
+    #     default=IngestChunkingStrategy.unspecified,
+    # )
+    ingest_extraction_strategy_largest = models.CharField(
+        max_length=64,
+        choices=IngestExtractionStrategy.choices,
+        default=IngestExtractionStrategy.unspecified,
+        null=True,
+    )
+    # ingest_chunking_strategy_largest = models.CharField(
+    #     max_length=20,
+    #     choices=IngestChunkingStrategy.choices,
+    #     default=IngestChunkingStrategy.unspecified,
+    # )
+
     tools = models.ManyToManyField(Tool, through=FileTool, related_name="files", blank=True)
     security_classification = models.CharField(
         choices=SecurityClassification.choices, null=False, blank=True, default=""

@@ -3,11 +3,13 @@ import time
 import os
 import traceback
 from typing import TYPE_CHECKING
+from pydantic import BaseModel
 
 from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.embeddings import FakeEmbeddings
 from langchain_core.runnables import RunnableParallel
 
+from redbox_app.redbox_core.models import File
 from redbox.chains.components import get_embeddings
 from redbox.models.file import ChunkResolution
 from redbox.models.settings import get_settings
@@ -64,7 +66,16 @@ def create_alias(alias: str):
     es.indices.put_alias(index=chunk_index_name, name=alias)
 
 
-def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_extraction=env.enable_metadata_extraction):
+class FileIngestionResponse(BaseModel):
+    normal_extraction_strategy: File.IngestExtractionStrategy
+    # normal_chunking_strategy: File.IngestChunkingStrategy
+    largest_extraction_strategy: File.IngestExtractionStrategy
+    # largest_chunking_strategy: File.IngestChunkingStrategy
+
+
+def _ingest_file(
+    file_name: str, es_index_name: str = alias, enable_metadata_extraction=env.enable_metadata_extraction
+) -> FileIngestionResponse:
     logging.warning("Ingesting file: %s", file_name)
     start_time = time.time()
 
@@ -89,15 +100,19 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
 
     # -- extraction --
     # normal chunk
-    elements = extraction_service.extract(file_name=file_name, chunk_resolution=ChunkResolution.normal)
+    normal_extraction_strategy, normal_elements = extraction_service.extract(
+        file_name=file_name, chunk_resolution=ChunkResolution.normal
+    )
 
     # largest chunk
-    largest_elements = elements
+    largest_elements = normal_elements
     if os.path.basename(file_name).lower().endswith(".pdf"):  # if PDF - extract largest chunks with direct extraction
-        largest_elements = extraction_service.extract(file_name=file_name, chunk_resolution=ChunkResolution.largest)
+        largest_extraction_strategy, largest_elements = extraction_service.extract(
+            file_name=file_name, chunk_resolution=ChunkResolution.largest
+        )
 
     # metadata
-    metadata = MetadataExtraction(env=env).extract(file_name=file_name, elements=elements)
+    metadata = MetadataExtraction(env=env).extract(file_name=file_name, elements=normal_elements)
 
     # -- chunking and opensearch ingestion --
     # normal chunk
@@ -109,7 +124,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             overlap_chars=0,
         ),
         vectorstore=get_elasticsearch_store(es, es_index_name),
-        elements=elements,
+        elements=normal_elements,
         metadata=metadata,
     )
 
@@ -136,7 +151,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             overlap_chars=env.worker_ingest_largest_chunk_overlap,
         ),
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
-        tabular_elements=elements,
+        tabular_elements=normal_elements,
         metadata=metadata,
     )
 
@@ -149,7 +164,7 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             overlap_chars=env.worker_ingest_largest_chunk_overlap,
         ),
         vectorstore=get_elasticsearch_store_without_embeddings(es, env.elastic_schematised_chunk_index),
-        tabular_elements=elements,
+        tabular_elements=normal_elements,
         metadata=metadata,
         include_schema_metadata=True,
     )
@@ -175,10 +190,16 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
     duration = time.time() - start_time
     logging.info("total ingestion for file [%s] took %.2f seconds", file_name, duration)
 
+    return FileIngestionResponse(
+        normal_extraction_strategy=normal_extraction_strategy,
+        largest_extraction_strategy=largest_extraction_strategy,
+    )
 
-def ingest_file(file_name: str, es_index_name: str = alias) -> str | None:
+
+def ingest_file(file_name: str, es_index_name: str = alias) -> tuple[FileIngestionResponse | None, str | None]:
     try:
-        _ingest_file(file_name, es_index_name)
+        response = _ingest_file(file_name, es_index_name)
+        return response, None
     except Exception:
         logging.exception("Error while processing file [%s]", file_name)
-        return traceback.format_exc()
+        return None, traceback.format_exc()
