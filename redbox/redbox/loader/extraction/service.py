@@ -93,9 +93,17 @@ class DocumentExtractionService:
 
         for i, strategy in enumerate(strategies, start=1):
             try:
-                logger.warning("%s Trying extraction strategy %s/%s '%s'", log_stub, i, len(strategies), strategy)
-
                 timeout = timeout_map.get(strategy, 20)
+
+                logger.warning(
+                    "%s Trying extraction strategy %s/%s '%s' with timeout=%ss",
+                    log_stub,
+                    i,
+                    len(strategies),
+                    strategy,
+                    timeout,
+                )
+
                 if timeout == 0:
                     logger.warning("%s Skipping strategy=%s because timeout=0", log_stub, strategy)
                     continue
