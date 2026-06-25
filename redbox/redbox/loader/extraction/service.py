@@ -89,10 +89,11 @@ class DocumentExtractionService:
             "fast": env.document_pdf_extraction_fallback_one_timeout,
             "textract": env.document_pdf_extraction_fallback_two_timeout,
         }
+        strategies = ["auto", "fast", "textract"]
 
-        for strategy in ["auto", "fast", "textract"]:
+        for i, strategy in enumerate(strategies, start=1):
             try:
-                logger.warning("%s Trying extraction strategy=%s", log_stub, strategy)
+                logger.warning("%s Trying extraction strategy %s/%s '%s'", log_stub, i, len(strategies), strategy)
 
                 timeout = timeout_map.get(strategy, 20)
                 if timeout == 0:
@@ -156,30 +157,45 @@ class DocumentExtractionService:
 
         if display_name.endswith((".csv", ".tsv", ".xls", ".xlsx")):
             logger.warning("%s Tabular detected: %s", extract_log_stub, display_name)
-            return load_tabular_file(display_name, file_bytes)
+            result = load_tabular_file(display_name, file_bytes)
+            logger.warning("%s Successfully extracted tabular file: %s", extract_log_stub, display_name)
+            return result
 
         if display_name.lower().endswith((".pptx", ".ppt")):
             logger.warning("%s PowerPoint detected: %s", extract_log_stub, display_name)
-            return self.unstructured._extract_pptx(file_bytes)
+            result = self.unstructured._extract_pptx(file_bytes)
+            logger.warning("%s Successfully extracted PowerPoint: %s", extract_log_stub, display_name)
+            return result
 
         if display_name.lower().endswith(".docx"):
             logger.warning("%s DOCX detected: %s", extract_log_stub, display_name)
-            return self.unstructured._extract_docx(file_bytes)
+            result = self.unstructured._extract_docx(file_bytes)
+            logger.warning("%s Successfully extracted DOCX: %s", extract_log_stub, display_name)
+            return result
 
         if display_name.endswith(".pdf"):
             logger.warning("%s PDF detected: %s", extract_log_stub, display_name)
 
             if chunk_resolution == ChunkResolution.largest:
                 logger.warning("%s Using direct PDF text extraction.", extract_log_stub)
-                return self._extract_pdf_text_direct(file_bytes, extract_log_stub)
+                result = self._extract_pdf_text_direct(file_bytes, extract_log_stub)
+                logger.warning("%s Successfully extracted PDF via direct text extraction", extract_log_stub)
+                return result
 
             logger.warning("%s Starting PDF extraction with fallbacks...", extract_log_stub)
-            return self._run_with_fallbacks(
+            result = self._run_with_fallbacks(
                 file_bytes=file_bytes,
                 s3_key=s3_key,
                 log_stub=extract_log_stub,
             )
+            logger.warning("%s Successfully extracted PDF via fallback pipeline", extract_log_stub)
+            return result
 
         logger.warning("%s No file type matched - defaulting to generic extraction...", extract_log_stub)
         logger.warning("%s Processing with unstructured: %s", extract_log_stub, display_name)
-        return self.unstructured._extract(file_bytes, file_name)
+
+        result = self.unstructured._extract(file_bytes, file_name)
+        logger.warning(
+            "%s Successfully extracted via generic unstructured extraction: %s", extract_log_stub, display_name
+        )
+        return result
