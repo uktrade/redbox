@@ -141,11 +141,15 @@ class DocumentExtractionService:
         log_stub: str,
     ) -> tuple[File.IngestExtractionStrategy, list[Element] | list[str]]:
         timeout_map = {
-            "auto": env.document_pdf_extraction_default_timeout,
-            "fast": env.document_pdf_extraction_fallback_one_timeout,
-            "textract": env.document_pdf_extraction_fallback_two_timeout,
+            env.document_pdf_extraction_default_strategy: env.document_pdf_extraction_default_timeout,
+            env.document_pdf_extraction_fallback_one_strategy: env.document_pdf_extraction_fallback_one_timeout,
+            env.document_pdf_extraction_fallback_two_strategy: env.document_pdf_extraction_fallback_two_timeout,
         }
-        strategies = ["auto", "fast", "textract"]
+        strategies = [
+            env.document_pdf_extraction_default_strategy,
+            env.document_pdf_extraction_fallback_one_strategy,
+            env.document_pdf_extraction_fallback_two_strategy,
+        ]
 
         for i, strategy in enumerate(strategies, start=1):
             try:
@@ -165,19 +169,19 @@ class DocumentExtractionService:
                     continue
 
                 with time_limit(timeout):
-                    if strategy == "auto":
+                    if strategy == "unstructured_auto":
                         logger.warning("%s Trying Unstructured strategy=auto", log_stub)
                         result = self.unstructured._extract(file_bytes, s3_key, strategy="auto")
                         logger.warning("%s Successfully extracted with Unstructured strategy=auto", log_stub)
                         return File.IngestExtractionStrategy.unstructured_auto, result
 
-                    if strategy == "fast":
+                    if strategy == "unstructured_fast":
                         logger.warning("%s Trying Unstructured strategy=fast", log_stub)
                         result = self.unstructured._extract(file_bytes, s3_key, strategy="fast")
                         logger.warning("%s Successfully extracted with Unstructured strategy=fast", log_stub)
                         return File.IngestExtractionStrategy.unstructured_fast, result
 
-                    if strategy == "textract":
+                    if strategy == "textract_document_analysis":
                         logger.warning("%s Trying Textract document_analysis", log_stub)
                         result = self.textract.document_analysis(key=s3_key)
                         logger.warning("%s Successfully extracted with Textract document_analysis", log_stub)
