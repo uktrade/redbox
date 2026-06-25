@@ -4,8 +4,10 @@ from typing import Iterator
 
 from langchain.vectorstores import VectorStore
 from langchain_core.documents.base import Document
-from langchain_core.runnables import Runnable, RunnableLambda, chain
+from langchain_core.runnables import Runnable, RunnableLambda, chain, RunnableParallel
 from unstructured.documents.elements import Element
+
+from redbox_app.redbox_core.models import File
 
 from redbox.loader.chunking.service import DocumentChunkingService
 from redbox.models.chain import GeneratedMetadata
@@ -28,24 +30,23 @@ def chunk_loader(
     chunks_overlap_pages: bool,
 ) -> Runnable:
     @chain
-    def wrapped(file_name: str) -> Iterator[Document]:
+    def wrapped(file_name: str) -> tuple[File.IngestChunkingStrategy, Iterator[Document]]:
         try:
             log.info("wrapped START: %s", file_name)
 
-            docs = list(
-                chunker.chunks(
-                    s3_key=file_name,
-                    elements=elements,
-                    generated_metadata=metadata,
-                    chunks_overlap_pages=chunks_overlap_pages,
-                )
+            strategy, raw_docs = chunker.chunks(
+                s3_key=file_name,
+                elements=elements,
+                generated_metadata=metadata,
+                chunks_overlap_pages=chunks_overlap_pages,
             )
 
+            docs = list(raw_docs)
             if not docs:
                 raise ValueError(f"No content extracted from {file_name}")
 
-            log.info("Extracted %d documents", len(docs))
-            return docs
+            log.info("Extracted %d documents with strategy %s", len(docs), strategy)
+            return strategy, docs
 
         except Exception:
             log.exception("wrapped() crashed for %s", file_name)
@@ -61,24 +62,23 @@ def chunk_loader_tabular(
     include_schema_metadata: bool,
 ) -> Runnable:
     @chain
-    def wrapped(file_name: str) -> Iterator[Document]:
+    def wrapped(file_name: str) -> tuple[File.IngestChunkingStrategy, Iterator[Document]]:
         try:
             log.info("wrapped START: %s", file_name)
 
-            docs = list(
-                chunker.tabular_chunks(
-                    s3_key=file_name,
-                    tabular_elements=tabular_elements,
-                    generated_metadata=metadata,
-                    include_schema_metadata=include_schema_metadata,
-                )
+            strategy, raw_docs = chunker.tabular_chunks(
+                s3_key=file_name,
+                tabular_elements=tabular_elements,
+                generated_metadata=metadata,
+                include_schema_metadata=include_schema_metadata,
             )
 
+            docs = list(raw_docs)
             if not docs:
                 raise ValueError(f"No content extracted from {file_name}")
 
             log.info("Extracted %d documents", len(docs))
-            return docs
+            return strategy, docs
 
         except Exception:
             log.exception("wrapped() crashed for %s", file_name)
@@ -94,14 +94,15 @@ def ingest_chunks(
     metadata: GeneratedMetadata,
     chunks_overlap_pages: bool = False,
 ) -> Runnable:
-    return (
-        chunk_loader(
-            chunker=chunker,
-            elements=elements,
-            metadata=metadata,
-            chunks_overlap_pages=chunks_overlap_pages,
-        )
-        | RunnableLambda(list)
+    loader = chunk_loader(
+        chunker=chunker,
+        elements=elements,
+        metadata=metadata,
+        chunks_overlap_pages=chunks_overlap_pages,
+    )
+
+    ingest_branch = (
+        RunnableLambda(lambda docs: list(docs))
         | log_chunks
         | RunnableLambda(
             partial(
@@ -109,6 +110,11 @@ def ingest_chunks(
                 create_index_if_not_exists=False,
             )
         )
+    )
+
+    return loader | RunnableParallel(
+        documents=RunnableLambda(lambda x: x[1]) | ingest_branch,
+        strategy=RunnableLambda(lambda x: x[0]),
     )
 
 
@@ -119,14 +125,15 @@ def ingest_tabular_chunks(
     metadata: GeneratedMetadata,
     include_schema_metadata: bool = False,
 ) -> Runnable:
-    return (
-        chunk_loader_tabular(
-            chunker=chunker,
-            tabular_elements=tabular_elements,
-            metadata=metadata,
-            include_schema_metadata=include_schema_metadata,
-        )
-        | RunnableLambda(list)
+    loader = chunk_loader_tabular(
+        chunker=chunker,
+        tabular_elements=tabular_elements,
+        metadata=metadata,
+        include_schema_metadata=include_schema_metadata,
+    )
+
+    ingest_branch = (
+        RunnableLambda(lambda docs: list(docs))
         | log_chunks
         | RunnableLambda(
             partial(
@@ -134,4 +141,9 @@ def ingest_tabular_chunks(
                 create_index_if_not_exists=False,
             )
         )
+    )
+
+    return loader | RunnableParallel(
+        documents=RunnableLambda(lambda x: x[1]) | ingest_branch,
+        strategy=RunnableLambda(lambda x: x[0]),
     )

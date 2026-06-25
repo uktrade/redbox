@@ -68,9 +68,9 @@ def create_alias(alias: str):
 
 class FileIngestionResponse(BaseModel):
     normal_extraction_strategy: File.IngestExtractionStrategy
-    # normal_chunking_strategy: File.IngestChunkingStrategy
+    normal_chunking_strategy: File.IngestChunkingStrategy
     largest_extraction_strategy: File.IngestExtractionStrategy
-    # largest_chunking_strategy: File.IngestChunkingStrategy
+    largest_chunking_strategy: File.IngestChunkingStrategy
 
 
 def _ingest_file(
@@ -185,14 +185,16 @@ def _ingest_file(
     logging.info(
         "File: %s %s chunks ingested",
         file_name,
-        {k: len(v) for k, v in new_ids.items()},
+        {k: len(v.get("documents", [])) for k, v in new_ids.items()},
     )
     duration = time.time() - start_time
     logging.info("total ingestion for file [%s] took %.2f seconds", file_name, duration)
 
     return FileIngestionResponse(
         normal_extraction_strategy=normal_extraction_strategy,
+        normal_chunking_strategy=new_ids.get("normal", {}).get("strategy"),
         largest_extraction_strategy=largest_extraction_strategy,
+        largest_chunking_strategy=new_ids.get("largest", {}).get("strategy"),
     )
 
 

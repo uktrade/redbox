@@ -1203,22 +1203,24 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         default=IngestExtractionStrategy.unspecified,
         null=True,
     )
-    # ingest_chunking_strategy_normal = models.CharField(
-    #     max_length=20,
-    #     choices=IngestChunkingStrategy.choices,
-    #     default=IngestChunkingStrategy.unspecified,
-    # )
+    ingest_chunking_strategy_normal = models.CharField(
+        max_length=64,
+        choices=IngestChunkingStrategy.choices,
+        default=IngestChunkingStrategy.unspecified,
+        null=True,
+    )
     ingest_extraction_strategy_largest = models.CharField(
         max_length=64,
         choices=IngestExtractionStrategy.choices,
         default=IngestExtractionStrategy.unspecified,
         null=True,
     )
-    # ingest_chunking_strategy_largest = models.CharField(
-    #     max_length=20,
-    #     choices=IngestChunkingStrategy.choices,
-    #     default=IngestChunkingStrategy.unspecified,
-    # )
+    ingest_chunking_strategy_largest = models.CharField(
+        max_length=64,
+        choices=IngestChunkingStrategy.choices,
+        default=IngestChunkingStrategy.unspecified,
+        null=True,
+    )
 
     tools = models.ManyToManyField(Tool, through=FileTool, related_name="files", blank=True)
     security_classification = models.CharField(

@@ -189,6 +189,8 @@ def ingest(file_id: UUID, es_index: str | None = None) -> None:
     else:
         file.status = File.Status.complete
         file.ingest_extraction_strategy_normal = response.normal_extraction_strategy
+        file.ingest_chunking_strategy_normal = response.normal_chunking_strategy
         file.ingest_extraction_strategy_largest = response.largest_extraction_strategy
+        file.ingest_chunking_strategy_largest = response.largest_chunking_strategy
 
     file.save()

@@ -4,6 +4,8 @@ from typing import Iterator
 from langchain_core.documents import Document
 from unstructured.documents.elements import Element
 
+from redbox_app.redbox_core.models import File
+
 from redbox.loader.chunking.chunkers.page_by_page import PageByPageDocumentChunker
 from redbox.loader.chunking.chunkers.joined_pages import JoinedPagesDocumentChunker
 from redbox.loader.chunking.chunkers.unstructured import UnstructuredDocumentChunker
@@ -44,8 +46,11 @@ class DocumentChunkingService:
             chunk_resolution=chunk_resolution,
         )
 
-        logger.info(
-            "Initialised DocumentChunkerService (chunk_resolution=%s, min_chunk_size=%s, max_chunk_size=%s, overlap_chars=%s)",
+        self.log_stub = "[DocumentChunkingService]"
+
+        logger.warning(
+            "%s Initialised DocumentChunkingService (chunk_resolution=%s, min_chunk_size=%s, max_chunk_size=%s, overlap_chars=%s)",
+            self.log_stub,
             chunk_resolution,
             min_chunk_size,
             max_chunk_size,
@@ -58,13 +63,16 @@ class DocumentChunkingService:
         tabular_elements: list[dict[str, str]],
         generated_metadata: GeneratedMetadata,
         include_schema_metadata: bool,
-    ) -> Iterator[Document]:
-        return self.chunker_tabular.tabular_chunks(
+    ) -> tuple[File.IngestChunkingStrategy, Iterator[Document]]:
+        logger.warning("%s Loading tabular chunks for %s...", self.log_stub, s3_key)
+        result = self.chunker_tabular.tabular_chunks(
             s3_key=s3_key,
             tabular_elements=tabular_elements,
             generated_metadata=generated_metadata,
             include_schema_metadata=include_schema_metadata,
         )
+        logger.warning("%s Successfully loaded tabular chunks for %s", self.log_stub, s3_key)
+        return File.IngestChunkingStrategy.tabular, result
 
     def chunks(
         self,
@@ -72,7 +80,8 @@ class DocumentChunkingService:
         elements: list[str] | list[Element],
         generated_metadata: GeneratedMetadata,
         chunks_overlap_pages: bool,
-    ) -> Iterator[Document]:
+    ) -> tuple[File.IngestChunkingStrategy, Iterator[Document]]:
+        logger.warning("%s Loading chunks for %s...", self.log_stub, s3_key)
         if not elements:
             logger.error("No extracted content passed to chunker...")
             raise ValueError("Unable to ingest chunks for null document contents.")
@@ -80,24 +89,30 @@ class DocumentChunkingService:
         # list[str] if using textract or pymupdf for extraction
         if all(isinstance(p, str) for p in elements):
             if chunks_overlap_pages:
-                return self.chunker_joined_pages.chunks(
+                result = self.chunker_joined_pages.chunks(
                     s3_key=s3_key,
                     pages=elements,
                     generated_metadata=generated_metadata,
                 )
+                logger.warning("%s Successfully loaded overlapping-page chunks for %s...", self.log_stub, s3_key)
+                return File.IngestChunkingStrategy.overlapping_pages, result
 
-            return self.chunker_page_by_page.chunks(
+            result = self.chunker_page_by_page.chunks(
                 s3_key=s3_key,
                 pages=elements,
                 generated_metadata=generated_metadata,
             )
+            logger.warning("%s Successfully loaded page-by-page chunks for %s...", self.log_stub, s3_key)
+            return File.IngestChunkingStrategy.page_by_page, result
 
         # list[Element] if using unstructured
         if all(isinstance(p, Element) for p in elements):
-            return self.chunker_unstructured.chunks(
+            result = self.chunker_unstructured.chunks(
                 s3_key=s3_key,
                 elements=elements,
                 generated_metadata=generated_metadata,
             )
+            logger.warning("%s Successfully loaded unstructured chunks for %s...", self.log_stub, s3_key)
+            return File.IngestChunkingStrategy.unstructured_chunk_by_title, result
 
         raise TypeError("pages must be either list[str] or list[Element], not mixed")
