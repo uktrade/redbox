@@ -18,7 +18,7 @@ def mock_local_env():
 def mock_migrations():
     "Don't run the migrations at the start of the command to reduce test time"
 
-    with patch("django.core.management.call_command") as mock:
+    with patch("redbox_app.redbox_core.management.commands.local_db_init.call_command") as mock:
 
         def side_effect(command, *args, **kwargs) -> str | None:
             if command == "loaddata":
