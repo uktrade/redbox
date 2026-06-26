@@ -6,6 +6,8 @@ from redbox.loader.extraction.service import DocumentExtractionService
 from redbox.models.file import ChunkResolution
 from redbox_app.redbox_core.enums import IngestExtractionStrategy
 
+from redbox.loader.extraction.service import STRATEGIES
+
 
 def make_element(text: str, page_number: int | None = None, slide_number: int | None = None) -> MagicMock:
     el = MagicMock()
@@ -173,91 +175,91 @@ class TestExtractOffice:
 
 class TestExtractPdf:
     @pytest.mark.parametrize(
-        "auto, fast, textract, direct, expected, expected_strategy, raises",
+        "results, raises",
         [
-            # auto success
+            # First configured strategy succeeds
             (
-                [make_element(text="auto-page")],
-                None,
-                None,
-                None,
-                [make_element(text="auto-page")],
-                IngestExtractionStrategy.unstructured_auto,
+                {
+                    "unstructured_auto": [make_element(text="auto-page")],
+                    "unstructured_fast": RuntimeError("fast"),
+                    "textract_document_analysis": RuntimeError("textract"),
+                    "pymupdf": ["direct-page"],
+                },
                 False,
             ),
-            # fast success
+            # Second configured strategy succeeds
             (
-                RuntimeError("auto"),
-                [make_element(text="fast-page")],
-                None,
-                None,
-                [make_element(text="fast-page")],
-                IngestExtractionStrategy.unstructured_fast,
+                {
+                    "unstructured_auto": RuntimeError("auto"),
+                    "unstructured_fast": [make_element(text="fast-page")],
+                    "textract_document_analysis": RuntimeError("textract"),
+                    "pymupdf": ["direct-page"],
+                },
                 False,
             ),
-            # textract success
+            # Third configured strategy succeeds
             (
-                RuntimeError("auto"),
-                RuntimeError("fast"),
-                ["textract-page"],
-                None,
-                ["textract-page"],
-                IngestExtractionStrategy.textract_document_analysis,
+                {
+                    "unstructured_auto": RuntimeError("auto"),
+                    "unstructured_fast": RuntimeError("fast"),
+                    "textract_document_analysis": ["textract-page"],
+                    "pymupdf": ["direct-page"],
+                },
                 False,
             ),
-            # direct fallback success
+            # All configured strategies fail, direct fallback succeeds
             (
-                RuntimeError("auto"),
-                RuntimeError("fast"),
-                RuntimeError("textract"),
-                ["direct-page"],
-                ["direct-page"],
-                IngestExtractionStrategy.pymupdf,
+                {
+                    "unstructured_auto": RuntimeError("auto"),
+                    "unstructured_fast": RuntimeError("fast"),
+                    "textract_document_analysis": RuntimeError("textract"),
+                    "pymupdf": ["direct-page"],
+                },
                 False,
             ),
-            # direct fails -> FINAL raise
+            # Everything fails
             (
-                RuntimeError("auto"),
-                RuntimeError("fast"),
-                RuntimeError("textract"),
-                RuntimeError("direct"),
-                None,
-                None,
+                {
+                    "unstructured_auto": RuntimeError("auto"),
+                    "unstructured_fast": RuntimeError("fast"),
+                    "textract_document_analysis": RuntimeError("textract"),
+                    "pymupdf": RuntimeError("direct"),
+                },
                 True,
             ),
         ],
     )
-    def test_pdf_fallbacks_on_normal_resolution(
-        self, auto, fast, textract, direct, expected, expected_strategy, raises
-    ):
-
+    def test_pdf_fallbacks_on_normal_resolution(self, results, raises):
         svc = make_service()
         patch_s3(svc)
 
-        # unstructured mock behaviour (auto + fast)
+        def get_result(name):
+            return results.get(name, RuntimeError(name))
+
+        # unstructured
         def unstructured_mock(file_bytes, key, strategy):
-            if strategy == "auto":
-                if isinstance(auto, Exception):
-                    raise auto
-                return auto
-            if strategy == "fast":
-                if isinstance(fast, Exception):
-                    raise fast
-                return fast
+            strategy_name = f"unstructured_{strategy}"
+            result = get_result(strategy_name)
+
+            if isinstance(result, Exception):
+                raise result
+            return result
 
         svc.unstructured._extract.side_effect = unstructured_mock
 
         # textract
+        textract = get_result("textract_document_analysis")
         if isinstance(textract, Exception):
             svc.textract.document_analysis.side_effect = textract
         else:
             svc.textract.document_analysis.return_value = textract
 
         # direct fallback
+        direct = get_result("pymupdf")
         direct_patch = patch.object(
             svc,
             "_extract_pdf_text_direct",
-            side_effect=(direct if isinstance(direct, Exception) else None),
+            side_effect=direct if isinstance(direct, Exception) else None,
             return_value=None if isinstance(direct, Exception) else direct,
         )
 
@@ -267,13 +269,28 @@ class TestExtractPdf:
                     svc.extract("file.pdf", ChunkResolution.normal)
                 return
 
+            # Determine expected winner from configured strategy order
+            for strategy in STRATEGIES:
+                result = get_result(strategy)
+                if not isinstance(result, Exception):
+                    expected_strategy = IngestExtractionStrategy(strategy)
+                    expected = result
+                    expected_direct = False
+                    break
+            else:
+                expected_strategy = IngestExtractionStrategy.pymupdf
+                expected = direct
+                expected_direct = True
+
             strategy, result = svc.extract("file.pdf", ChunkResolution.normal)
 
             assert strategy == expected_strategy
-            assert [str(r) for r in result] == [str(e) for e in expected]
+            assert [str(r) for r in result] == [str(r) for r in expected]
 
-            if direct == "direct-page":
+            if expected_direct:
                 mock_direct.assert_called_once()
+            else:
+                mock_direct.assert_not_called()
 
     @pytest.mark.parametrize(
         "file_name, pages",
@@ -340,10 +357,13 @@ class TestExtractS3:
             return
 
         # we just verify extraction runs without S3 error
-        svc.unstructured._extract.return_value = ["ok"]
+        if STRATEGIES[0].startswith("unstructured"):
+            svc.unstructured._extract.return_value = ["ok"]
+        else:
+            svc.textract.document_analysis.return_value = ["ok"]
 
         strategy, result = svc.extract("any/file.pdf", ChunkResolution.normal)
-        assert strategy == IngestExtractionStrategy.unstructured_auto
+        assert strategy == STRATEGIES[0]
         assert result == ["ok"]
 
         svc.s3.get_object.assert_called_once_with(

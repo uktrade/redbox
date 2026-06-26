@@ -3,6 +3,7 @@ from unittest.mock import patch, MagicMock, call
 from botocore.exceptions import ClientError
 
 from redbox.loader.extraction.textract import TextractService
+from unstructured.documents.elements import NarrativeText
 
 
 BUCKET = "test-bucket"
@@ -407,7 +408,7 @@ class TestDocumentTextDetection:
 
 class TestDocumentAnalysis:
     @patch("time.sleep")
-    def test_success_returns_pages(self, _mock_sleep):
+    def test_success_returns_elements(self, _mock_sleep):
         svc = make_service()
 
         svc.textract.start_document_analysis = MagicMock(return_value={"JobId": JOB_ID})
@@ -415,14 +416,55 @@ class TestDocumentAnalysis:
         svc.textract.get_document_analysis = MagicMock(
             return_value={
                 "JobStatus": "SUCCEEDED",
-                "Blocks": make_blocks((1, ["Line 1"]), (2, ["Line 2"])),
+                "Blocks": [
+                    {
+                        "Id": "layout-1",
+                        "BlockType": "LAYOUT_TEXT",
+                        "Page": 1,
+                        "Relationships": [
+                            {
+                                "Type": "CHILD",
+                                "Ids": ["line-1", "line-2"],
+                            }
+                        ],
+                    },
+                    {
+                        "Id": "line-1",
+                        "BlockType": "LINE",
+                        "Page": 1,
+                        "Text": "Line 1",
+                    },
+                    {
+                        "Id": "line-2",
+                        "BlockType": "LINE",
+                        "Page": 1,
+                        "Text": "Line 2",
+                    },
+                ],
                 "NextToken": None,
             }
         )
 
         result = svc.document_analysis(KEY)
 
-        assert result == ["Line 1", "Line 2"]
+        assert len(result) == 1
+
+        element = result[0]
+        assert isinstance(element, NarrativeText)
+        assert element.text == "Line 1\nLine 2"
+        assert element.metadata.page_number == 1
+
+        svc.textract.start_document_analysis.assert_called_once_with(
+            DocumentLocation={
+                "S3Object": {
+                    "Bucket": BUCKET,
+                    "Name": KEY,
+                }
+            },
+            FeatureTypes=["LAYOUT"],
+        )
+
+        svc.textract.get_document_analysis.assert_called_once_with(JobId=JOB_ID)
 
     @patch("time.sleep")
     def test_raises_on_failed_job(self, _mock_sleep):
