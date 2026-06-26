@@ -1,12 +1,24 @@
 import logging
 import time
-from typing import List, Any
+from typing import Any
 
 
 import random
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
+
+from unstructured.documents.elements import (
+    Element,
+    ElementMetadata,
+    Footer,
+    Header,
+    ListItem,
+    NarrativeText,
+    Table,
+    Text,
+    Title,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -124,18 +136,28 @@ class TextractService:
                 logger.exception("Error while polling Textract job %s: %s", job_id, e)
                 raise
 
-    def _get_textract_results(self, job_id: str, getter: Any, first_response: dict) -> List[str]:
+    def _get_textract_results(
+        self,
+        job_id: str,
+        getter: Any,
+        first_response: dict,
+        *,
+        layout: bool = False,
+    ) -> list[str] | list[Element]:
         logger.warning("Fetching Textract results for job %s", job_id)
 
-        pages: dict[int, List[str]] = {}
-        next_token = None
-        api_calls = 0
+        pages: dict[int, list[str]] = {}
+        blocks: list[dict] = []
+
         response = first_response
+        api_calls = 0
 
         while True:
             try:
                 for block in response.get("Blocks", []):
-                    if block["BlockType"] == "LINE":
+                    if layout:
+                        blocks.append(block)
+                    elif block["BlockType"] == "LINE":
                         page = block.get("Page", 1)
                         pages.setdefault(page, []).append(block["Text"])
 
@@ -143,21 +165,86 @@ class TextractService:
                 if not next_token:
                     break
 
-                response = self._retry_textract_request(getter, JobId=job_id, NextToken=next_token)
+                response = self._retry_textract_request(
+                    getter,
+                    JobId=job_id,
+                    NextToken=next_token,
+                )
                 api_calls += 1
 
             except Exception as e:
-                logger.exception("Error retrieving Textract results for job %s: %s", job_id, e)
+                logger.exception(
+                    "Error retrieving Textract results for job %s: %s",
+                    job_id,
+                    e,
+                )
                 raise
 
         logger.warning(
-            "Retrieved Textract results for job %s: %d pages via %d API calls",
+            "Retrieved Textract results for job %s via %d API calls",
             job_id,
-            len(pages),
             api_calls,
         )
 
-        return ["\n".join(pages[p]) for p in sorted(pages)]
+        if not layout:
+            return ["\n".join(pages[p]) for p in sorted(pages)]
+
+        lookup = {block["Id"]: block for block in blocks if "Id" in block}
+
+        elements: list[Element] = []
+
+        for block in blocks:
+            block_type = block["BlockType"]
+
+            if not block_type.startswith("LAYOUT_"):
+                continue
+
+            text = "\n".join(
+                lookup[child_id]["Text"]
+                for relationship in block.get("Relationships", [])
+                if relationship["Type"] == "CHILD"
+                for child_id in relationship["Ids"]
+                if lookup.get(child_id, {}).get("BlockType") == "LINE"
+            ).strip()
+
+            if not text:
+                continue
+
+            metadata = ElementMetadata(
+                page_number=block.get("Page"),
+            )
+
+            match block_type:
+                case "LAYOUT_TITLE" | "LAYOUT_SECTION_HEADER":
+                    element = Title(text=text, metadata=metadata)
+
+                case "LAYOUT_HEADER":
+                    element = Header(text=text, metadata=metadata)
+
+                case "LAYOUT_FOOTER":
+                    element = Footer(text=text, metadata=metadata)
+
+                case "LAYOUT_LIST":
+                    element = ListItem(text=text, metadata=metadata)
+
+                case "LAYOUT_TABLE":
+                    element = Table(text=text, metadata=metadata)
+
+                case "LAYOUT_TEXT":
+                    element = NarrativeText(text=text, metadata=metadata)
+
+                case _:
+                    element = Text(text=text, metadata=metadata)
+
+            elements.append(element)
+
+        logger.warning(
+            "Converted %d layout blocks into %d Unstructured elements",
+            len(blocks),
+            len(elements),
+        )
+
+        return elements
 
     def document_text_detection(self, key: str) -> list[str]:
         logger.warning(
@@ -196,7 +283,7 @@ class TextractService:
             )
             raise
 
-    def document_analysis(self, key: str) -> list[str]:
+    def document_analysis(self, key: str) -> list[Element]:
         logger.warning(
             "Starting Textract 'document_analysis' extraction directly from S3: s3://%s/%s", self.bucket, key
         )
@@ -223,7 +310,7 @@ class TextractService:
                 raise RuntimeError(f"Textract 'document_analysis' failed for s3://{self.bucket}/{key}")
 
             return self._get_textract_results(
-                job_id=job_id, getter=self.textract.get_document_analysis, first_response=first_response
+                job_id=job_id, getter=self.textract.get_document_analysis, first_response=first_response, layout=True
             )
 
         except Exception as e:

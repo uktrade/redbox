@@ -99,13 +99,13 @@ class Settings(BaseSettings):
     embedding_document_field_name: str = "embedding"
 
     document_pdf_extraction_default_strategy: str = os.environ.get(
-        "DOCUMENT_PDF_EXTRACTION_DEFAULT_STRATEGY", "unstructured_auto"
+        "DOCUMENT_PDF_EXTRACTION_DEFAULT_STRATEGY", "textract_document_analysis"
     )
     document_pdf_extraction_fallback_one_strategy: str = os.environ.get(
-        "DOCUMENT_PDF_EXTRACTION_FALLBACK_ONE_STRATEGY", "unstructured_fast"
+        "DOCUMENT_PDF_EXTRACTION_FALLBACK_ONE_STRATEGY", "unstructured_auto"
     )
     document_pdf_extraction_fallback_two_strategy: str = os.environ.get(
-        "DOCUMENT_PDF_EXTRACTION_FALLBACK_TWO_STRATEGY", "textract_document_analysis"
+        "DOCUMENT_PDF_EXTRACTION_FALLBACK_TWO_STRATEGY", "unstructured_fast"
     )
 
     document_pdf_extraction_default_timeout: int = os.environ.get("DOCUMENT_PDF_EXTRACTION_DEFAULT_TIMEOUT", 300)
