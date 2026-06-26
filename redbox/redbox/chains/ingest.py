@@ -25,7 +25,7 @@ def log_chunks(chunks: list[Document]):
 
 def chunk_loader(
     chunker: DocumentChunkingService,
-    elements: list[str] | list[Element],
+    elements: list[str] | list[Element] | list[dict[str, str]],
     metadata: GeneratedMetadata,
     chunks_overlap_pages: bool,
 ) -> Runnable:
@@ -90,10 +90,18 @@ def chunk_loader_tabular(
 def ingest_chunks(
     chunker: DocumentChunkingService,
     vectorstore: VectorStore,
-    elements: list[str] | list[Element],
+    elements: list[str] | list[Element] | list[dict[str, str]],
     metadata: GeneratedMetadata,
     chunks_overlap_pages: bool = False,
 ) -> Runnable:
+    if elements and isinstance(elements[0], dict):
+        return ingest_tabular_chunks(
+            chunker=chunker,
+            vectorstore=vectorstore,
+            tabular_elements=elements,
+            metadata=metadata,
+        )
+
     loader = chunk_loader(
         chunker=chunker,
         elements=elements,

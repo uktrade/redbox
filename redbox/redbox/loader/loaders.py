@@ -117,21 +117,76 @@ def read_csv_text(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
             return []
 
 
+def detect_header_row(df: pd.DataFrame) -> int:
+    """
+    Find the first row that looks like a real table header.
+
+    Rules:
+    - Skip completely empty rows.
+    - Ignore rows with fewer than 2 populated cells (likely titles).
+    - Prefer rows whose populated cells are mostly strings.
+    """
+
+    first_non_empty = 0
+
+    for idx, row in df.iterrows():
+        values = row.dropna()
+
+        if values.empty:
+            continue
+
+        first_non_empty = idx
+
+        # "Sales Report" -> not a header
+        if len(values) < 2:
+            continue
+
+        string_ratio = sum(isinstance(v, str) for v in values) / len(values)
+
+        if string_ratio >= 0.75:
+            return idx
+
+    return first_non_empty
+
+
+def normalize_excel_sheet(raw_df: pd.DataFrame) -> pd.DataFrame:
+    # Remove completely empty rows/columns
+    raw_df = raw_df.dropna(axis=0, how="all")
+    raw_df = raw_df.dropna(axis=1, how="all")
+
+    if raw_df.empty:
+        return raw_df
+
+    header_row = detect_header_row(raw_df)
+
+    headers = raw_df.iloc[header_row].fillna("").astype(str).str.strip()
+
+    headers = [h if h else f"column_{i}" for i, h in enumerate(headers)]
+
+    df = raw_df.iloc[header_row + 1 :].reset_index(drop=True)
+    df.columns = headers
+
+    return df.convert_dtypes()
+
+
 def read_excel_file(file_bytes: BytesIO) -> list[dict[str, str | dict]]:
     """Reads in an excel file, validates each sheet using pandas and then returns a list of each valid sheet as string with a null metadata dictionary"""
     try:
-        sheets = pd.read_excel(file_bytes, sheet_name=None)
+        sheets = pd.read_excel(file_bytes, sheet_name=None, header=None)
         elements = []
 
-        for name, df in sheets.items():
+        for name, raw_df in sheets.items():
             try:
+                df = normalize_excel_sheet(raw_df)
+
                 if df.empty:
                     logger.info(f"Skipping Sheet {name}")
                     continue
 
-                # Include the table name in the text that is stored. This will be extracted by the retriever
-                table_name = name.lower().replace(" ", "_")
-                csv_text, sheet_schema = parse_tabular_schema(table_name=table_name, df=df)
+                csv_text, sheet_schema = parse_tabular_schema(
+                    table_name=name.lower().replace(" ", "_"),
+                    df=df,
+                )
 
                 elements.append(
                     {
