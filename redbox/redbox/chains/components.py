@@ -43,7 +43,7 @@ _FALLBACK_CACHE = {}
 FALLBACK_COOLDOWN_SECS = 420  # 7 mins feels ok
 
 _THROTTLING_CODES = frozenset(
-    {"ServiceUnavailableException", "Throttling_Exeption", "RateLimitExceeded", "TooManyRequestsException"}
+    {"ServiceUnavailableException", "Throttling_Exception", "RateLimitExceeded", "TooManyRequestsException"}
 )
 
 _CONNECTION_EXCEPTIONS = (TimeoutError, ConnectionError, EndpointConnectionError, ConnectTimeoutError, ReadTimeoutError)
