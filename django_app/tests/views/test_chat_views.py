@@ -116,6 +116,25 @@ def test_post_chat_title_with_naughty_string(alice: User, chat: Chat, client: Cl
     assert chat.name == "New chat name \ufffd"
 
 
+def test_post_chat_title_cannot_rename_another_users_chat(client: Client, bob: User, chat_with_alice: Chat):
+    # Given
+    client.force_login(bob)
+    url = reverse("chat-titles", kwargs={"chat_id": chat_with_alice.id})
+
+    # When
+    response = client.post(
+        url,
+        data='{"value": "Hacked name"}',
+        content_type="application/json",
+    )
+    original_name = chat_with_alice.name
+    chat_with_alice.refresh_from_db()
+
+    # Then
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert chat_with_alice.name == original_name
+
+
 @pytest.mark.django_db
 def test_staff_user_can_see_route(chat_with_files: Chat, client: Client):
     # Given
