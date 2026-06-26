@@ -14,9 +14,6 @@ class Command(BaseCommand):
         if not Environment.is_local:
             raise NotLocalError
 
-        self.stdout.write("Making migrations...")
-        call_command("makemigrations")
-
         self.stdout.write("Running migrations...")
         call_command("migrate")
 
@@ -26,7 +23,7 @@ class Command(BaseCommand):
         self.stdout.write("Loading tool settings...")
         call_command("loaddata", "tool_settings")
 
-        self.stdout.write("Loading tool settings...")
+        self.stdout.write("Loading agents...")
         call_command("loaddata", "agents")
 
         self.stdout.write(self.style.SUCCESS("Local db ready!"))
