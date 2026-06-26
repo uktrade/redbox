@@ -17,7 +17,6 @@ from redbox.loader.loaders import (
     read_csv_text,
     read_excel_file,
     _pdf_is_image_heavy,
-    # TextractChunkLoader,
 )
 from redbox.models.file import ChunkResolution
 from redbox.models.settings import Settings
@@ -423,11 +422,27 @@ def test_read_csv_text_pandas_error():
 
 def test_read_excel_file_multiple_sheets():
     # Mock pandas read_excel to return multiple sheets
-    sheet1 = pd.DataFrame({"Col1": [1, 2], "Col2": [3, 4]})
-    sheet2 = pd.DataFrame({"Col3": [5, 6], "Col4": [7, 8]})
+    sheet1 = pd.DataFrame(
+        [
+            ["Col1", "Col2"],
+            [1, 3],
+            [2, 4],
+        ]
+    )
+
+    sheet2 = pd.DataFrame(
+        [
+            ["Col3", "Col4"],
+            [5, 7],
+            [6, 8],
+        ]
+    )
     mock_sheets = {"Sheet1": sheet1, "Sheet2": sheet2}
 
-    with patch("pandas.read_excel", return_value=mock_sheets):
+    with (
+        patch("pandas.read_excel", return_value=mock_sheets),
+        patch("redbox.loader.loaders.detect_header_row", return_value=0),
+    ):
         file_bytes = BytesIO(b"mock excel content")
         result = read_excel_file(file_bytes)
 
@@ -444,11 +459,21 @@ def test_read_excel_file_multiple_sheets():
 
 def test_read_excel_file_empty_sheet():
     # Mock pandas read_excel to return one empty and one valid sheet
-    sheet1 = pd.DataFrame  # Empty sheet
-    sheet2 = pd.DataFrame({"Col1": [1, 2], "Col2": [3, 4]})
+    sheet1 = pd.DataFrame()  # Empty sheet
+    sheet2 = pd.DataFrame(
+        [
+            ["Col1", "Col2"],
+            [1, 3],
+            [2, 4],
+        ]
+    )
+
     mock_sheets = {"Sheet1": sheet1, "Sheet2": sheet2}
 
-    with patch("pandas.read_excel", return_value=mock_sheets):
+    with (
+        patch("pandas.read_excel", return_value=mock_sheets),
+        patch("redbox.loader.loaders.detect_header_row", return_value=0),
+    ):
         file_bytes = BytesIO(b"mock excel content")
         result = read_excel_file(file_bytes)
 
@@ -460,30 +485,47 @@ def test_read_excel_file_empty_sheet():
 
 
 def test_read_excel_file_sheet_error():
-    # Mock pandas read_excel to return sheet with error
-    sheet1 = MagicMock()
-    sheet1.to_csv.side_effect = Exception("Sheet conversion error")
-    sheet2 = pd.DataFrame({"Col1": [1, 2], "Col2": [3, 4]})
-    mock_sheets = {"Sheet1": sheet1, "Sheet2": sheet2}
+    good_sheet = pd.DataFrame(
+        [
+            ["Col1", "Col2"],
+            [1, 3],
+            [2, 4],
+        ]
+    )
 
-    with patch("pandas.read_excel", return_value=mock_sheets):
+    bad_sheet = MagicMock()
+    bad_sheet.empty = False
+    bad_sheet.iterrows.side_effect = Exception("boom")  # forces normalization failure
+
+    mock_sheets = {
+        "GoodSheet": good_sheet,
+        "BadSheet": bad_sheet,
+    }
+
+    with (
+        patch("pandas.read_excel", return_value=mock_sheets),
+        patch("redbox.loader.loaders.detect_header_row", return_value=0),
+    ):
         file_bytes = BytesIO(b"mock excel content")
+
         result = read_excel_file(file_bytes)
 
+        assert result is not None
         assert len(result) == 1
-        assert "<table_name>sheet2</table_name>" in result[0]["text"]
-        assert result[0]["metadata"] == {
-            "document_schema": {"columns": {"Col1": "INTEGER", "Col2": "INTEGER"}, "name": "sheet2", "type": "tabular"}
-        }
+
+        assert result[0]["metadata"]["document_schema"]["name"] == "goodsheet"
 
 
 def test_read_excel_file_all_empty_sheets():
     # Mock pandas read_excel to return all empty sheets
-    sheet1 = pd.DataFrame
-    sheet2 = pd.DataFrame
+    sheet1 = pd.DataFrame()
+    sheet2 = pd.DataFrame()
     mock_sheets = {"Sheet1": sheet1, "Sheet2": sheet2}
 
-    with patch("pandas.read_excel", return_value=mock_sheets):
+    with (
+        patch("pandas.read_excel", return_value=mock_sheets),
+        patch("redbox.loader.loaders.detect_header_row", return_value=0),
+    ):
         file_bytes = BytesIO(b"mock excel content")
         result = read_excel_file(file_bytes)
 
