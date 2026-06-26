@@ -2,10 +2,12 @@ from django.db.models import TextChoices
 
 
 class IngestExtractionStrategy(TextChoices):
-    unstructured = "unstructured"
     unstructured_auto = "unstructured_auto"
     unstructured_fast = "unstructured_fast"
+    unstructured_pptx = "unstructured_pptx"
+    unstructured_docx = "unstructured_docx"
     textract_document_analysis = "textract_document_analysis"
+    textract_document_analysis_large = "textract_document_analysis_large"
     pymupdf = "pymupdf"
     tabular = "tabular"
     unspecified = "unspecified"

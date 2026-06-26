@@ -98,22 +98,26 @@ class Settings(BaseSettings):
     embedding_max_batch_size: int = 512
     embedding_document_field_name: str = "embedding"
 
+    document_ingest_lock_timeout_seconds: int = os.environ.get("DOCUMENT_INGEST_LOCK_TIMEOUT_SECONDS", 1800)
+    document_large_pdf_bytes_threshold: int = os.environ.get("DOCUMENT_LARGE_PDF_BYTES_THRESHOLD", 5 * 1024 * 1024)
+    document_large_pdf_timeout: int = os.environ.get("DOCUMENT_LARGE_PDF_TIMEOUT", 900)
+
     document_pdf_extraction_default_strategy: str = os.environ.get(
         "DOCUMENT_PDF_EXTRACTION_DEFAULT_STRATEGY", "textract_document_analysis"
     )
     document_pdf_extraction_fallback_one_strategy: str = os.environ.get(
-        "DOCUMENT_PDF_EXTRACTION_FALLBACK_ONE_STRATEGY", "unstructured_auto"
+        "DOCUMENT_PDF_EXTRACTION_FALLBACK_ONE_STRATEGY", "unstructured_fast"
     )
     document_pdf_extraction_fallback_two_strategy: str = os.environ.get(
-        "DOCUMENT_PDF_EXTRACTION_FALLBACK_TWO_STRATEGY", "unstructured_fast"
+        "DOCUMENT_PDF_EXTRACTION_FALLBACK_TWO_STRATEGY", "unstructured_auto"
     )
 
-    document_pdf_extraction_default_timeout: int = os.environ.get("DOCUMENT_PDF_EXTRACTION_DEFAULT_TIMEOUT", 300)
+    document_pdf_extraction_default_timeout: int = os.environ.get("DOCUMENT_PDF_EXTRACTION_DEFAULT_TIMEOUT", 450)
     document_pdf_extraction_fallback_one_timeout: int = os.environ.get(
         "DOCUMENT_PDF_EXTRACTION_FALLBACK_ONE_TIMEOUT", 120
     )
     document_pdf_extraction_fallback_two_timeout: int = os.environ.get(
-        "DOCUMENT_PDF_EXTRACTION_FALLBACK_TWO_TIMEOUT", 120
+        "DOCUMENT_PDF_EXTRACTION_FALLBACK_TWO_TIMEOUT", 0
     )
 
     document_chunking_unstructured_overlap_all: bool = os.environ.get(
