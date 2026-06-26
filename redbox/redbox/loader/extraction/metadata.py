@@ -87,16 +87,25 @@ class MetadataExtraction:
 
     def get_first_10k_chars(self, elements: list[Element] | list[str] | list[dict]) -> str:
         if all(isinstance(p, str) for p in elements):
-            return "".join(p for p in elements)[:10_000]
+            texts = elements
+        elif all(isinstance(p, dict) for p in elements):
+            texts = (e.get("text", "") for e in elements)
+        elif all(isinstance(p, Element) for p in elements):
+            texts = (el.text for el in elements if getattr(el, "text", None))
+        else:
+            raise TypeError("pages must be either list[str] or list[Element] or list[dict], not mixed")
 
-        if all(isinstance(p, dict) for p in elements):
-            pages = [e.get("text", "") for e in elements]
-            return "".join(p for p in pages)[:10_000]
+        chunks = []
+        total = 0
+        for t in texts:
+            if not t:
+                continue
+            chunks.append(t)
+            total += len(t)
+            if total >= 10_000:
+                break
 
-        if all(isinstance(p, Element) for p in elements):
-            return "".join(el.text for el in elements if getattr(el, "text", None))[:10_000]
-
-        raise TypeError("pages must be either list[str] or list[Element] or list[dict], not mixed")
+        return "".join(chunks)[:10_000]
 
     def extract(self, file_name: str, elements: list[Element] | list[str] | list[dict]) -> GeneratedMetadata:
         start_time = time.time()
