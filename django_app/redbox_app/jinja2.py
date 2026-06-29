@@ -160,6 +160,7 @@ def environment(**options):
             "contact_email": settings.CONTACT_EMAIL,
             "approved_file_extensions": APPROVED_FILE_EXTENSIONS,
             "get_csrf_token": get_csrf_token,
+            "current_datetime": datetime.datetime.now,
         }
     )
     return env
