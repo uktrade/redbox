@@ -1,5 +1,6 @@
 // @ts-check
 
+import { emitEvent, Events, listenEvent } from "../../../interaction_design_system/ids/events";
 import { refreshUI } from "../../services";
 
 class DocumentSelector extends HTMLElement {
@@ -13,11 +14,11 @@ class DocumentSelector extends HTMLElement {
     this.#bindDocumentListeners();
 
     // listen for completed docs
-    document.body.addEventListener("doc-complete", (evt) => {
-      const detail = /** @type {CustomEvent} */ (evt).detail;
-      if (!(detail instanceof HTMLElement)) return;
+    listenEvent(Events.FILE_STATUS_COMPLETE, (evt) => {
+      const fileStatus = evt.detail.fileStatus;
+      if (!(fileStatus instanceof HTMLElement)) return;
 
-      const completedDoc = detail.closest(
+      const completedDoc = fileStatus.closest(
         ".govuk-checkboxes__item"
       );
       if (!completedDoc) return;
@@ -73,10 +74,7 @@ class DocumentSelector extends HTMLElement {
           });
         }
       });
-      const evt = new CustomEvent("selected-docs-change", {
-        detail: this.selectedDocuments,
-      });
-      document.body.dispatchEvent(evt);
+      emitEvent(Events.SELECTED_DOCS_CHANGE, this.selectedDocuments);
   }
 
 
@@ -108,13 +106,11 @@ class DocumentSelector extends HTMLElement {
 
 
   #sendDocSelectionChangeEvent(inputElement) {
-    document.body.dispatchEvent(new CustomEvent("doc-selection-change", {
-      detail: {
-        id: inputElement.value,
-        name: inputElement.title,
-        checked: inputElement.checked,
-      }
-    }));
+    emitEvent(Events.DOC_SELECTION_CHANGE, {
+      id: inputElement.value,
+      name: inputElement.title,
+      checked: inputElement.checked,
+    });
   }
 
 }

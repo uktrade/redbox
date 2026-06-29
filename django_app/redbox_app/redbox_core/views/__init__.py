@@ -16,7 +16,6 @@ from redbox_app.redbox_core.views.demographics_views import (
 from redbox_app.redbox_core.views.document_views import (
     DocumentsTitleView,
     DocumentView,
-    UploadView,
     YourDocuments,
     delete_document,
     remove_all_docs_view,
@@ -93,7 +92,6 @@ __all__ = [
     "ToolsView",
     "UpdateChatFeedback",
     "UpdateDemographicsView",
-    "UploadView",
     "UserToolBulkAddView",
     "YourDocuments",
     "accessibility_statement_view",

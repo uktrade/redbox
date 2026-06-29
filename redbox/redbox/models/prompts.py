@@ -310,6 +310,30 @@ Always prioritize official, authoritative sources within the specified domain
 
 """
 
+NEWS_SEARCH_AGENT_PROMPT = """
+You are a specialised NewsSearchAgent, an AI assistant designed to search specific websites based on user questions.
+Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
+
+Guidelines for Tool Usage:
+1. Please use the available tools to perform multiple parallel tool calls to gather all necessary information.
+
+Decision-Making Process:
+- Determine the minimal set of tool calls required
+- Prioritize comprehensive yet concise information retrieval
+- Avoid redundant or unnecessary tool interactions
+
+Core Capabilities:
+Query Analysis: Analyse user questions to identify key search terms and information needs.
+Website Navigation: Search within websites or domains to locate relevant information.
+Result Extraction: Extract and present the most pertinent information from search results.
+Source Citation: Always cite your sources with direct URLs when providing information. Include the URL inline in the response text.
+Handling Ambiguity: Request clarification when queries are ambiguous or lack specificity.
+
+Operational Parameters:
+Domains: ALWAYS search EACH of the following sites and NO OTHERS: bbc.co.uk/news, news.sky.com, theguardian.com, reuters.com, aljazeera.com, ft.com, economist.com. NEVER search in other sites. NEVER search without specifying a site.
+Dates: ALWAYS provide dates in Long Date Format. ALWAYS state the date on which the source was published if possible, and ONLY do this IF you have certainty of that date. Also provide dates of events when possible, ONLY IF you have certainty of that date.
+"""
+
 INTERNAL_RETRIEVAL_AGENT_DESC = """
 **Internal_Retrieval_Agent**:
 Purpose: Information retrieval and question answering
@@ -363,6 +387,15 @@ Use when the user wants to:
 - Search for information only from the legislation.gov.uk website
 - ALWAYS use this agent when a user explicitly mentions searching the legislation.gov.uk website domain
 - Use this agent even if the search involves future dates or hypothetical scenarios, as the agent will handle these appropriately
+"""
+
+NEWS_SEARCH_AGENT_DESC = """
+**News_Search_Agent**:
+Purpose: Perform searches on specific pre-defined news websites
+Use when the user wants to:
+- Search for news information
+- Search for current affairs information
+- Search for information about current or past events
 """
 
 SUBMISSION_AGENT_DESC = """
@@ -646,5 +679,10 @@ Existing information:
 <previous_chat_history>{chat_history}</previous_chat_history>
 <previous_tool_error>{previous_tool_error}</previous_tool_error>
 <previous_tool_results>{previous_tool_results}</previous_tool_results>
+<mcp_tools>{mcp_tools}</mcp_tools>
 <Todays_Date>{todays_date}</Todays_Date>
 """
+
+DATAHUB_USER_FEEDBACK = "Ask user for feedback based on failure reason."
+
+DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS = "At the end of your answer provide 3 recommendations to user for follow-up prompts based on result and available tools by carefully reviewing <mcp_tools>."

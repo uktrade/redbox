@@ -134,7 +134,7 @@ export class UploadedFiles extends HTMLElement {
      * Emits an event to signify that the element has been removed
      */
     #emitRemovedEvent() {
-        emitEvent(Events.FILE_UPLOADS_REMOVED);
+        emitEvent(Events.FILE_UPLOADS_REMOVED, {uploadedFiles:this});
     }
 
 
@@ -143,7 +143,8 @@ export class UploadedFiles extends HTMLElement {
      */
     #monitorProcessingStatus() {
         listenEvent(Events.FILE_UPLOAD_PROCESSED, (evt) => {
-            const uploadedFile = /** @type {CustomEvent} */ (evt).detail;
+            const uploadedFile = evt.detail.uploadedFile;
+            if (!uploadedFile) return;
             if (uploadedFile.parentNode !== this.container) return;
             if (this.allProcessed()) this.#emitProcessedEvent();
         });

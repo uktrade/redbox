@@ -85,6 +85,71 @@ def test_nonexistent_chats(alice: User, client: Client):
 
 
 @pytest.mark.django_db
+def test_new_chat_prepopulates_query_from_url(alice: User, client: Client):
+    # Given
+    client.force_login(alice)
+
+    # When
+    response = client.get(reverse("chats"), data={"q": "Hello redbox"})
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    soup = BeautifulSoup(response.content, "html.parser")
+    message_input = soup.find(id="message")
+    assert message_input is not None
+    assert message_input.get_text() == "Hello redbox"
+
+
+@pytest.mark.django_db
+def test_new_chat_without_query_param_has_empty_input(alice: User, client: Client):
+    # Given
+    client.force_login(alice)
+
+    # When
+    response = client.get(reverse("chats"))
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    soup = BeautifulSoup(response.content, "html.parser")
+    message_input = soup.find(id="message")
+    assert message_input is not None
+    assert message_input.get_text() == ""
+
+
+@pytest.mark.django_db
+def test_prepopulated_query_is_escaped(alice: User, client: Client):
+    # Given
+    client.force_login(alice)
+    malicious = "<script>alert('xss')</script>"
+
+    # When
+    response = client.get(reverse("chats"), data={"q": malicious})
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert b"<script>alert('xss')</script>" not in response.content
+    soup = BeautifulSoup(response.content, "html.parser")
+    message_input = soup.find(id="message")
+    assert message_input.get_text() == malicious
+
+
+@pytest.mark.django_db
+def test_existing_chat_ignores_query_param(chat_with_message: Chat, client: Client):
+    # Given
+    client.force_login(chat_with_message.user)
+
+    # When
+    response = client.get(f"/chats/{chat_with_message.id}/", data={"q": "should be ignored"})
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    soup = BeautifulSoup(response.content, "html.parser")
+    message_input = soup.find(id="message")
+    assert message_input is not None
+    assert message_input.get_text() == ""
+
+
+@pytest.mark.django_db
 def test_post_chat_title(alice: User, chat: Chat, client: Client):
     # Given
     client.force_login(alice)

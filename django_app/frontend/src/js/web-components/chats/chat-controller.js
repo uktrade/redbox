@@ -1,5 +1,6 @@
 // @ts-check
 
+import { emitEvent, Events, listenEvent } from "../../../interaction_design_system/ids/events";
 import { getActiveToolId, hideElement } from "../../utils";
 import { ChatMessage } from "./chat-message";
 
@@ -76,8 +77,7 @@ class ChatController extends HTMLElement {
           document.querySelector("#llm-selector")
         )?.value || "";
 
-      const startStreamingEvent = new CustomEvent("start-streaming");
-      document.dispatchEvent(startStreamingEvent);
+      emitEvent(Events.START_STREAMING);
 
       aiMessage.stream(
         userText,
@@ -98,8 +98,8 @@ class ChatController extends HTMLElement {
       messageInput.reset(true);
     });
 
-    document.body.addEventListener("selected-docs-change", (evt) => {
-      selectedDocuments = /** @type{CustomEvent} */ (evt).detail;
+    listenEvent(Events.SELECTED_DOCS_CHANGE, (evt) => {
+      selectedDocuments = evt.detail;
     });
   }
 }

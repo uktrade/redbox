@@ -1,3 +1,4 @@
+<!-- Depreciated -->
 {% set pageTitle = "Upload a document" %}
 {% set persistentSidepanel = False %}
 
@@ -40,7 +41,7 @@
         </label>
         <div class="govuk-drop-zone" data-module="govuk-file-upload">
           <input class="govuk-file-upload {% if errors.upload_doc %} govuk-file-upload--error{% endif %}" multiple
-            id="upload-docs" name="uploadDocs" type="file"
+            id="upload-docs" name="files" type="file"
             aria-describedby="upload-docs-notification upload-docs-filetypes {% if errors.upload_doc %} file-upload-docs-error{% endif %}">
         </div>
       </div>
