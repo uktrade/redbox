@@ -4,7 +4,6 @@ from unittest.mock import patch, MagicMock, ANY, call
 
 from redbox.models.file import ChunkResolution
 from redbox_app.redbox_core.enums import IngestExtractionStrategy
-
 from redbox.loader.extraction.service import (
     DocumentExtractionService,
     STRATEGIES,
@@ -13,7 +12,7 @@ from redbox.loader.extraction.service import (
 )
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mock_cache():
     with patch("redbox.loader.extraction.service.cache") as cache:
         cache.add.return_value = True
