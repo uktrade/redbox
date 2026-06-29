@@ -4,12 +4,7 @@ from unittest.mock import patch, MagicMock, ANY, call
 
 from redbox.models.file import ChunkResolution
 from redbox_app.redbox_core.enums import IngestExtractionStrategy
-from redbox.loader.extraction.service import (
-    DocumentExtractionService,
-    STRATEGIES,
-    INGEST_LOCK_TIMEOUT_SECONDS,
-    IngestionAlreadyInProgress,
-)
+from redbox.loader.extraction import service
 
 
 @pytest.fixture(autouse=True)
@@ -38,13 +33,13 @@ PAGES = ["page one", "page two"]
 TABULAR = [{"text": "col1,col2", "metadata": {}}]
 
 
-def make_service() -> DocumentExtractionService:
+def make_service() -> service.DocumentExtractionService:
     with (
         patch("redbox.loader.extraction.service.boto3.client"),
         patch("redbox.loader.extraction.service.TextractService"),
         patch("redbox.loader.extraction.service.UnstructuredService"),
     ):
-        return DocumentExtractionService(bucket=BUCKET)
+        return service.DocumentExtractionService(bucket=BUCKET)
 
 
 def make_s3_body(content: bytes = b"fake") -> MagicMock:
@@ -54,7 +49,7 @@ def make_s3_body(content: bytes = b"fake") -> MagicMock:
 
 
 def patch_s3(
-    svc: DocumentExtractionService,
+    svc: service.DocumentExtractionService,
     content: bytes = b"fake",
     file_size: int | None = None,
 ):
@@ -65,7 +60,7 @@ def patch_s3(
 class TestExtractInit:
     @patch("redbox.loader.extraction.service.boto3.client")
     def test_init_default_parameters(self, mock_boto_client: MagicMock):
-        extractor = DocumentExtractionService(bucket="test-bucket")
+        extractor = service.DocumentExtractionService(bucket="test-bucket")
 
         assert extractor.bucket == "test-bucket"
         assert extractor.region == "eu-west-2"
@@ -85,7 +80,7 @@ class TestExtractInit:
     @patch("redbox.loader.extraction.service.boto3.client")
     def test_init_custom_parameters(self, mock_boto_client: MagicMock):
         bucket, region = "test-bucket-2", "eu-west-1"
-        extractor = DocumentExtractionService(
+        extractor = service.DocumentExtractionService(
             bucket=bucket,
             region=region,
         )
@@ -323,7 +318,7 @@ class TestExtractPdf:
                 return
 
             # Determine expected winner from configured strategy order
-            for strategy in STRATEGIES:
+            for strategy in service.STRATEGIES:
                 result = get_result(strategy)
                 if not isinstance(result, Exception):
                     expected_strategy = IngestExtractionStrategy(strategy)
@@ -409,13 +404,13 @@ class TestExtractS3:
             return
 
         # we just verify extraction runs without S3 error
-        if STRATEGIES[0].startswith("unstructured"):
+        if service.STRATEGIES[0].startswith("unstructured"):
             svc.unstructured._extract.return_value = ["ok"]
         else:
             svc.textract.document_analysis.return_value = ["ok"]
 
         strategy, result = svc.extract("any/file.pdf", ChunkResolution.normal)
-        assert strategy == STRATEGIES[0]
+        assert strategy == service.STRATEGIES[0]
         assert result == ["ok"]
 
         svc.s3.get_object.assert_called_once_with(
@@ -439,7 +434,7 @@ class TestExtractLocking:
         mock_cache.add.assert_called_once_with(
             "ingest-lock:notes.txt:normal",
             "1",
-            timeout=INGEST_LOCK_TIMEOUT_SECONDS,
+            timeout=service.INGEST_LOCK_TIMEOUT_SECONDS,
         )
         mock_cache.delete.assert_called_once_with(
             "ingest-lock:notes.txt:normal",
@@ -457,7 +452,7 @@ class TestExtractLocking:
         mock_cache.add.assert_called_once_with(
             "ingest-lock:notes.txt:normal",
             "1",
-            timeout=INGEST_LOCK_TIMEOUT_SECONDS,
+            timeout=service.INGEST_LOCK_TIMEOUT_SECONDS,
         )
         mock_cache.delete.assert_called_once_with(
             "ingest-lock:notes.txt:normal",
@@ -468,12 +463,12 @@ class TestExtractLocking:
 
         svc = make_service()
 
-        with pytest.raises(IngestionAlreadyInProgress):
+        with pytest.raises(service.IngestionAlreadyInProgress):
             svc.extract("notes.txt", ChunkResolution.normal)
 
         mock_cache.add.assert_called_once_with(
             "ingest-lock:notes.txt:normal",
             "1",
-            timeout=INGEST_LOCK_TIMEOUT_SECONDS,
+            timeout=service.INGEST_LOCK_TIMEOUT_SECONDS,
         )
         mock_cache.delete.assert_not_called()
