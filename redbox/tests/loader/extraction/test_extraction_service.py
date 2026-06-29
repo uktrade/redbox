@@ -1,17 +1,11 @@
 import pytest
 from io import BytesIO
 from unittest.mock import patch, MagicMock, ANY, call
-import types
-import sys
 
 from redbox.models.file import ChunkResolution
 from redbox_app.redbox_core.enums import IngestExtractionStrategy
 
-fake_cache_module = types.ModuleType("django.core.cache")
-fake_cache_module.cache = MagicMock()
-sys.modules["django.core.cache"] = fake_cache_module
-
-from redbox.loader.extraction.service import (  # noqa: E402
+from redbox.loader.extraction.service import (
     DocumentExtractionService,
     STRATEGIES,
     INGEST_LOCK_TIMEOUT_SECONDS,
@@ -19,7 +13,7 @@ from redbox.loader.extraction.service import (  # noqa: E402
 )
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def mock_cache():
     with patch("redbox.loader.extraction.service.cache") as cache:
         cache.add.return_value = True
