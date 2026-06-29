@@ -20,9 +20,33 @@ def make_client_error(code: str) -> ClientError:
     return ClientError({"Error": {"Code": code, "Message": "msg"}}, "operation")
 
 
-def make_blocks(*pages: tuple[int, list[str]]) -> list[dict]:
-    """Build a flat Textract Blocks list from (page_num, [lines]) tuples."""
-    return [{"BlockType": "LINE", "Page": page, "Text": line} for page, lines in pages for line in lines]
+def make_blocks(*pages):
+    return [
+        {
+            "BlockType": "LINE",
+            "Page": page,
+            "Text": line,
+        }
+        for page, lines in pages
+        for line in lines
+    ]
+
+
+def make_layout_blocks():
+    return [
+        {
+            "Id": "layout",
+            "BlockType": "LAYOUT_TEXT",
+            "Page": 1,
+            "Relationships": [{"Type": "CHILD", "Ids": ["line"]}],
+        },
+        {
+            "Id": "line",
+            "BlockType": "LINE",
+            "Text": "Hello",
+            "Page": 1,
+        },
+    ]
 
 
 class TestIsRetryableTextractError:
@@ -330,29 +354,42 @@ class TestDocumentTextDetection:
     @patch("time.sleep")
     def test_raises_on_failed_job(self, _mock_sleep):
         svc = make_service()
+
         svc.textract.start_document_text_detection = MagicMock(return_value={"JobId": JOB_ID})
         svc.textract.get_document_text_detection = MagicMock(return_value={"JobStatus": "FAILED"})
+
         with pytest.raises(RuntimeError, match="document_text_detection"):
             svc.document_text_detection(KEY)
 
     @patch("time.sleep")
     def test_passes_correct_s3_location(self, _mock_sleep):
         svc = make_service()
+
         svc.textract.start_document_text_detection = MagicMock(return_value={"JobId": JOB_ID})
-        svc.textract.get_document_text_detection = MagicMock(
-            side_effect=[
-                {"JobStatus": "SUCCEEDED"},
-                {"Blocks": [], "NextToken": None},
-            ]
-        )
+
+        svc._wait_for_job = MagicMock(return_value=("SUCCEEDED", {"JobStatus": "SUCCEEDED"}))
+
+        svc.fetch_document_text_detection_result = MagicMock(return_value=[])
+
         svc.document_text_detection(KEY)
+
         svc.textract.start_document_text_detection.assert_called_once_with(
             DocumentLocation={"S3Object": {"Bucket": BUCKET, "Name": KEY}}
         )
 
+        svc._wait_for_job.assert_called_once_with(
+            job_id=JOB_ID,
+            getter=svc.textract.get_document_text_detection,
+            timeout=None,
+        )
+
+        svc.fetch_document_text_detection_result.assert_called_once_with(JOB_ID)
+
     def test_propagates_start_exception(self):
         svc = make_service()
+
         svc.textract.start_document_text_detection = MagicMock(side_effect=make_client_error("AccessDeniedException"))
+
         with pytest.raises(ClientError):
             svc.document_text_detection(KEY)
 
@@ -362,22 +399,9 @@ class TestDocumentTextDetection:
 
         svc.textract.start_document_text_detection = MagicMock(return_value={"JobId": JOB_ID})
 
-        svc.textract.get_document_text_detection = MagicMock(
-            return_value={
-                "JobStatus": "SUCCEEDED",
-                "Blocks": make_blocks((1, ["Hello"])),
-                "NextToken": None,
-            }
-        )
+        svc._wait_for_job = MagicMock(return_value=("SUCCEEDED", {"JobStatus": "SUCCEEDED"}))
 
-        svc._wait_for_job = MagicMock(
-            return_value=(
-                "SUCCEEDED",
-                {"JobStatus": "SUCCEEDED", "Blocks": [], "NextToken": None},
-            )
-        )
-
-        svc._get_textract_results = MagicMock(return_value=["Hello"])
+        svc.fetch_document_text_detection_result = MagicMock(return_value=["Hello"])
 
         result = svc.document_text_detection(KEY)
 
@@ -386,9 +410,10 @@ class TestDocumentTextDetection:
         svc._wait_for_job.assert_called_once_with(
             job_id=JOB_ID,
             getter=svc.textract.get_document_text_detection,
+            timeout=None,
         )
 
-        svc._get_textract_results.assert_called_once()
+        svc.fetch_document_text_detection_result.assert_called_once_with(JOB_ID)
 
     @patch("time.sleep")
     def test_does_not_fetch_results_if_job_failed(self, _mock_sleep):
@@ -396,7 +421,12 @@ class TestDocumentTextDetection:
 
         svc.textract.start_document_text_detection = MagicMock(return_value={"JobId": JOB_ID})
 
-        svc.textract.get_document_text_detection = MagicMock(return_value={"JobStatus": "FAILED"})
+        svc._wait_for_job = MagicMock(
+            return_value=(
+                "FAILED",
+                {"JobStatus": "FAILED"},
+            )
+        )
 
         svc._get_textract_results = MagicMock()
 
@@ -464,34 +494,88 @@ class TestDocumentAnalysis:
             FeatureTypes=["LAYOUT"],
         )
 
-        svc.textract.get_document_analysis.assert_called_once_with(JobId=JOB_ID)
+        assert svc.textract.get_document_analysis.call_count == 2
+        svc.textract.get_document_analysis.assert_called_with(JobId=JOB_ID)
 
     @patch("time.sleep")
     def test_raises_on_failed_job(self, _mock_sleep):
         svc = make_service()
+
         svc.textract.start_document_analysis = MagicMock(return_value={"JobId": JOB_ID})
         svc.textract.get_document_analysis = MagicMock(return_value={"JobStatus": "FAILED"})
+
         with pytest.raises(RuntimeError, match="document_analysis"):
             svc.document_analysis(KEY)
 
     @patch("time.sleep")
     def test_passes_layout_feature_type(self, _mock_sleep):
         svc = make_service()
+
         svc.textract.start_document_analysis = MagicMock(return_value={"JobId": JOB_ID})
-        svc.textract.get_document_analysis = MagicMock(
-            side_effect=[
-                {"JobStatus": "SUCCEEDED"},
-                {"Blocks": [], "NextToken": None},
-            ]
-        )
+
+        svc._wait_for_job = MagicMock(return_value=("SUCCEEDED", {"JobStatus": "SUCCEEDED"}))
+
+        svc.fetch_document_analysis_result = MagicMock(return_value=[])
+
         svc.document_analysis(KEY)
+
         svc.textract.start_document_analysis.assert_called_once_with(
             DocumentLocation={"S3Object": {"Bucket": BUCKET, "Name": KEY}},
             FeatureTypes=["LAYOUT"],
         )
 
+        svc.fetch_document_analysis_result.assert_called_once_with(JOB_ID)
+
     def test_propagates_start_exception(self):
         svc = make_service()
+
         svc.textract.start_document_analysis = MagicMock(side_effect=make_client_error("AccessDeniedException"))
+
         with pytest.raises(ClientError):
             svc.document_analysis(KEY)
+
+    @patch("time.sleep")
+    def test_orchestrates_wait_and_results_correctly(self, _mock_sleep):
+        svc = make_service()
+
+        svc.textract.start_document_analysis = MagicMock(return_value={"JobId": JOB_ID})
+
+        svc._wait_for_job = MagicMock(
+            return_value=(
+                "SUCCEEDED",
+                {"JobStatus": "SUCCEEDED", "Blocks": [], "NextToken": None},
+            )
+        )
+
+        expected = [NarrativeText(text="Hello")]
+        svc.fetch_document_analysis_result = MagicMock(return_value=expected)
+
+        result = svc.document_analysis(KEY)
+
+        assert result == expected
+
+        svc._wait_for_job.assert_called_once_with(
+            job_id=JOB_ID, getter=svc.textract.get_document_analysis, timeout=None
+        )
+
+        svc.fetch_document_analysis_result.assert_called_once_with(JOB_ID)
+
+    @patch("time.sleep")
+    def test_does_not_fetch_results_if_job_failed(self, _mock_sleep):
+        svc = make_service()
+
+        svc.textract.start_document_analysis = MagicMock(return_value={"JobId": JOB_ID})
+
+        svc._wait_for_job = MagicMock(
+            return_value=(
+                "FAILED",
+                {"JobStatus": "FAILED"},
+            )
+        )
+
+        svc.fetch_document_analysis_result = MagicMock()
+
+        with pytest.raises(RuntimeError):
+            svc.document_analysis(KEY)
+
+        svc.fetch_document_analysis_result.assert_not_called()

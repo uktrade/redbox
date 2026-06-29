@@ -42,8 +42,13 @@ def make_s3_body(content: bytes = b"fake") -> MagicMock:
     return body
 
 
-def patch_s3(svc: DocumentExtractionService, content: bytes = b"fake"):
+def patch_s3(
+    svc: DocumentExtractionService,
+    content: bytes = b"fake",
+    file_size: int | None = None,
+):
     svc.s3.get_object = MagicMock(return_value={"Body": make_s3_body(content)})
+    svc.s3.head_object = MagicMock(return_value={"ContentLength": file_size if file_size is not None else len(content)})
 
 
 class TestExtractInit:
@@ -57,11 +62,12 @@ class TestExtractInit:
         assert extractor.textract.bucket == extractor.bucket
         assert extractor.textract.region == extractor.region
 
-        assert mock_boto_client.call_count == 2
+        assert mock_boto_client.call_count == 3
         mock_boto_client.assert_has_calls(
             [
                 call("s3", region_name="eu-west-2"),
                 call("textract", region_name="eu-west-2", config=ANY),
+                call("s3", region_name="eu-west-2"),
             ]
         )
 
@@ -79,11 +85,12 @@ class TestExtractInit:
         assert extractor.textract.bucket == extractor.bucket
         assert extractor.textract.region == extractor.region
 
-        assert mock_boto_client.call_count == 2
+        assert mock_boto_client.call_count == 3
         mock_boto_client.assert_has_calls(
             [
                 call("s3", region_name=region),
                 call("textract", region_name=region, config=ANY),
+                call("s3", region_name=region),
             ]
         )
 
@@ -156,21 +163,58 @@ class TestExtractTabular:
 
 class TestExtractOffice:
     @pytest.mark.parametrize(
-        "file_name, method",
+        "file_name, method, expected_strategy",
         [
-            ("deck.pptx", "_extract_pptx"),
-            ("deck.ppt", "_extract_pptx"),
-            ("document.docx", "_extract_docx"),
+            ("deck.pptx", "_extract_pptx", IngestExtractionStrategy.unstructured_pptx),
+            ("deck.ppt", "_extract_pptx", IngestExtractionStrategy.unstructured_pptx),
+            ("document.docx", "_extract_docx", IngestExtractionStrategy.unstructured_docx),
         ],
     )
-    def test_routes_to_unstructured(self, file_name, method):
+    def test_routes_to_unstructured(self, file_name, method, expected_strategy):
         svc = make_service()
         patch_s3(svc)
         getattr(svc.unstructured, method).return_value = PAGES
         strategy, result = svc.extract(file_name, ChunkResolution.normal)
-        assert strategy == IngestExtractionStrategy.unstructured
+        assert strategy == expected_strategy
         assert result == PAGES
         getattr(svc.unstructured, method).assert_called_once()
+
+
+class TestPdfRouting:
+    @pytest.mark.parametrize(
+        "file_size, expected_large",
+        [
+            (5 * 1024 * 1024, False),  # threshold
+            (5 * 1024 * 1024 + 1, True),  # above threshold
+        ],
+    )
+    def test_routes_based_on_pdf_size(self, file_size, expected_large):
+        svc = make_service()
+
+        patch_s3(svc, file_size=file_size)
+
+        with (
+            patch.object(
+                svc,
+                "_run_with_fallbacks",
+                return_value=(IngestExtractionStrategy.unstructured_auto, ["page"]),
+            ) as mock_fallback,
+            patch.object(
+                svc.textract,
+                "document_analysis_large",
+                return_value=["page"],
+            ) as mock_large,
+        ):
+            strategy, _ = svc.extract("file.pdf", ChunkResolution.normal)
+
+            if expected_large:
+                assert strategy == IngestExtractionStrategy.textract_document_analysis_large
+                mock_large.assert_called_once()
+                mock_fallback.assert_not_called()
+            else:
+                assert strategy == IngestExtractionStrategy.unstructured_auto
+                mock_fallback.assert_called_once()
+                mock_large.assert_not_called()
 
 
 class TestExtractPdf:
@@ -231,16 +275,14 @@ class TestExtractPdf:
     )
     def test_pdf_fallbacks_on_normal_resolution(self, results, raises):
         svc = make_service()
-        patch_s3(svc)
+        patch_s3(svc, file_size=1024)
 
         def get_result(name):
             return results.get(name, RuntimeError(name))
 
         # unstructured
-        def unstructured_mock(file_bytes, key, strategy):
-            strategy_name = f"unstructured_{strategy}"
-            result = get_result(strategy_name)
-
+        def unstructured_mock(file_bytes, key, strategy, **kwargs):
+            result = get_result(f"unstructured_{strategy}")
             if isinstance(result, Exception):
                 raise result
             return result
@@ -345,11 +387,10 @@ class TestExtractS3:
         svc = make_service()
 
         if s3_error:
-            svc.s3.get_object = MagicMock(side_effect=s3_error)
+            patch_s3(svc, file_size=1024)
+            svc.s3.get_object.side_effect = s3_error
         else:
-            body = MagicMock()
-            body.read.return_value = body_bytes
-            svc.s3.get_object = MagicMock(return_value={"Body": body})
+            patch_s3(svc, content=body_bytes, file_size=1024)
 
         if expected_exception:
             with pytest.raises(RuntimeError, match="S3 unavailable"):

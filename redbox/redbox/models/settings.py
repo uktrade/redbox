@@ -117,7 +117,7 @@ class Settings(BaseSettings):
         "DOCUMENT_PDF_EXTRACTION_FALLBACK_ONE_TIMEOUT", 240
     )
     document_pdf_extraction_fallback_two_timeout: int = os.environ.get(
-        "DOCUMENT_PDF_EXTRACTION_FALLBACK_TWO_TIMEOUT", 120
+        "DOCUMENT_PDF_EXTRACTION_FALLBACK_TWO_TIMEOUT", 240
     )
 
     document_chunking_unstructured_overlap_all: bool = os.environ.get(
