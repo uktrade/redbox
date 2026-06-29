@@ -29,11 +29,11 @@ const setAriaBusy = (val) => {
   document.getElementById("chat-feed")?.setAttribute("aria-busy",val)
 }
 
-document.addEventListener("chat-response-end", (evt) => {
-  const event = /** @type {CustomEvent} */ (evt);
+listenEvent(Events.CHAT_RESPONSE_END, (evt) => {
+  const detail = evt.detail;
 
-  const sessionId = event.detail.session_id;
-  const isNewChat = event.detail.is_new_chat;
+  const sessionId = detail.session_id;
+  const isNewChat = detail.is_new_chat;
   let chatId = getActiveChatId();
   let fragmentsToRefresh = [];
 

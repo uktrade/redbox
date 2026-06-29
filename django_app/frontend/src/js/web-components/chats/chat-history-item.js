@@ -1,5 +1,7 @@
 // @ts-check
 
+import { emitEvent, Events, listenEvent } from "../../../interaction_design_system/ids/events";
+
 // DEPRECIATED - TODO: Complete delete confirmation functinoality and move to editable-text or a standalone component
 class ChatHistoryItem extends HTMLElement {
 
@@ -99,8 +101,8 @@ class ChatHistoryItem extends HTMLElement {
       }
     });
 
-    document.addEventListener("chat-title-change", (evt) => {
-      let evtData = /** @type {object} */ (evt).detail;
+    listenEvent(Events.CHAT_TITLE_CHANGE, (evt) => {
+      let evtData = evt.detail;
       if (evtData.sender !== "chat-history-item" && evtData.session_id === this.dataset.chatid) {
         this.chatLink.textContent = evtData.title;
         this.#updateChatTitle(evtData.title, false);
@@ -176,14 +178,11 @@ class ChatHistoryItem extends HTMLElement {
       body: JSON.stringify({name: newTitle}),
     });
     if (publishChanges) {
-      const chatTitleChangeEvent = new CustomEvent("chat-title-change", {
-        detail: {
-          title: newTitle,
-          session_id: this.dataset.chatid,
-          sender: "chat-history-item"
-        },
+      emitEvent(Events.CHAT_TITLE_CHANGE, {
+        title: newTitle,
+        session_id: this.dataset.chatid,
+        sender: "chat-history-item",
       });
-      document.dispatchEvent(chatTitleChangeEvent);
     }
   };
 

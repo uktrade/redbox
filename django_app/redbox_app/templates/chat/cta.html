@@ -1,11 +1,12 @@
 {% from "macros/icon.html" import ids_icon %}
-
 <div id="chat-cta" class="ids-chat-cta {% if not tool and not current_chat %}ids-chat-cta--centered{% endif %}" hx-swap-oob="outerHTML">
     <div class="ids-chat-cta__toggle">
         <ids-side-panel-toggle>
-            <button slot="toggle-side-panel" class="ids-side-panel__toggle ids-icon-button govuk-!-padding-left-0" type="button">
+            <button slot="toggle-side-panel"
+                    class="ids-side-panel__toggle ids-icon-button ids-header__menu-button govuk-!-padding-0 focusable"
+                    type="button">
                 {{ ids_icon(icon_name="left-panel-open.svg", icon_classes="") }}
-                <span class="govuk-visually-hidden">Toggle sidepanel</span>
+                <span class="govuk-visually-hidden">Open the menu</span>
             </button>
         </ids-side-panel-toggle>
     </div>

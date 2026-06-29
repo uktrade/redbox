@@ -1,5 +1,8 @@
 // @ts-check
 
+import { emitEvent, Events } from "../../../interaction_design_system/ids/events";
+import { FileStatusTypes } from "./file-status-types";
+
 class FileStatus extends HTMLElement {
   FILE_STATUS_ENDPOINT = "/file-status";
   CHECK_INTERVAL_MS = 6000;
@@ -18,11 +21,8 @@ class FileStatus extends HTMLElement {
     this.textContent = responseObj.status;
     this.dataset.status = responseObj.status.toLowerCase();
 
-    if (responseObj.status.toLowerCase() === "complete") {
-      const evt = new CustomEvent("doc-complete", {
-        detail: this,
-      });
-      document.body.dispatchEvent(evt);
+    if (responseObj.status.toLowerCase() === FileStatusTypes.COMPLETE) {
+      emitEvent(Events.FILE_STATUS_COMPLETE, {fileStatus:this})
     } else {
       window.setTimeout(() => this.checkStatus(), this.CHECK_INTERVAL_MS);
     }

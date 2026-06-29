@@ -1,13 +1,14 @@
 import logging
 from collections.abc import MutableSequence, Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
+from uuid import UUID
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import FieldError, SuspiciousFileOperation, ValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.db.models import Q
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import redirect, render
+from django.http import HttpRequest
 from django.template.response import TemplateResponse
 from django_q.tasks import async_task
 from waffle import flag_is_active
@@ -74,68 +75,9 @@ def render_your_documents(request, active_chat_id, slug: str | None = None) -> T
     )
 
 
-def handle_post_upload(request: HttpRequest, errors: Sequence[str] | None = None) -> HttpResponse:
-    errors: MutableSequence[str] = []
-    uploaded_files: MutableSequence[UploadedFile] = request.FILES.getlist("uploadDocs")
-
-    if not uploaded_files:
-        errors.append("No document selected")
-
-    team_id = request.POST.get("team")
-
-    visibility = request.POST.get("visibility", "PERSONAL")
-
-    for _index, uploaded_file in enumerate(uploaded_files):
-        errors += validate_uploaded_file(uploaded_file)
-
-    if not errors:
-        for uploaded_file in uploaded_files:
-            # ingest errors are handled differently, as the other documents have started uploading by this point
-            request.session["ingest_errors"], file_obj = ingest_file(uploaded_file, request.user)
-            if file_obj and team_id:
-                try:
-                    team = Team.objects.get(id=team_id)
-                    if UserTeamMembership.objects.filter(user=request.user, team=team).exists():
-                        FileTeamMembership.objects.create(
-                            file=file_obj,
-                            team=team,
-                            visibility=visibility,
-                        )
-                    else:
-                        request.session["ingest_errors"].append("You are not a lead for the selected team")
-                except Team.DoesNotExist:
-                    request.session["ingest_errors"].append("The selected team does not exist")
-
-        return redirect(request.path)
-
-    context = build_upload_context(context=chat_service.get_context(request), errors=errors)
-
-    return render(
-        request,
-        template_name="documents.html",
-        context=context,
-    )
-
-
-def build_upload_context(context: dict | None = None, errors: Sequence[str] | None = None) -> dict:
-    context["errors"] = {"upload_doc": errors or []}
-    context["uploaded"] = not errors
-
-    return context
-
-
-def build_upload_response(request: HttpRequest, errors: Sequence[str] | None = None) -> HttpResponse:
-    context = build_upload_context(context=chat_service.get_context(request), errors=errors)
-
-    return render(
-        request,
-        template_name="upload.html",
-        context=context,
-    )
-
-
 def validate_uploaded_file(uploaded_file: UploadedFile) -> Sequence[str]:
     errors: MutableSequence[str] = []
+
     if not uploaded_file.name:
         errors.append("File has no name")
     else:
@@ -173,3 +115,64 @@ def ingest_file(uploaded_file: UploadedFile, user: User, tool: Tool | None = Non
     else:
         async_task(ingest, file.id, task_name=file.unique_name, group="ingest")
         return [], file
+
+
+@dataclass
+class UploadResult:
+    errors: list[str] = field(default_factory=list)
+    ingest_errors: list[str] = field(default_factory=list)
+    files: list[File] = field(default_factory=list)
+
+
+def process_uploads(
+    uploaded_files: Sequence[UploadedFile],
+    user: User,
+    *,
+    tool: Tool | None = None,
+    team_id: UUID | None = None,
+    visibility: str = "PERSONAL",
+) -> UploadResult:
+    result = UploadResult()
+
+    if not uploaded_files:
+        result.errors.append("No document selected")
+        return result
+
+    for uploaded_file in uploaded_files:
+        result.errors.extend(validate_uploaded_file(uploaded_file))
+
+    if result.errors:
+        return result
+
+    for uploaded_file in uploaded_files:
+        ingest_errors, file_obj = ingest_file(uploaded_file, user, tool)
+        result.ingest_errors.extend(ingest_errors)
+
+        if not file_obj:
+            continue
+
+        result.files.append(file_obj)
+
+        if not team_id:
+            continue
+
+        try:
+            team = Team.objects.get(id=team_id)
+
+            if UserTeamMembership.objects.filter(
+                user=user,
+                team=team,
+                role_type=UserTeamMembership.RoleType.ADMIN,
+            ).exists():
+                FileTeamMembership.objects.create(
+                    file=file_obj,
+                    team=team,
+                    visibility=visibility,
+                )
+            else:
+                result.ingest_errors.append("You are not a lead for the selected team")
+
+        except Team.DoesNotExist:
+            result.ingest_errors.append("The selected team does not exist")
+
+    return result

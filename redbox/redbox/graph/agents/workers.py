@@ -64,9 +64,12 @@ class WorkerAgent(Agent):
 
     def _processing(self, result):
         result_content = ""
-        if isinstance(result, str):
+        if result is None or (isinstance(result, list) and not result):
+            self.logger.warning(f"[{self.config.name}] No tool results returned")
+        elif isinstance(result, str):
             self.logger.warning(f"[{self.config.name}] Using raw string result.")
             result_content = result
+
         elif isinstance(result, list) and isinstance(result[0], dict):
             self.logger.warning(f"[{self.config.name}] Using raw string in a list as result.")
             result_content = result[0].get("text", "")

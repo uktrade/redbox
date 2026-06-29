@@ -27,6 +27,7 @@ class PromptVariable(BaseModel):
     formatted_documents: bool = Field(description="Document content", default=False)
     previous_tool_error: bool = Field(description="Message from previous tool error", default=False)
     previous_tool_results: bool = Field(description="Results from previous tool call", default=False)
+    mcp_tools: bool = Field(description="Tools available on MCP server", default=False)
     knowledge_base_metadata: bool = Field(description="Knowledge base files metadata", default=False)
     previous_agents_results: bool = Field(
         description="Results from dependent agents required as input for this task", default=False
@@ -96,6 +97,10 @@ prompt_configs: Dict[str, PromptConfig] = {
         system=prompts.LEGISLATION_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
         prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
     ),
+    "News_Search_Agent": PromptConfig(
+        system=prompts.NEWS_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
+        prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
+    ),
     "Summarisation_Agent": PromptConfig(
         system=prompts.CHAT_WITH_DOCS_SYSTEM_PROMPT,
         question=prompts.CHAT_WITH_DOCS_QUESTION_PROMPT,
@@ -144,6 +149,7 @@ prompt_configs: Dict[str, PromptConfig] = {
             chat_history=True,
             previous_tool_error=True,
             previous_tool_results=True,
+            mcp_tools=True,
         ),
     ),
     "Knowledge_Base_Retrieval_Agent": PromptConfig(
@@ -226,6 +232,14 @@ agent_configs: Dict[str, AgentConfig] = {
         name="Legislation_Search_Agent",
         description=prompts.LEGISLATION_SEARCH_AGENT_DESC,
         prompt=prompt_configs["Legislation_Search_Agent"],
+        parser=None,
+        default_agent=True,
+        agents_max_tokens=10000,
+    ),
+    "News_Search_Agent": AgentConfig(
+        name="News_Search_Agent",
+        description=prompts.NEWS_SEARCH_AGENT_DESC,
+        prompt=prompt_configs["News_Search_Agent"],
         parser=None,
         default_agent=True,
         agents_max_tokens=10000,

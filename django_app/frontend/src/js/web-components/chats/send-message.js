@@ -1,5 +1,6 @@
 // @ts-check
 
+import { emitEvent, Events, listenEvent } from "../../../interaction_design_system/ids/events";
 import { hideElement, showElement } from "../../utils";
 
 export class SendMessage extends HTMLElement {
@@ -14,21 +15,18 @@ export class SendMessage extends HTMLElement {
 
     hideElement(this.buttonStop);
 
-    this.buttonStop.addEventListener("click", () => {
-      const stopStreamingEvent = new CustomEvent("stop-streaming");
-      document.dispatchEvent(stopStreamingEvent);
-    });
+    this.buttonStop.addEventListener("click", () => emitEvent(Events.STOP_STREAMING));
 
-    document.addEventListener("chat-response-start", () => {
+    listenEvent(Events.CHAT_RESPONSE_START, () => {
       hideElement(this.buttonSend);
       showElement(this.buttonStop);
     });
 
-    document.addEventListener("chat-response-end", () => {
+    listenEvent(Events.CHAT_RESPONSE_END, () => {
       this.showSendButton();
     });
 
-    document.addEventListener("stop-streaming", this.showSendButton);
+    listenEvent(Events.STOP_STREAMING, this.showSendButton);
   }
 
 
