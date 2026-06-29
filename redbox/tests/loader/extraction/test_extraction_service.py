@@ -2,11 +2,22 @@ import pytest
 from io import BytesIO
 from unittest.mock import patch, MagicMock, ANY, call
 
-from redbox.loader.extraction.service import DocumentExtractionService
+from redbox.loader.extraction.service import (
+    DocumentExtractionService,
+    STRATEGIES,
+    INGEST_LOCK_TIMEOUT_SECONDS,
+    IngestionAlreadyInProgress,
+)
 from redbox.models.file import ChunkResolution
 from redbox_app.redbox_core.enums import IngestExtractionStrategy
 
-from redbox.loader.extraction.service import STRATEGIES
+
+@pytest.fixture(autouse=True)
+def mock_cache():
+    with patch("redbox.loader.extraction.service.cache") as cache:
+        cache.add.return_value = True
+        cache.delete.return_value = None
+        yield cache
 
 
 def make_element(text: str, page_number: int | None = None, slide_number: int | None = None) -> MagicMock:
@@ -411,3 +422,58 @@ class TestExtractS3:
             Bucket=BUCKET,
             Key="any/file.pdf",
         )
+
+
+class TestExtractLocking:
+    def test_acquires_and_releases_lock(self, mock_cache):
+        svc = make_service()
+        patch_s3(svc)
+
+        svc.unstructured._extract.return_value = PAGES
+
+        strategy, result = svc.extract("notes.txt", ChunkResolution.normal)
+
+        assert strategy == IngestExtractionStrategy.unstructured_auto
+        assert result == PAGES
+
+        mock_cache.add.assert_called_once_with(
+            "ingest-lock:notes.txt:normal",
+            "1",
+            timeout=INGEST_LOCK_TIMEOUT_SECONDS,
+        )
+        mock_cache.delete.assert_called_once_with(
+            "ingest-lock:notes.txt:normal",
+        )
+
+    def test_releases_lock_when_extraction_fails(self, mock_cache):
+        svc = make_service()
+        patch_s3(svc)
+
+        svc.unstructured._extract.side_effect = RuntimeError("boom")
+
+        with pytest.raises(RuntimeError, match="boom"):
+            svc.extract("notes.txt", ChunkResolution.normal)
+
+        mock_cache.add.assert_called_once_with(
+            "ingest-lock:notes.txt:normal",
+            "1",
+            timeout=INGEST_LOCK_TIMEOUT_SECONDS,
+        )
+        mock_cache.delete.assert_called_once_with(
+            "ingest-lock:notes.txt:normal",
+        )
+
+    def test_raises_when_lock_already_exists(self, mock_cache):
+        mock_cache.add.return_value = False
+
+        svc = make_service()
+
+        with pytest.raises(IngestionAlreadyInProgress):
+            svc.extract("notes.txt", ChunkResolution.normal)
+
+        mock_cache.add.assert_called_once_with(
+            "ingest-lock:notes.txt:normal",
+            "1",
+            timeout=INGEST_LOCK_TIMEOUT_SECONDS,
+        )
+        mock_cache.delete.assert_not_called()
