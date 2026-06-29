@@ -1,11 +1,13 @@
 import logging
 import time
 from functools import cache
+from typing import Any
 
 from botocore.exceptions import ClientError, ConnectTimeoutError, EndpointConnectionError, ReadTimeoutError
 from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from langchain_community.embeddings import BedrockEmbeddings
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.embeddings import Embeddings, FakeEmbeddings
 from langchain_core.runnables import Runnable
 from langchain_core.tools import StructuredTool
@@ -39,6 +41,41 @@ load_dotenv()
 _FALLBACK_CACHE = {}
 
 FALLBACK_COOLDOWN_SECS = 420  # 7 mins feels ok
+
+_THROTTLING_CODES = frozenset(
+    {"ServiceUnavailableException", "Throttling_Exception", "RateLimitExceeded", "TooManyRequestsException"}
+)
+
+_CONNECTION_EXCEPTIONS = (TimeoutError, ConnectionError, EndpointConnectionError, ConnectTimeoutError, ReadTimeoutError)
+
+
+def _is_throttling_error(error: Exception) -> bool:
+    if isinstance(error, ClientError):
+        return error.response["Error"].get("Code", "") in _THROTTLING_CODES
+    return isinstance(error, _CONNECTION_EXCEPTIONS)
+
+
+class _FallbackCacheCallback(BaseCallbackHandler):
+    """
+    Updates _FALLBACK_CACHE when the primary LLM fails with a throttling error
+    """
+
+    def __init__(self, model_name: str, fallback_backend: ChatLLMBackend):
+        self._model_name = model_name
+        self._fallback_backend = fallback_backend
+
+    def on_llm_error(self, error: Exception, **kwargs: Any) -> None:
+        if _is_throttling_error(error):
+            logger.warning(
+                "Runtime throttling (%s) with %s - caching fallback for %ds",
+                type(error).__name__,
+                self._model_name,
+                FALLBACK_COOLDOWN_SECS,
+            )
+            _FALLBACK_CACHE[self._model_name] = {
+                "until": time.time() + FALLBACK_COOLDOWN_SECS,
+                "backend": self._fallback_backend,
+            }
 
 
 def get_chat_llm(
@@ -81,43 +118,14 @@ def get_chat_llm(
         )
         return _init_model(cache_entry["backend"])
 
-    try:
-        return _init_model(model)
+    primary = _init_model(model)
+    fallback_llm = _init_model(fallback_backend)
 
-    except ClientError as e:
-        error_code = e.response["Error"].get("Code", "")
-        if error_code in (
-            "ServiceUnavailableException",
-            "ThrottlingException",
-            "RateLimitExceeded",
-            "TooManyRequestsException",
-        ):
-            logger.warning(
-                "Rate/service limit (%s) encountered with %s. Falling back to %s",
-                error_code,
-                model.name,
-                fallback_backend.name,
-            )
-            _FALLBACK_CACHE[model.name] = {
-                "until": time.time() + FALLBACK_COOLDOWN_SECS,
-                "backend": fallback_backend,
-            }
-            return _init_model(fallback_backend)
-        else:
-            raise e
-
-    except (TimeoutError, ConnectionError, EndpointConnectionError, ConnectTimeoutError, ReadTimeoutError) as e:
-        logger.warning(
-            "Connection issue (%s) with %s. Falling back to %s",
-            str(e),
-            model.name,
-            fallback_backend.name,
-        )
-        _FALLBACK_CACHE[model.name] = {
-            "until": time.time() + FALLBACK_COOLDOWN_SECS,
-            "backend": fallback_backend,
-        }
-        return _init_model(fallback_backend)
+    primary_with_cache_callback = primary.with_config(callbacks=[_FallbackCacheCallback(model.name, fallback_backend)])
+    return primary_with_cache_callback.with_fallbacks(
+        [fallback_llm],
+        exceptions_to_handle=(ClientError, *_CONNECTION_EXCEPTIONS),
+    )
 
 
 @cache
