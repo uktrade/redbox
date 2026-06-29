@@ -5,12 +5,9 @@ from datetime import UTC, datetime
 from langchain_core.documents import Document
 
 from redbox.models.chain import GeneratedMetadata
-from redbox.transform import bedrock_tokeniser
 from redbox.loader.chunking.base import BaseChunker
 
 logger = logging.getLogger(__name__)
-
-tokeniser = bedrock_tokeniser
 
 
 class TabularDocumentChunker(BaseChunker):
