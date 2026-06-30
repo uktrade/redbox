@@ -1,3 +1,5 @@
+@use "govuk-frontend/dist/govuk/base" as *;
+
 .rb-chat-history__date_group {
   margin-top: 2rem;
   padding-left: 0.75rem;
@@ -66,8 +68,14 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
 .thumb_feedback-btn {
   border: none;
   background: none;
-  padding: 2px;
   cursor: pointer;
+  padding: 2px 4px;
+  margin: 0px;
+
+  &:focus {
+    @include govuk-focused-text;
+
+  }
 }
 
 .feedback__text-area {
@@ -318,7 +326,7 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 
 .feedback-button-container {
   display: flex;
-  gap: 8px;
+  gap: 4px;
 }
 
 .ids-message-container,

@@ -1,12 +1,35 @@
+@use "govuk-frontend/dist/govuk/base" as *;
+
 .ids-copy-button {
-  color: var(--color-button-primary);
-  cursor: pointer;
-  text-align: center;
-  background-color: var(--color-background-white);
-  border: none;
+  display: inline-flex;
   align-items: center;
   gap: .375rem;
   margin-top: 0;
+  color: var(--color-button-primary);
+  text-align: center;
   text-decoration: none;
-  display: inline-flex;
+  background-color: var(--color-background-white);
+  border: none;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--gds-dark-blue);
+  }
+
+  &:focus {
+    @include govuk-focused-text;
+  }
+
+  // exclude transparent bounding-box paths
+  svg path:not([fill="none"]) {
+    fill: var(--gds-blue);
+  }
+
+  &:hover svg path:not([fill="none"]) {
+    fill: var(--gds-dark-blue);
+  }
+
+  &:focus svg path:not([fill="none"]) {
+    fill: black;
+  }
 }
