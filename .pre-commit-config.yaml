@@ -23,9 +23,6 @@ repos:
         name: Check for debugger imports and breakpoint calls in python source
       - id: detect-private-key
         name: Check for existence of private keys
-      - id: detect-aws-credentials
-        args: ["--allow-missing-credentials"]
-        name: Check for existence of AWS secrets
       - id: check-executables-have-shebangs
         name: Check for executable files without shebangs
       - id: check-json
@@ -38,18 +35,9 @@ repos:
     hooks:
       - id: nbstripout
 
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.5.0
-    hooks:
-      - id: detect-secrets
-        exclude: poetry.lock
-        args:
-          - --baseline
-          - .secrets.baseline
-        name: Detect sensitive data (passwords, keys, etc.)
 
   - repo: https://github.com/uktrade/github-standards
-    rev: v1.4.0
+    rev: v1.4.1
     hooks:
       - id: validate-security-scan
       - id: run-security-scan
@@ -66,10 +54,6 @@ repos:
         language: pygrep
         exclude: ^static/|\.lock
         files: .
-      - id: detect-aws-account
-        name: Detect AWS account numbers
-        language: pygrep
-        entry: ':\d{12}:'
       - id: make-format
         name: Run make format
         entry: make format
