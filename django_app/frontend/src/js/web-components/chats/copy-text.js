@@ -16,7 +16,7 @@ class CopyText extends HTMLElement {
           </clipPath>
           </defs>
           </svg>
-          Copy
+          <span class="ids-copy-label">Copy</span>
           <span class="govuk-visually-hidden"> message content</span>
         </button>
     `;
@@ -24,10 +24,17 @@ class CopyText extends HTMLElement {
     this.querySelector("button")?.addEventListener("click", () => {
       const textEl = /** @type {HTMLElement} */ (
         document.querySelector(`#chat-message-${messageId} markdown-converter`))
-      this.#copyToClipboard(textEl?.innerHTML, textEl?.innerText);
-    });
-  }
-
+            this.#copyToClipboard(textEl?.innerHTML, textEl?.innerText);
+            const label = this.querySelector(".ids-copy-label");
+            if (label) {
+                label.textContent = "Copied";
+                clearTimeout(this.timer);
+                this.timer = setTimeout(()=>{
+                    label.textContent = "Copy";
+                }, 2000);
+            }
+        });
+    }
   /**
    * @param {string} html
    * @param {string} text

@@ -10,3 +10,11 @@
   text-decoration: none;
   display: inline-flex;
 }
+
+.ids-copy-button:hover {
+    color: var(--gds-dark-blue);
+}
+
+.ids-copy-button:hover svg path {
+    fill: var(--gds-dark-blue);
+}
