@@ -4,8 +4,10 @@ from dataclasses import dataclass
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
+from django.urls import reverse
+
 if TYPE_CHECKING:
-    from collections.abc import MutableSequence
+    from collections.abc import Sequence
 
     from django.core.files.uploadedfile import UploadedFile
 
@@ -14,12 +16,11 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.http import require_http_methods
 
-from redbox_app.redbox_core.models import File, FileTeamMembership, InactiveFileError, Team, Tool, UserTeamMembership
+from redbox_app.redbox_core.models import File, InactiveFileError, Tool
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.utils import render_with_oob
@@ -43,83 +44,49 @@ class DocumentView(View):
 
     @method_decorator(login_required)
     def post(self, request: HttpRequest) -> HttpResponse:
-        return documents_service.handle_post_upload(request)
+        uploaded_files: Sequence[UploadedFile] = request.FILES.getlist("files")
 
+        result = documents_service.process_uploads(
+            uploaded_files=uploaded_files,
+            user=request.user,
+            team_id=request.POST.get("team"),
+            visibility=request.POST.get("visibility", "PERSONAL"),
+        )
+        request.session["ingest_errors"] = result.ingest_errors
 
-class UploadView(View):
-    @method_decorator(login_required)
-    def get(self, request: HttpRequest) -> HttpResponse:
-        return documents_service.build_upload_response(request)
-
-    @method_decorator(login_required)
-    def post(self, request: HttpRequest) -> HttpResponse:
-        errors: MutableSequence[str] = []
-
-        uploaded_files: MutableSequence[UploadedFile] = request.FILES.getlist("uploadDocs")
-
-        if not uploaded_files:
-            errors.append("No document selected")
-
-        team_id = request.POST.get("team")
-
-        visibility = request.POST.get("visibility", "PERSONAL")
-
-        for _index, uploaded_file in enumerate(uploaded_files):
-            errors += documents_service.validate_uploaded_file(uploaded_file)
-
-        if not errors:
-            for uploaded_file in uploaded_files:
-                # ingest errors are handled differently, as the other documents have started uploading by this point
-                request.session["ingest_errors"], file_obj = documents_service.ingest_file(uploaded_file, request.user)
-                if file_obj and team_id:
-                    try:
-                        team = Team.objects.get(id=team_id)
-                        if UserTeamMembership.objects.filter(user=request.user, team=team).exists():
-                            FileTeamMembership.objects.create(
-                                file=file_obj,
-                                team=team,
-                                visibility=visibility,
-                            )
-                        else:
-                            request.session["ingest_errors"].append("You are not a lead for the selected team")
-                    except Team.DoesNotExist:
-                        request.session["ingest_errors"].append("The selected team does not exist")
-
+        if not result.errors:
             return redirect(reverse("documents"))
 
-        return documents_service.build_upload_response(request, errors)
+        context = chat_service.get_context(request)
+        context["errors"] = {"upload_doc": result.errors or []}
+
+        return render(
+            request,
+            template_name="documents.html",
+            context=context,
+        )
 
 
 @require_http_methods(["POST"])
 @login_required
 def upload_document(request, slug: str | None = None):
-    errors: MutableSequence[str] = []
+    uploaded_files: Sequence[UploadedFile] = request.FILES.getlist("files")
 
-    uploaded_file: UploadedFile = request.FILES.get("file")
-    response = {}
+    result = documents_service.process_uploads(
+        uploaded_files=uploaded_files,
+        user=request.user,
+        tool=Tool.objects.get(slug=slug) if slug else None,
+    )
 
-    if not uploaded_file:
-        errors.append("No document selected")
+    request.session["ingest_errors"] = result.ingest_errors
+    response = {"errors": result.errors}
 
-    errors += documents_service.validate_uploaded_file(uploaded_file)
+    if result.files:
+        file = result.files[0]
 
-    if errors:
-        response["errors"] = errors
-        return JsonResponse(response)
-
-    tool = Tool.objects.get(slug=slug) if slug else None
-
-    # ingest errors are handled differently, as the other documents have started uploading by this point
-    ingest_errors, file = documents_service.ingest_file(uploaded_file, request.user, tool)
-    request.session["ingest_errors"] = ingest_errors
-
-    if ingest_errors:
-        response["ingest_errors"] = file.status
-
-    if file:
-        response["status"] = file.status
         response["file_id"] = str(file.id)
         response["file_name"] = file.file_name
+        response["status"] = file.status
 
     return JsonResponse(response)
 

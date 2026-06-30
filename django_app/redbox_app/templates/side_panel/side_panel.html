@@ -4,9 +4,13 @@
     <ids-side-panel class="ids-side-panel-wrapper {% if sidepanel_collapsed %}ids-side-panel-wrapper--collapsed{% endif %}">
         <div class="ids-side-panel ids-text-xs">
             <ids-side-panel-toggle>
-                <button slot="toggle-side-panel" class="ids-side-panel--collapsed__content ids-side-panel__toggle ids-icon-button" type="button">
-                    {{ ids_icon(icon_name="left-panel-open.svg", icon_classes="dark") }}
-                    <span class="govuk-visually-hidden">Toggle sidepanel</span>
+                <button slot="toggle-side-panel"
+                        type="button"
+                        class="ids-side-panel--collapsed__content ids-side-panel__toggle ids-icon-button focusable dark govuk-!-padding-0 govuk-!-margin-2"
+                        aria-controls="navigation"
+                        aria-label="Open the menu">
+                          {{ ids_icon(icon_name="left-panel-open.svg", icon_classes="dark") }}
+                          <span class="govuk-visually-hidden">Open the menu</span>
                 </button>
             </ids-side-panel-toggle>
 
@@ -24,7 +28,7 @@
                     {{ ids_icon(icon_name="dbt-logo.svg", icon_classes="ids-width--full") }}
                 </span>
                 <span class="govuk-!-text-align-centre">
-                    © Crown copyright 2025. All rights reserved.
+                    © Crown copyright {{ current_datetime().year }}. All rights reserved.
                 </span>
             </footer>
         </div>

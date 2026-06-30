@@ -10,7 +10,7 @@
                 <span class="item-text-container ids-text-ellipses">
                     <a class="item-link govuk-link govuk-link--no-visited-state govuk-link--no-underline display title-text"
                     href="{{ link }}" {% if chat.id == active_chat_id %}aria-current="page"{% endif %} title="{{ chat.name }}">
-                        {{ chat.name }}
+                        <span class="govuk-visually-hidden">Conversation: </span>{{ chat.name }}
                     </a>
                     <div class="govuk-!-display-none edit-input-wrapper">
                         <label class="govuk-visually-hidden" for="chat-title-text-input-{{ chat.id }}">Chat title</label>

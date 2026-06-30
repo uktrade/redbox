@@ -1,23 +1,27 @@
 // @ts-check
 
 import { getAttributeOrDefault, getCsrfToken, hideElement, showElement } from "../../../js/utils";
+import { emitEvent, Events, listenEvent } from "../events";
 
 class EditableText extends HTMLElement {
     _csrfToken = "";
 
-    connectedCallback() {
+    constructor() {
+        super();
+
+        this.postUrl = this.getAttribute("post-url");
         this.deleteUrl = this.getAttribute("delete-url");
-        this.editEventName = this.getAttribute("edit-event");
-        this.deleteEventName = this.getAttribute("delete-event");
-        this.objectId = this.getAttribute("object-id");
+        this.objectId = this.getAttribute("object-id") || undefined;
 
         let senderId = this.getAttribute("sender-id");
-        if (senderId == null) {
-            senderId =  crypto.randomUUID();
+        if (!senderId) {
+            senderId = crypto.randomUUID();
             this.setAttribute("sender-id", senderId);
         }
         this.senderId = senderId;
+    }
 
+    connectedCallback() {
         this.displayEl = /** @type {HTMLElement} */ (
             this.querySelector(getAttributeOrDefault(this, "display-selector", ".display"))
         );
@@ -39,16 +43,6 @@ class EditableText extends HTMLElement {
 
         this.#bindEvents();
         this.#listenForExternalUpdates();
-    }
-
-
-    get postUrl() {
-        return this.getAttribute("post-url");
-    }
-
-
-    disconnectedCallback() {
-        if (this.editEventName) document.removeEventListener(this.editEventName, this._onExternalUpdate);
     }
 
 
@@ -138,20 +132,13 @@ class EditableText extends HTMLElement {
             console.error("Save failed", err);
             this.inputEl.value = this.inputEl.dataset.title || "";
         } finally {
-
             this.#exitEditMode();
 
-            if (this.editEventName) {
-                this.dispatchEvent(new CustomEvent(this.editEventName, {
-                    detail: {
-                        sender_id: this.senderId,
-                        object_id: this.objectId,
-                        value: newValue,
-                    },
-                    bubbles: true,
-                    composed: true
-                }));
-            }
+            emitEvent(Events.EDITABLE_TEXT_CHANGE, {
+                sender_id: this.senderId,
+                object_id: this.objectId,
+                value: newValue,
+            })
         }
     }
 
@@ -167,16 +154,10 @@ class EditableText extends HTMLElement {
         } catch (err) {
             console.error("Delete failed", err);
         } finally {
-            if (this.deleteEventName) {
-                this.dispatchEvent(new CustomEvent(this.deleteEventName, {
-                    detail: {
-                        sender_id: this.senderId,
-                        object_id: this.objectId,
-                    },
-                    bubbles: true,
-                    composed: true
-                }));
-            }
+            emitEvent(Events.EDITABLE_TEXT_DELETE, {
+                sender_id: this.senderId,
+                object_id: this.objectId,
+            });
             this.remove();
         }
     }
@@ -186,23 +167,13 @@ class EditableText extends HTMLElement {
      * Listen for external events of the same type and update value accordingly
     */
     #listenForExternalUpdates() {
-        if (!this.editEventName) return;
-        this._onExternalUpdate = this._onExternalUpdate.bind(this);
-        document.addEventListener(this.editEventName, this._onExternalUpdate);
-    }
+        listenEvent(Events.EDITABLE_TEXT_CHANGE, (evt) => {
+            const {sender_id: senderId, object_id: objectId, value: newValue} = evt.detail;
 
-
-    /**
-     * Internal method to update editable value from external updates
-    */
-    _onExternalUpdate(evt) {
-        /**
-         * @typedef {{ sender_id?: string, object_id?: string, value?: string }} EditEventDetail
-         */
-        const event = /** @type {CustomEvent<EditEventDetail>} */ (evt);
-        const { sender_id: senderId, object_id: objectId, value: newValue } = event.detail ?? {};
-        if (!senderId || senderId === this.senderId || objectId !== this.objectId) return;
-        if (typeof newValue === "string" && this.textEl) this.textEl.innerText = newValue;
+            if (senderId === this.senderId) return;
+            if (!objectId || objectId !== this.objectId) return;
+            if (typeof newValue === "string" && this.textEl) this.textEl.innerText = newValue;
+        });
     }
 
 

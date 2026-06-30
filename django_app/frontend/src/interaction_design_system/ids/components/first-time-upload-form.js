@@ -1,12 +1,11 @@
 // @ts-check
 
 import { hideElement } from "../../../js/utils";
+import { Events, listenEvent } from "../events";
 
 class FirstTimeUploadForm extends HTMLElement {
   connectedCallback() {
-    document.addEventListener("start-streaming", () => {
-      hideElement(this);
-    });
+    listenEvent(Events.START_STREAMING, () => hideElement(this));
   }
 }
 

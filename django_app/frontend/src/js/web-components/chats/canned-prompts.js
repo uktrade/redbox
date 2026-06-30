@@ -1,12 +1,11 @@
 // @ts-check
 
+import { Events, listenEvent } from "../../../interaction_design_system/ids/events";
 import { hideElement } from "../../utils";
 
 class CannedPrompts extends HTMLElement {
   connectedCallback() {
-    document.addEventListener("start-streaming", () => {
-      hideElement(this);
-    });
+    listenEvent(Events.START_STREAMING, () => hideElement(this));
   }
 }
 
