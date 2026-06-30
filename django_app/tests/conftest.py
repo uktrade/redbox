@@ -30,7 +30,9 @@ from redbox_app.redbox_core.models import (
     Tool,
     UserSSO,
     UserSSOAttribute,
+    UserTeamMembership,
 )
+from redbox_app.settings import MOCK_SSO_USERNAME
 
 User = get_user_model()
 
@@ -198,14 +200,25 @@ def chat(alice: User) -> Chat:
 
 
 @pytest.fixture
+def chat_factory(alice: User):
+    def _fixture(user: User | None = alice, name: str | None = "A chat") -> Chat:
+        return Chat.objects.create(name=name, user=user)
+
+    return _fixture
+
+
+@pytest.fixture
 def chat_with_message(chat: Chat) -> Chat:
     ChatMessage.objects.create(chat=chat, text="today", role=ChatMessage.Role.user)
     return chat
 
 
 @pytest.fixture
-def tool() -> Tool:
-    return Tool.objects.create(name="Test Tool")
+def tool_factory():
+    def _fixture(name: str | None = "Test tool") -> Tool:
+        return Tool.objects.create(name=name)
+
+    return _fixture
 
 
 @pytest.fixture
@@ -490,3 +503,24 @@ def sso_factory():
         return sso
 
     return create_sso
+
+
+@pytest.fixture
+def mock_sso_user_factory(create_user):
+    return create_user(username=MOCK_SSO_USERNAME)
+
+
+@pytest.fixture
+def file_factory(alice: User):
+    def _fixture(user: User | None = alice) -> File:
+        return File.objects.create(user=user)
+
+    return _fixture
+
+
+@pytest.fixture
+def user_team_membership_factory(alice: User, redbox_team: Team):
+    def _fixture(user: User | None = alice, team: Team | None = redbox_team) -> UserTeamMembership:
+        return UserTeamMembership.objects.create(user=user, team=team)
+
+    return _fixture

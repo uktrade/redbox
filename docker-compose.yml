@@ -157,6 +157,7 @@ services:
 
   sso:
     image: public.ecr.aws/uktrade/mock-sso:branch-main
+    container_name: sso
     environment:
       - MOCK_SSO_PORT=8001
       - MOCK_SSO_TOKEN=local.token

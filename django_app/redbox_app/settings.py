@@ -505,3 +505,4 @@ FEEDBACK_LINK = env.str(
 )
 
 PRODUCT_NAME = env.str("PRODUCT_NAME", "DBT Assist")
+MOCK_SSO_USERNAME = env.str("MOCK_SSO_USERNAME")
