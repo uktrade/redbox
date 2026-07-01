@@ -1,6 +1,7 @@
 import time
 import logging
 
+from typing import Any
 from pydantic import ValidationError
 from langchain_core.prompts import PromptTemplate
 
@@ -85,27 +86,73 @@ class MetadataExtraction:
             logger.warning(e.errors())
             return GeneratedMetadata(name=original_metadata.get("filename") or file_name)
 
-    def get_first_10k_chars(self, elements: list[Element] | list[str] | list[dict]) -> str:
-        if all(isinstance(p, str) for p in elements):
-            texts = elements
-        elif all(isinstance(p, dict) for p in elements):
-            texts = (e.get("text", "") for e in elements)
-        elif all(isinstance(p, Element) for p in elements):
-            texts = (el.text for el in elements if getattr(el, "text", None))
-        else:
-            raise TypeError("pages must be either list[str] or list[Element] or list[dict], not mixed")
+    def get_first_10k_chars(self, elements: list[Any]) -> str:
+        """
+        Extracts up to 10k characters from mixed document formats.
+        """
+        MAX_CHARS = 10_000
 
-        chunks = []
+        if not elements:
+            return ""
+
+        # Tabular documents
+        if all(isinstance(e, dict) for e in elements):
+            tables: list[str] = []
+
+            # Reserve some space for every table
+            budget_per_table = max(500, MAX_CHARS // len(elements))
+
+            for item in elements:
+                schema = item.get("document_schema") or {}
+                name = schema.get("name", "unknown")
+                columns = schema.get("columns", {})
+
+                header = [
+                    f"Table: {name}",
+                    f"Columns: {', '.join(columns.keys())}",
+                    f"Column Types: {', '.join(f'{k}={v}' for k, v in columns.items())}",
+                    "",
+                    "Sample:",
+                ]
+
+                header_text = "\n".join(header) + "\n"
+
+                sample_budget = max(0, budget_per_table - len(header_text))
+                sample = (item.get("text") or "")[:sample_budget]
+
+                tables.append(header_text + sample)
+
+            return "\n\n".join(tables)[:MAX_CHARS]
+
+        # Prose documents
+        def extract_text(item: Any) -> str:
+            if item is None:
+                return ""
+
+            if isinstance(item, str):
+                return item
+
+            if hasattr(item, "text"):
+                return getattr(item, "text") or ""
+
+            return ""
+
+        parts: list[str] = []
         total = 0
-        for t in texts:
-            if not t:
+        for el in elements:
+            text = extract_text(el)
+            if not text:
                 continue
-            chunks.append(t)
-            total += len(t)
-            if total >= 10_000:
+
+            separator = "\n" if parts else ""
+            remaining = MAX_CHARS - total - len(separator)
+            if remaining <= 0:
                 break
 
-        return "".join(chunks)[:10_000]
+            parts.append(text[:remaining])
+            total += len(separator) + min(len(text), remaining)
+
+        return "\n".join(parts)
 
     def extract(self, file_name: str, elements: list[Element] | list[str] | list[dict]) -> GeneratedMetadata:
         start_time = time.time()

@@ -48,7 +48,7 @@ class TestTabularChunks:
 
         assert docs == []
 
-    @patch("redbox.loader.chunking.base.tokeniser", return_value=5)
+    @patch("redbox.loader.chunking.chunkers.tabular.tokeniser", return_value=5)
     def test_metadata_fields(self, _):
         chunker = make_chunker()
 
@@ -71,8 +71,8 @@ class TestTabularChunks:
         assert m["page_number"] == 1
         assert m["chunk_resolution"] == ChunkResolution.normal
 
-    @patch("redbox.loader.chunking.base.tokeniser", return_value=1)
-    def test_indices_are_incremented(self, _):
+    @patch("redbox.loader.chunking.chunkers.tabular.tokeniser", return_value=1)
+    def test_single_chunk_tables_have_index_zero(self, _):
         chunker = make_chunker()
 
         docs = list(
@@ -88,9 +88,30 @@ class TestTabularChunks:
             )
         )
 
-        assert [d.metadata["index"] for d in docs] == [0, 1, 2]
+        assert [d.metadata["index"] for d in docs] == [0, 0, 0]
 
-    @patch("redbox.loader.chunking.base.tokeniser", return_value=1)
+    @patch("redbox.loader.chunking.chunkers.tabular.tokeniser", return_value=1)
+    def test_split_table_chunks_have_incrementing_indices(self, _):
+        chunker = make_chunker()
+        chunker.MAX_CHARS = 20  # force splitting
+
+        header = "id,name\n"
+        row = "1,Alice\n"
+        text = header + row * 10
+
+        docs = list(
+            chunker.tabular_chunks(
+                "s3://x.pdf",
+                [{"text": text}],
+                make_generated_metadata(),
+                include_schema_metadata=False,
+            )
+        )
+
+        assert len(docs) > 1
+        assert [d.metadata["index"] for d in docs] == list(range(len(docs)))
+
+    @patch("redbox.loader.chunking.chunkers.tabular.tokeniser", return_value=1)
     def test_created_datetime_is_shared(self, _):
         chunker = make_chunker()
 
@@ -109,55 +130,7 @@ class TestTabularChunks:
         timestamps = {d.metadata["created_datetime"] for d in docs}
         assert len(timestamps) == 1
 
-    @patch("redbox.loader.chunking.base.tokeniser", return_value=1)
-    def test_schema_metadata_is_included(self, _):
-        chunker = make_chunker()
-
-        docs = list(
-            chunker.tabular_chunks(
-                "s3://x.pdf",
-                [
-                    {
-                        "text": "row1",
-                        "metadata": {
-                            "table_name": "customers",
-                            "column_count": 4,
-                        },
-                    }
-                ],
-                make_generated_metadata(),
-                include_schema_metadata=True,
-            )
-        )
-
-        metadata = docs[0].metadata
-
-        assert metadata["table_name"] == "customers"
-        assert metadata["column_count"] == 4
-
-    @patch("redbox.loader.chunking.base.tokeniser", return_value=1)
-    def test_schema_metadata_is_not_included(self, _):
-        chunker = make_chunker()
-
-        docs = list(
-            chunker.tabular_chunks(
-                "s3://x.pdf",
-                [
-                    {
-                        "text": "row1",
-                        "metadata": {
-                            "table_name": "customers",
-                        },
-                    }
-                ],
-                make_generated_metadata(),
-                include_schema_metadata=False,
-            )
-        )
-
-        assert "table_name" not in docs[0].metadata
-
-    @patch("redbox.loader.chunking.base.tokeniser", return_value=1)
+    @patch("redbox.loader.chunking.chunkers.tabular.tokeniser", return_value=1)
     def test_missing_schema_metadata_is_handled(self, _):
         chunker = make_chunker()
 
@@ -172,3 +145,126 @@ class TestTabularChunks:
 
         assert docs[0].metadata["index"] == 0
         assert docs[0].page_content == "row1"
+
+    @patch("redbox.loader.chunking.chunkers.tabular.tokeniser", return_value=1)
+    def test_document_schema_is_included(self, _):
+        chunker = make_chunker()
+
+        docs = list(
+            chunker.tabular_chunks(
+                "s3://x.pdf",
+                [
+                    {
+                        "text": "row1",
+                        "metadata": {
+                            "document_schema": {
+                                "name": "customers",
+                                "columns": {
+                                    "id": "NUMBER",
+                                    "name": "STRING",
+                                },
+                            }
+                        },
+                    }
+                ],
+                make_generated_metadata(),
+                include_schema_metadata=True,
+            )
+        )
+
+        assert docs[0].metadata["document_schema"] == {
+            "name": "customers",
+            "columns": {
+                "id": "NUMBER",
+                "name": "STRING",
+            },
+        }
+
+    @patch("redbox.loader.chunking.chunkers.tabular.tokeniser", return_value=1)
+    def test_document_schema_not_included_when_disabled(self, _):
+        chunker = make_chunker()
+
+        docs = list(
+            chunker.tabular_chunks(
+                "s3://x.pdf",
+                [
+                    {
+                        "text": "row1",
+                        "document_schema": {
+                            "name": "customers",
+                        },
+                    }
+                ],
+                make_generated_metadata(),
+                include_schema_metadata=False,
+            )
+        )
+
+        assert "columns" not in docs[0].metadata
+        # UploadedFileMetadata.name should still be present
+        assert docs[0].metadata["name"] == "doc.pdf"
+
+    @patch("redbox.loader.chunking.chunkers.tabular.tokeniser", return_value=1)
+    def test_missing_document_schema_is_handled(self, _):
+        chunker = make_chunker()
+
+        docs = list(
+            chunker.tabular_chunks(
+                "s3://x.pdf",
+                [{"text": "row1"}],
+                make_generated_metadata(),
+                include_schema_metadata=True,
+            )
+        )
+
+        assert docs[0].metadata["document_schema"] == {}
+
+    @patch("redbox.loader.chunking.chunkers.tabular.tokeniser", return_value=1)
+    def test_large_table_is_split(self, _):
+        chunker = make_chunker()
+
+        header = "id,name\n"
+        row = "1,Alice\n"
+
+        text = header + row * 7000
+
+        docs = list(
+            chunker.tabular_chunks(
+                "s3://x.pdf",
+                [{"text": text}],
+                make_generated_metadata(),
+                include_schema_metadata=False,
+            )
+        )
+
+        assert len(docs) > 1
+
+        for doc in docs:
+            assert doc.page_content.startswith(header)
+            assert len(doc.page_content) <= chunker.MAX_CHARS
+
+    @patch("redbox.loader.chunking.chunkers.tabular.tokeniser", return_value=1)
+    def test_document_schema_not_added_to_page_content(self, _):
+        chunker = make_chunker()
+
+        docs = list(
+            chunker.tabular_chunks(
+                "s3://x.pdf",
+                [
+                    {
+                        "text": "id,name\n1,Alice",
+                        "document_schema": {
+                            "name": "customers",
+                            "columns": {
+                                "id": "NUMBER",
+                                "name": "STRING",
+                            },
+                        },
+                    }
+                ],
+                make_generated_metadata(),
+                include_schema_metadata=True,
+            )
+        )
+
+        assert docs[0].page_content == "id,name\n1,Alice"

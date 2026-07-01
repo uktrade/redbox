@@ -100,7 +100,7 @@ class DocumentChunkingService:
     def tabular_chunks(
         self,
         s3_key: str,
-        tabular_elements: list[dict[str, str]],
+        tabular_elements: list[dict[str, str | dict]],
         generated_metadata: GeneratedMetadata,
         include_schema_metadata: bool,
     ) -> tuple[IngestChunkingStrategy, Iterator[Document]]:

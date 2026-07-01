@@ -1,5 +1,7 @@
+from collections import defaultdict
 import logging
 import os
+from copy import deepcopy
 from functools import partial
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union, cast
 
@@ -365,7 +367,91 @@ class KnowledgeBaseMetadataRetriever(OpenSearchRetriever):
         return [hit["_source"] for hit in hits]
 
 
-class KnowledgeBaseTabularMetadataRetriever(OpenSearchRetriever):
+class TabularReconstructionMixin:
+    reconstruct_tables: bool = True
+
+    @staticmethod
+    def _strip_header(text: str) -> str:
+        """
+        Removes the repeated first line from a split table chunk.
+
+        Each split chunk begins with the same first line, e.g.
+
+            <table_name>sheet1</table_name>col1,col2,...
+
+        When reconstructing we keep the first chunk intact and strip this
+        repeated header from all subsequent chunks.
+        """
+        lines = text.splitlines()
+
+        if len(lines) <= 1:
+            return ""
+
+        return "\n".join(lines[1:])
+
+    def _reconstruct_tables(
+        self,
+        docs: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        grouped: dict[Any, list[dict[str, Any]]] = defaultdict(list)
+
+        for doc in docs:
+            metadata = doc.get("metadata", {})
+            schema = metadata.get("document_schema") or {}
+
+            # No chunk metadata means this table was never split.
+            chunk = schema.get("chunk")
+            if not chunk:
+                grouped["__standalone__"].append(doc)
+                continue
+
+            key = (
+                metadata.get("uri"),
+                schema.get("name"),
+            )
+            grouped[key].append(doc)
+
+        reconstructed: list[dict[str, Any]] = []
+
+        for key, group in grouped.items():
+            if key == "__standalone__":
+                reconstructed.extend(group)
+                continue
+
+            # Reconstruct only if every chunk has a metadata index.
+            if all(doc.get("metadata", {}).get("index") is not None for doc in group):
+                group.sort(key=lambda d: d["metadata"]["index"])
+
+                base = deepcopy(group[0])
+
+                if "text" in base:
+                    merged: list[str] = []
+
+                    for i, doc in enumerate(group):
+                        text = doc.get("text", "")
+
+                        if i == 0:
+                            merged.append(text)
+                        else:
+                            merged.append(self._strip_header(text))
+
+                    base["text"] = "\n".join(part for part in merged if part)
+
+                base["metadata"]["document_schema"] = {
+                    **base["metadata"]["document_schema"],
+                    "reconstructed": True,
+                }
+
+                reconstructed.append(base)
+
+            else:
+                # Can't determine ordering; return the largest chunk only.
+                reconstructed.append(max(group, key=lambda d: len(d.get("text", ""))))
+
+        return reconstructed
+
+
+class KnowledgeBaseTabularMetadataRetriever(OpenSearchRetriever, TabularReconstructionMixin):
     """A modified MetadataRetriever that retrieves only filename, keyword and description metadata"""
 
     chunk_resolution: ChunkResolution = ChunkResolution.tabular
@@ -381,11 +467,16 @@ class KnowledgeBaseTabularMetadataRetriever(OpenSearchRetriever):
     def _get_relevant_documents(self, query: RedboxState, *, run_manager: CallbackManagerForRetrieverRun) -> list:  # noqa:ARG002
         body = self.body_func(query)  # type: ignore
         response = self.es_client.search(index=self.index_name, body=body)
-        hits = response.get("hits", {}).get("hits", [])
-        return [hit["_source"] for hit in hits]
+
+        hits = [hit["_source"] for hit in response.get("hits", {}).get("hits", [])]
+
+        if not self.reconstruct_tables:
+            return hits
+
+        return self._reconstruct_tables(hits)
 
 
-class TabularMetadataRetriever(OpenSearchRetriever):
+class TabularMetadataRetriever(OpenSearchRetriever, TabularReconstructionMixin):
     """A modified MetadataRetriever that retrieves only filename, keyword and description metadata"""
 
     chunk_resolution: ChunkResolution = ChunkResolution.tabular
@@ -401,11 +492,16 @@ class TabularMetadataRetriever(OpenSearchRetriever):
     def _get_relevant_documents(self, query: RedboxState, *, run_manager: CallbackManagerForRetrieverRun) -> list:  # noqa:ARG002
         body = self.body_func(query)  # type: ignore
         response = self.es_client.search(index=self.index_name, body=body)
-        hits = response.get("hits", {}).get("hits", [])
-        return [hit["_source"] for hit in hits]
+
+        hits = [hit["_source"] for hit in response.get("hits", {}).get("hits", [])]
+
+        if not self.reconstruct_tables:
+            return hits
+
+        return self._reconstruct_tables(hits)
 
 
-class SchematisedTabularChunkRetriever(OpenSearchRetriever):
+class SchematisedTabularChunkRetriever(OpenSearchRetriever, TabularReconstructionMixin):
     """A modified MetadataRetriever that retrieves text"""
 
     chunk_resolution: ChunkResolution = ChunkResolution.tabular
@@ -428,5 +524,10 @@ class SchematisedTabularChunkRetriever(OpenSearchRetriever):
     ) -> list:  # noqa:ARG002
         body = self.body_func(permitted_s3_keys=permitted_s3_keys, uris=uris)  # type: ignore
         response = self.es_client.search(index=self.index_name, body=body)
-        hits = response.get("hits", {}).get("hits", [])
-        return [hit["_source"] for hit in hits]
+
+        hits = [hit["_source"] for hit in response.get("hits", {}).get("hits", [])]
+
+        if not self.reconstruct_tables:
+            return hits
+
+        return self._reconstruct_tables(hits)

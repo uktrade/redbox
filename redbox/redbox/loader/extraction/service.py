@@ -186,7 +186,7 @@ class DocumentExtractionService:
 
     def _extract_locked(
         self, file_name: str, chunk_resolution: ChunkResolution
-    ) -> tuple[IngestExtractionStrategy, list[Element] | list[str] | list[dict[str, str]]]:
+    ) -> tuple[IngestExtractionStrategy, list[Element] | list[str] | list[dict[str, str | dict]]]:
         self.extract_calls += 1
         extract_log_stub = f"{self.log_stub} (call {self.extract_calls}) {chunk_resolution} - "
 

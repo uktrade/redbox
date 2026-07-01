@@ -20,6 +20,14 @@ log = logging.getLogger()
 @chain
 def log_chunks(chunks: list[Document]):
     log.info("Processing %s chunks", len(chunks))
+
+    for i, doc in enumerate(chunks):
+        log.info(
+            "chunk %d length=%d",
+            i,
+            len(doc.page_content),
+        )
+
     return chunks
 
 

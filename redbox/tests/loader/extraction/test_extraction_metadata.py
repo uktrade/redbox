@@ -266,7 +266,7 @@ class TestExtract:
 
 
 class TestExtractDictElements:
-    def test_extracts_dict_elements(self, svc):
+    def test_formats_single_table(self, svc):
         captured = {}
 
         def capturing_create(file_name, page_content, original_metadata=None):
@@ -275,8 +275,90 @@ class TestExtractDictElements:
 
         svc.create_file_metadata = capturing_create
 
-        elements = [{"text": "row1"}, {"text": "row2"}]
+        elements = [
+            {
+                "text": "id,name\n1,Jeff",
+                "document_schema": {
+                    "name": "employees",
+                    "columns": {
+                        "id": "NUMBER",
+                        "name": "STRING",
+                    },
+                },
+            }
+        ]
 
-        svc.extract("table.csv", elements)
+        svc.extract("employees.csv", elements)
 
-        assert captured["page_content"] == "row1row2"
+        content = captured["page_content"]
+
+        assert "Table: employees" in content
+        assert "Columns: id, name" in content
+        assert "Column Types: id=NUMBER, name=STRING" in content
+        assert "Sample:" in content
+        assert "id,name" in content
+
+    def test_prefers_all_tables_over_single_table(self, svc):
+        captured = {}
+
+        def capturing_create(file_name, page_content, original_metadata=None):
+            captured["page_content"] = page_content
+            return make_metadata(name=file_name)
+
+        svc.create_file_metadata = capturing_create
+
+        elements = [
+            {
+                "text": "id,name\n1,Jeff",
+                "document_schema": {
+                    "name": "employees",
+                    "columns": {
+                        "id": "NUMBER",
+                        "name": "STRING",
+                    },
+                },
+            },
+            {
+                "text": "dept_id,title\n10,HR",
+                "document_schema": {
+                    "name": "departments",
+                    "columns": {
+                        "dept_id": "NUMBER",
+                        "title": "STRING",
+                    },
+                },
+            },
+        ]
+
+        svc.extract("tables.xlsx", elements)
+
+        content = captured["page_content"]
+
+        assert "Table: employees" in content
+        assert "Table: departments" in content
+
+    def test_truncates_large_tabular_content(self, svc):
+        captured = {}
+
+        def capturing_create(file_name, page_content, original_metadata=None):
+            captured["page_content"] = page_content
+            return make_metadata(name=file_name)
+
+        svc.create_file_metadata = capturing_create
+
+        elements = [
+            {
+                "text": "a" * 20_000,
+                "document_schema": {
+                    "name": "big_table",
+                    "columns": {
+                        "value": "STRING",
+                    },
+                },
+            }
+        ]
+
+        svc.extract("big.csv", elements)
+
+        assert len(captured["page_content"]) <= 10_000
+        assert "Table: big_table" in captured["page_content"]
