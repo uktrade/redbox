@@ -876,7 +876,10 @@ async def test_connect_with_agents_cache(
     staff_user: User,
 ):
     ChatConsumer.redbox = None
-    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+    with (
+        patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get,
+        patch("redbox_app.redbox_core.consumers.Redbox"),
+    ):
         mock_get.return_value = agents_list
 
         # First connection - should call get_all_agents
