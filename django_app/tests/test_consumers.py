@@ -96,7 +96,7 @@ async def test_chat_consumer_with_new_session(
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_chat_consumer_existing_session_files_with_no_prior_messages(
-    alice: User, uploaded_file: File, agents_list, mocked_content
+    alice: User, uploaded_file: File, agents_list, mocked_connect
 ):
     # create session with no messages
     session = await Chat.objects.acreate(name="empty session", user=alice)
@@ -109,7 +109,7 @@ async def test_chat_consumer_existing_session_files_with_no_prior_messages(
         assert connected
 
         # now send with no prior messages but with a sessionID and Selected files
-        with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_content):
+        with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
             await communicator.send_json_to(
                 {
                     "message": "Hello World",
