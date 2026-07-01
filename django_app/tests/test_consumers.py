@@ -93,7 +93,7 @@ async def test_chat_consumer_with_new_session(
         await refresh_from_db(uploaded_file)
 
 
-@pytest.mark.django(transaction=True)
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_chat_consumer_existing_session_files_with_no_prior_messages(
     alice: User, uploaded_file: File, agents_list, mocked_content
