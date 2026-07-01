@@ -93,6 +93,35 @@ async def test_chat_consumer_with_new_session(
         await refresh_from_db(uploaded_file)
 
 
+@pytest.mark.django(transaction=True)
+@pytest.mark.asyncio
+async def test_chat_consumer_existing_session_files_with_no_prior_messages(
+    alice: User, uploaded_file: File, agents_list, mocked_content
+):
+    # create session with no messages
+    session = await Chat.objects.acreate(name="empty session", user=alice)
+
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
+        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        communicator.scope["user"] = alice
+        connected, _ = await communicator.connect(timeout=5)
+        assert connected
+
+        # now send with no prior messages but with a sessionID and Selected files
+        with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_content):
+            await communicator.send_json_to(
+                {
+                    "message": "Hello World",
+                    "sessionId": str(session.id),
+                    "selectedFiles": [str(uploaded_file.id)],
+                }
+            )
+            # should not get error, but a session id as response
+            response = await communicator.receive_json_from(timeout=5)
+            assert response["type"] != "error"
+
+
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_chat_consumer_staff_user(agents_list: list, staff_user: User, mocked_connect: Connect):
