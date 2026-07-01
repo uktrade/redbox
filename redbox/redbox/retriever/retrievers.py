@@ -372,22 +372,8 @@ class TabularReconstructionMixin:
 
     @staticmethod
     def _strip_header(text: str) -> str:
-        """
-        Removes the repeated first line from a split table chunk.
-
-        Each split chunk begins with the same first line, e.g.
-
-            <table_name>sheet1</table_name>col1,col2,...
-
-        When reconstructing we keep the first chunk intact and strip this
-        repeated header from all subsequent chunks.
-        """
         lines = text.splitlines()
-
-        if len(lines) <= 1:
-            return ""
-
-        return "\n".join(lines[1:])
+        return "\n".join(lines[1:]) if len(lines) > 1 else ""
 
     def _reconstruct_tables(
         self,
@@ -399,16 +385,16 @@ class TabularReconstructionMixin:
             metadata = doc.get("metadata", {})
             schema = metadata.get("document_schema") or {}
 
-            # No chunk metadata means this table was never split.
-            chunk = schema.get("chunk")
-            if not chunk:
+            if schema.get("type") != "tabular":
                 grouped["__standalone__"].append(doc)
                 continue
 
             key = (
                 metadata.get("uri"),
                 schema.get("name"),
+                tuple(sorted((schema.get("columns") or {}).items())),
             )
+
             grouped[key].append(doc)
 
         reconstructed: list[dict[str, Any]] = []
@@ -418,35 +404,38 @@ class TabularReconstructionMixin:
                 reconstructed.extend(group)
                 continue
 
-            # Reconstruct only if every chunk has a metadata index.
-            if all(doc.get("metadata", {}).get("index") is not None for doc in group):
-                group.sort(key=lambda d: d["metadata"]["index"])
+            # CASE 1: all indices exist -> reconstruct
+            if all(d.get("metadata", {}).get("index") is not None for d in group):
+                group = sorted(group, key=lambda d: d["metadata"]["index"])
 
                 base = deepcopy(group[0])
 
-                if "text" in base:
-                    merged: list[str] = []
+                merged: list[str] = []
+                for i, doc in enumerate(group):
+                    text = doc.get("text", "")
+                    if i == 0:
+                        merged.append(text)
+                    else:
+                        merged.append(self._strip_header(text))
 
-                    for i, doc in enumerate(group):
-                        text = doc.get("text", "")
+                base["text"] = "\n".join([m for m in merged if m])
 
-                        if i == 0:
-                            merged.append(text)
-                        else:
-                            merged.append(self._strip_header(text))
+                meta = base.get("metadata", {})
+                schema = meta.get("document_schema") or {}
 
-                    base["text"] = "\n".join(part for part in merged if part)
+                schema = dict(schema)
+                schema["reconstructed"] = True
 
-                base["metadata"]["document_schema"] = {
-                    **base["metadata"]["document_schema"],
-                    "reconstructed": True,
-                }
+                meta["document_schema"] = schema
+                base["metadata"] = meta
 
                 reconstructed.append(base)
+                continue
 
-            else:
-                # Can't determine ordering; return the largest chunk only.
-                reconstructed.append(max(group, key=lambda d: len(d.get("text", ""))))
+            # CASE 2: missing index -> fallback to largest ONLY
+            largest = max(group, key=lambda d: len(d.get("text", "")))
+
+            reconstructed.append(largest)
 
         return reconstructed
 
