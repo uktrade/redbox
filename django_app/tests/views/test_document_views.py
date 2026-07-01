@@ -2,7 +2,8 @@ import logging
 import uuid
 from http import HTTPStatus
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest import mock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from botocore.exceptions import ClientError
@@ -10,6 +11,7 @@ from bs4 import BeautifulSoup
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import UploadedFile
+from django.db import IntegrityError
 from django.test import Client, RequestFactory
 from django.urls import reverse
 
@@ -693,6 +695,19 @@ def test_upload_invalid_document(alice, client, original_file, default_tool):
     # Then
     assert response.status_code == HTTPStatus.OK
     assert f"Error with {original_file.name}: File type  not supported" in response_content
+
+
+@mock.patch("redbox_app.redbox_core.services.documents.File.objects.create")
+@pytest.mark.django_db
+def test_upload_document_exception(create_file_mock, alice, client, original_file):
+    """
+    Test the API endpoint handles unexpected errors correctly.
+    """
+    client.force_login(alice)
+    create_file_mock.side_effect = IntegrityError("db exploded")
+
+    with pytest.raises(IntegrityError):
+        client.post(reverse("document-upload"), {"file": original_file})
 
 
 @pytest.mark.django_db
