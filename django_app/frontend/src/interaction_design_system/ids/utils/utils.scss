@@ -142,3 +142,24 @@ tr.ids-expanded-row {
     padding: 20px;
   }
 }
+
+.ids-line-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ids-line-clamp--1 {
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+.ids-line-clamp--2 {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.ids-line-clamp--3 {
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}

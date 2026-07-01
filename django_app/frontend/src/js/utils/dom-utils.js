@@ -1,13 +1,14 @@
 // @ts-check
 
-const VISUALLY_HIDDEN_CLASS = "govuk-!-display-none"
+const HIDDEN_CLASS = "govuk-!-display-none"
+const VISUALLY_HIDDEN_CLASS = "govuk-visually-hidden"
 
 /**
  * Hide an element by using the govuk-!-display-none class
  * @param {Element | undefined | null} element - Element
 */
 export function hideElement(element) {
-    if (element) element.classList.add(VISUALLY_HIDDEN_CLASS);
+    if (element) element.classList.add(HIDDEN_CLASS);
 }
 
 
@@ -16,6 +17,26 @@ export function hideElement(element) {
  * @param {Element | undefined | null} element - Element
 */
 export function showElement(element) {
+    if (element) element.classList.remove(HIDDEN_CLASS);
+}
+
+
+/**
+ * Visually hide an element by using the govuk-visually-hidden class
+ * Remains accessible to screen readers
+ * @param {Element | undefined | null} element - Element
+*/
+export function visuallyHideElement(element) {
+    if (element) element.classList.add(VISUALLY_HIDDEN_CLASS);
+}
+
+
+/**
+ * Visually show an element by removing the govuk-visually-hidden class
+ * Remains accessible to screen readers
+ * @param {Element | undefined | null} element - Element
+*/
+export function visuallyShowElement(element) {
     if (element) element.classList.remove(VISUALLY_HIDDEN_CLASS);
 }
 
@@ -27,7 +48,7 @@ export function showElement(element) {
 export function isHidden(element) {
     if (!element) return true;
 
-    return element.classList.contains(VISUALLY_HIDDEN_CLASS);
+    return element.classList.contains(HIDDEN_CLASS);
 }
 
 
@@ -97,4 +118,13 @@ export function focusFirstFocusable(container) {
     }));
 
     if (visible) visible.focus();
+}
+
+
+/**
+ * Returns the currently focused element
+ * @returns {Element | null} focused element
+*/
+export function getFocusedElement() {
+    return document.activeElement;
 }

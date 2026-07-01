@@ -10,6 +10,7 @@ from django.test import Client
 from waffle.testutils import override_flag
 
 from redbox_app.jinja2 import (
+    domain,
     environment,
     get_menu_items,
     get_product_name,
@@ -249,3 +250,17 @@ def test_show_all_attrs():
 
     # Then
     assert "<class 'str'>" in result
+
+
+def test_domain():
+    # Given
+    obj = "https://www.gov.uk/"
+    obj2 = "invalid"
+
+    # When
+    result = domain(obj)
+    result2 = domain(obj2)
+
+    # Then
+    assert result == "gov.uk"
+    assert not result2

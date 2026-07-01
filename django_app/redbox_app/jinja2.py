@@ -1,5 +1,6 @@
 import datetime
 import re
+from urllib.parse import urlparse
 
 import humanize
 import jinja2
@@ -115,6 +116,15 @@ def show_all_attrs(value) -> str:
     return str("\n".join(result))
 
 
+def domain(url: str) -> str:
+    if not url:
+        return ""
+
+    parsed = urlparse(str(url))
+
+    return parsed.netloc.removeprefix("www.")
+
+
 def environment(**options):
     extra_options = {}
 
@@ -136,6 +146,7 @@ def environment(**options):
             "environment": settings.ENVIRONMENT.value,
             "security": settings.MAX_SECURITY_CLASSIFICATION.value,
             "show_all_attrs": show_all_attrs,
+            "domain": domain,
         }
     )
     env.globals.update(

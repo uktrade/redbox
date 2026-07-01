@@ -54,12 +54,64 @@ def get_token_use_count(use_type: str) -> int:
     return ChatMessageTokenUse.objects.filter(use_type=use_type).latest("created_at").token_count
 
 
+async def assert_mocked_connect_response(communicator: WebsocketCommunicator, message: str = "Hello Hal."):
+    await communicator.send_json_to({"message": message})
+    response1 = await communicator.receive_json_from(timeout=5)
+    response2 = await communicator.receive_json_from(timeout=5)
+    response3 = await communicator.receive_json_from(timeout=5)
+    response4 = await communicator.receive_json_from(timeout=5)
+    response5 = await communicator.receive_json_from(timeout=5)
+    response6 = await communicator.receive_json_from(timeout=5)
+    response7 = await communicator.receive_json_from(timeout=5)
+    response8 = await communicator.receive_json_from(timeout=5)
+
+    assert response1["type"] == "message_created"
+    assert response1["data"]["chat_message_id"]
+    assert response1["data"]["chat_message_role"] == "user"
+    assert response1["data"]["html"]
+
+    assert response2["type"] == "message_created"
+    assert response2["data"]["chat_message_id"]
+    assert response2["data"]["chat_message_role"] == "ai"
+    assert response2["data"]["html"]
+
+    assert response3["type"] == "session-id"
+
+    assert response4["type"] == "message_update"
+    assert response4["data"]["chat_message_id"]
+    assert response4["data"]["sr_text"] == "Good afternoon, "
+    assert response4["data"]["html"]
+
+    assert response5["type"] == "message_update"
+    assert response5["data"]["chat_message_id"]
+    assert response5["data"]["sr_text"] == "Mr. "
+    assert response5["data"]["html"]
+
+    assert response6["type"] == "message_update"
+    assert response6["data"]["chat_message_id"]
+    assert response6["data"]["sr_text"] == "Amor."
+    assert response6["data"]["html"]
+
+    assert response7["type"] == "route"
+    assert response7["data"] == "gratitude"
+
+    assert response8["type"] == "message_complete"
+    assert response8["data"]["chat_message_id"]
+    assert response8["data"]["title"] == message
+    assert response8["data"]["session_id"]
+    assert response8["data"]["html"]
+
+    # Close
+    await communicator.disconnect()
+
+
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_chat_consumer_with_new_session(
     agents_list: list, alice: User, uploaded_file: File, mocked_connect: Connect
 ):
     # Given
+    message = "Hello Hal."
 
     # When
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
@@ -70,24 +122,9 @@ async def test_chat_consumer_with_new_session(
         connected, _ = await communicator.connect(timeout=5)
         assert connected
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
-            await communicator.send_json_to({"message": "Hello Hal."})
-            response1 = await communicator.receive_json_from(timeout=5)
-            response2 = await communicator.receive_json_from(timeout=5)
-            response3 = await communicator.receive_json_from(timeout=5)
-            response4 = await communicator.receive_json_from(timeout=5)
+            await assert_mocked_connect_response(communicator=communicator, message=message)
 
-            # Then
-            assert response1["type"] == "session-id"
-            assert response2["type"] == "text"
-            assert response2["data"] == "Good afternoon, "
-            assert response3["type"] == "text"
-            assert response3["data"] == "Mr. Amor."
-            assert response4["type"] == "route"
-            assert response4["data"] == "gratitude"
-            # Close
-            await communicator.disconnect()
-
-        assert await get_chat_message_text(alice, ChatMessage.Role.user) == ["Hello Hal."]
+        assert await get_chat_message_text(alice, ChatMessage.Role.user) == [message]
         assert await get_chat_message_route(alice, ChatMessage.Role.ai) == ["gratitude"]
 
         await refresh_from_db(uploaded_file)
@@ -107,23 +144,7 @@ async def test_chat_consumer_staff_user(agents_list: list, staff_user: User, moc
         connected, _ = await communicator.connect()
         assert connected
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
-            await communicator.send_json_to({"message": "Hello Hal.", "output_text": "hello"})
-            response1 = await communicator.receive_json_from(timeout=5)
-            response2 = await communicator.receive_json_from(timeout=5)
-            response3 = await communicator.receive_json_from(timeout=5)
-            response4 = await communicator.receive_json_from(timeout=5)
-            _response5 = await communicator.receive_json_from(timeout=5)
-
-            # Then
-            assert response1["type"] == "session-id"
-            assert response2["type"] == "text"
-            assert response2["data"] == "Good afternoon, "
-            assert response3["type"] == "text"
-            assert response3["data"] == "Mr. Amor."
-            assert response4["type"] == "route"
-            assert response4["data"] == "gratitude"
-            # Close
-            await communicator.disconnect()
+            await assert_mocked_connect_response(communicator=communicator)
 
         assert await get_chat_message_route(staff_user, ChatMessage.Role.ai) == ["gratitude"]
 
@@ -142,11 +163,13 @@ async def test_chat_consumer_with_existing_session(agents_list: list, alice: Use
         assert connected
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
             await communicator.send_json_to({"message": "Hello Hal.", "sessionId": str(chat.id)})
-            response1 = await communicator.receive_json_from(timeout=5)
+            _response1 = await communicator.receive_json_from(timeout=5)
+            _response2 = await communicator.receive_json_from(timeout=5)
+            response3 = await communicator.receive_json_from(timeout=5)
 
             # Then
-            assert response1["type"] == "session-id"
-            assert response1["data"] == str(chat.id)
+            assert response3["type"] == "session-id"
+            assert response3["data"] == str(chat.id)
 
             # Close
             await communicator.disconnect()
@@ -161,7 +184,7 @@ async def test_chat_consumer_with_naughty_question(
     agents_list: list, alice: User, uploaded_file: File, mocked_connect: Connect
 ):
     # Given
-
+    message = "Hello Hal."
     # When
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
@@ -170,27 +193,12 @@ async def test_chat_consumer_with_naughty_question(
         connected, _ = await communicator.connect()
         assert connected
 
-    with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
-        await communicator.send_json_to({"message": "Hello Hal. \x00"})
-        response1 = await communicator.receive_json_from(timeout=5)
-        response2 = await communicator.receive_json_from(timeout=5)
-        response3 = await communicator.receive_json_from(timeout=5)
-        response4 = await communicator.receive_json_from(timeout=5)
+        with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
+            await assert_mocked_connect_response(communicator=communicator, message=f"{message} \x00")
 
-        # Then
-        assert response1["type"] == "session-id"
-        assert response2["type"] == "text"
-        assert response2["data"] == "Good afternoon, "
-        assert response3["type"] == "text"
-        assert response3["data"] == "Mr. Amor."
-        assert response4["type"] == "route"
-        assert response4["data"] == "gratitude"
-        # Close
-        await communicator.disconnect()
-
-    assert await get_chat_message_text(alice, ChatMessage.Role.user) == ["Hello Hal. \ufffd"]
-    assert await get_chat_message_text(alice, ChatMessage.Role.ai) == ["Good afternoon, Mr. Amor."]
-    assert await get_chat_message_route(alice, ChatMessage.Role.ai) == ["gratitude"]
+        assert await get_chat_message_text(alice, ChatMessage.Role.user) == [f"{message} \ufffd"]
+        assert await get_chat_message_text(alice, ChatMessage.Role.ai) == ["Good afternoon, Mr. Amor."]
+        assert await get_chat_message_route(alice, ChatMessage.Role.ai) == ["gratitude"]
     await refresh_from_db(uploaded_file)
 
 
@@ -200,6 +208,7 @@ async def test_chat_consumer_with_naughty_citation(
     agents_list: list, alice: User, uploaded_file: File, mocked_connect_with_naughty_citation: Connect
 ):
     # Given
+    message = "Hello Hal."
 
     # When
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
@@ -212,21 +221,9 @@ async def test_chat_consumer_with_naughty_citation(
         with patch(
             "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_with_naughty_citation
         ):
-            await communicator.send_json_to({"message": "Hello Hal."})
-            response1 = await communicator.receive_json_from(timeout=5)
-            response2 = await communicator.receive_json_from(timeout=5)
-            response3 = await communicator.receive_json_from(timeout=5)
+            await assert_mocked_connect_response(communicator=communicator, message=message)
 
-            # Then
-            assert response1["type"] == "session-id"
-            assert response2["type"] == "text"
-            assert response2["data"] == "Good afternoon, Mr. Amor."
-            assert response3["type"] == "route"
-            assert response3["data"] == "gratitude"
-            # Close
-            await communicator.disconnect()
-
-        assert await get_chat_message_text(alice, ChatMessage.Role.user) == ["Hello Hal."]
+        assert await get_chat_message_text(alice, ChatMessage.Role.user) == [message]
         assert await get_chat_message_text(alice, ChatMessage.Role.ai) == ["Good afternoon, Mr. Amor."]
         assert await get_chat_message_route(alice, ChatMessage.Role.ai) == ["gratitude"]
         await refresh_from_db(uploaded_file)
@@ -258,6 +255,7 @@ async def test_chat_consumer_agentic(
     agents_list: list, alice: User, uploaded_file: File, mocked_connect_agentic_search: Connect
 ):
     # Given
+    message = "Hello Hal."
 
     # When
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
@@ -268,26 +266,60 @@ async def test_chat_consumer_agentic(
         assert connected
 
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_agentic_search):
-            await communicator.send_json_to({"message": "Hello Hal."})
+            # Then
+            await communicator.send_json_to({"message": message})
             response1 = await communicator.receive_json_from(timeout=5)
             response2 = await communicator.receive_json_from(timeout=5)
             response3 = await communicator.receive_json_from(timeout=5)
             response4 = await communicator.receive_json_from(timeout=5)
             response5 = await communicator.receive_json_from(timeout=5)
+            response6 = await communicator.receive_json_from(timeout=5)
+            response7 = await communicator.receive_json_from(timeout=5)
+            response8 = await communicator.receive_json_from(timeout=5)
+            response9 = await communicator.receive_json_from(timeout=5)
 
-            # Then
-            assert response1["type"] == "session-id"
-            assert response2["type"] == "text"
-            assert response2["data"] == "Good afternoon, "
-            assert response3["type"] == "text"
-            assert response3["data"] == "Mr. Amor."
-            assert response4["type"] == "route"
-            assert response4["data"] == "search/agentic"
-            assert response5["type"] == "source"
+            assert response1["type"] == "message_created"
+            assert response1["data"]["chat_message_id"]
+            assert response1["data"]["chat_message_role"] == "user"
+            assert response1["data"]["html"]
+
+            assert response2["type"] == "message_created"
+            assert response2["data"]["chat_message_id"]
+            assert response2["data"]["chat_message_role"] == "ai"
+            assert response2["data"]["html"]
+
+            assert response3["type"] == "session-id"
+
+            assert response4["type"] == "message_update"
+            assert response4["data"]["chat_message_id"]
+            assert response4["data"]["sr_text"] == "Good afternoon, "
+            assert response4["data"]["html"]
+
+            assert response5["type"] == "message_update"
+            assert response5["data"]["chat_message_id"]
+            assert response5["data"]["sr_text"] == "Mr. "
+            assert response5["data"]["html"]
+
+            assert response6["type"] == "message_update"
+            assert response6["data"]["chat_message_id"]
+            assert response6["data"]["sr_text"] == "Amor."
+            assert response6["data"]["html"]
+
+            assert response7["type"] == "route"
+            assert response7["data"] == "search/agentic"
+
+            assert response8["type"] == "source"
+
+            assert response9["type"] == "message_complete"
+            assert response9["data"]["chat_message_id"]
+            assert response9["data"]["title"] == message
+            assert response9["data"]["session_id"]
+            assert response9["data"]["html"]
+
             # Close
             await communicator.disconnect()
 
-        assert await get_chat_message_text(alice, ChatMessage.Role.user) == ["Hello Hal."]
+        assert await get_chat_message_text(alice, ChatMessage.Role.user) == [message]
         assert await get_chat_message_text(alice, ChatMessage.Role.ai) == ["Good afternoon, Mr. Amor."]
 
         await refresh_from_db(uploaded_file)
@@ -396,11 +428,13 @@ async def test_chat_consumer_with_connection_error(agents_list: list, alice: Use
 
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_breaking_connect):
             await communicator.send_json_to({"message": "Hello Hal."})
-            await communicator.receive_json_from(timeout=5)
-            response2 = await communicator.receive_json_from(timeout=5)
+            _response1 = await communicator.receive_json_from(timeout=5)
+            _response2 = await communicator.receive_json_from(timeout=5)
+            _response3 = await communicator.receive_json_from(timeout=5)
+            response4 = await communicator.receive_json_from(timeout=5)
 
             # Then
-            assert response2["type"] == "error"
+            assert response4["type"] == "error"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -422,16 +456,20 @@ async def test_chat_consumer_with_explicit_unhandled_error(
             new=mocked_connect_with_explicit_unhandled_error,
         ):
             await communicator.send_json_to({"message": "Hello Hal."})
-            response1 = await communicator.receive_json_from(timeout=5)
-            response2 = await communicator.receive_json_from(timeout=5)
+            _response1 = await communicator.receive_json_from(timeout=5)
+            _response2 = await communicator.receive_json_from(timeout=5)
             response3 = await communicator.receive_json_from(timeout=5)
+            response4 = await communicator.receive_json_from(timeout=5)
+            response5 = await communicator.receive_json_from(timeout=5)
+            _response6 = await communicator.receive_json_from(timeout=5)
 
             # Then
-            assert response1["type"] == "session-id"
-            assert response2["type"] == "text"
-            assert response2["data"] == "Good afternoon, "
-            assert response3["type"] == "text"
-            assert response3["data"] == error_messages.CORE_ERROR_MESSAGE
+            assert response3["type"] == "session-id"
+            assert response4["type"] == "message_update"
+            assert response4["data"]["sr_text"] == "Good afternoon, "
+            assert response5["type"] == "message_update"
+            assert response5["data"]["sr_text"] in error_messages.CORE_ERROR_MESSAGE
+
             # Close
             await communicator.disconnect()
 
@@ -455,16 +493,20 @@ async def test_chat_consumer_with_rate_limited_error(
             "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_with_rate_limited_error
         ):
             await communicator.send_json_to({"message": "Hello Hal."})
-            response1 = await communicator.receive_json_from(timeout=5)
-            response2 = await communicator.receive_json_from(timeout=5)
+            _response1 = await communicator.receive_json_from(timeout=5)
+            _response2 = await communicator.receive_json_from(timeout=5)
             response3 = await communicator.receive_json_from(timeout=5)
+            response4 = await communicator.receive_json_from(timeout=5)
+            response5 = await communicator.receive_json_from(timeout=5)
+            _response6 = await communicator.receive_json_from(timeout=5)
 
             # Then
-            assert response1["type"] == "session-id"
-            assert response2["type"] == "text"
-            assert response2["data"] == "Good afternoon, "
-            assert response3["type"] == "text"
-            assert response3["data"] == error_messages.RATE_LIMITED
+            assert response3["type"] == "session-id"
+            assert response4["type"] == "message_update"
+            assert response4["data"]["sr_text"] == "Good afternoon, "
+            assert response5["type"] == "message_update"
+            assert response5["data"]["sr_text"] in error_messages.RATE_LIMITED
+
             # Close
             await communicator.disconnect()
 
@@ -489,13 +531,17 @@ async def test_chat_consumer_with_explicit_no_document_selected_error(
             new=mocked_connect_with_explicit_no_document_selected_error,
         ):
             await communicator.send_json_to({"message": "Hello Hal."})
-            response1 = await communicator.receive_json_from(timeout=5)
-            response2 = await communicator.receive_json_from(timeout=5)
+            _response1 = await communicator.receive_json_from(timeout=5)
+            _response2 = await communicator.receive_json_from(timeout=5)
+            response3 = await communicator.receive_json_from(timeout=5)
+            response4 = await communicator.receive_json_from(timeout=5)
+            _response5 = await communicator.receive_json_from(timeout=5)
 
             # Then
-            assert response1["type"] == "session-id"
-            assert response2["type"] == "text"
-            assert response2["data"] == error_messages.SELECT_DOCUMENT
+            assert response3["type"] == "session-id"
+            assert response4["type"] == "message_update"
+            assert response4["data"]["sr_text"] in error_messages.SELECT_DOCUMENT
+
             # Close
             await communicator.disconnect()
 
@@ -553,14 +599,17 @@ async def test_chat_consumer_with_american_to_british_conversion(
             connected, _ = await communicator.connect()
             assert connected
             await communicator.send_json_to({"message": "Hello Hal."})
-            response1 = await communicator.receive_json_from(timeout=5)
-            response2 = await communicator.receive_json_from(timeout=5)
+            _response1 = await communicator.receive_json_from(timeout=5)
+            _response2 = await communicator.receive_json_from(timeout=5)
+            response3 = await communicator.receive_json_from(timeout=5)
+            response4 = await communicator.receive_json_from(timeout=5)
+            _response5 = await communicator.receive_json_from(timeout=5)
 
             # Then
-            assert response1["type"] == "session-id"
-            assert response2["type"] == "text"
+            assert response3["type"] == "session-id"
+            assert response4["type"] == "message_update"
             assert (
-                response2["data"] == "Recognise these coloured filters?"
+                response4["data"]["sr_text"] in "Recognise these coloured filters?"
             )  # Converted from "Recognize these colored filters?"
 
             # Close
@@ -605,10 +654,13 @@ async def test_chat_consumer_redbox_state(
                     "selectedFiles": selected_file_uuids,
                 }
             )
-            response1 = await communicator.receive_json_from(timeout=5)
+            _response1 = await communicator.receive_json_from(timeout=5)
+            _response2 = await communicator.receive_json_from(timeout=5)
+            response3 = await communicator.receive_json_from(timeout=5)
+
             # Then
-            assert response1["type"] == "session-id"
-            assert response1["data"] == str(chat_with_files.id)
+            assert response3["type"] == "session-id"
+            assert response3["data"] == str(chat_with_files.id)
 
             # Close
             await communicator.disconnect()
@@ -724,8 +776,9 @@ def mocked_connect_with_naughty_citation() -> CannedGraphLLM:
         {
             "event": "on_chat_model_stream",
             "tags": [FINAL_RESPONSE_TAG],
-            "data": {"chunk": Token(content="Good afternoon, Mr. Amor.")},
+            "data": {"chunk": Token(content="Good afternoon, ")},
         },
+        {"event": "on_chat_model_stream", "tags": [FINAL_RESPONSE_TAG], "data": {"chunk": Token(content="Mr. Amor.")}},
         {"event": "on_chain_end", "tags": [ROUTE_NAME_TAG], "data": {"output": {"route_name": "gratitude"}}},
     ]
 

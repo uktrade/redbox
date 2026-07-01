@@ -82,7 +82,7 @@ export const Events = /** @type {const} */ ({
  *  "file-uploads-processed": {uploadedFiles:HTMLElement},
  *  "file-uploads-removed": {uploadedFiles:HTMLElement},
  *  "side-panel-toggle": {SidePanelToggle:HTMLElement},
- *  "scroll-to-bottom": {source:HTMLElement, force?:boolean},
+ *  "scroll-to-bottom": {source?:HTMLElement, force?:boolean},
  * }} EventMap
  */
 

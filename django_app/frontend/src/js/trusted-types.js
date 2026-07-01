@@ -14,7 +14,7 @@ if (typeof window.trustedTypes !== "undefined") {
             tagName === "copy-text" ||
             tagName === "feedback-buttons" ||
             tagName === "loading-message" ||
-            tagName === "markdown-converter" ||
+            tagName === "streamed-content" ||
             tagName === "sources-list" ||
             tagName === "tool-tip",
           attributeNameCheck: (attr) => true,

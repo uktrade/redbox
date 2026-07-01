@@ -159,3 +159,15 @@ only screen and (min-resolution:192dpi) {
     background-image: url(/static/govuk-frontend/assets/images/govuk-crest-2x.png)
   }
 }
+
+streamed-content {
+  p {
+    margin: 0;
+  }
+
+  pre:has(code) {
+    background: var(--color-background-grey);
+    border-radius: 5px;
+    padding: 15px;
+  }
+}

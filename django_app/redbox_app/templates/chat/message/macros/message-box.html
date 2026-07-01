@@ -1,0 +1,40 @@
+{% from "macros/govuk-error-summary.html" import govukErrorSummary %}
+
+{% macro message_box(
+    role="",
+    text="",
+    message_id=None,
+    selected_files=None,
+    resources=None,
+    route=None
+) %}
+
+{% set role_text = "System response" %}
+{% if role == "ai" %}
+  {% set role_text = "AI Response" %}
+  {% set content_container_class = "ids-message-container__left" %}
+{% elif role == "user" %}
+  {% set role_text = "User message" %}
+  {% set content_container_class = "ids-message-container__right ids-border" %}
+{% endif %}
+
+{% set error_message %}
+    If the problem persists, please contact
+    <a class="govuk-body govuk-link" href="/support/">support</a>
+{% endset %}
+
+
+<li data-role="chat-message-list-item">
+    <chat-message id="chat-message-{{ message_id or '' }}" data-role="{{ role }}" data-id="{{ message_id }}">
+        <section class="ids-message-container govuk-body" aria-label="{{ role_text }}" tabindex="-1">
+            <div class="{{ content_container_class }}">
+                <streamed-content class="ids-chat-message__text" data-text>
+                    {% include "chat/message/message-content.html" %}
+                </streamed-content>
+                {% include "chat/message/loading-message.html" %}
+                {% include "chat/message/feedback.html" %}
+            </div>
+        </section>
+    </chat-message>
+</li>
+{% endmacro %}

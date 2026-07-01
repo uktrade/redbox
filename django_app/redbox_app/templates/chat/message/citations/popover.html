@@ -1,0 +1,43 @@
+{% from "macros/govuk-button.html" import govukButton %}
+{% from "macros/govuk-link.html" import govukLink %}
+
+{% set popover_id = "citation-popover-" ~ citation.id %}
+
+<span data-citation-id="{{ citation.id }}">
+    <ids-popover class="citation-popover">
+        {% call govukButton(
+            classes="govuk-button--secondary rb-footnote-link ids-popover__trigger",
+            prevent_double_click=True,
+            dont_submit=True,
+            attributes={
+                "aria-expanded": "false",
+                "aria-controls": popover_id
+            }
+        ) %}
+            <span class="govuk-visually-hidden">Citation </span>
+            {{ footnote_counter }}
+        {% endcall %}
+
+        <span class="ids-popover__panel govuk-!-display-none" id="{{ popover_id }}" data-open="false">
+            <span class="ids-popover__content">
+                <span class="govuk-heading-s ids-line-clamp ids-line-clamp--3" title="{{ citation.text }}">
+                    {{ citation.text }}
+                </span>
+
+                <span class="govuk-body-s govuk-!-margin-bottom-0 ids-line-clamp ids-line-clamp--1">
+                    {% if citation.is_external %}
+                        {% set citation_link_text = citation.uri|domain %}
+                    {% else %}
+                        {% set citation_link_text = "View source" %}
+                    {% endif  %}
+
+                    {{ citation.source_display }} |
+                    <a class="govuk-link" href="{{ citation.uri }}">
+                        {{ citation_link_text }}
+                    </a>
+                    <!-- {{ govukLink(text=citation_link_text, href=citation.uri) }} -->
+                </span>
+            </span>
+        </span>
+    </ids-popover>
+</span>

@@ -1,0 +1,6 @@
+{% if role == "ai" %}
+    <div class="chat-actions-container chat-actions-container__feedback">
+        <feedback-buttons data-id="{{ message_id }}"></feedback-buttons>
+        <copy-text data-id="{{ message_id }}"></copy-text>
+    </div>
+{% endif %}

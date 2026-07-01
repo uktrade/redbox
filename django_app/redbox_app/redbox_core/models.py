@@ -11,6 +11,8 @@ from functools import reduce
 from pathlib import Path
 from typing import TYPE_CHECKING, override
 
+from asgiref.sync import sync_to_async
+
 if TYPE_CHECKING:
     from collections.abc import Collection, Sequence
 
@@ -1504,6 +1506,28 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
 
         return int(match.group())
 
+    @cached_property
+    def source_display(self) -> str:
+        source_names = {
+            self.Origin.WIKIPEDIA.value: "Wikipedia",
+            self.Origin.USER_UPLOADED_DOCUMENT.value: "Document",
+            self.Origin.GOV_UK.value: "GOV.UK",
+            self.Origin.WEB_SEARCH.value: "Web",
+        }
+
+        return source_names.get(
+            self.source,
+            self.Origin(self.source).label,
+        )
+
+    @cached_property
+    def is_external(self) -> bool:
+        return self.url is not None
+
+    @cached_property
+    def is_internal(self) -> bool:
+        return self.file is not None
+
 
 class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
     class Role(models.TextChoices):
@@ -1582,10 +1606,30 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
         except TypeError:
             return sorted(citations, key=lambda citation: citation.display_name)
 
+    async def aget_citations(self) -> list[Citation]:
+        return await sync_to_async(self.get_citations)()
+
     @cached_property
     def citations_url(self) -> str:
         slug = self.chat.tool.slug if self.chat.tool else None
         return url_service.get_citation_url(message_id=self.id, chat_id=self.chat.id, slug=slug)
+
+    def unique_selected_files(self):
+        return self.selected_files.all().distinct()
+
+    @property
+    def resources(self) -> list[Citation]:
+        seen = set()
+        resources = []
+
+        for citation in self.get_citations():
+            key = citation.file_id or citation.url
+
+            if key not in seen:
+                seen.add(key)
+                resources.append(citation)
+
+        return resources
 
 
 class ChatMessageTokenUse(UUIDPrimaryKeyBase, TimeStampedModel):

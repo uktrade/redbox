@@ -1,6 +1,6 @@
 {% from "macros/attributes.html" import renderAttributes %}
 
-{% macro govukButton(text=None, classes=None, prevent_double_click=False, dont_submit=False, id=None, attributes=None) %}
+{% macro govukButton(text="", classes=None, prevent_double_click=False, dont_submit=False, id=None, attributes=None) %}
 
 <button
   type="{{ 'button' if dont_submit else 'submit' }}"

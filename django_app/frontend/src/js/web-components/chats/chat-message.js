@@ -1,313 +1,102 @@
 // @ts-check
 
-import { hideElement, showElement } from "../../utils/dom-utils.js";
-import { LoadingMessage } from "../../../interaction_design_system/ids/components/loading-message.js";
-import { emitEvent, Events, listenEvent } from "../../../interaction_design_system/ids/events/events.js";
+import { LoadingMessage } from "../../../interaction_design_system/ids/components";
+import { hideElement, showElement } from "../../utils";
+import { StreamedContent } from "../streamed-content";
 
 export class ChatMessage extends HTMLElement {
-  connectedCallback() {
-    this.streamedContent = "";
-    this.LOGOUT_URL = this.dataset.logoutUrl;
-    this.#loadMessage();
-  }
-
-
-  #loadMessage = () => {
-    const uuid = crypto.randomUUID();
-    this.innerHTML = `
-            <div class="ids-message-container ${this.dataset.role == 'user' ? `ids-message-container__right` : ''} govuk-body" data-role="${this.dataset.role
-      }" tabindex="-1" id="chat-message-${this.dataset.id}">
-                <div class="${this.dataset.role == 'user' ? `ids-message-container__right ids-border` : 'ids-message-container__left'}">
-                  <markdown-converter class="ids-chat-message__text">${this.dataset.text || ""
-      }</markdown-converter>
-                </div>
-                ${!this.dataset.text
-        ? `
-                      <ids-loading-message data-aria-label="Loading message"></ids-loading-message>
-                      <div class="rb-loading-complete govuk-!-display-none" aria-live="assertive"></div>
-                    `
-        : ""
-      }
-                <sources-list data-id="${uuid}"></sources-list>
-                <div class="govuk-error-summary govuk-!-display-none" data-module="govuk-error-summary">
-                  <div class="govuk-body govuk-error-summary__title govuk-!-font-weight-bold">
-                    There was an unexpected error communicating with Redbox. Please try again.
-                  </div>
-                  <div class="govuk-body">
-                      If the problem persists, please contact
-                        <a class="govuk-body govuk-link" href="/support/">support</a>
-                    </div>
-                </div>
-            ${this.dataset.role == 'ai' ?
-        `<div class="chat-actions-container chat-actions-container__feedback">
-            </div>`
-        : ''}
-
-
-        `;
-
-    // Insert route_display HTML
-    if (this.dataset.role == "ai") {
-      const routeTemplate = /** @type {HTMLTemplateElement} */ (
-        document.querySelector("#template-route-display")
-      );
-      const routeClone = document.importNode(routeTemplate.content, true);
-      const actionsContainer = this.querySelector(".chat-actions-container");
-      if (actionsContainer) {
-        this.appendChild(routeClone);
-      }
+    connectedCallback() {
+        console.log("connected ChatMessage");
     }
-  };
 
 
-  #addFootnotes = (content, chatId) => {
-    let footnotes = this.querySelectorAll("sources-list a[data-text]");
-    footnotes.forEach((footnote, footnoteIndex) => {
-      const matchingText = footnote.getAttribute("data-text");
-      if (!matchingText || !this.responseContainer) {
-        return;
-      }
-      /*
-      this.responseContainer?.update(
-        content.replace(matchingText, `${matchingText}<a href="#${footnote.id}" aria-label="Footnote ${footnoteIndex + 1}">[${footnoteIndex + 1}]</a>`)
-      );
-      */
-      this.responseContainer.innerHTML =
-        this.responseContainer.innerHTML.replace(
-          matchingText,
-          `${matchingText}<a class="rb-footnote-link" href="/citations/${chatId}/#${footnote.id
-          }" aria-label="Footnote ${footnoteIndex + 1}">${footnoteIndex + 1
-          }</a>`
+    /**
+     * Returns the container for the streamed response
+     * @returns {StreamedContent} StreamedContent response container
+     */
+    get streamedContent() {
+        return /** @type {StreamedContent} */ (
+            this.querySelector("streamed-content")
         );
-    });
-  };
-
-  /**
-   * Displays a chosen file below a message
-   * @param {string} fileName
-   */
-  addFile = (fileName) => {
-    let attachedFiles = document.createElement("p");
-
-    attachedFiles.classList.add('govuk-body', 'govuk-!-text-align-right');
-    attachedFiles.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <g clip-path="url(#clip0_771_609)">
-    <path d="M19.5 22.5H8.25C7.85232 22.4995 7.47105 22.3414 7.18984 22.0602C6.90864 21.7789 6.75046 21.3977 6.75 21V16.5H8.25V21H19.5V4.5H12.75V3H19.5C19.8977 3.00046 20.279 3.15864 20.5602 3.43984C20.8414 3.72105 20.9995 4.10232 21 4.5V21C20.9995 21.3977 20.8414 21.7789 20.5602 22.0602C20.279 22.3414 19.8977 22.4995 19.5 22.5Z" fill="black"/>
-    <path d="M18 7.5H12.75V9H18V7.5Z" fill="black"/>
-    <path d="M18 11.25H12V12.75H18V11.25Z" fill="black"/>
-    <path d="M18 15H11.25V16.5H18V15Z" fill="black"/>
-    <path d="M6.75 14.25C5.75577 14.2489 4.80258 13.8535 4.09956 13.1504C3.39653 12.4474 3.00109 11.4942 3 10.5V2.25H4.5V10.5C4.5 11.0967 4.73705 11.669 5.15901 12.091C5.58097 12.5129 6.15326 12.75 6.75 12.75C7.34674 12.75 7.91903 12.5129 8.34099 12.091C8.76295 11.669 9 11.0967 9 10.5V3.75C9 3.55109 8.92098 3.36032 8.78033 3.21967C8.63968 3.07902 8.44891 3 8.25 3C8.05109 3 7.86032 3.07902 7.71967 3.21967C7.57902 3.36032 7.5 3.55109 7.5 3.75V11.25H6V3.75C6 3.15326 6.23705 2.58097 6.65901 2.15901C7.08097 1.73705 7.65326 1.5 8.25 1.5C8.84674 1.5 9.41903 1.73705 9.84099 2.15901C10.2629 2.58097 10.5 3.15326 10.5 3.75V10.5C10.4989 11.4942 10.1035 12.4474 9.40044 13.1504C8.69742 13.8535 7.74423 14.2489 6.75 14.25Z" fill="black"/>
-    </g>
-    <defs>
-    <clipPath id="clip0_771_609">
-    <rect width="24" height="24" fill="white"/>
-    </clipPath>
-    </defs>
-    </svg>  ${fileName}`
-    this.insertAdjacentElement("afterend", attachedFiles)
-
-  };
-
-  sanitiseText(/** @type {String} */ text) {
-    if (typeof text !== 'string') return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML; // to escape html entities
-  }
-
-  /**
-   * Streams an LLM response
-   * @param {string} message
-   * @param {string[]} selectedDocuments An array of IDs
-   * @param {string[]} activities
-   * @param {string} llm
-   * @param {string | undefined} sessionId
-   * @param {string} endPoint
-   * @param {HTMLElement} chatControllerRef
-   * @param {string} selectedTool
-   */
-  stream = (
-    message,
-    selectedDocuments,
-    activities,
-    llm,
-    sessionId,
-    endPoint,
-    chatControllerRef,
-    selectedTool
-  ) => {
-    const is_new_chat = !sessionId;
-
-    function sanitiseUrl(/** @type {String} */ url) {
-      if (typeof url !== 'string') return '';
-      try {
-        const urlObj = new URL(url);
-        // permit http and https protocols
-        if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') {
-          return urlObj.href;
-        }
-      } catch (e) {
-        console.error('Invalid URL:', url);
-      }
-      return '';
     }
 
-    function sanitiseId(/** @type {String} */ id) {
-      if (typeof id !== 'string') return '';
-      // remove any characters that aren't alphanumeric, hyphen, or underscore
-      return id.replace(/[^a-zA-Z0-9_-]/g, '');
+
+    /**
+     * Updates the content with the streamed response
+     * @param {string} html Visual HTML
+     * @param {string} srText Screen reader text
+     */
+    updateContent(html, srText = "") {
+        this.streamedContent?.update(html, srText);
     }
 
-    this.responseContainer =
-      /** @type {import("../markdown-converter").MarkdownConverter} */ (
-        this.querySelector("markdown-converter")
-      );
-    let sourcesContainer = /** @type {import("./sources-list").SourcesList} */ (
-      this.querySelector("sources-list")
-    );
-    /** @type {import("./feedback-buttons").FeedbackButtons | null} */
-    let actionsContainer = this.querySelector(".chat-actions-container")
-    let responseComplete = this.querySelector(".rb-loading-complete");
-    let webSocket = new WebSocket(endPoint);
 
-    const stopStreaming = () => {
-      this.dataset.status = "stopped";
-      webSocket.close();
-    };
-
-    listenEvent(Events.STOP_STREAMING, stopStreaming);
-
-    webSocket.onopen = (event) => {
-      webSocket.send(
-        JSON.stringify({
-          message: message,
-          sessionId: sessionId,
-          selectedFiles: selectedDocuments,
-          activities: activities,
-          llm: llm,
-          selectedTool: selectedTool,
-        })
-      );
-      this.dataset.status = "streaming";
-      emitEvent(Events.CHAT_RESPONSE_START);
-      emitEvent(Events.SCROLL_TO_BOTTOM, {source:this, force:true});
-    };
-
-    webSocket.onerror = (event) => {
-      if (!this.responseContainer) {
-        return;
-      }
-      this.responseContainer.textContent =
-        "There was a problem. Please try sending this message again.";
-      this.dataset.status = "error";
-    };
-
-    webSocket.onclose = (event) => {
-      hideElement(this.loadingElement);
-      if (responseComplete) {
-        responseComplete.textContent = "Response complete";
-      }
-      if (this.dataset.status !== "stopped") {
-        this.dataset.status = "complete";
-      }
-      emitEvent(Events.STOP_STREAMING);
-    };
-
-    webSocket.onmessage = (event) => {
-      let response;
-      try {
-        response = JSON.parse(event.data);
-      } catch (err) {
-        console.log("Error getting JSON response", err);
-        return;
-      }
-
-      if (response.type === "text") {
-        this.streamedContent += this.sanitiseText(response.data);
-        if (this.streamedContent) this.responseContainer?.update(this.streamedContent);
-      } else if (response.type === "session-id") {
-        chatControllerRef.dataset.sessionId = sanitiseId(response.data);
-      } else if (response.type === "source") {
-        sourcesContainer.add(
-          this.sanitiseText(response.data.file_name),
-          sanitiseUrl(response.data.url),
-          this.sanitiseText(response.data.text_in_answer || "")
-        );
-      } else if (response.type === "route") {
-        // Update the route text on the page now the selected route is known
-        let route = this?.querySelector(".redbox-message-route");
-        let routeText = route?.querySelector(".route-text");
-        if (route && routeText) {
-          routeText.textContent = this.sanitiseText(response.data);
-          route.removeAttribute("hidden");
-        }
-      } else if (response.type === "activity") {
-        this.addActivity(response.data);
-      } else if (response.type === "end") {
-        // Assign the new message its ID straight away
-        const chatMessage = this.querySelector('.govuk-inset-text');
-        if (chatMessage) { chatMessage.id = `chat-message-${sanitiseId(response.data.message_id)}` }
-        // Add in feedback and copy buttons dynamically
-        if (actionsContainer) {
-          const feedbackButtons = document.createElement('feedback-buttons')
-          feedbackButtons.dataset.id = sanitiseId(response.data.message_id)
-
-          const copyText = document.createElement('copy-text')
-          copyText.dataset.id = sanitiseId(response.data.message_id)
-
-          actionsContainer.appendChild(feedbackButtons)
-          actionsContainer.appendChild(copyText)
-        }
-        // this.#addFootnotes(this.streamedContent, response.data.message_id);
-        emitEvent(Events.CHAT_RESPONSE_END, {
-          title: this.sanitiseText(response.data.title),
-          session_id: sanitiseId(response.data.session_id),
-          is_new_chat,
-        })
-
-      } else if (response.type === "error") {
-        emitEvent(Events.CHAT_RESPONSE_ERROR);
-        this.showError(response.data);
-      } else if (response.type === "auth_expired") {
-        if (this.LOGOUT_URL) {
-          window.location.href = this.LOGOUT_URL;
-        } else {
-          this.showError(response.data);
-        }
-      }
-    };
-  };
-
-
-  /**
-  * Displays response activity below the message
-  * @param {string} message
-  */
-  addActivity = (message) => {
-    this.loadingElement.loadingText.textContent = message;
-    showElement(this.loadingElement);
-  };
-
-
-  /**
-  * Displays error message
-  * @param {string} message
-  */
-  showError = (message) => {
-    showElement(this.querySelector(".govuk-error-summary"));
-    let errorContentContainer = this.querySelector(".govuk-error-summary__title");
-    if (errorContentContainer) {
-      errorContentContainer.textContent = this.sanitiseText(message);
+    /**
+     * Updates the streamed final HTML content
+     * @param {string} html Final HTML
+     */
+    complete(html) {
+        this.streamedContent?.complete(html);
+        this.hideLoading();
     }
-  }
 
 
-  /**
-  * Returns the activity element used for response feedback
-  * @returns {LoadingMessage} Loading Message Activity element
-  */
-  get loadingElement() {
-    return /** @type {LoadingMessage} */ (this.querySelector("ids-loading-message"));
-  }
+    /**
+     * TBC - Show error element
+     * @param {string} message Error message
+     */
+    showError(message) {
+        const error = this.querySelector(".govuk-error-summary");
+
+        if (!error) return;
+
+        showElement(error);
+
+        const body = error.querySelector(".govuk-error-summary__title");
+        if (body) body.innerHTML = message;
+    }
+
+
+    /**
+     * TBC - Hide error element
+     */
+    hideError() {
+        const error = this.querySelector(".govuk-error-summary");
+        if (error) hideElement(error);
+    }
+
+
+    /**
+    * Returns the activity element used for response feedback
+    * @returns {LoadingMessage} Loading Message Activity element
+    */
+    get loadingElement() {
+        // TODO: Check announcements, what happens during streaming?
+        if (!this._loadingElement || !this.contains(this._loadingElement)) {
+            this._loadingElement = /** @type {LoadingMessage} */ (
+                this.querySelector('ids-loading-message')
+            );
+        }
+
+        return this._loadingElement;
+    }
+
+
+    /**
+    * Show message loading activity
+    * @param {string} text loading activity text
+    */
+    showLoading(text="Loading") {
+        this.loadingElement.setText(text);
+        showElement(this.loadingElement);
+    }
+
+
+    /**
+    * Hide message loading activity
+    */
+    hideLoading() {
+        hideElement(this.loadingElement);
+    }
 }
-customElements.define("ids-chat-message", ChatMessage);
+customElements.define("chat-message", ChatMessage);
