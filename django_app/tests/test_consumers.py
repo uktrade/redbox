@@ -898,6 +898,7 @@ def refresh_from_db(obj: Model) -> None:
     obj.refresh_from_db()
 
 
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_connect_with_agents_cache(
     agents_list: list,
@@ -911,7 +912,7 @@ async def test_connect_with_agents_cache(
         # First connection - should call get_all_agents
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
-        await communicator.connect()
+        await communicator.connect(timeout=5)
         assert mock_get.call_count == 1
 
         # Second connection - should use cache
@@ -924,6 +925,7 @@ async def test_connect_with_agents_cache(
         await comm2.disconnect()
 
 
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_connect_with_agents_update_via_db(agents_list: list, alice: User):
     """
