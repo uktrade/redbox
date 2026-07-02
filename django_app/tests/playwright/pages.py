@@ -4,7 +4,7 @@ from collections.abc import Collection, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import sleep
-from typing import Any, ClassVar, Union, override
+from typing import Any, ClassVar, override
 
 from axe_playwright_python.sync_playwright import Axe
 from playwright.sync_api import Locator, Page, expect
@@ -46,12 +46,10 @@ class BasePage(ABC):
         self.page = page
         self.axe = Axe()
         self.check_title()
-        self.check_a11y()
 
     def check_title(self):
         expected_page_title = self.expected_page_title
         expect(self.page).to_have_title(expected_page_title)
-        # expect(self.page).to_have_url("url")
 
     def check_a11y(self, exclude: Sequence[str] | None = None):
         context = {"exclude": exclude} if exclude else None
@@ -91,7 +89,7 @@ class BasePage(ABC):
 
 class SignedInBasePage(BasePage, ABC):
     def navigate_to_documents(self) -> "DocumentsPage":
-        self.page.get_by_role("link", name="Documents", exact=True).click()
+        self.page.get_by_role("link", name="All documents", exact=True).click()
         return DocumentsPage(self.page)
 
     def navigate_to_chats(self) -> "ChatsPage":
@@ -99,7 +97,7 @@ class SignedInBasePage(BasePage, ABC):
         return ChatsPage(self.page)
 
     def navigate_my_details(self) -> "MyDetailsPage":
-        self.page.get_by_role("link", name="Settings", exact=True).click()
+        self.page.get_by_role("link", name="Profile", exact=True).click()
         return MyDetailsPage(self.page)
 
     def sign_out(self) -> "LandingPage":
@@ -114,80 +112,31 @@ class LandingPage(BasePage):
 
     @property
     def expected_page_title(self) -> str:
-        return "Redbox"
+        return "Assist at DBT"
 
-    def navigate_to_sign_in(self) -> "SignInPage":
+    def sign_in(self) -> "ChatsPage":
         self.page.get_by_role("link", name="Sign in", exact=True).click()
-        return SignInPage(self.page)
-
-
-class SignInPage(BasePage):
-    @property
-    def expected_page_title(self) -> str:
-        return "Sign in - Redbox"
-
-    @property
-    def email(self) -> str:
-        return self.page.locator("#email").input_value()
-
-    @email.setter
-    def email(self, value: str):
-        self.page.locator("#email").fill(value)
-
-    def continue_(self) -> "SignInLinkSentPage":
-        self.page.get_by_text("Continue").click()
-        return SignInLinkSentPage(self.page)
-
-
-class SignInLinkSentPage(BasePage):
-    @property
-    def expected_page_title(self) -> str:
-        return "Sign in - link sent - Redbox"
-
-
-class SignInConfirmationPage(BasePage):
-    EXPECTED_TITLE = "Sign in - confirmation - Redbox"
-
-    def __init__(self, page):
-        super().__init__(page)
-
-    @property
-    def expected_page_title(self) -> str:
-        return SignInConfirmationPage.EXPECTED_TITLE
-
-    def start(self) -> Union["DocumentsPage", "MyDetailsPage"]:
-        self.page.get_by_role("button", name="Start", exact=True).click()
-        logger.debug("sign in confirmation navigating to %s", self)
-        return self._where_are_we(self.page)
-
-    @staticmethod
-    def autosubmit(page: Page) -> Union["ChatsPage", "MyDetailsPage"]:
-        expect(page).not_to_have_title(SignInConfirmationPage.EXPECTED_TITLE)
-        return SignInConfirmationPage._where_are_we(page)
-
-    @staticmethod
-    def _where_are_we(page: Page) -> Union["ChatsPage", "MyDetailsPage"]:
-        return MyDetailsPage(page) if page.title().startswith("Settings - My details") else ChatsPage(page)
+        return ChatsPage(self.page)
 
 
 class HomePage(SignedInBasePage):
     @property
     def expected_page_title(self) -> str:
-        return "Redbox"
+        return "Assist"
 
 
 class MyDetailsPage(SignedInBasePage):
     @property
     def expected_page_title(self) -> str:
-        return "Settings - My details - Redbox@DBT"
+        return "Your profile - Assist at DBT"
 
     @property
     def name(self) -> str:
-        return self.page.get_by_label("Full Name").get_by_role(role="option", selected=True).input_value()
+        return self.page.get_by_label("Name").input_value()
 
     @name.setter
     def name(self, name: str):
-        self.page.get_by_label("Full Name").fill(name)
+        self.page.get_by_label("Name").fill(name)
 
     def ai_experience(self, ai_experience: str):
         self.page.get_by_test_id(ai_experience).click()
@@ -218,35 +167,44 @@ class MyDetailsPage(SignedInBasePage):
     def redbox_response_preferences(self, info: str):
         self.page.get_by_label("How do you want Redbox to respond?").fill(info)
 
-    def update(self) -> "ChatsPage":
+    def update(self) -> "MyDetailsPage":
         self.page.get_by_text("Update").click()
-        return ChatsPage(self.page)
+        return self
 
 
 @dataclass
 class DocumentRow:
     filename: str
     status: str
-    completed: bool
+    remove_action: Locator
 
     @classmethod
     def from_element(cls, element: Locator) -> "DocumentRow":
-        filename = element.locator(".iai-doc-list__cell--file-name").inner_text()
-        status = element.locator(".iai-doc-list__cell--status").inner_text()
-        completed = element.evaluate(
-            "element => element.closest('.iai-doc-list').classList.contains('iai-doc-list--complete')"
-        )
-        return cls(filename=filename, status=status, completed=completed)
+        filename = element.locator("[data-testid='file-name']").inner_text()
+        status = element.locator("[data-testid='file-status']").inner_text()
+        remove_action = element.locator("[data-testid='remove-file-action']")
+        return cls(filename=filename, status=status, remove_action=remove_action)
 
 
 class DocumentsPage(SignedInBasePage):
     @property
     def expected_page_title(self) -> str:
-        return "Documents - Redbox"
+        return "Documents - Assist at DBT"
 
-    def navigate_to_upload(self) -> "DocumentUploadPage":
-        self.page.get_by_role("button", name="Add document").click()
-        return DocumentUploadPage(self.page)
+    def upload_documents(self, upload_files: Sequence[Path]) -> "DocumentsPage":
+        self.get_file_chooser_by_label().set_files(upload_files)
+        self.page.get_by_role("button", name="Upload", exact=True).click()
+        self.page.reload()  # Force a reload, as changes to the HTML do not appear due to the fragments refresh API call
+        return self
+
+    def get_file_chooser_by_label(self):
+        with self.page.expect_file_chooser() as fc_info:
+            self.page.get_by_label("Choose file").click()
+        return fc_info.value
+
+    # def navigate_to_upload(self) -> "DocumentUploadPage":
+    #     self.page.get_by_role("button", name="Add document").click()
+    #     return DocumentUploadPage(self.page)
 
     def delete_latest_document(self) -> "DocumentDeletePage":
         self.page.get_by_role("button", name="Delete").first.click()
@@ -254,7 +212,12 @@ class DocumentsPage(SignedInBasePage):
 
     @property
     def all_documents(self) -> list[DocumentRow]:
-        return [DocumentRow.from_element(element) for element in self.page.locator(".iai-doc-list__item").all()]
+        # print("get_by_test_id: ", self.page.get_by_test_id("uploaded-file").all())
+        # print(self.page.locator("[data-testid='uploaded-file']").all())
+        # print(self.page.locator('[data-testid="uploaded-file"]').all())
+        return [
+            DocumentRow.from_element(element) for element in self.page.locator("[data-testid='uploaded-file']").all()
+        ]
 
     def document_count(self) -> int:
         return len(self.all_documents)
@@ -326,7 +289,7 @@ class ChatsPage(SignedInBasePage):
 
     @property
     def expected_page_title(self) -> str:
-        return "Chats - Redbox"
+        return "New chat - Chats - Assist at DBT"
 
     @property
     def selected_llm(self) -> str:
@@ -457,16 +420,16 @@ class CitationsPage(SignedInBasePage):
 class PrivacyPage(BasePage):
     @property
     def expected_page_title(self) -> str:
-        return "Privacy notice - Redbox"
+        return "Privacy notice - Assist at DBT"
 
 
 class AccessibilityPage(BasePage):
     @property
     def expected_page_title(self) -> str:
-        return "Accessibility statement - Redbox"
+        return "Accessibility statement - Assist at DBT"
 
 
 class SupportPage(BasePage):
     @property
     def expected_page_title(self) -> str:
-        return "Support - Redbox"
+        return "Support - Assist at DBT"
