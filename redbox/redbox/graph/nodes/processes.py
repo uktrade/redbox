@@ -82,7 +82,7 @@ def build_chat_pattern(
     If tools are supplied, can also set state["tool_calls"].
     """
 
-    def _chat(state: RedboxState, config: RunnableConfig) -> dict[str, Any]:
+    def _chat(state: RedboxState, config: RunnableConfig | None = None) -> dict[str, Any]:
         llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
         return build_llm_chain(
             prompt_set=prompt_set,
