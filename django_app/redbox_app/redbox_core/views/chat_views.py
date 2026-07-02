@@ -53,7 +53,7 @@ class ChatsTitleView(View):
 
     @method_decorator(login_required)
     def post(self, request: HttpRequest, chat_id: uuid.UUID) -> HttpResponse:
-        chat: Chat = get_object_or_404(Chat, id=chat_id)
+        chat: Chat = get_object_or_404(Chat, id=chat_id, user=self.request.user)
         request_body = ChatsTitleView.Title.schema().loads(request.body)
 
         chat.name = request_body.value

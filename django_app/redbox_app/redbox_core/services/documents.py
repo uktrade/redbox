@@ -111,7 +111,7 @@ def ingest_file(uploaded_file: UploadedFile, user: User, tool: Tool | None = Non
         ], None
     except Exception as e:
         logger.exception("Unexpected error processing %s.", uploaded_file, exc_info=e)
-        return [str(e)], None
+        raise
     else:
         async_task(ingest, file.id, task_name=file.unique_name, group="ingest")
         return [], file
