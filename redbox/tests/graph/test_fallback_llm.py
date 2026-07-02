@@ -62,6 +62,12 @@ def test_get_chat_llm_fallback_on_throttling(mocker, fake_model_backend, fake_ai
     call_kwargs = primary_mock.with_config.return_value.with_fallbacks.call_args[1]
     assert ClientError in call_kwargs["exceptions_to_handle"]
 
+    callback_list = primary_mock.with_config.call_args[1]["callbacks"]
+    assert any(isinstance(cb, _FallbackCacheCallback) for cb in callback_list)
+
+    fallbacks_arg = primary_mock.with_config.return_value.with_fallbacks.call_args[0][0]
+    assert fallback_mock in fallbacks_arg
+
 
 def test_get_chat_llm_wires_connection_error_fallback(mocker, fake_model_backend, fake_ai_settings):
     primary_mock = MagicMock(name="PrimaryModel")

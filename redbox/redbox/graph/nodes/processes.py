@@ -15,7 +15,6 @@ from uuid import uuid4
 
 import pandas as pd
 from botocore.exceptions import EventStreamError
-from emoji import config
 from langchain.schema import StrOutputParser
 from langchain_core.callbacks.manager import dispatch_custom_event
 from langchain_core.documents import Document
@@ -815,7 +814,7 @@ def invoke_custom_state(
     model: ChatLLMBackend | None = None,
 ):
     @RunnableLambda
-    def _invoke_custom_state(state: RedboxState):
+    def _invoke_custom_state(state: RedboxState, config: RunnableConfig):
         # transform the state to the subgraph state
         subgraph = custom_graph(
             all_chunks_retriever=all_chunks_retriever, use_as_agent=use_as_agent, debug=debug, model=model
