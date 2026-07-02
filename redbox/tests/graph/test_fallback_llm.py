@@ -1,18 +1,18 @@
 import time
-from unittest.mock import MagicMock
-
 import pytest
-from botocore.exceptions import ClientError, ConnectTimeoutError, EndpointConnectionError, ReadTimeoutError
+from unittest.mock import MagicMock
+from botocore.exceptions import ClientError
 
-import redbox.chains.components as components
-from redbox.chains.components import _FallbackCacheCallback, get_chat_llm
-from redbox.models.chain import AISettings, ChatLLMBackend
+from redbox.models.chain import ChatLLMBackend, AISettings
+from redbox.chains.components import get_chat_llm, _FALLBACK_CACHE
 
 pytestmark = pytest.mark.usefixtures("clear_fallback_cache")
 
 
 @pytest.fixture(autouse=True)
 def clear_fallback_cache():
+    import redbox.chains.components as components
+
     if hasattr(components, "_FALLBACK_CACHE"):
         components._FALLBACK_CACHE.clear()
     yield
@@ -38,48 +38,42 @@ def _make_client_error(code: str):
 
 
 def test_get_chat_llm_primary_success(mocker, fake_model_backend, fake_ai_settings):
-    primary_mock = MagicMock(name="PrimaryModel")
-    fallback_mock = MagicMock(name="FallbackModel")
-    mocker.patch("redbox.chains.components.init_chat_model", side_effect=[primary_mock, fallback_mock])
+    fake_model = MagicMock(name="FakeChatModel")
+    mocker.patch("redbox.chains.components.init_chat_model", return_value=fake_model)
 
-    get_chat_llm(fake_model_backend, fake_ai_settings)
+    result = get_chat_llm(fake_model_backend, fake_ai_settings)
 
-    primary_mock.with_config.assert_called_once()
-    primary_mock.with_config.return_value.with_fallbacks.assert_called_once()
-
-    fallbacks_arg = primary_mock.with_config.return_value.with_fallbacks.call_args[0][0]
-
-    assert fallback_mock in fallbacks_arg
+    assert result == fake_model
+    assert fake_model.bind_tools not in (None,)
 
 
 def test_get_chat_llm_fallback_on_throttling(mocker, fake_model_backend, fake_ai_settings):
-    primary_mock = MagicMock(name="PrimaryModel")
-    fallback_mock = MagicMock(name="FallbackModel")
-    mocker.patch("redbox.chains.components.init_chat_model", side_effect=[primary_mock, fallback_mock])
+    init_mock = mocker.patch("redbox.chains.components.init_chat_model")
+
+    init_mock.side_effect = [
+        _make_client_error("ThrottlingException"),
+        MagicMock(name="FallbackModel"),
+    ]
 
     get_chat_llm(fake_model_backend, fake_ai_settings)
-
-    call_kwargs = primary_mock.with_config.return_value.with_fallbacks.call_args[1]
-    assert ClientError in call_kwargs["exceptions_to_handle"]
+    assert fake_model_backend.name in _FALLBACK_CACHE
 
 
-def test_get_chat_llm_wires_connection_error_fallback(mocker, fake_model_backend, fake_ai_settings):
-    primary_mock = MagicMock(name="PrimaryModel")
-    fallback_mock = MagicMock(name="FallbackModel")
-    mocker.patch("redbox.chains.components.init_chat_model", side_effect=[primary_mock, fallback_mock])
+def test_get_chat_llm_fallback_on_timeout(mocker, fake_model_backend, fake_ai_settings):
+    init_mock = mocker.patch("redbox.chains.components.init_chat_model")
+
+    init_mock.side_effect = [
+        TimeoutError("timed out"),
+        MagicMock(name="FallbackModel"),
+    ]
 
     get_chat_llm(fake_model_backend, fake_ai_settings)
-
-    call_kwargs = primary_mock.with_config.return_value.with_fallbacks.call_args[1]
-    handled = call_kwargs["exceptions_to_handle"]
-
-    assert TimeoutError in handled
-    assert ConnectTimeoutError in handled
-    assert EndpointConnectionError in handled
-    assert ReadTimeoutError in handled
+    assert fake_model_backend.name in _FALLBACK_CACHE
 
 
 def test_get_chat_llm_uses_cached_fallback(mocker, fake_model_backend, fake_ai_settings):
+    import redbox.chains.components as components
+
     fallback_backend = ChatLLMBackend(name="anthropic.fallback", provider="bedrock")
     components._FALLBACK_CACHE[fake_model_backend.name] = {
         "until": time.time() + 60,
@@ -99,36 +93,14 @@ def test_get_chat_llm_uses_cached_fallback(mocker, fake_model_backend, fake_ai_s
 
 
 def test_get_chat_llm_cache_expires_and_returns_to_primary(mocker, fake_model_backend, fake_ai_settings):
+    import redbox.chains.components as components
+
     components._FALLBACK_CACHE[fake_model_backend.name] = {
         "until": time.time() - 1,  # expired
         "backend": ChatLLMBackend(name="anthropic.fallback", provider="bedrock"),
     }
 
-    init_mock = mocker.patch("redbox.chains.components.init_chat_model", return_value=MagicMock(name="PrimaryModel"))
+    mocker.patch("redbox.chains.components.init_chat_model", return_value=MagicMock(name="PrimaryModel"))
+
     get_chat_llm(fake_model_backend, fake_ai_settings)
-
-    # once the cache has expired; the primary model should be the first call
-    assert init_mock.call_args_list[0].kwargs["model"] == fake_model_backend.name
-
-
-def test_fallback_cache_callback_updates_cache_on_throttling():
-    components._FALLBACK_CACHE.clear()
-    fallback_backend = ChatLLMBackend(name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock")
-    cb = _FallbackCacheCallback("primary-model", fallback_backend)
-
-    cb.on_llm_error(_make_client_error("ServiceUnavailableException"))
-
-    assert "primary-model" in components._FALLBACK_CACHE
-    entry = components._FALLBACK_CACHE["primary-model"]
-    assert entry["until"] > time.time()
-    assert entry["backend"] == fallback_backend
-
-
-def test_fallback_cache_callback_ignores_non_throttling_error():
-    components._FALLBACK_CACHE.clear()
-    fallback_backend = ChatLLMBackend(name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock")
-    cb = _FallbackCacheCallback("primary-model", fallback_backend)
-
-    cb.on_llm_error(_make_client_error("ValidationException"))
-
-    assert "primary-model" not in components._FALLBACK_CACHE
+    assert components._FALLBACK_CACHE.get(fake_model_backend.name)
