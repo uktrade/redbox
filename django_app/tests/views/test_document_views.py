@@ -707,7 +707,7 @@ def test_upload_document_exception(create_file_mock, alice, client, original_fil
     create_file_mock.side_effect = IntegrityError("db exploded")
 
     with pytest.raises(IntegrityError):
-        client.post(reverse("document-upload"), {"file": original_file})
+        client.post(reverse("document-upload"), {"files": original_file})
 
 
 @pytest.mark.django_db
