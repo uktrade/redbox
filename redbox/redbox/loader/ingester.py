@@ -14,7 +14,7 @@ from redbox.chains.components import get_embeddings
 from redbox.models.file import ChunkResolution
 from redbox.models.settings import get_settings
 
-from redbox.loader.extraction.service import DocumentExtractionService
+from redbox.loader.extraction.service import DocumentExtractionService, IngestionAlreadyInProgress
 from redbox.loader.extraction.metadata import MetadataExtraction
 from redbox.chains.ingest import ingest_chunks, ingest_tabular_chunks, DocumentChunkingService
 
@@ -202,6 +202,10 @@ def ingest_file(file_name: str, es_index_name: str = alias) -> tuple[FileIngesti
     try:
         response = _ingest_file(file_name, es_index_name)
         return response, None
+
+    except IngestionAlreadyInProgress:
+        raise
+
     except Exception:
         logging.exception("Error while processing file [%s]", file_name)
         return None, traceback.format_exc()
