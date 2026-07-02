@@ -15,11 +15,12 @@ from uuid import uuid4
 
 import pandas as pd
 from botocore.exceptions import EventStreamError
+from emoji import config
 from langchain.schema import StrOutputParser
 from langchain_core.callbacks.manager import dispatch_custom_event
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
-from langchain_core.runnables import Runnable, RunnableLambda, RunnableParallel
+from langchain_core.runnables import Runnable, RunnableConfig, RunnableLambda, RunnableParallel
 from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.types import Command
@@ -44,9 +45,9 @@ from redbox.models.chain import (
 )
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import (
-    USER_FEEDBACK_EVAL_PROMPT,
-    DATAHUB_USER_FEEDBACK,
     DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS,
+    DATAHUB_USER_FEEDBACK,
+    USER_FEEDBACK_EVAL_PROMPT,
 )
 from redbox.models.settings import ChatLLMBackend
 from redbox.transform import combine_documents, flatten_document_state, join_result_with_token_limit
@@ -82,13 +83,13 @@ def build_chat_pattern(
     If tools are supplied, can also set state["tool_calls"].
     """
 
-    def _chat(state: RedboxState) -> dict[str, Any]:
+    def _chat(state: RedboxState, config: RunnableConfig) -> dict[str, Any]:
         llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
         return build_llm_chain(
             prompt_set=prompt_set,
             llm=llm,
             final_response_chain=final_response_chain,
-        ).invoke(state)
+        ).invoke(state, config=config)
 
     return _chat
 
@@ -113,7 +114,7 @@ def build_merge_pattern(
     BACKOFF_FACTOR = 1.5
 
     @RunnableLambda
-    def _merge(state: RedboxState) -> dict[str, Any]:
+    def _merge(state: RedboxState, config: RunnableConfig) -> dict[str, Any]:
         llm = get_chat_llm(state.request.ai_settings.chat_backend, tools=tools)
 
         if not state.documents.groups:
@@ -134,7 +135,7 @@ def build_merge_pattern(
             try:
                 merge_response = build_llm_chain(
                     prompt_set=prompt_set, llm=llm, final_response_chain=final_response_chain
-                ).invoke(merge_state)
+                ).invoke(merge_state, config=config)
 
                 # if reaches a successful citation, exit the loop
                 break
@@ -183,7 +184,7 @@ def build_stuff_pattern(
     """
 
     @RunnableLambda
-    def _stuff(state: RedboxState) -> dict[str, Any]:
+    def _stuff(state: RedboxState, config: RunnableConfig) -> dict[str, Any]:
         if model is not None:
             llm = get_chat_llm(model, tools=tools)
         else:
@@ -199,7 +200,7 @@ def build_stuff_pattern(
             summary_multiagent_flag=summary_multiagent_flag,
         )
 
-        events = [event for event in chain.stream(state)]
+        events = [event for event in chain.stream(state, config=config)]
         return sum(events, {})
 
     return _stuff
@@ -831,9 +832,9 @@ def invoke_custom_state(
         activity_node = build_activity_log_node(
             RedboxActivityEvent(message=f"{agent_name} is completing task: {agent_task['task']}")
         )
-        activity_node.invoke(state)
+        activity_node.invoke(state, config=config)
         ## invoke the subgraph
-        response = subgraph.invoke(subgraph_state)  # the LLM response is streamed
+        response = subgraph.invoke(subgraph_state, config=config)  # the LLM response is streamed
         # invoking this subgraph will change original state.question - we correct the state question in subsequent nodes
 
         return response
