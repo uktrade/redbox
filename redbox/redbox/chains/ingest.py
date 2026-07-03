@@ -1,19 +1,17 @@
 import logging
 from functools import partial
-from io import BytesIO
-from typing import TYPE_CHECKING, Iterator
+from typing import Iterator
 
 from langchain.vectorstores import VectorStore
 from langchain_core.documents.base import Document
-from langchain_core.runnables import Runnable, RunnableLambda, chain
+from langchain_core.runnables import Runnable, RunnableLambda, chain, RunnableParallel
+from unstructured.documents.elements import Element
 
-from redbox.loader.loaders import TextractChunkLoader
-from redbox.models.settings import Settings
+from redbox_app.redbox_core.enums import IngestChunkingStrategy
 
-if TYPE_CHECKING:
-    from mypy_boto3_s3.client import S3Client
-else:
-    S3Client = object
+from redbox.loader.chunking.service import DocumentChunkingService
+from redbox.models.chain import GeneratedMetadata
+
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger()
@@ -22,38 +20,41 @@ log = logging.getLogger()
 @chain
 def log_chunks(chunks: list[Document]):
     log.info("Processing %s chunks", len(chunks))
+
+    for i, doc in enumerate(chunks):
+        log.info(
+            "chunk %d length=%d",
+            i,
+            len(doc.page_content),
+        )
+
     return chunks
 
 
-def document_loader(
-    document_loader: TextractChunkLoader,
-    s3_client: S3Client,
-    env: Settings,
+def chunk_loader(
+    chunker: DocumentChunkingService,
+    elements: list[str] | list[Element] | list[dict[str, str]],
+    metadata: GeneratedMetadata,
+    chunks_overlap_pages: bool,
 ) -> Runnable:
     @chain
-    def wrapped(file_name: str) -> Iterator[Document]:
+    def wrapped(file_name: str) -> tuple[IngestChunkingStrategy, Iterator[Document]]:
         try:
             log.info("wrapped START: %s", file_name)
 
-            if file_name.lower().endswith(".docx"):
-                log.info("Loading DOCX from S3")
-                obj = s3_client.get_object(Bucket=env.bucket_name, Key=file_name)
-                file_bytes = BytesIO(obj["Body"].read())
-            else:
-                file_bytes = None
-
-            docs = list(
-                document_loader.lazy_load(
-                    file_name=file_name,
-                    file_bytes=file_bytes,
-                )
+            strategy, raw_docs = chunker.chunks(
+                s3_key=file_name,
+                elements=elements,
+                generated_metadata=metadata,
+                chunks_overlap_pages=chunks_overlap_pages,
             )
 
+            docs = list(raw_docs)
             if not docs:
                 raise ValueError(f"No content extracted from {file_name}")
 
-            log.info("Extracted %d documents", len(docs))
-            return docs
+            log.info("Extracted %d documents with strategy %s", len(docs), strategy)
+            return strategy, docs
 
         except Exception:
             log.exception("wrapped() crashed for %s", file_name)
@@ -62,15 +63,62 @@ def document_loader(
     return wrapped
 
 
-def ingest_from_loader(
-    loader: TextractChunkLoader,
-    s3_client: S3Client,
-    vectorstore: VectorStore,
-    env: Settings,
+def chunk_loader_tabular(
+    chunker: DocumentChunkingService,
+    tabular_elements: list[dict[str, str]],
+    metadata: GeneratedMetadata,
+    include_schema_metadata: bool,
 ) -> Runnable:
-    return (
-        document_loader(loader, s3_client, env)
-        | RunnableLambda(list)
+    @chain
+    def wrapped(file_name: str) -> tuple[IngestChunkingStrategy, Iterator[Document]]:
+        try:
+            log.info("wrapped START: %s", file_name)
+
+            strategy, raw_docs = chunker.tabular_chunks(
+                s3_key=file_name,
+                tabular_elements=tabular_elements,
+                generated_metadata=metadata,
+                include_schema_metadata=include_schema_metadata,
+            )
+
+            docs = list(raw_docs)
+            if not docs:
+                raise ValueError(f"No content extracted from {file_name}")
+
+            log.info("Extracted %d documents", len(docs))
+            return strategy, docs
+
+        except Exception:
+            log.exception("wrapped() crashed for %s", file_name)
+            raise
+
+    return wrapped
+
+
+def ingest_chunks(
+    chunker: DocumentChunkingService,
+    vectorstore: VectorStore,
+    elements: list[str] | list[Element] | list[dict[str, str]],
+    metadata: GeneratedMetadata,
+    chunks_overlap_pages: bool = False,
+) -> Runnable:
+    if elements and isinstance(elements[0], dict):
+        return ingest_tabular_chunks(
+            chunker=chunker,
+            vectorstore=vectorstore,
+            tabular_elements=elements,
+            metadata=metadata,
+        )
+
+    loader = chunk_loader(
+        chunker=chunker,
+        elements=elements,
+        metadata=metadata,
+        chunks_overlap_pages=chunks_overlap_pages,
+    )
+
+    ingest_branch = (
+        RunnableLambda(lambda docs: list(docs))
         | log_chunks
         | RunnableLambda(
             partial(
@@ -78,4 +126,40 @@ def ingest_from_loader(
                 create_index_if_not_exists=False,
             )
         )
+    )
+
+    return loader | RunnableParallel(
+        documents=RunnableLambda(lambda x: x[1]) | ingest_branch,
+        strategy=RunnableLambda(lambda x: x[0]),
+    )
+
+
+def ingest_tabular_chunks(
+    chunker: DocumentChunkingService,
+    vectorstore: VectorStore,
+    tabular_elements: list[dict[str, str]],
+    metadata: GeneratedMetadata,
+    include_schema_metadata: bool = False,
+) -> Runnable:
+    loader = chunk_loader_tabular(
+        chunker=chunker,
+        tabular_elements=tabular_elements,
+        metadata=metadata,
+        include_schema_metadata=include_schema_metadata,
+    )
+
+    ingest_branch = (
+        RunnableLambda(lambda docs: list(docs))
+        | log_chunks
+        | RunnableLambda(
+            partial(
+                vectorstore.add_documents,
+                create_index_if_not_exists=False,
+            )
+        )
+    )
+
+    return loader | RunnableParallel(
+        documents=RunnableLambda(lambda x: x[1]) | ingest_branch,
+        strategy=RunnableLambda(lambda x: x[0]),
     )

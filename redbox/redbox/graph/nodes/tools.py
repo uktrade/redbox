@@ -348,8 +348,13 @@ def write_duckdb_table(db_path: str, schema: TabularSchema, text_content: str):
             reader = csv.DictReader(StringIO(csv_str))
             df = pd.DataFrame(list(reader))
 
-            # Keep only schema columns
-            df = df[[col for col in schema.columns.keys() if col in df.columns]]
+            # Ensure every schema column exists
+            for col in schema.columns:
+                if col not in df.columns:
+                    df[col] = pd.NA
+
+            # Reorder to exactly match the table schema
+            df = df[list(schema.columns.keys())]
 
             # Cast columns to proper types based on schema_obj
             for col, dtype in schema.columns.items():
@@ -361,11 +366,25 @@ def write_duckdb_table(db_path: str, schema: TabularSchema, text_content: str):
                     elif dtype.upper() in ("FLOAT", "DOUBLE", "REAL"):
                         df[col] = pd.to_numeric(df[col], errors="coerce")
                     elif dtype.upper() in ("BOOLEAN", "BOOL"):
-                        df[col] = df[col].astype(bool)
+                        df[col] = df[col] = (
+                            df[col]
+                            .astype("string")
+                            .str.lower()
+                            .map(
+                                {
+                                    "true": True,
+                                    "false": False,
+                                    "1": True,
+                                    "0": False,
+                                    "yes": True,
+                                    "no": False,
+                                }
+                            )
+                        )
                     elif dtype.upper() in ("DATE", "TIMESTAMP"):
                         df[col] = pd.to_datetime(df[col], errors="coerce")
                     else:  # default to string
-                        df[col] = df[col].astype(str)
+                        df[col] = df[col].astype("string")
                 except Exception as col_e:
                     logger.warning("Failed to cast column %s: %s", col, str(col_e))
                     df[col] = df[col].astype(str)

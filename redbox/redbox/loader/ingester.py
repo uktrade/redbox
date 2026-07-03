@@ -1,16 +1,23 @@
 import logging
 import time
+import os
 import traceback
 from typing import TYPE_CHECKING
+from pydantic import BaseModel
 
 from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.embeddings import FakeEmbeddings
 from langchain_core.runnables import RunnableParallel
 
+from redbox_app.redbox_core.enums import IngestChunkingStrategy, IngestExtractionStrategy
 from redbox.chains.components import get_embeddings
-from redbox.chains.ingest import ingest_from_loader
-from redbox.loader.loaders import TextractChunkLoader, MetadataLoader
+from redbox.models.file import ChunkResolution
 from redbox.models.settings import get_settings
+
+from redbox.loader.extraction.service import DocumentExtractionService, IngestionAlreadyInProgress
+from redbox.loader.extraction.metadata import MetadataExtraction
+from redbox.chains.ingest import ingest_chunks, ingest_tabular_chunks, DocumentChunkingService
+
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -59,11 +66,18 @@ def create_alias(alias: str):
     es.indices.put_alias(index=chunk_index_name, name=alias)
 
 
-def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_extraction=env.enable_metadata_extraction):
-    logging.info("Ingesting file: %s", file_name)
-    start_time = time.time()
+class FileIngestionResponse(BaseModel):
+    normal_extraction_strategy: IngestExtractionStrategy
+    normal_chunking_strategy: IngestChunkingStrategy
+    largest_extraction_strategy: IngestExtractionStrategy
+    largest_chunking_strategy: IngestChunkingStrategy
 
-    metadata = MetadataLoader(env, env.s3_client(), file_name).extract_metadata()
+
+def _ingest_file(
+    file_name: str, es_index_name: str = alias, enable_metadata_extraction=env.enable_metadata_extraction
+) -> FileIngestionResponse:
+    logging.warning("Ingesting file: %s", file_name)
+    start_time = time.time()
 
     es = env.elasticsearch_client()
     log.info("Using Elasticsearch client: %s", es)
@@ -80,60 +94,82 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
             log.info("Creating index %s", es_index_name)
             es.indices.create(index=es_index_name, body=env.index_mapping, ignore=400)
 
-    chunk_ingest_chain = ingest_from_loader(
-        loader=TextractChunkLoader(
-            bucket=env.bucket_name,
+    extraction_service = DocumentExtractionService(
+        bucket=env.bucket_name,
+    )
+
+    # -- extraction --
+    # normal chunk
+    normal_extraction_strategy, normal_elements = extraction_service.extract(
+        file_name=file_name, chunk_resolution=ChunkResolution.normal
+    )
+
+    # largest chunk
+    largest_extraction_strategy, largest_elements = normal_extraction_strategy, normal_elements
+    if os.path.basename(file_name).lower().endswith(".pdf"):  # if PDF - extract largest chunks with direct extraction
+        largest_extraction_strategy, largest_elements = extraction_service.extract(
+            file_name=file_name, chunk_resolution=ChunkResolution.largest
+        )
+
+    # metadata
+    metadata = MetadataExtraction(env=env).extract(file_name=file_name, elements=normal_elements)
+
+    # -- chunking and opensearch ingestion --
+    # normal chunk
+    chunk_ingest_chain = ingest_chunks(
+        chunker=DocumentChunkingService(
+            chunk_resolution=ChunkResolution.normal,
             min_chunk_size=env.worker_ingest_min_chunk_size,
             max_chunk_size=env.worker_ingest_max_chunk_size,
             overlap_chars=0,
-            metadata=metadata,
         ),
-        s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store(es, es_index_name),
-        env=env,
+        elements=normal_elements,
+        metadata=metadata,
     )
 
-    large_chunk_ingest_chain = ingest_from_loader(
-        loader=TextractChunkLoader(
-            bucket=env.bucket_name,
-            min_chunk_size=env.worker_ingest_min_chunk_size,
-            max_chunk_size=env.worker_ingest_max_chunk_size,
-            overlap_chars=0,
-            metadata=metadata,
+    # largest chunk
+    large_chunk_ingest_chain = ingest_chunks(
+        chunker=DocumentChunkingService(
+            chunk_resolution=ChunkResolution.largest,
+            min_chunk_size=env.worker_ingest_largest_chunk_size,
+            max_chunk_size=env.worker_ingest_largest_chunk_size,
+            overlap_chars=env.worker_ingest_largest_chunk_overlap,
         ),
-        s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
-        env=env,
+        elements=largest_elements,
+        metadata=metadata,
+        chunks_overlap_pages=True,
     )
 
-    tabular_chunk_ingest_chain = ingest_from_loader(
-        loader=TextractChunkLoader(
-            bucket=env.bucket_name,
-            min_chunk_size=env.worker_ingest_min_chunk_size,
-            max_chunk_size=env.worker_ingest_max_chunk_size,
-            overlap_chars=0,
-            metadata=metadata,
+    # tabular chunk
+    tabular_chunk_ingest_chain = ingest_tabular_chunks(
+        chunker=DocumentChunkingService(
+            chunk_resolution=ChunkResolution.tabular,
+            min_chunk_size=env.worker_ingest_largest_chunk_size,
+            max_chunk_size=env.worker_ingest_largest_chunk_size,
+            overlap_chars=env.worker_ingest_largest_chunk_overlap,
         ),
-        s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store_without_embeddings(es, es_index_name),
-        env=env,
+        tabular_elements=normal_elements,
+        metadata=metadata,
     )
 
-    tabular_schema_chunk_ingest_chain = ingest_from_loader(
-        loader=TextractChunkLoader(
-            bucket=env.bucket_name,
-            min_chunk_size=env.worker_ingest_min_chunk_size,
-            max_chunk_size=env.worker_ingest_max_chunk_size,
-            overlap_chars=0,
-            metadata=metadata,
-            include_schema_metadata=True,
+    # tabular chunk (with metadata.document_schema in schematised index)
+    tabular_schema_chunk_ingest_chain = ingest_tabular_chunks(
+        chunker=DocumentChunkingService(
+            chunk_resolution=ChunkResolution.tabular,
+            min_chunk_size=env.worker_ingest_largest_chunk_size,
+            max_chunk_size=env.worker_ingest_largest_chunk_size,
+            overlap_chars=env.worker_ingest_largest_chunk_overlap,
         ),
-        s3_client=env.s3_client(),
         vectorstore=get_elasticsearch_store_without_embeddings(es, env.elastic_schematised_chunk_index),
-        env=env,
+        tabular_elements=normal_elements,
+        metadata=metadata,
+        include_schema_metadata=True,
     )
 
-    if file_name.endswith((".csv", ".xls", "xlsx")):
+    if file_name.endswith((".csv", ".xls", ".xlsx", ".tsv")):
         new_ids = RunnableParallel(
             {
                 "normal": chunk_ingest_chain,
@@ -149,15 +185,27 @@ def _ingest_file(file_name: str, es_index_name: str = alias, enable_metadata_ext
     logging.info(
         "File: %s %s chunks ingested",
         file_name,
-        {k: len(v) for k, v in new_ids.items()},
+        {k: len(v.get("documents", [])) for k, v in new_ids.items()},
     )
     duration = time.time() - start_time
     logging.info("total ingestion for file [%s] took %.2f seconds", file_name, duration)
 
+    return FileIngestionResponse(
+        normal_extraction_strategy=normal_extraction_strategy,
+        normal_chunking_strategy=new_ids.get("normal", {}).get("strategy"),
+        largest_extraction_strategy=largest_extraction_strategy,
+        largest_chunking_strategy=new_ids.get("largest", {}).get("strategy"),
+    )
 
-def ingest_file(file_name: str, es_index_name: str = alias) -> str | None:
+
+def ingest_file(file_name: str, es_index_name: str = alias) -> tuple[FileIngestionResponse | None, str | None]:
     try:
-        _ingest_file(file_name, es_index_name)
+        response = _ingest_file(file_name, es_index_name)
+        return response, None
+
+    except IngestionAlreadyInProgress:
+        raise
+
     except Exception:
         logging.exception("Error while processing file [%s]", file_name)
-        return traceback.format_exc()
+        return None, traceback.format_exc()
