@@ -488,9 +488,8 @@ class TestExtractGeneric:
     @pytest.mark.parametrize(
         "file_name",
         [
-            "notes.txt",
-            "archive/report.html",
             "image.png",
+            "archive/data.json",
         ],
     )
     def test_unknown_types_route_to_unstructured_extract(self, file_name):
@@ -501,6 +500,85 @@ class TestExtractGeneric:
         assert strategy == IngestExtractionStrategy.unstructured_auto
         assert result == PAGES
         svc.unstructured._extract.assert_called_once()
+
+
+class TestExtractMarkupTypes:
+    @pytest.mark.parametrize(
+        "file_name",
+        [
+            "notes.md",
+            "notes.markdown",
+        ],
+    )
+    def test_markdown_routes_to_extract_markdown(self, file_name):
+        svc = make_service()
+        patch_s3(svc)
+        svc.unstructured._extract_markdown.return_value = PAGES
+
+        strategy, result = svc.extract(file_name, ChunkResolution.normal)
+
+        assert strategy == IngestExtractionStrategy.unstructured_auto
+        assert result == PAGES
+        svc.unstructured._extract_markdown.assert_called_once()
+        assert svc.unstructured._extract_markdown.call_args.args[1] == 300
+        svc.unstructured._extract.assert_not_called()
+
+    def test_markdown_extraction_failure_propagates(self):
+        svc = make_service()
+        patch_s3(svc)
+        svc.unstructured._extract_markdown.side_effect = RuntimeError("bad markdown")
+
+        with pytest.raises(RuntimeError, match="bad markdown"):
+            svc.extract("notes.md", ChunkResolution.normal)
+
+    @pytest.mark.parametrize(
+        "file_name",
+        [
+            "page.html",
+            "page.htm",
+        ],
+    )
+    def test_html_routes_to_extract_html(self, file_name):
+        svc = make_service()
+        patch_s3(svc)
+        svc.unstructured._extract_html.return_value = PAGES
+
+        strategy, result = svc.extract(file_name, ChunkResolution.normal)
+
+        assert strategy == IngestExtractionStrategy.unstructured_auto
+        assert result == PAGES
+        svc.unstructured._extract_html.assert_called_once()
+        assert svc.unstructured._extract_html.call_args.args[1] == 300
+        svc.unstructured._extract.assert_not_called()
+
+    def test_html_extraction_failure_propagates(self):
+        svc = make_service()
+        patch_s3(svc)
+        svc.unstructured._extract_html.side_effect = RuntimeError("malformed markup")
+
+        with pytest.raises(RuntimeError, match="malformed markup"):
+            svc.extract("page.html", ChunkResolution.normal)
+
+    def test_txt_routes_to_extract_text(self):
+        svc = make_service()
+        patch_s3(svc)
+        svc.unstructured._extract_text.return_value = PAGES
+
+        strategy, result = svc.extract("notes.txt", ChunkResolution.normal)
+
+        assert strategy == IngestExtractionStrategy.unstructured_auto
+        assert result == PAGES
+        svc.unstructured._extract_text.assert_called_once()
+        assert svc.unstructured._extract_text.call_args.args[1] == 300
+        svc.unstructured._extract.assert_not_called()
+
+    def test_txt_extraction_failure_propagates(self):
+        svc = make_service()
+        patch_s3(svc)
+        svc.unstructured._extract_text.side_effect = RuntimeError("bad encoding")
+
+        with pytest.raises(RuntimeError, match="bad encoding"):
+            svc.extract("notes.txt", ChunkResolution.normal)
 
 
 class TestExtractS3:
@@ -639,18 +717,18 @@ class TestExtractLocking:
 
         svc.unstructured._extract.return_value = PAGES
 
-        strategy, result = svc.extract("notes.txt", ChunkResolution.normal)
+        strategy, result = svc.extract("notes.json", ChunkResolution.normal)
 
         assert strategy == IngestExtractionStrategy.unstructured_auto
         assert result == PAGES
 
         mock_cache.add.assert_called_once_with(
-            "ingest-lock:notes.txt:normal",
+            "ingest-lock:notes.json:normal",
             "1",
             timeout=INGEST_LOCK_TIMEOUT_SECONDS,
         )
         mock_cache.delete.assert_called_once_with(
-            "ingest-lock:notes.txt:normal",
+            "ingest-lock:notes.json:normal",
         )
 
     def test_releases_lock_when_extraction_fails(self, mock_cache):
@@ -660,15 +738,15 @@ class TestExtractLocking:
         svc.unstructured._extract.side_effect = RuntimeError("boom")
 
         with pytest.raises(RuntimeError, match="boom"):
-            svc.extract("notes.txt", ChunkResolution.normal)
+            svc.extract("notes.json", ChunkResolution.normal)
 
         mock_cache.add.assert_called_once_with(
-            "ingest-lock:notes.txt:normal",
+            "ingest-lock:notes.json:normal",
             "1",
             timeout=INGEST_LOCK_TIMEOUT_SECONDS,
         )
         mock_cache.delete.assert_called_once_with(
-            "ingest-lock:notes.txt:normal",
+            "ingest-lock:notes.json:normal",
         )
 
     def test_raises_when_lock_already_exists(self, mock_cache):
@@ -677,10 +755,10 @@ class TestExtractLocking:
         svc = make_service()
 
         with pytest.raises(IngestionAlreadyInProgress):
-            svc.extract("notes.txt", ChunkResolution.normal)
+            svc.extract("notes.json", ChunkResolution.normal)
 
         mock_cache.add.assert_called_once_with(
-            "ingest-lock:notes.txt:normal",
+            "ingest-lock:notes.json:normal",
             "1",
             timeout=INGEST_LOCK_TIMEOUT_SECONDS,
         )

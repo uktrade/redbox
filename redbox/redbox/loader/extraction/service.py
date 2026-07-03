@@ -444,6 +444,33 @@ class DocumentExtractionService:
                 use_s3_textract=False,
             )
 
+        if display_name.endswith((".md", ".markdown")):
+            logger.warning("%s Text markup detected: %s", extract_log_stub, display_name)
+            try:
+                result = self.unstructured._extract_markdown(get_bytes(), 300)
+                return IngestExtractionStrategy.unstructured_auto, result
+            except Exception as e:
+                logger.exception("%s unstructured failed for %s: %s", extract_log_stub, display_name, str(e))
+                raise
+
+        if display_name.endswith((".html", ".htm")):
+            logger.warning("%s Text markup detected: %s", extract_log_stub, display_name)
+            try:
+                result = self.unstructured._extract_html(get_bytes(), 300)
+                return IngestExtractionStrategy.unstructured_auto, result
+            except Exception as e:
+                logger.exception("%s unstructured failed for %s: %s", extract_log_stub, display_name, str(e))
+                raise
+
+        if display_name.endswith((".txt")):
+            logger.warning("%s Text markup detected: %s", extract_log_stub, display_name)
+            try:
+                result = self.unstructured._extract_text(get_bytes(), 300)
+                return IngestExtractionStrategy.unstructured_auto, result
+            except Exception as e:
+                logger.exception("%s unstructured failed for %s: %s", extract_log_stub, display_name, str(e))
+                raise
+
         logger.warning("%s No file type matched - defaulting to generic extraction...", extract_log_stub)
         result = self.unstructured._extract(get_bytes(), file_name)
         return IngestExtractionStrategy.unstructured_auto, result

@@ -107,6 +107,172 @@ class TestExtractPptx:
             SERVICE._extract_pptx(DUMMY_BYTES)
 
 
+class TestExtractHtml:
+    @pytest.mark.parametrize(
+        "elements",
+        [
+            make_elements(("Hello", 1), ("World", 1)),
+            make_elements(("Heading", 1), ("Paragraph", 1)),
+            make_elements(("A", 1), ("B", 1), ("C", 2), ("D", 3)),
+            make_elements(("X", None), ("Y", None)),
+        ],
+    )
+    @patch("redbox.loader.extraction.unstructured.partition_html")
+    def test_returns_elements(self, mock_partition, elements):
+        mock_partition.return_value = elements
+
+        result = SERVICE._extract_html(DUMMY_BYTES)
+
+        assert result is elements
+
+    @patch("redbox.loader.extraction.unstructured.partition_html", return_value=[])
+    def test_raises_on_no_elements(self, _mock):
+        with pytest.raises(ValueError, match="no elements"):
+            SERVICE._extract_html(DUMMY_BYTES)
+
+    @patch("redbox.loader.extraction.unstructured.partition_html", side_effect=ImportError("missing extra"))
+    def test_raises_import_error_for_missing_extra(self, _mock):
+        with pytest.raises(ImportError):
+            SERVICE._extract_html(DUMMY_BYTES)
+
+    @patch("redbox.loader.extraction.unstructured.partition_html", side_effect=RuntimeError("malformed markup"))
+    def test_propagates_partition_exceptions(self, _mock):
+        with pytest.raises(RuntimeError, match="malformed markup"):
+            SERVICE._extract_html(DUMMY_BYTES)
+
+    @patch("redbox.loader.extraction.unstructured.partition_html")
+    def test_seeks_to_zero_before_partition(self, mock_partition):
+        mock_partition.return_value = make_elements(("text", 1))
+        buf = BytesIO(b"<html>data</html>")
+        buf.read()  # advance position
+        SERVICE._extract_html(buf)
+        mock_partition.assert_called_once()
+        assert mock_partition.call_args.kwargs["file"].read() == b"<html>data</html>"
+
+    @patch("redbox.loader.extraction.unstructured.partition_html")
+    def test_preserves_element_order(self, mock_partition):
+        elements = make_elements(
+            ("A1", 1),
+            ("A2", 1),
+            ("A3", 1),
+        )
+
+        mock_partition.return_value = elements
+
+        result = SERVICE._extract_html(DUMMY_BYTES)
+
+        assert result == elements
+
+
+class TestExtractMarkdown:
+    @pytest.mark.parametrize(
+        "elements",
+        [
+            make_elements(("Hello", 1), ("World", 1)),
+            make_elements(("# Heading", 1), ("Body text", 1)),
+            make_elements(("A", 1), ("B", 1), ("C", 2), ("D", 3)),
+            make_elements(("X", None), ("Y", None)),
+        ],
+    )
+    @patch("redbox.loader.extraction.unstructured.partition_md")
+    def test_returns_elements(self, mock_partition, elements):
+        mock_partition.return_value = elements
+
+        result = SERVICE._extract_markdown(DUMMY_BYTES)
+
+        assert result is elements
+
+    @patch("redbox.loader.extraction.unstructured.partition_md", return_value=[])
+    def test_raises_on_no_elements(self, _mock):
+        with pytest.raises(ValueError, match="no elements"):
+            SERVICE._extract_markdown(DUMMY_BYTES)
+
+    @patch("redbox.loader.extraction.unstructured.partition_md", side_effect=ImportError("missing extra"))
+    def test_raises_import_error_for_missing_extra(self, _mock):
+        with pytest.raises(ImportError):
+            SERVICE._extract_markdown(DUMMY_BYTES)
+
+    @patch("redbox.loader.extraction.unstructured.partition_md", side_effect=RuntimeError("bad markdown"))
+    def test_propagates_partition_exceptions(self, _mock):
+        with pytest.raises(RuntimeError, match="bad markdown"):
+            SERVICE._extract_markdown(DUMMY_BYTES)
+
+    @patch("redbox.loader.extraction.unstructured.partition_md")
+    def test_seeks_to_zero_before_partition(self, mock_partition):
+        mock_partition.return_value = make_elements(("text", 1))
+        buf = BytesIO(b"# data")
+        buf.read()  # advance position
+        SERVICE._extract_markdown(buf)
+        mock_partition.assert_called_once()
+        assert mock_partition.call_args.kwargs["file"].read() == b"# data"
+
+    @patch("redbox.loader.extraction.unstructured.partition_md")
+    def test_preserves_element_order(self, mock_partition):
+        elements = make_elements(
+            ("A1", 1),
+            ("A2", 1),
+            ("A3", 1),
+        )
+
+        mock_partition.return_value = elements
+
+        result = SERVICE._extract_markdown(DUMMY_BYTES)
+
+        assert result == elements
+
+
+class TestExtractText:
+    @pytest.mark.parametrize(
+        "elements",
+        [
+            make_elements(("Hello", 1), ("World", 1)),
+            make_elements(("Line1", 1), ("Line2", 1)),
+            make_elements(("A", 1), ("B", 1), ("C", 2), ("D", 3)),
+            make_elements(("X", None), ("Y", None)),
+        ],
+    )
+    @patch("redbox.loader.extraction.unstructured.partition_text")
+    def test_returns_elements(self, mock_partition, elements):
+        mock_partition.return_value = elements
+
+        result = SERVICE._extract_text(DUMMY_BYTES)
+
+        assert result is elements
+
+    @patch("redbox.loader.extraction.unstructured.partition_text", return_value=[])
+    def test_raises_on_no_elements(self, _mock):
+        with pytest.raises(ValueError, match="no elements"):
+            SERVICE._extract_text(DUMMY_BYTES)
+
+    @patch("redbox.loader.extraction.unstructured.partition_text", side_effect=RuntimeError("bad encoding"))
+    def test_propagates_partition_exceptions(self, _mock):
+        with pytest.raises(RuntimeError, match="bad encoding"):
+            SERVICE._extract_text(DUMMY_BYTES)
+
+    @patch("redbox.loader.extraction.unstructured.partition_text")
+    def test_seeks_to_zero_before_partition(self, mock_partition):
+        mock_partition.return_value = make_elements(("text", 1))
+        buf = BytesIO(b"plain text data")
+        buf.read()  # advance position
+        SERVICE._extract_text(buf)
+        mock_partition.assert_called_once()
+        assert mock_partition.call_args.kwargs["file"].read() == b"plain text data"
+
+    @patch("redbox.loader.extraction.unstructured.partition_text")
+    def test_preserves_element_order(self, mock_partition):
+        elements = make_elements(
+            ("A1", 1),
+            ("A2", 1),
+            ("A3", 1),
+        )
+
+        mock_partition.return_value = elements
+
+        result = SERVICE._extract_text(DUMMY_BYTES)
+
+        assert result == elements
+
+
 class TestExtract:
     @pytest.mark.parametrize(
         "elements, file_name",

@@ -8,6 +8,9 @@ from unstructured.documents.elements import Element
 from unstructured.partition.docx import partition_docx
 from unstructured.partition.auto import partition
 from unstructured.partition.pptx import partition_pptx
+from unstructured.partition.md import partition_md
+from unstructured.partition.html import partition_html
+from unstructured.partition.text import partition_text
 
 
 logger = logging.getLogger(__name__)
@@ -54,6 +57,72 @@ class UnstructuredService:
 
             except Exception as e:
                 logger.exception("unstructured failed to process DOCX: %s", str(e))
+                raise
+
+        return self._run_with_timeout(extract, timeout)
+
+    def _extract_html(self, file_bytes: BytesIO, timeout: int | None = None) -> List[Element]:
+        logger.info("Extracting HTML with unstructured.partition.html")
+
+        file_bytes.seek(0)
+
+        def extract():
+            try:
+                elements = partition_html(file=file_bytes)
+
+                if not elements:
+                    raise ValueError("unstructured.partition.html returned no elements")
+
+                return elements
+
+            except ImportError:
+                logger.error("unstructured[html] extra not installed")
+                raise
+            except Exception as e:
+                logger.exception("HTML extraction failed: %s", e)
+                raise
+
+        return self._run_with_timeout(extract, timeout)
+
+    def _extract_markdown(self, file_bytes: BytesIO, timeout: int | None = None) -> List[Element]:
+        logger.info("Extracting Markdown with unstructured.partition.md")
+
+        file_bytes.seek(0)
+
+        def extract():
+            try:
+                elements = partition_md(file=file_bytes)
+
+                if not elements:
+                    raise ValueError("unstructured.partition.md returned no elements")
+
+                return elements
+
+            except ImportError:
+                logger.error("unstructured[md] extra not installed (requires markdown package)")
+                raise
+            except Exception as e:
+                logger.exception("Markdown extraction failed: %s", e)
+                raise
+
+        return self._run_with_timeout(extract, timeout)
+
+    def _extract_text(self, file_bytes: BytesIO, timeout: int | None = None) -> List[Element]:
+        logger.info("Extracting TXT with unstructured.partition.text")
+
+        file_bytes.seek(0)
+
+        def extract():
+            try:
+                elements = partition_text(file=file_bytes)
+
+                if not elements:
+                    raise ValueError("unstructured.partition.text returned no elements")
+
+                return elements
+
+            except Exception as e:
+                logger.exception("TXT extraction failed: %s", e)
                 raise
 
         return self._run_with_timeout(extract, timeout)
