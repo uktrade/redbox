@@ -4,6 +4,7 @@ import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Any
+from io import BytesIO
 
 import boto3
 import fitz
@@ -174,7 +175,7 @@ class TextractService:
     def document_analysis_large(
         self,
         key: str,
-        file_bytes: bytes,
+        file_bytes: BytesIO | None = None,
         pages_per_chunk: int = 200,
         overlap_pages: int = 1,
         max_workers: int = 6,
@@ -186,8 +187,18 @@ class TextractService:
         back into a single page-ordered list of Elements with LAYOUT intact
         per chunk.
         """
+        if file_bytes is None:
+            obj = self.s3.get_object(Bucket=self.bucket, Key=key)
+            pdf_bytes = obj["Body"].read()
+        else:
+            file_bytes.seek(0)
+            pdf_bytes = file_bytes.read()
+
+            # temporary key used only for chunk uploads
+            key = f"{key}-converted.pdf"
+
         chunks = self._split_pdf_to_s3_chunks(
-            file_bytes=file_bytes, key=key, pages_per_chunk=pages_per_chunk, overlap_pages=overlap_pages
+            file_bytes=pdf_bytes, key=key, pages_per_chunk=pages_per_chunk, overlap_pages=overlap_pages
         )
 
         logger.warning(
@@ -421,23 +432,55 @@ class TextractService:
     def document_analysis(
         self,
         key: str,
+        file_bytes: BytesIO | None = None,
         timeout: float | None = None,
     ) -> list[Element]:
-        logger.warning(
-            "Starting Textract 'document_analysis' extraction directly from S3: s3://%s/%s",
-            self.bucket,
-            key,
-        )
+        temporary_upload = file_bytes is not None
+        if temporary_upload:
+            logger.warning("Starting Textract 'document_analysis' extraction from temporary pdf...")
 
-        job_id = self.start_document_analysis(key)
+            key = f"{key}-converted.pdf"
+            file_bytes.seek(0)
+            pdf_bytes = file_bytes.read()
 
-        status, _ = self._wait_for_job(
-            job_id=job_id,
-            getter=self.textract.get_document_analysis,
-            timeout=timeout,
-        )
+            logger.warning(
+                "Uploading temporary PDF for Textract analysis: s3://%s/%s",
+                self.bucket,
+                key,
+            )
+            self.s3.put_object(
+                Bucket=self.bucket,
+                Key=key,
+                Body=pdf_bytes,
+                ContentType="application/pdf",
+            )
+        else:
+            logger.warning(
+                "Starting Textract 'document_analysis' extraction directly from S3: s3://%s/%s",
+                self.bucket,
+                key,
+            )
 
-        if status != "SUCCEEDED":
-            raise TextractJobFailed(f"Textract 'document_analysis' failed for s3://{self.bucket}/{key}")
+        try:
+            job_id = self.start_document_analysis(key)
 
-        return self.fetch_document_analysis_result(job_id)
+            status, _ = self._wait_for_job(
+                job_id=job_id,
+                getter=self.textract.get_document_analysis,
+                timeout=timeout,
+            )
+
+            if status != "SUCCEEDED":
+                raise TextractJobFailed(f"Textract 'document_analysis' failed for s3://{self.bucket}/{key}")
+
+            return self.fetch_document_analysis_result(job_id)
+        finally:
+            if temporary_upload:
+                try:
+                    self.s3.delete_object(Bucket=self.bucket, Key=key)
+                except Exception:
+                    logger.exception(
+                        "Failed to delete temporary Textract upload s3://%s/%s",
+                        self.bucket,
+                        key,
+                    )

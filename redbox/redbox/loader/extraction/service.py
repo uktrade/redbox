@@ -5,6 +5,10 @@ import logging
 from typing import Callable
 from functools import partial
 from dataclasses import dataclass
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
 
 import fitz
 import boto3
@@ -47,6 +51,13 @@ STRATEGIES = [
     env.document_pdf_extraction_fallback_one_strategy,
     env.document_pdf_extraction_fallback_two_strategy,
 ]
+
+
+@dataclass
+class ExtractedPdf:
+    bytes: BytesIO
+    page_count: int
+    file_size: int
 
 
 class IngestionAlreadyInProgress(Exception):
@@ -99,6 +110,92 @@ class DocumentExtractionService:
     def _lock_key(s3_key: str) -> str:
         return f"ingest-lock:{s3_key}"
 
+    def _convert_office_to_pdf(
+        self,
+        file_bytes: BytesIO,
+        suffix: str,
+        log_stub: str,
+    ) -> ExtractedPdf:
+        """
+        Convert an Office document to PDF using LibreOffice.
+
+        Returns:
+            BytesIO containing the generated PDF.
+        """
+        soffice = shutil.which("soffice")
+        if soffice is None:
+            mac_path = "/Applications/LibreOffice.app/Contents/MacOS/soffice"
+            if Path(mac_path).exists():
+                soffice = mac_path
+            else:
+                raise RuntimeError("LibreOffice (soffice) is not installed.")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+
+            input_file = tmpdir / f"input{suffix}"
+            output_pdf = tmpdir / "input.pdf"
+
+            input_file.write_bytes(file_bytes.getvalue())
+
+            logger.warning("%s Converting %s to PDF", log_stub, suffix)
+
+            subprocess.run(
+                [
+                    soffice,
+                    "--headless",
+                    "--convert-to",
+                    "pdf",
+                    "--outdir",
+                    str(tmpdir),
+                    str(input_file),
+                ],
+                check=True,
+                timeout=120,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            if not output_pdf.exists():
+                raise RuntimeError("LibreOffice did not produce a PDF.")
+
+            pdf = BytesIO(output_pdf.read_bytes())
+
+            with fitz.open(stream=pdf.getvalue(), filetype="pdf") as doc:
+                page_count = doc.page_count
+
+            logger.warning(
+                "%s Office document converted to PDF (%d pages)",
+                log_stub,
+                page_count,
+            )
+
+            return ExtractedPdf(bytes=pdf, page_count=page_count, file_size=len(pdf.getbuffer()))
+
+    def docx_to_pdf(
+        self,
+        file_bytes: BytesIO,
+        log_stub: str,
+    ) -> ExtractedPdf:
+        """Convert a DOCX document to PDF."""
+        return self._convert_office_to_pdf(
+            file_bytes=file_bytes,
+            suffix=".docx",
+            log_stub=log_stub,
+        )
+
+    def pptx_to_pdf(
+        self,
+        file_bytes: BytesIO,
+        log_stub: str,
+    ) -> ExtractedPdf:
+        """Convert a PowerPoint presentation to PDF."""
+        return self._convert_office_to_pdf(
+            file_bytes=file_bytes,
+            suffix=".pptx",
+            log_stub=log_stub,
+        )
+
     def _extract_pdf_text_direct(
         self,
         file_bytes: BytesIO,
@@ -123,6 +220,7 @@ class DocumentExtractionService:
         file_bytes: BytesIO,
         s3_key: str,
         log_stub: str,
+        use_s3_textract: bool = True,
     ) -> tuple[IngestExtractionStrategy, list[Element] | list[str]]:
         strategy_map: dict[str, ExtractionStrategyConfig] = {
             "unstructured_auto": ExtractionStrategyConfig(
@@ -135,7 +233,11 @@ class DocumentExtractionService:
             ),
             "textract_document_analysis": ExtractionStrategyConfig(
                 name=IngestExtractionStrategy.textract_document_analysis,
-                ingestion_fn=partial(self.textract.document_analysis, key=s3_key),
+                ingestion_fn=partial(
+                    self.textract.document_analysis,
+                    key=s3_key,
+                    file_bytes=None if use_s3_textract else file_bytes,
+                ),
             ),
         }
 
@@ -184,6 +286,101 @@ class DocumentExtractionService:
             logger.error("%s Final fallback (_extract_pdf_text_direct) also failed: %s", log_stub, str(e))
             raise RuntimeError("All extraction strategies including final fallback failed") from e
 
+    def _extract_pdf(
+        self,
+        *,
+        s3_key: str,
+        pdf: ExtractedPdf,
+        chunk_resolution: ChunkResolution,
+        log_stub: str,
+        use_s3_textract: bool = True,
+    ) -> tuple[IngestExtractionStrategy, list[Element] | list[str]]:
+        """
+        Extract text/layout from a PDF.
+        This method is shared by: native PDF uploads, DOC/DOCX converted to PDF, PPT/PPTX converted to PDF
+
+        Args:
+            s3_key:
+                Original file name (used for logging and S3 Textract where possible).
+
+            file_bytes:
+                PDF bytes.
+
+            file_size:
+                Size of the PDF in bytes.
+
+            chunk_resolution:
+                Requested chunk resolution.
+
+            log_stub:
+                Logging prefix.
+
+            use_s3_textract:
+                If True, Textract will reference the S3 object directly.
+                If False, Textract should operate on the supplied PDF bytes
+                (used for converted Office documents).
+        """
+
+        logger.warning("%s PDF detected (%d bytes)", log_stub, pdf.file_size)
+
+        # Largest chunks always use direct text extraction.
+        if chunk_resolution == ChunkResolution.largest:
+            logger.warning(
+                "%s Using direct PyMuPDF extraction for largest chunk resolution",
+                log_stub,
+            )
+            return (
+                IngestExtractionStrategy.pymupdf,
+                self._extract_pdf_text_direct(pdf.bytes, log_stub),
+            )
+
+        # Large PDFs bypass unstructured entirely.
+        if pdf.page_count > 200 or pdf.file_size > LARGE_PDF_BYTES_THRESHOLD:
+            logger.warning(
+                "%s Large PDF (%d > 200 pages or %d > %d bytes); using Textract large-document pipeline",
+                log_stub,
+                pdf.page_count,
+                pdf.file_size,
+                LARGE_PDF_BYTES_THRESHOLD,
+            )
+
+            timeout = env.document_large_pdf_timeout
+
+            try:
+                result = self.textract.document_analysis_large(
+                    key=s3_key,
+                    file_bytes=None if use_s3_textract else pdf.bytes,
+                    timeout=timeout,
+                )
+
+                logger.warning("%s Large Textract extraction succeeded", log_stub)
+
+                return (
+                    IngestExtractionStrategy.textract_document_analysis_large,
+                    result,
+                )
+
+            except TextractTimeout:
+                logger.exception(
+                    "%s Large Textract timed out after %ss. Falling back to PyMuPDF.",
+                    log_stub,
+                    timeout,
+                )
+
+                return (
+                    IngestExtractionStrategy.pymupdf,
+                    self._extract_pdf_text_direct(pdf.bytes, log_stub),
+                )
+
+        logger.warning("%s Starting PDF fallback extraction pipeline", log_stub)
+
+        return self._run_with_fallbacks(
+            file_bytes=pdf.bytes,
+            s3_key=s3_key,
+            log_stub=log_stub,
+            use_s3_textract=use_s3_textract,
+        )
+
     def _extract_locked(
         self, file_name: str, chunk_resolution: ChunkResolution
     ) -> tuple[IngestExtractionStrategy, list[Element] | list[str] | list[dict[str, str | dict]]]:
@@ -210,55 +407,42 @@ class DocumentExtractionService:
             result = load_tabular_file(display_name, get_bytes())
             return IngestExtractionStrategy.tabular, result
 
-        if display_name.endswith((".pptx", ".ppt")):
-            logger.warning("%s PowerPoint detected: %s", extract_log_stub, display_name)
-            result = self.unstructured._extract_pptx(get_bytes())
-            return IngestExtractionStrategy.unstructured_pptx, result
-
-        if display_name.endswith(".docx"):
-            logger.warning("%s DOCX detected: %s", extract_log_stub, display_name)
-            result = self.unstructured._extract_docx(get_bytes())
-            return IngestExtractionStrategy.unstructured_docx, result
-
         if display_name.endswith(".pdf"):
-            logger.warning("%s PDF detected: %s", extract_log_stub, display_name)
-
-            if chunk_resolution == ChunkResolution.largest:
-                logger.warning("%s Using direct PDF text extraction.", extract_log_stub)
-                result = self._extract_pdf_text_direct(get_bytes(), extract_log_stub)
-                return IngestExtractionStrategy.pymupdf, result
-
-            if file_size > LARGE_PDF_BYTES_THRESHOLD:
-                logger.warning(
-                    "%s Large PDF (%d bytes > %d threshold) - using Textract directly",
-                    extract_log_stub,
-                    file_size,
-                    LARGE_PDF_BYTES_THRESHOLD,
+            pdf = get_bytes()
+            with fitz.open(stream=pdf.getvalue(), filetype="pdf") as doc:
+                extracted_pdf = ExtractedPdf(
+                    bytes=pdf,
+                    page_count=doc.page_count,
+                    file_size=len(pdf.getbuffer()),
                 )
-                timeout = env.document_large_pdf_timeout
-                try:
-                    result = self.textract.document_analysis_large(
-                        key=s3_key,
-                        file_bytes=get_bytes(),
-                        timeout=timeout,
-                    )
-                    return IngestExtractionStrategy.textract_document_analysis_large, result
-                except TextractTimeout:
-                    logger.exception(
-                        "%s Direct Textract route timed out after %ss, falling back to PyMuPDF",
-                        extract_log_stub,
-                        timeout,
-                    )
-                    result = self._extract_pdf_text_direct(get_bytes(), extract_log_stub)
-                    return IngestExtractionStrategy.pymupdf, result
 
-            logger.warning("%s Starting PDF extraction with fallbacks...", extract_log_stub)
-            strategy, result = self._run_with_fallbacks(
-                file_bytes=get_bytes(),
+            return self._extract_pdf(
                 s3_key=s3_key,
+                pdf=extracted_pdf,
+                chunk_resolution=chunk_resolution,
                 log_stub=extract_log_stub,
+                use_s3_textract=True,
             )
-            return strategy, result
+
+        if display_name.endswith((".doc", ".docx")):
+            pdf = self.docx_to_pdf(get_bytes(), extract_log_stub)
+            return self._extract_pdf(
+                s3_key=s3_key,
+                pdf=pdf,
+                chunk_resolution=chunk_resolution,
+                log_stub=extract_log_stub,
+                use_s3_textract=False,
+            )
+
+        if display_name.endswith((".ppt", ".pptx")):
+            pdf = self.pptx_to_pdf(get_bytes(), extract_log_stub)
+            return self._extract_pdf(
+                s3_key=s3_key,
+                pdf=pdf,
+                chunk_resolution=chunk_resolution,
+                log_stub=extract_log_stub,
+                use_s3_textract=False,
+            )
 
         logger.warning("%s No file type matched - defaulting to generic extraction...", extract_log_stub)
         result = self.unstructured._extract(get_bytes(), file_name)
