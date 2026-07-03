@@ -1,3 +1,4 @@
+from io import BytesIO
 import pytest
 from unittest.mock import patch, MagicMock, call
 from botocore.exceptions import ClientError
@@ -700,7 +701,9 @@ class TestSplitPdfToS3Chunks:
         svc.s3.put_object = MagicMock()
 
         with patch("redbox.loader.extraction.textract.fitz", mock_fitz):
-            chunks = svc._split_pdf_to_s3_chunks(file_bytes=b"pdf-bytes", key=KEY, pages_per_chunk=10, overlap_pages=1)
+            chunks = svc._split_pdf_to_s3_chunks(
+                file_bytes=BytesIO(b"pdf-bytes"), key=KEY, pages_per_chunk=10, overlap_pages=1
+            )
 
         assert chunks == [PdfChunk(s3_key=f"{KEY}.textract-chunks/0000.pdf", start_page=0, end_page=3, overlap_start=0)]
         chunk_doc.insert_pdf.assert_called_once_with(source_doc, from_page=0, to_page=2)
@@ -715,7 +718,9 @@ class TestSplitPdfToS3Chunks:
         svc.s3.put_object = MagicMock()
 
         with patch("redbox.loader.extraction.textract.fitz", mock_fitz):
-            chunks = svc._split_pdf_to_s3_chunks(file_bytes=b"pdf-bytes", key=KEY, pages_per_chunk=4, overlap_pages=1)
+            chunks = svc._split_pdf_to_s3_chunks(
+                file_bytes=BytesIO(b"pdf-bytes"), key=KEY, pages_per_chunk=4, overlap_pages=1
+            )
 
         assert chunks == [
             PdfChunk(s3_key=f"{KEY}.textract-chunks/0000.pdf", start_page=0, end_page=4, overlap_start=0),
@@ -730,7 +735,9 @@ class TestSplitPdfToS3Chunks:
         svc.s3.put_object = MagicMock()
 
         with patch("redbox.loader.extraction.textract.fitz", mock_fitz):
-            chunks = svc._split_pdf_to_s3_chunks(file_bytes=b"pdf-bytes", key=KEY, pages_per_chunk=3, overlap_pages=0)
+            chunks = svc._split_pdf_to_s3_chunks(
+                file_bytes=BytesIO(b"pdf-bytes"), key=KEY, pages_per_chunk=3, overlap_pages=0
+            )
 
         assert chunks == [
             PdfChunk(s3_key=f"{KEY}.textract-chunks/0000.pdf", start_page=0, end_page=3, overlap_start=0),
@@ -744,7 +751,9 @@ class TestSplitPdfToS3Chunks:
         svc.s3.put_object = MagicMock()
 
         with patch("redbox.loader.extraction.textract.fitz", mock_fitz):
-            chunks = svc._split_pdf_to_s3_chunks(file_bytes=b"pdf-bytes", key=KEY, pages_per_chunk=5, overlap_pages=2)
+            chunks = svc._split_pdf_to_s3_chunks(
+                file_bytes=BytesIO(b"pdf-bytes"), key=KEY, pages_per_chunk=5, overlap_pages=2
+            )
 
         assert chunks[0].start_page == 0
         assert chunks[0].overlap_start == 0
@@ -755,7 +764,9 @@ class TestSplitPdfToS3Chunks:
         svc.s3.put_object = MagicMock()
 
         with patch("redbox.loader.extraction.textract.fitz", mock_fitz):
-            chunks = svc._split_pdf_to_s3_chunks(file_bytes=b"pdf-bytes", key=KEY, pages_per_chunk=1, overlap_pages=0)
+            chunks = svc._split_pdf_to_s3_chunks(
+                file_bytes=BytesIO(b"pdf-bytes"), key=KEY, pages_per_chunk=1, overlap_pages=0
+            )
 
         assert chunks[0].s3_key == f"{KEY}.textract-chunks/0000.pdf"
         assert chunks[1].s3_key == f"{KEY}.textract-chunks/0001.pdf"
@@ -873,7 +884,7 @@ class TestDocumentAnalysisLarge:
 
         svc._run_chunk_document_analysis = MagicMock(side_effect=run_chunk_side_effect)
 
-        result = svc.document_analysis_large(key=KEY, file_bytes=b"pdf-bytes")
+        result = svc.document_analysis_large(key=KEY, file_bytes=BytesIO(b"pdf-bytes"))
 
         # chunk0: all 4 pages kept -> original pages 1,2,3,4
         # chunk1: drop_before = overlap_start(4) - start_page(3) = 1 -> local page 1 dropped, local 2,3,4 kept
@@ -903,7 +914,7 @@ class TestDocumentAnalysisLarge:
         svc._run_chunk_document_analysis = MagicMock(side_effect=run_chunk_side_effect)
 
         with pytest.raises(TextractJobFailed):
-            svc.document_analysis_large(key=KEY, file_bytes=b"pdf-bytes")
+            svc.document_analysis_large(key=KEY, file_bytes=BytesIO(b"pdf-bytes"))
 
         assert svc._cleanup_chunk.call_count == 3
         for chunk in chunks:
@@ -916,7 +927,7 @@ class TestDocumentAnalysisLarge:
         svc._cleanup_chunk = MagicMock()
         svc._run_chunk_document_analysis = MagicMock(return_value=self._elements_for_chunk(3))
 
-        result = svc.document_analysis_large(key=KEY, file_bytes=b"pdf-bytes")
+        result = svc.document_analysis_large(key=KEY, file_bytes=BytesIO(b"pdf-bytes"))
 
         assert [e.metadata.page_number for e in result] == [1, 2, 3]
         svc._cleanup_chunk.assert_called_once_with(chunk)
@@ -927,11 +938,11 @@ class TestDocumentAnalysisLarge:
         svc._cleanup_chunk = MagicMock()
 
         svc.document_analysis_large(
-            key=KEY, file_bytes=b"pdf-bytes", pages_per_chunk=50, overlap_pages=2, max_workers=3, timeout=99.0
+            key=KEY, file_bytes=BytesIO(b"pdf-bytes"), pages_per_chunk=50, overlap_pages=2, max_workers=3, timeout=99.0
         )
 
         svc._split_pdf_to_s3_chunks.assert_called_once_with(
-            file_bytes=b"pdf-bytes", key=KEY, pages_per_chunk=50, overlap_pages=2
+            file_bytes=b"pdf-bytes", key=f"{KEY}-converted.pdf", pages_per_chunk=50, overlap_pages=2
         )
 
     def test_passes_timeout_to_each_chunk_analysis(self):
@@ -941,7 +952,7 @@ class TestDocumentAnalysisLarge:
         svc._cleanup_chunk = MagicMock()
         svc._run_chunk_document_analysis = MagicMock(return_value=[])
 
-        svc.document_analysis_large(key=KEY, file_bytes=b"pdf-bytes", timeout=15.0)
+        svc.document_analysis_large(key=KEY, file_bytes=BytesIO(b"pdf-bytes"), timeout=15.0)
 
         svc._run_chunk_document_analysis.assert_called_once_with(chunk, 15.0)
 
@@ -950,7 +961,16 @@ class TestDocumentAnalysisLarge:
         svc._split_pdf_to_s3_chunks = MagicMock(return_value=[])
         svc._cleanup_chunk = MagicMock()
 
-        result = svc.document_analysis_large(key=KEY, file_bytes=b"pdf-bytes")
+        result = svc.document_analysis_large(key=KEY, file_bytes=BytesIO(b"pdf-bytes"))
 
         assert result == []
         svc._cleanup_chunk.assert_not_called()
+
+    def test_empty_document_never_runs_chunk_analysis(self):
+        svc = make_service()
+        svc._split_pdf_to_s3_chunks = MagicMock(return_value=[])
+        svc._run_chunk_document_analysis = MagicMock()
+
+        svc.document_analysis_large(KEY, BytesIO(b"pdf"))
+
+        svc._run_chunk_document_analysis.assert_not_called()

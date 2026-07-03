@@ -6,6 +6,7 @@ import types
 
 from redbox.models.file import ChunkResolution
 from redbox_app.redbox_core.enums import IngestExtractionStrategy
+from redbox.loader.extraction.textract import TextractTimeout
 
 _orig_cache = sys.modules.get("django.core.cache")
 
@@ -24,6 +25,7 @@ try:
         DocumentExtractionService,
         STRATEGIES,
         INGEST_LOCK_TIMEOUT_SECONDS,
+        LARGE_PDF_BYTES_THRESHOLD,
         IngestionAlreadyInProgress,
     )
 finally:
@@ -193,43 +195,119 @@ class TestExtractTabular:
         mock_load.assert_called_once()
 
 
-class TestExtractOffice:
+class TestOfficeToPdfRouting:
     @pytest.mark.parametrize(
-        "file_name, method, expected_strategy",
+        "file_name, converter",
         [
-            ("deck.pptx", "_extract_pptx", IngestExtractionStrategy.unstructured_pptx),
-            ("deck.ppt", "_extract_pptx", IngestExtractionStrategy.unstructured_pptx),
-            ("document.docx", "_extract_docx", IngestExtractionStrategy.unstructured_docx),
+            ("document.docx", "docx_to_pdf"),
+            ("document.doc", "docx_to_pdf"),
+            ("deck.pptx", "pptx_to_pdf"),
+            ("deck.ppt", "pptx_to_pdf"),
         ],
     )
-    def test_routes_to_unstructured(self, file_name, method, expected_strategy):
+    def test_office_documents_are_converted_then_extracted(self, file_name, converter):
         svc = make_service()
         patch_s3(svc)
-        getattr(svc.unstructured, method).return_value = PAGES
-        strategy, result = svc.extract(file_name, ChunkResolution.normal)
-        assert strategy == expected_strategy
-        assert result == PAGES
-        getattr(svc.unstructured, method).assert_called_once()
+
+        extracted_pdf = MagicMock()
+
+        with (
+            patch.object(svc, converter, return_value=extracted_pdf) as mock_converter,
+            patch.object(
+                svc,
+                "_extract_pdf",
+                return_value=(IngestExtractionStrategy.pymupdf, ["page"]),
+            ) as mock_extract,
+        ):
+            strategy, result = svc.extract(file_name, ChunkResolution.normal)
+
+        assert strategy == IngestExtractionStrategy.pymupdf
+        assert result == ["page"]
+
+        mock_converter.assert_called_once()
+
+        mock_extract.assert_called_once_with(
+            s3_key=file_name,
+            pdf=extracted_pdf,
+            chunk_resolution=ChunkResolution.normal,
+            log_stub=ANY,
+            use_s3_textract=False,
+        )
+
+
+class TestOfficeConversion:
+    def test_docx_to_pdf_delegates(self):
+        svc = make_service()
+
+        expected = MagicMock()
+
+        with patch.object(
+            svc,
+            "_convert_office_to_pdf",
+            return_value=expected,
+        ) as convert:
+            result = svc.docx_to_pdf(BytesIO(b"doc"), "[log]")
+
+        assert result is expected
+
+        convert.assert_called_once_with(
+            file_bytes=ANY,
+            suffix=".docx",
+            log_stub="[log]",
+        )
+
+    def test_pptx_to_pdf_delegates(self):
+        svc = make_service()
+
+        expected = MagicMock()
+
+        with patch.object(
+            svc,
+            "_convert_office_to_pdf",
+            return_value=expected,
+        ) as convert:
+            result = svc.pptx_to_pdf(BytesIO(b"ppt"), "[log]")
+
+        assert result is expected
+
+        convert.assert_called_once_with(
+            file_bytes=ANY,
+            suffix=".pptx",
+            log_stub="[log]",
+        )
 
 
 class TestPdfRouting:
     @pytest.mark.parametrize(
-        "file_size, expected_large",
+        "page_count,file_size,expected_large",
         [
-            (5 * 1024 * 1024, False),  # threshold
-            (5 * 1024 * 1024 + 1, True),  # above threshold
+            (1, LARGE_PDF_BYTES_THRESHOLD, False),  # normal PDF
+            (201, 1024, True),  # large by page count
+            (10, LARGE_PDF_BYTES_THRESHOLD + 1, True),  # large by file size
         ],
     )
-    def test_routes_based_on_pdf_size(self, file_size, expected_large):
+    def test_routes_based_on_pdf_size_or_page_count(
+        self,
+        page_count,
+        file_size,
+        expected_large,
+    ):
         svc = make_service()
 
-        patch_s3(svc, file_size=file_size)
+        patch_s3(svc, content=b"x" * file_size, file_size=file_size)
+
+        mock_doc = MagicMock()
+        mock_doc.page_count = page_count
 
         with (
+            patch("redbox.loader.extraction.service.fitz.open") as mock_open,
             patch.object(
                 svc,
                 "_run_with_fallbacks",
-                return_value=(IngestExtractionStrategy.unstructured_auto, ["page"]),
+                return_value=(
+                    IngestExtractionStrategy.unstructured_auto,
+                    ["page"],
+                ),
             ) as mock_fallback,
             patch.object(
                 svc.textract,
@@ -237,16 +315,18 @@ class TestPdfRouting:
                 return_value=["page"],
             ) as mock_large,
         ):
+            mock_open.return_value.__enter__.return_value = mock_doc
+
             strategy, _ = svc.extract("file.pdf", ChunkResolution.normal)
 
-            if expected_large:
-                assert strategy == IngestExtractionStrategy.textract_document_analysis_large
-                mock_large.assert_called_once()
-                mock_fallback.assert_not_called()
-            else:
-                assert strategy == IngestExtractionStrategy.unstructured_auto
-                mock_fallback.assert_called_once()
-                mock_large.assert_not_called()
+        if expected_large:
+            assert strategy == IngestExtractionStrategy.textract_document_analysis_large
+            mock_large.assert_called_once()
+            mock_fallback.assert_not_called()
+        else:
+            assert strategy == IngestExtractionStrategy.unstructured_auto
+            mock_fallback.assert_called_once()
+            mock_large.assert_not_called()
 
 
 class TestExtractPdf:
@@ -307,12 +387,10 @@ class TestExtractPdf:
     )
     def test_pdf_fallbacks_on_normal_resolution(self, results, raises):
         svc = make_service()
-        patch_s3(svc, file_size=1024)
 
         def get_result(name):
             return results.get(name, RuntimeError(name))
 
-        # unstructured
         def unstructured_mock(file_bytes, key, strategy, **kwargs):
             result = get_result(f"unstructured_{strategy}")
             if isinstance(result, Exception):
@@ -321,29 +399,29 @@ class TestExtractPdf:
 
         svc.unstructured._extract.side_effect = unstructured_mock
 
-        # textract
         textract = get_result("textract_document_analysis")
         if isinstance(textract, Exception):
             svc.textract.document_analysis.side_effect = textract
         else:
             svc.textract.document_analysis.return_value = textract
 
-        # direct fallback
         direct = get_result("pymupdf")
-        direct_patch = patch.object(
+
+        with patch.object(
             svc,
             "_extract_pdf_text_direct",
             side_effect=direct if isinstance(direct, Exception) else None,
             return_value=None if isinstance(direct, Exception) else direct,
-        )
-
-        with direct_patch as mock_direct:
+        ) as mock_direct:
             if raises:
                 with pytest.raises(RuntimeError, match="All extraction strategies"):
-                    svc.extract("file.pdf", ChunkResolution.normal)
+                    svc._run_with_fallbacks(
+                        file_bytes=BytesIO(b"pdf"),
+                        s3_key="file.pdf",
+                        log_stub="[log]",
+                    )
                 return
 
-            # Determine expected winner from configured strategy order
             for strategy in STRATEGIES:
                 result = get_result(strategy)
                 if not isinstance(result, Exception):
@@ -356,34 +434,54 @@ class TestExtractPdf:
                 expected = direct
                 expected_direct = True
 
-            strategy, result = svc.extract("file.pdf", ChunkResolution.normal)
+            strategy, result = svc._run_with_fallbacks(
+                file_bytes=BytesIO(b"pdf"),
+                s3_key="file.pdf",
+                log_stub="[log]",
+            )
 
             assert strategy == expected_strategy
             assert [str(r) for r in result] == [str(r) for r in expected]
 
             if expected_direct:
-                mock_direct.assert_called_once()
+                mock_direct.assert_called_once_with(ANY, "[log]")
             else:
                 mock_direct.assert_not_called()
 
-    @pytest.mark.parametrize(
-        "file_name, pages",
-        [("notes.pdf", 2), ("file.PDF", 1), ("file.PDF", 0)],
-    )
-    def test_pdf_on_largest_resolution(self, file_name, pages):
+    @pytest.mark.parametrize("pages", [2, 1, 0])
+    def test_pdf_on_largest_resolution(self, pages):
         expected_page = "page text"
 
         svc = make_service()
 
-        with patch.object(svc, "_extract_pdf_text_direct", return_value=[expected_page] * pages) as mock_direct:
-            with patch.object(svc, "_run_with_fallbacks", return_value=[expected_page] * pages) as mock_fallback:
-                patch_s3(svc)
-                strategy, result = svc.extract(file_name, ChunkResolution.largest)
+        pdf = MagicMock()
+        pdf.bytes = BytesIO(b"pdf")
+        pdf.page_count = 10
+        pdf.file_size = 1024
 
-                assert strategy == IngestExtractionStrategy.pymupdf
-                assert result == [expected_page] * pages
-                mock_direct.assert_called_once()
-                mock_fallback.assert_not_called()
+        with (
+            patch.object(
+                svc,
+                "_extract_pdf_text_direct",
+                return_value=[expected_page] * pages,
+            ) as mock_direct,
+            patch.object(
+                svc,
+                "_run_with_fallbacks",
+            ) as mock_fallback,
+        ):
+            strategy, result = svc._extract_pdf(
+                s3_key="file.pdf",
+                pdf=pdf,
+                chunk_resolution=ChunkResolution.largest,
+                log_stub="[log]",
+            )
+
+        assert strategy == IngestExtractionStrategy.pymupdf
+        assert result == [expected_page] * pages
+
+        mock_direct.assert_called_once_with(pdf.bytes, "[log]")
+        mock_fallback.assert_not_called()
 
 
 class TestExtractGeneric:
@@ -406,42 +504,131 @@ class TestExtractGeneric:
 
 
 class TestExtractS3:
-    @pytest.mark.parametrize(
-        "s3_error, body_bytes, expected_exception",
-        [
-            # happy path - S3 returns bytes
-            (None, b"pdf-bytes", None),
-            # S3 failure propagates
-            (RuntimeError("S3 unavailable"), None, RuntimeError),
-        ],
-    )
-    def test_s3_fetch_matrix(self, s3_error, body_bytes, expected_exception):
+    def test_fetches_pdf_from_s3(self):
         svc = make_service()
+        patch_s3(svc, content=b"pdf-bytes", file_size=1024)
 
-        if s3_error:
-            patch_s3(svc, file_size=1024)
-            svc.s3.get_object.side_effect = s3_error
-        else:
-            patch_s3(svc, content=body_bytes, file_size=1024)
+        with (
+            patch("redbox.loader.extraction.service.fitz.open") as mock_open,
+            patch.object(
+                svc,
+                "_extract_pdf",
+                return_value=(IngestExtractionStrategy.unstructured_auto, ["ok"]),
+            ) as mock_extract,
+        ):
+            mock_doc = MagicMock()
+            mock_doc.page_count = 1
+            mock_open.return_value.__enter__.return_value = mock_doc
 
-        if expected_exception:
-            with pytest.raises(RuntimeError, match="S3 unavailable"):
-                svc.extract("any/file.pdf", ChunkResolution.normal)
-            return
+            strategy, result = svc.extract(
+                "any/file.pdf",
+                ChunkResolution.normal,
+            )
 
-        # we just verify extraction runs without S3 error
-        if STRATEGIES[0].startswith("unstructured"):
-            svc.unstructured._extract.return_value = ["ok"]
-        else:
-            svc.textract.document_analysis.return_value = ["ok"]
-
-        strategy, result = svc.extract("any/file.pdf", ChunkResolution.normal)
-        assert strategy == STRATEGIES[0]
+        assert strategy == IngestExtractionStrategy.unstructured_auto
         assert result == ["ok"]
 
         svc.s3.get_object.assert_called_once_with(
             Bucket=BUCKET,
             Key="any/file.pdf",
+        )
+
+        mock_extract.assert_called_once()
+
+    def test_s3_get_object_failure_propagates(self):
+        svc = make_service()
+
+        patch_s3(svc, file_size=1024)
+        svc.s3.get_object.side_effect = RuntimeError("S3 unavailable")
+
+        with pytest.raises(RuntimeError, match="S3 unavailable"):
+            svc.extract("any/file.pdf", ChunkResolution.normal)
+
+        svc.s3.get_object.assert_called_once_with(
+            Bucket=BUCKET,
+            Key="any/file.pdf",
+        )
+
+
+class TestLargePdfExtraction:
+    def make_pdf(self):
+        pdf = MagicMock()
+        pdf.bytes = BytesIO(b"pdf")
+        pdf.page_count = 300
+        pdf.file_size = 1024
+        return pdf
+
+    def test_large_pdf_timeout_falls_back_to_pymupdf(self):
+        svc = make_service()
+
+        pdf = self.make_pdf()
+
+        svc.textract.document_analysis_large.side_effect = TextractTimeout("timeout")
+
+        with patch.object(
+            svc,
+            "_extract_pdf_text_direct",
+            return_value=["page"],
+        ) as mock_direct:
+            strategy, result = svc._extract_pdf(
+                s3_key="file.pdf",
+                pdf=pdf,
+                chunk_resolution=ChunkResolution.normal,
+                log_stub="[log]",
+            )
+
+        assert strategy == IngestExtractionStrategy.pymupdf
+        assert result == ["page"]
+
+        svc.textract.document_analysis_large.assert_called_once()
+        mock_direct.assert_called_once_with(pdf.bytes, "[log]")
+
+    def test_large_pdf_uses_pdf_bytes_when_not_using_s3_textract(self):
+        svc = make_service()
+
+        pdf = self.make_pdf()
+
+        svc.textract.document_analysis_large.return_value = ["page"]
+
+        strategy, result = svc._extract_pdf(
+            s3_key="document.docx",
+            pdf=pdf,
+            chunk_resolution=ChunkResolution.normal,
+            log_stub="[log]",
+            use_s3_textract=False,
+        )
+
+        assert strategy == IngestExtractionStrategy.textract_document_analysis_large
+        assert result == ["page"]
+
+        svc.textract.document_analysis_large.assert_called_once_with(
+            key="document.docx",
+            file_bytes=pdf.bytes,
+            timeout=ANY,
+        )
+
+    def test_large_pdf_uses_s3_reference_when_enabled(self):
+        svc = make_service()
+
+        pdf = self.make_pdf()
+
+        svc.textract.document_analysis_large.return_value = ["page"]
+
+        strategy, result = svc._extract_pdf(
+            s3_key="file.pdf",
+            pdf=pdf,
+            chunk_resolution=ChunkResolution.normal,
+            log_stub="[log]",
+            use_s3_textract=True,
+        )
+
+        assert strategy == IngestExtractionStrategy.textract_document_analysis_large
+        assert result == ["page"]
+
+        svc.textract.document_analysis_large.assert_called_once_with(
+            key="file.pdf",
+            file_bytes=None,
+            timeout=ANY,
         )
 
 
