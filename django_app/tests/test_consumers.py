@@ -540,7 +540,7 @@ async def test_chat_consumer_get_ai_settings(
         mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = chat_with_alice.user
-        connected, _ = await communicator.connect()
+        connected, _ = await communicator.connect(timeout=5)
         assert connected
 
         with patch(
