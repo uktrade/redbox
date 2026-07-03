@@ -895,6 +895,7 @@ async def test_connect_with_agents_cache(
         await comm2.disconnect()
 
 
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_connect_with_agents_update_via_db(agents_list: list, alice: User):
     """
@@ -913,10 +914,7 @@ async def test_connect_with_agents_update_via_db(agents_list: list, alice: User)
 
         assert "Fake_Agent" not in list(ChatConsumer.redbox.agent_configs.keys())
         assert ChatConsumer.redbox.agent_configs["Internal_Retrieval_Agent"].agents_max_tokens == 100
-        assert (
-            ChatConsumer.redbox.agent_configs["Internal_Retrieval_Agent"].llm_backend.name
-            == "anthropic.claude-3-7-sonnet-20250219-v1:0"
-        )
+        assert ChatConsumer.redbox.agent_configs["Internal_Retrieval_Agent"].llm_backend.name == "gpt-4o"
 
 
 @pytest.mark.parametrize(
