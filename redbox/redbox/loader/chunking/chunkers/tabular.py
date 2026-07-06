@@ -20,7 +20,7 @@ class TabularDocumentChunker(BaseChunker):
     """
 
     MAX_CHARS = 50_000
-    MAX_TOKENS = 8_000
+    MAX_TOKENS = 6_000
 
     def _split_table(self, text: str) -> list[str]:
         """Split a tabular document into chunks whilst preserving the header."""
