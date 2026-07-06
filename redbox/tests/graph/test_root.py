@@ -25,6 +25,8 @@ class TestNewRouteGraphs:
             ("Internal_Retrieval_Agent", ["combine_question_evaluator"]),
             ("External_Retrieval_Agent", ["combine_question_evaluator"]),
             ("Legislation_Search_Agent", ["combine_question_evaluator"]),
+            ("News_Search_Agent", ["combine_question_evaluator"]),
+            ("Imf_Search_Agent", ["combine_question_evaluator"]),
             ("Web_Search_Agent", ["combine_question_evaluator"]),
             ("Tabular_Agent", ["combine_question_evaluator"]),
             ("Summarisation_Agent", None),

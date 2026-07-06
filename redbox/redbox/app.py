@@ -125,6 +125,7 @@ class Redbox:
         self.agent_configs["Web_Search_Agent"].tools = [web_search]
         self.agent_configs["Legislation_Search_Agent"].tools = [legislation_search]
         self.agent_configs["News_Search_Agent"].tools = [web_search]
+        self.agent_configs["Imf_Search_Agent"].tools = [web_search]
         self.agent_configs["Submission_Question_Answer_Agent"].tools = [
             retrieve_full_text,
             retrieve_knowledge_base,
