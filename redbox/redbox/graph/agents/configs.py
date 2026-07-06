@@ -241,7 +241,7 @@ agent_configs: Dict[str, AgentConfig] = {
         description=prompts.NEWS_SEARCH_AGENT_DESC,
         prompt=prompt_configs["News_Search_Agent"],
         parser=None,
-        default_agent=True,
+        default_agent=False,
         agents_max_tokens=10000,
     ),
     "Summarisation_Agent": AgentConfig(
