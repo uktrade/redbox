@@ -98,6 +98,9 @@ class Settings(BaseSettings):
     embedding_max_batch_size: int = 512
     embedding_document_field_name: str = "embedding"
 
+    embedding_max_chars: int = 50_000  # Amazon Titan max embedding chars 50k - https://docs.aws.amazon.com/bedrock/latest/userguide/titan-embedding-models.html
+    embedding_max_tokens: int = 8_192  # Amazon Titan max embedding tokens 8192 - https://docs.aws.amazon.com/bedrock/latest/userguide/titan-embedding-models.html
+
     document_ingest_lock_timeout_seconds: int = os.environ.get("DOCUMENT_INGEST_LOCK_TIMEOUT_SECONDS", 1800)
     document_large_pdf_bytes_threshold: int = os.environ.get("DOCUMENT_LARGE_PDF_BYTES_THRESHOLD", 5 * 1024 * 1024)
     document_large_pdf_timeout: int = os.environ.get("DOCUMENT_LARGE_PDF_TIMEOUT", 900)
