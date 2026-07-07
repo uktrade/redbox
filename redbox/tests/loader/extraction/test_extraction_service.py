@@ -4,7 +4,6 @@ from unittest.mock import patch, MagicMock, ANY, call
 import sys
 import types
 
-from redbox.models.file import ChunkResolution
 from redbox_app.redbox_core.enums import IngestExtractionStrategy
 from redbox.loader.extraction.textract import TextractTimeout
 
@@ -189,7 +188,7 @@ class TestExtractTabular:
     def test_routes_to_load_tabular(self, mock_load, file_name):
         svc = make_service()
         patch_s3(svc)
-        strategy, result = svc.extract(file_name, ChunkResolution.tabular)
+        strategy, result = svc.extract(file_name)
         assert strategy == IngestExtractionStrategy.tabular
         assert result == TABULAR
         mock_load.assert_called_once()
@@ -219,7 +218,7 @@ class TestOfficeToPdfRouting:
                 return_value=(IngestExtractionStrategy.pymupdf, ["page"]),
             ) as mock_extract,
         ):
-            strategy, result = svc.extract(file_name, ChunkResolution.normal)
+            strategy, result = svc.extract(file_name)
 
         assert strategy == IngestExtractionStrategy.pymupdf
         assert result == ["page"]
@@ -229,7 +228,6 @@ class TestOfficeToPdfRouting:
         mock_extract.assert_called_once_with(
             s3_key=file_name,
             pdf=extracted_pdf,
-            chunk_resolution=ChunkResolution.normal,
             log_stub=ANY,
             use_s3_textract=False,
         )
@@ -317,7 +315,7 @@ class TestPdfRouting:
         ):
             mock_open.return_value.__enter__.return_value = mock_doc
 
-            strategy, _ = svc.extract("file.pdf", ChunkResolution.normal)
+            strategy, _ = svc.extract("file.pdf")
 
         if expected_large:
             assert strategy == IngestExtractionStrategy.textract_document_analysis_large
@@ -385,7 +383,7 @@ class TestExtractPdf:
             ),
         ],
     )
-    def test_pdf_fallbacks_on_normal_resolution(self, results, raises):
+    def test_pdf_fallbacks(self, results, raises):
         svc = make_service()
 
         def get_result(name):
@@ -448,41 +446,6 @@ class TestExtractPdf:
             else:
                 mock_direct.assert_not_called()
 
-    @pytest.mark.parametrize("pages", [2, 1, 0])
-    def test_pdf_on_largest_resolution(self, pages):
-        expected_page = "page text"
-
-        svc = make_service()
-
-        pdf = MagicMock()
-        pdf.bytes = BytesIO(b"pdf")
-        pdf.page_count = 10
-        pdf.file_size = 1024
-
-        with (
-            patch.object(
-                svc,
-                "_extract_pdf_text_direct",
-                return_value=[expected_page] * pages,
-            ) as mock_direct,
-            patch.object(
-                svc,
-                "_run_with_fallbacks",
-            ) as mock_fallback,
-        ):
-            strategy, result = svc._extract_pdf(
-                s3_key="file.pdf",
-                pdf=pdf,
-                chunk_resolution=ChunkResolution.largest,
-                log_stub="[log]",
-            )
-
-        assert strategy == IngestExtractionStrategy.pymupdf
-        assert result == [expected_page] * pages
-
-        mock_direct.assert_called_once_with(pdf.bytes, "[log]")
-        mock_fallback.assert_not_called()
-
 
 class TestExtractGeneric:
     @pytest.mark.parametrize(
@@ -496,7 +459,7 @@ class TestExtractGeneric:
         svc = make_service()
         patch_s3(svc)
         svc.unstructured._extract.return_value = PAGES
-        strategy, result = svc.extract(file_name, ChunkResolution.normal)
+        strategy, result = svc.extract(file_name)
         assert strategy == IngestExtractionStrategy.unstructured_auto
         assert result == PAGES
         svc.unstructured._extract.assert_called_once()
@@ -515,7 +478,7 @@ class TestExtractMarkupTypes:
         patch_s3(svc)
         svc.unstructured._extract_markdown.return_value = PAGES
 
-        strategy, result = svc.extract(file_name, ChunkResolution.normal)
+        strategy, result = svc.extract(file_name)
 
         assert strategy == IngestExtractionStrategy.unstructured_auto
         assert result == PAGES
@@ -529,7 +492,7 @@ class TestExtractMarkupTypes:
         svc.unstructured._extract_markdown.side_effect = RuntimeError("bad markdown")
 
         with pytest.raises(RuntimeError, match="bad markdown"):
-            svc.extract("notes.md", ChunkResolution.normal)
+            svc.extract("notes.md")
 
     @pytest.mark.parametrize(
         "file_name",
@@ -543,7 +506,7 @@ class TestExtractMarkupTypes:
         patch_s3(svc)
         svc.unstructured._extract_html.return_value = PAGES
 
-        strategy, result = svc.extract(file_name, ChunkResolution.normal)
+        strategy, result = svc.extract(file_name)
 
         assert strategy == IngestExtractionStrategy.unstructured_auto
         assert result == PAGES
@@ -557,14 +520,14 @@ class TestExtractMarkupTypes:
         svc.unstructured._extract_html.side_effect = RuntimeError("malformed markup")
 
         with pytest.raises(RuntimeError, match="malformed markup"):
-            svc.extract("page.html", ChunkResolution.normal)
+            svc.extract("page.html")
 
     def test_txt_routes_to_extract_text(self):
         svc = make_service()
         patch_s3(svc)
         svc.unstructured._extract_text.return_value = PAGES
 
-        strategy, result = svc.extract("notes.txt", ChunkResolution.normal)
+        strategy, result = svc.extract("notes.txt")
 
         assert strategy == IngestExtractionStrategy.unstructured_auto
         assert result == PAGES
@@ -578,7 +541,7 @@ class TestExtractMarkupTypes:
         svc.unstructured._extract_text.side_effect = RuntimeError("bad encoding")
 
         with pytest.raises(RuntimeError, match="bad encoding"):
-            svc.extract("notes.txt", ChunkResolution.normal)
+            svc.extract("notes.txt")
 
 
 class TestExtractS3:
@@ -600,7 +563,6 @@ class TestExtractS3:
 
             strategy, result = svc.extract(
                 "any/file.pdf",
-                ChunkResolution.normal,
             )
 
         assert strategy == IngestExtractionStrategy.unstructured_auto
@@ -620,7 +582,7 @@ class TestExtractS3:
         svc.s3.get_object.side_effect = RuntimeError("S3 unavailable")
 
         with pytest.raises(RuntimeError, match="S3 unavailable"):
-            svc.extract("any/file.pdf", ChunkResolution.normal)
+            svc.extract("any/file.pdf")
 
         svc.s3.get_object.assert_called_once_with(
             Bucket=BUCKET,
@@ -651,7 +613,6 @@ class TestLargePdfExtraction:
             strategy, result = svc._extract_pdf(
                 s3_key="file.pdf",
                 pdf=pdf,
-                chunk_resolution=ChunkResolution.normal,
                 log_stub="[log]",
             )
 
@@ -671,7 +632,6 @@ class TestLargePdfExtraction:
         strategy, result = svc._extract_pdf(
             s3_key="document.docx",
             pdf=pdf,
-            chunk_resolution=ChunkResolution.normal,
             log_stub="[log]",
             use_s3_textract=False,
         )
@@ -695,7 +655,6 @@ class TestLargePdfExtraction:
         strategy, result = svc._extract_pdf(
             s3_key="file.pdf",
             pdf=pdf,
-            chunk_resolution=ChunkResolution.normal,
             log_stub="[log]",
             use_s3_textract=True,
         )
@@ -717,18 +676,18 @@ class TestExtractLocking:
 
         svc.unstructured._extract.return_value = PAGES
 
-        strategy, result = svc.extract("notes.json", ChunkResolution.normal)
+        strategy, result = svc.extract("notes.json")
 
         assert strategy == IngestExtractionStrategy.unstructured_auto
         assert result == PAGES
 
         mock_cache.add.assert_called_once_with(
-            "ingest-lock:notes.json:normal",
+            "ingest-lock:notes.json",
             "1",
             timeout=INGEST_LOCK_TIMEOUT_SECONDS,
         )
         mock_cache.delete.assert_called_once_with(
-            "ingest-lock:notes.json:normal",
+            "ingest-lock:notes.json",
         )
 
     def test_releases_lock_when_extraction_fails(self, mock_cache):
@@ -738,15 +697,15 @@ class TestExtractLocking:
         svc.unstructured._extract.side_effect = RuntimeError("boom")
 
         with pytest.raises(RuntimeError, match="boom"):
-            svc.extract("notes.json", ChunkResolution.normal)
+            svc.extract("notes.json")
 
         mock_cache.add.assert_called_once_with(
-            "ingest-lock:notes.json:normal",
+            "ingest-lock:notes.json",
             "1",
             timeout=INGEST_LOCK_TIMEOUT_SECONDS,
         )
         mock_cache.delete.assert_called_once_with(
-            "ingest-lock:notes.json:normal",
+            "ingest-lock:notes.json",
         )
 
     def test_raises_when_lock_already_exists(self, mock_cache):
@@ -755,10 +714,10 @@ class TestExtractLocking:
         svc = make_service()
 
         with pytest.raises(IngestionAlreadyInProgress):
-            svc.extract("notes.json", ChunkResolution.normal)
+            svc.extract("notes.json")
 
         mock_cache.add.assert_called_once_with(
-            "ingest-lock:notes.json:normal",
+            "ingest-lock:notes.json",
             "1",
             timeout=INGEST_LOCK_TIMEOUT_SECONDS,
         )
