@@ -44,10 +44,14 @@ FROM python:3.12-slim
 RUN apt-get update && apt-get install -y \
     libreoffice \
     libreoffice-writer \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    libpq-dev \
+    curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install --yes libpq-dev curl > /dev/null
+RUN which tesseract && tesseract --version
 
 WORKDIR /usr/src/app
 
