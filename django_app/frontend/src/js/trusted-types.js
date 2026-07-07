@@ -1,25 +1,37 @@
 // @ts-check
 
-/** @type {import ('../../node_modules/@types/dompurify/index.d.ts')} */
-let DOMPurify = window["DOMPurify"];
+import DOMPurify from "dompurify";
+
+const ALLOWED_CUSTOM_TAGS = [
+  "streamed-content",
+  "chat-message",
+  "ids-loading-message",
+  "feedback-buttons",
+  "copy-text",
+  "ids-popover",
+];
+
+const CUSTOM_ELEMENT_HANDLING = {
+  tagNameCheck: (/** @type {String} */ tagName) =>
+    ALLOWED_CUSTOM_TAGS.includes(tagName),
+
+  attributeNameCheck: (/** @type {String} */ attr) => true,
+  allowCustomizedBuiltInElements: true,
+};
+
+DOMPurify.setConfig({
+  ADD_TAGS: ALLOWED_CUSTOM_TAGS,
+  RETURN_TRUSTED_TYPE: false,
+  CUSTOM_ELEMENT_HANDLING: CUSTOM_ELEMENT_HANDLING,
+});
 
 // Create default policy
 if (typeof window.trustedTypes !== "undefined") {
   window.trustedTypes.createPolicy("default", {
-    createHTML: (to_escape) =>
-      DOMPurify.sanitize(to_escape, {
+    createHTML: (html) =>
+      DOMPurify.sanitize(html, {
         RETURN_TRUSTED_TYPE: false,
-        CUSTOM_ELEMENT_HANDLING: {
-          tagNameCheck: (tagName) =>
-            tagName === "copy-text" ||
-            tagName === "feedback-buttons" ||
-            tagName === "loading-message" ||
-            tagName === "streamed-content" ||
-            tagName === "sources-list" ||
-            tagName === "tool-tip",
-          attributeNameCheck: (attr) => true,
-          allowCustomizedBuiltInElements: true,
-        },
+        CUSTOM_ELEMENT_HANDLING: CUSTOM_ELEMENT_HANDLING,
       }),
   });
 }

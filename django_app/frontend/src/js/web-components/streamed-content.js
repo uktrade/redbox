@@ -1,6 +1,6 @@
 // @ts-check
 
-import { visuallyHideElement } from "../utils";
+import { sanitizeHtml, visuallyHideElement } from "../utils";
 
 export class StreamedContent extends HTMLElement {
   connectedCallback() {
@@ -39,7 +39,7 @@ export class StreamedContent extends HTMLElement {
       document.createElement("div")
     );
     this._visualContainer.setAttribute("data-visual-layer", "");
-    this._visualContainer.innerHTML = existingHtml;
+    this._visualContainer.innerHTML = sanitizeHtml(existingHtml);
 
     this.append(
       this._screenReaderContainer,
@@ -65,9 +65,7 @@ export class StreamedContent extends HTMLElement {
    * Returns true when the SR layer contains content.
    */
   get isStreamingMode() {
-    return Boolean(
-      this.screenReaderContainer.textContent?.trim(),
-    );
+    return Boolean(this.screenReaderContainer.textContent?.trim());
   }
 
 
@@ -79,7 +77,7 @@ export class StreamedContent extends HTMLElement {
    * @param {string | null} textChunk
    */
   update(html, textChunk = null) {
-    this.visualContainer.innerHTML = html;
+    this.visualContainer.innerHTML = sanitizeHtml(html);
 
     if (textChunk) {
       this.appendScreenReaderText(textChunk);

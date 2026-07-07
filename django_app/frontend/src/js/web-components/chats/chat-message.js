@@ -1,12 +1,15 @@
 // @ts-check
 
 import { LoadingMessage } from "../../../interaction_design_system/ids/components";
-import { hideElement, showElement } from "../../utils";
+import { hideElement, sanitizeHtml, showElement } from "../../utils";
 import { StreamedContent } from "../streamed-content";
 
 export class ChatMessage extends HTMLElement {
-    connectedCallback() {
-        console.log("connected ChatMessage");
+    constructor() {
+        super();
+
+        this.errorContainerSelector = ".govuk-error-summary";
+        this.errorContentSelector = ".govuk-error-summary__title";
     }
 
 
@@ -46,14 +49,14 @@ export class ChatMessage extends HTMLElement {
      * @param {string} message Error message
      */
     showError(message) {
-        const error = this.querySelector(".govuk-error-summary");
+        const error = this.querySelector(this.errorContainerSelector);
 
         if (!error) return;
 
         showElement(error);
 
-        const body = error.querySelector(".govuk-error-summary__title");
-        if (body) body.innerHTML = message;
+        const body = error.querySelector(this.errorContentSelector);
+        if (body) body.innerHTML = sanitizeHtml(message);
     }
 
 
@@ -61,7 +64,7 @@ export class ChatMessage extends HTMLElement {
      * TBC - Hide error element
      */
     hideError() {
-        const error = this.querySelector(".govuk-error-summary");
+        const error = this.querySelector(this.errorContainerSelector);
         if (error) hideElement(error);
     }
 

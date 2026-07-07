@@ -1,5 +1,7 @@
 // @ts-check
 
+import DOMPurify from "dompurify";
+
 const HIDDEN_CLASS = "govuk-!-display-none"
 const VISUALLY_HIDDEN_CLASS = "govuk-visually-hidden"
 
@@ -127,4 +129,14 @@ export function focusFirstFocusable(container) {
 */
 export function getFocusedElement() {
     return document.activeElement;
+}
+
+
+/**
+ * Sanitize HTML content
+ * @param {string} html HTML content
+ * @returns {string} Safe html
+*/
+export function sanitizeHtml(html) {
+    return DOMPurify.sanitize(html);
 }

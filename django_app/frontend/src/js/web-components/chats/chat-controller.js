@@ -1,7 +1,7 @@
 // @ts-check
 
 import { emitEvent, Events, listenEvent } from "../../../interaction_design_system/ids/events";
-import { getActiveToolId } from "../../utils";
+import { getActiveToolId, sanitizeHtml } from "../../utils";
 import { ChatMessage } from "./chat-message";
 
 const STATE = {
@@ -272,13 +272,12 @@ export class ChatController extends HTMLElement {
         if (!this.messageContainer) return console.error("Missing message container");
         if (!this.currentStream) return console.error("No active stream");
 
-        this.messageContainer.insertAdjacentHTML("beforeend", response.html);
-
-        const message = this.getMessage(response.chat_message_id);
+        const html = sanitizeHtml(response.html);
+        this.messageContainer.insertAdjacentHTML("beforeend", html);
 
         if (response.chat_message_role === "ai") {
             this.currentStream.messageId = response.chat_message_id;
-            message?.focus();
+            this.getMessage(response.chat_message_id)?.focus();
         }
     }
 
