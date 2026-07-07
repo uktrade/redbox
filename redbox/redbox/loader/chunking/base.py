@@ -6,11 +6,9 @@ from langchain_core.documents import Document
 
 from redbox.models.chain import GeneratedMetadata
 from redbox.models.file import UploadedFileMetadata, ChunkResolution
-from redbox.transform import bedrock_tokeniser
+from redbox.loader.chunking.tokeniser import tokeniser
 
 logger = logging.getLogger(__name__)
-
-tokeniser = bedrock_tokeniser
 
 
 class BaseChunker(ABC):

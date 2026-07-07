@@ -7,12 +7,10 @@ from langchain_core.documents import Document
 
 from redbox.models.chain import GeneratedMetadata
 from redbox.loader.chunking.base import BaseChunker
-from redbox.transform import bedrock_tokeniser
+from redbox.loader.chunking.tokeniser import tokeniser
 from redbox.models.settings import get_settings
 
 logger = logging.getLogger(__name__)
-
-tokeniser = bedrock_tokeniser
 
 env = get_settings()
 
@@ -24,7 +22,7 @@ class TabularDocumentChunker(BaseChunker):
 
     MAX_CHARS = env.embedding_max_chars
     MAX_TOKENS = (
-        env.embedding_max_tokens - 2_500
+        env.embedding_max_tokens
     )  # subtracted 2500 tokens from max for breathing room on tokeniser inconsistencies
 
     def _split_table(self, text: str) -> list[str]:
