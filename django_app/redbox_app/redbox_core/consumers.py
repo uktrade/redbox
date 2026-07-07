@@ -129,9 +129,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 if latest_message:
                     latest_files = latest_message.selected_files.all()
                     previous_selected_files = [file async for file in latest_files]
-                else:
-                    previous_selected_files = []
-
             else:
                 previous_selected_files = []
         else:
