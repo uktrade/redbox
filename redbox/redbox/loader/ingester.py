@@ -100,15 +100,11 @@ def _ingest_file(
     # -- extraction --
     # normal chunk
     normal_extraction_strategy, normal_elements = extraction_service.extract(
-        file_name=file_name,  # chunk_resolution=ChunkResolution.normal
+        file_name=file_name,
     )
 
     # largest chunk
     largest_extraction_strategy, largest_elements = normal_extraction_strategy, normal_elements
-    # if os.path.basename(file_name).lower().endswith(".pdf"):  # if PDF - extract largest chunks with direct extraction
-    #     largest_extraction_strategy, largest_elements = extraction_service.extract(
-    #         file_name=file_name, chunk_resolution=ChunkResolution.largest
-    #     )
 
     # metadata
     metadata = MetadataExtraction(env=env).extract(file_name=file_name, elements=normal_elements)
