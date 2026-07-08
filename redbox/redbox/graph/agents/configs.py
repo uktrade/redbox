@@ -105,6 +105,10 @@ prompt_configs: Dict[str, PromptConfig] = {
         system=prompts.IMF_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
         prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
     ),
+    "Oecd_Search_Agent": PromptConfig(
+        system=prompts.OECD_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
+        prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
+    ),
     "Wto_Search_Agent": PromptConfig(
         system=prompts.WTO_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
         prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
@@ -256,6 +260,14 @@ agent_configs: Dict[str, AgentConfig] = {
         name="Imf_Search_Agent",
         description=prompts.IMF_SEARCH_AGENT_DESC,
         prompt=prompt_configs["Imf_Search_Agent"],
+        parser=None,
+        default_agent=False,
+        agents_max_tokens=10000,
+    ),
+    "Oecd_Search_Agent": AgentConfig(
+        name="Oecd_Search_Agent",
+        description=prompts.OECD_SEARCH_AGENT_DESC,
+        prompt=prompt_configs["Oecd_Search_Agent"],
         parser=None,
         default_agent=False,
         agents_max_tokens=10000,
