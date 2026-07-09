@@ -131,7 +131,10 @@ class AISettings(BaseModel):
     def replanner_prompt(self):
         return f"{prompts.REPLAN_PROMPT}\n\n{self.get_agent_workers_prompt}\n\n{prompts.PLANNER_FORMAT_PROMPT}\n\n{prompts.PLANNER_QUESTION_PROMPT}"
 
-    planner_system_prompt: str = planner_prompt
+    @property
+    def planner_system_prompt(self) -> str:
+        return self.planner_prompt
+
     planner_question_prompt: str = prompts.PLANNER_QUESTION_PROMPT
     planner_format_prompt: str = prompts.PLANNER_FORMAT_PROMPT
 
