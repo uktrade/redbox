@@ -186,3 +186,36 @@ async def test_submission_checker_agent_returns_non_empty_response(agents_list, 
     assert responses[1]["data"], "Submission_Checker_Agent returned blank response"
     assert responses[2]["type"] == "route"
     assert responses[2]["data"] == AGENTIC_ROUTE
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_datahub_agent_returns_non_empty_response(agents_list, alice):
+    mocked_graph = CannedGraphLLM(
+        responses=[
+            _text_event("Here is the data from datahub."),
+            _route_event(AGENTIC_ROUTE),
+        ]
+    )
+
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
+        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        communicator.scope["user"] = alice
+        connected, _ = await communicator.connect()
+        assert connected
+
+        if ChatConsumer.redbox:
+            ChatConsumer.redbox.init_datahub_agent = AsyncMock()
+
+        with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_graph):
+            await communicator.send_json_to({"message": "From datahub, show me data."})
+            responses = [await communicator.receive_json_from(timeout=5) for _ in range(3)]
+            await communicator.disconnect()
+
+    # assertions
+    assert responses[0]["type"] == "session-id"
+    assert responses[1]["type"] == "text"
+    assert responses[1]["data"], "DataHub_Agent returned blank response"
+    assert responses[2]["type"] == "route"
+    assert responses[2]["data"] == AGENTIC_ROUTE
