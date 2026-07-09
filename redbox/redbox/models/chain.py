@@ -110,7 +110,8 @@ class AISettings(BaseModel):
 
     # agents reporting to planner agent
     worker_agents: List[AgentConfig] = Field(
-        default_factory=lambda: [agent for agent in agent_configs.values() if agent.default_agent]
+        default_factory=lambda: [agent for agent in agent_configs.values() if agent.default_agent],
+        exclude=True,
     )
 
     @property

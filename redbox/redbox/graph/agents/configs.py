@@ -1,6 +1,6 @@
 from typing import Dict
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 from redbox.chains.parser import BaseCumulativeTransformOutputParser, ClaudeParser
 from redbox.models import prompts
@@ -204,8 +204,13 @@ class AgentConfig(BaseModel):
         description="Parser for structured output",
         default=None,
         exclude=True,
+        repr=False,
     )
     default_agent: bool = Field(description="Is this a default redbox worker agents", default=False)
+
+    @field_serializer("parser", when_used="json")
+    def serialize_parser(self, value, info):
+        return None
 
     def model_dump(self, *args, **kwargs):
         exclude = kwargs.pop("exclude", None)
