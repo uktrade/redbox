@@ -109,7 +109,9 @@ class AISettings(BaseModel):
     tool_govuk_returned_results: int = 5
 
     # agents reporting to planner agent
-    worker_agents: List[AgentConfig] = [agent for agent in agent_configs.values() if agent.default_agent]
+    worker_agents: List[AgentConfig] = Field(
+        default_factory=lambda: [agent for agent in agent_configs.values() if agent.default_agent]
+    )
 
     @property
     def get_worker_agents_options(self) -> Dict[str, str]:
