@@ -485,7 +485,6 @@ OECD_SEARCH_AGENT_DESC = """
 **Oecd_Search_Agent**:
 Purpose: Perform searches across the oecd.org website domain only
 Use when the user wants to search for information or reports on the following topics: Social development, social policy, social issues, education, labour, health, taxation, infrastructure, international development, international cooperation, international equality, international inequality, standards of living, economic development, economic policy, productivity, technology, digital development, geopolitics, environmental issues, sustainability, policy advice on these themes, national policy on these themes, international policy on these themes.
->>>>>>> 0445b352 (WIP - Create OECD search agent.)
 """
 
 WTO_SEARCH_AGENT_DESC = """
