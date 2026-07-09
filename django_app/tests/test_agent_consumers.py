@@ -142,3 +142,47 @@ async def test_external_retrieval_agent_returns_non_empty_response(agents_list, 
     assert responses[1]["data"], "External_Retrieval_Agent returned blank response"
     assert responses[2]["type"] == "route"
     assert responses[2]["data"] == AGENTIC_ROUTE
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_tabular_agent_returns_non_empty_response(agents_list, alice, uploaded_file: File):
+    mocked_graph = CannedGraphLLM(
+        responses=[
+            _text_event("Here is an answer based off the information in your spreadshet."),
+            _route_event(AGENTIC_ROUTE),
+            _source_event(uploaded_file),
+        ]
+    )
+    responses = await _send_and_collect(
+        alice, agents_list, mocked_graph, "What does the information in this spreadsheet show?", n_responses=4
+    )
+
+    # assertions
+    assert responses[0]["type"] == "session-id"
+    assert responses[1]["type"] == "text"
+    assert responses[1]["data"], "Tabular_Agent returned blank response"
+    assert responses[2]["type"] == "route"
+    assert responses[2]["data"] == AGENTIC_ROUTE
+    assert responses[3]["type"] == "source"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_submission_checker_agent_returns_non_empty_response(agents_list, alice):
+    mocked_graph = CannedGraphLLM(
+        responses=[
+            _text_event("After reviewing your submission checker, theses are the compliance concerns."),
+            _route_event(AGENTIC_ROUTE),
+        ]
+    )
+    responses = await _send_and_collect(
+        alice, agents_list, mocked_graph, "Check my submission for any compliance issues.", n_responses=3
+    )
+
+    # assertions
+    assert responses[0]["type"] == "session-id"
+    assert responses[1]["type"] == "text"
+    assert responses[1]["data"], "Submission_Checker_Agent returned blank response"
+    assert responses[2]["type"] == "route"
+    assert responses[2]["data"] == AGENTIC_ROUTE
