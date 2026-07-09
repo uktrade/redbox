@@ -95,6 +95,35 @@ async def test_chat_consumer_with_new_session(
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
+async def test_chat_consumer_existing_session_files_with_no_prior_messages(
+    alice: User, uploaded_file: File, agents_list, mocked_connect
+):
+    # create session with no messages
+    session = await Chat.objects.acreate(name="empty session", user=alice)
+
+    with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = agents_list
+        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
+        communicator.scope["user"] = alice
+        connected, _ = await communicator.connect(timeout=5)
+        assert connected
+
+        # now send with no prior messages but with a sessionID and Selected files
+        with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
+            await communicator.send_json_to(
+                {
+                    "message": "Hello World",
+                    "sessionId": str(session.id),
+                    "selectedFiles": [str(uploaded_file.id)],
+                }
+            )
+            # should not get error, but a session id as response
+            response = await communicator.receive_json_from(timeout=5)
+            assert response["type"] != "error"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
 async def test_chat_consumer_staff_user(agents_list: list, staff_user: User, mocked_connect: Connect):
     # Given
 
@@ -511,7 +540,7 @@ async def test_chat_consumer_get_ai_settings(
         mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = chat_with_alice.user
-        connected, _ = await communicator.connect()
+        connected, _ = await communicator.connect(timeout=5)
         assert connected
 
         with patch(
@@ -869,6 +898,7 @@ def refresh_from_db(obj: Model) -> None:
     obj.refresh_from_db()
 
 
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_connect_with_agents_cache(
     agents_list: list,
@@ -885,7 +915,7 @@ async def test_connect_with_agents_cache(
         # First connection - should call get_all_agents
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
         communicator.scope["user"] = alice
-        await communicator.connect()
+        await communicator.connect(timeout=5)
         assert mock_get.call_count == 1
 
         # Second connection - should use cache
@@ -898,6 +928,7 @@ async def test_connect_with_agents_cache(
         await comm2.disconnect()
 
 
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_connect_with_agents_update_via_db(agents_list: list, alice: User):
     """
@@ -916,7 +947,10 @@ async def test_connect_with_agents_update_via_db(agents_list: list, alice: User)
 
         assert "Fake_Agent" not in list(ChatConsumer.redbox.agent_configs.keys())
         assert ChatConsumer.redbox.agent_configs["Internal_Retrieval_Agent"].agents_max_tokens == 100
-        assert ChatConsumer.redbox.agent_configs["Internal_Retrieval_Agent"].llm_backend.name == "gpt-4o"
+        assert (
+            ChatConsumer.redbox.agent_configs["Internal_Retrieval_Agent"].llm_backend.name
+            == "anthropic.claude-3-7-sonnet-20250219-v1:0"
+        )
 
 
 @pytest.mark.parametrize(
