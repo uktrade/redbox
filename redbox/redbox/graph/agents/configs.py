@@ -1,6 +1,6 @@
 from typing import Dict
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from redbox.chains.parser import BaseCumulativeTransformOutputParser, ClaudeParser
 from redbox.models import prompts
@@ -188,6 +188,8 @@ prompt_configs: Dict[str, PromptConfig] = {
 
 
 class AgentConfig(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     name: str = Field(description="Name of agent")
     description: str = Field(description="Agent desciption used for planning", default="")
     prompt: PromptConfig = Field(description="Prompts used for this agent")
@@ -204,6 +206,17 @@ class AgentConfig(BaseModel):
         exclude=True,
     )
     default_agent: bool = Field(description="Is this a default redbox worker agents", default=False)
+
+    def model_dump(self, *args, **kwargs):
+        exclude = kwargs.pop("exclude", None)
+        if exclude is None:
+            exclude = {"parser"}
+        elif isinstance(exclude, set):
+            exclude = exclude | {"parser"}
+        elif isinstance(exclude, dict):
+            exclude = dict(exclude)
+            exclude["parser"] = True
+        return super().model_dump(*args, **kwargs, exclude=exclude)
 
 
 # This dict is for storing agent configs for all the agents.
