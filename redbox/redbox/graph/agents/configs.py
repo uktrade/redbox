@@ -198,7 +198,11 @@ class AgentConfig(BaseModel):
     llm_backend: ChatLLMBackend | None = Field(
         description="The LLM backend model used by the agent. Use None for default model", default=None
     )
-    parser: BaseCumulativeTransformOutputParser | None = Field(description="Parser for structured output", default=None)
+    parser: BaseCumulativeTransformOutputParser | None = Field(
+        description="Parser for structured output",
+        default=None,
+        exclude=True,
+    )
     default_agent: bool = Field(description="Is this a default redbox worker agents", default=False)
 
 
