@@ -2,9 +2,10 @@ import logging
 import os
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from channels.testing import WebsocketCommunicator
 from langchain_core.documents import Document
-from tests.consumers_helpers import Token
+from tests.consumers_helpers import CannedGraphLLM, Token
 
 from redbox.models.graph import FINAL_RESPONSE_TAG, ROUTE_NAME_TAG
 from redbox_app.redbox_core.consumers import ChatConsumer
@@ -53,3 +54,26 @@ async def _send_and_collect(alice, agents_list, mocked_graph, message: str, n_re
             await communicator.disconnect()
 
     return responses
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_summarisation_agent_returns_non_empty_response(agents_list, alice, uploaded_file: File):
+    mocked_graph = CannedGraphLLM(
+        responses=[
+            _text_event("Here is an summary of the document."),
+            _route_event(AGENTIC_ROUTE),
+            _source_event(uploaded_file),
+        ]
+    )
+    responses = await _send_and_collect(
+        alice, agents_list, mocked_graph, "Please summarisee this dofcument.", n_reponses=4
+    )
+
+    # assertions
+    assert responses[0]["type"] == "session-id"
+    assert responses[1]["type"] == "text"
+    assert responses[1]["data"], "Summarisation Agent returned blank response"
+    assert responses[2]["type"] == "route"
+    assert responses[2]["data"] == AGENTIC_ROUTE
+    assert responses[3]["type"] == "source"
