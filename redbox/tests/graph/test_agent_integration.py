@@ -4,12 +4,7 @@ import pytest
 from langchain_core.messages import AIMessage
 
 from redbox import Redbox
-from redbox.models.chain import (
-    RedboxQuery,
-    RedboxState,
-    StructuredResponseWithCitations,
-    configure_agent_task_plan,
-)
+from redbox.models.chain import RedboxQuery, RedboxState, StructuredResponseWithCitations, configure_agent_task_plan
 from redbox.models.chat import ChatRoute
 from redbox.models.settings import Settings
 from redbox.test.data import (
@@ -29,7 +24,7 @@ EVALUATOR_ANSWER = AIMessage(
 @pytest.mark.asyncio
 async def test_summarisation_agent_returns_response(mocker):
     """
-    Integration test to check Summarisation_Agent produces a non blank reponse when asked to summarise a file that has been input
+    Integration test to check Summarisation_Agent produces a non-blank reponse when asked to summarise a file that has been input
     """
     doc_count, tokens = 1, 5000
     test_case = generate_test_cases(
@@ -58,7 +53,7 @@ async def test_summarisation_agent_returns_response(mocker):
     planner_response = GenericFakeChatModelWithTools(messages=iter([plan.model_dump_json()]))
     planner_response._default_config = {"model": "bedrock"}
     worker_response = GenericFakeChatModelWithTools(messages=iter([AIMessage(content="Here is the answer summary.")]))
-    worker_response
+    worker_response._default_config = {"model": "bedrock"}
     evaluator_response = GenericFakeChatModelWithTools(messages=iter([EVALUATOR_ANSWER]))
     evaluator_response._default_config = {"model": "bedrock"}
 

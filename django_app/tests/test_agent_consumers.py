@@ -35,12 +35,12 @@ def _route_event(route: str) -> dict:
 def _source_event(file: File) -> dict:
     return {
         "event": "on_custom_event",
-        "tags": "on_source_report",
+        "tags": ["on_source_report"],
         "data": [Document(metadata={"uri": file.unique_name}, page_content="Test document content.")],
     }
 
 
-async def _send_and_collect(alice, agents_list, mocked_graph, message: str, n_reponses: int) -> list[dict]:
+async def _send_and_collect(alice, agents_list, mocked_graph, message: str, n_responses: int) -> list[dict]:
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
         communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
@@ -50,7 +50,7 @@ async def _send_and_collect(alice, agents_list, mocked_graph, message: str, n_re
 
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_graph):
             await communicator.send_json_to({"message": message})
-            responses = [await communicator.receive_json_from(timeout=5) for _ in range(n_reponses)]
+            responses = [await communicator.receive_json_from(timeout=5) for _ in range(n_responses)]
             await communicator.disconnect()
 
     return responses
@@ -67,7 +67,7 @@ async def test_summarisation_agent_returns_non_empty_response(agents_list, alice
         ]
     )
     responses = await _send_and_collect(
-        alice, agents_list, mocked_graph, "Please summarisee this dofcument.", n_reponses=4
+        alice, agents_list, mocked_graph, "Please summarise this document.", n_reponses=4
     )
 
     # assertions
