@@ -121,3 +121,24 @@ async def test_web_search_agent_returns_non_empty_response(agents_list, alice):
     assert responses[1]["data"], "Web_Search_Agent returned blank response"
     assert responses[2]["type"] == "route"
     assert responses[2]["data"] == AGENTIC_ROUTE
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_external_retrieval_agent_returns_non_empty_response(agents_list, alice):
+    mocked_graph = CannedGraphLLM(
+        responses=[
+            _text_event("Based on external sources, this is some information on DBT."),
+            _route_event(AGENTIC_ROUTE),
+        ]
+    )
+    responses = await _send_and_collect(
+        alice, agents_list, mocked_graph, "From external sources. find information about DBT", n_responses=3
+    )
+
+    # assertions
+    assert responses[0]["type"] == "session-id"
+    assert responses[1]["type"] == "text"
+    assert responses[1]["data"], "External_Retrieval_Agent returned blank response"
+    assert responses[2]["type"] == "route"
+    assert responses[2]["data"] == AGENTIC_ROUTE
