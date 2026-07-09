@@ -67,7 +67,7 @@ async def test_summarisation_agent_returns_non_empty_response(agents_list, alice
         ]
     )
     responses = await _send_and_collect(
-        alice, agents_list, mocked_graph, "Please summarise this document.", n_reponses=4
+        alice, agents_list, mocked_graph, "Please summarise this document.", n_responses=4
     )
 
     # assertions
@@ -77,3 +77,47 @@ async def test_summarisation_agent_returns_non_empty_response(agents_list, alice
     assert responses[2]["type"] == "route"
     assert responses[2]["data"] == AGENTIC_ROUTE
     assert responses[3]["type"] == "source"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_internal_retrieval_agent_returns_non_empty_response(agents_list, alice, uploaded_file: File):
+    mocked_graph = CannedGraphLLM(
+        responses=[
+            _text_event("Based on the documents you have, this is the relevant information for this topic."),
+            _route_event(AGENTIC_ROUTE),
+            _source_event(uploaded_file),
+        ]
+    )
+    responses = await _send_and_collect(
+        alice, agents_list, mocked_graph, "From my documents, what information is there on this topic", n_responses=4
+    )
+
+    # assertions
+    assert responses[0]["type"] == "session-id"
+    assert responses[1]["type"] == "text"
+    assert responses[1]["data"], "Internal_Retrieval_Agent returned blank response"
+    assert responses[2]["type"] == "route"
+    assert responses[2]["data"] == AGENTIC_ROUTE
+    assert responses[3]["type"] == "source"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_web_search_agent_returns_non_empty_response(agents_list, alice):
+    mocked_graph = CannedGraphLLM(
+        responses=[
+            _text_event("Based on a web search, the weather in London is this."),
+            _route_event(AGENTIC_ROUTE),
+        ]
+    )
+    responses = await _send_and_collect(
+        alice, agents_list, mocked_graph, "What is the weather in London today?", n_responses=3
+    )
+
+    # assertions
+    assert responses[0]["type"] == "session-id"
+    assert responses[1]["type"] == "text"
+    assert responses[1]["data"], "Web_Search_Agent returned blank response"
+    assert responses[2]["type"] == "route"
+    assert responses[2]["data"] == AGENTIC_ROUTE
