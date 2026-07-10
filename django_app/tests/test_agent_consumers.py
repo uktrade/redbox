@@ -35,7 +35,7 @@ def _route_event(route: str) -> dict:
 def _source_event(file: File) -> dict:
     return {
         "event": "on_custom_event",
-        "tags": ["on_source_report"],
+        "name": ["on_source_report"],
         "data": [Document(metadata={"uri": file.unique_name}, page_content="Test document content.")],
     }
 
