@@ -54,7 +54,7 @@ WORKER_TOOL_CALL = AIMessage(
         "tool_calls": [
             {
                 "id": "call_abc123",
-                "function": {"arguments": {"query": "test query"}, "name": "search_tool"},
+                "function": {"arguments": '{"query": "test query"}', "name": "search_tool"},
                 "type": "function",
             }
         ]
@@ -168,7 +168,7 @@ async def test_internal_retrieval_agent_returns_response(mocker):
         ],
     )
 
-    mocker.patch("redbox.graph.agents.workers.run_tools_parallel", return_value=_fake_llm(WORKER_TOOL_RESULT))
+    mocker.patch("redbox.graph.agents.workers.run_tools_parallel", return_value=[WORKER_TOOL_RESULT])
     mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=_fake_llm(EVALUATOR_WITH_CITATION))
 
     token_events, final_state = await _run(test_case, _make_app(test_case))
@@ -191,7 +191,7 @@ async def test_external_retrieval_agent_returns_response(mocker):
         ],
     )
 
-    mocker.patch("redbox.graph.agents.workers.run_tools_parallel", return_value=_fake_llm(WORKER_TOOL_RESULT))
+    mocker.patch("redbox.graph.agents.workers.run_tools_parallel", return_value=[WORKER_TOOL_RESULT])
     mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=_fake_llm(EVALUATOR_WITH_CITATION))
 
     token_events, final_state = await _run(test_case, _make_app(test_case))
@@ -214,7 +214,7 @@ async def test_web_search_agent_returns_response(mocker):
         ],
     )
 
-    mocker.patch("redbox.graph.agents.workers.run_tools_parallel", return_value=_fake_llm(WORKER_TOOL_RESULT))
+    mocker.patch("redbox.graph.agents.workers.run_tools_parallel", return_value=[WORKER_TOOL_RESULT])
     mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=_fake_llm(EVALUATOR_WITH_CITATION))
 
     token_events, final_state = await _run(test_case, _make_app(test_case))
@@ -237,7 +237,7 @@ async def test_tabular_agent_returns_response(mocker):
         ],
     )
 
-    mocker.patch("redbox.graph.agents.workers.run_tools_parallel", return_value=_fake_llm(TABULAR_TOOL_RESULT))
+    mocker.patch("redbox.graph.agents.workers.run_tools_parallel", return_value=[TABULAR_TOOL_RESULT])
     mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=_fake_llm(EVALUATOR_ANSWER))
 
     token_events, final_state = await _run(test_case, _make_app(test_case))
@@ -267,7 +267,7 @@ async def test_datahub_agent_returns_response(mocker):
         return_value=[],
     )
 
-    mocker.patch("redbox.graph.agents.workers.run_tools_parallel", return_value=_fake_llm(WORKER_TOOL_RESULT))
+    mocker.patch("redbox.graph.agents.workers.run_tools_parallel", return_value=[WORKER_TOOL_RESULT])
     mocker.patch("redbox.graph.nodes.processes.get_chat_llm", return_value=_fake_llm(EVALUATOR_WITH_CITATION))
 
     token_events, final_state = await _run(test_case, _make_app(test_case))
