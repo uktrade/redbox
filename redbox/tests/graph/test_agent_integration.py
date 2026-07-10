@@ -262,7 +262,7 @@ async def test_datahub_agent_returns_response(mocker):
     )
 
     mocker.patch(
-        "redbox.graph.nodes.runner.wrap_async.get_datahub_mcp_tools",
+        "redbox.graph.nodes.processes.get_datahub_mcp_tools",
         new_callable=AsyncMock,
         return_value=[],
     )
