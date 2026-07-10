@@ -95,10 +95,15 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
+    entrypoint: sh
     environment:
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin
-    command: server --console-address ":9001" /data
+    command:
+      - -c
+      - |
+        mkdir -p data/${BUCKET_NAME}
+        minio server --console-address ":9001" /data
     networks:
       - redbox-app-network
     volumes:
