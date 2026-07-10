@@ -1,7 +1,6 @@
 # mypy: ignore-errors
 import logging
 import os
-import re
 import socket
 from pathlib import Path
 from urllib.parse import urlparse
@@ -11,13 +10,13 @@ import sentry_sdk
 from dbt_copilot_python.database import database_from_env
 from dbt_copilot_python.error_tracking import DatadogErrorTrackingFilter
 from django.urls import reverse_lazy
-from django_log_formatter_asim import ASIMFormatter
 from dotenv import find_dotenv, load_dotenv
 from import_export.formats.base_formats import CSV
 from sentry_sdk.integrations.django import DjangoIntegration
 from storages.backends import s3boto3
 from yarl import URL
 
+from redbox_app.redbox_core.settings.dd_asim_formatter import DDASIMFormatter, redact_record
 from redbox_app.setting_enums import Classification, Environment
 
 logger = logging.getLogger(__name__)
@@ -361,23 +360,13 @@ LOGGING = {
     "formatters": {
         "verbose": {"format": "%(asctime)s %(levelname)s %(module)s: %(message)s"},
         "asim_formatter": {
-            "()": ASIMFormatter,
+            "()": DDASIMFormatter,
         },
     },
     "filters": {
         "exclude_s3_urls_and_emails": {
             "": "django.utils.log.CallbackFilter",
-            "callback": lambda record: (
-                (
-                    all(
-                        header not in record.getMessage()
-                        for header in ["X-Amz-Algorithm", "X-Amz-Credential", "X-Amz-Security-Token"]
-                    )
-                    and not re.search(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", record.getMessage())
-                )
-                if hasattr(record, "getMessage")
-                else True
-            ),
+            "callback": redact_record,
         },
         "error_tracking": {"()": DatadogErrorTrackingFilter},
     },
