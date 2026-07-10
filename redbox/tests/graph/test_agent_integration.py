@@ -66,7 +66,7 @@ WORKER_DIRECT_RESPONSE = AIMessage(content="Here is some information.")
 
 WORKER_TOOL_RESULT = AIMessage(content="Here is the result from the requested tool.")
 
-TABULAR_TOOL_RESULT = AIMessage(content=["Tabular analysis result", "pass", "False"])
+TABULAR_TOOL_RESULT = AIMessage(content="Tabular analysis result: pass")
 
 
 def _make_plan(agent_name: str) -> str:
