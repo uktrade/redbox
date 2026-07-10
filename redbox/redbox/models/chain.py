@@ -136,6 +136,9 @@ class AISettings(BaseModel):
 
     @property
     def planner_system_prompt(self) -> str:
+        """Computed property composing the planner prompt from worker agent description.
+        The reason for it is to provide a stable json serialisable string for observability and tracing.
+        """
         return self.planner_prompt
 
     planner_question_prompt: str = prompts.PLANNER_QUESTION_PROMPT

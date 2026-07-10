@@ -210,7 +210,20 @@ class AgentConfig(BaseModel):
 
     @field_serializer("parser", when_used="json")
     def serialize_parser(self, value, info):
-        return None
+        if value is None:
+            return None
+        try:
+            cls_name = value.__class__.__name__
+            pydantic_obj = getattr(value, "pydantic_object", None)
+            pydantic_name = None
+            if pydantic_obj is not None:
+                pydantic_name = getattr(pydantic_obj, "__name__", str(pydantic_obj))
+            summary = {"type": cls_name}
+            if pydantic_name:
+                summary["pydantic_object"] = pydantic_name
+            return summary
+        except Exception:
+            return {"type": value.__class__.__name__}
 
     def model_dump(self, *args, **kwargs):
         exclude = kwargs.pop("exclude", None)
