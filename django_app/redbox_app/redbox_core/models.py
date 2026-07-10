@@ -206,7 +206,12 @@ class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
 
         return user_tool.is_enabled if user_tool else False
 
-    def add_user(self, user: User | uuid.UUID, role: UserTool.RoleType | None, access_type: UserTool.AccessType | None):
+    def add_user(
+        self,
+        user: User | uuid.UUID,
+        role: UserTool.RoleType | None = None,
+        access_type: UserTool.AccessType | None = None,
+    ):
         user = resolve_instance(value=user, model=User, raise_404=True)
 
         user_tool_member = UserTool(
