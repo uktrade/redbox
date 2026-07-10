@@ -72,7 +72,7 @@ TABULAR_TOOL_RESULT = AIMessage(content=["Tabular analysis result", "pass", "Fal
 def _make_plan(agent_name: str) -> str:
     agent_task, multi_agent_plan = configure_agent_task_plan({agent_name: agent_name})
     plan = multi_agent_plan().model_copy(update={"tasks": [agent_task()]})
-    return plan.model_dump.json()
+    return plan.model_dump_json()
 
 
 def _fake_llm(response) -> GenericFakeChatModelWithTools:
