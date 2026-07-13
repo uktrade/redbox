@@ -36,6 +36,7 @@ from slugify import slugify
 from yarl import URL
 
 from redbox.models.settings import get_settings
+from redbox_app.redbox_core.enums import IngestChunkingStrategy, IngestExtractionStrategy
 from redbox_app.redbox_core.services import url as url_service
 from redbox_app.redbox_core.utils import get_date_group, resolve_instance, strip_domain
 
@@ -207,7 +208,12 @@ class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
 
         return user_tool.is_enabled if user_tool else False
 
-    def add_user(self, user: User | uuid.UUID, role: UserTool.RoleType | None, access_type: UserTool.AccessType | None):
+    def add_user(
+        self,
+        user: User | uuid.UUID,
+        role: UserTool.RoleType | None = None,
+        access_type: UserTool.AccessType | None = None,
+    ):
         user = resolve_instance(value=user, model=User, raise_404=True)
 
         user_tool_member = UserTool(
@@ -1183,6 +1189,31 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         null=True,
         help_text="error, if any, encountered during ingest",
     )
+    ingest_extraction_strategy_normal = models.CharField(
+        max_length=64,
+        choices=IngestExtractionStrategy.choices,
+        default=IngestExtractionStrategy.unspecified,
+        null=True,
+    )
+    ingest_chunking_strategy_normal = models.CharField(
+        max_length=64,
+        choices=IngestChunkingStrategy.choices,
+        default=IngestChunkingStrategy.unspecified,
+        null=True,
+    )
+    ingest_extraction_strategy_largest = models.CharField(
+        max_length=64,
+        choices=IngestExtractionStrategy.choices,
+        default=IngestExtractionStrategy.unspecified,
+        null=True,
+    )
+    ingest_chunking_strategy_largest = models.CharField(
+        max_length=64,
+        choices=IngestChunkingStrategy.choices,
+        default=IngestChunkingStrategy.unspecified,
+        null=True,
+    )
+
     tools = models.ManyToManyField(Tool, through=FileTool, related_name="files", blank=True)
     security_classification = models.CharField(
         choices=SecurityClassification.choices, null=False, blank=True, default=""

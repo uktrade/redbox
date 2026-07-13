@@ -17,6 +17,7 @@ redbox = {path="../redbox", develop=false}
 redbox_app = {path="../django_app", develop=false}
 langchain-mcp-adapters = "^0.0.11"
 django = "5.2.11"
+jupyter-server = "2.20.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"

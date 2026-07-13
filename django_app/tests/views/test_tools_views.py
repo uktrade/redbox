@@ -44,6 +44,7 @@ def test_user_can_see_active_tool(alice: User, client: Client, default_tool: Too
     # Then
     assert response.status_code == HTTPStatus.OK
     assert default_tool.name in response.content.decode()
+    assert f"New chat - Chats - {default_tool.name} - DBT Assist" in response.content.decode()
 
 
 @pytest.mark.django_db
@@ -94,6 +95,8 @@ def test_user_can_see_tool_chats(alice: User, client: Client, default_tool: Tool
     assert response.status_code == HTTPStatus.OK
     assert default_tool.name in response.content.decode()
     assert chat.name in response.content.decode()
+
+    assert f"{chat.name} - Chats - {default_tool.name} - DBT Assist" in response.content.decode()
 
 
 @pytest.mark.django_db

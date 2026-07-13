@@ -109,7 +109,10 @@ class AISettings(BaseModel):
     tool_govuk_returned_results: int = 5
 
     # agents reporting to planner agent
-    worker_agents: List[AgentConfig] = [agent for agent in agent_configs.values() if agent.default_agent]
+    worker_agents: List[AgentConfig] = Field(
+        default_factory=lambda: [agent for agent in agent_configs.values() if agent.default_agent],
+        exclude=True,
+    )
 
     @property
     def get_worker_agents_options(self) -> Dict[str, str]:
@@ -131,7 +134,13 @@ class AISettings(BaseModel):
     def replanner_prompt(self):
         return f"{prompts.REPLAN_PROMPT}\n\n{self.get_agent_workers_prompt}\n\n{prompts.PLANNER_FORMAT_PROMPT}\n\n{prompts.PLANNER_QUESTION_PROMPT}"
 
-    planner_system_prompt: str = planner_prompt
+    @property
+    def planner_system_prompt(self) -> str:
+        """Computed property composing the planner prompt from worker agent description.
+        The reason for it is to provide a stable json serialisable string for observability and tracing.
+        """
+        return self.planner_prompt
+
     planner_question_prompt: str = prompts.PLANNER_QUESTION_PROMPT
     planner_format_prompt: str = prompts.PLANNER_FORMAT_PROMPT
 

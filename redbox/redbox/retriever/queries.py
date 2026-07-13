@@ -145,6 +145,7 @@ def get_knowledge_base_metadata(
         "size": s.max_knowledge_base_files,
         "_source": {"includes": ["metadata.uri", "metadata.name", "metadata.description", "metadata.keywords"]},
         "query": {"bool": {"must": {"match_all": {}}, "filter": query_filter}},
+        "collapse": {"field": "metadata.uri.keyword"},
     }
 
 
@@ -167,6 +168,7 @@ def get_knowledge_base_tabular_metadata(
                 "metadata.description",
                 "metadata.keywords",
                 "metadata.document_schema",
+                "metadata.index",
             ],
             "excludes": ["text", "vector_field"],
         },
@@ -193,6 +195,7 @@ def get_tabular_metadata(
                 "metadata.description",
                 "metadata.keywords",
                 "metadata.document_schema",
+                "metadata.index",
             ],
             "excludes": ["text", "vector_field"],
         },
@@ -231,6 +234,7 @@ def get_schematised_tabular_chunks(
                 "metadata.description",
                 "metadata.keywords",
                 "metadata.document_schema",
+                "metadata.index",
                 "text",  # include the actual file content
             ],
             "excludes": ["vector_field"],

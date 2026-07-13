@@ -3,7 +3,7 @@ from typing import List, Type
 from enum import Enum
 from pydantic import BaseModel, Field, create_model
 
-from redbox.models.chain import TaskStatus, AgentTaskBase, MultiAgentPlanBase, agent_plan_reducer
+from redbox.models.chain import AISettings, TaskStatus, AgentTaskBase, MultiAgentPlanBase, agent_plan_reducer
 
 AgentEnum = Enum("AgentEnum", {"None": {"None"}})
 
@@ -53,6 +53,15 @@ def make_plan(*task: AgentTaskBase) -> MultiAgentPlanBase:
 
 
 class TestAgentPlanReducer:
+    def test_ai_settings_json_serialization_works_for_observability(self):
+        settings = AISettings()
+
+        payload = settings.model_dump(mode="json")
+
+        assert "planner_system_prompt" not in payload
+        assert settings.planner_system_prompt == settings.planner_prompt
+        assert isinstance(payload["planner_question_prompt"], str)
+
     def test_on_none_plans(self):
         assert agent_plan_reducer(None, None) is None
 

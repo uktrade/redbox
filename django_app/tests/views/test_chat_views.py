@@ -20,6 +20,19 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.django_db
+def test_user_can_start_a_new_chat(alice: User, client: Client):
+    # Given
+    client.force_login(alice)
+
+    # When
+    response = client.get("/chats/")
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert "New chat - Chats - DBT Assist" in response.content.decode()
+
+
+@pytest.mark.django_db
 def test_user_can_see_their_own_chats(chat_with_message: Chat, alice: User, client: Client):
     # Given
     client.force_login(alice)
@@ -29,6 +42,7 @@ def test_user_can_see_their_own_chats(chat_with_message: Chat, alice: User, clie
 
     # Then
     assert response.status_code == HTTPStatus.OK
+    assert f"{chat_with_message.name} - Chats - DBT Assist" in response.content.decode()
 
 
 @pytest.mark.django_db
@@ -85,6 +99,71 @@ def test_nonexistent_chats(alice: User, client: Client):
 
 
 @pytest.mark.django_db
+def test_new_chat_prepopulates_query_from_url(alice: User, client: Client):
+    # Given
+    client.force_login(alice)
+
+    # When
+    response = client.get(reverse("chats"), data={"q": "Hello redbox"})
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    soup = BeautifulSoup(response.content, "html.parser")
+    message_input = soup.find(id="message")
+    assert message_input is not None
+    assert message_input.get_text() == "Hello redbox"
+
+
+@pytest.mark.django_db
+def test_new_chat_without_query_param_has_empty_input(alice: User, client: Client):
+    # Given
+    client.force_login(alice)
+
+    # When
+    response = client.get(reverse("chats"))
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    soup = BeautifulSoup(response.content, "html.parser")
+    message_input = soup.find(id="message")
+    assert message_input is not None
+    assert message_input.get_text() == ""
+
+
+@pytest.mark.django_db
+def test_prepopulated_query_is_escaped(alice: User, client: Client):
+    # Given
+    client.force_login(alice)
+    malicious = "<script>alert('xss')</script>"
+
+    # When
+    response = client.get(reverse("chats"), data={"q": malicious})
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert b"<script>alert('xss')</script>" not in response.content
+    soup = BeautifulSoup(response.content, "html.parser")
+    message_input = soup.find(id="message")
+    assert message_input.get_text() == malicious
+
+
+@pytest.mark.django_db
+def test_existing_chat_ignores_query_param(chat_with_message: Chat, client: Client):
+    # Given
+    client.force_login(chat_with_message.user)
+
+    # When
+    response = client.get(f"/chats/{chat_with_message.id}/", data={"q": "should be ignored"})
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    soup = BeautifulSoup(response.content, "html.parser")
+    message_input = soup.find(id="message")
+    assert message_input is not None
+    assert message_input.get_text() == ""
+
+
+@pytest.mark.django_db
 def test_post_chat_title(alice: User, chat: Chat, client: Client):
     # Given
     client.force_login(alice)
@@ -114,6 +193,25 @@ def test_post_chat_title_with_naughty_string(alice: User, chat: Chat, client: Cl
     assert status.is_success
     chat.refresh_from_db()
     assert chat.name == "New chat name \ufffd"
+
+
+def test_post_chat_title_cannot_rename_another_users_chat(client: Client, bob: User, chat_with_alice: Chat):
+    # Given
+    client.force_login(bob)
+    url = reverse("chat-titles", kwargs={"chat_id": chat_with_alice.id})
+
+    # When
+    response = client.post(
+        url,
+        data='{"value": "Hacked name"}',
+        content_type="application/json",
+    )
+    original_name = chat_with_alice.name
+    chat_with_alice.refresh_from_db()
+
+    # Then
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert chat_with_alice.name == original_name
 
 
 @pytest.mark.django_db

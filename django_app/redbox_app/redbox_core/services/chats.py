@@ -79,6 +79,7 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
         "request": request,
         "promoted_tool": Tool.objects.filter(slug="submissions-checker").first() or None,
         "sidepanel_collapsed": sidepanel_collapsed,
+        "pageTitle": _get_page_title(current_chat, tool),
     }
 
     if flag_is_active(request.user, flags.ENABLE_TEAMS):
@@ -179,3 +180,12 @@ def render_conversations(request: HttpRequest, context: dict | None = None) -> H
         template_name="side_panel/conversations.html",
         context=context or get_context(request),
     )
+
+
+def _get_page_title(current_chat: Chat, tool: Tool):
+    tool_name = tool.name if tool else None
+    chat_name = current_chat.name if current_chat else "New chat"
+
+    parts = [chat_name, "Chats", tool_name]
+
+    return " - ".join(part for part in parts if part)

@@ -455,13 +455,14 @@ REDBOX_VERSION = os.environ.get("REDBOX_VERSION", "not set")
 Q_CLUSTER = {
     "name": "redbox_django",
     "recycle": env.int("Q_RECYCLE", 500),
-    "timeout": env.int("Q_TIMEOUT", 600),
-    "retry": env.int("Q_RETRY", 60),
+    "timeout": env.int("Q_TIMEOUT", 1200),
+    "retry": env.int("Q_RETRY", 1400),
     "max_attempts": env.int("Q_MAX_ATTEMPTS", 3),
     "catch_up": False,
     "orm": "default",
     "workers": env.int("Q_WORKERS", 5),
     "error_reporter": {"sentry": {"dsn": env.str("SENTRY_DSN", " ")}},
+    "ack_failures": env.bool("Q_ACK_FAILURES", default=True),
 }
 
 
@@ -503,4 +504,5 @@ FEEDBACK_LINK = env.str(
     "https://teams.microsoft.com/l/channel/19%3A9ae6b3b539724595a3139c2b16dc56ef%40thread.tacv2/Redbox%20trial%20participants%20Chat%20Channel?groupId=7a71ce78-fe77-4185-825c-ae40cb07d614&tenantId=8fa217ec-33aa-46fb-ad96-dfe68006bb86",
 )
 
-PRODUCT_NAME = env.str("PRODUCT_NAME", "Redbox at DBT")
+PRODUCT_NAME = env.str("PRODUCT_NAME", "DBT Assist")
+MOCK_SSO_USERNAME = env.str("MOCK_SSO_USERNAME")

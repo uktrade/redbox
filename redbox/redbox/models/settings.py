@@ -98,6 +98,35 @@ class Settings(BaseSettings):
     embedding_max_batch_size: int = 512
     embedding_document_field_name: str = "embedding"
 
+    embedding_max_chars: int = 50_000  # Amazon Titan max embedding chars 50k - https://docs.aws.amazon.com/bedrock/latest/userguide/titan-embedding-models.html
+    embedding_max_tokens: int = 8_192  # Amazon Titan max embedding tokens 8192 - https://docs.aws.amazon.com/bedrock/latest/userguide/titan-embedding-models.html
+
+    document_ingest_lock_timeout_seconds: int = os.environ.get("DOCUMENT_INGEST_LOCK_TIMEOUT_SECONDS", 1800)
+    document_large_pdf_bytes_threshold: int = os.environ.get("DOCUMENT_LARGE_PDF_BYTES_THRESHOLD", 5 * 1024 * 1024)
+    document_large_pdf_timeout: int = os.environ.get("DOCUMENT_LARGE_PDF_TIMEOUT", 900)
+
+    document_pdf_extraction_default_strategy: str = os.environ.get(
+        "DOCUMENT_PDF_EXTRACTION_DEFAULT_STRATEGY", "textract_document_analysis"
+    )
+    document_pdf_extraction_fallback_one_strategy: str = os.environ.get(
+        "DOCUMENT_PDF_EXTRACTION_FALLBACK_ONE_STRATEGY", "unstructured_auto"
+    )
+    document_pdf_extraction_fallback_two_strategy: str = os.environ.get(
+        "DOCUMENT_PDF_EXTRACTION_FALLBACK_TWO_STRATEGY", "unstructured_fast"
+    )
+
+    document_pdf_extraction_default_timeout: int = os.environ.get("DOCUMENT_PDF_EXTRACTION_DEFAULT_TIMEOUT", 600)
+    document_pdf_extraction_fallback_one_timeout: int = os.environ.get(
+        "DOCUMENT_PDF_EXTRACTION_FALLBACK_ONE_TIMEOUT", 240
+    )
+    document_pdf_extraction_fallback_two_timeout: int = os.environ.get(
+        "DOCUMENT_PDF_EXTRACTION_FALLBACK_TWO_TIMEOUT", 240
+    )
+
+    document_chunking_unstructured_overlap_all: bool = os.environ.get(
+        "DOCUMENT_CHUNKING_UNSTRUCTURED_OVERLAP_ALL", True
+    )
+
     partition_strategy: Literal["auto", "fast", "ocr_only", "hi_res"] = "fast"
     clustering_strategy: Literal["full"] | None = None
 
