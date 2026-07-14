@@ -25,6 +25,10 @@ class Command(BaseCommand):
             error_message = "This command can only be run on a local environment"
             raise CommandError(error_message)
 
+        if MOCK_SSO_USERNAME is None:
+            error_message = "The MOCK_SSO_USERNAME env var is not set"
+            raise CommandError(error_message)
+
         mock_sso_user = User.objects.filter(username=self.mock_user_email).first()
         if mock_sso_user is None:
             error_message = f"User with username '{self.mock_user_email}' not found"

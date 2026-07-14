@@ -24,6 +24,12 @@ class TestMigrateToMockSSO:
             call_command("migrate_to_mock_sso_user", 1)
         assert str(exc.value) == "This command can only be run on a local environment"
 
+    @patch("redbox_app.redbox_core.management.commands.migrate_to_mock_sso_user.MOCK_SSO_USERNAME", new=None)
+    def test_migrate_user_throws_expected_error_when_mock_sso_username_is_none(self):
+        with pytest.raises(CommandError) as exc:
+            call_command("migrate_to_mock_sso_user", 1)
+        assert str(exc.value) == "The MOCK_SSO_USERNAME env var is not set"
+
     def test_migrate_user_throws_expected_error_when_mock_user_cannot_be_found(self):
         with pytest.raises(CommandError) as exc:
             call_command("migrate_to_mock_sso_user", 2)
