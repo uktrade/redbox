@@ -2,21 +2,19 @@ import logging
 import time
 import traceback
 from typing import TYPE_CHECKING
-from pydantic import BaseModel
 
 from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.embeddings import FakeEmbeddings
 from langchain_core.runnables import RunnableParallel
-
+from pydantic import BaseModel
 from redbox_app.redbox_core.enums import IngestChunkingStrategy, IngestExtractionStrategy
+
 from redbox.chains.components import get_embeddings
+from redbox.chains.ingest import DocumentChunkingService, ingest_chunks, ingest_tabular_chunks
+from redbox.loader.extraction.metadata import MetadataExtraction
+from redbox.loader.extraction.service import DocumentExtractionService, IngestionAlreadyInProgress
 from redbox.models.file import ChunkResolution
 from redbox.models.settings import get_settings
-
-from redbox.loader.extraction.service import DocumentExtractionService, IngestionAlreadyInProgress
-from redbox.loader.extraction.metadata import MetadataExtraction
-from redbox.chains.ingest import ingest_chunks, ingest_tabular_chunks, DocumentChunkingService
-
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
