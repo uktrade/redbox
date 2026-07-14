@@ -12,7 +12,15 @@ log = logging.getLogger()
 
 def build_file_filter(file_names: list[str]) -> dict[str, Any]:
     """Creates an Elasticsearch filter for file names."""
-    return {"terms": {"metadata.uri.keyword": file_names}}
+    return {
+        "bool": {
+            "should": [
+                {"terms": {"metadata.uri.keyword": file_names}},
+                {"terms": {"metadata.name.keyword": file_names}},
+            ],
+            "minimum_should_match": 1,
+        }
+    }
 
 
 def build_resolution_filter(chunk_resolution: ChunkResolution) -> dict[str, Any]:

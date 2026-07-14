@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: ./django_app/Dockerfile
+      target: django
     depends_on:
       db:
         condition: service_healthy
@@ -67,8 +68,9 @@ services:
     container_name: worker
     build:
       context: .
-      dockerfile: django_app/Dockerfile
-    command: "venv/bin/django-admin qcluster"
+      dockerfile: ./django_app/Dockerfile
+      target: worker
+
     env_file:
       - path: tests/.env.integration
         required: false

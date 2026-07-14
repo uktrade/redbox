@@ -9,6 +9,7 @@ from redbox.models.chain import (
     DocumentState,
     LLMCallMetadata,
     RedboxQuery,
+    RedboxState,
     RequestMetadata,
     document_reducer,
     merge_redbox_state_updates,
@@ -203,6 +204,28 @@ TEST_QUERY = RedboxQuery(
     chat_history=[],
     ai_settings=AISettings(rag_k=3),
 )
+
+
+def test_redbox_state_model_dump_handles_non_json_objects():
+    state = RedboxState(
+        request=TEST_QUERY,
+        documents=DocumentState(
+            groups={
+                GROUP_IDS[0]: {
+                    DOCUMENT_IDS[0]: Document(
+                        page_content="foo",
+                        metadata={"custom": object()},
+                    )
+                }
+            }
+        ),
+    )
+
+    dumped_state = state.model_dump(mode="json")
+
+    assert isinstance(
+        dumped_state["documents"]["groups"][str(GROUP_IDS[0])][str(DOCUMENT_IDS[0])]["metadata"]["custom"], str
+    )
 
 
 @pytest.mark.parametrize(
