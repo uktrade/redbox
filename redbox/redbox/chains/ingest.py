@@ -5,6 +5,7 @@ from typing import Iterator
 from langchain.vectorstores import VectorStore
 from langchain_core.documents.base import Document
 from langchain_core.runnables import Runnable, RunnableLambda, chain, RunnableParallel
+from redbox.models.file import ChunkResolution
 from unstructured.documents.elements import Element
 
 from redbox_app.redbox_core.enums import IngestChunkingStrategy
@@ -31,14 +32,16 @@ def log_chunks(chunks: list[Document]):
     return chunks
 
 
-def _delete_existing_chunks(vectorstore: VectorStore, uri: str) -> None:
-    """Delete previously ingested chunks for this file from the vectorstore's index.
+def _delete_existing_chunks(
+    vectorstore: VectorStore,
+    uri: str,
+    chunk_resolution: ChunkResolution,
+) -> None:
+    """Delete previously ingested chunks for this file and chunk resolution.
 
     Prevents duplicate chunks from accumulating when a file is reingested.
-    Matches on metadata.uri.keyword, which identifies chunks as originating
-    from the same source file. Uses the underlying ES client directly since
-    ElasticsearchStore.delete() only supports deletion by id, not by
-    arbitrary metadata filter.
+    Matches on both metadata.uri.keyword and
+    metadata.chunk_resolution.keyword.
     """
     es_client = vectorstore.client
     index_name = vectorstore.index_name
@@ -46,18 +49,33 @@ def _delete_existing_chunks(vectorstore: VectorStore, uri: str) -> None:
     try:
         response = es_client.delete_by_query(
             index=index_name,
-            body={"query": {"term": {"metadata.uri.keyword": uri}}},
+            body={
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {"term": {"metadata.uri.keyword": uri}},
+                            {"term": {"metadata.chunk_resolution.keyword": chunk_resolution.value}},
+                        ]
+                    }
+                }
+            },
             conflicts="proceed",
             refresh=False,
         )
         log.warning(
-            "Deleted %s existing chunks for uri=%s from index=%s",
+            "Deleted %s existing chunks for uri=%s, chunk_resolution=%s from index=%s",
             response.get("deleted", 0),
             uri,
+            chunk_resolution,
             index_name,
         )
     except Exception:
-        log.exception("Failed to delete existing chunks for uri=%s from index=%s", uri, index_name)
+        log.exception(
+            "Failed to delete existing chunks for uri=%s, chunk_resolution=%s from index=%s",
+            uri,
+            chunk_resolution,
+            index_name,
+        )
         raise
 
 
@@ -73,7 +91,7 @@ def chunk_loader(
         try:
             log.info("wrapped START: %s", file_name)
 
-            _delete_existing_chunks(vectorstore, file_name)
+            _delete_existing_chunks(vectorstore, file_name, chunker.chunk_resolution)
 
             strategy, raw_docs = chunker.chunks(
                 s3_key=file_name,
@@ -108,7 +126,7 @@ def chunk_loader_tabular(
         try:
             log.info("wrapped START: %s", file_name)
 
-            _delete_existing_chunks(vectorstore, file_name)
+            _delete_existing_chunks(vectorstore, file_name, chunker.chunk_resolution)
 
             strategy, raw_docs = chunker.tabular_chunks(
                 s3_key=file_name,

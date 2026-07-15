@@ -64,6 +64,11 @@ class DocumentChunkingService:
         max_chunk_size: int = 2000,
         overlap_chars: int = 200,
     ):
+        self.chunk_resolution = chunk_resolution
+        self.min_chunk_size = min_chunk_size
+        self.max_chunk_size = max_chunk_size
+        self.overlap_chars = overlap_chars
+
         self.chunker_page_by_page = PageByPageDocumentChunker(
             chunk_resolution=chunk_resolution,
             min_chunk_size=min_chunk_size,
@@ -91,10 +96,10 @@ class DocumentChunkingService:
         logger.warning(
             "%s Initialised DocumentChunkingService (chunk_resolution=%s, min_chunk_size=%s, max_chunk_size=%s, overlap_chars=%s)",
             self.log_stub,
-            chunk_resolution,
-            min_chunk_size,
-            max_chunk_size,
-            overlap_chars,
+            self.chunk_resolution,
+            self.min_chunk_size,
+            self.max_chunk_size,
+            self.overlap_chars,
         )
 
     def tabular_chunks(
