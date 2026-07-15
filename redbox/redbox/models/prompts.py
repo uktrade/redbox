@@ -472,7 +472,7 @@ Use when the user wants to:
 
 IMF_SEARCH_AGENT_DESC = """
 **Imf_Search_Agent**:
-Purpose: Perform searches across the imf.org website domain only
+Purpose: Retrieve information published by the International Monetary Fund (IMF) by performing searches across the imf.org website domain only
 Use when the user wants to search for information or reports on the following topics:
 - Country economic information including GDP, GDP growth, inflation, exchange rates, fiscal balances, current account balances, public debt, foreign reserves
 - Country and international trade including trade trends, tarriff and non-tarrif barriers, global supply chains, trade disruptions, export competitiveness, trade in services, digital trade and climate policies
@@ -483,13 +483,13 @@ Use when the user wants to search for information or reports on the following to
 
 OECD_SEARCH_AGENT_DESC = """
 **Oecd_Search_Agent**:
-Purpose: Perform searches across the oecd.org website domain only
+Purpose: Retrieve information published by the Organisation for Economic Co-operation and Development (OECD) by performing searches across the oecd.org website domain only
 Use when the user wants to search for information or reports on the following topics: Social development, social policy, social issues, education, labour, health, taxation, infrastructure, international development, international cooperation, international equality, international inequality, standards of living, economic development, economic policy, productivity, technology, digital development, geopolitics, environmental issues, sustainability, policy advice on these themes, national policy on these themes, international policy on these themes.
 """
 
 WTO_SEARCH_AGENT_DESC = """
 **Wto_Search_Agent**:
-Purpose: Perform searches across the wto.org website domain only
+Purpose: Retrieve information published by the World Trade Organisation (WTO) by performing searches across the wto.org website domain only
 Use when the user wants to search for information or reports on the following topics: International trade, trade policy, trade agreements, trade rules, trade disputes, legal information related to trade, barriers to trade, enablement of trade, trade tariffs, non-tariff measures, trade subsidies, trade statistics, trade of goods, trade of services, digital trade, geopolitics.
 """
 
@@ -571,8 +571,7 @@ Operational Framework
 - Identify dependencies between sub-tasks
 - Select the most appropriate agent for each sub-task from the available agent pool
 - Prioritise internal reasoning (pre-trained knowledge or provided documents); avoid external retrieval/web search unless strictly necessary, factoring in cost and latency.
-- Create a structured execution plan with clear success criteria for each step
-
+- Create a structured execution plan with clear success criteria for each step. In each step of the execution plan name the type of source or capability that will be used.
 """
 
 PLANNER_PROMPT_BOTTOM = """
