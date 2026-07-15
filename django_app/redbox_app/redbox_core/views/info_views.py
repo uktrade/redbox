@@ -38,3 +38,12 @@ def accessibility_statement_view(request):
         template_name="accessibility-statement.html",
         context=chat_service.get_context(request),
     )
+
+
+@require_http_methods(["GET"])
+def feedback_view(request):
+    return render(
+        request,
+        template_name="feedback.html",
+        context=chat_service.get_context(request),
+    )

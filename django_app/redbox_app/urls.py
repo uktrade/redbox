@@ -35,6 +35,7 @@ info_urlpatterns = [
         name="accessibility-statement",
     ),
     path("support/", views.support_view, name="support"),
+    path("feedback/", views.feedback_view, name="feedback"),
 ]
 
 document_urlpatterns = [
