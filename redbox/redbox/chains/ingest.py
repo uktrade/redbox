@@ -31,8 +31,39 @@ def log_chunks(chunks: list[Document]):
     return chunks
 
 
+def _delete_existing_chunks(vectorstore: VectorStore, uri: str) -> None:
+    """Delete previously ingested chunks for this file from the vectorstore's index.
+
+    Prevents duplicate chunks from accumulating when a file is reingested.
+    Matches on metadata.uri.keyword, which identifies chunks as originating
+    from the same source file. Uses the underlying ES client directly since
+    ElasticsearchStore.delete() only supports deletion by id, not by
+    arbitrary metadata filter.
+    """
+    es_client = vectorstore.client
+    index_name = vectorstore.index_name
+
+    try:
+        response = es_client.delete_by_query(
+            index=index_name,
+            body={"query": {"term": {"metadata.uri.keyword": uri}}},
+            conflicts="proceed",
+            refresh=False,
+        )
+        log.warning(
+            "Deleted %s existing chunks for uri=%s from index=%s",
+            response.get("deleted", 0),
+            uri,
+            index_name,
+        )
+    except Exception:
+        log.exception("Failed to delete existing chunks for uri=%s from index=%s", uri, index_name)
+        raise
+
+
 def chunk_loader(
     chunker: DocumentChunkingService,
+    vectorstore: VectorStore,
     elements: list[str] | list[Element] | list[dict[str, str]],
     metadata: GeneratedMetadata,
     chunks_overlap_pages: bool,
@@ -41,6 +72,8 @@ def chunk_loader(
     def wrapped(file_name: str) -> tuple[IngestChunkingStrategy, Iterator[Document]]:
         try:
             log.info("wrapped START: %s", file_name)
+
+            _delete_existing_chunks(vectorstore, file_name)
 
             strategy, raw_docs = chunker.chunks(
                 s3_key=file_name,
@@ -65,6 +98,7 @@ def chunk_loader(
 
 def chunk_loader_tabular(
     chunker: DocumentChunkingService,
+    vectorstore: VectorStore,
     tabular_elements: list[dict[str, str]],
     metadata: GeneratedMetadata,
     include_schema_metadata: bool,
@@ -73,6 +107,8 @@ def chunk_loader_tabular(
     def wrapped(file_name: str) -> tuple[IngestChunkingStrategy, Iterator[Document]]:
         try:
             log.info("wrapped START: %s", file_name)
+
+            _delete_existing_chunks(vectorstore, file_name)
 
             strategy, raw_docs = chunker.tabular_chunks(
                 s3_key=file_name,
@@ -112,6 +148,7 @@ def ingest_chunks(
 
     loader = chunk_loader(
         chunker=chunker,
+        vectorstore=vectorstore,
         elements=elements,
         metadata=metadata,
         chunks_overlap_pages=chunks_overlap_pages,
@@ -143,6 +180,7 @@ def ingest_tabular_chunks(
 ) -> Runnable:
     loader = chunk_loader_tabular(
         chunker=chunker,
+        vectorstore=vectorstore,
         tabular_elements=tabular_elements,
         metadata=metadata,
         include_schema_metadata=include_schema_metadata,
