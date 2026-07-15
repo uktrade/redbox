@@ -44,7 +44,7 @@ def test_backfill_original_file_names_action(client: Client, alice: User):
 
 
 @pytest.mark.django_db
-def test_reingest_action_triggers_async_task(client, alice):
+def test_reingest_action_triggers_reingest_file(client, alice):
     # Given
     client.force_login(alice)
 
