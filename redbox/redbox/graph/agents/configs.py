@@ -1,6 +1,6 @@
 from typing import Dict
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 from redbox.chains.parser import BaseCumulativeTransformOutputParser, ClaudeParser
 from redbox.models import prompts
@@ -101,6 +101,18 @@ prompt_configs: Dict[str, PromptConfig] = {
         system=prompts.NEWS_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
         prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
     ),
+    "Imf_Search_Agent": PromptConfig(
+        system=prompts.IMF_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
+        prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
+    ),
+    "Oecd_Search_Agent": PromptConfig(
+        system=prompts.OECD_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
+        prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
+    ),
+    "Wto_Search_Agent": PromptConfig(
+        system=prompts.WTO_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
+        prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
+    ),
     "Summarisation_Agent": PromptConfig(
         system=prompts.CHAT_WITH_DOCS_SYSTEM_PROMPT,
         question=prompts.CHAT_WITH_DOCS_QUESTION_PROMPT,
@@ -176,6 +188,8 @@ prompt_configs: Dict[str, PromptConfig] = {
 
 
 class AgentConfig(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     name: str = Field(description="Name of agent")
     description: str = Field(description="Agent desciption used for planning", default="")
     prompt: PromptConfig = Field(description="Prompts used for this agent")
@@ -186,8 +200,41 @@ class AgentConfig(BaseModel):
     llm_backend: ChatLLMBackend | None = Field(
         description="The LLM backend model used by the agent. Use None for default model", default=None
     )
-    parser: BaseCumulativeTransformOutputParser | None = Field(description="Parser for structured output", default=None)
+    parser: BaseCumulativeTransformOutputParser | None = Field(
+        description="Parser for structured output",
+        default=None,
+        exclude=True,
+        repr=False,
+    )
     default_agent: bool = Field(description="Is this a default redbox worker agents", default=False)
+
+    @field_serializer("parser", when_used="json")
+    def serialize_parser(self, value, info):
+        if value is None:
+            return None
+        try:
+            cls_name = value.__class__.__name__
+            pydantic_obj = getattr(value, "pydantic_object", None)
+            pydantic_name = None
+            if pydantic_obj is not None:
+                pydantic_name = getattr(pydantic_obj, "__name__", str(pydantic_obj))
+            summary = {"type": cls_name}
+            if pydantic_name:
+                summary["pydantic_object"] = pydantic_name
+            return summary
+        except Exception:
+            return {"type": value.__class__.__name__}
+
+    def model_dump(self, *args, **kwargs):
+        exclude = kwargs.pop("exclude", None)
+        if exclude is None:
+            exclude = {"parser"}
+        elif isinstance(exclude, set):
+            exclude = exclude | {"parser"}
+        elif isinstance(exclude, dict):
+            exclude = dict(exclude)
+            exclude["parser"] = True
+        return super().model_dump(*args, **kwargs, exclude=exclude)
 
 
 # This dict is for storing agent configs for all the agents.
@@ -240,6 +287,30 @@ agent_configs: Dict[str, AgentConfig] = {
         name="News_Search_Agent",
         description=prompts.NEWS_SEARCH_AGENT_DESC,
         prompt=prompt_configs["News_Search_Agent"],
+        parser=None,
+        default_agent=False,
+        agents_max_tokens=10000,
+    ),
+    "Imf_Search_Agent": AgentConfig(
+        name="Imf_Search_Agent",
+        description=prompts.IMF_SEARCH_AGENT_DESC,
+        prompt=prompt_configs["Imf_Search_Agent"],
+        parser=None,
+        default_agent=False,
+        agents_max_tokens=10000,
+    ),
+    "Oecd_Search_Agent": AgentConfig(
+        name="Oecd_Search_Agent",
+        description=prompts.OECD_SEARCH_AGENT_DESC,
+        prompt=prompt_configs["Oecd_Search_Agent"],
+        parser=None,
+        default_agent=False,
+        agents_max_tokens=10000,
+    ),
+    "Wto_Search_Agent": AgentConfig(
+        name="Wto_Search_Agent",
+        description=prompts.WTO_SEARCH_AGENT_DESC,
+        prompt=prompt_configs["Wto_Search_Agent"],
         parser=None,
         default_agent=False,
         agents_max_tokens=10000,
