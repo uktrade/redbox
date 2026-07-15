@@ -75,18 +75,17 @@ def test_citation_not_inserted(client: Client, alice: User, chat_message_with_ci
 
 
 @pytest.mark.django_db(transaction=True)
-def test_render_citation_placeholder(client: Client, alice: User, chat_message_with_citation: ChatMessage):
+def test_render_citation_placeholder(client: Client, alice: User):
     # Given
     client.force_login(alice)
-    citation = Citation.objects.get(chat_message=chat_message_with_citation)
     footnote_counter = 123
 
     # When
-    citation_template = message_service.render_citation_placeholder(citation, footnote_counter)
+    citation_template = message_service.render_citation_placeholder(footnote_counter)
 
     # Then
     assert citation_template
-    assert footnote_counter in citation_template
+    assert str(footnote_counter) in citation_template
 
 
 @pytest.mark.django_db(transaction=True)
