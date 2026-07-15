@@ -275,9 +275,7 @@ class FileAdmin(ExportMixin, admin.ModelAdmin):
         "last_referenced",
         "ingested_at",
         "ingest_extraction_strategy_normal",
-        "ingest_chunking_strategy_normal",
         "ingest_extraction_strategy_largest",
-        "ingest_chunking_strategy_largest",
     ]
     list_filter = ["user", "status", "ingested_at"]
     date_hierarchy = "created_at"
