@@ -1181,6 +1181,7 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     original_file_name = models.TextField(max_length=2048, blank=True, null=True)
     last_referenced = models.DateTimeField(blank=True, null=True)
+    ingested_at = models.DateTimeField(blank=True, null=True)
     ingest_error = models.TextField(
         max_length=2048,
         blank=True,

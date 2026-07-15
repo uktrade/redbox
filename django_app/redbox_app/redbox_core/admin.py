@@ -267,8 +267,17 @@ class UserTeamMembershipAdmin(admin.ModelAdmin):
 
 
 class FileAdmin(ExportMixin, admin.ModelAdmin):
-    list_display = ["file_name", "user", "status", "created_at", "last_referenced"]
-    list_filter = ["user", "status"]
+    list_display = [
+        "file_name",
+        "user",
+        "status",
+        "created_at",
+        "last_referenced",
+        "ingested_at",
+        "ingest_extraction_strategy_normal",
+        "ingest_extraction_strategy_largest",
+    ]
+    list_filter = ["user", "status", "ingested_at"]
     date_hierarchy = "created_at"
     actions = [reupload, backfill_original_file_names]
     search_fields = ["user__email", "original_file_name"]
