@@ -301,11 +301,8 @@ class DocumentExtractionService:
             s3_key:
                 Original file name (used for logging and S3 Textract where possible).
 
-            file_bytes:
-                PDF bytes.
-
-            file_size:
-                Size of the PDF in bytes.
+            pdf:
+                ExtractedPdf custom BaseModel for storing information about the PDF to be ingested
 
             log_stub:
                 Logging prefix.

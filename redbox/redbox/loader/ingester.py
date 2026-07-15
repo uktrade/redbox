@@ -103,7 +103,7 @@ def _ingest_file(
         file_name=file_name,
     )
 
-    # largest chunk
+    # largest chunk reuse largest extraction
     largest_extraction_strategy, largest_elements = normal_extraction_strategy, normal_elements
 
     # metadata
