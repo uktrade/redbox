@@ -6,9 +6,8 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client, RequestFactory
 
-from redbox_app.redbox_core.actions import backfill_original_file_names, reupload
+from redbox_app.redbox_core.actions import backfill_original_file_names, reingest
 from redbox_app.redbox_core.models import File
-from redbox_app.worker import ingest
 
 User = get_user_model()
 
@@ -45,7 +44,7 @@ def test_backfill_original_file_names_action(client: Client, alice: User):
 
 
 @pytest.mark.django_db
-def test_reupload_action_triggers_async_task(client, alice):
+def test_reingest_action_triggers_async_task(client, alice):
     # Given
     client.force_login(alice)
 
@@ -64,11 +63,11 @@ def test_reupload_action_triggers_async_task(client, alice):
     request = RequestFactory().get("/admin/")
 
     # When
-    with patch("redbox_app.redbox_core.actions.async_task") as mock_async_task:
-        reupload(mock_admin, request, queryset)
+    with patch("redbox_app.redbox_core.actions.reingest_file") as mock_reingest_file:
+        reingest(mock_admin, request, queryset)
 
     # Then
-    assert mock_async_task.call_count == 2
+    assert mock_reingest_file.call_count == 2
 
-    mock_async_task.assert_any_call(ingest, file1.id)
-    mock_async_task.assert_any_call(ingest, file2.id)
+    mock_reingest_file.assert_any_call(file1)
+    mock_reingest_file.assert_any_call(file2)
