@@ -9,7 +9,7 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from import_export.admin import ExportMixin, ImportExportMixin
 
-from redbox_app.redbox_core.actions import backfill_original_file_names, reupload
+from redbox_app.redbox_core.actions import backfill_original_file_names, reingest
 
 from . import models
 from .serializers import UserSerializer
@@ -279,7 +279,7 @@ class FileAdmin(ExportMixin, admin.ModelAdmin):
     ]
     list_filter = ["user", "status", "ingested_at"]
     date_hierarchy = "created_at"
-    actions = [reupload, backfill_original_file_names]
+    actions = [reingest, backfill_original_file_names]
     search_fields = ["user__email", "original_file_name"]
 
 
