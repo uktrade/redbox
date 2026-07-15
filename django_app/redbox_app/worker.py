@@ -2,6 +2,7 @@ import logging
 import subprocess
 import tempfile
 import time
+from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
 from uuid import UUID
@@ -188,6 +189,7 @@ def ingest(file_id: UUID, es_index: str | None = None) -> None:
         file.ingest_error = error
     else:
         file.status = File.Status.complete
+        file.ingested_at = datetime.now(tz=UTC)
         file.ingest_extraction_strategy_normal = response.normal_extraction_strategy
         file.ingest_chunking_strategy_normal = response.normal_chunking_strategy
         file.ingest_extraction_strategy_largest = response.largest_extraction_strategy
