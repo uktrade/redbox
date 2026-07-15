@@ -117,6 +117,20 @@ def ingest_file(uploaded_file: UploadedFile, user: User, tool: Tool | None = Non
         return [], file
 
 
+def reingest_file(file: File):
+    logger.debug("Updating file '%s' to be processing", file)
+    file.status = File.Status.processing
+    file.save()
+
+    logger.debug("Reingesting file '%s'", file)
+    async_task(
+        ingest,
+        file.id,
+        task_name=file.unique_name,
+        group="re-ingest",
+    )
+
+
 @dataclass
 class UploadResult:
     errors: list[str] = field(default_factory=list)
