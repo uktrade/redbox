@@ -256,11 +256,14 @@ def test_domain():
     # Given
     obj = "https://www.gov.uk/"
     obj2 = "invalid"
+    obj3 = None
 
     # When
     result = domain(obj)
     result2 = domain(obj2)
+    result3 = domain(obj3)
 
     # Then
     assert result == "gov.uk"
     assert not result2
+    assert not result3

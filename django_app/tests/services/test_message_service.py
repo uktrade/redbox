@@ -4,6 +4,7 @@ from django.test import Client
 
 from redbox_app.redbox_core.models import ChatMessage, Citation
 from redbox_app.redbox_core.services import message as message_service
+from redbox_app.redbox_core.types import CitationMap
 
 User = get_user_model()
 
@@ -71,3 +72,52 @@ def test_citation_not_inserted(client: Client, alice: User, chat_message_with_ci
         citation=citation,
         footnote_counter=footnote_counter,
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_render_citation_placeholder(client: Client, alice: User, chat_message_with_citation: ChatMessage):
+    # Given
+    client.force_login(alice)
+    citation = Citation.objects.get(chat_message=chat_message_with_citation)
+    footnote_counter = 123
+
+    # When
+    citation_template = message_service.render_citation_placeholder(citation, footnote_counter)
+
+    # Then
+    assert citation_template
+    assert footnote_counter in citation_template
+
+
+@pytest.mark.django_db(transaction=True)
+def test_render_resources(client: Client, alice: User, external_citation: Citation):
+    # Given
+    client.force_login(alice)
+    message = external_citation.chat_message
+
+    # When
+    resources_template = message_service.render_resources(message)
+
+    # Then
+    assert resources_template
+    assert str(message.id) in resources_template
+    assert external_citation.internal_url in resources_template
+    assert external_citation.display_name in resources_template
+
+
+@pytest.mark.django_db(transaction=True)
+def test_streaming_replace_refs(client: Client, alice: User, external_citation: Citation):
+    # Given
+    client.force_login(alice)
+    text = f"{external_citation.text} ref_1"
+    message_with_citation = f"{external_citation.text} {message_service.render_citation_placeholder(1)}"
+
+    # When
+    rendered_text = message_service.streaming_replace_refs(
+        text=text,
+        citation_map=CitationMap(),
+    )
+
+    # Then
+    assert rendered_text
+    assert rendered_text == message_with_citation

@@ -34,7 +34,8 @@ def render_resources(message: ChatMessage) -> str:
     return render_to_string(
         "chat/message/citations/resources.html",
         {
-            "message": message,
+            "resources": message.resources,
+            "message_id": message.id,
         },
     )
 
