@@ -59,7 +59,7 @@ def test_reingest_action_triggers_reingest_file(client, alice):
 
     queryset = File.objects.filter(id__in=[file1.id, file2.id])
 
-    mock_admin = SimpleNamespace(message_user=lambda *_args, **_kwargs: None)
+    mock_admin = SimpleNamespace(model=File, message_user=lambda *_args, **_kwargs: None)
     request = RequestFactory().get("/admin/")
 
     # When
