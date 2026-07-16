@@ -16,7 +16,6 @@ import boto3
 from django.core.cache import cache
 
 from redbox_app.redbox_core.enums import IngestExtractionStrategy
-from redbox.models.file import ChunkResolution
 from redbox.models.settings import get_settings
 from unstructured.documents.elements import Element
 
@@ -291,7 +290,6 @@ class DocumentExtractionService:
         *,
         s3_key: str,
         pdf: ExtractedPdf,
-        chunk_resolution: ChunkResolution,
         log_stub: str,
         use_s3_textract: bool = True,
     ) -> tuple[IngestExtractionStrategy, list[Element] | list[str]]:
@@ -303,14 +301,8 @@ class DocumentExtractionService:
             s3_key:
                 Original file name (used for logging and S3 Textract where possible).
 
-            file_bytes:
-                PDF bytes.
-
-            file_size:
-                Size of the PDF in bytes.
-
-            chunk_resolution:
-                Requested chunk resolution.
+            pdf:
+                ExtractedPdf custom BaseModel for storing information about the PDF to be ingested
 
             log_stub:
                 Logging prefix.
@@ -322,17 +314,6 @@ class DocumentExtractionService:
         """
 
         logger.warning("%s PDF detected (%d bytes)", log_stub, pdf.file_size)
-
-        # Largest chunks always use direct text extraction.
-        if chunk_resolution == ChunkResolution.largest:
-            logger.warning(
-                "%s Using direct PyMuPDF extraction for largest chunk resolution",
-                log_stub,
-            )
-            return (
-                IngestExtractionStrategy.pymupdf,
-                self._extract_pdf_text_direct(pdf.bytes, log_stub),
-            )
 
         # Large PDFs bypass unstructured entirely.
         if pdf.page_count > 200 or pdf.file_size > LARGE_PDF_BYTES_THRESHOLD:
@@ -382,10 +363,11 @@ class DocumentExtractionService:
         )
 
     def _extract_locked(
-        self, file_name: str, chunk_resolution: ChunkResolution
+        self,
+        file_name: str,
     ) -> tuple[IngestExtractionStrategy, list[Element] | list[str] | list[dict[str, str | dict]]]:
         self.extract_calls += 1
-        extract_log_stub = f"{self.log_stub} (call {self.extract_calls}) {chunk_resolution} - "
+        extract_log_stub = f"{self.log_stub} (call {self.extract_calls}) - "
 
         logger.warning("%s .extract() called for %s", extract_log_stub, file_name)
 
@@ -419,7 +401,6 @@ class DocumentExtractionService:
             return self._extract_pdf(
                 s3_key=s3_key,
                 pdf=extracted_pdf,
-                chunk_resolution=chunk_resolution,
                 log_stub=extract_log_stub,
                 use_s3_textract=True,
             )
@@ -429,7 +410,6 @@ class DocumentExtractionService:
             return self._extract_pdf(
                 s3_key=s3_key,
                 pdf=pdf,
-                chunk_resolution=chunk_resolution,
                 log_stub=extract_log_stub,
                 use_s3_textract=False,
             )
@@ -439,7 +419,6 @@ class DocumentExtractionService:
             return self._extract_pdf(
                 s3_key=s3_key,
                 pdf=pdf,
-                chunk_resolution=chunk_resolution,
                 log_stub=extract_log_stub,
                 use_s3_textract=False,
             )
@@ -476,20 +455,20 @@ class DocumentExtractionService:
         return IngestExtractionStrategy.unstructured_auto, result
 
     def extract(
-        self, file_name: str, chunk_resolution: ChunkResolution
+        self,
+        file_name: str,
     ) -> tuple[IngestExtractionStrategy, list[Element] | list[str] | list[dict[str, str]]]:
-        lock_key = self._lock_key(f"{file_name}:{chunk_resolution}")
+        lock_key = self._lock_key(file_name)
 
         if not cache.add(lock_key, "1", timeout=INGEST_LOCK_TIMEOUT_SECONDS):
             logger.warning(
-                "%s Ingestion already in progress for %s (%s) - skipping duplicate run",
+                "%s Ingestion already in progress for %s - skipping duplicate run",
                 self.log_stub,
                 file_name,
-                chunk_resolution,
             )
             raise IngestionAlreadyInProgress(file_name)
 
         try:
-            return self._extract_locked(file_name, chunk_resolution)
+            return self._extract_locked(file_name)
         finally:
             cache.delete(lock_key)

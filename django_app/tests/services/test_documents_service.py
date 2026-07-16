@@ -1,4 +1,5 @@
 import uuid
+from unittest import mock
 from unittest.mock import patch
 
 import pytest
@@ -152,3 +153,21 @@ def test_process_uploads_skips_none_file_obj(mock_ingest, alice, original_file: 
     assert result.files == []
     assert result.ingest_errors == ["ingest failed"]
     assert result.errors == []
+
+
+@pytest.mark.django_db
+@patch("redbox_app.redbox_core.services.documents.async_task")
+def test_reingest_file_resets_file_during_reingest(uploaded_file: File):
+    uploaded_file.status = File.Status.complete
+    uploaded_file.save()
+    documents_service.reingest_file(uploaded_file)
+    assert uploaded_file.status is File.Status.processing
+
+
+@pytest.mark.django_db
+@patch("redbox_app.redbox_core.services.documents.async_task")
+def test_reingest_file_calls_async_task_with_expected_args(mock_async_task, uploaded_file: File):
+    documents_service.reingest_file(uploaded_file)
+    mock_async_task.assert_has_calls(
+        [mock.call(mock.ANY, uploaded_file.id, task_name=uploaded_file.unique_name, group="re-ingest")],
+    )

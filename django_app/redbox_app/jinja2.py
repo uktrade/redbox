@@ -91,7 +91,7 @@ def get_menu_items(user):
         items.append({"text": "Tools", "href": url("tools")})
 
     items.append({"text": "Profile", "href": url("settings")})
-    items.append({"text": "Give us feedback", "href": settings.FEEDBACK_LINK})
+    items.append({"text": "Give us feedback", "href": url("feedback")})
     items.append({"text": "Log out", "href": url("signed-out")})
 
     return items
@@ -166,7 +166,6 @@ def environment(**options):
             "flag_is_active": flag_is_active,
             "flags": flags,
             "get_menu_items": get_menu_items,
-            "feedback_link": settings.FEEDBACK_LINK,
             "product_name": get_product_name,
             "contact_email": settings.CONTACT_EMAIL,
             "approved_file_extensions": APPROVED_FILE_EXTENSIONS,

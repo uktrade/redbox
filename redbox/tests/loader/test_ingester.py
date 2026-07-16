@@ -8,7 +8,6 @@ from redbox.loader.ingester import (
     _ingest_file,
     ingest_file,
 )
-from redbox.models.file import ChunkResolution
 from redbox_app.redbox_core.enums import (
     IngestChunkingStrategy,
     IngestExtractionStrategy,
@@ -75,7 +74,7 @@ class TestInternalIngestFile:
                 "documents": [],
             },
             "largest": {
-                "strategy": IngestChunkingStrategy.overlapping_pages,
+                "strategy": IngestChunkingStrategy.unstructured_chunk_by_title,
                 "documents": [],
             },
             "tabular": {
@@ -108,7 +107,7 @@ class TestInternalIngestFile:
                     ["normal"],
                 ),
                 (
-                    IngestExtractionStrategy.pymupdf,
+                    IngestExtractionStrategy.textract_document_analysis,
                     ["largest"],
                 ),
             ]
@@ -138,10 +137,15 @@ class TestInternalIngestFile:
     @patch("redbox.loader.ingester.MetadataExtraction")
     @patch("redbox.loader.ingester.DocumentExtractionService")
     @pytest.mark.parametrize(
-        ("filename", "expected_calls"),
+        ("filename"),
         [
-            ("test.csv", [ChunkResolution.normal]),
-            ("test.pdf", [ChunkResolution.normal, ChunkResolution.largest]),
+            ("test.csv"),
+            ("test.xlsx"),
+            ("test.docx"),
+            ("test.pptx"),
+            ("test.pdf"),
+            ("test.md"),
+            ("test.html"),
         ],
     )
     def test_extraction_strategy(
@@ -152,7 +156,6 @@ class TestInternalIngestFile:
         ingest_tabular_chunks,
         runnable_parallel,
         filename,
-        expected_calls,
     ):
         extraction, _, _ = self._setup(
             extraction_service_cls,
@@ -165,13 +168,8 @@ class TestInternalIngestFile:
 
         _ingest_file(filename)
 
-        assert extraction.extract.call_count == len(expected_calls)
-
-        for resolution in expected_calls:
-            extraction.extract.assert_any_call(
-                file_name=filename,
-                chunk_resolution=resolution,
-            )
+        assert extraction.extract.call_count == 1
+        extraction.extract.assert_called_once_with(file_name=filename)
 
     @patch("redbox.loader.ingester.RunnableParallel")
     @patch("redbox.loader.ingester.ingest_tabular_chunks")
@@ -229,8 +227,8 @@ class TestInternalIngestFile:
         assert response == FileIngestionResponse(
             normal_extraction_strategy=IngestExtractionStrategy.textract_document_analysis,
             normal_chunking_strategy=IngestChunkingStrategy.unstructured_chunk_by_title,
-            largest_extraction_strategy=IngestExtractionStrategy.pymupdf,
-            largest_chunking_strategy=IngestChunkingStrategy.overlapping_pages,
+            largest_extraction_strategy=IngestExtractionStrategy.textract_document_analysis,
+            largest_chunking_strategy=IngestChunkingStrategy.unstructured_chunk_by_title,
         )
 
     @patch("redbox.loader.ingester.RunnableParallel")

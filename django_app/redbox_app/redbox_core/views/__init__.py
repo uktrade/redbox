@@ -27,7 +27,12 @@ from redbox_app.redbox_core.views.file_views import (
     file_ingest_errors_view,
     file_status_api_view,
 )
-from redbox_app.redbox_core.views.info_views import accessibility_statement_view, privacy_notice_view, support_view
+from redbox_app.redbox_core.views.info_views import (
+    accessibility_statement_view,
+    feedback_view,
+    privacy_notice_view,
+    support_view,
+)
 from redbox_app.redbox_core.views.misc_views import (
     RefreshFragmentsView,
     SecurityTxtRedirectView,
@@ -108,6 +113,7 @@ __all__ = [
     "edit_tool_user_row_view",
     "edit_tool_user_view",
     "faq_view",
+    "feedback_view",
     "file_icon_view",
     "file_ingest_errors_view",
     "file_status_api_view",

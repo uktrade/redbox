@@ -2,20 +2,26 @@ import logging
 
 from django.contrib import admin
 from django.contrib.auth import get_user_model
-from django_q.tasks import async_task
 
 from redbox_app.redbox_core.models import File
-from redbox_app.worker import ingest
+from redbox_app.redbox_core.services.documents import reingest_file
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
-def reupload(_self, _request, queryset):
+@admin.action(description="Re-ingest files")
+def reingest(self, request, queryset):
+    if not (file_count := len(queryset)):
+        return logger.error("No files selected for re-ingestion")
+
     for file in queryset:
-        logger.info("Re-uploading file to core-api: %s", file)
-        async_task(ingest, file.id)
-        logger.info("Successfully reuploaded file %s.", file)
+        reingest_file(file)
+
+    msg = f"Re-ingesting {file_count} files"
+
+    logger.info(msg)
+    return self.message_user(request, msg)
 
 
 @admin.action(description="Backfill original file names")
@@ -31,7 +37,7 @@ def backfill_original_file_names(self, request, queryset):
 
     File.objects.bulk_update(files, ["original_file_name"])
 
-    self.message_user(
+    return self.message_user(
         request,
         f"Updated {updated} files.",
     )

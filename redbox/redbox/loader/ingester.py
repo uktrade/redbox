@@ -1,23 +1,20 @@
 import logging
 import time
-import os
 import traceback
 from typing import TYPE_CHECKING
-from pydantic import BaseModel
 
 from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.embeddings import FakeEmbeddings
 from langchain_core.runnables import RunnableParallel
-
+from pydantic import BaseModel
 from redbox_app.redbox_core.enums import IngestChunkingStrategy, IngestExtractionStrategy
+
 from redbox.chains.components import get_embeddings
+from redbox.chains.ingest import DocumentChunkingService, ingest_chunks, ingest_tabular_chunks
+from redbox.loader.extraction.metadata import MetadataExtraction
+from redbox.loader.extraction.service import DocumentExtractionService, IngestionAlreadyInProgress
 from redbox.models.file import ChunkResolution
 from redbox.models.settings import get_settings
-
-from redbox.loader.extraction.service import DocumentExtractionService, IngestionAlreadyInProgress
-from redbox.loader.extraction.metadata import MetadataExtraction
-from redbox.chains.ingest import ingest_chunks, ingest_tabular_chunks, DocumentChunkingService
-
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -101,15 +98,11 @@ def _ingest_file(
     # -- extraction --
     # normal chunk
     normal_extraction_strategy, normal_elements = extraction_service.extract(
-        file_name=file_name, chunk_resolution=ChunkResolution.normal
+        file_name=file_name,
     )
 
-    # largest chunk
+    # largest chunk reuse largest extraction
     largest_extraction_strategy, largest_elements = normal_extraction_strategy, normal_elements
-    if os.path.basename(file_name).lower().endswith(".pdf"):  # if PDF - extract largest chunks with direct extraction
-        largest_extraction_strategy, largest_elements = extraction_service.extract(
-            file_name=file_name, chunk_resolution=ChunkResolution.largest
-        )
 
     # metadata
     metadata = MetadataExtraction(env=env).extract(file_name=file_name, elements=normal_elements)

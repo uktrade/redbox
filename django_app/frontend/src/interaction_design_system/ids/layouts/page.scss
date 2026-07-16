@@ -3,6 +3,7 @@
 .ids-page-layout {
     display: grid;
     grid-template-columns: auto 1fr;
+    align-content: start;
     min-height: 100vh;
     min-width: var(--side-panel-collapsed-width--xl);
 
