@@ -120,3 +120,21 @@ def test_streaming_replace_refs(client: Client, alice: User, external_citation: 
     # Then
     assert rendered_text
     assert rendered_text == message_with_citation
+
+
+@pytest.mark.django_db(transaction=True)
+def test_decorate_message(client: Client, alice: User, chat_message_with_citation: ChatMessage):
+    # Given
+    client.force_login(alice)
+    citation = Citation.objects.filter(chat_message=chat_message_with_citation).first()
+    original_text = chat_message_with_citation.text
+    chat_message_with_citation.text += " ref_1"
+
+    # When
+    decorated_message = message_service.decorate_message(message=chat_message_with_citation, as_html=False)
+    rendered_citation = message_service.render_citation(citation=citation, footnote_counter=1)
+    expected_text = f"{original_text} {rendered_citation}"
+
+    # Then
+    assert decorated_message
+    assert decorated_message.text == expected_text

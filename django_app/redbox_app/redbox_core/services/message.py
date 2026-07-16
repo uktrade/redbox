@@ -144,3 +144,65 @@ class MarkdownConverter:
 
     def reset(self):
         self.md.reset()
+
+
+def decorate_messages(
+    messages: Sequence[ChatMessage] | None = None, as_html: bool = True
+) -> Sequence[ChatMessage] | None:
+    markdown_converter = MarkdownConverter()
+    decorated_messages: Sequence[ChatMessage] | None = []
+
+    # Add citatition links and footnotes to messages
+    for message in messages:
+        if as_html:
+            markdown_converter.reset()
+            message.text = markdown_converter.convert(message.text)
+
+        decorated_message = decorate_message(message=message, as_html=False)
+        decorated_messages.append(decorated_message)
+
+    return decorated_messages
+
+
+def decorate_message(message: ChatMessage, as_html: bool = True):
+    if as_html:
+        message.text = MarkdownConverter().convert(message.text)
+
+    footnote_counter = 1
+
+    for citation in message.get_citations():
+        citation_names_unique = check_ref_ids_unique(message)
+
+        if citation.citation_name and citation_names_unique:
+            message.text = replace_ref(
+                message_text=message.text,
+                citation=citation,
+                footnote_counter=footnote_counter,
+            )
+
+            if citation_not_inserted(
+                message_text=message.text,
+                citation=citation,
+                footnote_counter=footnote_counter,
+            ):
+                logger.info("Citation Numbering Missed")
+            else:
+                footnote_counter += 1
+
+        elif citation.text_in_answer:
+            message.text = replace_text_in_answer(
+                message_text=message.text,
+                citation=citation,
+                footnote_counter=footnote_counter,
+            )
+            footnote_counter += 1
+
+            if citation_not_inserted(
+                message_text=message.text,
+                citation=citation,
+                footnote_counter=footnote_counter,
+            ):
+                logger.info("Citation Numbering Missed")
+
+    message.text = remove_dangling_citation(message_text=message.text)
+    return message

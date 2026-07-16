@@ -993,7 +993,7 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
         try:
             return self._sso
         except UserSSO.DoesNotExist as e:
-            logger.exception("UserSSO record not found for %s", self, exc_info=e)
+            logger.info("UserSSO record not found for %s", self, exc_info=e)
             return None
 
 

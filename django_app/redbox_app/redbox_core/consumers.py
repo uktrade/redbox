@@ -64,7 +64,6 @@ from redbox_app.redbox_core.models import (
 from redbox_app.redbox_core.models import Agent as AgentModel
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
 from redbox_app.redbox_core.models import ChatLLMBackend as ChatLLMBackendModel
-from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.services import message as message_service
 from redbox_app.redbox_core.types import (
     ChatStreamEvent,
@@ -450,7 +449,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             if len(self.full_reply) == 0 or self.chat_message.text == "":
                 logger.exception("consumers: LLM Error - Blank Response")
 
-            decorated_chat_message = await sync_to_async(chat_service.decorate_message, thread_sensitive=False)(
+            decorated_chat_message = await sync_to_async(message_service.decorate_message, thread_sensitive=False)(
                 self.chat_message
             )
 
