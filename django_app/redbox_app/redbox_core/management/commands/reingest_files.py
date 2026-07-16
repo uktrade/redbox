@@ -1,31 +1,12 @@
+import datetime
 import logging
-import time
 
 from django.core.management import BaseCommand
-from django_q.tasks import async_task
 
-from redbox.models.settings import get_settings
-from redbox_app.redbox_core.models import File
-from redbox_app.worker import ingest
+from redbox_app.redbox_core.models import File, FileTool
+from redbox_app.redbox_core.services.documents import reingest_file
 
 logger = logging.getLogger(__name__)
-
-env = get_settings()
-
-es_client = env.elasticsearch_client()
-
-
-def switch_aliases(alias, new_index):
-    try:
-        response = es_client.indices.get_alias(name=alias)
-        indices_to_remove = list(response)
-    except Exception as e:
-        logger.exception("Error fetching alias", exc_info=e)
-
-    actions = [{"remove": {"index": index, "alias": alias}} for index in indices_to_remove]
-    actions.append({"add": {"index": new_index, "alias": alias}})
-
-    es_client.indices.update_aliases(body={"actions": actions})
 
 
 class Command(BaseCommand):
@@ -35,21 +16,26 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         """sync only to be used for testing"""
-        parser.add_argument("sync", nargs="?", type=bool, default=False)
+        parser.add_argument("start_date", type=datetime.date.fromisoformat)
+        parser.add_argument("end_date", type=datetime.date.fromisoformat)
 
-    def handle(self, *_args, **kwargs):
-        self.stdout.write(self.style.NOTICE("Reingesting active files from Django"))
+    def handle(self, **options):
+        start_date = options["start_date"]
+        end_date = options["end_date"]
+        end_datetime = end_date.strftime("%Y-%m-%d 23:59:59")
 
-        new_index = f"{env.elastic_root_index}-chunk-{int(time.time())}"
+        logger.debug("Reingesting files between '%s' and '%s'", start_date, end_datetime)
 
-        for file in File.objects.exclude(status__in=File.INACTIVE_STATUSES):
-            logger.debug("Reingesting file object %s", file)
-            async_task(
-                ingest,
-                file.id,
-                new_index,
-                task_name=file.file_name,
-                group="re-ingest",
-                sync=kwargs["sync"],
-            )
-        async_task(switch_aliases, env.elastic_chunk_alias, new_index, task_name="switch_aliases")
+        queryset = (
+            File.objects.filter(status=File.Status.complete)
+            .exclude(created_at__gt=end_datetime)
+            .exclude(created_at__lt=start_date)
+            .exclude(id__in=FileTool.objects.filter(file_type=FileTool.FileType.ADMIN).values("file__id"))
+        )
+
+        if queryset.count() == 0:
+            logger.debug("No files found between '%s' and '%s'", start_date, end_datetime)
+            return
+
+        for file in queryset:
+            reingest_file(file)
