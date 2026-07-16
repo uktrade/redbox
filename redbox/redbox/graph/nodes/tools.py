@@ -43,7 +43,7 @@ from redbox.retriever.queries import (
     get_knowledge_base,
 )
 from redbox.retriever.retrievers import SchematisedTabularChunkRetriever, query_to_documents
-from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
+from redbox.transform import annotate_span_with_token_metrics, bedrock_tokeniser, merge_documents, sort_documents
 
 log = logging.getLogger(__name__)
 
@@ -684,7 +684,7 @@ def parse_filters_bedrock(prompt: str):
 
     settings = get_settings()
 
-    model_id = settings.default_model_id if settings.default_model_id else "anthropic.claude-3-sonnet-20240229-v1:0"
+    model_id = settings.default_model_id if settings.default_model_id else "claude-sonnet-4-6"
 
     response = client.invoke_model(
         modelId=model_id,
@@ -719,9 +719,25 @@ def parse_filters_bedrock(prompt: str):
 
     body = json.loads(response["body"].read())
     try:
-        response_json = json.loads(body["content"][0]["text"].strip())
+        response_text = body["content"][0]["text"].strip()
+        response_json = json.loads(response_text)
+        usage = body.get("usage", {})
+        input_tokens = usage.get("input_tokens", bedrock_tokeniser(prompt))
+        output_tokens = usage.get("output_tokens", bedrock_tokeniser(response_text))
+        annotate_span_with_token_metrics(
+            model=model_id,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            provider="bedrock",
+        )
         return response_json.get("dataset", "companies-dataset"), response_json.get("filters", {})
     except Exception:
+        annotate_span_with_token_metrics(
+            model=model_id,
+            input_tokens=bedrock_tokeniser(prompt),
+            output_tokens=bedrock_tokeniser(json.dumps(body)),
+            provider="bedrock",
+        )
         return "companies-dataset", {}
 
 

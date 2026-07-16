@@ -1,10 +1,11 @@
 import itertools
 import logging
-import re
 import math
+import re
 from typing import Dict, Iterable
 from uuid import NAMESPACE_DNS, UUID, uuid5
 
+from ddtrace import tracer
 from langchain_core.callbacks.manager import dispatch_custom_event
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, AnyMessage
@@ -14,6 +15,19 @@ from redbox.models.chain import DocumentMapping, DocumentState, LLMCallMetadata,
 from redbox.models.graph import RedboxEventType
 
 log = logging.getLogger(__name__)
+
+
+def annotate_span_with_token_metrics(model: str, input_tokens: int, output_tokens: int, provider: str = "bedrock"):
+    span = tracer.current_span()
+    if span is None:
+        return
+
+    span.set_tag("input_tokens", input_tokens)
+    span.set_tag("output_tokens", output_tokens)
+    span.set_tag("model", model)
+    span.set_tag("llm.model", model)
+    span.set_tag("provider", provider)
+    span.set_tag("llm.provider", provider)
 
 
 def bedrock_tokeniser_tokens(text: str) -> list[str]:
@@ -249,6 +263,13 @@ def to_request_metadata(obj: dict) -> RequestMetadata:
         output_tokens = tokeniser(response)
     except Exception:
         output_tokens = len(response[0].get("text", []))
+
+    annotate_span_with_token_metrics(
+        model=model,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        provider="bedrock",
+    )
 
     metadata_event = RequestMetadata(
         llm_calls=[

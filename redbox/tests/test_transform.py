@@ -1,6 +1,7 @@
 import copy
 import itertools
 from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
 from uuid import NAMESPACE_DNS, UUID, uuid5
 
 import pytest
@@ -217,6 +218,25 @@ def test_to_request_metadata(output: dict, expected: RequestMetadata):
     assert result.output_tokens == expected.output_tokens, (
         f"Expected: {expected.output_tokens} Result: {result.output_tokens}"
     )
+
+
+def test_to_request_metadata_tags_current_span():
+    span = MagicMock()
+    output = {
+        "prompt": "Lorem ipsum dolor sit amet.",
+        "model": "anthropic.claude-3-7-sonnet-20250219-v1:0",
+        "text_and_tools": {
+            "raw_response": AIMessage(content="Lorem ipsum dolor sit amet, consectetur adipiscing elit.")
+        },
+    }
+
+    with patch("redbox.transform.tracer.current_span", return_value=span):
+        RunnableLambda(to_request_metadata).invoke(output)
+
+    span.set_tag.assert_any_call("input_tokens", 6)
+    span.set_tag.assert_any_call("output_tokens", 10)
+    span.set_tag.assert_any_call("model", "anthropic.claude-3-7-sonnet-20250219-v1:0")
+    span.set_tag.assert_any_call("provider", "bedrock")
 
 
 def test_structure_documents_by_file_name():
