@@ -4,20 +4,14 @@
 
 {% block content %}
 
-<div class="govuk-width-container govuk-!-margin-top-3">
-  <a href="/" class="govuk-back-link govuk-!-margin-bottom-5 govuk-!-margin-top-0">Back</a>
-  <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">
+<div class="govuk-!-margin-top-3">
+    <a href="/" class="govuk-back-link govuk-!-margin-bottom-5 govuk-!-margin-top-0">Back</a>
+    <h1 class="govuk-heading-l">Give us feedback</h1>
+    <h2 class="govuk-heading-m">Help us improve DBT Assist</h2>
 
-      <h1 class="govuk-heading-l">Give us feedback</h1>
-      <h2 class="govuk-heading-m">Help us improve DBT Assist</h2>
-
-      <p class="govuk-body">You can rate individual responses using the thumbs up or down icons in a chat.</p>
-      <p class="govuk-body">To share broader feedback, report a problem or suggest an improvement, email: <a class="govuk-link"  target="_blank" rel="noopener noreferrer" href="mailto:{{ contact_email }}">{{ contact_email }}</a></p>
-      <p class="govuk-body">Do not include sensitive information or personal data in your email.</p>
-
-    </div>
-  </div>
+    <p class="govuk-body">You can rate individual responses using the thumbs up or down icons in a chat.</p>
+    <p class="govuk-body">To share broader feedback, report a problem or suggest an improvement, email: <a class="govuk-link"  target="_blank" rel="noopener noreferrer" href="mailto:{{ contact_email }}">{{ contact_email }}</a></p>
+    <p class="govuk-body">Do not include sensitive information or personal data in your email.</p>
 </div>
 
 {% endblock %}
