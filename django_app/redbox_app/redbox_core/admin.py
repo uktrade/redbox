@@ -350,6 +350,7 @@ class CitationAdmin(admin.ModelAdmin):
         "source",
         "text_in_answer",
         "citation_name",
+        "created_at",
         "uri_display",
     ]
     list_filter = ["source", "modified_at"]
