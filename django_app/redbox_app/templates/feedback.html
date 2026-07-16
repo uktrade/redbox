@@ -5,7 +5,9 @@
 {% block content %}
 
 <div class="govuk-!-margin-top-3">
-    <a href="/" class="govuk-back-link govuk-!-margin-bottom-5 govuk-!-margin-top-0">Back</a>
+    {% if not request.user.is_authenticated %}
+        <a href="/" class="govuk-back-link govuk-!-margin-bottom-5 govuk-!-margin-top-0">Back</a>
+    {% endif %}
     <h1 class="govuk-heading-l">Give us feedback</h1>
     <h2 class="govuk-heading-m">Help us improve DBT Assist</h2>
 
