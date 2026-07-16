@@ -15,6 +15,8 @@ services:
         condition: service_healthy
       sso:
         condition: service_started
+      redbox-worker:
+        condition: service_started
     networks:
       - redbox-app-network
     env_file:
@@ -78,15 +80,6 @@ services:
         required: false
     volumes:
       - .aws:/root/.aws
-    depends_on:
-      opensearch:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      redbox-django-app:
-        condition: service_healthy
-      db:
-        condition: service_healthy
     networks:
       - redbox-app-network
     restart: unless-stopped
