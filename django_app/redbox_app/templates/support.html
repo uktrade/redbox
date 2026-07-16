@@ -7,10 +7,7 @@
 
 
 {% block content %}
-<div class="govuk-width-container govuk-!-margin-top-3">
-  <div class="govuk-grid-row">
-    <div class="govuk-grid-column-full">
-
+<div class="govuk-!-margin-top-3">
       <h1 class="govuk-heading-l">Support</h1>
 
       {#
@@ -61,8 +58,5 @@
 
       <h2 class="govuk-heading-m">Contact us</h2>
       <p class="govuk-body">If you've read the information above but haven't been able to find a solution to your problem, please email us at <a href="mailto:{{ contact_email }}" class="govuk-link">{{ contact_email }}</a> including as much information as possible, including the current version number, which is {{ version }}.</p>
-
-    </div>
-  </div>
 </div>
 {% endblock %}
