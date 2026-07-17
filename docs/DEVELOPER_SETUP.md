@@ -107,7 +107,7 @@ Currently, we use [poetry](https://python-poetry.org/) to manage our python pack
 - [notebooks](https://github.com/uktrade/redbox/blob/dev/notebooks/pyproject.toml) - Jupyter notebooks
 
 ### Local Install
-Once Python has been configured and installed using either `pyenv` or `asdf`, and Poetry installed - from each applications root directory (`django_app`, `redbox`, `notebooks`), run the following:
+Once Python has been configured and installed using either `pyenv` or `asdf`, and Poetry installed,  `cd` into each applications root directory (`django_app`, `redbox`, `notebooks`) and run the following:
 
 ```bash
 poetry install
