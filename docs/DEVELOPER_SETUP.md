@@ -132,7 +132,7 @@ poetry env info
 VSCode is the IDE of choice. The `.vscode/` directory is used for defining project-wide VSCode IDE settings.
 
 ### Python Interpreter [*Required]
-Ensure your python interpreter is set to the root venv Python binary (should be `./venv/bin/python` or `./.venv/bin/python`).
+Ensure your [python interpreter](https://share.google/aimode/lL57GamcySlEY3Ax5) is set to the root venv Python binary (should be `./venv/bin/python` or `./.venv/bin/python`).
 
 #### Verify Setup
 Once the correct interpreter is selected it should display the `pyproject.toml` name `ie. Python 3.12.7 (redbox-root-py3.12)`. Also, opening any new terminals in VSCode will automatically activate that environment (ie. `source venv/bin/activate` or `source .venv/bin/activate`).
