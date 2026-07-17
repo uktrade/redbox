@@ -289,6 +289,7 @@ class FileToolAdmin(ExportMixin, admin.ModelAdmin):
     date_hierarchy = "created_at"
     search_fields = ("file__original_file_name", "tool__name")
     raw_id_fields = ["file"]
+    actions = [reingest]
 
 
 class UserToolAdmin(ExportMixin, admin.ModelAdmin):
