@@ -1,4 +1,3 @@
-import boto3
 import itertools
 import json
 import logging
@@ -64,84 +63,11 @@ def _bedrock_response_text(parsed: dict | None, http_response: object | None) ->
             return content
 
     if http_response is not None:
-        body = getattr(http_response, "body", None) or getattr(http_response, "content", None)
-        return _serialize_text(body)
+        content_attr = getattr(http_response, "content", None)
+        if isinstance(content_attr, (bytes, bytearray)):
+            return _serialize_text(content_attr)
 
     return ""
-
-
-def _attach_bedrock_runtime_trace_hooks(client):
-    if getattr(client, "__redbox_bedrock_hook_installed", False):
-        return
-
-    def _before_call(**kwargs):
-        span = tracer.current_span()
-        if span is None:
-            return
-
-        params = kwargs.get("params") or kwargs.get("request") or {}
-        body = params.get("body") if isinstance(params, dict) else None
-        body_text = _serialize_text(body)
-        prompt = _bedrock_request_text(body_text)
-        if prompt:
-            span.set_tag("input_tokens", bedrock_tokeniser(prompt))
-
-        try:
-            payload = json.loads(body_text)
-            model = payload.get("modelId") or payload.get("model_id") or payload.get("model")
-            if model:
-                span.set_tag("model", model)
-                span.set_tag("llm.model", model)
-        except Exception:
-            pass
-
-        span.set_tag("provider", "bedrock")
-        span.set_tag("llm.provider", "bedrock")
-
-    def _after_call(**kwargs):
-        span = tracer.current_span()
-        if span is None:
-            return
-
-        parsed = kwargs.get("parsed")
-        http_response = kwargs.get("http_response")
-        response_text = _bedrock_response_text(parsed, http_response)
-        if response_text:
-            span.set_tag("output_tokens", bedrock_tokeniser(response_text))
-
-    client.meta.events.register("before-call.*.*", _before_call)
-    client.meta.events.register("after-call.*.*", _after_call)
-    setattr(client, "__redbox_bedrock_hook_installed", True)
-
-
-def _patched_boto3_client(service_name=None, *args, **kwargs):
-    if service_name is None and args:
-        service_name = args[0]
-        args = args[1:]
-
-    client = _ORIGINAL_BOTO3_CLIENT(service_name, *args, **kwargs)
-    if service_name == "bedrock-runtime":
-        _attach_bedrock_runtime_trace_hooks(client)
-    return client
-
-
-_ORIGINAL_BOTO3_CLIENT = boto3.client
-boto3.client = _patched_boto3_client
-
-try:
-    import boto3.session
-
-    _ORIGINAL_BOTO3_SESSION_CLIENT = boto3.session.Session.client
-
-    def _patched_boto3_session_client(self, service_name, *args, **kwargs):
-        client = _ORIGINAL_BOTO3_SESSION_CLIENT(self, service_name, *args, **kwargs)
-        if service_name == "bedrock-runtime":
-            _attach_bedrock_runtime_trace_hooks(client)
-        return client
-
-    boto3.session.Session.client = _patched_boto3_session_client
-except Exception:
-    pass
 
 
 def annotate_span_with_token_metrics(model: str, input_tokens: int, output_tokens: int, provider: str = "bedrock"):
