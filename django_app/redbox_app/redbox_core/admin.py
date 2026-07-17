@@ -353,7 +353,11 @@ class CitationAdmin(admin.ModelAdmin):
         "created_at",
         "uri_display",
     ]
-    list_filter = ["source", "modified_at"]
+    list_filter = (
+        "source",
+        ("source", admin.EmptyFieldListFilter),
+        "modified_at",
+    )
     date_hierarchy = "modified_at"
     search_fields = ("text", "url")
 

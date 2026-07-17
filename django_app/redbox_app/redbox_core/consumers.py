@@ -684,19 +684,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
     async def create_citations(self, file: File | None, ai_citation: AICitation) -> list[Citation]:
+        citations = []
 
-        citations = [
-            Citation(
+        for src in ai_citation.sources:
+            source = Citation.Origin.USER_UPLOADED_DOCUMENT if file else Citation.Origin.try_parse(src.source_type)
+
+            citation = Citation(
                 chat_message=self.chat_message,
                 file=file,
                 url=None if file else src.source,
                 text=src.highlighted_text_in_source,
                 page_numbers=src.page_numbers,
-                source=Citation.Origin.USER_UPLOADED_DOCUMENT if file else Citation.Origin.try_parse(src.source_type),
+                source=source,
                 citation_name=src.ref_id,
             )
-            for src in ai_citation.sources
-        ]
+
+            if source:
+                citations.append(citation)
+            else:
+                logger.error(
+                    "Invalid Citation source: '%s'. Creation aborted for payload: %s",
+                    src.source_type,
+                    citation,
+                )
 
         if file:
             file.last_referenced = timezone.now()
