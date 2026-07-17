@@ -16,7 +16,7 @@ const CUSTOM_ELEMENT_HANDLING = {
     ALLOWED_CUSTOM_TAGS.includes(tagName),
 
   attributeNameCheck: (/** @type {String} */ attr) => true,
-  allowCustomizedBuiltInElements: true,
+  allowCustomizedBuiltInElements: false,
 };
 
 DOMPurify.setConfig({
