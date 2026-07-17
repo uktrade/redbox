@@ -101,10 +101,10 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ## Install Project Dependencies with Poetry [*Required]
 Currently, we use [poetry](https://python-poetry.org/) to manage our python packages. There are 4 `pyproject.toml`s
-- [redbox](https://github.com/i-dot-ai/redbox/blob/main/redbox/pyproject.toml) - core AI package
-- [django-app](https://github.com/i-dot-ai/redbox/blob/main/django_app/pyproject.toml) - django webserver and background worker
-- [root](https://github.com/i-dot-ai/redbox/blob/main/pyproject.toml) - Integration tests, QA, and docs
-- [notebooks](https://github.com/uktrade/redbox/blob/main/notebooks/pyproject.toml) - Jupyter notebooks
+- [redbox](https://github.com/uktrade/redbox/blob/dev/redbox/pyproject.toml) - core AI package
+- [django-app](https://github.com/uktrade/redbox/blob/dev/django_app/pyproject.toml) - django webserver and background worker
+- [root](https://github.com/uktrade/redbox/blob/dev/pyproject.toml) - Integration tests, QA, and docs
+- [notebooks](https://github.com/uktrade/redbox/blob/dev/notebooks/pyproject.toml) - Jupyter notebooks
 
 ### Local Install
 Once Python has been configured and installed using either `pyenv` or `asdf`, and Poetry installed - from each applications root directory (`django_app`, `redbox`, `notebooks`), run the following:
