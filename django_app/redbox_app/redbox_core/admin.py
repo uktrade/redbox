@@ -284,8 +284,15 @@ class FileAdmin(ExportMixin, admin.ModelAdmin):
 
 
 class FileToolAdmin(ExportMixin, admin.ModelAdmin):
-    list_display = ["file", "tool", "file_type", "created_at", "file_status_display"]
-    list_filter = ["tool", "file_type", "file__status"]
+    list_display = [
+        "file",
+        "tool",
+        "file_type",
+        "created_at",
+        "file_ingested_at_display",
+        "file_status_display",
+    ]
+    list_filter = ["tool", "file_type", "file__status", "file__ingested_at"]
     date_hierarchy = "created_at"
     search_fields = ("file__original_file_name", "tool__name")
     raw_id_fields = ["file"]
@@ -294,6 +301,10 @@ class FileToolAdmin(ExportMixin, admin.ModelAdmin):
     @admin.display(ordering="file__status", description="File Status")
     def file_status_display(self, obj):
         return obj.file.status if obj.file else "No File"
+
+    @admin.display(ordering="file__ingested_at", description="File Ingested at")
+    def file_ingested_at_display(self, obj):
+        return obj.file.ingested_at if obj.file else "No File"
 
 
 class UserToolAdmin(ExportMixin, admin.ModelAdmin):
