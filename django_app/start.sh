@@ -2,6 +2,13 @@
 
 PORT=8080
 
+if [ "${REDBOX_ENABLE_DD_DIAGNOSTICS:-false}" = "1" ] || [ "${REDBOX_ENABLE_DD_DIAGNOSTICS:-false}" = "true" ] || [ "${REDBOX_ENABLE_DD_DIAGNOSTICS:-false}" = "TRUE" ]; then
+	export DD_TRACE_DEBUG=true
+	export DD_TRACE_LOG_LEVEL=DEBUG
+	export REDBOX_BEDROCK_DIAGNOSTICS=true
+	echo "Datadog diagnostics mode enabled"
+fi
+
 venv/bin/django-admin migrate
 venv/bin/django-admin collectstatic --noinput
 venv/bin/django-admin create_admin_user

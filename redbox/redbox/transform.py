@@ -2,6 +2,7 @@ import itertools
 import json
 import logging
 import math
+import os
 import re
 from functools import wraps
 from typing import Dict, Iterable
@@ -21,6 +22,7 @@ log = logging.getLogger(__name__)
 
 _BEDROCK_CONTEXT_KEY = "_redbox_bedrock_api_params"
 _BEDROCK_CLIENT_PATCHED = False
+_BEDROCK_DIAGNOSTICS_ENV = "REDBOX_BEDROCK_DIAGNOSTICS"
 
 
 def _serialize_text(text: bytes | bytearray | str | None) -> str:
@@ -32,6 +34,112 @@ def _serialize_text(text: bytes | bytearray | str | None) -> str:
         except Exception:
             return text.decode("utf-8", errors="ignore")
     return str(text)
+
+
+def _diagnostics_enabled() -> bool:
+    return os.getenv(_BEDROCK_DIAGNOSTICS_ENV, "false").lower() in {"1", "true", "yes", "on"}
+
+
+def _is_sensitive_key(key: str) -> bool:
+    key = (key or "").lower()
+    sensitive_terms = [
+        "authorization",
+        "token",
+        "credential",
+        "signature",
+        "secret",
+        "cookie",
+        "x-api-key",
+        "api_key",
+        "passwd",
+        "password",
+    ]
+    return any(term in key for term in sensitive_terms)
+
+
+def _redact_dict(data: dict | None) -> dict:
+    if not isinstance(data, dict):
+        return {}
+
+    redacted = {}
+    for k, v in data.items():
+        key = str(k)
+        if _is_sensitive_key(key):
+            redacted[key] = "<redacted>"
+            continue
+
+        if isinstance(v, dict):
+            redacted[key] = _redact_dict(v)
+        elif isinstance(v, list):
+            redacted[key] = ["<redacted>" if isinstance(i, (bytes, bytearray)) else i for i in v]
+        elif isinstance(v, (bytes, bytearray)):
+            redacted[key] = _serialize_text(v)
+        else:
+            redacted[key] = v
+    return redacted
+
+
+def _extract_response_headers(http_response: object | None, parsed: dict | None) -> dict:
+    headers = {}
+
+    if http_response is not None:
+        response_headers = getattr(http_response, "headers", None)
+        if response_headers is not None:
+            try:
+                headers = {str(k): _serialize_text(v) for k, v in dict(response_headers).items()}
+            except Exception:
+                headers = {}
+
+    if not headers and isinstance(parsed, dict):
+        metadata = parsed.get("ResponseMetadata", {})
+        if isinstance(metadata, dict):
+            http_headers = metadata.get("HTTPHeaders", {})
+            if isinstance(http_headers, dict):
+                headers = {str(k): _serialize_text(v) for k, v in http_headers.items()}
+
+    return _redact_dict(headers)
+
+
+def _extract_status_code(http_response: object | None, parsed: dict | None) -> int | None:
+    if http_response is not None:
+        status_code = getattr(http_response, "status_code", None)
+        if isinstance(status_code, int):
+            return status_code
+
+    if isinstance(parsed, dict):
+        metadata = parsed.get("ResponseMetadata", {})
+        if isinstance(metadata, dict):
+            status_code = metadata.get("HTTPStatusCode")
+            if isinstance(status_code, int):
+                return status_code
+    return None
+
+
+def _log_bedrock_diagnostics(
+    *,
+    api_params: dict,
+    parsed: dict | None,
+    http_response: object | None,
+    span,
+):
+    if not _diagnostics_enabled():
+        return
+
+    redacted_api_params = _redact_dict(api_params)
+    redacted_headers = _extract_response_headers(http_response=http_response, parsed=parsed)
+    status_code = _extract_status_code(http_response=http_response, parsed=parsed)
+
+    log.warning(
+        "BEDROCK_DIAGNOSTICS modelId=%s span_name=%s span_id=%s trace_id=%s status=%s headers=%s parsed=%s request=%s",
+        _bedrock_model_from_params(api_params),
+        getattr(span, "name", None),
+        getattr(span, "span_id", None),
+        getattr(span, "trace_id", None),
+        status_code,
+        json.dumps(redacted_headers, default=str),
+        json.dumps(_redact_dict(parsed if isinstance(parsed, dict) else {}), default=str),
+        json.dumps(redacted_api_params, default=str),
+    )
 
 
 def _bedrock_request_text(body: str) -> str:
@@ -182,8 +290,15 @@ def _capture_bedrock_request_for_metrics(model=None, params=None, context=None, 
     if isinstance(context, dict):
         context[_BEDROCK_CONTEXT_KEY] = params if isinstance(params, dict) else {}
 
+    if _diagnostics_enabled():
+        log.warning(
+            "BEDROCK_DIAGNOSTICS_REQUEST modelId=%s request=%s",
+            _bedrock_model_from_params(params if isinstance(params, dict) else {}),
+            json.dumps(_redact_dict(params if isinstance(params, dict) else {}), default=str),
+        )
 
-def _annotate_bedrock_response_metrics(parsed=None, context=None, **kwargs):
+
+def _annotate_bedrock_response_metrics(model=None, http_response=None, parsed=None, context=None, **kwargs):
     api_params = context.get(_BEDROCK_CONTEXT_KEY, {}) if isinstance(context, dict) else {}
     usage = parsed.get("usage", {}) if isinstance(parsed, dict) else {}
 
@@ -201,6 +316,13 @@ def _annotate_bedrock_response_metrics(parsed=None, context=None, **kwargs):
             output_tokens = bedrock_tokeniser(response_text)
 
     if input_tokens is None or output_tokens is None:
+        span = tracer.current_span()
+        _log_bedrock_diagnostics(
+            api_params=api_params,
+            parsed=parsed if isinstance(parsed, dict) else None,
+            http_response=http_response,
+            span=span,
+        )
         return
 
     annotate_span_with_token_metrics(
@@ -208,6 +330,14 @@ def _annotate_bedrock_response_metrics(parsed=None, context=None, **kwargs):
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         provider="bedrock",
+    )
+
+    span = tracer.current_span()
+    _log_bedrock_diagnostics(
+        api_params=api_params,
+        parsed=parsed if isinstance(parsed, dict) else None,
+        http_response=http_response,
+        span=span,
     )
 
 

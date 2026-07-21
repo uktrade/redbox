@@ -355,6 +355,9 @@ else:
 
 LOG_LEVEL = env.str("DJANGO_LOG_LEVEL", "WARNING")
 LOG_FORMAT = env.str("DJANGO_LOG_FORMAT", "asim_formatter")
+DD_TRACE_DEBUG_ENABLED = env.bool("DD_TRACE_DEBUG", default=False)
+DD_TRACE_LOG_LEVEL = env.str("DD_TRACE_LOG_LEVEL", "DEBUG" if DD_TRACE_DEBUG_ENABLED else "ERROR")
+DD_TRACE_LOG_HANDLER = "console" if DD_TRACE_DEBUG_ENABLED else "asim"
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -412,8 +415,8 @@ LOGGING = {
             "level": "WARNING",
         },
         "ddtrace": {
-            "handlers": ["asim"],
-            "level": "ERROR",
+            "handlers": [DD_TRACE_LOG_HANDLER],
+            "level": DD_TRACE_LOG_LEVEL,
             "propagate": False,
         },
     },
