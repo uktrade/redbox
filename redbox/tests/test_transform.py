@@ -235,8 +235,12 @@ def test_to_request_metadata_tags_current_span():
 
     span.set_tag.assert_any_call("input_tokens", 6)
     span.set_tag.assert_any_call("output_tokens", 10)
+    span.set_tag.assert_any_call("total_tokens", 16)
     span.set_tag.assert_any_call("model", "anthropic.claude-3-7-sonnet-20250219-v1:0")
     span.set_tag.assert_any_call("provider", "bedrock")
+    span.set_metric.assert_any_call("input_tokens", 6)
+    span.set_metric.assert_any_call("output_tokens", 10)
+    span.set_metric.assert_any_call("total_tokens", 16)
 
 
 def test_structure_documents_by_file_name():

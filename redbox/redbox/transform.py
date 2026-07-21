@@ -75,12 +75,23 @@ def annotate_span_with_token_metrics(model: str, input_tokens: int, output_token
     if span is None:
         return
 
+    total_tokens = input_tokens + output_tokens
+
     span.set_tag("input_tokens", input_tokens)
     span.set_tag("output_tokens", output_tokens)
+    span.set_tag("total_tokens", total_tokens)
     span.set_tag("model", model)
     span.set_tag("llm.model", model)
     span.set_tag("provider", provider)
     span.set_tag("llm.provider", provider)
+
+    span.set_metric("input_tokens", input_tokens)
+    span.set_metric("output_tokens", output_tokens)
+    span.set_metric("total_tokens", total_tokens)
+
+    span.set_metric("gen_ai.usage.input_tokens", input_tokens)
+    span.set_metric("gen_ai.usage.output_tokens", output_tokens)
+    span.set_metric("gen_ai.usage.total_tokens", total_tokens)
 
 
 def bedrock_tokeniser_tokens(text: str) -> list[str]:
