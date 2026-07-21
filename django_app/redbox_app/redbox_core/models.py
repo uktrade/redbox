@@ -1427,6 +1427,7 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         USER_UPLOADED_DOCUMENT = "UserUploadedDocument", _("user uploaded document")
         GOV_UK = "GOV.UK", _("gov.uk")
         WEB_SEARCH = "WebSearch", _("Web Search")
+        UNVERIFIED = "Unverified", _("Unverified")
 
         @classmethod
         def try_parse(cls, value):
@@ -1434,7 +1435,7 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
                 return cls(value)
             except ValueError:
                 logger.warning("failed to parse %s to Origin", value)
-                return None
+                return cls.UNVERIFIED
 
     file = models.ForeignKey(
         File,

@@ -147,7 +147,7 @@ def test_external_citation_uri(
     assert citation.uri == URL("http://example.com")
 
 
-@pytest.mark.parametrize(("value", "expected"), [("invalid origin", None), ("Wikipedia", "Wikipedia")])
+@pytest.mark.parametrize(("value", "expected"), [("invalid origin", "Unverified"), ("Wikipedia", "Wikipedia")])
 def test_try_parse_origin(value, expected):
     assert Citation.Origin.try_parse(value) == expected
 

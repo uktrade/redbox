@@ -1,13 +1,18 @@
 ids-loading-message {
-  display: inline;
+  display: inline-flex;
 }
 
-.ids-loading-ellipsis,
+.ids-loading-text,
+.ids-loading-ellipsis {
+  margin: 0;
+}
+
+.ids-loading-ellipsis {
+  width: 15px;
+}
+
 .ids-loading-text {
-  min-width: 3ch;
   font-style: italic;
-  margin-top: 1rem;
-  display: inline;
 }
 
 @keyframes ellipsis {

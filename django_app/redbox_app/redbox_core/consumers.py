@@ -178,7 +178,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         data = json.loads(text_data or bytes_data)
         logger.debug("received %s from browser", data)
         user_message_text: str = data.get("message", "")
-        selected_file_uuids: Sequence[UUID] = [UUID(u) for u in data.get("selectedFiles", [])]
+        selected_file_uuids: Sequence[UUID] = [UUID(f["id"]) for f in data.get("selectedFiles", [])]
         activities: Sequence[str] = data.get("activities", [])
         selected_tool_id: str | None = data.get("selectedTool")
         user: User = self.scope["user"]
@@ -684,29 +684,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
     async def create_citations(self, file: File | None, ai_citation: AICitation) -> list[Citation]:
-        citations = []
-
-        for src in ai_citation.sources:
-            source = Citation.Origin.USER_UPLOADED_DOCUMENT if file else Citation.Origin.try_parse(src.source_type)
-
-            citation = Citation(
+        citations = [
+            Citation(
                 chat_message=self.chat_message,
                 file=file,
                 url=None if file else src.source,
                 text=src.highlighted_text_in_source,
                 page_numbers=src.page_numbers,
-                source=source,
+                source=Citation.Origin.USER_UPLOADED_DOCUMENT if file else Citation.Origin.try_parse(src.source_type),
                 citation_name=src.ref_id,
             )
-
-            if source:
-                citations.append(citation)
-            else:
-                logger.error(
-                    "Invalid Citation source: '%s'. Creation aborted for payload: %s",
-                    src.source_type,
-                    citation,
-                )
+            for src in ai_citation.sources
+        ]
 
         if file:
             file.last_referenced = timezone.now()
