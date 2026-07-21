@@ -57,6 +57,8 @@ chat_urlpatterns = [
     path("ratings/<uuid:message_id>/", views.RatingsView.as_view(), name="ratings"),
     path("chats/<uuid:chat_id>/update-chat-feedback", views.UpdateChatFeedback.as_view(), name="chat-feedback"),
     path("chats/<uuid:chat_id>/delete-chat/", views.DeleteChat.as_view(), name="delete-chat"),
+    path("chats/all/", views.AllChatsView.as_view(), name="all-chats"),
+    path("chats/search/", views.SearchChatsView.as_view(), name="search-chats"),
 ]
 
 notification_urlpatterns = [
