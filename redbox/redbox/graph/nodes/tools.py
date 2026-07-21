@@ -43,7 +43,13 @@ from redbox.retriever.queries import (
     get_knowledge_base,
 )
 from redbox.retriever.retrievers import SchematisedTabularChunkRetriever, query_to_documents
-from redbox.transform import annotate_span_with_token_metrics, bedrock_tokeniser, merge_documents, sort_documents
+from redbox.transform import (
+    annotate_span_with_token_metrics,
+    bedrock_tokeniser,
+    ensure_bedrock_client_token_metrics,
+    merge_documents,
+    sort_documents,
+)
 
 log = logging.getLogger(__name__)
 
@@ -680,6 +686,7 @@ def build_search_wikipedia_tool(number_wikipedia_results=1, max_chars_per_wiki_p
 
 @waffle_flag("DATA_HUB_API_ROUTE_ON")
 def parse_filters_bedrock(prompt: str):
+    ensure_bedrock_client_token_metrics()
     client = boto3.client("bedrock-runtime", region_name="eu-west-2")
 
     settings = get_settings()

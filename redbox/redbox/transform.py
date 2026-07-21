@@ -3,9 +3,11 @@ import json
 import logging
 import math
 import re
+from functools import wraps
 from typing import Dict, Iterable
 from uuid import NAMESPACE_DNS, UUID, uuid5
 
+import boto3
 from ddtrace import tracer
 from langchain_core.callbacks.manager import dispatch_custom_event
 from langchain_core.documents import Document
@@ -16,6 +18,9 @@ from redbox.models.chain import DocumentMapping, DocumentState, LLMCallMetadata,
 from redbox.models.graph import RedboxEventType
 
 log = logging.getLogger(__name__)
+
+_BEDROCK_CONTEXT_KEY = "_redbox_bedrock_api_params"
+_BEDROCK_CLIENT_PATCHED = False
 
 
 def _serialize_text(text: bytes | bytearray | str | None) -> str:
@@ -92,6 +97,159 @@ def annotate_span_with_token_metrics(model: str, input_tokens: int, output_token
     span.set_metric("gen_ai.usage.input_tokens", input_tokens)
     span.set_metric("gen_ai.usage.output_tokens", output_tokens)
     span.set_metric("gen_ai.usage.total_tokens", total_tokens)
+
+
+def _extract_text_from_content_blocks(content: list | str | None) -> str:
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return ""
+
+    parts = []
+    for item in content:
+        if isinstance(item, str):
+            parts.append(item)
+        elif isinstance(item, dict):
+            text = item.get("text")
+            if text:
+                parts.append(str(text))
+    return " ".join(parts)
+
+
+def _bedrock_request_text_from_params(api_params: dict | None) -> str:
+    if not isinstance(api_params, dict):
+        return ""
+
+    if body := api_params.get("body"):
+        return _bedrock_request_text(_serialize_text(body))
+
+    if messages := api_params.get("messages"):
+        return " ".join(
+            _extract_text_from_content_blocks(message.get("content"))
+            for message in messages
+            if isinstance(message, dict)
+        )
+
+    if system := api_params.get("system"):
+        return _extract_text_from_content_blocks(system)
+
+    if input_text := api_params.get("inputText"):
+        return str(input_text)
+
+    if input_body := api_params.get("input"):
+        return str(input_body)
+
+    try:
+        return json.dumps(api_params)
+    except TypeError:
+        return str(api_params)
+
+
+def _bedrock_response_text_from_parsed(parsed: dict | None) -> str:
+    if not isinstance(parsed, dict):
+        return ""
+
+    if output := parsed.get("output"):
+        if isinstance(output, dict):
+            if message := output.get("message"):
+                if isinstance(message, dict):
+                    return _extract_text_from_content_blocks(message.get("content"))
+            if text := output.get("text"):
+                return str(text)
+
+    return _bedrock_response_text(parsed=parsed, http_response=None)
+
+
+def _usage_value(usage: dict | None, *keys: str) -> int | None:
+    if not isinstance(usage, dict):
+        return None
+
+    for key in keys:
+        value = usage.get(key)
+        if isinstance(value, (int, float)):
+            return int(value)
+    return None
+
+
+def _bedrock_model_from_params(api_params: dict | None) -> str:
+    if not isinstance(api_params, dict):
+        return "unknown"
+
+    return str(api_params.get("modelId") or api_params.get("model_id") or "unknown")
+
+
+def _capture_bedrock_request_for_metrics(model=None, params=None, context=None, **kwargs):
+    if isinstance(context, dict):
+        context[_BEDROCK_CONTEXT_KEY] = params if isinstance(params, dict) else {}
+
+
+def _annotate_bedrock_response_metrics(parsed=None, context=None, **kwargs):
+    api_params = context.get(_BEDROCK_CONTEXT_KEY, {}) if isinstance(context, dict) else {}
+    usage = parsed.get("usage", {}) if isinstance(parsed, dict) else {}
+
+    input_tokens = _usage_value(usage, "input_tokens", "inputTokens")
+    output_tokens = _usage_value(usage, "output_tokens", "outputTokens")
+
+    if input_tokens is None:
+        request_text = _bedrock_request_text_from_params(api_params)
+        if request_text:
+            input_tokens = bedrock_tokeniser(request_text)
+
+    if output_tokens is None:
+        response_text = _bedrock_response_text_from_parsed(parsed)
+        if response_text:
+            output_tokens = bedrock_tokeniser(response_text)
+
+    if input_tokens is None or output_tokens is None:
+        return
+
+    annotate_span_with_token_metrics(
+        model=_bedrock_model_from_params(api_params),
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        provider="bedrock",
+    )
+
+
+def _register_bedrock_client_token_handlers(client):
+    meta = getattr(client, "meta", None)
+    if meta is None or getattr(meta, "service_model", None) is None:
+        return client
+
+    if meta.service_model.service_name != "bedrock-runtime":
+        return client
+
+    if getattr(meta, "_redbox_token_metrics_registered", False):
+        return client
+
+    meta.events.register("before-call.bedrock-runtime", _capture_bedrock_request_for_metrics)
+    meta.events.register("after-call.bedrock-runtime", _annotate_bedrock_response_metrics)
+    meta._redbox_token_metrics_registered = True
+    return client
+
+
+def ensure_bedrock_client_token_metrics():
+    global _BEDROCK_CLIENT_PATCHED
+
+    if _BEDROCK_CLIENT_PATCHED:
+        return
+
+    original_boto3_client = boto3.client
+    original_session_client = boto3.session.Session.client
+
+    @wraps(original_boto3_client)
+    def _patched_boto3_client(*args, **kwargs):
+        client = original_boto3_client(*args, **kwargs)
+        return _register_bedrock_client_token_handlers(client)
+
+    @wraps(original_session_client)
+    def _patched_session_client(self, *args, **kwargs):
+        client = original_session_client(self, *args, **kwargs)
+        return _register_bedrock_client_token_handlers(client)
+
+    boto3.client = _patched_boto3_client
+    boto3.session.Session.client = _patched_session_client
+    _BEDROCK_CLIENT_PATCHED = True
 
 
 def bedrock_tokeniser_tokens(text: str) -> list[str]:
