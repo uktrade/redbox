@@ -21,6 +21,7 @@ from redbox.models.graph import RedboxEventType
 log = logging.getLogger(__name__)
 
 _BEDROCK_CONTEXT_KEY = "_redbox_bedrock_api_params"
+_BEDROCK_OPERATION_KEY = "_redbox_bedrock_operation"
 _BEDROCK_CLIENT_PATCHED = False
 _BEDROCK_DIAGNOSTICS_ENV = "REDBOX_BEDROCK_DIAGNOSTICS"
 
@@ -62,11 +63,13 @@ def _log_bedrock_diagnostics(*, api_params: dict, span):
         return
     try:
         model_id = _bedrock_model_from_params(api_params)
+        operation = api_params.get("_redbox_operation", "unknown") if isinstance(api_params, dict) else "unknown"
         span_name = getattr(span, "name", "unknown") if span else "unknown"
         span_id = getattr(span, "span_id", "unknown") if span else "unknown"
         trace_id = getattr(span, "trace_id", "unknown") if span else "unknown"
         log.warning(
-            "BEDROCK_DIAGNOSTICS modelId=%s span_name=%s span_id=%s trace_id=%s",
+            "BEDROCK_DIAGNOSTICS operation=%s modelId=%s span_name=%s span_id=%s trace_id=%s",
+            operation,
             model_id,
             span_name,
             span_id,
@@ -217,17 +220,55 @@ def _bedrock_model_from_params(api_params: dict | None) -> str:
     if not isinstance(api_params, dict):
         return "unknown"
 
-    return str(api_params.get("modelId") or api_params.get("model_id") or "unknown")
+    direct_model = api_params.get("modelId") or api_params.get("model_id") or api_params.get("modelIdentifier")
+    if direct_model:
+        return str(direct_model)
+
+    for path_key in ("url_path", "path", "url"):
+        path_value = api_params.get(path_key)
+        if not isinstance(path_value, str):
+            continue
+        match = re.search(r"/model/([^/]+)/", path_value)
+        if match:
+            return match.group(1)
+
+    body = api_params.get("body")
+    body_text = _serialize_text(body)
+    if body_text:
+        try:
+            payload = json.loads(body_text)
+        except Exception:
+            payload = None
+
+        if isinstance(payload, dict):
+            body_model = payload.get("modelId") or payload.get("model") or payload.get("model_id")
+            if body_model:
+                return str(body_model)
+
+    return "unknown"
 
 
 def _capture_bedrock_request_for_metrics(model=None, params=None, context=None, **kwargs):
+    operation_name = getattr(model, "name", None) or getattr(model, "operation_name", None) or "unknown"
+    api_params = params if isinstance(params, dict) else {}
+
+    if isinstance(api_params, dict):
+        api_params["_redbox_operation"] = operation_name
+
     if isinstance(context, dict):
-        context[_BEDROCK_CONTEXT_KEY] = params if isinstance(params, dict) else {}
+        context[_BEDROCK_CONTEXT_KEY] = api_params
+        context[_BEDROCK_OPERATION_KEY] = operation_name
 
     if _diagnostics_enabled():
         try:
-            model_id = _bedrock_model_from_params(params if isinstance(params, dict) else {})
-            log.warning("BEDROCK_DIAGNOSTICS_REQUEST modelId=%s", model_id)
+            model_id = _bedrock_model_from_params(api_params)
+            param_keys = ",".join(sorted(api_params.keys())) if isinstance(api_params, dict) else ""
+            log.warning(
+                "BEDROCK_DIAGNOSTICS_REQUEST operation=%s modelId=%s param_keys=%s",
+                operation_name,
+                model_id,
+                param_keys,
+            )
         except Exception as e:
             log.warning("BEDROCK_DIAGNOSTICS_REQUEST_ERROR %s", str(e))
 
