@@ -39,8 +39,8 @@
 /**
  * @typedef {Object} MessageActivityResponse
  *
- * @property {string} chat_message_id ChatMessage ID
- * @property {string} activity_event_message ActivityEvent message
+ * @property {string} chat_message_id - ChatMessage ID
+ * @property {string} activity_event_message - ActivityEvent message
  */
 
 
@@ -48,7 +48,7 @@
  * @typedef {Object} StreamOptions
  *
  * @property {string} text
- * @property {SelectedDocument[]} documents
+ * @property {string[]} documents - File UUIDs
  * @property {string} llm
  * @property {string | undefined} toolId
  * @property {string[]} activities

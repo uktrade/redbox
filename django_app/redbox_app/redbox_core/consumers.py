@@ -178,7 +178,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         data = json.loads(text_data or bytes_data)
         logger.debug("received %s from browser", data)
         user_message_text: str = data.get("message", "")
-        selected_file_uuids: Sequence[UUID] = [UUID(f["id"]) for f in data.get("selectedFiles", [])]
+        selected_file_uuids: Sequence[UUID] = [UUID(u) for u in data.get("selectedFiles", [])]
         activities: Sequence[str] = data.get("activities", [])
         selected_tool_id: str | None = data.get("selectedTool")
         user: User = self.scope["user"]

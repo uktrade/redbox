@@ -152,7 +152,7 @@ export class ChatController extends HTMLElement {
 
         this.startStream({
             text: text,
-            documents: this.selectedDocuments,
+            documents: this.selectedDocuments.map(doc => doc.id),
             llm: this.llm,
             toolId: getActiveToolId(),
             activities: activities,
