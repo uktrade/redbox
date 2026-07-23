@@ -16,7 +16,11 @@
                 {% endfor %}
             </ul>
             <div class="ids-card__item">
+              {% if enable_chats_redesign %}
+                <a class="govuk-link" href="{{ url('all-chats') }}">All chats</a>
+              {% else %}
                 {{ show_more('.chat-list', 'li', 5) }}
+              {% endif %}
             </div>
           </fieldset>
         </chat-history>

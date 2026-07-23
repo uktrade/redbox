@@ -1,4 +1,5 @@
 from redbox_app.redbox_core.dash_apps import report_app
+from redbox_app.redbox_core.views.all_chats_views import AllChatsView, SearchChatsView
 from redbox_app.redbox_core.views.api_views import aws_credentials_api, message_view_pre_alpha, user_view_pre_alpha
 from redbox_app.redbox_core.views.auth_views import sign_in_link_sent_view, sign_in_view, signed_out_view
 from redbox_app.redbox_core.views.chat_views import (
@@ -70,6 +71,7 @@ from redbox_app.redbox_core.views.tools_views import (
 )
 
 __all__ = [
+    "AllChatsView",
     "ChatsTitleView",
     "ChatsView",
     "CheckDemographicsView",
@@ -80,6 +82,7 @@ __all__ = [
     "DocumentsTitleView",
     "RatingsView",
     "RefreshFragmentsView",
+    "SearchChatsView",
     "SecurityTxtRedirectView",
     "SettingsView",
     "Signup1",

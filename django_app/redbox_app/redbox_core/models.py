@@ -1391,6 +1391,27 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
             .order_by("-latest_message_date")
         )
 
+    @classmethod
+    def filter_by_name_ordered_by_last_message_date(
+        cls, user: User, tool: Tool | None = None, chat_name_query: str | None = None
+    ) -> list[Chat]:
+        """Returns all chat histories for a given user, ordered by the date of the latest message."""
+        qs = (
+            cls.objects.filter(user=user, archived=False)
+            .select_related("tool")
+            .annotate(latest_message_date=Max("chatmessage__created_at"))
+        )
+
+        qs = qs.filter(latest_message_date__isnull=False)
+
+        if tool is not None:
+            qs = qs.filter(tool=tool)
+
+        if chat_name_query:
+            qs = qs.filter(name__icontains=chat_name_query)
+
+        return list(qs.order_by("-latest_message_date"))
+
     @property
     def newest_message_date(self) -> date:
         return self.chatmessage_set.aggregate(newest_date=Max("created_at"))["newest_date"].date()
