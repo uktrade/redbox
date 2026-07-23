@@ -1,5 +1,8 @@
 import logging
+from collections.abc import Sequence
+from datetime import date, datetime
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -13,6 +16,7 @@ from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, Too
 from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.services import message as message_service
 from redbox_app.redbox_core.services import url as url_service
+from redbox_app.redbox_core.types import FilterChat, GroupedChats
 from redbox_app.redbox_core.utils import resolve_instance
 
 logger = logging.getLogger(__name__)
@@ -72,6 +76,7 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
         ],
         "redbox_api_key": settings.REDBOX_API_KEY,
         "enable_dictation_flag_is_active": flag_is_active(request, flags.ENABLE_DICTATION),
+        "enable_chats_redesign": flag_is_active(request, flags.ENABLE_CHATS_REDESIGN),
         **file_context,
         "urls": urls,
         "errors": {"upload_doc": []},
@@ -126,3 +131,44 @@ def _get_page_title(current_chat: Chat, tool: Tool):
     parts = [chat_name, "Chats", tool_name]
 
     return " - ".join(part for part in parts if part)
+
+
+def get_filtered_and_grouped_chats(
+    user: User, tz: ZoneInfo, tool: Tool | None = None, chat_name_query: str | None = None
+) -> GroupedChats:
+    chats = Chat.filter_by_name_ordered_by_last_message_date(user, tool, chat_name_query)
+    filter_chats = [FilterChat.from_chat(chat, tz) for chat in chats]
+
+    localised_date = datetime.now(tz=tz).date()
+    return _group_chats(filter_chats, localised_date)
+
+
+def _group_chats(chats: list[FilterChat], localised_date: date) -> GroupedChats:
+    td_today = 0
+    td_yesterday = 1
+    td_a_week_ago = 7
+    td_a_month_ago = 30
+    td_a_year_ago = 365
+
+    grouped_chats = GroupedChats()
+    for chat in chats:
+        date = chat.local_last_message_datetime.date()
+        delta = (localised_date - date).days
+
+        if delta < td_today:
+            logger.warning("Found chat with a latest message in the future when grouping all chats")
+            grouped_chats.today.append(chat)
+        elif delta <= td_today:
+            grouped_chats.today.append(chat)
+        elif delta == td_yesterday:
+            grouped_chats.yesterday.append(chat)
+        elif td_yesterday < delta <= td_a_week_ago:
+            grouped_chats.previous_7_days.append(chat)
+        elif td_a_week_ago < delta <= td_a_month_ago:
+            grouped_chats.previous_30_days.append(chat)
+        elif td_a_month_ago < delta <= td_a_year_ago:
+            grouped_chats.previous_year.append(chat)
+        else:
+            grouped_chats.over_a_year.append(chat)
+
+    return grouped_chats

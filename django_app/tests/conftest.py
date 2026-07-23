@@ -208,6 +208,20 @@ def chat_factory(alice: User):
 
 
 @pytest.fixture
+def make_chat_with_message_at_specific_time(chat_factory, alice):
+    def _inner(name: str, message_at: datetime, user: User = alice, tool: Tool | None = None) -> Chat:
+        with freeze_time(message_at):
+            chat = chat_factory(name=name) if user is None else chat_factory(user=user, name=name)
+            if tool is not None:
+                chat.tool = tool
+                chat.save()
+            ChatMessage.objects.create(chat=chat, text=name, role=ChatMessage.Role.user)
+        return chat
+
+    return _inner
+
+
+@pytest.fixture
 def chat_with_message(chat: Chat) -> Chat:
     ChatMessage.objects.create(chat=chat, text="today", role=ChatMessage.Role.user)
     return chat
