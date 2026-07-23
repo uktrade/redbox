@@ -13,10 +13,10 @@ from yarl import URL
 
 from redbox_app.redbox_core import flags
 from redbox_app.redbox_core.models import Chat, ChatLLMBackend, ChatMessage, Tool, UserTeamMembership
-from redbox_app.redbox_core.schemas import FilterChat, GroupedChats
 from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.services import message as message_service
 from redbox_app.redbox_core.services import url as url_service
+from redbox_app.redbox_core.types import FilterChat, GroupedChats
 from redbox_app.redbox_core.utils import resolve_instance
 
 logger = logging.getLogger(__name__)
