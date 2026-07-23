@@ -153,7 +153,6 @@ We use `.env` files to populate the environment variables for local development.
 
 To run the project:
 - `cp .env.example .env`
-- cd into home 
 
 Comment out the following variables:
 ```Text
@@ -162,48 +161,42 @@ Comment out the following variables:
 #MAX_USER_UPLOADED_FILES=
 #MAX_KNOWLEDGE_BASE_FILES=
 ```
-and set `BRAVE_API_KEY`
-
-``` bash
-cd ~
+In order to set up a proper sso-session and profile blocks, first copy the credential example in the code base as
+```bash
+cp .aws/credentials.example .aws/credentials
 ```
+Ensure you can login into aws console, then interactively build the sso session block by configuring sso with the following command:
 
-- create `.aws` directory with `config` file within it
-``` bash
-mkdir .aws
-touch config
-```
-- fill in the following:
-```Text
-[profile redbox]
-sso_session = dbt-sso
-sso_account_id = 863518418116
-sso_role_name = RedboxDeveloperWrite
-sso_start_url = https://uktrade.awsapps.com/start
-region = eu-west-2
-output = 
-
-[profile redbox-prod]
-sso_session = dbt-sso
-sso_account_id = 559050244670
-sso_role_name = RedboxDeveloperWrite
-sso_start_url = https://uktrade.awsapps.com/start
-region = eu-west-2
- 
-[sso-session dbt-sso]
-sso_start_url = https://uktrade.awsapps.com/start
-sso_region = eu-west-2
-sso_registration_scopes = sso:account:access
-```
-
-- Then run
 ```bash
 aws configure sso
 ```
-- Followed by
+The above command will start an interactive shell. Fill the fields as shown below
+
+```text
+SO session name (Recommended): dbt-sso
+SSO start URL [None]: https://uktrade.awsapps.com/start
+SSO region [None]: eu-west-2
+SSO registration scopes [sso:account:access]:
+```
+
+Once the sso-session details are entered as shown above, the flow would open a browser which would allow user to authenticate. Once the authentication completes, it prompts the user to choose one of the profiles available within AWS. Choosing a profile should create a config file with neccessary authentication and profile blocks within the user home directory. Confirm successful completion by running:
+
+```bash
+cat ~/.aws/config
+```
+
+Then run the login command to obtain temporary credentials for your chosen profile. For redbox profile, run:
+
 ```bash
 AWS_PROFILE=redbox make aws-login
 ```
+The command will write the credentials withn the codebase directory `.aws/credentials`. To confirm that permission is granted, list buckets using the profile above.
+
+```bash
+aws s3 ls --profile redbox
+```
+Listing of the buckets confirm successful completion of the credential set up.
+
 
 ### Backend Profiles
 Redbox can use different backends for chat and embeddings, which are used is controlled by env vars. The defaults are currently to use Bedrock for both chat and embeddings but other providers can be used (and pointed to their relevant compliant local service).
