@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any, Literal, TypedDict
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-
 from django.http import HttpRequest
 from django.utils import timezone
 

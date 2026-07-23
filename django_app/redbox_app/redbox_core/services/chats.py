@@ -1,5 +1,4 @@
 import logging
-from collections.abc import Sequence
 from datetime import date, datetime
 from uuid import UUID
 from zoneinfo import ZoneInfo
