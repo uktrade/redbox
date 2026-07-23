@@ -153,17 +153,57 @@ We use `.env` files to populate the environment variables for local development.
 
 To run the project:
 - `cp .env.example .env`
-- `cp .aws/credentials.example .aws/credentials`
+- cd into home 
 
-Then set the relevant environment variables.
+Comment out the following variables:
+```Text
+#WEB_SEARCH_API_LIMIT=
+#MAX_ATTEMPTS =
+#MAX_USER_UPLOADED_FILES=
+#MAX_KNOWLEDGE_BASE_FILES=
+```
+and set `BRAVE_API_KEY`
 
-Typically this involves setting the following variables in .aws/credentials (after running `cp .aws/credentials.example .aws/credentials`):
-- `AWS_ACCESS_KEY`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_SESSION_TOKEN`
-- `AWS_CREDENTIAL_EXPIRATION` - default 30
+``` bash
+cd ~
+```
 
-It is best to leave hostnames out of the .env file. These are then set manually by vscode tasks or pulled from a deployment .env like .env.test/.env.integration
+- create `.aws` directory with `config` file within it
+``` bash
+mkdir .aws
+touch config
+```
+- fill in the following:
+```Text
+[profile redbox]
+sso_session = dbt-sso
+sso_account_id = 863518418116
+sso_role_name = RedboxDeveloperWrite
+sso_start_url = https://uktrade.awsapps.com/start
+region = eu-west-2
+output = 
+
+[profile redbox-prod]
+sso_session = dbt-sso
+sso_account_id = 559050244670
+sso_role_name = RedboxDeveloperWrite
+sso_start_url = https://uktrade.awsapps.com/start
+region = eu-west-2
+ 
+[sso-session dbt-sso]
+sso_start_url = https://uktrade.awsapps.com/start
+sso_region = eu-west-2
+sso_registration_scopes = sso:account:access
+```
+
+- Then run
+```bash
+aws configure sso
+```
+- Followed by
+```bash
+AWS_PROFILE=redbox make aws-login
+```
 
 ### Backend Profiles
 Redbox can use different backends for chat and embeddings, which are used is controlled by env vars. The defaults are currently to use Bedrock for both chat and embeddings but other providers can be used (and pointed to their relevant compliant local service).
@@ -263,6 +303,25 @@ You can also choose to run the project with the VSCode Python Debugger, allowing
 1. Go to `Run and Debug` tab on left side of VSCode window
 2. Go to green play button dropdown and select `Full Stack Dev (Frontend + Django)`
 3. Click play button - should spin up dependency containers, build frontend, and then run main app with python debugger
+
+* If you run into an error with the shell mismatch like below:
+
+the shell executable can be modified to use a specific shell. The example below forces VSCode to use zsh
+
+```bash
+        {
+            "label": "npm-run-dev",
+            "type": "shell",
+            "command": "npm run dev",
+            "options": {
+                "cwd": "${workspaceFolder}/django_app/frontend",
+                "shell": {       
+                    "executable": "/bin/zsh",       
+                    "args": ["-ic"]     
+                    }   
+            }
+         },
+```
 
 #### 3. Run the worker
 1. Open command palette - CMD + Shift + P
