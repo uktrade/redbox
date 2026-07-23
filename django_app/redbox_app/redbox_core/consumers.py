@@ -539,8 +539,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.chat_message.route = self.route
         self.chat_message.save()
 
-        # Important - clears existing citations and related objects to avoid duplicates
-        # Citation.objects.filter(chat_message=self.chat_message).delete()
+        # Important - clears existing related objects to avoid duplicates
         ChatMessageTokenUse.objects.filter(chat_message=self.chat_message).delete()
         ActivityEvent.objects.filter(chat_message=self.chat_message).delete()
 

@@ -61,7 +61,7 @@ export class ChatMessage extends HTMLElement {
 
 
     /**
-     * TBC - Hide error element
+     * Hide error element
      */
     hideError() {
         const error = this.querySelector(this.errorContainerSelector);

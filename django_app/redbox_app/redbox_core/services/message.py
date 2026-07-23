@@ -108,7 +108,6 @@ def remove_dangling_citation(message_text: str) -> str:
 
 def citation_not_inserted(message_text: str, citation: Citation, footnote_counter: int) -> bool:
     return render_citation(citation, footnote_counter) not in message_text
-    # return f'data-citation-id="{citation.id}"' not in message_text
 
 
 def check_ref_ids_unique(message: ChatMessage) -> bool:
@@ -137,7 +136,13 @@ class MarkdownConverter:
                 "tables",
                 "sane_lists",
                 "nl2br",
-            ]
+                "mdx_headdown",
+            ],
+            extension_configs={
+                "mdx_headdown": {
+                    "offset": 2,
+                },
+            },
         )
         self.convert = self.md.convert
         self.reset()

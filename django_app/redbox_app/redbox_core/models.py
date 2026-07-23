@@ -1458,8 +1458,8 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         choices=Origin,
         help_text="source of citation",
         default=Origin.USER_UPLOADED_DOCUMENT,
-        null=True,
-        blank=True,
+        null=False,
+        blank=False,
     )
     text_in_answer = models.TextField(
         null=True,
