@@ -178,6 +178,7 @@ export class ChatController extends HTMLElement {
         this.currentStream = {
             socket: new WebSocket(this.endPoint),
             messageId: "",
+            title: "",
         }
 
         const webSocket = this.currentStream.socket;
@@ -248,6 +249,13 @@ export class ChatController extends HTMLElement {
             if (!this.currentStream) return;
 
             this.getMessage(this.currentStream.messageId)?.hideLoading();
+
+            emitEvent(Events.CHAT_RESPONSE_END, {
+                title: this.currentStream.title,
+                session_id: this.dataset.sessionId || "",
+                is_new_chat: this.messages.length == 2,
+            })
+
             this.currentStream = null;
         };
 
@@ -300,17 +308,8 @@ export class ChatController extends HTMLElement {
      * @param {MessageCompleteResponse} response
      */
     handleMessageComplete(response) {
-        const message = this.getMessage(response.chat_message_id);
-
-        if (!message) return;
-
-        message.complete(response.html);
-
-        emitEvent(Events.CHAT_RESPONSE_END, {
-            title: response.title,
-            session_id: response.session_id,
-            is_new_chat: this.messages.length == 2,
-        })
+        this.getMessage(response.chat_message_id)?.complete(response.html);
+        if (this.currentStream) this.currentStream.title = response.title;
     }
 
 
