@@ -19,6 +19,9 @@
             <div class="ids-side-panel__content ids-scrollable">
                 {% include "side_panel/new_chat.html" %}
                 {% include "side_panel/conversations.html" %}
+                {% if enable_chats_redesign %}
+                    {% include "side_panel/tools.html" %}
+                {% endif %}
                 {% include "side_panel/model_selector.html" %}
                 {% include "side_panel/your_documents.html" %}
                 {% include "side_panel/menu.html" %}
