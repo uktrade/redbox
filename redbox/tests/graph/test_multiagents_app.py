@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
@@ -364,13 +364,6 @@ class TestNewRoutes:
             "Summarisation_Agent",
             "Datahub_Agent",
         ]:
-            if agent == "Datahub_Agent":
-                mocker.patch(
-                    "redbox.graph.nodes.processes.get_datahub_mcp_tools",
-                    new_callable=AsyncMock,
-                    return_value=[],
-                )
-
             # This is a mocker for the new agent refactor. You will need to remove other mocking once all agents have been refactored.
             mocker.patch(
                 "redbox.graph.agents.workers.run_tools_parallel",
