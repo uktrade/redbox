@@ -1,6 +1,7 @@
 import copy
 import itertools
 from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
 from uuid import NAMESPACE_DNS, UUID, uuid5
 
 import pytest
@@ -8,6 +9,7 @@ from langchain_core.documents.base import Document
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 
+import redbox.transform as transform
 from redbox.models.chain import DocumentState, LLMCallMetadata, RequestMetadata
 from redbox.retriever.retrievers import filter_by_elbow
 from redbox.test.data import generate_docs
@@ -217,6 +219,54 @@ def test_to_request_metadata(output: dict, expected: RequestMetadata):
     assert result.output_tokens == expected.output_tokens, (
         f"Expected: {expected.output_tokens} Result: {result.output_tokens}"
     )
+
+
+def test_to_request_metadata_tags_current_span():
+    span = MagicMock()
+    output = {
+        "prompt": "Lorem ipsum dolor sit amet.",
+        "model": "anthropic.claude-3-7-sonnet-20250219-v1:0",
+        "text_and_tools": {
+            "raw_response": AIMessage(content="Lorem ipsum dolor sit amet, consectetur adipiscing elit.")
+        },
+    }
+
+    with patch("redbox.transform.tracer.current_span", return_value=span):
+        RunnableLambda(to_request_metadata).invoke(output)
+
+    span.set_tag.assert_any_call("input_tokens", 6)
+    span.set_tag.assert_any_call("output_tokens", 10)
+    span.set_tag.assert_any_call("total_tokens", 16)
+    span.set_tag.assert_any_call("model", "anthropic.claude-3-7-sonnet-20250219-v1:0")
+    span.set_tag.assert_any_call("provider", "bedrock")
+    span.set_metric.assert_any_call("input_tokens", 6)
+    span.set_metric.assert_any_call("output_tokens", 10)
+    span.set_metric.assert_any_call("total_tokens", 16)
+
+
+def test_bedrock_after_call_annotations_target_current_span():
+    span = MagicMock()
+    context = {transform._BEDROCK_CONTEXT_KEY: {"modelId": "anthropic.claude-3-7-sonnet-20250219-v1:0"}}
+    parsed = {"usage": {"inputTokens": 8, "outputTokens": 13}}
+
+    with patch("redbox.transform.tracer.current_span", return_value=span):
+        transform._annotate_bedrock_response_metrics(parsed=parsed, context=context)
+
+    span.set_metric.assert_any_call("input_tokens", 8)
+    span.set_metric.assert_any_call("output_tokens", 13)
+    span.set_metric.assert_any_call("total_tokens", 21)
+
+
+def test_register_bedrock_client_token_handlers_registers_once():
+    client = MagicMock()
+    client.meta.service_model.service_name = "bedrock-runtime"
+    client.meta.events = MagicMock()
+
+    transform._register_bedrock_client_token_handlers(client)
+    transform._register_bedrock_client_token_handlers(client)
+
+    registered_events = [call.args[0] for call in client.meta.events.register.call_args_list]
+    assert registered_events == ["before-call.bedrock-runtime", "after-call.bedrock-runtime"]
 
 
 def test_structure_documents_by_file_name():

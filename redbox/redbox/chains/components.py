@@ -30,7 +30,7 @@ from redbox.retriever.retrievers import (
     KnowledgeBaseTabularMetadataRetriever,
     TabularMetadataRetriever,
 )
-from redbox.transform import bedrock_tokeniser
+from redbox.transform import bedrock_tokeniser, ensure_bedrock_client_token_metrics
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -46,6 +46,8 @@ def get_chat_llm(
     ai_settings: AISettings = AISettings(),
     tools: list[StructuredTool] | None = None,
 ):
+    ensure_bedrock_client_token_metrics()
+
     fallback_backend = ChatLLMBackend(
         name="anthropic.claude-3-7-sonnet-20250219-v1:0",
         provider="bedrock",
