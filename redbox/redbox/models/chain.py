@@ -1,7 +1,9 @@
+import json
 from datetime import UTC, datetime
 from enum import Enum, IntEnum, StrEnum
 from functools import reduce
 from types import UnionType
+from typing import Any
 from typing import (
     Annotated,
     Dict,
@@ -40,7 +42,39 @@ class ChainChatMessage(TypedDict):
     text: str
 
 
-class AISettings(BaseModel):
+def _make_json_safe(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, BaseModel):
+        return _make_json_safe(value.model_dump(mode="python"))
+    if isinstance(value, dict):
+        return {str(key): _make_json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_make_json_safe(item) for item in value]
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return str(value)
+
+
+class JsonSafeBaseModel(BaseModel):
+    def model_dump(self, *args, **kwargs):
+        if kwargs.get("mode") == "json":
+            kwargs = kwargs.copy()
+            kwargs["mode"] = "python"
+            return _make_json_safe(super().model_dump(*args, **kwargs))
+        return super().model_dump(*args, **kwargs)
+
+    def model_dump_json(self, *args, **kwargs):
+        return json.dumps(self.model_dump(*args, mode="json", **kwargs), default=str)
+
+
+class AISettings(JsonSafeBaseModel):
     """Prompts and other AI settings"""
 
     # LLM settings
@@ -145,7 +179,7 @@ class AISettings(BaseModel):
     planner_format_prompt: str = prompts.PLANNER_FORMAT_PROMPT
 
 
-class Source(BaseModel):
+class Source(JsonSafeBaseModel):
     source: str = Field(description="URL or reference to the source", default="")
     source_type: str = Field(description="creator_type of tool", default="Unknown")
     document_name: str = Field(description="Full title from document", default="Unknown")
@@ -184,16 +218,16 @@ class Source(BaseModel):
             return value
 
 
-class Citation(BaseModel):
+class Citation(JsonSafeBaseModel):
     sources: list[Source] = Field(default_factory=list)
 
 
-class StructuredResponseWithCitations(BaseModel):
+class StructuredResponseWithCitations(JsonSafeBaseModel):
     answer: str = Field(description="Markdown structured answer to the question", default="")
     citations: list[Citation] = Field(default_factory=list)
 
 
-class StructuredResponseWithStepsTaken(BaseModel):
+class StructuredResponseWithStepsTaken(JsonSafeBaseModel):
     output: str = Field(description="Markdown structured answer to the question", default="")
     # sql_query: str = Field(description="The SQL Query used to generate a response", default="")
     reasoning: str = Field(description="The Agent's reasoning", default="")
@@ -203,7 +237,7 @@ DocumentMapping = dict[UUID, Document | None]
 DocumentGroup = dict[UUID, DocumentMapping | None]
 
 
-class DocumentState(BaseModel):
+class DocumentState(JsonSafeBaseModel):
     """A document state containing groups of documents."""
 
     groups: DocumentGroup = Field(default_factory=DocumentGroup)
@@ -258,7 +292,7 @@ def document_reducer(current: DocumentState | None, update: DocumentState | list
     return DocumentState(groups=reduced)
 
 
-class RedboxQuery(BaseModel):
+class RedboxQuery(JsonSafeBaseModel):
     question: str = Field(description="The last user chat message")
     s3_keys: list[str] = Field(description="List of files to process", default_factory=list)
     user_uuid: UUID = Field(description="User the chain in executing for")
@@ -275,7 +309,7 @@ class RedboxQuery(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
-class LLMCallMetadata(BaseModel):
+class LLMCallMetadata(JsonSafeBaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()))
     llm_model_name: str
     input_tokens: int
@@ -285,7 +319,7 @@ class LLMCallMetadata(BaseModel):
     model_config = {"frozen": True}
 
 
-class RequestMetadata(BaseModel):
+class RequestMetadata(JsonSafeBaseModel):
     llm_calls: list[LLMCallMetadata] = Field(default_factory=list)
     selected_files_total_tokens: int = 0
     number_of_selected_files: int = 0
@@ -347,7 +381,7 @@ class TaskStatus(IntEnum):
 
 
 # Base class definition for agent task
-class AgentTaskBase(BaseModel):
+class AgentTaskBase(JsonSafeBaseModel):
     id: str = Field(description="Unique identifier for the task", default="task0")
     task: str = Field(description="Task to be completed by the agent", default="")
     expected_output: str = Field(description="What this agent should produce", default="")
@@ -364,7 +398,7 @@ class AgentTaskBase(BaseModel):
 
 
 # Base class definition for multi agent plan
-class MultiAgentPlanBase(BaseModel):
+class MultiAgentPlanBase(JsonSafeBaseModel):
     model_config = {"extra": "forbid"}
 
 
@@ -472,7 +506,7 @@ def artifact_criteria_reducer(
     return update
 
 
-class RedboxState(BaseModel):
+class RedboxState(JsonSafeBaseModel):
     knowledge_files: Annotated[DocumentState, document_reducer] = DocumentState()
     request: RedboxQuery
     user_feedback: str = ""

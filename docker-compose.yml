@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: ./django_app/Dockerfile
+      target: django
     depends_on:
       db:
         condition: service_healthy
@@ -13,6 +14,8 @@ services:
       opensearch:
         condition: service_healthy
       sso:
+        condition: service_started
+      redbox-worker:
         condition: service_started
     networks:
       - redbox-app-network
@@ -67,8 +70,9 @@ services:
     container_name: worker
     build:
       context: .
-      dockerfile: django_app/Dockerfile
-    command: "venv/bin/django-admin qcluster"
+      dockerfile: ./django_app/Dockerfile
+      target: worker
+
     env_file:
       - path: tests/.env.integration
         required: false
@@ -76,15 +80,6 @@ services:
         required: false
     volumes:
       - .aws:/root/.aws
-    depends_on:
-      opensearch:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      redbox-django-app:
-        condition: service_healthy
-      db:
-        condition: service_healthy
     networks:
       - redbox-app-network
     restart: unless-stopped

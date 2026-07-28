@@ -3,14 +3,13 @@ FROM node:20 AS npm-packages
 
 WORKDIR /src
 
-COPY django_app/frontend/package.json django_app/frontend/package-lock.json .
+COPY django_app/frontend/package.json django_app/frontend/package-lock.json ./
 RUN npm ci
 
 COPY django_app/frontend/staticfiles.json django_app/frontend/.parcelrc django_app/frontend/*.js ./
 COPY django_app/frontend/src/ ./src/
 COPY django_app/frontend/images/ ./images/
 RUN npx parcel build
-
 
 # poetry
 FROM python:3.12-slim AS poetry-packages
@@ -32,22 +31,20 @@ COPY redbox/ ../redbox/
 COPY django_app/pyproject.toml .
 COPY django_app/poetry.lock .
 
-# do this so that poetry bundle can run without the project - can't pass --no-root to bundle
-#RUN touch README.md
 RUN poetry install
 RUN poetry bundle venv ./venv
 
-
 # app
-FROM python:3.12-slim
+FROM python:3.12-slim AS base
 
-RUN apt-get update && apt-get install -y \
-    libreoffice \
-    libreoffice-writer \
-    && apt-get clean \
+RUN apt-get update && apt-get install --yes \
+    libpq-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install --yes libpq-dev curl > /dev/null
+# dedicated non-root user
+RUN groupadd --system app && \
+    useradd --system --gid app --create-home --home-dir /home/app app
 
 WORKDIR /usr/src/app
 
@@ -59,14 +56,36 @@ COPY --from=npm-packages /src/node_modules/ frontend/node_modules/
 COPY --from=npm-packages /src/dist/ frontend/dist/
 COPY --from=poetry-packages /src/venv ./venv
 
-ENV DJANGO_SETTINGS_MODULE='redbox_app.settings'
-ENV PYTHONPATH "${PYTHONPATH}:/."
+ENV DJANGO_SETTINGS_MODULE=redbox_app.settings
+ENV PYTHONPATH="${PYTHONPATH}:/."
+
+RUN chmod +x start.sh && \
+    chmod +x health.sh && \
+    chown -R app:app /usr/src/app
 
 EXPOSE 8080
 
-RUN chmod +x start.sh
-RUN chmod +x health.sh
+# run as a non root user by default
+USER app
+
+FROM base AS django
+
+CMD ["/bin/sh", "./start.sh"]
+
+FROM base AS worker
+
+# temporarily become root to install system packages
+USER root
+
+RUN apt-get update && apt-get install -y \
+    libreoffice \
+    libreoffice-writer \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN libreoffice --version
 
-CMD ["/bin/sh", "./start.sh"]
+# drop privileges before running the worker
+USER app
+
+CMD ["venv/bin/django-admin", "qcluster"]
