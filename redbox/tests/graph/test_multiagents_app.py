@@ -361,6 +361,8 @@ class TestNewRoutes:
             "Web_Search_Agent",
             "Legislation_Search_Agent",
             "Tabular_Agent",
+            "Summarisation_Agent",
+            "Datahub_Agent",
         ]:
             if agent == "Datahub_Agent":
                 mocker.patch(
