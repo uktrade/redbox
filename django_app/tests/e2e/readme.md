@@ -1,0 +1,1 @@
+To run an E2E test from a github action, an intermediate platform-tools service needs to be created. This is because Assist is protected by the ip-filter sidecar, however github actions do not have a valid IP route to access internal services.

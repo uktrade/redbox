@@ -1,0 +1,26 @@
+[
+  {
+    "model": "redbox_core.chatllmbackend",
+    "pk": 1,
+    "fields": {
+      "name": "gpt-4o",
+      "provider": "azure_openai",
+      "description": null,
+      "is_default": false,
+      "enabled": true,
+      "display": null
+    }
+  },
+  {
+    "model": "redbox_core.chatllmbackend",
+    "pk": 2,
+    "fields": {
+      "name": "anthropic.claude-3-sonnet-20240229-v1:0",
+      "provider": "bedrock",
+      "description": "",
+      "is_default": true,
+      "enabled": true,
+      "display": null
+    }
+  }
+]
