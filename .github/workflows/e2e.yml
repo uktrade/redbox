@@ -54,6 +54,9 @@ jobs:
 
       - name: Run E2E tests
         run: |
+          cd django_app
+          poetry install --only dev
+          poetry run playwright install --with-deps chromium
           DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest tests/playwright/test_e2e.py  --tracing retain-on-failure --video on --screenshot on -k test_user_journey
 
       # - name: Setup test infrastructure
