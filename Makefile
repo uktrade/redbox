@@ -58,10 +58,10 @@ build-django-static: ## Build django-app static files
 .PHONY: test-e2e
 test-e2e:
 	# Does this need to be separate?
-	cd django_app && \
-	poetry install --only e2e && \
+	cd e2e && \
+	poetry install && \
 	poetry run playwright install --with-deps chromium && \
-	DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest tests/playwright/test_e2e.py  --tracing retain-on-failure --video on --screenshot on -k test_user_journey
+	DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest test_e2e.py  --tracing retain-on-failure --video on --screenshot on -k test_user_journey
 
 .PHONY: test-integration
 test-integration:
