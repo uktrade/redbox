@@ -1,0 +1,60 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: E2E Tests
+
+env:
+  ENVIRONMENT: INTEGRATION
+  AWS_REGION: eu-west-2 # make github action var
+
+on:
+  push: # change this to run on PR merge
+    branches:
+      - "dev"
+  workflow_dispatch:
+
+permissions:
+  id-token: write # This is required for requesting the JWT
+  contents: read # This is required for actions/checkout
+
+jobs:
+  django-frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      # - name: configure aws credentials
+      #   uses: aws-actions/configure-aws-credentials@91d3095422abed2108cfda1e48f4d113d737598b
+      #   with:
+      #     role-to-assume: ${{ secrets.OIDC_IAM_ROLE }}
+      #     aws-region: ${{ env.AWS_REGION }}
+
+      # - name: Get secrets
+      #   uses: aws-actions/aws-secretsmanager-get-secrets@2cb1a461cbd4865ac4299648312e4704c646cd53
+      #   with:
+      #     secret-ids: |
+      #       /copilot/redbox/dev/secrets/AUTHBROKER_CLIENT_ID
+      #       /copilot/redbox/dev/secrets/AUTHBROKER_CLIENT_SECRET
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263
+
+      - name: Run E2E tests
+        run: |
+          DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest tests/playwright/test_e2e.py  --tracing retain-on-failure --video on --screenshot on -k test_user_journey
+
+      # - name: Setup test infrastructure
+      #   run: |
+      #     mkdir -p data/elastic/
+      #     chmod 777 data/elastic/
+      #     # cp tests/.env.integration .env
+
+      # - name: Run tests
+      #   run: |
+      #     make test-e2e
