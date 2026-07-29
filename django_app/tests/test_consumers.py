@@ -16,8 +16,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.db.models import Model
 from django.utils import timezone
 from langchain_core.documents import Document
-from langchain_core.language_models import BaseChatModel
-from pydantic import BaseModel
+from tests.consumers_helpers import CannedGraphLLM, Token
 from websockets import WebSocketClientProtocol
 from websockets.legacy.client import Connect
 
@@ -641,30 +640,6 @@ def get_chat_messages(user: User) -> Sequence[ChatMessage]:
         .prefetch_related("source_files")
         .prefetch_related("selected_files")
     )
-
-
-class Token(BaseModel):
-    content: str
-
-
-class CannedGraphLLM(BaseChatModel):
-    responses: list[dict]
-
-    def _generate(self, *_args, **_kwargs):
-        for _ in self.responses:
-            yield
-
-    def _llm_type(self):
-        return "canned"
-
-    def _convert_input(self, prompt):
-        if isinstance(prompt, dict):
-            prompt = prompt["request"].question
-        return super()._convert_input(prompt)
-
-    async def astream_events(self, *_args, **_kwargs):
-        for response in self.responses:
-            yield response
 
 
 @pytest.fixture
