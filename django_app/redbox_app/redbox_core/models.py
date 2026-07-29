@@ -146,6 +146,7 @@ class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
         max_length=100, unique=True, blank=True, help_text="Used for url routing and info page linking"
     )
     is_public = models.BooleanField(default=True, help_text="Whether the tool is accessible by all users")
+    icon_slug = models.CharField(max_length=100)
 
     objects = ToolManager()
 
