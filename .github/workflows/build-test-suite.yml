@@ -1,0 +1,23 @@
+name: Build image for test-suite
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "dev"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build:
+    name: Build Image
+    uses: uktrade/platform-github/.github/workflows/platform-build-docker-ecr-image.yml@latest
+    secrets:
+      AWS_OIDC_ROLE_ARN: ${{ secrets.OIDC_IAM_ROLE }}
+    with:
+      ECR_REPOSITORY: "redbox/test-suite"
+      CPU_ARCHITECTURE: "linux/arm64" # Can also be 'linux/x86_64' or 'linux/amd64'
+      GITHUB_RUNNER: "ubuntu-24.04-arm" # Need to support the CPU_ARCHITECTURE above. For 'x86' or 'amd64' use 'ubuntu-24.04'
+      CONTEXT: "./django_app/tests/e2e" # The folder which the Dockerfile lives in.

@@ -43,7 +43,7 @@ test-redbox: ## Test redbox
 
 .PHONY: test-django
 test-django: ## Test django-app
-	cd django_app && poetry install && poetry run pytest --ignore=tests/playwright --cov=redbox_app -v --cov-report=term-missing --cov-report=xml --cov-fail-under=80 --ds redbox_app.settings --envfile ../tests/.env.test $(TEST)
+	cd django_app && poetry install && poetry run pytest --ignore=tests/playwright --ignore=tests/e2e --cov=redbox_app -v --cov-report=term-missing --cov-report=xml --cov-fail-under=80 --ds redbox_app.settings --envfile ../tests/.env.test $(TEST)
 
 .PHONY: test-django-single
 test-django-single: ## Test django-app with specified test file/case
@@ -53,6 +53,19 @@ test-django-single: ## Test django-app with specified test file/case
 build-django-static: ## Build django-app static files
 	cd django_app/frontend/ && npm install && npm run build
 	cd django_app/ && poetry run python manage.py collectstatic --noinput
+
+
+.PHONY: test-e2e
+test-e2e:
+	# Does this need to be separate?
+	docker compose down opensearch db sso minio
+	docker compose up -d --wait opensearch db sso minio
+	docker compose up -d --wait redbox-django-app
+	cd django_app && \
+	poetry install --only dev && \
+	poetry run playwright install --with-deps chromium && \
+	docker exec -it $$(docker ps -q --filter "name=django_app") venv/bin/django-admin loaddata tests/fixtures/chatllmbackend.json && \
+	BASE_URL=http://localhost:8080 DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest tests/e2e/test_e2e.py --confcutdir=tests/e2e --tracing retain-on-failure --video on --screenshot on -k test_user_journey
 
 .PHONY: test-integration
 test-integration:
