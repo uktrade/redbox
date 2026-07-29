@@ -10,6 +10,13 @@ env:
 on:
   push: # change this to run on PR merge
     branches:
+      - "main"
+      - "feature/**"
+      - "chore/**"
+      - "bugfix/**"
+      - "hotfix/**"
+      - "dependabot/**"
+      - "security/**"
       - "dev"
   workflow_dispatch:
 
