@@ -3,7 +3,7 @@
 {% from "macros/icon.html" import ids_icon %}
 
 {% if enable_chats_redesign %}
-<section id="conversations" class="ids-card ids-card--no-border">
+<section id="conversations" class="ids-card ids-card--no-border" hx-swap-oob="outerHTML">
   <nav class="govuk-!-margin-bottom-0" aria-label="Chats">
     <div class="ids-card__header">
       <h2 class="side-panel-heading__text govuk-heading-s govuk-!-margin-bottom-0">Chats</h2>
