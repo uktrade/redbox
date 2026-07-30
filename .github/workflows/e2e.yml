@@ -31,11 +31,11 @@ jobs:
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
 
-      # - name: configure aws credentials
-      #   uses: aws-actions/configure-aws-credentials@91d3095422abed2108cfda1e48f4d113d737598b
-      #   with:
-      #     role-to-assume: ${{ secrets.OIDC_IAM_ROLE }}
-      #     aws-region: ${{ env.AWS_REGION }}
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@91d3095422abed2108cfda1e48f4d113d737598b
+        with:
+          role-to-assume: ${{ secrets.OIDC_IAM_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
 
       # - name: Get secrets
       #   uses: aws-actions/aws-secretsmanager-get-secrets@2cb1a461cbd4865ac4299648312e4704c646cd53
