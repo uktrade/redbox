@@ -37,6 +37,12 @@ jobs:
           role-to-assume: ${{ secrets.OIDC_IAM_ROLE }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Setup test infrastructure
+        run: |
+          mkdir -p data/elastic/
+          chmod 777 data/elastic/
+          cp tests/.env.integration .env
+
       # - name: Get secrets
       #   uses: aws-actions/aws-secretsmanager-get-secrets@2cb1a461cbd4865ac4299648312e4704c646cd53
       #   with:
@@ -54,7 +60,7 @@ jobs:
 
       - name: Run E2E tests
         run: |
-          make test-e2e
+          make test-integration
 
       # - name: Setup test infrastructure
       #   run: |

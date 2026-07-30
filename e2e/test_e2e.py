@@ -31,6 +31,8 @@ def test_user_journey(page: Page):
     # Sign in
     chats_page = landing_page.sign_in()
 
+    chats_page.write_message = "Hello world"
+
 
 def test_support_pages(page: Page):
     # Landing page

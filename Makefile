@@ -58,6 +58,8 @@ build-django-static: ## Build django-app static files
 .PHONY: test-e2e
 test-e2e:
 	# Does this need to be separate?
+	docker compose down opensearch db sso minio
+	docker compose up -d --wait opensearch db sso minio
 	cd e2e && \
 	poetry install && \
 	poetry run playwright install --with-deps chromium && \

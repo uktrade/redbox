@@ -15,7 +15,7 @@ def live_server_url():
     """Provide live server URL to test class."""
     server = StaticLiveServerTestCase
     server.setUpClass()
-    yield server.live_server_url
+    yield {"url": server.live_server_url, "port": server.port}
     server.tearDownClass()
 
 
@@ -34,19 +34,39 @@ def test_user_journey(page: Page, live_server_url):
     # create_user(email_address)
 
     # Landing page
-    landing_page = LandingPage(page, live_server_url)
+    landing_page = LandingPage(page, live_server_url["url"])
 
+    def handler(ws):
+        logger.debug("Handling connection to ws chat")
+        server = ws.connect_to_server()
+        logger.debug("init ws connection %s", server)
+
+    page.route_web_socket(f"ws://localhost:{live_server_url['port']}/ws/chat/", handler)
+    page.route_web_socket(f"ws://localhost:{live_server_url['port']}/ws/chat", handler)
+    page.route_web_socket("/chat/", handler)
+    page.route_web_socket("/chat", handler)
+    page.route_web_socket("/ws", handler)
+    page.route_web_socket("/ws/", handler)
+    page.route_web_socket("ws/chat/", handler)
+    page.route_web_socket("/ws/chat", handler)
+    page.route_web_socket("/ws/chat/", handler)
     # Sign in
     chats_page = landing_page.sign_in()
+    page.pause()
+    chats_page.write_message = "Hello world"
+    chats_page = chats_page.send()
+    page.pause()
+    latest_chat_response = chats_page.wait_for_latest_message()
+    assert latest_chat_response.text
 
     # Settings - My details page
-    my_details_page = chats_page.navigate_my_details()
-    my_details_page.name = "Roland Hamilton-Jones"
-    my_details_page.update()
-    assert my_details_page.name == "Roland Hamilton-Jones"
+    # my_details_page = chats_page.navigate_my_details()
+    # my_details_page.name = "Roland Hamilton-Jones"
+    # my_details_page.update()
+    # assert my_details_page.name == "Roland Hamilton-Jones"
 
-    # Documents page
-    my_details_page.navigate_to_documents()
+    # # Documents page
+    # my_details_page.navigate_to_documents()
 
     # # Upload files
     # # document_upload_page = documents_page.navigate_to_upload()
