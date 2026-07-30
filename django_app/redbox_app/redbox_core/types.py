@@ -1,7 +1,8 @@
+import re
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -113,6 +114,115 @@ FRAGMENTS = {
         template="side_panel/your_documents.html",
     ),
 }
+
+
+STREAM_REF_RE = re.compile(
+    r"[\[\(\{<]\s*ref_(\d+)\s*[\]\)\}>]|\bref_(\d+)\b",
+    re.IGNORECASE,
+)
+
+
+@dataclass
+class CitationMap:
+    """
+    Streaming-only citation state.
+    Maps ref_n tokens -> stable footnote numbers.
+    """
+
+    counter: int = 1
+    map: dict[str, int] = field(default_factory=dict)
+
+    def resolve(self, ref: str) -> int:
+        """
+        Get or assign a footnote number for a ref token.
+        """
+        if ref not in self.map:
+            self.map[ref] = self.counter
+            self.counter += 1
+        return self.map[ref]
+
+
+class StreamingTextBuffer:
+    """
+    Holds the last incomplete token between streamed chunks.
+    """
+
+    def __init__(self):
+        self.tail = ""
+
+    def process(self, chunk: str) -> str:
+        text = self.tail + chunk
+
+        # If the text ends with whitespace, everything is safe.
+        if text and text[-1].isspace():
+            self.tail = ""
+            return text
+
+        # No whitespace at all yet.
+        if not any(c.isspace() for c in text):
+            self.tail = text
+            return ""
+
+        # Split on the last whitespace boundary.
+        split_at = max(
+            text.rfind(" "),
+            text.rfind("\n"),
+            text.rfind("\t"),
+        )
+
+        safe = text[: split_at + 1]
+        self.tail = text[split_at + 1 :]
+
+        return safe
+
+    def flush(self) -> str:
+        text = self.tail
+        self.tail = ""
+        return text
+
+
+@dataclass(slots=True)
+class MessageResponse:
+    chat_message_id: str
+
+    def to_dict(self):
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class MessageCreatedResponse(MessageResponse):
+    chat_message_role: str
+    html: str
+
+
+@dataclass(slots=True)
+class MessageUpdateResponse(MessageResponse):
+    sr_text: str
+    html: str
+
+
+@dataclass(slots=True)
+class MessageCompletedResponse(MessageResponse):
+    html: str
+    title: str
+    session_id: str
+
+
+@dataclass(slots=True)
+class MessageActivityResponse(MessageResponse):
+    activity_event_message: str
+
+
+type ChatStreamEvent = Literal[
+    "message_created",
+    "message_update",
+    "message_completed",
+    "message_activity",
+    "auth_expired",
+    "route",
+    "error",
+    "session-id",
+]
 
 
 @dataclass

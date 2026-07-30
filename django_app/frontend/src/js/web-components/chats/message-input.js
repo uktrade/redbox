@@ -12,6 +12,7 @@ export class MessageInput extends HTMLElement {
     this.expandedClass = "ids-message-input__expanded";
   }
 
+
   connectedCallback() {
     this.#bindEvents();
   }
@@ -159,7 +160,6 @@ export class MessageInput extends HTMLElement {
     }
     if (hasUploadedFiles) this.textarea.appendChild(document.createElement("br"));
     this.textarea.blur();
-    this.textarea.classList.remove(this.expandedClass);
     this.textarea.focus();
   };
 
@@ -190,6 +190,22 @@ export class MessageInput extends HTMLElement {
       document.querySelector(".chat-warnings")
     );
     if (chatWarnings) hideElement(chatWarnings);
+  };
+
+
+  /**
+   * Expand the input element
+   */
+  expand = () => {
+    this.textarea.classList.add(this.expandedClass);
+  };
+
+
+  /**
+   * Collapse the input element
+   */
+  collapse = () => {
+    this.textarea.classList.remove(this.expandedClass);
   };
 }
 

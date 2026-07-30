@@ -1,5 +1,4 @@
 import logging
-from collections.abc import Sequence
 from datetime import date, datetime
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -46,7 +45,7 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
     endpoint = _build_ws_endpoint(request)
     file_context = documents_service.decorate_file_context(request, tool, messages)
     chat_backend = current_chat.chat_backend if current_chat else ChatLLMBackend.objects.get(is_default=True)
-    messages = _decorate_messages(messages)
+    messages = message_service.decorate_messages(messages)
 
     urls = {
         "chat_url": url_service.get_chat_url(chat_id=chat_id, slug=slug),
@@ -97,44 +96,6 @@ def _get_valid_chat(user: User, chat_id: UUID | None):
         return None
     chat = get_object_or_404(Chat, id=chat_id)
     return chat if chat.user == user else None
-
-
-def _decorate_messages(messages: Sequence[ChatMessage] | None = None):
-    # Add footnotes to messages
-    for message in messages:
-        footnote_counter = 1
-        for citation in message.get_citations():
-            citation_names_unique = message_service.check_ref_ids_unique(message)
-            if citation.citation_name and citation_names_unique:
-                message.text = message_service.replace_ref(
-                    message_text=message.text,
-                    citation=citation,
-                    footnote_counter=footnote_counter,
-                )
-
-                if message_service.citation_not_inserted(
-                    message_text=message.text,
-                    citation=citation,
-                    footnote_counter=footnote_counter,
-                ):
-                    logger.info("Citation Numbering Missed")
-                else:
-                    footnote_counter = footnote_counter + 1
-            elif citation.text_in_answer:
-                message.text = message_service.replace_text_in_answer(
-                    message_text=message.text,
-                    citation=citation,
-                    footnote_counter=footnote_counter,
-                )
-                footnote_counter = footnote_counter + 1
-                if message_service.citation_not_inserted(
-                    message_text=message.text,
-                    citation=citation,
-                    footnote_counter=footnote_counter,
-                ):
-                    logger.info("Citation Numbering Missed")
-        message.text = message_service.remove_dangling_citation(message_text=message.text)
-    return messages
 
 
 def _build_ws_endpoint(request: HttpRequest):

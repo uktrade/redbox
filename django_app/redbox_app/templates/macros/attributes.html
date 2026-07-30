@@ -1,7 +1,11 @@
 {% macro renderAttributes(attrs) %}
   {% if attrs %}
     {% for key, value in attrs.items() %}
-      {{ key }}="{{ value }}"
+      {% if value == None %}
+        {{ key }}
+      {% else %}
+        {{ key }}="{{ value }}"
+      {% endif %}
     {% endfor %}
   {% endif %}
 {% endmacro %}

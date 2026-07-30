@@ -356,6 +356,33 @@ class FileTeamMembershipAdmin(admin.ModelAdmin):
         return form
 
 
+class CitationAdmin(admin.ModelAdmin):
+    list_display = [
+        "file",
+        "url",
+        "chat_message",
+        "text",
+        "page_numbers",
+        "source",
+        "text_in_answer",
+        "citation_name",
+        "created_at",
+        "uri_display",
+    ]
+    list_filter = (
+        "source",
+        ("source", admin.EmptyFieldListFilter),
+        "modified_at",
+    )
+    date_hierarchy = "modified_at"
+    search_fields = ("text", "url")
+
+    def uri_display(self, obj: models.Citation):
+        return obj.uri
+
+    uri_display.short_description = "URI"
+
+
 class CitationInline(admin.StackedInline):
     model = models.Citation
     ordering = ("modified_at",)
@@ -532,4 +559,6 @@ admin.site.register(models.AgentTool, AgentToolAdmin)
 admin.site.register(models.FileTool, FileToolAdmin)
 admin.site.register(models.UserTool, UserToolAdmin)
 admin.site.register(models.UserSSO, UserSSOAdmin)
+admin.site.register(models.Citation, CitationAdmin)
+
 admin.site.register_view("report/", view=reporting_dashboard, name="Site report")

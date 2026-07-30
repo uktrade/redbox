@@ -11,6 +11,8 @@ from functools import reduce
 from pathlib import Path
 from typing import TYPE_CHECKING, override
 
+from asgiref.sync import sync_to_async
+
 if TYPE_CHECKING:
     from collections.abc import Collection, Sequence
 
@@ -992,7 +994,7 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
         try:
             return self._sso
         except UserSSO.DoesNotExist as e:
-            logger.exception("UserSSO record not found for %s", self, exc_info=e)
+            logger.info("UserSSO record not found for %s", self, exc_info=e)
             return None
 
 
@@ -1447,6 +1449,7 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         USER_UPLOADED_DOCUMENT = "UserUploadedDocument", _("user uploaded document")
         GOV_UK = "GOV.UK", _("gov.uk")
         WEB_SEARCH = "WebSearch", _("Web Search")
+        UNVERIFIED = "Unverified", _("Unverified")
 
         @classmethod
         def try_parse(cls, value):
@@ -1454,7 +1457,7 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
                 return cls(value)
             except ValueError:
                 logger.warning("failed to parse %s to Origin", value)
-                return None
+                return cls.UNVERIFIED
 
     file = models.ForeignKey(
         File,
@@ -1477,8 +1480,8 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         choices=Origin,
         help_text="source of citation",
         default=Origin.USER_UPLOADED_DOCUMENT,
-        null=True,
-        blank=True,
+        null=False,
+        blank=False,
     )
     text_in_answer = models.TextField(
         null=True,
@@ -1558,6 +1561,28 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
 
         return int(match.group())
 
+    @cached_property
+    def source_display(self) -> str:
+        source_names = {
+            self.Origin.WIKIPEDIA.value: "Wikipedia",
+            self.Origin.USER_UPLOADED_DOCUMENT.value: "Document",
+            self.Origin.GOV_UK.value: "GOV.UK",
+            self.Origin.WEB_SEARCH.value: "Web",
+        }
+
+        return source_names.get(
+            self.source,
+            self.Origin(self.source).label,
+        )
+
+    @cached_property
+    def is_external(self) -> bool:
+        return self.url is not None
+
+    @cached_property
+    def is_internal(self) -> bool:
+        return self.file is not None
+
 
 class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
     class Role(models.TextChoices):
@@ -1636,10 +1661,30 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
         except TypeError:
             return sorted(citations, key=lambda citation: citation.display_name)
 
+    async def aget_citations(self) -> list[Citation]:
+        return await sync_to_async(self.get_citations)()
+
     @cached_property
     def citations_url(self) -> str:
         slug = self.chat.tool.slug if self.chat.tool else None
         return url_service.get_citation_url(message_id=self.id, chat_id=self.chat.id, slug=slug)
+
+    def unique_selected_files(self):
+        return self.selected_files.all().distinct()
+
+    @property
+    def resources(self) -> list[Citation]:
+        seen = set()
+        resources = []
+
+        for citation in self.get_citations():
+            key = citation.file_id or citation.url
+
+            if key not in seen:
+                seen.add(key)
+                resources.append(citation)
+
+        return resources
 
 
 class ChatMessageTokenUse(UUIDPrimaryKeyBase, TimeStampedModel):

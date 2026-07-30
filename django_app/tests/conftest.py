@@ -255,7 +255,12 @@ def chat_message_with_citation(chat: Chat, uploaded_file: File) -> ChatMessage:
         rating_text="not bad",
         route="chat",
     )
-    Citation.objects.create(file=uploaded_file, chat_message=chat_message, text="Lorem ipsum.")
+    Citation.objects.create(
+        file=uploaded_file,
+        chat_message=chat_message,
+        text="Lorem ipsum.",
+        citation_name="ref_1",
+    )
     return chat_message
 
 
