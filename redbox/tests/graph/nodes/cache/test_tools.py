@@ -1,8 +1,7 @@
 import asyncio
 import time
-from typing import Any
+from typing import Any, Awaitable, Callable
 from unittest.mock import AsyncMock, patch
-from typing import Callable, Awaitable
 
 import pytest
 
