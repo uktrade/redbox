@@ -28,9 +28,8 @@ from redbox.chains.activity import log_activity
 from redbox.chains.components import get_chat_llm, get_structured_response_with_citations_parser, get_tokeniser
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_metadata, create_chain_agent
-from redbox.graph.nodes.sends import run_tools_parallel, run_tools_parallel_extended
-
 from redbox.graph.nodes.cache.tools import get_cached_datahub_mcp_tools
+from redbox.graph.nodes.sends import run_tools_parallel, run_tools_parallel_extended
 from redbox.models import ChatRoute
 from redbox.models.chain import (
     DocumentState,
@@ -45,9 +44,9 @@ from redbox.models.chain import (
 )
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import (
-    USER_FEEDBACK_EVAL_PROMPT,
-    DATAHUB_USER_FEEDBACK,
     DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS,
+    DATAHUB_USER_FEEDBACK,
+    USER_FEEDBACK_EVAL_PROMPT,
 )
 from redbox.models.settings import ChatLLMBackend
 from redbox.transform import combine_documents, flatten_document_state, join_result_with_token_limit
@@ -706,9 +705,15 @@ def build_datahub_agent_with_loop(
             log.warning(f"{log_stub} Worker agent output:\n{ai_msg}")
 
             log.warning(f"{log_stub} Running tools via run_tools_parallel_extended...")
+
             tr_result = run_tools_parallel_extended(ai_msg, tools, state, is_loop=True)
 
-            result = [r.response for r in tr_result.results] if tr_result.results else None
+            if tr_result is None:
+                ai_msg.content
+            elif tr_result.results:
+                result = [r.response for r in tr_result.results]
+            else:
+                result = None
 
             if not result:
                 if len(tr_result.failures) > 0:
