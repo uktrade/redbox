@@ -660,7 +660,8 @@ class TestBuildAgentLoop:
         llm = GenericFakeChatModel(messages=iter([res]))
         mock_llm = mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
 
-        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel_extended")
+        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel")
+        mock_tool_calls.return_value = tool_call_results
 
         mock_preprocess = None
         if pre_process is not None:
@@ -739,10 +740,8 @@ class TestBuildAgentLoop:
         llm = GenericFakeChatModel(messages=iter([llm_message]))
         mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
 
-        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel_extended")
-        mock_tool_calls.return_value = Result(
-            results=[ToolCallResult.Success(tool_name="test_tool", response=llm_message)]
-        )
+        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel")
+        mock_tool_calls.return_value = [llm_message]
 
         agent = "Internal_Retrieval_Agent"
         agent_task, multi_agent_plan = configure_agent_task_plan({agent: agent})
@@ -870,8 +869,14 @@ class TestBuildDatahubAgentLoop:
         llm = GenericFakeChatModel(messages=iter([res]))
         mock_llm = mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
 
-        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel")
-        mock_tool_calls.return_value = tool_call_results
+        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel_extended")
+        mock_tool_calls.return_value = Result(
+            results=[
+                ToolCallResult.Success(tool_name="test_tool", response=msg)
+                for msg in (tool_call_results if isinstance(tool_call_results, list) else [])
+                if isinstance(msg, AIMessage)
+            ]
+        )
 
         mock_preprocess = None
         if pre_process is not None:
@@ -968,8 +973,10 @@ class TestBuildDatahubAgentLoop:
         llm = GenericFakeChatModel(messages=iter([llm_message]))
         mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
 
-        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel")
-        mock_tool_calls.return_value = [llm_message]
+        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel_extended")
+        mock_tool_calls.return_value = Result(
+            results=[ToolCallResult.Success(tool_name="test_tool", response=llm_message)]
+        )
 
         agent = "Internal_Retrieval_Agent"
         agent_task, multi_agent_plan = configure_agent_task_plan({agent: agent})
