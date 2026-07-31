@@ -1,0 +1,42 @@
+{% from "macros/govuk-button.html" import govukButton %}
+{% from "macros/icon.html" import ids_icon %}
+{% from "chat/macros/delete_chat_modal.html" import delete_chat_modal %}
+
+<ids-popover class="chat-menu-popover">
+    {% call govukButton(
+        classes="govuk-button--secondary ids-icon-button ids-popover__trigger",
+        prevent_double_click=True,
+        dont_submit=True,
+        attributes={
+            "aria-expanded": "false",
+            "aria-controls": "chat-menu"
+        }
+    ) %}
+        <span class="govuk-visually-hidden">Chat menu</span>
+        {{ ids_icon(icon_name="ellipsis.svg") }}
+    {% endcall %}
+
+    <span class="ids-popover__panel ids-width--auto govuk-!-padding-0 govuk-!-display-none" id="chat-menu" data-open="false">
+        <span class="ids-popover__content ids-button-menu">
+            {% call govukButton(
+                classes="govuk-button--secondary govuk-!-margin-0 ids-icon-text-button ids-transparent ids-width--full edit-trigger",
+                prevent_double_click=True,
+                dont_submit=True
+            ) %}
+                {{ ids_icon(icon_name="edit.html") }}
+                <span>Edit name</span>
+            {% endcall %}
+
+            {% call delete_chat_modal(chat=current_chat, active_chat_id=current_chat.id) %}
+                {% call govukButton(
+                    classes="govuk-button--secondary govuk-!-margin-0 ids-icon-text-button ids-transparent ids-width--full modal-open",
+                    prevent_double_click=True,
+                    dont_submit=True
+                ) %}
+                    {{ ids_icon(icon_name="delete.html") }}
+                    <span>Delete chat</span>
+                {% endcall %}
+            {% endcall %}
+        </span>
+    </span>
+</ids-popover>

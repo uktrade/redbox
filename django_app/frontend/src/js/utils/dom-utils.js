@@ -55,6 +55,22 @@ export function isHidden(element) {
 
 
 /**
+ * Checks whether an element is visible
+ * @param {HTMLElement | undefined | null} element - Element
+*/
+export function isVisible(element) {
+    if (!element) return false;
+    return (
+        !element.classList.contains(HIDDEN_CLASS) &&
+        !element.classList.contains(VISUALLY_HIDDEN_CLASS) &&
+        element.offsetParent !== null && // visible in layout
+        !element.hasAttribute('hidden') &&
+        getComputedStyle(element).visibility !== 'hidden'
+    );
+}
+
+
+/**
  * Add a fallback parameter to getAttribute()
  * @param {HTMLElement} elem - element
  * @param {string} attr - attribute name
@@ -92,7 +108,7 @@ export function getCsrfToken() {
 
 /**
  * Focuses the first focusable element in a container/element
- * @param {HTMLElement} container - Element/Container
+ * @param {HTMLElement | null | undefined} container - Element/Container
 */
 export function focusFirstFocusable(container) {
     if (!container) return;
@@ -103,20 +119,23 @@ export function focusFirstFocusable(container) {
         'input:not([disabled])',
         'select:not([disabled])',
         'textarea:not([disabled])',
-        '[tabindex]:not([tabindex="-1"])'
+        '[tabindex]:not([tabindex="-1"])',
+        '[role="button"]:not([disabled])'
     ];
 
+    // Check if the container itself matches any selector in the list
+    const isFocusable = selectors.some(selector => container.matches(selector));
+
+    if (isFocusable && isVisible(container)) return container.focus();
+
+    // Check the child elements
     const elements = Array.from(
         container.querySelectorAll(selectors.join(','))
     );
 
     const visible = /** @type {HTMLElement} */ (elements.find(el => {
         const htmlEl = /** @type {HTMLElement} */ (el);
-        return (
-            htmlEl.offsetParent !== null && // visible in layout
-            !htmlEl.hasAttribute('hidden') &&
-            getComputedStyle(htmlEl).visibility !== 'hidden'
-        );
+        return isVisible(htmlEl);
     }));
 
     if (visible) visible.focus();
