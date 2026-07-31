@@ -2,6 +2,7 @@ import csv
 import json
 import logging
 
+from django import forms
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.db.models import QuerySet
@@ -538,6 +539,28 @@ class AgentPlanAdmin(admin.ModelAdmin):
     ordering = ["-created_at"]
 
 
+class ChatMessageFeedbackForm(forms.ModelForm):
+    reason = forms.MultipleChoiceField(
+        choices=models.ChatMessageFeedback.Reason.choices,
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+    )
+
+    class Meta:
+        model = models.ChatMessageFeedback
+        fields = ["message", "is_positive", "reason", "detail"]
+
+
+class ChatMessageFeedbackAdmin(admin.ModelAdmin):
+    form = ChatMessageFeedbackForm
+    list_display = ["id", "is_positive", "message", "created_at"]
+    list_filter = ["is_positive", "reason", "created_at"]
+    ordering = ["-created_at"]
+    search_fields = ["message__id", "detail"]
+    readonly_fields = ["id", "created_at"]
+    raw_id_fields = ["message"]
+
+
 admin.site.register(User, UserAdmin)
 admin.site.register(models.File, FileAdmin)
 admin.site.register(models.Chat, ChatAdmin)
@@ -560,5 +583,5 @@ admin.site.register(models.FileTool, FileToolAdmin)
 admin.site.register(models.UserTool, UserToolAdmin)
 admin.site.register(models.UserSSO, UserSSOAdmin)
 admin.site.register(models.Citation, CitationAdmin)
-
+admin.site.register(models.ChatMessageFeedback, ChatMessageFeedbackAdmin)
 admin.site.register_view("report/", view=reporting_dashboard, name="Site report")
