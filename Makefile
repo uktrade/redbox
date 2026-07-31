@@ -60,10 +60,11 @@ test-e2e:
 	# Does this need to be separate?
 	docker compose down opensearch db sso minio
 	docker compose up -d --wait opensearch db sso minio
-	cd e2e && \
+	docker compose up -d --wait django-app worker
+	cd django_app && \
 	poetry install && \
 	poetry run playwright install --with-deps chromium && \
-	DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest test_e2e.py  --tracing retain-on-failure --video on --screenshot on -k test_user_journey
+	BASE_URL=https://dev.assist.uktrade.digital/ DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest tests/e2e/test_e2e.py  --tracing retain-on-failure --video on --screenshot on -k test_user_journey
 
 .PHONY: test-integration
 test-integration:
