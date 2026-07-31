@@ -64,7 +64,7 @@ test-e2e:
 	cd django_app && \
 	poetry install && \
 	poetry run playwright install --with-deps chromium && \
-	BASE_URL=https://dev.assist.uktrade.digital/ DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest tests/e2e/test_e2e.py  --tracing retain-on-failure --video on --screenshot on -k test_user_journey
+	BASE_URL=http://localhost:8080 DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest tests/e2e/test_e2e.py  --tracing retain-on-failure --video on --screenshot on -k test_user_journey
 
 .PHONY: test-integration
 test-integration:
