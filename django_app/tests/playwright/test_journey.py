@@ -4,10 +4,41 @@ import os
 import pytest
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from pages import LandingPage
-from playwright.sync_api import Page
+from playwright.sync_api import Page, sync_playwright
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
+
+
+class MyTests(StaticLiveServerTestCase):
+    @classmethod
+    def setUpClass(cls):
+        # cls.available_apps = [
+        #     "daphne",
+        # ]
+        super().setUpClass()
+        cls.playwright = sync_playwright().start()
+        cls.browser = cls.playwright.chromium.launch()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+
+    @pytest.mark.django_db(transaction=True)
+    @pytest.mark.asyncio
+    def test_something(self):
+        page = self.browser.new_page()
+        port = self.live_server_url[-5:]
+
+        landing_page = LandingPage(page, self.live_server_url)
+
+        # Sign in
+        chats_page = landing_page.sign_in()
+
+        page.pause()
+        chats_page.write_message = "Hello world"
+        chats_page = chats_page.send()
+        page.pause()
 
 
 @pytest.fixture(scope="class")
@@ -15,12 +46,14 @@ def live_server_url():
     """Provide live server URL to test class."""
     server = StaticLiveServerTestCase
     server.setUpClass()
-    yield {"url": server.live_server_url, "port": server.port}
+
+    yield server
     server.tearDownClass()
 
 
 @pytest.mark.django_db(transaction=True)
-def test_user_journey(page: Page, live_server_url):
+@pytest.mark.asyncio
+def test_user_journey(page: Page, live_server_url: StaticLiveServerTestCase):
     """End to end user journey test.
 
     Simulates a single user journey through the application, running against the full suite of microservices.
@@ -33,25 +66,51 @@ def test_user_journey(page: Page, live_server_url):
 
     # create_user(email_address)
 
-    # Landing page
-    landing_page = LandingPage(page, live_server_url["url"])
+    print(live_server_url.__dict__)
+
+    port = live_server_url.live_server_url[-5:]
+
+    def message_handler(ws, message):
+        logger.debug("Send message %s", message)
+        if message == "request":
+            ws.send("response")
 
     def handler(ws):
-        logger.debug("Handling connection to ws chat")
+        logger.debug("Setting up connection to WS chat url")
         server = ws.connect_to_server()
-        logger.debug("init ws connection %s", server)
+        logger.debug("WS connected to server %s", server)
+        ws.on_message(lambda message: message_handler(server, message))
 
-    page.route_web_socket(f"ws://localhost:{live_server_url['port']}/ws/chat/", handler)
-    page.route_web_socket(f"ws://localhost:{live_server_url['port']}/ws/chat", handler)
-    page.route_web_socket("/chat/", handler)
-    page.route_web_socket("/chat", handler)
-    page.route_web_socket("/ws", handler)
-    page.route_web_socket("/ws/", handler)
-    page.route_web_socket("ws/chat/", handler)
-    page.route_web_socket("/ws/chat", handler)
-    page.route_web_socket("/ws/chat/", handler)
+    # page.route_web_socket(f"ws://localhost:{port}/ws/chat/", handler)
+    page.route_web_socket(
+        f"ws://localhost:{port}/ws/chat/", lambda ws: ws.on_message(lambda message: message_handler(ws, message))
+    )
+    # page.route_web_socket(f"ws://localhost:{port}/ws/chat", handler)
+    # page.route_web_socket(
+    #     "wss://example.com/ws", lambda ws: ws.on_message(lambda message: message_handler(ws, message))
+    # )
+    # page.route_web_socket("/chat/", handler)
+    # page.route_web_socket("/chat", handler)
+    # page.route_web_socket("/ws", handler)
+    # page.route_web_socket("/ws/", handler)
+    # page.route_web_socket("ws/chat/", handler)
+    # page.route_web_socket("/ws/chat", handler)
+    # page.route_web_socket("/ws/chat/", handler)
+
+    # Landing page
+    landing_page = LandingPage(page, live_server_url.live_server_url)
+
     # Sign in
     chats_page = landing_page.sign_in()
+    # chats_page.route_web_socket(f"ws://localhost:{live_server_url['port']}/ws/chat/", handler)
+    # chats_page.route_web_socket(f"ws://localhost:{live_server_url['port']}/ws/chat", handler)
+    # chats_page.route_web_socket("/chat/", handler)
+    # chats_page.route_web_socket("/chat", handler)
+    # chats_page.route_web_socket("/ws", handler)
+    # chats_page.route_web_socket("/ws/", handler)
+    # chats_page.route_web_socket("ws/chat/", handler)
+    # chats_page.route_web_socket("/ws/chat", handler)
+    # chats_page.route_web_socket("/ws/chat/", handler)
     page.pause()
     chats_page.write_message = "Hello world"
     chats_page = chats_page.send()
