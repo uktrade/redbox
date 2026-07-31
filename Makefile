@@ -60,7 +60,7 @@ test-e2e:
 	# Does this need to be separate?
 	docker compose down opensearch db sso minio
 	docker compose up -d --wait opensearch db sso minio
-	docker compose up -d --wait redbox-django-app redbox-worker
+	docker compose up -d --wait redbox-django-app
 	cd django_app && \
 	poetry install && \
 	poetry run playwright install --with-deps chromium && \

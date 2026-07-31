@@ -9,7 +9,7 @@ logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
 
 
-BASE_URL = URL(os.environ.get("BASE_URL", "http://localhost"))
+BASE_URL = URL(os.environ.get("BASE_URL", " "))
 
 
 def test_user_journey(page: Page):
