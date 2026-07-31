@@ -62,9 +62,9 @@ test-e2e:
 	docker compose up -d --wait opensearch db sso minio
 	docker compose up -d --wait redbox-django-app
 	cd django_app && \
-	poetry install && \
+	poetry install --only e2e && \
 	poetry run playwright install --with-deps chromium && \
-	BASE_URL=http://localhost:8080 DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest tests/e2e/test_e2e.py  --tracing retain-on-failure --video on --screenshot on -k test_user_journey
+	BASE_URL=http://localhost:8080 DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest tests/e2e/test_e2e.py --confcutdir=tests/e2e --tracing retain-on-failure --video on --screenshot on -k test_user_journey
 
 .PHONY: test-integration
 test-integration:
