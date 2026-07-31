@@ -661,7 +661,6 @@ class TestBuildAgentLoop:
         mock_llm = mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
 
         mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel_extended")
-        mock_tool_calls.return_value = tool_call_results
 
         mock_preprocess = None
         if pre_process is not None:
