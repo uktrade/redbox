@@ -870,13 +870,24 @@ class TestBuildDatahubAgentLoop:
         mock_llm = mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
 
         mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel_extended")
-        mock_tool_calls.return_value = Result(
-            results=[
-                ToolCallResult.Success(tool_name="test_tool", response=msg)
-                for msg in (tool_call_results if isinstance(tool_call_results, list) else [])
-                if isinstance(msg, AIMessage)
-            ]
-        )
+        if tool_call_results is None:
+            mock_tool_calls.return_value = Result()
+        elif isinstance(tool_call_results, list):
+            mock_tool_calls.return_value = Result(
+                results=[
+                    ToolCallResult.Success(
+                        tool_name="test_tool",
+                        response=msg if isinstance(msg, AIMessage) else AIMessage(content=msg.get("text", "")),
+                    )
+                    for msg in tool_call_results
+                ]
+            )
+        else:
+            mock_tool_calls.return_value = Result(
+                results=[
+                    ToolCallResult.Success(tool_name="test_tool", response=AIMessage(content=str(tool_call_results)))
+                ]
+            )
 
         mock_preprocess = None
         if pre_process is not None:
