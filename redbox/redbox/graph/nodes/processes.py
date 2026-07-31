@@ -709,14 +709,14 @@ def build_datahub_agent_with_loop(
             tr_result = run_tools_parallel_extended(ai_msg, tools, state, is_loop=True)
 
             if tr_result is None:
-                ai_msg.content
+                result = ai_msg.content
             elif tr_result.results:
                 result = [r.response for r in tr_result.results]
             else:
                 result = None
 
             if not result:
-                if len(tr_result.failures) > 0:
+                if tr_result is not None and len(tr_result.failures) > 0:
                     result = "Tool error: unable to contact Datahub MCP server"
                 else:
                     result = "Tool error: no results received."
