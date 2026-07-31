@@ -4,11 +4,9 @@ from typing import Callable
 from langchain_core.messages import AIMessage
 from langgraph.constants import Send
 
-from redbox.models.chain import DocumentState, RedboxState, TaskStatus
-
-
-from redbox.graph.nodes.runner.runner import ToolRunner
 from redbox.graph.nodes.runner.models import Result
+from redbox.graph.nodes.runner.runner import ToolRunner
+from redbox.models.chain import DocumentState, RedboxState, TaskStatus
 
 log = logging.getLogger(__name__)
 
@@ -77,7 +75,7 @@ def run_tools_parallel_extended(
 
     if not ai_msg.tool_calls:
         log.warning("No tool calls detected. Returning agent content.")
-        return ai_msg.content
+        return None
 
     try:
         max_workers = min(10, len(ai_msg.tool_calls))
@@ -110,6 +108,9 @@ def run_tools_parallel(
     parallel_timeout=60,
     is_loop=False,
 ) -> list[AIMessage] | None:
+    if not ai_msg.tool_calls:
+        log.warning("No tool calls detected. Returning agent content.")
+        return ai_msg.content
 
     result = run_tools_parallel_extended(
         ai_msg=ai_msg,
