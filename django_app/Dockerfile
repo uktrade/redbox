@@ -51,9 +51,10 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN which tesseract && tesseract --version
-
 WORKDIR /usr/src/app
+
+RUN libreoffice --version
+RUN tesseract --version
 
 COPY README.md .
 COPY redbox/ .
@@ -70,7 +71,5 @@ EXPOSE 8080
 
 RUN chmod +x start.sh
 RUN chmod +x health.sh
-
-RUN libreoffice --version
 
 CMD ["/bin/sh", "./start.sh"]
