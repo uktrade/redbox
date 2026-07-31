@@ -1,7 +1,8 @@
-import logging
 import asyncio
+import logging
 import time
-from typing import Callable, Any
+from typing import Any, Awaitable, Callable
+
 from pydantic import BaseModel, Field
 
 from redbox.api.wrapper import SensitiveValue
@@ -24,7 +25,7 @@ _datahub_mcp_tool_cache: dict[SensitiveValue, CacheEntry] = {}
 _datahub_mcp_tool_cache_lock = asyncio.Lock()
 
 
-async def get_cached_datahub_mcp_tools(sso_token_getter: Callable[[], str]) -> list:
+async def get_cached_datahub_mcp_tools(sso_token_getter: Callable[[], Awaitable[str]]) -> list:
     raw_token: str = await sso_token_getter()
     token_key = SensitiveValue(value=raw_token)
 
