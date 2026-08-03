@@ -70,7 +70,7 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: playwright-traces
-          path: test-results/
+          path: e2e_tests/django_app/test-results/
 
       # - name: Setup test infrastructure
       #   run: |
