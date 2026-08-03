@@ -26,7 +26,13 @@ def test_user_journey(page: Page):
     # create_user(email_address)
 
     # Landing page
-    LandingPage(page, BASE_URL)
+    landing_page = LandingPage(page, BASE_URL)
+
+    # Sign in
+    chats_page = landing_page.sign_in()
+
+    chats_page.write_message = "Hello world"
+    chats_page = chats_page.send()
 
 
 def test_support_pages(page: Page):
