@@ -1584,6 +1584,44 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         return self.file is not None
 
 
+class ChatMessageFeedback(UUIDPrimaryKeyBase, TimeStampedModel):
+    class Reason(models.TextChoices):
+        INACCURATE = "INACCURATE", "It was inaccurate"
+        UNASKED = "UNASKED", "It wasn't what I asked for"
+        LACKED_DETAIL = "LACKED_DETAIL", "It was lacking detail"
+        CONFUSING = "CONFUSING", "I found it confusing"
+        OTHER = "OTHER", "Other"
+
+    message = models.OneToOneField(
+        "ChatMessage",
+        on_delete=models.CASCADE,
+        related_name="feedback",
+    )
+    is_positive = models.BooleanField()
+    reason = ArrayField(
+        models.CharField(max_length=32, choices=Reason.choices),
+        default=list,
+        blank=True,
+    )
+    detail = models.TextField(blank=True, default="")
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(is_positive=False) | models.Q(reason=[]),
+                name="reason_only_when_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(is_positive=False) | models.Q(detail=""),
+                name="detail_only_when_negative",
+            ),
+        ]
+
+    def __str__(self):
+        sentiment = "positive" if self.is_positive else "negative"
+        return f"{sentiment} feedback on message {self.message_id}"
+
+
 class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
     class Role(models.TextChoices):
         ai = "ai"
