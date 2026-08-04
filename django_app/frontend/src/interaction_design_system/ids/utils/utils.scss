@@ -57,6 +57,10 @@
   width: 100%;
 }
 
+.ids-width--auto {
+  width: auto;
+}
+
 .ids-width--one-fifth {
   width: 20%;
 }
@@ -87,6 +91,7 @@
 
 .ids-transparent {
   background-color: transparent;
+  box-shadow: none;
 }
 
 .ids-no-underline {
