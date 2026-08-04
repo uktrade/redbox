@@ -42,7 +42,7 @@
     "@parcel/config-default": "^2.13.1",
     "@parcel/transformer-typescript-tsc": "^2.13.1",
     "accessible-autocomplete": "^3.0.1",
-    "aws-sdk": "^2.1693.0",
+    "@aws-sdk/client-s3": "^3.1102.0",
     "dompurify": "^3.4.11",
     "govuk-frontend": "5.10.2",
     "htmx.org": "^2.0.6",
