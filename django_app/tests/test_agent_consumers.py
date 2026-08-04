@@ -67,16 +67,19 @@ async def test_summarisation_agent_returns_non_empty_response(agents_list, alice
         ]
     )
     responses = await _send_and_collect(
-        alice, agents_list, mocked_graph, "Please summarise this document.", n_responses=4
+        alice, agents_list, mocked_graph, "Please summarise this document.", n_responses=7
     )
 
     # assertions
-    assert responses[0]["type"] == "session-id"
-    assert responses[1]["type"] == "text"
-    assert responses[1]["data"], "Summarisation Agent returned blank response"
-    assert responses[2]["type"] == "route"
-    assert responses[2]["data"] == AGENTIC_ROUTE
-    assert responses[3]["type"] == "source"
+    assert responses[0]["type"] == "message_created"
+    assert responses[1]["type"] == "message_created"
+    assert responses[2]["type"] == "session-id"
+    assert responses[3]["type"] == "message_update"
+    assert responses[3]["data"]["sr_text"], "Summarisation Agent returned blank response"
+    assert responses[4]["type"], "message_update"
+    assert responses[5]["type"] == "route"
+    assert responses[5]["data"] == AGENTIC_ROUTE
+    assert responses[6]["type"] == "source"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -90,16 +93,19 @@ async def test_internal_retrieval_agent_returns_non_empty_response(agents_list, 
         ]
     )
     responses = await _send_and_collect(
-        alice, agents_list, mocked_graph, "From my documents, what information is there on this topic", n_responses=4
+        alice, agents_list, mocked_graph, "From my documents, what information is there on this topic", n_responses=7
     )
 
     # assertions
-    assert responses[0]["type"] == "session-id"
-    assert responses[1]["type"] == "text"
-    assert responses[1]["data"], "Internal_Retrieval_Agent returned blank response"
-    assert responses[2]["type"] == "route"
-    assert responses[2]["data"] == AGENTIC_ROUTE
-    assert responses[3]["type"] == "source"
+    assert responses[0]["type"] == "message_created"
+    assert responses[1]["type"] == "message_created"
+    assert responses[2]["type"] == "session-id"
+    assert responses[3]["type"] == "message_update"
+    assert responses[3]["data"]["sr_text"], "Internal_Retrieval_Agent returned blank response"
+    assert responses[4]["type"], "message_update"
+    assert responses[5]["type"] == "route"
+    assert responses[5]["data"] == AGENTIC_ROUTE
+    assert responses[6]["type"] == "source"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -112,15 +118,18 @@ async def test_web_search_agent_returns_non_empty_response(agents_list, alice):
         ]
     )
     responses = await _send_and_collect(
-        alice, agents_list, mocked_graph, "What is the weather in London today?", n_responses=3
+        alice, agents_list, mocked_graph, "What is the weather in London today?", n_responses=6
     )
 
     # assertions
-    assert responses[0]["type"] == "session-id"
-    assert responses[1]["type"] == "text"
-    assert responses[1]["data"], "Web_Search_Agent returned blank response"
-    assert responses[2]["type"] == "route"
-    assert responses[2]["data"] == AGENTIC_ROUTE
+    assert responses[0]["type"] == "message_created"
+    assert responses[1]["type"] == "message_created"
+    assert responses[2]["type"] == "session-id"
+    assert responses[3]["type"] == "message_update"
+    assert responses[3]["data"]["sr_text"], "Web_Search_Agent returned blank response"
+    assert responses[4]["type"], "message_update"
+    assert responses[5]["type"] == "route"
+    assert responses[5]["data"] == AGENTIC_ROUTE
 
 
 @pytest.mark.django_db(transaction=True)
@@ -133,15 +142,18 @@ async def test_external_retrieval_agent_returns_non_empty_response(agents_list, 
         ]
     )
     responses = await _send_and_collect(
-        alice, agents_list, mocked_graph, "From external sources. find information about DBT", n_responses=3
+        alice, agents_list, mocked_graph, "From external sources. find information about DBT", n_responses=6
     )
 
     # assertions
-    assert responses[0]["type"] == "session-id"
-    assert responses[1]["type"] == "text"
-    assert responses[1]["data"], "External_Retrieval_Agent returned blank response"
-    assert responses[2]["type"] == "route"
-    assert responses[2]["data"] == AGENTIC_ROUTE
+    assert responses[0]["type"] == "message_created"
+    assert responses[1]["type"] == "message_created"
+    assert responses[2]["type"] == "session-id"
+    assert responses[3]["type"] == "message_update"
+    assert responses[3]["data"]["sr_text"], "External_Retrieval_Agent returned blank response"
+    assert responses[4]["type"], "message_update"
+    assert responses[5]["type"] == "route"
+    assert responses[5]["data"] == AGENTIC_ROUTE
 
 
 @pytest.mark.django_db(transaction=True)
@@ -155,16 +167,19 @@ async def test_tabular_agent_returns_non_empty_response(agents_list, alice, uplo
         ]
     )
     responses = await _send_and_collect(
-        alice, agents_list, mocked_graph, "What does the information in this spreadsheet show?", n_responses=4
+        alice, agents_list, mocked_graph, "What does the information in this spreadsheet show?", n_responses=7
     )
 
     # assertions
-    assert responses[0]["type"] == "session-id"
-    assert responses[1]["type"] == "text"
-    assert responses[1]["data"], "Tabular_Agent returned blank response"
-    assert responses[2]["type"] == "route"
-    assert responses[2]["data"] == AGENTIC_ROUTE
-    assert responses[3]["type"] == "source"
+    assert responses[0]["type"] == "message_created"
+    assert responses[1]["type"] == "message_created"
+    assert responses[2]["type"] == "session-id"
+    assert responses[3]["type"] == "message_update"
+    assert responses[3]["data"]["sr_text"], "Tabular_Agent returned blank response"
+    assert responses[4]["type"], "message_update"
+    assert responses[5]["type"] == "route"
+    assert responses[5]["data"] == AGENTIC_ROUTE
+    assert responses[6]["type"] == "source"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -177,15 +192,18 @@ async def test_submission_checker_agent_returns_non_empty_response(agents_list, 
         ]
     )
     responses = await _send_and_collect(
-        alice, agents_list, mocked_graph, "Check my submission for any compliance issues.", n_responses=3
+        alice, agents_list, mocked_graph, "Check my submission for any compliance issues.", n_responses=6
     )
 
     # assertions
-    assert responses[0]["type"] == "session-id"
-    assert responses[1]["type"] == "text"
-    assert responses[1]["data"], "Submission_Checker_Agent returned blank response"
-    assert responses[2]["type"] == "route"
-    assert responses[2]["data"] == AGENTIC_ROUTE
+    assert responses[0]["type"] == "message_created"
+    assert responses[1]["type"] == "message_created"
+    assert responses[2]["type"] == "session-id"
+    assert responses[3]["type"] == "message_update"
+    assert responses[3]["data"]["sr_text"], "Submission_Checker_Agent returned blank response"
+    assert responses[4]["type"], "message_update"
+    assert responses[5]["type"] == "route"
+    assert responses[5]["data"] == AGENTIC_ROUTE
 
 
 @pytest.mark.django_db(transaction=True)
@@ -210,12 +228,15 @@ async def test_datahub_agent_returns_non_empty_response(agents_list, alice):
 
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_graph):
             await communicator.send_json_to({"message": "From datahub, show me data."})
-            responses = [await communicator.receive_json_from(timeout=5) for _ in range(3)]
+            responses = [await communicator.receive_json_from(timeout=5) for _ in range(6)]
             await communicator.disconnect()
 
     # assertions
-    assert responses[0]["type"] == "session-id"
-    assert responses[1]["type"] == "text"
-    assert responses[1]["data"], "DataHub_Agent returned blank response"
-    assert responses[2]["type"] == "route"
-    assert responses[2]["data"] == AGENTIC_ROUTE
+    assert responses[0]["type"] == "message_created"
+    assert responses[1]["type"] == "message_created"
+    assert responses[2]["type"] == "session-id"
+    assert responses[3]["type"] == "message_update"
+    assert responses[3]["data"]["sr_text"], "DataHub_Agent returned blank response"
+    assert responses[4]["type"], "message_update"
+    assert responses[5]["type"] == "route"
+    assert responses[5]["data"] == AGENTIC_ROUTE
