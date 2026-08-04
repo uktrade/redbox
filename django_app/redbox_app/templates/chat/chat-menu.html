@@ -2,7 +2,7 @@
 {% from "macros/icon.html" import ids_icon %}
 {% from "chat/macros/delete_chat_modal.html" import delete_chat_modal %}
 
-<ids-popover class="chat-menu-popover">
+<ids-popover class="chat-menu-popover" data-open-on-hover="false">
     {% call govukButton(
         classes="govuk-button--secondary ids-icon-button ids-popover__trigger",
         prevent_double_click=True,
