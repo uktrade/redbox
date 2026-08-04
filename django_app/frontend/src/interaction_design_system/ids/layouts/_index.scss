@@ -1,4 +1,5 @@
 // Layouts
+@forward './button-menu.scss';
 @forward './card.scss';
 @forward './chat.scss';
 @forward './content-width.scss';
@@ -7,6 +8,7 @@
 @forward './footer.scss';
 @forward './header.scss';
 @forward './page.scss';
+@forward './popover.scss';
 @forward './radio-container.scss';
 @forward './scrollable.scss';
 @forward './side-panel.scss';

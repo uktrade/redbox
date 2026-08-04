@@ -1,4 +1,5 @@
 from redbox_app.redbox_core.dash_apps import report_app
+from redbox_app.redbox_core.views.all_chats_views import AllChatsView, SearchChatsView
 from redbox_app.redbox_core.views.api_views import aws_credentials_api, message_view_pre_alpha, user_view_pre_alpha
 from redbox_app.redbox_core.views.auth_views import sign_in_link_sent_view, sign_in_view, signed_out_view
 from redbox_app.redbox_core.views.chat_views import (
@@ -27,7 +28,12 @@ from redbox_app.redbox_core.views.file_views import (
     file_ingest_errors_view,
     file_status_api_view,
 )
-from redbox_app.redbox_core.views.info_views import accessibility_statement_view, privacy_notice_view, support_view
+from redbox_app.redbox_core.views.info_views import (
+    accessibility_statement_view,
+    feedback_view,
+    privacy_notice_view,
+    support_view,
+)
 from redbox_app.redbox_core.views.misc_views import (
     RefreshFragmentsView,
     SecurityTxtRedirectView,
@@ -65,6 +71,7 @@ from redbox_app.redbox_core.views.tools_views import (
 )
 
 __all__ = [
+    "AllChatsView",
     "ChatsTitleView",
     "ChatsView",
     "CheckDemographicsView",
@@ -75,6 +82,7 @@ __all__ = [
     "DocumentsTitleView",
     "RatingsView",
     "RefreshFragmentsView",
+    "SearchChatsView",
     "SecurityTxtRedirectView",
     "SettingsView",
     "Signup1",
@@ -108,6 +116,7 @@ __all__ = [
     "edit_tool_user_row_view",
     "edit_tool_user_view",
     "faq_view",
+    "feedback_view",
     "file_icon_view",
     "file_ingest_errors_view",
     "file_status_api_view",

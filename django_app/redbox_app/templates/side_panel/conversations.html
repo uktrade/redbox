@@ -2,6 +2,43 @@
 {% from "ids/components/show-more.html" import show_more %}
 {% from "macros/icon.html" import ids_icon %}
 
+{% if enable_chats_redesign %}
+<section id="conversations" class="ids-card ids-card--no-border" hx-swap-oob="outerHTML">
+  <nav class="govuk-!-margin-bottom-0" aria-label="Chats">
+    <div class="ids-card__header">
+      <h2 class="side-panel-heading__text govuk-heading-s govuk-!-margin-bottom-0">Chats</h2>
+    </div>
+    <div class="ids-card__content">
+      <ul class="ids-card__list">
+        {% set active_chat_id = request.resolver_match.kwargs.get('chat_id') %}
+        {% for chat in chats[:5] %}
+        <li class="ids-card__item {{ 'ids-card__item--selected' if chat.id == active_chat_id }}" data-chatid="{{ chat.id }}">
+            <span class="item-text-container ids-text-ellipses">
+                <a class="item-link govuk-link govuk-link--no-visited-state govuk-link--no-underline display title-text"
+                    href="{{ chat.url }}"
+                    {{ 'aria-current="page"'|safe if chat.id == active_chat_id }}
+                    title="{{ chat.name }}">
+                    <span class="govuk-visually-hidden">Chat: </span>{{ chat.name }}
+                </a>
+            </span>
+        </li>
+        {% endfor %}
+        {% set active_all_chats = request.resolver_match.url_name == 'all-chats' %}
+        <li class="ids-card__item {{ 'ids-card__item--selected' if active_all_chats }}">
+            <span class="item-text-container ids-text-ellipses">
+                <a class="item-link govuk-link govuk-link--no-visited-state govuk-link--no-underline display title-text"
+                    href="{{ url('all-chats') }}"
+                    {{ 'aria-current="page"'|safe if active_all_chats }}
+                    >
+                    All chats
+                </a>
+            </span>
+        </li>
+      </ul>
+    </div>
+  </nav>
+</section>
+{% else %}
 <section id="conversations" class="ids-card ids-card--no-border" hx-swap-oob="outerHTML">
     <div class="ids-card__content">
         <chat-history class="ids-width--full">
@@ -16,9 +53,14 @@
                 {% endfor %}
             </ul>
             <div class="ids-card__item">
+              {% if enable_chats_redesign %}
+                <a class="govuk-link" href="{{ url('all-chats') }}">All chats</a>
+              {% else %}
                 {{ show_more('.chat-list', 'li', 5) }}
+              {% endif %}
             </div>
           </fieldset>
         </chat-history>
     </div>
 </section>
+{% endif %}

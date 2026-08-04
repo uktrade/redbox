@@ -7,7 +7,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, RequestFactory
 
 from redbox_app.redbox_core.actions import backfill_original_file_names, reingest
-from redbox_app.redbox_core.models import File
+from redbox_app.redbox_core.models import File, FileTool, Tool
 
 User = get_user_model()
 
@@ -44,7 +44,7 @@ def test_backfill_original_file_names_action(client: Client, alice: User):
 
 
 @pytest.mark.django_db
-def test_reingest_action_triggers_reingest_file(client, alice):
+def test_reingest_action_triggers_reingest_file_for_file(client: Client, alice: User):
     # Given
     client.force_login(alice)
 
@@ -59,7 +59,40 @@ def test_reingest_action_triggers_reingest_file(client, alice):
 
     queryset = File.objects.filter(id__in=[file1.id, file2.id])
 
-    mock_admin = SimpleNamespace(message_user=lambda *_args, **_kwargs: None)
+    mock_admin = SimpleNamespace(model=File, message_user=lambda *_args, **_kwargs: None)
+    request = RequestFactory().get("/admin/")
+
+    # When
+    with patch("redbox_app.redbox_core.actions.reingest_file") as mock_reingest_file:
+        reingest(mock_admin, request, queryset)
+
+    # Then
+    assert mock_reingest_file.call_count == 2
+
+    mock_reingest_file.assert_any_call(file1)
+    mock_reingest_file.assert_any_call(file2)
+
+
+@pytest.mark.django_db
+def test_reingest_action_triggers_reingest_file_for_file_tool(client: Client, alice: User, default_tool: Tool):
+    # Given
+    client.force_login(alice)
+
+    file1 = File.objects.create(
+        user=alice,
+        original_file="alice/test1.pdf",
+    )
+    file2 = File.objects.create(
+        user=alice,
+        original_file="alice/test2.pdf",
+    )
+
+    file_tool1 = FileTool.objects.create(file=file1, tool=default_tool, file_type=FileTool.FileType.ADMIN)
+    file_tool2 = FileTool.objects.create(file=file2, tool=default_tool, file_type=FileTool.FileType.ADMIN)
+
+    queryset = FileTool.objects.filter(id__in=[file_tool1.id, file_tool2.id])
+
+    mock_admin = SimpleNamespace(model=FileTool, message_user=lambda *_args, **_kwargs: None)
     request = RequestFactory().get("/admin/")
 
     # When

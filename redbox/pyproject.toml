@@ -6,7 +6,10 @@ target-version = 'py312'
 name = "redbox"
 version = "0.4.0"
 description = "RAG application that uses GenAI to chat with and summarise civil service documents"
-authors = ["DBT Redbox <redbox@businessandtrade.gov.uk>", "i.AI <i-dot-ai-enquiries@cabinetoffice.gov.uk>"]
+authors = [
+    "DBT Redbox <redbox@businessandtrade.gov.uk>",
+    "i.AI <i-dot-ai-enquiries@cabinetoffice.gov.uk>",
+]
 license = "MIT"
 readme = "../README.md"
 
@@ -54,7 +57,7 @@ pytest-asyncio = "^0.23.6"
 jsonlines = "^4.0.0"
 deepeval = "^3.8.4"
 pytest-mock = "^3.14.0"
-boto3-stubs = {extras = ["essential"], version = "^1.35.28"}
+boto3-stubs = { extras = ["essential"], version = "^1.35.28" }
 requests-mock = "^1.12.1"
 
 [build-system]
@@ -64,10 +67,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.pytest.ini_options]
 addopts = "--import-mode=importlib"
 env_override_existing_values = 1
-env_files = [
-    "tests/.env.test",
-    ".env"
-]
+env_files = ["tests/.env.test", ".env"]
 markers = [
     "ai: marks tests as using a live LLM (deselect with '-m \"not ai\"')",
     "vcr",

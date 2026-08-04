@@ -6,14 +6,14 @@ name: Python application
 on:
   push:
     branches:
-      - 'main'
-      - 'feature/**'
-      - 'chore/**'
-      - 'bugfix/**'
-      - 'hotfix/**'
-      - 'dependabot/**'
-      - 'security/**'
-      - 'dev'
+      - "main"
+      - "feature/**"
+      - "chore/**"
+      - "bugfix/**"
+      - "hotfix/**"
+      - "dependabot/**"
+      - "security/**"
+      - "dev"
   workflow_dispatch:
 
 permissions:
@@ -22,109 +22,104 @@ permissions:
 
 jobs:
   test-redbox:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v3
-      with:
-        python-version: "3.12"
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.12"
 
-    - name: Set up Poetry
-      uses: abatilo/actions-poetry@v2
-      with:
-        poetry-version: 2.2.1
+      - name: Set up Poetry
+        uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: 2.2.1
 
-    - name: Build Containers
-      run: |
-        mkdir -p data/elastic/
-        chmod 777 data/elastic/
-        cp tests/.env.test .env
-        docker compose up -d --wait opensearch
+      - name: Build Containers
+        run: |
+          mkdir -p data/elastic/
+          chmod 777 data/elastic/
+          cp tests/.env.test .env
+          docker compose up -d --wait opensearch
 
-    - name: Test redbox with pytest
-      run: |
-        make test-redbox
+      - name: Test redbox with pytest
+        run: |
+          make test-redbox
 
-    - name: Move coverage report
-      run: |
-        find . -name coverage.xml -exec mv {} ./coverage.xml \;
+      - name: Move coverage report
+        run: |
+          find . -name coverage.xml -exec mv {} ./coverage.xml \;
 
-    - name: Upload results to Codecov
-      uses: codecov/codecov-action@v5
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   test-django:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v3
-      with:
-        python-version: "3.12"
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.12"
 
-    - name: Set up Poetry
-      uses: abatilo/actions-poetry@v2
-      with:
-        poetry-version: 2.2.1
+      - name: Set up Poetry
+        uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: 2.2.1
 
-    - name: Build Containers
-      run: |
-        mkdir -p data/elastic/
-        chmod -R 777 data/
-        cp tests/.env.test .env
-        sed -i -e "s/^OBJECT_STORE=.*/OBJECT_STORE=minio/" .env
-        docker compose up -d --wait opensearch minio db
-        docker ps
+      - name: Build Containers
+        run: |
+          mkdir -p data/elastic/
+          chmod -R 777 data/
+          cp tests/.env.test .env
+          sed -i -e "s/^OBJECT_STORE=.*/OBJECT_STORE=minio/" .env
+          docker compose up -d --wait opensearch minio db
+          docker ps
 
-    - name: Test django with pytest
-      run: |
-        make test-django
+      - name: Test django with pytest
+        run: |
+          make test-django
 
-    - name: Move coverage report
-      run: |
-        find . -name coverage.xml -exec mv {} ./coverage.xml \;
+      - name: Move coverage report
+        run: |
+          find . -name coverage.xml -exec mv {} ./coverage.xml \;
 
-    - name: Upload results to Codecov
-      uses: codecov/codecov-action@v5
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
-    - name: Test migrations
-      run: |
-        make check-migrations
-
+      - name: Test migrations
+        run: |
+          make check-migrations
 
   static_checks:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v3
-      with:
-        python-version: "3.12"
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.12"
 
-    - name: Set up Poetry
-      uses: abatilo/actions-poetry@v2
-      with:
-        poetry-version: 2.2.1
+      - name: Set up Poetry
+        uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: 2.2.1
 
-    - name: Install dependencies
-      run: |
-        poetry install --only dev --no-ansi
+      - name: Install dependencies
+        run: |
+          poetry install --only dev --no-ansi
 
-    - name: Format code
-      run: |
-        poetry run ruff format . --check
-        poetry run ruff check .
+      - name: Format code
+        run: |
+          poetry run ruff format . --check
+          poetry run ruff check .

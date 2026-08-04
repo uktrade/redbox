@@ -298,6 +298,7 @@ STORAGES = {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
 }
+AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL")
 
 # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
 # Mozilla guidance max-age 2 years
@@ -311,7 +312,7 @@ else:
     LOCALHOST = socket.gethostbyname(socket.gethostname())
     ALLOWED_HOSTS = ["*"]
 
-if not ENVIRONMENT.is_local:
+if not ENVIRONMENT.is_local or not ENVIRONMENT.is_integration:
 
     def filter_transactions(event, _hint):
         url_string = event["request"]["url"]
@@ -398,7 +399,7 @@ LOGGING = {
     "root": {"handlers": ["console"], "level": LOG_LEVEL},
     "loggers": {
         "application": {
-            "handlers": [LOG_HANDLER],
+            "handlers": [LOG_HANDLER, "console"],
             "level": LOG_LEVEL,
             "propagate": True,
         },
@@ -415,6 +416,11 @@ LOGGING = {
             "handlers": ["asim"],
             "level": "ERROR",
             "propagate": False,
+        },
+        "authbroker-client": {
+            "handlers": ["asim", "console"],
+            "level": "DEBUG",
+            "propagate": True,
         },
     },
 }
@@ -469,7 +475,6 @@ Q_CLUSTER = {
 GOOGLE_ANALYTICS_TAG = env.str("GOOGLE_ANALYTICS_TAG", " ")
 GOOGLE_ANALYTICS_LINK = env.str("GOOGLE_ANALYTICS_LINK", " ")
 GOOGLE_ANALYTICS_IFRAME_SRC = env.str("GOOGLE_ANALYTICS_IFRAME_SRC", " ")
-# TEST_SSO_PROVIDER_SET_RETURNED_ACCESS_TOKEN = 'someCode'
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -498,11 +503,6 @@ DEFAULT_MODEL_ID = env.str("DEFAULT_MODEL_ID", "anthropic.claude-3-sonnet-202402
 WEB_SEARCH_API_LIMIT = env.int("WEB_SEARCH_API_LIMIT", 100)
 
 ADMIN_EMAIL = env.str("ADMIN_EMAIL", "")
-
-FEEDBACK_LINK = env.str(
-    "FEEDBACK_LINK",
-    "https://teams.microsoft.com/l/channel/19%3A9ae6b3b539724595a3139c2b16dc56ef%40thread.tacv2/Redbox%20trial%20participants%20Chat%20Channel?groupId=7a71ce78-fe77-4185-825c-ae40cb07d614&tenantId=8fa217ec-33aa-46fb-ad96-dfe68006bb86",
-)
 
 PRODUCT_NAME = env.str("PRODUCT_NAME", "DBT Assist")
 MOCK_SSO_USERNAME = env.str("MOCK_SSO_USERNAME", None)

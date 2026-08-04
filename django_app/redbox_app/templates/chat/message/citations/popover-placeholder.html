@@ -1,0 +1,19 @@
+{% from "macros/govuk-button.html" import govukButton %}
+
+
+{% if footnote_counter %}
+    <span>
+        {% call govukButton(
+            text=footnote_counter,
+            classes="rb-footnote-link",
+            prevent_double_click=True,
+            dont_submit=True,
+            attributes={
+                "disabled": None,
+                "aria-disabled": "true"
+            }
+        ) %}
+
+        {% endcall %}
+    </span>
+{% endif %}

@@ -1,5 +1,6 @@
 import datetime
 import re
+from urllib.parse import urlparse
 
 import humanize
 import jinja2
@@ -90,7 +91,7 @@ def get_menu_items(user):
         items.append({"text": "Tools", "href": url("tools")})
 
     items.append({"text": "Profile", "href": url("settings")})
-    items.append({"text": "Give us feedback", "href": settings.FEEDBACK_LINK})
+    items.append({"text": "Give us feedback", "href": url("feedback")})
     items.append({"text": "Log out", "href": url("signed-out")})
 
     return items
@@ -115,6 +116,15 @@ def show_all_attrs(value) -> str:
     return str("\n".join(result))
 
 
+def domain(url: str) -> str:
+    if not url:
+        return ""
+
+    parsed = urlparse(str(url))
+
+    return parsed.netloc.removeprefix("www.")
+
+
 def environment(**options):
     extra_options = {}
 
@@ -136,6 +146,7 @@ def environment(**options):
             "environment": settings.ENVIRONMENT.value,
             "security": settings.MAX_SECURITY_CLASSIFICATION.value,
             "show_all_attrs": show_all_attrs,
+            "domain": domain,
         }
     )
     env.globals.update(
@@ -155,7 +166,6 @@ def environment(**options):
             "flag_is_active": flag_is_active,
             "flags": flags,
             "get_menu_items": get_menu_items,
-            "feedback_link": settings.FEEDBACK_LINK,
             "product_name": get_product_name,
             "contact_email": settings.CONTACT_EMAIL,
             "approved_file_extensions": APPROVED_FILE_EXTENSIONS,

@@ -303,6 +303,14 @@ class TestNewRoutes:
                 "Legislation_Search_Agent",
                 ANSWER_WITH_CITATION,
             ),
+            (
+                "external retrieval no doc",
+                "Find external information about this topic.",
+                [0, 0],
+                True,
+                "External_Retrieval_Agent",
+                ANSWER_WITH_CITATION,
+            ),
         ],
     )
     @pytest.mark.asyncio
@@ -337,6 +345,8 @@ class TestNewRoutes:
             "Web_Search_Agent",
             "Legislation_Search_Agent",
             "Tabular_Agent",
+            "Summarisation_Agent",
+            "Datahub_Agent",
         ]:
             # This is a mocker for the new agent refactor. You will need to remove other mocking once all agents have been refactored.
             mocker.patch(
