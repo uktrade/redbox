@@ -145,7 +145,7 @@ class Settings(BaseSettings):
     aws_secret_key: str | None = os.environ.get("AWS_S3_SECRET_ACCESS_KEY", None)
 
     aws_region: str = "eu-west-2"
-    bucket_name: str = "redbox-storage-dev"
+    bucket_name: str = "redbox-bucket-dev"
     aws_s3_endpoint_url: str | None = os.environ.get("AWS_S3_ENDPOINT_URL", None)
 
     ## maximum number of metadata files to pull from opensearch

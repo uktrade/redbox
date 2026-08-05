@@ -46,6 +46,9 @@ django = "5.2.12"
 protobuf = "5.29.6"
 pandas = "^2.3.3"
 unstructured = "^0.21.5"
+python-pptx = "^1.0.2"
+lxml = "^6.0"
+beautifulsoup4 = "^4.14"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.2"
