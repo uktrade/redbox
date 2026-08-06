@@ -92,11 +92,11 @@ services:
     image: minio/minio
     container_name: minio
     expose:
-      - "9000"
-      - "9001"
+      - "9005"
+      - "9006"
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9005:9005"
+      - "9006:9006"
     entrypoint: sh
     environment:
       - MINIO_ACCESS_KEY=minioadmin
