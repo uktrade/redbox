@@ -2,10 +2,9 @@ import asyncio
 import logging
 from typing import Any, Dict, List, Tuple
 
-import httpx
 from langchain_mcp_adapters.tools import load_mcp_tools
 from mcp import ClientSession
-from mcp.client.streamable_http import streamable_http_client
+from mcp.client.streamable_http import create_mcp_http_client, streamable_http_client
 
 import redbox.graph.nodes.runner.models as tr_models
 from redbox.api.format import format_mcp_tool_response
@@ -61,7 +60,7 @@ async def execute_mcp_tools_async(
 
     headers = _get_mcp_headers(sso_access_token)
     try:
-        async with httpx.AsyncClient(headers=headers or {}) as http_client:
+        async with create_mcp_http_client(headers=headers or None) as http_client:
             async with streamable_http_client(
                 mcp_url,
                 http_client=http_client,

@@ -52,16 +52,15 @@ class TestExecuteMCPTools:
         return mock_session
 
     @pytest.mark.parametrize(
-        "url,expected_exceptions",
+        "url",
         [
-            ("http://fake-mcp-url", (ConnectError)),  # non-existent hostname
-            ("http://127.0.0.1:59999", (ConnectError)),  # unused localhost port
+            "http://fake-mcp-url",  # non-existent hostname
+            "http://127.0.0.1:59999",  # unused localhost port
         ],
     )
     def test_connection_failure(
         self,
         url: Literal["http://fake-mcp-url"] | Literal["http://127.0.0.1:59999"],
-        expected_exceptions: ConnectError,
     ):
         """Test execute_mcp_tools fails when MCP server cannot be reached."""
         wrapped = execute_mcp_tools(
@@ -78,7 +77,7 @@ class TestExecuteMCPTools:
 
         # All inner exceptions should match the expected types
         exceptions = exc_info.value.exceptions
-        assert all(isinstance(e, expected_exceptions) for e in exceptions)
+        assert all(isinstance(e, ConnectError) or type(e).__name__ == "ConnectError" for e in exceptions)
 
     @pytest.mark.parametrize("expected_tool_result, expected_documents", MCP_TOOL_RESULTS)
     @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")

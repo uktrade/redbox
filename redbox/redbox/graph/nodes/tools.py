@@ -1,6 +1,5 @@
 import csv
 import hashlib
-import httpx
 import json
 import logging
 import random
@@ -24,7 +23,7 @@ from langchain_core.tools import Tool, tool
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langgraph.prebuilt import InjectedState
 from mcp import ClientSession
-from mcp.client.streamable_http import streamable_http_client
+from mcp.client.streamable_http import create_mcp_http_client, streamable_http_client
 from mohawk import Sender
 from opensearchpy import OpenSearch
 from sklearn.metrics.pairwise import cosine_similarity
@@ -1035,7 +1034,7 @@ async def get_datahub_mcp_tools(sso_token_getter: Callable[[], str] | None = Non
 
         headers = _get_mcp_headers(sso_access_token)
 
-        async with httpx.AsyncClient(headers=headers or {}) as http_client:
+        async with create_mcp_http_client(headers=headers or None) as http_client:
             async with (
                 streamable_http_client(
                     datahub_mcp_url,
