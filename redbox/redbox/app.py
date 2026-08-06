@@ -128,6 +128,7 @@ class Redbox:
         self.agent_configs["Imf_Search_Agent"].tools = [web_search]
         self.agent_configs["Oecd_Search_Agent"].tools = [web_search]
         self.agent_configs["Wto_Search_Agent"].tools = [web_search]
+        self.agent_configs["Mercosur_Search_Agent"].tools = [web_search]
         self.agent_configs["Submission_Question_Answer_Agent"].tools = [
             retrieve_full_text,
             retrieve_knowledge_base,
