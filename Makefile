@@ -278,6 +278,40 @@ eval_backend: ## Runs the only the necessary backend for evaluation BUCKET_NAME
 	docker compose up -d --wait worker --build
 	docker exec -it $$(docker ps -q --filter "name=minio") mc mb data/${BUCKET_NAME}
 
+EVAL_PYTHONPATH    := $(PWD)/django_app:$(PWD)/redbox
+EVAL_DJANGO_SETTINGS := tests.evaluation.django_settings
+EVAL_ENV_VARS      := PYTHONPATH=$(EVAL_PYTHONPATH) DJANGO_SETTINGS_MODULE=$(EVAL_DJANGO_SETTINGS) ENVIRONMENT=LOCAL ENABLE_METADATA_EXTRACTION=true
+
+.PHONY: eval-retrieval
+eval-retrieval: ## Run retrieval eval suite (requires AWS + OpenSearch)
+	cd redbox && $(EVAL_ENV_VARS) poetry run pytest tests/evaluation/ -m ai -v --tb=short
+
+
+.PHONY: eval-update-baseline
+eval-update-baseline: ## Promote latest eval report to baseline.json after a verified improvement
+	cp redbox/tests/evaluation/reports/eval_report_latest.json redbox/tests/evaluation/baselines/baseline.json
+	@echo "Baseline updated. Review the diff and commit it."
+
+
+.PHONY: eval-ingest-corpus
+eval-ingest-corpus: ## Ingest all corpus PDFs into the inspect index for browsing
+	cd redbox && $(EVAL_ENV_VARS) poetry run python tests/evaluation/scripts/ingest_corpus.py
+
+
+.PHONY: eval-query-index
+eval-query-index: ## Browse chunks in the inspect index (set INDEX= and/or KEYWORD=)
+	cd redbox && $(EVAL_ENV_VARS) poetry run python tests/evaluation/scripts/query_index.py \
+		$$([ -n "$(INDEX)" ] && echo "--index $(INDEX)") \
+		$$([ -n "$(KEYWORD)" ] && echo "--keyword '$(KEYWORD)'")\
+		$$([ -n "$(URI)" ] && echo "--uri '$(URI)'")\
+
+
+.PHONY: eval-generate-qa
+eval-generate-qa: ## Generate candidate Q&A pairs from a PDF (set PDF= path)
+	cd redbox && $(EVAL_ENV_VARS) poetry run python tests/evaluation/scripts/generate_qa.py \
+       --pdf $(PDF) --output /tmp/candidate_qa.json && \
+	echo "Review /tmp/candidate_qa.json then copy approved entries into tests/evaluation/dataset/retrieval_eval_set.json"
+
 .PHONY: help
 help: ## Show this help
 	@ grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(makefile_name) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1,$$2}'
