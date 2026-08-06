@@ -6,7 +6,9 @@ A production-emulator test suite that measures the quality of Assist's retrieval
 
 ## Prerequisites checklist
 
-Before running any eval command, confirm all five items below are in place.
+Before running any eval command, ensure the application is running. The application has been tested using the debugger locally. It is not guaranteed it will work when run in containers. 
+
+Skip to step 4 if the application is already running locally with OpenSearch instance and AWS Creds all available. If not, check item 1 to 3.
 
 ### 1. OpenSearch running
 
@@ -54,7 +56,7 @@ Place the CPTPP Impact Assessment PDF at:
 redbox/tests/evaluation/dataset/corpus/cptpp_impact_assessment.pdf
 ```
 
-The file is not committed to the repository. Obtain it from the shared document store and copy it here before running. The eval will fail with a clear error if this directory is empty.
+The eval will fail with a clear error if this directory is empty. Ideally, multiple pdfs can be placed in this directory.
 
 ### 5. Poetry dependencies installed
 
@@ -184,15 +186,13 @@ git commit -m "chore(eval): update retrieval baseline after <describe change>"
 | `pydantic ValidationError: enable_metadata_extraction` | `ENABLE_METADATA_EXTRACTION` env var not set | Add `ENABLE_METADATA_EXTRACTION=true` to your `.env`, or use `make eval-*` |
 | `ModuleNotFoundError: No module named 'tests.evaluation'` | `PYTHONPATH` does not include the redbox package root | Use `make eval-*` or set `PYTHONPATH=$(PWD)/django_app:$(PWD)/redbox` |
 | `django.core.exceptions.ImproperlyConfigured` pointing to `redbox_app.settings` | `pytest-dotenv` loaded `tests/.env.test` before the eval bootstrap | Expected — `run_eval.py` force-overrides `DJANGO_SETTINGS_MODULE`. Ensure `run_eval.py` is imported *before* any other `redbox.*` import. |
-| OpenSearch `ConnectionError` | OpenSearch not running | `docker compose up -d --wait opensearch` |
-| `NoCredentialsError` from boto3 | AWS credentials not configured | Set `AWS_PROFILE` or explicit `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` env vars |
 | Ablation table shows identical With/Without Gaussian columns | P0 bug: `metadata.file_name.keyword` in `queries.py:345` | Change to `metadata.uri.keyword` — see commit history for the fix |
 
 ---
 
 ## Adding new Q&A pairs
 
-1. Use `make eval-generate-qa PDF=path/to/file.pdf` to generate candidates.
+1. Check `retrieval_eval_set.json` and input questions following the format. Alternatively, use `make eval-generate-qa PDF=path/to/file.pdf` to generate candidates (TBD).
 2. Review the output at `/tmp/candidate_qa.json`. Remove any pairs where the snippet is too generic or appears in many chunks.
 3. Copy approved entries into `dataset/retrieval_eval_set.json`.
 4. Assign a unique `id` (e.g. `cptpp_011`) and a `difficulty` (`easy`, `medium`, or `hard`).
