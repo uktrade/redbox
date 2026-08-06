@@ -113,6 +113,10 @@ prompt_configs: Dict[str, PromptConfig] = {
         system=prompts.WTO_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
         prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
     ),
+    "Mercosur_Search_Agent": PromptConfig(
+        system=prompts.MEROCSUR_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
+        prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
+    ),
     "Summarisation_Agent": PromptConfig(
         system=prompts.CHAT_WITH_DOCS_SYSTEM_PROMPT,
         question=prompts.CHAT_WITH_DOCS_QUESTION_PROMPT,
@@ -311,6 +315,14 @@ agent_configs: Dict[str, AgentConfig] = {
         name="Wto_Search_Agent",
         description=prompts.WTO_SEARCH_AGENT_DESC,
         prompt=prompt_configs["Wto_Search_Agent"],
+        parser=None,
+        default_agent=False,
+        agents_max_tokens=10000,
+    ),
+    "Mercosur_Search_Agent": AgentConfig(
+        name="Mercosur_Search_Agent",
+        description=prompts.MERCOSUR_SEARCH_AGENT_DESC,
+        prompt=prompt_configs["Mercosur_Search_Agent"],
         parser=None,
         default_agent=False,
         agents_max_tokens=10000,
