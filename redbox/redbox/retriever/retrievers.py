@@ -1,9 +1,10 @@
-from collections import defaultdict
 import logging
 import os
+from collections import defaultdict
 from copy import deepcopy
 from functools import partial
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union, cast
+from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence,
+                    Union, cast)
 
 from elasticsearch import Elasticsearch, TransportError
 from kneed import KneeLocator
@@ -12,23 +13,18 @@ from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.retrievers import BaseRetriever
 from opensearchpy import OpenSearch, OpenSearchException
-
 # from elasticsearch.helpers import scan
 from opensearchpy.helpers import scan
 
 from redbox.models.chain import RedboxState
 from redbox.models.file import ChunkResolution
-from redbox.retriever.queries import (
-    add_document_filter_scores_to_query,
-    build_document_query,
-    get_all,
-    get_knowledge_base_metadata,
-    get_knowledge_base_tabular_metadata,
-    get_tabular_metadata,
-    get_schematised_tabular_chunks,
-    get_metadata,
-    get_minimum_metadata,
-)
+from redbox.retriever.queries import (add_document_filter_scores_to_query,
+                                      build_document_query, get_all,
+                                      get_knowledge_base_metadata,
+                                      get_knowledge_base_tabular_metadata,
+                                      get_metadata, get_minimum_metadata,
+                                      get_schematised_tabular_chunks,
+                                      get_tabular_metadata)
 from redbox.transform import merge_documents, sort_documents
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
@@ -214,6 +210,7 @@ class ParameterisedElasticsearchRetriever(BaseRetriever):
     embedding_model: Embeddings
     embedding_field_name: str = "embedding"
     chunk_resolution: ChunkResolution = ChunkResolution.normal
+    enable_document_query: bool = True
 
     def _get_relevant_documents(
         self, query: RedboxState, *, run_manager: CallbackManagerForRetrieverRun
@@ -241,6 +238,9 @@ class ParameterisedElasticsearchRetriever(BaseRetriever):
         # Handle nothing found (as when no files are permitted)
         if not initial_documents:
             return []
+
+        if not self.enable_document_query:
+            return sort_documents(documents=initial_documents)
 
         # Adjacent documents
         with_adjacent_query = add_document_filter_scores_to_query(
