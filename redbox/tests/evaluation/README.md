@@ -1,6 +1,6 @@
-# Redbox RAG Retrieval Evaluation Harness
+# Assit RAG Retrieval Evaluation Harness
 
-A production-faithful test suite that measures the quality of Redbox's retrieval pipeline end-to-end. Every test ingests real PDFs through the full production stack (Textract → chunking → Bedrock embeddings → OpenSearch) and retrieves against a curated set of known questions and answers.
+A production-emulator test suite that measures the quality of Assist's retrieval pipeline end-to-end. Every test ingests real PDFs through the full production stack (Textract → chunking → Bedrock embeddings → OpenSearch) and retrieves against a curated set of known questions and answers.
 
 ---
 
