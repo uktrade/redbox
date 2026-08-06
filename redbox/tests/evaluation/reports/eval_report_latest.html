@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redbox Retrieval Eval — 2026-08-06 11:58:25</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+           background: #f1f5f9; color: #1e293b; font-size: 14px; line-height: 1.5; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+
+    header { background: #1e293b; color: #f8fafc; border-radius: 8px;
+              padding: 20px 24px; margin-bottom: 20px; }
+    header h1 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+    .meta { font-size: 12px; color: #94a3b8; margin-bottom: 12px; }
+    .meta span { margin-right: 16px; }
+    .verdict { display: inline-block; padding: 4px 14px; border-radius: 20px;
+                font-weight: 700; font-size: 13px; letter-spacing: .5px; }
+    .verdict.pass   { background: #22c55e; color: #fff; }
+    .verdict.review { background: #f59e0b; color: #fff; }
+    .verdict-note { font-size: 12px; color: #94a3b8; margin-left: 12px; }
+
+    .cards { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .card { flex: 1 1 160px; background: #fff; border-radius: 8px; padding: 16px;
+             border-left: 4px solid #cbd5e1; text-align: center; }
+    .card.good { border-left-color: #22c55e; }
+    .card.warn { border-left-color: #f59e0b; }
+    .card.poor { border-left-color: #ef4444; }
+    .card-label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+                   color: #64748b; margin-bottom: 4px; }
+    .card-value { font-size: 28px; font-weight: 700; }
+    .card.good .card-value { color: #16a34a; }
+    .card.warn .card-value { color: #d97706; }
+    .card.poor .card-value { color: #dc2626; }
+    .card-note { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+
+    section { background: #fff; border-radius: 8px; padding: 20px 24px; margin-bottom: 16px; }
+    h2 { font-size: 15px; font-weight: 700; margin-bottom: 14px; color: #0f172a; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 8px 10px; border-bottom: 2px solid #e2e8f0;
+          color: #475569; font-weight: 600; white-space: nowrap; }
+    td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .target { text-align: center; color: #94a3b8; font-size: 12px; }
+    .target-col { text-align: center; white-space: nowrap; color: #64748b; font-size: 12px; }
+
+    tr.good td { background: #f0fdf4; }
+    tr.warn td { background: #fffbeb; }
+    tr.poor td { background: #fef2f2; }
+
+    .question-text { max-width: 380px; color: #334155; font-size: 12px; }
+
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px;
+              font-size: 11px; font-weight: 600; }
+    .diff-easy    { background: #dcfce7; color: #166534; }
+    .diff-medium  { background: #fef9c3; color: #713f12; }
+    .diff-hard    { background: #fee2e2; color: #991b1b; }
+    .diff-unknown { background: #f1f5f9; color: #475569; }
+
+    .legend { display: flex; gap: 16px; font-size: 12px; color: #64748b;
+               margin-top: 12px; flex-wrap: wrap; }
+    .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+            margin-right: 4px; vertical-align: middle; }
+    .dot.good { background: #22c55e; }
+    .dot.warn { background: #f59e0b; }
+    .dot.poor { background: #ef4444; }
+
+    .note { font-size: 11px; color: #94a3b8; margin-top: 8px; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Redbox RAG Retrieval Evaluation</h1>
+    <div class="meta">
+      <span>Run: 2026-08-06 11:58:25 UTC</span>
+      <span>Git: <code>2aa7d2b8</code></span>
+      <span>rag_k=30</span>
+      <span>candidates=30</span>
+      <span>gauss_scale=3 / decay=0.5</span>
+      <span>embedding: amazon.titan-embed-text-v2:0</span>
+    </div>
+    <span class="verdict pass">PASS</span>
+    <span class="verdict-note">All questions findable in top-30.</span>
+  </header>
+
+  <div class="cards">
+    <div class="card poor"><div class="card-label">Hit@10</div><div class="card-value">0.600</div><div class="card-note">Answer in first 10</div></div><div class="card poor"><div class="card-label">MRR</div><div class="card-value">0.111</div><div class="card-note">How early on average</div></div><div class="card poor"><div class="card-label">NDCG@10</div><div class="card-value">0.146</div><div class="card-note">Ranking quality</div></div><div class="card good"><div class="card-label">Hit@30</div><div class="card-value">1.000</div><div class="card-note">Answer anywhere in top 30</div></div>
+  </div>
+
+  <section>
+    <h2>All Metrics</h2>
+    <table>
+      <thead><tr><th>Metric</th><th>Score</th><th>Target</th></tr></thead>
+      <tbody><tr class="poor"><td>Hit@1</td><td class="num">0.000</td><td class="target">&gt; 0.50</td></tr><tr class="poor"><td>Hit@5</td><td class="num">0.100</td><td class="target">&gt; 0.70</td></tr><tr class="poor"><td>Hit@10</td><td class="num">0.600</td><td class="target">&gt; 0.80</td></tr><tr class="good"><td>Hit@30</td><td class="num">1.000</td><td class="target">&gt; 0.90</td></tr><tr class="poor"><td>MRR</td><td class="num">0.111</td><td class="target">&gt; 0.50</td></tr><tr class="poor"><td>Precision@5</td><td class="num">0.020</td><td class="target">&gt; 0.30</td></tr><tr class="poor"><td>Precision@10</td><td class="num">0.060</td><td class="target">&gt; 0.20</td></tr><tr class="poor"><td>NDCG@5</td><td class="num">0.043</td><td class="target">&gt; 0.50</td></tr><tr class="poor"><td>NDCG@10</td><td class="num">0.146</td><td class="target">&gt; 0.60</td></tr><tr><td>Questions</td><td class="num">10</td><td class="target">—</td></tr></tbody>
+    </table>
+    <p class="note">
+      Green = at or above target &nbsp;|&nbsp;
+      Amber = within 25% below target &nbsp;|&nbsp;
+      Red = below 75% of target
+    </p>
+  </section>
+
+  <section>
+    <h2>What these metrics mean</h2>
+    <p style="font-size:13px;color:#475569;margin-bottom:12px;">
+      All metrics are macro-averaged across 10 question(s).
+      Relevance is determined by exact substring match against a gold snippet
+      (case-insensitive). No LLM judge is used.
+    </p>
+    <table>
+      <thead><tr><th>Metric</th><th>Target</th><th>Plain English</th></tr></thead>
+      <tbody><tr><td><strong>Hit@1</strong></td><td class="target-col">&gt; 0.50</td><td>Was the single top result relevant? The strictest ranking test.</td></tr><tr><td><strong>Hit@5</strong></td><td class="target-col">&gt; 0.70</td><td>Was a relevant chunk anywhere in the first 5 results? The primary pass/fail bar for easy questions.</td></tr><tr><td><strong>Hit@10</strong></td><td class="target-col">&gt; 0.80</td><td>Was a relevant chunk in the first 10 results? The primary bar for hard questions.</td></tr><tr><td><strong>Hit@30</strong></td><td class="target-col">&gt; 0.90</td><td>Was a relevant chunk anywhere in the top 30? A miss here means the content was never retrieved at all.</td></tr><tr><td><strong>MRR</strong></td><td class="target-col">&gt; 0.50</td><td>Mean Reciprocal Rank — 1 / rank, averaged over all questions. 1.0 = always first result. Higher is better.</td></tr><tr><td><strong>Precision@5</strong></td><td class="target-col">&gt; 0.30</td><td>Of the first 5 results returned, what fraction were relevant? Measures list quality, not just presence.</td></tr><tr><td><strong>Precision@10</strong></td><td class="target-col">&gt; 0.20</td><td>Same as Precision@5 but across 10 results. Lower is expected — more results dilute precision.</td></tr><tr><td><strong>NDCG@5</strong></td><td class="target-col">&gt; 0.50</td><td>Normalised Discounted Cumulative Gain at 5. Penalises relevant answers appearing lower in the list. 1.0 = perfect.</td></tr><tr><td><strong>NDCG@10</strong></td><td class="target-col">&gt; 0.60</td><td>Best single number for overall ranking quality. Combines Hit@10 and position — a relevant answer at rank 3 scores higher than at rank 9.</td></tr></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Per-Question Results</h2>
+    <div class="legend">
+      <span><span class="dot good"></span>Rank 1–5 (top-5 pass)</span>
+      <span><span class="dot warn"></span>Rank 6–10 (borderline)</span>
+      <span><span class="dot poor"></span>Rank &gt;10 or not found</span>
+    </div>
+    <br>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Difficulty</th><th>Question</th>
+          <th>1st Rank</th><th>Hit@5</th><th>MRR</th><th>NDCG@10</th>
+        </tr>
+      </thead>
+      <tbody><tr class="poor"><td>cptpp_001</td><td><span class="badge diff-easy">easy</span></td><td class="question-text"></td><td class="num">18</td><td class="num">0</td><td class="num">0.06</td><td class="num">0.00</td></tr><tr class="good"><td>cptpp_002</td><td><span class="badge diff-easy">easy</span></td><td class="question-text"></td><td class="num">4</td><td class="num">1</td><td class="num">0.25</td><td class="num">0.43</td></tr><tr class="warn"><td>cptpp_003</td><td><span class="badge diff-easy">easy</span></td><td class="question-text"></td><td class="num">8</td><td class="num">0</td><td class="num">0.12</td><td class="num">0.19</td></tr><tr class="poor"><td>cptpp_004</td><td><span class="badge diff-easy">easy</span></td><td class="question-text"></td><td class="num">16</td><td class="num">0</td><td class="num">0.06</td><td class="num">0.00</td></tr><tr class="poor"><td>cptpp_005</td><td><span class="badge diff-medium">medium</span></td><td class="question-text"></td><td class="num">23</td><td class="num">0</td><td class="num">0.04</td><td class="num">0.00</td></tr><tr class="warn"><td>cptpp_006</td><td><span class="badge diff-medium">medium</span></td><td class="question-text"></td><td class="num">10</td><td class="num">0</td><td class="num">0.10</td><td class="num">0.29</td></tr><tr class="poor"><td>cptpp_007</td><td><span class="badge diff-medium">medium</span></td><td class="question-text"></td><td class="num">13</td><td class="num">0</td><td class="num">0.08</td><td class="num">0.00</td></tr><tr class="warn"><td>cptpp_008</td><td><span class="badge diff-hard">hard</span></td><td class="question-text"></td><td class="num">8</td><td class="num">0</td><td class="num">0.12</td><td class="num">0.32</td></tr><tr class="warn"><td>cptpp_009</td><td><span class="badge diff-hard">hard</span></td><td class="question-text"></td><td class="num">8</td><td class="num">0</td><td class="num">0.12</td><td class="num">0.12</td></tr><tr class="warn"><td>cptpp_010</td><td><span class="badge diff-hard">hard</span></td><td class="question-text"></td><td class="num">7</td><td class="num">0</td><td class="num">0.14</td><td class="num">0.11</td></tr></tbody>
+    </table>
+    <p class="note">
+      "1st Rank" = position of the first relevant chunk in the returned list.
+      Hit@5 is binary (1 or 0). Question text is populated when run via run_eval.py.
+    </p>
+  </section>
+
+  <section>
+    <h2>Results by Difficulty</h2>
+    <table>
+      <thead><tr><th>Difficulty</th><th>N</th><th>Hit@5</th><th>Hit@10</th><th>MRR</th></tr></thead>
+      <tbody><tr><td><span class="badge diff-easy">easy</span></td><td>4</td><td class="num">0.250</td><td class="num">0.500</td><td class="num">0.123</td></tr><tr><td><span class="badge diff-medium">medium</span></td><td>3</td><td class="num">0.000</td><td class="num">0.333</td><td class="num">0.073</td></tr><tr><td><span class="badge diff-hard">hard</span></td><td>3</td><td class="num">0.000</td><td class="num">1.000</td><td class="num">0.131</td></tr></tbody>
+    </table>
+  </section>
+</div>
+</body>
+</html>
