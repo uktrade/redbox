@@ -49,6 +49,7 @@ unstructured = "^0.21.5"
 python-pptx = "^1.0.2"
 lxml = "^6.0"
 beautifulsoup4 = "^4.14"
+Markdown = "^3.8"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.2"
