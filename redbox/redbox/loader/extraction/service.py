@@ -375,6 +375,7 @@ class DocumentExtractionService:
         display_name = os.path.basename(file_name).lower()
 
         # HEAD only - avoids pulling the whole object into memory for files that won't need local bytes
+        logger.warning("%s is the bucket name and the key is %s", self.bucket, s3_key)
         head = self.s3.head_object(Bucket=self.bucket, Key=s3_key)
         file_size = head["ContentLength"]
 

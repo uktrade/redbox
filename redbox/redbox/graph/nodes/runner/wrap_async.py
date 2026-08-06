@@ -1,14 +1,15 @@
-import logging
 import asyncio
-from typing import List, Any, Tuple, Dict
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+import logging
+from typing import Any, Dict, List, Tuple
+
+import httpx
 from langchain_mcp_adapters.tools import load_mcp_tools
+from mcp import ClientSession
+from mcp.client.streamable_http import streamable_http_client
 
 import redbox.graph.nodes.runner.models as tr_models
-from redbox.models.file import ChunkCreatorType
 from redbox.api.format import format_mcp_tool_response
-
+from redbox.models.file import ChunkCreatorType
 
 log = logging.getLogger(__name__)
 
@@ -60,100 +61,109 @@ async def execute_mcp_tools_async(
 
     headers = _get_mcp_headers(sso_access_token)
     try:
-        async with streamablehttp_client(mcp_url, headers=headers or None) as (
-            read,
-            write,
-            _,
-        ):
-            async with ClientSession(read, write) as session:
-                # Initialize the connection once
-                init_result = await asyncio.wait_for(session.initialize(), timeout=INIT_TIMEOUT)
-                server_name = init_result.serverInfo.name
-                server_version = init_result.serverInfo.version
+        async with httpx.AsyncClient(headers=headers or {}) as http_client:
+            async with streamable_http_client(
+                mcp_url,
+                http_client=http_client,
+            ) as (
+                read,
+                write,
+            ):
+                async with ClientSession(read, write) as session:
+                    # Initialize the connection once
+                    init_result = await asyncio.wait_for(
+                        session.initialize(),
+                        timeout=INIT_TIMEOUT,
+                    )
+                    server_name = init_result.serverInfo.name
+                    server_version = init_result.serverInfo.version
 
-                log.info(f"execute_mcp_tools_async - Connected to MCP server {server_name}@{server_version}")
+                    log.info(f"execute_mcp_tools_async - Connected to MCP server {server_name}@{server_version}")
 
-                # Load tools once
-                tools = await asyncio.wait_for(load_mcp_tools(session), timeout=TOOL_LOADING_TIMEOUT)
-
-                # Create a lookup map for faster access
-                tools_map = {t.name: t for t in tools}
-
-                # Execute each tool call in sequence
-                for i, tool_call in enumerate(mcp_input.tool_calls):
-                    tool_call_id = tool_call.get("id")
-                    tool_name = tool_call.get("name")
-                    args = tool_call.get("args").copy()
-
-                    log.info(
-                        f"execute_mcp_tools_async - Executing tool {i + 1}/{len(mcp_input.tool_calls)}: '{tool_name}'"
+                    # Load tools once
+                    tools = await asyncio.wait_for(
+                        load_mcp_tools(session),
+                        timeout=TOOL_LOADING_TIMEOUT,
                     )
 
-                    selected_tool = tools_map.get(tool_name)
-                    if not selected_tool:
-                        error_msg = f"Tool '{tool_name}' not found on server"
-                        log.error(f"execute_mcp_tools_async - {error_msg}")
+                    # Create a lookup map for faster access
+                    tools_map = {t.name: t for t in tools}
 
-                        failures.append(
-                            tr_models.ToolCallResult.Failure(
-                                tool_name=tool_name,
-                                metadata={"tool_args": args},
-                                error=f"MCP Async tool '{tool_name}' not found on server '{mcp_url}'",
-                            )
-                        )
-                        continue
+                    # Execute each tool call in sequence
+                    for i, tool_call in enumerate(mcp_input.tool_calls):
+                        tool_call_id = tool_call.get("id")
+                        tool_name = tool_call.get("name")
+                        args = tool_call.get("args").copy()
 
-                    # Remove intermediate step argument if not required by tool
-                    if "is_intermediate_step" not in selected_tool.args_schema.get("required", []) and args.get(
-                        "is_intermediate_step"
-                    ):
-                        args.pop("is_intermediate_step")
-                        log.debug("execute_mcp_tools_async - Removed is_intermediate_step from args")
-
-                    log.debug(f"execute_mcp_tools_async - Invoking '{tool_name}' with args: {args}")
-
-                    try:
-                        result = await asyncio.wait_for(selected_tool.ainvoke(args), timeout=INVOKE_TIMEOUT)
-
-                        log.info(f"execute_mcp_tools_async - Tool '{tool_name}' completed successfully")
-
-                        # Format result if needed
-                        if creator_type == ChunkCreatorType.datahub:
-                            log.debug(
-                                f"execute_mcp_tools_async - Formatting response for creator_type='{creator_type}'"
-                            )
-                            formatted_result = format_mcp_tool_response(
-                                tool_response=result,
-                                creator_type=creator_type,
-                            )
-                            results[tool_call_id] = formatted_result
-
-                        else:
-                            results[tool_call_id] = result
-
-                    except asyncio.TimeoutError:
-                        error_msg = f"Tool '{tool_name}' timed out after {INVOKE_TIMEOUT}s"
-                        log.error(f"execute_mcp_tools_async - {error_msg}")
-
-                        failures.append(
-                            tr_models.ToolCallResult.Failure(
-                                tool_name=tool_name,
-                                metadata={"tool_args": args},
-                                error=f"MCP Async tool '{tool_name}' timed out on server '{mcp_url}' - asyncio.TimeoutError",
-                            )
+                        log.info(
+                            f"execute_mcp_tools_async - Executing tool {i + 1}/{len(mcp_input.tool_calls)}: '{tool_name}'"
                         )
 
-                    except Exception as e:
-                        error_msg = f"Tool '{tool_name}' failed: {str(e)}"
-                        log.error(f"execute_mcp_tools_async - {error_msg}", exc_info=True)
+                        selected_tool = tools_map.get(tool_name)
+                        if not selected_tool:
+                            error_msg = f"Tool '{tool_name}' not found on server"
+                            log.error(f"execute_mcp_tools_async - {error_msg}")
 
-                        failures.append(
-                            tr_models.ToolCallResult.Failure(
-                                tool_name=tool_name,
-                                metadata={"tool_args": args},
-                                error=f"MCP Async tool '{tool_name}' got an unknown exception server '{mcp_url}' - {e}",
+                            failures.append(
+                                tr_models.ToolCallResult.Failure(
+                                    tool_name=tool_name,
+                                    metadata={"tool_args": args},
+                                    error=f"MCP Async tool '{tool_name}' not found on server '{mcp_url}'",
+                                )
                             )
-                        )
+                            continue
+
+                        # Remove intermediate step argument if not required by tool
+                        if "is_intermediate_step" not in selected_tool.args_schema.get("required", []) and args.get(
+                            "is_intermediate_step"
+                        ):
+                            args.pop("is_intermediate_step")
+                            log.debug("execute_mcp_tools_async - Removed is_intermediate_step from args")
+
+                        log.debug(f"execute_mcp_tools_async - Invoking '{tool_name}' with args: {args}")
+
+                        try:
+                            result = await asyncio.wait_for(selected_tool.ainvoke(args), timeout=INVOKE_TIMEOUT)
+
+                            log.info(f"execute_mcp_tools_async - Tool '{tool_name}' completed successfully")
+
+                            # Format result if needed
+                            if creator_type == ChunkCreatorType.datahub:
+                                log.debug(
+                                    f"execute_mcp_tools_async - Formatting response for creator_type='{creator_type}'"
+                                )
+                                formatted_result = format_mcp_tool_response(
+                                    tool_response=result,
+                                    creator_type=creator_type,
+                                )
+                                results[tool_call_id] = formatted_result
+
+                            else:
+                                results[tool_call_id] = result
+
+                        except asyncio.TimeoutError:
+                            error_msg = f"Tool '{tool_name}' timed out after {INVOKE_TIMEOUT}s"
+                            log.error(f"execute_mcp_tools_async - {error_msg}")
+
+                            failures.append(
+                                tr_models.ToolCallResult.Failure(
+                                    tool_name=tool_name,
+                                    metadata={"tool_args": args},
+                                    error=f"MCP Async tool '{tool_name}' timed out on server '{mcp_url}' - asyncio.TimeoutError",
+                                )
+                            )
+
+                        except Exception as e:
+                            error_msg = f"Tool '{tool_name}' failed: {str(e)}"
+                            log.error(f"execute_mcp_tools_async - {error_msg}", exc_info=True)
+
+                            failures.append(
+                                tr_models.ToolCallResult.Failure(
+                                    tool_name=tool_name,
+                                    metadata={"tool_args": args},
+                                    error=f"MCP Async tool '{tool_name}' got an unknown exception server '{mcp_url}' - {e}",
+                                )
+                            )
 
     except asyncio.TimeoutError as e:
         log.error(f"execute_mcp_tools_async - Session initialization/setup timed out: {e}")

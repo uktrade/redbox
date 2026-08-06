@@ -1,5 +1,6 @@
 import csv
 import hashlib
+import httpx
 import json
 import logging
 import random
@@ -23,7 +24,7 @@ from langchain_core.tools import Tool, tool
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langgraph.prebuilt import InjectedState
 from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import streamable_http_client
 from mohawk import Sender
 from opensearchpy import OpenSearch
 from sklearn.metrics.pairwise import cosine_similarity
@@ -1033,34 +1034,39 @@ async def get_datahub_mcp_tools(sso_token_getter: Callable[[], str] | None = Non
             log.error("get_datahub_mcp_tools - Datahub MCP sso_access_token is None")
 
         headers = _get_mcp_headers(sso_access_token)
-        async with (
-            streamablehttp_client(datahub_mcp_url, headers=headers or None) as (
-                read,
-                write,
-                _,
-            ),
-            ClientSession(read, write) as session,
-        ):
-            # Initialize the connection
-            await session.initialize()
-            # Get tools
-            tools = await load_mcp_tools(session)
-            # adding URL metadata so that the agent can execute the tool later
-            for tool in tools:
-                tool.metadata = {
-                    "url": datahub_mcp_url,
-                    "creator_type": ChunkCreatorType.datahub,
-                    "sso_access_token": SensitiveValue(sso_access_token),
-                }
-                if agent_loop:  # if loop is True, add intermediate steps into schema so that it is exposed to LLM
-                    tool.args_schema["properties"] = tool.args_schema.get("properties", {})
-                    tool.args_schema["properties"]["is_intermediate_step"] = {"type": "string"}
 
-                    tool.args_schema["required"] = tool.args_schema.get("required", [])
-                    if "is_intermediate_step" not in tool.args_schema["required"]:
-                        tool.args_schema["required"].append("is_intermediate_step")
+        async with httpx.AsyncClient(headers=headers or {}) as http_client:
+            async with (
+                streamable_http_client(
+                    datahub_mcp_url,
+                    http_client=http_client,
+                ) as (read, write),
+                ClientSession(read, write) as session,
+            ):
+                # Initialize the connection
+                await session.initialize()
 
-            return tools
+                # Get tools
+                tools = await load_mcp_tools(session)
+
+                # adding URL metadata so that the agent can execute the tool later
+                for tool in tools:
+                    tool.metadata = {
+                        "url": datahub_mcp_url,
+                        "creator_type": ChunkCreatorType.datahub,
+                        "sso_access_token": SensitiveValue(sso_access_token),
+                    }
+
+                    if agent_loop:  # if loop is True, add intermediate steps into schema so that it is exposed to LLM
+                        tool.args_schema.setdefault("properties", {})
+                        tool.args_schema["properties"]["is_intermediate_step"] = {"type": "string"}
+
+                        tool.args_schema.setdefault("required", [])
+                        if "is_intermediate_step" not in tool.args_schema["required"]:
+                            tool.args_schema["required"].append("is_intermediate_step")
+
+                return tools
+
     except Exception as e:
         log.error("get_datahub_mcp_tools - Unable to connect to MCP server - %s", e)
         return []
