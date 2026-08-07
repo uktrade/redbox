@@ -293,7 +293,7 @@ def main() -> None:
         uri_map = {p.stem: f"{EVAL_S3_PREFIX}/{p.name}" for p in pdfs}
     else:
         print("Ingesting corpus …")
-        uri_map, uploaded_keys = ingest_corpus(env, es, vstore, verbose=True)
+        uri_map, uploaded_keys = ingest_corpus(env, es, vstore, verbose=False)
 
     try:
         print("\nRunning retrieval eval …")

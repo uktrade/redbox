@@ -208,23 +208,6 @@ def test_retrieval_ablation_gaussian(
     with_g: list[RetrievalScores] = []
     without_g: list[RetrievalScores] = []
 
-    # for entry in eval_dataset:
-    #     state = make_eval_state(entry["question"], all_uris)
-    #     snippets = entry["relevant_snippets"]
-    #     with_g.append(compute_scores(entry["id"], seeded_retriever.invoke(state), snippets))
-    #     without_g.append(compute_scores(entry["id"], seeded_retriever_no_gaussian.invoke(state), snippets))
-
-    # n = len(eval_dataset)
-    # print("\nGaussian ablation results:")
-    # print(f"{'Metric':<20} {'With Gaussian':>15} {'Without':>10} {'Delta':>8}")
-    # print("-" * 56)
-    # for metric in ("hit_at_5", "hit_at_10", "hit_at_30", "mrr", "ndcg_at_10"):
-    #     w  = sum(getattr(s, metric) for s in with_g)  / n
-    #     wo = sum(getattr(s, metric) for s in without_g) / n
-    #     print(f"{metric:<20} {w:>15.3f} {wo:>10.3f} {w - wo:>+8.3f}")
-
-
-
     for entry in eval_dataset:
         state = make_eval_state(entry["question"], all_uris)
         snippets = entry["relevant_snippets"]
