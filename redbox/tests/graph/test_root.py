@@ -29,6 +29,7 @@ class TestNewRouteGraphs:
             ("Imf_Search_Agent", ["combine_question_evaluator"]),
             ("Oecd_Search_Agent", ["combine_question_evaluator"]),
             ("Wto_Search_Agent", ["combine_question_evaluator"]),
+            ("Mercosur_Search_Agent", ["combine_question_evaluator"]),
             ("Web_Search_Agent", ["combine_question_evaluator"]),
             ("Tabular_Agent", ["combine_question_evaluator"]),
             ("Summarisation_Agent", None),
