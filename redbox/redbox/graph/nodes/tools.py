@@ -1,5 +1,6 @@
 import csv
 import hashlib
+import inspect
 import json
 import logging
 import random
@@ -7,7 +8,7 @@ import re
 import threading
 import time
 from io import StringIO
-from typing import Annotated, Callable, Iterable, Literal, Union
+from typing import Annotated, Awaitable, Callable, Iterable, Literal, Union
 
 import boto3
 import duckdb
@@ -46,6 +47,18 @@ from redbox.retriever.retrievers import SchematisedTabularChunkRetriever, query_
 from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
 
 log = logging.getLogger(__name__)
+
+
+async def _resolve_sso_access_token(
+    sso_token_getter: Callable[[], str | None | Awaitable[str | None]] | None,
+) -> str | None:
+    if sso_token_getter is None:
+        return None
+
+    token = sso_token_getter()
+    if inspect.isawaitable(token):
+        return await token
+    return token
 
 
 def get_func_logger(func):
@@ -1020,17 +1033,27 @@ def build_legislation_search_tool():
     return _search_legislation
 
 
-async def get_datahub_mcp_tools(sso_token_getter: Callable[[], str] | None = None, agent_loop=True):
+async def get_datahub_mcp_tools(
+    sso_token_getter: Callable[[], str | None | Awaitable[str | None]] | None = None,
+    agent_loop=True,
+):
     try:
         log.info("get_datahub_mcp_tools - Loading Datahub MCP tools...")
 
         mcp_settings = get_settings().datahub_mcp
         datahub_mcp_url = mcp_settings.url
 
-        sso_access_token = await sso_token_getter()
+        sso_access_token = await _resolve_sso_access_token(sso_token_getter)
 
         if not sso_access_token:
             log.error("get_datahub_mcp_tools - Datahub MCP sso_access_token is None")
+            return []
+
+        if not datahub_mcp_url:
+            log.error(
+                "get_datahub_mcp_tools - MCP_DATAHUB_URL is empty. Configure it in your environment before using Datahub MCP tools."
+            )
+            return []
 
         headers = _get_mcp_headers(sso_access_token)
 
@@ -1067,5 +1090,10 @@ async def get_datahub_mcp_tools(sso_token_getter: Callable[[], str] | None = Non
                 return tools
 
     except Exception as e:
-        log.error("get_datahub_mcp_tools - Unable to connect to MCP server - %s", e)
+        log.error(
+            "get_datahub_mcp_tools - Unable to connect to MCP server '%s' - %s",
+            datahub_mcp_url,
+            e,
+            exc_info=True,
+        )
         return []
