@@ -21,10 +21,10 @@ Update baseline after a verified improvement:
 from pathlib import Path
 
 import pytest
-
-from tests.evaluation.run_eval import make_eval_state
-from tests.evaluation.metrics.report import REGRESSION_TOLERANCE, compare_to_baseline
+from tests.evaluation.metrics.report import (REGRESSION_TOLERANCE,
+                                             compare_to_baseline)
 from tests.evaluation.metrics.retrieval import RetrievalScores, compute_scores
+from tests.evaluation.run_eval import make_eval_state
 
 
 def _entry_id(entry: dict) -> str:
@@ -196,10 +196,11 @@ def test_retrieval_ablation_gaussian(
     """
     Compare metrics with and without Gaussian re-ranking.
 
-    Does not fail on metric differences — this is an experiment, not a gate.
-    Results are printed to the terminal for review.
+    Does not fail on metric differences — this is an experiment.
+    Results are printed to the terminal for review (Should be part of 
+    the generated report)
 
-    Requires P0 bug fix (metadata.file_name.keyword → metadata.uri.keyword in
+    Requires (metadata.file_name.keyword → metadata.uri.keyword in
     queries.py:345) to be meaningful; without the fix, both configurations
     produce identical results.
     """
@@ -207,17 +208,45 @@ def test_retrieval_ablation_gaussian(
     with_g: list[RetrievalScores] = []
     without_g: list[RetrievalScores] = []
 
+    # for entry in eval_dataset:
+    #     state = make_eval_state(entry["question"], all_uris)
+    #     snippets = entry["relevant_snippets"]
+    #     with_g.append(compute_scores(entry["id"], seeded_retriever.invoke(state), snippets))
+    #     without_g.append(compute_scores(entry["id"], seeded_retriever_no_gaussian.invoke(state), snippets))
+
+    # n = len(eval_dataset)
+    # print("\nGaussian ablation results:")
+    # print(f"{'Metric':<20} {'With Gaussian':>15} {'Without':>10} {'Delta':>8}")
+    # print("-" * 56)
+    # for metric in ("hit_at_5", "hit_at_10", "hit_at_30", "mrr", "ndcg_at_10"):
+    #     w  = sum(getattr(s, metric) for s in with_g)  / n
+    #     wo = sum(getattr(s, metric) for s in without_g) / n
+    #     print(f"{metric:<20} {w:>15.3f} {wo:>10.3f} {w - wo:>+8.3f}")
+
+
+
     for entry in eval_dataset:
         state = make_eval_state(entry["question"], all_uris)
         snippets = entry["relevant_snippets"]
         with_g.append(compute_scores(entry["id"], seeded_retriever.invoke(state), snippets))
         without_g.append(compute_scores(entry["id"], seeded_retriever_no_gaussian.invoke(state), snippets))
 
+
     n = len(eval_dataset)
-    print("\nGaussian ablation results:")
-    print(f"{'Metric':<20} {'With Gaussian':>15} {'Without':>10} {'Delta':>8}")
-    print("-" * 56)
+    header = f"{'Metric':<20} {'With Gaussian':>15} {'Without':>10} {'Delta':>8}"
+    separator = "-" * 56
+    rows = []
     for metric in ("hit_at_5", "hit_at_10", "hit_at_30", "mrr", "ndcg_at_10"):
         w  = sum(getattr(s, metric) for s in with_g)  / n
         wo = sum(getattr(s, metric) for s in without_g) / n
-        print(f"{metric:<20} {w:>15.3f} {wo:>10.3f} {w - wo:>+8.3f}")
+        rows.append(f"{metric:<20} {w:>15.3f} {wo:>10.3f} {w - wo:>+8.3f}")
+
+
+    table = "\n".join(["", "Gaussian ablation results:", header, separator] + rows)
+    print(table)
+
+
+    ablation_path = Path(__file__).parent / "reports" / "ablation_latest.txt"
+    ablation_path.parent.mkdir(parents=True, exist_ok=True)
+    ablation_path.write_text(table + "\n")
+    print(f"  (saved to {ablation_path})")

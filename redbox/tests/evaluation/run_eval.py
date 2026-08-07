@@ -22,9 +22,7 @@ from __future__ import annotations
 # ---------------------------------------------------------------------------
 # Bootstrap — MUST come before any redbox.* imports.
 # The dotenv plugin (tryfirst) loads tests/.env.test from the repo root which
-# sets DJANGO_SETTINGS_MODULE=redbox_app.settings. We force-override it here
-# so the waffle → django.http → django.core.checks import chain resolves
-# against our minimal local settings (no DB, locmem cache).
+# sets DJANGO_SETTINGS_MODULE=redbox_app.settings. 
 # ---------------------------------------------------------------------------
 import os
 import sys
@@ -59,6 +57,8 @@ import boto3
 from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.messages import HumanMessage
 from opensearchpy import OpenSearch
+from tests.evaluation.metrics.report import EvalReport, compare_to_baseline
+from tests.evaluation.metrics.retrieval import compute_scores
 
 from redbox.chains.components import get_embeddings
 from redbox.loader.chunking.service import DocumentChunkingService
@@ -68,8 +68,6 @@ from redbox.models.chain import AISettings, RedboxQuery, RedboxState
 from redbox.models.file import ChunkResolution
 from redbox.models.settings import Settings
 from redbox.retriever import ParameterisedElasticsearchRetriever
-from tests.evaluation.metrics.report import EvalReport, compare_to_baseline
-from tests.evaluation.metrics.retrieval import compute_scores
 
 # ---------------------------------------------------------------------------
 # Paths & constants
