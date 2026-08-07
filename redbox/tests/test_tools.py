@@ -1,6 +1,7 @@
 import hashlib
 import os
 import re
+from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -14,6 +15,7 @@ from langgraph.prebuilt import ToolNode
 from opensearchpy import OpenSearch
 from pytest_mock import MockerFixture
 from requests import Response
+from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
 
 from redbox.api.format import reduce_chunks_by_tokens
 from redbox.graph.nodes.tools import (
@@ -28,6 +30,7 @@ from redbox.graph.nodes.tools import (
     build_search_wikipedia_tool,
     build_web_search_tool,
     format_result,
+    get_datahub_mcp_tools,
     kagi_response_to_documents,
     query_duckdb_db,
     web_search_call,
@@ -39,7 +42,6 @@ from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution,
 from redbox.models.settings import Settings
 from redbox.test.data import RedboxChatTestCase
 from redbox.transform import bedrock_tokeniser, combine_documents, flatten_document_state
-from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
 
 
 @pytest.mark.parametrize(
@@ -552,6 +554,63 @@ def test_search_knowledge_base_tool_merge_produces_empty_returns_text(mocker: Mo
 
     assert message.content
     assert message.artifact == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("getter_kind", ["sync", "async"])
+async def test_get_datahub_mcp_tools_supports_sync_and_async_token_getters(getter_kind: str):
+    mock_read, mock_write = AsyncMock(), AsyncMock()
+
+    mock_http_client_cm = AsyncMock()
+    mock_http_client_cm.__aenter__ = AsyncMock(return_value=MagicMock())
+    mock_http_client_cm.__aexit__ = AsyncMock(return_value=None)
+
+    mock_stream_cm = AsyncMock()
+    mock_stream_cm.__aenter__ = AsyncMock(return_value=(mock_read, mock_write))
+    mock_stream_cm.__aexit__ = AsyncMock(return_value=None)
+
+    mock_session = AsyncMock()
+    mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session.__aexit__ = AsyncMock(return_value=None)
+    mock_session.initialize = AsyncMock(return_value=None)
+
+    tool = MagicMock()
+    tool.name = "company_tool"
+    tool.args_schema = {}
+
+    settings = MagicMock()
+    settings.datahub_mcp.url = "http://mock-mcp-url.com/tools"
+
+    if getter_kind == "async":
+
+        async def token_getter():
+            return "fake-token"
+    else:
+
+        def token_getter():
+            return "fake-token"
+
+    with (
+        patch("redbox.graph.nodes.tools.get_settings", return_value=settings),
+        patch(
+            "redbox.graph.nodes.tools.create_mcp_http_client", return_value=mock_http_client_cm
+        ) as mock_create_http_client,
+        patch(
+            "redbox.graph.nodes.tools.streamable_http_client", return_value=mock_stream_cm
+        ) as mock_streamable_http_client,
+        patch("redbox.graph.nodes.tools.ClientSession", return_value=mock_session),
+        patch("redbox.graph.nodes.tools.load_mcp_tools", new_callable=AsyncMock) as mock_load_mcp_tools,
+    ):
+        mock_load_mcp_tools.return_value = [tool]
+
+        tools = await get_datahub_mcp_tools(sso_token_getter=token_getter)
+
+    assert tools == [tool]
+    mock_create_http_client.assert_called_once_with(headers={"Authorization": "Bearer fake-token"})
+    mock_streamable_http_client.assert_called_once()
+    mock_load_mcp_tools.assert_awaited_once_with(mock_session)
+    assert tool.metadata["url"] == "http://mock-mcp-url.com/tools"
+    assert "is_intermediate_step" in tool.args_schema["required"]
 
 
 @pytest.mark.xfail(reason="calls api")

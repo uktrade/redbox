@@ -1,25 +1,33 @@
 from typing import Literal
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ConnectError
-
-from redbox.api.format import MCPResponseMetadata
-from redbox.api.wrapper import SensitiveValue
-import redbox.graph.nodes.runner.models as tr_models
-from redbox.graph.nodes.runner.wrap_async import _get_mcp_headers, execute_mcp_tools
-from redbox.models.file import ChunkCreatorType
 from tests.conftest import MCPTool
 from tests.retriever.data import MCP_TOOL_RESULTS
 
+import redbox.graph.nodes.runner.models as tr_models
+from redbox.api.format import MCPResponseMetadata
+from redbox.api.wrapper import SensitiveValue
+from redbox.graph.nodes.runner.wrap_async import _get_mcp_headers, execute_mcp_tools
+from redbox.models.file import ChunkCreatorType
+
 
 class TestExecuteMCPTools:
+    def _assert_streamable_http_client_call(self, mock_http_client, expected_url: str, expected_token: str):
+        mock_http_client.assert_called_once()
+
+        call_args, call_kwargs = mock_http_client.call_args
+        assert call_args == (expected_url,)
+        assert "http_client" in call_kwargs
+        assert call_kwargs["http_client"].headers["Authorization"] == f"Bearer {expected_token}"
+
     def _patch_mcp_env(self, mock_load_tools, mock_http_client, mock_session_class, tools):
         """Patch MCP networking to allow execute_mcp_tools to succeed."""
-        # streamablehttp_client mock
+        # streamable_http_client mock
         mock_read, mock_write = AsyncMock(), AsyncMock()
         mock_http_cm = AsyncMock()
-        mock_http_cm.__aenter__ = AsyncMock(return_value=(mock_read, mock_write, None))
+        mock_http_cm.__aenter__ = AsyncMock(return_value=(mock_read, mock_write))
         mock_http_cm.__aexit__ = AsyncMock(return_value=None)
         mock_http_client.return_value = mock_http_cm
 
@@ -44,16 +52,15 @@ class TestExecuteMCPTools:
         return mock_session
 
     @pytest.mark.parametrize(
-        "url,expected_exceptions",
+        "url",
         [
-            ("http://fake-mcp-url", (ConnectError)),  # non-existent hostname
-            ("http://127.0.0.1:59999", (ConnectError)),  # unused localhost port
+            "http://fake-mcp-url",  # non-existent hostname
+            "http://127.0.0.1:59999",  # unused localhost port
         ],
     )
     def test_connection_failure(
         self,
         url: Literal["http://fake-mcp-url"] | Literal["http://127.0.0.1:59999"],
-        expected_exceptions: ConnectError,
     ):
         """Test execute_mcp_tools fails when MCP server cannot be reached."""
         wrapped = execute_mcp_tools(
@@ -70,11 +77,11 @@ class TestExecuteMCPTools:
 
         # All inner exceptions should match the expected types
         exceptions = exc_info.value.exceptions
-        assert all(isinstance(e, expected_exceptions) for e in exceptions)
+        assert all(isinstance(e, ConnectError) or type(e).__name__ == "ConnectError" for e in exceptions)
 
     @pytest.mark.parametrize("expected_tool_result, expected_documents", MCP_TOOL_RESULTS)
     @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
-    @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
+    @patch("redbox.graph.nodes.runner.wrap_async.streamable_http_client")
     @patch("redbox.graph.nodes.runner.wrap_async.load_mcp_tools", new_callable=AsyncMock)
     def test_returns_expected_results(
         self,
@@ -114,7 +121,7 @@ class TestExecuteMCPTools:
         result, failures = wrapped_func()
 
         # verify correct interactions
-        mock_http_client.assert_called_once_with(tool.metadata["url"], headers={"Authorization": "Bearer fake"})
+        self._assert_streamable_http_client_call(mock_http_client, tool.metadata["url"], "fake")
         mock_session.initialize.assert_called_once()
         mock_load_tools.assert_called_once_with(mock_session)
         tool.ainvoke.assert_called_once_with(test_args)
@@ -130,7 +137,7 @@ class TestExecuteMCPTools:
 
     @pytest.mark.parametrize("expected_tool_result, expected_documents", MCP_TOOL_RESULTS)
     @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
-    @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
+    @patch("redbox.graph.nodes.runner.wrap_async.streamable_http_client")
     @patch("redbox.graph.nodes.runner.wrap_async.load_mcp_tools")
     def test_returns_expected_results_no_args(
         self,
@@ -170,7 +177,7 @@ class TestExecuteMCPTools:
         result, failures = wrapped_func()
 
         # verify correct interactions
-        mock_http_client.assert_called_once_with(tool.metadata["url"], headers={"Authorization": "Bearer fake"})
+        self._assert_streamable_http_client_call(mock_http_client, tool.metadata["url"], "fake")
         mock_session.initialize.assert_called_once()
         mock_load_tools.assert_called_once_with(mock_session)
         tool.ainvoke.assert_called_once_with(tool_args)
@@ -184,7 +191,7 @@ class TestExecuteMCPTools:
         assert tool_result[1] == expected_tool_metadata
 
     @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
-    @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
+    @patch("redbox.graph.nodes.runner.wrap_async.streamable_http_client")
     @patch("redbox.graph.nodes.runner.wrap_async.load_mcp_tools", new_callable=AsyncMock)
     def test_tool_not_found(
         self, mock_load_tools, mock_http_client, mock_session_class, fake_mcp_tool: type[MCPTool.Passing]
@@ -237,7 +244,7 @@ class TestExecuteMCPTools:
             wrapped_func()
 
     @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
-    @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
+    @patch("redbox.graph.nodes.runner.wrap_async.streamable_http_client")
     @patch("redbox.graph.nodes.runner.wrap_async.load_mcp_tools")
     def test_intermediate_step_stripped_when_not_in_schema(
         self,
@@ -281,7 +288,7 @@ class TestExecuteMCPTools:
         tool.ainvoke.assert_called_once_with(tool_args)
 
     @patch("redbox.graph.nodes.runner.wrap_async.ClientSession")
-    @patch("redbox.graph.nodes.runner.wrap_async.streamablehttp_client")
+    @patch("redbox.graph.nodes.runner.wrap_async.streamable_http_client")
     @patch("redbox.graph.nodes.runner.wrap_async.load_mcp_tools")
     def test_intermediate_step_retained_when_in_schema(
         self,
