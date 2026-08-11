@@ -76,6 +76,7 @@ def get_context(request: HttpRequest, chat_id: UUID | None = None, slug: str | N
         "redbox_api_key": settings.REDBOX_API_KEY,
         "enable_dictation_flag_is_active": flag_is_active(request, flags.ENABLE_DICTATION),
         "enable_chats_redesign": flag_is_active(request, flags.ENABLE_CHATS_REDESIGN),
+        "enable_feedback_redesign": flag_is_active(request, flags.ENABLE_FEEDBACK_REDESIGN),
         **file_context,
         "urls": urls,
         "errors": {"upload_doc": []},

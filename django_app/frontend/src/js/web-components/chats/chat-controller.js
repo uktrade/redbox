@@ -3,6 +3,8 @@
 import { emitEvent, Events, listenEvent } from "../../../interaction_design_system/ids/events";
 import { getActiveToolId, sanitizeHtml } from "../../utils";
 import { ChatMessage } from "./chat-message";
+import htmx from "htmx.org";
+
 
 const STATE = {
     EMPTY: "empty",
@@ -280,12 +282,20 @@ export class ChatController extends HTMLElement {
         if (!this.messageContainer) return console.error("Missing message container");
         if (!this.currentStream) return console.error("No active stream");
 
-        const html = sanitizeHtml(response.html);
-        this.messageContainer.insertAdjacentHTML("beforeend", html);
+        // Trusted server-rendered shell (Jinja-escaped, no LLM content yet).
+        // Sanitising here strips the feedback chrome's hx-* attributes.
+        // LLM output is sanitised at its own boundary in StreamedContent.
+        this.messageContainer.insertAdjacentHTML("beforeend", response.html);
+
+        const message = this.getMessage(response.chat_message_id);
+
+        // htmx only binds content it swapped itself; nodes inserted here
+        // need processing explicitly.
+        if (message) htmx.process(message);
 
         if (response.chat_message_role === "ai") {
             this.currentStream.messageId = response.chat_message_id;
-            this.getMessage(response.chat_message_id)?.focus();
+            message?.focus();
         }
     }
 

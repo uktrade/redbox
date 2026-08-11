@@ -6,7 +6,8 @@
     message_id=None,
     selected_files=None,
     resources=None,
-    route=None
+    route=None,
+    enable_feedback_redesign=None
 ) %}
 
 {% set role_text = "System response" %}
@@ -31,6 +32,9 @@
                 <streamed-content class="ids-chat-message__text" data-text>
                     {% include "chat/message/message-content.html" %}
                 </streamed-content>
+                {% if switch_is_active(flags.ENABLE_FEEDBACK_REDESIGN) %}
+                    {% include "chat/message/feedback/feedback.html" %}
+                {% endif %}
                 {% include "chat/message/loading-message.html" %}
             </div>
         </section>
