@@ -2,8 +2,10 @@ import csv
 import hashlib
 import json
 import logging
+import os
 import random
 import re
+import tempfile
 import threading
 import time
 from io import StringIO
@@ -319,6 +321,38 @@ def build_search_documents_tool(
 
 DUCKDB_LOCKS: dict[str, threading.Lock] = {}
 DUCKDB_LOCKS_LOCK = threading.Lock()  # lock to safely create new per-db locks
+DUCKDB_SECURE_CONFIG = {
+    "enable_external_access": "false",
+    "autoinstall_known_extensions": "false",
+    "autoload_known_extensions": "false",
+}
+SAFE_SQL_QUERY_PREFIXES = ("SELECT", "WITH")
+UNSAFE_SQL_PATTERN = re.compile(
+    r"\b(ATTACH|DETACH|COPY|INSTALL|LOAD|PRAGMA|CALL|CREATE|ALTER|DROP|DELETE|UPDATE|INSERT|MERGE|EXPORT|IMPORT|VACUUM)\b",
+    re.IGNORECASE,
+)
+
+
+def quote_identifier(value: str) -> str:
+    return '"' + value.replace('"', '""') + '"'
+
+
+def validate_read_only_sql(sql_query: str) -> str:
+    """only allow single statement SELECT/WITH queries for tabular lookup"""
+    stripped = sql_query.strip()
+    if not stripped:
+        raise ValueError("SQL query cannot be empty")
+
+    if ";" in stripped.rstrip(";"):
+        raise ValueError("only single SQL statements are allowed")
+
+    if not stripped.upper().startswith(SAFE_SQL_QUERY_PREFIXES):
+        raise ValueError("only SELECT or WITH queries are allowed")
+
+    if UNSAFE_SQL_PATTERN.search(stripped):
+        raise ValueError("SQL query contains disallowed statements")
+
+    return stripped.rstrip(";")
 
 
 def get_duckdb_lock(db_path: str) -> threading.Lock:
@@ -332,7 +366,7 @@ def get_duckdb_lock(db_path: str) -> threading.Lock:
 def write_duckdb_table(db_path: str, schema: TabularSchema, text_content: str):
     logger = get_func_logger(write_duckdb_table)
 
-    with duckdb.connect(database=db_path) as con:
+    with duckdb.connect(database=db_path, config=DUCKDB_SECURE_CONFIG) as con:
         tables = [t[0] for t in con.execute("SHOW TABLES").fetchall()]
         if schema.name not in tables:
             # Clean CSV content
@@ -390,17 +424,18 @@ def write_duckdb_table(db_path: str, schema: TabularSchema, text_content: str):
                     df[col] = df[col].astype(str)
 
             # Create table and insert data
-            columns_def = ", ".join(f'"{col}" {dtype}' for col, dtype in schema.columns.items())
-            con.execute(f'CREATE TABLE "{schema.name}" ({columns_def})')
+            columns_def = ", ".join(f"{quote_identifier(col)} {dtype.upper()}" for col, dtype in schema.columns.items())
+            con.execute(f"CREATE TABLE {quote_identifier(schema.name)} ({columns_def})")
             if not df.empty:
-                con.execute(f'INSERT INTO "{schema.name}" SELECT * FROM df')
+                con.execute(f"INSERT INTO {quote_identifier(schema.name)} SELECT * FROM df")
 
 
 def query_duckdb_db(db_path: str, sql_query: str, metadata: dict) -> list[Document]:
     documents: list[Document] = []
-    with duckdb.connect(database=db_path, read_only=True) as con:
+    with duckdb.connect(database=db_path, read_only=True, config=DUCKDB_SECURE_CONFIG) as con:
         # Execute agent-provided SQL query
-        query_result = con.execute(sql_query).fetchall()
+        safe_query = validate_read_only_sql(sql_query)
+        query_result = con.execute(safe_query).fetchall()
         col_names = [desc[0] for desc in con.description]
 
         # Wrap as Documents
@@ -479,8 +514,12 @@ def build_query_tabular_file_tool(
             if not docs_metadata:
                 return "No documents found for URI. Please advise the user to try again by reuploading the file.", []
 
-            uri_sha = hashlib.sha256(uri.encode("utf-8")).hexdigest()
-            db_path = f"generated_db_{uri_sha}.duckdb"
+            permissions_context = "|".join(sorted(permitted_s3_keys))
+            path_hash_seed = f"{uri}|{permissions_context}|{knowledge_base}"
+            uri_sha = hashlib.sha256(path_hash_seed.encode("utf-8")).hexdigest()
+            cache_dir = os.path.join(tempfile.gettempdir(), "redbox_tabular_duckdb")
+            os.makedirs(cache_dir, exist_ok=True)
+            db_path = os.path.join(cache_dir, f"generated_db_{uri_sha}.duckdb")
 
             lock = get_duckdb_lock(db_path)
             with lock:
