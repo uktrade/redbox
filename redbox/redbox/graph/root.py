@@ -4,8 +4,12 @@ from typing import Dict
 from langchain_core.messages import AIMessage
 from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.graph import END, START, StateGraph
-from langgraph.graph.graph import CompiledGraph
 from langgraph.pregel import RetryPolicy
+
+try:
+    from langgraph.graph.state import CompiledGraph
+except ModuleNotFoundError:
+    from langgraph.graph.graph import CompiledGraph
 
 from redbox.chains.components import get_structured_response_with_citations_parser
 from redbox.chains.runnables import build_self_route_output_parser
