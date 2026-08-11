@@ -6,11 +6,15 @@ from urllib.parse import urlparse
 
 import boto3
 from elasticsearch import Elasticsearch
-from langchain.globals import set_debug
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from pydantic import AnyUrl, BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from redbox_app.setting_enums import Environment
+
+try:
+    from langchain_core.globals import set_debug
+except ModuleNotFoundError:
+    from langchain.globals import set_debug
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger()
