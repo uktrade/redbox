@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 import re
 from enum import StrEnum
-from typing import Literal, Optional
+from typing import ClassVar, Literal, Optional
 from uuid import UUID, uuid4
 
 from pydantic import AliasChoices, BaseModel, Field, field_validator
@@ -35,10 +35,11 @@ class TabularSchema(BaseSchema):
     type: Literal["tabular"] = "tabular"
     columns: dict[str, str]
 
-    _identifier_pattern = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-    _allowed_duckdb_types = {
+    _identifier_pattern: ClassVar[re.Pattern[str]] = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+    _allowed_duckdb_types: ClassVar[set[str]] = {
         "INT",
         "INTEGER",
+        "NUMERIC",
         "BIGINT",
         "SMALLINT",
         "TINYINT",
