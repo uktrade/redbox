@@ -1,19 +1,25 @@
-from redbox.app import Redbox
-from redbox.models.settings import get_settings
-from redbox.models.chain import RedboxQuery, RedboxState, AISettings, ChatLLMBackend
+import json
+import logging
+import os
+import re
+import sqlite3
+import subprocess
+import time
 
 # from langfuse.callback import CallbackHandler
 from uuid import uuid4
-import langchain
-import re
-import json
-import time
-from dotenv import load_dotenv
-import os
-import logging
-import subprocess
+
 import boto3
-import sqlite3
+from dotenv import load_dotenv
+
+from redbox.app import Redbox
+from redbox.models.chain import AISettings, ChatLLMBackend, RedboxQuery, RedboxState
+from redbox.models.settings import get_settings
+
+try:
+    from langchain_core.globals import set_debug
+except ModuleNotFoundError:
+    from langchain.globals import set_debug
 
 # just logging stuff like we have in redbox
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -180,7 +186,7 @@ def main():
     ai_setting = AISettings(
         chat_backend=ChatLLMBackend(name="anthropic.claude-3-7-sonnet-20250219-v1:0", provider="bedrock")
     )
-    langchain.debug = False
+    set_debug(False)
     email_address = os.getenv("USER_EMAIL")
     documents = ["account.csv", "card.csv", "client.csv", "disp.csv", "district.csv", "loan.csv", "order.csv"]
     documents_paths = [email_address + "/" + doc for doc in documents]
