@@ -1,17 +1,17 @@
 import logging
+import math
+import re
 from io import BytesIO
 from typing import List, Tuple
 
 import environ
 import fitz
-
+import pandas as pd
 from pydantic import ValidationError
 from redbox_app.setting_enums import Environment
 
 from redbox.models.file import TabularSchema
 from redbox.transform import bedrock_tokeniser
-import pandas as pd
-import math
 
 env = environ.Env()
 ENVIRONMENT = Environment[env.str("ENVIRONMENT").upper()]
@@ -20,6 +20,17 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 tokeniser = bedrock_tokeniser
+
+
+def _to_safe_sql_identifier(value: str, fallback_prefix: str, index: int | None = None) -> str:
+    """convert random names provided by users into safe SQL identifiers"""
+    candidate = re.sub(r"\W+", "_", str(value).strip())
+    if not candidate:
+        suffix = f"_{index}" if index is not None else ""
+        candidate = f"{fallback_prefix}{suffix}"
+    if candidate[0].isdigit():
+        candidate = f"_{candidate}"
+    return candidate
 
 
 def is_large_pdf(file_name: str, filebytes: BytesIO, page_threshold: int = 150) -> Tuple[bool, int]:
@@ -228,9 +239,24 @@ def parse_tabular_schema(table_name: str, df: pd.DataFrame) -> tuple[str, dict] 
     """Reconstruct document_schema from legacy document text at runtime."""
     # Parse CSV to get column dtypes
     try:
-        csv_text = f"<table_name>{table_name}</table_name>" + df.to_csv(index=False)
+        safe_table_name = _to_safe_sql_identifier(table_name, "table")
+        safe_columns = []
+        seen: dict[str, int] = {}
+
+        for idx, col in enumerate(df.columns):
+            base = _to_safe_sql_identifier(col, "column", idx)
+            count = seen.get(base, 0)
+            seen[base] = count + 1
+            safe_col = f"{base}_{count}" if count else base
+            safe_columns.append(safe_col)
+
+        safe_df = df.copy()
+        safe_df.columns = safe_columns
+
+        csv_text = f"<table_name>{safe_table_name}</table_name>" + safe_df.to_csv(index=False)
         sheet_schema = TabularSchema(
-            name=table_name, columns={col: infer_sqlite_type(df[col].dtype) for col in df.columns}
+            name=safe_table_name,
+            columns={col: infer_sqlite_type(safe_df[col].dtype) for col in safe_df.columns},
         )
         return csv_text, sheet_schema.model_dump()
     except Exception as e:
