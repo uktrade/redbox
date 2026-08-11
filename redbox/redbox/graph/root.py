@@ -4,7 +4,11 @@ from typing import Dict
 from langchain_core.messages import AIMessage
 from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.graph import END, START, StateGraph
-from langgraph.pregel import RetryPolicy
+
+try:
+    from langgraph.types import RetryPolicy
+except ImportError:
+    from langgraph.pregel import RetryPolicy
 
 try:
     from langgraph.graph.state import CompiledGraph
