@@ -331,6 +331,12 @@ UNSAFE_SQL_PATTERN = re.compile(
     r"\b(ATTACH|DETACH|COPY|INSTALL|LOAD|PRAGMA|CALL|CREATE|ALTER|DROP|DELETE|UPDATE|INSERT|MERGE|EXPORT|IMPORT|VACUUM)\b",
     re.IGNORECASE,
 )
+SQL_COMMENT_PATTERN = re.compile(r"(--|/\*)")
+DISALLOWED_SQL_FUNCTIONS_PATTERN = re.compile(
+    r"\b(read_csv|read_csv_auto|read_json|read_json_auto|read_parquet|read_text|read_blob|glob|parquet_scan|csv_scan)\s*\(",
+    re.IGNORECASE,
+)
+MAX_SQL_QUERY_LENGTH = 10000
 
 
 def quote_identifier(value: str) -> str:
@@ -343,6 +349,12 @@ def validate_read_only_sql(sql_query: str) -> str:
     if not stripped:
         raise ValueError("SQL query cannot be empty")
 
+    if len(stripped) > MAX_SQL_QUERY_LENGTH:
+        raise ValueError("SQL query exceeds maximum length")
+
+    if SQL_COMMENT_PATTERN.search(stripped):
+        raise ValueError("SQL comments are not allowed")
+
     if ";" in stripped.rstrip(";"):
         raise ValueError("only single SQL statements are allowed")
 
@@ -351,6 +363,9 @@ def validate_read_only_sql(sql_query: str) -> str:
 
     if UNSAFE_SQL_PATTERN.search(stripped):
         raise ValueError("SQL query contains disallowed statements")
+
+    if DISALLOWED_SQL_FUNCTIONS_PATTERN.search(stripped):
+        raise ValueError("SQL query contains disallowed functions")
 
     return stripped.rstrip(";")
 
@@ -427,7 +442,7 @@ def write_duckdb_table(db_path: str, schema: TabularSchema, text_content: str):
             columns_def = ", ".join(f"{quote_identifier(col)} {dtype.upper()}" for col, dtype in schema.columns.items())
             con.execute(f"CREATE TABLE {quote_identifier(schema.name)} ({columns_def})")
             if not df.empty:
-                con.execute(f"INSERT INTO {quote_identifier(schema.name)} SELECT * FROM df")
+                con.from_df(df).insert_into(schema.name)
 
 
 def query_duckdb_db(db_path: str, sql_query: str, metadata: dict) -> list[Document]:
