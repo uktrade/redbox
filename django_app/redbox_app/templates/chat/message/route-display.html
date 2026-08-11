@@ -1,4 +1,6 @@
-<details class="govuk-details message-route govuk-!-margin-top-3{% if not route %} govuk-!-display-none{% endif %}">
+{% set productName = product_name(request) %}
+
+<details class="govuk-details message-route {% if not route %} govuk-!-display-none{% endif %}">
     <summary class="govuk-details__summary">
         <span class="govuk-details__summary-text ids-text-xs ids-no-underline">
             How {{ productName }} generated this response</span>

@@ -1,0 +1,10 @@
+<div class="feedback-button-container govuk-!-margin-top-3">
+    <legend class="feedback__heading">Thanks for your feedback</legend>
+    <button type="button"
+        class="feedback-button govuk-button govuk-button--secondary govuk-!-margin-bottom-0"
+        hx-delete="{{ url('chat-message-feedback', message_id=message_id) }}"
+        hx-target="#feedback-{{ message_id }}"
+        hx-swap="innerHTML">
+    Change feedback
+</button>
+</div>
