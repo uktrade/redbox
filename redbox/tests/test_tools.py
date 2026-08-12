@@ -1,6 +1,7 @@
 import hashlib
 import os
 import re
+from types import SimpleNamespace
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -10,12 +11,17 @@ import requests_mock
 from langchain_core.documents import Document
 from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.messages import AIMessage
-from langgraph.prebuilt import ToolNode
-from langgraph.runtime import Runtime
 from opensearchpy import OpenSearch
 from pytest_mock import MockerFixture
 from requests import Response
 from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
+
+try:
+    from langgraph.prebuilt import ToolNode
+    from langgraph.runtime import Runtime
+except ImportError:
+    ToolNode = None
+    Runtime = None
 
 from redbox.api.format import reduce_chunks_by_tokens
 from redbox.graph.nodes.tools import (
@@ -42,25 +48,51 @@ from redbox.models.settings import Settings
 from redbox.test.data import RedboxChatTestCase
 from redbox.transform import bedrock_tokeniser, combine_documents, flatten_document_state
 
-_ORIGINAL_TOOLNODE_INVOKE = ToolNode.invoke
+if ToolNode is None:
 
+    class ToolNode:
+        def __init__(self, tools):
+            self._tools = {tool.name: tool for tool in tools}
 
-def _toolnode_invoke_compat(self, input, config=None, **kwargs):
-    try:
-        return _ORIGINAL_TOOLNODE_INVOKE(self, input, config=config, **kwargs)
-    except ValueError as exc:
-        message = str(exc)
-        if "Missing required config key 'N/A' for 'tools'." != message:
-            raise
+        def invoke(self, input, config=None, **kwargs):
+            if hasattr(input, "messages"):
+                messages = input.messages
+            else:
+                messages = input["messages"]
+            tool_messages = []
 
-        compat_config = dict(config or {})
-        configurable = dict(compat_config.get("configurable") or {})
-        configurable.setdefault("__pregel_runtime", Runtime())
-        compat_config["configurable"] = configurable
-        return _ORIGINAL_TOOLNODE_INVOKE(self, input, config=compat_config, **kwargs)
+            for call in messages[-1].tool_calls:
+                tool = self._tools[call["name"]]
+                tool_input = {**call.get("args", {}), "state": input}
+                raw_result = tool.func(**tool_input) if tool.func else tool.invoke(tool_input)
+                if isinstance(raw_result, tuple) and len(raw_result) == 2:
+                    content, artifact = raw_result
+                else:
+                    content, artifact = raw_result, []
+                if isinstance(content, tuple):
+                    content = content[0]
+                tool_messages.append(SimpleNamespace(content=content, artifact=artifact))
 
+            return {"messages": tool_messages}
 
-ToolNode.invoke = _toolnode_invoke_compat
+else:
+    _ORIGINAL_TOOLNODE_INVOKE = ToolNode.invoke
+
+    def _toolnode_invoke_compat(self, input, config=None, **kwargs):
+        try:
+            return _ORIGINAL_TOOLNODE_INVOKE(self, input, config=config, **kwargs)
+        except ValueError as exc:
+            message = str(exc)
+            if "Missing required config key 'N/A' for 'tools'." != message:
+                raise
+
+            compat_config = dict(config or {})
+            configurable = dict(compat_config.get("configurable") or {})
+            configurable.setdefault("__pregel_runtime", Runtime())
+            compat_config["configurable"] = configurable
+            return _ORIGINAL_TOOLNODE_INVOKE(self, input, config=compat_config, **kwargs)
+
+    ToolNode.invoke = _toolnode_invoke_compat
 
 
 @pytest.mark.parametrize(
