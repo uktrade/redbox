@@ -6,8 +6,8 @@ import sqlite3
 import subprocess
 import time
 
-# from langfuse.callback import CallbackHandler
 from uuid import uuid4
+from langchain_core.globals import set_debug
 
 import boto3
 from dotenv import load_dotenv
@@ -15,11 +15,6 @@ from dotenv import load_dotenv
 from redbox.app import Redbox
 from redbox.models.chain import AISettings, ChatLLMBackend, RedboxQuery, RedboxState
 from redbox.models.settings import get_settings
-
-try:
-    from langchain_core.globals import set_debug
-except ModuleNotFoundError:
-    from langchain.globals import set_debug
 
 # just logging stuff like we have in redbox
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
