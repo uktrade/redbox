@@ -1,14 +1,14 @@
 {% if role == "ai" %}
     <div class="chat-actions-container chat-actions-container__feedback">
         {% if switch_is_active(flags.ENABLE_FEEDBACK_REDESIGN)  %}
-            <div id="feedback-{{ message_id }}" class="feedback-form-container"
+        <!-- render feedback buttons immediately on page load for existing messages, wait for streaming complete event for newly created ai messages -->
+        <div id="feedback-{{ message_id }}" class="feedback-form-container"
             hx-get="{{ url('chat-message-feedback-buttons', message_id=message_id) }}"
-            hx-trigger="load"
+            hx-trigger="{% if initial_page_load %}load{% else %}streaming-complete from:closest chat-message{% endif %}"
             hx-target="this"
             hx-swap="innerHTML"
             hx-on::after-swap="setTimeout(() => this.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)">
-                Loading...
-            </div>
+        </div>
         {% else %}
             <feedback-buttons data-id="{{ message_id }}"></feedback-buttons>
             <copy-text data-id="{{ message_id }}"></copy-text>
