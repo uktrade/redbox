@@ -11,9 +11,11 @@ from langchain_core.documents import Document
 from langchain_core.embeddings.fake import FakeEmbeddings
 from langchain_core.messages import AIMessage
 from langgraph.prebuilt import ToolNode
+from langgraph.runtime import Runtime
 from opensearchpy import OpenSearch
 from pytest_mock import MockerFixture
 from requests import Response
+from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
 
 from redbox.api.format import reduce_chunks_by_tokens
 from redbox.graph.nodes.tools import (
@@ -39,7 +41,26 @@ from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution,
 from redbox.models.settings import Settings
 from redbox.test.data import RedboxChatTestCase
 from redbox.transform import bedrock_tokeniser, combine_documents, flatten_document_state
-from tests.retriever.test_retriever import TEST_CHAIN_PARAMETERS
+
+_ORIGINAL_TOOLNODE_INVOKE = ToolNode.invoke
+
+
+def _toolnode_invoke_compat(self, input, config=None, **kwargs):
+    try:
+        return _ORIGINAL_TOOLNODE_INVOKE(self, input, config=config, **kwargs)
+    except ValueError as exc:
+        message = str(exc)
+        if "Missing required config key 'N/A' for 'tools'." != message:
+            raise
+
+        compat_config = dict(config or {})
+        configurable = dict(compat_config.get("configurable") or {})
+        configurable.setdefault("__pregel_runtime", Runtime())
+        compat_config["configurable"] = configurable
+        return _ORIGINAL_TOOLNODE_INVOKE(self, input, config=compat_config, **kwargs)
+
+
+ToolNode.invoke = _toolnode_invoke_compat
 
 
 @pytest.mark.parametrize(

@@ -41,7 +41,7 @@ class TestNewRouteGraphs:
         graph = build_new_route_graph(
             all_chunks_retriever=self.all_chunks_retriever,
             agent_configs=self.agent_configs,
-        ).get_graph()
+        ).get_graph(xray=True)
         # check if we have this agent node in the graph
         assert agent_name in graph.nodes
 
