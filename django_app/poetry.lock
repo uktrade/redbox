@@ -2618,18 +2618,18 @@ django = ">=3.2"
 
 [[package]]
 name = "djangorestframework"
-version = "3.17.1"
+version = "3.18.0"
 description = "Web APIs for Django, made easy."
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "djangorestframework-3.17.1-py3-none-any.whl", hash = "sha256:c3c74dd3e83a5a3efc37b3c18d92bd6f86a6791c7b7d4dff62bb068500e76457"},
-    {file = "djangorestframework-3.17.1.tar.gz", hash = "sha256:a6def5f447fe78ff853bff1d47a3c59bf38f5434b031780b351b0c73a62db1a5"},
+    {file = "djangorestframework-3.18.0-py3-none-any.whl", hash = "sha256:381fc44d3249c9565c5f723850855b734e99030eb30957a49f506d3fe11d7dcb"},
+    {file = "djangorestframework-3.18.0.tar.gz", hash = "sha256:2323a5111837e0b784dcb8323abc78ecc54fa2a5af7aff2677cf50cdd849477f"},
 ]
 
 [package.dependencies]
-django = ">=4.2"
+django = ">=5.2"
 
 [[package]]
 name = "docopt"
@@ -8178,6 +8178,7 @@ pytest-dotenv = "^0.5.2"
 python-docx = "^1.2.0"
 scikit-learn = "^1.5.2"
 starlette = "0.49.1"
+transformers = "5.5.0"
 unstructured = {version = "^0.21.5", extras = ["all-docs"]}
 urllib3 = "2.7.0"
 wikipedia = "^1.4.0"
@@ -11558,4 +11559,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "20372784fa91fc80b2320bcbce013136fab6129a53eafb62c69765d6d1b005ef"
+content-hash = "0060ae191733968e56041fb8c5b9767001319652f0b43c834391053b86db7e63"
