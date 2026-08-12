@@ -6,8 +6,7 @@
             hx-get="{{ url('chat-message-feedback-buttons', message_id=message_id) }}"
             hx-trigger="{% if initial_page_load %}load{% else %}streaming-complete from:closest chat-message{% endif %}"
             hx-target="this"
-            hx-swap="innerHTML"
-            hx-on::after-swap="setTimeout(() => this.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)">
+            hx-swap="innerHTML">
         </div>
         {% else %}
             <feedback-buttons data-id="{{ message_id }}"></feedback-buttons>

@@ -3,7 +3,7 @@
 
     <span class="govuk-caption-s">To help us with our responses, we'd like to know more</span>
     <h3 id="feedback-form-title-{{ message_id }}"
-        class="govuk-heading-s" tabindex="-1" data-autofocus>
+        class="govuk-heading-s" tabindex="-1">
         Why did you choose this rating?
     </h3>
 
@@ -74,3 +74,30 @@
         </div>
     </form>
 </div>
+<script>
+  (function () {
+    const HEADER_SELECTOR = '#chat-cta';
+    // Fallback offset (px) if the header element can't be found.
+    const FALLBACK_OFFSET = 60;
+
+    function getHeaderOffset() {
+      const header = document.querySelector(HEADER_SELECTOR);
+      return header ? header.getBoundingClientRect().height : FALLBACK_OFFSET;
+    }
+
+    function scrollFeedbackFormIntoView(el) {
+      requestAnimationFrame(() => {
+        const y = el.getBoundingClientRect().top + window.scrollY - getHeaderOffset();
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      });
+    }
+
+    // htmx fires htmx:load on newly swapped-in nodes.
+    document.body.addEventListener('htmx:load', function (evt) {
+      const form = evt.target.closest('.feedback-form');
+      if (form) {
+        scrollFeedbackFormIntoView(form);
+      }
+    });
+  })();
+</script>
