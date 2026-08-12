@@ -54,6 +54,19 @@ def get_func_logger(func):
     return logging.getLogger(f"{__name__}.{func.__qualname__}")
 
 
+def get_request(state: RedboxState | dict):
+    if hasattr(state, "request"):
+        return state.request
+    return state["request"]
+
+
+def get_request_value(state: RedboxState | dict, field: str):
+    request = get_request(state)
+    if hasattr(request, field):
+        return getattr(request, field)
+    return request[field]
+
+
 def format_result(loop, content, artifact, status, is_intermediate_step):
     if loop:
         return ((content, status, str(is_intermediate_step)), artifact)
@@ -77,7 +90,8 @@ def build_document_from_prompt_tool(loop: bool = False):
         """
         return format_result(
             loop=loop,
-            content="<context>This is user prompt that containing documents.</context>" + state.request.question,
+            content="<context>This is user prompt that containing documents.</context>"
+            + get_request_value(state, "question"),
             artifact=[],
             status="pass",
             is_intermediate_step=is_intermediate_step,
@@ -185,7 +199,7 @@ def build_retrieve_knowledge_base(
             Tuple: Collection of knowledge base documents with metadata
         """
         el_query = get_knowledge_base(
-            selected_files=state.request.knowledge_base_s3_keys,
+            selected_files=get_request_value(state, "knowledge_base_s3_keys"),
             chunk_resolution=ChunkResolution.largest,
             state=state,
         )
@@ -289,9 +303,9 @@ def build_search_documents_tool(
         """
         return search_repo(
             query=query,
-            selected_files=state.request.s3_keys,
-            permitted_files=state.request.permitted_s3_keys,
-            ai_settings=state.request.ai_settings,
+            selected_files=get_request_value(state, "s3_keys"),
+            permitted_files=get_request_value(state, "permitted_s3_keys"),
+            ai_settings=get_request_value(state, "ai_settings"),
         )
 
     @tool(response_format="content_and_artifact")
@@ -311,9 +325,9 @@ def build_search_documents_tool(
         """
         return search_repo(
             query=query,
-            selected_files=state.request.knowledge_base_s3_keys,
-            permitted_files=state.request.knowledge_base_s3_keys,
-            ai_settings=state.request.ai_settings,
+            selected_files=get_request_value(state, "knowledge_base_s3_keys"),
+            permitted_files=get_request_value(state, "knowledge_base_s3_keys"),
+            ai_settings=get_request_value(state, "ai_settings"),
         )
 
     return _search_documents if repository == "user_uploaded" else _search_knowledge_base
@@ -516,9 +530,9 @@ def build_query_tabular_file_tool(
 
         try:
             # Set permitted keys
-            permitted_s3_keys = state.request.permitted_s3_keys
+            permitted_s3_keys = get_request_value(state, "permitted_s3_keys")
             if knowledge_base:
-                permitted_s3_keys = state.request.knowledge_base_s3_keys
+                permitted_s3_keys = get_request_value(state, "knowledge_base_s3_keys")
 
             # Retrieve tabular documents
             docs_metadata = retriever._get_relevant_documents(
@@ -639,7 +653,7 @@ def build_govuk_search_tool(filter=True) -> Tool:
                 "indexable_content",
                 "link",
             ]
-            ai_settings = state.request.ai_settings
+            ai_settings = get_request_value(state, "ai_settings")
             response = requests.get(
                 f"{url_base}/api/search.json",
                 params={
