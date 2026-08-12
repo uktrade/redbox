@@ -1544,7 +1544,7 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
 
     @cached_property
     def display_name(self) -> str:
-        return str(self.uri) if not self.file else self.file.file_name
+        return str(self.uri).rsplit("/", 1)[-1] if not self.file else self.file.file_name
 
     @cached_property
     def ref_id(self) -> int:
