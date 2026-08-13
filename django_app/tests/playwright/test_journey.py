@@ -2,21 +2,11 @@ import logging
 import os
 
 import pytest
-from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from pages import LandingPage
 from playwright.sync_api import Page
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
-
-
-@pytest.fixture(scope="class")
-def live_server_url():
-    """Provide live server URL to test class."""
-    server = StaticLiveServerTestCase
-    server.setUpClass()
-    yield server.live_server_url
-    server.tearDownClass()
 
 
 @pytest.mark.django_db(transaction=True)

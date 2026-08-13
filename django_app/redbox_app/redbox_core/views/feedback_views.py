@@ -3,12 +3,13 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
-from waffle import flag_is_active
+from waffle import switch_is_active
 
+from redbox_app.redbox_core import flags
 from redbox_app.redbox_core.forms import ChatMessageFeedbackForm
 from redbox_app.redbox_core.models import ChatMessage, ChatMessageFeedback
 
-FEEDBACK_FLAG = "enable_feedback_redesign"
+FEEDBACK_SWITCH = flags.ENABLE_FEEDBACK_REDESIGN
 FORM_TEMPLATE = "chat/message/feedback/_feedback-form.html"
 BUTTONS_TEMPLATE = "chat/message/feedback/_feedback_buttons.html"
 THANKS_TEMPLATE = "chat/message/feedback/_feedback-thanks.html"
@@ -17,7 +18,7 @@ THANKS_TEMPLATE = "chat/message/feedback/_feedback-thanks.html"
 @login_required
 @require_http_methods(["GET"])
 def get_feedback_buttons(request, message_id):
-    if not flag_is_active(request, FEEDBACK_FLAG):
+    if not switch_is_active(FEEDBACK_SWITCH):
         raise Http404
 
     message = get_object_or_404(
@@ -37,7 +38,7 @@ def get_feedback_buttons(request, message_id):
 @login_required
 @require_http_methods(["POST", "DELETE"])
 def chat_message_feedback(request, message_id):
-    if not flag_is_active(request, FEEDBACK_FLAG):
+    if not switch_is_active(FEEDBACK_SWITCH):
         raise Http404
 
     message = get_object_or_404(
