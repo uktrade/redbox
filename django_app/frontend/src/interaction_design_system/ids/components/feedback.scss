@@ -4,6 +4,18 @@
 
 .feedback-button-container {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     align-items: center;
+    flex-wrap: wrap;
+}
+
+.feedback-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: nowrap;
+}
+
+.feedback-button {
+    width: auto;
+    white-space: nowrap;
 }
