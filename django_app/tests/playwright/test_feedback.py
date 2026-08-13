@@ -123,6 +123,12 @@ def test_negative_feedback_journey_with_details(page, live_server_url, vyvyan_ai
     feedback_component = FeedbackComponent.for_message(message)
     feedback_component.wait_for_feedback_ready()
 
+    container_id = feedback_component.container.get_attribute("id")
+    message_id = container_id.removeprefix("feedback-")
+    resp = page.request.get(f"{live_server_url}/chat-message/{message_id}/buttons/")
+    print("STATUS:", resp.status)  # noqa: T201
+    print("BODY:", resp.text())  # noqa: T201
+
     expect(feedback_component.not_quite_button).to_be_visible()
     expect(feedback_component.yes_button).to_be_visible()
 
