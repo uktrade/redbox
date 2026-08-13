@@ -132,6 +132,10 @@ def test_negative_feedback_journey_with_details(page, live_server_url, vyvyan_ai
     print("HTMX LOADED:", htmx_loaded)  # noqa: T201
     page.on("console", lambda msg: print("CONSOLE:", msg.type, msg.text))  # noqa: T201
     page.on("requestfailed", lambda req: print("FAILED REQ:", req.url, req.failure))  # noqa: T201
+    scripts = page.evaluate("""() =>
+    [...document.querySelectorAll('script')].map(s => s.src).filter(Boolean)
+    """)
+    print("SCRIPTS:", scripts)  # noqa: T201
 
     expect(feedback_component.not_quite_button).to_be_visible()
     expect(feedback_component.yes_button).to_be_visible()
