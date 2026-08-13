@@ -280,6 +280,9 @@ class ChatMessage:
         sources = element.locator("sources-list").get_by_role("listitem").all_inner_texts()
         return cls(status=status, text=text, sources=sources, element=element, chats_page=page)
 
+    def feedback(self) -> "FeedbackComponent":
+        return FeedbackComponent.for_message(self)
+
 
 class ChatsPage(SignedInBasePage):
     @override
@@ -289,7 +292,10 @@ class ChatsPage(SignedInBasePage):
 
     @property
     def expected_page_title(self) -> str:
-        return "New chat - Chats - Assist at DBT"
+        if self.url.path.rstrip("/") == "/chats":
+            return "New chat - Chats - Assist at DBT"
+        chat_name = self.page.locator(".ids-chat-title__heading").inner_text()
+        return f"{chat_name} - Chats - Assist at DBT"
 
     @property
     def selected_llm(self) -> str:
@@ -433,3 +439,88 @@ class SupportPage(BasePage):
     @property
     def expected_page_title(self) -> str:
         return "Support - Assist at DBT"
+
+
+@dataclass
+class FeedbackComponent:
+    """The redesigned feedback component that hangs off a single AI chat message.
+
+    Wraps the #feedback-{message_id} container and the buttons/form/thanks states
+    that htmx swaps into it.
+    """
+
+    container: Locator = field(repr=False)
+    page: Page = field(repr=False)
+
+    @classmethod
+    def for_message(cls, message: "ChatMessage") -> "FeedbackComponent":
+        container = message.element.locator("[id^='feedback-']")
+        return cls(container=container, page=message.chats_page.page)
+
+    # --- state inspection ---
+
+    @property
+    def not_quite_button(self) -> Locator:
+        return self.container.get_by_role("button", name="Not quite")
+
+    @property
+    def yes_button(self) -> Locator:
+        return self.container.get_by_role("button", name="Yes")
+
+    @property
+    def form(self) -> Locator:
+        return self.container.locator(".feedback-form")
+
+    @property
+    def id_prefer_to_not_say_button(self) -> Locator:
+        return self.container.get_by_role("button", name="I'd prefer to not say")
+
+    @property
+    def send_feedback_button(self) -> Locator:
+        return self.container.get_by_role("button", name="Send feedback")
+
+    @property
+    def change_feedback_button(self) -> Locator:
+        return self.container.get_by_role("button", name="Change your answers")
+
+    @property
+    def detail(self) -> str:
+        return self.container.locator("textarea[name='detail']").input_value()
+
+    # --- actions ---
+    def wait_for_feedback_ready(self) -> "FeedbackComponent":
+        "allow htmx to process before proceeding"
+
+        self.page.wait_for_load_state("networkidle")
+        return self
+
+    def click_yes(self) -> "FeedbackComponent":
+        self.yes_button.click()
+        return self
+
+    def click_change_feedback(self) -> "FeedbackComponent":
+        self.change_feedback_button.click()
+        return self
+
+    def click_not_quite(self) -> "FeedbackComponent":
+        self.not_quite_button.click()
+        return self
+
+    def click_id_prefer_not_to_say(self) -> "FeedbackComponent":
+        self.id_prefer_to_not_say_button.click()
+        return self
+
+    def click_send_feedback(self) -> "FeedbackComponent":
+        self.send_feedback_button.click()
+        return self
+
+    def select_reasons(self, reasons: Collection[str]) -> None:
+        for reason in reasons:
+            self.container.get_by_label(reason).check()
+
+    def input_detail(self, text: str):
+        self.container.locator("textarea[name='detail']").fill(text)
+
+    @property
+    def reason_errors(self) -> Sequence[str]:
+        return self.container.locator(".govuk-error-message").all_inner_texts()
