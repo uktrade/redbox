@@ -128,6 +128,10 @@ def test_negative_feedback_journey_with_details(page, live_server_url, vyvyan_ai
     resp = page.request.get(f"{live_server_url}/chat-message/{message_id}/buttons/")
     print("STATUS:", resp.status)  # noqa: T201
     print("BODY:", resp.text())  # noqa: T201
+    htmx_loaded = page.evaluate("() => typeof window.htmx !== 'undefined'")
+    print("HTMX LOADED:", htmx_loaded)  # noqa: T201
+    page.on("console", lambda msg: print("CONSOLE:", msg.type, msg.text))  # noqa: T201
+    page.on("requestfailed", lambda req: print("FAILED REQ:", req.url, req.failure))  # noqa: T201
 
     expect(feedback_component.not_quite_button).to_be_visible()
     expect(feedback_component.yes_button).to_be_visible()
