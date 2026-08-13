@@ -49,6 +49,15 @@ from redbox.transform import bedrock_tokeniser, merge_documents, sort_documents
 
 log = logging.getLogger(__name__)
 
+try:
+    from langgraph.prebuilt import InjectedState as _LangGraphInjectedState
+except ImportError:
+
+    class InjectedState(InjectedToolArg):
+        pass
+else:
+    InjectedState = _LangGraphInjectedState
+
 
 def get_func_logger(func):
     return logging.getLogger(f"{__name__}.{func.__qualname__}")
@@ -77,7 +86,7 @@ def format_result(loop, content, artifact, status, is_intermediate_step):
 def build_document_from_prompt_tool(loop: bool = False):
     @tool(response_format="content_and_artifact")
     def _retrieve_document_from_prompt(
-        state: Annotated[RedboxState, InjectedToolArg], is_intermediate_step: bool = False
+        state: Annotated[RedboxState, InjectedState], is_intermediate_step: bool = False
     ) -> tuple:
         """
         Retrieve document from user prompt
@@ -103,7 +112,7 @@ def build_document_from_prompt_tool(loop: bool = False):
 def build_retrieve_document_full_text(es_client: Union[Elasticsearch, OpenSearch], index_name: str, loop: bool = False):
     @tool(response_format="content_and_artifact")
     def _retrieve_document_full_text(
-        state: Annotated[RedboxState, InjectedToolArg], is_intermediate_step: bool = False
+        state: Annotated[RedboxState, InjectedState], is_intermediate_step: bool = False
     ) -> tuple:
         """
         Retrieve full texts from state.documents. This tool should be used when a full text from a document is required.
@@ -171,7 +180,7 @@ def build_retrieve_knowledge_base(
 
     @tool(response_format="content_and_artifact")
     def _retrieve_specific_file_knowledge_base(
-        state: Annotated[RedboxState, InjectedToolArg],
+        state: Annotated[RedboxState, InjectedState],
         uri: str,
     ) -> tuple[str, list[Document]]:
         """
@@ -187,7 +196,7 @@ def build_retrieve_knowledge_base(
 
     @tool(response_format="content_and_artifact")
     def _retrieve_knowledge_base(
-        state: Annotated[RedboxState, InjectedToolArg], is_intermediate_step: bool = False
+        state: Annotated[RedboxState, InjectedState], is_intermediate_step: bool = False
     ) -> tuple:
         """
         Retrieve full texts from all knowledge base files.
@@ -287,7 +296,7 @@ def build_search_documents_tool(
         return formatted_docs, sorted_documents
 
     @tool(response_format="content_and_artifact")
-    def _search_documents(query: str, state: Annotated[RedboxState, InjectedToolArg]) -> tuple[str, list[Document]]:
+    def _search_documents(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
         """
         "Searches through state.documents to find and extract relevant information. This tool should be used whenever a query involves finding, searching, or retrieving information from documents that have already been uploaded or provided to the system.
 
@@ -309,9 +318,7 @@ def build_search_documents_tool(
         )
 
     @tool(response_format="content_and_artifact")
-    def _search_knowledge_base(
-        query: str, state: Annotated[RedboxState, InjectedToolArg]
-    ) -> tuple[str, list[Document]]:
+    def _search_knowledge_base(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
         """
         "Searches through knowledge base files to find and extract relevant information. This tool should be used whenever a query involves finding, searching, or retrieving information from knowledge base.
 
@@ -501,7 +508,7 @@ def build_query_tabular_file_tool(
     def _query_tabular_file(
         sql_query: str,
         uri: str,
-        state: Annotated[RedboxState, InjectedToolArg],
+        state: Annotated[RedboxState, InjectedState],
     ) -> tuple[str, list[Document]]:
         """
         Executes the SQL query against tabular files retrieved by the embedded retriever.
@@ -621,7 +628,7 @@ def build_govuk_search_tool(filter=True) -> Tool:
         return response
 
     @tool(response_format="content_and_artifact")
-    def _search_govuk(query: str, state: Annotated[RedboxState, InjectedToolArg]) -> tuple[str, list[Document]]:
+    def _search_govuk(query: str, state: Annotated[RedboxState, InjectedState]) -> tuple[str, list[Document]]:
         """
         Search for documents on www.gov.uk based on a query string.
         This endpoint is used to search for documents on www.gov.uk. There are many types of documents on www.gov.uk.
