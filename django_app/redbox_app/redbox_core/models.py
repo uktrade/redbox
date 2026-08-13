@@ -1379,7 +1379,12 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
         if self.temperature is None:
             self.temperature = self.user.ai_settings.temperature
 
-        super().save(force_insert, force_update, using, update_fields)
+        super().save(
+            force_insert=force_insert,
+            force_update=force_update,
+            using=using,
+            update_fields=update_fields,
+        )
 
     @classmethod
     def get_ordered_by_last_message_date(
@@ -1499,6 +1504,15 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         return textwrap.shorten(text, width=128, placeholder="...")
 
     def save(self, *args, force_insert=False, force_update=False, using=None, update_fields=None):
+        if args:
+            force_insert, force_update, using, update_fields = (
+                *args,
+                force_insert,
+                force_update,
+                using,
+                update_fields,
+            )[:4]
+
         if self.source == self.Origin.USER_UPLOADED_DOCUMENT:
             if self.file is None:
                 msg = "file must be specified for a user-uploaded-document"
@@ -1519,7 +1533,12 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
 
         self.text = sanitise_string(self.text)
 
-        super().save(*args, force_insert, force_update, using, update_fields)
+        super().save(
+            force_insert=force_insert,
+            force_update=force_update,
+            using=using,
+            update_fields=update_fields,
+        )
 
     @cached_property
     def uri(self) -> URL:
@@ -1656,10 +1675,24 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
         return textwrap.shorten(self.text, width=20, placeholder="...")
 
     def save(self, *args, force_insert=False, force_update=False, using=None, update_fields=None):
+        if args:
+            force_insert, force_update, using, update_fields = (
+                *args,
+                force_insert,
+                force_update,
+                using,
+                update_fields,
+            )[:4]
+
         self.text = sanitise_string(self.text)
         self.rating_text = sanitise_string(self.rating_text)
 
-        super().save(*args, force_insert, force_update, using, update_fields)
+        super().save(
+            force_insert=force_insert,
+            force_update=force_update,
+            using=using,
+            update_fields=update_fields,
+        )
 
     @classmethod
     def get_messages_ordered_by_citation_priority(cls, chat_id: uuid.UUID) -> Sequence[ChatMessage]:
