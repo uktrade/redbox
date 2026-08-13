@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <div class="feedback-form govuk-!-margin-top-3" role="group"
      aria-labelledby="feedback-form-title-{{ message_id }}">
 
@@ -6,6 +7,9 @@
         class="govuk-heading-s" tabindex="-1">
         Why did you choose this rating?
     </h3>
+=======
+<div class="feedback-form govuk-!-margin-top-6">
+>>>>>>> 2e2e90d4 (refine negative feedback form)
 
     <form hx-post="{{ url('chat-message-feedback', message_id=message_id) }}"
           hx-target="#feedback-{{ message_id }}"
@@ -23,13 +27,29 @@
             </div>
         {% endif %}
 
+        <p class="govuk-body-s">
+            To help us improve our responses, we'd like to know more
+        </p>
+
         <div class="govuk-form-group{% if form.reason.errors %} govuk-form-group--error{% endif %}">
             <fieldset class="govuk-fieldset">
-                <legend class="govuk-fieldset__legend">Select all that apply</legend>
+                <legend 
+                    class="govuk-fieldset__legend govuk-fieldset__legend--m">
+                    <h3 class="govuk-fieldset__heading" 
+                        tabindex="-1" 
+                        data-autofocus>
+                        Why did you choose this rating?
+                    </h3>
+                </legend>
+
+                <div class="govuk-hint">
+                    Select all that apply
+                </div>
+                
                 {% for error in form.reason.errors %}
                     <p class="govuk-error-message">{{ error }}</p>
                 {% endfor %}
-                <div class="govuk-checkboxes govuk-checkboxes--small">
+                <div class="govuk-checkboxes">
                     {% for value, label in form.fields['reason'].choices %}
                         <div class="govuk-checkboxes__item">
                             <input class="govuk-checkboxes__input"
@@ -38,7 +58,7 @@
                                    name="reason"
                                    value="{{ value }}"
                                    {% if form['reason'].value() and value in form['reason'].value() %}checked{% endif %}>
-                            <label class="govuk-label govuk-checkboxes__label ids-text-s govuk-!-padding-0"
+                            <label class="govuk-label govuk-checkboxes__label"
                                    for="reason-{{ message_id }}-{{ value }}">{{ label }}</label>
                         </div>
                     {% endfor %}
@@ -47,18 +67,24 @@
         </div>
 
         <div class="govuk-form-group{% if form.detail.errors %} govuk-form-group--error{% endif %}">
-            <label class="govuk-label govuk-!-margin-bottom-3" for="detail-{{ message_id }}">
+            <label 
+                class="govuk-label govuk-label--m"
+                for="detail-{{ message_id }}">
                 Can you tell us more?
             </label>
-            <span class="govuk-caption-s ">Don't include any personal information, like your name or email address</span>
+            
+            <div class="govuk-hint">
+                Don't include any personal information, like your name or email address
+            </div>
+            
             {% for error in form.detail.errors %}
                 <p class="govuk-error-message">{{ error }}</p>
             {% endfor %}
-            <textarea class="govuk-textarea govuk-!-margin-top-3"
-                      id="detail-{{ message_id }}"
-                      name="detail"
-                      rows="3">{{ form['detail'].value() or "" }}
-            </textarea>
+            <textarea
+                class="govuk-textarea"
+                id="detail-{{ message_id }}"
+                name="detail"
+                rows="3">{{ form['detail'].value()|default("", true) }}</textarea>
         </div>
 
         <div class="govuk-button-group">
@@ -69,7 +95,7 @@
                     hx-target="#feedback-{{ message_id }}"
                     hx-swap="innerHTML"
                     hx-params="none">
-                I'd prefer to not say
+                I'd prefer not to say
             </button>
         </div>
     </form>
