@@ -88,7 +88,7 @@ def test_negative_feedback_journey_no_details(page, live_server_url, vyvyan_ai_m
     assert saved_negative_feedback[0].reason == []
 
     # click I'd prefer not to say
-    feedback_component.click_id_prefer_not_to_say()
+    feedback_component.click_id_prefer_to_not_say()
     feedback_component.wait_for_feedback_ready()
 
     expect(feedback_component.change_feedback_button).to_be_visible()
@@ -122,23 +122,6 @@ def test_negative_feedback_journey_with_details(page, live_server_url, vyvyan_ai
     message = next(m for m in existing_chat_page.all_messages if m.element.locator("[id^='feedback-']").count())
     feedback_component = FeedbackComponent.for_message(message)
     feedback_component.wait_for_feedback_ready()
-
-    container_id = feedback_component.container.get_attribute("id")
-    message_id = container_id.removeprefix("feedback-")
-    resp = page.request.get(f"{live_server_url}/chat-message/{message_id}/buttons/")
-    print("STATUS:", resp.status)  # noqa: T201
-    print("BODY:", resp.text())  # noqa: T201
-    htmx_loaded = page.evaluate("() => typeof window.htmx !== 'undefined'")
-    print("HTMX LOADED:", htmx_loaded)  # noqa: T201
-    page.on("console", lambda msg: print("CONSOLE:", msg.type, msg.text))  # noqa: T201
-    page.on("requestfailed", lambda req: print("FAILED REQ:", req.url, req.failure))  # noqa: T201
-    scripts = page.evaluate("""() =>
-    [...document.querySelectorAll('script')].map(s => s.src).filter(Boolean)
-    """)
-    print("SCRIPTS:", scripts)  # noqa: T201
-    with page.expect_response(lambda r: r.url.rstrip("/").endswith("/buttons"), timeout=10000) as info:
-        existing_chat_page = chats_page.navigate_to_titled_chat(vyvyan_ai_message.chat.name)
-    print("BUTTONS GET:", info.value.status)  # noqa: T201
 
     expect(feedback_component.not_quite_button).to_be_visible()
     expect(feedback_component.yes_button).to_be_visible()
