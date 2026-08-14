@@ -473,7 +473,7 @@ class FeedbackComponent:
 
     @property
     def id_prefer_to_not_say_button(self) -> Locator:
-        return self.container.get_by_role("button", name="I'd prefer to not say")
+        return self.container.get_by_role("button", name="I'd prefer not to say")
 
     @property
     def send_feedback_button(self) -> Locator:
@@ -506,7 +506,7 @@ class FeedbackComponent:
         self.not_quite_button.click()
         return self
 
-    def click_id_prefer_not_to_say(self) -> "FeedbackComponent":
+    def click_id_prefer_to_not_say(self) -> "FeedbackComponent":
         self.id_prefer_to_not_say_button.click()
         return self
 
