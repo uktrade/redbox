@@ -136,6 +136,9 @@ def test_negative_feedback_journey_with_details(page, live_server_url, vyvyan_ai
     [...document.querySelectorAll('script')].map(s => s.src).filter(Boolean)
     """)
     print("SCRIPTS:", scripts)  # noqa: T201
+    with page.expect_response(lambda r: r.url.rstrip("/").endswith("/buttons"), timeout=10000) as info:
+        existing_chat_page = chats_page.navigate_to_titled_chat(vyvyan_ai_message.chat.name)
+    print("BUTTONS GET:", info.value.status)  # noqa: T201
 
     expect(feedback_component.not_quite_button).to_be_visible()
     expect(feedback_component.yes_button).to_be_visible()
