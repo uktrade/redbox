@@ -282,15 +282,12 @@ export class ChatController extends HTMLElement {
         if (!this.messageContainer) return console.error("Missing message container");
         if (!this.currentStream) return console.error("No active stream");
 
-        // Trusted server-rendered shell (Jinja-escaped, no LLM content yet).
-        // Sanitising here strips the feedback chrome's hx-* attributes.
+        // Sanitising here strips the feedback hx-* attributes.
         // LLM output is sanitised at its own boundary in StreamedContent.
         this.messageContainer.insertAdjacentHTML("beforeend", response.html);
 
         const message = this.getMessage(response.chat_message_id);
 
-        // htmx only binds content it swapped itself; nodes inserted here
-        // need processing explicitly.
         if (message) htmx.process(message);
 
         if (response.chat_message_role === "ai") {
