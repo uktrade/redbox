@@ -30,6 +30,14 @@ class SensitiveValue:
         memo[id(self)] = new
         return new
 
+    def __hash__(self) -> int:
+        return hash(self.get())  # hashed, never logged
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, SensitiveValue):
+            return NotImplemented
+        return self.get() == other.get()
+
 
 class NonPicklableCallable:
     """Wraps a callable to prevent deepcopy/pickle from walking into it."""

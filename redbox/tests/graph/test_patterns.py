@@ -1,6 +1,7 @@
+import copy
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
-import copy
 import pytest
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, HumanMessage, ToolCall
@@ -8,14 +9,13 @@ from langchain_core.retrievers import BaseRetriever
 from langchain_core.runnables import RunnableLambda
 from langgraph.graph import END, START, StateGraph
 from pytest_mock import MockerFixture
-from unittest.mock import AsyncMock, patch
 
 from redbox.chains.components import get_structured_response_with_citations_parser
 from redbox.chains.runnables import CannedChatLLM, build_chat_prompt_from_messages_runnable, build_llm_chain
 from redbox.graph.nodes.processes import (
     build_agent_with_loop,
-    build_datahub_agent_with_loop,
     build_chat_pattern,
+    build_datahub_agent_with_loop,
     build_merge_pattern,
     build_passthrough_pattern,
     build_retrieve_pattern,
@@ -26,6 +26,7 @@ from redbox.graph.nodes.processes import (
     clear_documents_process,
     empty_process,
 )
+from redbox.graph.nodes.runner.models import Result, ToolCallResult
 from redbox.models.chain import (
     AISettings,
     Citation,
@@ -37,8 +38,8 @@ from redbox.models.chain import (
     TaskStatus,
     configure_agent_task_plan,
 )
-from redbox.models.prompts import DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS
 from redbox.models.chat import ChatRoute
+from redbox.models.prompts import DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS
 from redbox.test.data import (
     RedboxChatTestCase,
     RedboxTestData,
@@ -793,7 +794,7 @@ class TestBuildAgentLoop:
 
 @pytest.fixture
 def mock_datahub_tools(mocker: MockerFixture):
-    with patch("redbox.graph.nodes.processes.get_datahub_mcp_tools", new_callable=AsyncMock) as mock:
+    with patch("redbox.graph.nodes.processes.get_cached_datahub_mcp_tools", new_callable=AsyncMock) as mock:
         fake_tool = mocker.Mock()
         fake_tool.name = "fake_tool"
         mock.return_value = [fake_tool]
@@ -868,8 +869,25 @@ class TestBuildDatahubAgentLoop:
         llm = GenericFakeChatModel(messages=iter([res]))
         mock_llm = mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
 
-        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel")
-        mock_tool_calls.return_value = tool_call_results
+        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel_extended")
+        if tool_call_results is None:
+            mock_tool_calls.return_value = Result()
+        elif isinstance(tool_call_results, list):
+            mock_tool_calls.return_value = Result(
+                results=[
+                    ToolCallResult.Success(
+                        tool_name="test_tool",
+                        response=msg if isinstance(msg, AIMessage) else AIMessage(content=msg.get("text", "")),
+                    )
+                    for msg in tool_call_results
+                ]
+            )
+        else:
+            mock_tool_calls.return_value = Result(
+                results=[
+                    ToolCallResult.Success(tool_name="test_tool", response=AIMessage(content=str(tool_call_results)))
+                ]
+            )
 
         mock_preprocess = None
         if pre_process is not None:
@@ -966,8 +984,10 @@ class TestBuildDatahubAgentLoop:
         llm = GenericFakeChatModel(messages=iter([llm_message]))
         mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
 
-        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel")
-        mock_tool_calls.return_value = [llm_message]
+        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel_extended")
+        mock_tool_calls.return_value = Result(
+            results=[ToolCallResult.Success(tool_name="test_tool", response=llm_message)]
+        )
 
         agent = "Internal_Retrieval_Agent"
         agent_task, multi_agent_plan = configure_agent_task_plan({agent: agent})
@@ -1102,8 +1122,10 @@ class TestBuildDatahubAgentLoop:
         llm = GenericFakeChatModel(messages=iter([res] * 10))
         mocker.patch("redbox.chains.runnables.get_chat_llm", return_value=llm)
 
-        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel")
-        mock_tool_calls.return_value = tool_results
+        mock_tool_calls = mocker.patch("redbox.graph.nodes.processes.run_tools_parallel_extended")
+        mock_tool_calls.return_value = Result(
+            results=[ToolCallResult.Success(tool_name="test_tool", response=msg) for msg in tool_results]
+        )
 
         agent_name = "Internal_Retrieval_Agent"
         agent_task, multi_agent_plan = configure_agent_task_plan({agent_name: agent_name})

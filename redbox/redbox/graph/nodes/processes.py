@@ -28,8 +28,8 @@ from redbox.chains.activity import log_activity
 from redbox.chains.components import get_chat_llm, get_structured_response_with_citations_parser, get_tokeniser
 from redbox.chains.parser import ClaudeParser
 from redbox.chains.runnables import CannedChatLLM, build_llm_chain, chain_use_metadata, create_chain_agent
-from redbox.graph.nodes.sends import run_tools_parallel
-from redbox.graph.nodes.tools import get_datahub_mcp_tools
+from redbox.graph.nodes.cache.tools import get_cached_datahub_mcp_tools
+from redbox.graph.nodes.sends import run_tools_parallel, run_tools_parallel_extended
 from redbox.models import ChatRoute
 from redbox.models.chain import (
     DocumentState,
@@ -611,7 +611,7 @@ def build_datahub_agent_with_loop(
     async def _build_datahub_agent_with_loop(state: RedboxState):
         tools = []
         if sso_token_getter := state.request.sso_token_getter:
-            tools = await get_datahub_mcp_tools(sso_token_getter=sso_token_getter)
+            tools = await get_cached_datahub_mcp_tools(sso_token_getter=sso_token_getter)
 
         if not tools:
             log.error(f"[{agent_name}] No tools available")
@@ -704,11 +704,22 @@ def build_datahub_agent_with_loop(
 
             log.warning(f"{log_stub} Worker agent output:\n{ai_msg}")
 
-            log.warning(f"{log_stub} Running tools via run_tools_parallel...")
-            result = run_tools_parallel(ai_msg, tools, state, is_loop=True)  # this agent runs with loop
+            log.warning(f"{log_stub} Running tools via run_tools_parallel_extended...")
+
+            tr_result = run_tools_parallel_extended(ai_msg, tools, state, is_loop=True)
+
+            if tr_result is None:
+                result = ai_msg.content
+            elif tr_result.results:
+                result = [r.response for r in tr_result.results]
+            else:
+                result = None
 
             if not result:
-                result = "Tool error: no results received."
+                if tr_result is not None and len(tr_result.failures) > 0:
+                    result = "Tool error: unable to contact Datahub MCP server"
+                else:
+                    result = "Tool error: no results received."
 
             elif has_loop and len(ai_msg.tool_calls) > 0:  # if loop, we need to transform results
                 collated_result = ""
