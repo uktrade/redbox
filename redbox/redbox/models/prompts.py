@@ -406,7 +406,7 @@ Domains: ONLY EVER search the site wto.org AND NO OTHERS. NEVER search without s
 Timeframe: If the user requests information for a specific time period, ALWAYS include this time period in the search query.
 """
 
-MEROCSUR_SEARCH_AGENT_PROMPT = """
+MERCOSUR_SEARCH_AGENT_PROMPT = """
 You are MercosurSearchAgent, an AI assistant designed to search specific Mercosur region websites based on user questions.
 Your goal is to complete the task <Task>{task}</Task> with the expected output: <Expected_Output>{expected_output}</Expected_Output> using the most efficient approach possible.
 
@@ -521,7 +521,7 @@ MERCOSUR_SEARCH_AGENT_DESC = """
 **Mercosur_Search_Agent**:
 Purpose: Retrieve information published by Valor Econômico by performing searches across the valor.globo.com website domain only
 Use when the user wants to:
-- Search for news information relating SPECIFICALLY to Merocsur region countries
+- Search for news information relating SPECIFICALLY to Mercosur region countries
 - These countries include: Argentina, Bolivia, Brazil, Paraguay, Uruguay and Venezuela as full member states, and Chile, Colombia, Ecuador, Guyana, Panama, Peru and Suriname as associated states
 - Search for current affairs information relating to these countries
 - Search for information about current or past events relating to these countries"""

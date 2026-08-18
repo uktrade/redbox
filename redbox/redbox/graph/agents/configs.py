@@ -114,7 +114,7 @@ prompt_configs: Dict[str, PromptConfig] = {
         prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
     ),
     "Mercosur_Search_Agent": PromptConfig(
-        system=prompts.MEROCSUR_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
+        system=prompts.MERCOSUR_SEARCH_AGENT_PROMPT + prompts.PREVIOUS_AGENT_RESULTS,
         prompt_vars=PromptVariable(task=True, expected_output=True, previous_agents_results=True),
     ),
     "Summarisation_Agent": PromptConfig(
