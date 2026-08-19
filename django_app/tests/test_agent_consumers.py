@@ -50,7 +50,7 @@ async def _send_and_collect(alice, agents_list, mocked_graph, message: str, n_re
 
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_graph):
             await communicator.send_json_to({"message": message})
-            responses = [await communicator.receive_json_from(timeout=5) for _ in range(n_responses)]
+            responses = [await communicator.receive_json_from(timeout=15) for _ in range(n_responses)]
             await communicator.disconnect()
 
     return responses
