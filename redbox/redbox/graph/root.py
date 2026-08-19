@@ -577,6 +577,7 @@ def build_new_route_graph(
     add_agent(builder, agent_configs, "Imf_Search_Agent")
     add_agent(builder, agent_configs, "Oecd_Search_Agent")
     add_agent(builder, agent_configs, "Wto_Search_Agent")
+    add_agent(builder, agent_configs, "Mercosur_Search_Agent")
     add_agent(
         builder,
         agent_configs,
