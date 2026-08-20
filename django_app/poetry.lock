@@ -1955,14 +1955,14 @@ files = [
 
 [[package]]
 name = "daphne"
-version = "4.2.1"
+version = "4.2.2"
 description = "Django ASGI (HTTP/WebSocket) server"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "daphne-4.2.1-py3-none-any.whl", hash = "sha256:881e96b387b95b35ad85acd855f229d7f5b79073d6649089c8a33f661885e055"},
-    {file = "daphne-4.2.1.tar.gz", hash = "sha256:5f898e700a1fda7addf1541d7c328606415e96a7bd768405f0463c312fcb31b3"},
+    {file = "daphne-4.2.2-py3-none-any.whl", hash = "sha256:466ba8a7c31c5b758953095b451dbad9dc23e5783c68a3716e5fc7aa5f26d168"},
+    {file = "daphne-4.2.2.tar.gz", hash = "sha256:6c3527d4ce32630ae054dfb0ef5578e9a35d2f39f0ebcd02ef4f9129a121ce8d"},
 ]
 
 [package.dependencies]
