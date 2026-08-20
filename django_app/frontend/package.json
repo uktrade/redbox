@@ -76,5 +76,8 @@
     "fsevents@2.3.2": true,
     "lmdb@2.8.5": true,
     "msgpackr-extract@3.0.3": true
+  },
+  "overrides": {
+  "sha.js": "^2.4.12"
   }
 }
