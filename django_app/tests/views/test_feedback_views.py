@@ -37,7 +37,7 @@ def test_get_buttons_renders_buttons_when_no_feedback(alice, chat_message: ChatM
     soup = BeautifulSoup(response.content, "html.parser")
     heading = soup.find("legend", class_="feedback__heading")
     assert heading is not None
-    assert heading.get_text(strip=True) == "Did you get what you wanted from this response?"
+    assert heading.get_text(strip=True) == "Did you get what you needed from this response?"
     buttons = [b.get_text(strip=True) for b in soup.find_all("button")]
     assert "Yes" in buttons
     assert "Not quite" in buttons
@@ -54,12 +54,12 @@ def test_get_buttons_renders_thanks_when_feedback_exists(alice, chat_message: Ch
 
     assert response.status_code == HTTPStatus.OK
     soup = BeautifulSoup(response.content, "html.parser")
-    heading = soup.find("legend", class_="feedback__heading")
+    heading = soup.find("p", class_="feedback__heading")
     assert heading is not None
-    assert heading.get_text(strip=True) == "Thanks for your feedback"
+    assert heading.get_text(strip=True) == "Thank you for helping us to improve this service"
     button = soup.find("button")
     assert button is not None
-    assert button.get_text(strip=True) == "Change feedback"
+    assert button.get_text(strip=True) == "Change your answers"
 
 
 @pytest.mark.django_db
@@ -163,7 +163,7 @@ def test_feedback_delete_removes_and_renders_buttons(alice, chat_message: ChatMe
     soup = BeautifulSoup(response.content, "html.parser")
     heading = soup.find("legend", class_="feedback__heading")
     assert heading is not None
-    assert heading.get_text(strip=True) == "Did you get what you wanted from this response?"
+    assert heading.get_text(strip=True) == "Did you get what you needed from this response?"
 
 
 @pytest.mark.django_db
@@ -178,4 +178,4 @@ def test_feedback_delete_no_instance_is_safe(alice, chat_message: ChatMessage, c
     soup = BeautifulSoup(response.content, "html.parser")
     heading = soup.find("legend", class_="feedback__heading")
     assert heading is not None
-    assert heading.get_text(strip=True) == "Did you get what you wanted from this response?"
+    assert heading.get_text(strip=True) == "Did you get what you needed from this response?"
