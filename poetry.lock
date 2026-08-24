@@ -2234,17 +2234,42 @@ name = "django-log-formatter-asim"
 version = "1.3.0"
 description = "Formats Django logs in ASIM format."
 optional = false
-python-versions = "<4,>=3.10"
+python-versions = ">=3.10,<4"
 groups = ["main"]
-files = [
-    {file = "django_log_formatter_asim-1.3.0-py3-none-any.whl", hash = "sha256:59bdd288e2482a74c2c41d0e0b2f8c85221a96a631d11f55924b07b37ff3ed09"},
-    {file = "django_log_formatter_asim-1.3.0.tar.gz", hash = "sha256:10e03b75f020a3176fd565da1b3b5b8276808c3ac13ce8dc7d39dd40a32206da"},
-]
+files = []
+develop = false
 
 [package.dependencies]
 ddtrace = ">=3.2.1,<5"
 django = ">=4.2,<7"
-django-ipware = ">=7.0.1,<8.0.0"
+django-ipware = "^7.0.1"
+
+[package.source]
+type = "git"
+url = "https://github.com/uktrade/django-log-formatter-asim.git"
+reference = "58b52cd82debfd4fe3a8d3867c63fae7597e658d"
+resolved_reference = "58b52cd82debfd4fe3a8d3867c63fae7597e658d"
+
+[[package]]
+name = "django-requestlogs"
+version = "0.8.3"
+description = "Audit logging for Django and Django Rest Framework"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "django_requestlogs-0.8.3-py3-none-any.whl", hash = "sha256:ae3882f7559b89a39905c80548463b71739f7a1acbaffff1d7b31fd418277b3a"},
+    {file = "django_requestlogs-0.8.3.tar.gz", hash = "sha256:56dea839b18267a273d1d28fe50e06caf1fda526d5d3f2f5a66305a334209c0e"},
+]
+
+[package.dependencies]
+Django = ">=1.11,<6.0"
+djangorestframework = ">=3.0,<4.0"
+setuptools = "*"
+
+[package.extras]
+dev = ["pytest"]
+ipware = ["django-ipware"]
 
 [[package]]
 name = "django-staff-sso-client"
@@ -2265,6 +2290,21 @@ requests_oauthlib = "*"
 
 [package.extras]
 test = ["build", "codecov", "flake8 (==5.0.4)", "pytest (==7.4.4)", "pytest-cov", "pytest-django", "raven", "requests-mock", "requests_mock", "setuptools", "twine", "wheel"]
+
+[[package]]
+name = "djangorestframework"
+version = "3.18.0"
+description = "Web APIs for Django, made easy."
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "djangorestframework-3.18.0-py3-none-any.whl", hash = "sha256:381fc44d3249c9565c5f723850855b734e99030eb30957a49f506d3fe11d7dcb"},
+    {file = "djangorestframework-3.18.0.tar.gz", hash = "sha256:2323a5111837e0b784dcb8323abc78ecc54fa2a5af7aff2677cf50cdd849477f"},
+]
+
+[package.dependencies]
+django = ">=5.2"
 
 [[package]]
 name = "dnspython"
@@ -2841,7 +2881,7 @@ version = "4.0.12"
 description = "Git Object Database"
 optional = false
 python-versions = ">=3.7"
-groups = ["dev", "docs"]
+groups = ["docs"]
 files = [
     {file = "gitdb-4.0.12-py3-none-any.whl", hash = "sha256:67073e15955400952c6565cc3e707c554a4eea2e428946f7a4c162fab9bd9bcf"},
     {file = "gitdb-4.0.12.tar.gz", hash = "sha256:5ef71f855d191a3326fcfbc0d5da835f26b13fbcba60c32c21091c349ffdb571"},
@@ -2856,7 +2896,7 @@ version = "3.1.58"
 description = "GitPython is a Python library used to interact with Git repositories"
 optional = false
 python-versions = ">=3.7"
-groups = ["dev", "docs"]
+groups = ["docs"]
 files = [
     {file = "gitpython-3.1.58-py3-none-any.whl", hash = "sha256:d331e722577f0fd7fc1f857419b3ecc07af66282b933d2a4d95f84a042fdd50f"},
     {file = "gitpython-3.1.58.tar.gz", hash = "sha256:621416df10ef3fd0e19fabf9172ddeed0fa704d353d04f194eec56a625a95b22"},
@@ -3755,7 +3795,7 @@ version = "1.6.8"
 description = "The ultimate Python library for JOSE RFCs, including JWS, JWE, JWK, JWA, JWT"
 optional = false
 python-versions = ">=3.9"
-groups = ["dev", "docs"]
+groups = ["docs"]
 files = [
     {file = "joserfc-1.6.8-py3-none-any.whl", hash = "sha256:22fb31a69094a5e6f44632002a9df2c30c941fc6c8ce1b037e92c03de954cf9f"},
     {file = "joserfc-1.6.8.tar.gz", hash = "sha256:878620c553a6ebdd76ccdc356782fee3f735f21a356d079a546b42a4670ace5f"},
@@ -4263,7 +4303,7 @@ version = "3.10.2"
 description = "Python implementation of John Gruber's Markdown."
 optional = false
 python-versions = ">=3.10"
-groups = ["main", "dev", "docs"]
+groups = ["main", "docs"]
 files = [
     {file = "markdown-3.10.2-py3-none-any.whl", hash = "sha256:e91464b71ae3ee7afd3017d9f358ef0baf158fd9a298db92f1d4761133824c36"},
     {file = "markdown-3.10.2.tar.gz", hash = "sha256:994d51325d25ad8aa7ce4ebaec003febcce822c3f8c911e3b17c52f7f589f950"},
@@ -7145,7 +7185,7 @@ version = "2.13.0"
 description = "JSON Web Token implementation in Python"
 optional = false
 python-versions = ">=3.9"
-groups = ["dev", "docs"]
+groups = ["docs"]
 files = [
     {file = "pyjwt-2.13.0-py3-none-any.whl", hash = "sha256:66adcc2aff09b3f1bbd95fc1e1577df8ac8723c978552fd43304c8a290ac5728"},
     {file = "pyjwt-2.13.0.tar.gz", hash = "sha256:41571c89ca91598c79e8ef18a2d07367d4810fbbd6f637794879baf1b7703423"},
@@ -7163,7 +7203,7 @@ version = "11.0.1"
 description = "Extension pack for Python Markdown."
 optional = false
 python-versions = ">=3.10"
-groups = ["dev", "docs"]
+groups = ["docs"]
 files = [
     {file = "pymdown_extensions-11.0.1-py3-none-any.whl", hash = "sha256:db3943a62bab7e03af1364f0c4083e64b91fb097675a4b6cceccfbe9a77e5eb2"},
     {file = "pymdown_extensions-11.0.1.tar.gz", hash = "sha256:dd2905ae6fc5b75582fafb139a1266ffc754705efa902aa50067fa7ff4f94ec0"},
@@ -8744,7 +8784,7 @@ version = "5.0.2"
 description = "A pure Python implementation of a sliding window memory map manager"
 optional = false
 python-versions = ">=3.7"
-groups = ["dev", "docs"]
+groups = ["docs"]
 files = [
     {file = "smmap-5.0.2-py3-none-any.whl", hash = "sha256:b30115f0def7d7531d22a0fb6502488d879e75b260a9db4d0819cfb25403af5e"},
     {file = "smmap-5.0.2.tar.gz", hash = "sha256:26ea65a03958fa0c8a1c7e8c7a58fdc77221b8910f6be2131affade476898ad5"},
@@ -9022,7 +9062,7 @@ version = "1.3.1"
 description = "The little ASGI library that shines."
 optional = false
 python-versions = ">=3.10"
-groups = ["dev", "docs"]
+groups = ["docs"]
 files = [
     {file = "starlette-1.3.1-py3-none-any.whl", hash = "sha256:c7372aae11c3c3f26a42df7bd626cec2f47d03483d261d369516a615a53714c6"},
     {file = "starlette-1.3.1.tar.gz", hash = "sha256:05d0213193f2fbaae60e2ecb593b4add4262ad4e46536b54abe36f11a71724e0"},
@@ -10504,4 +10544,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "c9754523c76c6a72dc9f408c8a4e350f41e48b6e5535f82ae2453f0d397f7579"
+content-hash = "983e46b4bc1883fe988686a59a3bdba39233d52967508209eef0b350e3a43e8b"
