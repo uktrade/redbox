@@ -1852,18 +1852,18 @@ python-ipware = ">=2.0.3"
 
 [[package]]
 name = "django-log-formatter-asim"
-version = "1.3.0"
+version = "1.4.0"
 description = "Formats Django logs in ASIM format."
 optional = false
-python-versions = "<4,>=3.10"
+python-versions = "<3.15,>=3.10"
 groups = ["main"]
 files = [
-    {file = "django_log_formatter_asim-1.3.0-py3-none-any.whl", hash = "sha256:59bdd288e2482a74c2c41d0e0b2f8c85221a96a631d11f55924b07b37ff3ed09"},
-    {file = "django_log_formatter_asim-1.3.0.tar.gz", hash = "sha256:10e03b75f020a3176fd565da1b3b5b8276808c3ac13ce8dc7d39dd40a32206da"},
+    {file = "django_log_formatter_asim-1.4.0-py3-none-any.whl", hash = "sha256:cc5872522ce679c1d8cd3f798f76e66b150f1f9460c48b9735ad11766a01efd0"},
+    {file = "django_log_formatter_asim-1.4.0.tar.gz", hash = "sha256:767600472c5eca0e0f0f3dddaa1e65a6f746c5e6f924e03ef20e758aa1ccbc14"},
 ]
 
 [package.dependencies]
-ddtrace = ">=3.2.1,<5"
+ddtrace = ">=4.8.2,<5"
 django = ">=4.2,<7"
 django-ipware = ">=7.0.1,<8.0.0"
 
@@ -2430,7 +2430,7 @@ description = "Lightweight in-process concurrent programming"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "sys_platform == \"linux\" and (platform_machine == \"aarch64\" or platform_machine == \"x86_64\") or (sys_platform == \"linux\" or sys_platform == \"win32\") and platform_machine == \"x86_64\" or (sys_platform != \"linux\" and sys_platform != \"win32\" or sys_platform != \"linux\" and platform_machine != \"x86_64\" or platform_machine != \"aarch64\" and platform_machine != \"x86_64\") and (platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\")"
+markers = "sys_platform == \"linux\" and (platform_machine == \"aarch64\" or platform_machine == \"x86_64\") or (sys_platform == \"linux\" or sys_platform == \"win32\") and platform_machine == \"x86_64\" or (sys_platform != \"linux\" or platform_machine != \"aarch64\" and platform_machine != \"x86_64\") and (sys_platform != \"linux\" and sys_platform != \"win32\" or platform_machine != \"x86_64\") and (platform_machine == \"aarch64\" or platform_machine == \"ppc64le\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"win32\" or platform_machine == \"WIN32\")"
 files = [
     {file = "greenlet-3.3.1-cp310-cp310-macosx_11_0_universal2.whl", hash = "sha256:04bee4775f40ecefcdaa9d115ab44736cd4b9c5fba733575bfe9379419582e13"},
     {file = "greenlet-3.3.1-cp310-cp310-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:50e1457f4fed12a50e427988a07f0f9df53cf0ee8da23fab16e6732c2ec909d4"},
@@ -2604,7 +2604,7 @@ description = "Fast transfer of large files with the Hugging Face Hub."
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"arm64\" or platform_machine == \"aarch64\" or sys_platform == \"linux\" and (platform_machine == \"aarch64\" or platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"arm64\")"
+markers = "platform_machine == \"x86_64\" or platform_machine == \"amd64\" or platform_machine == \"AMD64\" or platform_machine == \"arm64\" or platform_machine == \"aarch64\""
 files = [
     {file = "hf_xet-1.4.2-cp313-cp313t-macosx_10_12_x86_64.whl", hash = "sha256:ac8202ae1e664b2c15cdfc7298cbb25e80301ae596d602ef7870099a126fcad4"},
     {file = "hf_xet-1.4.2-cp313-cp313t-macosx_11_0_arm64.whl", hash = "sha256:6d2f8ee39fa9fba9af929f8c0d0482f8ee6e209179ad14a909b6ad78ffcb7c81"},
@@ -9653,4 +9653,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "0d96c2a5144e12c25202f7bc98306566d84e729d87e51af9d1fa85725ebd5e03"
+content-hash = "7f6508e93f01b9c4d705a8a45b75e7242df9bc51fe8122072f0b9f7acabbba86"
