@@ -443,12 +443,6 @@ class SupportPage(BasePage):
 
 @dataclass
 class FeedbackComponent:
-    """The redesigned feedback component that hangs off a single AI chat message.
-
-    Wraps the #feedback-{message_id} container and the buttons/form/thanks states
-    that htmx swaps into it.
-    """
-
     container: Locator = field(repr=False)
     page: Page = field(repr=False)
 

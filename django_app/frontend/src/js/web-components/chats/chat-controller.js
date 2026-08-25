@@ -318,10 +318,6 @@ export class ChatController extends HTMLElement {
         const message = this.getMessage(response.chat_message_id);
         message?.complete(response.html);
         if (this.currentStream) this.currentStream.title = response.title;
-        console.log('complete id:', response.chat_message_id, 'found:', message);  // <-- add this
-
-        // Feedback chrome in the message shell waits on this event before
-        // firing its hx-get (see _feedback_container.html hx-trigger).
         message?.dispatchEvent(new CustomEvent("streaming-complete", { bubbles: true }));
     }
 
