@@ -162,6 +162,7 @@ api_url_patterns = [
     path("api/v0/users/", views.user_view_pre_alpha, name="user-view"),
     path("api/v0/messages/", views.message_view_pre_alpha, name="message-view"),
     path("api/v0/aws-credentials", views.aws_credentials_api, name="aws-credentials"),
+    path("api/v1/messages/", views.message_view, name="message-view-v1"),
 ]
 
 feedback_url_patterns = [

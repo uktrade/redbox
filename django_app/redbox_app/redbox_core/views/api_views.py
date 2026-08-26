@@ -50,6 +50,22 @@ def message_view_pre_alpha(request):
     return paginator.get_paginated_response(serializer.data)
 
 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated, IsAdminUser])
+def message_view(request):
+    """Return paginated message data"""
+
+    paginator = StandardResultsSetPagination()
+    queryset = ChatMessage.objects.all().order_by("created_at")
+    created_after = request.query_params.get("created_after")
+    if created_after:
+        queryset = queryset.filter(created_at__gt=created_after)
+
+    result_page = paginator.paginate_queryset(queryset, request)
+    serializer = ChatMessageSerializer(result_page, many=True, read_only=True)
+    return paginator.get_paginated_response(serializer.data)
+
+
 def get_transcribe_credentials():
     client = boto3.client("sts")
     role_arn = settings.AWS_TRANSCRIBE_ROLE_ARN
