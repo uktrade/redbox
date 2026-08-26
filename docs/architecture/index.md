@@ -82,7 +82,7 @@ The server (`django_app/redbox_app/`) runs behind [Daphne](https://github.com/dj
 
 Each incoming chat message is handled by [`ChatConsumer`](../../django_app/redbox_app/redbox_core/consumers.py), a [Django Channels](https://channels.readthedocs.io/) `AsyncWebsocketConsumer`. Channels is Django's extension for WebSockets and other long-lived async connections. It calls the AI engine's LangGraph state machine, persists chat sessions, messages, citations, and agent plans to PostgreSQL, and pushes tokens and events back to the browser in real time.
 
-Authentication is handled by [`django-staff-sso-client`](https://github.com/uktrade/django-staff-sso-client) (DBT Staff SSO via OAuth). A custom `TokenCaptureBackend` extends the SSO backend to capture the OAuth token into the session for downstream use.
+Authentication is handled by [`django-staff-sso-client`](https://github.com/uktrade/django-staff-sso-client) (BIST Staff SSO via OAuth). A custom `TokenCaptureBackend` extends the SSO backend to capture the OAuth token into the session for downstream use.
 
 File uploads follow a different path from chat messages. Ingestion can take minutes, so it runs out-of-band: a Django [view](http://docs.djangoproject.com/en/6.0/topics/http/views/) (an HTTP request handler) stores the file in S3, writes a *task* row to PostgreSQL describing the work, and returns immediately. A separate **worker** process picks the task up and runs it — see [Document ingestion](#document-ingestion). This producer/worker pattern is implemented by [Django-Q2](https://django-q2.readthedocs.io/), which uses PostgreSQL as the task store and so avoids the need for a separate message broker (e.g. Redis or RabbitMQ).
 
@@ -271,7 +271,7 @@ flowchart LR
 | Document processing | [AWS Textract](https://aws.amazon.com/textract/) (PDF extraction), [unstructured](https://github.com/Unstructured-IO/unstructured) (DOCX, PPTX, TXT extraction), [LibreOffice](https://www.libreoffice.org/) (`.doc` → `.docx`) |
 | Backend framework | [Django 5](https://www.djangoproject.com/) + [Django Channels](https://channels.readthedocs.io/) |
 | ASGI server | [Daphne](https://github.com/django/daphne) + [WhiteNoise](https://whitenoise.readthedocs.io/) (static files) |
-| Authentication | `django-staff-sso-client` (DBT Staff SSO, primary)
+| Authentication | `django-staff-sso-client` (BIST Staff SSO, primary)
 | Email | [GOV.UK Notify](https://www.notifications.service.gov.uk/) (`django-gov-notify`) |
 | Feature flags | [Django-Waffle](https://waffle.readthedocs.io/) |
 | Admin dashboards | [Plotly Dash](https://dash.plotly.com/) (`django-plotly-dash`) |
