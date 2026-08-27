@@ -23,6 +23,7 @@ from redbox_app.redbox_core.models import (
     Chat,
     ChatLLMBackend,
     ChatMessage,
+    ChatMessageFeedback,
     ChatMessageTokenUse,
     Citation,
     File,
@@ -368,6 +369,22 @@ def user_with_chats_with_messages_over_time(alice: User) -> User:
     ChatMessage.objects.create(chat=chats[4], text="today", role=ChatMessage.Role.user)
 
     return alice
+
+
+@pytest.fixture
+def negative_feedback(chat_message: ChatMessage) -> ChatMessageFeedback:
+    return ChatMessageFeedback.objects.create(
+        message=chat_message,
+        is_positive=False,
+        reason=[ChatMessageFeedback.Reason.INACCURATE, ChatMessageFeedback.Reason.LACKED_DETAIL],
+        detail="It made things up.",
+    )
+
+
+@pytest.fixture
+def positive_feedback(chat_message_with_citation: ChatMessage) -> ChatMessageFeedback:
+    # the model constraints forbid reason/detail on positive feedback
+    return ChatMessageFeedback.objects.create(message=chat_message_with_citation, is_positive=True)
 
 
 @pytest.fixture

@@ -10,7 +10,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 
 from redbox_app.redbox_core.models import ChatMessage
-from redbox_app.redbox_core.serializers import ChatMessageSerializer, UserSerializer
+from redbox_app.redbox_core.serializers import ChatMessageSerializer, ChatMessageSerializerV1, UserSerializer
 
 User = get_user_model()
 
@@ -63,6 +63,36 @@ def message_view(request):
 
     result_page = paginator.paginate_queryset(queryset, request)
     serializer = ChatMessageSerializer(result_page, many=True, read_only=True)
+    return paginator.get_paginated_response(serializer.data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated, IsAdminUser])
+def message_view_v1(request):
+    """Return paginated chat messages with related feedback, chat, file, and token-use data.
+    Supersedes ``message_view``
+
+    Authentication:
+        Requires a valid ``X-API-KEY`` header.
+
+    Query parameters:
+        created_after (optional): ISO 8601 timestamp
+        page (optional): Int
+    """
+
+    paginator = StandardResultsSetPagination()
+    queryset = (
+        ChatMessage.objects.select_related("feedback", "chat", "chat__user", "chat__tool")
+        .prefetch_related("selected_files", "source_files", "chatmessagetokenuse_set")
+        .order_by("created_at")
+    )
+    created_after = request.query_params.get("created_after")
+
+    if created_after:
+        queryset = queryset.filter(created_at__gt=created_after)
+
+    result_page = paginator.paginate_queryset(queryset, request)
+    serializer = ChatMessageSerializerV1(result_page, many=True, read_only=True)
     return paginator.get_paginated_response(serializer.data)
 
 
