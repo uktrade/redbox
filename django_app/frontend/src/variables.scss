@@ -48,9 +48,9 @@ $screen-widths: (
   --dbt-dark-purple: #4814A0;
 
   // Redbox Colors
-  --redbox-red: #942514; /*old:#A50202, #1D70B8*/
+  --redbox-red: #FF4328; /*old:#942514, #A50202, #1D70B8*/
   --redbox-blue: var(--gds-blue);
-  --redbox--light-blue: #F4F8FB;
+  --redbox--light-blue: #FFF4EE;
   --redbox-white: var(--dbt-white);
   --redbox-grey: var(--gds-mid-grey);
   --redbox-light-grey: var(--gds-light-grey);
@@ -85,7 +85,7 @@ $screen-widths: (
   --color-text-secondary: var(--dbt-white);
   --color-link-text: var(--redbox-blue);
   --color-link-text-hover: var(--gds-dark-blue);
-  --color-product-name: #AA2A16;
+  --color-product-name: #D92F14;
   --color-side-panel: var(--color-background-light-blue);
   --color-background-inactive: rgba(255, 255, 255, 0.5);
 

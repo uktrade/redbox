@@ -1,11 +1,11 @@
 .ids-banner {
-  --banner-text-color: var(--color-text-secondary);
-  --banner-background-color: var(--color-background-secondary);
+  --banner-text-color: var(--gds-black);
+  --banner-background-color: var(--redbox--light-blue);
 
   background-color: var(--banner-background-color);
   color: var(--banner-text-color);
-  padding-bottom: 3rem;
-  padding-top: 2.75rem;
+  padding-bottom: 2rem;
+  padding-top: 2.5rem;
 
   & * {
     color: var(--banner-text-color);
