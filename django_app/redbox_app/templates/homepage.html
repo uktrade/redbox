@@ -12,10 +12,10 @@
         <div class="govuk-width-container">
             <div class="govuk-grid-row">
                 <div class="govuk-grid-column-two-thirds">
-                    <h1 class="govuk-heading-xl govuk-!-margin-bottom-4">
+                    <h1 class="govuk-heading-xl govuk-!-margin-bottom-7">
                         Get AI-powered insights from your {{ security }} documents.
                     </h1>
-                    <p class="govuk-body govuk-!-margin-bottom-4">
+                    <p class="govuk-body govuk-!-margin-bottom-7">
                         Ask questions, create summaries, or chat with Artificial Intelligence (AI)
                         about single or multiple documents to support your work.
                     </p>
@@ -24,13 +24,13 @@
                             {{ govukLink(
                                 text="Sign in",
                                 href=url('sign-in'),
-                                classes="govuk-button govuk-!-margin-bottom-2"
+                                classes="govuk-button--secondary govuk-!-margin-bottom-3"
                             ) }}
                         {% else %}
                             {{ govukLink(
                                 text = "Start a chat",
                                 href=url('chats'),
-                                classes="govuk-button govuk-!-margin-bottom-0"
+                                classes="govuk-button--secondary govuk-!-margin-bottom-0"
                             ) }}
                         {% endif %}
                     </div>
