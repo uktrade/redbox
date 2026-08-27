@@ -1,7 +1,5 @@
 {% from "macros/icon.html" import ids_icon %}
 
-{% set productName = product_name(request) %}
-
 {% macro route_display(route=None) %}
 <details class="govuk-details redbox-message-route" {% if not route %} hidden {% endif %}>
   <summary class="govuk-details__summary">

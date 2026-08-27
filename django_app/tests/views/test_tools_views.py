@@ -3,6 +3,7 @@ from http import HTTPStatus
 from unittest.mock import patch
 
 import pytest
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpResponse
 from django.test import Client
@@ -16,7 +17,7 @@ from redbox_app.redbox_core.models import (
 )
 
 User = get_user_model()
-
+product_name = settings.PRODUCT_NAME
 logger = logging.getLogger(__name__)
 
 
@@ -44,7 +45,7 @@ def test_user_can_see_active_tool(alice: User, client: Client, default_tool: Too
     # Then
     assert response.status_code == HTTPStatus.OK
     assert default_tool.name in response.content.decode()
-    assert f"New chat - Chats - {default_tool.name} - DBT Assist" in response.content.decode()
+    assert f"New chat - Chats - {default_tool.name} - {product_name}" in response.content.decode()
 
 
 @pytest.mark.django_db
@@ -96,7 +97,7 @@ def test_user_can_see_tool_chats(alice: User, client: Client, default_tool: Tool
     assert default_tool.name in response.content.decode()
     assert chat.name in response.content.decode()
 
-    assert f"{chat.name} - Chats - {default_tool.name} - DBT Assist" in response.content.decode()
+    assert f"{chat.name} - Chats - {default_tool.name} - {product_name}" in response.content.decode()
 
 
 @pytest.mark.django_db

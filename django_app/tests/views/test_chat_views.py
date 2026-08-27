@@ -5,6 +5,7 @@ from http import HTTPStatus
 
 import pytest
 from bs4 import BeautifulSoup
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
@@ -15,6 +16,7 @@ from redbox_app.redbox_core.models import (
 )
 
 User = get_user_model()
+product_name = settings.PRODUCT_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +31,7 @@ def test_user_can_start_a_new_chat(alice: User, client: Client):
 
     # Then
     assert response.status_code == HTTPStatus.OK
-    assert "New chat - Chats - DBT Assist" in response.content.decode()
+    assert f"New chat - Chats - {product_name}" in response.content.decode()
 
 
 @pytest.mark.django_db
@@ -42,7 +44,7 @@ def test_user_can_see_their_own_chats(chat_with_message: Chat, alice: User, clie
 
     # Then
     assert response.status_code == HTTPStatus.OK
-    assert f"{chat_with_message.name} - Chats - DBT Assist" in response.content.decode()
+    assert f"{chat_with_message.name} - Chats - {product_name}" in response.content.decode()
 
 
 @pytest.mark.django_db
