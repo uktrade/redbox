@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import datetime
+import re
 from enum import StrEnum
+from typing import ClassVar, Literal, Optional
 from uuid import UUID, uuid4
-from typing import Optional, Literal
 
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 
 class ChunkResolution(StrEnum):
@@ -33,6 +34,56 @@ class BaseSchema(BaseModel):
 class TabularSchema(BaseSchema):
     type: Literal["tabular"] = "tabular"
     columns: dict[str, str]
+
+    _identifier_pattern: ClassVar[re.Pattern[str]] = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+    _allowed_duckdb_types: ClassVar[set[str]] = {
+        "INT",
+        "INTEGER",
+        "NUMERIC",
+        "BIGINT",
+        "SMALLINT",
+        "TINYINT",
+        "UBIGINT",
+        "UINTEGER",
+        "USMALLINT",
+        "UTINYINT",
+        "HUGEINT",
+        "FLOAT",
+        "DOUBLE",
+        "REAL",
+        "DECIMAL",
+        "BOOLEAN",
+        "BOOL",
+        "DATE",
+        "TIMESTAMP",
+        "TIMESTAMPTZ",
+        "TIME",
+        "VARCHAR",
+        "TEXT",
+    }
+
+    @field_validator("name")
+    @classmethod
+    def validate_table_name(cls, value: str) -> str:
+        if not cls._identifier_pattern.fullmatch(value):
+            raise ValueError("table name must be a valid SQL identifier")
+        return value
+
+    @field_validator("columns")
+    @classmethod
+    def validate_columns(cls, value: dict[str, str]) -> dict[str, str]:
+        if not value:
+            raise ValueError("tabular schema must include at least one column")
+
+        for column_name, column_type in value.items():
+            if not cls._identifier_pattern.fullmatch(column_name):
+                raise ValueError(f"column '{column_name}' must be a valid SQL identifier")
+
+            normalized_type = column_type.strip().upper()
+            if normalized_type not in cls._allowed_duckdb_types:
+                raise ValueError(f"column type '{column_type}' is not allowed")
+
+        return value
 
 
 class ChunkMetadata(BaseModel):

@@ -1,5 +1,6 @@
 import datetime
 import re
+from urllib.parse import urlparse
 
 import humanize
 import jinja2
@@ -96,13 +97,6 @@ def get_menu_items(user):
     return items
 
 
-def get_product_name(user):
-    if flag_is_active(user, flags.ENABLE_ASSIST_REBRAND):
-        return "DBT Assist"
-
-    return settings.PRODUCT_NAME
-
-
 def get_csrf_token(request):
     return get_token(request)
 
@@ -113,6 +107,15 @@ def show_all_attrs(value) -> str:
         result.append(f"{key}: {getattr(value, key)}")
 
     return str("\n".join(result))
+
+
+def domain(url: str) -> str:
+    if not url:
+        return ""
+
+    parsed = urlparse(str(url))
+
+    return parsed.netloc.removeprefix("www.")
 
 
 def environment(**options):
@@ -136,6 +139,7 @@ def environment(**options):
             "environment": settings.ENVIRONMENT.value,
             "security": settings.MAX_SECURITY_CLASSIFICATION.value,
             "show_all_attrs": show_all_attrs,
+            "domain": domain,
         }
     )
     env.globals.update(
@@ -155,7 +159,7 @@ def environment(**options):
             "flag_is_active": flag_is_active,
             "flags": flags,
             "get_menu_items": get_menu_items,
-            "product_name": get_product_name,
+            "productName": settings.PRODUCT_NAME,
             "contact_email": settings.CONTACT_EMAIL,
             "approved_file_extensions": APPROVED_FILE_EXTENSIONS,
             "get_csrf_token": get_csrf_token,

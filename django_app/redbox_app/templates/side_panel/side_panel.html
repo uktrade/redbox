@@ -17,15 +17,21 @@
             {% include "side_panel/header.html" %}
 
             <div class="ids-side-panel__content ids-scrollable">
+                {% if enable_chats_redesign %}
+                    {% include "side_panel/new_chat.html" %}
+                {% endif %}
                 {% include "side_panel/conversations.html" %}
+                {% if enable_chats_redesign %}
+                    {% include "side_panel/tools.html" %}
+                {% endif %}
                 {% include "side_panel/model_selector.html" %}
                 {% include "side_panel/your_documents.html" %}
                 {% include "side_panel/menu.html" %}
             </div>
 
             <footer class="ids-side-panel__footer">
-                <span class="ids-flex-align-center ids-justify-content-center">
-                    {{ ids_icon(icon_name="dbt-logo.svg", icon_classes="ids-width--full") }}
+                <span class="ids-side-panel__footer-logo ids-flex-align-center ids-justify-content-center">
+                    {{ ids_icon(icon_name="bist-logo-large.svg", icon_classes="ids-width--full") }}
                 </span>
                 <span class="govuk-!-text-align-centre">
                     © Crown copyright {{ current_datetime().year }}. All rights reserved.

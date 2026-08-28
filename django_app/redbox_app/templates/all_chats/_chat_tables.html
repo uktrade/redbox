@@ -1,0 +1,34 @@
+{% set groups = [
+    ('Today', grouped_chats.today),
+    ('Yesterday', grouped_chats.yesterday),
+    ('Previous 7 days', grouped_chats.previous_7_days),
+    ('Previous 30 days', grouped_chats.previous_30_days),
+    ('Previous year', grouped_chats.previous_year),
+    ('Over a year', grouped_chats.over_a_year),
+] %}
+
+{% for title, chats in groups %}
+    {% if chats %}
+    <h2 class="govuk-heading-m">{{ title }}</h2>
+    <table class="govuk-table">
+        <thead class="govuk-table__head">
+        <tr class="govuk-table__row">
+            <th class="govuk-table__header">Name</th>
+            <th class="govuk-table__header">Tool</th>
+        </tr>
+        </thead>
+        <tbody class="govuk-table__body">
+        {% for chat in chats %}
+        <tr class="govuk-table__row">
+            <td class="govuk-table__cell"><a class="govuk-link" href="{{ url('chats', chat_id=chat.id) }}">{{ chat.name }}</a></td>
+            <td class="govuk-table__cell">{{ chat.tool if chat.tool is not none else 'chat' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+{% endfor %}
+
+{% if not (grouped_chats.today or grouped_chats.yesterday or grouped_chats.previous_7_days or grouped_chats.previous_30_days or grouped_chats.previous_year or grouped_chats.over_a_year) %}
+  <p class="govuk-body">No chats found.</p>
+{% endif %}

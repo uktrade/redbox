@@ -1,106 +1,351 @@
 // @ts-check
 
 import { emitEvent, Events, listenEvent } from "../../../interaction_design_system/ids/events";
-import { getActiveToolId, hideElement } from "../../utils";
+import { getActiveToolId, sanitizeHtml } from "../../utils";
 import { ChatMessage } from "./chat-message";
 
-class ChatController extends HTMLElement {
+const STATE = {
+    EMPTY: "empty",
+    CONVERSATION: "conversation",
+}
 
-  connectedCallback() {
-    this.#bindEvents();
-  }
+const STATUS = {
+    STREAMING: "streaming",
+    COMPLETE: "complete",
+    STOPPED: "stopped",
+    ERROR: "error",
+}
 
-  #bindEvents = () => {
-    const chatsForm = document.querySelector("#chats-form");
-    let selectedDocuments = [];
-    const selectedTool = getActiveToolId();
+export class ChatController extends HTMLElement {
+    constructor() {
+        super();
 
-    chatsForm?.addEventListener("submit", (evt) => {
-      evt.preventDefault();
+        this.dataset.state = STATE.EMPTY;
 
-      const chatController = /** @type {ChatController} */ (
-        document.querySelector("chat-controller")
-      );
+        /** @type {SelectedDocument[]} */
+        this.selectedDocuments = [];
+    }
 
-      const messageContainer = chatController.querySelector("#chat-message-list");
-      messageContainer?.classList.add("test-update-dom");
-      const insertPosition = messageContainer?.querySelector("li[data-role='chat-message-list-item']:last-child")
-      const feedbackButtons = /** @type {HTMLElement | null} */ (
-        chatController.querySelector("feedback-buttons")
-      );
-      const messageInput = /** @type {import("./message-input").MessageInput} */ (
-          document.querySelector("ids-message-input")
-      );
-      const userText = messageInput?.getValue();
-      const hasContent = Boolean(userText || messageInput?.hasUploadedFiles());
 
-      if (!messageInput || !hasContent) return;
+    connectedCallback() {
+        this.bindEvents();
+        this.endPoint = this.dataset.streamUrl;
+        this.logoutUrl = this.dataset.logoutUrl;
+        if (this.messages.length) this.dataset.state = STATE.CONVERSATION;
+    }
 
-      // Input is valid, prepare to stream
 
-      const firstTimeUploadElement = /** @type {HTMLFormElement | null} */ (
-          document.querySelector("#first-time-user-upload")
-      );
-      if (firstTimeUploadElement) hideElement(firstTimeUploadElement);
+    bindEvents() {
+        this.formElement?.addEventListener("submit", this.handleSubmit);
 
-      let userMessage = /** @type {ChatMessage} */ (
-        document.createElement("ids-chat-message")
-      );
-      userMessage.setAttribute("data-text", userText);
-      userMessage.setAttribute("data-role", "user");
-      userMessage.setAttribute("aria-label", "User message");
-      userMessage.setAttribute("role", "listitem");
+        listenEvent(Events.SELECTED_DOCS_CHANGE, (evt) => {
+            this.selectedDocuments = evt.detail;
+        });
 
-      messageContainer?.appendChild(userMessage);
+        listenEvent(Events.STOP_STREAMING, () => {
+            this.dataset.status = STATUS.STOPPED;
+            this.currentStream?.socket.close();
+        });
+    }
 
-      let documents = [];
-      if (selectedDocuments.length) {
-        selectedDocuments.forEach(document => { documents.push(document.name)})
-      }
 
-      documents.forEach((activity) => {
-        userMessage.addFile(activity);
-      });
+    get formElement() {
+        if (!this._formElement || !document.body.contains(this._formElement)) {
+            this._formElement = /** @type {HTMLFormElement} */ (
+                document.querySelector("#chats-form")
+            );
+        }
+        return this._formElement;
+    }
 
-      let aiMessage = /** @type {import("./chat-message").ChatMessage} */ (
-        document.createElement("ids-chat-message")
-      );
-      aiMessage.setAttribute("data-role", "ai");
-      aiMessage.setAttribute("data-logout-url", this.dataset.logoutUrl || "/");
-      aiMessage.setAttribute("aria-label", "AI response");
-      aiMessage.setAttribute("role", "listitem");
 
-      messageContainer?.appendChild(aiMessage);
+    get messageContainer() {
+        if (!this._messageContainer || !this.contains(this._messageContainer)) {
+            this._messageContainer = /** @type {HTMLElement} */ (
+                this.querySelector("#chat-message-list")
+            );
+        }
+        return this._messageContainer;
+    }
 
-      const llm =
-        /** @type {HTMLInputElement | null}*/ (
+
+    get messageInput() {
+        if (!this._messageInput || !document.body.contains(this._messageInput)) {
+            this._messageInput = /** @type {import("./message-input").MessageInput} */ (
+                document.querySelector("ids-message-input")
+            );
+        }
+        return this._messageInput;
+    }
+
+
+    /**
+     * Returns the selected llm
+     * @returns {string} Selected LLM
+     */
+    get llm() {
+        return /** @type {HTMLInputElement | null}*/ (
           document.querySelector("#llm-selector")
         )?.value || "";
+    }
 
-      emitEvent(Events.START_STREAMING);
 
-      aiMessage.stream(
-        userText,
-        selectedDocuments.map(doc => doc.id),
-        documents,
-        llm,
-        chatController.dataset.sessionId,
-        chatController.dataset.streamUrl || "",
-        chatController,
-        selectedTool
-      );
-      /** @type {HTMLElement | null} */ (
-        aiMessage.querySelector(".govuk-inset-text")
-      )?.focus();
+    /**
+     * Returns the last chat message
+     * @returns {ChatMessage | null} Last chat message
+     */
+    get lastMessage() {
+        const messages = this.messages;
 
-      // reset UI
-      if (feedbackButtons) feedbackButtons.dataset.status = "";
-      messageInput.reset(true);
-    });
+        if (!messages?.length) return null;
 
-    listenEvent(Events.SELECTED_DOCS_CHANGE, (evt) => {
-      selectedDocuments = evt.detail;
-    });
-  }
+        return messages[messages.length - 1];
+    }
+
+
+    /**
+     * Returns the message element specified by ID
+     * @param {string} id ChatMessage ID
+     * @returns {ChatMessage | null} Message element
+     */
+    getMessage(id) {
+        // switch to data-id on chat-message objects
+        return /** @type {ChatMessage} */ (
+            this.querySelector(`#chat-message-${id}`)
+        );
+    }
+
+
+    /**
+     * A list of all message elements
+     * @returns {NodeListOf<ChatMessage>} Message element
+     */
+    get messages() {
+        return /** @type {NodeListOf<ChatMessage>} */ (
+            this.querySelectorAll("chat-message")
+        );
+    }
+
+
+    handleSubmit = async (/** @type {Event} */evt) => {
+        evt.preventDefault();
+
+        if (!this.messageInput || this.currentStream) return;
+
+        const text = this.messageInput.getValue();
+        const hasContent = Boolean(text || this.messageInput.hasUploadedFiles());
+
+        if (!hasContent) return;
+
+        // TBC
+        let activities = Array();
+        if (this.selectedDocuments.length) {
+            this.selectedDocuments.forEach(document => {activities.push(document.name)})
+        }
+
+        this.messageInput.reset(true);
+        this.messageInput.collapse();
+
+        this.dataset.state = STATE.CONVERSATION;
+
+        emitEvent(Events.START_STREAMING);
+
+        this.startStream({
+            text: text,
+            documents: this.selectedDocuments.map(doc => doc.id),
+            llm: this.llm,
+            toolId: getActiveToolId(),
+            activities: activities,
+        });
+    };
+
+
+    /**
+     * Streams an LLM response
+     * @param {StreamOptions} options
+     */
+    startStream = (options) => {
+        const {
+            text,
+            documents,
+            llm,
+            toolId,
+            activities,
+        } = options;
+
+        if (!this.endPoint) return console.error("Missing Endpoint");
+
+        this.currentStream = {
+            socket: new WebSocket(this.endPoint),
+            messageId: "",
+            title: "",
+        }
+
+        const webSocket = this.currentStream.socket;
+
+        webSocket.onopen = () => {
+            webSocket.send(
+                JSON.stringify({
+                    message: text,
+                    sessionId: this.dataset.sessionId,
+                    selectedFiles: documents,
+                    activities: activities,
+                    llm,
+                    selectedTool: toolId,
+                }),
+            );
+            this.dataset.status = STATUS.STREAMING;
+            emitEvent(Events.CHAT_RESPONSE_START);
+            emitEvent(Events.SCROLL_TO_BOTTOM, {source:this, force:true});
+        };
+
+        webSocket.onmessage = (evt) => {
+            let response;
+            try {
+                response = JSON.parse(evt.data);
+            } catch (err) {
+                console.error("Error getting JSON response", err);
+                return;
+            }
+
+            const data = response.data;
+
+            switch (response.type) {
+                case "message_created":
+                    this.handleMessageCreated(data);
+                    break;
+
+                case "message_update":
+                    this.handleMessageUpdate(data);
+                    break;
+
+                case "message_complete":
+                    this.handleMessageComplete(data);
+                    break;
+
+                case "session-id":
+                    this.dataset.sessionId = data;
+                    break;
+
+                case "message_activity":
+                    this.handleMessageActivity(data);
+                    break;
+
+                case "auth_expired":
+                    this.handleAuthExpired();
+                    break;
+
+                case "error":
+                    this.handleError(data);
+                    break;
+            }
+        };
+
+        webSocket.onclose = () => {
+            if (this.dataset.status !== STATUS.STOPPED) {
+                this.dataset.status = STATUS.COMPLETE;
+            }
+
+            if (!this.currentStream) return;
+
+            this.getMessage(this.currentStream.messageId)?.hideLoading();
+
+            emitEvent(Events.CHAT_RESPONSE_END, {
+                title: this.currentStream.title,
+                session_id: this.dataset.sessionId || "",
+                is_new_chat: this.messages.length == 2,
+            })
+
+            this.currentStream = null;
+        };
+
+        webSocket.onerror = () => {
+            this.dataset.status = STATUS.ERROR;
+            const error_message = "There was a problem. Please try sending this message again."
+
+            if (!this.currentStream) return console.error(error_message);
+
+            const message = this.getMessage(this.currentStream.messageId);
+            message?.showError(error_message);
+            this.currentStream = null;
+        };
+    };
+
+
+    /**
+     * Handle User / LLM message creation
+     * @param {MessageCreatedResponse} response
+     */
+    handleMessageCreated(response) {
+        if (!this.messageContainer) return console.error("Missing message container");
+        if (!this.currentStream) return console.error("No active stream");
+
+        const html = sanitizeHtml(response.html);
+        this.messageContainer.insertAdjacentHTML("beforeend", html);
+
+        if (response.chat_message_role === "ai") {
+            this.currentStream.messageId = response.chat_message_id;
+            this.getMessage(response.chat_message_id)?.focus();
+        }
+    }
+
+
+    /**
+     * Handle LLM message chunks
+     * @param {MessageUpdateResponse} response
+     */
+    handleMessageUpdate(response) {
+        const message = this.getMessage(response.chat_message_id);
+
+        if (!message) return;
+
+        message.updateContent(response.html, response.sr_text);
+    }
+
+
+    /**
+     * Handle LLM message completion
+     * @param {MessageCompleteResponse} response
+     */
+    handleMessageComplete(response) {
+        this.getMessage(response.chat_message_id)?.complete(response.html);
+        if (this.currentStream) this.currentStream.title = response.title;
+    }
+
+
+    /**
+     * Handle LLM activity events
+     * @param {MessageActivityResponse} response
+     */
+    handleMessageActivity(response) {
+        const message = this.getMessage(response.chat_message_id);
+        message?.showLoading(response.activity_event_message);
+    }
+
+
+    /**
+     * Handle consumer errors
+     * @param {string} response Error message
+     */
+    handleError(response) {
+        if (this.currentStream) {
+            const message = this.getMessage(this.currentStream.messageId);
+            message?.showError(response);
+        }
+        console.error(`Stream error: ${response}`);
+        emitEvent(Events.CHAT_RESPONSE_ERROR);
+    }
+
+
+    /**
+     * Handle auth expiry events
+     */
+    handleAuthExpired() {
+        if (this.logoutUrl) {
+            window.location.href = this.logoutUrl;
+        } else {
+            this.lastMessage?.showError("Your session has expired.");
+        }
+    }
 }
 customElements.define("chat-controller", ChatController);

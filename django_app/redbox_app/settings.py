@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.sites",
     "django.contrib.staticfiles",
+    "django.contrib.postgres",
     "single_session",
     "storages",
     "import_export",
@@ -298,6 +299,7 @@ STORAGES = {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
 }
+AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL")
 
 # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
 # Mozilla guidance max-age 2 years
@@ -311,7 +313,7 @@ else:
     LOCALHOST = socket.gethostbyname(socket.gethostname())
     ALLOWED_HOSTS = ["*"]
 
-if not ENVIRONMENT.is_local:
+if not ENVIRONMENT.is_local or not ENVIRONMENT.is_integration:
 
     def filter_transactions(event, _hint):
         url_string = event["request"]["url"]
@@ -398,7 +400,7 @@ LOGGING = {
     "root": {"handlers": ["console"], "level": LOG_LEVEL},
     "loggers": {
         "application": {
-            "handlers": [LOG_HANDLER],
+            "handlers": [LOG_HANDLER, "console"],
             "level": LOG_LEVEL,
             "propagate": True,
         },
@@ -415,6 +417,11 @@ LOGGING = {
             "handlers": ["asim"],
             "level": "ERROR",
             "propagate": False,
+        },
+        "authbroker-client": {
+            "handlers": ["asim", "console"],
+            "level": "DEBUG",
+            "propagate": True,
         },
     },
 }
@@ -469,7 +476,6 @@ Q_CLUSTER = {
 GOOGLE_ANALYTICS_TAG = env.str("GOOGLE_ANALYTICS_TAG", " ")
 GOOGLE_ANALYTICS_LINK = env.str("GOOGLE_ANALYTICS_LINK", " ")
 GOOGLE_ANALYTICS_IFRAME_SRC = env.str("GOOGLE_ANALYTICS_IFRAME_SRC", " ")
-# TEST_SSO_PROVIDER_SET_RETURNED_ACCESS_TOKEN = 'someCode'
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -499,5 +505,5 @@ WEB_SEARCH_API_LIMIT = env.int("WEB_SEARCH_API_LIMIT", 100)
 
 ADMIN_EMAIL = env.str("ADMIN_EMAIL", "")
 
-PRODUCT_NAME = env.str("PRODUCT_NAME", "DBT Assist")
+PRODUCT_NAME = env.str("PRODUCT_NAME", "Assist")
 MOCK_SSO_USERNAME = env.str("MOCK_SSO_USERNAME", None)

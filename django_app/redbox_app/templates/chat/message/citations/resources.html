@@ -1,0 +1,19 @@
+{% if resources %}
+    <details class="govuk-details govuk-!-margin-top-2">
+        <summary class="govuk-details__summary">
+            <span class="govuk-details__summary-text ids-text-xs ids-no-underline">
+                Resources
+            </span>
+        </summary>
+        <div class="govuk-details__text govuk-body-xs">
+            <ol class="govuk-!-margin-bottom-0 govuk-!-padding-left-3">
+                {% for resource in resources %}
+                    <li class="govuk-!-margin-bottom-0">
+                        <a class="iai-chat-bubbles__sources-link govuk-link" id="footnote-{{ message_id }}-{{ loop.index }}"
+                            href="{{ resource.internal_url }}">{{ resource.display_name }}</a>
+                    </li>
+                {% endfor %}
+            </ol>
+        </div>
+    </details>
+{% endif %}

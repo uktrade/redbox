@@ -5,7 +5,7 @@ import "./web-components/chats/chat-message.js";
 import "./web-components/chats/copy-text.js";
 import "./web-components/chats/document-selector.js";
 import "./web-components/chats/feedback-buttons.js";
-import "./web-components/markdown-converter.js";
+import "./web-components/streamed-content.js";
 import "./web-components/chats/message-input.js";
 import "./web-components/chats/sources-list.js";
 import "./web-components/chats/canned-prompts";
@@ -26,7 +26,7 @@ listenEvent(Events.CHAT_RESPONSE_START, (evt) => setAriaBusy(true));
 listenEvent(Events.CHAT_RESPONSE_ERROR, (evt) => setAriaBusy(false));
 
 const setAriaBusy = (val) => {
-  document.getElementById("chat-feed")?.setAttribute("aria-busy",val)
+  document.getElementById("chat-feed")?.setAttribute("aria-busy", val)
 }
 
 listenEvent(Events.CHAT_RESPONSE_END, (evt) => {
@@ -48,8 +48,6 @@ listenEvent(Events.CHAT_RESPONSE_END, (evt) => {
     /** @type {ChatHistory} */ (document.querySelector("chat-history"))?.moveToTop(sessionId);
   }
 
-  // Refresh chat window to fix citation references
-  fragmentsToRefresh.push("chat-feed");
   refreshUI(fragmentsToRefresh, chatId);
 });
 

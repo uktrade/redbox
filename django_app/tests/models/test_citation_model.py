@@ -147,6 +147,24 @@ def test_external_citation_uri(
     assert citation.uri == URL("http://example.com")
 
 
-@pytest.mark.parametrize(("value", "expected"), [("invalid origin", None), ("Wikipedia", "Wikipedia")])
+@pytest.mark.parametrize(("value", "expected"), [("invalid origin", "Unverified"), ("Wikipedia", "Wikipedia")])
 def test_try_parse_origin(value, expected):
     assert Citation.Origin.try_parse(value) == expected
+
+
+@pytest.mark.django_db(transaction=True)
+def test_is_internal(client: Client, alice: User, internal_citation: Citation):
+    # Given
+    client.force_login(alice)
+
+    # Then
+    assert internal_citation.is_internal
+
+
+@pytest.mark.django_db(transaction=True)
+def test_is_external(client: Client, alice: User, external_citation: Citation):
+    # Given
+    client.force_login(alice)
+
+    # Then
+    assert external_citation.is_external

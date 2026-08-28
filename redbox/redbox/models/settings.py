@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 import boto3
 from elasticsearch import Elasticsearch
-from langchain.globals import set_debug
+from langchain_core.globals import set_debug
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from pydantic import AnyUrl, BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -141,11 +141,12 @@ class Settings(BaseSettings):
     monitoring_internal_password: str = "redboxpass"
     beats_system_password: str = "redboxpass"
 
-    aws_access_key: str | None = None
-    aws_secret_key: str | None = None
+    aws_access_key: str | None = os.environ.get("AWS_S3_ACCESS_KEY_ID", None)
+    aws_secret_key: str | None = os.environ.get("AWS_S3_SECRET_ACCESS_KEY", None)
 
     aws_region: str = "eu-west-2"
     bucket_name: str = "redbox-storage-dev"
+    aws_s3_endpoint_url: str | None = os.environ.get("AWS_S3_ENDPOINT_URL", None)
 
     ## maximum number of metadata files to pull from opensearch
     max_user_uploaded_files: int = os.environ.get("MAX_USER_UPLOADED_FILES", 30)
@@ -181,6 +182,7 @@ class Settings(BaseSettings):
 
     is_local: bool = ENVIRONMENT.is_local
     is_prod: bool = ENVIRONMENT.is_prod
+    is_integration: bool = ENVIRONMENT.is_integration
 
     max_attempts: int = os.environ.get("MAX_ATTEMPTS", 3)
 
@@ -360,7 +362,7 @@ class Settings(BaseSettings):
     def elasticsearch_client(self) -> Union[Elasticsearch, OpenSearch]:
         logger.info("Testing OpenSearch is definitely being used")
 
-        if ENVIRONMENT.is_local:
+        if ENVIRONMENT.is_local or ENVIRONMENT.is_integration:
             client = OpenSearch(
                 hosts=[
                     {
@@ -436,6 +438,14 @@ class Settings(BaseSettings):
                 aws_access_key_id=self.aws_access_key,
                 aws_secret_access_key=self.aws_secret_key,
                 region_name=self.aws_region,
+            )
+        if self.object_store == "minio":
+            return boto3.client(
+                "s3",
+                region_name=self.aws_region,
+                aws_access_key_id=self.aws_access_key,
+                aws_secret_access_key=self.aws_secret_key,
+                endpoint_url=self.aws_s3_endpoint_url,
             )
 
         msg = f"unkown object_store={self.object_store}"
