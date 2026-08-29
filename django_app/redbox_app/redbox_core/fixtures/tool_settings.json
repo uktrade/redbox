@@ -1,0 +1,22 @@
+[
+    {
+        "model": "redbox_core.toolsettings",
+        "pk": "0827537b-77a5-4341-abc0-845a9d9032a2",
+        "fields": {
+            "created_at": "2026-05-21T12:23:33.496Z",
+            "modified_at": "2026-05-21T12:23:33.496Z",
+            "tool": "370c09fa-30a8-43a1-9c3d-701d51857097",
+            "deselect_documents_on_load": false
+        }
+    },
+    {
+        "model": "redbox_core.toolsettings",
+        "pk": "1a51f1b0-e2ee-4d6a-a505-742b866bfb94",
+        "fields": {
+            "created_at": "2026-05-22T08:58:32.679Z",
+            "modified_at": "2026-05-22T08:58:32.679Z",
+            "tool": "3fd68cdd-16ae-4175-a026-ad50a2426517",
+            "deselect_documents_on_load": false
+        }
+    }
+]

@@ -22,9 +22,8 @@ Ensure you have a postgress database named `redbox-core` owned by a user called 
 
 ## Running the server
 
-Run any migrations
-`poetry run python manage.py make migrations`
-`poetry run python manage.py make migrate`
+Initialise the db, this will apply migrations and add some initial objects.
+`make local_db_init`
 
 Run the server
 `poetry run python manage.py runserver 8091`
