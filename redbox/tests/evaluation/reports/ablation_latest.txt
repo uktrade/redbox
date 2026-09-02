@@ -1,0 +1,9 @@
+
+Gaussian ablation results:
+Metric                 With Gaussian    Without    Delta
+--------------------------------------------------------
+hit_at_5                       0.700      0.700   +0.000
+hit_at_10                      0.700      0.900   -0.200
+hit_at_30                      1.000      1.000   +0.000
+mrr                            0.576      0.582   -0.005
+ndcg_at_10                     0.442      0.507   -0.065

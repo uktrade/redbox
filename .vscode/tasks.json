@@ -53,7 +53,11 @@
             "type": "shell",
             "command": "npm run dev",
             "options": {
-                "cwd": "${workspaceFolder}/django_app/frontend"
+                "cwd": "${workspaceFolder}/django_app/frontend",
+                "shell": {       
+                    "executable": "/bin/zsh",       
+                    "args": ["-ic"]     
+                    }   
             },
             "isBackground": true,
             "problemMatcher": {

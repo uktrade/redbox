@@ -1,7 +1,7 @@
 import itertools
 import logging
-import re
 import math
+import re
 from typing import Dict, Iterable
 from uuid import NAMESPACE_DNS, UUID, uuid5
 
@@ -10,7 +10,8 @@ from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, AnyMessage
 from langchain_core.runnables import RunnableLambda
 
-from redbox.models.chain import DocumentMapping, DocumentState, LLMCallMetadata, RedboxState, RequestMetadata
+from redbox.models.chain import (DocumentMapping, DocumentState,
+                                 LLMCallMetadata, RedboxState, RequestMetadata)
 from redbox.models.graph import RedboxEventType
 
 log = logging.getLogger(__name__)
@@ -294,7 +295,8 @@ def merge_documents(initial: list[Document], adjacent: list[Document]) -> list[D
     Privileges the initial score.
     """
     # Keep initial scores
-    merged_dict = to_document_mapping(adjacent) | to_document_mapping(initial)
+    # merged_dict = to_document_mapping(adjacent) | to_document_mapping(initial)
+    merged_dict = to_document_mapping(initial) | to_document_mapping(adjacent)
 
     return sorted(list(merged_dict.values()), key=lambda d: -d.metadata["score"])[: len(initial)]
 
