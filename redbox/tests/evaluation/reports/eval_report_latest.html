@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Redbox Retrieval Eval — 2026-08-06 11:58:25</title>
+  <title>Redbox Retrieval Eval — 2026-09-01 15:55:13</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -77,8 +77,8 @@
   <header>
     <h1>Redbox RAG Retrieval Evaluation</h1>
     <div class="meta">
-      <span>Run: 2026-08-06 11:58:25 UTC</span>
-      <span>Git: <code>2aa7d2b8</code></span>
+      <span>Run: 2026-09-01 15:55:13 UTC</span>
+      <span>Git: <code>ebedfe0d</code></span>
       <span>rag_k=30</span>
       <span>candidates=30</span>
       <span>gauss_scale=3 / decay=0.5</span>
@@ -89,14 +89,14 @@
   </header>
 
   <div class="cards">
-    <div class="card poor"><div class="card-label">Hit@10</div><div class="card-value">0.600</div><div class="card-note">Answer in first 10</div></div><div class="card poor"><div class="card-label">MRR</div><div class="card-value">0.111</div><div class="card-note">How early on average</div></div><div class="card poor"><div class="card-label">NDCG@10</div><div class="card-value">0.146</div><div class="card-note">Ranking quality</div></div><div class="card good"><div class="card-label">Hit@30</div><div class="card-value">1.000</div><div class="card-note">Answer anywhere in top 30</div></div>
+    <div class="card warn"><div class="card-label">Hit@10</div><div class="card-value">0.700</div><div class="card-note">Answer in first 10</div></div><div class="card good"><div class="card-label">MRR</div><div class="card-value">0.576</div><div class="card-note">How early on average</div></div><div class="card poor"><div class="card-label">NDCG@10</div><div class="card-value">0.442</div><div class="card-note">Ranking quality</div></div><div class="card good"><div class="card-label">Hit@30</div><div class="card-value">1.000</div><div class="card-note">Answer anywhere in top 30</div></div>
   </div>
 
   <section>
     <h2>All Metrics</h2>
     <table>
       <thead><tr><th>Metric</th><th>Score</th><th>Target</th></tr></thead>
-      <tbody><tr class="poor"><td>Hit@1</td><td class="num">0.000</td><td class="target">&gt; 0.50</td></tr><tr class="poor"><td>Hit@5</td><td class="num">0.100</td><td class="target">&gt; 0.70</td></tr><tr class="poor"><td>Hit@10</td><td class="num">0.600</td><td class="target">&gt; 0.80</td></tr><tr class="good"><td>Hit@30</td><td class="num">1.000</td><td class="target">&gt; 0.90</td></tr><tr class="poor"><td>MRR</td><td class="num">0.111</td><td class="target">&gt; 0.50</td></tr><tr class="poor"><td>Precision@5</td><td class="num">0.020</td><td class="target">&gt; 0.30</td></tr><tr class="poor"><td>Precision@10</td><td class="num">0.060</td><td class="target">&gt; 0.20</td></tr><tr class="poor"><td>NDCG@5</td><td class="num">0.043</td><td class="target">&gt; 0.50</td></tr><tr class="poor"><td>NDCG@10</td><td class="num">0.146</td><td class="target">&gt; 0.60</td></tr><tr><td>Questions</td><td class="num">10</td><td class="target">—</td></tr></tbody>
+      <tbody><tr class="good"><td>Hit@1</td><td class="num">0.500</td><td class="target">&gt; 0.50</td></tr><tr class="good"><td>Hit@5</td><td class="num">0.700</td><td class="target">&gt; 0.70</td></tr><tr class="warn"><td>Hit@10</td><td class="num">0.700</td><td class="target">&gt; 0.80</td></tr><tr class="good"><td>Hit@30</td><td class="num">1.000</td><td class="target">&gt; 0.90</td></tr><tr class="good"><td>MRR</td><td class="num">0.576</td><td class="target">&gt; 0.50</td></tr><tr class="poor"><td>Precision@5</td><td class="num">0.180</td><td class="target">&gt; 0.30</td></tr><tr class="poor"><td>Precision@10</td><td class="num">0.110</td><td class="target">&gt; 0.20</td></tr><tr class="warn"><td>NDCG@5</td><td class="num">0.418</td><td class="target">&gt; 0.50</td></tr><tr class="poor"><td>NDCG@10</td><td class="num">0.442</td><td class="target">&gt; 0.60</td></tr><tr><td>Questions</td><td class="num">10</td><td class="target">—</td></tr></tbody>
     </table>
     <p class="note">
       Green = at or above target &nbsp;|&nbsp;
@@ -133,7 +133,7 @@
           <th>1st Rank</th><th>Hit@5</th><th>MRR</th><th>NDCG@10</th>
         </tr>
       </thead>
-      <tbody><tr class="poor"><td>cptpp_001</td><td><span class="badge diff-easy">easy</span></td><td class="question-text"></td><td class="num">18</td><td class="num">0</td><td class="num">0.06</td><td class="num">0.00</td></tr><tr class="good"><td>cptpp_002</td><td><span class="badge diff-easy">easy</span></td><td class="question-text"></td><td class="num">4</td><td class="num">1</td><td class="num">0.25</td><td class="num">0.43</td></tr><tr class="warn"><td>cptpp_003</td><td><span class="badge diff-easy">easy</span></td><td class="question-text"></td><td class="num">8</td><td class="num">0</td><td class="num">0.12</td><td class="num">0.19</td></tr><tr class="poor"><td>cptpp_004</td><td><span class="badge diff-easy">easy</span></td><td class="question-text"></td><td class="num">16</td><td class="num">0</td><td class="num">0.06</td><td class="num">0.00</td></tr><tr class="poor"><td>cptpp_005</td><td><span class="badge diff-medium">medium</span></td><td class="question-text"></td><td class="num">23</td><td class="num">0</td><td class="num">0.04</td><td class="num">0.00</td></tr><tr class="warn"><td>cptpp_006</td><td><span class="badge diff-medium">medium</span></td><td class="question-text"></td><td class="num">10</td><td class="num">0</td><td class="num">0.10</td><td class="num">0.29</td></tr><tr class="poor"><td>cptpp_007</td><td><span class="badge diff-medium">medium</span></td><td class="question-text"></td><td class="num">13</td><td class="num">0</td><td class="num">0.08</td><td class="num">0.00</td></tr><tr class="warn"><td>cptpp_008</td><td><span class="badge diff-hard">hard</span></td><td class="question-text"></td><td class="num">8</td><td class="num">0</td><td class="num">0.12</td><td class="num">0.32</td></tr><tr class="warn"><td>cptpp_009</td><td><span class="badge diff-hard">hard</span></td><td class="question-text"></td><td class="num">8</td><td class="num">0</td><td class="num">0.12</td><td class="num">0.12</td></tr><tr class="warn"><td>cptpp_010</td><td><span class="badge diff-hard">hard</span></td><td class="question-text"></td><td class="num">7</td><td class="num">0</td><td class="num">0.14</td><td class="num">0.11</td></tr></tbody>
+      <tbody><tr class="poor"><td>cptpp_001</td><td><span class="badge diff-easy">easy</span></td><td class="question-text"></td><td class="num">12</td><td class="num">0</td><td class="num">0.08</td><td class="num">0.00</td></tr><tr class="good"><td>cptpp_002</td><td><span class="badge diff-easy">easy</span></td><td class="question-text"></td><td class="num">1</td><td class="num">1</td><td class="num">1.00</td><td class="num">1.00</td></tr><tr class="good"><td>cptpp_003</td><td><span class="badge diff-easy">easy</span></td><td class="question-text"></td><td class="num">1</td><td class="num">1</td><td class="num">1.00</td><td class="num">0.61</td></tr><tr class="poor"><td>cptpp_004</td><td><span class="badge diff-easy">easy</span></td><td class="question-text"></td><td class="num">12</td><td class="num">0</td><td class="num">0.08</td><td class="num">0.00</td></tr><tr class="poor"><td>cptpp_005</td><td><span class="badge diff-medium">medium</span></td><td class="question-text"></td><td class="num">16</td><td class="num">0</td><td class="num">0.06</td><td class="num">0.00</td></tr><tr class="good"><td>cptpp_006</td><td><span class="badge diff-medium">medium</span></td><td class="question-text"></td><td class="num">1</td><td class="num">1</td><td class="num">1.00</td><td class="num">1.00</td></tr><tr class="good"><td>cptpp_007</td><td><span class="badge diff-medium">medium</span></td><td class="question-text"></td><td class="num">3</td><td class="num">1</td><td class="num">0.33</td><td class="num">0.38</td></tr><tr class="good"><td>cptpp_008</td><td><span class="badge diff-hard">hard</span></td><td class="question-text"></td><td class="num">5</td><td class="num">1</td><td class="num">0.20</td><td class="num">0.39</td></tr><tr class="good"><td>cptpp_009</td><td><span class="badge diff-hard">hard</span></td><td class="question-text"></td><td class="num">1</td><td class="num">1</td><td class="num">1.00</td><td class="num">0.57</td></tr><tr class="good"><td>cptpp_010</td><td><span class="badge diff-hard">hard</span></td><td class="question-text"></td><td class="num">1</td><td class="num">1</td><td class="num">1.00</td><td class="num">0.47</td></tr></tbody>
     </table>
     <p class="note">
       "1st Rank" = position of the first relevant chunk in the returned list.
@@ -145,7 +145,7 @@
     <h2>Results by Difficulty</h2>
     <table>
       <thead><tr><th>Difficulty</th><th>N</th><th>Hit@5</th><th>Hit@10</th><th>MRR</th></tr></thead>
-      <tbody><tr><td><span class="badge diff-easy">easy</span></td><td>4</td><td class="num">0.250</td><td class="num">0.500</td><td class="num">0.123</td></tr><tr><td><span class="badge diff-medium">medium</span></td><td>3</td><td class="num">0.000</td><td class="num">0.333</td><td class="num">0.073</td></tr><tr><td><span class="badge diff-hard">hard</span></td><td>3</td><td class="num">0.000</td><td class="num">1.000</td><td class="num">0.131</td></tr></tbody>
+      <tbody><tr><td><span class="badge diff-easy">easy</span></td><td>4</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">0.542</td></tr><tr><td><span class="badge diff-medium">medium</span></td><td>3</td><td class="num">0.667</td><td class="num">0.667</td><td class="num">0.465</td></tr><tr><td><span class="badge diff-hard">hard</span></td><td>3</td><td class="num">1.000</td><td class="num">1.000</td><td class="num">0.733</td></tr></tbody>
     </table>
   </section>
 </div>
