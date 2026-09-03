@@ -93,7 +93,7 @@ services:
     container_name: minio
     expose:
       - "9000"
-      - "9001"
+      - "9005"
     ports:
       - "9005:9000"
       - "9006:9001"
