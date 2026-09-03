@@ -92,11 +92,11 @@ services:
     image: minio/minio
     container_name: minio
     expose:
-      - "9005"
-      - "9006"
+      - "9000"
+      - "9001"
     ports:
-      - "9005:9005"
-      - "9006:9006"
+      - "9005:9000"
+      - "9006:9001"
     entrypoint: sh
     environment:
       - MINIO_ACCESS_KEY=minioadmin
@@ -105,7 +105,7 @@ services:
       - -c
       - |
         mkdir -p data/${BUCKET_NAME}
-        minio server --console-address ":9006" /data
+        minio server --console-address ":9001" /data
     networks:
       - redbox-app-network
     volumes:
