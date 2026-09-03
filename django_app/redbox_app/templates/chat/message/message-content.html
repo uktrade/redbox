@@ -1,19 +1,8 @@
 {% from "macros/govuk-error-summary.html" import govukErrorSummary %}
-
-{{ text|safe }}
+<div id="copy-text-selector-{{message_id}}">
+    {{ text|safe }}
+</div>
 {% include "chat/message/selected-files.html" %}
 {% include "chat/message/citations/resources.html" %}
 {{ govukErrorSummary(hidden=True) }}
-{% if switch_is_active(flags.ENABLE_FEEDBACK_REDESIGN) %}
-    {% if role=='ai' %}
-        <div class="ids-chat-message__post_message_actions_container govuk-!-margin-top-3">
-            {% include "chat/message/route-display.html" %}
-            <div class="ids-chat-message__copy-text-container">
-                <copy-text data-id="{{ message_id }}"></copy-text>
-            </div>
-        </div>
-    {% endif %}
-{% else %}
-    {% include "chat/message/route-display.html" %}
-    {% include "chat/message/feedback/feedback.html" %}
-{% endif %}
+{% include "chat/message/route-display.html" %}

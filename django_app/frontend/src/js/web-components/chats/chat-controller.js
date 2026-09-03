@@ -250,7 +250,7 @@ export class ChatController extends HTMLElement {
 
             if (!this.currentStream) return;
 
-            this.getMessage(this.currentStream.messageId)?.hideLoading();
+            this.getMessage(this.currentStream.messageId)?.setComplete();
 
             emitEvent(Events.CHAT_RESPONSE_END, {
                 title: this.currentStream.title,
@@ -293,6 +293,7 @@ export class ChatController extends HTMLElement {
         if (response.chat_message_role === "ai") {
             this.currentStream.messageId = response.chat_message_id;
             message?.focus();
+            message?.setStreaming()
         }
     }
 
@@ -318,7 +319,7 @@ export class ChatController extends HTMLElement {
         const message = this.getMessage(response.chat_message_id);
         message?.complete(response.html);
         if (this.currentStream) this.currentStream.title = response.title;
-        message?.dispatchEvent(new CustomEvent("streaming-complete", { bubbles: true }));
+        emitEvent(Events.SCROLL_TO_BOTTOM, {source:this, force:true});
     }
 
 

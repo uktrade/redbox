@@ -7,8 +7,7 @@
     selected_files=None,
     resources=None,
     route=None,
-    enable_feedback_redesign=None,
-    initial_page_load=False
+    enable_feedback_redesign=None
 ) %}
 
 {% set role_text = "System response" %}
@@ -33,10 +32,20 @@
                 <streamed-content class="ids-chat-message__text" data-text>
                     {% include "chat/message/message-content.html" %}
                 </streamed-content>
-                {% if switch_is_active(flags.ENABLE_FEEDBACK_REDESIGN) %}
-                    {% include "chat/message/feedback/feedback.html" %}
+                {% if role=='ai' %}
+                    <!-- divs are swapped in and out by chat-controller.js -->
+                    <div class="ids-chat-message__streaming">
+                        {% include "chat/message/loading-message.html" %}
+                    </div>
+                    <div class="ids-chat-message__complete">
+                        <div class="ids-chat-message__post_message_actions_container govuk-!-margin-top-3">
+                            {% include "chat/message/feedback/feedback.html" %}
+                            <div class="ids-chat-message__copy-text-container">
+                                <copy-text data-id="{{ message_id }}"></copy-text>
+                            </div>
+                        </div>
+                    </div>
                 {% endif %}
-                {% include "chat/message/loading-message.html" %}
             </div>
         </section>
     </chat-message>
