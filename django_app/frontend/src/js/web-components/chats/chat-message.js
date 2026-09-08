@@ -60,7 +60,6 @@ export class ChatMessage extends HTMLElement {
      */
     setStreaming() {
         if (this.completeContainer) hideElement(this.completeContainer);
-        console.log("loading element", this.loadingElement)
         this.showLoading();
     }
 

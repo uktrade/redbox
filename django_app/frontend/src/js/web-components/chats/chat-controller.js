@@ -282,9 +282,8 @@ export class ChatController extends HTMLElement {
         if (!this.messageContainer) return console.error("Missing message container");
         if (!this.currentStream) return console.error("No active stream");
 
-        // Sanitising here strips the feedback hx-* attributes.
-        // LLM output is sanitised at its own boundary in StreamedContent.
-        this.messageContainer.insertAdjacentHTML("beforeend", response.html);
+        const html = sanitizeHtml(response.html);
+        this.messageContainer.insertAdjacentHTML("beforeend", html);
 
         const message = this.getMessage(response.chat_message_id);
 
