@@ -54,7 +54,22 @@ class MCPResponseMetadata(BaseModel):
 
 
 def format_mcp_tool_response(tool_response, creator_type: ChunkCreatorType) -> tuple[str, MCPResponseMetadata]:
-    data = json.loads(tool_response)
+    if isinstance(tool_response, (bytes, bytearray)):
+        tool_response = tool_response.decode("utf-8")
+
+    if isinstance(tool_response, (dict, list, tuple)):
+        data = tool_response
+    elif isinstance(tool_response, str):
+        try:
+            data = json.loads(tool_response)
+        except (TypeError, ValueError):
+            return (tool_response, MCPResponseMetadata())
+    else:
+        return (str(tool_response), MCPResponseMetadata())
+
+    if not isinstance(data, dict):
+        return (json.dumps(data), MCPResponseMetadata())
+
     result_type = data.get("result_type")
     result = data.get("result")
 
@@ -64,7 +79,7 @@ def format_mcp_tool_response(tool_response, creator_type: ChunkCreatorType) -> t
         metadata = MCPResponseMetadata()
 
     if result_type is None or result is None:
-        return (tool_response if isinstance(tool_response, str) else str(tool_response), metadata)
+        return (tool_response if isinstance(tool_response, str) else json.dumps(data), metadata)
 
     deep_links = []
     match result_type:
