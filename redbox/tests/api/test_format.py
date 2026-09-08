@@ -3,7 +3,7 @@ import json
 
 
 from redbox.models.file import ChunkCreatorType
-from redbox.api.format import format_mcp_tool_response, MCPResponseMetadata
+from redbox.api.format import MCPResponseMetadata, format_mcp_tool_response
 
 
 class TestFormatMCPToolResponse:
@@ -20,6 +20,18 @@ class TestFormatMCPToolResponse:
         result, metadata = format_mcp_tool_response(payload, ChunkCreatorType.datahub)
         assert result == payload
         assert metadata == MCPResponseMetadata()
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"key": "value"},
+            [{"name": "Example", "url": "https://example.com"}],
+        ],
+    )
+    def test_accepts_python_dict_or_list_payloads(self, payload):
+        result, metadata = format_mcp_tool_response(payload, ChunkCreatorType.datahub)
+        assert metadata == MCPResponseMetadata()
+        assert result == json.dumps(payload)
 
     @pytest.mark.parametrize(
         "data, expected",
