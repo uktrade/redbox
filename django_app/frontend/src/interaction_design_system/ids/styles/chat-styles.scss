@@ -25,12 +25,6 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   background-color: var(--colour-text);
 }
 
-// @media (min-width: 641px) {
-//   .rb-chats-section {
-//     flex-grow: 1;
-//   }
-// }
-
 /* Footnotes */
 .rb-footnote-link {
   background-color: var(--redbox-teal);
@@ -39,10 +33,6 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   text-decoration: none;
   border-radius: 2px;
   margin: 2px;
-}
-.rb-footnote-list {
-  padding-left: 1rem;
-  font-size: var(--font-size-s);
 }
 
 /* Response feedback - general styles */
@@ -53,7 +43,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   flex-wrap: wrap;
   border: none;
   gap: 15px;
-  padding: 0px;;
+  padding: 0px;
 }
 
 .feedback__heading {
@@ -71,7 +61,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
 }
 
 .feedback__text-area {
-  margin-top: 0.5rem; /* Adjust as needed */
+  margin-top: 0.5rem;
 }
 .feedback__text-input {
   display: block;
@@ -296,13 +286,6 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   float: right;
 }
 
-.govuk-inset-text-right {
-  border-left: none;
-  border-right: 10px solid var(--color-border);
-  padding-left: 100px;
-  text-align: right;
-}
-
 .chat-actions-container {
   display: flex;
   flex-direction: row;
@@ -315,14 +298,7 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   gap: 18px;
 }
 
-
-.feedback-button-container {
-  display: flex;
-  gap: 8px;
-}
-
-.ids-message-container,
-.redbox-message-container {
+.ids-message-container {
   display: flex;
   flex-direction: column;
   align-self: stretch;
@@ -350,18 +326,4 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
   align-items: center;
   font-size: var(--font-size-xs);
   margin: 0;
-}
-
-.chat-input__input-container {
-  position: sticky;
-  background-color: var(--color-background-white);
-  top: 0;
-  z-index: 100;
-  bottom: 20px;
-  padding-top: 7.5px;
-  width: 100%;
-}
-
-.redbox-message-route {
-  margin-bottom: 16px;
 }

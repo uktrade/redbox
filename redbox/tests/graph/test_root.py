@@ -29,6 +29,7 @@ class TestNewRouteGraphs:
             ("Imf_Search_Agent", ["combine_question_evaluator"]),
             ("Oecd_Search_Agent", ["combine_question_evaluator"]),
             ("Wto_Search_Agent", ["combine_question_evaluator"]),
+            ("Mercosur_Search_Agent", ["combine_question_evaluator"]),
             ("Web_Search_Agent", ["combine_question_evaluator"]),
             ("Tabular_Agent", ["combine_question_evaluator"]),
             ("Summarisation_Agent", None),
@@ -38,20 +39,22 @@ class TestNewRouteGraphs:
         ],
     )
     def test_new_route_graph(self, agent_name, edges):
-        graph = build_new_route_graph(
+        compiled = build_new_route_graph(
             all_chunks_retriever=self.all_chunks_retriever,
             agent_configs=self.agent_configs,
-        ).get_graph()
+        )
+        graph = compiled.get_graph(xray=True)
+        builder_edges = compiled.builder.edges
         # check if we have this agent node in the graph
         assert agent_name in graph.nodes
 
         # check if the edge is correct for the agent nodes
         if edges is None:
-            assert len([edge.target for edge in graph.edges if edge.source == agent_name]) == 0
+            assert len([edge for edge in builder_edges if edge[0] == agent_name]) == 0
         else:
             edge_list = [agent_name] + edges
             for i in range(len(edge_list) - 1):
-                assert edge_list[i + 1] in [edge.target for edge in graph.edges if edge.source == edge_list[i]]
+                assert edge_list[i + 1] in [edge[1] for edge in builder_edges if edge[0] == edge_list[i]]
 
     def test_non_existent_node(self):
         with pytest.raises(ValueError):

@@ -2,12 +2,10 @@ import logging
 from typing import Callable
 
 from langchain_core.messages import AIMessage
-from langgraph.constants import Send
-
-from redbox.models.chain import DocumentState, RedboxState, TaskStatus
-
+from langgraph.types import Send
 
 from redbox.graph.nodes.runner.runner import ToolRunner
+from redbox.models.chain import DocumentState, RedboxState, TaskStatus
 
 log = logging.getLogger(__name__)
 

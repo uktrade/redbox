@@ -1,0 +1,21 @@
+<div class="feedback-button-container">
+    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30" fill="none">
+    <g clip-path="url(#clip0_245_1242)">
+        <path d="M29.5312 15C29.5312 23.0254 23.0254 29.5312 15 29.5312C6.97459 29.5312 0.46875 23.0254 0.46875 15C0.46875 6.97459 6.97459 0.46875 15 0.46875C23.0254 0.46875 29.5312 6.97459 29.5312 15Z" fill="#00703C"/>
+        <path d="M13.3192 22.6943L24.1004 11.913C24.4665 11.5469 24.4665 10.9533 24.1004 10.5872L22.7746 9.26143C22.4085 8.89528 21.8149 8.89528 21.4488 9.26143L12.6562 18.0539L8.55123 13.9489C8.18514 13.5828 7.59152 13.5828 7.22537 13.9489L5.89957 15.2747C5.53348 15.6408 5.53348 16.2344 5.89957 16.6005L11.9933 22.6942C12.3595 23.0604 12.953 23.0604 13.3192 22.6943Z" fill="white"/>
+    </g>
+    <defs>
+        <clipPath id="clip0_245_1242">
+        <rect width="30" height="30" fill="white"/>
+        </clipPath>
+    </defs>
+    </svg>
+    <p class="govuk-body-l govuk-!-font-weight-bold feedback__heading">Thank you for helping us to improve this service</p>
+    <button type="button"
+        class="feedback-button govuk-button govuk-button--secondary govuk-!-margin-bottom-0"
+        hx-delete="{{ url('chat-message-feedback', message_id=message_id) }}"
+        hx-target="#feedback-{{ message_id }}"
+        hx-swap="innerHTML">
+    Change your answers
+</button>
+</div>

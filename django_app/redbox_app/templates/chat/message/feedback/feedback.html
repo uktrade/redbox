@@ -1,0 +1,14 @@
+{% if role == "ai" %}
+    <div class="chat-actions-container chat-actions-container__feedback">
+        {% if switch_is_active(flags.ENABLE_FEEDBACK_REDESIGN)  %}
+        <div id="feedback-{{ message_id }}" class="feedback-form-container"
+            hx-get="{{ url('chat-message-feedback-buttons', message_id=message_id) }}"
+            hx-trigger="load"
+            hx-target="this"
+            hx-swap="innerHTML">
+        </div>
+        {% else %}
+            <feedback-buttons data-id="{{ message_id }}"></feedback-buttons>
+        {% endif %}
+    </div>
+{% endif %}

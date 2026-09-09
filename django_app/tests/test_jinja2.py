@@ -8,6 +8,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.test import Client
 
 from redbox_app.jinja2 import (
+    domain,
     environment,
     get_menu_items,
     humanise_expiry,
@@ -224,3 +225,20 @@ def test_show_all_attrs():
 
     # Then
     assert "<class 'str'>" in result
+
+
+def test_domain():
+    # Given
+    obj = "https://www.gov.uk/"
+    obj2 = "invalid"
+    obj3 = None
+
+    # When
+    result = domain(obj)
+    result2 = domain(obj2)
+    result3 = domain(obj3)
+
+    # Then
+    assert result == "gov.uk"
+    assert not result2
+    assert not result3

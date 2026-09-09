@@ -57,6 +57,13 @@
   gap: 10px;
 }
 
+.ids-card__item--selected {
+  border-left: 4px solid;
+  border-color: var(--dbt-light-blue);
+  padding-left: 3px;
+  font-weight: 700;
+}
+
 /* Item internals (generic helpers) */
 .ids-item-label {
   flex: 1;

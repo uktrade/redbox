@@ -1,7 +1,9 @@
-{% from "macros/chat-macros.html" import message_box, route_display %}
 {% from "macros/govuk-warning.html" import govuk_warning %}
 {% from "macros/icon.html" import ids_icon %}
 {% from "macros/upload_form.html" import upload_form %}
+{% from "macros/govuk-button.html" import govukButton %}
+{% from "chat/message/macros/message-box.html" import message_box %}
+
 
 <div id="chat-feed" class="ids-chat-feed" hx-swap-oob="outerHTML" aria-busy="false">
 
@@ -9,7 +11,6 @@
         <canned-prompts class="chat-options govuk-!-padding-top-5 govuk-!-padding-bottom-1" security-classification="{{ security }}">
             <h1 class="govuk-visually-hidden">New chat for {{ tool if tool else productName }}</h1>
             {% if tool %}
-
                 {% include ["tools/canned_prompts/" ~ tool.slug ~ ".html", "chat/default_canned_prompt.html"] %}
             {% else %}
                 {% include "chat/default_canned_prompt.html" %}
@@ -32,26 +33,24 @@
                             data-tool-id="{{ tool.id }}"
                             data-tool-slug="{{ tool.slug }}"
                         {% endif %}>
+
+            {# SSR messages #}
             <div role="log">
-
-                <template id="template-route-display">
-                    {{ route_display() }}
-                </template>
-
-                {# SSR messages #}
                 <ol id="chat-message-list" aria-label="AI agent conversation" class="govuk-list ids-chat-message__container ids-flex-column">
-                  {% for message in messages %}
-                  <li data-role="chat-message-list-item">
-                    {{ message_box(message=message) }}
-                  </li>
-                  {% endfor %}
-                </ol>
-                {# CSR messages are inserted here #}
 
+                    {% for message in messages %}
+                        {{ message_box(
+                            role=message.role,
+                            text=message.text,
+                            message_id=message.id,
+                            selected_files=message.unique_selected_files(),
+                            resources=message.resources,
+                            route=message.route
+                        ) }}
+                    {% endfor %}
+                </ol>
             </div>
 
-            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}" />
-            {% if chat_id %}<input type="hidden" name="session-id" value="{{ chat_id }}" />{% endif %}
         </chat-controller>
     </ids-stream-scroller>
 </div>

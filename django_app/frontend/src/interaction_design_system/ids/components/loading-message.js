@@ -26,5 +26,13 @@ export class LoadingMessage extends HTMLElement {
     return this._loadingText;
   }
 
+
+  /**
+   * Set text content
+   * @param {string} text Text content
+   */
+  setText(text) {
+    this.loadingText.textContent = text;
+  }
 }
 customElements.define("ids-loading-message", LoadingMessage);

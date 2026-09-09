@@ -57,6 +57,8 @@ chat_urlpatterns = [
     path("ratings/<uuid:message_id>/", views.RatingsView.as_view(), name="ratings"),
     path("chats/<uuid:chat_id>/update-chat-feedback", views.UpdateChatFeedback.as_view(), name="chat-feedback"),
     path("chats/<uuid:chat_id>/delete-chat/", views.DeleteChat.as_view(), name="delete-chat"),
+    path("chats/all/", views.AllChatsView.as_view(), name="all-chats"),
+    path("chats/search/", views.SearchChatsView.as_view(), name="search-chats"),
 ]
 
 notification_urlpatterns = [
@@ -162,6 +164,19 @@ api_url_patterns = [
     path("api/v0/aws-credentials", views.aws_credentials_api, name="aws-credentials"),
 ]
 
+feedback_url_patterns = [
+    path(
+        "chat-message/<uuid:message_id>/feedback/",
+        views.chat_message_feedback,
+        name="chat-message-feedback",
+    ),
+    path(
+        "chat-message/<uuid:message_id>/buttons/",
+        views.get_feedback_buttons,
+        name="chat-message-feedback-buttons",
+    ),
+]
+
 urlpatterns = (
     info_urlpatterns
     + other_urlpatterns
@@ -173,6 +188,7 @@ urlpatterns = (
     + tools_urlpatterns
     + admin_urlpatterns
     + api_url_patterns
+    + feedback_url_patterns
 )
 
 if settings.DEBUG:
