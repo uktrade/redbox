@@ -1,8 +1,8 @@
 {% from "macros/govuk-error-summary.html" import govukErrorSummary %}
-
-{{ text|safe }}
+<div id="copy-text-selector-{{message_id}}">
+    {{ text|safe }}
+</div>
 {% include "chat/message/selected-files.html" %}
 {% include "chat/message/citations/resources.html" %}
 {{ govukErrorSummary(hidden=True) }}
 {% include "chat/message/route-display.html" %}
-{% include "chat/message/feedback.html" %}

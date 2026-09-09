@@ -24,8 +24,8 @@ class CopyText extends HTMLElement {
     `;
 
     this.querySelector("button")?.addEventListener("click", () => {
-      const textEl = /** @type {StreamedContent} */ (
-        document.querySelector(`#chat-message-${messageId} streamed-content`)).visualContainer
+      const textEl = document.querySelector(`#copy-text-selector-${messageId}`);
+      if (!textEl) return console.error(`No element for #copy-text-selector-${messageId}`);
       this.#copyToClipboard(textEl?.innerHTML, textEl?.innerText);
     });
   }

@@ -164,6 +164,19 @@ api_url_patterns = [
     path("api/v0/aws-credentials", views.aws_credentials_api, name="aws-credentials"),
 ]
 
+feedback_url_patterns = [
+    path(
+        "chat-message/<uuid:message_id>/feedback/",
+        views.chat_message_feedback,
+        name="chat-message-feedback",
+    ),
+    path(
+        "chat-message/<uuid:message_id>/buttons/",
+        views.get_feedback_buttons,
+        name="chat-message-feedback-buttons",
+    ),
+]
+
 urlpatterns = (
     info_urlpatterns
     + other_urlpatterns
@@ -175,6 +188,7 @@ urlpatterns = (
     + tools_urlpatterns
     + admin_urlpatterns
     + api_url_patterns
+    + feedback_url_patterns
 )
 
 if settings.DEBUG:

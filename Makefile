@@ -58,7 +58,10 @@ build-django-static: ## Build django-app static files
 test-integration:
 	docker compose down opensearch db sso minio
 	docker compose up -d --wait opensearch db sso minio
-	cd django_app && \
+	cd django_app/frontend && \
+	npm ci && \
+	npm run build && \
+	cd .. && \
 	poetry install && \
 	poetry run playwright install --with-deps chromium && \
 	DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest tests/playwright -rP --browser chromium --tracing retain-on-failure --video on --screenshot on
