@@ -1,7 +1,7 @@
 import itertools
 import logging
-import re
 import math
+import re
 from typing import Dict, Iterable
 from uuid import NAMESPACE_DNS, UUID, uuid5
 
@@ -293,8 +293,8 @@ def merge_documents(initial: list[Document], adjacent: list[Document]) -> list[D
 
     Privileges the initial score.
     """
-    # Keep initial scores
-    merged_dict = to_document_mapping(adjacent) | to_document_mapping(initial)
+    # Subtitute boosted scores for the semantically retrieved chunks
+    merged_dict = to_document_mapping(initial) | to_document_mapping(adjacent)
 
     return sorted(list(merged_dict.values()), key=lambda d: -d.metadata["score"])[: len(initial)]
 

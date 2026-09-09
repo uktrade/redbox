@@ -95,8 +95,8 @@ services:
       - "9000"
       - "9001"
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9005:9000"
+      - "9006:9001"
     entrypoint: sh
     environment:
       - MINIO_ACCESS_KEY=minioadmin
