@@ -1,9 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from redbox_app.redbox_core.models import ChatMessage, ChatMessageTokenUse, File
-
-from .models import ChatMessageFeedback
+from redbox_app.redbox_core.models import ChatMessage, ChatMessageFeedback, ChatMessageTokenUse, File
 
 User = get_user_model()
 
@@ -71,22 +69,21 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class ChatMessageFeedbackSerializer(serializers.ModelSerializer):
-    reason = serializers.ListField(
-        child=serializers.ChoiceField(choices=ChatMessageFeedback.Reason.choices),
-        required=False,
-        default=list,
-    )
-
-    def validate(self, data):
-        is_positive = data.get("is_positive")
-        if is_positive:
-            if data.get("reason"):
-                raise serializers.ValidationError({"reason": "Positive feedback cannot have reasons."})
-            if data.get("detail"):
-                raise serializers.ValidationError({"detail": "Positive feedback cannot have detail."})
-        return data
+    reason_labels = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatMessageFeedback
-        fields = ["id", "message", "is_positive", "reason", "detail", "created_at"]  # noqa: RUF012
-        read_only_fields = ["id", "created_at"]  # noqa: RUF012
+        fields = (
+            "id",
+            "message",
+            "is_positive",
+            "reason",
+            "reason_labels",
+            "detail",
+            "created_at",
+        )
+        read_only_fields = fields
+
+    def get_reason_labels(self, obj):
+        labels = dict(ChatMessageFeedback.Reason.choices)
+        return [labels.get(r, r) for r in obj.reason]
