@@ -19,7 +19,7 @@ langchain-mcp-adapters = "^0.3.2"
 django = "^6.0.4"
 jupyter-server = "2.20.0"
 duckdb = "1.5.1"
-transformers = "5.5.0"
+transformers = "5.10.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
