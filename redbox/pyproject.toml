@@ -46,8 +46,8 @@ duckdb = "^1.5.1"
 django = "^6.0.4"
 protobuf = "5.29.6"
 pandas = "^2.3.3"
-unstructured = { version = "^0.21.5", extras = ["all-docs"] }
-transformers = "5.5.0"
+unstructured = { version = "^0.24.0", extras = ["all-docs"] }
+transformers = "5.10.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.2"
