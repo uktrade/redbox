@@ -1,6 +1,7 @@
 # ruff: noqa: ARG001
 
 import logging
+from datetime import datetime
 from http import HTTPStatus
 from typing import Any
 
@@ -90,6 +91,8 @@ def test_feedback_returns_correct_object(
     assert result["reason"] == ["INACCURATE", "LACKED_DETAIL"]
     assert result["reason_labels"] == ["It was inaccurate", "It was lacking detail"]
     assert result["detail"] == "It made things up."
+    assert datetime.fromisoformat(result["created_at"]) == negative_feedback.created_at
+    assert datetime.fromisoformat(result["modified_at"]) == negative_feedback.modified_at
 
 
 def test_feedback_returns_oldest_first(

@@ -81,6 +81,7 @@ class ChatMessageFeedbackSerializer(serializers.ModelSerializer):
             "reason_labels",
             "detail",
             "created_at",
+            "modified_at",
         )
         read_only_fields = fields
 
