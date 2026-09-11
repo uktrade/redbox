@@ -152,7 +152,7 @@ export function getFocusedElement() {
 
 
 /**
- * Sanitize HTML content
+ * Sanitize HTML content, see trusted-types.js for config
  * @param {string} html HTML content
  * @returns {string} Safe html
 */

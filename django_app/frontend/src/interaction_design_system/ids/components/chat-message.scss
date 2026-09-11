@@ -32,3 +32,18 @@ ids-chat-message {
 .ids-chat-message__container {
   gap: var(--chat-message-gap);
 }
+
+.ids-chat-message__post_message_actions_container {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px;
+  border-color: var(--gds-mid-grey);
+  border-bottom-style: solid;
+  align-items: center;
+    // min height prevents layout shift as feedback buttons are loaded
+  min-height: 3.5rem;
+}
+
+.ids-chat-message__copy-text-container {
+  min-width: fit-content;
+}

@@ -3,6 +3,8 @@
 import { emitEvent, Events, listenEvent } from "../../../interaction_design_system/ids/events";
 import { getActiveToolId, sanitizeHtml } from "../../utils";
 import { ChatMessage } from "./chat-message";
+import htmx from "htmx.org";
+
 
 const STATE = {
     EMPTY: "empty",
@@ -248,7 +250,7 @@ export class ChatController extends HTMLElement {
 
             if (!this.currentStream) return;
 
-            this.getMessage(this.currentStream.messageId)?.hideLoading();
+            this.getMessage(this.currentStream.messageId)?.setComplete();
 
             emitEvent(Events.CHAT_RESPONSE_END, {
                 title: this.currentStream.title,
@@ -283,9 +285,14 @@ export class ChatController extends HTMLElement {
         const html = sanitizeHtml(response.html);
         this.messageContainer.insertAdjacentHTML("beforeend", html);
 
+        const message = this.getMessage(response.chat_message_id);
+
+        if (message) htmx.process(message);
+
         if (response.chat_message_role === "ai") {
             this.currentStream.messageId = response.chat_message_id;
-            this.getMessage(response.chat_message_id)?.focus();
+            message?.focus();
+            message?.setStreaming()
         }
     }
 
@@ -308,8 +315,10 @@ export class ChatController extends HTMLElement {
      * @param {MessageCompleteResponse} response
      */
     handleMessageComplete(response) {
-        this.getMessage(response.chat_message_id)?.complete(response.html);
+        const message = this.getMessage(response.chat_message_id);
+        message?.complete(response.html);
         if (this.currentStream) this.currentStream.title = response.title;
+        emitEvent(Events.SCROLL_TO_BOTTOM, {source:this, force:true});
     }
 
 

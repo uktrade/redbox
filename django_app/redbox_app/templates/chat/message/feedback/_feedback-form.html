@@ -1,0 +1,118 @@
+<div class="feedback-form govuk-!-margin-top-6">
+
+    <form hx-post="{{ url('chat-message-feedback', message_id=message_id) }}"
+          hx-target="#feedback-{{ message_id }}"
+          hx-swap="innerHTML">
+        {{ csrf_input }}
+
+        {# Only ever the negative path. #}
+        <input type="hidden" name="is_positive" value="false">
+
+        {% if form.non_field_errors() %}
+            <div class="govuk-error-summary" role="alert" tabindex="-1">
+                {% for error in form.non_field_errors() %}
+                    <p class="govuk-error-message">{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <p class="govuk-body-s">
+            To help us improve our responses, we'd like to know more
+        </p>
+
+        <div class="govuk-form-group{% if form.reason.errors %} govuk-form-group--error{% endif %}">
+            <fieldset class="govuk-fieldset">
+                <legend 
+                    class="govuk-fieldset__legend govuk-fieldset__legend--m">
+                    <h3 class="govuk-fieldset__heading" 
+                        tabindex="-1" 
+                        data-autofocus>
+                        Why did you choose this rating?
+                    </h3>
+                </legend>
+
+                <div class="govuk-hint">
+                    Select all that apply
+                </div>
+                
+                {% for error in form.reason.errors %}
+                    <p class="govuk-error-message">{{ error }}</p>
+                {% endfor %}
+                <div class="govuk-checkboxes">
+                    {% for value, label in form.fields['reason'].choices %}
+                        <div class="govuk-checkboxes__item">
+                            <input class="govuk-checkboxes__input"
+                                   type="checkbox"
+                                   id="reason-{{ message_id }}-{{ value }}"
+                                   name="reason"
+                                   value="{{ value }}"
+                                   {% if form['reason'].value() and value in form['reason'].value() %}checked{% endif %}>
+                            <label class="govuk-label govuk-checkboxes__label"
+                                   for="reason-{{ message_id }}-{{ value }}">{{ label }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </fieldset>
+        </div>
+
+        <div class="govuk-form-group{% if form.detail.errors %} govuk-form-group--error{% endif %}">
+            <label 
+                class="govuk-label govuk-label--m"
+                for="detail-{{ message_id }}">
+                Can you tell us more?
+            </label>
+            
+            <div class="govuk-hint">
+                Don't include any personal information, like your name or email address
+            </div>
+            
+            {% for error in form.detail.errors %}
+                <p class="govuk-error-message">{{ error }}</p>
+            {% endfor %}
+            <textarea
+                class="govuk-textarea"
+                id="detail-{{ message_id }}"
+                name="detail"
+                rows="3">{{ form['detail'].value()|default("", true) }}</textarea>
+        </div>
+
+        <div class="govuk-button-group">
+            <button type="submit" class="govuk-button">Send feedback</button>
+            <button type="button"
+                    class="govuk-button govuk-button--secondary"
+                    hx-get="{{ url('chat-message-feedback-buttons', message_id=message_id) }}"
+                    hx-target="#feedback-{{ message_id }}"
+                    hx-swap="innerHTML"
+                    hx-params="none">
+                I'd prefer not to say
+            </button>
+        </div>
+    </form>
+</div>
+<script>
+  (function () {
+    const HEADER_SELECTOR = '#chat-cta';
+    // Fallback offset (px) if the header element can't be found.
+    const FALLBACK_OFFSET = 60;
+
+    function getHeaderOffset() {
+      const header = document.querySelector(HEADER_SELECTOR);
+      return header ? header.getBoundingClientRect().height : FALLBACK_OFFSET;
+    }
+
+    function scrollFeedbackFormIntoView(el) {
+      requestAnimationFrame(() => {
+        const y = el.getBoundingClientRect().top + window.scrollY - getHeaderOffset();
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      });
+    }
+
+    // htmx fires htmx:load on newly swapped-in nodes.
+    document.body.addEventListener('htmx:load', function (evt) {
+      const form = evt.target.closest('.feedback-form');
+      if (form) {
+        scrollFeedbackFormIntoView(form);
+      }
+    });
+  })();
+</script>

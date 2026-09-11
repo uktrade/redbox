@@ -37,6 +37,7 @@
             {# SSR messages #}
             <div role="log">
                 <ol id="chat-message-list" aria-label="AI agent conversation" class="govuk-list ids-chat-message__container ids-flex-column">
+
                     {% for message in messages %}
                         {{ message_box(
                             role=message.role,

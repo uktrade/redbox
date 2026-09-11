@@ -43,7 +43,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
   flex-wrap: wrap;
   border: none;
   gap: 15px;
-  padding: 0px;;
+  padding: 0px;
 }
 
 .feedback__heading {
@@ -61,7 +61,7 @@ chat-history[data-initialised] .rb-chat-history__actions-button {
 }
 
 .feedback__text-area {
-  margin-top: 0.5rem; /* Adjust as needed */
+  margin-top: 0.5rem;
 }
 .feedback__text-input {
   display: block;
@@ -296,12 +296,6 @@ main:has(.iai-chat-bubble[data-role="ai"]) .exit-feedback {
 
 .chat-actions-container__feedback{
   gap: 18px;
-}
-
-
-.feedback-button-container {
-  display: flex;
-  gap: 8px;
 }
 
 .ids-message-container {

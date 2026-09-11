@@ -12,7 +12,7 @@ from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.timezone import template_localtime
 from markdown_it import MarkdownIt
-from waffle import flag_is_active
+from waffle import flag_is_active, switch_is_active
 
 from redbox_app.redbox_core import flags
 from redbox_app.redbox_core.types import APPROVED_FILE_EXTENSIONS
@@ -157,6 +157,7 @@ def environment(**options):
             "google_analytics_iframe_src": settings.GOOGLE_ANALYTICS_IFRAME_SRC,
             "get_messages": messages.get_messages,
             "flag_is_active": flag_is_active,
+            "switch_is_active": switch_is_active,
             "flags": flags,
             "get_menu_items": get_menu_items,
             "productName": settings.PRODUCT_NAME,

@@ -23,6 +23,7 @@ from redbox_app.redbox_core.views.document_views import (
     remove_doc_view,
     upload_document,
 )
+from redbox_app.redbox_core.views.feedback_views import chat_message_feedback, get_feedback_buttons
 from redbox_app.redbox_core.views.file_views import (
     file_icon_view,
     file_ingest_errors_view,
@@ -106,6 +107,7 @@ __all__ = [
     "add_team_member_row_view",
     "add_team_member_view",
     "aws_credentials_api",
+    "chat_message_feedback",
     "create_team_view",
     "delete_document",
     "delete_team_member_row_view",
@@ -120,6 +122,7 @@ __all__ = [
     "file_icon_view",
     "file_ingest_errors_view",
     "file_status_api_view",
+    "get_feedback_buttons",
     "health",
     "homepage_view",
     "message_view_pre_alpha",
