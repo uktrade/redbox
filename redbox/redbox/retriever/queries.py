@@ -342,7 +342,7 @@ def add_document_filter_scores_to_query(
     for document in centres:
         gauss_functions.append(
             {
-                "filter": {"term": {"metadata.file_name.keyword": document.metadata["uri"]}},
+                "filter": {"term": {"metadata.uri.keyword": document.metadata["uri"]}},
                 "gauss": {
                     "metadata.index": {
                         "origin": document.metadata["index"],
