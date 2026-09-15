@@ -89,7 +89,7 @@ services:
       - redbox-app-network
     restart: unless-stopped
   minio:
-    image: minio/minio
+    image: quay.io/minio/minio:latest
     container_name: minio
     expose:
       - "9000"
