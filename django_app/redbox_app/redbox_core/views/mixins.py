@@ -67,3 +67,16 @@ class ToolManagerRequiredMixin:
             )
 
         return super().dispatch(request, *args, **kwargs)
+
+
+class SuperuserToolManagerRequiredMixin(ToolManagerRequiredMixin):
+    """User has to be superuser AND manager of the tool"""
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_superuser:
+            return HttpResponse(
+                "You do not have permission to manage this tool.",
+                status=HTTPStatus.FORBIDDEN,
+            )
+
+        return super().dispatch(request, *args, **kwargs)

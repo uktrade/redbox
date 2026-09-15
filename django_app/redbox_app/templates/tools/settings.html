@@ -118,6 +118,36 @@
         </div>
     </section>
 
+    <section id="knowledge-base">
+        <h3 id="knowledge-base-heading" class="govuk-heading-s govuk-!-margin-top-7">
+            Knowledge base
+        </h3>
+        <p class="govuk-body-s ids-text-s">
+            These files below are accessible automatically in the knowledge base for every user,
+            despite whichever docs they choose.
+        </p>
+
+        <div class="ids-scrollable ids-max-height-content--two-thirds">
+            <table class="govuk-table">
+
+                <thead class="govuk-table__head ids-text-s">
+                    <tr class="govuk-table__row">
+                        <th scope="col" class="govuk-table__header">File</th>
+                        <th scope="col" class="govuk-table__header">Status</th>
+                        <th scope="col" class="govuk-table__header">Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody class="govuk-table__body">
+                    {% for file_tool in knowledge_base_files %}
+                        {% include 'tools/knowledge-base/file-row.html' %}
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+    </section>
+
     <section id="access-rules">
         <h3 id="permissions" class="govuk-heading-s govuk-!-margin-top-7">
             Access Rules

@@ -1,0 +1,23 @@
+{% from "macros/icon.html" import ids_icon %}
+
+{% set row_id = "knowledge-base-file-row-" ~ file_tool.pk %}
+
+<tr id="{{ row_id }}" class="govuk-table__row ids-text-xs">
+    <td class="govuk-table__cell ids-align-middle">
+        <a class="govuk-link govuk-link--no-underline" href="{{ file_tool.file.url }}">{{ file_tool.file.file_name }}</a>
+    </td>
+    <td class="govuk-table__cell ids-align-middle">
+        {{ file_tool.file.get_status_text() }}
+    </td>
+    <td class="govuk-table__cell">
+        <div class="ids-item-actions">
+            <button class="govuk-button govuk-button--secondary govuk-!-margin-0 ids-icon-button"
+                    type="button"
+                    hx-delete="{{ file_tool.delete_url }}"
+                    hx-target="closest tr"
+                    hx-swap="delete">
+                {{ ids_icon(icon_name="delete.html", icon_classes="link") }}
+            </button>
+        </div>
+    </td>
+</tr>
