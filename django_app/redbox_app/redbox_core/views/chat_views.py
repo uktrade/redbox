@@ -98,12 +98,17 @@ class DeleteChat(View):
         oob_context["oob"] = True
 
         if active_chat_deleted:
-            return render_with_oob(
-                [
-                    {"template": "side_panel/your_documents.html", "context": oob_context, "request": request},
-                    {"template": "chat/cta.html", "context": oob_context, "request": request},
-                    {"template": "chat/chat_feed.html", "context": oob_context, "request": request},
-                ]
-            )
+            templates_to_render = [
+                {"template": "side_panel/your_documents.html", "context": oob_context, "request": request},
+                {"template": "chat/cta.html", "context": oob_context, "request": request},
+                {"template": "chat/chat_feed.html", "context": oob_context, "request": request},
+            ]
+
+            if flag_is_active(request, flags.ENABLE_CHATS_REDESIGN):
+                templates_to_render.append(
+                    {"template": "side_panel/conversations.html", "context": oob_context, "request": request},
+                )
+
+            return render_with_oob(templates_to_render)
 
         return HttpResponse(status=HTTPStatus.OK)

@@ -1,0 +1,10 @@
+{% from "macros/icon.html" import ids_icon %}
+
+{% if selected_files %}
+    {% for file in selected_files %}
+        <span class="govuk-body ids-chat-message__document">
+            {{ ids_icon(icon_name="attach-document.svg") }}
+            <p>{{ file }}</p>
+        </span>
+    {% endfor %}
+{% endif %}

@@ -15,10 +15,10 @@ from uuid import uuid4
 
 import pandas as pd
 from botocore.exceptions import EventStreamError
-from langchain.schema import StrOutputParser
 from langchain_core.callbacks.manager import dispatch_custom_event
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import Runnable, RunnableLambda, RunnableParallel
 from langchain_core.tools import StructuredTool
 from langchain_core.vectorstores import VectorStoreRetriever
@@ -44,9 +44,9 @@ from redbox.models.chain import (
 )
 from redbox.models.graph import ROUTE_NAME_TAG, RedboxActivityEvent, RedboxEventType
 from redbox.models.prompts import (
-    USER_FEEDBACK_EVAL_PROMPT,
-    DATAHUB_USER_FEEDBACK,
     DATAHUB_ADD_FOLLOWUP_PROMPT_RECOMMENDATIONS,
+    DATAHUB_USER_FEEDBACK,
+    USER_FEEDBACK_EVAL_PROMPT,
 )
 from redbox.models.settings import ChatLLMBackend
 from redbox.transform import combine_documents, flatten_document_state, join_result_with_token_limit

@@ -1,0 +1,42 @@
+<details class="govuk-details message-route {% if not route %} govuk-!-display-none{% endif %}">
+    <summary class="govuk-details__summary">
+        <span class="govuk-details__summary-text ids-text-xs ids-no-underline">
+            How {{ productName }} generated this response</span>
+        </span>
+    </summary>
+    <div class="govuk-details__text ids-text-xs">
+        <span>
+            {{ productName }} automatically determines what the
+            best 'tools' are to answer your prompts/queries:
+        </span>
+        <ul>
+            <li>
+                If no document(s) selected, {{ productName }} defaults to using 'chat',
+                which gets answers from the model's training data
+            </li>
+            <li>
+                When document(s) selected, {{ productName }} will default
+                to searching for information based on your prompt
+            </li>
+            <li>
+                If you request a summary of one or more documents,
+                {{ productName }} will do that rather than search
+            </li>
+            <li>
+                {{ productName }} can use external search tools for
+                <a class="govuk-link" href="https://www.gov.uk">GOV.UK</a> and
+                <a class="govuk-link" href="https://www.wikipedia.org">Wikipedia</a>
+            </li>
+            <li>
+                When your request/prompt might best be answered by using two or
+                more tools at the same time, {{ productName }} will provide you
+                with its proposed plan, which you can agree to, modify or cancel
+            </li>
+            <li>
+                The knowledge that {{ productName }} has access to is cut off in
+                November 2024, so ensure that if you need up to date information
+                you ask for {{ productName }} to find additional online sources
+            </li>
+        </ul>
+    </div>
+</details>

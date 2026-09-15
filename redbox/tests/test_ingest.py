@@ -1,29 +1,25 @@
+from io import BytesIO
 from pathlib import Path
-
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
-import pytest
 
+import pandas as pd
+import pytest
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 
-from redbox.models.chain import GeneratedMetadata
 from redbox.loader.extraction.metadata import MetadataExtraction
-from redbox.loader.loaders import parse_tabular_schema
-
-
 from redbox.loader.loaders import (
+    _pdf_is_image_heavy,
     is_large_pdf,
-    split_pdf,
+    parse_tabular_schema,
     read_csv_text,
     read_excel_file,
-    _pdf_is_image_heavy,
+    split_pdf,
 )
+from redbox.models.chain import GeneratedMetadata
 from redbox.models.file import ChunkResolution
 from redbox.models.settings import Settings
 from redbox.retriever.queries import build_query_filter
-from io import BytesIO
-import pandas as pd
-
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
@@ -36,7 +32,7 @@ fake_embedding = np.random.rand(1024).tolist()
 
 
 def file_to_s3(filename: str, s3_client: S3Client, env: Settings) -> str:
-    file_path = Path(__file__).parents[2] / "tests" / "data" / filename
+    file_path = Path.joinpath(Path(__file__).parent, "data", filename)
     file_name = file_path.name
     file_type = file_path.suffix
 
@@ -346,9 +342,9 @@ def test_pdf_is_image_heavy_image_heavy():
             {"label": "TEXT"},
         ),
         (
-            "my table",
+            "my_table",
             pd.DataFrame({"x": [1]}),
-            "<table_name>my table</table_name>",
+            "<table_name>my_table</table_name>",
             {"x": "INTEGER"},
         ),
     ],

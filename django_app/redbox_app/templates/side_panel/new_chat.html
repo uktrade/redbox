@@ -1,0 +1,18 @@
+{% set active_new_chat = request.resolver_match.url_name == 'chats' and not request.resolver_match.kwargs %}
+<section class="ids-card ids-card--no-border">
+    <div class="ids-card__content">
+        <div class="ids-card__item {{ 'ids-card__item--selected' if active_new_chat }}">
+            <a class="ids_item-link govuk-link govuk-link--no-visited-state govuk-link--no-underline display title-text"
+            href="{{ url('chats') }}"
+            {{ 'aria-current="page"'|safe if active_new_chat }}
+            >
+                <svg width="16" height="16" viewBox="0 0 16 16"
+                    fill="none" stroke="currentColor" stroke-width="2"
+                    aria-hidden="true" focusable="false">
+                    <path d="M8 3v10M3 8h10"/>
+                </svg>
+                New chat
+            </a>
+        </div>
+    </div>
+</section>

@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from redbox_app.redbox_core.models import ChatMessage, ChatMessageTokenUse, File
+from redbox_app.redbox_core.models import ChatMessage, ChatMessageFeedback, ChatMessageTokenUse, File
 
 User = get_user_model()
 
@@ -66,3 +66,25 @@ class UserSerializer(serializers.ModelSerializer):
             "last_login",
             "created_at",
         )
+
+
+class ChatMessageFeedbackSerializer(serializers.ModelSerializer):
+    reason_labels = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ChatMessageFeedback
+        fields = (
+            "id",
+            "message",
+            "is_positive",
+            "reason",
+            "reason_labels",
+            "detail",
+            "created_at",
+            "modified_at",
+        )
+        read_only_fields = fields
+
+    def get_reason_labels(self, obj):
+        labels = dict(ChatMessageFeedback.Reason.choices)
+        return [labels.get(r, r) for r in obj.reason]

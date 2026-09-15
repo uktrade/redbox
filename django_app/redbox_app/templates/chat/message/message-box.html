@@ -1,0 +1,14 @@
+{% from "chat/message/macros/message-box.html" import message_box %}
+
+{% if message %}
+    {{ message_box(
+        role=message.role,
+        text=message.text,
+        message_id=message.id,
+        selected_files=message.unique_selected_files(),
+        resources=message.resources,
+        route=message.route
+    ) }}
+{% else %}
+    {{ message_box() }}
+{% endif %}

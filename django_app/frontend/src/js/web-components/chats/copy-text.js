@@ -1,5 +1,7 @@
 // @ts-check
 
+import { StreamedContent } from "../streamed-content";
+
 class CopyText extends HTMLElement {
   connectedCallback() {
     const messageId = this.dataset.id
@@ -22,8 +24,8 @@ class CopyText extends HTMLElement {
     `;
 
     this.querySelector("button")?.addEventListener("click", () => {
-      const textEl = /** @type {HTMLElement} */ (
-        document.querySelector(`#chat-message-${messageId} markdown-converter`))
+      const textEl = document.querySelector(`#copy-text-selector-${messageId}`);
+      if (!textEl) return console.error(`No element for #copy-text-selector-${messageId}`);
       this.#copyToClipboard(textEl?.innerHTML, textEl?.innerText);
     });
   }

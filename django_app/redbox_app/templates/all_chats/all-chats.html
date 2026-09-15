@@ -1,0 +1,33 @@
+{% set pageTitle = "Chats" %}
+
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="govuk-form-group">
+  <label class="govuk-label govuk-visually-hidden" for="chat-search">
+    Search chats
+  </label>
+  <input
+    class="govuk-input"
+    id="chat-search"
+    name="q"
+    type="search"
+    hx-get="{{ url('search-chats') }}"
+    hx-trigger="load, keyup changed delay:300ms"
+    hx-target="#chat-results"
+    hx-swap="innerHTML"
+    hx-vals='js:{tz: Intl.DateTimeFormat().resolvedOptions().timeZone}'
+    data-min-length-search="0"
+    placeholder="Search chats"
+  >
+</div>
+
+<div class="govuk-!-margin-top-3">
+    <h1 class="govuk-heading-l">Chats</h1>
+    <div id="chat-results">
+        {% include 'all_chats/_chat_tables.html' %}
+    </div>
+</div>
+
+{% endblock %}

@@ -2,7 +2,10 @@ import os
 
 import boto3
 import pytest
+from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from moto import mock_aws
+
+from redbox_app.redbox_core.models import Chat, ChatMessage
 
 
 @pytest.fixture(autouse=True)
@@ -58,3 +61,36 @@ def pytest_runtest_setup(item):
             # if name found, test has failed for the combination of class name & test name
             if test_name is not None:
                 pytest.xfail(f"previous test failed ({test_name})")
+
+
+VYVYAN_USERNAME = os.environ["MOCK_SSO_USERNAME"]
+
+
+@pytest.fixture
+def vyvyan(create_user):
+    return create_user(username=VYVYAN_USERNAME)
+
+
+@pytest.fixture
+def vyvyan_chat(vyvyan) -> Chat:
+    return Chat.objects.create(user=vyvyan, name="A chat")
+
+
+@pytest.fixture
+def vyvyan_ai_message(vyvyan_chat: Chat) -> ChatMessage:
+    ChatMessage.objects.create(chat=vyvyan_chat, text="A question?", role=ChatMessage.Role.user)
+    return ChatMessage.objects.create(
+        chat=vyvyan_chat,
+        text="An answer with citation.",
+        role=ChatMessage.Role.ai,
+        route="chat",
+    )
+
+
+@pytest.fixture(scope="class")
+def live_server_url():
+    """Provide live server URL to test class."""
+    server = StaticLiveServerTestCase
+    server.setUpClass()
+    yield server.live_server_url
+    server.tearDownClass()

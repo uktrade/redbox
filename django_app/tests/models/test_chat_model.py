@@ -1,7 +1,9 @@
+from datetime import UTC, datetime
+
 from django.contrib.auth import get_user_model
 from django.test import Client
 
-from redbox_app.redbox_core.models import Chat, Tool
+from redbox_app.redbox_core.models import Chat, ChatMessage, Tool
 
 User = get_user_model()
 
@@ -51,3 +53,45 @@ def test_tool_url(client: Client, alice: User, chat: Chat, default_tool: Tool):
 
     # Then
     assert expected_url == url
+
+
+def test_filter_by_name_with_no_name_returns_all_user_chats(alice: User):
+    # Given
+    older_chat = Chat.objects.create(user=alice, name="Older chat")
+    newer_chat = Chat.objects.create(user=alice, name="Newer chat")
+    ChatMessage.objects.create(chat=older_chat, created_at=datetime(2024, 1, 1, tzinfo=UTC))
+    ChatMessage.objects.create(chat=newer_chat, created_at=datetime(2024, 6, 1, tzinfo=UTC))
+
+    # When
+    results = Chat.filter_by_name_ordered_by_last_message_date(user=alice)
+
+    # Then
+    assert list(results) == [newer_chat, older_chat]
+
+
+def test_filter_by_name_matches_case_insensitive_substring(alice: User):
+    # Given
+    matching_chat = Chat.objects.create(user=alice, name="Budget planning")
+    other_chat = Chat.objects.create(user=alice, name="Holiday ideas")
+    ChatMessage.objects.create(chat=matching_chat, created_at=datetime(2024, 1, 1, tzinfo=UTC))
+    ChatMessage.objects.create(chat=other_chat, created_at=datetime(2024, 1, 1, tzinfo=UTC))
+
+    # When
+    results = Chat.filter_by_name_ordered_by_last_message_date(user=alice, chat_name_query="budget")
+
+    # Then
+    assert list(results) == [matching_chat]
+
+
+def test_filter_excludes_other_users_chats(alice: User, bob: User):
+    # Given
+    alice_chat = Chat.objects.create(user=alice, name="Alice's chat")
+    bob_chat = Chat.objects.create(user=bob, name="Bob's chat")
+    ChatMessage.objects.create(chat=alice_chat, created_at=datetime(2024, 1, 1, tzinfo=UTC))
+    ChatMessage.objects.create(chat=bob_chat, created_at=datetime(2024, 1, 1, tzinfo=UTC))
+
+    # When
+    results = Chat.filter_by_name_ordered_by_last_message_date(user=alice)
+
+    # Then
+    assert list(results) == [alice_chat]

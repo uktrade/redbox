@@ -1,0 +1,27 @@
+<section id="tools" class="ids-card ids-card--no-border">
+  <nav class="govuk-!-margin-bottom-0" aria-label="Chats">
+    <div class="ids-card__header">
+      <h2 class="side-panel-heading__text govuk-heading-s govuk-!-margin-bottom-0">Tools</h2>
+    </div>
+    <div class="ids-card__content">
+      <ul class="ids-card__list">
+        {% set active_tool_slug = request.resolver_match.kwargs.get('slug') %}
+        {% for tool_obj in tools %}
+        <li class="ids-card__item {{ 'ids-card__item--selected' if tool_obj.slug == active_tool_slug }}">
+            <span class="item-text-container">
+            {% if tool_obj.icon_slug %}
+            <img src="{{ static(tool_obj.icon_slug) }}" alt="{{tool_obj.name}} Logo">
+            {% endif %}
+                <a class="item-link govuk-link govuk-link--no-visited-state govuk-link--no-underline display title-text"
+                    href="{{ tool_obj.chat_url }}"
+                    {{ 'aria-current="page"'|safe if tool_obj == active_tool_slug }}
+                    title="{{ tool_obj.name }}">
+                    <span class="govuk-visually-hidden">Tool: </span>{{ tool_obj.name }}
+                </a>
+            </span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </nav>
+</section>

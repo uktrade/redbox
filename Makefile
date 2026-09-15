@@ -39,16 +39,15 @@ test-ai: ## Test code with live LLM
 .PHONY: test-redbox
 test-redbox: ## Test redbox
 	cd redbox && PYTHONPATH=$(PWD)/django_app:$(PWD)/redbox DJANGO_SETTINGS_MODULE=django_app.settings poetry install && \
-    PYTHONPATH=$(PWD)/django_app:$(PWD)/redbox poetry run pytest -m "not ai" --cov=redbox -v --cov-report=term-missing --cov-report=xml --cov-fail-under=75
+    PYTHONPATH=$(PWD)/django_app:$(PWD)/redbox poetry run pytest -m "not ai" --cov=redbox -v --cov-report=term-missing --cov-report=xml --cov-fail-under=75 --envfile tests/.env.test
 
 .PHONY: test-django
 test-django: ## Test django-app
-	cd django_app && poetry install && poetry run pytest --cov=redbox_app -v --cov-report=term-missing --cov-report=xml --cov-fail-under=80 --ds redbox_app.settings $(TEST)
+	cd django_app && poetry install && poetry run pytest --ignore=tests/playwright --cov=redbox_app -v --cov-report=term-missing --cov-report=xml --cov-fail-under=80 --ds redbox_app.settings --envfile ../tests/.env.test $(TEST)
 
 .PHONY: test-django-single
 test-django-single: ## Test django-app with specified test file/case
 	$(MAKE) test-django TEST=$(test)
-
 
 .PHONY: build-django-static
 build-django-static: ## Build django-app static files
@@ -56,29 +55,42 @@ build-django-static: ## Build django-app static files
 	cd django_app/ && poetry run python manage.py collectstatic --noinput
 
 .PHONY: test-integration
-test-integration: rebuild run test-integration-without-build ## Run all integration tests
+test-integration:
+	docker compose down opensearch db sso minio
+	docker compose up -d --wait opensearch db sso minio
+	cd django_app/frontend && \
+	npm ci && \
+	npm run build && \
+	cd .. && \
+	poetry install && \
+	poetry run playwright install --with-deps chromium && \
+	DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest tests/playwright -rP --browser chromium --tracing retain-on-failure --video on --screenshot on
 
-.PHONY: test-integration-without-build
-test-integration-without-build : ## Run all integration tests without rebuilding
-	poetry install --no-ansi --with dev --without docs
-	poetry run pytest tests/
+.PHONY: test-integration-debug
+test-integration-debug:
+	docker compose down opensearch db sso minio
+	docker compose up -d --wait opensearch db sso minio
+	cd django_app && \
+	poetry install && \
+	poetry run playwright install --with-deps chromium && \
+	PWDEBUG=1 DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest tests/playwright -rP  --headed --browser chromium --tracing retain-on-failure --video on --screenshot on
 
 .PHONY: collect-static
 collect-static:
 	docker compose run django-app venv/bin/django-admin collectstatic --noinput
 
 .PHONY: lint
-lint:  ## Check code formatting & linting
+lint: ## Check code formatting & linting
 	poetry run ruff format . --check
 	poetry run ruff check .
 
 .PHONY: format
-format:  ## Format and fix code
+format: ## Format and fix code
 	poetry run ruff format .
 	poetry run ruff check . --fix
 
 .PHONY: safe
-safe:  ##
+safe: ##
 	poetry run bandit -ll -r ./redbox
 	poetry run bandit -ll -r ./django_app
 
@@ -99,37 +111,37 @@ migrate: stop  ## Apply migrations
 	cd django_app && poetry run python manage.py migrate
 
 .PHONY: reset-db
-reset-db:  ## Reset Django database
+reset-db: ## Reset Django database
 	docker compose down db --volumes
 	docker compose up -d db
 
 .PHONY: reset-elastic
-reset-elastic:  ## Reset Django database
+reset-elastic: ## Reset Django database
 	docker compose down opensearch
 	rm -rf data/elastic/*
 	docker compose up -d opensearch --wait
 
 .PHONY: docs-serve
-docs-serve:  ## Build and serve documentation
+docs-serve: ## Build and serve documentation
 	poetry run mkdocs serve
 
 .PHONY: docs-build
-docs-build:  ## Build documentation
+docs-build: ## Build documentation
 	poetry run mkdocs build
 
 # Docker
-AWS_REGION=eu-west-2
-APP_NAME=redbox
-ECR_URL=$(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
-ECR_REPO_URL=$(ECR_URL)/$(ECR_REPO_NAME)
+AWS_REGION = eu-west-2
+APP_NAME = redbox
+ECR_URL = $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
+ECR_REPO_URL = $(ECR_URL)/$(ECR_REPO_NAME)
 IMAGE=$(ECR_REPO_URL):$(IMAGE_TAG)
 
-ECR_REPO_NAME=$(APP_NAME)
-PREV_IMAGE_TAG=$$(git rev-parse HEAD~1)
-IMAGE_TAG=$$(git rev-parse HEAD)
+ECR_REPO_NAME = $(APP_NAME)
+PREV_IMAGE_TAG = $$(git rev-parse HEAD~1)
+IMAGE_TAG = $$(git rev-parse HEAD)
 
-tf_build_args=-var "image_tag=$(IMAGE_TAG)"
-DOCKER_SERVICES=$$(docker compose config --services | grep -Ev 'worker')
+tf_build_args = -var "image_tag=$(IMAGE_TAG)"
+DOCKER_SERVICES = $$(docker compose config --services | grep -Ev 'worker')
 
 AUTO_APPLY_RESOURCES = module.django-app.aws_ecs_task_definition.aws-ecs-task \
                        module.django-app.aws_ecs_service.aws-ecs-service \
@@ -163,8 +175,6 @@ docker_build: ## Build the docker container
 	echo "Pulling previous image: $$PREV_IMAGE"; \
 	docker pull $$PREV_IMAGE; \
 	docker compose build django-app; \
-
-
 
 .PHONY: docker_push
 docker_push:
@@ -206,7 +216,7 @@ else
  tf_build_args=-var "image_tag=$(IMAGE_TAG)"
 endif
 
-TF_BACKEND_CONFIG=$(CONFIG_DIR)/backend.hcl
+TF_BACKEND_CONFIG = $(CONFIG_DIR)/backend.hcl
 
 tf_new_workspace:
 	terraform -chdir=./infrastructure/aws/$(instance)  workspace new $(env)
@@ -267,7 +277,7 @@ release: ## Deploy app
 	chmod +x ./infrastructure/aws/scripts/release.sh && ./infrastructure/aws/scripts/release.sh $(env)
 
 .PHONY: eval_backend
-eval_backend:  ## Runs the only the necessary backend for evaluation BUCKET_NAME
+eval_backend: ## Runs the only the necessary backend for evaluation BUCKET_NAME
 	docker compose up -d --wait worker --build
 	docker exec -it $$(docker ps -q --filter "name=minio") mc mb data/${BUCKET_NAME}
 

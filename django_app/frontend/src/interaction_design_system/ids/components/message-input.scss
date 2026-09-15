@@ -1,15 +1,22 @@
 ids-message-input {
     --input-font-size: var(--font-size-s);
-    // --input-line-height-real: 25px;
-    --input-expanded-height: 130px; //calc(calc(var(--input-line-height-real) * 3) + 0px);
+    --input-expanded-height: 130px;
     --input-expanded-border-bottom: 30px;
 
-    [contentEditable=true]:empty:not(:focus):before {
+    position: relative;
+
+    [contenteditable="true"]:empty:not(:focus):before,
+    [contenteditable="true"]:has(> br:only-child):not(:focus):before {
         content: attr(data-text);
         pointer-events: none;
     }
 
-    position: relative;
+    &:has(.ids-message-input:focus) {
+        .ids-message-input {
+            min-height: var(--input-expanded-height);
+            padding-bottom: var(--input-expanded-border-bottom);
+        }
+    }
 
     .ids-message-input {
         font-size: 16px;
@@ -28,8 +35,6 @@ ids-message-input {
             outline: 4px solid #fd0;
             outline-offset: 0;
             box-shadow: inset 0 0 0 2px;
-            min-height: var(--input-expanded-height);
-            padding-bottom: var(--input-expanded-border-bottom);
         }
 
         &.ids-message-input__expanded {
