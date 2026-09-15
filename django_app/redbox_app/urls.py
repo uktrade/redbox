@@ -115,6 +115,11 @@ tools_urlpatterns = [
         name="delete-tool-access-rule",
     ),
     path(
+        f"{tools_route_prefix}settings/knowledge-base/<file_tool_id>/delete/",
+        views.ToolKnowledgeBaseFileDeleteView.as_view(),
+        name="delete-tool-knowledge-base-file",
+    ),
+    path(
         f"{tools_route_prefix}settings/users/bulk-add/", views.UserToolBulkAddView.as_view(), name="bulk-add-user-tool"
     ),
     path(
