@@ -22,10 +22,10 @@
 
         <div class="govuk-form-group{% if form.reason.errors %} govuk-form-group--error{% endif %}">
             <fieldset class="govuk-fieldset">
-                <legend 
+                <legend
                     class="govuk-fieldset__legend govuk-fieldset__legend--m">
-                    <h3 class="govuk-fieldset__heading" 
-                        tabindex="-1" 
+                    <h3 class="govuk-fieldset__heading"
+                        tabindex="-1"
                         data-autofocus>
                         Why did you choose this rating?
                     </h3>
@@ -34,7 +34,7 @@
                 <div class="govuk-hint">
                     Select all that apply
                 </div>
-                
+
                 {% for error in form.reason.errors %}
                     <p class="govuk-error-message">{{ error }}</p>
                 {% endfor %}
@@ -56,16 +56,16 @@
         </div>
 
         <div class="govuk-form-group{% if form.detail.errors %} govuk-form-group--error{% endif %}">
-            <label 
+            <label
                 class="govuk-label govuk-label--m"
                 for="detail-{{ message_id }}">
                 Can you tell us more?
             </label>
-            
+
             <div class="govuk-hint">
                 Don't include any personal information, like your name or email address
             </div>
-            
+
             {% for error in form.detail.errors %}
                 <p class="govuk-error-message">{{ error }}</p>
             {% endfor %}
