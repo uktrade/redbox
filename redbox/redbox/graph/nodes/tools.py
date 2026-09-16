@@ -34,7 +34,6 @@ from waffle.decorators import waffle_flag
 from redbox.api.format import format_documents
 from redbox.api.wrapper import SensitiveValue
 from redbox.chains.components import get_embeddings
-from redbox.graph.nodes.runner.wrap_async import _get_mcp_headers
 from redbox.models.chain import RedboxState
 from redbox.models.file import ChunkCreatorType, ChunkMetadata, ChunkResolution, TabularSchema
 from redbox.models.settings import get_settings
@@ -1109,7 +1108,9 @@ async def get_datahub_mcp_tools(sso_token_getter: Callable[[], str] | None = Non
         if not sso_access_token:
             log.error("get_datahub_mcp_tools - Datahub MCP sso_access_token is None")
 
-        headers = _get_mcp_headers(sso_access_token)
+        # headers = _get_mcp_headers(sso_access_token)
+        data_hub_token = os.getenv("DATAHUB_DEV_TOKEN")
+        headers = {"Authorization": "Bearer " + data_hub_token}
         async with (
             streamablehttp_client(datahub_mcp_url, headers=headers or None) as (
                 read,
@@ -1127,7 +1128,7 @@ async def get_datahub_mcp_tools(sso_token_getter: Callable[[], str] | None = Non
                 tool.metadata = {
                     "url": datahub_mcp_url,
                     "creator_type": ChunkCreatorType.datahub,
-                    "sso_access_token": SensitiveValue(sso_access_token),
+                    "sso_access_token": SensitiveValue(data_hub_token),
                 }
                 if agent_loop:  # if loop is True, add intermediate steps into schema so that it is exposed to LLM
                     tool.args_schema["properties"] = tool.args_schema.get("properties", {})
