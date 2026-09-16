@@ -290,32 +290,43 @@ def test_merge_documents():
 
     Asserts:
 
-    * That the initial list's scores are prioritised
+    * Adjacent (boosted) scores replace initial scores for the same document
     * That higher scores in the adjacent will push out lower scores in the initial
     * The the result truncates to the length of the initial list
     """
-    docs_1 = list(
+    base = list(
         generate_docs(s3_key="test_key_1", total_tokens=1000, number_of_docs=3, chunk_resolution="normal", score=1)
     )
 
-    docs_2: list[Document] = []
-    for doc in copy.deepcopy(docs_1):
-        doc.metadata["score"] = 2
-        docs_2.append(doc)
+    initial = [copy.deepcopy(d) for d in base]
+    for doc, score in zip(initial, [0.7, 0.68, 0.60]):
+        doc.metadata["score"] = score
 
-    merged_1 = merge_documents(initial=docs_1, adjacent=docs_2)
+    adjacent = [copy.deepcopy(d) for d in base]
+    # Boost [0.7, 0.68, 0.66] -> [1.40, 1.36, 0.66]
+    for doc, score in zip(adjacent, [1.40, 1.36, 0.66]):
+        doc.metadata["score"] = score
 
-    # Initial list score prioritised over adjacent
-    assert merged_1 == docs_1
+    merged = merge_documents(initial=initial, adjacent=adjacent)
 
-    docs_3 = list(
-        generate_docs(s3_key="test_key_2", total_tokens=1000, number_of_docs=3, chunk_resolution="normal", score=3)
-    ) + [docs_1[0]]
+    # assert adjacent (boosted) scores replace initial scores for the same document
+    assert [d.metadata["score"] for d in merged] == [1.4, 1.36, 0.66]
 
-    merged_2 = merge_documents(initial=docs_1, adjacent=docs_3)
+    # add neighbours: 0.9 displaces the weakest initial (0.60), 0.5 is dropped
+    adjacent += list(
+        generate_docs(s3_key="test_key_2", total_tokens=1000, number_of_docs=2, chunk_resolution="normal", score=1)
+    )
 
-    # Higher scores in adjacent prioritised, length is the same as initial
-    assert merged_2 == docs_3[: len(docs_1)]
+    adjacent[-2].metadata["score"] = 0.9
+    adjacent[-1].metadata["score"] = 0.5
+
+    merged = merge_documents(initial=initial, adjacent=adjacent)
+
+    # assert that higher scores in the adjacent will push out lower scores in the initial
+    assert [d.metadata["score"] for d in merged] == [1.4, 1.36, 0.9]
+
+    # The the result truncates to the length of the initial list
+    assert len(merged) == len(initial)
 
 
 def test_sort_documents():
