@@ -88,7 +88,7 @@ class EditableText extends HTMLElement {
     #enterEditMode() {
         if (!this.inputEl || !this.textEl || !this.displayEl || !this.inputWrapper) return;
         this.inputEl.dataset.title = this.textEl.innerText || "";
-        this.inputEl.value = this.textEl.innerText || "";
+        this.inputEl.value = this.textEl.title || this.textEl.innerText || "";
         hideElement(this.displayEl);
         showElement(this.inputWrapper);
         this.inputEl.focus();

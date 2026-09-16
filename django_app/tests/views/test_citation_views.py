@@ -41,7 +41,7 @@ def test_citations_shown(client: Client, alice: User, chat: Chat, several_files:
     soup = BeautifulSoup(response.content, features="html.parser")
     sources_panel = soup.select("ul.rb-citations__list")[0]
     files = sources_panel.find_all("h3")
-    citation_items = sources_panel.find_all("markdown-converter")
+    citation_items = sources_panel.find_all("streamed-content")
     filenames = [h3.get_text().strip() for h3 in files]
     citations = [element.get_text().strip() for element in citation_items]
 

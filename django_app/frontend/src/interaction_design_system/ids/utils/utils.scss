@@ -57,6 +57,10 @@
   width: 100%;
 }
 
+.ids-width--auto {
+  width: auto;
+}
+
 .ids-width--one-fifth {
   width: 20%;
 }
@@ -87,6 +91,7 @@
 
 .ids-transparent {
   background-color: transparent;
+  box-shadow: none;
 }
 
 .ids-no-underline {
@@ -141,4 +146,25 @@ tr.ids-expanded-row {
   td {
     padding: 20px;
   }
+}
+
+.ids-line-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ids-line-clamp--1 {
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+.ids-line-clamp--2 {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.ids-line-clamp--3 {
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
 }

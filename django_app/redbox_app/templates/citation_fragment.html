@@ -6,7 +6,7 @@
       <div class="govuk-!-padding-left-1 govuk-!-padding-right-1">
         <h2 class="govuk-heading-m">Response</h2>
         <div class="iai-chat-bubble">
-          <markdown-converter class="ids-chat-message__text">{{ message.text|remove_refs }}</markdown-converter>
+          <streamed-content class="ids-chat-message__text">{{ message.text|remove_refs }}</streamed-content>
         </div>
       </div>
     </div>
@@ -31,7 +31,7 @@
                 {% if citation.page_numbers %}
                   <div class="govuk-body-s govuk-!-margin-top-3"><strong>Page number(s):</strong> {{ citation.page_numbers | join(", ") }}</div>
                 {% endif %}
-                <markdown-converter id="{{ citation.id }}" class="iai-chat-bubbles__sources-link">{{ citation.text }}</markdown-converter>
+                <streamed-content id="{{ citation.id }}" class="iai-chat-bubbles__sources-link">{{ citation.text }}</streamed-content>
               </li>
             {% endfor %}
           </ul>

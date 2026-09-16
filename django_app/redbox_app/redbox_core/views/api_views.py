@@ -9,8 +9,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 
-from redbox_app.redbox_core.models import ChatMessage
-from redbox_app.redbox_core.serializers import ChatMessageSerializer, UserSerializer
+from redbox_app.redbox_core.models import ChatMessage, ChatMessageFeedback
+from redbox_app.redbox_core.serializers import ChatMessageFeedbackSerializer, ChatMessageSerializer, UserSerializer
 
 User = get_user_model()
 
@@ -87,3 +87,16 @@ def aws_credentials_api(request):
             return JsonResponse({"error": "Failed to get credentials"}, status=500)
     else:
         return JsonResponse(403, safe=False)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated, IsAdminUser])
+def get_all_chat_message_feedback(request):
+    """Return paginated message feedback data"""
+
+    paginator = StandardResultsSetPagination()
+    queryset = ChatMessageFeedback.objects.all().order_by("created_at")
+
+    result_page = paginator.paginate_queryset(queryset, request)
+    serializer = ChatMessageFeedbackSerializer(result_page, many=True, read_only=True)
+    return paginator.get_paginated_response(serializer.data)

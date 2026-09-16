@@ -10,7 +10,9 @@
     min-height: 0;
     height: auto;
 
-    &:has(.ids-message-container) {
+    // Use full height when displaying messages
+    &:has(chat-controller[data-state="conversation"]),
+    &:has(chat-message) {
         height: 100%;
     }
 }

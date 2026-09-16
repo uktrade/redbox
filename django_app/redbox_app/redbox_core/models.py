@@ -11,6 +11,8 @@ from functools import reduce
 from pathlib import Path
 from typing import TYPE_CHECKING, override
 
+from asgiref.sync import sync_to_async
+
 if TYPE_CHECKING:
     from collections.abc import Collection, Sequence
 
@@ -144,6 +146,7 @@ class Tool(UUIDPrimaryKeyBase, TimeStampedModel):
         max_length=100, unique=True, blank=True, help_text="Used for url routing and info page linking"
     )
     is_public = models.BooleanField(default=True, help_text="Whether the tool is accessible by all users")
+    icon_slug = models.CharField(max_length=100)
 
     objects = ToolManager()
 
@@ -991,7 +994,7 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDPrimaryKeyBase):
         try:
             return self._sso
         except UserSSO.DoesNotExist as e:
-            logger.exception("UserSSO record not found for %s", self, exc_info=e)
+            logger.info("UserSSO record not found for %s", self, exc_info=e)
             return None
 
 
@@ -1376,7 +1379,12 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
         if self.temperature is None:
             self.temperature = self.user.ai_settings.temperature
 
-        super().save(force_insert, force_update, using, update_fields)
+        super().save(
+            force_insert=force_insert,
+            force_update=force_update,
+            using=using,
+            update_fields=update_fields,
+        )
 
     @classmethod
     def get_ordered_by_last_message_date(
@@ -1390,6 +1398,27 @@ class Chat(UUIDPrimaryKeyBase, TimeStampedModel, AbstractAISettings):
             .annotate(latest_message_date=Max("chatmessage__created_at"))
             .order_by("-latest_message_date")
         )
+
+    @classmethod
+    def filter_by_name_ordered_by_last_message_date(
+        cls, user: User, tool: Tool | None = None, chat_name_query: str | None = None
+    ) -> list[Chat]:
+        """Returns all chat histories for a given user, ordered by the date of the latest message."""
+        qs = (
+            cls.objects.filter(user=user, archived=False)
+            .select_related("tool")
+            .annotate(latest_message_date=Max("chatmessage__created_at"))
+        )
+
+        qs = qs.filter(latest_message_date__isnull=False)
+
+        if tool is not None:
+            qs = qs.filter(tool=tool)
+
+        if chat_name_query:
+            qs = qs.filter(name__icontains=chat_name_query)
+
+        return list(qs.order_by("-latest_message_date"))
 
     @property
     def newest_message_date(self) -> date:
@@ -1425,6 +1454,7 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         USER_UPLOADED_DOCUMENT = "UserUploadedDocument", _("user uploaded document")
         GOV_UK = "GOV.UK", _("gov.uk")
         WEB_SEARCH = "WebSearch", _("Web Search")
+        UNVERIFIED = "Unverified", _("Unverified")
 
         @classmethod
         def try_parse(cls, value):
@@ -1432,7 +1462,7 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
                 return cls(value)
             except ValueError:
                 logger.warning("failed to parse %s to Origin", value)
-                return None
+                return cls.UNVERIFIED
 
     file = models.ForeignKey(
         File,
@@ -1455,8 +1485,8 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         choices=Origin,
         help_text="source of citation",
         default=Origin.USER_UPLOADED_DOCUMENT,
-        null=True,
-        blank=True,
+        null=False,
+        blank=False,
     )
     text_in_answer = models.TextField(
         null=True,
@@ -1474,6 +1504,15 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         return textwrap.shorten(text, width=128, placeholder="...")
 
     def save(self, *args, force_insert=False, force_update=False, using=None, update_fields=None):
+        if args:
+            force_insert, force_update, using, update_fields = (
+                *args,
+                force_insert,
+                force_update,
+                using,
+                update_fields,
+            )[:4]
+
         if self.source == self.Origin.USER_UPLOADED_DOCUMENT:
             if self.file is None:
                 msg = "file must be specified for a user-uploaded-document"
@@ -1494,7 +1533,12 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
 
         self.text = sanitise_string(self.text)
 
-        super().save(*args, force_insert, force_update, using, update_fields)
+        super().save(
+            force_insert=force_insert,
+            force_update=force_update,
+            using=using,
+            update_fields=update_fields,
+        )
 
     @cached_property
     def uri(self) -> URL:
@@ -1519,7 +1563,14 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
 
     @cached_property
     def display_name(self) -> str:
-        return str(self.uri) if not self.file else self.file.file_name
+        if self.file:
+            return self.file.file_name
+
+        uri = str(self.uri)
+        if re.search(r"[^/\s@]+@[^/\s@]+/", uri):
+            return uri.rsplit("/", 1)[-1]
+
+        return uri
 
     @cached_property
     def ref_id(self) -> int:
@@ -1535,6 +1586,66 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
             raise TypeError(msg)
 
         return int(match.group())
+
+    @cached_property
+    def source_display(self) -> str:
+        source_names = {
+            self.Origin.WIKIPEDIA.value: "Wikipedia",
+            self.Origin.USER_UPLOADED_DOCUMENT.value: "Document",
+            self.Origin.GOV_UK.value: "GOV.UK",
+            self.Origin.WEB_SEARCH.value: "Web",
+        }
+
+        return source_names.get(
+            self.source,
+            self.Origin(self.source).label,
+        )
+
+    @cached_property
+    def is_external(self) -> bool:
+        return self.url is not None
+
+    @cached_property
+    def is_internal(self) -> bool:
+        return self.file is not None
+
+
+class ChatMessageFeedback(UUIDPrimaryKeyBase, TimeStampedModel):
+    class Reason(models.TextChoices):
+        INACCURATE = "INACCURATE", "It was inaccurate"
+        UNASKED = "UNASKED", "It wasn't what I asked for"
+        LACKED_DETAIL = "LACKED_DETAIL", "It was lacking detail"
+        CONFUSING = "CONFUSING", "I found it confusing"
+        OTHER = "OTHER", "Other"
+
+    message = models.OneToOneField(
+        "ChatMessage",
+        on_delete=models.CASCADE,
+        related_name="feedback",
+    )
+    is_positive = models.BooleanField()
+    reason = ArrayField(
+        models.CharField(max_length=32, choices=Reason.choices),
+        default=list,
+        blank=True,
+    )
+    detail = models.TextField(blank=True, default="")
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(is_positive=False) | models.Q(reason=[]),
+                name="reason_only_when_negative",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(is_positive=False) | models.Q(detail=""),
+                name="detail_only_when_negative",
+            ),
+        ]
+
+    def __str__(self):
+        sentiment = "positive" if self.is_positive else "negative"
+        return f"{sentiment} feedback on message {self.message_id}"
 
 
 class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
@@ -1564,10 +1675,24 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
         return textwrap.shorten(self.text, width=20, placeholder="...")
 
     def save(self, *args, force_insert=False, force_update=False, using=None, update_fields=None):
+        if args:
+            force_insert, force_update, using, update_fields = (
+                *args,
+                force_insert,
+                force_update,
+                using,
+                update_fields,
+            )[:4]
+
         self.text = sanitise_string(self.text)
         self.rating_text = sanitise_string(self.rating_text)
 
-        super().save(*args, force_insert, force_update, using, update_fields)
+        super().save(
+            force_insert=force_insert,
+            force_update=force_update,
+            using=using,
+            update_fields=update_fields,
+        )
 
     @classmethod
     def get_messages_ordered_by_citation_priority(cls, chat_id: uuid.UUID) -> Sequence[ChatMessage]:
@@ -1614,10 +1739,30 @@ class ChatMessage(UUIDPrimaryKeyBase, TimeStampedModel):
         except TypeError:
             return sorted(citations, key=lambda citation: citation.display_name)
 
+    async def aget_citations(self) -> list[Citation]:
+        return await sync_to_async(self.get_citations)()
+
     @cached_property
     def citations_url(self) -> str:
         slug = self.chat.tool.slug if self.chat.tool else None
         return url_service.get_citation_url(message_id=self.id, chat_id=self.chat.id, slug=slug)
+
+    def unique_selected_files(self):
+        return self.selected_files.all().distinct()
+
+    @property
+    def resources(self) -> list[Citation]:
+        seen = set()
+        resources = []
+
+        for citation in self.get_citations():
+            key = citation.file_id or citation.url
+
+            if key not in seen:
+                seen.add(key)
+                resources.append(citation)
+
+        return resources
 
 
 class ChatMessageTokenUse(UUIDPrimaryKeyBase, TimeStampedModel):

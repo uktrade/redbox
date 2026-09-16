@@ -44,12 +44,17 @@ FROM python:3.12-slim
 RUN apt-get update && apt-get install -y \
     libreoffice \
     libreoffice-writer \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    libpq-dev \
+    curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install --yes libpq-dev curl > /dev/null
-
 WORKDIR /usr/src/app
+
+RUN libreoffice --version
+RUN tesseract --version
 
 COPY README.md .
 COPY redbox/ .
@@ -66,7 +71,5 @@ EXPOSE 8080
 
 RUN chmod +x start.sh
 RUN chmod +x health.sh
-
-RUN libreoffice --version
 
 CMD ["/bin/sh", "./start.sh"]

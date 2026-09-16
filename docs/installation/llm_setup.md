@@ -1,6 +1,6 @@
 # Large Language Model Setup
 
-Redbox uses LiteLLM as an abstract wrapper around different Large Language Models (LLMs). This allows us to switch between different LLMs without changing the codebase. Currently, we have tested the following LLM providers:
+Redbox uses Bedrock as an abstract wrapper around different Large Language Models (LLMs). This allows us to switch between different LLMs without changing the codebase. Currently, we have tested the following LLM providers:
 
 - [OpenAI](https://platform.openai.com/docs/models)
     - `gpt-3.5-turbo`
@@ -16,8 +16,15 @@ Redbox uses LiteLLM as an abstract wrapper around different Large Language Model
     - `gpt-4-32k`
     - `gpt-4-turbo`
     - `gpt-4o`
+- [Claude](https://platform.claude.com/docs/en/models/overview)
+    - `sonnet-4-6`
+    - `opus-4-5`
+    - `haiku-4-5`
+    - `sonnet-4-5`
+    - `sonnet-3-7`
+    - `sonnet-3`
 
-Please note that exclusion from this list does not mean that the LLM is not supported, it just means that we have not tested it yet. If you would like to use a different LLM, please refer to the [LiteLLM documentation](https://docs.litellm.ai/docs/providers)
+Please note that exclusion from this list does not mean that the LLM is not supported, it just means that we have not tested it yet. If you would like to use a different LLM, please refer to the [Bedrock documentation](https://docs.aws.amazon.com/bedrock/latest/userguide/model-cards.html)
 
 ## OpenAI
 
@@ -37,9 +44,6 @@ AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint
 AZURE_OPENAI_MODEL=azure/your_azure_openai_deployment_name
 ```
 
-!!! info "LiteLLM Note"
-    Please note that `AZURE_OPENAI_MODEL` has `azure/` as a prefix. This is because LiteLLM uses the `provider/model` format to specify the model.
-
 ## Other Providers
 
-Redbox would welcome any contributions to add support for other LLM providers. If you would like to add support for a new provider, please refer to the [LiteLLM documentation](https://docs.litellm.ai/docs/providers) and create a pull request with the necessary changes. Please refer to the contribution guidelines for more information on how to contribute to Redbox.
+Redbox would welcome any contributions to add support for other LLM providers. If you would like to add support for a new provider, please refer to the [Bedrock documentation](https://docs.aws.amazon.com/bedrock/latest/userguide/model-cards.html) and create a pull request with the necessary changes. Please refer to the contribution guidelines for more information on how to contribute to Redbox.

@@ -1,6 +1,6 @@
 // @ts-check
 
-import { Events, listenEvent } from "../events";
+import { Events, listenEvent} from "../events";
 
 export class StreamScroller extends HTMLElement {
     constructor() {
@@ -126,8 +126,22 @@ export class StreamScroller extends HTMLElement {
         this.programmaticScroll = false;
     }
 
+    /**
+     * Schedule scroll to bottom
+     * @param {import("../events").EventMap["scroll-to-bottom"] | undefined} detail
+     */
+    scheduleScroll(detail={}) {
+        const {
+            source,
+            force=false,
+        } = detail;
 
-    scheduleScroll({ force = false } = {}) {
+        const target = /** @type {StreamScroller}*/ (
+            source?.closest("stream-scroller") || this
+        );
+
+        if (target !== this) return;
+
         if (!this.autoScrollEnabled && !force) return;
         if (this.scrollPending) return;
 

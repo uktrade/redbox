@@ -7,122 +7,57 @@ env:
   ENVIRONMENT: INTEGRATION
 
 on:
-  # weekday mealtimes
-  schedule:
-    - cron: '0 6,12,18 * * 1-5'
-  # or on-demand
-  workflow_dispatch:
-  # or on push to main
   push:
     branches:
-      - 'main'
+      - "main"
+      - "feature/**"
+      - "chore/**"
+      - "bugfix/**"
+      - "hotfix/**"
+      - "dependabot/**"
+      - "security/**"
+      - "dev"
+  workflow_dispatch:
 
 permissions:
-  id-token: write
   contents: read
 
 jobs:
-  backend-test:
-
+  django-frontend:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        ref: ${{ inputs.COMMIT_HASH }}
-        path: integration
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          path: integration_tests
 
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v3
-      with:
-        python-version: "3.12"
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
 
-    - name: Set up Poetry
-      uses: abatilo/actions-poetry@v2
-      with:
-        poetry-version: 2.2.1
+      - name: Install Poetry
+        uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263
 
-    - name: Build Containers
-      run: |
-        cd integration
-        mkdir -p data/elastic/
-        chmod -R 777 data/
-        cp tests/.env.integration .env
-        echo AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} >> .env
-        echo AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} >> .env
-        echo EMBEDDING_AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} >> .env
-        echo EMBEDDING_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }} >> .env
-        docker compose up -d --wait opensearch minio db
-        docker compose up -d --wait django-app worker
-        docker ps
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
 
-    - name: Test integration with pytest
-      run: |
-        cd integration
-        poetry install --only dev
-        poetry run playwright install --with-deps chromium
-        poetry run pytest tests/ --browser chromium
+      - name: Setup test infrastructure
+        run: |
+          cd integration_tests
+          mkdir -p data/elastic/
+          chmod 777 data/elastic/
+          cp tests/.env.integration .env
 
-    - name: notify slack failure
-      id: slack-failure
-      uses: slackapi/slack-github-action@v1.24.0
-      if: ${{ failure() && github.event_name == 'schedule' }}
-      with:
-        payload: |
-          {
-            "text": "Scheduled Integration Tests Failed",
-            "blocks": [
-              {
-                "type": "header",
-                "text": {
-                  "type": "plain_text",
-                  "text": "Scheduled integration tests are failing :alert:"
-                }
-              },
-              {
-                "type": "divider"
-              },
-              {
-                "type": "actions",
-                "elements": [
-                  {
-                    "type": "button",
-                    "text": {
-                      "type": "plain_text",
-                      "text": "logs"
-                    },
-                    "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                  }
-                ]
-              }
-            ]
-          }
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+      - name: Run tests
+        run: |
+          cd integration_tests
+          make test-integration
 
-    - name: notify slack pass
-      id: slack-pass
-      uses: slackapi/slack-github-action@v1.24.0
-      if: ${{ success() && github.event_name == 'schedule' }}
-      with:
-        payload: |
-          {
-            "text": "Scheduled Integration Tests Passed",
-            "blocks": [
-              {
-                "type": "header",
-                "text": {
-                  "type": "plain_text",
-                  "text": "Scheduled integration tests are passing :white_check_mark:"
-                }
-              }
-            ]
-          }
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-
-    - name: Dump logs
-      if: failure()
-      uses: jwalton/gh-docker-logs@v2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-traces
+          path: integration_tests/test-results/

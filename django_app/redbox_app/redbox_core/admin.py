@@ -2,6 +2,7 @@ import csv
 import json
 import logging
 
+from django import forms
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.db.models import QuerySet
@@ -284,12 +285,27 @@ class FileAdmin(ExportMixin, admin.ModelAdmin):
 
 
 class FileToolAdmin(ExportMixin, admin.ModelAdmin):
-    list_display = ["file", "tool", "file_type", "created_at"]
-    list_filter = ["tool", "file_type"]
+    list_display = [
+        "file",
+        "tool",
+        "file_type",
+        "created_at",
+        "file_ingested_at_display",
+        "file_status_display",
+    ]
+    list_filter = ["tool", "file_type", "file__status", "file__ingested_at"]
     date_hierarchy = "created_at"
     search_fields = ("file__original_file_name", "tool__name")
     raw_id_fields = ["file"]
     actions = [reingest]
+
+    @admin.display(ordering="file__status", description="File Status")
+    def file_status_display(self, obj):
+        return obj.file.status if obj.file else "No File"
+
+    @admin.display(ordering="file__ingested_at", description="File Ingested at")
+    def file_ingested_at_display(self, obj):
+        return obj.file.ingested_at if obj.file else "No File"
 
 
 class UserToolAdmin(ExportMixin, admin.ModelAdmin):
@@ -339,6 +355,33 @@ class FileTeamMembershipAdmin(admin.ModelAdmin):
                 members__user=request.user, members__role_type="ADMIN"
             )
         return form
+
+
+class CitationAdmin(admin.ModelAdmin):
+    list_display = [
+        "file",
+        "url",
+        "chat_message",
+        "text",
+        "page_numbers",
+        "source",
+        "text_in_answer",
+        "citation_name",
+        "created_at",
+        "uri_display",
+    ]
+    list_filter = (
+        "source",
+        ("source", admin.EmptyFieldListFilter),
+        "modified_at",
+    )
+    date_hierarchy = "modified_at"
+    search_fields = ("text", "url")
+
+    def uri_display(self, obj: models.Citation):
+        return obj.uri
+
+    uri_display.short_description = "URI"
 
 
 class CitationInline(admin.StackedInline):
@@ -496,6 +539,28 @@ class AgentPlanAdmin(admin.ModelAdmin):
     ordering = ["-created_at"]
 
 
+class ChatMessageFeedbackForm(forms.ModelForm):
+    reason = forms.MultipleChoiceField(
+        choices=models.ChatMessageFeedback.Reason.choices,
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+    )
+
+    class Meta:
+        model = models.ChatMessageFeedback
+        fields = ["message", "is_positive", "reason", "detail"]
+
+
+class ChatMessageFeedbackAdmin(admin.ModelAdmin):
+    form = ChatMessageFeedbackForm
+    list_display = ["id", "is_positive", "message", "created_at"]
+    list_filter = ["is_positive", "reason", "created_at"]
+    ordering = ["-created_at"]
+    search_fields = ["message__id", "detail"]
+    readonly_fields = ["id", "created_at"]
+    raw_id_fields = ["message"]
+
+
 admin.site.register(User, UserAdmin)
 admin.site.register(models.File, FileAdmin)
 admin.site.register(models.Chat, ChatAdmin)
@@ -517,4 +582,6 @@ admin.site.register(models.AgentTool, AgentToolAdmin)
 admin.site.register(models.FileTool, FileToolAdmin)
 admin.site.register(models.UserTool, UserToolAdmin)
 admin.site.register(models.UserSSO, UserSSOAdmin)
+admin.site.register(models.Citation, CitationAdmin)
+admin.site.register(models.ChatMessageFeedback, ChatMessageFeedbackAdmin)
 admin.site.register_view("report/", view=reporting_dashboard, name="Site report")

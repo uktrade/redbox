@@ -1,3 +1,4 @@
+{% from "macros/govuk-button.html" import govukButton %}
 {% from "ids/components/editable-text.html" import editable_text %}
 {% from "macros/icon.html" import ids_icon %}
 
@@ -10,10 +11,14 @@
                     {% if current_chat.name %}
                         <h1 class="govuk-visually-hidden">Chat for {{ current_chat.name }}</h1>
                         <h2 class="ids-chat-title__heading govuk-heading-s title-text">{{ current_chat.name }}</h2>
-                        <button id="chat-title-edit-button" class="edit-trigger ids-icon-button" type="button">
-                            {{ ids_icon(icon_name="edit.html") }}
-                            <span class="govuk-visually-hidden">Edit chat: {{ current_chat.name }}</span>
-                        </button>
+                        {% if enable_chats_redesign %}
+                            {% include "chat/chat-menu.html" %}
+                        {% else %}
+                            <button id="chat-title-edit-button" class="edit-trigger ids-icon-button" type="button">
+                                {{ ids_icon(icon_name="edit.html") }}
+                                <span class="govuk-visually-hidden">Edit chat: {{ current_chat.name }}</span>
+                            </button>
+                        {% endif %}
                     {% endif %}
                 </div>
                 <div class="chat-title__form-container govuk-!-display-none edit-input-wrapper">
