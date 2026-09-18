@@ -28,7 +28,7 @@ duckdb = "^1.5.1"
 python-docx = "^1.2.0"
 deepeval = "^3.9.6"
 unstructured = { version = "^0.24.0", extras = ["all-docs"] }
-transformers = "5.10.1"
+transformers = "5.17.0"
 
 [tool.poetry.group.dev.dependencies]
 
