@@ -1,0 +1,84 @@
+<h2 class="govuk-heading-s govuk-!-margin-bottom-2">
+    <span class="ids-text--product">{{ tool.name }} </span>helps free trade agreement negotiation teams research
+    questions, understand evidence and prepare for negotiations.
+
+    <p class="govuk-body-s">
+        It brings together information sources, including trade agreements, economic data, trade statistics,
+        policy research and selected news websites.
+    </p>
+
+    <p class="govuk-body-s">
+        To get started and get the most out of the tool:
+    </p>
+
+    <ul class="govuk-list govuk-list--bullet govuk-body-s">
+        <li>describe the question or topic you want to investigate, including relevant countries, commodities or policy
+            areas
+        </li>
+        <li>be specific about the information you need, such as an overview, a trade value, or what a particular
+            document says about a topic
+        </li>
+        <li>add relevant context by uploading your own documents
+        </li>
+        <li>check the citations in the response to verify the information and confirm that appropriate sources have been
+            used
+        </li>
+    </ul>
+
+    <details class="govuk-details ids-text-s">
+        <summary class="govuk-details__summary">
+            <span class="govuk-details__summary-text">
+                How the tool works
+            </span>
+        </summary>
+        <div class="govuk-details__text">
+            <p class="govuk-body-s">The tool will:</p>
+
+            <ul class="govuk-list govuk-list--bullet govuk-body-s">
+                <li>interpret your question and choose appropriate agents and information sources </li>
+                <li>retrieve relevant information from its available sources </li>
+                <li>answer broad research questions, such as factors affecting trade between countries </li>
+                <li>answer specific questions, such as what a document says about a topic or the value of trade in a
+                    commodity</li>
+                <li>provide citations that link to the sources used, allowing you to check and verify information</li>
+        </div>
+    </details>
+
+    <details class="govuk-details ids-text-s">
+        <summary class="govuk-details__summary">
+            <span class="govuk-details__summary-text">
+                How to get more from this tool
+            </span>
+        </summary>
+        <div class="govuk-details__text">
+            <p class="govuk-body-s">You can get more from this tool by:</p>
+
+            <ul class="govuk-list govuk-list--bullet govuk-body-s">
+                <li>uploading any relevant contextual documents to the submission’s topic. Use the message box to ask
+                    Assist
+                    to consider them in its review</li>
+                <li>asking Assist to only consider specific criteria. For example, as you update your draft you can ask
+                    it
+                    to review it only for narrative flow</li>
+            </ul>
+        </div>
+    </details>
+
+    <details class="govuk-details ids-text-s">
+        <summary class="govuk-details__summary">
+            <span class="govuk-details__summary-text">
+                Resources that {{ tool.name }} uses
+            </span>
+        </summary>
+        <div class="govuk-details__text">
+            <p class="govuk-body-s">It uses the following documents to build briefings:</p>
+
+            <ul class="govuk-list govuk-list--bullet govuk-body-s">
+                <li>Data Hub company records</li>
+                <li>briefing templates specific to investment contexts (maintained by admins)</li>
+                <li>built-in investment documents (maintained by admins)</li>
+            </ul>
+
+            {% include "tools/tool-files.html" %}
+        </div>
+    </details>
