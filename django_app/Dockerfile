@@ -34,8 +34,13 @@ COPY django_app/poetry.lock .
 
 # do this so that poetry bundle can run without the project - can't pass --no-root to bundle
 #RUN touch README.md
-RUN poetry install
-RUN poetry bundle venv ./venv
+# RUN poetry install
+ARG INSTALL_DEV=false
+RUN if [ "$INSTALL_DEV" = "true" ]; then \
+      poetry bundle venv --with dev /opt/venv; \
+    else \
+      poetry bundle venv --only main /opt/venv; \
+    fi
 
 
 # app
@@ -56,16 +61,20 @@ WORKDIR /usr/src/app
 RUN libreoffice --version
 RUN tesseract --version
 
+# venv lives outside WORKDIR so a bind mount over /usr/src/app can't shadow it
+COPY --from=poetry-packages /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
 COPY README.md .
 COPY redbox/ .
 COPY django_app/ .
 
 COPY --from=npm-packages /src/node_modules/ frontend/node_modules/
 COPY --from=npm-packages /src/dist/ frontend/dist/
-COPY --from=poetry-packages /src/venv ./venv
 
 ENV DJANGO_SETTINGS_MODULE='redbox_app.settings'
-ENV PYTHONPATH "${PYTHONPATH}:/."
+ENV PYTHONPATH="${PYTHONPATH}:/."
+ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8080
 

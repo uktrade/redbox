@@ -507,3 +507,6 @@ ADMIN_EMAIL = env.str("ADMIN_EMAIL", "")
 
 PRODUCT_NAME = env.str("PRODUCT_NAME", "Assist")
 MOCK_SSO_USERNAME = env.str("MOCK_SSO_USERNAME", None)
+AUTHBROKER_INTERNAL_URL = env.str(
+    "AUTHBROKER_INTERNAL_URL", "https://example.com"
+)  # need to come up with a solution for this that can be deployed to prod
