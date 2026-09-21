@@ -8,6 +8,11 @@ import sys
 def main():
     """Run administrative tasks."""
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "redbox_app.settings")
+    if os.environ.get("DEBUGPY") == "1" and os.environ.get("RUN_MAIN") == "true":
+        import debugpy  # noqa: PLC0415 T100
+
+        debugpy.listen(("0.0.0.0", 5678))  # noqa: S104 T100
+        print("debugpy listening on 5678")  # noqa: T201
     try:
         from django.core.management import execute_from_command_line  # noqa: PLC0415
     except ImportError as exc:

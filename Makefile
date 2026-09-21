@@ -56,8 +56,8 @@ build-django-static: ## Build django-app static files
 
 .PHONY: test-integration
 test-integration:
-	docker compose down opensearch db sso minio
-	docker compose up -d --wait opensearch db sso minio
+	docker compose down opensearch db sso
+	docker compose up -d --wait opensearch db sso
 	cd django_app/frontend && \
 	npm ci && \
 	npm run build && \
@@ -68,8 +68,8 @@ test-integration:
 
 .PHONY: test-integration-debug
 test-integration-debug:
-	docker compose down opensearch db sso minio
-	docker compose up -d --wait opensearch db sso minio
+	docker compose down opensearch db sso
+	docker compose up -d --wait opensearch db sso
 	cd django_app && \
 	poetry install && \
 	poetry run playwright install --with-deps chromium && \
@@ -77,7 +77,7 @@ test-integration-debug:
 
 .PHONY: collect-static
 collect-static:
-	docker compose run django-app venv/bin/django-admin collectstatic --noinput
+	docker compose run django-app django-admin collectstatic --noinput
 
 .PHONY: lint
 lint: ## Check code formatting & linting
@@ -96,7 +96,7 @@ safe: ##
 
 .PHONY: check-migrations
 check-migrations: stop  ## Check types in redbox and worker
-	docker compose up -d --wait db minio opensearch
+	docker compose up -d --wait db opensearch
 	cd django_app && poetry run python manage.py migrate
 	cd django_app && poetry run python manage.py makemigrations --check
 
@@ -218,68 +218,11 @@ endif
 
 TF_BACKEND_CONFIG = $(CONFIG_DIR)/backend.hcl
 
-tf_new_workspace:
-	terraform -chdir=./infrastructure/aws/$(instance)  workspace new $(env)
-
-tf_set_workspace:
-	terraform -chdir=./infrastructure/aws/$(instance) workspace select $(env)
-
-tf_set_or_create_workspace:
-	make tf_set_workspace || make tf_new_workspace
-
-tf_init_and_set_workspace:
-	make tf_init && make tf_set_workspace
-
-.PHONY: tf_init
-tf_init: ## Initialise terraform
-	terraform -chdir=./infrastructure/aws/$(instance) init  \
-	-backend-config="dynamodb_table=i-dot-ai-$(env)-dynamo-lock" \
-	-backend-config=$(TF_BACKEND_CONFIG) \
-	-reconfigure \
-
-.PHONY: tf_plan
-tf_plan: ## Plan terraform
-	make tf_init_and_set_workspace && \
-	terraform -chdir=./infrastructure/aws/$(instance) plan -var-file=$(CONFIG_DIR)/${env}-input-params.tfvars ${tf_build_args}
-
-.PHONY: tf_apply
-tf_apply: ## Apply terraform
-	make tf_init_and_set_workspace && \
-	terraform -chdir=./infrastructure/aws/$(instance) apply -var-file=$(CONFIG_DIR)/${env}-input-params.tfvars ${tf_build_args} ${args}
-
-.PHONY: tf_init_universal
-tf_init_universal: ## Initialise terraform
-	terraform -chdir=./infrastructure/aws/universal init -backend-config=../$(TF_BACKEND_CONFIG)
-
-.PHONY: tf_apply_universal
-tf_apply_universal: ## Apply terraform
-	terraform -chdir=./infrastructure/aws workspace select prod && \
-	terraform -chdir=./infrastructure/aws/universal apply -var-file=../$(CONFIG_DIR)/prod-input-params.tfvars
-
-.PHONY: tf_auto_apply
-tf_auto_apply: ## Auto apply terraform
-	make tf_init_and_set_workspace && \
-	terraform -chdir=./infrastructure/aws apply -auto-approve -var-file=$(CONFIG_DIR)/${env}-input-params.tfvars ${tf_build_args} $(target_modules)
-
-.PHONY: tf_destroy
-tf_destroy: ## Destroy terraform
-	make tf_init_and_set_workspace && \
-	terraform -chdir=./infrastructure/aws destroy -var-file=$(CONFIG_DIR)/${env}-input-params.tfvars ${tf_build_args}
-
-.PHONY: tf_import
-tf_import:
-	make tf_init_and_set_workspace && \
-	terraform -chdir=./infrastructure/aws/$(instance) import ${tf_build_args} -var-file=$(CONFIG_DIR)/${env}-input-params.tfvars ${name} ${id}
-
 # Release commands to deploy your app to AWS
 .PHONY: release
 release: ## Deploy app
 	chmod +x ./infrastructure/aws/scripts/release.sh && ./infrastructure/aws/scripts/release.sh $(env)
 
-.PHONY: eval_backend
-eval_backend: ## Runs the only the necessary backend for evaluation BUCKET_NAME
-	docker compose up -d --wait worker --build
-	docker exec -it $$(docker ps -q --filter "name=minio") mc mb data/${BUCKET_NAME}
 
 .PHONY: help
 help: ## Show this help
@@ -287,7 +230,7 @@ help: ## Show this help
 
 .PHONY: superuser
 superuser:
-	docker compose run --rm redbox-django-app venv/bin/python redbox_app/redbox_core/management/commands/create_superuser.py
+	docker compose run --rm redbox-django-app python redbox_app/redbox_core/management/commands/create_superuser.py
 
 .PHONY: frontend-dev
 frontend-dev: # Start parcel in dev/watch mode

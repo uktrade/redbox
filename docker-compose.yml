@@ -5,10 +5,10 @@ services:
     build:
       context: .
       dockerfile: ./django_app/Dockerfile
+      args:
+        INSTALL_DEV: "true"
     depends_on:
       db:
-        condition: service_healthy
-      minio:
         condition: service_healthy
       opensearch:
         condition: service_healthy
@@ -22,19 +22,74 @@ services:
       - path: .env
         required: false
     environment:
-      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - ENVIRONMENT=local
+      - PYTHONUNBUFFERED=1
+      - DEBUGPY=1
+      - AWS_PROFILE=redbox
     volumes:
-      - /app/django_app/frontend/node_modules
-      - ./django_app:/app/django_app/
-      - .aws:/root/.aws
+      - ./django_app:/usr/src/app
+      - ./redbox/redbox:/usr/src/app/redbox
+      - ./logs:/usr/src/app/logs
+      - ${HOME}/.aws:/root/.aws
+      - /usr/src/app/frontend/node_modules
+      - /usr/src/app/staticfiles
     ports:
       - "${PORT:-8080}:${PORT:-8080}"
+      - "5678:5678"
     healthcheck:
       test: curl --fail http://localhost:${PORT:-8080}/health/ || exit 1
       interval: 5s
       timeout: 30s
       retries: 24
       start_period: 60s
+
+  redbox-worker:
+    image: redbox-worker:latest
+    container_name: worker
+    build:
+      context: .
+      dockerfile: django_app/Dockerfile
+      args:
+        INSTALL_DEV: "true"
+    command: >
+      watchmedo auto-restart
+      --directory=/usr/src/app --pattern='*.py' --recursive
+      --ignore-patterns='*/.venv/*;*/venv/*;*/node_modules/*;*/staticfiles/*;*/__pycache__/*;*/test-results/*;*/migrations/*'
+      --debug-force-polling
+      -- django-admin qcluster
+    env_file:
+      - path: tests/.env.integration
+        required: false
+      - path: .env
+        required: false
+    environment:
+      - ENVIRONMENT=local
+      - PYTHONUNBUFFERED=1
+      - AWS_PROFILE=redbox
+    volumes:
+      - ./django_app:/usr/src/app
+      - ./redbox/redbox:/usr/src/app/redbox
+      - ./logs:/usr/src/app/logs
+      - ${HOME}/.aws:/root/.aws:ro
+      - /usr/src/app/frontend/node_modules
+      - /usr/src/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    networks:
+      - redbox-app-network
+
+  frontend-watch:
+    image: node:20
+    container_name: frontend_watch
+    working_dir: /src
+    command: sh -c "npm ci && npx parcel watch"
+    volumes:
+      - ./django_app/frontend:/src
+    networks:
+      - redbox-app-network
 
   db:
     image: postgres:15
@@ -56,67 +111,13 @@ services:
       timeout: 30s
       retries: 24
       start_period: 30s
+
   requirements:
     image: python:3.12
     profiles:
       - utils
     volumes:
       - ./:/app/:z
-  redbox-worker:
-    image: redbox-worker:latest
-    container_name: worker
-    build:
-      context: .
-      dockerfile: django_app/Dockerfile
-    command: "venv/bin/django-admin qcluster"
-    env_file:
-      - path: tests/.env.integration
-        required: false
-      - path: .env
-        required: false
-    volumes:
-      - .aws:/root/.aws
-    depends_on:
-      opensearch:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      redbox-django-app:
-        condition: service_healthy
-      db:
-        condition: service_healthy
-    networks:
-      - redbox-app-network
-    restart: unless-stopped
-  minio:
-    image: quay.io/minio/minio:latest
-    container_name: minio
-    expose:
-      - "9000"
-      - "9001"
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    entrypoint: sh
-    environment:
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-    command:
-      - -c
-      - |
-        mkdir -p data/${BUCKET_NAME}
-        minio server --console-address ":9001" /data
-    networks:
-      - redbox-app-network
-    volumes:
-      - ./data/objectstore:/data
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "mc", "ready", "local" ]
-      interval: 5s
-      timeout: 30s
-      retries: 24
-      start_period: 30s
 
   opensearch:
     image: opensearchproject/opensearch:3
@@ -125,7 +126,7 @@ services:
       - discovery.type=single-node
       - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
       - plugins.security.disabled=true  # Disable security plugin for simplicity
-      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_INITIAL_ADMIN_PASSWORD} # Sets the demo admin user password when using demo configuration (for OpenSearch 2.12 and later)
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_INITIAL_ADMIN_PASSWORD}
     volumes:
       - opensearch-data:/usr/share/opensearch/data
     ports:
@@ -139,18 +140,15 @@ services:
       retries: 24
       start_period: 60s
     restart: unless-stopped
+
   opensearch-dashboards:
-    # Make sure the version of opensearch-dashboards matches the version of opensearch installed on other nodes
     image: opensearchproject/opensearch-dashboards:3
     container_name: opensearch_dashboards
     ports:
-      # Map host port 5601 to container port 5601
       - 5601:5601
     expose:
-      # Expose port 5601 for web access to OpenSearch Dashboards
       - "5601"
     environment:
-      # Define the OpenSearch nodes that OpenSearch Dashboards will query
       - 'OPENSEARCH_HOSTS=["http://opensearch:9200"]'
       - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
     networks:
