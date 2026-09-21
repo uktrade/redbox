@@ -294,7 +294,7 @@ def merge_documents(initial: list[Document], adjacent: list[Document]) -> list[D
     Privileges the initial score.
     """
     # Subtitute boosted scores for the semantically retrieved chunks
-    merged_dict = to_document_mapping(initial) | to_document_mapping(adjacent)
+    merged_dict = to_document_mapping(adjacent) | to_document_mapping(initial)
 
     return sorted(list(merged_dict.values()), key=lambda d: -d.metadata["score"])[: len(initial)]
 
