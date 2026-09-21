@@ -285,6 +285,55 @@ def test_structure_documents_by_group_and_indices(n_parent_files: int, n_groups:
             assert group_docs[doc.metadata["uuid"]] == doc
 
 
+# Helper fucntion to return scores from docs
+def _scores(docs: list[Document]) -> list[float]:
+    """Extract scores from a document list."""
+    return [d.metadata["score"] for d in docs]
+
+
+def test_merge_documents_adjacent_score_replaces_initial_on_collision():
+    """Adjacent (boosted) score replaces initial score for colliding documents.
+
+    Asserts:
+        * All-collision case: every result score equals the adjacent score.
+        * Partial-collision case: only colliding docs are updated; inital-only docs
+          retain their original scores
+    """
+
+    # Generate 3 docs from the same file, all with unique UUIDs
+    base = list(
+        generate_docs(
+            s3_key="test_key_1",
+            total_tokens=1000,
+            number_of_docs=3,
+            chunk_resolution="normal",
+            score=1,
+        )
+    )
+
+    # Assertion 1 - All three docs colide
+    # initial KNN scores: [0.70, 0.68, 0.62]
+    # adjacent (boosted by Gaussian weight) scores, same UUID: [1.40, 1.36, 0.68]
+
+    initial_all = [copy.deepcopy(d) for d in base]
+    for doc, score in zip(initial_all, [0.70, 0.68, 0.62]):
+        doc.metadata["score"] = score
+
+    adjacent_all = [copy.deepcopy(d) for d in base]
+    for doc, score in zip(adjacent_all, [1.40, 1.36, 0.68]):
+        doc.metadata["score"] = score
+
+    merged = merge_documents(initial=initial_all, adjacent=adjacent_all)
+
+    # Only the boosted scores are returned
+    assert _scores(merged) == [1.40, 1.36, 0.68], "All-collision: adjacent scores must replace initial scores entirely"
+
+    # Assertion 2: Partial collision
+    initial_partial = [copy.deepcopy(d) for d in base]
+    for doc, score in zip(initial_partial, [0.70, 0.68, 0.62]):
+        doc.metadat["score"] = score
+
+
 def test_merge_documents():
     """Tests that merge documents will merge the two passes of Elastic correctly.
 
@@ -292,7 +341,7 @@ def test_merge_documents():
 
     * Adjacent (boosted) scores replace initial scores for the same document
     * That higher scores in the adjacent will push out lower scores in the initial
-    * The the result truncates to the length of the initial list
+    * That the result truncates to the length of the initial list
     """
     base = list(
         generate_docs(s3_key="test_key_1", total_tokens=1000, number_of_docs=3, chunk_resolution="normal", score=1)
