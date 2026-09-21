@@ -285,97 +285,64 @@ def test_structure_documents_by_group_and_indices(n_parent_files: int, n_groups:
             assert group_docs[doc.metadata["uuid"]] == doc
 
 
-# Helper fucntion to return scores from docs
-def _scores(docs: list[Document]) -> list[float]:
-    """Extract scores from a document list."""
-    return [d.metadata["score"] for d in docs]
-
-
-def test_merge_documents_adjacent_score_replaces_initial_on_collision():
-    """Adjacent (boosted) score replaces initial score for colliding documents.
-
-    Asserts:
-        * All-collision case: every result score equals the adjacent score.
-        * Partial-collision case: only colliding docs are updated; inital-only docs
-          retain their original scores
-    """
-
-    # Generate 3 docs from the same file, all with unique UUIDs
-    base = list(
-        generate_docs(
-            s3_key="test_key_1",
-            total_tokens=1000,
-            number_of_docs=3,
-            chunk_resolution="normal",
-            score=1,
-        )
-    )
-
-    # Assertion 1 - All three docs colide
-    # initial KNN scores: [0.70, 0.68, 0.62]
-    # adjacent (boosted by Gaussian weight) scores, same UUID: [1.40, 1.36, 0.68]
-
-    initial_all = [copy.deepcopy(d) for d in base]
-    for doc, score in zip(initial_all, [0.70, 0.68, 0.62]):
-        doc.metadata["score"] = score
-
-    adjacent_all = [copy.deepcopy(d) for d in base]
-    for doc, score in zip(adjacent_all, [1.40, 1.36, 0.68]):
-        doc.metadata["score"] = score
-
-    merged = merge_documents(initial=initial_all, adjacent=adjacent_all)
-
-    # Only the boosted scores are returned
-    assert _scores(merged) == [1.40, 1.36, 0.68], "All-collision: adjacent scores must replace initial scores entirely"
-
-    # Assertion 2: Partial collision
-    initial_partial = [copy.deepcopy(d) for d in base]
-    for doc, score in zip(initial_partial, [0.70, 0.68, 0.62]):
-        doc.metadat["score"] = score
-
-
 def test_merge_documents():
     """Tests that merge documents will merge the two passes of Elastic correctly.
 
     Asserts:
 
-    * Adjacent (boosted) scores replace initial scores for the same document
+    * That the initial list's scores are prioritised
     * That higher scores in the adjacent will push out lower scores in the initial
-    * That the result truncates to the length of the initial list
+    * The the result truncates to the length of the initial list
     """
-    base = list(
+    docs_1 = list(
         generate_docs(s3_key="test_key_1", total_tokens=1000, number_of_docs=3, chunk_resolution="normal", score=1)
     )
 
-    initial = [copy.deepcopy(d) for d in base]
+    docs_2: list[Document] = []
+    for doc in copy.deepcopy(docs_1):
+        doc.metadata["score"] = 2
+        docs_2.append(doc)
+
+    merged_1 = merge_documents(initial=docs_1, adjacent=docs_2)
+
+    # Initial list score prioritised over adjacent
+    assert merged_1 == docs_1
+
+    docs_3 = list(
+        generate_docs(s3_key="test_key_2", total_tokens=1000, number_of_docs=3, chunk_resolution="normal", score=3)
+    ) + [docs_1[0]]
+
+    merged_2 = merge_documents(initial=docs_1, adjacent=docs_3)
+
+    # Higher scores in adjacent prioritised, length is the same as initial
+    assert merged_2 == docs_3[: len(docs_1)]
+
+    # Adjacent neighbours displace initial semantically relevant chunks
+    # [0.7A, 0.68B, 0.60C] + [1.40A, 1.36B, 1.2C, 1.16A1, 0.96A2] => [1.16A1, 0.96A2, 0.7A]
+    initial = [copy.deepcopy(d) for d in docs_1]
     for doc, score in zip(initial, [0.7, 0.68, 0.60]):
         doc.metadata["score"] = score
 
-    adjacent = [copy.deepcopy(d) for d in base]
-    # Boost [0.7, 0.68, 0.66] -> [1.40, 1.36, 0.66]
-    for doc, score in zip(adjacent, [1.40, 1.36, 0.66]):
+    boosted_initial = [copy.deepcopy(d) for d in docs_1]
+    for doc, score in zip(boosted_initial, [1.4, 1.36, 1.2]):
         doc.metadata["score"] = score
 
-    merged = merge_documents(initial=initial, adjacent=adjacent)
-
-    # assert adjacent (boosted) scores replace initial scores for the same document
-    assert [d.metadata["score"] for d in merged] == [1.4, 1.36, 0.66]
-
-    # add neighbours: 0.9 displaces the weakest initial (0.60), 0.5 is dropped
-    adjacent += list(
-        generate_docs(s3_key="test_key_2", total_tokens=1000, number_of_docs=2, chunk_resolution="normal", score=1)
+    # Set up neighbours
+    neighbours = list(
+        generate_docs(
+            s3_key="test_key_neighbours", total_tokens=1000, number_of_docs=2, chunk_resolution="normal", score=1
+        )
     )
+    for doc, score in zip(neighbours, [1.16, 0.96]):
+        doc.metadata["score"] = score
 
-    adjacent[-2].metadata["score"] = 0.9
-    adjacent[-1].metadata["score"] = 0.5
+    adjacent = boosted_initial + neighbours
 
-    merged = merge_documents(initial=initial, adjacent=adjacent)
+    merged_3 = merge_documents(initial=initial, adjacent=adjacent)
 
-    # assert that higher scores in the adjacent will push out lower scores in the initial
-    assert [d.metadata["score"] for d in merged] == [1.4, 1.36, 0.9]
-
-    # The the result truncates to the length of the initial list
-    assert len(merged) == len(initial)
+    assert [d.metadata["score"] for d in merged_3] == [1.16, 0.96, 0.7], (
+        "Strong neighbours should displace weak initials"
+    )
 
 
 def test_sort_documents():
