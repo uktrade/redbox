@@ -2,6 +2,13 @@ from authlib.integrations.requests_client import OAuth2Session
 from django.conf import settings
 from django.urls import reverse
 
+JWT_SEGMENT_COUNT = 3
+
+
+def is_jwt(token: str | None) -> bool:
+    segments = token.split(".") if isinstance(token, str) else []
+    return len(segments) == JWT_SEGMENT_COUNT and all(segments)
+
 
 def get_client(request, **kwargs):
     return OAuth2Session(
