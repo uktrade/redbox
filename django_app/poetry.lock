@@ -327,51 +327,66 @@ files = [
 
 [[package]]
 name = "autobahn"
-version = "25.12.2"
+version = "26.7.1"
 description = "WebSocket client & server library, WAMP real-time framework"
 optional = false
 python-versions = ">=3.11"
 groups = ["main"]
 files = [
-    {file = "autobahn-25.12.2-cp311-cp311-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:16df879672c60f1f3fe452138c80f0fd221b3cb2ee5a14390c80f33b994104c1"},
-    {file = "autobahn-25.12.2-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:6ffe28048ef96eb0f925f24c2569bd72332e120f4cb31cd6c40dd66718a5f85e"},
-    {file = "autobahn-25.12.2-cp311-cp311-win_amd64.whl", hash = "sha256:3ec6a3719a00fd57b044e4694f3d6e9335892f4ef21f045f090495da7385d240"},
-    {file = "autobahn-25.12.2-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:220748f21e91bd4a538d2d3de640cc17ee30b79f1c04a6c3dcdef321d531ee1c"},
-    {file = "autobahn-25.12.2-cp312-cp312-win_amd64.whl", hash = "sha256:ba1867aafdbe585d3d4a5abd35238a78ab54ab3de5bd12a21bca20379c9f512b"},
-    {file = "autobahn-25.12.2-cp313-cp313-macosx_15_0_arm64.whl", hash = "sha256:bc17f6cab9438156d2701c293c76fd02a144f9be0a992c065dfee1935ce4845b"},
-    {file = "autobahn-25.12.2-cp313-cp313-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:b5297a782fc7d0a26842438ef1342549ceee29496cda52672ac44635c79eeb94"},
-    {file = "autobahn-25.12.2-cp313-cp313-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:c0c3f1d5dafda52f8dc962ab583b6f3473b7b7186cab082d05372ed43a8261a5"},
-    {file = "autobahn-25.12.2-cp313-cp313-win_amd64.whl", hash = "sha256:e9e2a962f2de0bc4c53b452916458417a15f5137c956245ac6d0a783a83fa1f7"},
-    {file = "autobahn-25.12.2-cp314-cp314-macosx_15_0_arm64.whl", hash = "sha256:c840ee136bfaf6560467160129b0b25a0e33c9a51e2b251e98c5474f27583915"},
-    {file = "autobahn-25.12.2-cp314-cp314-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:9abda5cf817c0f8a19a55a67a031adf2fc70ed351719b5bd9e6fa0f5f4bc8f89"},
-    {file = "autobahn-25.12.2-cp314-cp314-win_amd64.whl", hash = "sha256:18b12e8af7fc115487715afa10b3f5b5a4b5989bebbe05b71722cf9fce7b1bfb"},
-    {file = "autobahn-25.12.2-pp311-pypy311_pp73-macosx_15_0_arm64.whl", hash = "sha256:0c226329ddec154c6f3b491ea3e4713035f0326c96ebfd6b305bf90f27a2fba1"},
-    {file = "autobahn-25.12.2-pp311-pypy311_pp73-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:5f079393a7626eb448c8accf21151f5f206d02f8e9cee4313d62a5ca30a3aaed"},
-    {file = "autobahn-25.12.2-pp311-pypy311_pp73-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:9b3a6c7d54a9f0434a435d88b86555510e5d0a84aa87042e292f29f707cab237"},
-    {file = "autobahn-25.12.2-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:0ad4c10c897ad67d31be2ef8547ed2922875d90ddb95553787cc46c271f822de"},
-    {file = "autobahn-25.12.2.tar.gz", hash = "sha256:754c06a54753aeb7e8d10c5cbf03249ad9e2a1a32bca8be02865c6f00628a98c"},
+    {file = "autobahn-26.7.1-cp311-cp311-macosx_15_0_arm64.whl", hash = "sha256:3fe80550707f0affb5cb10f3e0f66ec7e6e52abb29edc66dd76734c2d7d51bf4"},
+    {file = "autobahn-26.7.1-cp311-cp311-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:00fb9acd8775eaa0e272f36b76db903f10de56478f6a72f0bd07ee882ae1f2b8"},
+    {file = "autobahn-26.7.1-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:97c9674eddd55ad3ebd733824789175e5fb90c88afd523de507569ba0fcd6853"},
+    {file = "autobahn-26.7.1-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:30fa714de5c9903ef64084d3a938d8a3bac0bb42f1532d5de22f34b04a1c4819"},
+    {file = "autobahn-26.7.1-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:c3362197f3b9d5b0df7f3365bd00dedba7ee8b649d652941377abe690d1c8b14"},
+    {file = "autobahn-26.7.1-cp311-cp311-win_amd64.whl", hash = "sha256:201e93eebfead7acc6924d8b17c57001bd5e377e8e2239a31f730831983ff43c"},
+    {file = "autobahn-26.7.1-cp312-cp312-macosx_15_0_arm64.whl", hash = "sha256:6c9013e9aa9ea8a561c89d7be2709546b51fc7ac8fdf6cd71bc12a634672d9a8"},
+    {file = "autobahn-26.7.1-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:abd9ebe577dd1030f9a0c41d20dc00eca90d5cf338531abcb510d978825feeea"},
+    {file = "autobahn-26.7.1-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:de491baa4cf52fb6d7f542e445c72d94ce52dc7aabb47b0b4d5191e452dd2c74"},
+    {file = "autobahn-26.7.1-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:9723561c820ed032fe5a8f1530cb6d5f91dc595eea6009f3b2de7044a3df892a"},
+    {file = "autobahn-26.7.1-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:e81c86cf41adca8a56ca5621ecd9ba40037f6d90d338c334bd529c8ac94bd7b6"},
+    {file = "autobahn-26.7.1-cp312-cp312-win_amd64.whl", hash = "sha256:b2ec0cfb913cc20f10feb3d63cd3eb2e08c9f28f9c1ba4e7776454cd5b345145"},
+    {file = "autobahn-26.7.1-cp313-cp313-macosx_15_0_arm64.whl", hash = "sha256:2ce48214b28f73338fabe0c7fd13d222cfab9e1dd2ef11660293522f64e76727"},
+    {file = "autobahn-26.7.1-cp313-cp313-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:a5f285dce9b3dff3eb2ef6c818ac8ede24d96bd1edac340855170fc9825c38a9"},
+    {file = "autobahn-26.7.1-cp313-cp313-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:66ab6e034e54f8c473df1a6b8031a3db46c16deebaf0c9b66db3e9137d2fab5e"},
+    {file = "autobahn-26.7.1-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:20b3eab7d483e93278f9d7345592eb6b465883a6e88c2823aad13c3f943452db"},
+    {file = "autobahn-26.7.1-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:cd840524ff190aee695a58e8acd8740ee66b4a0e6a58ccb41416ed2cbe48d43f"},
+    {file = "autobahn-26.7.1-cp313-cp313-win_amd64.whl", hash = "sha256:8d158b85f075975dd4d47e937c943588f7cbf8e46f3271544b55f5c6f6500071"},
+    {file = "autobahn-26.7.1-cp314-cp314-macosx_15_0_arm64.whl", hash = "sha256:f3d1be925e3fb33fff5280c1bd02027047519812c400d3efa5477d3968686c94"},
+    {file = "autobahn-26.7.1-cp314-cp314-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:44f8094b0c0fa29a4963ce12130b7932469f89afa0242ff858d2b26541a81005"},
+    {file = "autobahn-26.7.1-cp314-cp314-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:a0fcf9c3ff6b9b2bc85d6e1814a94d1d941d62f7df36d350b523d77df85d66ea"},
+    {file = "autobahn-26.7.1-cp314-cp314-musllinux_1_2_aarch64.whl", hash = "sha256:4f82e5a113f6c1ff14cec99aa411f7da8fceec3dcd4647d7ebdfc0278811e14d"},
+    {file = "autobahn-26.7.1-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:919309cbe41b28b0a3028e7c6fed52aca9fd21639619f372d3270c44341b6bdc"},
+    {file = "autobahn-26.7.1-cp314-cp314-win_amd64.whl", hash = "sha256:354298aa0ab79861578f45f5bf543e4757c32070ff801282beda80c6c4f2a41e"},
+    {file = "autobahn-26.7.1-pp311-pypy311_pp73-macosx_15_0_arm64.whl", hash = "sha256:9088acf790caf8cfd86590cb2b749279256ee210198f41d9858a38d1346e56c9"},
+    {file = "autobahn-26.7.1-pp311-pypy311_pp73-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:ea4548ee15c6bdf8aa0a1e81bf47b42db350f2bef69f83bace27a95ed0d21276"},
+    {file = "autobahn-26.7.1-pp311-pypy311_pp73-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:d4ee0fe13a5218831d60863becd8c3cf6558e6c5ccc5d9d0e722012bdb1459bf"},
+    {file = "autobahn-26.7.1-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:9ff26c61d4392a09a73be5497296cd5d7bae3c1f476218b75ec3be789036bf39"},
+    {file = "autobahn-26.7.1.tar.gz", hash = "sha256:c6949a2c6eb95fb1c218837dbda0a59abbbebafb8b11098551c01a7061dfd245"},
 ]
 
 [package.dependencies]
-cbor2 = ">=5.2.0"
+cbor2 = [
+    {version = ">=5.2.0", markers = "platform_python_implementation != \"PyPy\" or sys_platform != \"win32\""},
+    {version = ">=5.2.0,<6", markers = "platform_python_implementation == \"PyPy\" and sys_platform == \"win32\""},
+]
 cffi = ">=2.0.0"
 cryptography = ">=3.4.6"
 hyperlink = ">=21.0.0"
 msgpack = {version = ">=1.0.2", markers = "platform_python_implementation == \"CPython\""}
-py-ubjson = ">=0.16.1"
 txaio = ">=25.12.2"
 u-msgpack-python = {version = ">=2.1", markers = "platform_python_implementation != \"CPython\""}
 ujson = ">=4.0.2"
 
 [package.extras]
-all = ["argon2-cffi (>=20.1.0)", "attrs (>=20.3.0)", "base58 (>=2.1.1)", "brotli (>=1.0.0) ; platform_python_implementation == \"CPython\"", "brotlicffi (>=1.0.0) ; platform_python_implementation != \"CPython\"", "ecdsa (>=0.19.1)", "passlib (>=1.7.4)", "pynacl (>=1.4.0)", "pyopenssl (>=20.0.1)", "pytrie (>=0.4.0)", "qrcode (>=7.3.1)", "service-identity (>=18.1.0)", "twisted (>=22.10.0)", "zope-interface (>=5.2.0)"]
+all = ["argon2-cffi (>=20.1.0)", "attrs (>=20.3.0)", "base58 (>=2.1.1)", "bjdata (>=0.6.0) ; platform_python_implementation == \"CPython\"", "brotli (>=1.0.0) ; platform_python_implementation == \"CPython\"", "brotlicffi (>=1.0.0) ; platform_python_implementation != \"CPython\"", "ecdsa (>=0.19.1)", "passlib (>=1.7.4)", "pynacl (>=1.4.0)", "pyopenssl (>=20.0.1)", "pytrie (>=0.4.0)", "qrcode (>=7.3.1)", "service-identity (>=18.1.0)", "twisted (>=22.10.0)", "zope-interface (>=5.2.0)"]
 benchmark = ["humanize (>=4.0.0)", "jinja2 (>=3.0.0)", "vmprof (>=0.4.15) ; python_version >= \"3.11\"", "vmprof-flamegraph (>=0.0.1) ; python_version >= \"3.11\""]
 build-tools = ["auditwheel (>=5.0.0) ; sys_platform == \"linux\"", "build (>=1.0.0)", "wheel (>=0.36.2)"]
 compress = ["brotli (>=1.0.0) ; platform_python_implementation == \"CPython\"", "brotlicffi (>=1.0.0) ; platform_python_implementation != \"CPython\""]
-dev = ["auditwheel (>=5.0.0) ; sys_platform == \"linux\"", "backports-tempfile (>=1.0)", "build (>=1.0.0)", "bumpversion (>=0.5.3)", "codecov (>=2.0.15)", "furo (>=2024.7.0)", "humanize (>=4.0.0)", "linkify-it-py (>=2.0.0)", "myst-parser (>=2.0)", "passlib", "pep8-naming (>=0.3.3)", "pyenchant (>=3.2)", "pyflakes (>=1.0.0)", "pyinstaller (>=4.2)", "pylint (>=1.9.2)", "pytest (>=3.4.2)", "pytest-aiohttp", "pytest-asyncio (>=0.14.0)", "pytest-runner (>=2.11.1)", "pyyaml (>=4.2b4)", "qualname (>=0.1.0)", "ruff (>=0.12.1)", "scour (>=0.38)", "sphinx (>=8.2.3)", "sphinx-autoapi (>=2.1.0)", "sphinx-copybutton (>=0.5)", "sphinx-design (>=0.5)", "sphinxcontrib-images (>=0.9)", "sphinxcontrib-spelling (>=8.0)", "sphinxext-opengraph (>=0.9)", "twine (>=3.3.0)", "twisted (>=22.10.0)", "txaio (>=25.12.2)", "watchdog (>=0.8.3)", "wheel (>=0.36.2)", "yapf (==0.29.0)"]
+dev = ["auditwheel (>=5.0.0) ; sys_platform == \"linux\"", "backports-tempfile (>=1.0)", "build (>=1.0.0)", "bumpversion (>=0.5.3)", "codecov (>=2.0.15)", "furo (>=2024.7.0)", "humanize (>=4.0.0)", "linkify-it-py (>=2.0.0)", "myst-parser (>=2.0)", "passlib", "pep8-naming (>=0.3.3)", "pyenchant (>=3.2)", "pyflakes (>=1.0.0)", "pylint (>=1.9.2)", "pytest (>=3.4.2)", "pytest-aiohttp", "pytest-asyncio (>=0.14.0)", "pytest-runner (>=2.11.1)", "pyyaml (>=4.2b4)", "qualname (>=0.1.0)", "ruff (>=0.12.1)", "scour (>=0.38)", "setuptools (>=70.0.0)", "sphinx (>=8.2.3)", "sphinx-autoapi (>=2.1.0)", "sphinx-copybutton (>=0.5)", "sphinx-design (>=0.5)", "sphinxcontrib-images (>=0.9)", "sphinxcontrib-spelling (>=8.0)", "sphinxext-opengraph (>=0.9)", "twine (>=3.3.0)", "twisted (>=22.10.0)", "txaio (>=25.12.2)", "watchdog (>=0.8.3)", "wheel (>=0.36.2)", "yapf (==0.29.0)"]
 docs = ["furo (>=2024.7.0)", "linkify-it-py (>=2.0.0)", "myst-parser (>=2.0)", "pyenchant (>=3.2)", "scour (>=0.38)", "sphinx (>=8.2.3)", "sphinx-autoapi (>=2.1.0)", "sphinx-copybutton (>=0.5)", "sphinx-design (>=0.5)", "sphinxcontrib-images (>=0.9)", "sphinxcontrib-spelling (>=8.0)", "sphinxext-opengraph (>=0.9)"]
 encryption = ["base58 (>=2.1.1)", "ecdsa (>=0.19.1)", "pynacl (>=1.4.0)", "pyopenssl (>=20.0.1)", "pytrie (>=0.4.0)", "qrcode (>=7.3.1)", "service-identity (>=18.1.0)"]
 scram = ["argon2-cffi (>=20.1.0)", "passlib (>=1.7.4)"]
+serialization = ["bjdata (>=0.6.0) ; platform_python_implementation == \"CPython\""]
 twisted = ["attrs (>=20.3.0)", "twisted (>=22.10.0)", "zope-interface (>=5.2.0)"]
 
 [[package]]
@@ -1486,11 +1501,11 @@ description = "Cross-platform colored terminal text."
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
 groups = ["main", "dev"]
+markers = "sys_platform == \"win32\" or platform_system == \"Windows\""
 files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
-markers = {main = "platform_system == \"Windows\" or sys_platform == \"win32\"", dev = "sys_platform == \"win32\" or platform_system == \"Windows\""}
 
 [[package]]
 name = "confection"
@@ -7193,20 +7208,6 @@ files = [
     {file = "psycopg2_binary-2.9.11-cp39-cp39-musllinux_1_2_x86_64.whl", hash = "sha256:41360b01c140c2a03d346cec3280cf8a71aa07d94f3b1509fa0161c366af66b4"},
     {file = "psycopg2_binary-2.9.11-cp39-cp39-win_amd64.whl", hash = "sha256:875039274f8a2361e5207857899706da840768e2a775bf8c65e82f60b197df02"},
 ]
-
-[[package]]
-name = "py-ubjson"
-version = "0.16.1"
-description = "Universal Binary JSON encoder/decoder"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "py-ubjson-0.16.1.tar.gz", hash = "sha256:b9bfb8695a1c7e3632e800fb83c943bf67ed45ddd87cd0344851610c69a5a482"},
-]
-
-[package.extras]
-dev = ["Pympler (>=0.7,<0.8)", "coverage (>=4.5.3,<4.6)"]
 
 [[package]]
 name = "pyasn1"
