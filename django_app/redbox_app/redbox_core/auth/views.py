@@ -1,5 +1,6 @@
 import logging
 import uuid
+from http import HTTPStatus
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, login
@@ -69,7 +70,11 @@ class AuthCallbackView(View):
         )
 
     def get_profile(self, request):
-        response = get_client(request).get(settings.AUTHBROKER_PROFILE_URL)
+        client = get_client(request)
+        response = client.get(settings.AUTHBROKER_PROFILE_URL)
+        if response.status_code == HTTPStatus.NOT_FOUND:
+            # mock-sso doesn't use /o/userinfo/
+            response = client.get(settings.AUTHBROKER_LEGACY_PROFILE_URL)
         response.raise_for_status()
         return response.json()
 
@@ -88,8 +93,8 @@ class AuthCallbackView(View):
             user = user_model.objects.create(
                 username=email,
                 email=email,
-                first_name=profile.get("given_name", ""),
-                last_name=profile.get("family_name", ""),
+                first_name=profile.get("given_name") or profile.get("first_name", ""),
+                last_name=profile.get("family_name") or profile.get("last_name", ""),
             )
 
         if created:
