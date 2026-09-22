@@ -12,14 +12,6 @@ from .utils import get_client
 
 logger = logging.getLogger(__name__)
 
-JWT_SEGMENT_COUNT = 3
-
-
-def _is_jwt(token: str | None) -> bool:
-    """A JWT is separated by 3 dots in base64url segments"""
-    segments = token.split(".") if isinstance(token, str) else []
-    return len(segments) == JWT_SEGMENT_COUNT and all(segments)
-
 
 class AuthView(RedirectView):
     def get_redirect_url(self, *_args, **_kwargs):
@@ -53,15 +45,6 @@ class AuthCallbackView(View):
             raise SuspiciousOperation(msg)
 
         token = self.fetch_token(request, auth_code)
-
-        invalid_token = next(
-            (token_name for token_name in ("id_token", "access_token") if not _is_jwt(token.get(token_name))),
-            None,
-        )
-        if invalid_token:
-            logger.error("in AuthCallbackView, %s is not jwt formatted", invalid_token)
-            msg = f"SSO did not issue a jwt {invalid_token}"
-            raise SuspiciousOperation(msg)
 
         request.session[settings.TOKEN_SESSION_KEY] = dict(token)
 
