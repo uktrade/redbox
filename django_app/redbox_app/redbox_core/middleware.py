@@ -9,11 +9,13 @@ from django.contrib.auth import get_user_model
 from django.http import HttpRequest, HttpResponse
 from django.utils import timezone
 from django.utils.decorators import sync_and_async_middleware
+from django.utils.functional import SimpleLazyObject
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from waffle import flag_is_active
 
 from redbox_app.redbox_core import flags
+from redbox_app.redbox_core.auth.utils import get_client
 from redbox_app.redbox_core.services import sso as sso_service
 
 User = get_user_model()
@@ -167,4 +169,19 @@ class SSOSyncMiddleware:
                 if synced:
                     request.session[self.SESSION_KEY] = now_timestamp
 
+        return self.get_response(request)
+
+
+def get_authbroker_client(request):
+    if not hasattr(request, "_cached_client"):
+        request._cached_client = get_client(request)  # noqa: SLF001
+    return request._cached_client  # noqa: SLF001
+
+
+class AuthbrokerClientMiddleware:
+    def __init__(self, get_response=None):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        request.authbroker_client = SimpleLazyObject(lambda: get_authbroker_client(request))
         return self.get_response(request)
