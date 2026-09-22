@@ -151,7 +151,6 @@ WSGI_APPLICATION = "redbox_app.wsgi.application"
 ASGI_APPLICATION = "redbox_app.asgi.application"
 
 AUTHENTICATION_BACKENDS = [
-    # "redbox_app.backends.TokenCaptureBackend",
     "django.contrib.auth.backends.ModelBackend",
 ]
 
@@ -200,6 +199,13 @@ AUTHBROKER_TOKEN_URL = urljoin(
 AUTHBROKER_PROFILE_URL = urljoin(
     AUTHBROKER_URL,
     "/o/userinfo/",
+)
+
+# mock-sso doesn't use the OIDC /o/userinfo/
+# endpoint only the legacy authbroker profile endpoint below
+AUTHBROKER_LEGACY_PROFILE_URL = urljoin(
+    AUTHBROKER_URL,
+    "/api/v1/user/me/",
 )
 
 AUTHBROKER_SCOPE = "openid email"
