@@ -49,6 +49,41 @@ def test_user_can_see_active_tool(alice: User, client: Client, default_tool: Too
 
 
 @pytest.mark.django_db
+def test_displays_default_canned_prompt(alice: User, client: Client, default_tool: Tool):
+    # Given
+    client.force_login(alice)
+
+    # When
+    response = client.get(reverse("chats", kwargs={"slug": default_tool.slug}))
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert default_tool.name in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "tool_name",
+    [
+        "Invest Lens",
+        "Negotiation Planner",
+        "Submissions Checker",
+    ],
+)
+def test_displays_tool_canned_prompt(alice: User, client: Client, tool_name: str, tool_factory):
+    # Given
+    tool = tool_factory(name=tool_name)
+    client.force_login(alice)
+
+    # When
+    response = client.get(reverse("chats", kwargs={"slug": tool.slug}))
+
+    # Then
+    assert response.status_code == HTTPStatus.OK
+    assert tool_name in response.content.decode()
+
+
+@pytest.mark.django_db
 def test_tool_info_page_exists(alice: User, client: Client, default_tool: Tool):
     # Given
     client.force_login(alice)
