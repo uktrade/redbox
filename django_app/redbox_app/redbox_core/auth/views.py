@@ -108,7 +108,10 @@ class AuthCallbackView(View):
     def find_existing_user(self, user_model, profile, email):
         sso_identity = profile.get("email_user_id")
         if sso_identity:
-            user = user_model.objects.filter(_sso__email_user_id__iexact=sso_identity).first()
+            # the usernames used to be set to the SSO email_user_id for MOCK_SSO_USERNAME
+            user = user_model.objects.filter(
+                Q(_sso__email_user_id__iexact=sso_identity) | Q(username__iexact=sso_identity)
+            ).first()
             if user:
                 return user
 
