@@ -129,7 +129,7 @@ class AuthCallbackView(View):
         local_part = email.split("@", 1)[0].casefold()
         first_name = (profile.get("given_name") or "").casefold()
         last_name = (profile.get("family_name") or "").casefold()
-        if local_part and first_name and last_name:
+        if local_part:
             return user_model.objects.filter(
                 username__istartswith=f"{local_part}@",
                 first_name__iexact=first_name,
