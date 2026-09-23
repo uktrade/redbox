@@ -1,41 +1,17 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Django: Runserver",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/django_app/manage.py",
-            "args": [
-                "runserver",
-                "0.0.0.0:8080"
-            ],
-            "django": true,
-            "justMyCode": true,
-            "envFile": "${workspaceFolder}/.env",
-            "env": {
-                "PYTHONUNBUFFERED": "1",
-                "USE_LOCAL_ENV": "true",
-                "USE_TESTS_INTEGRATION_ENV": "true",
-                "DJANGO_LOG_FORMAT": "verbose",
-            },
-            "serverReadyAction": {
-                "pattern": "Starting development server",
-                "action": "openExternally",
-                "uriFormat": "http://localhost:8080"
-            },
-            "postDebugTask": "docker-compose down deps"
-        }
-    ],
-    "compounds": [
-        {
-            "name": "Full Stack Dev (Frontend + Django)",
-            "type": "compound",
-            "configurations": [
-                "Django: Runserver"
-            ],
-            "preLaunchTask": "start-dev",
-            "postDebugTask": "docker-compose down deps"
-        }
-    ]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Django: Attach to Docker",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": { "host": "localhost", "port": 5678 },
+      "pathMappings": [
+        { "localRoot": "${workspaceFolder}/redbox/redbox", "remoteRoot": "/usr/src/app/redbox" },
+        { "localRoot": "${workspaceFolder}/django_app", "remoteRoot": "/usr/src/app" }
+      ],
+      "django": true,
+      "justMyCode": true
+    }
+  ]
 }

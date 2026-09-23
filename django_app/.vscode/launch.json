@@ -1,17 +1,37 @@
 {
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Django: Attach to Docker",
-      "type": "debugpy",
-      "request": "attach",
-      "connect": { "host": "localhost", "port": 5678 },
-      "pathMappings": [
-        { "localRoot": "/Users/jasperwagen/development/redbox/redbox", "remoteRoot": "/usr/src/app/redbox" },
-        { "localRoot": "/Users/jasperwagen/development/redbox/django_app", "remoteRoot": "/usr/src/app" }
-      ],
-      "django": true,
-      "justMyCode": true
-    }
-  ]
+    "configurations": [
+        {
+            "name": "Redbox",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "daphne",
+            "args": [
+                "redbox_app.asgi:application",
+                "--port", "8080"
+            ],
+            "envFile": "${workspaceFolder}/../.env",
+            "django": true,
+            "env": {
+                "MINIO_HOST": "localhost",
+                "POSTGRES_HOST": "localhost",
+                "ELASTIC__HOST": "localhost"
+            }
+        },
+        {
+            "name": "Worker",
+            "type": "debugpy",
+            "request": "launch",
+            "gevent": true,
+            "program": "venv/bin/django-admin",
+            "args": [
+                "qcluster"
+            ],
+            "envFile": "${workspaceFolder}/../.env",
+            "env": {
+                "MINIO_HOST": "localhost",
+                "POSTGRES_HOST": "localhost",
+                "ELASTIC__HOST": "localhost"
+            }
+        }
+    ]
 }
