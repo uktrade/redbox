@@ -1,11 +1,11 @@
 import logging
 from http import HTTPStatus
 
+import requests
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpRequest
 
-from redbox_app.redbox_core.auth.utils import get_client
 from redbox_app.redbox_core.models import UserSSO, UserSSOAttribute
 
 User = get_user_model()
@@ -29,7 +29,11 @@ def fetch_sso_payload(request: HttpRequest):
         return data
 
     try:
-        response = get_client(request).get(settings.AUTHBROKER_PROFILE_URL)
+        response = requests.get(
+            settings.AUTHBROKER_PROFILE_URL,
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=10,
+        )
 
         if response.status_code != HTTPStatus.OK:
             logger.warning("%s: %s %s", error_message, response.status_code, response.text[:500])
