@@ -1,7 +1,7 @@
 import itertools
 import logging
-import re
 import math
+import re
 from typing import Dict, Iterable
 from uuid import NAMESPACE_DNS, UUID, uuid5
 
