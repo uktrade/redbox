@@ -10,6 +10,7 @@ export class ChatMessage extends HTMLElement {
 
         this.errorContainerSelector = ".govuk-error-summary";
         this.errorContentSelector = ".govuk-error-summary__title";
+        this.completeContainerSelector = ".ids-chat-message__complete";
     }
 
 
@@ -21,6 +22,54 @@ export class ChatMessage extends HTMLElement {
         return /** @type {StreamedContent} */ (
             this.querySelector("streamed-content")
         );
+    }
+
+
+    /**
+     * Returns the wrapper shown once the response is complete
+     * @returns {HTMLElement} Complete state container
+     */
+    get completeContainer() {
+        if (!this._completeContainer || !this.contains(this._completeContainer)) {
+            this._completeContainer = /** @type {HTMLElement} */ (
+                this.querySelector(this.completeContainerSelector)
+            );
+        }
+
+        return this._completeContainer;
+    }
+
+    /**
+    * Returns the activity element used for response feedback
+    * @returns {LoadingMessage} Loading Message Activity element
+    */
+    get loadingElement() {
+        // TODO: Check announcements, what happens during streaming?
+        if (!this._loadingElement || !this.contains(this._loadingElement)) {
+            this._loadingElement = /** @type {LoadingMessage} */ (
+                this.querySelector('ids-loading-message')
+            );
+        }
+
+        return this._loadingElement;
+    }
+
+
+    /**
+     * Show the streaming wrapper and hide the post-message actions
+     */
+    setStreaming() {
+        if (this.completeContainer) hideElement(this.completeContainer);
+        this.showLoading();
+    }
+
+
+    /**
+     * Hide the streaming wrapper and reveal the post-message actions
+     */
+    setComplete() {
+        if (this.completeContainer) showElement(this.completeContainer);
+        if (this.loadingElement) hideElement(this.loadingElement);
     }
 
 
@@ -40,7 +89,7 @@ export class ChatMessage extends HTMLElement {
      */
     complete(html) {
         this.streamedContent?.complete(html);
-        this.hideLoading();
+        this.setComplete();
     }
 
 
@@ -67,23 +116,6 @@ export class ChatMessage extends HTMLElement {
         const error = this.querySelector(this.errorContainerSelector);
         if (error) hideElement(error);
     }
-
-
-    /**
-    * Returns the activity element used for response feedback
-    * @returns {LoadingMessage} Loading Message Activity element
-    */
-    get loadingElement() {
-        // TODO: Check announcements, what happens during streaming?
-        if (!this._loadingElement || !this.contains(this._loadingElement)) {
-            this._loadingElement = /** @type {LoadingMessage} */ (
-                this.querySelector('ids-loading-message')
-            );
-        }
-
-        return this._loadingElement;
-    }
-
 
     /**
     * Show message loading activity

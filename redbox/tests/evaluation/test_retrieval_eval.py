@@ -18,11 +18,11 @@ Update baseline after a verified improvement:
     poetry run pytest tests/evaluation/ -m ai -v
     cp tests/evaluation/reports/eval_report_latest.json tests/evaluation/baselines/baseline.json
 """
+
 from pathlib import Path
 
 import pytest
-from tests.evaluation.metrics.report import (REGRESSION_TOLERANCE,
-                                             compare_to_baseline)
+from tests.evaluation.metrics.report import REGRESSION_TOLERANCE, compare_to_baseline
 from tests.evaluation.metrics.retrieval import RetrievalScores, compute_scores
 from tests.evaluation.run_eval import make_eval_state
 
@@ -41,8 +41,7 @@ def test_retrieval_corpus_ingested(seeded_corpus: dict) -> None:
     """Verify every PDF in dataset/corpus/ was successfully ingested."""
     pdf_count = len(list((Path(__file__).parent / "dataset" / "corpus").glob("*.pdf")))
     assert pdf_count > 0, (
-        "No PDF files found in tests/evaluation/dataset/corpus/. "
-        "Add at least one corpus PDF before running the eval."
+        "No PDF files found in tests/evaluation/dataset/corpus/. Add at least one corpus PDF before running the eval."
     )
     assert len(seeded_corpus) == pdf_count, (
         f"Expected {pdf_count} corpus documents (one per PDF), "
@@ -87,8 +86,7 @@ def test_retrieval_all_questions(
 
         if scores.hit_at_30 == 0.0:
             failures.append(
-                f"[{entry['id']} / {entry.get('difficulty')}] "
-                f"No relevant chunk in top-30 for: {entry['question']!r}"
+                f"[{entry['id']} / {entry.get('difficulty')}] No relevant chunk in top-30 for: {entry['question']!r}"
             )
 
     if failures:
@@ -135,6 +133,7 @@ def pytest_generate_tests(metafunc):
     """Dynamically parametrise tests that request the eval_entry fixture."""
     if "eval_entry" in metafunc.fixturenames:
         import json
+
         dataset_path = Path(__file__).parent / "dataset" / "retrieval_eval_set.json"
         entries = json.loads(dataset_path.read_text())
         metafunc.parametrize("eval_entry", entries, ids=[e["id"] for e in entries])
@@ -197,7 +196,7 @@ def test_retrieval_ablation_gaussian(
     Compare metrics with and without Gaussian re-ranking.
 
     Does not fail on metric differences — this is an experiment.
-    Results are printed to the terminal for review (Should be part of 
+    Results are printed to the terminal for review (Should be part of
     the generated report)
 
     Requires (metadata.file_name.keyword → metadata.uri.keyword in
@@ -214,20 +213,17 @@ def test_retrieval_ablation_gaussian(
         with_g.append(compute_scores(entry["id"], seeded_retriever.invoke(state), snippets))
         without_g.append(compute_scores(entry["id"], seeded_retriever_no_gaussian.invoke(state), snippets))
 
-
     n = len(eval_dataset)
     header = f"{'Metric':<20} {'With Gaussian':>15} {'Without':>10} {'Delta':>8}"
     separator = "-" * 56
     rows = []
     for metric in ("hit_at_5", "hit_at_10", "hit_at_30", "mrr", "ndcg_at_10"):
-        w  = sum(getattr(s, metric) for s in with_g)  / n
+        w = sum(getattr(s, metric) for s in with_g) / n
         wo = sum(getattr(s, metric) for s in without_g) / n
         rows.append(f"{metric:<20} {w:>15.3f} {wo:>10.3f} {w - wo:>+8.3f}")
 
-
     table = "\n".join(["", "Gaussian ablation results:", header, separator] + rows)
     print(table)
-
 
     ablation_path = Path(__file__).parent / "reports" / "ablation_latest.txt"
     ablation_path.parent.mkdir(parents=True, exist_ok=True)

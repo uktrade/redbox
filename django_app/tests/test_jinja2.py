@@ -3,17 +3,14 @@ from unittest import mock
 
 import pytest
 import pytz
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.test import Client
-from waffle.testutils import override_flag
 
 from redbox_app.jinja2 import (
     domain,
     environment,
     get_menu_items,
-    get_product_name,
     humanise_expiry,
     humanize_short_timedelta,
     humanize_timedelta,
@@ -23,7 +20,6 @@ from redbox_app.jinja2 import (
     to_user_timezone,
     url,
 )
-from redbox_app.redbox_core import flags
 
 User = get_user_model()
 
@@ -218,27 +214,6 @@ def test_get_menu_items(alice: User, client: Client):
     assert len(menu_items_not_authenticated) == 1
     assert menu_items_not_authenticated[0]["text"] == "Sign in"
     assert menu_items_not_authenticated[0]["href"] == url("sign-in")
-
-
-def test_get_product_name(alice: User, client: Client):
-    # Given
-    client.force_login(alice)
-
-    # When
-    product_name_authenticated = get_product_name(alice)
-    product_name_not_authenticated = get_product_name(AnonymousUser())
-
-    # Can be removed once feature is launched and flag removed
-    with override_flag(flags.ENABLE_ASSIST_REBRAND, active=True):
-        flagged_product_name_authenticated = get_product_name(alice)
-        flagged_product_name_not_authenticated = get_product_name(AnonymousUser())
-
-    # Then
-    assert product_name_authenticated == settings.PRODUCT_NAME
-    assert product_name_not_authenticated == settings.PRODUCT_NAME
-
-    assert flagged_product_name_authenticated == "DBT Assist"
-    assert flagged_product_name_not_authenticated == "DBT Assist"
 
 
 def test_show_all_attrs():

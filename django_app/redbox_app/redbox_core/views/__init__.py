@@ -1,6 +1,11 @@
 from redbox_app.redbox_core.dash_apps import report_app
 from redbox_app.redbox_core.views.all_chats_views import AllChatsView, SearchChatsView
-from redbox_app.redbox_core.views.api_views import aws_credentials_api, message_view_pre_alpha, user_view_pre_alpha
+from redbox_app.redbox_core.views.api_views import (
+    aws_credentials_api,
+    get_all_chat_message_feedback,
+    message_view_pre_alpha,
+    user_view_pre_alpha,
+)
 from redbox_app.redbox_core.views.auth_views import sign_in_link_sent_view, sign_in_view, signed_out_view
 from redbox_app.redbox_core.views.chat_views import (
     ChatsTitleView,
@@ -23,6 +28,7 @@ from redbox_app.redbox_core.views.document_views import (
     remove_doc_view,
     upload_document,
 )
+from redbox_app.redbox_core.views.feedback_views import chat_message_feedback, get_feedback_buttons
 from redbox_app.redbox_core.views.file_views import (
     file_icon_view,
     file_ingest_errors_view,
@@ -106,6 +112,7 @@ __all__ = [
     "add_team_member_row_view",
     "add_team_member_view",
     "aws_credentials_api",
+    "chat_message_feedback",
     "create_team_view",
     "delete_document",
     "delete_team_member_row_view",
@@ -120,6 +127,8 @@ __all__ = [
     "file_icon_view",
     "file_ingest_errors_view",
     "file_status_api_view",
+    "get_all_chat_message_feedback",
+    "get_feedback_buttons",
     "health",
     "homepage_view",
     "message_view_pre_alpha",

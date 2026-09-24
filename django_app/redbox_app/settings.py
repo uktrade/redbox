@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.sites",
     "django.contrib.staticfiles",
+    "django.contrib.postgres",
     "single_session",
     "storages",
     "import_export",
@@ -504,5 +505,5 @@ WEB_SEARCH_API_LIMIT = env.int("WEB_SEARCH_API_LIMIT", 100)
 
 ADMIN_EMAIL = env.str("ADMIN_EMAIL", "")
 
-PRODUCT_NAME = env.str("PRODUCT_NAME", "DBT Assist")
+PRODUCT_NAME = env.str("PRODUCT_NAME", "Assist")
 MOCK_SSO_USERNAME = env.str("MOCK_SSO_USERNAME", None)

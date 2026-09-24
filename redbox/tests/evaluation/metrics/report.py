@@ -5,6 +5,7 @@ Writes a terminal table, a Markdown summary, an HTML report, and a structured
 JSON file after each evaluation run. All outputs go to EVAL_REPORT_DIR (default:
 tests/evaluation/reports/).
 """
+
 from __future__ import annotations
 
 import html as _html
@@ -21,15 +22,50 @@ REGRESSION_TOLERANCE = 0.05  # 5 pp drop vs baseline triggers a failure
 
 # (display_name, agg_attribute, target_threshold, plain_english_description)
 _METRIC_GLOSSARY = [
-    ("Hit@1",        "hit_at_1",        0.50, "Was the single top result relevant? The strictest ranking test."),
-    ("Hit@5",        "hit_at_5",        0.70, "Was a relevant chunk anywhere in the first 5 results? The primary pass/fail bar for easy questions."),
-    ("Hit@10",       "hit_at_10",       0.80, "Was a relevant chunk in the first 10 results? The primary bar for hard questions."),
-    ("Hit@30",       "hit_at_30",       0.90, "Was a relevant chunk anywhere in the top 30? A miss here means the content was never retrieved at all."),
-    ("MRR",          "mrr",             0.50, "Mean Reciprocal Rank — 1 / rank, averaged over all questions. 1.0 = always first result. Higher is better."),
-    ("Precision@5",  "precision_at_5",  0.30, "Of the first 5 results returned, what fraction were relevant? Measures list quality, not just presence."),
-    ("Precision@10", "precision_at_10", 0.20, "Same as Precision@5 but across 10 results. Lower is expected — more results dilute precision."),
-    ("NDCG@5",       "ndcg_at_5",       0.50, "Normalised Discounted Cumulative Gain at 5. Penalises relevant answers appearing lower in the list. 1.0 = perfect."),
-    ("NDCG@10",      "ndcg_at_10",      0.60, "Best single number for overall ranking quality. Combines Hit@10 and position — a relevant answer at rank 3 scores higher than at rank 9."),
+    ("Hit@1", "hit_at_1", 0.50, "Was the single top result relevant? The strictest ranking test."),
+    (
+        "Hit@5",
+        "hit_at_5",
+        0.70,
+        "Was a relevant chunk anywhere in the first 5 results? The primary pass/fail bar for easy questions.",
+    ),
+    ("Hit@10", "hit_at_10", 0.80, "Was a relevant chunk in the first 10 results? The primary bar for hard questions."),
+    (
+        "Hit@30",
+        "hit_at_30",
+        0.90,
+        "Was a relevant chunk anywhere in the top 30? A miss here means the content was never retrieved at all.",
+    ),
+    (
+        "MRR",
+        "mrr",
+        0.50,
+        "Mean Reciprocal Rank — 1 / rank, averaged over all questions. 1.0 = always first result. Higher is better.",
+    ),
+    (
+        "Precision@5",
+        "precision_at_5",
+        0.30,
+        "Of the first 5 results returned, what fraction were relevant? Measures list quality, not just presence.",
+    ),
+    (
+        "Precision@10",
+        "precision_at_10",
+        0.20,
+        "Same as Precision@5 but across 10 results. Lower is expected — more results dilute precision.",
+    ),
+    (
+        "NDCG@5",
+        "ndcg_at_5",
+        0.50,
+        "Normalised Discounted Cumulative Gain at 5. Penalises relevant answers appearing lower in the list. 1.0 = perfect.",
+    ),
+    (
+        "NDCG@10",
+        "ndcg_at_10",
+        0.60,
+        "Best single number for overall ranking quality. Combines Hit@10 and position — a relevant answer at rank 3 scores higher than at rank 9.",
+    ),
 ]
 
 
@@ -164,8 +200,7 @@ class EvalReport:
             rank_str = str(s.first_relevant_rank) if s.first_relevant_rank else "not found"
             q = self.questions.get(s.question_id, "")
             lines.append(
-                f"| {s.question_id} | {diff} | {q} | {rank_str} "
-                f"| {s.hit_at_5:.1f} | {s.hit_at_10:.1f} | {s.mrr:.2f} |"
+                f"| {s.question_id} | {diff} | {q} | {rank_str} | {s.hit_at_5:.1f} | {s.hit_at_10:.1f} | {s.mrr:.2f} |"
             )
 
         lines += [
@@ -222,8 +257,8 @@ class EvalReport:
             )
 
         cards_html = (
-            card("Hit@10",  agg.hit_at_10,  0.80, "Answer in first 10")
-            + card("MRR",   agg.mrr,        0.50, "How early on average")
+            card("Hit@10", agg.hit_at_10, 0.80, "Answer in first 10")
+            + card("MRR", agg.mrr, 0.50, "How early on average")
             + card("NDCG@10", agg.ndcg_at_10, 0.60, "Ranking quality")
             + card("Hit@30", agg.hit_at_30, 0.90, "Answer anywhere in top 30")
         )
@@ -243,11 +278,7 @@ class EvalReport:
         agg_rows += f'<tr><td>Questions</td><td class="num">{agg.num_questions}</td><td class="target">—</td></tr>'
 
         glossary_rows = "".join(
-            f"<tr>"
-            f"<td><strong>{name}</strong></td>"
-            f'<td class="target-col">&gt; {target:.2f}</td>'
-            f"<td>{desc}</td>"
-            f"</tr>"
+            f'<tr><td><strong>{name}</strong></td><td class="target-col">&gt; {target:.2f}</td><td>{desc}</td></tr>'
             for name, _attr, target, desc in _METRIC_GLOSSARY
         )
 
@@ -472,9 +503,9 @@ class EvalReport:
 
         report_dir = _report_dir()
         print(f"\nReports saved to {report_dir}/")
-        print(f"  eval_report_latest.json  — structured scores")
-        print(f"  eval_report_latest.md    — markdown summary + glossary")
-        print(f"  eval_report_latest.html  — stakeholder report (open in browser)")
+        print("  eval_report_latest.json  — structured scores")
+        print("  eval_report_latest.md    — markdown summary + glossary")
+        print("  eval_report_latest.html  — stakeholder report (open in browser)")
         print()
 
 

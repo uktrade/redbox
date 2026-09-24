@@ -37,7 +37,7 @@ services:
       start_period: 60s
 
   db:
-    image: postgres:14
+    image: postgres:15
     container_name: db
     env_file:
       - path: tests/.env.integration
@@ -89,14 +89,14 @@ services:
       - redbox-app-network
     restart: unless-stopped
   minio:
-    image: minio/minio
+    image: quay.io/minio/minio:latest
     container_name: minio
     expose:
-      - "9005"
-      - "9006"
+      - "9003"
+      - "9004"
     ports:
-      - "9005:9005"
-      - "9006:9006"
+      - "9003:9003"
+      - "9004:9004"
     entrypoint: sh
     environment:
       - MINIO_ACCESS_KEY=minioadmin
@@ -105,7 +105,7 @@ services:
       - -c
       - |
         mkdir -p data/${BUCKET_NAME}
-        minio server --console-address ":9001" /data
+        minio server --console-address ":9004" /data
     networks:
       - redbox-app-network
     volumes:

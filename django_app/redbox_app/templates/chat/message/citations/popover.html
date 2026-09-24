@@ -30,11 +30,16 @@
                     {% else %}
                         {% set citation_link_text = "View source" %}
                     {% endif  %}
-
                     {{ citation.source_display }} |
+                    {% if citation.is_external %}
                     <a class="govuk-link" href="{{ citation.uri }}">
                         {{ citation_link_text }}
                     </a>
+                    {% else %}
+                    <a class="govuk-link" href="{{ citation.internal_url }}">
+                        {{ citation_link_text }}
+                    </a>
+                    {% endif %}
                 </span>
             </span>
         </span>

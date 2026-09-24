@@ -4,8 +4,10 @@ from typing import Dict
 from langchain_core.messages import AIMessage
 from langchain_core.vectorstores import VectorStoreRetriever
 from langgraph.graph import END, START, StateGraph
-from langgraph.graph.graph import CompiledGraph
-from langgraph.pregel import RetryPolicy
+
+from langgraph.types import RetryPolicy
+
+from langgraph.graph.state import CompiledStateGraph
 
 from redbox.chains.components import get_structured_response_with_citations_parser
 from redbox.chains.runnables import build_self_route_output_parser
@@ -134,7 +136,7 @@ def get_search_graph(
     prompt_set: PromptSet = PromptSet.Search,
     debug: bool = False,
     final_sources: bool = True,
-) -> CompiledGraph:
+) -> CompiledStateGraph:
     """Creates a subgraph for retrieval augmented generation (RAG)."""
     citations_output_parser, format_instructions = get_structured_response_with_citations_parser()
 
@@ -376,7 +378,7 @@ def get_summarise_graph(
 
 def get_chat_graph(
     debug: bool = False,
-) -> CompiledGraph:
+) -> CompiledStateGraph:
     """Creates a subgraph for standard chat."""
     builder = StateGraph(RedboxState)
 
@@ -441,7 +443,7 @@ def build_new_route_graph(
     all_chunks_retriever: VectorStoreRetriever,
     agent_configs: Dict[str, AgentConfig],
     debug: bool = False,
-) -> CompiledGraph:
+) -> CompiledStateGraph:
     def update_submission_eval(state: RedboxState):
         state.tasks_evaluator = EVAL_SUBMISSION
         return state
@@ -575,6 +577,7 @@ def build_new_route_graph(
     add_agent(builder, agent_configs, "Imf_Search_Agent")
     add_agent(builder, agent_configs, "Oecd_Search_Agent")
     add_agent(builder, agent_configs, "Wto_Search_Agent")
+    add_agent(builder, agent_configs, "Mercosur_Search_Agent")
     add_agent(
         builder,
         agent_configs,

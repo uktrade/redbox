@@ -5,6 +5,7 @@ Satisfies Django's import chain (waffle -> django.http -> django.core.checks.cac
 without requiring a database or full redbox_app configuration.
 DocumentExtractionService's cache lock uses locmem so it always succeeds locally.
 """
+
 SECRET_KEY = "eval-harness-test-key"
 INSTALLED_APPS = [
     "django.contrib.contenttypes",

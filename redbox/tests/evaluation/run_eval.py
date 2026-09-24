@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 #!/usr/bin/env python3
 """
 Standalone RAG retrieval evaluation runner.
@@ -17,12 +18,13 @@ Usage:
     # Compare against a specific baseline
     poetry run python tests/evaluation/run_eval.py --baseline baselines/baseline.json
 """
+
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------
 # Bootstrap — MUST come before any redbox.* imports.
 # The dotenv plugin (tryfirst) loads tests/.env.test from the repo root which
-# sets DJANGO_SETTINGS_MODULE=redbox_app.settings. 
+# sets DJANGO_SETTINGS_MODULE=redbox_app.settings.
 # ---------------------------------------------------------------------------
 import os
 import sys
@@ -73,18 +75,19 @@ from redbox.retriever import ParameterisedElasticsearchRetriever
 # Paths & constants
 # ---------------------------------------------------------------------------
 
-EVAL_DIR     = Path(__file__).parent
-CORPUS_DIR   = EVAL_DIR / "dataset" / "corpus"
+EVAL_DIR = Path(__file__).parent
+CORPUS_DIR = EVAL_DIR / "dataset" / "corpus"
 DATASET_PATH = EVAL_DIR / "dataset" / "retrieval_eval_set.json"
 BASELINE_PATH = EVAL_DIR / "baselines" / "baseline.json"
 
-EVAL_INDEX     = "redbox-data-eval"
+EVAL_INDEX = "redbox-data-eval"
 EVAL_S3_PREFIX = "eval-corpus"
 
 
 # ---------------------------------------------------------------------------
 # Pipeline helpers
 # ---------------------------------------------------------------------------
+
 
 def build_env() -> Settings:
     return Settings(django_secret_key="", postgres_password="")
@@ -123,6 +126,7 @@ def ingest_corpus(
     log_file.parent.mkdir(parents=True, exist_ok=True)
 
     with open(log_file, "w", encoding="utf-8") as _lf:
+
         def _step(msg: str) -> None:
             """Detail line — always logged, only printed when verbose."""
             _lf.write(msg + "\n")
@@ -169,8 +173,10 @@ def ingest_corpus(
 
             _step(f"  [{pdf.name}] chunking …")
             _cstrat, chunk_iter = chunking_svc.chunks(
-                s3_key=s3_key, elements=elements,
-                generated_metadata=metadata, chunks_overlap_pages=False,
+                s3_key=s3_key,
+                elements=elements,
+                generated_metadata=metadata,
+                chunks_overlap_pages=False,
             )
             docs = list(chunk_iter)
             if not docs:
@@ -235,20 +241,22 @@ def run_eval(
     env: Settings,
 ) -> EvalReport:
     ai = AISettings()
-    report = EvalReport(rag_params={
-        "rag_k":              ai.rag_k,
-        "rag_num_candidates": ai.rag_num_candidates,
-        "min_score":          0.6,
-        "rag_gauss_scale_size":  ai.rag_gauss_scale_size,
-        "rag_gauss_scale_decay": ai.rag_gauss_scale_decay,
-        "embedding_model":    env.embedding_backend,
-    })
+    report = EvalReport(
+        rag_params={
+            "rag_k": ai.rag_k,
+            "rag_num_candidates": ai.rag_num_candidates,
+            "min_score": 0.6,
+            "rag_gauss_scale_size": ai.rag_gauss_scale_size,
+            "rag_gauss_scale_decay": ai.rag_gauss_scale_decay,
+            "embedding_model": env.embedding_backend,
+        }
+    )
 
     all_uris = list(uri_map.values())
     for entry in dataset:
-        state     = make_eval_state(entry["question"], all_uris)
+        state = make_eval_state(entry["question"], all_uris)
         retrieved = retriever.invoke(state)
-        scores    = compute_scores(entry["id"], retrieved, entry["relevant_snippets"])
+        scores = compute_scores(entry["id"], retrieved, entry["relevant_snippets"])
         report.record(scores, difficulty=entry.get("difficulty", "unknown"), question=entry.get("question", ""))
 
     return report
@@ -258,14 +266,14 @@ def run_eval(
 # Standalone entry point
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the retrieval eval pipeline.")
-    parser.add_argument("--skip-ingest", action="store_true",
-                        help="Skip corpus ingestion (use existing index)")
-    parser.add_argument("--baseline", type=Path, default=BASELINE_PATH,
-                        help="Path to baseline.json for regression check")
-    parser.add_argument("--no-cleanup", action="store_true",
-                        help="Leave the eval index and S3 objects after the run")
+    parser.add_argument("--skip-ingest", action="store_true", help="Skip corpus ingestion (use existing index)")
+    parser.add_argument(
+        "--baseline", type=Path, default=BASELINE_PATH, help="Path to baseline.json for regression check"
+    )
+    parser.add_argument("--no-cleanup", action="store_true", help="Leave the eval index and S3 objects after the run")
     args = parser.parse_args()
 
     dataset = json.loads(DATASET_PATH.read_text(encoding="utf-8"))
@@ -275,17 +283,14 @@ def main() -> None:
 
     pdfs = sorted(CORPUS_DIR.glob("*.pdf"))
     if not pdfs:
-        sys.exit(
-            f"No PDFs found in {CORPUS_DIR}.\n"
-            "Add corpus PDFs (e.g. cptpp_impact_assessment.pdf) before running."
-        )
+        sys.exit(f"No PDFs found in {CORPUS_DIR}.\nAdd corpus PDFs (e.g. cptpp_impact_assessment.pdf) before running.")
 
     print(f"\nRedbox retrieval eval — {len(dataset)} questions, {len(pdfs)} PDF(s)\n")
 
-    env        = build_env()
-    es         = env.elasticsearch_client()
+    env = build_env()
+    es = env.elasticsearch_client()
     embeddings = get_embeddings(env)
-    vstore     = build_vector_store(env, embeddings)
+    vstore = build_vector_store(env, embeddings)
 
     uploaded_keys: list[str] = []
     if args.skip_ingest:
@@ -298,7 +303,7 @@ def main() -> None:
     try:
         print("\nRunning retrieval eval …")
         retriever = make_retriever(env, es, embeddings)
-        report    = run_eval(retriever, dataset, uri_map, env)
+        report = run_eval(retriever, dataset, uri_map, env)
         json_path = report.write()
         print(f"\nReport saved to {json_path}")
 
@@ -312,11 +317,7 @@ def main() -> None:
             else:
                 print("No regression vs baseline.")
         else:
-            print(
-                "No baseline scores found. "
-                "After reviewing the report, run:\n"
-                "  make eval-update-baseline"
-            )
+            print("No baseline scores found. After reviewing the report, run:\n  make eval-update-baseline")
     finally:
         if not args.no_cleanup:
             cleanup_corpus(env, es, uploaded_keys)

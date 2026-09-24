@@ -4,7 +4,7 @@ from typing import ClassVar
 from django import forms
 from django.contrib.auth import get_user_model
 
-from redbox_app.redbox_core.models import Tool, ToolAccessRule, UserTool
+from redbox_app.redbox_core.models import ChatMessageFeedback, Tool, ToolAccessRule, UserTool
 from redbox_app.redbox_core.services import url as url_service
 
 User = get_user_model()
@@ -392,3 +392,30 @@ class UserToolBulkAddForm(GovUKModelForm):
         self.cleaned_data["user_ids"] = raw_user_ids
 
         return cleaned_data
+
+
+class ChatMessageFeedbackForm(forms.ModelForm):
+    is_positive = forms.BooleanField(required=False)
+
+    reason = forms.MultipleChoiceField(
+        choices=ChatMessageFeedback.Reason.choices,
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+    )
+
+    class Meta:
+        model = ChatMessageFeedback
+        fields = ("is_positive", "reason", "detail")
+        widgets: ClassVar[Mapping[str, forms.Widget]] = {
+            "detail": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        is_positive = cleaned.get("is_positive")
+        if is_positive:
+            if cleaned.get("reason"):
+                self.add_error("reason", "Positive feedback cannot have reasons.")
+            if cleaned.get("detail"):
+                self.add_error("detail", "Positive feedback cannot have detail.")
+        return cleaned

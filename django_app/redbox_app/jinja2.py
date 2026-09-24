@@ -12,7 +12,7 @@ from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.timezone import template_localtime
 from markdown_it import MarkdownIt
-from waffle import flag_is_active
+from waffle import flag_is_active, switch_is_active
 
 from redbox_app.redbox_core import flags
 from redbox_app.redbox_core.types import APPROVED_FILE_EXTENSIONS
@@ -97,13 +97,6 @@ def get_menu_items(user):
     return items
 
 
-def get_product_name(user):
-    if flag_is_active(user, flags.ENABLE_ASSIST_REBRAND):
-        return "DBT Assist"
-
-    return settings.PRODUCT_NAME
-
-
 def get_csrf_token(request):
     return get_token(request)
 
@@ -164,9 +157,10 @@ def environment(**options):
             "google_analytics_iframe_src": settings.GOOGLE_ANALYTICS_IFRAME_SRC,
             "get_messages": messages.get_messages,
             "flag_is_active": flag_is_active,
+            "switch_is_active": switch_is_active,
             "flags": flags,
             "get_menu_items": get_menu_items,
-            "product_name": get_product_name,
+            "productName": settings.PRODUCT_NAME,
             "contact_email": settings.CONTACT_EMAIL,
             "approved_file_extensions": APPROVED_FILE_EXTENSIONS,
             "get_csrf_token": get_csrf_token,

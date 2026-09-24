@@ -28,7 +28,7 @@ Several uktrade repositories already make use of the pre-commit framework for fl
 
 As part of the go live process, each engineer making changes to the repository being reopened will be required to install the organisation wide pre-commit hooks locally. When a PR is opened, an organisation level github action will run to confirm the pre-commit hooks ran on the engineers machine and will block any PRs that have not run these hooks.
 
-Instructions have been added to the [dbt hooks repository](https://github.com/uktrade/github-standards/blob/main/README.md#usage) to provide guidance on adding these organisation wide pre-commit hooks to an individual repository
+Instructions have been added to the [BIST hooks repository](https://github.com/uktrade/github-standards/blob/main/README.md#usage) to provide guidance on adding these organisation wide pre-commit hooks to an individual repository
 
 ## Setup custom properties on the repository
 
@@ -52,13 +52,13 @@ To add the new security policy, follow these instructions:
 
 1. As an organisation administrator, navigate to the [security config page](https://github.com/organizations/uktrade/settings/security_products).
 1. Scroll down to the **Apply configurations** sections, and enter the name of the repository to be made public in the filter input field
-1. Use the checkbox next to the results list to select all repositories being made public, then use the **Apply configuration** button to select the **Default DBT security** configuration
+1. Use the checkbox next to the results list to select all repositories being made public, then use the **Apply configuration** button to select the **Default BIST security** configuration
 1. A confirmation modal will appear displaying a summary of the action being made. Click the apply button
 1. In the repository that has had the new policy applied, navigate to the **Advanced Security** page in the repository settings. At the top of the page there should be a banner message **Modifications to some settings have been blocked by organization administrators.**
 
 ### Optional: Setup CodeQL to allow PRs from repository forks
 
-For most repositories, the default CodeQL configuration applied by the **Default DBT security** policy will be sufficient. However, this default configuration does not currently support scanning PRs raised from a fork of a repository. If your repository needs to accept PRs from a fork, you must follow these steps to switch to the advanced CodeQL setup:
+For most repositories, the default CodeQL configuration applied by the **Default BIST security** policy will be sufficient. However, this default configuration does not currently support scanning PRs raised from a fork of a repository. If your repository needs to accept PRs from a fork, you must follow these steps to switch to the advanced CodeQL setup:
 
 1. Open the GitHub settings page, and navigate to the Advanced Security section using the left hand menu
 1. Scroll down to the Code Scanning section, under the Tools sub-section there will be an item for CodeQL analysis

@@ -5,10 +5,10 @@ All pipeline logic and Django bootstrap live in run_eval.py.
 Importing run_eval as the first action here triggers Django setup
 before any other redbox.* modules load.
 """
+
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Generator
 
 import pytest
@@ -59,10 +59,7 @@ def seeded_corpus(
     eval_vector_store,
 ) -> Generator[dict[str, str], None, None]:
     if not list(CORPUS_DIR.glob("*.pdf")):
-        pytest.skip(
-            f"No PDFs in {CORPUS_DIR}. "
-            "Add corpus PDFs (e.g. cptpp_impact_assessment.pdf) before running."
-        )
+        pytest.skip(f"No PDFs in {CORPUS_DIR}. Add corpus PDFs (e.g. cptpp_impact_assessment.pdf) before running.")
     uri_map, uploaded_keys = ingest_corpus(eval_env, eval_es_client, eval_vector_store)
     yield uri_map
     cleanup_corpus(eval_env, eval_es_client, uploaded_keys)
@@ -103,13 +100,15 @@ def baseline() -> dict:
 @pytest.fixture(scope="session")
 def eval_report(eval_env: Settings) -> Generator[EvalReport, None, None]:
     ai = AISettings()
-    report = EvalReport(rag_params={
-        "rag_k":                 ai.rag_k,
-        "rag_num_candidates":    ai.rag_num_candidates,
-        "min_score":             0.6,
-        "rag_gauss_scale_size":  ai.rag_gauss_scale_size,
-        "rag_gauss_scale_decay": ai.rag_gauss_scale_decay,
-        "embedding_model":       eval_env.embedding_backend,
-    })
+    report = EvalReport(
+        rag_params={
+            "rag_k": ai.rag_k,
+            "rag_num_candidates": ai.rag_num_candidates,
+            "min_score": 0.6,
+            "rag_gauss_scale_size": ai.rag_gauss_scale_size,
+            "rag_gauss_scale_decay": ai.rag_gauss_scale_decay,
+            "embedding_model": eval_env.embedding_backend,
+        }
+    )
     yield report
     report.write()

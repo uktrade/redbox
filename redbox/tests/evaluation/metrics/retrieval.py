@@ -5,6 +5,7 @@ All functions operate on retrieved Document lists and a list of relevant text
 snippets. Relevance is determined by substring match (case-insensitive), which
 is deterministic, zero-cost, and requires no LLM judge for the primary signal.
 """
+
 from __future__ import annotations
 
 import math
@@ -87,10 +88,7 @@ def ndcg_at_k(docs: list[Document], relevant_snippets: list[str], k: int) -> flo
     if not top_k:
         return 0.0
 
-    dcg = sum(
-        _is_relevant(doc, relevant_snippets) / math.log2(rank + 1)
-        for rank, doc in enumerate(top_k, start=1)
-    )
+    dcg = sum(_is_relevant(doc, relevant_snippets) / math.log2(rank + 1) for rank, doc in enumerate(top_k, start=1))
 
     # Ideal DCG: all relevant docs at the top (binary relevance, so just 1/log(2))
     num_relevant = sum(_is_relevant(d, relevant_snippets) for d in docs)

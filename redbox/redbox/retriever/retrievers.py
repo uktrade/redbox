@@ -3,8 +3,7 @@ import os
 from collections import defaultdict
 from copy import deepcopy
 from functools import partial
-from typing import (Any, Callable, Dict, List, Mapping, Optional, Sequence,
-                    Union, cast)
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union, cast
 
 from elasticsearch import Elasticsearch, TransportError
 from kneed import KneeLocator
@@ -13,18 +12,23 @@ from langchain_core.documents import Document
 from langchain_core.embeddings.embeddings import Embeddings
 from langchain_core.retrievers import BaseRetriever
 from opensearchpy import OpenSearch, OpenSearchException
+
 # from elasticsearch.helpers import scan
 from opensearchpy.helpers import scan
 
 from redbox.models.chain import RedboxState
 from redbox.models.file import ChunkResolution
-from redbox.retriever.queries import (add_document_filter_scores_to_query,
-                                      build_document_query, get_all,
-                                      get_knowledge_base_metadata,
-                                      get_knowledge_base_tabular_metadata,
-                                      get_metadata, get_minimum_metadata,
-                                      get_schematised_tabular_chunks,
-                                      get_tabular_metadata)
+from redbox.retriever.queries import (
+    add_document_filter_scores_to_query,
+    build_document_query,
+    get_all,
+    get_knowledge_base_metadata,
+    get_knowledge_base_tabular_metadata,
+    get_metadata,
+    get_minimum_metadata,
+    get_schematised_tabular_chunks,
+    get_tabular_metadata,
+)
 from redbox.transform import merge_documents, sort_documents
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
@@ -235,7 +239,7 @@ class ParameterisedElasticsearchRetriever(BaseRetriever):
             es_client=self.es_client, index_name=self.index_name, query=initial_query
         )
 
-        # Handle nothing found (as when no files are permitted)
+        # Handle not when no files are permitted
         if not initial_documents:
             return []
 

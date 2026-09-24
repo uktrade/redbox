@@ -77,7 +77,7 @@ To create an admin user, you can run the following command:
 docker compose run django-app venv/bin/django-admin createsuperuser
 ```
 
-You will be prompted to login via SSO. Please use the email you tend to use for other DBT services. Once the superuser is created, you can log in to the Django admin interface by navigating to [`http://localhost:8080/sign-in`](http://localhost:8080/sign-in).
+You will be prompted to login via SSO. Please use the email you tend to use for other BIST services. Once the superuser is created, you can log in to the Django admin interface by navigating to [`http://localhost:8080/sign-in`](http://localhost:8080/sign-in).
 
 ![Redbox Sign In](../../assets/redbox_signin.png)
 

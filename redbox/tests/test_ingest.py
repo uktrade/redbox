@@ -342,9 +342,9 @@ def test_pdf_is_image_heavy_image_heavy():
             {"label": "TEXT"},
         ),
         (
-            "my table",
+            "my_table",
             pd.DataFrame({"x": [1]}),
-            "<table_name>my table</table_name>",
+            "<table_name>my_table</table_name>",
             {"x": "INTEGER"},
         ),
     ],

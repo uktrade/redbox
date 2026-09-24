@@ -17,8 +17,7 @@ from django.db.models import Model
 from django.utils import timezone
 from langchain_core.documents import Document
 from tests.consumers_helpers import CannedGraphLLM, Token
-from websockets import WebSocketClientProtocol
-from websockets.legacy.client import Connect
+from websockets.asyncio.client import ClientConnection
 
 from redbox.models.chain import AISettings as PydanticAISettings
 from redbox.models.chain import LLMCallMetadata, RedboxQuery, RequestMetadata
@@ -107,7 +106,7 @@ async def assert_mocked_connect_response(communicator: WebsocketCommunicator, me
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_chat_consumer_with_new_session(
-    agents_list: list, alice: User, uploaded_file: File, mocked_connect: Connect
+    agents_list: list, alice: User, uploaded_file: File, mocked_connect: ClientConnection
 ):
     # Given
     message = "Hello Hal."
@@ -131,7 +130,7 @@ async def test_chat_consumer_with_new_session(
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
-async def test_chat_consumer_staff_user(agents_list: list, staff_user: User, mocked_connect: Connect):
+async def test_chat_consumer_staff_user(agents_list: list, staff_user: User, mocked_connect: ClientConnection):
     # Given
 
     # When
@@ -150,7 +149,9 @@ async def test_chat_consumer_staff_user(agents_list: list, staff_user: User, moc
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
-async def test_chat_consumer_with_existing_session(agents_list: list, alice: User, chat: Chat, mocked_connect: Connect):
+async def test_chat_consumer_with_existing_session(
+    agents_list: list, alice: User, chat: Chat, mocked_connect: ClientConnection
+):
     # Given
 
     # When
@@ -180,7 +181,7 @@ async def test_chat_consumer_with_existing_session(agents_list: list, alice: Use
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_chat_consumer_with_naughty_question(
-    agents_list: list, alice: User, uploaded_file: File, mocked_connect: Connect
+    agents_list: list, alice: User, uploaded_file: File, mocked_connect: ClientConnection
 ):
     # Given
     message = "Hello Hal."
@@ -204,7 +205,7 @@ async def test_chat_consumer_with_naughty_question(
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_chat_consumer_with_naughty_citation(
-    agents_list: list, alice: User, uploaded_file: File, mocked_connect_with_naughty_citation: Connect
+    agents_list: list, alice: User, uploaded_file: File, mocked_connect_with_naughty_citation: ClientConnection
 ):
     # Given
     message = "Hello Hal."
@@ -251,7 +252,7 @@ async def test_chat_consumer_anonymous_user_error_message():
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_chat_consumer_agentic(
-    agents_list: list, alice: User, uploaded_file: File, mocked_connect_agentic_search: Connect
+    agents_list: list, alice: User, uploaded_file: File, mocked_connect_agentic_search: ClientConnection
 ):
     # Given
     message = "Hello Hal."
@@ -352,7 +353,7 @@ async def test_chat_consumer_with_selected_files(
     alice: User,
     several_files: Sequence[File],
     chat_with_files: Chat,
-    mocked_connect_with_several_files: Connect,
+    mocked_connect_with_several_files: ClientConnection,
 ):
     # Given
     selected_files: Sequence[File] = several_files[2:]
@@ -414,7 +415,9 @@ async def test_chat_consumer_with_selected_files(
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
-async def test_chat_consumer_with_connection_error(agents_list: list, alice: User, mocked_breaking_connect: Connect):
+async def test_chat_consumer_with_connection_error(
+    agents_list: list, alice: User, mocked_breaking_connect: ClientConnection
+):
     # Given
 
     # When
@@ -439,7 +442,7 @@ async def test_chat_consumer_with_connection_error(agents_list: list, alice: Use
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_chat_consumer_with_explicit_unhandled_error(
-    agents_list: list, alice: User, mocked_connect_with_explicit_unhandled_error: Connect
+    agents_list: list, alice: User, mocked_connect_with_explicit_unhandled_error: ClientConnection
 ):
     # Given
 
@@ -476,7 +479,7 @@ async def test_chat_consumer_with_explicit_unhandled_error(
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_chat_consumer_with_rate_limited_error(
-    agents_list: list, alice: User, mocked_connect_with_rate_limited_error: Connect
+    agents_list: list, alice: User, mocked_connect_with_rate_limited_error: ClientConnection
 ):
     # Given
 
@@ -513,7 +516,7 @@ async def test_chat_consumer_with_rate_limited_error(
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_chat_consumer_with_explicit_no_document_selected_error(
-    agents_list: list, alice: User, mocked_connect_with_explicit_no_document_selected_error: Connect
+    agents_list: list, alice: User, mocked_connect_with_explicit_no_document_selected_error: ClientConnection
 ):
     # Given
 
@@ -561,7 +564,7 @@ async def test_chat_consumer_get_ai_settings(
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_chat_consumer_with_american_to_british_conversion(
-    agents_list: list, alice: User, mocked_connect_with_american_to_british_conversion: Connect
+    agents_list: list, alice: User, mocked_connect_with_american_to_british_conversion: ClientConnection
 ):
     # # Reset cache before test
     # ChatConsumer.cached_agents = None
@@ -695,7 +698,7 @@ def get_chat_messages(user: User) -> Sequence[ChatMessage]:
 
 
 @pytest.fixture
-def mocked_connect() -> Connect:
+def mocked_connect() -> ClientConnection:
     responses = [
         {
             "event": "on_chat_model_stream",
@@ -745,7 +748,7 @@ def mocked_connect_with_naughty_citation() -> CannedGraphLLM:
 
 
 @pytest.fixture
-def mocked_breaking_connect() -> Connect:
+def mocked_breaking_connect() -> ClientConnection:
     mocked_graph = MagicMock(name="mocked_graph")
     mocked_graph.astream_events.side_effect = CancelledError()
     return mocked_graph
@@ -801,7 +804,7 @@ def mocked_connect_with_explicit_no_document_selected_error() -> CannedGraphLLM:
 
 
 @pytest.fixture
-def mocked_connect_agentic_search(uploaded_file: File) -> Connect:
+def mocked_connect_agentic_search(uploaded_file: File) -> ClientConnection:
     responses = [
         {
             "event": "on_custom_event",
@@ -845,9 +848,9 @@ def mocked_connect_agentic_search(uploaded_file: File) -> Connect:
 
 
 @pytest.fixture
-def mocked_connect_with_several_files(several_files: Sequence[File]) -> Connect:
-    mocked_websocket = AsyncMock(spec=WebSocketClientProtocol, name="mocked_websocket")
-    mocked_connect = MagicMock(spec=Connect, name="mocked_connect")
+def mocked_connect_with_several_files(several_files: Sequence[File]) -> ClientConnection:
+    mocked_websocket = AsyncMock(spec=ClientConnection, name="mocked_websocket")
+    mocked_connect = MagicMock(spec=ClientConnection, name="mocked_connect")
     mocked_connect.return_value.__aenter__.return_value = mocked_websocket
     mocked_websocket.__aiter__.return_value = [
         json.dumps({"resource_type": "text", "data": "Third "}),
@@ -864,7 +867,7 @@ def mocked_connect_with_several_files(several_files: Sequence[File]) -> Connect:
 
 
 @pytest.fixture
-def mocked_connect_with_american_to_british_conversion() -> Connect:
+def mocked_connect_with_american_to_british_conversion() -> ClientConnection:
     responses = [
         {
             "event": "on_chat_model_stream",

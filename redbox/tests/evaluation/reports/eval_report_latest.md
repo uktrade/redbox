@@ -1,44 +1,44 @@
-# RAG Retrieval Evaluation — 2026-09-01 15:55:13 UTC
+# RAG Retrieval Evaluation — 2026-09-22 13:58:54 UTC
 
-**Git SHA**: `ebedfe0d` | **rag_k**: 30 | **min_score**: 0.6 | **gauss_scale**: 3
+**Git SHA**: `588860f2` | **rag_k**: 30 | **min_score**: 0.6 | **gauss_scale**: 3
 
 ## Aggregate Metrics
 
 | Metric | Score | Target |
 |---|---|---|
-| Hit@1 | 0.500 | 0.50 (OK) |
-| Hit@5 | 0.700 | 0.70 (OK) |
+| Hit@1 | 0.200 | 0.50 (LOW) |
+| Hit@5 | 0.400 | 0.70 (LOW) |
 | Hit@10 | 0.700 | 0.80 (LOW) |
 | Hit@30 | 1.000 | 0.90 (OK) |
-| MRR | 0.576 | 0.50 (OK) |
-| Precision@5 | 0.180 | 0.30 (LOW) |
-| Precision@10 | 0.110 | 0.20 (LOW) |
-| NDCG@5 | 0.418 | 0.50 (LOW) |
-| NDCG@10 | 0.442 | 0.60 (LOW) |
+| MRR | 0.356 | 0.50 (LOW) |
+| Precision@5 | 0.080 | 0.30 (LOW) |
+| Precision@10 | 0.090 | 0.20 (LOW) |
+| NDCG@5 | 0.273 | 0.50 (LOW) |
+| NDCG@10 | 0.363 | 0.60 (LOW) |
 | Questions | 10 | — |
 
 ## By Difficulty
 
 | Difficulty | N | Hit@5 | Hit@10 | MRR |
 |---|---|---|---|---|
-| easy | 4 | 0.500 | 0.500 | 0.542 |
-| medium | 3 | 0.667 | 0.667 | 0.465 |
-| hard | 3 | 1.000 | 1.000 | 0.733 |
+| easy | 4 | 0.500 | 0.500 | 0.400 |
+| medium | 3 | 0.333 | 0.667 | 0.236 |
+| hard | 3 | 0.333 | 1.000 | 0.417 |
 
 ## Per-Question Results
 
 | ID | Difficulty | Question | 1st Rank | Hit@5 | Hit@10 | MRR |
 |---|---|---|---|---|---|---|
-| cptpp_001 | easy |  | 12 | 0.0 | 0.0 | 0.08 |
+| cptpp_001 | easy |  | 19 | 0.0 | 0.0 | 0.05 |
 | cptpp_002 | easy |  | 1 | 1.0 | 1.0 | 1.00 |
-| cptpp_003 | easy |  | 1 | 1.0 | 1.0 | 1.00 |
-| cptpp_004 | easy |  | 12 | 0.0 | 0.0 | 0.08 |
-| cptpp_005 | medium |  | 16 | 0.0 | 0.0 | 0.06 |
-| cptpp_006 | medium |  | 1 | 1.0 | 1.0 | 1.00 |
-| cptpp_007 | medium |  | 3 | 1.0 | 1.0 | 0.33 |
-| cptpp_008 | hard |  | 5 | 1.0 | 1.0 | 0.20 |
+| cptpp_003 | easy |  | 2 | 1.0 | 1.0 | 0.50 |
+| cptpp_004 | easy |  | 22 | 0.0 | 0.0 | 0.05 |
+| cptpp_005 | medium |  | 24 | 0.0 | 0.0 | 0.04 |
+| cptpp_006 | medium |  | 2 | 1.0 | 1.0 | 0.50 |
+| cptpp_007 | medium |  | 6 | 0.0 | 1.0 | 0.17 |
+| cptpp_008 | hard |  | 8 | 0.0 | 1.0 | 0.12 |
 | cptpp_009 | hard |  | 1 | 1.0 | 1.0 | 1.00 |
-| cptpp_010 | hard |  | 1 | 1.0 | 1.0 | 1.00 |
+| cptpp_010 | hard |  | 8 | 0.0 | 1.0 | 0.12 |
 
 ## What these metrics mean
 

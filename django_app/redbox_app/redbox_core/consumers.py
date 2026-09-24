@@ -26,7 +26,8 @@ from django.utils import timezone
 from langchain_core.documents import Document
 from pydantic import ValidationError
 from waffle import flag_is_active
-from websockets import ConnectionClosedError, WebSocketClientProtocol
+from websockets import ConnectionClosedError
+from websockets.asyncio.client import ClientConnection
 
 from redbox import Redbox
 from redbox.graph.agents.configs import agent_configs
@@ -486,7 +487,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.send(json.dumps(message, default=str))
 
     @staticmethod
-    async def send_to_server(websocket: WebSocketClientProtocol, data: Mapping[str, Any]) -> None:
+    async def send_to_server(websocket: ClientConnection, data: Mapping[str, Any]) -> None:
         logger.debug("sending %s to core-api", data)
         return await websocket.send(json.dumps(data, default=str))
 
