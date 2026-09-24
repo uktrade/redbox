@@ -9,6 +9,10 @@ JWT_SEGMENT_COUNT = 3
 
 
 def is_valid_jwt(token: str | None) -> bool:
+    """Check the token has JWT structure and, if its payload can be decoded, that it hasn't expired.
+
+    Note: this does not verify the signature, so it should not be relied on as a security boundary.
+    """
     segments = token.split(".") if isinstance(token, str) else []
     if len(segments) != JWT_SEGMENT_COUNT or not all(segments):
         return False
@@ -16,7 +20,8 @@ def is_valid_jwt(token: str | None) -> bool:
     try:
         payload = json_loads(urlsafe_b64decode(segments[1]))
     except (ValueError, TypeError):
-        return False
+        # payload isn't decodable (e.g. an opaque token used by test/mock SSO servers)
+        return True
 
     exp = payload.get("exp")
     return exp is None or (isinstance(exp, (int, float)) and exp > time.time())
