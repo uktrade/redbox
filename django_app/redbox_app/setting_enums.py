@@ -25,10 +25,6 @@ class Environment(StrEnum):
     def is_prod(self) -> bool:
         return self is Environment.PROD
 
-    @property
-    def uses_minio(self) -> bool:
-        return self.is_test
-
     LOCAL = ("LOCAL", True, [*LOCAL_HOSTS, *ADDITIONAL_HOSTS])  # nosec: B104: Not in prod
     INTEGRATION = ("INTEGRATION", True, [*LOCAL_HOSTS, *ADDITIONAL_HOSTS])  # nosec: B104: Not in prod
     DEV = ("DEV", False, [*ADDITIONAL_HOSTS])

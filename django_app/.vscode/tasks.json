@@ -8,7 +8,6 @@
             "options": {
                 "cwd": "../",
                 "env": {
-                    "MINIO_HOST": "localhost",
                     "POSTGRES_HOST": "localhost",
                     "ELASTIC__HOST": "localhost"
                 }
@@ -25,7 +24,6 @@
             "command": "poetry run python manage.py createsuperuser  --email me@localhost --noinput",
             "options": {
                 "env": {
-                    "MINIO_HOST": "localhost",
                     "POSTGRES_HOST": "localhost",
                     "ELASTIC__HOST": "localhost"
                 }
@@ -42,7 +40,6 @@
             "command": "poetry run python manage.py migrate",
             "options": {
                 "env": {
-                    "MINIO_HOST": "localhost",
                     "POSTGRES_HOST": "localhost",
                     "ELASTIC__HOST": "localhost"
                 }
@@ -59,7 +56,6 @@
             "command": "poetry run python manage.py reingest_files True",
             "options": {
                 "env": {
-                    "MINIO_HOST": "localhost",
                     "POSTGRES_HOST": "localhost",
                     "ELASTIC__HOST": "localhost"
                 }
@@ -76,7 +72,6 @@
             "command": "poetry run python manage.py makemigrations",
             "options": {
                 "env": {
-                    "MINIO_HOST": "localhost",
                     "POSTGRES_HOST": "localhost",
                     "ELASTIC__HOST": "localhost"
                 }

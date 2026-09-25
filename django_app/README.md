@@ -1,3 +1,5 @@
+# This documentation is outdated
+
 # How to run and test the django app
 
 ## running and testing the django app locally

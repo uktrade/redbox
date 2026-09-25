@@ -420,7 +420,7 @@ def default_tool() -> Tool:
 @pytest.fixture
 def remove_file_from_bucket(s3_client):
     def _remove(file_name: str):
-        # we begin by removing any file in minio that starts with this key prefix
+        # we begin by removing any file in s3 that starts with this key prefix
         try:
             paginator = s3_client.get_paginator("list_objects_v2")
             for page in paginator.paginate(Bucket=settings.BUCKET_NAME, Prefix=file_name.replace(" ", "_")):
