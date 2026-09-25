@@ -8,8 +8,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      minio:
-        condition: service_healthy
       opensearch:
         condition: service_healthy
       sso:
@@ -79,8 +77,6 @@ services:
     depends_on:
       opensearch:
         condition: service_healthy
-      minio:
-        condition: service_healthy
       redbox-django-app:
         condition: service_healthy
       db:
@@ -88,35 +84,6 @@ services:
     networks:
       - redbox-app-network
     restart: unless-stopped
-  minio:
-    image: quay.io/minio/minio:latest
-    container_name: minio
-    expose:
-      - "9000"
-      - "9001"
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    entrypoint: sh
-    environment:
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-    command:
-      - -c
-      - |
-        mkdir -p data/${BUCKET_NAME}
-        minio server --console-address ":9001" /data
-    networks:
-      - redbox-app-network
-    volumes:
-      - ./data/objectstore:/data
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "mc", "ready", "local" ]
-      interval: 5s
-      timeout: 30s
-      retries: 24
-      start_period: 30s
 
   opensearch:
     image: opensearchproject/opensearch:3
