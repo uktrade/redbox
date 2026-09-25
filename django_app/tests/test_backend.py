@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from django_app.redbox_app.backends import TokenCaptureBackend
+from redbox_app.backends import TokenCaptureBackend
 
 
 class TestTokenCaptureBackend:

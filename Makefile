@@ -1,5 +1,12 @@
 makefile_name := $(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST))
 
+# Run a command in a new container
+app-run = docker compose run --rm redbox-django-app
+# Run a command in an existing container
+app-exec = docker compose exec redbox-django-app
+# Run on existing container if available otherwise a new one
+django-app := ${if $(shell docker ps -q -f name=django_app),$(app-exec),$(app-run)}
+
 -include .env
 
 default: help
@@ -8,6 +15,7 @@ default: help
 reqs:
 	poetry install
 
+## --- docker ---
 .PHONY: run
 run: stop
 	docker compose up -d --wait redbox-django-app
@@ -32,9 +40,10 @@ build:
 rebuild: stop prune ## Rebuild all images
 	docker compose build --no-cache
 
+## --- tests ---
 .PHONY: test-ai
 test-ai: ## Test code with live LLM
-	cd redbox && poetry install --with dev && poetry run python -m pytest -m "ai" --cov=redbox -v --cov-report=term-missing --cov-fail-under=80
+	$(django-app) python -m pytest -m "ai" --cov=redbox -v --cov-report=term-missing --cov-fail-under=80
 
 .PHONY: test-redbox
 test-redbox: ## Test redbox
@@ -43,7 +52,7 @@ test-redbox: ## Test redbox
 
 .PHONY: test-django
 test-django: ## Test django-app
-	cd django_app && poetry install && poetry run pytest --ignore=tests/playwright --cov=redbox_app -v --cov-report=term-missing --cov-report=xml --cov-fail-under=80 --ds redbox_app.settings --envfile ../tests/.env.test $(TEST)
+	$(django-app) pytest --ignore=tests/playwright --cov=redbox_app -v --cov-report=term-missing --cov-report=xml --cov-fail-under=80 --ds redbox_app.settings --envfile ../tests/.env.test $(TEST)
 
 .PHONY: test-django-single
 test-django-single: ## Test django-app with specified test file/case
