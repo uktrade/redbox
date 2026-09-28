@@ -12,7 +12,6 @@
             "envFile": "${workspaceFolder}/../.env",
             "django": true,
             "env": {
-                "MINIO_HOST": "localhost",
                 "POSTGRES_HOST": "localhost",
                 "ELASTIC__HOST": "localhost"
             }
@@ -28,7 +27,6 @@
             ],
             "envFile": "${workspaceFolder}/../.env",
             "env": {
-                "MINIO_HOST": "localhost",
                 "POSTGRES_HOST": "localhost",
                 "ELASTIC__HOST": "localhost"
             }

@@ -1,3 +1,5 @@
+# This documentation is outdated
+
 # Local Development/Deployment
 
 This guide will help you set up the project for local development and the simplest deployment for Redbox. For the initial steps, please refer to the [installation guide](../installation/index.md). That guide will help you set up the project and install the necessary dependencies for this guide.

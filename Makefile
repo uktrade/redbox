@@ -56,8 +56,8 @@ build-django-static: ## Build django-app static files
 
 .PHONY: test-integration
 test-integration:
-	docker compose down opensearch db sso minio
-	docker compose up -d --wait opensearch db sso minio
+	docker compose down opensearch db sso
+	docker compose up -d --wait opensearch db sso
 	cd django_app/frontend && \
 	npm ci && \
 	npm run build && \
@@ -68,8 +68,8 @@ test-integration:
 
 .PHONY: test-integration-debug
 test-integration-debug:
-	docker compose down opensearch db sso minio
-	docker compose up -d --wait opensearch db sso minio
+	docker compose down opensearch db sso
+	docker compose up -d --wait opensearch db sso
 	cd django_app && \
 	poetry install && \
 	poetry run playwright install --with-deps chromium && \
@@ -96,7 +96,7 @@ safe: ##
 
 .PHONY: check-migrations
 check-migrations: stop  ## Check types in redbox and worker
-	docker compose up -d --wait db minio opensearch
+	docker compose up -d --wait db opensearch
 	cd django_app && poetry run python manage.py migrate
 	cd django_app && poetry run python manage.py makemigrations --check
 
@@ -275,11 +275,6 @@ tf_import:
 .PHONY: release
 release: ## Deploy app
 	chmod +x ./infrastructure/aws/scripts/release.sh && ./infrastructure/aws/scripts/release.sh $(env)
-
-.PHONY: eval_backend
-eval_backend: ## Runs the only the necessary backend for evaluation BUCKET_NAME
-	docker compose up -d --wait worker --build
-	docker exec -it $$(docker ps -q --filter "name=minio") mc mb data/${BUCKET_NAME}
 
 .PHONY: help
 help: ## Show this help

@@ -8,7 +8,6 @@
             "command": "poetry run python ../utilities/draw_graph.py",
             "options": {
                 "env": {
-                    "MINIO_HOST": "localhost",
                     "POSTGRES_HOST": "localhost",
                     "ELASTIC__HOST": "localhost"
                 }
