@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "note": "Run `make eval-update-baseline` after a successful eval run to populate this file.",
+    "recorded_at": null,
+    "git_sha": null,
+    "rag_k": 30,
+    "rag_num_candidates": 30,
+    "min_score": 0.6,
+    "rag_gauss_scale_size": 3,
+    "rag_gauss_scale_decay": 0.5,
+    "embedding_model": "amazon.titan-embed-text-v2:0"
+  },
+  "aggregate": {}
+}
