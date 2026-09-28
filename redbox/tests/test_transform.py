@@ -317,6 +317,34 @@ def test_merge_documents():
     # Higher scores in adjacent prioritised, length is the same as initial
     assert merged_2 == docs_3[: len(docs_1)]
 
+    # Adjacent neighbours displace initial semantically relevant chunks
+    # [0.7A, 0.68B, 0.60C] + [1.40A, 1.36B, 1.2C, 1.16A1, 0.96A2] => [1.16A1, 0.96A2, 0.7A]
+    initial = [copy.deepcopy(d) for d in docs_1]
+    for doc, score in zip(initial, [0.70, 0.68, 0.60]):
+        doc.metadata["score"] = score
+
+    boosted_initial = [copy.deepcopy(d) for d in docs_1]
+    for doc, score in zip(boosted_initial, [1.40, 1.36, 1.20]):
+        doc.metadata["score"] = score
+
+    # Set up neighbours
+    neighbours = list(
+        generate_docs(
+            s3_key="test_key_neighbours", total_tokens=1000, number_of_docs=2, chunk_resolution="normal", score=1
+        )
+    )
+    for doc, score in zip(neighbours, [1.16, 0.96]):
+        doc.metadata["score"] = score
+
+    adjacent = boosted_initial + neighbours
+
+    merged_3 = merge_documents(initial=initial, adjacent=adjacent)
+
+    # Adjacent neighbours displace initial semantically relevant chunks
+    assert [d.metadata["score"] for d in merged_3] == [1.16, 0.96, 0.70], (
+        "Strong neighbours should displace weak initials"
+    )
+
 
 def test_sort_documents():
     original_order = [
