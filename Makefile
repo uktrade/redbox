@@ -276,9 +276,13 @@ tf_import:
 release: ## Deploy app
 	chmod +x ./infrastructure/aws/scripts/release.sh && ./infrastructure/aws/scripts/release.sh $(env)
 
+EVAL_PYTHONPATH    := $(PWD)/django_app:$(PWD)/redbox
+EVAL_DJANGO_SETTINGS := tests.evaluation.django_settings
+EVAL_ENV_VARS      := PYTHONPATH=$(EVAL_PYTHONPATH) DJANGO_SETTINGS_MODULE=$(EVAL_DJANGO_SETTINGS) ENVIRONMENT=LOCAL ENABLE_METADATA_EXTRACTION=true
+
 .PHONY: eval_backend
 eval_backend: ## Runs the only the necessary backend for evaluation BUCKET_NAME
-	docker compose up -d --wait worker --build
+	BUCKET_NAME=$(BUCKET_NAME) docker compose up -d --wait worker --build
 	docker exec -it $$(docker ps -q --filter "name=minio") mc mb data/${BUCKET_NAME}
 
 .PHONY: help
