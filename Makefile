@@ -289,6 +289,19 @@ eval_backend: ## Runs the only the necessary backend for evaluation BUCKET_NAME
   eval-retrieval: ## Run retrieval eval suite (require AWS & opensearch)
 	cd redbox && $(EVAL_ENV_VARS) poetry run pytest tests/evaluation/ -m ai -v --tb=short
 
+# Needs scripts else will fail
+.PHONY: eval-ingest-corpus
+eval-ingest-corpus: ## Ingest all corpus PDFs into the inspect index for browsing
+	cd redbox && $(EVAL_ENV_VARS) poetry run python tests/evaluation/scripts/ingest_corpus.py
+
+# Needs scripts else will fail
+.PHONY: eval-query-index
+eval-query-index: ## Browse chunks in the inspect index (set INDEX= and/or KEYWORD=)
+	cd redbox && $(EVAL_ENV_VARS) poetry run python tests/evaluation/scripts/query_index.py \
+		$$([ -n "$(INDEX)" ] && echo "--index $(INDEX)") \
+		$$([ -n "$(KEYWORD)" ] && echo "--keyword '$(KEYWORD)'")\
+		$$([ -n "$(URI)" ] && echo "--uri '$(URI)'")\
+
 .PHONY: help
 help: ## Show this help
 	@ grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(makefile_name) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1,$$2}'
