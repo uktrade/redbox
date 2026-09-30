@@ -1,4 +1,25 @@
 # Test ingestion logic
+"""
+Retrieval evaluation tests.
+
+Measures the quality of ParameterisedElasticsearchRetriever against a curated
+corpus of PDF documents ingested through the full production pipeline.
+
+Requirements:
+  - Live OpenSearch instance
+  - AWS credentials: S3, Bedrock (embeddings + LLM), Textract
+  - Corpus PDFs in tests/evaluation/dataset/corpus/
+  - Golden Q&A in tests/evaluation/dataset/retrieval_eval_set.json
+
+Run:
+    cd redbox
+    poetry run pytest tests/evaluation/ -m ai -v
+
+Update baseline after a verified improvement:
+    poetry run pytest tests/evaluation/ -m ai -v
+    cp tests/evaluation/reports/eval_report_latest.json tests/evaluation/baselines/baseline.json
+"""
+
 from pathlib import Path
 
 import pytest
