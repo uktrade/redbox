@@ -384,6 +384,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             id_token = authbroker_token.get("id_token")
             if is_valid_jwt(id_token):
+                logger.info("jwt is used")
                 return id_token
 
             return authbroker_token.get("access_token")
