@@ -23,6 +23,7 @@ Update baseline after a verified improvement:
 from pathlib import Path
 
 import pytest
+from tests.evaluation.metrics.report import REGRESSION_TOLERANCE, compare_to_baseline
 from tests.evaluation.metrics.retrieval import RetrievalScores, compute_scores
 from tests.evaluation.run_eval import make_eval_state
 
@@ -83,6 +84,30 @@ def test_retrieval_all_questions(
         pytest.fail(
             f"{len(failures)}/{len(eval_dataset)} questions returned no relevant chunk:\n"
             + "\n".join(f"  • {f}" for f in failures)
+        )
+
+
+# Run after test_retrieval_all_questions
+@pytest.mark.ai
+def test_retrieval_no_regression(eval_report, baseline: dict) -> None:
+    """
+    Fail if any key metric drops more than REGRESSION_TOLERANCE (5 pp) vs baseline.
+
+    Skipped when baseline.json has no recorded scores (first run).
+    """
+    if not baseline.get("aggregate"):
+        pytest.skip(
+            "baseline.json has no aggregate scores. "
+            "Run the eval once, then copy eval_report_latest.json → baselines/baseline.json."
+        )
+
+    agg = eval_report.aggregate()
+    regressions = compare_to_baseline(agg, baseline)
+
+    if regressions:
+        pytest.fail(
+            f"Retrieval regression detected (tolerance={REGRESSION_TOLERANCE:.0%}):\n"
+            + "\n".join(f"  • {r}" for r in regressions)
         )
 
 
