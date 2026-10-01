@@ -302,6 +302,17 @@ eval-query-index: ## Browse chunks in the inspect index (set INDEX= and/or KEYWO
 		$$([ -n "$(KEYWORD)" ] && echo "--keyword '$(KEYWORD)'")\
 		$$([ -n "$(URI)" ] && echo "--uri '$(URI)'")\
 
+.PHONY: eval-update-baseline
+eval-update-baseline: ## Promote latest eval report to baseline.json after a verified improvement
+	cp redbox/tests/evaluation/reports/eval_report_latest.json redbox/tests/evaluation/baselines/baseline.json
+	@echo "Baseline updated. Review the diff and commit it."
+	
+.PHONY: eval-generate-qa
+eval-generate-qa: ## Generate candidate Q&A pairs from a PDF (set PDF= path)
+	cd redbox && $(EVAL_ENV_VARS) poetry run python tests/evaluation/scripts/generate_qa.py \
+       --pdf $(PDF) --output /tmp/candidate_qa.json && \
+	echo "Review /tmp/candidate_qa.json then copy approved entries into tests/evaluation/dataset/retrieval_eval_set.json"
+
 .PHONY: help
 help: ## Show this help
 	@ grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(makefile_name) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1,$$2}'
