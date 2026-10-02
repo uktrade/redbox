@@ -8,7 +8,7 @@ A production-emulator test suite that measures the quality of Assist's retrieval
 
 Before running any eval command, ensure the application is running. The application has been tested using the debugger locally. It is not guaranteed it will work when run in containers.
 
-Skip to step 4 if the application is already running locally with OpenSearch instance and AWS Creds all available. If not, check item 1 to 3.
+Skip to step 4 if the application is already running locally with OpenSearch instance and AWS Creds all available. If not, check item 1 to 3. It is assumed that step 1 to 3 would not be needed in the majority of cases.
 
 ### 1. OpenSearch running
 
@@ -32,7 +32,7 @@ export AWS_SECRET_ACCESS_KEY=...
 export AWS_SESSION_TOKEN=...   # required for SSO/assumed-role sessions
 ```
 
-The Bedrock embedding model used is `us.amazon.nova-pro-v1` in region `us-east-1` by default. Ensure your credentials have `bedrock:InvokeModel` permission in that region.
+The Bedrock embedding model used is `amazon.titan-embed-text-v2:0` in region `eu-west-2` by default. Ensure your credentials have `bedrock:InvokeModel` permission in that region.
 
 ### 3. Environment variables
 
