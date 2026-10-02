@@ -207,6 +207,7 @@ AUTHBROKER_LEGACY_PROFILE_URL = urljoin(
     AUTHBROKER_URL,
     "/api/v1/user/me/",
 )
+#test
 
 AUTHBROKER_SCOPE = "openid email"
 
