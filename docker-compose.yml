@@ -89,7 +89,7 @@ services:
       - redbox-app-network
     restart: unless-stopped
   minio:
-    image: quay.io/minio/minio:latest
+    image: docker.io/pgsty/silo:latest
     container_name: minio
     expose:
       - "9000"
@@ -97,22 +97,22 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
-    entrypoint: sh
     environment:
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    entrypoint: sh
     command:
       - -c
       - |
-        mkdir -p data/${BUCKET_NAME}
-        minio server --console-address ":9001" /data
+        mkdir -p /data/${BUCKET_NAME}
+        exec silo server --console-address ":9001" /data
     networks:
       - redbox-app-network
     volumes:
       - ./data/objectstore:/data
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "mc", "ready", "local" ]
+      test: [ "CMD", "mcli", "ready", "local" ]
       interval: 5s
       timeout: 30s
       retries: 24
