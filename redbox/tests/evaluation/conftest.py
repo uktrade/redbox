@@ -35,7 +35,7 @@ def eval_embeddings(eval_env: Settings):
 
 
 @pytest.fixture(scope="session")
-def eval_vector_store(eval_env: Settings, eval_embeddings, eval_es_client: OpenSearch):
+def eval_vector_store(eval_env: Settings, eval_embeddings):
     return build_vector_store(eval_env, eval_embeddings)
 
 
