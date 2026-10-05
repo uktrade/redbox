@@ -23,6 +23,7 @@ services:
         required: false
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-production}
+      - AUTHBROKER_INTERNAL_URL=${DOCKER_AUTHBROKER_INTERNAL_URL}
     volumes:
       - /app/django_app/frontend/node_modules
       - ./django_app:/app/django_app/
