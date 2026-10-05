@@ -8,7 +8,7 @@ A production-emulator test suite that measures the quality of Assist's retrieval
 
 Before running any eval command, ensure the application is running. The application has been tested using the debugger locally. It is not guaranteed it will work when run in containers.
 
-Skip to step 4 if the application is already running locally with OpenSearch instance and AWS Creds all available. If not, check item 1 to 3. It is assumed that step 1 to 3 would not be needed in the majority of cases.
+Skip to step 4 if the application is already running locally with OpenSearch instance and AWS Creds all available. If not, check item 1 to 3. It is assumed that step 1 to 3 would not be needed in the majority of cases as they are .
 
 ### 1. OpenSearch running
 

@@ -12,8 +12,8 @@ from typing import Generator
 import pytest
 from opensearchpy import OpenSearch
 
-# run_eval must be the first import — it bootstraps Django + env before redbox.* loads.
-from tests.evaluation.run_eval import CORPUS_DIR, build_env, build_vector_store, cleanup_corpus, ingest_corpus
+# eval_pipeline must be the first import — it bootstraps Django + env before redbox.* loads.
+from tests.evaluation.eval_pipeline import CORPUS_DIR, build_env, build_vector_store, cleanup_corpus, ingest_corpus
 
 from redbox.chains.components import get_embeddings
 from redbox.models.settings import Settings
