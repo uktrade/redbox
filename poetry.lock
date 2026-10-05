@@ -5770,7 +5770,6 @@ files = [
 
 [package.dependencies]
 ml_dtypes = ">=0.5.4"
-ml_dtypes = ">=0.5.4"
 numpy = ">=1.23.2"
 protobuf = ">=6.31.1"
 typing_extensions = ">=4.7.1"
