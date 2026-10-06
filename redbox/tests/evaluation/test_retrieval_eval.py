@@ -23,8 +23,8 @@ Update baseline after a verified improvement:
 from pathlib import Path
 
 import pytest
+from tests.evaluation.eval_pipeline import make_eval_state
 from tests.evaluation.metrics.retrieval import RetrievalScores, compute_scores
-from tests.evaluation.run_eval import make_eval_state
 
 
 @pytest.mark.ai

@@ -12,10 +12,9 @@ from typing import Generator
 
 import pytest
 from opensearchpy import OpenSearch
-from tests.evaluation.metrics.report import EvalReport
 
-# run_eval must be the first import — it bootstraps Django + env before redbox.* loads.
-from tests.evaluation.run_eval import (
+# eval_pipeline must be the first import — it bootstraps Django + env before redbox.* loads.
+from tests.evaluation.eval_pipeline import (
     BASELINE_PATH,
     CORPUS_DIR,
     DATASET_PATH,
@@ -25,6 +24,7 @@ from tests.evaluation.run_eval import (
     ingest_corpus,
     make_retriever,
 )
+from tests.evaluation.metrics.report import EvalReport
 
 from redbox.chains.components import get_embeddings
 from redbox.models.chain import AISettings
