@@ -214,7 +214,7 @@ class ParameterisedElasticsearchRetriever(BaseRetriever):
     embedding_model: Embeddings
     embedding_field_name: str = "embedding"
     chunk_resolution: ChunkResolution = ChunkResolution.normal
-    enable_gaussian_boosting: bool = True
+    enable_document_query: bool = True
 
     def _get_relevant_documents(
         self, query: RedboxState, *, run_manager: CallbackManagerForRetrieverRun
@@ -244,7 +244,7 @@ class ParameterisedElasticsearchRetriever(BaseRetriever):
             return []
 
         # Short circuit path for Gaussian boosting logic
-        if not self.enable_gaussian_boosting:
+        if not self.enable_document_query:
             return sort_documents(documents=initial_documents)
 
         # Adjacent documents
