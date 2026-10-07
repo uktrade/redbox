@@ -383,10 +383,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.info("ChatConsumer._extract_sso_token - valid token")
 
             id_token = authbroker_token.get("id_token")
-            if is_jwt(id_token):
-                return id_token
+            if not is_jwt(id_token):
+                logger.warning("ChatConsumer._extract_sso_token - no JWT id_token available")
+                return None
 
-            return authbroker_token.get("access_token")
+            return id_token  # noqa: TRY300
         except (KeyError, TypeError):
             return None
 
