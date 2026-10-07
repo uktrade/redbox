@@ -46,7 +46,6 @@ from redbox.models.chain import Citation as AICitation
 from redbox.models.graph import RedboxActivityEvent
 from redbox.models.settings import ChatLLMBackend, get_settings
 from redbox_app.redbox_core import error_messages, flags
-from redbox_app.redbox_core.auth.utils import is_jwt
 from redbox_app.redbox_core.models import (
     ActivityEvent,
     AgentPlan,
@@ -382,12 +381,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             logger.info("ChatConsumer._extract_sso_token - valid token")
 
-            id_token = authbroker_token.get("id_token")
-            if not is_jwt(id_token):
-                logger.warning("ChatConsumer._extract_sso_token - no JWT id_token available")
-                return None
-
-            return id_token  # noqa: TRY300
+            return authbroker_token["access_token"]
         except (KeyError, TypeError):
             return None
 
