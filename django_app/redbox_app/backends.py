@@ -1,20 +1,14 @@
-import logging
+from authbroker_client.backends import AuthbrokerBackend
 
-logger = logging.getLogger(__name__)
 
-# class TokenCaptureBackend(AuthbrokerBackend):
-#     def authenticate(self, request, **kwargs):
-#         token = kwargs.get("token")
+class TokenCaptureBackend(AuthbrokerBackend):
+    def authenticate(self, request, **kwargs):
+        # 1. Grab the token from the arguments passed by the broker
+        token = kwargs.get("token")
 
-#         if token:
-#             logger.warning(
-#                 "SSO token type=%s length=%s jwt_parts=%s",
-#                 type(token).__name__,
-#                 len(token),
-#                 len(token.split(".")) if isinstance(token, str) else None,
-#             )
+        # 2. Store it directly in the session
+        if request and token:
+            request.session["oauth_token"] = token
 
-#         if request and token:
-#             request.session["oauth_token"] = token
-
-#         return super().authenticate(request, **kwargs)
+        # 3. Carry on with the normal login process
+        return super().authenticate(request, **kwargs)
