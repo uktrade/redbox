@@ -74,20 +74,17 @@ class AuthCallbackView(View):
         id_token = token.get("id_token")
 
         if not is_valid_jwt(id_token):
-            # id_token isn't a decodable JWT (e.g. mock SSO's opaque token) - nothing to validate
-            logger.warning("no JWT id_token returned to validate nonce against")
-            return
+            msg = "no valid id_token returned to validate nonce"
+            raise SuspiciousOperation(msg)
 
-        segments = id_token.split(".")
         try:
-            payload = json_loads(urlsafe_b64decode(segments[1]))
-        except (ValueError, TypeError):
-            # payload isn't decodable JSON - can't validate the nonce
-            logger.warning("unable to decode id_token payload to validate nonce")
-            return
+            payload = json_loads(urlsafe_b64decode(id_token.split(".")[1]))
+        except (ValueError, TypeError) as exc:
+            msg = "cant decode id_token to validate nonce"
+            raise SuspiciousOperation(msg) from exc
 
         if payload.get("nonce") != expected_nonce:
-            msg = "id_token nonce does not match session nonce"
+            msg = "id_token nonce doesnt match session nonce"
             raise SuspiciousOperation(msg)
 
     def fetch_token(self, request, auth_code):
