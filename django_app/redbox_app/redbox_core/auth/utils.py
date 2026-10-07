@@ -1,6 +1,3 @@
-import time
-
-from authlib.common.encoding import json_loads, urlsafe_b64decode
 from authlib.integrations.requests_client import OAuth2Session
 from django.conf import settings
 from django.urls import reverse
@@ -8,18 +5,9 @@ from django.urls import reverse
 JWT_SEGMENT_COUNT = 3
 
 
-def is_valid_jwt(token: str | None) -> bool:
+def is_jwt(token: str | None) -> bool:
     segments = token.split(".") if isinstance(token, str) else []
-    if len(segments) != JWT_SEGMENT_COUNT or not all(segments):
-        return False
-
-    try:
-        payload = json_loads(urlsafe_b64decode(segments[1]))
-    except (ValueError, TypeError):
-        return False
-
-    exp = payload.get("exp")
-    return exp is None or (isinstance(exp, (int, float)) and exp > time.time())
+    return len(segments) == JWT_SEGMENT_COUNT and all(segments)
 
 
 def get_client(request, **kwargs):
