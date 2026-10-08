@@ -17,5 +17,11 @@
 - [ ] Yes (if so provide more detail)
 - [ ] No
 
+## Docker validation
+ 
+To help prevent breaking changes from being introduced, both the PR developer and reviewer should run the changes in Docker and confirm they work successfully.
+ 
+- [ ] PR developer has run the changes in Docker and confirmed they work successfully
+- [ ] PR reviewer has run the changes in Docker and confirmed they work successfully
 
 ## Relevant links
