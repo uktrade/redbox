@@ -47,7 +47,7 @@ Redbox utilises health checks to ensure that the services are running correctly.
 
 ## Step 6: **Setting up MinIO**
 
-MinIO is an object storage server that is compatible with Amazon S3. It is used to store the documents that are used by the application. To set up MinIO, you can navigate to [`http://localhost:9001`](http://localhost:9001) in your browser. You should see the following screen:
+MinIO is an object storage server that is compatible with Amazon S3. It is used to store the documents that are used by the application. To set up MinIO, you can navigate to [`http://localhost:9003`](http://localhost:9003) in your browser. You should see the following screen:
 
 ![MinIO Login](../../assets/minio_login.png)
 
@@ -61,7 +61,7 @@ Once logged in, you need to create a bucket by clicking on the `Buckets` tab on 
 !!! warning "Important"
     The bucket name must be `redbox-storage-dev` or the application will not work correctly.
 
-For debugging, you can now access [`http://localhost:9001/buckets/redbox-storage-dev/admin/summary`](http://localhost:9001/buckets/redbox-storage-dev/admin/summary) to see the contents of the bucket and inspect files.
+For debugging, you can now access [`http://localhost:9003/buckets/redbox-storage-dev/admin/summary`](http://localhost:9003/buckets/redbox-storage-dev/admin/summary) to see the contents of the bucket and inspect files.
 
 ## Step 7: **Accessing the application**
 
