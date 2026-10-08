@@ -1,6 +1,6 @@
-from collections import defaultdict
 import logging
 import os
+from collections import defaultdict
 from copy import deepcopy
 from functools import partial
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union, cast
@@ -24,10 +24,10 @@ from redbox.retriever.queries import (
     get_all,
     get_knowledge_base_metadata,
     get_knowledge_base_tabular_metadata,
-    get_tabular_metadata,
-    get_schematised_tabular_chunks,
     get_metadata,
     get_minimum_metadata,
+    get_schematised_tabular_chunks,
+    get_tabular_metadata,
 )
 from redbox.transform import merge_documents, sort_documents
 
@@ -214,6 +214,7 @@ class ParameterisedElasticsearchRetriever(BaseRetriever):
     embedding_model: Embeddings
     embedding_field_name: str = "embedding"
     chunk_resolution: ChunkResolution = ChunkResolution.normal
+    enable_gaussian_boosting: bool = True
 
     def _get_relevant_documents(
         self, query: RedboxState, *, run_manager: CallbackManagerForRetrieverRun
@@ -241,6 +242,10 @@ class ParameterisedElasticsearchRetriever(BaseRetriever):
         # Handle nothing found (as when no files are permitted)
         if not initial_documents:
             return []
+
+        # Short circuit path for Gaussian boosting logic
+        if not self.enable_gaussian_boosting:
+            return sort_documents(documents=initial_documents)
 
         # Adjacent documents
         with_adjacent_query = add_document_filter_scores_to_query(
