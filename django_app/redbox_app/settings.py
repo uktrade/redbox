@@ -414,7 +414,7 @@ LOGGING = {
             "level": "WARNING",
         },
         "ddtrace": {
-            "handlers": ["asim"],
+            "handlers": ["asim"] if LOG_FORMAT == "asim_formatter" else ["console"],
             "level": "ERROR",
             "propagate": False,
         },

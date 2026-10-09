@@ -440,6 +440,10 @@ class FileTool(UUIDPrimaryKeyBase, TimeStampedModel):
     def __str__(self):
         return self.file.file_name + " - " + self.tool.name
 
+    @cached_property
+    def delete_url(self) -> str | None:
+        return url_service.get_delete_tool_knowledge_base_file_url(slug=self.tool.slug, file_tool_id=self.pk)
+
 
 class AgentTool(UUIDPrimaryKeyBase, TimeStampedModel):
     """

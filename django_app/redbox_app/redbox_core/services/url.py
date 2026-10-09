@@ -133,3 +133,15 @@ def get_delete_user_tool_url(slug: str, user_tool_id: uuid.UUID) -> str:
         kwargs["user_tool_id"] = user_tool_id
 
     return reverse("delete-user-tool", kwargs=kwargs)
+
+
+def get_delete_tool_knowledge_base_file_url(slug: str, file_tool_id: uuid.UUID) -> str:
+    kwargs = {}
+
+    if slug:
+        kwargs["slug"] = slug
+
+    if file_tool_id:
+        kwargs["file_tool_id"] = file_tool_id
+
+    return reverse("delete-tool-knowledge-base-file", kwargs=kwargs)
