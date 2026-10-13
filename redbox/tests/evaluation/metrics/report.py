@@ -18,6 +18,7 @@ from pathlib import Path
 
 from tests.evaluation.metrics.retrieval import AggregateScores, RetrievalScores, aggregate
 
+# Should be agreed upon
 REGRESSION_TOLERANCE = 0.05  # 5 pp drop vs baseline triggers a failure
 
 # (display_name, agg_attribute, target_threshold, plain_english_description)
@@ -134,13 +135,22 @@ class EvalReport:
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
         json_path = report_dir / f"eval_report_{timestamp}.json"
 
-        json_path.write_text(json.dumps(payload, indent=2))
+        json_path.write_text(json.dumps(self._round_floats(payload), indent=2))
         (report_dir / "eval_report_latest.json").write_text(json.dumps(payload, indent=2))
         (report_dir / "eval_report_latest.md").write_text(self._build_markdown(agg, meta))
         (report_dir / "eval_report_latest.html").write_text(self._build_html(agg, meta))
 
         self._print_table(agg, meta)
         return json_path
+
+    @staticmethod
+    def _round_floats(obj, ndigits=4):
+        if isinstance(obj, float):
+            return round(obj, ndigits)
+        if isinstance(obj, dict):
+            return {k: EvalReport._round_floats(v, ndigits) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [EvalReport._round_floats(v, ndigits) for v in obj]
 
     def _build_payload(self, agg: AggregateScores) -> dict:
         return {

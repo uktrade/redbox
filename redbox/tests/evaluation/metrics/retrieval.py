@@ -135,20 +135,7 @@ class AggregateScores:
     by_difficulty: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
-        return {
-            "num_questions": self.num_questions,
-            "hit_at_1": round(self.hit_at_1, 4),
-            "hit_at_5": round(self.hit_at_5, 4),
-            "hit_at_10": round(self.hit_at_10, 4),
-            "hit_at_30": round(self.hit_at_30, 4),
-            "mrr": round(self.mrr, 4),
-            "precision_at_5": round(self.precision_at_5, 4),
-            "precision_at_10": round(self.precision_at_10, 4),
-            "ndcg_at_5": round(self.ndcg_at_5, 4),
-            "ndcg_at_10": round(self.ndcg_at_10, 4),
-            "mean_score": round(self.mean_score, 4),
-            "by_difficulty": self.by_difficulty,
-        }
+        return asdict(self)
 
 
 def aggregate(per_question: list[RetrievalScores], difficulties: dict[str, str] | None = None) -> AggregateScores:
