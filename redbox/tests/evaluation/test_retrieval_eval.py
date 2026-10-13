@@ -23,7 +23,7 @@ Update baseline after a verified improvement:
 from pathlib import Path
 
 import pytest
-from tests.evaluation.eval_pipeline import make_eval_state
+from tests.evaluation.eval_pipeline import eval_entries_values, make_eval_state
 from tests.evaluation.metrics.retrieval import RetrievalScores, compute_scores
 
 
@@ -33,16 +33,6 @@ def test_retrieval_corpus_ingested(seeded_corpus: dict) -> None:
     pdf_count = len(list((Path(__file__).parent / "dataset" / "corpus").glob("*.pdf")))
     assert pdf_count > 0
     assert len(seeded_corpus) == pdf_count, f"Expected {pdf_count} corpus documents, got {len(seeded_corpus)}."
-
-
-def pytest_generate_tests(metafunc):
-    """Dynamically parametrise tests that request the eval_entry fixture."""
-    if "eval_entry" in metafunc.fixturenames:
-        import json
-
-        dataset_path = Path(__file__).parent / "dataset" / "retrieval_eval_set.json"
-        entries = json.loads(dataset_path.read_text())
-        metafunc.parametrize("eval_entry", entries, ids=[e["id"] for e in entries])
 
 
 @pytest.mark.ai
@@ -87,11 +77,8 @@ def test_retrieval_all_questions(
 
 
 @pytest.mark.ai
-def test_retrieval_per_question(
-    eval_entry: dict,
-    seeded_corpus: dict,
-    seeded_retriever,
-) -> None:
+@pytest.mark.parametrize("eval_entry", eval_entries_values, ids=lambda entry: entry["id"])
+def test_retrieval_per_question(eval_entry: dict, seeded_corpus: dict, seeded_retriever) -> None:
     """
     One test per question in retrieval_eval_set.json.
 

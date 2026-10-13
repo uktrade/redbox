@@ -1,6 +1,8 @@
 # ruff: noqa: E402
 from __future__ import annotations
 
+import json
+
 # Bootstrap — MUST come before any redbox.* imports.
 # The dotenv plugin (tryfirst) loads tests/.env.test from the repo root which
 # sets DJANGO_SETTINGS_MODULE=redbox_app.settings.
@@ -58,7 +60,7 @@ BASELINE_PATH = EVAL_DIR / "baselines" / "baseline.json"
 EVAL_INDEX = "redbox-data-eval"
 EVAL_S3_PREFIX = "eval-corpus"
 
-
+eval_entries_values = json.loads(DATASET_PATH.read_text())
 # ---------------------------------------------------------------------------
 # Pipeline helpers
 # ---------------------------------------------------------------------------
