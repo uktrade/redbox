@@ -9,7 +9,7 @@ is deterministic, zero-cost, and requires no LLM judge for the primary signal.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 
 from langchain_core.documents import Document
 
@@ -47,22 +47,7 @@ class RetrievalScores:
     first_relevant_rank: int | None = None
 
     def to_dict(self) -> dict:
-        return {
-            "question_id": self.question_id,
-            "hit_at_1": self.hit_at_1,
-            "hit_at_5": self.hit_at_5,
-            "hit_at_10": self.hit_at_10,
-            "hit_at_30": self.hit_at_30,
-            "mrr": self.mrr,
-            "precision_at_5": self.precision_at_5,
-            "precision_at_10": self.precision_at_10,
-            "ndcg_at_5": self.ndcg_at_5,
-            "ndcg_at_10": self.ndcg_at_10,
-            "mean_score": self.mean_score,
-            "score_at_relevant": self.score_at_relevant,
-            "num_retrieved": self.num_retrieved,
-            "first_relevant_rank": self.first_relevant_rank,
-        }
+        return asdict(self)
 
 
 def hit_rate_at_k(docs: list[Document], relevant_snippets: list[str], k: int) -> float:
