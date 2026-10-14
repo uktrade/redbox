@@ -45,9 +45,9 @@ Redbox utilises health checks to ensure that the services are running correctly.
 
     You can then repeat the run command above.
 
-## Step 6: **Setting up MinIO**
+## Step 6: **Setting up MinIO (Silo)**
 
-MinIO is an object storage server that is compatible with Amazon S3. It is used to store the documents that are used by the application. To set up MinIO, you can navigate to [`http://localhost:9003`](http://localhost:9003) in your browser. You should see the following screen:
+Redbox uses Silo, the community fork of MinIO, as its local object storage server. It is compatible with Amazon S3 and is used to store the documents that are used by the application. To access it, navigate to http://localhost:9003 in your browser. You should see the following screen:
 
 ![MinIO Login](../../assets/minio_login.png)
 
