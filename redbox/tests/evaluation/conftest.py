@@ -21,10 +21,12 @@ from tests.evaluation.eval_pipeline import (
     build_env,
     build_vector_store,
     cleanup_corpus,
+    compute_scores,
     ingest_corpus,
+    make_eval_state,
     make_retriever,
 )
-from tests.evaluation.metrics.report import EvalReport
+from tests.evaluation.metrics.report import EvalReport, RetrievalScores
 
 from redbox.chains.components import get_embeddings
 from redbox.models.chain import AISettings
@@ -85,19 +87,22 @@ def seeded_retriever_no_gaussian(
     return make_retriever(eval_env, eval_es_client, eval_embeddings, enable_document_query=False)
 
 
-# @pytest.fixture(scope="session")
-# def retrieval_results(
-#     eval_dataset: list[dict],
-#     seeded_corpus: dict,
-#     seeded_retriever,
-#     eval_report,
-# ) -> dict[str, RetrievalScores]:
-#     all_uris = list(seeded_corpus.values())
-#     results: dict[str, RetrievalScores] = {}
-#     for entry in eval_dataset:
-#         state = make_eval_state(entry["question"], all_uris)
-#         retrieved = seeded_retriever.invoke(state)
-#         scores = compute_scores
+@pytest.fixture(scope="session")
+def retrieval_results(
+    eval_dataset: list[dict],
+    seeded_corpus: dict,
+    seeded_retriever,
+    eval_report,
+) -> dict[str, RetrievalScores]:
+    all_uris = list(seeded_corpus.values())
+    results: dict[str, RetrievalScores] = {}
+    for entry in eval_dataset:
+        state = make_eval_state(entry["question"], all_uris)
+        retrieved = seeded_retriever.invoke(state)
+        scores = compute_scores(entry["id"], retrieved, entry["relevant_snippets"])
+        eval_report.record(scores, difficulty=entry.get("difficulty", "unknown"))
+        results[entry["id"]] = scores
+    return results
 
 
 @pytest.fixture(scope="session")

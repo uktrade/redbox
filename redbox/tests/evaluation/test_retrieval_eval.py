@@ -36,82 +36,22 @@ def test_retrieval_corpus_ingested(seeded_corpus: dict) -> None:
 
 
 @pytest.mark.ai
-def test_retrieval_all_questions(
-    eval_dataset: list[dict],
-    seeded_corpus: dict,
-    seeded_retriever,
-    baseline: dict,
-    eval_report,
-) -> None:
-    """
-    Run every question in retrieval_eval_set.json through the retriever.
-
-    Collects per-question scores into eval_report (written at session teardown).
-    The test fails only if any question finds zero relevant chunks in top-30 —
-    a complete miss, not a ranking issue.
-    """
-    all_uris = list(seeded_corpus.values())
-    failures: list[str] = []
-
+def test_retrieval_all_questions(eval_dataset, retrieval_results, baseline, eval_report):
+    failures = []
     for entry in eval_dataset:
-        state = make_eval_state(entry["question"], all_uris)
-        retrieved = seeded_retriever.invoke(state)
-
-        scores = compute_scores(
-            question_id=entry["id"],
-            retrieved=retrieved,
-            relevant_snippets=entry["relevant_snippets"],
-        )
-        eval_report.record(scores, difficulty=entry.get("difficulty", "unknown"))
-
+        scores = retrieval_results[entry["id"]]  # read from cache
         if scores.hit_at_30 == 0.0:
-            failures.append(
-                f"[{entry['id']} / {entry.get('difficulty')}] No relevant chunk in top-30 for: {entry['question']!r}"
-            )
-
-    if failures:
-        pytest.fail(
-            f"{len(failures)}/{len(eval_dataset)} questions returned no relevant chunk:\n"
-            + "\n".join(f"  • {f}" for f in failures)
-        )
+            failures.append(f"[{entry['id']} / {entry.get('difficulty')}] ...")
+    assert not failures, ...
 
 
 @pytest.mark.ai
-@pytest.mark.parametrize("eval_entry", eval_entries_values, ids=lambda entry: entry["id"])
-def test_retrieval_per_question(eval_entry: dict, seeded_corpus: dict, seeded_retriever) -> None:
-    """
-    One test per question in retrieval_eval_set.json.
-
-    Pass threshold:
-      easy / medium  → relevant chunk must appear in top-5
-      hard           → relevant chunk must appear in top-10
-    """
-    all_uris = list(seeded_corpus.values())
-    state = make_eval_state(eval_entry["question"], all_uris)
-    retrieved = seeded_retriever.invoke(state)
-
-    scores = compute_scores(
-        question_id=eval_entry["id"],
-        retrieved=retrieved,
-        relevant_snippets=eval_entry["relevant_snippets"],
-    )
-
-    difficulty = eval_entry.get("difficulty", "easy")
-    k_threshold = 10 if difficulty == "hard" else 5
-
-    assert scores.first_relevant_rank is not None, (
-        f"[{eval_entry['id']}] No relevant chunk found in any retrieved results.\n"
-        f"Question: {eval_entry['question']!r}\n"
-        f"Relevant snippets: {eval_entry['relevant_snippets']}\n"
-        f"Retrieved {scores.num_retrieved} chunks."
-    )
-
-    assert scores.first_relevant_rank <= k_threshold, (
-        f"[{eval_entry['id']} / {difficulty}] Relevant chunk at rank "
-        f"{scores.first_relevant_rank}, expected within top-{k_threshold}.\n"
-        f"Question: {eval_entry['question']!r}\n"
-        f"Score at relevant chunk: {scores.score_at_relevant}"
-    )
+@pytest.mark.parametrize("eval_entry", eval_entries_values, ids=lambda e: e["id"])
+def test_retrieval_per_question(eval_entry, retrieval_results):
+    scores = retrieval_results[eval_entry["id"]]  # read from cache
+    k_threshold = 10 if eval_entry.get("difficulty") == "hard" else 5
+    assert scores.first_relevant_rank is not None, ...
+    assert scores.first_relevant_rank <= k_threshold, ...
 
 
 # Ablation: Gaussian re-ranking ON vs OFF
