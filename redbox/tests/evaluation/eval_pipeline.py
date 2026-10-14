@@ -188,14 +188,14 @@ def make_retriever(
     es: OpenSearch,
     embeddings,
     *,
-    enable_document_query: bool = True,
+    enable_gaussian_boosting: bool = True,
 ) -> ParameterisedElasticsearchRetriever:
     return ParameterisedElasticsearchRetriever(
         es_client=es,
         index_name=EVAL_INDEX,
         embedding_model=embeddings,
         embedding_field_name=env.embedding_document_field_name,
-        enable_document_query=enable_document_query,
+        enable_gaussian_boosting=enable_gaussian_boosting,
     )
 
 

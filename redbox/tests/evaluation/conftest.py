@@ -84,7 +84,7 @@ def seeded_retriever_no_gaussian(
     eval_embeddings,
     seeded_corpus: dict,
 ) -> ParameterisedElasticsearchRetriever:
-    return make_retriever(eval_env, eval_es_client, eval_embeddings, enable_document_query=False)
+    return make_retriever(eval_env, eval_es_client, eval_embeddings, enable_gaussian_boosting=False)
 
 
 @pytest.fixture(scope="session")
