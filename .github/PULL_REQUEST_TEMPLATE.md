@@ -19,7 +19,7 @@
 
 ## Docker validation
  
-To help prevent breaking changes from being introduced, both the PR developer and reviewer should run the changes in Docker and confirm they work successfully.
+To help prevent breaking changes from being introduced, both the PR developer and reviewer should run and test all modifications locally in Docker containers to ensure they behave consistently with production.
  
 - [ ] PR developer has run the changes in Docker and confirmed they work successfully
 - [ ] PR reviewer has run the changes in Docker and confirmed they work successfully
