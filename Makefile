@@ -305,7 +305,7 @@ eval-query-index: ## Browse chunks in the inspect index (set INDEX= and/or KEYWO
 .PHONY: eval-update-baseline
 eval-update-baseline: ## Promote latest eval report to baseline.json
 	cp redbox/tests/evaluation/reports/eval_report_latest.json \
-	   redbox/tests/evaluation/baseline/baseline.json
+	   redbox/tests/evaluation/baselines/baseline.json
 	@echo "Baseline updated. Review the diff and commit it"
 
 .PHONY: help
