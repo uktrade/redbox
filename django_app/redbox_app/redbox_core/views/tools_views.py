@@ -15,11 +15,15 @@ from django.views.decorators.http import require_http_methods
 from django.views.generic import CreateView, FormView, UpdateView
 
 from redbox_app.redbox_core.forms import ToolAccessRuleForm, ToolSettingsForm, UserToolBulkAddForm, UserToolForm
-from redbox_app.redbox_core.models import Tool, ToolAccessRule, UserTool
+from redbox_app.redbox_core.models import FileTool, Tool, ToolAccessRule, UserTool
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.services import url as url_service
 from redbox_app.redbox_core.utils import is_htmx_request
-from redbox_app.redbox_core.views.mixins import AppContextMixin, ToolManagerRequiredMixin
+from redbox_app.redbox_core.views.mixins import (
+    AppContextMixin,
+    SuperuserToolManagerRequiredMixin,
+    ToolManagerRequiredMixin,
+)
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -70,6 +74,9 @@ class ToolSettingsView(LoginRequiredMixin, ToolManagerRequiredMixin, AppContextM
                 "tool_access_rules": ToolAccessRule.objects.filter(tool=tool),
                 "add_tool_access_rule_url": url_service.get_add_tool_access_rule_url(slug=tool.slug),
                 "bulk_add_user_tool_url": url_service.get_bulk_add_user_tool_url(slug=tool.slug),
+                "knowledge_base_files": FileTool.objects.filter(
+                    tool=tool, file_type=FileTool.FileType.ADMIN
+                ).select_related("file"),
             }
         )
 
@@ -155,6 +162,26 @@ class ToolAccessRuleDeleteView(LoginRequiredMixin, ToolManagerRequiredMixin, Vie
             return HttpResponse(status=HTTPStatus.OK)
 
         return redirect(reverse("tool-settings", kwargs={"slug": kwargs["slug"]}, fragment="access-rules"))
+
+    def post(self, request, *args, **kwargs):
+        return self.delete(request, *args, **kwargs)
+
+
+class ToolKnowledgeBaseFileDeleteView(LoginRequiredMixin, SuperuserToolManagerRequiredMixin, View):
+    def delete(self, request, **kwargs):
+        file_tool = get_object_or_404(
+            FileTool,
+            pk=kwargs["file_tool_id"],
+            tool__slug=kwargs["slug"],
+            file_type=FileTool.FileType.ADMIN,
+        )
+
+        file_tool.delete()
+
+        if is_htmx_request(request):
+            return HttpResponse(status=HTTPStatus.OK)
+
+        return redirect(reverse("tool-settings", kwargs={"slug": kwargs["slug"]}, fragment="knowledge-base"))
 
     def post(self, request, *args, **kwargs):
         return self.delete(request, *args, **kwargs)
