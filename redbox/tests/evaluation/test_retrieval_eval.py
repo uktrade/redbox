@@ -24,6 +24,7 @@ from pathlib import Path
 
 import pytest
 from tests.evaluation.eval_pipeline import eval_entries_values, make_eval_state
+from tests.evaluation.metrics.report import REGRESSION_TOLERANCE, compare_to_baseline
 from tests.evaluation.metrics.retrieval import RetrievalScores, compute_scores
 
 
@@ -43,6 +44,22 @@ def test_retrieval_all_questions(eval_dataset, retrieval_results, baseline, eval
         if scores.hit_at_30 == 0.0:
             failures.append(f"[{entry['id']} / {entry.get('difficulty')}] ...")
     assert not failures, ...
+
+
+@pytest.mark.ai
+def test_retrieval_no_regression(eval_report, baseline: dict) -> None:
+    if not baseline.get("aggregate"):
+        pytest.skip(
+            "baseline.json has no aggregate scores. "
+            "Run the eval once, then copy eval_report_latest.json -> baselines/baseline.json"
+        )
+    agg = eval_report.aggregate()
+    regressions = compare_to_baseline(agg, baseline)
+    if regressions:
+        pytest.fail(
+            f"Retrieval regression detected (tolerance={REGRESSION_TOLERANCE:.0%}):\n"
+            + "\n".join(f" • {r}" for r in regressions)
+        )
 
 
 @pytest.mark.ai

@@ -302,6 +302,12 @@ eval-query-index: ## Browse chunks in the inspect index (set INDEX= and/or KEYWO
 		$$([ -n "$(KEYWORD)" ] && echo "--keyword '$(KEYWORD)'")\
 		$$([ -n "$(URI)" ] && echo "--uri '$(URI)'")\
 
+.PHONY: eval-update-baseline
+eval-update-baseline: ## Promote latest eval report to baseline.json
+	cp redbox/tests/evaluation/reports/eval_report_latest.json \
+	   redbox/tests/evaluation/baseline/baseline.json
+	@echo "Baseline updated. Review the diff and commit it"
+
 .PHONY: help
 help: ## Show this help
 	@ grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(makefile_name) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1,$$2}'
