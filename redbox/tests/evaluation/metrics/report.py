@@ -524,14 +524,30 @@ def compare_to_baseline(
     baseline: dict,
     tolerance: float = REGRESSION_TOLERANCE,
 ) -> list[str]:
-    """Return a list of regression messages (empty = no regressions)."""
+    """Return regression or missing-baseline messages (empty = all good)."""
     regressions = []
     baseline_agg = baseline.get("aggregate", {})
 
-    for metric in ("hit_at_5", "hit_at_10", "hit_at_30", "mrr", "ndcg_at_5", "ndcg_at_10"):
+    metrics = (
+        "hit_at_1",
+        "hit_at_5",
+        "hit_at_10",
+        "hit_at_30",
+        "mrr",
+        "precision_at_5",
+        "precision_at_10",
+        "ndcg_at_5",
+        "ndcg_at_10",
+        "mean_score",
+    )
+
+    for metric in metrics:
         current = getattr(agg, metric)
         base = baseline_agg.get(metric)
-        if base is not None and current < base - tolerance:
+
+        if base is None:
+            regressions.append(f"{metric}: Missing from baseline configuration.")
+        elif current < base - tolerance:
             regressions.append(
                 f"{metric}: {current:.3f} < baseline {base:.3f} (drop {base - current:.3f} > tolerance {tolerance:.3f})"
             )
