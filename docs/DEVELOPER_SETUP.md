@@ -131,15 +131,13 @@ export PATH="$HOME/.local/bin:$PATH"
 ## Install Project Dependencies with Poetry [*Required]
 
 Currently, we use [poetry](https://python-poetry.org/) to manage our python packages. There are 4 `pyproject.toml`s
-
-- [redbox](https://github.com/i-dot-ai/redbox/blob/main/redbox/pyproject.toml) - core AI package
-- [django-app](https://github.com/i-dot-ai/redbox/blob/main/django_app/pyproject.toml) - django webserver and background worker
-- [root](https://github.com/i-dot-ai/redbox/blob/main/pyproject.toml) - Integration tests, QA, and docs
-- [notebooks](https://github.com/uktrade/redbox/blob/main/notebooks/pyproject.toml) - Jupyter notebooks
+- [redbox](https://github.com/uktrade/redbox/blob/dev/redbox/pyproject.toml) - core AI package
+- [django-app](https://github.com/uktrade/redbox/blob/dev/django_app/pyproject.toml) - django webserver and background worker
+- [root](https://github.com/uktrade/redbox/blob/dev/pyproject.toml) - Integration tests, QA, and docs
+- [notebooks](https://github.com/uktrade/redbox/blob/dev/notebooks/pyproject.toml) - Jupyter notebooks
 
 ### Local Install
-
-Once Python has been configured and installed using either `pyenv` or `asdf`, and Poetry installed - from each applications root directory (`django_app`, `redbox`, `notebooks`), run the following:
+Once Python has been configured and installed using either `pyenv` or `asdf`, and Poetry installed,  `cd` into each applications root directory (`django_app`, `redbox`, `notebooks`) and run the following:
 
 ```bash
 poetry install
@@ -166,8 +164,7 @@ poetry env info
 VSCode is the IDE of choice. The `.vscode/` directory is used for defining project-wide VSCode IDE settings.
 
 ### Python Interpreter [*Required]
-
-Ensure your python interpreter is set to the root venv Python binary (should be `./venv/bin/python` or `./.venv/bin/python`).
+Ensure your [python interpreter](https://share.google/aimode/lL57GamcySlEY3Ax5) is set to the root venv Python binary (should be `./venv/bin/python` or `./.venv/bin/python`).
 
 #### Verify Setup
 
@@ -193,18 +190,50 @@ We use `.env` files to populate the environment variables for local development.
 To run the project:
 
 - `cp .env.example .env`
-- `cp .aws/credentials.example .aws/credentials`
 
-Then set the relevant environment variables.
+Comment out the following variables:
+```Text
+#WEB_SEARCH_API_LIMIT=
+#MAX_ATTEMPTS =
+#MAX_USER_UPLOADED_FILES=
+#MAX_KNOWLEDGE_BASE_FILES=
+```
+In order to set up a proper sso-session and profile blocks, first copy the credential example in the code base as
+```bash
+cp .aws/credentials.example .aws/credentials
+```
+Ensure you can login into aws console, then interactively build the sso session block by configuring sso with the following command:
 
-Typically this involves setting the following variables in .aws/credentials (after running `cp .aws/credentials.example .aws/credentials`):
+```bash
+aws configure sso
+```
+The above command will start an interactive shell. Fill the fields as shown below
 
-- `AWS_ACCESS_KEY`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_SESSION_TOKEN`
-- `AWS_CREDENTIAL_EXPIRATION` - default 30
+```text
+SO session name (Recommended): dbt-sso
+SSO start URL [None]: https://uktrade.awsapps.com/start
+SSO region [None]: eu-west-2
+SSO registration scopes [sso:account:access]:
+```
 
-It is best to leave hostnames out of the .env file. These are then set manually by vscode tasks or pulled from a deployment .env like .env.test/.env.integration
+Once the sso-session details are entered as shown above, the flow would open a browser which would allow user to authenticate. Once the authentication completes, it prompts the user to choose one of the profiles available within AWS. Choosing a profile should create a config file with neccessary authentication and profile blocks within the user home directory. Confirm successful completion by running:
+
+```bash
+cat ~/.aws/config
+```
+
+Then run the login command to obtain temporary credentials for your chosen profile. For redbox profile, run:
+
+```bash
+AWS_PROFILE=redbox make aws-login
+```
+The command will write the credentials withn the codebase directory `.aws/credentials`. To confirm that permission is granted, list buckets using the profile above.
+
+```bash
+aws s3 ls --profile redbox
+```
+Listing of the buckets confirm successful completion of the credential set up.
+
 
 ### Backend Profiles
 
@@ -306,6 +335,25 @@ You can also choose to run the project with the VSCode Python Debugger, allowing
 1. Go to `Run and Debug` tab on left side of VSCode window
 2. Go to green play button dropdown and select `Full Stack Dev (Frontend + Django)`
 3. Click play button - should spin up dependency containers, build frontend, and then run main app with python debugger
+
+* If you run into an error with the shell mismatch like below:
+
+the shell executable can be modified to use a specific shell. The example below forces VSCode to use zsh
+
+```bash
+        {
+            "label": "npm-run-dev",
+            "type": "shell",
+            "command": "npm run dev",
+            "options": {
+                "cwd": "${workspaceFolder}/django_app/frontend",
+                "shell": {       
+                    "executable": "/bin/zsh",       
+                    "args": ["-ic"]     
+                    }   
+            }
+         },
+```
 
 #### 3. Run the worker
 
