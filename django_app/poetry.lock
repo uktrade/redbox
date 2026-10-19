@@ -10287,14 +10287,14 @@ tutorials = ["matplotlib", "pandas", "tabulate"]
 
 [[package]]
 name = "twisted"
-version = "26.4.0rc2"
+version = "26.4.0"
 description = "An asynchronous networking framework written in Python"
 optional = false
 python-versions = ">=3.9.12"
 groups = ["main"]
 files = [
-    {file = "twisted-26.4.0rc2-py3-none-any.whl", hash = "sha256:41eeb62a7f2688c634f7a1af76e225c58da48f8af1640fcb285ce386a96889e2"},
-    {file = "twisted-26.4.0rc2.tar.gz", hash = "sha256:d1db6c391a1b6e70028c3212298178621db149a6f75555f6503da557c763406d"},
+    {file = "twisted-26.4.0-py3-none-any.whl", hash = "sha256:dc25ea0ebf6511c24f03232ee9f4afa54b291c5d897990e3a39cc4d14a1ef4c0"},
+    {file = "twisted-26.4.0.tar.gz", hash = "sha256:dbfd0fe1ee409d0243fdd7a6a6ff14f4948cec1fd78e0376291f805e1501fae9"},
 ]
 
 [package.dependencies]
