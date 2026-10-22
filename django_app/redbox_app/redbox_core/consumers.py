@@ -104,7 +104,18 @@ def escape_curly_brackets(text: str):
 
 @database_sync_to_async
 def get_latest_complete_file(ref: str) -> File:
-    return File.objects.filter(original_file__endswith=ref, status=File.Status.complete).order_by("-created_at").first()
+    """Validate that ref is a non-empty string, then return the latest complete file matching the ref"""
+    if not isinstance(ref, str) or not ref.strip():
+        return None
+
+    return (
+        File.objects.filter(
+            original_file__endswith=ref,
+            status=File.Status.complete,
+        )
+        .order_by("-created_at")
+        .first()
+    )
 
 
 @database_sync_to_async
@@ -722,7 +733,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             payload = MessageUpdateResponse(
                 chat_message_id=self.chat_message.id if self.chat_message else None,
-                sr_text=safe_text,
+                sr_text=message_service.remove_dangling_citation(safe_text),
                 html=await self.render_message_html(),
             )
             await self.send_to_client("message_update", payload)
@@ -748,7 +759,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             payload = MessageUpdateResponse(
                 chat_message_id=self.chat_message.id if self.chat_message else None,
-                sr_text=safe_text,
+                sr_text=message_service.remove_dangling_citation(safe_text),
                 html=await self.render_message_html(),
             )
 
@@ -778,12 +789,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def handle_documents(self, response: list[Document]):
         """
-        Map documents used to create answer to AICitations for storing as citations
+        Validate and map documents used to create answer to AICitations for storing as citations.
         """
         sources_by_resource_ref: dict[str, Document] = defaultdict(list)
 
         for document in response:
             ref = document.metadata.get("uri")
+
+            if not isinstance(ref, str) or not ref.strip():
+                logger.warning("Skipping retrieved document without a valid socurce URI")
+                continue
+
             sources_by_resource_ref[ref].append(document)
 
         for ref, sources in sources_by_resource_ref.items():
@@ -834,20 +850,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def handle_citations(self, citations: list[AICitation]):
         """
-        Map AICitations used to create answer to AICitations for storing as citations. The link to user files
-        must be populated
+        Validate citation sources, then map citations.
         """
-        for c in citations:
-            for s in c.sources:
+
+        for citation in citations:
+            for source in citation.sources:
+                if not isinstance(source.source, str) or not source.source.strip():
+                    continue
+
                 try:
                     # Use the async database query function
-                    file = await self.get_file_cached(s.source)
+                    file = await self.get_file_cached(source.source)
+
                 except File.DoesNotExist:
                     file = None
 
                 await self.create_citations(
                     file=file,
-                    ai_citation=AICitation(sources=[s]),
+                    ai_citation=AICitation(sources=[source]),
                 )
 
         self.citations = await self.chat_message.aget_citations()
