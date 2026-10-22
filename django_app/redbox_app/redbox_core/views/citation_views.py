@@ -13,6 +13,7 @@ from redbox_app.redbox_core.services import chats as chat_service
 
 logger = logging.getLogger(__name__)
 
+
 class CitationFileDownloadView(View):
     @method_decorator(login_required)
     def get(self, request: HttpRequest, citation_id: uuid.UUID) -> FileResponse:
@@ -28,6 +29,8 @@ class CitationFileDownloadView(View):
             as_attachment=True,
             filename=citation.file.file_name,
         )
+
+
 class CitationsView(View):
     @method_decorator(login_required)
     def get(
