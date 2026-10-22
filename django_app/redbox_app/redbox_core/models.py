@@ -1561,6 +1561,13 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
             slug=slug,
         )
 
+    @property
+    def file_download_url(self) -> str:
+        if self.file is None:
+            return ""
+        
+        return reverse("citation-file-download", kwargs={"citation_id": self.id})
+
     @cached_property
     def display_name(self) -> str:
         if self.file:
