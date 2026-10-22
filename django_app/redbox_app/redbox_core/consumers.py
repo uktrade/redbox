@@ -791,14 +791,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 # Use the async database query function
                 file = await self.get_file_cached(ref)
                 if file:
-                    payload = {"url": str(file.url), "file_name": file.file_name}
+                    payload = {"url": "", "file_name": file.file_name}
                 else:
                     # If no file with Status.complete is found, handle it as None
-                    payload = {"url": ref, "file_name": None}
+                    payload = {"url": "", "file_name": None}
 
                 response_sources = [
                     Source(
-                        source=str(file.url if file else ref),
+                        source=ref,
                         source_type=Citation.Origin.USER_UPLOADED_DOCUMENT,
                         document_name=file.file_name if file else ref.split("/")[-1],
                         highlighted_text_in_source=cited_chunk.page_content,
@@ -808,7 +808,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 ]
             except File.DoesNotExist:
                 file = None
-                payload = {"url": ref, "file_name": None}
+                payload = {"url": "", "file_name": None}
                 response_sources = [
                     Source(
                         source=cited_chunk.metadata["uri"],
@@ -820,13 +820,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     for cited_chunk in sources
                 ]
 
-            await self.create_citations(
+            created_citations = await self.create_citations(
                 file=file,
                 ai_citation=AICitation(
                     text_in_answer="",
                     sources=response_sources,
                 ),
             )
+
+            if file and created_citations:
+                payload["url"] = created_citations[0].file_download_url
 
             self.citations = await self.chat_message.aget_citations()
             payload["citations"] = self.citations
