@@ -790,11 +790,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             try:
                 # Use the async database query function
                 file = await self.get_file_cached(ref)
-                if file:
-                    payload = {"url": "", "file_name": file.file_name}
-                else:
-                    # If no file with Status.complete is found, handle it as None
-                    payload = {"url": "", "file_name": None}
+                payload = {"url": "", "file_name": file.file_name} if file else {"url": "", "file_name": None}
 
                 response_sources = [
                     Source(
