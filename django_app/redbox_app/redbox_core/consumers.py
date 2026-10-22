@@ -788,7 +788,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         for ref, sources in sources_by_resource_ref.items():
             try:
-                # Use the async database query function
+                # use the async database query function
                 file = await self.get_file_cached(ref)
                 payload = {"url": "", "file_name": file.file_name} if file else {"url": "", "file_name": None}
 
