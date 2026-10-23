@@ -102,9 +102,33 @@ def escape_curly_brackets(text: str):
     return text.replace("{", "{{").replace("}", "}}")
 
 
+def resolve_citable_file(ref: str | None, citable_files: Sequence[File]) -> File | None:
+    """Match a citation reference to one of the files this request was allowed to use.
+
+    The reference is either a retriever uri or free text produced by the LLM, so it should not be used to
+    search all files: an empty or partial reference would otherwise match another user's document.
+    """
+    ref = (ref or "").strip()
+    if not ref:
+        return None
+
+    for file in citable_files:
+        if file.original_file.name == ref:
+            return file
+
+    # the LLM sometimes drops the "<email>/" prefix or uses the display name; only accept an unambiguous match
+    ref_name = ref.rsplit("/", 1)[-1]
+    matches = {
+        file.id: file
+        for file in citable_files
+        if ref_name in (file.original_file.name.rsplit("/", 1)[-1], file.original_file_name)
+    }
+    return next(iter(matches.values())) if len(matches) == 1 else None
+
+
 @database_sync_to_async
-def get_latest_complete_file(ref: str) -> File:
-    return File.objects.filter(original_file__endswith=ref, status=File.Status.complete).order_by("-created_at").first()
+def get_complete_file(file_id: UUID) -> File | None:
+    return File.objects.filter(id=file_id, status=File.Status.complete).first()
 
 
 @database_sync_to_async
@@ -122,7 +146,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def get_file_cached(self, ref):
         if ref not in self._file_cache:
-            self._file_cache[ref] = await get_latest_complete_file(ref)
+            file = resolve_citable_file(ref, self._citable_files)
+            self._file_cache[ref] = await get_complete_file(file.id) if file else None
         return self._file_cache[ref]
 
     async def _init_session(self, data, user, user_message_text, chat_backend, temperature):
@@ -163,6 +188,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.close(code=4001)
             return
         self._file_cache = {}
+        self._citable_files: list[File] = []
         self.full_reply = []
         self.converted_reply = []
         self.citations: list[Citation] = []
