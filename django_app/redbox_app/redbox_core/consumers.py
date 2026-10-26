@@ -115,7 +115,7 @@ def resolve_citable_file(ref: str | None, citable_files: Sequence[File]) -> File
         if file.original_file.name == ref:
             return file
 
-    # the LLM sometimes drops the "<email>/" prefix or uses the display name; only accept an unambiguous match
+    # If LLM drops the "<email>/" prefix or uses the display name (possible?); only accept an unambiguous match
     ref_name = ref.rsplit("/", 1)[-1]
     matches = {
         file.id: file
