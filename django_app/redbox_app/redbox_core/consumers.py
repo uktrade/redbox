@@ -105,8 +105,7 @@ def escape_curly_brackets(text: str):
 def resolve_citable_file(ref: str | None, citable_files: Sequence[File]) -> File | None:
     """Match a citation reference to one of the files this request was allowed to use.
 
-    The reference is either a retriever uri or free text produced by the LLM, so it should not be used to
-    search all files: an empty or partial reference would otherwise match another user's document.
+    The reference is either a retriever uri or free text produced by the LLM.
     """
     ref = (ref or "").strip()
     if not ref:
@@ -423,6 +422,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         selected_agent_names: list[str] | None = None,
     ) -> None:
         """Initiate & close websocket conversation with the core-api message endpoint."""
+        # citation should only link to files the retriever was permitted to search for this user/request
+        self._citable_files = [*permitted_files, *knowledge_files]
         await self.send_to_client("session-id", session.id)
         session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
         message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
@@ -869,6 +870,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     file = await self.get_file_cached(s.source)
                 except File.DoesNotExist:
                     file = None
+
+                if file is None and Citation.Origin.try_parse(s.source_type) == Citation.Origin.USER_UPLOADED_DOCUMENT:
+                    logger.warning("dropping citation %s: source does not match a permitted file", s.ref_id)
+                    continue
 
                 await self.create_citations(
                     file=file,
