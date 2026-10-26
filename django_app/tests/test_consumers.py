@@ -180,9 +180,12 @@ async def test_chat_consumer_with_existing_session(
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
-async def test_chat_consumer_with_naughty_question(
+async def test_chat_consumer_replaces_null_byte_in_question(
     agents_list: list, alice: User, uploaded_file: File, mocked_connect: ClientConnection
 ):
+    """
+    Before saving the user's question null bytes are replaced with a safe replacement character.
+    """
     # Given
     message = "Hello Hal."
     # When
@@ -204,9 +207,12 @@ async def test_chat_consumer_with_naughty_question(
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
-async def test_chat_consumer_with_naughty_citation(
-    agents_list: list, alice: User, uploaded_file: File, mocked_connect_with_naughty_citation: ClientConnection
+async def test_chat_consumer_handles_response_without_citations(
+    agents_list: list, alice: User, uploaded_file: File, mocked_connect_without_citations: ClientConnection
 ):
+    """
+    Chat consumer can handle LLM responses that don't include citations.
+    """
     # Given
     message = "Hello Hal."
 
@@ -218,9 +224,7 @@ async def test_chat_consumer_with_naughty_citation(
         connected, _ = await communicator.connect()
         assert connected
 
-        with patch(
-            "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_with_naughty_citation
-        ):
+        with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_without_citations):
             await assert_mocked_connect_response(communicator=communicator, message=message)
 
         assert await get_chat_message_text(alice, ChatMessage.Role.user) == [message]
@@ -733,7 +737,7 @@ def mocked_connect() -> ClientConnection:
 
 
 @pytest.fixture
-def mocked_connect_with_naughty_citation() -> CannedGraphLLM:
+def mocked_connect_without_citations() -> CannedGraphLLM:
     responses = [
         {
             "event": "on_chat_model_stream",
