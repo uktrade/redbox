@@ -239,7 +239,7 @@ async def test_chat_consumer_handles_response_without_citations(
 )
 @pytest.mark.asyncio
 async def test_handle_citations_skips_empty_sources(invalid_source):
-    """Chat consumer ignores citations from LLM that have an empty string as a source."""
+    """handle_citations passes over citations from LLM that have an empty string as a source."""
 
     # Given: ChatConsumer receives a citation with an empty string source
     consumer = ChatConsumer()
@@ -272,7 +272,7 @@ async def test_handle_citations_skips_empty_sources(invalid_source):
 
 @pytest.mark.asyncio
 async def test_handle_citations_keeps_valid_sources():
-    """Chat consumer ignores invalid sources and processes valid ones."""
+    """handle_citations ignores invalid sources and processes valid ones."""
 
     # Given: ChatConsumer receives citations with valid and invalid sources
     consumer = ChatConsumer()
@@ -316,6 +316,64 @@ async def test_handle_citations_keeps_valid_sources():
     consumer.chat_message.aget_citations.assert_awaited_once()
     consumer.send_to_client.assert_awaited_once()
     assert consumer.send_to_client.await_args.args[0] == "source"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_get_latest_complete_file_matches_filename(
+    several_files: Sequence[File],
+):
+    """A valid complete filename returns the matching file."""
+
+    # Given: The database contains completed files
+    expected_file = several_files[0]
+    file_reference = expected_file.original_file.name
+
+    # When: get_latest_complete_file is passed a completed file's full name
+    result = await consumers_module.get_latest_complete_file(file_reference)
+
+    # Then: The correct file is returned
+    assert result is not None
+    assert result.pk == expected_file.pk
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_get_latest_complete_file_matches_filename_suffix(
+    several_files: Sequence[File],
+):
+    """Returns the most recently completed file whose filename ends with the search string."""
+
+    # Given: The database contains completed files
+
+    # When: get_latest_complete_file is passed a string that matches the final characters of completed files' filenames
+    result = await consumers_module.get_latest_complete_file(".txt")
+
+    # Then: The matching file that was most recently added to the database is returned
+    expected_file = several_files[-1]
+    assert result is not None
+    assert result.pk == expected_file.pk
+
+
+@pytest.mark.parametrize(
+    "invalid_source",
+    ["", "   "],
+)
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("several_files")
+async def test_get_latest_complete_file_rejects_empty_reference(
+    invalid_source,
+):
+    """Empty sources are not used to look up files in the database."""
+
+    # Given: The database contains completed files
+
+    # When: get_latest_complete_file() is called with citations that have empty sources
+    result = await consumers_module.get_latest_complete_file(invalid_source)
+
+    # Then: No file should be returned
+    assert result is None
 
 
 @pytest.mark.django_db(transaction=True)
