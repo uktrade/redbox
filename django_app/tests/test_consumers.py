@@ -26,7 +26,7 @@ from redbox.models.prompts import CHAT_MAP_QUESTION_PROMPT
 from redbox.models.settings import ChatLLMBackend as PydanticChatLLMBackend
 from redbox_app.redbox_core import consumers as consumers_module
 from redbox_app.redbox_core import error_messages
-from redbox_app.redbox_core.consumers import ChatConsumer
+from redbox_app.redbox_core.consumers import ChatConsumer, resolve_citable_file
 from redbox_app.redbox_core.models import ActivityEvent, Chat, ChatMessage, ChatMessageTokenUse, File
 from redbox_app.redbox_core.models import Chat as ChatModel
 from redbox_app.redbox_core.models import ChatMessage as ChatMessageModel
@@ -101,6 +101,23 @@ async def assert_mocked_connect_response(communicator: WebsocketCommunicator, me
 
     # Close
     await communicator.disconnect()
+
+
+def test_resolve_citable_file_only_matches_permitted_files():
+    report = File(original_file="alice@example.com/report_20250101.pdf", original_file_name="report.pdf")
+    notes = File(original_file="alice@example.com/notes_20250101.pdf", original_file_name="notes.pdf")
+    files = [report, notes]
+
+    assert resolve_citable_file("alice@example.com/report_20250101.pdf", files) is report
+    assert resolve_citable_file("report_20250101.pdf", files) is report
+    assert resolve_citable_file("report.pdf", files) is report
+
+    # confirm unwanted instances return None
+    assert resolve_citable_file("", files) is None
+    assert resolve_citable_file("   ", files) is None
+    assert resolve_citable_file(None, files) is None
+    assert resolve_citable_file("pdf", files) is None
+    assert resolve_citable_file("bob@example.com/secret_20250101.pdf", files) is None
 
 
 @pytest.mark.django_db(transaction=True)
