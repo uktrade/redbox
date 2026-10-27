@@ -376,6 +376,65 @@ async def test_get_latest_complete_file_rejects_empty_reference(
     assert result is None
 
 
+@pytest.mark.parametrize(
+    ("documents", "expected_uris"),
+    [
+        (
+            [
+                Document(page_content="Invalid document 1", metadata={"uri": ""}),
+                Document(page_content="Invalid document 2", metadata={"uri": "   "}),
+                Document(page_content="Invalid document 3", metadata={}),
+            ],
+            [],
+        ),
+        (
+            [
+                Document(page_content="Valid document 1", metadata={"uri": "report_1.pdf"}),
+                Document(page_content="Valid document 2", metadata={"uri": "report_2.odt"}),
+            ],
+            ["report_1.pdf", "report_2.odt"],
+        ),
+        (
+            [
+                Document(page_content="Invalid document 1", metadata={"uri": ""}),
+                Document(page_content="Valid document 1", metadata={"uri": "report_1.pdf"}),
+                Document(page_content="Invalid document 2", metadata={"uri": "   "}),
+                Document(page_content="Valid document 2", metadata={"uri": "report_2.odt"}),
+                Document(page_content="Invalid document 3", metadata={}),
+            ],
+            ["report_1.pdf", "report_2.odt"],
+        ),
+    ],
+    ids=["all_invalid", "all_valid", "mixed_valid_and)_invalid"],
+)
+@pytest.mark.asyncio
+async def test_handle_documents_only_processes_valid_source_uris(documents, expected_uris):
+    """handle_documents processes documents with valid source URIs and skips those without."""
+
+    # Given: Chat consumer
+    consumer = ChatConsumer()
+    consumer.chat_message = MagicMock()
+    consumer.chat_message.aget_citations = AsyncMock(return_value=[])
+    consumer.get_file_cached = AsyncMock(return_value=None)
+    consumer.create_citations = AsyncMock()
+    consumer.send_to_client = AsyncMock()
+
+    # When: The consumer processes documents
+    await consumer.handle_documents(documents)
+
+    # Then: Only valid URIs are searched
+    searched_uris = [call.args[0] for call in consumer.get_file_cached.await_args_list]
+    assert searched_uris == expected_uris
+
+    # Then: Only valid URIs are passed into citation creation
+    processed_uris = [
+        source.source
+        for call in consumer.create_citations.await_args_list
+        for source in call.kwargs["ai_citation"].sources
+    ]
+    assert processed_uris == expected_uris
+
+
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_chat_consumer_anonymous_user_error_message():
