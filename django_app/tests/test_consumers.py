@@ -120,6 +120,13 @@ def test_resolve_citable_file_only_matches_permitted_files():
     assert resolve_citable_file("bob@example.com/secret_20250101.pdf", files) is None
 
 
+def test_resolve_citable_file_rejects_ambiguous_names():
+    first = File(original_file="alice@example.com/report_1.pdf", original_file_name="report.pdf")
+    second = File(original_file="alice@example.com/report_2.pdf", original_file_name="report.pdf")
+
+    assert resolve_citable_file("report.pdf", [first, second]) is None
+
+
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
 async def test_chat_consumer_with_new_session(
