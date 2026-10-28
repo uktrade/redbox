@@ -129,6 +129,7 @@ async def assert_mocked_connect_response(communicator: WebsocketCommunicator, me
 
 
 def test_resolve_citable_file_only_matches_permitted_files():
+    """Resolve full storage keys and filenames only against permitted files."""
     report = File(original_file="alice@example.com/report_20250101.pdf", original_file_name="report.pdf")
     notes = File(original_file="alice@example.com/notes_20250101.pdf", original_file_name="notes.pdf")
     files = [report, notes]
@@ -146,6 +147,7 @@ def test_resolve_citable_file_only_matches_permitted_files():
 
 
 def test_resolve_citable_file_rejects_ambiguous_names():
+    """Reject filename references that match more than one permitted file."""
     first = File(original_file="alice@example.com/report_1.pdf", original_file_name="report.pdf")
     second = File(original_file="alice@example.com/report_2.pdf", original_file_name="report.pdf")
 
@@ -1293,6 +1295,7 @@ async def test_handle_citations_never_links_another_users_file(
     bob_file: File,
     caplog,
 ):
+    """Drop invalid or unauthorised uploaded-file citations without savng them."""
     consumer = make_citation_consumer(ai_message, [alice_file])
 
     refs = [
@@ -1340,6 +1343,7 @@ async def test_handle_citations_keeps_external_citations(
     ai_message: ChatMessage,
     alice_file: File,
 ):
+    """Save external citations as URLs rather than linking them to uploaded files."""
     consumer = make_citation_consumer(ai_message, [alice_file])
 
     sources = [
@@ -1355,10 +1359,9 @@ async def test_handle_citations_keeps_external_citations(
             source_type=Citation.Origin.WIKIPEDIA,
             ref_id="ref_2",
         ),
-        # "DataHub" has no Citation.Origin, so it is stored as Unverified.
         Source(
             source=DATAHUB_URL,
-            source_type="DataHub",
+            source_type=Citation.Origin.DATAHUB,
             ref_id="ref_3",
         ),
     ]
@@ -1382,6 +1385,6 @@ async def test_handle_citations_keeps_external_citations(
             "ref_3",
             None,
             DATAHUB_URL,
-            Citation.Origin.UNVERIFIED,
+            Citation.Origin.DATAHUB,
         ),
     ]
