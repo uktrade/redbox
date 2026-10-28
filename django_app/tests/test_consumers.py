@@ -13,6 +13,7 @@ from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import Model
 from django.utils import timezone
 from langchain_core.documents import Document
@@ -20,14 +21,15 @@ from tests.consumers_helpers import CannedGraphLLM, Token
 from websockets.asyncio.client import ClientConnection
 
 from redbox.models.chain import AISettings as PydanticAISettings
-from redbox.models.chain import LLMCallMetadata, RedboxQuery, RequestMetadata
+from redbox.models.chain import Citation as AICitation
+from redbox.models.chain import LLMCallMetadata, RedboxQuery, RequestMetadata, Source
 from redbox.models.graph import FINAL_RESPONSE_TAG, ROUTE_NAME_TAG, RedboxActivityEvent
 from redbox.models.prompts import CHAT_MAP_QUESTION_PROMPT
 from redbox.models.settings import ChatLLMBackend as PydanticChatLLMBackend
 from redbox_app.redbox_core import consumers as consumers_module
 from redbox_app.redbox_core import error_messages
-from redbox_app.redbox_core.consumers import ChatConsumer
-from redbox_app.redbox_core.models import ActivityEvent, Chat, ChatMessage, ChatMessageTokenUse, File
+from redbox_app.redbox_core.consumers import ChatConsumer, resolve_citable_file
+from redbox_app.redbox_core.models import ActivityEvent, Chat, ChatMessage, ChatMessageTokenUse, Citation, File
 from redbox_app.redbox_core.models import Chat as ChatModel
 from redbox_app.redbox_core.models import ChatMessage as ChatMessageModel
 
@@ -35,6 +37,31 @@ User = get_user_model()
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
+
+GOV_UK_URL = "https://www.gov.uk/guidance/trade-tariff"
+DATAHUB_URL = "https://datahub.trade.gov.uk/companies/0f5b4d1e/overview"
+
+
+def make_file(user: User, name: str) -> File:
+    """Create a complete uploaded file belonging to the specified User."""
+    return File.objects.create(
+        user=user,
+        original_file=SimpleUploadedFile(name, b"Lorem Ipsum."),
+        status=File.Status.complete,
+    )
+
+
+def make_citation_consumer(
+    chat_message: ChatMessage,
+    citable_files: list[File],
+) -> ChatConsumer:
+    """Create a chat consumer configured with a message and permitted citation files."""
+    consumer = ChatConsumer()
+    consumer._file_cache = {}  # noqa: SLF001
+    consumer._citable_files = citable_files  # noqa: SLF001
+    consumer.chat_message = chat_message
+    consumer.send_to_client = AsyncMock()
+    return consumer
 
 
 @database_sync_to_async
@@ -101,6 +128,32 @@ async def assert_mocked_connect_response(communicator: WebsocketCommunicator, me
 
     # Close
     await communicator.disconnect()
+
+
+def test_resolve_citable_file_only_matches_permitted_files():
+    """Resolve full storage keys and filenames only against permitted files."""
+    report = File(original_file="alice@example.com/report_20250101.pdf", original_file_name="report.pdf")
+    notes = File(original_file="alice@example.com/notes_20250101.pdf", original_file_name="notes.pdf")
+    files = [report, notes]
+
+    assert resolve_citable_file("alice@example.com/report_20250101.pdf", files) is report
+    assert resolve_citable_file("report_20250101.pdf", files) is report
+    assert resolve_citable_file("report.pdf", files) is report
+
+    # confirm unwanted instances return None
+    assert resolve_citable_file("", files) is None
+    assert resolve_citable_file("   ", files) is None
+    assert resolve_citable_file(None, files) is None
+    assert resolve_citable_file("pdf", files) is None
+    assert resolve_citable_file("bob@example.com/secret_20250101.pdf", files) is None
+
+
+def test_resolve_citable_file_rejects_ambiguous_names():
+    """Reject filename references that match more than one permitted file."""
+    first = File(original_file="alice@example.com/report_1.pdf", original_file_name="report.pdf")
+    second = File(original_file="alice@example.com/report_2.pdf", original_file_name="report.pdf")
+
+    assert resolve_citable_file("report.pdf", [first, second]) is None
 
 
 @pytest.mark.django_db(transaction=True)
@@ -697,6 +750,37 @@ def get_chat_messages(user: User) -> Sequence[ChatMessage]:
     )
 
 
+@database_sync_to_async
+def saved_citations(chat_message: ChatMessage) -> list[tuple]:
+    """Return the saved citations for a message in creation order."""
+    return list(
+        Citation.objects.filter(chat_message=chat_message)
+        .order_by("created_at")
+        .values_list("citation_name", "file_id", "url", "source")
+    )
+
+
+@pytest.fixture
+def ai_message(chat: Chat) -> ChatMessage:
+    # A clean AI message: unlike `chat_message`, nothing has created a
+    # Citation row on it yet.
+    return ChatMessage.objects.create(
+        chat=chat,
+        text="An answer.",
+        role=ChatMessage.Role.ai,
+    )
+
+
+@pytest.fixture
+def alice_file(alice: User) -> File:
+    return make_file(alice, "alice_report.txt")
+
+
+@pytest.fixture
+def bob_file(bob: User) -> File:
+    return make_file(bob, "bob_secret.txt")
+
+
 @pytest.fixture
 def mocked_connect() -> ClientConnection:
     responses = [
@@ -1204,3 +1288,106 @@ async def test_llm_conversation_multiple_users_get_correct_sso_token():
 
     finally:
         ChatConsumer.redbox = original_redbox
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_handle_citations_never_links_another_users_file(
+    ai_message: ChatMessage,
+    alice_file: File,
+    bob_file: File,
+    caplog,
+):
+    """Drop invalid or unauthorised uploaded-file citations without savng them."""
+    consumer = make_citation_consumer(ai_message, [alice_file])
+
+    refs = [
+        "",
+        "txt",
+        bob_file.original_file.name,
+        alice_file.original_file.name,
+    ]
+
+    sources = [
+        Source(
+            source=ref,
+            source_type=Citation.Origin.USER_UPLOADED_DOCUMENT,
+            ref_id=f"ref_{i}",
+        )
+        for i, ref in enumerate(refs, start=1)
+    ]
+
+    with caplog.at_level(
+        logging.WARNING,
+        logger="redbox_app.redbox_core.consumers",
+    ):
+        await consumer.handle_citations([AICitation(sources=sources)])
+
+    # Only Alice's own file is saved; empty, junk and Bob's key are
+    # dropped entirely.
+    assert await saved_citations(ai_message) == [
+        (
+            "ref_4",
+            alice_file.id,
+            None,
+            Citation.Origin.USER_UPLOADED_DOCUMENT,
+        )
+    ]
+
+    for ref_id in ("ref_1", "ref_2", "ref_3"):
+        assert (f"dropping citation {ref_id}: source does not match a permitted file") in caplog.text
+
+    assert "dropping citation ref_4" not in caplog.text
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_handle_citations_keeps_external_citations(
+    ai_message: ChatMessage,
+    alice_file: File,
+):
+    """Save external citations as URLs rather than linking them to uploaded files."""
+    consumer = make_citation_consumer(ai_message, [alice_file])
+
+    sources = [
+        # URL ends in the display name, but must
+        # stay an external citation.
+        Source(
+            source=GOV_UK_URL,
+            source_type=Citation.Origin.GOV_UK,
+            ref_id="ref_1",
+        ),
+        Source(
+            source="https://en.wikipedia.org/wiki/Trade",
+            source_type=Citation.Origin.WIKIPEDIA,
+            ref_id="ref_2",
+        ),
+        Source(
+            source=DATAHUB_URL,
+            source_type=Citation.Origin.DATAHUB,
+            ref_id="ref_3",
+        ),
+    ]
+
+    await consumer.handle_citations([AICitation(sources=sources)])
+
+    assert await saved_citations(ai_message) == [
+        (
+            "ref_1",
+            None,
+            GOV_UK_URL,
+            Citation.Origin.GOV_UK,
+        ),
+        (
+            "ref_2",
+            None,
+            "https://en.wikipedia.org/wiki/Trade",
+            Citation.Origin.WIKIPEDIA,
+        ),
+        (
+            "ref_3",
+            None,
+            DATAHUB_URL,
+            Citation.Origin.DATAHUB,
+        ),
+    ]
