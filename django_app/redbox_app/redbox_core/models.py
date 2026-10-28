@@ -1454,6 +1454,7 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         USER_UPLOADED_DOCUMENT = "UserUploadedDocument", _("user uploaded document")
         GOV_UK = "GOV.UK", _("gov.uk")
         WEB_SEARCH = "WebSearch", _("Web Search")
+        DATAHUB = "DataHub", _("DataHub")
         UNVERIFIED = "Unverified", _("Unverified")
 
         @classmethod
