@@ -43,6 +43,7 @@ DATAHUB_URL = "https://datahub.trade.gov.uk/companies/0f5b4d1e/overview"
 
 
 def make_file(user: User, name: str) -> File:
+    """Create a complete uploaded file belonging to the specified User."""
     return File.objects.create(
         user=user,
         original_file=SimpleUploadedFile(name, b"Lorem Ipsum."),
@@ -54,6 +55,7 @@ def make_citation_consumer(
     chat_message: ChatMessage,
     citable_files: list[File],
 ) -> ChatConsumer:
+    """Create a chat consumer configured with a message and permitted citation files."""
     consumer = ChatConsumer()
     consumer._file_cache = {}  # noqa: SLF001
     consumer._citable_files = citable_files  # noqa: SLF001
@@ -750,6 +752,7 @@ def get_chat_messages(user: User) -> Sequence[ChatMessage]:
 
 @database_sync_to_async
 def saved_citations(chat_message: ChatMessage) -> list[tuple]:
+    """Return the saved citations for a message in creation order."""
     return list(
         Citation.objects.filter(chat_message=chat_message)
         .order_by("created_at")
