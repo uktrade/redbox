@@ -55,7 +55,7 @@ build-django-static: ## Build django-app static files
 	cd django_app/ && poetry run python manage.py collectstatic --noinput
 
 .PHONY: test-integration
-test-integration:
+test-integration: ## Run all Playright tests. Add parameter TEST=<test file name> to run one specific test file.
 	docker compose down opensearch db sso minio
 	docker compose up -d --wait opensearch db sso minio
 	cd django_app/frontend && \
@@ -64,7 +64,7 @@ test-integration:
 	cd .. && \
 	poetry install && \
 	poetry run playwright install --with-deps chromium && \
-	DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest tests/playwright -rP --browser chromium --tracing retain-on-failure --video on --screenshot on
+	DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest tests/playwright$(if $(TEST),/$(TEST)) -rP --browser chromium --tracing retain-on-failure --video on --screenshot on
 
 .PHONY: test-integration-debug
 test-integration-debug:
@@ -74,6 +74,8 @@ test-integration-debug:
 	poetry install && \
 	poetry run playwright install --with-deps chromium && \
 	PWDEBUG=1 DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest tests/playwright -rP  --headed --browser chromium --tracing retain-on-failure --video on --screenshot on
+
+
 
 .PHONY: collect-static
 collect-static:
