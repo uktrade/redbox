@@ -1602,6 +1602,7 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
             self.Origin.USER_UPLOADED_DOCUMENT.value: "Document",
             self.Origin.GOV_UK.value: "GOV.UK",
             self.Origin.WEB_SEARCH.value: "Web",
+            self.Origin.DATAHUB.value: "DataHub",
         }
 
         return source_names.get(
