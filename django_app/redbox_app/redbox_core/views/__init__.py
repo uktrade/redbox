@@ -13,7 +13,7 @@ from redbox_app.redbox_core.views.chat_views import (
     DeleteChat,
     UpdateChatFeedback,
 )
-from redbox_app.redbox_core.views.citation_views import CitationsView
+from redbox_app.redbox_core.views.citation_views import CitationFileDownloadView, CitationsView
 from redbox_app.redbox_core.views.demographics_views import (
     CheckDemographicsView,
     DemographicsView,
@@ -81,6 +81,7 @@ __all__ = [
     "ChatsTitleView",
     "ChatsView",
     "CheckDemographicsView",
+    "CitationFileDownloadView",
     "CitationsView",
     "DeleteChat",
     "DemographicsView",

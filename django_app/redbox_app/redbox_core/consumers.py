@@ -102,20 +102,32 @@ def escape_curly_brackets(text: str):
     return text.replace("{", "{{").replace("}", "}}")
 
 
-@database_sync_to_async
-def get_latest_complete_file(ref: str) -> File:
-    """Validate that ref is a non-empty string, then return the latest complete file matching the ref"""
-    if not isinstance(ref, str) or not ref.strip():
+def resolve_citable_file(ref: str | None, citable_files: Sequence[File]) -> File | None:
+    """Match a citation reference to one of the files this request was allowed to use.
+
+    The reference is either a retriever uri or free text produced by the LLM.
+    """
+    ref = (ref or "").strip()
+    if not ref:
         return None
 
-    return (
-        File.objects.filter(
-            original_file__endswith=ref,
-            status=File.Status.complete,
-        )
-        .order_by("-created_at")
-        .first()
-    )
+    for file in citable_files:
+        if file.original_file.name == ref:
+            return file
+
+    # If LLM drops the "<email>/" prefix or uses the display name (possible?); only accept an unambiguous match
+    ref_name = ref.rsplit("/", 1)[-1]
+    matches = {
+        file.id: file
+        for file in citable_files
+        if ref_name in (file.original_file.name.rsplit("/", 1)[-1], file.original_file_name)
+    }
+    return next(iter(matches.values())) if len(matches) == 1 else None
+
+
+@database_sync_to_async
+def get_complete_file(file_id: UUID) -> File | None:
+    return File.objects.filter(id=file_id, status=File.Status.complete).first()
 
 
 @database_sync_to_async
@@ -133,7 +145,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def get_file_cached(self, ref):
         if ref not in self._file_cache:
-            self._file_cache[ref] = await get_latest_complete_file(ref)
+            file = resolve_citable_file(ref, self._citable_files)
+            self._file_cache[ref] = await get_complete_file(file.id) if file else None
         return self._file_cache[ref]
 
     async def _init_session(self, data, user, user_message_text, chat_backend, temperature):
@@ -174,6 +187,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.close(code=4001)
             return
         self._file_cache = {}
+        self._citable_files: list[File] = []
         self.full_reply = []
         self.converted_reply = []
         self.citations: list[Citation] = []
@@ -408,6 +422,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         selected_agent_names: list[str] | None = None,
     ) -> None:
         """Initiate & close websocket conversation with the core-api message endpoint."""
+        # citation should only link to files the retriever was permitted to search for this user/request
+        self._citable_files = [*permitted_files, *knowledge_files]
         await self.send_to_client("session-id", session.id)
         session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
         message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
@@ -804,17 +820,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         for ref, sources in sources_by_resource_ref.items():
             try:
-                # Use the async database query function
+                # use the async database query function
                 file = await self.get_file_cached(ref)
-                if file:
-                    payload = {"url": str(file.url), "file_name": file.file_name}
-                else:
-                    # If no file with Status.complete is found, handle it as None
-                    payload = {"url": ref, "file_name": None}
+                payload = {"url": "", "file_name": file.file_name} if file else {"url": "", "file_name": None}
 
                 response_sources = [
                     Source(
-                        source=str(file.url if file else ref),
+                        source=ref,
                         source_type=Citation.Origin.USER_UPLOADED_DOCUMENT,
                         document_name=file.file_name if file else ref.split("/")[-1],
                         highlighted_text_in_source=cited_chunk.page_content,
@@ -824,7 +836,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 ]
             except File.DoesNotExist:
                 file = None
-                payload = {"url": ref, "file_name": None}
+                payload = {"url": "", "file_name": None}
                 response_sources = [
                     Source(
                         source=cited_chunk.metadata["uri"],
@@ -836,13 +848,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     for cited_chunk in sources
                 ]
 
-            await self.create_citations(
+            created_citations = await self.create_citations(
                 file=file,
                 ai_citation=AICitation(
                     text_in_answer="",
                     sources=response_sources,
                 ),
             )
+
+            if file and created_citations:
+                payload["url"] = created_citations[0].file_download_url
 
             self.citations = await self.chat_message.aget_citations()
             payload["citations"] = self.citations
@@ -864,6 +879,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
                 except File.DoesNotExist:
                     file = None
+
+                if (
+                    file is None
+                    and Citation.Origin.try_parse(source.source_type) == Citation.Origin.USER_UPLOADED_DOCUMENT
+                ):
+                    logger.warning("dropping citation %s: source does not match a permitted file", source.ref_id)
+                    continue
 
                 await self.create_citations(
                     file=file,
