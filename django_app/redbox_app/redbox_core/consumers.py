@@ -813,7 +813,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             ref = document.metadata.get("uri")
 
             if not isinstance(ref, str) or not ref.strip():
-                logger.warning("Skipping retrieved document without a valid socurce URI")
+                logger.warning("Skipping retrieved document without a valid source URI")
                 continue
 
             sources_by_resource_ref[ref].append(document)
