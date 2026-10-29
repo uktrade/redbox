@@ -865,25 +865,28 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def handle_citations(self, citations: list[AICitation]):
         """
-        Validate citation sources, then map citations.
+        Remove invalid citations returned from the LLM, then map valid citations.
         """
 
         for citation in citations:
             for source in citation.sources:
+                # Remove citation if source isn't a populated string
                 if not isinstance(source.source, str) or not source.source.strip():
+                    logger.warning("dropping citation %s: source is not a populated string", source.ref_id)
                     continue
 
+                # Remove citition if source origin = knowledge base or user upload & file doesn't exist
                 try:
-                    # Use the async database query function
+                    # Use the async database query function to check file exists
                     file = await self.get_file_cached(source.source)
 
                 except File.DoesNotExist:
                     file = None
 
-                if (
-                    file is None
-                    and Citation.Origin.try_parse(source.source_type) == Citation.Origin.USER_UPLOADED_DOCUMENT
-                ):
+                if file is None and Citation.Origin.try_parse(source.source_type) in [
+                    Citation.Origin.USER_UPLOADED_DOCUMENT,
+                    Citation.Origin.UNVERIFIED,
+                ]:
                     logger.warning("dropping citation %s: source does not match a permitted file", source.ref_id)
                     continue
 
