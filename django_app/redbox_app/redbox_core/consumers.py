@@ -102,9 +102,32 @@ def escape_curly_brackets(text: str):
     return text.replace("{", "{{").replace("}", "}}")
 
 
+def resolve_citable_file(ref: str | None, citable_files: Sequence[File]) -> File | None:
+    """Match a citation reference to one of the files this request was allowed to use.
+
+    The reference is either a retriever uri or free text produced by the LLM.
+    """
+    ref = (ref or "").strip()
+    if not ref:
+        return None
+
+    for file in citable_files:
+        if file.original_file.name == ref:
+            return file
+
+    # If LLM drops the "<email>/" prefix or uses the display name (possible?); only accept an unambiguous match
+    ref_name = ref.rsplit("/", 1)[-1]
+    matches = {
+        file.id: file
+        for file in citable_files
+        if ref_name in (file.original_file.name.rsplit("/", 1)[-1], file.original_file_name)
+    }
+    return next(iter(matches.values())) if len(matches) == 1 else None
+
+
 @database_sync_to_async
-def get_latest_complete_file(ref: str) -> File:
-    return File.objects.filter(original_file__endswith=ref, status=File.Status.complete).order_by("-created_at").first()
+def get_complete_file(file_id: UUID) -> File | None:
+    return File.objects.filter(id=file_id, status=File.Status.complete).first()
 
 
 @database_sync_to_async
@@ -122,7 +145,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def get_file_cached(self, ref):
         if ref not in self._file_cache:
-            self._file_cache[ref] = await get_latest_complete_file(ref)
+            file = resolve_citable_file(ref, self._citable_files)
+            self._file_cache[ref] = await get_complete_file(file.id) if file else None
         return self._file_cache[ref]
 
     async def _init_session(self, data, user, user_message_text, chat_backend, temperature):
@@ -163,6 +187,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.close(code=4001)
             return
         self._file_cache = {}
+        self._citable_files: list[File] = []
         self.full_reply = []
         self.converted_reply = []
         self.citations: list[Citation] = []
@@ -397,6 +422,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         selected_agent_names: list[str] | None = None,
     ) -> None:
         """Initiate & close websocket conversation with the core-api message endpoint."""
+        # citation should only link to files the retriever was permitted to search for this user/request
+        self._citable_files = [*permitted_files, *knowledge_files]
         await self.send_to_client("session-id", session.id)
         session_messages = ChatMessage.objects.filter(chat=session).order_by("created_at")
         message_history: Sequence[Mapping[str, str]] = [message async for message in session_messages]
@@ -722,7 +749,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             payload = MessageUpdateResponse(
                 chat_message_id=self.chat_message.id if self.chat_message else None,
-                sr_text=safe_text,
+                sr_text=message_service.remove_dangling_citation(safe_text),
                 html=await self.render_message_html(),
             )
             await self.send_to_client("message_update", payload)
@@ -748,7 +775,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
             payload = MessageUpdateResponse(
                 chat_message_id=self.chat_message.id if self.chat_message else None,
-                sr_text=safe_text,
+                sr_text=message_service.remove_dangling_citation(safe_text),
                 html=await self.render_message_html(),
             )
 
@@ -778,12 +805,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def handle_documents(self, response: list[Document]):
         """
-        Map documents used to create answer to AICitations for storing as citations
+        Validate and map documents used to create answer to AICitations for storing as citations.
         """
         sources_by_resource_ref: dict[str, Document] = defaultdict(list)
 
         for document in response:
             ref = document.metadata.get("uri")
+
+            if not isinstance(ref, str) or not ref.strip():
+                logger.warning("Skipping retrieved document without a valid source URI")
+                continue
+
             sources_by_resource_ref[ref].append(document)
 
         for ref, sources in sources_by_resource_ref.items():
@@ -833,20 +865,34 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def handle_citations(self, citations: list[AICitation]):
         """
-        Map AICitations used to create answer to AICitations for storing as citations. The link to user files
-        must be populated
+        Remove invalid citations returned from the LLM, then map valid citations.
         """
-        for c in citations:
-            for s in c.sources:
+
+        for citation in citations:
+            for source in citation.sources:
+                # Remove citation if source isn't a populated string
+                if not isinstance(source.source, str) or not source.source.strip():
+                    logger.warning("dropping citation %s: source is not a populated string", source.ref_id)
+                    continue
+
+                # Remove citition if source origin = knowledge base or user upload & file doesn't exist
                 try:
-                    # Use the async database query function
-                    file = await self.get_file_cached(s.source)
+                    # Use the async database query function to check file exists
+                    file = await self.get_file_cached(source.source)
+
                 except File.DoesNotExist:
                     file = None
 
+                if file is None and Citation.Origin.try_parse(source.source_type) in [
+                    Citation.Origin.USER_UPLOADED_DOCUMENT,
+                    Citation.Origin.UNVERIFIED,
+                ]:
+                    logger.warning("dropping citation %s: source does not match a permitted file", source.ref_id)
+                    continue
+
                 await self.create_citations(
                     file=file,
-                    ai_citation=AICitation(sources=[s]),
+                    ai_citation=AICitation(sources=[source]),
                 )
 
         self.citations = await self.chat_message.aget_citations()
