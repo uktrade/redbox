@@ -165,6 +165,18 @@ poetry env info
 
 VSCode is the IDE of choice. The `.vscode/` directory is used for defining project-wide VSCode IDE settings.
 
+### VDE Port forwarding [*Required]
+
+As the project runs on a VDE, you must ensure you have correctly setup port forwarding using the [instructions](https://uktrade.atlassian.net/wiki/spaces/AW/pages/5037457435/Port+forwarding+problems). At the time of writing, the ports that need to be forwarded are:
+- 8001
+- 9002
+- 9003
+- 8080
+- 5432
+- 5601
+- 9200
+- 5678
+
 ### Python Interpreter [*Required]
 
 Ensure your python interpreter is set to the root venv Python binary (should be `./venv/bin/python` or `./.venv/bin/python`).
