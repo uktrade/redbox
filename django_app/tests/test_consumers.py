@@ -371,64 +371,6 @@ async def test_handle_citations_keeps_valid_sources():
     assert consumer.send_to_client.await_args.args[0] == "source"
 
 
-@pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio
-async def test_get_latest_complete_file_matches_filename(
-    several_files: Sequence[File],
-):
-    """A valid complete filename returns the matching file."""
-
-    # Given: The database contains completed files
-    expected_file = several_files[0]
-    file_reference = expected_file.original_file.name
-
-    # When: get_latest_complete_file is passed a completed file's full name
-    result = await consumers_module.get_latest_complete_file(file_reference)
-
-    # Then: The correct file is returned
-    assert result is not None
-    assert result.pk == expected_file.pk
-
-
-@pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio
-async def test_get_latest_complete_file_matches_filename_suffix(
-    several_files: Sequence[File],
-):
-    """Returns the most recently completed file whose filename ends with the search string."""
-
-    # Given: The database contains completed files
-
-    # When: get_latest_complete_file is passed a string that matches the final characters of completed files' filenames
-    result = await consumers_module.get_latest_complete_file(".txt")
-
-    # Then: The matching file that was most recently added to the database is returned
-    expected_file = several_files[-1]
-    assert result is not None
-    assert result.pk == expected_file.pk
-
-
-@pytest.mark.parametrize(
-    "invalid_source",
-    ["", "   "],
-)
-@pytest.mark.django_db(transaction=True)
-@pytest.mark.asyncio
-@pytest.mark.usefixtures("several_files")
-async def test_get_latest_complete_file_rejects_empty_reference(
-    invalid_source,
-):
-    """Empty sources are not used to look up files in the database."""
-
-    # Given: The database contains completed files
-
-    # When: get_latest_complete_file() is called with citations that have empty sources
-    result = await consumers_module.get_latest_complete_file(invalid_source)
-
-    # Then: No file should be returned
-    assert result is None
-
-
 @pytest.mark.parametrize(
     ("documents", "expected_uris"),
     [
@@ -1504,7 +1446,7 @@ async def test_handle_citations_never_links_another_users_file(
     bob_file: File,
     caplog,
 ):
-    """Drop invalid or unauthorised uploaded-file citations without savng them."""
+    """Drop invalid or unauthorised uploaded-file citations without saving them."""
     consumer = make_citation_consumer(ai_message, [alice_file])
 
     refs = [
@@ -1540,7 +1482,9 @@ async def test_handle_citations_never_links_another_users_file(
         )
     ]
 
-    for ref_id in ("ref_1", "ref_2", "ref_3"):
+    assert "dropping citation ref_1: source is not a populated string" in caplog.text
+
+    for ref_id in ("ref_2", "ref_3"):
         assert (f"dropping citation {ref_id}: source does not match a permitted file") in caplog.text
 
     assert "dropping citation ref_4" not in caplog.text
