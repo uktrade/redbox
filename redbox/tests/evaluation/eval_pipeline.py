@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+
 # Bootstrap — MUST come before any redbox.* imports.
 # The dotenv plugin (tryfirst) loads tests/.env.test from the repo root which
 # sets DJANGO_SETTINGS_MODULE=redbox_app.settings.
@@ -208,7 +209,7 @@ def make_eval_state(
         s3_keys=all_uris,
         user_uuid=uuid4(),
         chat_history=[],
-         ai_settings=ai_settings if ai_settings is not None else AISettings(),
+        ai_settings=ai_settings if ai_settings is not None else AISettings(),
         permitted_s3_keys=all_uris,
     )
     return RedboxState(request=query, messages=[HumanMessage(content=question)])

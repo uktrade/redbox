@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redbox Generation Eval — 2026-10-30 11:20:01</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+           background: #f1f5f9; color: #1e293b; font-size: 14px; line-height: 1.5; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px 16px; }
+    header { background: #1e293b; color: #f8fafc; border-radius: 8px; padding: 20px 24px; margin-bottom: 20px; }
+    header h1 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+    .meta { font-size: 12px; color: #94a3b8; margin-bottom: 12px; }
+    .meta span { margin-right: 16px; }
+    .verdict { display: inline-block; padding: 4px 14px; border-radius: 20px; font-weight: 700; font-size: 13px; }
+    .verdict.pass   { background: #22c55e; color: #fff; }
+    .verdict.review { background: #f59e0b; color: #fff; }
+    .cards { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .card { flex: 1 1 160px; background: #fff; border-radius: 8px; padding: 16px; border-left: 4px solid #cbd5e1; text-align: center; }
+    .card.good { border-left-color: #22c55e; }
+    .card.warn { border-left-color: #f59e0b; }
+    .card.poor { border-left-color: #ef4444; }
+    .card-label { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #64748b; margin-bottom: 4px; }
+    .card-value { font-size: 28px; font-weight: 700; }
+    .card.good .card-value { color: #16a34a; }
+    .card.warn .card-value { color: #d97706; }
+    .card.poor .card-value { color: #dc2626; }
+    .card-note { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+    section { background: #fff; border-radius: 8px; padding: 20px 24px; margin-bottom: 16px; }
+    h2 { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 8px 10px; border-bottom: 2px solid #e2e8f0; color: #475569; font-weight: 600; }
+    td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .target-col { text-align: center; font-size: 12px; color: #64748b; }
+    tr.good td { background: #f0fdf4; }
+    tr.warn td { background: #fffbeb; }
+    tr.poor td { background: #fef2f2; }
+    .question-text { max-width: 280px; font-size: 12px; color: #334155; }
+    .note { font-size: 11px; color: #94a3b8; margin-top: 8px; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Redbox RAG Generation Evaluation</h1>
+    <div class="meta">
+      <span>Run: 2026-10-30 11:20:01 UTC</span>
+      <span>Git: <code>5c4d8da9</code></span>
+      <span>10 questions</span>
+    </div>
+    <span class="verdict pass">PASS</span>
+  </header>
+  <div class="cards"><div class="card good"><div class="card-label">Faithfulness</div><div class="card-value">1.000</div><div class="card-note">target &gt; 0.70</div></div><div class="card good"><div class="card-label">Answer Relevance</div><div class="card-value">0.800</div><div class="card-note">target &gt; 0.70</div></div><div class="card good"><div class="card-label">Context Precision</div><div class="card-value">0.474</div><div class="card-note">target &gt; 0.40</div></div><div class="card good"><div class="card-label">Context Recall</div><div class="card-value">0.950</div><div class="card-note">target &gt; 0.60</div></div></div>
+  <section>
+    <h2>What these metrics mean</h2>
+    <p style="font-size:13px;color:#475569;margin-bottom:12px;">
+      All scores are produced by Claude (Bedrock) acting as an LLM judge.
+      Scores range 0–1; higher is better.
+    </p>
+    <table>
+      <thead><tr><th>Metric</th><th>Target</th><th>Plain English</th></tr></thead>
+      <tbody><tr><td><strong>Faithfulness</strong></td><td class="target-col">&gt; 0.70</td><td>Are claims in the answer supported by retrieved chunks? Measures hallucination risk.</td></tr><tr><td><strong>Answer Relevance</strong></td><td class="target-col">&gt; 0.70</td><td>Does the answer address the question? Measures whether the LLM stayed on topic.</td></tr><tr><td><strong>Context Precision</strong></td><td class="target-col">&gt; 0.40</td><td>Of the retrieved chunks, how many were actually needed? Measures retrieval noise.</td></tr><tr><td><strong>Context Recall</strong></td><td class="target-col">&gt; 0.60</td><td>Does the retrieved context contain all information from the expected answer? Measures coverage.</td></tr></tbody>
+    </table>
+  </section>
+  <section>
+    <h2>Per-Question Results</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Condensed Query</th><th>Answer (preview)</th>
+          <th>Faith.</th><th>Rel.</th><th>Prec.</th><th>Rec.</th><th>Cite</th>
+        </tr>
+      </thead>
+      <tbody><tr class="poor"><td>cptpp_001</td><td class="question-text">What is the estimated long-run annual increase in UK GDP from CPTPP membership?</td><td class="question-text"></td><td class="num">1.00</td><td class="num">0.00</td><td class="num">0.77</td><td class="num">1.00</td><td class="num">0</td></tr><tr class="good"><td>cptpp_002</td><td class="question-text">How many countries are currently members of the Comprehensive and Progressive Ag…</td><td class="question-text">The current CPTPP membership includes 11 economies: Australia, Brunei, Canada, Chile, Japan, Malaysia, Mexico, New Zeala…</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">0.39</td><td class="num">1.00</td><td class="num">1</td></tr><tr class="good"><td>cptpp_003</td><td class="question-text">What percentage of UK goods exports will be tariff-free under the CPTPP agreemen…</td><td class="question-text">According to the provided documents, over 99% of current UK goods exports to CPTPP members will be eligible for tariff-f…</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">0.34</td><td class="num">1.00</td><td class="num">2</td></tr><tr class="poor"><td>cptpp_004</td><td class="question-text">What is the total combined GDP of all member countries in the Comprehensive and …</td><td class="question-text"></td><td class="num">1.00</td><td class="num">0.00</td><td class="num">0.58</td><td class="num">1.00</td><td class="num">0</td></tr><tr class="good"><td>cptpp_005</td><td class="question-text">How much is bilateral trade between the UK and CPTPP members expected to increas…</td><td class="question-text">According to the provided documents, bilateral trade (exports and imports) between the UK and all CPTPP countries is exp…</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">0.28</td><td class="num">1.00</td><td class="num">3</td></tr><tr class="good"><td>cptpp_006</td><td class="question-text">What is the estimated impact of the Comprehensive and Progressive Agreement for …</td><td class="question-text">According to the documents, real take-home pay for UK workers is estimated to increase by around 0.1%, which is equivale…</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">0.42</td><td class="num">1.00</td><td class="num">5</td></tr><tr class="good"><td>cptpp_007</td><td class="question-text">What is the estimated annual reduction in tariff duties on UK exports under the …</td><td class="question-text">According to the provided documents, the estimated annual reduction in tariff duties on current UK exports under CPTPP i…</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">0.76</td><td class="num">1.00</td><td class="num">1</td></tr><tr class="good"><td>cptpp_008</td><td class="question-text">What is the projected increase in global greenhouse gas emissions that would res…</td><td class="question-text">Based on the documents provided, the estimated increase in global greenhouse gas emissions from UK accession to CPTPP is…</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">0.46</td><td class="num">1.00</td><td class="num">2</td></tr><tr class="good"><td>cptpp_009</td><td class="question-text">What tariff does Malaysia currently charge on UK whisky exports?; What tariff wi…</td><td class="question-text">According to the documents, Malaysia currently charges a tariff of around 80% on UK whisky exports. Under the CPTPP agre…</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">0.41</td><td class="num">1.00</td><td class="num">2</td></tr><tr class="warn"><td>cptpp_010</td><td class="question-text">Which UK regions will see the largest percentage GDP increase as a result of UK&#x27;…</td><td class="question-text">According to the provided documents, the West Midlands, East Midlands, and North East are estimated to experience the bi…</td><td class="num">1.00</td><td class="num">1.00</td><td class="num">0.33</td><td class="num">0.50</td><td class="num">0</td></tr></tbody>
+    </table>
+    <p class="note">
+      Green = all core metrics ≥ 0.70 &nbsp;|&nbsp; Amber = weakest metric ≥ 0.50 &nbsp;|&nbsp; Red = below 0.50
+    </p>
+  </section>
+</div>
+</body>
+</html>
