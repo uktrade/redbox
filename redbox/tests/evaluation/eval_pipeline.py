@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-
 # Bootstrap — MUST come before any redbox.* imports.
 # The dotenv plugin (tryfirst) loads tests/.env.test from the repo root which
 # sets DJANGO_SETTINGS_MODULE=redbox_app.settings.
@@ -199,13 +198,17 @@ def make_retriever(
     )
 
 
-def make_eval_state(question: str, all_uris: list[str]) -> RedboxState:
+def make_eval_state(
+    question: str,
+    all_uris: list[str],
+    ai_settings: AISettings | None = None,
+) -> RedboxState:
     query = RedboxQuery(
         question=question,
         s3_keys=all_uris,
         user_uuid=uuid4(),
         chat_history=[],
-        ai_settings=AISettings(),
+         ai_settings=ai_settings if ai_settings is not None else AISettings(),
         permitted_s3_keys=all_uris,
     )
     return RedboxState(request=query, messages=[HumanMessage(content=question)])
@@ -216,8 +219,10 @@ def run_eval(
     dataset: list[dict],
     uri_map: dict[str, str],
     env: Settings,
+    *,
+    ai_settings: AISettings | None = None,
 ) -> EvalReport:
-    ai = AISettings()
+    ai = ai_settings if ai_settings is not None else AISettings()
     report = EvalReport(
         rag_params={
             "rag_k": ai.rag_k,
@@ -231,7 +236,7 @@ def run_eval(
 
     all_uris = list(uri_map.values())
     for entry in dataset:
-        state = make_eval_state(entry["question"], all_uris)
+        state = make_eval_state(entry["question"], all_uris, ai_settings=ai)
         retrieved = retriever.invoke(state)
         scores = compute_scores(entry["id"], retrieved, entry["relevant_snippets"])
         report.record(scores, difficulty=entry.get("difficulty", "unknown"), question=entry.get("question", ""))
