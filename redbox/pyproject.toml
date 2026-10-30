@@ -70,5 +70,6 @@ env_override_existing_values = 1
 env_files = ["tests/.env.test", ".env"]
 markers = [
     "ai: marks tests as using a live LLM (deselect with '-m \"not ai\"')",
+    "ai_generation: marks end-to-end generation eval tests (requires AWS + OpenSearch)",
     "vcr",
 ]
