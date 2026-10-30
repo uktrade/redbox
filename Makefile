@@ -310,6 +310,17 @@ eval-update-baseline: ## Promote latest eval report to baseline.json
 	   redbox/tests/evaluation/baselines/baseline.json
 	@echo "Baseline updated. Review the diff and commit it"
 
+PHONY: eval-generation
+eval-generation: ## Run generation eval suite: condensation, retrieval, answer, LLM judge (require AWS & opensearch)
+	cd redbox && $(EVAL_ENV_VARS) poetry run pytest tests/evaluation/test_generation_eval.py \
+		-m ai_generation -v -s --tb=short
+
+.PHONY: eval-update-generation-baseline
+eval-update-generation-baseline: ## Promote latest generation report to generation_baseline.json
+	cp redbox/tests/evaluation/reports/generation_report_latest.json \
+	   redbox/tests/evaluation/baselines/generation_baseline.json
+	@echo "Generation baseline updated. Review the diff and commit it"
+
 .PHONY: help
 help: ## Show this help
 	@ grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(makefile_name) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1,$$2}'
