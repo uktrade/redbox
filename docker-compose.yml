@@ -125,7 +125,9 @@ services:
     environment:
       - discovery.type=single-node
       - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
-      - plugins.security.disabled=true  # Disable security plugin for simplicity
+      #- plugins.security.disabled=true  # Disable security plugin for simplicity
+      - DISABLE_SECURITY_PLUGIN=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
       - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_INITIAL_ADMIN_PASSWORD} # Sets the demo admin user password when using demo configuration (for OpenSearch 2.12 and later)
     volumes:
       - opensearch-data:/usr/share/opensearch/data
