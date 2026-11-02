@@ -13,6 +13,7 @@ from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import Model
 from django.utils import timezone
 from langchain_core.documents import Document
@@ -20,14 +21,15 @@ from tests.consumers_helpers import CannedGraphLLM, Token
 from websockets.asyncio.client import ClientConnection
 
 from redbox.models.chain import AISettings as PydanticAISettings
-from redbox.models.chain import LLMCallMetadata, RedboxQuery, RequestMetadata
+from redbox.models.chain import Citation as AICitation
+from redbox.models.chain import LLMCallMetadata, RedboxQuery, RequestMetadata, Source
 from redbox.models.graph import FINAL_RESPONSE_TAG, ROUTE_NAME_TAG, RedboxActivityEvent
 from redbox.models.prompts import CHAT_MAP_QUESTION_PROMPT
 from redbox.models.settings import ChatLLMBackend as PydanticChatLLMBackend
 from redbox_app.redbox_core import consumers as consumers_module
 from redbox_app.redbox_core import error_messages
-from redbox_app.redbox_core.consumers import ChatConsumer
-from redbox_app.redbox_core.models import ActivityEvent, Chat, ChatMessage, ChatMessageTokenUse, File
+from redbox_app.redbox_core.consumers import ChatConsumer, resolve_citable_file
+from redbox_app.redbox_core.models import ActivityEvent, Chat, ChatMessage, ChatMessageTokenUse, Citation, File
 from redbox_app.redbox_core.models import Chat as ChatModel
 from redbox_app.redbox_core.models import ChatMessage as ChatMessageModel
 
@@ -35,6 +37,31 @@ User = get_user_model()
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
+
+GOV_UK_URL = "https://www.gov.uk/guidance/trade-tariff"
+DATAHUB_URL = "https://datahub.trade.gov.uk/companies/0f5b4d1e/overview"
+
+
+def make_file(user: User, name: str) -> File:
+    """Create a complete uploaded file belonging to the specified User."""
+    return File.objects.create(
+        user=user,
+        original_file=SimpleUploadedFile(name, b"Lorem Ipsum."),
+        status=File.Status.complete,
+    )
+
+
+def make_citation_consumer(
+    chat_message: ChatMessage,
+    citable_files: list[File],
+) -> ChatConsumer:
+    """Create a chat consumer configured with a message and permitted citation files."""
+    consumer = ChatConsumer()
+    consumer._file_cache = {}  # noqa: SLF001
+    consumer._citable_files = citable_files  # noqa: SLF001
+    consumer.chat_message = chat_message
+    consumer.send_to_client = AsyncMock()
+    return consumer
 
 
 @database_sync_to_async
@@ -101,6 +128,32 @@ async def assert_mocked_connect_response(communicator: WebsocketCommunicator, me
 
     # Close
     await communicator.disconnect()
+
+
+def test_resolve_citable_file_only_matches_permitted_files():
+    """Resolve full storage keys and filenames only against permitted files."""
+    report = File(original_file="alice@example.com/report_20250101.pdf", original_file_name="report.pdf")
+    notes = File(original_file="alice@example.com/notes_20250101.pdf", original_file_name="notes.pdf")
+    files = [report, notes]
+
+    assert resolve_citable_file("alice@example.com/report_20250101.pdf", files) is report
+    assert resolve_citable_file("report_20250101.pdf", files) is report
+    assert resolve_citable_file("report.pdf", files) is report
+
+    # confirm unwanted instances return None
+    assert resolve_citable_file("", files) is None
+    assert resolve_citable_file("   ", files) is None
+    assert resolve_citable_file(None, files) is None
+    assert resolve_citable_file("pdf", files) is None
+    assert resolve_citable_file("bob@example.com/secret_20250101.pdf", files) is None
+
+
+def test_resolve_citable_file_rejects_ambiguous_names():
+    """Reject filename references that match more than one permitted file."""
+    first = File(original_file="alice@example.com/report_1.pdf", original_file_name="report.pdf")
+    second = File(original_file="alice@example.com/report_2.pdf", original_file_name="report.pdf")
+
+    assert resolve_citable_file("report.pdf", [first, second]) is None
 
 
 @pytest.mark.django_db(transaction=True)
@@ -180,9 +233,12 @@ async def test_chat_consumer_with_existing_session(
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
-async def test_chat_consumer_with_naughty_question(
+async def test_chat_consumer_replaces_null_byte_in_question(
     agents_list: list, alice: User, uploaded_file: File, mocked_connect: ClientConnection
 ):
+    """
+    Before saving the user's question null bytes are replaced with a safe replacement character.
+    """
     # Given
     message = "Hello Hal."
     # When
@@ -204,9 +260,12 @@ async def test_chat_consumer_with_naughty_question(
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
-async def test_chat_consumer_with_naughty_citation(
-    agents_list: list, alice: User, uploaded_file: File, mocked_connect_with_naughty_citation: ClientConnection
+async def test_chat_consumer_handles_response_without_citations(
+    agents_list: list, alice: User, uploaded_file: File, mocked_connect_without_citations: ClientConnection
 ):
+    """
+    Chat consumer can handle LLM responses that don't include citations.
+    """
     # Given
     message = "Hello Hal."
 
@@ -218,15 +277,72 @@ async def test_chat_consumer_with_naughty_citation(
         connected, _ = await communicator.connect()
         assert connected
 
-        with patch(
-            "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_with_naughty_citation
-        ):
+        with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_without_citations):
             await assert_mocked_connect_response(communicator=communicator, message=message)
 
         assert await get_chat_message_text(alice, ChatMessage.Role.user) == [message]
         assert await get_chat_message_text(alice, ChatMessage.Role.ai) == ["Good afternoon, Mr. Amor."]
         assert await get_chat_message_route(alice, ChatMessage.Role.ai) == ["gratitude"]
         await refresh_from_db(uploaded_file)
+
+
+@pytest.mark.parametrize(
+    ("documents", "expected_uris"),
+    [
+        (
+            [
+                Document(page_content="Invalid document 1", metadata={"uri": ""}),
+                Document(page_content="Invalid document 2", metadata={"uri": "   "}),
+                Document(page_content="Invalid document 3", metadata={}),
+            ],
+            [],
+        ),
+        (
+            [
+                Document(page_content="Valid document 1", metadata={"uri": "report_1.pdf"}),
+                Document(page_content="Valid document 2", metadata={"uri": "report_2.odt"}),
+            ],
+            ["report_1.pdf", "report_2.odt"],
+        ),
+        (
+            [
+                Document(page_content="Invalid document 1", metadata={"uri": ""}),
+                Document(page_content="Valid document 1", metadata={"uri": "report_1.pdf"}),
+                Document(page_content="Invalid document 2", metadata={"uri": "   "}),
+                Document(page_content="Valid document 2", metadata={"uri": "report_2.odt"}),
+                Document(page_content="Invalid document 3", metadata={}),
+            ],
+            ["report_1.pdf", "report_2.odt"],
+        ),
+    ],
+    ids=["all_invalid", "all_valid", "mixed_valid_and)_invalid"],
+)
+@pytest.mark.asyncio
+async def test_handle_documents_only_processes_valid_source_uris(documents, expected_uris):
+    """handle_documents processes documents with valid source URIs and skips those without."""
+
+    # Given: Chat consumer
+    consumer = ChatConsumer()
+    consumer.chat_message = MagicMock()
+    consumer.chat_message.aget_citations = AsyncMock(return_value=[])
+    consumer.get_file_cached = AsyncMock(return_value=None)
+    consumer.create_citations = AsyncMock()
+    consumer.send_to_client = AsyncMock()
+
+    # When: The consumer processes documents
+    await consumer.handle_documents(documents)
+
+    # Then: Only valid URIs are searched
+    searched_uris = [call.args[0] for call in consumer.get_file_cached.await_args_list]
+    assert searched_uris == expected_uris
+
+    # Then: Only valid URIs are passed into citation creation
+    processed_uris = [
+        source.source
+        for call in consumer.create_citations.await_args_list
+        for source in call.kwargs["ai_citation"].sources
+    ]
+    assert processed_uris == expected_uris
 
 
 @pytest.mark.django_db(transaction=True)
@@ -697,6 +813,37 @@ def get_chat_messages(user: User) -> Sequence[ChatMessage]:
     )
 
 
+@database_sync_to_async
+def saved_citations(chat_message: ChatMessage) -> list[tuple]:
+    """Return the saved citations for a message in creation order."""
+    return list(
+        Citation.objects.filter(chat_message=chat_message)
+        .order_by("created_at")
+        .values_list("citation_name", "file_id", "url", "source")
+    )
+
+
+@pytest.fixture
+def ai_message(chat: Chat) -> ChatMessage:
+    # A clean AI message: unlike `chat_message`, nothing has created a
+    # Citation row on it yet.
+    return ChatMessage.objects.create(
+        chat=chat,
+        text="An answer.",
+        role=ChatMessage.Role.ai,
+    )
+
+
+@pytest.fixture
+def alice_file(alice: User) -> File:
+    return make_file(alice, "alice_report.txt")
+
+
+@pytest.fixture
+def bob_file(bob: User) -> File:
+    return make_file(bob, "bob_secret.txt")
+
+
 @pytest.fixture
 def mocked_connect() -> ClientConnection:
     responses = [
@@ -733,7 +880,7 @@ def mocked_connect() -> ClientConnection:
 
 
 @pytest.fixture
-def mocked_connect_with_naughty_citation() -> CannedGraphLLM:
+def mocked_connect_without_citations() -> CannedGraphLLM:
     responses = [
         {
             "event": "on_chat_model_stream",
@@ -1204,3 +1351,108 @@ async def test_llm_conversation_multiple_users_get_correct_sso_token():
 
     finally:
         ChatConsumer.redbox = original_redbox
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_handle_citations_never_links_another_users_file(
+    ai_message: ChatMessage,
+    alice_file: File,
+    bob_file: File,
+    caplog,
+):
+    """Drop invalid or unauthorised uploaded-file citations without saving them."""
+    consumer = make_citation_consumer(ai_message, [alice_file])
+
+    refs = [
+        "",
+        "txt",
+        bob_file.original_file.name,
+        alice_file.original_file.name,
+    ]
+
+    sources = [
+        Source(
+            source=ref,
+            source_type=Citation.Origin.USER_UPLOADED_DOCUMENT,
+            ref_id=f"ref_{i}",
+        )
+        for i, ref in enumerate(refs, start=1)
+    ]
+
+    with caplog.at_level(
+        logging.WARNING,
+        logger="redbox_app.redbox_core.consumers",
+    ):
+        await consumer.handle_citations([AICitation(sources=sources)])
+
+    # Only Alice's own file is saved; empty, junk and Bob's key are
+    # dropped entirely.
+    assert await saved_citations(ai_message) == [
+        (
+            "ref_4",
+            alice_file.id,
+            None,
+            Citation.Origin.USER_UPLOADED_DOCUMENT,
+        )
+    ]
+
+    assert "dropping citation ref_1: source is not a populated string" in caplog.text
+
+    for ref_id in ("ref_2", "ref_3"):
+        assert (f"dropping citation {ref_id}: source does not match a permitted file") in caplog.text
+
+    assert "dropping citation ref_4" not in caplog.text
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_handle_citations_keeps_external_citations(
+    ai_message: ChatMessage,
+    alice_file: File,
+):
+    """Save external citations as URLs rather than linking them to uploaded files."""
+    consumer = make_citation_consumer(ai_message, [alice_file])
+
+    sources = [
+        # URL ends in the display name, but must
+        # stay an external citation.
+        Source(
+            source=GOV_UK_URL,
+            source_type=Citation.Origin.GOV_UK,
+            ref_id="ref_1",
+        ),
+        Source(
+            source="https://en.wikipedia.org/wiki/Trade",
+            source_type=Citation.Origin.WIKIPEDIA,
+            ref_id="ref_2",
+        ),
+        Source(
+            source=DATAHUB_URL,
+            source_type=Citation.Origin.DATAHUB,
+            ref_id="ref_3",
+        ),
+    ]
+
+    await consumer.handle_citations([AICitation(sources=sources)])
+
+    assert await saved_citations(ai_message) == [
+        (
+            "ref_1",
+            None,
+            GOV_UK_URL,
+            Citation.Origin.GOV_UK,
+        ),
+        (
+            "ref_2",
+            None,
+            "https://en.wikipedia.org/wiki/Trade",
+            Citation.Origin.WIKIPEDIA,
+        ),
+        (
+            "ref_3",
+            None,
+            DATAHUB_URL,
+            Citation.Origin.DATAHUB,
+        ),
+    ]

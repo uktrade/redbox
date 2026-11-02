@@ -83,6 +83,11 @@ upload-button {
   display: block;
 }
 
+/* Citation buttons */
+.rb-citation-button_placeholder {
+  display: none !important
+}
+
 /* Citations page */
 .rb-citations__list {
   padding-left: 1rem;
