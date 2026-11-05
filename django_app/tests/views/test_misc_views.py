@@ -1,6 +1,7 @@
 import json
 import logging
 from http import HTTPStatus
+from unittest import mock
 
 import pytest
 from django.conf import Settings, settings
@@ -9,10 +10,9 @@ from django.test import Client
 from django.urls import reverse
 from yarl import URL
 
-from redbox_app.redbox_core.models import (
-    Chat,
-    Tool,
-)
+from redbox.models.settings import OpenSearchSettings
+from redbox.models.settings import Settings as RedboxSettings
+from redbox_app.redbox_core.models import Chat, Tool
 
 User = get_user_model()
 
@@ -108,3 +108,20 @@ def test_refresh_fragments(alice: User, client: Client, chat: Chat, default_tool
     assert invalid_fragment_response.status_code == HTTPStatus.BAD_REQUEST
     assert response.status_code == HTTPStatus.OK
     assert response.content.decode()
+
+
+class TestHealthView:
+    def test_get_returns_error_when_elastic_search_cluster_is_unavailable(self, client: Client):
+        with mock.patch("redbox_app.redbox_core.views.misc_views.get_settings") as mock_open_search_settings:
+            elastic_settings = OpenSearchSettings(
+                collection_endpoint="http://admin:password@not_a_cluster:9130",
+                collection_endpoint__host="not_a_cluster",
+                collection_endpoint__port="9130",
+            )
+            mock_settings = RedboxSettings(elastic=elastic_settings)
+            mock_open_search_settings.return_value = mock_settings
+
+            assert client.get(reverse("health")).status_code == 503
+
+    def test_get_returns_ok_when_all_checks_pass(self, client: Client):
+        assert client.get(reverse("health")).status_code == 200
