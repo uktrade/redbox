@@ -144,6 +144,8 @@ class Settings(BaseSettings):
     aws_access_key: str | None = os.environ.get("AWS_S3_ACCESS_KEY_ID", None)
     aws_secret_key: str | None = os.environ.get("AWS_S3_SECRET_ACCESS_KEY", None)
 
+    aws_profile: str | None = os.environ.get("AWS_PROFILE", None)
+
     aws_region: str = "eu-west-2"
     bucket_name: str = "redbox-storage-dev"
     aws_s3_endpoint_url: str | None = os.environ.get("AWS_S3_ENDPOINT_URL", None)
@@ -362,7 +364,7 @@ class Settings(BaseSettings):
     def elasticsearch_client(self) -> Union[Elasticsearch, OpenSearch]:
         logger.info("Testing OpenSearch is definitely being used")
 
-        if ENVIRONMENT.is_local or ENVIRONMENT.is_integration:
+        if ENVIRONMENT.is_local or ENVIRONMENT.is_testing or ENVIRONMENT.is_integration:
             client = OpenSearch(
                 hosts=[
                     {
