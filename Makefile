@@ -350,3 +350,7 @@ aws-login: # Login to AWS
 .PHONY: shell
 shell: # Launch python shell
 	cd django_app && python manage.py shell
+
+.PHONY: setup
+setup: run
+	docker exec -it $$(docker ps -q --filter "name=django_app") venv/bin/django-admin loaddata tests/fixtures/chatllmbackend.json
