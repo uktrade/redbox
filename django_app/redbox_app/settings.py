@@ -22,12 +22,7 @@ from redbox_app.setting_enums import Classification, Environment
 
 logger = logging.getLogger(__name__)
 
-if os.getenv("USE_TESTS_INTEGRATION_ENV", "False").lower() == "true":
-    logger.warning("Loading Integration EnvFile: tests/.env.integration")
-    load_dotenv(find_dotenv("tests/.env.integration"))
-
 load_dotenv(override=True)
-
 if os.getenv("USE_LOCAL_ENV", "False").lower() == "true":
     logger.warning("Loading Local EnvFile: .env.local")
     load_dotenv(find_dotenv(".env.local"), override=True)
@@ -283,14 +278,19 @@ SESSION_ENGINE = "django.contrib.sessions.backends.db"
 
 LOG_ROOT = "."
 LOG_HANDLER = "asim"
+# AWS configs
 BUCKET_NAME = env.str("BUCKET_NAME")
 AWS_REGION = env.str("AWS_REGION")
+OBJECT_STORE = env.str("OBJECT_STORE")
+if ENVIRONMENT.is_local:
+    AWS_PROFILE = env.str("AWS_PROFILE")  # Needed for direct boto3 calls
+    AWS_S3_SESSION_PROFILE = AWS_PROFILE  # Needed for the django-storages package
+
 APPEND_SLASH = True
 
 #  Property added to each S3 file to make them downloadable by default
 AWS_S3_OBJECT_PARAMETERS = {"ContentDisposition": "attachment"}
 AWS_STORAGE_BUCKET_NAME = BUCKET_NAME  # this duplication is required for django-storage
-OBJECT_STORE = env.str("OBJECT_STORE")
 
 STORAGES = {
     "default": {
@@ -314,7 +314,7 @@ else:
     LOCALHOST = socket.gethostbyname(socket.gethostname())
     ALLOWED_HOSTS = ["*"]
 
-if not ENVIRONMENT.is_local or not ENVIRONMENT.is_integration:
+if not ENVIRONMENT.is_local or not ENVIRONMENT.is_testing or not ENVIRONMENT.is_integration:
 
     def filter_transactions(event, _hint):
         url_string = event["request"]["url"]

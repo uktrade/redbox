@@ -4,7 +4,7 @@
         {
             "label": "docker-compose up deps",
             "type": "shell",
-            "command": "docker compose up -d db minio opensearch opensearch-dashboards sso",
+            "command": "make run-dependencies",
             "options": {
                 "cwd": "${workspaceFolder}",
                 "env": {
