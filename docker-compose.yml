@@ -32,7 +32,7 @@ services:
       test: curl --fail http://localhost:${PORT:-8080}/health/ || exit 1
       interval: 5s
       timeout: 30s
-      retries: 24
+      retries: 5
       start_period: 60s
 
   db:
