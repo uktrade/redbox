@@ -255,7 +255,13 @@ or
 docker compose build
 ```
 
-Once those images have built, you can run them using:
+Once those images have built, you can run a onetime setup command using the below. This starts the project, and runs a django loaddata command to install any necessary models
+
+```bash
+make setup
+```
+
+To run in future, you can use the command:
 
 ```bash
 make run
