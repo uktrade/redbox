@@ -329,10 +329,16 @@ You can also choose to run the project with the VSCode Python Debugger, allowing
 
 Tests are split into different commands based on the application the tests are for. For each application there is a separate `make` command to run those tests, these are:
 
-For the django app:
+For the django app when running in docker:
 
 ```bash
 make test-django
+```
+
+For the django app when running locally:
+
+```bash
+make test-django-local
 ```
 
 For the core AI:
