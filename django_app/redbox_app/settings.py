@@ -4,7 +4,7 @@ import os
 import re
 import socket
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import environ
 import sentry_sdk
@@ -70,7 +70,6 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Application definition
 INSTALLED_APPS = [
-    "authbroker_client",
     "daphne",
     "redbox_app.redbox_core",
     "django.contrib.admin.apps.SimpleAdminConfig",
@@ -147,7 +146,6 @@ WSGI_APPLICATION = "redbox_app.wsgi.application"
 ASGI_APPLICATION = "redbox_app.asgi.application"
 
 AUTHENTICATION_BACKENDS = [
-    "redbox_app.backends.TokenCaptureBackend",
     "django.contrib.auth.backends.ModelBackend",
 ]
 
@@ -183,6 +181,8 @@ AUTHBROKER_URL = env.str("AUTHBROKER_URL", "https://example.com")
 AUTHBROKER_INTERNAL_URL = env.str("AUTHBROKER_INTERNAL_URL", AUTHBROKER_URL)
 AUTHBROKER_CLIENT_ID = env.str("AUTHBROKER_CLIENT_ID", "1234")
 AUTHBROKER_CLIENT_SECRET = env.str("AUTHBROKER_CLIENT_SECRET", "1234")
+AUTHBROKER_SCOPE = "openid email"
+TOKEN_SESSION_KEY = env.str("TOKEN_SESSION_KEY", "_authbroker_token")
 LOGIN_URL = reverse_lazy("authbroker_client:login")
 LOGIN_REDIRECT_URL = reverse_lazy("homepage")
 
