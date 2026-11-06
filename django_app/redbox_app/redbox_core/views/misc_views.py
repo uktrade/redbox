@@ -45,8 +45,8 @@ def health(_request: HttpRequest) -> HttpResponse:
     try:
         conn = connections["default"]
         logger.info("Connected to default DB %s", conn)
-    except ConnectionDoesNotExist as exc:
-        logger.info("Database could not be connected: %s", exc, exc_info=True)
+    except ConnectionDoesNotExist:
+        logger.exception("Database connection could not be established")
         return HttpResponse(content="Database unavailable", status=HTTPStatus.SERVICE_UNAVAILABLE)
 
     logger.info(
@@ -60,8 +60,10 @@ def health(_request: HttpRequest) -> HttpResponse:
     try:
         info = es_client.info()
         logger.info("Connected to elastic search cluster %s", info)
-    except OpenSearchConnectionError as exc:
-        logger.info("Elastic search client could not be connected: %s", exc, exc_info=True)
+    except OpenSearchConnectionError:
+        logger.exception(
+            "Elastic search cluster connection could not be establised to server %s", env.elastic.collection_endpoint
+        )
         return HttpResponse(content="Elastic search cluster unavailable", status=HTTPStatus.SERVICE_UNAVAILABLE)
 
     return HttpResponse(status=HTTPStatus.OK)
