@@ -4,17 +4,14 @@ import os
 import re
 import socket
 from pathlib import Path
-from urllib.parse import urlparse
 
 import environ
-import sentry_sdk
 from dbt_copilot_python.database import database_from_env
 from dbt_copilot_python.error_tracking import DatadogErrorTrackingFilter
 from django.urls import reverse_lazy
 from django_log_formatter_asim import ASIMFormatter
 from dotenv import find_dotenv, load_dotenv
 from import_export.formats.base_formats import CSV
-from sentry_sdk.integrations.django import DjangoIntegration
 from storages.backends import s3boto3
 from yarl import URL
 
@@ -105,10 +102,8 @@ MIDDLEWARE = [
     "django_permissions_policy.PermissionsPolicyMiddleware",
     "csp.middleware.CSPMiddleware",
     "redbox_app.redbox_core.middleware.nocache_middleware",
-    "redbox_app.redbox_core.middleware.security_header_middleware",
     "django_plotly_dash.middleware.BaseMiddleware",
     "waffle.middleware.WaffleMiddleware",
-    "redbox_app.redbox_core.middleware.sentry_user_middleware",
     "redbox_app.redbox_core.middleware.SSOSyncMiddleware",
 ]
 
@@ -314,30 +309,6 @@ else:
     LOCALHOST = socket.gethostbyname(socket.gethostname())
     ALLOWED_HOSTS = ["*"]
 
-if not ENVIRONMENT.is_local or not ENVIRONMENT.is_testing or not ENVIRONMENT.is_integration:
-
-    def filter_transactions(event, _hint):
-        url_string = event["request"]["url"]
-        parsed_url = urlparse(url_string)
-        if parsed_url.path.startswith("/admin"):
-            return None
-        return event
-
-    SENTRY_DSN = env.str("SENTRY_DSN", None)
-    SENTRY_ENVIRONMENT = env.str("SENTRY_ENVIRONMENT", None)
-    if SENTRY_DSN and SENTRY_ENVIRONMENT:
-        sentry_sdk.init(
-            dsn=SENTRY_DSN,
-            integrations=[
-                DjangoIntegration(),
-            ],
-            environment=SENTRY_ENVIRONMENT,
-            send_default_pii=True,
-            traces_sample_rate=1.0,
-            before_send_transaction=filter_transactions,
-            debug=False,
-        )
-SENTRY_REPORT_TO_ENDPOINT = URL(env.str("SENTRY_REPORT_TO_ENDPOINT", "")) or None
 
 database_credentials = os.getenv("DATABASE_CREDENTIALS")
 if database_credentials:
@@ -469,7 +440,6 @@ Q_CLUSTER = {
     "catch_up": False,
     "orm": "default",
     "workers": env.int("Q_WORKERS", 5),
-    "error_reporter": {"sentry": {"dsn": env.str("SENTRY_DSN", " ")}},
     "ack_failures": env.bool("Q_ACK_FAILURES", default=True),
 }
 
