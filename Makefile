@@ -107,18 +107,18 @@ safe: ##
 .PHONY: check-migrations
 check-migrations: stop  ## Check types in redbox and worker
 	docker compose up -d --wait db minio opensearch
-	cd django_app && poetry run python manage.py migrate
-	cd django_app && poetry run python manage.py makemigrations --check
+	cd django_app && USE_LOCAL_ENV=true poetry run python manage.py migrate
+	cd django_app && USE_LOCAL_ENV=true poetry run python manage.py makemigrations --check
 
 .PHONY: migrations
 migrations: stop  ## Create migrations
 	docker compose up -d --wait opensearch db
-	cd django_app && poetry run python manage.py makemigrations
+	cd django_app && USE_LOCAL_ENV=true poetry run python manage.py makemigrations
 
 .PHONY: migrate
 migrate: stop  ## Apply migrations
 	docker compose up -d --wait opensearch db
-	cd django_app && poetry run python manage.py migrate
+	cd django_app && USE_LOCAL_ENV=true poetry run python manage.py migrate
 
 .PHONY: reset-db
 reset-db: ## Reset Django database
@@ -332,7 +332,7 @@ frontend-dev: # Start parcel in dev/watch mode
 
 .PHONY: django-runserver
 django-runserver: # Run the web app locally (not in docker)
-	cd django_app && poetry run python manage.py runserver 0.0.0.0:8081
+	cd django_app && USE_LOCAL_ENV=true poetry run python manage.py runserver 0.0.0.0:8081
 
 .PHONY: dev
 dev: # Start the app locally in development mode with hot-reloading enabled
