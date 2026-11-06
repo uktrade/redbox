@@ -238,6 +238,5 @@ infrastructure/aws/cleanup_lambda/layer/*
 /django_app/.local.env
 
 # Playwright
-/test-results
-/playwright
-/django_app/test-results
+test-results/
+playwright/
