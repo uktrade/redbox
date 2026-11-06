@@ -17,8 +17,6 @@ services:
     networks:
       - redbox-app-network
     env_file:
-      - path: tests/.env.integration
-        required: false
       - path: .env
         required: false
     environment:
@@ -27,22 +25,20 @@ services:
     volumes:
       - /app/django_app/frontend/node_modules
       - ./django_app:/app/django_app/
-      - .aws:/root/.aws
+      - ${HOME}/.aws:/root/.aws
     ports:
       - "${PORT:-8080}:${PORT:-8080}"
     healthcheck:
       test: curl --fail http://localhost:${PORT:-8080}/health/ || exit 1
       interval: 5s
       timeout: 30s
-      retries: 24
+      retries: 5
       start_period: 60s
 
   db:
     image: postgres:15
     container_name: db
     env_file:
-      - path: tests/.env.integration
-        required: false
       - path: .env
         required: false
     volumes:
@@ -71,12 +67,10 @@ services:
       dockerfile: django_app/Dockerfile
     command: "venv/bin/django-admin qcluster"
     env_file:
-      - path: tests/.env.integration
-        required: false
       - path: .env
         required: false
     volumes:
-      - .aws:/root/.aws
+      - ${HOME}/.aws:/root/.aws
     depends_on:
       opensearch:
         condition: service_healthy

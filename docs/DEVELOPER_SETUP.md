@@ -165,6 +165,18 @@ poetry env info
 
 VSCode is the IDE of choice. The `.vscode/` directory is used for defining project-wide VSCode IDE settings.
 
+### VDE Port forwarding [*Required]
+
+As the project runs on a VDE, you must ensure you have correctly setup port forwarding using the [instructions](https://uktrade.atlassian.net/wiki/spaces/AW/pages/5037457435/Port+forwarding+problems). At the time of writing, the ports that need to be forwarded are:
+- 8001
+- 9002
+- 9003
+- 8080
+- 5432
+- 5601
+- 9200
+- 5678
+
 ### Python Interpreter [*Required]
 
 Ensure your python interpreter is set to the root venv Python binary (should be `./venv/bin/python` or `./.venv/bin/python`).
@@ -243,7 +255,13 @@ or
 docker compose build
 ```
 
-Once those images have built, you can run them using:
+Once those images have built, you can run a onetime setup command using the below. This starts the project, and runs a django loaddata command to install any necessary models
+
+```bash
+make setup
+```
+
+To run in future, you can use the command:
 
 ```bash
 make run
@@ -317,10 +335,16 @@ You can also choose to run the project with the VSCode Python Debugger, allowing
 
 Tests are split into different commands based on the application the tests are for. For each application there is a separate `make` command to run those tests, these are:
 
-For the django app:
+For the django app when running in docker:
 
 ```bash
 make test-django
+```
+
+For the django app when running locally:
+
+```bash
+make test-django-local
 ```
 
 For the core AI:
@@ -387,6 +411,18 @@ Save and head to http://localhost:8080/admin/redbox_core/aisettings/
 Ensure the default settings uses the chat backend you just created and hit save again.
 
 Chat and document uploads should now work as expected.
+
+### Local S3 setup
+Redbox uses s3 buckets for storage, even in local environments. To set this up, you will need to create your own bucket in the redbox AWS development account, the aws cli command for which you can find below:
+```
+aws s3api create-bucket \
+  --profile <your-redbox-dev-aws-profile> \
+  --bucket redbox-developer-bucket-<your-name> \
+  --region eu-west-2 \
+  --create-bucket-configuration LocationConstraint=eu-west-2
+```
+Then you will need to set BUCKET_NAME in the .env file to your bucket name. To test, restart your docker containers and then try to upload a file through the frontend.
+
 
 ### Setting up AWS credentials
 
