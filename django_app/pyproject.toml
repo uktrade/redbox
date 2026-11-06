@@ -110,5 +110,3 @@ build-backend = "poetry.core.masonry.api"
 DJANGO_SETTINGS_MODULE = "redbox_app.settings"
 testpaths = "tests"
 norecursedirs = "tests/test_ai.py"
-env_override_existing_values = 0
-env_files = ["../tests/.env.integration"]

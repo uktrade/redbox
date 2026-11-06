@@ -5,15 +5,15 @@
 
 {% extends "base.html" %}
 
-{% set departmental_owner = "Department for Business and Trade" %}
-{% set zoom_level = "300%" %}
-{% set review_date_last = "21st June 2024" %}
-{% set compliance_status %}
-  This website is fully compliant with the
-  <a href="https://www.w3.org/TR/WCAG22/" class="govuk-link">Web Content Accessibility Guidelines version 2.2</a>
-  AA standard.
-{% endset %}
+{% set departmental_owner = "Department for Business, Innovation, Science and Trade" %}
+{% set zoom_level = "400%" %}
+{% set prepared_date_last = "27th February 2024" %}
+{% set tested_date_last = "14th May 2026" %}
+{% set reviewed_date_last = "2nd October 2026" %}
 
+{% set compliance_status %}
+  This website is partially compliant with the AA standard due to the non-compliances listed below.
+{% endset %}
 
 {% block content %}
 
@@ -21,50 +21,67 @@
       <h1 class="govuk-heading-l">Accessibility statement for {{ productName }}</h1>
 
       <p class="govuk-body">This accessibility statement applies to {{ productName }}.</p>
-      <p class="govuk-body">This website is run by the {{ departmental_owner }}. We want as many people as possible to
-        be able to use this website. For example, that means you should be able to:</p>
+      <p class="govuk-body">This website is run by the {{ departmental_owner }}. We want as many people as possible to be able to use this website. For example, that means you should be able to:</p>
       <ul class="govuk-list govuk-list--bullet govuk-body">
-        <li>change colours, contrast levels and fonts</li>
+        <li>change colours, contrast levels and fonts using browser or device settings</li>
         <li>zoom in up to {{ zoom_level }} without the text spilling off the screen</li>
         <li>navigate most of the website using a keyboard or speech recognition software</li>
-        <li>listen to most of the website using a screen reader (including the most recent versions of JAWS, NVDA and
-          VoiceOver)</li>
+        <li>listen to most of the website using a screen reader (including the most recent versions of JAWS, NVDA and VoiceOver)</li>
       </ul>
       <p class="govuk-body">We've also made the website text as simple as possible to understand.</p>
-      <p class="govuk-body"><a href="https://mcmw.abilitynet.org.uk/" class="govuk-link">AbilityNet</a> has advice on
-        making your device easier to use if you have a disability.</p>
+      <p class="govuk-body">
+        <a href="https://mcmw.abilitynet.org.uk/" class="govuk-link">AbilityNet</a>
+        has advice on making your device easier to use if you have a disability.
+      </p>
+
+      <h2 class="govuk-heading-m">How accessible this website is</h2>
+      <p class="govuk-body">We know some parts of this website are not fully accessible:</p>
+      <ul class="govuk-list govuk-list--bullet govuk-body">
+        <li>Some text and page elements are difficult to see because they do not have enough colour contrast</li>
+        <li>Some pages do not work well when zoomed in, and users may need to scroll in more than one direction or may lose access to content and features</li>
+        <li>Some headings, labels and keyboard navigation features are unclear or difficult to use, which can make it harder to find information and move around the site</li>
+      </ul>
 
       <h2 class="govuk-heading-m">Feedback and contact information</h2>
-      <p class="govuk-body">If you need information on this website in a different format like accessible PDF, large
-        print, easy read, audio recording or braille, email <a href="mailto:{{ contact_email }}"
-          class="govuk-link">{{ contact_email }}</a></p>
+      <p class="govuk-body">If you find any problems not listed on this page or think we're not meeting accessibility requirements, contact
+        <a href="mailto:{{ contact_email }}" class="govuk-link">{{ contact_email }}</a>.
+      </p>
+      <p class="govuk-body">If you need information on this website in a different format like accessible PDF, large print, easy read, audio recording or braille, email
+        <a href="mailto:{{ contact_email }}" class="govuk-link">{{ contact_email }}</a>.
+      </p>
       <p class="govuk-body">We'll consider your request and get back to you in 14 days.</p>
 
-      <h2 class="govuk-heading-m">Reporting accessibility problems with this website</h2>
-      <p class="govuk-body">We're always looking to improve the accessibility of this website. If you find any problems
-        not listed on this page or think we're not meeting accessibility requirements, contact the team at <a
-          href="mailto:{{ contact_email }}" class="govuk-link">{{ contact_email }}</a>.</p>
-
       <h2 class="govuk-heading-m">Enforcement procedure</h2>
-      <p class="govuk-body">The Equality and Human Rights Commission (EHRC) is responsible for enforcing the Public
-        Sector Bodies (Websites and Mobile Applications) (No. 2) Accessibility Regulations 2018 (the "accessibility
-        regulations"). If you're not happy with how we respond to your complaint, <a
-          href="https://www.equalityadvisoryservice.com/" class="govuk-link">contact the Equality Advisory and Support
-          Service (EASS)</a>.</p>
+      <p class="govuk-body">The Equality and Human Rights Commission (EHRC) is responsible for enforcing the Public Sector Bodies (Websites and Mobile Applications) (No. 2) Accessibility Regulations 2018 (the "accessibility regulations"). If you're not happy with how we respond to your complaint,
+        <a href="https://www.equalityadvisoryservice.com/" class="govuk-link">contact the Equality Advisory and Support Service (EASS)</a>.
+      </p>
 
       <h2 class="govuk-heading-m">Technical information about this website's accessibility</h2>
-      <p class="govuk-body">{{ departmental_owner }} is committed to making its website accessible, in accordance with
-        the Public Sector Bodies (Websites and Mobile Applications) (No. 2) Accessibility Regulations 2018.</p>
+      <p class="govuk-body">{{ departmental_owner }} is committed to making its website accessible, in accordance with the Public Sector Bodies (Websites and Mobile Applications) (No. 2) Accessibility Regulations 2018.</p>
 
       <h2 class="govuk-heading-m">Compliance status</h2>
+      <p class="govuk-body">The website has been tested against the
+        <a href="https://www.w3.org/TR/WCAG22/" class="govuk-link">Web Content Accessibility Guidelines (WCAG)</a> 2.2 AA standard.
+      </p>
       <p class="govuk-body">{{ compliance_status | safe }}</p>
 
+      <h2 class="govuk-heading-m">Non-accessible content</h2>
+      <p class="govuk-body">The content listed below is non-accessible for the following reasons.</p>
+      <h3 class="govuk-heading-s">Non-compliance with the accessibility regulations</h3>
+      <ul class="govuk-list govuk-list--bullet govuk-body">
+        <li>Some text is difficult to read because there is not enough colour contrast between the text and the background. This fails WCAG 2.2 success criterion 1.4.3 (Contrast (Minimum))</li>
+        <li>Some buttons, icons and other page elements are difficult to see because there is not enough colour contrast. This fails WCAG 2.2 success criterion 1.4.11 (Non-text Contrast) </li>
+        <li>Some content does not work well when zoomed in. Users may need to scroll in more than one direction or may not be able to access all content and features. This fails WCAG 2.2 success criterion 1.4.10 (Reflow)</li>
+        <li>Some headings and labels do not clearly explain their purpose, making it harder to find information and use the website. This fails WCAG 2.2 success criterion 2.4.6 (Headings and Labels)</li>
+        <li>The keyboard focus indicator is not always visible because it can be covered by other page content, making it harder for keyboard users to navigate the website. This fails WCAG 2.2 success criterion 2.4.11 (Focus Not Obscured (Minimum))</li>
+      </ul>
+
+
       <h2 class="govuk-heading-m">Preparation of this accessibility statement</h2>
-      <p class="govuk-body">This statement was prepared on 27th February 2024. It was last reviewed on {{
-        review_date_last }}.</p>
-      <p class="govuk-body">This website was last tested on {{ review_date_last }} against the WCAG 2.2 AA standard. The
-        test was carried out by the Incubator for Artificial Intelligence (i.AI) manually using the WCAG Evaluation
-        Methodology tool.</p>
+      <p class="govuk-body">This statement was prepared on {{ prepared_date_last }}. It was last reviewed on {{ reviewed_date_last }}.</p>
+      <p class="govuk-body">This website was last tested on {{ tested_date_last }} against the WCAG 2.2 AA standard. The test was carried out by the
+        <a href="https://digitalaccessibilitycentre.org/" class="govuk-link">Digital Accessibility Centre</a>.
+      </p>
 
 </div>
 

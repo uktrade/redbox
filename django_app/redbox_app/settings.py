@@ -22,12 +22,7 @@ from redbox_app.setting_enums import Classification, Environment
 
 logger = logging.getLogger(__name__)
 
-if os.getenv("USE_TESTS_INTEGRATION_ENV", "False").lower() == "true":
-    logger.warning("Loading Integration EnvFile: tests/.env.integration")
-    load_dotenv(find_dotenv("tests/.env.integration"))
-
 load_dotenv(override=True)
-
 if os.getenv("USE_LOCAL_ENV", "False").lower() == "true":
     logger.warning("Loading Local EnvFile: .env.local")
     load_dotenv(find_dotenv(".env.local"), override=True)
@@ -183,36 +178,12 @@ AUTH_USER_MODEL = "redbox_core.User"
 ACCOUNT_EMAIL_VERIFICATION = "none"
 
 AUTHBROKER_URL = env.str("AUTHBROKER_URL", "https://example.com")
-AUTHBROKER_CLIENT_ID = env.str("AUTHBROKER_CLIENT_ID", "")
-AUTHBROKER_CLIENT_SECRET = env.str("AUTHBROKER_CLIENT_SECRET", "")
-
-AUTHBROKER_AUTHORIZATION_URL = urljoin(
-    AUTHBROKER_URL,
-    "/o/authorize/",
-)
-
-AUTHBROKER_TOKEN_URL = urljoin(
-    AUTHBROKER_URL,
-    "/o/token/",
-)
-
-AUTHBROKER_PROFILE_URL = urljoin(
-    AUTHBROKER_URL,
-    "/o/userinfo/",
-)
-
-# mock-sso doesn't use the OIDC /o/userinfo/
-# endpoint only the legacy authbroker profile endpoint below
-AUTHBROKER_LEGACY_PROFILE_URL = urljoin(
-    AUTHBROKER_URL,
-    "/api/v1/user/me/",
-)
-
+AUTHBROKER_INTERNAL_URL = env.str("AUTHBROKER_INTERNAL_URL", AUTHBROKER_URL)
+AUTHBROKER_CLIENT_ID = env.str("AUTHBROKER_CLIENT_ID", "1234")
+AUTHBROKER_CLIENT_SECRET = env.str("AUTHBROKER_CLIENT_SECRET", "1234")
 AUTHBROKER_SCOPE = "openid email"
-
 TOKEN_SESSION_KEY = env.str("TOKEN_SESSION_KEY", "_authbroker_token")
-
-LOGIN_URL = reverse_lazy("auth:login")
+LOGIN_URL = reverse_lazy("authbroker_client:login")
 LOGIN_REDIRECT_URL = reverse_lazy("homepage")
 
 # CSP settings https://content-security-policy.com/
@@ -307,14 +278,19 @@ SESSION_ENGINE = "django.contrib.sessions.backends.db"
 
 LOG_ROOT = "."
 LOG_HANDLER = "asim"
+# AWS configs
 BUCKET_NAME = env.str("BUCKET_NAME")
 AWS_REGION = env.str("AWS_REGION")
+OBJECT_STORE = env.str("OBJECT_STORE")
+if ENVIRONMENT.is_local:
+    AWS_PROFILE = env.str("AWS_PROFILE")  # Needed for direct boto3 calls
+    AWS_S3_SESSION_PROFILE = AWS_PROFILE  # Needed for the django-storages package
+
 APPEND_SLASH = True
 
 #  Property added to each S3 file to make them downloadable by default
 AWS_S3_OBJECT_PARAMETERS = {"ContentDisposition": "attachment"}
 AWS_STORAGE_BUCKET_NAME = BUCKET_NAME  # this duplication is required for django-storage
-OBJECT_STORE = env.str("OBJECT_STORE")
 
 STORAGES = {
     "default": {
@@ -338,7 +314,7 @@ else:
     LOCALHOST = socket.gethostbyname(socket.gethostname())
     ALLOWED_HOSTS = ["*"]
 
-if not ENVIRONMENT.is_local or not ENVIRONMENT.is_integration:
+if not ENVIRONMENT.is_local or not ENVIRONMENT.is_testing or not ENVIRONMENT.is_integration:
 
     def filter_transactions(event, _hint):
         url_string = event["request"]["url"]

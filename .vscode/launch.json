@@ -14,10 +14,7 @@
             "justMyCode": true,
             "envFile": "${workspaceFolder}/.env",
             "env": {
-                "PYTHONUNBUFFERED": "1",
-                "USE_LOCAL_ENV": "true",
-                "USE_TESTS_INTEGRATION_ENV": "true",
-                "DJANGO_LOG_FORMAT": "verbose"
+                "USE_LOCAL_ENV": "true"
             },
             "serverReadyAction": {
                 "pattern": "Starting development server",

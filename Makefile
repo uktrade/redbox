@@ -12,6 +12,10 @@ reqs:
 run: stop
 	docker compose up -d --wait redbox-django-app
 
+.PHONY: run-dependencies
+run-dependencies: stop
+	docker compose up -d db minio opensearch opensearch-dashboards sso
+
 .PHONY: stop
 stop: ## Stop all containers
 	docker compose down
@@ -45,6 +49,10 @@ test-redbox: ## Test redbox
 test-django: ## Test django-app
 	cd django_app && poetry install && poetry run pytest --ignore=tests/playwright --cov=redbox_app -v --cov-report=term-missing --cov-report=xml --cov-fail-under=80 --ds redbox_app.settings --envfile ../tests/.env.test $(TEST)
 
+.PHONY: test-django-local
+test-django-local: run-dependencies
+	USE_LOCAL_ENV=true $(MAKE) test-django TEST=$(test)
+
 .PHONY: test-django-single
 test-django-single: ## Test django-app with specified test file/case
 	$(MAKE) test-django TEST=$(test)
@@ -55,7 +63,7 @@ build-django-static: ## Build django-app static files
 	cd django_app/ && poetry run python manage.py collectstatic --noinput
 
 .PHONY: test-integration
-test-integration:
+test-integration: ## Run all Playright tests. Add parameter TEST=<test file name> to run one specific test file.
 	docker compose down opensearch db sso minio
 	docker compose up -d --wait opensearch db sso minio
 	cd django_app/frontend && \
@@ -64,7 +72,7 @@ test-integration:
 	cd .. && \
 	poetry install && \
 	poetry run playwright install --with-deps chromium && \
-	DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest tests/playwright -rP --browser chromium --tracing retain-on-failure --video on --screenshot on
+	DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest tests/playwright$(if $(TEST),/$(TEST)) -rP --browser chromium --tracing retain-on-failure --video on --screenshot on
 
 .PHONY: test-integration-debug
 test-integration-debug:
@@ -74,6 +82,8 @@ test-integration-debug:
 	poetry install && \
 	poetry run playwright install --with-deps chromium && \
 	PWDEBUG=1 DJANGO_ALLOW_ASYNC_UNSAFE=1 poetry run pytest tests/playwright -rP  --headed --browser chromium --tracing retain-on-failure --video on --screenshot on
+
+
 
 .PHONY: collect-static
 collect-static:
@@ -97,18 +107,18 @@ safe: ##
 .PHONY: check-migrations
 check-migrations: stop  ## Check types in redbox and worker
 	docker compose up -d --wait db minio opensearch
-	cd django_app && poetry run python manage.py migrate
-	cd django_app && poetry run python manage.py makemigrations --check
+	cd django_app && USE_LOCAL_ENV=true poetry run python manage.py migrate
+	cd django_app && USE_LOCAL_ENV=true poetry run python manage.py makemigrations --check
 
 .PHONY: migrations
 migrations: stop  ## Create migrations
 	docker compose up -d --wait opensearch db
-	cd django_app && poetry run python manage.py makemigrations
+	cd django_app && USE_LOCAL_ENV=true poetry run python manage.py makemigrations
 
 .PHONY: migrate
 migrate: stop  ## Apply migrations
 	docker compose up -d --wait opensearch db
-	cd django_app && poetry run python manage.py migrate
+	cd django_app && USE_LOCAL_ENV=true poetry run python manage.py migrate
 
 .PHONY: reset-db
 reset-db: ## Reset Django database
@@ -276,10 +286,37 @@ tf_import:
 release: ## Deploy app
 	chmod +x ./infrastructure/aws/scripts/release.sh && ./infrastructure/aws/scripts/release.sh $(env)
 
+EVAL_PYTHONPATH    := $(PWD)/django_app:$(PWD)/redbox
+EVAL_DJANGO_SETTINGS := tests.evaluation.django_settings
+EVAL_ENV_VARS      := PYTHONPATH=$(EVAL_PYTHONPATH) DJANGO_SETTINGS_MODULE=$(EVAL_DJANGO_SETTINGS) ENVIRONMENT=LOCAL ENABLE_METADATA_EXTRACTION=true
+
 .PHONY: eval_backend
 eval_backend: ## Runs the only the necessary backend for evaluation BUCKET_NAME
-	docker compose up -d --wait worker --build
+	BUCKET_NAME=$(BUCKET_NAME) docker compose up -d --wait worker --build
 	docker exec -it $$(docker ps -q --filter "name=minio") mc mb data/${BUCKET_NAME}
+
+.PHONY: eval-retrieval
+  eval-retrieval: ## Run retrieval eval suite (require AWS & opensearch)
+	cd redbox && $(EVAL_ENV_VARS) poetry run pytest tests/evaluation/ -m ai -v --tb=short
+
+# Needs scripts else will fail
+.PHONY: eval-ingest-corpus
+eval-ingest-corpus: ## Ingest all corpus PDFs into the inspect index for browsing
+	cd redbox && $(EVAL_ENV_VARS) poetry run python tests/evaluation/scripts/ingest_corpus.py
+
+# Needs scripts else will fail
+.PHONY: eval-query-index
+eval-query-index: ## Browse chunks in the inspect index (set INDEX= and/or KEYWORD=)
+	cd redbox && $(EVAL_ENV_VARS) poetry run python tests/evaluation/scripts/query_index.py \
+		$$([ -n "$(INDEX)" ] && echo "--index $(INDEX)") \
+		$$([ -n "$(KEYWORD)" ] && echo "--keyword '$(KEYWORD)'")\
+		$$([ -n "$(URI)" ] && echo "--uri '$(URI)'")\
+
+.PHONY: eval-update-baseline
+eval-update-baseline: ## Promote latest eval report to baseline.json
+	cp redbox/tests/evaluation/reports/eval_report_latest.json \
+	   redbox/tests/evaluation/baselines/baseline.json
+	@echo "Baseline updated. Review the diff and commit it"
 
 .PHONY: help
 help: ## Show this help
@@ -295,7 +332,7 @@ frontend-dev: # Start parcel in dev/watch mode
 
 .PHONY: django-runserver
 django-runserver: # Run the web app locally (not in docker)
-	cd django_app && poetry run python manage.py runserver 0.0.0.0:8081
+	cd django_app && USE_LOCAL_ENV=true poetry run python manage.py runserver 0.0.0.0:8081
 
 .PHONY: dev
 dev: # Start the app locally in development mode with hot-reloading enabled
@@ -313,3 +350,7 @@ aws-login: # Login to AWS
 .PHONY: shell
 shell: # Launch python shell
 	cd django_app && python manage.py shell
+
+.PHONY: setup
+setup: run
+	docker exec -it $$(docker ps -q --filter "name=django_app") venv/bin/django-admin loaddata tests/fixtures/chatllmbackend.json

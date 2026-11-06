@@ -1,0 +1,82 @@
+[
+  {
+    "id": "cptpp_001",
+    "difficulty": "easy",
+    "source_doc": "cptpp_impact_assessment",
+    "question": "What is the estimated long-run annual increase in UK GDP from CPTPP accession?",
+    "relevant_snippets": ["estimated increase in UK GDP of £2.0 billion"],
+    "expected_answer": "Accession to CPTPP is estimated to increase long-run UK GDP by £2.0 billion per year compared to projected levels in 2040."
+  },
+  {
+    "id": "cptpp_002",
+    "difficulty": "easy",
+    "source_doc": "cptpp_impact_assessment",
+    "question": "How many countries are current CPTPP members?",
+    "relevant_snippets": ["11 economies: Australia, Brunei, Canada, Chile, Japan, Malaysia, Mexico, New Zealand, Peru, Singapore and Vietnam"],
+    "expected_answer": "CPTPP currently has 11 members: Australia, Brunei, Canada, Chile, Japan, Malaysia, Mexico, New Zealand, Peru, Singapore and Vietnam."
+  },
+  {
+    "id": "cptpp_003",
+    "difficulty": "easy",
+    "source_doc": "cptpp_impact_assessment",
+    "question": "What percentage of UK goods exports will be eligible for tariff-free trade under CPTPP?",
+    "relevant_snippets": ["over 99% of current UK goods exports to CPTPP members will be eligible for tariff-free trade"],
+    "expected_answer": "Over 99% of current UK goods exports to CPTPP members will be eligible for tariff-free trade."
+  },
+  {
+    "id": "cptpp_004",
+    "difficulty": "easy",
+    "source_doc": "cptpp_impact_assessment",
+    "question": "What is the combined GDP of all CPTPP member economies?",
+    "relevant_snippets": ["joint gross domestic product (GDP) of £9 trillion in 2022"],
+    "expected_answer": "CPTPP members had a joint GDP of £9 trillion in 2022."
+  },
+  {
+    "id": "cptpp_005",
+    "difficulty": "medium",
+    "source_doc": "cptpp_impact_assessment",
+    "question": "By how much is bilateral trade between the UK and CPTPP members expected to increase?",
+    "relevant_snippets": ["increase bilateral trade (between the UK and all CPTPP countries) by £4.9 billion"],
+    "expected_answer": "Bilateral trade between the UK and all CPTPP countries is expected to increase by £4.9 billion (3.9%)."
+  },
+  {
+    "id": "cptpp_006",
+    "difficulty": "medium",
+    "source_doc": "cptpp_impact_assessment",
+    "question": "What is the estimated impact of CPTPP on real take-home pay for UK workers?",
+    "relevant_snippets": ["Real take home pay for UK workers is estimated to increase by around 0.1%"],
+    "expected_answer": "Real take-home pay for UK workers is estimated to increase by around 0.1%, equivalent to approximately £1.0 billion."
+  },
+  {
+    "id": "cptpp_007",
+    "difficulty": "medium",
+    "source_doc": "cptpp_impact_assessment",
+    "question": "What is the estimated annual reduction in tariff duties on current UK exports under CPTPP?",
+    "relevant_snippets": ["£119 million"],
+    "expected_answer": "UK exporters are estimated to save around £119 million annually in tariff duties on current UK exports."
+  },
+  {
+    "id": "cptpp_008",
+    "difficulty": "hard",
+    "source_doc": "cptpp_impact_assessment",
+    "question": "What is the estimated increase in global greenhouse gas emissions from UK accession to CPTPP?",
+    "relevant_snippets": ["global emissions could increase by around 1.03MtCO2"],
+    "expected_answer": "Global greenhouse gas emissions could increase by around 1.03 MtCO2e (0.003%) as a result of UK accession to CPTPP."
+  },
+  {
+    "id": "cptpp_009",
+    "difficulty": "hard",
+    "source_doc": "cptpp_impact_assessment",
+    "question": "What tariff does Malaysia currently charge on UK whisky exports, and what will it be reduced to under CPTPP?",
+    "relevant_snippets": ["tariffs will be eliminated on UK exports of whisky to Malaysia", "80%"],
+    "expected_answer": "Malaysia currently charges approximately 80% tariff on UK whisky exports. Under CPTPP, this will be reduced to 0% within 10 years."
+  },
+  {
+    "id": "cptpp_010",
+    "difficulty": "hard",
+    "source_doc": "cptpp_impact_assessment",
+    "question": "Which UK regions see the largest percentage GDP increase from CPTPP accession?",
+    "relevant_snippets": ["West Midlands", "East Midlands"],
+    "expected_answer": "The West Midlands and East Midlands are estimated to see the largest percentage GDP increases from CPTPP accession."
+  }
+]

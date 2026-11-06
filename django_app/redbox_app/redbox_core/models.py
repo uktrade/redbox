@@ -1454,6 +1454,7 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
         USER_UPLOADED_DOCUMENT = "UserUploadedDocument", _("user uploaded document")
         GOV_UK = "GOV.UK", _("gov.uk")
         WEB_SEARCH = "WebSearch", _("Web Search")
+        DATAHUB = "DataHub", _("DataHub")
         UNVERIFIED = "Unverified", _("Unverified")
 
         @classmethod
@@ -1561,6 +1562,13 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
             slug=slug,
         )
 
+    @property
+    def file_download_url(self) -> str:
+        if self.file is None:
+            return ""
+
+        return reverse("citation-file-download", kwargs={"citation_id": self.id})
+
     @cached_property
     def display_name(self) -> str:
         if self.file:
@@ -1594,6 +1602,7 @@ class Citation(UUIDPrimaryKeyBase, TimeStampedModel):
             self.Origin.USER_UPLOADED_DOCUMENT.value: "Document",
             self.Origin.GOV_UK.value: "GOV.UK",
             self.Origin.WEB_SEARCH.value: "Web",
+            self.Origin.DATAHUB.value: "DataHub",
         }
 
         return source_names.get(

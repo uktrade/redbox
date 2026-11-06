@@ -22,6 +22,10 @@ class Environment(StrEnum):
         return self is Environment.INTEGRATION
 
     @property
+    def is_testing(self) -> bool:
+        return self is Environment.TEST
+
+    @property
     def is_prod(self) -> bool:
         return self is Environment.PROD
 
