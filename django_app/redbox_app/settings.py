@@ -181,9 +181,31 @@ AUTHBROKER_URL = env.str("AUTHBROKER_URL", "https://example.com")
 AUTHBROKER_INTERNAL_URL = env.str("AUTHBROKER_INTERNAL_URL", AUTHBROKER_URL)
 AUTHBROKER_CLIENT_ID = env.str("AUTHBROKER_CLIENT_ID", "1234")
 AUTHBROKER_CLIENT_SECRET = env.str("AUTHBROKER_CLIENT_SECRET", "1234")
+
+AUTHBROKER_AUTHORIZATION_URL = urljoin(
+    AUTHBROKER_URL,
+    "/o/authorize/",
+)
+
+AUTHBROKER_TOKEN_URL = urljoin(
+    AUTHBROKER_URL,
+    "/o/token/",
+)
+
+AUTHBROKER_PROFILE_URL = urljoin(
+    AUTHBROKER_URL,
+    "/o/userinfo/",
+)
+
+# mock-sso doesn't use the OIDC /o/userinfo/
+# endpoint only the legacy authbroker profile endpoint below
+AUTHBROKER_LEGACY_PROFILE_URL = urljoin(
+    AUTHBROKER_URL,
+    "/api/v1/user/me/",
+)
 AUTHBROKER_SCOPE = "openid email"
 TOKEN_SESSION_KEY = env.str("TOKEN_SESSION_KEY", "_authbroker_token")
-LOGIN_URL = reverse_lazy("authbroker_client:login")
+LOGIN_URL = reverse_lazy("auth:login")
 LOGIN_REDIRECT_URL = reverse_lazy("homepage")
 
 # CSP settings https://content-security-policy.com/
