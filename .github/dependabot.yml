@@ -8,7 +8,6 @@ updates:
   - package-ecosystem: "pip" # See documentation for possible values
     directories:
       - "/"
-      - "/core-api/"
       - "/django_app/"
       - "/redbox/"
       - "/worker/"
