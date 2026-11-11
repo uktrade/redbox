@@ -37,7 +37,7 @@ repos:
 
 
   - repo: https://github.com/uktrade/github-standards
-    rev: v1.4.1
+    rev: v1.4.7
     hooks:
       - id: validate-security-scan
       - id: run-security-scan
