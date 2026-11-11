@@ -40,7 +40,8 @@ _FALLBACK_CACHE = {}
 
 FALLBACK_COOLDOWN_SECS = 420  # 7 mins feels ok
 
-ASSIST_FALLBACK_CHAT_MODEL = "eu.anthropic.claude-sonnet-5" 
+# ASSIST_FALLBACK_CHAT_MODEL = "eu.anthropic.claude-sonnet-5"  ## waiting approval
+ASSIST_FALLBACK_CHAT_MODEL = "eu.anthropic.claude-sonnet-4-5-20250929-v1:0"
 
 
 def get_chat_llm(
