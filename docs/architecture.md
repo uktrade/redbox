@@ -1,15 +1,30 @@
-# Architecture
+# Architecture <!-- omit in toc -->
 
-## Contents
+## Disclaimer <!-- omit in toc -->
+
+This document describes the architecture of a continuously changing service. As such, aspects of this document will probably be out of date at time of reading.
+- Use this document as a guide to the service architecture - what it does, why, and roughly how.
+- Examine the codebase to understand current implementation details.
+
+## Contents <!-- omit in toc -->
+
 
 - [Principles](#principles)
 - [How it works at a glance](#how-it-works-at-a-glance)
 - [Components](#components)
-- [Django app](#django-app)
-- [AI engine](#ai-engine)
+  - [Django app](#django-app)
+  - [Worker](#worker)
+    - [Scaling](#scaling)
+    - [Django-Q2](#django-q2)
+    - [Workflow](#workflow)
+  - [AI engine](#ai-engine)
+  - [Research multi-agent graph (@newroute)](#research-multi-agent-graph-newroute)
+  - [MCP (Model Context Protocol)](#mcp-model-context-protocol)
 - [Document ingestion](#document-ingestion)
 - [Tech stack](#tech-stack)
 - [Project structure](#project-structure)
+  - [Key files for understanding the codebase](#key-files-for-understanding-the-codebase)
+
 
 ## Principles
 
@@ -31,54 +46,15 @@ Redbox is a [retrieval-augmented generation (RAG)](https://www.anthropic.com/eng
 Redbox has three main components:
 
 - **Django app** (`django_app/`) — a web application that manages authentication, real-time chat, and file uploads — storing files in S3 and queuing ingestion tasks in PostgreSQL
-- **Document ingestion** (`django_app/redbox_app/worker.py`) — a background process that extracts and chuncks the file uploads, generates embeddings using [Amazon Titan Embed Text v2](https://aws.amazon.com/bedrock/titan/) via [AWS Bedrock](https://aws.amazon.com/bedrock/), and indexes them into [OpenSearch](https://opensearch.org/)
+- **Worker (document ingestion)** (`django_app/redbox_app/worker.py`) — a background process that extracts and chunks the file uploads, generates embeddings using [Amazon Titan Embed Text v2](https://aws.amazon.com/bedrock/titan/) via [AWS Bedrock](https://aws.amazon.com/bedrock/), and indexes them into [OpenSearch](https://opensearch.org/)
 - **AI engine** (`redbox/`) — a [LangGraph](https://langchain-ai.github.io/langgraph/) state machine that generates responses using [Claude 3.7 Sonnet](https://www.anthropic.com/claude) via AWS Bedrock and retrieves relevant document chunks from OpenSearch
 
-```mermaid
-flowchart LR
-    User((User)) -->|"chat"| Browser([Browser])
-    User((User)) -->|"file upload"| Browser
 
-    Browser -->|"chat<br>message"| Server
-    Browser -->|"file upload"| Server
-
-    subgraph DjangoApp["Django app (django_app/)"]
-        Server[Web server]
-    end
-
-    subgraph AILib["AI engine (redbox/)"]
-        LangGraph[LangGraph<br>state machine]
-    end
-
-    subgraph IngestionWorker["Document ingestion (worker.py)"]
-        Ingestion[Document ingestion]
-    end
-
-    LLM([AWS Bedrock])
-    ES[(OpenSearch<br>vector store)]
-    PG[(PostgreSQL)]
-    S3[\AWS S3/]
-
-    Server -->|"streaming<br>response"| Browser
-    Server <-->|"chat"| LangGraph
-    LangGraph <-->|"inference"| LLM
-    LangGraph <-->|"retrieval"| ES
-
-    Server -->|"store file"| S3
-    Server -->|"enqueue task"| PG
-    PG -->|"task"| Ingestion
-    S3 -->|"file content"| Ingestion
-    Ingestion <-->|"metadata &<br>embeddings"| LLM
-    Ingestion -->|"chuncks & vectors"| ES
-```
-
-The sections below cover each component in detail, followed by the full [tech stack](#tech-stack) and [project structure](#project-structure).
-
-## Django app
+### Django app
 
 The `django_app/` directory contains both the server-side application and the browser-side chat UI. The frontend (`django_app/frontend/`) is a set of [Web Components](https://developer.mozilla.org/en-US/docs/Web/API/Web_components) written in JavaScript and bundled by [Parcel](https://parceljs.org/). [WhiteNoise](https://whitenoise.readthedocs.io/) serves the compiled assets as static files, which execute client-side in the browser.
 
-The server (`django_app/redbox_app/`) runs behind [Daphne](https://github.com/django/daphne), an [ASGI](https://asgi.readthedocs.io/) server. ASGI is the async successor to WSGI and supports long-lived connections like [WebSockets](https://en.wikipedia.org/wiki/WebSocket) alongside regular HTTP. WebSockets are used here rather than HTTP because the LLM streams responses token-by-token, whereas HTTP would require buffering the entire answer before sending it.
+The server (`django_app/redbox_app/`) runs behind [Daphne](https://github.com/django/daphne), an [ASGI](https://asgi.readthedocs.io/) server. ASGI is the async successor to WSGI and supports long-lived connections like [WebSockets](https://en.wikipedia.org/wiki/WebSocket) alongside regular HTTP. WebSockets are used here to stream LLM responses token-by-token to the browser in real time,  without waiting for the entire answer to be generated.
 
 Each incoming chat message is handled by [`ChatConsumer`](../../django_app/redbox_app/redbox_core/consumers.py), a [Django Channels](https://channels.readthedocs.io/) `AsyncWebsocketConsumer`. Channels is Django's extension for WebSockets and other long-lived async connections. It calls the AI engine's LangGraph state machine, persists chat sessions, messages, citations, and agent plans to PostgreSQL, and pushes tokens and events back to the browser in real time.
 
@@ -88,42 +64,37 @@ File uploads follow a different path from chat messages. Ingestion can take minu
 
 File uploads can optionally be scoped to a [`Tool`](../../django_app/redbox_app/redbox_core/models.py) — a named workspace that bundles a knowledge base (uploaded files), team/user access controls, and a set of AI agents under a shared URL (`/tools/<slug>/`). Different teams can have separate Tools for different purposes (e.g. "Ministerial Submissions", "Legislation Search").
 
-```mermaid
-flowchart LR
+### Worker
 
-    User(("User"))
-    SSO(["DBT Staff SSO"])
-    User -->|"sign in"| SSO
+The Worker is a set of service that runs in the background and perform tasks that are too resource-intensive to run in the Django application. These tasks include:
 
-    subgraph DjangoApp["Django app (django_app/)"]
-        Daphne["Daphne<br>(ASGI server)"]
-        Views["Django views"]
-        ChatConsumer["ChatConsumer<br>(Django Channels)"]
-        Tool["Tool"]
-    end
+- Ingesting files
+- Embedding chunks of text
 
-    ChatConsumer -->|"streaming response"| User
-    User -.->|"selects (optional)"| Tool
-    Tool -.->|"scoped URL"| Daphne
-    User -->|"chat message"| Daphne
-    User -->|"file upload"| Daphne
+The Worker is designed to be horizontally scalable. This means that we can add more instances of the Worker to handle more load. The Worker is also designed to be resilient. If one instance of the Worker fails, another instance can process queued tasks (dependant on the queue's retry and failure-handling configuration).
 
-    Daphne -->|HTTP| Views
-    Daphne -->|WebSocket| ChatConsumer
+Tasks are queued in the PostgreSQL database.
 
-    S3[\"AWS S3"/]
-    PG[("PostgreSQL")]
-    LangGraph["LangGraph<br>state machine"]
+#### Scaling
 
-    Views -->|"store file"| S3
-    Views -->|"file metadata"| PG
-    Views -->|"enqueue ingest task"| PG
-    SSO <-->|"OAuth callback"| Daphne
-    ChatConsumer -->|"persist session,<br>messages, plans"| PG
-    ChatConsumer <-->|inference| LangGraph
-```
+When running locally there is only one redbox-worker container running a Django-Q2 cluster. By default the cluster runs five workers; This can be adjusted by setting environment variable Q_WORKERS.
 
-## AI engine
+When running in AWS we can scale the number of ECS worker tasks up or down depending on the load. Tasks are queued in PostgreSQL.
+
+#### Django-Q2
+
+We use [Django_q2](https://faststream.airt.ai/latest/faststream/) to manage background tasks. It uses PostgreSQL for its task queue, avoiding the need for a separate message broker.The Django application adds tasks to the queue, then the Worker runs the qcluster process to pick up and execute those tasks.
+
+#### Workflow
+
+The Worker is responsible for file ingestion and embedding. These are both part of a single pipeline that executes when a file is first uploaded.
+
+1. **Ingesting files into the system.** When a file is uploaded, the Django application stores it in object storage (s3), creates a record for the file in PostgreSQL, and queues an ingestion task in postgreSQL. When the Worker picks up that task, it retrieves the file from s3, performs any required format conversion, then extracts and chunks the text.
+2. **Embedding chunks of text.** As part of the ingestion process the worker generates vector embeddings for the extracted text using an embedding model, such as Amazon Titan, through AWS Bedrock. The chunks and their embeddings are indexed in OpenSearch for later retrieval.
+3. **Managing file status in the database.** When ingestion finishes the worker updates the file's `status` property in PostgreSQL to indicate whether the process completed successfully or failed.
+
+
+### AI engine
 
 The `redbox/` directory defines the AI engine: a [LangGraph](https://langchain-ai.github.io/langgraph/) state machine implemented using [`StateGraph`](https://langchain-ai.github.io/langgraph/concepts/low_level/#stategraph). A LangGraph state machine is a directed graph of nodes that each read and update a shared state object, with edges deciding which node runs next — a structure that lets the engine orchestrate LLM calls, retrieval, and agent coordination in a single flow. It receives a chat message from `ChatConsumer` and produces a streamed response.
 
@@ -138,6 +109,8 @@ The state machine routes the message to one of several subgraphs. Following the 
 ### Research multi-agent graph (@newroute)
 
 The research graph uses a [router pattern](https://docs.langchain.com/oss/python/langchain/multi-agent/router) with multiple [agents](https://docs.langchain.com/oss/python/langchain/agents) to support more complex queries. A Planner breaks the query into tasks, Workers gather information via [agent tools](https://docs.langchain.com/oss/python/langchain/tools) — searching documents, querying data, or fetching from external APIs — and an Evaluator synthesises the results, with raw source documents returned as citations.
+
+At time of writing, these are some of the available agents:
 
 | Agent | Role | Purpose | Agent tools |
 | --- | --- | --- | --- |
@@ -161,44 +134,6 @@ Worker agents can use [MCP](https://modelcontextprotocol.io/) to call external s
 
 The `Datahub_Agent` runs a tool-calling loop up to a set number of iterations: the LLM selects tools, executes them in parallel, formats each result, and feeds it back until it has enough information to produce a final answer. Each tool execution opens a fresh MCP session authenticated with the user's SSO Bearer token. If a tool call requires clarification, the agent pauses and surfaces the question directly to the user. The final response is parsed and formatted as documents with deep links — URLs that point directly to the relevant record or page within Datahub.
 
-```mermaid
-flowchart LR
-
-    subgraph section1[" "]
-        Planner[Planner agent]
-        LLM([AWS Bedrock])
-        Session[Django session]
-    end
-
-    subgraph DatahubAgent[Datahub_Agent]
-        subgraph Loop[tool-call loop]
-            Select[Select and invoke tools]
-            Exec[Execute tools in parallel <br>+ format results]
-        end
-    end
-
-    subgraph section2[" "]
-        User((User))
-        Server([datahub_mcp<br>MCP server])
-        DB[(Datahub)]
-        Evaluator[Evaluator agent]
-    end
-
-    Planner -->|task| DatahubAgent
-    DatahubAgent -->|result| Evaluator
-    Server -->|query| DB
-
-    LLM <-->|inference| Select
-    Server -->|tool definitions| Select
-    Session -->|"SSO token"| Exec
-    Select --tools call--> Exec
-    Exec -->|formatted result| Select
-    Exec -->|call| Server
-    Exec -->|needs user input| User
-
-    style section1 fill:transparent,stroke:transparent
-    style section2 fill:transparent,stroke:transparent
-```
 
 ## Document ingestion
 
@@ -248,9 +183,10 @@ flowchart LR
     Schema -- schema + samples --> ESSchema
 ```
 
-**Text extraction**: PDF text is extracted using [AWS Textract](https://aws.amazon.com/textract/), which handles both native-text and scanned PDFs via an async job. Other formats (DOCX, PPTX, TXT) are handled by [unstructured](https://github.com/Unstructured-IO/unstructured); `.doc` files are first converted to `.docx` via LibreOffice; tabular files are parsed by pandas.
+**Text extraction**: PDF text is extracted using a configurable extraction process. **Note that this process is subject to change. he configuration documented here is true at time of writing, but is subject to change, so consider it as an example rather than the actual process**.  
+At time of writing, [AWS Textract](https://aws.amazon.com/textract/), is attempted first, followed by Unstructured extraction, then PyMuPDF is a final fallback. LArge PDFs are handled separately using AWS Textract, with PyMuPDF as a fallback. DOCX and PPTX files are converted to PDF using LibreOffice, then they pass through the same pipeline. Text files are handled by Unstructured. Tabular files are parsed by pandas.
 
-**Metadata extraction**: `MetadataLoader` runs Claude 3 Sonnet over the first 10K characters of each file to generate a name, description, and keywords. This metadata is embedded into every chunk and used by agents to understand what files are available.
+**Metadata extraction**: `MetadataExtraction` uses the configured metadata extraction LLM to process up to the first 10K characters of each file to generate a name, description, and keywords. For tabular files schema information and sample data are also processed. This metadata is embedded into every chunk and used by agents to understand what files are available.
 
 **Indexing**: Chunks are indexed in OpenSearch in two ways:
 
@@ -324,7 +260,7 @@ redbox/
 │   ├── tests/                       # Library test suite
 │   └── pyproject.toml
 ├── tests/                           # End-to-end / integration tests
-├── docs/                            # Project documentation (MkDocs)
+├── docs/                            # Project documentation
 ├── notebooks/                       # Jupyter notebooks
 ├── utilities/                       # Developer utilities (e.g. draw_graph.py)
 ├── docker-compose.yml
@@ -337,9 +273,9 @@ redbox/
 
 | File | Purpose |
 | --- | --- |
-| [`django_app/redbox_app/redbox_core/consumers.py`](./django_app/redbox_app/redbox_core/consumers.py) | WebSocket handler — entry point for all chat messages |
-| [`redbox/redbox/app.py`](./redbox/redbox/app.py) | `Redbox` class — wires up the LangGraph graph, retrievers, and agent tools |
-| [`redbox/redbox/graph/root.py`](./redbox/redbox/graph/root.py) | Graph definition — nodes, edges, and route branching |
-| [`redbox/redbox/graph/agents/workers.py`](./redbox/redbox/graph/agents/workers.py) | Worker agent execution — how a task is run with tool calls |
-| [`redbox/redbox/retriever/retrievers.py`](./redbox/redbox/retriever/retrievers.py) | OpenSearch retriever — KNN search with filters and Gaussian boosting |
-| [`django_app/redbox_app/worker.py`](./django_app/redbox_app/worker.py) | Ingestion worker — preprocessing, chunking, embedding, and indexing |
+| [`django_app/redbox_app/redbox_core/consumers.py`](../../django_app/redbox_app/redbox_core/consumers.py) | WebSocket handler — entry point for all chat messages |
+| [`redbox/redbox/app.py`](../../redbox/redbox/app.py) | `Redbox` class — wires up the LangGraph graph, retrievers, and agent tools |
+| [`redbox/redbox/graph/root.py`](../../redbox/redbox/graph/root.py) | Graph definition — nodes, edges, and route branching |
+| [`redbox/redbox/graph/agents/workers.py`](../../redbox/redbox/graph/agents/workers.py) | Worker agent execution — how a task is run with tool calls |
+| [`redbox/redbox/retriever/retrievers.py`](../../redbox/redbox/retriever/retrievers.py) | OpenSearch retriever — KNN search with filters and Gaussian boosting |
+| [`django_app/redbox_app/worker.py`](../../django_app/redbox_app/worker.py) | Ingestion worker — preprocessing, chunking, embedding, and indexing |

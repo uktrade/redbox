@@ -131,14 +131,6 @@ reset-elastic: ## Reset Django database
 	rm -rf data/elastic/*
 	docker compose up -d opensearch --wait
 
-.PHONY: docs-serve
-docs-serve: ## Build and serve documentation
-	poetry run mkdocs serve
-
-.PHONY: docs-build
-docs-build: ## Build documentation
-	poetry run mkdocs build
-
 # Docker
 AWS_REGION = eu-west-2
 APP_NAME = redbox
