@@ -87,9 +87,7 @@ class Settings(BaseSettings):
     """Settings for the redbox application."""
 
     azure_api_version_embeddings: str = "2024-02-01"
-    metadata_extraction_llm: ChatLLMBackend = ChatLLMBackend(
-        name=ASSIST_METADATA_MODEL, provider="bedrock_converse"
-    )
+    metadata_extraction_llm: ChatLLMBackend = ChatLLMBackend(name=ASSIST_METADATA_MODEL, provider="bedrock_converse")
 
     embedding_backend: str = os.environ.get("EMBEDDING_BACKEND", "amazon.titan-embed-text-v2:0")
 
