@@ -179,7 +179,7 @@ class Settings(BaseSettings):
     datahub_redbox_secret_key: str = os.environ.get("DATAHUB_REDBOX_SECRET_KEY", "")
     datahub_redbox_access_key_id: str = os.environ.get("DATAHUB_REDBOX_ACCESS_KEY_ID", "")
 
-    default_model_id: Optional[str] = os.environ.get("DEFAULT_MODEL_ID")
+    default_model_id: str = os.environ.get("DEFAULT_MODEL_ID", ASSIST_CHAT_MODEL)
 
     allow_plan_feedback: bool = os.environ.get("ALLOW_PLAN_FEEDBACK", True)
 
