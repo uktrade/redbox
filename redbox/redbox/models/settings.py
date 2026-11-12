@@ -17,6 +17,9 @@ logger = logging.getLogger()
 
 ENVIRONMENT = Environment[os.environ.get("ENVIRONMENT", "LOCAL").upper()]
 
+ASSIST_CHAT_MODEL = "eu.anthropic.claude-sonnet-5-5"
+ASSIST_METADATA_MODEL = "eu.anthropic.claude-sonnet-5-5"
+
 
 class OpenSearchSettings(BaseModel):
     """settings required for a aws/opensearch"""
@@ -74,8 +77,8 @@ class WebSearchSettings(BaseModel):
 
 
 class ChatLLMBackend(BaseModel):
-    name: str = "anthropic.claude-3-7-sonnet-20250219-v1:0"
-    provider: str = "bedrock"
+    name: str = ASSIST_CHAT_MODEL
+    provider: str = "bedrock_converse"
     description: str | None = None
     model_config = {"frozen": True}
 
@@ -84,9 +87,7 @@ class Settings(BaseSettings):
     """Settings for the redbox application."""
 
     azure_api_version_embeddings: str = "2024-02-01"
-    metadata_extraction_llm: ChatLLMBackend = ChatLLMBackend(
-        name="anthropic.claude-3-sonnet-20240229-v1:0", provider="bedrock"
-    )
+    metadata_extraction_llm: ChatLLMBackend = ChatLLMBackend(name=ASSIST_METADATA_MODEL, provider="bedrock_converse")
 
     embedding_backend: str = os.environ.get("EMBEDDING_BACKEND", "amazon.titan-embed-text-v2:0")
 
