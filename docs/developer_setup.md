@@ -248,7 +248,7 @@ The relevant env vars for overriding to use bedrock's titan model for embeddings
     - `AWS_SECRET_ACCESS_KEY`
     - `AWS_SESSION_TOKEN`
     - `AWS_CREDENTIAL_EXPIRATION` - default 30
-3. Also create `.aws/config`:
+3. Also create `.aws/config`:  
 `cp .aws/config.example .aws/config`
 
 
@@ -261,7 +261,8 @@ aws s3api create-bucket \
   --region eu-west-2 \
   --create-bucket-configuration LocationConstraint=eu-west-2
 ```
-Then you will need to set BUCKET_NAME in the .env file to your bucket name: `redbox-developer-bucket-<your-name>`
+Then you will need to set BUCKET_NAME in the .env file to your bucket name:  
+`redbox-developer-bucket-<your-name>`
 
 
 ## 11. Build service images
@@ -355,21 +356,23 @@ Assist has an admin UI at [http://localhost:8080/admin](http://localhost:8080/ad
 
 ## 14. Setting up the chat llm backend
 
-1. Get the ID of Assist's current default model. At time of writing it's `anthropic.claude-sonnet-4-6` but this changes over time.  
-    To get the current default model:
-   - Ask the team
-   - If you have access, [go to  the llm settings in the dev deployment's admin UI](https://dev.assist.uktrade.digital/admin/redbox_core/chatllmbackend) and check which model is marked as `IS DEFAULT ✅`.
+From repo root run:  
+`make setup`
 
-2. Go to http://localhost:8080/admin/redbox_core/chatllmbackend/.  
+This sets the default LLM used by Assist to process prompts, using the parameters defined in [chatllmbackend.json](https://github.com/uktrade/redbox/blob/main/django_app/tests/fixtures/chatllmbackend.json).
+
+You can also set the model manually, for example if you need to test an alternative:
+
+1. Go to http://localhost:8080/admin/redbox_core/chatllmbackend/.  
   Create a new chat llm backend with the following:
     ```
-    Name: <the current default model's ID>  
+    Name: <the model ID>  
     Provider: Bedrock  
     Is default: True  
     Enabled: True  
     ```
 
-3. Go to http://localhost:8080/admin/redbox_core/aisettings/.  
+1. Go to http://localhost:8080/admin/redbox_core/aisettings/.  
     Check that the default settings uses the chat backend you just created.  
     Hit save.
 
@@ -385,16 +388,8 @@ You should now be able to perform the following actions:
 - Submit a query with an uploaded a file using the chat dialogue. The agent should be able to access information in the file.
 - Access the admin dashboard at http://localhost:8080/admin
 
-
-
 ---
 
 ## Next steps
 
-You now have Assist running. Next you may want to set up some tools, and create knowledge bases for those tools. You can do that now, or you can set up tools as and when you need them. Instructions for this are in confluence.
-
-<!-- Up to here.
-
-Next steps:
-1. Review this file.
-2. Delete remaining obsolete content. -->
+You now have Assist running. Next you may want to set up some tools, and create knowledge bases for those tools. You can do that now, or you can set up tools as and when you need them. Instructions for this are in confluence..
