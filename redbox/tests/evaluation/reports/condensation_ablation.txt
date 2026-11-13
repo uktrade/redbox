@@ -1,0 +1,4 @@
+Condensation ablation
+Raw Hit@10:       0.200
+Condensed Hit@10: 0.400
+Delta:            +0.200

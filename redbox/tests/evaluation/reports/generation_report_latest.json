@@ -1,0 +1,126 @@
+{
+  "meta": {
+    "recorded_at": "2026-10-30T11:20:01.545399+00:00",
+    "git_sha": "5c4d8da9",
+    "embedding_model": "amazon.titan-embed-text-v2:0"
+  },
+  "aggregate": {
+    "num_questions": 10,
+    "faithfulness": 1.0,
+    "answer_relevance": 0.8,
+    "context_precision": 0.4745,
+    "context_recall": 0.95
+  },
+  "per_question": [
+    {
+      "question_id": "cptpp_001",
+      "faithfulness": 1.0,
+      "answer_relevance": 0.0,
+      "context_precision": 0.7681,
+      "context_recall": 1.0,
+      "condensed_query": "What is the estimated long-run annual increase in UK GDP from CPTPP membership?",
+      "answer_length_words": 0,
+      "citation_count": 0,
+      "num_retrieved": 30
+    },
+    {
+      "question_id": "cptpp_002",
+      "faithfulness": 1.0,
+      "answer_relevance": 1.0,
+      "context_precision": 0.3869,
+      "context_recall": 1.0,
+      "condensed_query": "How many countries are currently members of the Comprehensive and Progressive Agreement for Trans-Pacific Partnership (CPTPP)?",
+      "answer_length_words": 49,
+      "citation_count": 1,
+      "num_retrieved": 30
+    },
+    {
+      "question_id": "cptpp_003",
+      "faithfulness": 1.0,
+      "answer_relevance": 1.0,
+      "context_precision": 0.3367,
+      "context_recall": 1.0,
+      "condensed_query": "What percentage of UK goods exports will be tariff-free under the CPTPP agreement?",
+      "answer_length_words": 104,
+      "citation_count": 2,
+      "num_retrieved": 30
+    },
+    {
+      "question_id": "cptpp_004",
+      "faithfulness": 1.0,
+      "answer_relevance": 0.0,
+      "context_precision": 0.5823,
+      "context_recall": 1.0,
+      "condensed_query": "What is the total combined GDP of all member countries in the Comprehensive and Progressive Agreement for Trans-Pacific Partnership (CPTPP)?",
+      "answer_length_words": 0,
+      "citation_count": 0,
+      "num_retrieved": 30
+    },
+    {
+      "question_id": "cptpp_005",
+      "faithfulness": 1.0,
+      "answer_relevance": 1.0,
+      "context_precision": 0.2789,
+      "context_recall": 1.0,
+      "condensed_query": "How much is bilateral trade between the UK and CPTPP members expected to increase following the UK's accession?",
+      "answer_length_words": 62,
+      "citation_count": 3,
+      "num_retrieved": 30
+    },
+    {
+      "question_id": "cptpp_006",
+      "faithfulness": 1.0,
+      "answer_relevance": 1.0,
+      "context_precision": 0.421,
+      "context_recall": 1.0,
+      "condensed_query": "What is the estimated impact of the Comprehensive and Progressive Agreement for Trans-Pacific Partnership (CPTPP) on the real take-home pay for workers in the United Kingdom?",
+      "answer_length_words": 75,
+      "citation_count": 5,
+      "num_retrieved": 30
+    },
+    {
+      "question_id": "cptpp_007",
+      "faithfulness": 1.0,
+      "answer_relevance": 1.0,
+      "context_precision": 0.7632,
+      "context_recall": 1.0,
+      "condensed_query": "What is the estimated annual reduction in tariff duties on UK exports under the Comprehensive and Progressive Agreement for Trans-Pacific Partnership (CPTPP)?",
+      "answer_length_words": 109,
+      "citation_count": 1,
+      "num_retrieved": 30
+    },
+    {
+      "question_id": "cptpp_008",
+      "faithfulness": 1.0,
+      "answer_relevance": 1.0,
+      "context_precision": 0.4633,
+      "context_recall": 1.0,
+      "condensed_query": "What is the projected increase in global greenhouse gas emissions that would result from the UK joining the CPTPP trade agreement?",
+      "answer_length_words": 135,
+      "citation_count": 2,
+      "num_retrieved": 30
+    },
+    {
+      "question_id": "cptpp_009",
+      "faithfulness": 1.0,
+      "answer_relevance": 1.0,
+      "context_precision": 0.4111,
+      "context_recall": 1.0,
+      "condensed_query": "What tariff does Malaysia currently charge on UK whisky exports?; What tariff will Malaysia charge on UK whisky exports after the UK joins the CPTPP?",
+      "answer_length_words": 78,
+      "citation_count": 2,
+      "num_retrieved": 44
+    },
+    {
+      "question_id": "cptpp_010",
+      "faithfulness": 1.0,
+      "answer_relevance": 1.0,
+      "context_precision": 0.3333,
+      "context_recall": 0.5,
+      "condensed_query": "Which UK regions will see the largest percentage GDP increase as a result of UK's accession to the CPTPP (Comprehensive and Progressive Agreement for Trans-Pacific Partnership)?",
+      "answer_length_words": 104,
+      "citation_count": 0,
+      "num_retrieved": 30
+    }
+  ]
+}

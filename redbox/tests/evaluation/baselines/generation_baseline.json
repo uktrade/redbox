@@ -1,0 +1,8 @@
+{
+  "meta": {
+    "note": "Empty baseline — run eval-generation, review results, then run: make eval-update-generation-baseline",
+    "recorded_at": null,
+    "git_sha": null
+  },
+  "aggregate": {}
+}

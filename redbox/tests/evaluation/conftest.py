@@ -26,9 +26,11 @@ from tests.evaluation.eval_pipeline import (
     make_eval_state,
     make_retriever,
 )
+from tests.evaluation.metrics.generation import GenerationScores, aggregate_generation
 from tests.evaluation.metrics.report import EvalReport, RetrievalScores
+from tests.evaluation.run_generation_eval import GENERATION_BASELINE_PATH, write_generation_report
 
-from redbox.chains.components import get_embeddings
+from redbox.chains.components import get_chat_llm, get_embeddings
 from redbox.models.chain import AISettings
 from redbox.models.settings import Settings
 from redbox.retriever import ParameterisedElasticsearchRetriever
@@ -132,3 +134,42 @@ def eval_report(eval_env: Settings) -> Generator[EvalReport, None, None]:
     )
     yield report
     report.write()
+
+
+# ---------------------------------------------------------------------------
+# Generation eval fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def judge_llm(eval_env: Settings):
+    """
+    LLM used for query condensation, answer generation, and LLM-as-judge scoring.
+    Backed by the same Bedrock Claude model as production.
+    """
+    return get_chat_llm(AISettings().chat_backend)
+
+
+@pytest.fixture(scope="session")
+def generation_report(eval_env: Settings) -> Generator[list[GenerationScores], None, None]:
+    """
+    Accumulator for per-question GenerationScores.
+
+    Tests append to this list as they run. On teardown the fixture writes
+    JSON + Markdown + HTML reports to tests/evaluation/reports/.
+    """
+    scores: list[GenerationScores] = []
+    yield scores
+    if scores:
+        write_generation_report(scores, aggregate_generation(scores), eval_env)
+
+
+@pytest.fixture(scope="session")
+def generation_baseline() -> dict:
+    """
+    Load baselines/generation_baseline.json. An empty "aggregate" causes the
+    regression test to be skipped on the first run.
+    """
+    if GENERATION_BASELINE_PATH.exists():
+        return json.loads(GENERATION_BASELINE_PATH.read_text(encoding="utf-8"))
+    return {}
