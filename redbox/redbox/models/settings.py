@@ -363,7 +363,7 @@ class Settings(BaseSettings):
 
     # @lru_cache(1) #removing cache because pydantic object (index mapping) is not hashable
     def elasticsearch_client(self) -> Union[Elasticsearch, OpenSearch]:
-        logger.info("Testing OpenSearch is definitely being used")
+        logger.info("Testing OpenSearch endpoint %s is definitely being used", self.elastic.collection_endpoint__host)
 
         if ENVIRONMENT.is_local or ENVIRONMENT.is_testing or ENVIRONMENT.is_integration:
             client = OpenSearch(
@@ -405,22 +405,31 @@ class Settings(BaseSettings):
                 if not client.indices.exists(index=index_name):
                     client.indices.create(index=index_name, body=mapping, ignore=400)
             except Exception:
-                logger.exception("Failed to create index %s", index_name)
+                logger.exception("Failed to create index %s", index_name, exc_info=True)
 
         def ensure_alias(index_name, alias_name):
             try:
                 if not client.indices.exists_alias(name=alias_name):
                     client.indices.put_alias(index=index_name, name=alias_name)
             except Exception:
-                logger.exception("Failed to set alias %s for index %s", alias_name, index_name)
+                logger.exception("Failed to set alias %s for index %s", alias_name, index_name, exc_info=True)
 
         # Ensure indexes and aliases exist
         chunk_index = f"{self.elastic_root_index}-chunk"
-        ensure_index(chunk_index, self.index_mapping)
-        ensure_alias(chunk_index, f"{self.elastic_root_index}-chunk-current")
+        chunk_alias = f"{self.elastic_root_index}-chunk-current"
 
+        logger.info("Ensuring index %s exists", chunk_index)
+        ensure_index(chunk_index, self.index_mapping)
+        logger.info("Ensuring alias %s exists", chunk_alias)
+        ensure_alias(chunk_index, chunk_alias)
+
+        logger.info("Ensuring index %s exists", self.elastic_chat_mesage_index)
         ensure_index(self.elastic_chat_mesage_index)
+
+        logger.info("Ensuring index %s exists", self.elastic_schematised_chunk_index)
         ensure_index(self.elastic_schematised_chunk_index, self.index_mapping_schematised)
+
+        logger.info("Completed checks on all indexesand aliases")
 
         return client
 
