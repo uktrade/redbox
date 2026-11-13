@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "worker"
+version = "0.0.1"
+description = ""
+authors = [
+    "DBT Assist <assist@businessandtrade.gov.uk>",
+]
+license = "MIT"
+package-mode=false
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.13"
+django = "^6.0.4"
+django-q2 = "^1.9.0"
+django-storages = "^1.14.2"
+boto3 = "^1.42.88"
+psycopg2-binary = "^2.9.11"
+python-dotenv = "^1.2.2"
+blessed = "^1.38.0"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
