@@ -46,8 +46,10 @@ duckdb = "^1.5.1"
 django = "^6.0.4"
 protobuf = "5.29.6"
 pandas = "^2.3.3"
-unstructured = { version = "^0.24.0", extras = ["all-docs"] }
-transformers = "5.10.1"
+unstructured = { version = "^0.27.32", extras = ["all-docs"] }
+transformers = "^5.10.1"
+torch = "<2.13" # Pinned due to issues with poetry dependency resolution of nvidia-cublas package
+cuda-toolkit = "<13" # Pinned due to issues with poetry dependency resolution of nvidia-cublas package
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.2"
