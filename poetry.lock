@@ -1426,7 +1426,7 @@ version = "2.9.2"
 description = "DNS toolkit"
 optional = false
 python-versions = ">=3.11"
-groups = ["docs"]
+groups = ["dev", "docs"]
 files = [
     {file = "dnspython-2.9.2-py3-none-any.whl", hash = "sha256:af15f7d385a6ae2fb35a796fde2138004c8c42c7389090e2addc83e3b3340fd8"},
     {file = "dnspython-2.9.2.tar.gz", hash = "sha256:8d4d39a513e649d634004ce4d39ade2352efcea472a0247535a5c2d18a9d7ba9"},
