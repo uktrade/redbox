@@ -1,9 +1,6 @@
-import asyncio
-import json
 from datetime import timedelta
 
-import sentry_sdk
-from asgiref.sync import iscoroutinefunction, sync_to_async
+from asgiref.sync import iscoroutinefunction
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpRequest, HttpResponse
@@ -32,38 +29,6 @@ def nocache_middleware(get_response):
         def middleware(request: HttpRequest) -> HttpResponse:
             response = get_response(request)
             response["Cache-Control"] = "no-store"
-            return response
-
-    return middleware
-
-
-@sync_and_async_middleware
-def security_header_middleware(get_response):
-    report_to = json.dumps(
-        {
-            "group": "csp-endpoint",
-            "max_age": 10886400,
-            "endpoints": [{"url": settings.SENTRY_REPORT_TO_ENDPOINT}],
-            "include_subdomains": True,
-        },
-        indent=None,
-        separators=(",", ":"),
-        default=str,
-    )
-
-    if iscoroutinefunction(get_response):
-
-        async def middleware(request: HttpRequest) -> HttpResponse:
-            response = await get_response(request)
-            if settings.SENTRY_REPORT_TO_ENDPOINT:
-                response["Report-To"] = report_to
-            return response
-    else:
-
-        def middleware(request: HttpRequest) -> HttpResponse:
-            response = get_response(request)
-            if settings.SENTRY_REPORT_TO_ENDPOINT:
-                response["Report-To"] = report_to
             return response
 
     return middleware
@@ -107,41 +72,6 @@ class APIKeyAuthentication(BaseAuthentication):
 
         msg = "Invalid API key"
         raise AuthenticationFailed(msg)
-
-
-@sync_and_async_middleware
-def sentry_user_middleware(get_response):
-    if iscoroutinefunction(get_response):
-
-        async def middleware(request: HttpRequest) -> HttpResponse:
-            if hasattr(request, "user"):
-                is_authenticated = await sync_to_async(getattr)(request.user, "is_authenticated", False)
-                if is_authenticated:
-                    await sync_to_async(sentry_sdk.set_user)(
-                        {
-                            "id": request.user.id,
-                            "email": request.user.email,
-                            "name": request.user.name,
-                        }
-                    )
-            response = await get_response(request)
-            if asyncio.iscoroutine(response):
-                response = await response
-            return response
-    else:
-
-        def middleware(request: HttpRequest) -> HttpResponse:
-            if hasattr(request, "user") and request.user.is_authenticated:
-                sentry_sdk.set_user(
-                    {
-                        "id": request.user.id,
-                        "email": request.user.email,
-                        "name": request.user.name,
-                    }
-                )
-            return get_response(request)
-
-    return middleware
 
 
 class SSOSyncMiddleware:
