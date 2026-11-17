@@ -13,7 +13,6 @@ notebooks/build_react_final.ipynb
 notebooks/LLM_rephrasing_investigation.ipynb
 notebooks/LLM_choose_route.ipynb
 notebooks/Evaluate_planner_prompt.ipynb
-docs/installation/index.md
 docs/contributing.md
 django_app/tests/views/test_document_views.py
 django_app/tests/test_migrations.py

@@ -15,7 +15,7 @@
     "model": "redbox_core.chatllmbackend",
     "pk": 2,
     "fields": {
-      "name": "anthropic.claude-3-sonnet-20240229-v1:0",
+      "name": "eu.anthropic.claude-sonnet-5-5",
       "provider": "bedrock",
       "description": "",
       "is_default": true,
