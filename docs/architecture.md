@@ -261,7 +261,6 @@ redbox/
 │   └── pyproject.toml
 ├── tests/                           # End-to-end / integration tests
 ├── docs/                            # Project documentation
-├── notebooks/                       # Jupyter notebooks
 ├── utilities/                       # Developer utilities (e.g. draw_graph.py)
 ├── docker-compose.yml
 ├── pyproject.toml

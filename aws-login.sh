@@ -26,8 +26,6 @@ AWS_DIR="$PROJECT_ROOT/.aws"
 DJANGO_APP_DIR="$PROJECT_ROOT/django_app"
 DJANGO_APP_AWS_DIR="$DJANGO_APP_DIR/.aws"
 
-NOTEBOOKS_DIR="$PROJECT_ROOT/notebooks"
-NOTEBOOKS_AWS_DIR="$NOTEBOOKS_DIR/.aws"
 
 echo "Using AWS profile: $AWS_PROFILE"
 
@@ -58,9 +56,4 @@ rm -f "$AWS_DIR/credentials.bak"
 # 5. Ensure django_app/.aws exists and copy over credentials
 mkdir -p "$DJANGO_APP_AWS_DIR"
 cp "$AWS_DIR/credentials" "$DJANGO_APP_AWS_DIR/credentials"
-echo "AWS credentials updated and copied to notebooks/.aws"
-
-# 6. Ensure notebooks/.aws exists and copy over credentials
-mkdir -p "$NOTEBOOKS_AWS_DIR"
-cp "$AWS_DIR/credentials" "$NOTEBOOKS_AWS_DIR/credentials"
-echo "AWS credentials updated and copied to notebooks/.aws"
+echo "AWS credentials updated and copied to django_app/.aws"
