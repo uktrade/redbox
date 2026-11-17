@@ -1,37 +1,4 @@
 services:
-  redbox-worker-app:
-    image: redbox-worker-app:latest
-    container_name: worker
-    build:
-      context: .
-      dockerfile: ./worker/Dockerfile
-    depends_on:
-      db:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      opensearch:
-        condition: service_healthy
-      sso:
-        condition: service_started
-    networks:
-      - redbox-app-network
-    env_file:
-      - path: .env
-        required: false
-    environment:
-      - ENVIRONMENT=${ENVIRONMENT:-production}
-      - AUTHBROKER_INTERNAL_URL=http://sso:8001/
-    volumes:
-      - ${HOME}/.aws:/root/.aws
-    ports:
-      - "${PORT:-8080}:${PORT:-8080}"
-    healthcheck:
-      test: curl --fail http://localhost:${PORT:-8080}/health/ || exit 1
-      interval: 5s
-      timeout: 30s
-      retries: 5
-      start_period: 60s
   redbox-django-app:
     image: redbox-django-app:latest
     container_name: django_app
@@ -92,7 +59,30 @@ services:
       - utils
     volumes:
       - ./:/app/:z
-
+  redbox-worker:
+    image: redbox-worker:latest
+    container_name: worker
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    command: "venv/bin/django-admin qcluster"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ${HOME}/.aws:/root/.aws
+    depends_on:
+      opensearch:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redbox-django-app:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    networks:
+      - redbox-app-network
+    restart: unless-stopped
   minio:
     image: docker.io/pgsty/silo:latest
     container_name: minio
