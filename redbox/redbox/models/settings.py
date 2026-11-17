@@ -17,6 +17,9 @@ logger = logging.getLogger()
 
 ENVIRONMENT = Environment[os.environ.get("ENVIRONMENT", "LOCAL").upper()]
 
+ASSIST_CHAT_MODEL = "eu.anthropic.claude-sonnet-5-5"
+ASSIST_METADATA_MODEL = "eu.anthropic.claude-sonnet-5-5"
+
 
 class OpenSearchSettings(BaseModel):
     """settings required for a aws/opensearch"""
@@ -74,8 +77,8 @@ class WebSearchSettings(BaseModel):
 
 
 class ChatLLMBackend(BaseModel):
-    name: str = "anthropic.claude-3-7-sonnet-20250219-v1:0"
-    provider: str = "bedrock"
+    name: str = ASSIST_CHAT_MODEL
+    provider: str = "bedrock_converse"
     description: str | None = None
     model_config = {"frozen": True}
 
@@ -84,9 +87,7 @@ class Settings(BaseSettings):
     """Settings for the redbox application."""
 
     azure_api_version_embeddings: str = "2024-02-01"
-    metadata_extraction_llm: ChatLLMBackend = ChatLLMBackend(
-        name="anthropic.claude-3-sonnet-20240229-v1:0", provider="bedrock"
-    )
+    metadata_extraction_llm: ChatLLMBackend = ChatLLMBackend(name=ASSIST_METADATA_MODEL, provider="bedrock_converse")
 
     embedding_backend: str = os.environ.get("EMBEDDING_BACKEND", "amazon.titan-embed-text-v2:0")
 
@@ -178,7 +179,7 @@ class Settings(BaseSettings):
     datahub_redbox_secret_key: str = os.environ.get("DATAHUB_REDBOX_SECRET_KEY", "")
     datahub_redbox_access_key_id: str = os.environ.get("DATAHUB_REDBOX_ACCESS_KEY_ID", "")
 
-    default_model_id: Optional[str] = os.environ.get("DEFAULT_MODEL_ID")
+    default_model_id: str = os.environ.get("DEFAULT_MODEL_ID", ASSIST_CHAT_MODEL)
 
     allow_plan_feedback: bool = os.environ.get("ALLOW_PLAN_FEEDBACK", True)
 
@@ -362,7 +363,7 @@ class Settings(BaseSettings):
 
     # @lru_cache(1) #removing cache because pydantic object (index mapping) is not hashable
     def elasticsearch_client(self) -> Union[Elasticsearch, OpenSearch]:
-        logger.info("Testing OpenSearch is definitely being used")
+        logger.info("Testing OpenSearch endpoint %s is definitely being used", self.elastic.collection_endpoint__host)
 
         if ENVIRONMENT.is_local or ENVIRONMENT.is_testing or ENVIRONMENT.is_integration:
             client = OpenSearch(
@@ -404,22 +405,31 @@ class Settings(BaseSettings):
                 if not client.indices.exists(index=index_name):
                     client.indices.create(index=index_name, body=mapping, ignore=400)
             except Exception:
-                logger.exception("Failed to create index %s", index_name)
+                logger.exception("Failed to create index %s", index_name, exc_info=True)
 
         def ensure_alias(index_name, alias_name):
             try:
                 if not client.indices.exists_alias(name=alias_name):
                     client.indices.put_alias(index=index_name, name=alias_name)
             except Exception:
-                logger.exception("Failed to set alias %s for index %s", alias_name, index_name)
+                logger.exception("Failed to set alias %s for index %s", alias_name, index_name, exc_info=True)
 
         # Ensure indexes and aliases exist
         chunk_index = f"{self.elastic_root_index}-chunk"
-        ensure_index(chunk_index, self.index_mapping)
-        ensure_alias(chunk_index, f"{self.elastic_root_index}-chunk-current")
+        chunk_alias = f"{self.elastic_root_index}-chunk-current"
 
+        logger.info("Ensuring index %s exists", chunk_index)
+        ensure_index(chunk_index, self.index_mapping)
+        logger.info("Ensuring alias %s exists", chunk_alias)
+        ensure_alias(chunk_index, chunk_alias)
+
+        logger.info("Ensuring index %s exists", self.elastic_chat_mesage_index)
         ensure_index(self.elastic_chat_mesage_index)
+
+        logger.info("Ensuring index %s exists", self.elastic_schematised_chunk_index)
         ensure_index(self.elastic_schematised_chunk_index, self.index_mapping_schematised)
+
+        logger.info("Completed checks on all indexesand aliases")
 
         return client
 

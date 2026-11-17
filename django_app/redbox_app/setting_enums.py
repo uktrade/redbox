@@ -23,7 +23,7 @@ class Environment(StrEnum):
 
     @property
     def is_testing(self) -> bool:
-        return self is Environment.TEST
+        return self is Environment.TESTING
 
     @property
     def is_prod(self) -> bool:
@@ -37,6 +37,7 @@ class Environment(StrEnum):
     INTEGRATION = ("INTEGRATION", True, [*LOCAL_HOSTS, *ADDITIONAL_HOSTS])  # nosec: B104: Not in prod
     DEV = ("DEV", False, [*ADDITIONAL_HOSTS])
     UAT = ("UAT", False, [*ADDITIONAL_HOSTS])
+    TESTING = ("TESTING", False, [*ADDITIONAL_HOSTS])
     TEST = ("TEST", False, [*ADDITIONAL_HOSTS])
     LAB = ("LAB", False, [*ADDITIONAL_HOSTS])
     PROD = ("PROD", False, [*ADDITIONAL_HOSTS])
