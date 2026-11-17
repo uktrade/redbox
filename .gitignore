@@ -22,8 +22,6 @@ db/
 !*/user_preferences/classes_subject.json
 /models/
 
-#tabular evaluation raw results
-notebooks/evaluation/data_results/tabular/*.txt
 # npm package files
 
 node_modules/
@@ -106,10 +104,6 @@ docs/_build/
 .pybuilder/
 target/
 
-# Jupyter Notebook
-.ipynb_checkpoints
-notebooks/.intent_exports/
-notebooks/.files
 
 # IPython
 profile_default/

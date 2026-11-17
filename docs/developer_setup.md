@@ -151,7 +151,6 @@ Run the command `poetry install` in the following directories to install all dep
 |[. (project root)](https://github.com/uktrade/redbox/blob/main/pyproject.toml)|Integration tests, QA, and docs|
 |[./django_app](https://github.com/uktrade/redbox/blob/main/django_app/pyproject.toml)|Django webserver and background worker|
 |[./redbox](https://github.com/uktrade/redbox/blob/main/redbox/pyproject.toml)|Core AI package|
-|[./notebooks](https://github.com/uktrade/redbox/blob/main/notebooks/pyproject.toml)|Jupyter notebooks|
 
 
 ## 6. Install NPM and node packages
