@@ -4,7 +4,7 @@ import os
 import re
 import socket
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
 import environ
 from dbt_copilot_python.database import database_from_env
