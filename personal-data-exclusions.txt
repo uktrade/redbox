@@ -5,15 +5,6 @@ tests/.env.test
 tests/.env.integration
 redbox/pyproject.toml
 pyproject.toml
-notebooks/pyproject.toml
-notebooks/multi-agent-planner_exp.ipynb
-notebooks/evaluation/README.md
-notebooks/composite_query_opensearch.ipynb
-notebooks/build_react_final.ipynb
-notebooks/LLM_rephrasing_investigation.ipynb
-notebooks/LLM_choose_route.ipynb
-notebooks/Evaluate_planner_prompt.ipynb
-docs/contributing.md
 django_app/tests/views/test_document_views.py
 django_app/tests/test_migrations.py
 django_app/tests/test_admin.py
@@ -27,7 +18,5 @@ django_app/pyproject.toml
 .env.example
 django_app/frontend/src/js/admin/plotly.min.js
 django_app/poetry.lock
-notebooks/evaluation/data_results/0.2.3/embeddings/all-mpnet-base-v2.jsonl
-notebooks/evaluation/data_results/0.2.3/embeddings/text-embedding-3-large.jsonl
 tests/data/html/corrupt.html
 .github/dependabot.yml
