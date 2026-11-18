@@ -1,0 +1,3 @@
+.venv/
+static_files/
+**/node_modules

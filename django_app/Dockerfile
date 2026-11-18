@@ -41,20 +41,7 @@ RUN poetry bundle venv ./venv
 # app
 FROM python:3.12-slim
 
-RUN apt-get update && apt-get install -y \
-    libreoffice \
-    libreoffice-writer \
-    tesseract-ocr \
-    tesseract-ocr-eng \
-    libpq-dev \
-    curl \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /usr/src/app
-
-RUN libreoffice --version
-RUN tesseract --version
 
 COPY README.md .
 COPY redbox/ .
