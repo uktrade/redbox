@@ -28,13 +28,12 @@ def fetch_sso_payload(request: HttpRequest):
         logger.warning("%s: %s", error_message, "Missing access_token")
         return data
 
-    url = f"{settings.AUTHBROKER_URL}/api/v1/user/me/"
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-    }
-
     try:
-        response = requests.get(url, headers=headers, timeout=5)
+        response = requests.get(
+            settings.AUTHBROKER_PROFILE_URL,
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=10,
+        )
 
         if response.status_code != HTTPStatus.OK:
             logger.warning("%s: %s %s", error_message, response.status_code, response.text[:500])
