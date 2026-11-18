@@ -1,44 +1,39 @@
-# Creating a python base with shared environment variables
-FROM python:3.12-slim AS python-base
+#######################################################
+# Builder
+####################################################### 
+FROM dhi.io/python:3.12-debian-dev AS builder
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=off \
-    PIP_DISABLE_PIP_VERSION_CHECK=on \
-    PIP_DEFAULT_TIMEOUT=100 \
-    POETRY_HOME="/opt/poetry" \
-    POETRY_VIRTUALENVS_IN_PROJECT=true \
     POETRY_NO_INTERACTION=1 \
-    PYSETUP_PATH="/opt/pysetup" \
-    VENV_PATH="/opt/pysetup/.venv"
+    POETRY_VIRTUALENVS_IN_PROJECT=true
 
-ENV PATH="$POETRY_HOME/bin:$VENV_PATH/bin:$PATH"
-
-
-# builder-base is used to build dependencies
-FROM python-base AS builder-base
-RUN apt-get update \
-    && apt-get install --no-install-recommends -y \
-        curl \
-        build-essential
-
-# Install Poetry - respects $POETRY_VERSION & $POETRY_HOME
-ENV POETRY_VERSION=2.5.1
-RUN curl -sSL https://install.python-poetry.org | python3 -
-
-# We copy our Python requirements here to cache them
-# and install only runtime deps using poetry
-WORKDIR $PYSETUP_PATH
-COPY worker/poetry.lock worker/pyproject.toml ./
-RUN poetry install --only main
-
-
-# 'production' stage uses the clean 'python-base' stage and copies
-# in only our runtime deps that were installed in the 'builder-base'
-FROM python-base AS production
-
-COPY --from=builder-base $VENV_PATH $VENV_PATH
-COPY worker/ /app
 WORKDIR /app
 
+RUN python -m pip install --upgrade pip \
+    && python -m pip install poetry
 
-CMD ["sh", "start_q.sh"]
+COPY redbox/poetry.lock redbox/pyproject.toml /app/
+
+RUN poetry install --only main --no-root
+
+COPY redbox/ /app/
+COPY /worker/src/settings.py /app/settings.py
+COPY --chown=nonroot:nonroot /worker/manage.py /manage.py
+
+#######################################################
+# Runtime
+####################################################### 
+FROM dhi.io/python:3.12-debian AS runtime
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+ENV PATH="/app/.venv/bin:$PATH"
+
+WORKDIR /app
+
+COPY --from=builder /app /app
+COPY --from=builder /manage.py /manage.py
+
+ENTRYPOINT ["python", "/manage.py"]
