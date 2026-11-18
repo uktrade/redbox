@@ -17,10 +17,6 @@
 			"path": "../tests"
 		},
 		{
-			"name": "Notebooks",
-			"path": "../notebooks"
-		},
-		{
 			"name": "VSCode",
 			"path": "."
 		},
