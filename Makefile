@@ -10,7 +10,7 @@ reqs:
 
 .PHONY: run
 run: stop
-	docker compose up -d --wait redbox-django-app
+	docker compose up -d --wait redbox-django-app redbox-worker
 
 .PHONY: run-dependencies
 run-dependencies: stop

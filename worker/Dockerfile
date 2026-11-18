@@ -1,77 +1,44 @@
-#THIS IS AN EXACT COPY OF THE FILE FROM django_app/Dockerfile. IT IS USED TO BUILD THE WORKER IMAGE.
+# Creating a python base with shared environment variables
+FROM python:3.12-slim AS python-base
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=off \
+    PIP_DISABLE_PIP_VERSION_CHECK=on \
+    PIP_DEFAULT_TIMEOUT=100 \
+    POETRY_HOME="/opt/poetry" \
+    POETRY_VIRTUALENVS_IN_PROJECT=true \
+    POETRY_NO_INTERACTION=1 \
+    PYSETUP_PATH="/opt/pysetup" \
+    VENV_PATH="/opt/pysetup/.venv"
 
-# npm
-FROM node:20 AS npm-packages
-
-WORKDIR /src
-
-COPY django_app/frontend/package.json django_app/frontend/package-lock.json .
-RUN npm ci
-
-COPY django_app/frontend/staticfiles.json django_app/frontend/.parcelrc django_app/frontend/*.js ./
-COPY django_app/frontend/src/ ./src/
-COPY django_app/frontend/images/ ./images/
-RUN npx parcel build
-
-
-# poetry
-FROM python:3.12-slim AS poetry-packages
-
-RUN apt-get update && apt-get install --yes build-essential > /dev/null
-
-# datadog
-ARG DD_GIT_REPOSITORY_URL
-ARG DD_GIT_COMMIT_SHA
-ENV DD_GIT_REPOSITORY_URL=${DD_GIT_REPOSITORY_URL}
-ENV DD_GIT_COMMIT_SHA=${DD_GIT_COMMIT_SHA}
-
-# TODO: Unpin poetry-plugin-bundle when https://github.com/python-poetry/poetry-plugin-bundle/issues/112 is fixed.
-RUN pip install poetry poetry-plugin-bundle==1.3.0
-
-WORKDIR /src
-COPY README.md ../.
-COPY redbox/ ../redbox/
-COPY django_app/pyproject.toml .
-COPY django_app/poetry.lock .
-
-# do this so that poetry bundle can run without the project - can't pass --no-root to bundle
-#RUN touch README.md
-RUN poetry install
-RUN poetry bundle venv ./venv
+ENV PATH="$POETRY_HOME/bin:$VENV_PATH/bin:$PATH"
 
 
-# app
-FROM python:3.12-slim
+# builder-base is used to build dependencies
+FROM python-base AS builder-base
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+        curl \
+        build-essential
 
-RUN apt-get update && apt-get install -y \
-    libreoffice \
-    libreoffice-writer \
-    tesseract-ocr \
-    tesseract-ocr-eng \
-    libpq-dev \
-    curl \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# Install Poetry - respects $POETRY_VERSION & $POETRY_HOME
+ENV POETRY_VERSION=2.5.1
+RUN curl -sSL https://install.python-poetry.org | python3 -
 
-WORKDIR /usr/src/app
+# We copy our Python requirements here to cache them
+# and install only runtime deps using poetry
+WORKDIR $PYSETUP_PATH
+COPY worker/poetry.lock worker/pyproject.toml ./
+RUN poetry install --only main
 
-RUN libreoffice --version
-RUN tesseract --version
 
-COPY README.md .
-COPY redbox/ .
-COPY django_app/ .
+# 'production' stage uses the clean 'python-base' stage and copies
+# in only our runtime deps that were installed in the 'builder-base'
+FROM python-base AS production
 
-COPY --from=npm-packages /src/node_modules/ frontend/node_modules/
-COPY --from=npm-packages /src/dist/ frontend/dist/
-COPY --from=poetry-packages /src/venv ./venv
+COPY --from=builder-base $VENV_PATH $VENV_PATH
+COPY worker/ /app
+WORKDIR /app
 
-ENV DJANGO_SETTINGS_MODULE='redbox_app.settings'
-ENV PYTHONPATH "${PYTHONPATH}:/."
 
-EXPOSE 8080
-
-RUN chmod +x start.sh
-RUN chmod +x health.sh
-
-CMD ["/bin/sh", "./start.sh"]
+CMD ["sh", "start_q.sh"]
