@@ -34,7 +34,7 @@ COPY django_app/poetry.lock .
 
 # do this so that poetry bundle can run without the project - can't pass --no-root to bundle
 #RUN touch README.md
-RUN poetry install
+RUN poetry install --only main
 RUN poetry bundle venv ./venv
 
 
