@@ -15,7 +15,13 @@ class FileUpload extends HTMLElement {
 
     connectedCallback() {
         this.input = /** @type {HTMLInputElement} */ (this.querySelector('input[type="file"]'));
+        this.input?.setAttribute("aria-describedby", "upload-docs-notification");
         this.button = /** @type {HTMLButtonElement} */ (this.querySelector('button'));
+        const helpText = document.createElement("p");
+        helpText.id="upload-docs-notification";
+        helpText.innerText = `The AI will use all documents you upload. You can use up to, and including, ${this.securityClassification} documents. Do not upload any documents with personal data.`
+        helpText.classList.add("govuk-visually-hidden")
+        this.appendChild(helpText);
 
         this.#bindButtonInputEvent();
         this.#bindTextboxEvents();
@@ -26,7 +32,7 @@ class FileUpload extends HTMLElement {
      * Textarea for uploading files via drag/drop
     */
     get textarea() {
-        return this.messageInput.textarea;
+        return this?.messageInput?.textarea;
     }
 
 
@@ -37,6 +43,12 @@ class FileUpload extends HTMLElement {
         return this.getAttribute("upload-url");
     }
 
+    /**
+     * URL for file uploads
+    */
+    get securityClassification() {
+        return this.getAttribute("security") ?? "OFFICIAL and OFFICIAL SENSITIVE";
+    }
 
     /**
      * Container for file upload textbox UI elements
