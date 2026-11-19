@@ -64,7 +64,7 @@ services:
     container_name: worker
     build:
       context: .
-      dockerfile: django_app/Dockerfile
+      dockerfile: worker/Dockerfile
     command: "venv/bin/django-admin qcluster"
     env_file:
       - path: .env
@@ -75,8 +75,6 @@ services:
       opensearch:
         condition: service_healthy
       minio:
-        condition: service_healthy
-      redbox-django-app:
         condition: service_healthy
       db:
         condition: service_healthy

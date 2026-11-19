@@ -12,6 +12,10 @@ reqs:
 run: stop
 	docker compose up -d --wait redbox-django-app
 
+.PHONY: run-worker
+run-worker: stop
+	docker compose up -d --wait redbox-worker
+
 .PHONY: run-dependencies
 run-dependencies: stop
 	docker compose up -d db minio opensearch opensearch-dashboards sso
