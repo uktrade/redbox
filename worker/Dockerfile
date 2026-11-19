@@ -1,19 +1,5 @@
 #THIS IS AN EXACT COPY OF THE FILE FROM django_app/Dockerfile. IT IS USED TO BUILD THE WORKER IMAGE.
 
-# npm
-FROM node:20 AS npm-packages
-
-WORKDIR /src
-
-COPY django_app/frontend/package.json django_app/frontend/package-lock.json .
-RUN npm ci
-
-COPY django_app/frontend/staticfiles.json django_app/frontend/.parcelrc django_app/frontend/*.js ./
-COPY django_app/frontend/src/ ./src/
-COPY django_app/frontend/images/ ./images/
-RUN npx parcel build
-
-
 # poetry
 FROM python:3.12-slim AS poetry-packages
 
@@ -36,7 +22,7 @@ COPY django_app/poetry.lock .
 
 # do this so that poetry bundle can run without the project - can't pass --no-root to bundle
 #RUN touch README.md
-RUN poetry install
+RUN poetry install --only main
 RUN poetry bundle venv ./venv
 
 
@@ -62,8 +48,6 @@ COPY README.md .
 COPY redbox/ .
 COPY django_app/ .
 
-COPY --from=npm-packages /src/node_modules/ frontend/node_modules/
-COPY --from=npm-packages /src/dist/ frontend/dist/
 COPY --from=poetry-packages /src/venv ./venv
 
 ENV DJANGO_SETTINGS_MODULE='redbox_app.settings'
