@@ -18,8 +18,6 @@ The developer setup guide for developing Redbox on your own machine.
 - [8. Set environment variables](#8-set-environment-variables)
   - [Backend Profiles](#backend-profiles)
 - [9. Set AWS credentials](#9-set-aws-credentials)
-  - [Option 1: Set credentials with a command](#option-1-set-credentials-with-a-command)
-  - [Option 2: Set credentials manually](#option-2-set-credentials-manually)
 - [10. Set up a developer S3 bucket](#10-set-up-a-developer-s3-bucket)
 - [11. Build service images](#11-build-service-images)
 - [12. Running the service locally](#12-running-the-service-locally)
@@ -225,31 +223,51 @@ The relevant env vars for overriding to use bedrock's titan model for embeddings
 
 ## 9. Set AWS credentials
 
-**NB: Your AWS credentials need to be updated approximately daily as they reset regularly.**
+1. Run the following command to configure SSO:  
+  `aws configure sso`  
+  When prompted for values, use the following:  
+    ```
+    SSO session name: dbt-sso
+    SSO start URL: https://uktrade.awsapps.com/start
+    SSO region: eu-west-2
+    SSO registration scopes [sso:account:access]:<Leave blank>
+    ```
+1. An AWS approval screen should appear in your browser. Approve it.  
+   If it doesn't load, the URL you need to access for Okta verification should be shown in terminal; copy it into a browser.  
+   If it -still- doesn't load, try exiting the process in terminal (Ctrl+C) then start again with the following command:  
+   ```
+   aws configure sso --use-device-code
+   ```
+   After going through AWS verification return to the terminal process.
+2. In terminal you'll be asked to choose an AWS account.
+  Choose `redbox`.
+  Then you'll be asked to set some more parameters:
+    ```
+    Default client Region [eu-west-2]: <Leave blank>
+    CLI default output format (json if not specified) [json]: <Leave blank>
+    Profile name [RedboxDeveloperWrite-050752645053]: redbox
+    ```
+    This should conclude the terminal process.  
+1. The process should have created a `config` file in your VDE at `~/.aws/config`.  
+  You can confirm this by running `cat ~/.aws/config` or my manually navigating to that location in your VDE.  
+5. The process should have logged you into AWS.  
+    To test your AWS connection run:  
+    ```
+    aws sts get-caller-identity --profile redbox
+    ```
 
-### Option 1: Set credentials with a command
+You only need to do the above setup once.
 
-1. Run the following command to connect to AWS:  
-  `aws configure sso`
-2. Run the `aws-login` script in the project root to get AWS credentials for service tasks:  
-    `./aws-login.sh`
-3. You should now have a directory at `./.aws` containing files `credentials` & `config`. `credentials` shouild contain a `[default]` profile with the following values populated:  
-    - `AWS_ACCESS_KEY`
-    - `AWS_SECRET_ACCESS_KEY`
-    - `AWS_SESSION_TOKEN`
-
-### Option 2: Set credentials manually
-
-1. Copy `.aws/credentials.example` into a new `.aws/credentials` file:  
-`cp .aws/credentials.example .aws/credentials`
-2. In `.aws/credentials` under profile `[default]` set the following:  
-    - `AWS_ACCESS_KEY`
-    - `AWS_SECRET_ACCESS_KEY`
-    - `AWS_SESSION_TOKEN`
-    - `AWS_CREDENTIAL_EXPIRATION` - default 30
-3. Also create `.aws/config`:  
-`cp .aws/config.example .aws/config`
-
+You can now to log into AWS and update your credentials by running the following command. You'll need to do this whenever your AWS credentials expire (approximately daily).  
+  ```
+  make aws-login
+  ```
+This command will:
+  - Load project environment variables
+  - Run `aws sso login` for the specified profile (redbox)
+  - Obtain temporary credentials for that account and role
+  - Write those temporary credentials to the project’s `.aws/credentials` file
+  - Copy the credentials into the Django and notebook directories so these environments can access AWS
 
 ## 10. Set up a developer S3 bucket
 Redbox uses s3 buckets for storage, even in local environments. To set this up, you will need to create your own bucket in the redbox AWS development account, the aws cli command for which you can find below:
