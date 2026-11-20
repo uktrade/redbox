@@ -295,6 +295,10 @@ eval_backend: ## Runs the only the necessary backend for evaluation BUCKET_NAME
   eval-retrieval: ## Run retrieval eval suite (require AWS & opensearch)
 	cd redbox && $(EVAL_ENV_VARS) poetry run pytest tests/evaluation/ -m ai -v --tb=short
 
+.PHONY: eval-ragas
+  eval-ragas: ## Run RAGAS evaluation (requires evaluation dependencies, AWS and opensearch)
+	cd redbox && $(EVAL_ENV_VARS) poetry run python -m evals.run_ragas
+
 # Needs scripts else will fail
 .PHONY: eval-ingest-corpus
 eval-ingest-corpus: ## Ingest all corpus PDFs into the inspect index for browsing
