@@ -33,3 +33,5 @@ Q_CLUSTER = {
     "orm": "default",
     "workers": 1,
 }
+
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
