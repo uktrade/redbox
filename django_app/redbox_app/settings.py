@@ -15,7 +15,7 @@ from import_export.formats.base_formats import CSV
 from storages.backends import s3boto3
 from yarl import URL
 
-from redbox_app.setting_enums import Classification, Environment
+from redbox.setting_enums import Classification, Environment
 
 logger = logging.getLogger(__name__)
 

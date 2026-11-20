@@ -1,10 +1,11 @@
-import pytest
-from io import BytesIO
-from unittest.mock import patch, MagicMock, ANY, call
 import sys
 import types
+from io import BytesIO
+from unittest.mock import ANY, MagicMock, call, patch
 
-from redbox_app.redbox_core.enums import IngestExtractionStrategy
+import pytest
+
+from redbox.enums import IngestExtractionStrategy
 from redbox.loader.extraction.textract import TextractTimeout
 
 _orig_cache = sys.modules.get("django.core.cache")
@@ -21,10 +22,10 @@ fake_cache_module.InvalidCacheBackendError = type(
 sys.modules["django.core.cache"] = fake_cache_module
 try:
     from redbox.loader.extraction.service import (
-        DocumentExtractionService,
-        STRATEGIES,
         INGEST_LOCK_TIMEOUT_SECONDS,
         LARGE_PDF_BYTES_THRESHOLD,
+        STRATEGIES,
+        DocumentExtractionService,
         IngestionAlreadyInProgress,
     )
 finally:

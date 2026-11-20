@@ -4,8 +4,8 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from tests.models.test_chat_model import User
 
+from redbox.setting_enums import Environment
 from redbox_app.redbox_core.models import Chat, File, UserTeamMembership, UserTool
-from redbox_app.setting_enums import Environment
 from redbox_app.settings import MOCK_SSO_USERNAME
 
 logger = logging.getLogger(__name__)
