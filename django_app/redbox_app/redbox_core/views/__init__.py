@@ -6,7 +6,12 @@ from redbox_app.redbox_core.views.api_views import (
     message_view_pre_alpha,
     user_view_pre_alpha,
 )
-from redbox_app.redbox_core.views.auth_views import sign_in_link_sent_view, sign_in_view, signed_out_view
+from redbox_app.redbox_core.views.auth_views import (
+    reauthenticate_view,
+    sign_in_link_sent_view,
+    sign_in_view,
+    signed_out_view,
+)
 from redbox_app.redbox_core.views.chat_views import (
     ChatsTitleView,
     ChatsView,
@@ -134,6 +139,7 @@ __all__ = [
     "homepage_view",
     "message_view_pre_alpha",
     "privacy_notice_view",
+    "reauthenticate_view",
     "remove_all_docs_view",
     "remove_doc_view",
     "report_app",

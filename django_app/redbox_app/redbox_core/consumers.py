@@ -66,6 +66,7 @@ from redbox_app.redbox_core.models import Agent as AgentModel
 from redbox_app.redbox_core.models import AISettings as AISettingsModel
 from redbox_app.redbox_core.models import ChatLLMBackend as ChatLLMBackendModel
 from redbox_app.redbox_core.services import message as message_service
+from redbox_app.redbox_core.services.sso import get_usable_sso_token
 from redbox_app.redbox_core.types import (
     ChatStreamEvent,
     CitationMap,
@@ -83,8 +84,7 @@ uwm8.CONVERSION_IGNORE_LIST = uwm8.CONVERSION_IGNORE_LIST | {"filters": "philtre
 User = get_user_model()
 OptFileSeq = Sequence[File] | None
 logger = logging.getLogger(__name__)
-logger.info("WEBSOCKET_SCHEME is: %s", settings.WEBSOCKET_SCHEME)
-AUTH_EXPIRY_BUFFER = 600  # seconds
+logger.info("WEBSOCKET_SCHEME is: %s", settings.WEBSOCKET_SCHEME)  # seconds
 
 
 def parse_page_number(obj: int | list[int] | None) -> list[int]:
@@ -135,6 +135,10 @@ def get_all_agents():
     return tuple(AgentModel.objects.select_related("llm_backend").all())
 
 
+class SSOAuthenticationExpiredError(Exception):
+    """The user's SSO authentication is no longer usable."""
+
+
 class ChatConsumer(AsyncWebsocketConsumer):
     route = None
     metadata: RequestMetadata = RequestMetadata()
@@ -142,6 +146,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
     debug = not env.is_prod
     redbox = None
     chat_message = None  # incrementally updating the chat stream
+
+    async def _require_sso_token(self) -> str:
+        token = await self._extract_sso_token()
+        if token is None:
+            raise SSOAuthenticationExpiredError
+        return token
 
     async def get_file_cached(self, ref):
         if ref not in self._file_cache:
@@ -179,13 +189,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
             previous_selected_files = []
         return session, previous_selected_files
 
-    async def receive(self, text_data=None, bytes_data=None):  # noqa: C901, PLR0915
+    async def receive(self, text_data=None, bytes_data=None):  # noqa: C901, PLR0912, PLR0915
         """Receive & respond to message from browser websocket."""
         # if user is unauthenticated, close connection
         user = getattr(self, "user", None) or self.scope.get("user")
-        if (not user) or (not user.is_authenticated):
-            await self.close(code=4001)
+        if not user or not user.is_authenticated or not get_usable_sso_token(self.scope["session"]):
+            if not getattr(self, "_auth_expired_notified", False):
+                self._auth_expired_notified = True
+                await self.send_to_client("auth_expired", error_messages.AUTH_EXPIRED)
+
+            await self.close(code=settings.WEBSOCKET_AUTH_FAILED)
             return
+
         self._file_cache = {}
         self._citable_files: list[File] = []
         self.full_reply = []
@@ -298,16 +313,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         await self.send_to_client("message_created", payload)
 
-        await self.llm_conversation(
-            selected_files,
-            session,
-            user,
-            user_message_text,
-            permitted_files,
-            previous_selected_files,
-            selected_agent_names=selected_agent_names,
-            knowledge_files=knowledge_files,
-        )
+        try:
+            await self.llm_conversation(
+                selected_files,
+                session,
+                user,
+                user_message_text,
+                permitted_files,
+                previous_selected_files,
+                selected_agent_names=selected_agent_names,
+                knowledge_files=knowledge_files,
+            )
+        except SSOAuthenticationExpiredError:
+            await self.close(code=settings.WEBSOCKET_AUTH_FAILED)
+            return
 
         if (self.final_state) and (self.final_state.agent_plans):
             await self.agent_plan_save(session)
@@ -389,26 +408,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
         return list(File.objects.filter(id__in=ids).values_list("original_file", flat=True))
 
     async def _extract_sso_token(self) -> str | None:
-        try:
-            logger.info("ChatConsumer._extract_sso_token - extracting sso token...")
+        logger.info("ChatConsumer._extract_sso_token - extracting sso token...")
+        token = get_usable_sso_token(self.scope["session"])
 
-            session = self.scope.get("session")
-            authbroker_token = session["_authbroker_token"]
-
-            if (
-                authbroker_token.get("expires_at") is not None
-                and timezone.now().timestamp() > authbroker_token["expires_at"] - AUTH_EXPIRY_BUFFER
-            ):
-                logger.warning("ChatConsumer._extract_sso_token - auth expired")
-                await self.accept()
+        if token is None:
+            logger.warning("ChatConsumer._extract_sso_token - auth expired")
+            if not getattr(self, "_auth_expired_notified", False):
+                self._auth_expired_notified = True
                 await self.send_to_client("auth_expired", error_messages.AUTH_EXPIRED)
-                return None
-
-            logger.info("ChatConsumer._extract_sso_token - valid token")
-
-            return authbroker_token["access_token"]
-        except (KeyError, TypeError):
             return None
+
+        logger.info("ChatConsumer._extract_sso_token - valid token")
+        return token
 
     async def llm_conversation(
         self,
@@ -434,7 +445,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         agent_plans, question, user_feedback = await self._load_agent_plan(session, message_history)
 
         ai_settings = await self.get_ai_settings(session)
-        await self._extract_sso_token()
+        await self._require_sso_token()
 
         if selected_agent_names:
             ai_settings = ai_settings.model_copy(
@@ -465,7 +476,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         try:
             self.final_state = await self.redbox.run(
                 state,
-                sso_token_getter=self._extract_sso_token,
+                sso_token_getter=self._require_sso_token,
                 response_tokens_callback=self.handle_text,
                 route_name_callback=self.handle_route,
                 documents_callback=self.handle_documents,
@@ -501,6 +512,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         except (TimeoutError, ConnectionClosedError, CancelledError) as e:
             logger.exception("Error from core.", exc_info=e)
             await self.send_to_client("error", error_messages.CORE_ERROR_MESSAGE)
+        except SSOAuthenticationExpiredError:
+            raise
         except Exception as e:
             logger.exception("General error.", exc_info=e)
             await self.send_to_client("error", error_messages.CORE_ERROR_MESSAGE)
@@ -679,14 +692,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         self.user = self.scope["user"]
+        self._auth_expired_notified = False
 
-        # if user is unauthenticated, send auth_required error message
+        await self.accept()
+
+        # Check django authentication
         if not self.user.is_authenticated:
-            await self.accept()
-            await self.send_to_client("error", error_messages.AUTH_REQUIRED)
+            await self.send_to_client("auth_expired", error_messages.AUTH_REQUIRED)
+            await self.close(code=settings.WEBSOCKET_AUTH_FAILED)
             return
 
-        await self._extract_sso_token()
+        # Check SSO authentication
+        token = await self._extract_sso_token()
+        if token is None:
+            await self.close(code=settings.WEBSOCKET_AUTH_FAILED)
+            return
 
         if ChatConsumer.redbox is None:
             agents = await get_all_agents()
@@ -708,7 +728,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
 
         self.uk_english = await database_sync_to_async(lambda u: getattr(u, "uk_or_us_english", False))(self.user)
-        await self.accept()
+
+        await self.send_to_client("chat_ready")
 
     async def create_citations(self, file: File | None, ai_citation: AICitation) -> list[Citation]:
         citations = [
@@ -911,7 +932,7 @@ class TranscriptionConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         user = self.scope.get("user")
         if not user or not user.is_authenticated:
-            await self.close(code=4001)
+            await self.close(code=settings.WEBSOCKET_AUTH_FAILED)
             return
 
         await self.accept()

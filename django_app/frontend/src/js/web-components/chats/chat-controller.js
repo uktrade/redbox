@@ -32,7 +32,7 @@ export class ChatController extends HTMLElement {
     connectedCallback() {
         this.bindEvents();
         this.endPoint = this.dataset.streamUrl;
-        this.logoutUrl = this.dataset.logoutUrl;
+        this.reauthenticateUrl = this.dataset.reauthenticateUrl;
         if (this.messages.length) this.dataset.state = STATE.CONVERSATION;
     }
 
@@ -145,9 +145,6 @@ export class ChatController extends HTMLElement {
             this.selectedDocuments.forEach(document => {activities.push(document.name)})
         }
 
-        this.messageInput.reset(true);
-        this.messageInput.collapse();
-
         this.dataset.state = STATE.CONVERSATION;
 
         emitEvent(Events.START_STREAMING);
@@ -181,25 +178,10 @@ export class ChatController extends HTMLElement {
             socket: new WebSocket(this.endPoint),
             messageId: "",
             title: "",
+            messageAccepted: false,
         }
 
         const webSocket = this.currentStream.socket;
-
-        webSocket.onopen = () => {
-            webSocket.send(
-                JSON.stringify({
-                    message: text,
-                    sessionId: this.dataset.sessionId,
-                    selectedFiles: documents,
-                    activities: activities,
-                    llm,
-                    selectedTool: toolId,
-                }),
-            );
-            this.dataset.status = STATUS.STREAMING;
-            emitEvent(Events.CHAT_RESPONSE_START);
-            emitEvent(Events.SCROLL_TO_BOTTOM, {source:this, force:true});
-        };
 
         webSocket.onmessage = (evt) => {
             let response;
@@ -213,8 +195,35 @@ export class ChatController extends HTMLElement {
             const data = response.data;
 
             switch (response.type) {
+                case "chat_ready":
+                    webSocket.send(
+                        JSON.stringify({
+                            message: text,
+                            sessionId: this.dataset.sessionId,
+                            selectedFiles: documents,
+                            activities: activities,
+                            llm,
+                            selectedTool: toolId,
+                        }),
+                    );
+                    this.dataset.status = STATUS.STREAMING;
+                    emitEvent(Events.CHAT_RESPONSE_START);
+                    emitEvent(Events.SCROLL_TO_BOTTOM, { source: this, force: true });
+                    break;
+
                 case "message_created":
                     this.handleMessageCreated(data);
+
+                    if (
+                        data.chat_message_role === "user" &&
+                        this.currentStream &&
+                        !this.currentStream?.messageAccepted
+                    ) {
+                        this.currentStream.messageAccepted = true;
+                        this.messageInput.reset(true);
+                        this.messageInput.collapse()
+                    }
+
                     break;
 
                 case "message_update":
@@ -243,15 +252,36 @@ export class ChatController extends HTMLElement {
             }
         };
 
-        webSocket.onclose = () => {
-            if (this.dataset.status !== STATUS.STOPPED) {
-                this.dataset.status = STATUS.COMPLETE;
+        webSocket.onclose = (event) => {
+            if (this.authRedirecting) return;
+
+            if (event.code === 4001) {
+                this.handleAuthExpired();
+                return;
             }
 
             if (!this.currentStream) return;
 
-            this.getMessage(this.currentStream.messageId)?.setComplete();
+            if (event.code !== 1000 && this.dataset.status !== STATUS.STOPPED){
+                this.dataset.status = STATUS.ERROR;
+                this.handleError(
+                    "The connnection was lost. Please try again"
+                );
 
+                this.currentStream = null;
+                return;
+            }
+
+            if (this.dataset.status === STATUS.ERROR) {
+                this.currentStream = null;
+                return;
+            }
+
+            if (this.dataset.status === STATUS.ERROR) {
+                this.dataset.status = STATUS.COMPLETE;
+            }
+
+            this.getMessage(this.currentStream.messageId)?.setComplete();
             emitEvent(Events.CHAT_RESPONSE_END, {
                 title: this.currentStream.title,
                 session_id: this.dataset.sessionId || "",
@@ -260,6 +290,30 @@ export class ChatController extends HTMLElement {
 
             this.currentStream = null;
         };
+
+        webSocket.onerror = () => {
+            console.error("Websocket connection error")
+        }
+
+        // NOTE: Old implementation.
+        // webSocket.onclose = () => {
+        //     if (this.dataset.status !== STATUS.STOPPED) {
+        //         this.dataset.status = STATUS.COMPLETE;
+        //     }
+
+        //     if (!this.currentStream) return;
+
+        //     this.getMessage(this.currentStream.messageId)?.setComplete();
+
+        //     emitEvent(Events.CHAT_RESPONSE_END, {
+        //         title: this.currentStream.title,
+        //         session_id: this.dataset.sessionId || "",
+        //         is_new_chat: this.messages.length == 2,
+        //     })
+
+        //     this.currentStream = null;
+        // };
+        // NOTE:END
 
         webSocket.onerror = () => {
             this.dataset.status = STATUS.ERROR;
@@ -336,7 +390,8 @@ export class ChatController extends HTMLElement {
      * Handle consumer errors
      * @param {string} response Error message
      */
-    handleError(response) {
+    handleError (response) {
+        this.dataset.status = STATUS.ERROR;
         if (this.currentStream) {
             const message = this.getMessage(this.currentStream.messageId);
             message?.showError(response);
@@ -349,12 +404,37 @@ export class ChatController extends HTMLElement {
     /**
      * Handle auth expiry events
      */
-    handleAuthExpired() {
-        if (this.logoutUrl) {
-            window.location.href = this.logoutUrl;
-        } else {
-            this.lastMessage?.showError("Your session has expired.");
+
+    // NOTE: Improved so that when auth expirses & user reuthenticates they're returned tot he skill & chat they were previously at.
+    handleAuthExpired () {
+        if (!this.reauthenticateUrl) {
+            this.lastMessage?.showError(
+                "Your sesion has expired. Please sign in again."
+            );
+            return;
         }
+
+        this.authRedirecting = true;
+
+        const url = new URL(
+            this.reauthenticateUrl,
+            window.location.origin
+        );
+
+        url.searchParams.set(
+            "next",
+            window.location.pathname + window.location.search
+        );
+
+        window.location.assign(url.toString());
+
+
+    // NOTE: Old implementation.
+        // if (this.logoutUrl) {
+        //     window.location.href = this.logoutUrl;
+        // } else {
+        //     this.lastMessage?.showError("Your session has expired.");
+        // }
     }
 }
 customElements.define("chat-controller", ChatController);

@@ -1,10 +1,12 @@
 import logging
 from http import HTTPStatus
+from urllib.parse import urljoin
 
 import requests
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import HttpRequest
+from django.utils import timezone
 
 from redbox_app.redbox_core.models import UserSSO, UserSSOAttribute
 
@@ -28,7 +30,7 @@ def fetch_sso_payload(request: HttpRequest):
         logger.warning("%s: %s", error_message, "Missing access_token")
         return data
 
-    url = f"{settings.AUTHBROKER_URL}/api/v1/user/me/"
+    url = urljoin(settings.AUTHBROKER_INTERNAL_URL, "/api/v1/user/me/")
     headers = {
         "Authorization": f"Bearer {access_token}",
     }
@@ -89,3 +91,26 @@ def sync_related_emails(sso: UserSSO, related_emails):
             for email in related_emails
         ]
     )
+
+
+def get_usable_sso_token(session) -> str | None:
+    """Return SSO access token if present and sufficiently far from expiry."""
+    token = session.get("_authbroker_token") or {}
+    access_token = token.get("access_token")
+    expires_at = token.get("expires_at")
+
+    if not access_token:
+        return None
+
+    # In local development, allow tokens without expiry
+    # In other environments, reject tokens without expiry
+    if type(expires_at) not in (int, float):
+        if settings.ENVIRONMENT.is_local:
+            logger.warning("SSO token has no expiry timestamp. Allowing this in local development.")
+            return access_token
+        return None
+
+    if timezone.now().timestamp() >= expires_at - settings.AUTH_EXPIRY_BUFFER:
+        return None
+
+    return access_token
