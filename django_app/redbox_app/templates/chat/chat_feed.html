@@ -28,7 +28,7 @@
         <chat-controller class="iai-chat-container"
                         data-stream-url="{{ streaming.endpoint if streaming else '' }}"
                         data-session-id="{{ chat_id or '' }}"
-                        data-logout-url="{{ url('signed-out') }}"
+                        data-reauthenticate-url="{{ url('reauthenticate') }}"
                         {% if tool %}
                             data-tool-id="{{ tool.id }}"
                             data-tool-slug="{{ tool.slug }}"

@@ -23,7 +23,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR("no access key in session"))
                 return
 
-            url = f"{settings.AUTHBROKER_URL}/api/v1/user/me/"
+            url = f"{settings.AUTHBROKER_URL}api/v1/user/me/"
             headers = {
                 "Authorization": f"Bearer {token}",
             }

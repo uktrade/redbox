@@ -2,6 +2,7 @@ import logging
 import uuid
 from dataclasses import dataclass
 from http import HTTPStatus
+from urllib.parse import urlencode
 
 from dataclasses_json import Undefined, dataclass_json
 from django.contrib.auth.decorators import login_required
@@ -15,6 +16,7 @@ from waffle import flag_is_active
 from redbox_app.redbox_core import flags
 from redbox_app.redbox_core.models import Chat
 from redbox_app.redbox_core.services import chats as chat_service
+from redbox_app.redbox_core.services.sso import get_usable_sso_token
 from redbox_app.redbox_core.utils import parse_uuid, render_with_oob
 
 logger = logging.getLogger(__name__)
@@ -23,6 +25,10 @@ logger = logging.getLogger(__name__)
 class ChatsView(View):
     @method_decorator(login_required)
     def get(self, request: HttpRequest, chat_id: uuid.UUID | None = None, slug: str | None = None) -> HttpResponse:
+        if not get_usable_sso_token(request.session):
+            next_url = request.get_full_path()
+            return redirect(f"{reverse('reauthenticate')}?{urlencode({'next': next_url})}")
+
         context = chat_service.get_context(request, chat_id, slug)
 
         # Chats page specific context
