@@ -3006,14 +3006,14 @@ files = [
 
 [[package]]
 name = "filelock"
-version = "3.32.7"
+version = "4.2.12"
 description = "A platform independent file lock."
 optional = false
-python-versions = ">=3.10"
+python-versions = ">=3.11"
 groups = ["main", "dev"]
 files = [
-    {file = "filelock-3.32.7-py3-none-any.whl", hash = "sha256:65ff0d0190ea42038b32bda4b77834fb05be2cad4c5b9b01aa4dfb3614536e52"},
-    {file = "filelock-3.32.7.tar.gz", hash = "sha256:37b8a3d9811b0f9aef7e5ec5c71bb320de52df51e6ca9bcd6f5ad81187660da7"},
+    {file = "filelock-4.2.12-py3-none-any.whl", hash = "sha256:21decfec02f116ed4c954433cdb31f28c3b346b784543177b6d7059da2702ee9"},
+    {file = "filelock-4.2.12.tar.gz", hash = "sha256:7e7da24d3ac39268b0f156e56870001de44886318f092f9d851e692f7114d6dd"},
 ]
 
 [[package]]
@@ -9571,14 +9571,14 @@ files = [
 
 [[package]]
 name = "soupsieve"
-version = "4.1.1"
+version = "4.1.2"
 description = "A modern CSS selector implementation for Beautiful Soup."
 optional = false
 python-versions = ">=3.11.5"
 groups = ["main", "dev"]
 files = [
-    {file = "soupsieve-4.1.1-py3-none-any.whl", hash = "sha256:8ff3422dab0b720fb667ee79864d80531a0e57994a13eb701697719ffcb751f6"},
-    {file = "soupsieve-4.1.1.tar.gz", hash = "sha256:b296bd2d2f65b1a78149f3d7bf6736a147d2c9e2dfbde0e4404639d748a02e03"},
+    {file = "soupsieve-4.1.2-py3-none-any.whl", hash = "sha256:96b4115212a3abee1f572d62da706cca090b088cb5effa278db5702122e63a2c"},
+    {file = "soupsieve-4.1.2.tar.gz", hash = "sha256:c6539a2638f26991463527337e39d630e3cbb86d024f52282a510535b8a7e09f"},
 ]
 
 [[package]]
@@ -10832,14 +10832,14 @@ devenv = ["black", "check-manifest", "flake8", "pyroma", "pytest", "pytest-cov",
 
 [[package]]
 name = "unstructured"
-version = "0.27.36"
+version = "0.27.37"
 description = "A library that prepares raw documents for downstream ML tasks."
 optional = false
 python-versions = "<3.14,>=3.11"
 groups = ["main"]
 files = [
-    {file = "unstructured-0.27.36-py3-none-any.whl", hash = "sha256:0c1694f26c330a7e5ae99278480b3a130877e67a655daf51eeaae6bfa92ef411"},
-    {file = "unstructured-0.27.36.tar.gz", hash = "sha256:2ed0a75753ea94daac065933a8dce03817d434f75257361dc523228a8d8248fb"},
+    {file = "unstructured-0.27.37-py3-none-any.whl", hash = "sha256:97945cebd168957f96d4d42976cdd62f1d204d3bd2d13afcb16e5fd6c8921393"},
+    {file = "unstructured-0.27.37.tar.gz", hash = "sha256:27c31aa319a245fdd800dd5569654f358c7823f37cbba8271933d2b534a7cde2"},
 ]
 
 [package.dependencies]
@@ -10847,7 +10847,7 @@ beautifulsoup4 = ">=4.14.3,<5.0.0"
 certifi = ">=2026.10.19"
 charset-normalizer = ">=3.4.4,<4.0.0"
 emoji = ">=2.15.0,<3.0.0"
-filelock = ">=3.12.0,<4.0.0"
+filelock = ">=4.2.1,<5.0.0"
 filetype = ">=1.2.0,<2.0.0"
 google-cloud-vision = {version = ">=3.12.1,<4.0.0", optional = true, markers = "extra == \"all-docs\""}
 html5lib = ">=1.1,<2.0.0"
