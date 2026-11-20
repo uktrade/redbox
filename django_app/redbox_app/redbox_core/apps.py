@@ -3,7 +3,7 @@ import logging
 from django.apps import AppConfig
 from django.conf import settings
 
-from redbox_app.setting_enums import LOCAL_HOSTS
+from redbox.setting_enums import LOCAL_HOSTS
 
 logger = logging.getLogger(__name__)
 
