@@ -13,13 +13,16 @@ WORKDIR /app
 RUN python -m pip install --upgrade pip \
     && python -m pip install poetry
 
-COPY redbox/poetry.lock redbox/pyproject.toml /app/
+COPY redbox/ ../redbox/
+COPY worker/poetry.lock worker/pyproject.toml ./
+COPY README.md ../.
+COPY README.md ./
 
 RUN poetry install --only main --no-root
 
-COPY redbox/ /app/
-COPY /worker/src/settings.py /app/settings.py
-COPY --chown=nonroot:nonroot /worker/manage.py /manage.py
+# COPY redbox/ /app/
+# COPY /worker/src/ /app/src/
+# COPY --chown=nonroot:nonroot /worker/manage.py /manage.py
 
 #######################################################
 # Runtime

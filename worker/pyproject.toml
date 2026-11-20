@@ -9,6 +9,7 @@ license = "MIT"
 package-mode=false
 
 [tool.poetry.dependencies]
+redbox = { path = "../redbox", develop = true }
 python = ">=3.12,<3.13"
 django = "^6.0.4"
 django-q2 = "^1.9.0"
@@ -17,6 +18,11 @@ boto3 = "^1.42.88"
 psycopg2-binary = "^2.9.11"
 python-dotenv = "^1.2.2"
 blessed = "^1.38.0"
+unstructured = { version = "^0.27.32", extras = ["all-docs"] }
+transformers = "^5.10.1"
+torch = "<2.13" # Pinned due to issues with poetry dependency resolution of nvidia-cublas package
+cuda-toolkit = "<13" # Pinned due to issues with poetry dependency resolution of nvidia-cublas package
+python-slugify = "^8.0.4"
 
 
 [tool.poetry.group.dev.dependencies]

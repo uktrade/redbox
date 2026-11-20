@@ -1,0 +1,53 @@
+import os
+from enum import StrEnum
+
+ADDITIONAL_HOSTS = os.environ.get("ADDITIONAL_HOSTS", "").split(";")
+LOCAL_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]  # noqa: S104
+
+
+class Environment(StrEnum):
+    def __new__(cls, value: str, is_test: bool, hosts=list[str]):
+        obj = str.__new__(cls, [value])
+        obj._value_ = value
+        obj.is_test = is_test
+        obj.hosts = hosts
+        return obj
+
+    @property
+    def is_local(self) -> bool:
+        return self is Environment.LOCAL
+
+    @property
+    def is_integration(self) -> bool:
+        return self is Environment.INTEGRATION
+
+    @property
+    def is_testing(self) -> bool:
+        return self is Environment.TESTING
+
+    @property
+    def is_prod(self) -> bool:
+        return self is Environment.PROD
+
+    @property
+    def uses_minio(self) -> bool:
+        return self.is_test
+
+    LOCAL = ("LOCAL", True, [*LOCAL_HOSTS, *ADDITIONAL_HOSTS])  # nosec: B104: Not in prod
+    INTEGRATION = ("INTEGRATION", True, [*LOCAL_HOSTS, *ADDITIONAL_HOSTS])  # nosec: B104: Not in prod
+    DEV = ("DEV", False, [*ADDITIONAL_HOSTS])
+    UAT = ("UAT", False, [*ADDITIONAL_HOSTS])
+    TESTING = ("TESTING", False, [*ADDITIONAL_HOSTS])
+    TEST = ("TEST", False, [*ADDITIONAL_HOSTS])
+    LAB = ("LAB", False, [*ADDITIONAL_HOSTS])
+    PROD = ("PROD", False, [*ADDITIONAL_HOSTS])
+
+
+class Classification(StrEnum):
+    """Security classifications
+    https://www.gov.uk/government/publications/government-security-classifications/"""
+
+    OFFICIAL = "Official"
+    OFFICIAL_SENSITIVE = "Official Sensitive"
+    SECRET = "Secret"  # noqa: S105
+    TOP_SECRET = "Top Secret"  # noqa: S105

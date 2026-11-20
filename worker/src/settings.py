@@ -4,7 +4,14 @@ from dotenv import load_dotenv
 from storages.backends import s3boto3
 
 load_dotenv(override=True)
-INSTALLED_APPS = ["django_q"]
+INSTALLED_APPS = [
+    "django_q",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.postgres",
+    "redbox",
+    "storages",
+]
 
 
 STORAGES = {

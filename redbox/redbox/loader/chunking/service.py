@@ -4,13 +4,12 @@ from typing import Iterator
 from langchain_core.documents import Document
 from unstructured.documents.elements import Element
 
-from redbox_app.redbox_core.enums import IngestChunkingStrategy
-
-from redbox.loader.chunking.chunkers.page_by_page import PageByPageDocumentChunker
 from redbox.loader.chunking.chunkers.joined_pages import JoinedPagesDocumentChunker
-from redbox.loader.chunking.chunkers.unstructured import UnstructuredDocumentChunker
+from redbox.loader.chunking.chunkers.page_by_page import PageByPageDocumentChunker
 from redbox.loader.chunking.chunkers.tabular import TabularDocumentChunker
+from redbox.loader.chunking.chunkers.unstructured import UnstructuredDocumentChunker
 from redbox.models.chain import GeneratedMetadata
+from redbox.models.enums import IngestChunkingStrategy
 from redbox.models.file import ChunkResolution
 
 logger = logging.getLogger(__name__)

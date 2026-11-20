@@ -8,3 +8,8 @@ class QuestionLengthError(AIError):
 
 class NoDocumentSelected(AIError):
     """No documents selected."""
+
+
+class InactiveFileError(ValueError):
+    def __init__(self, file):
+        super().__init__(f"{file.pk} is inactive, status is {file.status}")

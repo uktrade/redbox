@@ -1,0 +1,11 @@
+**/.venv
+**/staticfiles
+**/static
+**/node_modules
+**__pycache__
+**/.vscode
+**/.ruff_cache/
+**/.pytest_cache
+**/coverage.xml
+**/files
+**/tests*
