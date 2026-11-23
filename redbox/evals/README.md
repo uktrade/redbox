@@ -62,6 +62,24 @@ In RAGAS, context precision is average precision over the ranked contexts: relev
 
 RAGAS metrics use an LLM and, for answer relevance, an embedding model. Scores are estimates rather than deterministic ground truth. Compare trends using the same evaluator configuration, question set, and prompt version. Context recall uses each question's gold reference answer as a proxy for reference contexts.
 
+## Example interpretation
+A representative evaluation run produced the following averages:
+
+Metric	| Score
+Faithfulness |	0.989
+Answer Relevance |	0.880
+Context Precision |	0.222
+Context Recall |	1.000
+
+These results indicate:
+
+- Excellent retrieval coverage (Context Recall 1.000), with all information required to answer the evaluation questions retrieved successfully.
+- Very high answer grounding (Faithfulness 0.989), suggesting a low risk of hallucinated content.
+- Strong answer quality (Answer Relevance 0.880), with answers generally addressing the user's questions directly.
+- Lower retrieval efficiency (Context Precision 0.222), indicating that retrieval returns additional context beyond that strictly required to answer the question.
+
+This pattern suggests a retrieval strategy optimised for completeness (high recall) rather than selectivity (high precision). While answer quality remains high, future optimisation may focus on improving retrieval precision through chunking, ranking, or filtering changes.
+
 ## Reporting and follow-on integration
 
 The generated HTML report presents per-question scores and run averages. The JSONL file is the stable record-level export for future reporting integrations. Datadog and data-workspace ingestion are intentionally not implemented here.
