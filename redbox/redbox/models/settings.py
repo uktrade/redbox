@@ -26,7 +26,7 @@ class OpenSearchSettings(BaseModel):
 
     model_config = SettingsConfigDict(frozen=True)
 
-    collection_endpoint: str = os.environ.get("COLLECTION_ENDPOINT", "")
+    collection_endpoint: str = os.environ.get("COLLECTION_ENDPOINT", "http://admin:Opensearch2024^@localhost:9200")
     parsed_url: AnyUrl = urlparse(collection_endpoint)
 
     logger.info(f"the parsed url is {parsed_url}")

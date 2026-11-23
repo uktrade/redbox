@@ -235,3 +235,5 @@ infrastructure/aws/cleanup_lambda/layer/*
 /test-results
 /playwright
 /django_app/test-results
+
+redbox/evals/results/*

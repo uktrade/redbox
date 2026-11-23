@@ -237,7 +237,8 @@ def build_self_route_output_parser(
         current_content = ""
         token_count = 0
         for chunk in chunks:
-            current_content += chunk.content
+            text = str(chunk.text)
+            current_content += text
             token_count += 1
             if match_condition(current_content):
                 yield current_content
@@ -246,7 +247,7 @@ def build_self_route_output_parser(
                 break
         yield current_content
         for chunk in chunks:
-            yield chunk.content
+            yield str(chunk.text)
 
     return _self_route_output_parser | parser
 
