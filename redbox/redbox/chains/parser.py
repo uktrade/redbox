@@ -203,12 +203,24 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
                 print(e)
                 return None
 
-    def _to_generation_chunk(self, chunk: Union[str, BaseMessage]):
+    def _to_generation_chunk(self, chunk: Union[str, BaseMessage, list[Any]]):
         chunk_gen: Union[GenerationChunk, ChatGenerationChunk]
         if isinstance(chunk, BaseMessageChunk):
             chunk_gen = ChatGenerationChunk(message=chunk)
         elif isinstance(chunk, BaseMessage):
             chunk_gen = ChatGenerationChunk(message=BaseMessageChunk(**chunk.model_dump()))
+        elif isinstance(chunk, list):
+            text = "".join(
+                block if isinstance(block, str) else block["text"]
+                for block in chunk
+                if isinstance[block, str]
+                or (
+                    isinstance(block, dict)
+                    and block.get("type") in (None, "text")
+                    and isinstance(block.get("text"), str)
+                )
+            )
+            chunk_gen = GenerationChunk(text=text)
         else:
             chunk_gen = GenerationChunk(text=chunk)
         return chunk_gen
@@ -271,7 +283,7 @@ class StreamingJsonOutputParser(BaseCumulativeTransformOutputParser[Any]):
 
         return "".join(result), i
 
-    def _transform(self, input: Iterator[Union[str, BaseMessage]]) -> Iterator[Any]:
+    def _transform(self, input: Iterator[Union[str, BaseMessage, list[Any]]]) -> Iterator[Any]:
         acc_text = ""
         acc_message = None
         field_length_at_last_run = 0
@@ -455,7 +467,7 @@ class StreamingPlanner(StreamingJsonOutputParser):
         except json.JSONDecodeError:
             return None
 
-    def _transform(self, input: Iterator[Union[str, BaseMessage]]) -> Iterator[Any]:
+    def _transform(self, input: Iterator[Union[str, BaseMessage, list[Any]]]) -> Iterator[Any]:
         acc_gen: Union[GenerationChunk, ChatGenerationChunk, None] = None
         field_length_at_last_run: int = 0
         item_count: int = 0
@@ -501,5 +513,5 @@ class StreamingPlanner(StreamingJsonOutputParser):
         # adding suffix here
         dispatch_custom_event(RedboxEventType.response_tokens, data=random.choice(self.suffix_texts))
 
-    async def _atransform(self, input: AsyncIterator[Union[str, BaseMessage]]) -> AsyncIterator[Any]:
+    async def _atransform(self, input: AsyncIterator[Union[str, BaseMessage, list[Any]]]) -> AsyncIterator[Any]:
         self._transform(input)

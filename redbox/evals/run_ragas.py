@@ -3,10 +3,18 @@ from __future__ import annotations
 import argparse
 import asyncio
 import os
+import sys
 from pathlib import Path
 
 from evals.ragas_metrics import RagasMetricScorer
 from evals.runner import RagResponse, load_dataset, run_evaluation
+
+REDBOX_ROOT = Path(__file__).resolve().parents[1]
+DJANGO_APP_ROOT = REDBOX_ROOT.parent / "django_app"
+for import_root in (DJANGO_APP_ROOT, REDBOX_ROOT):
+    resolved_root = str(import_root)
+    if resolved_root not in sys.path:
+        sys.path.insert(0, resolved_root)
 
 
 def build_runtime(*, skip_ingest: bool):

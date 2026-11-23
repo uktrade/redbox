@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from evals.ragas_metrics import RagasMetricScorer
 from evals.runner import EvaluationCase, RagResponse, load_dataset, run_evaluation
 
 
@@ -21,6 +22,57 @@ class FakeMetricScorer:
         }
 
 
+def test_ragas_metrics_receive_only_their_required_inputs() -> None:
+    class CaptureMetric:
+        def __init__(self) -> None:
+            self.inputs = None
+
+        async def ascore(self, **kwargs):
+            self.inputs = kwargs
+            return type("MetricResult", (), {"value": 1.0})()
+
+    scorer = object.__new__(RagasMetricScorer)
+    scorer.metrics = {
+        name: CaptureMetric()
+        for name in (
+            "faithfulness",
+            "answer_relevance",
+            "context_precision",
+            "context_recall",
+        )
+    }
+
+    scores = asyncio.run(
+        scorer.score(
+            question="Question",
+            answer="Answer",
+            contexts=["Context"],
+            reference="Reference",
+        )
+    )
+
+    assert scores == {name: 1.0 for name in scorer.metrics}
+    assert set(scorer.metrics["faithfulness"].inputs) == {
+        "user_input",
+        "response",
+        "retrieved_contexts",
+    }
+    assert set(scorer.metrics["answer_relevance"].inputs) == {
+        "user_input",
+        "response",
+    }
+    assert set(scorer.metrics["context_precision"].inputs) == {
+        "user_input",
+        "reference",
+        "retrieved_contexts",
+    }
+    assert set(scorer.metrics["context_recall"].inputs) == {
+        "user_input",
+        "retrieved_contexts",
+        "reference",
+    }
+
+
 def test_default_dataset_has_ten_complete_question_pairs() -> None:
     dataset_path = Path(__file__).with_name("export_support.yaml")
 
@@ -30,6 +82,12 @@ def test_default_dataset_has_ten_complete_question_pairs() -> None:
     assert prompt_version == "export-support-v1"
     assert len(cases) == 10
     assert all(case.question and case.reference for case in cases)
+
+
+def test_standalone_runner_configures_django_app_import_path() -> None:
+    import redbox_app.setting_enums
+
+    assert redbox_app.setting_enums.__file__.endswith("setting_enums.py")
 
 
 def test_dataset_requires_ten_to_twenty_questions(tmp_path: Path) -> None:

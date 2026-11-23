@@ -2,13 +2,14 @@ from typing import Any, Dict, List
 from unittest.mock import patch
 
 import pytest
-from langchain_core.messages import AIMessage, BaseMessageChunk
+from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessageChunk
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.outputs import Generation
 from pydantic import BaseModel
 
 from redbox.chains.parser import ClaudeParser, StreamingJsonOutputParser, StreamingPlanner
 from langchain_core.runnables import RunnableLambda
-from redbox.chains.runnables import prompt_budget_calculation, truncate_chat_history
+from redbox.chains.runnables import build_self_route_output_parser, prompt_budget_calculation, truncate_chat_history
 from redbox.models.errors import QuestionLengthError
 from redbox.transform import bedrock_tokeniser
 
@@ -161,6 +162,43 @@ class TestStreamingJsonOutputParser:
         invalid_json = "not a json"
         parsed = parser.parse_partial_json(invalid_json)
         assert parsed is None
+
+
+def test_self_route_output_parser_handles_list_content_chunks():
+    chunks = iter(
+        [
+            AIMessageChunk(
+                content=[
+                    {"type": "text", "text": "The answer "},
+                    {"type": "image", "url": "https://example.com/image.png"},
+                ]
+            ),
+            AIMessageChunk(content=[{"type": "text", "text": "is 42."}]),
+        ]
+    )
+    parser = build_self_route_output_parser(
+        match_condition=lambda _: False,
+        max_tokens_to_check=0,
+        parser=StrOutputParser(),
+    )
+
+    assert list(parser.transform(chunks)) == ["The answer ", "is 42."]
+
+
+def test_self_route_output_parser_checks_list_content_as_text():
+    chunks = iter(
+        [
+            AIMessageChunk(content=[{"type": "text", "text": "unanswerable"}]),
+            AIMessageChunk(content=[{"type": "text", "text": " hidden response"}]),
+        ]
+    )
+    parser = build_self_route_output_parser(
+        match_condition=lambda content: "unanswerable" in content,
+        max_tokens_to_check=1,
+        parser=StrOutputParser(),
+    )
+
+    assert list(parser.transform(chunks)) == ["unanswerable"]
 
 
 class TestStreamingJsonOutputParserExtraction:

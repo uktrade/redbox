@@ -28,6 +28,9 @@ class RagasMetricScorer:
             model=f"bedrock/{model}",
             provider="litellm",
             client=litellm.completion,
+            temperature=1.0,
+            top_p=None,
+            max_tokens=4096,
         )
         ragas_embeddings = LangchainEmbeddingAdapter(embeddings)
         self.metrics = {
@@ -45,14 +48,29 @@ class RagasMetricScorer:
         contexts: list[str],
         reference: str,
     ) -> dict[str, float]:
-        inputs = {
-            "user_input": question,
-            "response": answer,
-            "retrieved_contexts": contexts,
-            "reference": reference,
+        metric_inputs = {
+            "faithfulness": {
+                "user_input": question,
+                "response": answer,
+                "retrieved_contexts": contexts,
+            },
+            "answer_relevance": {
+                "user_input": question,
+                "response": answer,
+            },
+            "context_precision": {
+                "user_input": question,
+                "reference": reference,
+                "retrieved_contexts": contexts,
+            },
+            "context_recall": {
+                "user_input": question,
+                "retrieved_contexts": contexts,
+                "reference": reference,
+            },
         }
         scores = {}
         for name, metric in self.metrics.items():
-            result = await metric.ascore(**inputs)
+            result = await metric.ascore(**metric_inputs[name])
             scores[name] = result.value
         return scores
