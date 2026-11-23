@@ -364,7 +364,7 @@ class Settings(BaseSettings):
 
     # @lru_cache(1) #removing cache because pydantic object (index mapping) is not hashable
     def elasticsearch_client(self) -> Union[Elasticsearch, OpenSearch]:
-        logger.info("Testing OpenSearch endpoint %s is definitely being used", self.elastic.collection_endpoint__host)
+        logger.debug("Testing OpenSearch endpoint %s is definitely being used", self.elastic.collection_endpoint__host)
 
         if ENVIRONMENT.is_local or ENVIRONMENT.is_testing or ENVIRONMENT.is_integration:
             client = OpenSearch(
@@ -419,18 +419,18 @@ class Settings(BaseSettings):
         chunk_index = f"{self.elastic_root_index}-chunk"
         chunk_alias = f"{self.elastic_root_index}-chunk-current"
 
-        logger.info("Ensuring index %s exists", chunk_index)
+        logger.debug("Ensuring index %s exists", chunk_index)
         ensure_index(chunk_index, self.index_mapping)
-        logger.info("Ensuring alias %s exists", chunk_alias)
+        logger.debug("Ensuring alias %s exists", chunk_alias)
         ensure_alias(chunk_index, chunk_alias)
 
-        logger.info("Ensuring index %s exists", self.elastic_chat_mesage_index)
+        logger.debug("Ensuring index %s exists", self.elastic_chat_mesage_index)
         ensure_index(self.elastic_chat_mesage_index)
 
-        logger.info("Ensuring index %s exists", self.elastic_schematised_chunk_index)
+        logger.debug("Ensuring index %s exists", self.elastic_schematised_chunk_index)
         ensure_index(self.elastic_schematised_chunk_index, self.index_mapping_schematised)
 
-        logger.info("Completed checks on all indexesand aliases")
+        logger.debug("Completed checks on all indexesand aliases")
 
         return client
 
