@@ -140,7 +140,6 @@ tools_urlpatterns = [
 ]
 
 admin_urlpatterns = [
-    path("admin/report/", include("django_plotly_dash.urls")),
     path("admin/", admin.site.urls),
 ]
 

@@ -16,7 +16,6 @@ django_app/redbox_app/templates/privacy-notice.html
 django_app/redbox_app/redbox_core/migrations/0073_alter_user_options_alter_user_managers_and_more.py
 django_app/pyproject.toml
 .env.example
-django_app/frontend/src/js/admin/plotly.min.js
 django_app/poetry.lock
 tests/data/html/corrupt.html
 .github/dependabot.yml
