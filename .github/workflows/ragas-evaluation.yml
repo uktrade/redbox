@@ -1,0 +1,82 @@
+name: RAGAS Evaluation
+
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: "Dataset YAML file"
+        required: false
+        default: "evals/export_support.yaml"
+
+      skip_ingest:
+        description: "Reuse existing evaluation index"
+        required: false
+        type: boolean
+        default: false
+
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  ragas:
+    runs-on: ubuntu-latest
+
+    env:
+      ENVIRONMENT: PROD
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install --with evaluation
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_EVAL_ROLE_ARN }}
+          aws-region: eu-west-2
+
+      - name: Run RAGAS evaluation
+        run: |
+          CMD="poetry run python -m evals.run_ragas"
+
+          if [ "${{ github.event.inputs.dataset }}" != "" ]; then
+            CMD="$CMD --dataset ${{ github.event.inputs.dataset }}"
+          fi
+
+          if [ "${{ github.event.inputs.skip_ingest }}" = "true" ]; then
+            CMD="$CMD --skip-ingest"
+          fi
+
+          echo "$CMD"
+          eval "$CMD"
+
+      - name: Upload evaluation artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ragas-results-${{ github.run_number }}
+          retention-days: 30
+          path: |
+            evals/results/*.jsonl
+            evals/results/*.html
+
+      - name: Publish workflow summary
+        run: |
+          echo "# RAGAS Evaluation Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Artifacts uploaded:" >> $GITHUB_STEP_SUMMARY
+          echo "- JSONL results" >> $GITHUB_STEP_SUMMARY
+          echo "- HTML report" >> $GITHUB_STEP_SUMMARY
