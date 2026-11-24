@@ -1,27 +1,25 @@
-from io import BytesIO
-import os
-from uuid import uuid4
 import logging
-from typing import Callable
-from functools import partial
-from dataclasses import dataclass
+import os
 import shutil
 import subprocess
 import tempfile
+from dataclasses import dataclass
+from functools import partial
+from io import BytesIO
 from pathlib import Path
+from typing import Callable
+from uuid import uuid4
 
-import fitz
 import boto3
-
+import fitz
 from django.core.cache import cache
-
-from redbox_app.redbox_core.enums import IngestExtractionStrategy
-from redbox.models.settings import get_settings
 from unstructured.documents.elements import Element
 
-from redbox.loader.loaders import load_tabular_file
+from redbox.enums import IngestExtractionStrategy
 from redbox.loader.extraction.textract import TextractService, TextractTimeout
 from redbox.loader.extraction.unstructured import UnstructuredService
+from redbox.loader.loaders import load_tabular_file
+from redbox.models.settings import get_settings
 
 logger = logging.getLogger(__name__)
 

@@ -5,9 +5,9 @@ from typing import Iterator
 from langchain_core.documents.base import Document
 from langchain_core.runnables import Runnable, RunnableLambda, RunnableParallel, chain
 from langchain_core.vectorstores import VectorStore
-from redbox_app.redbox_core.enums import IngestChunkingStrategy
 from unstructured.documents.elements import Element
 
+from redbox.enums import IngestChunkingStrategy
 from redbox.loader.chunking.service import DocumentChunkingService
 from redbox.models.chain import GeneratedMetadata
 from redbox.models.file import ChunkResolution

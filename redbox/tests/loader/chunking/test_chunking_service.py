@@ -1,11 +1,11 @@
-import pytest
-from unittest.mock import MagicMock, patch, ANY
+from unittest.mock import ANY, MagicMock, patch
 
+import pytest
 from unstructured.documents.elements import Element
 
+from redbox.enums import IngestChunkingStrategy
 from redbox.loader.chunking.service import DocumentChunkingService
 from redbox.models.file import ChunkResolution
-from redbox_app.redbox_core.enums import IngestChunkingStrategy
 
 
 def make_generated_metadata():
