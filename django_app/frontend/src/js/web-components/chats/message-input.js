@@ -134,6 +134,19 @@ export class MessageInput extends HTMLElement {
     return clone?.textContent || "";
   };
 
+  /**
+   * Places a text into an empty chat field.
+   * @param{string} text
+   * @returns {boolean}
+   */
+  setValue = (text, replace = false) => {
+    if (!this.textarea || !text) return false
+    if (this.getValue() && !replace) return false
+
+    this.textarea.textContent = text;
+    this.expand();
+    return true;
+  }
 
   /**
    * Clears the message

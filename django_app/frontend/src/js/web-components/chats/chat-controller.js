@@ -2,6 +2,7 @@
 
 import { emitEvent, Events, listenEvent } from "../../../interaction_design_system/ids/events";
 import { getActiveToolId, sanitizeHtml } from "../../utils";
+import { saveDraft, loadDraft, deleteDraft } from "../../utils/draft-prompt-storage";
 import { ChatMessage } from "./chat-message";
 import htmx from "htmx.org";
 
@@ -34,6 +35,28 @@ export class ChatController extends HTMLElement {
         this.endPoint = this.dataset.streamUrl;
         this.reauthenticateUrl = this.dataset.reauthenticateUrl;
         if (this.messages.length) this.dataset.state = STATE.CONVERSATION;
+        void this.restoreDraft();
+    }
+
+
+    disconnectedCallback () {
+        this.formElement?.removeEventListener(
+            "submit",
+            this.handleSubmit
+        );
+    }
+
+
+    async restoreDraft () {
+        const context = this.getDraftContext();
+        const draftText = await loadDraft(context);
+        if (!draftText || !this.isConnected) return
+
+        const hasQuery = new URLSearchParams(window.location.search).has("q");
+        const restored = this.messageInput?.setValue(draftText, hasQuery);
+        if (restored) {
+            await deleteDraft(context);
+        }
     }
 
 
@@ -129,17 +152,28 @@ export class ChatController extends HTMLElement {
     }
 
 
+    getDraftContext () {
+        const userId = this.dataset.userId || "";
+        const toolSlug = this.dataset.toolSlug || "general";
+        const chatId = this.dataset.sessionId || "new";
+
+        return {
+            userId,
+            chatKey: `${toolSlug}:${chatId}`
+        }
+    }
+
+
     handleSubmit = async (/** @type {Event} */evt) => {
         evt.preventDefault();
 
         if (!this.messageInput || this.currentStream) return;
 
-        const text = this.messageInput.getValue();
-        const hasContent = Boolean(text || this.messageInput.hasUploadedFiles());
+        const messageText = this.messageInput.getValue();
+        const hasContent = Boolean(messageText || this.messageInput.hasUploadedFiles());
 
         if (!hasContent) return;
 
-        // TBC
         let activities = Array();
         if (this.selectedDocuments.length) {
             this.selectedDocuments.forEach(document => {activities.push(document.name)})
@@ -150,11 +184,12 @@ export class ChatController extends HTMLElement {
         emitEvent(Events.START_STREAMING);
 
         this.startStream({
-            text: text,
+            text: messageText,
             documents: this.selectedDocuments.map(doc => doc.id),
             llm: this.llm,
             toolId: getActiveToolId(),
             activities: activities,
+            draftContext: this.getDraftContext(),
         });
     };
 
@@ -170,6 +205,7 @@ export class ChatController extends HTMLElement {
             llm,
             toolId,
             activities,
+            draftContext,
         } = options;
 
         if (!this.endPoint) return console.error("Missing Endpoint");
@@ -179,6 +215,7 @@ export class ChatController extends HTMLElement {
             messageId: "",
             title: "",
             messageAccepted: false,
+            draftContext,
         }
 
         const webSocket = this.currentStream.socket;
@@ -219,9 +256,12 @@ export class ChatController extends HTMLElement {
                         this.currentStream &&
                         !this.currentStream?.messageAccepted
                     ) {
+
+                        const draftContext = this.currentStream.draftContext;
                         this.currentStream.messageAccepted = true;
                         this.messageInput.reset(true);
-                        this.messageInput.collapse()
+                        this.messageInput.collapse();
+                        void deleteDraft(draftContext);
                     }
 
                     break;
@@ -404,12 +444,10 @@ export class ChatController extends HTMLElement {
     /**
      * Handle auth expiry events
      */
-
-    // NOTE: Improved so that when auth expirses & user reuthenticates they're returned tot he skill & chat they were previously at.
-    handleAuthExpired () {
+    async handleAuthExpired () {
         if (!this.reauthenticateUrl) {
             this.lastMessage?.showError(
-                "Your sesion has expired. Please sign in again."
+                "Your session has expired. Please sign in again."
             );
             return;
         }
@@ -421,20 +459,31 @@ export class ChatController extends HTMLElement {
             window.location.origin
         );
 
+        const chatId = this.dataset.sessionId;
+        let nextPath = window.location.pathname;
+
+        if (chatId) {
+            const prefix = this.dataset.toolSlug
+                ? `/tools/${this.dataset.toolSlug}/chats/`
+                : "/chats/";
+
+            nextPath = `${prefix}${chatId}/`;
+        }
+
         url.searchParams.set(
             "next",
-            window.location.pathname + window.location.search
-        );
+            nextPath + window.location.search
+        )
 
         window.location.assign(url.toString());
 
-
-    // NOTE: Old implementation.
-        // if (this.logoutUrl) {
-        //     window.location.href = this.logoutUrl;
-        // } else {
-        //     this.lastMessage?.showError("Your session has expired.");
-        // }
+        const messageText = this.messageInput?.getValue(false);
+        if (messageText?.trim()) {
+            const saved = await saveDraft({
+                ...this.getDraftContext(),
+                text: messageText
+            });
+        }
     }
 }
 customElements.define("chat-controller", ChatController);

@@ -13,7 +13,10 @@
                 <li class="ids-list-row">
                     <div class="ids-card__item">
                         <a class="govuk-link govuk-link--no-visited-state govuk-link--no-underline"
-                           href="{{ menu_item.href }}">
+                            href="{{ menu_item.href }}"
+                            {% if menu_item.href == url('signed-out') %}
+                                data-clear-draft-prompts
+                            {% endif %}>
                             {{ menu_item.text }}
                         </a>
                     </div>

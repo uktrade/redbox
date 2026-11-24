@@ -16,7 +16,7 @@ import "../interaction_design_system/ids";
 
 
 /* Application logic */
-
 import "./csrftoken.js";
 import './menu.js';
 import "./trusted-types.js";
+import "./utils/draft-prompt-signout"
