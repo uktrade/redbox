@@ -1,4 +1,3 @@
-from redbox_app.redbox_core.dash_apps import report_app
 from redbox_app.redbox_core.views.all_chats_views import AllChatsView, SearchChatsView
 from redbox_app.redbox_core.views.api_views import (
     aws_credentials_api,
@@ -7,12 +6,7 @@ from redbox_app.redbox_core.views.api_views import (
     user_view_pre_alpha,
 )
 from redbox_app.redbox_core.views.auth_views import sign_in_link_sent_view, sign_in_view, signed_out_view
-from redbox_app.redbox_core.views.chat_views import (
-    ChatsTitleView,
-    ChatsView,
-    DeleteChat,
-    UpdateChatFeedback,
-)
+from redbox_app.redbox_core.views.chat_views import ChatsTitleView, ChatsView, DeleteChat, UpdateChatFeedback
 from redbox_app.redbox_core.views.citation_views import CitationFileDownloadView, CitationsView
 from redbox_app.redbox_core.views.demographics_views import (
     CheckDemographicsView,
@@ -29,11 +23,7 @@ from redbox_app.redbox_core.views.document_views import (
     upload_document,
 )
 from redbox_app.redbox_core.views.feedback_views import chat_message_feedback, get_feedback_buttons
-from redbox_app.redbox_core.views.file_views import (
-    file_icon_view,
-    file_ingest_errors_view,
-    file_status_api_view,
-)
+from redbox_app.redbox_core.views.file_views import file_icon_view, file_ingest_errors_view, file_status_api_view
 from redbox_app.redbox_core.views.info_views import (
     accessibility_statement_view,
     feedback_view,
@@ -136,7 +126,6 @@ __all__ = [
     "privacy_notice_view",
     "remove_all_docs_view",
     "remove_doc_view",
-    "report_app",
     "send_team_addition_email_view",
     "sign_in_link_sent_view",
     "sign_in_view",

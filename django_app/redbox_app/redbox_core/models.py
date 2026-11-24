@@ -35,8 +35,8 @@ from django.utils.translation import gettext_lazy as _
 from slugify import slugify
 from yarl import URL
 
+from redbox.enums import IngestChunkingStrategy, IngestExtractionStrategy
 from redbox.models.settings import get_settings
-from redbox_app.redbox_core.enums import IngestChunkingStrategy, IngestExtractionStrategy
 from redbox_app.redbox_core.services import url as url_service
 from redbox_app.redbox_core.utils import get_date_group, resolve_instance, strip_domain
 

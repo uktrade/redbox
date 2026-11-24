@@ -210,7 +210,6 @@ At time of writing, [AWS Textract](https://aws.amazon.com/textract/), is attempt
 | Authentication | `django-staff-sso-client` (BIST Staff SSO, primary)
 | Email | [GOV.UK Notify](https://www.notifications.service.gov.uk/) (`django-gov-notify`) |
 | Feature flags | [Django-Waffle](https://waffle.readthedocs.io/) |
-| Admin dashboards | [Plotly Dash](https://dash.plotly.com/) (`django-plotly-dash`) |
 | File storage | [AWS S3](https://aws.amazon.com/s3/) |
 | Relational database | [PostgreSQL](https://www.postgresql.org/) |
 | Task queue | [Django-Q2](https://django-q2.readthedocs.io/) |

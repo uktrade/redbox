@@ -10,7 +10,8 @@ from langchain_core.globals import set_debug
 from opensearchpy import OpenSearch, RequestsHttpConnection
 from pydantic import AnyUrl, BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from redbox_app.setting_enums import Environment
+
+from redbox.setting_enums import Environment
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
 logger = logging.getLogger()

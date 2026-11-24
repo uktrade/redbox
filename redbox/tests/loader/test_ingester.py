@@ -2,16 +2,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from redbox.enums import IngestChunkingStrategy, IngestExtractionStrategy
 from redbox.loader.extraction.service import IngestionAlreadyInProgress
-from redbox.loader.ingester import (
-    FileIngestionResponse,
-    _ingest_file,
-    ingest_file,
-)
-from redbox_app.redbox_core.enums import (
-    IngestChunkingStrategy,
-    IngestExtractionStrategy,
-)
+from redbox.loader.ingester import FileIngestionResponse, _ingest_file, ingest_file
 
 
 class TestIngestFile:

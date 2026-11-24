@@ -6,8 +6,8 @@ from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
+from redbox.setting_enums import Environment
 from redbox_app.redbox_core.models import Chat, File, UserTeamMembership, UserTool
-from redbox_app.setting_enums import Environment
 from redbox_app.settings import MOCK_SSO_USERNAME
 
 User = get_user_model()

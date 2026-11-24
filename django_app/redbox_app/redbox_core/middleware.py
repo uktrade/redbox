@@ -34,28 +34,6 @@ def nocache_middleware(get_response):
     return middleware
 
 
-@sync_and_async_middleware
-def plotly_no_csp_no_xframe_middleware(get_response):
-    if iscoroutinefunction(get_response):
-
-        async def middleware(request: HttpRequest) -> HttpResponse:
-            response = await get_response(request)
-            if "admin/report" in request.path:
-                response.headers.pop("Content-Security-Policy", None)
-                response.headers.pop("X-Frame-Options", None)
-            return response
-    else:
-
-        def middleware(request: HttpRequest) -> HttpResponse:
-            response = get_response(request)
-            if "admin/report" in request.path:
-                response.headers.pop("Content-Security-Policy", None)
-                response.headers.pop("X-Frame-Options", None)
-            return response
-
-    return middleware
-
-
 class APIKeyAuthentication(BaseAuthentication):
     def authenticate(self, request):
         api_key = request.headers.get("X-API-KEY")
