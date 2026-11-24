@@ -39,7 +39,7 @@ def signed_out_view(request: HttpRequest):
 
 
 def reauthenticate_view(request: HttpRequest):
-    next_url = request.GET("next") or reverse("chats")
+    next_url = request.GET.get("next") or reverse("chats")
 
     if not (
         next_url.startswith("/")
