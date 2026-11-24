@@ -29,7 +29,7 @@ from waffle import flag_is_active
 from websockets import ConnectionClosedError
 from websockets.asyncio.client import ClientConnection
 
-from redbox import Redbox
+from redbox.app import Redbox
 from redbox.graph.agents.configs import agent_configs
 from redbox.models.chain import (
     AISettings,
