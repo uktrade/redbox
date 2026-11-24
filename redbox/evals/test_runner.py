@@ -85,9 +85,9 @@ def test_default_dataset_has_ten_complete_question_pairs() -> None:
 
 
 def test_standalone_runner_configures_django_app_import_path() -> None:
-    import redbox_app.setting_enums
+    import redbox.setting_enums
 
-    assert redbox_app.setting_enums.__file__.endswith("setting_enums.py")
+    assert redbox.setting_enums.__file__.endswith("setting_enums.py")
 
 
 def test_dataset_requires_ten_to_twenty_questions(tmp_path: Path) -> None:
