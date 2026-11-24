@@ -335,26 +335,6 @@ export class ChatController extends HTMLElement {
             console.error("Websocket connection error")
         }
 
-        // NOTE: Old implementation.
-        // webSocket.onclose = () => {
-        //     if (this.dataset.status !== STATUS.STOPPED) {
-        //         this.dataset.status = STATUS.COMPLETE;
-        //     }
-
-        //     if (!this.currentStream) return;
-
-        //     this.getMessage(this.currentStream.messageId)?.setComplete();
-
-        //     emitEvent(Events.CHAT_RESPONSE_END, {
-        //         title: this.currentStream.title,
-        //         session_id: this.dataset.sessionId || "",
-        //         is_new_chat: this.messages.length == 2,
-        //     })
-
-        //     this.currentStream = null;
-        // };
-        // NOTE:END
-
         webSocket.onerror = () => {
             this.dataset.status = STATUS.ERROR;
             const error_message = "There was a problem. Please try sending this message again."
