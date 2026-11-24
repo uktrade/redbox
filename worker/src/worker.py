@@ -156,7 +156,7 @@ def convert_doc_to_docx(uploaded_file: UploadedFile) -> UploadedFile:
 
 def ingest(file_id: UUID, es_index: str | None = None) -> None:
     # These models need to be loaded at runtime otherwise they can be loaded before they exist
-    from redbox.models.shared import File  # noqa: PLC0415
+    from src.models import File  # noqa: PLC0415
 
     if not es_index:
         es_index = env.elastic_chunk_alias

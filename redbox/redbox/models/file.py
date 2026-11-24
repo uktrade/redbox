@@ -6,6 +6,7 @@ from enum import StrEnum
 from typing import ClassVar, Literal, Optional
 from uuid import UUID, uuid4
 
+from django.db import models
 from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 
@@ -112,3 +113,6 @@ class UploadedFileMetadata(ChunkMetadata):
     description: str | None = None
     keywords: list[str] | None = None
     creator_type: ChunkCreatorType = ChunkCreatorType.user_uploaded_document
+
+
+class FileBase(models.Model): ...

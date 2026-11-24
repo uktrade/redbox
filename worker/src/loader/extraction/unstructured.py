@@ -1,17 +1,15 @@
-from io import BytesIO
 import logging
-from typing import List
-
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
+from io import BytesIO
 
 from unstructured.documents.elements import Element
-from unstructured.partition.docx import partition_docx
 from unstructured.partition.auto import partition
-from unstructured.partition.pptx import partition_pptx
-from unstructured.partition.md import partition_md
+from unstructured.partition.docx import partition_docx
 from unstructured.partition.html import partition_html
+from unstructured.partition.md import partition_md
+from unstructured.partition.pptx import partition_pptx
 from unstructured.partition.text import partition_text
-
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +39,7 @@ class UnstructuredService:
         finally:
             executor.shutdown(wait=False)
 
-    def _extract_docx(self, file_bytes: BytesIO, timeout: int | None = None) -> List[Element]:
+    def _extract_docx(self, file_bytes: BytesIO, timeout: int | None = None) -> list[Element]:
         logger.info("Extracting DOCX with unstructured")
 
         file_bytes.seek(0)
@@ -61,7 +59,7 @@ class UnstructuredService:
 
         return self._run_with_timeout(extract, timeout)
 
-    def _extract_html(self, file_bytes: BytesIO, timeout: int | None = None) -> List[Element]:
+    def _extract_html(self, file_bytes: BytesIO, timeout: int | None = None) -> list[Element]:
         logger.info("Extracting HTML with unstructured.partition.html")
 
         file_bytes.seek(0)
@@ -84,7 +82,7 @@ class UnstructuredService:
 
         return self._run_with_timeout(extract, timeout)
 
-    def _extract_markdown(self, file_bytes: BytesIO, timeout: int | None = None) -> List[Element]:
+    def _extract_markdown(self, file_bytes: BytesIO, timeout: int | None = None) -> list[Element]:
         logger.info("Extracting Markdown with unstructured.partition.md")
 
         file_bytes.seek(0)
@@ -107,7 +105,7 @@ class UnstructuredService:
 
         return self._run_with_timeout(extract, timeout)
 
-    def _extract_text(self, file_bytes: BytesIO, timeout: int | None = None) -> List[Element]:
+    def _extract_text(self, file_bytes: BytesIO, timeout: int | None = None) -> list[Element]:
         logger.info("Extracting TXT with unstructured.partition.text")
 
         file_bytes.seek(0)
@@ -127,7 +125,7 @@ class UnstructuredService:
 
         return self._run_with_timeout(extract, timeout)
 
-    def _extract_pptx(self, file_bytes: BytesIO, timeout: int | None = None) -> List[Element]:
+    def _extract_pptx(self, file_bytes: BytesIO, timeout: int | None = None) -> list[Element]:
         logger.info("Extracting PPTX with unstructured.partition.pptx")
         file_bytes.seek(0)
 
@@ -160,7 +158,7 @@ class UnstructuredService:
 
     def _extract(
         self, file_bytes: BytesIO, file_name: str, strategy: str = "auto", timeout: int | None = None
-    ) -> List[Element]:
+    ) -> list[Element]:
         file_bytes.seek(0)
 
         def extract():
