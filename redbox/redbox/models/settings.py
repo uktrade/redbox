@@ -430,7 +430,7 @@ class Settings(BaseSettings):
         logger.info("Ensuring index %s exists", self.elastic_schematised_chunk_index)
         ensure_index(self.elastic_schematised_chunk_index, self.index_mapping_schematised)
 
-        logger.info("Completed checks on all indexesand aliases")
+        logger.info("Completed checks on all indexes and aliases")
 
         return client
 
