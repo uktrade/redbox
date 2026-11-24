@@ -47,6 +47,8 @@ unstructured = { version = "^0.27.32", extras = ["all-docs"] }
 transformers = "^5.10.1"
 torch = "<2.13" # Pinned due to issues with poetry dependency resolution of nvidia-cublas package
 cuda-toolkit = "<13" # Pinned due to issues with poetry dependency resolution of nvidia-cublas package
+psycopg2-binary = "^2.9.11"
+python-slugify = "^8.0.4"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.2"

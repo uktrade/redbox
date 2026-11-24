@@ -1,4 +1,4 @@
-from redbox_app.redbox_core.models import Agent
+from redbox.models.shared import Agent
 
 
 def test_agents_list_not_empty():

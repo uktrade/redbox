@@ -86,6 +86,7 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "adminplus",
     "waffle",
+    "redbox",
 ]
 
 MIDDLEWARE = [

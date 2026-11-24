@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from django.contrib.auth import get_user_model
 from django.test import Client
 
-from redbox_app.redbox_core.models import Chat, ChatMessage, Tool
+from redbox.models.shared import Chat, ChatMessage, Tool
 
 User = get_user_model()
 

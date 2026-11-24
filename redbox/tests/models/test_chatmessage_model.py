@@ -2,11 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from yarl import URL
 
-from redbox_app.redbox_core.models import (
-    ChatMessage,
-    Citation,
-    Tool,
-)
+from redbox.models.shared import ChatMessage, Citation, Tool
 
 User = get_user_model()
 

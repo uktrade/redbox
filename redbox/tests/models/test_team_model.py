@@ -2,10 +2,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 
-from redbox_app.redbox_core.models import (
-    Team,
-    UserTeamMembership,
-)
+from redbox.models.shared import Team, UserTeamMembership
 
 User = get_user_model()
 

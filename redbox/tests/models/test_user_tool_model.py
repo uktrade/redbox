@@ -2,10 +2,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 
-from redbox_app.redbox_core.models import (
-    Tool,
-    UserTool,
-)
+from redbox.models.shared import Tool, UserTool
 
 User = get_user_model()
 

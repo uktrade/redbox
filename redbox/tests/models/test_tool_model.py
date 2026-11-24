@@ -7,13 +7,7 @@ from django.template import TemplateDoesNotExist
 from django.test import Client
 from django.urls import reverse
 
-from redbox_app.redbox_core.models import (
-    File,
-    FileTool,
-    Tool,
-    ToolAccessRule,
-    UserTool,
-)
+from redbox.models.shared import File, FileTool, Tool, ToolAccessRule, UserTool
 
 User = get_user_model()
 

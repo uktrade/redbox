@@ -2,12 +2,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 
-from redbox_app.redbox_core.models import (
-    Chat,
-    Tool,
-    ToolAccessRule,
-    UserTool,
-)
+from redbox.models.shared import Chat, Tool, ToolAccessRule, UserTool
 
 User = get_user_model()
 

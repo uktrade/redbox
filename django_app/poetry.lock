@@ -1612,11 +1612,11 @@ description = "Cross-platform colored terminal text."
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*,!=3.6.*,>=2.7"
 groups = ["main", "dev"]
+markers = "sys_platform == \"win32\" or platform_system == \"Windows\""
 files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
-markers = {main = "sys_platform == \"win32\" or platform_system == \"Windows\"", dev = "platform_system == \"Windows\" or sys_platform == \"win32\""}
 
 [[package]]
 name = "confection"
@@ -8116,10 +8116,12 @@ mohawk = "^1.1.0"
 opensearch-py = "^2.7.1"
 pandas = "^2.3.3"
 protobuf = "5.29.6"
+psycopg2-binary = "^2.9.11"
 pydantic = "^2.7.1"
 pydantic-settings = "^2.14.2"
 pymupdf = "^1.26.0"
 python-docx = "^1.2.0"
+python-slugify = "^8.0.4"
 scikit-learn = "^1.5.2"
 torch = "<2.13"
 transformers = "^5.10.1"
@@ -11429,4 +11431,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "709d1f9430cad32588a86c5f6a25a1d09fc798c1a91e2f8b51c2ad1226d85cff"
+content-hash = "dd5b0cc3a2d05b5f3860324fe62e6afc346f402b92ef560e425b001069fc44b9"

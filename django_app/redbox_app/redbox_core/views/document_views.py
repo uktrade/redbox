@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING
 
 from django.urls import reverse
 
+from redbox.models.errors import InactiveFileError
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -20,7 +22,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.http import require_http_methods
 
-from redbox_app.redbox_core.models import File, InactiveFileError, Tool
+from redbox_app.redbox_core.models import File, Tool
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.services import documents as documents_service
 from redbox_app.redbox_core.utils import render_with_oob

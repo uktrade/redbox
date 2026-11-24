@@ -4,11 +4,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.test import Client
 
-from redbox_app.redbox_core.models import (
-    File,
-    FileTool,
-    Tool,
-)
+from redbox.models.shared import File, FileTool, Tool
 
 User = get_user_model()
 

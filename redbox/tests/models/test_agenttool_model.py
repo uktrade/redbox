@@ -1,4 +1,4 @@
-from redbox_app.redbox_core.models import AgentTool
+from redbox.models.shared import AgentTool
 
 
 def test_create_agenttool(default_agent, default_tool):
