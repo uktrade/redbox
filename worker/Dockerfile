@@ -1,61 +1,45 @@
-#THIS IS AN EXACT COPY OF THE FILE FROM django_app/Dockerfile. IT IS USED TO BUILD THE WORKER IMAGE.
+#######################################################
+# Builder
+####################################################### 
+FROM dhi.io/python:3.12-debian-dev AS builder
 
-# poetry
-FROM python:3.12-slim AS poetry-packages
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=true
 
-RUN apt-get update && apt-get install --yes build-essential > /dev/null
+WORKDIR /app
 
-# datadog
-ARG DD_GIT_REPOSITORY_URL
-ARG DD_GIT_COMMIT_SHA
-ENV DD_GIT_REPOSITORY_URL=${DD_GIT_REPOSITORY_URL}
-ENV DD_GIT_COMMIT_SHA=${DD_GIT_COMMIT_SHA}
+RUN python -m pip install --upgrade pip \
+    && python -m pip install poetry
 
-# TODO: Unpin poetry-plugin-bundle when https://github.com/python-poetry/poetry-plugin-bundle/issues/112 is fixed.
-RUN pip install poetry poetry-plugin-bundle==1.3.0
-
-WORKDIR /src
+COPY redbox/poetry.lock redbox/pyproject.toml ../redbox/
+COPY redbox/redbox/__init__.py ../redbox/redbox/
+COPY worker/poetry.lock worker/pyproject.toml ./
 COPY README.md ../.
-COPY redbox/ ../redbox/
-COPY django_app/pyproject.toml .
-COPY django_app/poetry.lock .
+COPY README.md ./
 
-# do this so that poetry bundle can run without the project - can't pass --no-root to bundle
-#RUN touch README.md
-RUN poetry install --only main
-RUN poetry bundle venv ./venv
+RUN poetry install --only main --no-root
+
+COPY /worker/manage.py /app/manage.py
+COPY /worker/src /app/src
+COPY /redbox/redbox /app/redbox
 
 
-# app
-FROM python:3.12-slim
+#######################################################
+# Runtime
+####################################################### 
+FROM dhi.io/python:3.12-debian AS runtime
 
-RUN apt-get update && apt-get install -y \
-    libreoffice \
-    libreoffice-writer \
-    tesseract-ocr \
-    tesseract-ocr-eng \
-    libpq-dev \
-    curl \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
-WORKDIR /usr/src/app
+ENV PATH="/app/.venv/bin:$PATH"
+ENV DJANGO_SETTINGS_MODULE='src.settings'
 
-RUN libreoffice --version
-RUN tesseract --version
+WORKDIR /app
 
-COPY README.md .
-COPY redbox/ .
-COPY django_app/ .
+COPY --chown=65532:65532 --from=builder /app .
+COPY --chown=65532:65532 --chmod=755 --from=builder /app/manage.py ./manage.py
 
-COPY --from=poetry-packages /src/venv ./venv
-
-ENV DJANGO_SETTINGS_MODULE='redbox_app.settings'
-ENV PYTHONPATH "${PYTHONPATH}:/."
-
-EXPOSE 8080
-
-RUN chmod +x start.sh
-RUN chmod +x health.sh
-
-CMD ["/bin/sh", "./start.sh"]
+ENTRYPOINT ["python", "manage.py", "qcluster"]

@@ -41,12 +41,12 @@ urllib3 = "^2.8.0"
 langchain-text-splitters = "^1.0.0"
 duckdb = "^1.5.1"
 django = "^6.1.1"
+django-q2 = "^1.9.0"
+django-storages = "^1.14.2"
+psycopg2-binary = "^2.9.11"
+python-dotenv = "^1.2.2"
 protobuf = "5.29.6"
 pandas = "^2.3.3"
-unstructured = { version = "^0.27.32", extras = ["all-docs"] }
-transformers = "^5.10.1"
-torch = "<2.13" # Pinned due to issues with poetry dependency resolution of nvidia-cublas package
-cuda-toolkit = "<13" # Pinned due to issues with poetry dependency resolution of nvidia-cublas package
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.2"
@@ -59,6 +59,7 @@ deepeval = "^3.8.4"
 pytest-mock = "^3.14.0"
 boto3-stubs = { extras = ["essential"], version = "^1.35.28" }
 requests-mock = "^1.12.1"
+coverage = "^7.13.5"
 
 [tool.poetry.group.evaluation]
 optional = true
