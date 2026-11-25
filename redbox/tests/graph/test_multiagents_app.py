@@ -6,7 +6,7 @@ from langchain_core.documents import Document
 from langchain_core.messages import AIMessage
 from pytest_mock import MockerFixture
 
-from redbox import Redbox
+from redbox.app import Redbox
 from redbox.graph.nodes.processes import remove_evaluator_task
 from redbox.graph.nodes.sends import run_tools_parallel
 from redbox.models.chain import (

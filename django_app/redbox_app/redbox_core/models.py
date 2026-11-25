@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, override
 
 from asgiref.sync import sync_to_async
 
+from redbox.models.file import FileBase
+
 if TYPE_CHECKING:
     from collections.abc import Collection, Sequence
 
@@ -36,7 +38,6 @@ from slugify import slugify
 from yarl import URL
 
 from redbox.models.settings import get_settings
-from redbox_app.redbox_core.enums import IngestChunkingStrategy, IngestExtractionStrategy
 from redbox_app.redbox_core.services import url as url_service
 from redbox_app.redbox_core.utils import get_date_group, resolve_instance, strip_domain
 
@@ -1161,12 +1162,12 @@ def build_s3_key(instance, filename: str) -> str:
     return f"{instance.user.email}/{new_filename}"
 
 
-class File(UUIDPrimaryKeyBase, TimeStampedModel):
-    class Status(models.TextChoices):
-        complete = "complete"
-        deleted = "deleted"
-        errored = "errored"
-        processing = "processing"
+class File(UUIDPrimaryKeyBase, TimeStampedModel, FileBase):
+    # class Status(models.TextChoices):
+    #     complete = "complete"
+    #     deleted = "deleted"
+    #     errored = "errored"
+    #     processing = "processing"
 
     class SecurityClassification(models.TextChoices):
         ADMIN = "OFFICIAL", _("Official")
@@ -1174,47 +1175,47 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
         SECRET = "SECRET", _("Secret")  # pragma: allowlist secret
         TOP_SECRET = "TOP_SECRET", _("Top Secret")  # pragma: allowlist secret
 
-    INACTIVE_STATUSES = [Status.deleted, Status.errored]
+    # INACTIVE_STATUSES = [Status.deleted, Status.errored]
 
-    status = models.CharField(choices=Status.choices, null=False, blank=False)
-    original_file = models.FileField(
-        storage=settings.STORAGES["default"]["BACKEND"],
-        upload_to=build_s3_key,
-    )
+    status = models.CharField(choices=FileBase.Status.choices, null=False, blank=False)
+    # original_file = models.FileField(
+    #     storage=settings.STORAGES["default"]["BACKEND"],
+    #     upload_to=build_s3_key,
+    # )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    original_file_name = models.TextField(max_length=2048, blank=True, null=True)
+    # original_file_name = models.TextField(max_length=2048, blank=True, null=True)
     last_referenced = models.DateTimeField(blank=True, null=True)
-    ingested_at = models.DateTimeField(blank=True, null=True)
-    ingest_error = models.TextField(
-        max_length=2048,
-        blank=True,
-        null=True,
-        help_text="error, if any, encountered during ingest",
-    )
-    ingest_extraction_strategy_normal = models.CharField(
-        max_length=64,
-        choices=IngestExtractionStrategy.choices,
-        default=IngestExtractionStrategy.unspecified,
-        null=True,
-    )
-    ingest_chunking_strategy_normal = models.CharField(
-        max_length=64,
-        choices=IngestChunkingStrategy.choices,
-        default=IngestChunkingStrategy.unspecified,
-        null=True,
-    )
-    ingest_extraction_strategy_largest = models.CharField(
-        max_length=64,
-        choices=IngestExtractionStrategy.choices,
-        default=IngestExtractionStrategy.unspecified,
-        null=True,
-    )
-    ingest_chunking_strategy_largest = models.CharField(
-        max_length=64,
-        choices=IngestChunkingStrategy.choices,
-        default=IngestChunkingStrategy.unspecified,
-        null=True,
-    )
+    # ingested_at = models.DateTimeField(blank=True, null=True)
+    # ingest_error = models.TextField(
+    #     max_length=2048,
+    #     blank=True,
+    #     null=True,
+    #     help_text="error, if any, encountered during ingest",
+    # )
+    # ingest_extraction_strategy_normal = models.CharField(
+    #     max_length=64,
+    #     choices=IngestExtractionStrategy.choices,
+    #     default=IngestExtractionStrategy.unspecified,
+    #     null=True,
+    # )
+    # ingest_chunking_strategy_normal = models.CharField(
+    #     max_length=64,
+    #     choices=IngestChunkingStrategy.choices,
+    #     default=IngestChunkingStrategy.unspecified,
+    #     null=True,
+    # )
+    # ingest_extraction_strategy_largest = models.CharField(
+    #     max_length=64,
+    #     choices=IngestExtractionStrategy.choices,
+    #     default=IngestExtractionStrategy.unspecified,
+    #     null=True,
+    # )
+    # ingest_chunking_strategy_largest = models.CharField(
+    #     max_length=64,
+    #     choices=IngestChunkingStrategy.choices,
+    #     default=IngestChunkingStrategy.unspecified,
+    #     null=True,
+    # )
 
     tools = models.ManyToManyField(Tool, through=FileTool, related_name="files", blank=True)
     security_classification = models.CharField(
@@ -1283,12 +1284,12 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
 
         return ""
 
-    @property
-    def unique_name(self) -> str:
-        """primary key for accessing file in s3"""
-        if self.status in File.INACTIVE_STATUSES:
-            raise InactiveFileError(self)
-        return self.original_file.name if self.original_file else ""
+    # @property
+    # def unique_name(self) -> str:
+    #     """primary key for accessing file in s3"""
+    #     if self.status in File.INACTIVE_STATUSES:
+    #         raise InactiveFileError(self)
+    #     return self.original_file.name if self.original_file else ""
 
     def get_status_text(self) -> str:
         permanent_error = "Error"

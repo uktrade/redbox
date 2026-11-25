@@ -84,11 +84,10 @@
         {
             "label": "Django: QCluster",
             "type": "shell",
-            "command": "${command:python.interpreterPath} django_app/manage.py qcluster",
+            "command": "${command:python.interpreterPath} worker/manage.py qcluster",
             "options": {
                 "env": {
                     "PYTHONUNBUFFERED": "1",
-                    "USE_TESTS_INTEGRATION_ENV": "true",
                     "USE_LOCAL_ENV": "true",
                     "DJANGO_LOG_FORMAT": "verbose"
                 },

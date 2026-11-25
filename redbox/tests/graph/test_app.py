@@ -16,8 +16,8 @@ from langchain_core.runnables.graph import MermaidDrawMethod
 from langchain_core.tools import tool
 from pytest_mock import MockerFixture
 
-from redbox import Redbox
-from redbox.graph.nodes.processes import create_or_update_db_from_tabulars, check_if_task_requires_user_feedback
+from redbox.app import Redbox
+from redbox.graph.nodes.processes import check_if_task_requires_user_feedback, create_or_update_db_from_tabulars
 from redbox.models.chain import (
     AISettings,
     DocumentState,
@@ -25,9 +25,9 @@ from redbox.models.chain import (
     RedboxState,
     RequestMetadata,
     StructuredResponseWithCitations,
+    TaskStatus,
     configure_agent_task_plan,
     metadata_reducer,
-    TaskStatus,
 )
 from redbox.models.chat import ChatRoute, ErrorRoute
 from redbox.models.graph import RedboxActivityEvent

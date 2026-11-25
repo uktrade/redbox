@@ -9,9 +9,9 @@ from uuid import UUID
 
 from django.core.files.uploadedfile import InMemoryUploadedFile, UploadedFile
 
+from redbox.loader.ingester import ingest_file
 from redbox.models.errors import InactiveFileError
 from redbox.models.settings import get_settings
-from src.loader.ingester import ingest_file
 
 env = get_settings()
 
@@ -160,8 +160,15 @@ def ingest(file_id: UUID, es_index: str | None = None) -> None:
 
     if not es_index:
         es_index = env.elastic_chunk_alias
-
+    logger.info("Loading file with id %s", file_id)
+    logger.info("Existing files: %s", File.objects.values("id", "original_file_name").all().query)
     file = File.objects.get(id=file_id)
+
+    logger.info("Loaded file: %s", file.__dict__)
+
+    file.save()
+
+    logger.info("Saved file: %s", file.__dict__)
 
     # handling doc -> docx conversion
     if is_doc_file(file):

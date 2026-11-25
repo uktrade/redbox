@@ -8,9 +8,9 @@ import environ
 import fitz
 import pandas as pd
 from pydantic import ValidationError
-from redbox_app.setting_enums import Environment
 
 from redbox.models.file import TabularSchema
+from redbox.models.setting_enums import Environment
 from redbox.transform import bedrock_tokeniser
 
 env = environ.Env()

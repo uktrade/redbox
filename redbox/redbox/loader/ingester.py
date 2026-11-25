@@ -7,12 +7,12 @@ from langchain_community.vectorstores import OpenSearchVectorSearch
 from langchain_core.embeddings import FakeEmbeddings
 from langchain_core.runnables import RunnableParallel
 from pydantic import BaseModel
-from redbox_app.redbox_core.enums import IngestChunkingStrategy, IngestExtractionStrategy
 
 from redbox.chains.components import get_embeddings
 from redbox.chains.ingest import DocumentChunkingService, ingest_chunks, ingest_tabular_chunks
 from redbox.loader.extraction.metadata import MetadataExtraction
 from redbox.loader.extraction.service import DocumentExtractionService, IngestionAlreadyInProgress
+from redbox.models.enums import IngestChunkingStrategy, IngestExtractionStrategy
 from redbox.models.file import ChunkResolution
 from redbox.models.settings import get_settings
 
