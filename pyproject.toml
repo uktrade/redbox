@@ -19,6 +19,7 @@ python = ">=3.12,<3.13"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.15.9"
+pre-commit = "^4.7.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -76,11 +77,11 @@ select = [
     "UP",
     "YTT",
 ]
-exclude = ["django_app/redbox_app/redbox_core/migrations/*.py", "out/*"]
+exclude = ["django_app/redbox_app/redbox_core/migrations/*.py", "out/*", "worker/*"]
 ignore = ["COM812", "DJ001", "RET505", "RET508", "PLR0913", "ISC001"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["redbox_app", "redbox", "core_api"]
+known-first-party = ["redbox_app", "redbox", "core_api", "src", "worker"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101", "S106", "PLR0913", "PLR0915", "PLR2004", "TD003", "S311"]
@@ -92,7 +93,8 @@ known-first-party = ["redbox_app", "redbox", "core_api"]
     "PLR2004",
     "TD003",
 ]
-"worker/*" = ["B008"]
+"worker/*" = ["TCH003","B008"]
+"worker/tests/*" = ["ARG001","SLF001", "PT019", "PT011"]
 "redbox/*" = ["TCH003"]
 "redbox/tests/*" = ["ARG001"]
 "*/admin.py" = ["RUF012"]

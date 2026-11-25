@@ -65,7 +65,6 @@ services:
     build:
       context: .
       dockerfile: worker/Dockerfile
-    command: "venv/bin/django-admin qcluster"
     env_file:
       - path: .env
         required: false

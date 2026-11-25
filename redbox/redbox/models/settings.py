@@ -174,7 +174,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_nested_delimiter="__", extra="allow", frozen=True)
 
-    enable_metadata_extraction: bool = os.environ.get("ENABLE_METADATA_EXTRACTION")
+    enable_metadata_extraction: bool = os.environ.get("ENABLE_METADATA_EXTRACTION", default=True)
 
     datahub_redbox_url: str = os.environ.get("DATAHUB_REDBOX_URL", "")
     datahub_redbox_secret_key: str = os.environ.get("DATAHUB_REDBOX_SECRET_KEY", "")
