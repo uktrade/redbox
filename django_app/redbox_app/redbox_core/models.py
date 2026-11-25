@@ -8,12 +8,11 @@ import uuid
 from collections.abc import Collection
 from datetime import UTC, date, datetime, timedelta
 from functools import reduce
-from pathlib import Path
 from typing import TYPE_CHECKING, override
 
 from asgiref.sync import sync_to_async
 
-from redbox.models.errors import InactiveFileError
+from redbox.models.shared import FileBase, UUIDPrimaryKeyBase, build_s3_key  # noqa: F401
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Sequence
@@ -21,8 +20,6 @@ if TYPE_CHECKING:
 import jwt
 from django.conf import settings
 from django.contrib.auth.base_user import BaseUserManager as BaseSSOUserManager
-
-# from django_use_email_as_username.models import BaseUser, BaseUserManager
 from django.contrib.auth.models import AbstractBaseUser, Group, PermissionsMixin
 from django.contrib.postgres.fields import ArrayField
 from django.core import validators
@@ -37,7 +34,6 @@ from django.utils.translation import gettext_lazy as _
 from slugify import slugify
 from yarl import URL
 
-from redbox.enums import IngestChunkingStrategy, IngestExtractionStrategy
 from redbox.models.settings import get_settings
 from redbox_app.redbox_core.services import url as url_service
 from redbox_app.redbox_core.utils import get_date_group, resolve_instance, strip_domain
@@ -48,13 +44,6 @@ logger = logging.getLogger(__name__)
 env = get_settings()
 
 es_client = env.elasticsearch_client()
-
-
-class UUIDPrimaryKeyBase(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-
-    class Meta:
-        abstract = True
 
 
 class TimeStampedModel(models.Model):
@@ -1144,74 +1133,15 @@ class FileTeamMembership(models.Model):
         return f"{self.file.file_name} - {self.team.team_name} ({self.visibility})"
 
 
-def build_s3_key(instance, filename: str) -> str:
-    """the s3-key is the primary key for a file,
-    this needs to be unique so that if a user uploads a file with the same name as
-    1. an existing file that they own, then it is overwritten
-    2. an existing file that another user owns then a new file is created
-
-    note: s3 key is not prefixed with the user's email address if not local as filename is unique
-    """
-    timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S%f")[:-3]
-    path = Path(filename)
-    new_filename = f"{path.stem}_{timestamp}{path.suffix}"
-    return f"{instance.user.email}/{new_filename}"
-
-
-class File(UUIDPrimaryKeyBase, TimeStampedModel):
-    class Status(models.TextChoices):
-        complete = "complete"
-        deleted = "deleted"
-        errored = "errored"
-        processing = "processing"
-
+class File(FileBase, TimeStampedModel):
     class SecurityClassification(models.TextChoices):
         ADMIN = "OFFICIAL", _("Official")
         MEMBER = "OFFICIAL_SENSITIVE", _("Official Sensitive")
         SECRET = "SECRET", _("Secret")  # pragma: allowlist secret
         TOP_SECRET = "TOP_SECRET", _("Top Secret")  # pragma: allowlist secret
 
-    INACTIVE_STATUSES = [Status.deleted, Status.errored]
-
-    status = models.CharField(choices=Status.choices, null=False, blank=False)
-    original_file = models.FileField(
-        storage=settings.STORAGES["default"]["BACKEND"],
-        upload_to=build_s3_key,
-    )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    original_file_name = models.TextField(max_length=2048, blank=True, null=True)
     last_referenced = models.DateTimeField(blank=True, null=True)
-    ingested_at = models.DateTimeField(blank=True, null=True)
-    ingest_error = models.TextField(
-        max_length=2048,
-        blank=True,
-        null=True,
-        help_text="error, if any, encountered during ingest",
-    )
-    ingest_extraction_strategy_normal = models.CharField(
-        max_length=64,
-        choices=IngestExtractionStrategy.choices,
-        default=IngestExtractionStrategy.unspecified,
-        null=True,
-    )
-    ingest_chunking_strategy_normal = models.CharField(
-        max_length=64,
-        choices=IngestChunkingStrategy.choices,
-        default=IngestChunkingStrategy.unspecified,
-        null=True,
-    )
-    ingest_extraction_strategy_largest = models.CharField(
-        max_length=64,
-        choices=IngestExtractionStrategy.choices,
-        default=IngestExtractionStrategy.unspecified,
-        null=True,
-    )
-    ingest_chunking_strategy_largest = models.CharField(
-        max_length=64,
-        choices=IngestChunkingStrategy.choices,
-        default=IngestChunkingStrategy.unspecified,
-        null=True,
-    )
 
     tools = models.ManyToManyField(Tool, through=FileTool, related_name="files", blank=True)
     security_classification = models.CharField(
@@ -1279,13 +1209,6 @@ class File(UUIDPrimaryKeyBase, TimeStampedModel):
             return self.original_file.name.split("/")[-1]
 
         return ""
-
-    @property
-    def unique_name(self) -> str:
-        """primary key for accessing file in s3"""
-        if self.status in File.INACTIVE_STATUSES:
-            raise InactiveFileError(self)
-        return self.original_file.name if self.original_file else ""
 
     def get_status_text(self) -> str:
         permanent_error = "Error"
