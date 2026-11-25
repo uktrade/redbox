@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, override
 
 from asgiref.sync import sync_to_async
 
+from redbox.models.errors import InactiveFileError
+
 if TYPE_CHECKING:
     from collections.abc import Collection, Sequence
 
@@ -1140,11 +1142,6 @@ class FileTeamMembership(models.Model):
 
     def __str__(self):
         return f"{self.file.file_name} - {self.team.team_name} ({self.visibility})"
-
-
-class InactiveFileError(ValueError):
-    def __init__(self, file):
-        super().__init__(f"{file.pk} is inactive, status is {file.status}")
 
 
 def build_s3_key(instance, filename: str) -> str:

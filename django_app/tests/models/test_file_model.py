@@ -3,11 +3,8 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from redbox_app.redbox_core.models import (
-    File,
-    InactiveFileError,
-    User,
-)
+from redbox.models.errors import InactiveFileError
+from redbox_app.redbox_core.models import File, User
 
 
 @pytest.mark.django_db
