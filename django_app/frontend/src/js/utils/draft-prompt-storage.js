@@ -77,7 +77,7 @@ export async function deleteDraft ({ userId, chatKey }) {
   }
 }
 
-export async function deleteDraft ({ userId, chatKey }) {
+export async function deleteAllDrafts ({ userId, chatKey }) {
   try {
     Object.keys(sessionStorage)
       .filter((key) => key.startsWith(DRAFT_PREFIX))

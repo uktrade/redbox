@@ -106,7 +106,7 @@ def get_usable_sso_token(session) -> str | None:
     # In other environments, reject tokens without expiry
     if type(expires_at) not in (int, float):
         if settings.ENVIRONMENT.is_local:
-            logger.warning("SSO token has no expiry timestamp. Allowing this in local development.")
+            logger.debug("SSO token has no expiry timestamp. Allowing this in local development.")
             return access_token
         return None
 

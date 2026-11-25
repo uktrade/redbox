@@ -317,10 +317,6 @@ export class ChatController extends HTMLElement {
                 return;
             }
 
-            if (this.dataset.status === STATUS.ERROR) {
-                this.dataset.status = STATUS.COMPLETE;
-            }
-
             this.getMessage(this.currentStream.messageId)?.setComplete();
             emitEvent(Events.CHAT_RESPONSE_END, {
                 title: this.currentStream.title,
@@ -334,17 +330,6 @@ export class ChatController extends HTMLElement {
         webSocket.onerror = () => {
             console.error("Websocket connection error")
         }
-
-        webSocket.onerror = () => {
-            this.dataset.status = STATUS.ERROR;
-            const error_message = "There was a problem. Please try sending this message again."
-
-            if (!this.currentStream) return console.error(error_message);
-
-            const message = this.getMessage(this.currentStream.messageId);
-            message?.showError(error_message);
-            this.currentStream = null;
-        };
     };
 
 
@@ -425,6 +410,8 @@ export class ChatController extends HTMLElement {
      * Handle auth expiry events
      */
     async handleAuthExpired () {
+        if (this.authRedirecting) return;
+
         if (!this.reauthenticateUrl) {
             this.lastMessage?.showError(
                 "Your session has expired. Please sign in again."
@@ -438,7 +425,6 @@ export class ChatController extends HTMLElement {
             this.reauthenticateUrl,
             window.location.origin
         );
-
         const chatId = this.dataset.sessionId;
         let nextPath = window.location.pathname;
 
@@ -455,15 +441,18 @@ export class ChatController extends HTMLElement {
             nextPath + window.location.search
         )
 
-        window.location.assign(url.toString());
-
-        const messageText = this.messageInput?.getValue(false);
-        if (messageText?.trim()) {
-            const saved = await saveDraft({
-                ...this.getDraftContext(),
-                text: messageText
-            });
+        try {
+            const messageText = this.messageInput?.getValue(false);
+            if (messageText?.trim()) {
+                const saved = await saveDraft({
+                    ...this.getDraftContext(),
+                    text: messageText
+                });
+            }
+        } finally {
+            window.location.assign(url.toString());
         }
+
     }
 }
 customElements.define("chat-controller", ChatController);
