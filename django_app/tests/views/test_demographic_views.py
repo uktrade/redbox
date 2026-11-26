@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_check_demographics_redirect_if_unpopulated(client: Client, alice: User):
     # Given
     client.force_login(alice)
@@ -23,6 +24,7 @@ def test_check_demographics_redirect_if_unpopulated(client: Client, alice: User)
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_check_demographics_redirect_if_populated(client: Client, user_with_demographic_data: User):
     # Given
     client.force_login(user_with_demographic_data)

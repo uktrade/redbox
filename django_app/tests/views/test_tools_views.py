@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_user_can_see_tools(alice: User, client: Client, default_tool: Tool):
     # Given
     client.force_login(alice)
@@ -35,6 +36,7 @@ def test_user_can_see_tools(alice: User, client: Client, default_tool: Tool):
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_user_can_see_active_tool(alice: User, client: Client, default_tool: Tool):
     # Given
     client.force_login(alice)
@@ -49,6 +51,7 @@ def test_user_can_see_active_tool(alice: User, client: Client, default_tool: Too
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_displays_default_canned_prompt(alice: User, client: Client, default_tool: Tool):
     # Given
     client.force_login(alice)
@@ -62,6 +65,7 @@ def test_displays_default_canned_prompt(alice: User, client: Client, default_too
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 @pytest.mark.parametrize(
     "tool_name",
     [
@@ -84,6 +88,7 @@ def test_displays_tool_canned_prompt(alice: User, client: Client, tool_name: str
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_tool_info_page_exists(alice: User, client: Client, default_tool: Tool):
     # Given
     client.force_login(alice)
@@ -105,6 +110,7 @@ def test_tool_info_page_exists(alice: User, client: Client, default_tool: Tool):
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_tool_info_page_not_found(alice: User, client: Client, default_tool: Tool):
     # Given
     client.force_login(alice)
@@ -117,6 +123,7 @@ def test_tool_info_page_not_found(alice: User, client: Client, default_tool: Too
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_user_can_see_tool_chats(alice: User, client: Client, default_tool: Tool, chat: Chat):
     # Given
     client.force_login(alice)
@@ -136,6 +143,7 @@ def test_user_can_see_tool_chats(alice: User, client: Client, default_tool: Tool
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_user_cannot_see_other_user_tool_chats(bob: User, client: Client, default_tool: Tool, chat_with_alice: Chat):
     # Given
     chat_with_alice.tool = default_tool
@@ -151,6 +159,7 @@ def test_user_cannot_see_other_user_tool_chats(bob: User, client: Client, defaul
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_deselect_document_on_load_tool_setting(alice: User, client: Client, default_tool: Tool, chat_with_files: Chat):
     # Given
     client.force_login(alice)

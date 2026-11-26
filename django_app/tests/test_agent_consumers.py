@@ -1,11 +1,11 @@
+import json
 import logging
 import os
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from channels.testing import WebsocketCommunicator
 from langchain_core.documents import Document
-from tests.consumers_helpers import CannedGraphLLM, Token
+from tests.consumers_helpers import CannedGraphLLM, Token, connect_authenticated_chat
 
 from redbox.models.graph import FINAL_RESPONSE_TAG, ROUTE_NAME_TAG
 from redbox_app.redbox_core.consumers import ChatConsumer
@@ -43,14 +43,26 @@ def _source_event(file: File) -> dict:
 async def _send_and_collect(alice, agents_list, mocked_graph, message: str, n_responses: int) -> list[dict]:
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = alice
-        connected, _ = await communicator.connect()
-        assert connected
+        communicator = await connect_authenticated_chat(alice)
 
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_graph):
             await communicator.send_json_to({"message": message})
-            responses = [await communicator.receive_json_from(timeout=15) for _ in range(n_responses)]
+
+            responses = []
+
+            for i in range(n_responses):
+                event = await communicator.receive_output(timeout=15)
+
+                if event["type"] == "websocket.close":
+                    pytest.fail(
+                        f"Websocket closed after {i} of {n_responses} responses. "
+                        f"Close event: {event}. "
+                        f"Received message types: {[r['type'] for r in responses]}"
+                    )
+
+                assert event["type"] == "websocket.send", event
+                responses.append(json.loads(event["text"]))
+
             await communicator.disconnect()
 
     return responses
@@ -218,10 +230,7 @@ async def test_datahub_agent_returns_non_empty_response(agents_list, alice):
 
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = alice
-        connected, _ = await communicator.connect()
-        assert connected
+        communicator = await connect_authenticated_chat(alice)
 
         if ChatConsumer.redbox:
             ChatConsumer.redbox.init_datahub_agent = AsyncMock()

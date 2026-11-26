@@ -18,6 +18,7 @@ User = get_user_model()
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 @override_flag("enable_chats_redesign", active=True)
 def test_sidebar_renders_five_most_recent_chats(
     user_with_chats_with_messages_over_time: User, make_chat_with_message_at_specific_time: Callable, client: Client
@@ -49,6 +50,7 @@ def test_sidebar_renders_five_most_recent_chats(
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 @override_flag("enable_chats_redesign", active=True)
 def test_active_chat_is_marked_selected(user_with_chats_with_messages_over_time: User, client: Client):
     # Given

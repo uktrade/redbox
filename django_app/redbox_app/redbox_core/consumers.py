@@ -193,7 +193,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """Receive & respond to message from browser websocket."""
         # if user is unauthenticated, close connection
         user = getattr(self, "user", None) or self.scope.get("user")
-        if not user or not user.is_authenticated or not get_usable_sso_token(self.scope["session"]):
+        if not user or not user.is_authenticated or not get_usable_sso_token(self.scope.get("session")):
             if not getattr(self, "_auth_expired_notified", False):
                 self._auth_expired_notified = True
                 await self.send_to_client("auth_expired", error_messages.AUTH_EXPIRED)
@@ -409,7 +409,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def _extract_sso_token(self) -> str | None:
         logger.info("ChatConsumer._extract_sso_token - extracting sso token...")
-        token = get_usable_sso_token(self.scope["session"])
+        token = get_usable_sso_token(self.scope.get("session"))
 
         if token is None:
             logger.warning("ChatConsumer._extract_sso_token - auth expired")

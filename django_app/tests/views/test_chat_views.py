@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_user_can_start_a_new_chat(alice: User, client: Client):
     # Given
     client.force_login(alice)
@@ -35,6 +36,7 @@ def test_user_can_start_a_new_chat(alice: User, client: Client):
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_user_can_see_their_own_chats(chat_with_message: Chat, alice: User, client: Client):
     # Given
     client.force_login(alice)
@@ -48,6 +50,7 @@ def test_user_can_see_their_own_chats(chat_with_message: Chat, alice: User, clie
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_user_cannot_see_other_users_chats(chat: Chat, bob: User, client: Client):
     # Given
     client.force_login(bob)
@@ -61,6 +64,7 @@ def test_user_cannot_see_other_users_chats(chat: Chat, bob: User, client: Client
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_view_session_with_documents(chat_message: ChatMessage, client: Client):
     # Given
     client.force_login(chat_message.chat.user)
@@ -75,6 +79,7 @@ def test_view_session_with_documents(chat_message: ChatMessage, client: Client):
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_chat_grouped_by_age(user_with_chats_with_messages_over_time: User, client: Client):
     # Given
     client.force_login(user_with_chats_with_messages_over_time)
@@ -87,6 +92,7 @@ def test_chat_grouped_by_age(user_with_chats_with_messages_over_time: User, clie
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_nonexistent_chats(alice: User, client: Client):
     # Given
     client.force_login(alice)
@@ -101,6 +107,7 @@ def test_nonexistent_chats(alice: User, client: Client):
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_new_chat_prepopulates_query_from_url(alice: User, client: Client):
     # Given
     client.force_login(alice)
@@ -117,6 +124,7 @@ def test_new_chat_prepopulates_query_from_url(alice: User, client: Client):
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_new_chat_without_query_param_has_empty_input(alice: User, client: Client):
     # Given
     client.force_login(alice)
@@ -133,6 +141,7 @@ def test_new_chat_without_query_param_has_empty_input(alice: User, client: Clien
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_prepopulated_query_is_escaped(alice: User, client: Client):
     # Given
     client.force_login(alice)
@@ -150,6 +159,7 @@ def test_prepopulated_query_is_escaped(alice: User, client: Client):
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_existing_chat_ignores_query_param(chat_with_message: Chat, client: Client):
     # Given
     client.force_login(chat_with_message.user)
@@ -217,6 +227,7 @@ def test_post_chat_title_cannot_rename_another_users_chat(client: Client, bob: U
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("valid_sso_session")
 def test_staff_user_can_see_route(chat_with_files: Chat, client: Client):
     # Given
     chat_with_files.user.is_staff = True

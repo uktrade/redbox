@@ -17,6 +17,7 @@ from django.utils import timezone
 from freezegun import freeze_time
 from moto import mock_aws
 
+from redbox_app.redbox_core.consumers import ChatConsumer
 from redbox_app.redbox_core.models import (
     Agent,
     AISettings,
@@ -41,6 +42,14 @@ logger = logging.getLogger(__name__)
 DEFAULT_AISETTINGS_ID = UUID("00000000-0000-0000-0000-000000000000")
 
 env = environ.Env()
+
+
+@pytest.fixture(autouse=True)
+def isolate_chat_consumer_redbox():
+    """Prevent mocked Redbox instance leaking between tests."""
+    ChatConsumer.redbox = None
+    yield
+    ChatConsumer.redbox = None
 
 
 @pytest.fixture(autouse=True)
@@ -69,6 +78,17 @@ def s3_client():
 @pytest.fixture
 def api_key():
     return settings.REDBOX_API_KEY
+
+
+@pytest.fixture
+def valid_sso_session(client):
+    """Provide a valid SSO session."""
+    session = client.session
+    session["_authbroker_token"] = {
+        "access_token": "test-sso-token",
+        "expires_at": timezone.now().timestamp() + 3600,
+    }
+    session.save()
 
 
 @pytest.fixture(autouse=True, scope="session")

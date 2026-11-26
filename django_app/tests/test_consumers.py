@@ -17,7 +17,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import Model
 from django.utils import timezone
 from langchain_core.documents import Document
-from tests.consumers_helpers import CannedGraphLLM, Token
+from tests.consumers_helpers import CannedGraphLLM, Token, connect_authenticated_chat
 from websockets.asyncio.client import ClientConnection
 
 from redbox.models.chain import AISettings as PydanticAISettings
@@ -167,11 +167,8 @@ async def test_chat_consumer_with_new_session(
     # When
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
+        communicator = await connect_authenticated_chat(alice)
 
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = alice
-        connected, _ = await communicator.connect(timeout=5)
-        assert connected
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
             await assert_mocked_connect_response(communicator=communicator, message=message)
 
@@ -189,11 +186,8 @@ async def test_chat_consumer_staff_user(agents_list: list, staff_user: User, moc
     # When
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
+        communicator = await connect_authenticated_chat(staff_user)
 
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = staff_user
-        connected, _ = await communicator.connect()
-        assert connected
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
             await assert_mocked_connect_response(communicator=communicator)
 
@@ -210,10 +204,8 @@ async def test_chat_consumer_with_existing_session(
     # When
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = alice
-        connected, _ = await communicator.connect()
-        assert connected
+        communicator = await connect_authenticated_chat(alice)
+
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
             await communicator.send_json_to({"message": "Hello Hal.", "sessionId": str(chat.id)})
             _response1 = await communicator.receive_json_from(timeout=5)
@@ -244,10 +236,7 @@ async def test_chat_consumer_replaces_null_byte_in_question(
     # When
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = alice
-        connected, _ = await communicator.connect()
-        assert connected
+        communicator = await connect_authenticated_chat(alice)
 
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect):
             await assert_mocked_connect_response(communicator=communicator, message=f"{message} \x00")
@@ -272,10 +261,7 @@ async def test_chat_consumer_handles_response_without_citations(
     # When
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = alice
-        connected, _ = await communicator.connect()
-        assert connected
+        communicator = await connect_authenticated_chat(alice)
 
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_without_citations):
             await assert_mocked_connect_response(communicator=communicator, message=message)
@@ -358,7 +344,7 @@ async def test_chat_consumer_anonymous_user_error_message():
 
     # Then
     response = await communicator.receive_json_from(timeout=5)
-    assert response["type"] == "error"
+    assert response["type"] == "auth_expired"
     assert response["data"] == error_messages.AUTH_REQUIRED
 
     # Close
@@ -376,10 +362,7 @@ async def test_chat_consumer_agentic(
     # When
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = alice
-        connected, _ = await communicator.connect()
-        assert connected
+        communicator = await connect_authenticated_chat(alice)
 
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_agentic_search):
             # Then
@@ -477,10 +460,7 @@ async def test_chat_consumer_with_selected_files(
     # When
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = alice
-        connected, _ = await communicator.connect()
-        assert connected
+        communicator = await connect_authenticated_chat(alice)
 
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_with_several_files):
             selected_file_core_uuids: Sequence[str] = [f.unique_name for f in selected_files]
@@ -539,10 +519,7 @@ async def test_chat_consumer_with_connection_error(
     # When
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = alice
-        connected, _ = await communicator.connect()
-        assert connected
+        communicator = await connect_authenticated_chat(alice)
 
         with patch("redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_breaking_connect):
             await communicator.send_json_to({"message": "Hello Hal."})
@@ -565,10 +542,8 @@ async def test_chat_consumer_with_explicit_unhandled_error(
     # When
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = alice
-        connected, _ = await communicator.connect()
-        assert connected
+        communicator = await connect_authenticated_chat(alice)
+
         with patch(
             "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph",
             new=mocked_connect_with_explicit_unhandled_error,
@@ -602,10 +577,7 @@ async def test_chat_consumer_with_rate_limited_error(
     # When
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = alice
-        connected, _ = await communicator.connect()
-        assert connected
+        communicator = await connect_authenticated_chat(alice)
 
         with patch(
             "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph", new=mocked_connect_with_rate_limited_error
@@ -639,10 +611,7 @@ async def test_chat_consumer_with_explicit_no_document_selected_error(
     # When
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = alice
-        connected, _ = await communicator.connect()
-        assert connected
+        communicator = await connect_authenticated_chat(alice)
 
         with patch(
             "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph",
@@ -682,24 +651,16 @@ async def test_chat_consumer_get_ai_settings(
 async def test_chat_consumer_with_american_to_british_conversion(
     agents_list: list, alice: User, mocked_connect_with_american_to_british_conversion: ClientConnection
 ):
-    # # Reset cache before test
-    # ChatConsumer.cached_agents = None
-
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = alice
-        connected, _ = await communicator.connect()
-        assert connected
+        communicator = await connect_authenticated_chat(alice)
+
         with patch(
             "redbox_app.redbox_core.consumers.ChatConsumer.redbox.graph",
             new=mocked_connect_with_american_to_british_conversion,
         ):
             mock_get.return_value = agents_list
-            communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-            communicator.scope["user"] = alice
-            connected, _ = await communicator.connect()
-            assert connected
+            communicator = await connect_authenticated_chat(alice)
             await communicator.send_json_to({"message": "Hello Hal."})
             _response1 = await communicator.receive_json_from(timeout=5)
             _response2 = await communicator.receive_json_from(timeout=5)
@@ -735,10 +696,7 @@ async def test_chat_consumer_redbox_state(
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
         ai_settings = await ChatConsumer.get_ai_settings(chat_with_files)
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = alice
-        connected, _ = await communicator.connect()
-        assert connected
+        communicator = await connect_authenticated_chat(alice)
 
         selected_file_uuids: Sequence[str] = [str(f.id) for f in selected_files]
         selected_file_keys: Sequence[str] = [f.unique_name for f in selected_files]
@@ -1037,23 +995,19 @@ async def test_connect_with_agents_cache(
     alice: User,
     staff_user: User,
 ):
-    ChatConsumer.redbox = None
     with (
+        patch.object(ChatConsumer, "redbox", None),
         patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get,
         patch("redbox_app.redbox_core.consumers.Redbox"),
     ):
         mock_get.return_value = agents_list
 
         # First connection - should call get_all_agents
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = alice
-        await communicator.connect()
+        communicator = await connect_authenticated_chat(alice)
         assert mock_get.call_count == 1
 
         # Second connection - should use cache
-        comm2 = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        comm2.scope["user"] = staff_user
-        await comm2.connect()
+        comm2 = await connect_authenticated_chat(staff_user)
         assert mock_get.call_count == 1  # Still 1, not 2!
 
         await communicator.disconnect()
@@ -1071,9 +1025,7 @@ async def test_connect_with_agents_update_via_db(agents_list: list, alice: User)
     ChatConsumer.redbox = None
     with patch("redbox_app.redbox_core.consumers.get_all_agents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = agents_list
-        communicator = WebsocketCommunicator(ChatConsumer.as_asgi(), "/ws/chat/")
-        communicator.scope["user"] = alice
-        await communicator.connect(timeout=5)
+        await connect_authenticated_chat(alice)
         assert mock_get.call_count == 1
 
         assert "Fake_Agent" not in list(ChatConsumer.redbox.agent_configs.keys())
@@ -1083,7 +1035,7 @@ async def test_connect_with_agents_update_via_db(agents_list: list, alice: User)
 
 @pytest.mark.parametrize(
     "mock_token, expired, expected_result",  # noqa: PT006
-    [("mock_token1", None, "mock_token1"), ("mock_token2", True, None), ("mock_token3", False, "mock_token3")],
+    [("mock_token1", None, None), ("mock_token2", True, None), ("mock_token3", False, "mock_token3")],
 )
 @pytest.mark.asyncio
 async def test_extract_sso_token_success(mock_token, expired, expected_result):
@@ -1112,9 +1064,13 @@ async def test_extract_sso_token_success(mock_token, expired, expected_result):
 async def test_extract_sso_token_missing_session():
     """Test that it returns None if 'session' is missing from scope."""
     consumer = ChatConsumer()
-    consumer.scope = {}  # Empty scope
+    consumer.scope = {}
+    consumer.send_to_client = AsyncMock()
+
     token = await consumer._extract_sso_token()  # noqa: SLF001
+
     assert token is None
+    consumer.send_to_client.assert_awaited_once_with("auth_expired", error_messages.AUTH_EXPIRED)
 
 
 @pytest.mark.asyncio
@@ -1122,8 +1078,11 @@ async def test_extract_sso_token_type_error():
     """Test that it returns None if session is None (triggers TypeError)."""
     consumer = ChatConsumer()
     consumer.scope = {"session": None}
+    consumer.send_to_client = AsyncMock()
+
     token = await consumer._extract_sso_token()  # noqa: SLF001
     assert token is None
+    consumer.send_to_client.assert_awaited_once_with("auth_expired", error_messages.AUTH_EXPIRED)
 
 
 @pytest.mark.asyncio
@@ -1131,8 +1090,12 @@ async def test_extract_sso_token_missing_key():
     """Test that it returns None if the expected SSO keys are missing."""
     consumer = ChatConsumer()
     consumer.scope = {"session": {"other_key": "no_token_here"}}
+    consumer.send_to_client = AsyncMock()
+
     token = await consumer._extract_sso_token()  # noqa: SLF001
+
     assert token is None
+    consumer.send_to_client.assert_awaited_once_with("auth_expired", error_messages.AUTH_EXPIRED)
 
 
 @pytest.mark.asyncio
@@ -1160,10 +1123,11 @@ async def test_connect_updates_sso_token_and_rebuilds_graph_if_redbox_exists(moc
 
     mocker.patch.object(consumers_module, "get_all_agents", new_callable=AsyncMock)
     consumer.accept = AsyncMock()
-
+    consumer.send_to_client = AsyncMock()
     await consumer.connect()
 
     consumer.accept.assert_called_once()
+    consumer.send_to_client.assert_awaited_once_with("chat_ready")
     ChatConsumer.redbox = None
 
 
@@ -1189,11 +1153,13 @@ async def test_expired_sso_token_forces_logout():
     consumer.scope = scope
     consumer.accept = AsyncMock()
     consumer.send_to_client = AsyncMock()
+    consumer.close = AsyncMock()
 
     await consumer.connect()
 
     consumer.accept.assert_called()
     consumer.send_to_client.assert_awaited_once_with("auth_expired", error_messages.AUTH_EXPIRED)
+    consumer.close.assert_awaited_once()
     ChatConsumer.redbox = None
 
 
@@ -1222,7 +1188,12 @@ async def test_llm_conversation_updates_sso_token():
 
     consumer = ChatConsumer()
 
-    consumer.scope = {"user": mock_user, "session": {"_authbroker_token": {"access_token": "test-sso-token-456"}}}
+    consumer.scope = {
+        "user": mock_user,
+        "session": {
+            "_authbroker_token": {"access_token": "test-sso-token-456", "expires_at": timezone.now().timestamp() + 3600}
+        },
+    }
 
     consumer.redbox = AsyncMock()
     consumer.send = AsyncMock()
@@ -1255,7 +1226,7 @@ async def test_llm_conversation_updates_sso_token():
         call_kwargs = consumer.redbox.run.call_args.kwargs
         getter = call_kwargs["sso_token_getter"]
 
-        assert getter == consumer._extract_sso_token  # noqa: SLF001
+        assert getter == consumer._require_sso_token  # noqa: SLF001
 
         token = await getter()
         assert token == "test-sso-token-456"  # noqa: S105
@@ -1277,7 +1248,12 @@ async def test_llm_conversation_multiple_users_get_correct_sso_token():
             session.user = user
 
             consumer = ChatConsumer()
-            consumer.scope = {"user": user, "session": {"_authbroker_token": {"access_token": token}}}
+            consumer.scope = {
+                "user": user,
+                "session": {
+                    "_authbroker_token": {"access_token": token, "expires_at": timezone.now().timestamp() + 3600}
+                },
+            }
             consumer.redbox = MagicMock()
             ChatConsumer.redbox = MagicMock()
             ChatConsumer.redbox.init_datahub_agent = AsyncMock()
@@ -1335,8 +1311,8 @@ async def test_llm_conversation_multiple_users_get_correct_sso_token():
         getter_a = consumer_a.redbox.run.call_args.kwargs["sso_token_getter"]
         getter_b = consumer_b.redbox.run.call_args.kwargs["sso_token_getter"]
 
-        assert getter_a == consumer_a._extract_sso_token  # noqa: SLF001
-        assert getter_b == consumer_b._extract_sso_token  # noqa: SLF001
+        assert getter_a == consumer_a._require_sso_token  # noqa: SLF001
+        assert getter_b == consumer_b._require_sso_token  # noqa: SLF001
 
         # The critical assertion — getters must be different callables bound to different consumers
         assert getter_a != getter_b

@@ -93,9 +93,15 @@ def sync_related_emails(sso: UserSSO, related_emails):
     )
 
 
-def get_usable_sso_token(session) -> str | None:
+def get_usable_sso_token(session) -> str | None:  # noqa: PLR0911
     """Return SSO access token if present and sufficiently far from expiry."""
-    token = session.get("_authbroker_token") or {}
+    if not callable(getattr(session, "get", None)):
+        return None
+
+    token = session.get("_authbroker_token")
+    if not callable(getattr(token, "get", None)):
+        return None
+
     access_token = token.get("access_token")
     expires_at = token.get("expires_at")
 
