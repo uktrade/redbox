@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import datetime
 import re
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import ClassVar, Literal, Optional
 from uuid import UUID, uuid4
@@ -94,7 +94,7 @@ class ChunkMetadata(BaseModel):
 
     uuid: UUID = Field(default_factory=uuid4)
     index: int = 0  # The order of this chunk in the original resource
-    created_datetime: datetime.datetime = datetime.datetime.now(datetime.UTC)
+    created_datetime: datetime = datetime.now(UTC)
     chunk_resolution: ChunkResolution = ChunkResolution.normal
     document_schema: Optional[TabularSchema] = None
     creator_type: ChunkCreatorType
